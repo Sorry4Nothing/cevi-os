@@ -7,6 +7,7 @@ coverage/
 # Expo
 .expo/
 expo-env.d.ts
+# Die nativen Ordner erzeugt Expo bei jedem Build neu (Continuous Native Generation)
 apps/mobile/android/
 apps/mobile/ios/
 
@@ -19,10 +20,21 @@ deploy/secrets/
 *.p8
 *.p12
 *.jks
+*.keystore
 *.mobileprovision
+# Lokale Signierdaten von EAS, mit Passwörtern im Klartext
+credentials.json
+# Kommt als Datei-Variable von EAS
+google-services.json
 
-# Listen und Exporte mit Personendaten
+# Listen, Exporte und Datenbank-Dumps mit Personendaten
 *.csv
+*.xls
+*.xlsx
+*.ods
+*.vcf
+*.dump
+*.sql.gz
 
 # System
 .DS_Store
