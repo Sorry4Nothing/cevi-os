@@ -1,0 +1,30 @@
+# Abhängigkeiten und Build
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Expo
+.expo/
+expo-env.d.ts
+apps/mobile/android/
+apps/mobile/ios/
+
+# Umgebung und Geheimnisse
+.env*
+!.env.example
+deploy/secrets/
+*.pem
+*.key
+*.p8
+*.p12
+*.jks
+*.mobileprovision
+
+# Listen und Exporte mit Personendaten
+*.csv
+
+# System
+.DS_Store
+Thumbs.db
+*.log
