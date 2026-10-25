@@ -4,6 +4,8 @@ type Farbe = keyof typeof farben.hell;
 
 // Relative Leuchtdichte nach WCAG 2.2
 function leuchtdichte(hex: string) {
+  // Kurzform oder rgba() läse parseInt still als eine andere Farbe
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`Kein #rrggbb: ${hex}`);
   const kanal = (wert: number) => {
     const c = wert / 255;
     return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
@@ -30,7 +32,12 @@ const paare: [Farbe, Farbe, number, string][] = [
   ["textLeise", "hintergrund", 4.5, "Zweitzeile, Platzhalter, Badge neutral"],
   ["textLeise", "flaeche", 4.5, "dasselbe in einer Karte"],
   ["aufAkzent", "akzent", 4.5, "Button, gewählte Antwort"],
-  ["fehler", "hintergrund", 4.5, "Fehlertext, Fehlerrand, Badge negativ"],
+  [
+    "fehler",
+    "hintergrund",
+    4.5,
+    "Fehlertext, Fehlerrand mit und ohne Fokus, Badge negativ",
+  ],
   ["fehler", "flaeche", 4.5, "dasselbe in einer Karte"],
   ["erfolg", "hintergrund", 4.5, "Badge positiv"],
   ["erfolg", "flaeche", 4.5, "dasselbe in einer Karte"],
@@ -43,6 +50,11 @@ const paare: [Farbe, Farbe, number, string][] = [
 test("die Formel trifft bekannte Werte", () => {
   expect(kontrast("#000000", "#FFFFFF")).toBe(21);
   expect(kontrast("#767676", "#FFFFFF")).toBeCloseTo(4.54, 2);
+});
+
+test("eine Farbe, die nicht #rrggbb ist, lässt die Prüfung scheitern", () => {
+  expect(() => kontrast("#FFF", "#000000")).toThrow("Kein #rrggbb: #FFF");
+  expect(() => kontrast("#000000", "rgba(0, 0, 0, 0.5)")).toThrow("rgba");
 });
 
 test("jedes Farb-Token kommt in einem Paar vor", () => {
