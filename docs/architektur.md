@@ -35,7 +35,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 - Der Kalender der Abteilung bleibt die Quelle der Programme.
 - Die API liest ihn alle 5 Minuten mit einem Service-Account und dem Scope `calendar.events.readonly`.
 - Die ID des Kalenders steht nur in der Datenbank.
-- Nur lesen kann der Service-Account, weil der Kalender für ihn nur mit der Freigabe «Alle Termindetails sehen» geteilt ist. Der Scope schützt nicht davor: Wer den Schlüssel hat, wählt den Scope selbst (Bedrohung 13 im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md)).
+- Nur lesen kann der Service-Account, weil der Kalender für ihn nur mit der Freigabe «Alle Termindetails sehen» geteilt ist. Der Scope allein verhindert das Schreiben nicht: Wer den Schlüssel hat, wählt den Scope selbst (Bedrohung 13 im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md)).
 
 ### Push über Expo
 
@@ -59,4 +59,4 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | API               | Expo Push Service                   | HTTPS, expo-server-sdk             | Pushes senden                                                                                                 |
 | Expo Push Service | Gerät                               | über APNs (Apple) und FCM (Google) | Pushes zustellen                                                                                              |
 
-Wovor diese Teile schützen und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).
+Wie Cevi OS die Daten schützt und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).
