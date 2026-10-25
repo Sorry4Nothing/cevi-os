@@ -22,16 +22,22 @@ const sql = postgres(
 );
 afterAll(() => sql.end());
 
+// Eine Meldung, die Eingaben wiederholt, kann mehrzeilig sein und wie eine Zeile des Stacks aussehen
+const ECHO = "Max Muster 203.0.113.7\n    at Max Muster 203.0.113.7";
+
 // Testrouten, angehängt wie später die Routen der Issues
 const app = () =>
   erstelleApp({ appMinVersion: "1.2.0", sql })
     .post("/api/v1/test/:token", async (c) => c.json(await c.req.json()))
     .get("/api/v1/kaputt", () => {
-      throw new Error("Max Muster 203.0.113.7");
+      const fehler = new Error(ECHO);
+      // Node bildet den Kopf des Stacks ohne dieses eigene toString
+      fehler.toString = () => "Error";
+      throw fehler;
     })
     .get("/api/v1/uuid", async (c) => {
       // Postgres wiederholt die Eingabe in der Meldung
-      await sql`select ${"Max Muster"}::uuid`;
+      await sql`select ${ECHO}::uuid`;
       return c.text("nie");
     })
     .get("/api/v1/konflikt", () => {
