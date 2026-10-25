@@ -1,20 +1,35 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, Platform } from "react-native";
 
 import { Textfeld } from "../src/ui/Textfeld";
 import { farben } from "../src/ui/tokens";
 
 beforeEach(() => jest.clearAllMocks());
+afterEach(() => jest.restoreAllMocks());
 
-test("die sichtbare Beschriftung ist der Name des Felds und bleibt beim Tippen stehen", async () => {
+test("iOS: die sichtbare Beschriftung ist der Name des Felds und bleibt beim Tippen stehen", async () => {
   await render(<Textfeld label="Benutzername" value="beispiel" />);
 
-  expect(screen.getByLabelText("Benutzername")).toHaveStyle({ minHeight: 48 });
-  // Screenreader hören die Beschriftung am Feld, nicht ein zweites Mal davor
+  const feld = screen.getByLabelText("Benutzername");
+  expect(feld).toHaveStyle({ minHeight: 48 });
+  expect(feld).toHaveProp("accessibilityLabel", "Benutzername");
+  // VoiceOver hört die Beschriftung am Feld, nicht ein zweites Mal davor
   expect(screen.queryByText("Benutzername")).toBeNull();
   expect(
     screen.getByText("Benutzername", { includeHiddenElements: true }),
   ).toBeOnTheScreen();
+});
+
+test("Android: das Feld verweist auf die sichtbare Beschriftung, ohne eigenen Namen", async () => {
+  jest.replaceProperty(Platform, "OS", "android");
+  await render(<Textfeld label="Benutzername" value="beispiel" />);
+
+  const beschriftung = screen.getByText("Benutzername");
+  const feld = screen.getByLabelText("Benutzername");
+  expect(beschriftung).toHaveProp("nativeID", expect.any(String));
+  expect(feld).toHaveProp("aria-labelledby", beschriftung.props.nativeID);
+  // Ein Name würde zur contentDescription des Eingabefelds (Checkliste 4.1)
+  expect(feld.props.accessibilityLabel).toBeUndefined();
 });
 
 test("reicht autoComplete und textContentType weiter", async () => {

@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -28,16 +29,24 @@ export function Textfeld({
 }: Props) {
   const farben = useFarben();
   const [fokus, setFokus] = useState(false);
+  const beschriftungId = useId();
+  const ios = Platform.OS === "ios";
 
   return (
     <View style={styles.feld}>
-      {/* Screenreader hören die Beschriftung am Feld selbst, nicht zweimal */}
-      <Text aria-hidden style={[styles.text, { color: farben.text }]}>
+      {/* iOS: VoiceOver hört die Beschriftung am Feld selbst, nicht zweimal */}
+      <Text
+        nativeID={beschriftungId}
+        aria-hidden={ios}
+        style={[styles.text, { color: farben.text }]}
+      >
         {label}
       </Text>
       <TextInput
         {...eingabe}
-        accessibilityLabel={label}
+        // Android: Ein Name würde zur contentDescription, die Accessibility Scanner bei Eingabefeldern als Fehler meldet (Checkliste 4.1)
+        accessibilityLabel={ios ? label : undefined}
+        aria-labelledby={ios ? undefined : beschriftungId}
         accessibilityHint={fehler}
         accessibilityState={{ disabled: eingabe.editable === false }}
         onFocus={(event) => {
