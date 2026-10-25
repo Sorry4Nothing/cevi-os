@@ -159,7 +159,7 @@ async function adminMitTotp() {
 }
 
 describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () => {
-  // Jeder Pfad, den better-auth mit diesen Plugins kennt, mit GET und POST; so fällt auch ein Pfad aus einem Update auf
+  // Jeder Pfad, den better-auth mit diesen Plugins kennt, mit GET und POST; so prüft der Test auch Pfade, die ein Update dazubringt
   const pfade = new Set(
     Object.values(erstelleAuth(memoryAdapter({})).api).flatMap((e) =>
       e.path ? [e.path] : [],
