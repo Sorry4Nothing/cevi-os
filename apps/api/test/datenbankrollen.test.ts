@@ -1,12 +1,9 @@
 import postgres from "postgres";
 import { afterAll, expect, test } from "vitest";
+import { API_URL } from "./hilfen/datenbank.js";
 import { scheitert, zurueckgerollt } from "./transaktion.js";
 
-// Immer als API-Rolle, auch wenn DATABASE_URL den Superuser nennt: Ihm gelingt jede Rechteprüfung
-const sql = postgres(
-  process.env.DATABASE_URL ?? "postgres://cevi_os_api@localhost:5432/cevi_os",
-  { username: "cevi_os_api" },
-);
+const sql = postgres(API_URL);
 afterAll(() => sql.end());
 
 test("die API-Rolle ergänzt und liest audit_log, kann Einträge aber weder ändern noch löschen", async () => {

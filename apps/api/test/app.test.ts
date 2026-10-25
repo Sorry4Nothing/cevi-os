@@ -13,13 +13,12 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
+import { API_URL } from "./hilfen/datenbank.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const NICHT_GEFUNDEN = { code: "NICHT_GEFUNDEN", message: "Nicht gefunden" };
 
-const sql = postgres(
-  process.env.DATABASE_URL ?? "postgres://postgres@localhost:5432/cevi_os",
-);
+const sql = postgres(API_URL);
 afterAll(() => sql.end());
 
 // Erfundener Name in spitzen Klammern: Windows verbietet sie in Pfaden, Datei-URLs kodieren sie; so trifft die Suche nicht den Pfad zum Checkout in den Zeilen des Stacks
