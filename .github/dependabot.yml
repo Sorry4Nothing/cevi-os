@@ -1,0 +1,45 @@
+version: 2
+updates:
+  # npm-Workspaces: Die Lock-Datei im Wurzelverzeichnis deckt apps/api und apps/mobile ab
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Einzelne Updates brechen die Abstimmung des Expo-SDK; die Pakete hebt das Issue
+      # «Expo-SDK aktualisieren» mit npx expo install --fix und npx expo-doctor
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react"
+      - dependency-name: "react-dom"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "@react-native/*"
+      - dependency-name: "jest-expo"
+      - dependency-name: "babel-preset-expo"
+      - dependency-name: "eslint-config-expo"
+      # eslint-plugin-react und eslint-plugin-import aus eslint-config-expo 58 unterstützen ESLint 10 nicht
+      - dependency-name: "eslint"
+        versions: [">=10.0.0"]
+      - dependency-name: "@eslint/js"
+        versions: [">=10.0.0"]
+      # typescript-eslint unterstützt nur TypeScript unter 6.1
+      - dependency-name: "typescript"
+        versions: [">=6.1.0"]
+
+  # Versionen der Actions in .github/workflows
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]
