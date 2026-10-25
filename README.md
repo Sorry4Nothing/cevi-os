@@ -20,11 +20,12 @@ Voraussetzungen: Node 26 wie in der CI und Docker mit Compose.
 1. Im Wurzelordner des Repos die Pakete installieren: `npm ci`
 2. Die Datenbank starten, PostgreSQL 18, nur von diesem Rechner aus erreichbar: `docker compose up -d db`
 3. `apps/api/.env.example` nach `apps/api/.env` kopieren. Die Vorlage passt schon zur Datenbank aus `docker-compose.yml`.
-4. Die API starten: `npm run dev -w apps/api`. Das Skript startet sie mit tsx im Watch-Modus: Sie liest `apps/api/.env` und startet bei Änderungen am Code neu. Ihren Start meldet sie nicht, danach steht pro Anfrage eine JSON-Zeile im Terminal.
-5. `http://localhost:3000/health` im Browser öffnen. `ok` heisst: API und Datenbank laufen. `fehler` (Status 503) heisst: Die Datenbank ist nicht erreichbar. Der Port kommt aus `PORT` in `apps/api/.env`, in der Vorlage 3000.
-6. Falls noch kein Dev-Build der App installiert ist, in `apps/mobile` bei Expo anmelden, mit einem Konto, das Zugriff auf das EAS-Projekt der App hat: `npx eas-cli login`
-7. Falls noch kein Dev-Build der App installiert ist, ihn in `apps/mobile` bei EAS bauen lassen, mit dem Profil `development` aus `apps/mobile/eas.json`: `npx eas-cli build --profile development --platform android`. Auf ein Gerät kommt er über den QR-Code oder den Link, den eas-cli am Ende ausgibt; auf einem Emulator bietet eas-cli die Installation selbst an.
-8. In `apps/mobile` den Entwicklungsserver starten: `npx expo start`. Er bedient von selbst den Dev-Build und nicht Expo Go, weil `expo-dev-client` direkt in `apps/mobile/package.json` steht. Gerät und Rechner müssen im selben Netz sein. Dann den QR-Code aus dem Terminal scannen oder im Dev-Build den Server wählen.
+4. Die Migrationen ausführen: `npm run db:migrieren -w apps/api`. Das Skript legt die Tabellen an und vergibt die Rechte der API, als Besitzer der Tabellen mit `MIGRATION_DATABASE_URL` aus `apps/api/.env`. Bei Erfolg meldet es nichts.
+5. Die API starten: `npm run dev -w apps/api`. Das Skript startet sie mit tsx im Watch-Modus: Sie liest `apps/api/.env` und startet bei Änderungen am Code neu. Ihren Start meldet sie nicht, danach steht pro Anfrage eine JSON-Zeile im Terminal.
+6. `http://localhost:3000/health` im Browser öffnen. `ok` heisst: API und Datenbank laufen. `fehler` (Status 503) heisst: Die Datenbank ist nicht erreichbar. Der Port kommt aus `PORT` in `apps/api/.env`, in der Vorlage 3000.
+7. Falls noch kein Dev-Build der App installiert ist, in `apps/mobile` bei Expo anmelden, mit einem Konto, das Zugriff auf das EAS-Projekt der App hat: `npx eas-cli login`
+8. Falls noch kein Dev-Build der App installiert ist, ihn in `apps/mobile` bei EAS bauen lassen, mit dem Profil `development` aus `apps/mobile/eas.json`: `npx eas-cli build --profile development --platform android`. Auf ein Gerät kommt er über den QR-Code oder den Link, den eas-cli am Ende ausgibt; auf einem Emulator bietet eas-cli die Installation selbst an.
+9. In `apps/mobile` den Entwicklungsserver starten: `npx expo start`. Er bedient von selbst den Dev-Build und nicht Expo Go, weil `expo-dev-client` direkt in `apps/mobile/package.json` steht. Gerät und Rechner müssen im selben Netz sein. Dann den QR-Code aus dem Terminal scannen oder im Dev-Build den Server wählen.
 
 Einen neuen Dev-Build braucht es nur nach einem neuen oder aktualisierten Paket mit nativem Code, nach einer Änderung an `apps/mobile/app.json` oder nach einem Update des Expo-SDK. Auf einem Emulator installiert `npx eas-cli build:run -p android` einen fertigen Build später noch einmal.
 
@@ -39,6 +40,7 @@ Die CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) prüft jeden PR 
 API, wie die Jobs «API und Rechte» und «Abhaengigkeiten (npm audit)»:
 
 ```sh
+npm run db:migrieren -w apps/api
 npm run typecheck -w apps/api
 npm run lint -w apps/api
 npx prettier --check apps/api
@@ -55,7 +57,7 @@ npx prettier --check apps/mobile
 npm test -w apps/mobile
 ```
 
-- Die Tests der API brauchen die Datenbank aus `docker compose up -d db`. Sie lesen `DATABASE_URL` und nehmen ohne die Variable die Datenbank aus `docker-compose.yml`; `apps/api/.env` lesen sie nicht.
+- Die Tests der API brauchen die Datenbank aus `docker compose up -d db` mit allen Migrationen, darum steht `npm run db:migrieren -w apps/api` zuerst. Die Tests lesen `DATABASE_URL` und nehmen ohne die Variable die Datenbank aus `docker-compose.yml`; `apps/api/.env` lesen sie nicht.
 - Der Audit der API macht die CI bei Funden ab `high` rot. Für die App läuft er in der CI nur als Hinweis.
 - `npm run format` formatiert nur `apps/`. Dateien ausserhalb, etwa die Doku, prüft `npx prettier --check <Pfad>`; die CI prüft sie nicht.
 
