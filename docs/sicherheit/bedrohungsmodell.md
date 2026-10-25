@@ -1,0 +1,371 @@
+# Bedrohungsmodell
+
+Dieses Dokument beschreibt, wovor Cevi OS die Daten von Kindern, Eltern und Leitenden schützt. Es nennt 13 Bedrohungen, je mit Massnahmen und dem Test oder Prüfpunkt, der sie belegt, dazu drei bewusste Verzichte mit Begründung und eine kurze Datenschutz-Folgenabschätzung. Es gilt für Version 1, und der Vorstand nimmt es ab.
+
+Die meisten Massnahmen entstehen erst in späteren Issues. Dieses Dokument ist die Liste, an der diese Issues und ihre Tests gemessen werden.
+
+## Aufbau
+
+- Jede Bedrohung hat eine Tabelle mit der Massnahme, dem Test oder Prüfpunkt, dem Issue, das beides baut, und dem Stand.
+- «vorhanden» heisst: Die Massnahme liegt schon im Repository oder ist dort eingestellt. «geplant» heisst: Das genannte Issue baut sie.
+- Nummern mit # sind Issues dieses Repositorys.
+- Wer eine Massnahme baut, ändert oder streicht, passt ihre Zeile im selben PR an.
+- OWASP [MASVS 2.1.0](https://mas.owasp.org/MASVS/) für die App und [ASVS 5.0.0](https://github.com/OWASP/ASVS/tree/v5.0.0) für das Backend dienen als Checkliste, nicht als Zertifizierung. Bei jeder Bedrohung und jedem Verzicht stehen die Kontrollgruppen, die das Sicherheits-Review dafür durchgeht. Das Dokument behauptet nicht, dass Cevi OS die Standards erfüllt.
+
+Diese Prüfungen kommen immer wieder vor:
+
+- **Rechte-Matrix** (#10): Ein tabellengetriebener Test ruft jede Route der API mit jeder Persona auf, also mit Testkonten in jeder Rolle, und erwartet einen bestimmten Status. Er scheitert, wenn eine Route keinen Eintrag hat.
+- **Rollen-Tests**: Tests der Bildschirme über ihre Bedienelemente (`getByRole`).
+- **Sicherheits-Review** (#65): Durchgang vor dem Pilot, mit MASVS und ASVS als Checkliste.
+- **Release-Checkliste** (#72): Abläufe, die vor jedem Store-Release von Hand auf Android und iPhone laufen.
+
+## Rollen und was schützenswert ist
+
+Rollen gelten pro Stufe:
+
+- **Admin**: verwaltet Personen, Kinder, Stufen und Rollen; liest gemeldete und ausgeblendete Nachrichten.
+- **SL** (Stufenleitung): ordnet Programme der eigenen Stufe zu; schreibt im Gruppenchat und in den Einzelchats ihrer Stufe.
+- **Leitende**: sehen die Programme und die Teilnahmeliste ihrer Stufe; ergänzen Programme.
+- **Eltern**: melden ihre Kinder an und ab; schreiben im Gruppenchat und mit der SL der Stufen ihrer Kinder.
+
+Schützenswert sind vor allem die Namen und Stufen der Kinder mit ihren Teilnahmen, Treffpunkte und Zeiten der Programme, die Chats, die Telefonnummern der SL und die Konten mit Admin-Rechten.
+
+## Grundsätze
+
+- Das Backend prüft die Rechte bei jeder Anfrage, nie die App. Verboten ist alles, was nicht ausdrücklich erlaubt ist. Unsichtbares liefert 404, Sichtbares ohne Recht 403.
+- Jede Abfrage ist auf die Abteilung aus der Sitzung eingeschränkt.
+- Neue Termine aus dem Kalender sind intern und keiner Stufe zugeordnet, bis eine SL oder ein Admin das ändert.
+- Die App speichert keine Serverdaten auf dem Gerät. Das Sitzungs-Token liegt nur im geschützten Speicher des Geräts (Secure Store).
+- Die App-Sperre ist ein Komfortschutz auf dem Gerät. Die eigentliche Sicherheit liegt im Backend.
+- Datensparsam: Kinder nur mit Vor- und Nachname und Stufe, Eltern mit Name und Benutzername, Telefon nur freiwillig bei SL. Keine E-Mail, keine Fotos, kein Tracking, keine Analytics.
+- Kinder haben keinen Zugang. Eltern erreichen Leitende nur über den Gruppenchat oder den Einzelchat mit dem ganzen SL-Team.
+- Logs enthalten keine Personendaten. IP-Adressen stehen nur in den Logs von Caddy, dem Webserver vor der API, 14 Tage lang.
+
+## Bedrohungen
+
+### 1. Verlorenes Handy
+
+Ein Handy mit angemeldeter App geht verloren oder wird gestohlen. Wer es findet, will Kinderdaten, Treffpunkte und Chats lesen oder im Namen der Person schreiben.
+
+| Massnahme                                                                                                                                                                                                                                                         | Test oder Prüfpunkt                                                                                                                                                     | Issue         | Stand     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | --------- |
+| App-Sperre mit Face ID oder Fingerabdruck und dem Geräte-Code als Rückfall; sie greift beim Kaltstart und nach 5 Minuten im Hintergrund. Für Leitende, SL und Admins ist sie vorgegeben, und die App zeigt ihnen erst Daten, wenn das Gerät einen Geräte-Code hat | Test der Bedingung «Geräte-Code vorhanden» (`getEnrolledLevelAsync()` mindestens `SECRET`); Sperre und Rückfall auf Android und iPhone geprüft                          | #17           | geplant   |
+| Keine Serverdaten auf dem Gerät, nur im Arbeitsspeicher; das Sitzungs-Token liegt im Secure Store mit `WHEN_UNLOCKED_THIS_DEVICE_ONLY`                                                                                                                            | Test: Nach dem Abmelden sind Secure Store und Arbeitsspeicher leer (#16); der Test der Datenkategorien scheitert bei einem Secure-Store-Schlüssel, der dort fehlt (#63) | #16, #17      | geplant   |
+| Android sichert nichts in Google Drive (`android.allowBackup: false`)                                                                                                                                                                                             | Eintrag in [`apps/mobile/app.json`](../../apps/mobile/app.json); Sicherheits-Review, Abschnitt Gerät (#65)                                                              | #5            | vorhanden |
+| iOS verdeckt die App im App-Umschalter (`enableAppSwitcherProtectionAsync()`)                                                                                                                                                                                     | Sicherheits-Review, Abschnitt Gerät (#65)                                                                                                                               | #17           | geplant   |
+| Sitzungen aus der Ferne beenden: «Überall abmelden» auf einem anderen Gerät, oder ein Admin deaktiviert das Konto oder setzt ein neues Startpasswort. Die Push-Tokens enden mit ihrer Sitzung                                                                     | Test: Nach «Überall abmelden» gilt keine Sitzung mehr (#16); Test: Nach dem Abmelden ist das Push-Token weg (#42)                                                       | #16, #18, #42 | geplant   |
+| Pushes ohne Nachrichtentext und Kindernamen; auf dem gesperrten Bildschirm verbirgt Android ihren Inhalt (`lockscreenVisibility: PRIVATE`)                                                                                                                        | Test des Push-Inhalts (#43)                                                                                                                                             | #42, #43      | geplant   |
+
+**Restrisiko:** Eltern können die App-Sperre abschalten. Dann schützt nur noch der Geräte-Code des Handys, und die Sitzung gilt, bis jemand sie beendet.
+
+**OWASP:** MASVS-STORAGE, MASVS-AUTH; ASVS V7 Session Management.
+
+### 2. Geteiltes Familienhandy
+
+Mehrere Personen einer Familie nutzen dasselbe Handy. Ein Kind oder eine andere Person öffnet die App, liest Chats und Teilnahmen oder schreibt im Namen des Elternteils.
+
+| Massnahme                                                                                                                                              | Test oder Prüfpunkt                                                                                                                             | Issue         | Stand   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- |
+| Keine Serverdaten auf dem Gerät: Die App hält sie nur im Arbeitsspeicher, und Abmelden und 401 leeren ihn                                              | Test: Nach dem Abmelden sind Secure Store und Arbeitsspeicher leer (#16); der Test der Datenkategorien kennt jeden Secure-Store-Schlüssel (#63) | #16, #30      | geplant |
+| App-Sperre: für Eltern vorgeschlagen und abschaltbar, für Leitende, SL und Admins vorgegeben                                                           | Test der Bedingung «Geräte-Code vorhanden»; Sperre auf Android und iPhone geprüft                                                               | #17           | geplant |
+| iOS behält Einträge im Secure Store über eine Deinstallation hinaus; die App löscht sie beim ersten Start nach der Installation                        | Löschen nach Neuinstallation auf Android und iPhone geprüft                                                                                     | #17           | geplant |
+| Pushes ohne Nachrichtentext und Kindernamen, auf Android mit `lockscreenVisibility: PRIVATE`; Chat- und Programm-Pushes lassen sich einzeln abschalten | Test des Push-Inhalts (#43); Rollen-Tests der Schalter (#46)                                                                                    | #42, #43, #46 | geplant |
+
+**Restrisiko:** Wer den Geräte-Code kennt, kommt auch durch die App-Sperre, denn der Geräte-Code ist ihr Rückfall. Wer das entsperrte Handy mit der App in der Hand hat, handelt im Namen des Elternteils; der Server kann das nicht unterscheiden.
+
+**OWASP:** MASVS-STORAGE, MASVS-AUTH; ASVS V14 Data Protection.
+
+### 3. Übergriffige Person im Gruppenchat
+
+Ein Elternteil oder eine SL belästigt andere im Gruppenchat, verletzt Grenzen oder sammelt Angaben über Familien und Kinder.
+
+| Massnahme                                                                                                                                                                                                                                                                    | Test oder Prüfpunkt                                                                                              | Issue         | Stand   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------- | ------- |
+| Melden: Jede Person im Chat kann eine Nachricht melden; die Meldung behält eine Kopie des Textes. Alle Admins ausser der gemeldeten Person bearbeiten sie, blenden aus und deaktivieren bei Bedarf das Konto                                                                 | Tests: Kein Admin sieht eine Meldung über sich selbst; ein Audit-Eintrag pro erledigter Meldung                  | #52           | geplant |
+| Ausblenden: SL blenden Nachrichten im Gruppenchat ihrer Stufe aus; jede Ausblendung steht im Audit-Log                                                                                                                                                                       | Test: ein Audit-Eintrag pro Ausblendung                                                                          | #52           | geplant |
+| Blockieren: Eltern blockieren andere Eltern im Gruppenchat für sich. Ein Wortfilter mit fester Liste lehnt Nachrichten mit Treffer beim Senden ab und sagt warum                                                                                                             | Tests: Filtertreffer, Blockieren, SL lassen sich nicht blockieren                                                | #53           | geplant |
+| Nur Text bis 2000 Zeichen, keine Fotos und Dateien, höchstens 20 Nachrichten pro Minute und Person; die App zeigt kein HTML an                                                                                                                                               | Sicherheits-Review, Abschnitt Eingaben: Längen- und Body-Limits, nur Text (#65)                                  | #49           | geplant |
+| Zugang nur über Rollen und Kinder: Löst ein Admin eine Eltern-Verknüpfung, etwa bei einem Kontaktverbot, und bleibt kein anderes aktives Kind in der Stufe, endet der Zugang zu deren Chats sofort; ebenso beim Deaktivieren. Eltern sehen nur Nachrichten ab ihrem Beitritt | Rechte-Tests der Sonderfälle, darunter gelöste Verknüpfung, deaktiviertes Konto und Beitrittsdatum               | #48           | geplant |
+| Hilfe-Seite mit den Vertrauenspersonen der Abteilung und Anlaufstellen; der Melden-Dialog verweist darauf. Die Chat-Regeln sind mit dem Verhaltenskodex «Nähe und Distanz» und dem Meldeschema von Cevi Schweiz abgeglichen                                                  | Rollen-Tests der Hilfe-Seite und Vertrauenspersonen im Issue vermerkt (#54); Abgleich und geprüfte Nummern (#62) | #52, #54, #62 | geplant |
+
+**Restrisiko:** Moderation greift erst nach dem Senden. Gelesene Nachrichten und Bildschirmfotos lassen sich nicht zurückholen, und im Gruppenchat sind die Namen der anderen Eltern der Stufe sichtbar.
+
+**OWASP:** ASVS V2 Validation and Business Logic, V8 Authorization.
+
+### 4. Missbrauch durch Admin oder SL
+
+Eine Person mit Rechten nutzt sie aus: Sie liest mit, übernimmt ein Konto, macht Internes sichtbar, verwischt Spuren oder sucht einen versteckten Kanal zu einer Familie.
+
+| Massnahme                                                                                                                                                                                                       | Test oder Prüfpunkt                                                                                        | Issue              | Stand   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------ | ------- |
+| Keine Identitätsübernahme: Die Admin-Funktionen von better-auth (Bibliothek für Login und Sitzungen) laufen mit eigenen Zugriffsrollen ohne `impersonate`, und ihre Pfade unter `/api/auth/admin/*` liefern 404 | Spike (#14); Rechte-Matrix: alle `admin/*`-Pfade liefern 404 (#10)                                         | #14, #18           | geplant |
+| Admins lesen Chats nur, wenn eine Nachricht gemeldet oder ausgeblendet ist, und sehen keine Telefonnummern der SL                                                                                               | Rechte-Matrix (#49, #50, #52); Test: Admins bekommen die Telefonnummer nicht (#39)                         | #39, #49, #50, #52 | geplant |
+| Mehr-Augen-Prinzip: Alle SL der Stufe lesen jeden Einzelchat, und sein Kopf zeigt, wer mitliest. Hat eine Stufe weniger als zwei SL, steht dort «Liest: 1 Person», und die Verwaltung warnt                     | Rechte-Matrix und Rollen-Tests des Einzelchats (#50)                                                       | #18, #50           | geplant |
+| SL blenden nur im Gruppenchat aus, nie im Einzelchat; wer geschrieben hat, sieht «von der Stufenleitung ausgeblendet» und kann das melden. Eine Meldung über einen Admin sieht dieser nicht                     | Tests: SL können im Einzelchat nicht ausblenden; kein Admin sieht eine Meldung über sich selbst            | #52                | geplant |
+| Audit-Log jeder Admin- und Moderationsaktion; die Datenbankrolle der API darf es nur lesen und ergänzen (`REVOKE UPDATE, DELETE`)                                                                               | Tests: Die API-Rolle kann Einträge weder ändern noch löschen (#9, #22); ein Eintrag pro Admin-Aktion (#22) | #9, #22            | geplant |
+| Ein neues Startpasswort, die Vergabe der Rolle Admin oder SL, das Zurücksetzen eines zweiten Faktors und das Löschen einer Person schicken einen Push an alle anderen Admins                                    | Tests: ein Push pro Aktion an alle anderen Admins, keiner an die auslösende Person                         | #45                | geplant |
+| Den letzten Admin kann niemand entfernen; die Verwaltung warnt, solange es weniger als zwei Admins gibt                                                                                                         | Tests zum Schutz des letzten Admins                                                                        | #18                | geplant |
+
+**Restrisiko:** Die Rechte selbst bleiben: Eine SL liest alle Chats ihrer Stufe. Ein Admin kann ein Elternkonto anlegen, mit einem Kind verknüpfen und so in den Gruppenchat einer Stufe gelangen. Dass Admins Eltern nur auf Angabe der Erziehungsberechtigten verknüpfen (#19), ist eine Regel, keine technische Sperre. Das Anlegen der Person steht im Audit-Log; eine Ansicht dafür gibt es in V1 nicht, es wird per SQL gelesen.
+
+**OWASP:** ASVS V8 Authorization, V16 Security Logging and Error Handling.
+
+### 5. Geleaktes Startpasswort
+
+Das Startpasswort wird weitergeleitet oder mitgelesen, und eine fremde Person meldet sich vor der richtigen an.
+
+| Massnahme                                                                                                                                                                                                                                             | Test oder Prüfpunkt                                                                                                | Issue    | Stand   |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------- | ------- |
+| Startpasswort aus 12 Zeichen ohne verwechselbare Zeichen (rund 58 Bit), nur als Hash gespeichert und dem Admin genau einmal angezeigt. Der Teilen-Text sagt «Nicht weiterleiten. Gilt 7 Tage und nur für die erste Anmeldung.»                        | Test: Ein abgelaufenes Startpasswort öffnet keine Sitzung (#15)                                                    | #15, #18 | geplant |
+| Pflichtwechsel bei der ersten Anmeldung: neues Passwort mit mindestens 12 Zeichen, nicht gleich dem alten und in keinem bekannten Datenleck; alle anderen Sitzungen enden. Bis dahin sperrt das Backend alle Routen unter `/api/v1` ausser `GET /ich` | Test: Pflichtwechsel (#15); Persona «muss Passwort ändern» in der Rechte-Matrix (#10)                              | #15, #16 | geplant |
+| Die Verwaltung zeigt pro Person «Startpasswort offen bis …» oder «angemeldet». Kann sich die richtige Person nicht anmelden, setzt ein Admin ein neues Startpasswort; das beendet alle Sitzungen und Push-Tokens der Person                           | Spike: `setUserPassword` gefolgt von `revokeUserSessions` (#14); Release-Checkliste: Login mit Startpasswort (#72) | #18      | geplant |
+| Die CLI für den ersten Admin erzeugt das Startpasswort selbst und nimmt es nie als Argument an, damit es nicht in der Shell-History landet                                                                                                            | Test: Ein Admin aus der CLI meldet sich mit dem Startpasswort an                                                   | #20      | geplant |
+
+**Restrisiko:** Wer das Startpasswort vor der richtigen Person nutzt, sieht deren Daten, bis es auffällt.
+
+**OWASP:** MASVS-AUTH; ASVS V6 Authentication.
+
+### 6. Gekapertes Admin-Konto
+
+Jemand kommt an das Passwort und den zweiten Faktor eines Admins oder an sein entsperrtes Gerät und hat damit alle Admin-Rechte.
+
+| Massnahme                                                                                                                                                                                      | Test oder Prüfpunkt                                                                                  | Issue    | Stand   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------- | ------- |
+| Zweiter Faktor für Admins: Code aus einer Authenticator-App (TOTP), zehn Ersatzcodes, kein «Gerät vertrauen». Ohne zweiten Faktor sind die Admin-Funktionen gesperrt                           | Persona «Admin ohne zweiten Faktor» auf allen Admin-Routen; Tests: Login mit Code und mit Ersatzcode | #23      | geplant |
+| Rate-Limit pro Client-IP für die Codes des zweiten Faktors: je 5 Versuche in 15 Minuten                                                                                                        | Test: getrennte Rate-Limit-Zähler für zwei Clients                                                   | #15      | geplant |
+| Passwort mit mindestens 12 Zeichen, das in keinem bekannten Datenleck vorkommt (`haveIBeenPwned` sendet dafür nur 5 Zeichen des SHA-1-Hashs)                                                   | Test: Pflichtwechsel                                                                                 | #15      | geplant |
+| App-Sperre und Geräte-Code sind für Admins vorgegeben                                                                                                                                          | Test der Bedingung «Geräte-Code vorhanden»                                                           | #17      | geplant |
+| Push an die anderen Admins bei heiklen Aktionen (siehe 4), dazu das Audit-Log                                                                                                                  | Tests pro Aktion (#45); Tests des Audit-Logs (#22)                                                   | #22, #45 | geplant |
+| Ablauf für Datenpannen: alle Sitzungen beenden (`npm run sitzungen:beenden -w apps/api`), Geheimnisse wechseln, danach richten die Admins den zweiten Faktor neu ein; den Vorstand informieren | Test: Nach der CLI gilt keine Sitzung mehr; Ablauf einmal trocken durchgespielt                      | #73      | geplant |
+
+**Restrisiko:** Mit Passwort und zweitem Faktor hat ein Angreifer alle Admin-Rechte, bis ein anderer Admin das Konto deaktiviert. Direkt liest er nur gemeldete und ausgeblendete Nachrichten und keine Telefonnummern; über ein selbst angelegtes Elternkonto kommt er aber in einen Gruppenchat (siehe 4).
+
+**OWASP:** MASVS-AUTH; ASVS V6 Authentication, V7 Session Management.
+
+### 7. Gekapertes Expo-Konto
+
+Über Expo und seinen Dienst EAS wird die App gebaut, verteilt und aktualisiert; bei EAS liegen auch die Schlüssel für die Pushes. EAS Update signiert im Gratis-Plan nicht: Wer das Konto übernimmt, kann Code auf alle Geräte schicken. Das Konto ist darum so heikel wie der Server.
+
+| Massnahme                                                                                                                                                                                                                               | Test oder Prüfpunkt                                                                                           | Issue | Stand   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ----- | ------- |
+| Zwei-Faktor-Anmeldung von Anfang an, Wiederherstellungscodes im Passwort-Tresor, den auch die Abteilungsleitung öffnen kann; eine zweite Person bekommt Zugriff über die Expo-Organisation                                              | Prüfpunkt: Konten aktiv, im Issue ohne Zugangsdaten vermerkt (#75)                                            | #75   | geplant |
+| Kein `EXPO_TOKEN` in GitHub Actions: `eas build --profile production`, `eas submit` und EAS Update auf dem Kanal `production` startet eine benannte Person von Hand und nur von `main`. EAS Update nur für reine JavaScript-Korrekturen | Ablauf in `docs/GIT_WORKFLOW.md` und `docs/betrieb.md` (#70); Sicherheits-Review, Abschnitt Geheimnisse (#65) | #70   | geplant |
+| «Enhanced Security for Push Notifications» bei Expo ist eingeschaltet; das Access Token zum Versenden liegt nur auf dem Server                                                                                                          | Sicherheits-Review, Abschnitt Geheimnisse (#65)                                                               | #43   | geplant |
+
+**Restrisiko:** Solange EAS Update nicht signiert, kann ein gekapertes Expo-Konto Code auf alle Geräte schicken.
+
+**OWASP:** ASVS V13 Configuration.
+
+### 8. Falsch zugeordneter Kalendertermin
+
+Ein Termin landet bei der falschen Stufe oder mit zu weiter Sichtbarkeit. Dann sehen Eltern Titel, Zeit und Ort eines internen Termins, oder Eltern einer anderen Stufe sehen Treffpunkte, die sie nichts angehen.
+
+| Massnahme                                                                                                                                                                                               | Test oder Prüfpunkt                                                                                                                     | Issue         | Stand   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- |
+| Fail-closed: Aus einem neuen Termin wird ein Programm mit Sichtbarkeit `intern`, ohne Stufe, im Eingang «Nicht zugeordnet»                                                                              | Test: Neue Termine aus dem Testkalender kommen richtig in der Datenbank an (#27); Rechte-Tests jede Sichtbarkeit mal jede Persona (#29) | #27, #29, #31 | geplant |
+| Zuordnen dürfen nur Admins und SL, eine SL nur ihre eigene Stufe. Gehört ein Programm auch Stufen, in denen sie nicht SL ist, ändert nur ein Admin seine Sichtbarkeit. Jede Änderung steht im Audit-Log | Rechte-Tests mit Programmen mehrerer Stufen; ein Audit-Eintrag pro Zuordnung                                                            | #29           | geplant |
+| Eltern sehen nie die Beschreibung aus Google, nur die Felder aus der App                                                                                                                                | Rechte-Tests (#29)                                                                                                                      | #29           | geplant |
+| Termine mit `visibility` `private` oder `confidential` und Termine ohne Titel übernimmt der Sync nicht                                                                                                  | Sync-Tests mit aufgezeichneten Antworten aus dem Testkalender                                                                           | #27           | geplant |
+| Fehlt nach einer geteilten Serie der Nachfolger, geht das Programm ohne Push in den Eingang «Prüfen» der SL                                                                                             | Tests einer geteilten Serie mit und ohne Nachfolger                                                                                     | #28           | geplant |
+| Pushes nur an Personen, die das Programm sehen dürfen; kein Push für neue Termine                                                                                                                       | Tests der Push-Empfänger                                                                                                                | #44           | geplant |
+| Eine Nachricht darf nur auf Programme mit Sichtbarkeit `eltern` in der Stufe des Chats verweisen, damit kein interner Titel bei Eltern landet                                                           | Rechte-Matrix (#49)                                                                                                                     | #49           | geplant |
+
+**Restrisiko:** Ein Fehlgriff beim Zuordnen zeigt Titel, Zeit und Ort sofort den Eltern der gewählten Stufe. Das Audit-Log zeigt erst danach, wer es war.
+
+**OWASP:** ASVS V8 Authorization.
+
+### 9. Store-Reviewer neben echten Daten
+
+Apple und Google prüfen die App vor der Veröffentlichung mit eigenen Zugängen. Ohne Vorkehrung sähen sie echte Kinderdaten.
+
+| Massnahme                                                                                                                                                                                            | Test oder Prüfpunkt                                                                                                                                      | Issue    | Stand   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | ------- |
+| Eigene Demo-Abteilung in der Produktion, mit erfundenen Daten aus dem Testkalender «Cevi OS Test»                                                                                                    | Rechte-Test: Die Demo-Konten sehen nichts aus der echten Abteilung (#76)                                                                                 | #26, #76 | geplant |
+| Jede Abfrage ist auf die Abteilung aus der Sitzung eingeschränkt                                                                                                                                     | Rechte-Matrix: Die Demo-Personas bekommen auf jedes Objekt der echten Abteilung 404 (#10); Sonderfall Demo-Abteilung in den Rechte-Tests des Chats (#48) | #10, #11 | geplant |
+| Review-Konten (ein Elternteil, eine SL und ein Admin der Demo-Abteilung, Benutzernamen mit `demo.` am Anfang) sind nur während eines Reviews aktiv; ihre Zugangsdaten kommen nur ins Review-Formular | Release-Checkliste: Demo-Konten aktivieren und danach wieder deaktivieren (#72)                                                                          | #72, #76 | geplant |
+| Screenshots für die Stores nur aus der Demo-Abteilung                                                                                                                                                | Prüfpunkt: Store-Einträge vollständig (#76)                                                                                                              | #76      | geplant |
+
+**Restrisiko:** Die Demo-Abteilung liegt in derselben Datenbank wie die echte. Ein Fehler bei der Einschränkung auf die Abteilung träfe beide; davor steht der Rechte-Test.
+
+**OWASP:** ASVS V8 Authorization.
+
+### 10. Push-Inhalte bei Apple, Google und Expo
+
+Jeder Push läuft über Expo und dann über Apple oder Google, alle in den USA. Was im Push steht, sehen diese Firmen und, je nach Einstellung, wer auf den Sperrbildschirm schaut.
+
+| Massnahme                                                                                                                                                                                              | Test oder Prüfpunkt                                                   | Issue         | Stand   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- | ------------- | ------- |
+| Sparsamer Inhalt: nie Nachrichtentext, nie Kindernamen, etwa «Neue Nachricht im Chat Jungschi» oder «Waldtag am Sa 31.10. wurde verschoben». Als Daten nur Typ und ID für den Deep Link                | Test des Push-Inhalts (#43)                                           | #43, #44, #51 | geplant |
+| Pushes an die Admins nennen die Aktion, aber keine Namen                                                                                                                                               | Tests pro Aktion                                                      | #45           | geplant |
+| Android-Kanäle mit `lockscreenVisibility: PRIVATE`                                                                                                                                                     | Sicherheits-Review, Abschnitt Logs und Pushes (#65)                   | #42           | geplant |
+| Jedes Push-Token hängt an seiner Sitzung und endet mit ihr; bei `DeviceNotRegistered` löscht der Server das Token                                                                                      | Tests: Token weg nach dem Abmelden (#42); `DeviceNotRegistered` (#43) | #42, #43      | geplant |
+| Chat- und Programm-Pushes lassen sich einzeln abschalten                                                                                                                                               | Rollen-Tests der Schalter                                             | #46           | geplant |
+| Die Übermittlung in die USA stützt sich auf das Swiss-U.S. Data Privacy Framework. Die Zertifizierung wird vor dem Go-live auf dataprivacyframework.gov geprüft, sonst gelten Standardvertragsklauseln | Die Datenschutzerklärung nennt die Empfänger (#63)                    | #63           | geplant |
+
+**Restrisiko:** Expo, Apple und Google sehen, wann ein Gerät einen Push bekommt, und seinen Titel, also den Namen eines Chats oder Programms.
+
+**OWASP:** MASVS-PRIVACY; ASVS V14 Data Protection.
+
+### 11. Raten von IDs
+
+Eine angemeldete Person ändert eine ID in einer Anfrage, um fremde Chats, Kinder oder Programme abzurufen. Die IDs sind UUIDv7. Sie enthalten einen Zeitstempel und gelten nicht als Geheimnis; der Schutz liegt allein in der Rechteprüfung.
+
+| Massnahme                                                                                                  | Test oder Prüfpunkt                                                                                                                                                 | Issue         | Stand   |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ------- |
+| Das Backend prüft die Rechte bei jeder Anfrage. Unsichtbares liefert 404, Sichtbares ohne Recht 403        | Rechte-Matrix: Sie liest alle Routen aus `app.routes` und scheitert bei einer Route ohne Eintrag (#10); manueller Versuch mit einem Elternkonto, erwartet 404 (#65) | #10           | geplant |
+| Die Sichtbarkeitsfilter stehen direkt in den SQL-Abfragen, eingeschränkt auf die Abteilung aus der Sitzung | Rechte-Tests der Programme (#29); fremde Chats liefern per ID 404 (#48); Rechte-Tests für fremde Kinder (#36)                                                       | #10, #29, #48 | geplant |
+
+**Restrisiko:** Der Test prüft nur, was die Matrix erwartet. Ein falscher Erwartungswert fällt erst im Review auf.
+
+**OWASP:** ASVS V8 Authorization.
+
+### 12. Brute Force
+
+Jemand probiert viele Passwörter oder Codes durch. Benutzernamen folgen dem Muster `vorname.nachname` und gelten nicht als Geheimnis.
+
+| Massnahme                                                                                                                                                                                                | Test oder Prüfpunkt                                                     | Issue    | Stand   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | -------- | ------- |
+| Rate-Limit pro Client-IP, in der Datenbank gezählt, damit es Neustarts übersteht: 30 Anfragen an `sign-in/username` in 15 Minuten, je 5 an `change-password` und an die beiden Pfade des zweiten Faktors | Test: getrennte Rate-Limit-Zähler für zwei Clients                      | #15      | geplant |
+| Die Client-IP setzt Caddy in `X-Forwarded-For`; Werte, die der Client mitschickt, verwirft Caddy                                                                                                         | Test: getrennte Zähler (#15); Konfiguration in `deploy/Caddyfile` (#68) | #15, #68 | geplant |
+| Bremse pro Benutzername, nur für Fehlversuche: Ab dem 5. in Folge wartet das Konto 1, dann 5, dann 15 Minuten, ohne Dauersperre. Jeder Fehler beim Login zeigt dieselbe Meldung                          | Test der Bremse pro Benutzername                                        | #15      | geplant |
+| Nur acht Pfade von better-auth sind offen; jeder andere Pfad unter `/api/auth/*` liefert 404                                                                                                             | Test der Positivliste (#15); Rechte-Matrix (#10)                        | #10, #15 | geplant |
+| Passwörter mit mindestens 12 Zeichen und in keinem bekannten Datenleck; Startpasswörter mit rund 58 Bit, 7 Tage gültig                                                                                   | Tests: Pflichtwechsel und Ablauf des Startpassworts                     | #15      | geplant |
+
+**Restrisiko:** Ohne Dauersperre kann ein Angreifer langsam weiter raten. Ein leicht zu erratendes Passwort mit 12 Zeichen, das in keinem Datenleck steht, bleibt möglich.
+
+**OWASP:** ASVS V6 Authentication, V2 Validation and Business Logic.
+
+### 13. Geleakter Service-Account-Schlüssel
+
+Mit diesem Schlüssel liest der Server den Google-Kalender. Gerät er in fremde Hände, etwa über einen Commit oder den Server, liest wer ihn hat die geteilten Kalender mit allen Termindetails.
+
+| Massnahme                                                                                                                                                                                                                                                                 | Test oder Prüfpunkt                                                                                                                      | Issue    | Stand     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------- |
+| Nur Lesen: Scope `calendar.events.readonly`, Service-Account ohne Rollen im Cloud-Projekt; geteilt sind nur der Kalender der Abteilung und der Testkalender                                                                                                               | Spike: Zugriff mit allen Details belegt (#26)                                                                                            | #26, #27 | geplant   |
+| Der Schlüssel liegt nur als eingebundene Datei auf dem Server, nie in einem Commit, Issue oder Chat                                                                                                                                                                       | Prüfpunkt: Kalender-ID, Schlüssel und Adressen stehen weder im Issue noch im Repo (#26); Sicherheits-Review, Abschnitt Geheimnisse (#65) | #26, #69 | geplant   |
+| Die `.gitignore` schliesst `.env*` (ausser `.env.example`), `deploy/secrets/` sowie Schlüssel- und Zertifikatsdateien aus                                                                                                                                                 | [`.gitignore`](../../.gitignore); `git check-ignore` meldet die Regel                                                                    | #2       | vorhanden |
+| Secret-Scanning mit Push-Schutz ist eingeschaltet. GitHub erkennt dabei Zugangsdaten von Google-Service-Accounts und blockiert den Push ([unterstützte Muster](https://docs.github.com/en/code-security/secret-scanning/introduction/supported-secret-scanning-patterns)) | Einstellung des Repositorys; Sicherheits-Review, Abschnitt Geheimnisse (#65)                                                             | –        | vorhanden |
+| Das Google-Konto des Cloud-Projekts hat Zwei-Faktor-Anmeldung                                                                                                                                                                                                             | Prüfpunkt: Konten aktiv (#75)                                                                                                            | #75      | geplant   |
+| Bei einem Leck den Schlüssel wechseln, nach dem Ablauf für Datenpannen                                                                                                                                                                                                    | Ablauf einmal trocken durchgespielt (#73)                                                                                                | #73      | geplant   |
+
+**Restrisiko:** Bis der Schlüssel gewechselt ist, liest wer ihn hat beide Kalender mit allen Details.
+
+**OWASP:** ASVS V13 Configuration.
+
+## Bewusst nicht umgesetzt
+
+### Kein Zertifikat-Pinning
+
+Caddy erneuert die Zertifikate automatisch, standardmässig jedes Mal mit einem neuen Schlüssel ([Quelltext von Caddy 2.11.7](https://github.com/caddyserver/caddy/blob/v2.11.7/modules/caddytls/automation.go#L144-L151)). Ein Pin in der App müsste bei jeder Erneuerung nachgeführt werden. Geht das einmal schief, erreicht keine installierte App den Server mehr, bis ein Update installiert ist.
+
+Stattdessen:
+
+- Die App vertraut den Zertifizierungsstellen des Systems und spricht nur HTTPS; Caddy setzt HSTS (#68).
+- Keine Cleartext-Ausnahmen: `apps/mobile/app.json` erlaubt keine (#5, vorhanden); den fertigen Build prüft das Sicherheits-Review (#65).
+- Ein CAA-Eintrag im DNS erlaubt nur den Zertifizierungsstellen von Caddy (Let's Encrypt, ZeroSSL), Zertifikate für die Domain auszustellen (#68).
+
+**Prüfpunkt:** Sicherheits-Review, Abschnitt Transport: nur HTTPS mit HSTS, keine Cleartext-Ausnahmen (#65).
+
+**OWASP:** MASVS-NETWORK; ASVS V12 Secure Communication.
+
+### Keine Root- oder Jailbreak-Erkennung
+
+Eine solche Erkennung lässt sich umgehen und hält darum niemanden ab, der es darauf anlegt. Dafür stört sie Hilfsmittel, auf die manche Menschen angewiesen sind.
+
+Stattdessen:
+
+- Die Sicherheit liegt im Backend: Es prüft die Rechte bei jeder Anfrage (#10). Eine veränderte App bekommt nur, was das Konto ohnehin sehen darf.
+- Die App speichert keine Serverdaten auf dem Gerät (#16).
+- In der App steckt kein Geheimnis; in `EXPO_PUBLIC_*` steht nie eines (#5).
+
+**Prüfpunkt:** Rechte-Matrix (#10); Sicherheits-Review, Abschnitte Gerät und Geheimnisse (#65).
+
+**OWASP:** MASVS-RESILIENCE.
+
+### Android ohne FLAG_SECURE
+
+FLAG_SECURE würde auf Android Bildschirmfotos der App sperren. Bildschirmfotos dienen aber als Gedächtnisstütze, etwa für einen Treffpunkt, und als Beleg, etwa für eine Nachricht.
+
+Stattdessen:
+
+- Die App-Sperre greift beim Kaltstart und nach 5 Minuten im Hintergrund (#17).
+- Keine Serverdaten auf dem Gerät (#16) und keine Sicherung in Google Drive (`android.allowBackup: false`, #5, vorhanden).
+- Pushes ohne Nachrichtentext und Kindernamen, auf dem gesperrten Bildschirm verborgen (`lockscreenVisibility: PRIVATE`, #42, #43).
+- Auf iOS, wo es FLAG_SECURE nicht gibt, verdeckt `enableAppSwitcherProtectionAsync()` die App im App-Umschalter (#17).
+
+**Restrisiko:** Ohne FLAG_SECURE erscheint der letzte Bildschirm der App auch in der Übersicht der zuletzt verwendeten Apps.
+
+**Prüfpunkt:** Sicherheits-Review, Abschnitt Gerät (#65).
+
+**OWASP:** MASVS-PLATFORM.
+
+## Datenschutz-Folgenabschätzung
+
+Zwingend ist sie nicht, für Kinderdaten mit Treffpunkten und Chats aber angebracht.
+
+### Bearbeitung
+
+- Verantwortlich ist die Abteilung; die genaue Stelle ist noch offen (#63).
+- Betroffen sind Kinder (ohne eigenes Konto), Eltern, Leitende, SL und Admins. Die Kinderdaten stammen von den Eltern und der Abteilung.
+- Eltern bekommen vor dem Onboarding einen Elternbrief mit der Datenschutzerklärung (#64). Der Hinweis beim ersten Start ist eine Kenntnisnahme, keine Einwilligung (#16). Die Rechte der Betroffenen beschreibt die Datenschutzerklärung (#63).
+- Nicht erhoben werden E-Mail-Adressen, Fotos, Gründe für eine Abmeldung sowie Tracking- und Analysedaten.
+
+| Daten                                                                                                        | Zweck                                       | Wer sie sieht                                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Kinder (Vor- und Nachname, Stufe) und ihre Teilnahmen (Ja oder Nein pro Programm)                            | An- und Abmeldung                           | Eltern nur die eigenen Kinder; Leitende und SL der Stufe; Admins                                                                        |
+| Programme: Zeit, Ort, Treffpunkt, Schluss, Mitnehmen, Info und die Beschreibung aus Google                   | Information über die Programme              | nach Sichtbarkeit; die Beschreibung aus Google nie Eltern                                                                               |
+| Konten: Name, Benutzername, Rollen; Telefon nur freiwillig bei SL                                            | Login, Rechte, Kontakt                      | Admins; Eltern sehen im Gruppenchat die Namen der anderen Eltern; die Telefonnummer nur Eltern mit einem aktiven Kind in der Stufe      |
+| Chats: Nachrichten (nur Text), Meldungen mit Kopie des Textes                                                | Austausch mit der Stufenleitung, Moderation | Gruppenchat: SL und Eltern der Stufe; Einzelchat: der Elternteil und alle SL der Stufe; Admins: gemeldete und ausgeblendete Nachrichten |
+| Technik: Sitzungen ohne IP-Adresse und User-Agent, Push-Tokens, Audit-Log, IP-Adressen in den Logs von Caddy | Sicherheit und Betrieb                      | wer den Server betreibt                                                                                                                 |
+
+### Empfänger
+
+- Hoster und S3-Anbieter in der Schweiz (Anbieter noch offen; #68, #71): Server mit Datenbank und Logs bzw. Backups, mit restic verschlüsselt. Verträge zur Auftragsbearbeitung sind vorgesehen (#64).
+- Google: Der Kalender der Abteilung liegt bei Google; der Server liest ihn nur.
+- Apple, Google und Expo (650 Industries): Push-Transport in den USA, gestützt auf das Swiss-U.S. Data Privacy Framework. Die Zertifizierung wird vor dem Go-live auf dataprivacyframework.gov geprüft, sonst gelten Standardvertragsklauseln (#63). Die Pushes enthalten weder Nachrichtentext noch Kindernamen.
+
+### Aufbewahrung
+
+| Daten                                    | Frist                                                                                                   |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Nachrichten, Meldungen, Teilnahmen       | 12 Monate; die Kopie des Textes in einer Meldung nur bis zur Erledigung, höchstens 30 Tage              |
+| Inaktive Kinder samt Teilnahmen          | 6 Monate nach der Inaktivierung                                                                         |
+| Konten                                   | Eltern ohne aktives Kind und ohne Rolle werden deaktiviert, deaktivierte Konten nach 6 Monaten gelöscht |
+| Audit-Log                                | 24 Monate                                                                                               |
+| Server- und Caddy-Logs                   | 14 Tage                                                                                                 |
+| Sitzungen und Push-Tokens                | abgelaufene Sitzungen täglich, Push-Tokens mit ihrer Sitzung                                            |
+| Backups                                  | 30 tägliche und 3 monatliche Stände, also bis 3 Monate nach dem Löschen                                 |
+| Programme mit Treffpunkt und Ergänzungen | noch keine Frist festgelegt                                                                             |
+
+Löscht ein Elternteil sein Konto, gehen seine Nachrichten und sein Einzelchat mit, bei einer SL nur ihre Nachrichten (#21, #55). Die Fristen setzen Jobs um, deren Tests jede Frist knapp davor und knapp danach prüfen (#66).
+
+### Risiken und Massnahmen
+
+| Risiko für die Betroffenen                                                         | Massnahmen                                                                                                                                                                                                                                                            | Was bleibt                                                                                          |
+| ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Wer Namen, Teilnahmen und Treffpunkte kennt, weiss, wann und wo welche Kinder sind | Sichtbarkeit fail-closed, Rechte bei jeder Anfrage, Demo-Abteilung für die Stores (Bedrohungen 8, 9 und 11)                                                                                                                                                           | Eltern der Stufe können Treffpunkte weitergeben; ein Fehlgriff beim Zuordnen zeigt sie den Falschen |
+| Gesundheitsangaben im Chat                                                         | Hinweis im Einzelchat «Bitte nur das Nötigste schreiben, keine Diagnosen.», kein Freitext für den Abmeldegrund, Löschung nach 12 Monaten                                                                                                                              | Eltern schreiben trotzdem Diagnosen, und das ganze SL-Team liest sie                                |
+| Grenzverletzungen über den Chat                                                    | Kinder ohne Zugang, Einzelchat nur mit dem ganzen SL-Team, Moderation und Hilfe-Seite (Bedrohung 3)                                                                                                                                                                   | Kontakt ausserhalb der App lässt sich nicht verhindern                                              |
+| Missbrauch von Rechten                                                             | Mehr-Augen-Prinzip, Audit-Log, Push an die anderen Admins, zweiter Faktor (Bedrohungen 4 und 6)                                                                                                                                                                       | Die Rechte selbst bleiben                                                                           |
+| Verlorene oder geteilte Geräte                                                     | App-Sperre, keine Serverdaten auf dem Gerät, Sitzungen aus der Ferne beenden (Bedrohungen 1 und 2)                                                                                                                                                                    | Wer den Geräte-Code kennt, kommt durch die App-Sperre                                               |
+| Datenpanne auf dem Server                                                          | Härtung (#68, #69), verschlüsselte Backups (#71), Ablauf für Datenpannen mit Meldung an den EDÖB bei hohem Risiko (#73); wer den Server betreibt, hat eine Funktion im Verein oder eine schriftliche Auftrags- und Schweigepflichtvereinbarung mit dem Vorstand (#64) | Wer den Server betreibt, kann alle Daten lesen                                                      |
+| Übermittlung in die USA                                                            | Pushes ohne Nachrichtentext und Kindernamen; Data Privacy Framework oder Standardvertragsklauseln (Bedrohung 10)                                                                                                                                                      | Expo, Apple und Google sehen Zeitpunkt und Titel jedes Pushes                                       |
+| Telefonnummern der SL verbreiten sich                                              | Nur freiwillig und mit Hinweis vor dem Speichern; nur für Eltern mit einem aktiven Kind in der Stufe (#39)                                                                                                                                                            | Eltern können die Nummer weitergeben                                                                |
+| Daten bleiben zu lange                                                             | Fristen mit Lösch-Jobs (#66), Konto löschen in der App (#21)                                                                                                                                                                                                          | Backups bis 3 Monate; für Programme fehlt eine Frist                                                |
+
+### Offen
+
+- Die verantwortliche Stelle und ihr Kontakt (#63)
+- Hoster und S3-Anbieter samt Verträgen zur Auftragsbearbeitung (#64)
+- Die Zertifizierung von Apple, Google und Expo im Data Privacy Framework (#63)
+- Wer den Server betreibt, und die Vereinbarung mit dem Vorstand (#64)
+- Die Vertrauenspersonen der Abteilung (#54)
+- Eine Frist für Programme samt Treffpunkt und Ergänzungen
+
+### Ergebnis
+
+Die Massnahmen senken die Risiken, beseitigen sie aber nicht. Was bleibt, steht in der Tabelle und bei jeder Bedrohung unter «Restrisiko». Ob die Abteilung das trägt, entscheidet der Vorstand mit der Abnahme.
+
+## Abnahme
+
+Der Vorstand nimmt das Bedrohungsmodell und die Datenschutz-Folgenabschätzung ab. Die Abnahme wird im Issue #61 vermerkt, ohne Namen.
