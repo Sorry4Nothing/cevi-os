@@ -11,10 +11,17 @@ import {
 import { Ansage } from "./Ansage";
 import { masse, schrift, useFarben } from "./tokens";
 
-// Einfügen bleibt erlaubt und die Schrift wächst mit (Checkliste 9.6, 5.3)
+// Einfügen bleibt erlaubt, die Schrift wächst mit, und den Namen gibt nur die sichtbare Beschriftung (Checkliste 9.6, 5.3, 4.1)
 type Props = Omit<
   TextInputProps,
-  "style" | "contextMenuHidden" | "allowFontScaling" | "maxFontSizeMultiplier"
+  | "style"
+  | "contextMenuHidden"
+  | "allowFontScaling"
+  | "maxFontSizeMultiplier"
+  | "accessibilityLabel"
+  | "aria-label"
+  | "accessibilityLabelledBy"
+  | "aria-labelledby"
 > & {
   label: string;
   fehler?: string;
@@ -63,7 +70,8 @@ export function Textfeld({
           styles.eingabe,
           {
             color: farben.text,
-            borderWidth: fehler || fokus ? 2 : 1,
+            // Fokus und Fehler machen den Rand je 1 dicker, so bleibt der Fokus auch bei einem Fehler sichtbar
+            borderWidth: 1 + (fokus ? 1 : 0) + (fehler ? 1 : 0),
             borderColor: fehler
               ? farben.fehler
               : fokus

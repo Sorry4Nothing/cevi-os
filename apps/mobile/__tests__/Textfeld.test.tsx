@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import type { ComponentProps } from "react";
 import { AccessibilityInfo, Platform } from "react-native";
 
 import { Textfeld } from "../src/ui/Textfeld";
@@ -73,4 +74,31 @@ test("der Fokus zeigt sich mit einem dickeren Rand in der Akzentfarbe", async ()
 
   await fireEvent(feld, "blur");
   expect(feld).toHaveStyle({ borderWidth: 1, borderColor: farben.hell.rand });
+});
+
+test("mit einem Fehler zeigt sich der Fokus mit einem noch dickeren Rand", async () => {
+  await render(<Textfeld label="Passwort" fehler="Das Passwort fehlt." />);
+  const feld = screen.getByLabelText("Passwort");
+  expect(feld).toHaveStyle({ borderWidth: 2, borderColor: farben.hell.fehler });
+
+  await fireEvent(feld, "focus");
+  expect(feld).toHaveStyle({ borderWidth: 3, borderColor: farben.hell.fehler });
+
+  await fireEvent(feld, "blur");
+  expect(feld).toHaveStyle({ borderWidth: 2, borderColor: farben.hell.fehler });
+});
+
+test("nimmt keinen eigenen Namen an, der die sichtbare Beschriftung ersetzen würde", () => {
+  // Geprüft von npm run typecheck: Jede Zeile scheitert, sobald Textfeld den Prop wieder annimmt
+  const verboten: ComponentProps<typeof Textfeld>[] = [
+    // @ts-expect-error würde auf Android zur contentDescription des Eingabefelds
+    { label: "Name", accessibilityLabel: "Anders" },
+    // @ts-expect-error TextInput zieht aria-label jedem anderen Namen vor
+    { label: "Name", "aria-label": "Anders" },
+    // @ts-expect-error würde auf eine andere Beschriftung verweisen
+    { label: "Name", accessibilityLabelledBy: "anders" },
+    // @ts-expect-error würde auf eine andere Beschriftung verweisen
+    { label: "Name", "aria-labelledby": "anders" },
+  ];
+  expect(verboten).toHaveLength(4);
 });
