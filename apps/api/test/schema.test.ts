@@ -1,36 +1,12 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, expect, test } from "vitest";
+import { scheitert, zurueckgerollt } from "./transaktion.js";
 
 const sql = postgres(
   process.env.DATABASE_URL ?? "postgres://cevi_os_api@localhost:5432/cevi_os",
 );
 afterAll(() => sql.end());
-
-const ZURUECK = new Error("zurückrollen");
-
-// Jede Prüfung in einer Transaktion, die am Ende zurückrollt
-async function zurueckgerollt(
-  pruefung: (tx: postgres.TransactionSql) => Promise<void>,
-) {
-  await sql
-    .begin(async (tx) => {
-      await pruefung(tx);
-      throw ZURUECK;
-    })
-    .catch((fehler) => {
-      if (fehler !== ZURUECK) throw fehler;
-    });
-}
-
-// Im eigenen Savepoint, damit die Transaktion nach dem Fehler weiterläuft
-async function scheitert(
-  tx: postgres.TransactionSql,
-  fehler: { code: string; constraint_name?: string },
-  anweisung: (sp: postgres.TransactionSql) => Promise<unknown>,
-) {
-  await expect(tx.savepoint(anweisung)).rejects.toMatchObject(fehler);
-}
 
 async function grunddaten(tx: postgres.TransactionSql) {
   const [abteilung] =
@@ -51,7 +27,7 @@ async function grunddaten(tx: postgres.TransactionSql) {
 }
 
 test("Löschen einer Person entfernt ihre Rollen, Elternverknüpfungen, Sitzungen, Konten und den zweiten Faktor; der Audit-Eintrag über sie bleibt", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const { abteilung, stufe, person } = await grunddaten(tx);
     const kinder: string[] = [];
     for (const vorname of ["Erstes", "Zweites"]) {
@@ -103,7 +79,7 @@ test("Löschen einer Person entfernt ihre Rollen, Elternverknüpfungen, Sitzunge
 });
 
 test("eine Abteilung, auf die noch etwas zeigt, lässt sich nicht löschen", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const { abteilung } = await grunddaten(tx);
     // 23001 restrict_violation: PostgreSQL 18 meldet RESTRICT so, NO ACTION dagegen mit 23503
     await scheitert(
@@ -123,7 +99,7 @@ test("jeder Fremdschlüssel auf abteilung oder stufe ist RESTRICT", async () => 
 });
 
 test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const { person } = await grunddaten(tx);
     const fehler = {
       code: "23514",
@@ -147,7 +123,7 @@ test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async
 });
 
 test("rolle.typ nimmt nur leitung und stufenleitung an", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const { stufe, person } = await grunddaten(tx);
     await scheitert(
       tx,
