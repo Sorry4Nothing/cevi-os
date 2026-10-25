@@ -69,7 +69,7 @@ test("der Server startet ohne Konfiguration nicht", () => {
         PORT: undefined,
       },
       encoding: "utf8",
-      // Auf einem ausgelasteten Rechner dauert der Start mit tsx ein Vielfaches, gemessen bis 15 s
+      // Auf einem ausgelasteten Rechner dauert der Start mit tsx ein Vielfaches
       timeout: 60_000,
     },
   );
