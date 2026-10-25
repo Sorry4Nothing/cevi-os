@@ -4,7 +4,7 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { erstelleAuth, erstelleAuthRouten, offenePfade } from "../src/auth.js";
 
-// Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; unter Last braucht ein Test so ein Vielfaches der 5 s von Vitest
+// Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner braucht ein Test so mehr als die 5 s von Vitest, gemessen bis 7,5 s
 vi.setConfig({ testTimeout: 60_000 });
 
 // Erfundenes App-Schema; das echte legt die App fest
