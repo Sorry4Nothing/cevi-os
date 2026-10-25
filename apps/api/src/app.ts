@@ -84,7 +84,11 @@ export function erstelleApp({
           ereignis: "fehler",
           name: fehler.name,
           code: (fehler as { code?: unknown }).code,
-          stack: fehler.stack?.split("\n").filter((z) => /^\s+at /.test(z)),
+          // Erst nach dem Kopf «Name: Meldung», den Node mit Error.prototype.toString bildet: Eine mehrzeilige Meldung kann Zeilen mit «at …» enthalten
+          stack: fehler.stack
+            ?.split("\n")
+            .slice(Error.prototype.toString.call(fehler).split("\n").length)
+            .filter((z) => /^\s+at /.test(z)),
         });
         return c.json(FEHLER[500], 500);
       })
