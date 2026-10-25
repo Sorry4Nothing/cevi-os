@@ -99,7 +99,8 @@ async function legeAn(
       password: passwort,
       name: "Testperson",
       role: rolle,
-      data: { username: benutzername, ...daten },
+      // Sonst gilt der Standardwert true, und ohne künftiges Ablaufdatum scheitert jede Anmeldung
+      data: { username: benutzername, mussPasswortAendern: false, ...daten },
     },
   });
   return { id: user.id, benutzername };
@@ -268,10 +269,18 @@ describe("Herkunft: better-auth prüft jeden POST mit Cookie", () => {
 });
 
 describe("Zusatzfelder mit input: false", () => {
+  // Nur Werte, die als wahr gelten: update-user verwirft false, 0 und null stillschweigend, sie bewiesen hier nichts
   const gesetzt = {
     abteilungId: "6f1c2a7e-0b4d-4c55-9a36-2d8e1f0b7c11",
     mussPasswortAendern: true,
     startpasswortGueltigBis: new Date(Date.now() + 86_400_000),
+    fehlversuche: 2,
+    naechsterVersuchAb: new Date(Date.now() - 60_000),
+    deaktiviertAm: new Date(Date.now() - 86_400_000),
+    telefon: "keine-nummer",
+    pushChat: true,
+    pushProgramme: true,
+    datenschutzGelesenAm: new Date(Date.now() - 3_600_000),
   };
 
   test("auth.api.createUser setzt sie auf dem Server", async () => {
@@ -286,6 +295,13 @@ describe("Zusatzfelder mit input: false", () => {
       "startpasswortGueltigBis",
       new Date(Date.now() + 9 * 86_400_000).toISOString(),
     ],
+    ["fehlversuche", 9],
+    ["naechsterVersuchAb", new Date(Date.now() + 86_400_000).toISOString()],
+    ["deaktiviertAm", new Date().toISOString()],
+    ["telefon", "andere-nummer"],
+    ["pushChat", true],
+    ["pushProgramme", true],
+    ["datenschutzGelesenAm", new Date().toISOString()],
   ])(
     "update-user mit %s liefert 400 FIELD_NOT_ALLOWED, direkt über auth.handler und über auth.api.updateUser",
     async (feld, wert) => {
@@ -320,6 +336,13 @@ describe("Zusatzfelder mit input: false", () => {
       abteilungId: null,
       mussPasswortAendern: false,
       startpasswortGueltigBis: null,
+      fehlversuche: 0,
+      naechsterVersuchAb: null,
+      deaktiviertAm: null,
+      telefon: null,
+      pushChat: false,
+      pushProgramme: false,
+      datenschutzGelesenAm: null,
     };
 
     const direkt = anfrage("update-user", {

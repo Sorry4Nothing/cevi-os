@@ -39,14 +39,26 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
     },
     user: {
       deleteUser: { enabled: true },
+      // Wie die Spalten in src/db/schema.ts; better-auth schreibt beim Anlegen seinen defaultValue, darum gleich dem der Datenbank
       additionalFields: {
-        abteilungId: { type: "string", input: false },
-        mussPasswortAendern: { type: "boolean", input: false },
+        abteilungId: { type: "string", input: false, required: true },
+        mussPasswortAendern: {
+          type: "boolean",
+          input: false,
+          defaultValue: true,
+        },
         startpasswortGueltigBis: {
           type: "date",
           input: false,
           required: false,
         },
+        fehlversuche: { type: "number", input: false, defaultValue: 0 },
+        naechsterVersuchAb: { type: "date", input: false, required: false },
+        deaktiviertAm: { type: "date", input: false, required: false },
+        telefon: { type: "string", input: false, required: false },
+        pushChat: { type: "boolean", input: false, defaultValue: true },
+        pushProgramme: { type: "boolean", input: false, defaultValue: true },
+        datenschutzGelesenAm: { type: "date", input: false, required: false },
       },
     },
     advanced: {
