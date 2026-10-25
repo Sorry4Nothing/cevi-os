@@ -6,6 +6,9 @@ import { erstelleAuth } from "../src/auth.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 
+// Wie in auth.test.ts: Anlegen und Anmelden rechnen scrypt mit 32 MiB; auf einem ausgelasteten Rechner braucht ein Test so ein Vielfaches der 5 s von Vitest
+vi.setConfig({ testTimeout: 120_000 });
+
 // Wie in auth.test.ts: erfundene Adresse und erfundenes App-Schema
 vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
 vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", "testapp://");
