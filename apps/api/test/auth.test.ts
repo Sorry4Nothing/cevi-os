@@ -90,12 +90,13 @@ let laufnummer = 0;
 async function legeAn(
   rolle: "admin" | "user" = "user",
   daten: Record<string, unknown> = {},
+  passwort = PASSWORT,
 ) {
   const benutzername = `person${++laufnummer}`;
   const { user } = await auth.api.createUser({
     body: {
       email: `${randomUUID()}@benutzer.invalid`,
-      password: PASSWORT,
+      password: passwort,
       name: "Testperson",
       role: rolle,
       data: { username: benutzername, ...daten },
@@ -134,9 +135,7 @@ async function totpCode(nutzerId: string) {
   return (await auth.api.generateTOTP({ body: { secret } })).code;
 }
 
-async function adminMitTotp() {
-  const admin = await legeAn("admin");
-  const cookie = await anmelden(admin.benutzername);
+async function totpEinschalten(id: string, cookie: string) {
   const einrichten = await app.request(
     anfrage("two-factor/enable", { cookie, body: { password: PASSWORT } }),
   );
@@ -145,17 +144,17 @@ async function adminMitTotp() {
   const bestaetigen = await app.request(
     anfrage("two-factor/verify-totp", {
       cookie,
-      body: { code: await totpCode(admin.id) },
+      body: { code: await totpCode(id) },
     }),
   );
   expect(bestaetigen.status).toBe(200);
-  return {
-    ...admin,
-    cookie,
-    neuesCookie: cookiesAus(bestaetigen),
-    totpURI,
-    backupCodes,
-  };
+  return { neuesCookie: cookiesAus(bestaetigen), totpURI, backupCodes };
+}
+
+async function adminMitTotp(daten: Record<string, unknown> = {}) {
+  const admin = await legeAn("admin", daten);
+  const cookie = await anmelden(admin.benutzername);
+  return { ...admin, cookie, ...(await totpEinschalten(admin.id, cookie)) };
 }
 
 describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () => {
@@ -348,6 +347,7 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
           email: `${randomUUID()}@benutzer.invalid`,
           password: PASSWORT,
           name: "Neue Person",
+          role: "admin",
           data: { username: `neu${++laufnummer}` },
         },
       }),
@@ -413,8 +413,9 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
     const ziel = await legeAn();
     const headers = new Headers({ cookie: await anmelden(admin.benutzername) });
 
+    // Mit role prüft createUser zusätzlich das Recht set-role
     const { user } = await aufrufe.createUser(headers);
-    expect(person(user.id)).toMatchObject({ role: "user" });
+    expect(person(user.id)).toMatchObject({ role: "admin" });
 
     const vorher = await anmelden(ziel.benutzername);
     await aufrufe.setUserPassword(headers, ziel.id);
@@ -473,6 +474,108 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     });
     expect(cookiesAus(richtig)).toBe("");
     expect(sitzungenVon(id)).toEqual([]);
+  });
+
+  test.each([
+    ["null", null],
+    ["ungültig", "kein Datum"],
+    [
+      "in der Vergangenheit, als ISO-Text im Speicher",
+      new Date(Date.now() - 1000).toISOString(),
+    ],
+  ])(
+    "mussPasswortAendern mit Ablaufdatum %s: Anmeldung liefert 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung",
+    async (_, ablauf) => {
+      const { id, benutzername } = await legeAn("user", {
+        mussPasswortAendern: true,
+      });
+      person(id).startpasswortGueltigBis = ablauf;
+      const antwort = await app.request(
+        anfrage("sign-in/username", {
+          body: { username: benutzername, password: PASSWORT },
+        }),
+      );
+      expect(antwort.status).toBe(403);
+      expect((await antwort.json()).code).toBe("STARTPASSWORT_ABGELAUFEN");
+      expect(sitzungenVon(id)).toEqual([]);
+    },
+  );
+
+  test("mussPasswortAendern mit künftigem Ablaufdatum als ISO-Text im Speicher: Anmeldung geht", async () => {
+    const { id, benutzername } = await legeAn("user", {
+      mussPasswortAendern: true,
+    });
+    person(id).startpasswortGueltigBis = new Date(
+      Date.now() + 7 * TAG,
+    ).toISOString();
+    await anmelden(benutzername);
+  });
+
+  test("das Sitzungs-Cookie einer anderen Person hebt die Prüfung bei der Anmeldung nicht auf", async () => {
+    const andere = await anmelden((await legeAn()).benutzername);
+    const { id, benutzername } = await legeAn("user", {
+      mussPasswortAendern: true,
+      startpasswortGueltigBis: new Date(Date.now() - 1000),
+    });
+    const antwort = await app.request(
+      anfrage("sign-in/username", {
+        cookie: andere,
+        body: { username: benutzername, password: PASSWORT },
+      }),
+    );
+    expect(antwort.status).toBe(403);
+    expect((await antwort.json()).code).toBe("STARTPASSWORT_ABGELAUFEN");
+    expect(sitzungenVon(id)).toEqual([]);
+  });
+
+  test.each(["verify-totp", "verify-backup-code"])(
+    "läuft das Startpasswort im zweiten Schritt der Anmeldung ab, liefert two-factor/%s 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung",
+    async (pfad) => {
+      const admin = await adminMitTotp({
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+      });
+      await app.request(anfrage("sign-out", { cookie: admin.neuesCookie }));
+      const anmeldung = await app.request(
+        anfrage("sign-in/username", {
+          body: { username: admin.benutzername, password: PASSWORT },
+        }),
+      );
+      expect(await anmeldung.json()).toMatchObject({ twoFactorRedirect: true });
+      person(admin.id).startpasswortGueltigBis = new Date(Date.now() - 1000);
+
+      const code =
+        pfad === "verify-totp"
+          ? await totpCode(admin.id)
+          : admin.backupCodes[0];
+      const antwort = await app.request(
+        anfrage(`two-factor/${pfad}`, {
+          cookie: cookiesAus(anmeldung),
+          body: { code },
+        }),
+      );
+      expect(antwort.status).toBe(403);
+      expect((await antwort.json()).code).toBe("STARTPASSWORT_ABGELAUFEN");
+      expect(sitzungenVon(admin.id)).toEqual([]);
+    },
+  );
+
+  test("läuft das Startpasswort während einer Admin-Sitzung ab, schaltet verify-totp in dieser Sitzung den zweiten Faktor trotzdem ein", async () => {
+    const admin = await legeAn("admin", {
+      mussPasswortAendern: true,
+      startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+    });
+    const cookie = await anmelden(admin.benutzername);
+    person(admin.id).startpasswortGueltigBis = new Date(Date.now() - 1000);
+
+    const { neuesCookie } = await totpEinschalten(admin.id, cookie);
+    expect(person(admin.id).twoFactorEnabled).toBe(true);
+    expect(db.twoFactor).toEqual([
+      expect.objectContaining({ userId: admin.id, verified: true }),
+    ]);
+    expect(neuesCookie).toContain(TOKEN);
+    expect(neuesCookie).not.toBe(cookie);
+    expect(await sitzungZu(neuesCookie)).not.toBeNull();
   });
 
   test("läuft das Startpasswort während der Sitzung ab, geht change-password trotzdem; danach ist mussPasswortAendern gelöscht", async () => {
@@ -725,6 +828,26 @@ describe("Zweiter Faktor (TOTP) im Login des Expo-Clients", () => {
     expect(antwort.status).toBe(200);
     expect(cookiesAus(antwort)).toContain("__Secure-better-auth.trust_device=");
   });
+
+  test("ein TOTP-Code gilt in seinem Zeitfenster mehr als einmal", async () => {
+    const admin = await adminMitTotp();
+    const code = await totpCode(admin.id);
+    const mitCode = async () => {
+      const anmeldung = await app.request(
+        anfrage("sign-in/username", {
+          body: { username: admin.benutzername, password: PASSWORT },
+        }),
+      );
+      return app.request(
+        anfrage("two-factor/verify-totp", {
+          cookie: cookiesAus(anmeldung),
+          body: { code },
+        }),
+      );
+    };
+    expect((await mitCode()).status).toBe(200);
+    expect((await mitCode()).status).toBe(200);
+  });
 });
 
 describe("haveIBeenPwned", () => {
@@ -740,9 +863,24 @@ describe("haveIBeenPwned", () => {
     expect((await antwort.json()).code).toBe("PASSWORD_COMPROMISED");
   });
 
-  test("ist der Dienst nicht erreichbar, scheitert change-password mit 500", async () => {
+  test.each([
+    [
+      "antwortet der Dienst mit einem Fehler",
+      "Failed to check password. Status: 503",
+      () =>
+        vi
+          .mocked(fetch)
+          .mockResolvedValueOnce(new Response(null, { status: 503 })),
+    ],
+    [
+      "ist der Dienst nicht erreichbar",
+      "Failed to check password. Please try again later.",
+      () =>
+        vi.mocked(fetch).mockRejectedValueOnce(new TypeError("fetch failed")),
+    ],
+  ])("%s, scheitert change-password mit 500", async (_, meldung, stoerung) => {
     const cookie = await anmelden((await legeAn()).benutzername);
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 503 }));
+    stoerung();
     const antwort = await app.request(
       anfrage("change-password", {
         cookie,
@@ -750,9 +888,30 @@ describe("haveIBeenPwned", () => {
       }),
     );
     expect(antwort.status).toBe(500);
-    expect((await antwort.json()).message).toBe(
-      "Failed to check password. Status: 503",
-    );
+    expect((await antwort.json()).message).toBe(meldung);
+  });
+
+  test("createUser mit einem Passwort aus einem Datenleck liefert 400, legt die Person aber ohne Konto an; ein zweiter Versuch scheitert an der E-Mail-Adresse", async () => {
+    const email = `${randomUUID()}@benutzer.invalid`;
+    const anlegen = (password: string) =>
+      auth.api.createUser({
+        body: {
+          email,
+          password,
+          name: "Testperson",
+          data: { username: `neu${++laufnummer}` },
+        },
+      });
+    await expect(anlegen(GELEAKT)).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "PASSWORD_COMPROMISED" },
+    });
+    expect(db.user).toEqual([expect.objectContaining({ email })]);
+    expect(db.account).toEqual([]);
+    await expect(anlegen(PASSWORT)).rejects.toMatchObject({
+      statusCode: 400,
+      body: { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" },
+    });
   });
 });
 
@@ -784,6 +943,11 @@ describe("Grundeinstellungen", () => {
     expect((await antwort.json()).code).toBe("PASSWORD_TOO_SHORT");
   });
 
+  test("createUser prüft die Mindestlänge nicht: ein Startpasswort mit 11 Zeichen geht und meldet an", async () => {
+    const { benutzername } = await legeAn("user", {}, "elf-zeichen");
+    await anmelden(benutzername, "elf-zeichen");
+  });
+
   test("Anmeldung ohne bestätigte E-Mail-Adresse geht", async () => {
     const { id, benutzername } = await legeAn();
     expect(person(id).emailVerified).toBe(false);
@@ -797,6 +961,14 @@ describe("Grundeinstellungen", () => {
       headers: new Headers({ cookie }),
       body: { password: PASSWORT },
     });
+    expect(person(id)).toBeUndefined();
+  });
+
+  test("auth.api.deleteUser löscht auch ohne Passwort, solange die Sitzung jünger als 24 Stunden ist", async () => {
+    expect((await auth.$context).sessionConfig.freshAge).toBe(86_400);
+    const { id, benutzername } = await legeAn();
+    const cookie = await anmelden(benutzername);
+    await auth.api.deleteUser({ headers: new Headers({ cookie }), body: {} });
     expect(person(id)).toBeUndefined();
   });
 
