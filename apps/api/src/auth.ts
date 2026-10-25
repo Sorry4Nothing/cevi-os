@@ -132,7 +132,7 @@ export const offenePfade = [
   "POST /api/auth/two-factor/verify-totp",
   "POST /api/auth/two-factor/verify-backup-code",
   "POST /api/auth/two-factor/enable",
-];
+] as const;
 
 // Ersetzt das Server-Plugin von @better-auth/expo: Der Expo-Client meldet seine Herkunft in expo-origin
 function mitExpoOrigin(anfrage: Request) {
