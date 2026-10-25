@@ -39,11 +39,16 @@ export function Bildschirm({
   const dunkel = useColorScheme() === "dark";
   const ueberschrift = useRef<HostInstance>(null);
   const fehler = useRef<HostInstance>(null);
+  const nochmals = useRef(false);
 
   // Fokus nach einer Navigation auf der Überschrift, nach einem Fehler auf der Meldung (Checkliste 6.1, 6.3)
   useEffect(() => fokussieren(ueberschrift.current), []);
   useEffect(() => {
+    if (zustand === "laden") return;
     if (zustand === "fehler") fokussieren(fehler.current);
+    // Der Knopf «Nochmals versuchen» verschwindet beim Laden, sein Fokus geht sonst verloren
+    else if (nochmals.current) fokussieren(ueberschrift.current);
+    nochmals.current = false;
   }, [zustand]);
 
   const status =
@@ -52,6 +57,12 @@ export function Bildschirm({
       : zustand === "leer"
         ? leerText
         : undefined;
+  // Die zuletzt geladenen Daten sind nur im Zustand «bereit» zu sehen
+  const offlineMeldung = !offline
+    ? undefined
+    : zustand === "bereit"
+      ? "Keine Internetverbindung. Die App zeigt die zuletzt geladenen Daten. Ändern geht erst wieder mit Internet."
+      : "Keine Internetverbindung. Ändern geht erst wieder mit Internet.";
 
   return (
     <SafeAreaView
@@ -59,7 +70,11 @@ export function Bildschirm({
     >
       {/* Android färbt die Symbole der Statusleiste nicht selbst passend zum Hintergrund */}
       <StatusBar barStyle={dunkel ? "light-content" : "dark-content"} />
-      <ScrollView contentContainerStyle={styles.inhalt}>
+      <ScrollView
+        // Sonst schliesst der erste Tipp nur die Tastatur, und ein Knopf unter einem Textfeld braucht zwei
+        keyboardShouldPersistTaps="handled"
+        contentContainerStyle={styles.inhalt}
+      >
         <Text
           ref={ueberschrift}
           accessibilityRole="header"
@@ -68,11 +83,7 @@ export function Bildschirm({
           {titel}
         </Text>
         <Ansage
-          text={
-            offline
-              ? "Keine Internetverbindung. Die App zeigt die zuletzt geladenen Daten. Ändern geht erst wieder mit Internet."
-              : undefined
-          }
+          text={offlineMeldung}
           stil={[
             styles.text,
             styles.meldung,
@@ -90,7 +101,13 @@ export function Bildschirm({
               {fehlerText}
             </Text>
             {onNeuLaden ? (
-              <Button titel="Nochmals versuchen" onPress={onNeuLaden} />
+              <Button
+                titel="Nochmals versuchen"
+                onPress={() => {
+                  nochmals.current = true;
+                  onNeuLaden();
+                }}
+              />
             ) : null}
           </View>
         ) : null}
