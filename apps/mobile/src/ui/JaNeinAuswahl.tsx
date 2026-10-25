@@ -1,4 +1,4 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { masse, schrift, useFarben } from "./tokens";
 
@@ -40,17 +40,19 @@ type AntwortProps = {
   hinweis?: string;
 };
 
-// iOS kennt keine Radio-Gruppe: Jede Antwort sagt über checked selbst an, ob sie gewählt ist (Checkliste 1.4)
+// iOS kennt keine Radio-Gruppe: Jede Antwort sagt über accessibilityState selbst an, ob sie gewählt ist (Checkliste 1.4)
 function Antwort({ text, gewaehlt, onPress, kontext, hinweis }: AntwortProps) {
   const farben = useFarben();
   const schriftfarbe = gewaehlt ? farben.aufAkzent : farben.text;
+  // Auf iOS hängt RN an radio und checked englische Wörter an; button und selected sagt VoiceOver selbst in der Sprache des Geräts
+  const ios = Platform.OS === "ios";
 
   return (
     <Pressable
-      accessibilityRole="radio"
+      accessibilityRole={ios ? "button" : "radio"}
       accessibilityLabel={`${text}, ${kontext}`}
       accessibilityHint={hinweis}
-      accessibilityState={{ checked: gewaehlt }}
+      accessibilityState={ios ? { selected: gewaehlt } : { checked: gewaehlt }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.antwort,
