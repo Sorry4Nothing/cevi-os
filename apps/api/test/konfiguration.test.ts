@@ -69,11 +69,12 @@ test("der Server startet ohne Konfiguration nicht", () => {
         PORT: undefined,
       },
       encoding: "utf8",
-      timeout: 20_000,
+      // Auf einem ausgelasteten Rechner dauert der Start mit tsx ein Vielfaches, gemessen bis 15 s
+      timeout: 60_000,
     },
   );
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
     "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT",
   );
-}, 30_000);
+}, 70_000);

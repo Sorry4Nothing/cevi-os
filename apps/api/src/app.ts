@@ -49,7 +49,7 @@ export function erstelleApp({
       .use(bodyLimit({ maxSize: 64 * 1024 }))
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
-        // Ohne Header weiter: Uptime-Dienst und Tests schicken keinen
+        // Ohne Header weiter: 426 nur für eine ältere Version; den Header setzt der Client selbst, aussperren kann die Prüfung also niemanden
         if (version !== undefined && istVeraltet(version, appMinVersion)) {
           throw new HTTPException(426);
         }
@@ -60,7 +60,7 @@ export function erstelleApp({
           await sql`select 1`;
           return c.text("ok");
         } catch (fehler) {
-          // Nur der Code: postgres-js nennt Host und Port in message und address
+          // Nur der Code: postgres-js nennt Host und Port in message, address und port
           log(c, {
             ereignis: "health",
             code: (fehler as { code?: unknown }).code,
@@ -84,7 +84,11 @@ export function erstelleApp({
           ereignis: "fehler",
           name: fehler.name,
           code: (fehler as { code?: unknown }).code,
-          stack: fehler.stack?.split("\n").filter((z) => /^\s+at /.test(z)),
+          // Erst nach dem Kopf «Name: Meldung», den Node mit Error.prototype.toString bildet: Eine mehrzeilige Meldung kann Zeilen mit «at …» enthalten
+          stack: fehler.stack
+            ?.split("\n")
+            .slice(Error.prototype.toString.call(fehler).split("\n").length)
+            .filter((z) => /^\s+at /.test(z)),
         });
         return c.json(FEHLER[500], 500);
       })

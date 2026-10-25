@@ -22,16 +22,25 @@ const sql = postgres(
 );
 afterAll(() => sql.end());
 
+// Erfundener Name in spitzen Klammern: Windows verbietet sie in Pfaden, Datei-URLs kodieren sie; so trifft die Suche nicht den Pfad zum Checkout in den Zeilen des Stacks
+const NAME = "<Max Muster>";
+
+// Eine Meldung, die Eingaben wiederholt, kann mehrzeilig sein und wie eine Zeile des Stacks aussehen
+const ECHO = `${NAME} 203.0.113.7\n    at ${NAME} 203.0.113.7`;
+
 // Testrouten, angehängt wie später die Routen der Issues
 const app = () =>
   erstelleApp({ appMinVersion: "1.2.0", sql })
     .post("/api/v1/test/:token", async (c) => c.json(await c.req.json()))
     .get("/api/v1/kaputt", () => {
-      throw new Error("Max Muster 203.0.113.7");
+      const fehler = new Error(ECHO);
+      // Node bildet den Kopf des Stacks ohne dieses eigene toString
+      fehler.toString = () => "Error";
+      throw fehler;
     })
     .get("/api/v1/uuid", async (c) => {
       // Postgres wiederholt die Eingabe in der Meldung
-      await sql`select ${"Max Muster"}::uuid`;
+      await sql`select ${ECHO}::uuid`;
       return c.text("nie");
     })
     .get("/api/v1/konflikt", () => {
@@ -46,10 +55,11 @@ const KOPFZEILEN = {
   Cookie: "better-auth.session_token=geheimes-token-1",
   Authorization: "Bearer geheimes-token-2",
   "X-Forwarded-For": "203.0.113.7",
+  // Nur Zeichen, die Hono als ID übernehmen würde; dass die ID nicht übernommen wird, prüft der Vergleich mit der UUID
   "X-Request-Id": "max-muster",
-  "User-Agent": "Max-Muster-Telefon/1.0",
+  "User-Agent": `${NAME} Telefon/1.0`,
 };
-const VERBOTEN = ["max", "muster", "geheimes-token", "203.0.113.7", "hallo"];
+const VERBOTEN = [NAME.toLowerCase(), "geheimes-token", "203.0.113.7"];
 
 let ausgabe: MockInstance<typeof console.log>;
 beforeEach(() => {
@@ -73,11 +83,11 @@ function logEintraege(...auchVerboten: string[]) {
 describe("Log", () => {
   test("ein Eintrag pro Anfrage, mit Request-ID, ohne Personendaten und ohne IP-Adresse", async () => {
     const res = await app().request(
-      "/api/v1/test/geheimes-token-3?name=Max%20Muster",
+      `/api/v1/test/geheimes-token-3?name=${encodeURIComponent(NAME)}`,
       {
         method: "POST",
         headers: { ...KOPFZEILEN, "Content-Type": "application/json" },
-        body: JSON.stringify({ name: "Max Muster", nachricht: "Hallo Max" }),
+        body: JSON.stringify({ name: NAME, nachricht: `Hallo ${NAME}` }),
       },
     );
     expect(res.status).toBe(200);
@@ -119,7 +129,7 @@ describe("/health", () => {
     ).health.$get(undefined, { headers: KOPFZEILEN });
     expect(res.status).toBe(503);
     expect(await res.text()).toBe("fehler");
-    // postgres-js nennt Host und Port in message und address, darum nur der Code
+    // postgres-js nennt Host und Port in message, address und port, darum nur der Code
     const [health, anfrage] = logEintraege("127.0.0.1");
     expect(health).toEqual({
       zeit: expect.any(String),
