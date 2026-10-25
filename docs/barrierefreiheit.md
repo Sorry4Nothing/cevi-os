@@ -45,7 +45,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 
 - [ ] **4.1** Der Scan des Bildschirms ergibt keinen Vorschlag, oder der PR begründet jeden, der bleibt.
 
-Auf dem iPhone werden Kontrast und Touch-Ziele (5.5 und 5.7) von Auge geprüft, vor allem dort, wo iOS anders aussieht als Android.
+Auf dem iPhone gibt es keinen Scanner. Den Kontrast (5.5) misst man dort an einem Bildschirmfoto mit einem Kontrastprüfer am PC. Die Grösse der Touch-Ziele (5.7) steht im Code: Grösse plus `hitSlop`, in pt auf iOS und dp auf Android. Das ist vor allem dort nötig, wo iOS anders aussieht als Android.
 
 ## 5. Darstellung
 
@@ -68,6 +68,7 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 - [ ] **6.2** Nach dem Schliessen eines Dialogs liegt der Fokus wieder auf dem Element, das ihn geöffnet hat.
 - [ ] **6.3** Nach einem Fehler liegt der Fokus auf der Fehlermeldung.
 - [ ] **6.4** Der Fokus liegt nie unter Tab-Leiste, Tastatur oder Eingabezeile; der Inhalt scrollt mit.
+- [ ] **6.5** Öffnet sich ein Dialog, liegt der Fokus im Dialog. Screenreader und Schalter erreichen nichts dahinter, bis er geschlossen ist.
 
 ## 7. App-Sperre
 
@@ -76,7 +77,7 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 
 ## 8. Gesten und Zeit
 
-- [ ] **8.1** Jede Wisch- oder Ziehaktion lässt sich auch ohne Wischen und Ziehen auslösen, mit einem Knopf oder über ein Menü. Für Screenreader und Schalter gibt es sie zusätzlich als Aktion (`accessibilityActions` mit `onAccessibilityAction`).
+- [ ] **8.1** Jede Wisch-, Zieh- oder Mehrfingeraktion lässt sich auch mit einem Finger ohne Wischen und Ziehen auslösen, mit einem Knopf oder über ein Menü. Für Screenreader und Schalter gibt es sie zusätzlich als Aktion (`accessibilityActions` mit `onAccessibilityAction`).
 - [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Meldung verschwindet von selbst.
 
 ## 9. Textfelder und Login
@@ -86,12 +87,13 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 - [ ] **9.1** Benutzername: `autoComplete="username"` und `textContentType="username"`.
 - [ ] **9.2** Passwort beim Anmelden: `autoComplete="current-password"` und `textContentType="password"`.
 - [ ] **9.3** Neues Passwort: `autoComplete="new-password"`, `textContentType="newPassword"` und auf iOS `passwordRules="minlength: 12;"`.
-- [ ] **9.4** Code des zweiten Faktors: `autoComplete="one-time-code"` und `textContentType="oneTimeCode"`.
+- [ ] **9.4** Code des zweiten Faktors aus der Authenticator-App: auf iOS `textContentType="oneTimeCode"`, auf Android `autoComplete="2fa-app-otp"`. Auf Android nicht `one-time-code`: React Native macht daraus den Hinweis für SMS-Codes.
 - [ ] **9.5** Der Passwort-Manager des Geräts füllt Benutzername und Passwort aus.
 - [ ] **9.6** Einfügen geht in jedem Textfeld (kein `contextMenuHidden`).
 - [ ] **9.7** Es gibt kein Feld zum Wiederholen des Passworts.
 - [ ] **9.8** «Passwort anzeigen» sagt an, ob das Passwort gerade sichtbar ist.
 - [ ] **9.9** Fehler stehen als Text beim betroffenen Feld und werden angesagt.
+- [ ] **9.10** Jedes Textfeld hat eine sichtbare Beschriftung, die beim Tippen stehen bleibt. Ein Platzhalter allein reicht nicht.
 
 ## 10. Sprache und Texte
 
