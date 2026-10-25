@@ -21,7 +21,7 @@ const rollen = {
   user: ac.newRole({ user: [], session: [] }),
 };
 
-// Startpasswort nur hier prüfen: change-password legt auch eine Sitzung an und muss nach dem Ablauf gehen
+// Startpasswort nur bei einer neuen Anmeldung prüfen: change-password und verify-totp in der eigenen laufenden Sitzung legen auch eine Sitzung an und müssen nach dem Ablauf gehen
 const anmeldepfade = new Set([
   "/sign-in/username",
   "/two-factor/verify-totp",
@@ -58,18 +58,23 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       session: {
         create: {
           async before(sitzung, ctx) {
-            if (ctx && anmeldepfade.has(ctx.path)) {
+            if (
+              ctx &&
+              anmeldepfade.has(ctx.path) &&
+              ctx.context.session?.user.id !== sitzung.userId
+            ) {
               const person = await ctx.context.adapter.findOne<{
                 mussPasswortAendern?: boolean;
-                startpasswortGueltigBis?: Date | null;
+                startpasswortGueltigBis?: Date | string | null;
               }>({
                 model: "user",
                 where: [{ field: "id", value: sitzung.userId }],
               });
-              const ablauf = person?.mussPasswortAendern
-                ? person.startpasswortGueltigBis
-                : null;
-              if (ablauf && ablauf < new Date()) {
+              // Im Zweifel sperren: Ohne Datum gilt 1970, und anders als <= sperrt !(… > jetzt) auch ein ungültiges Datum
+              if (
+                person?.mussPasswortAendern &&
+                !(new Date(person.startpasswortGueltigBis ?? 0) > new Date())
+              ) {
                 throw new APIError("FORBIDDEN", {
                   code: "STARTPASSWORT_ABGELAUFEN",
                   message:
