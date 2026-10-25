@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { afterAll, expect, test } from "vitest";
+import { scheitert, zurueckgerollt } from "./transaktion.js";
 
 // Immer als API-Rolle, auch wenn DATABASE_URL den Superuser nennt: Ihm gelingt jede Rechteprüfung
 const sql = postgres(
@@ -8,34 +9,8 @@ const sql = postgres(
 );
 afterAll(() => sql.end());
 
-const ZURUECK = new Error("zurückrollen");
-
-// Jede Prüfung in einer Transaktion, die am Ende zurückrollt
-async function zurueckgerollt(
-  pruefung: (tx: postgres.TransactionSql) => Promise<void>,
-) {
-  await sql
-    .begin(async (tx) => {
-      await pruefung(tx);
-      throw ZURUECK;
-    })
-    .catch((fehler) => {
-      if (fehler !== ZURUECK) throw fehler;
-    });
-}
-
-// Im eigenen Savepoint, damit die Transaktion nach dem Fehler weiterläuft
-async function verboten(
-  tx: postgres.TransactionSql,
-  anweisung: (sp: postgres.TransactionSql) => Promise<unknown>,
-) {
-  await expect(tx.savepoint(anweisung)).rejects.toMatchObject({
-    code: "42501",
-  });
-}
-
 test("die API-Rolle ergänzt und liest audit_log, kann Einträge aber weder ändern noch löschen", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const [abteilung] =
       await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
     const [eintrag] = await tx`
@@ -43,17 +18,19 @@ test("die API-Rolle ergänzt und liest audit_log, kann Einträge aber weder änd
       values (${abteilung.id}, 'cli', 'test', 'abteilung', ${abteilung.id})
       returning id`;
 
-    await verboten(
+    await scheitert(
       tx,
+      { code: "42501" },
       (sp) =>
         sp`update audit_log set aktion = 'geaendert' where id = ${eintrag.id}`,
     );
-    await verboten(
+    await scheitert(
       tx,
+      { code: "42501" },
       (sp) => sp`delete from audit_log where id = ${eintrag.id}`,
     );
-    await verboten(tx, (sp) => sp`truncate audit_log`);
-    await verboten(tx, (sp) => sp`drop table audit_log`);
+    await scheitert(tx, { code: "42501" }, (sp) => sp`truncate audit_log`);
+    await scheitert(tx, { code: "42501" }, (sp) => sp`drop table audit_log`);
     expect(
       await tx`select aktion from audit_log where id = ${eintrag.id}`,
     ).toEqual([{ aktion: "test" }]);
@@ -61,7 +38,7 @@ test("die API-Rolle ergänzt und liest audit_log, kann Einträge aber weder änd
 });
 
 test("die API-Rolle benennt Stufen um, löscht aber keine", async () => {
-  await zurueckgerollt(async (tx) => {
+  await zurueckgerollt(sql, async (tx) => {
     const [abteilung] =
       await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
     const [stufe] = await tx`
@@ -70,7 +47,11 @@ test("die API-Rolle benennt Stufen um, löscht aber keine", async () => {
       returning id`;
 
     await tx`update stufe set name = 'Umbenannt' where id = ${stufe.id}`;
-    await verboten(tx, (sp) => sp`delete from stufe where id = ${stufe.id}`);
+    await scheitert(
+      tx,
+      { code: "42501" },
+      (sp) => sp`delete from stufe where id = ${stufe.id}`,
+    );
     expect(await tx`select name from stufe where id = ${stufe.id}`).toEqual([
       { name: "Umbenannt" },
     ]);
@@ -78,8 +59,12 @@ test("die API-Rolle benennt Stufen um, löscht aber keine", async () => {
 });
 
 test("die API-Rolle legt keine Tabellen an", async () => {
-  await zurueckgerollt(async (tx) => {
-    await verboten(tx, (sp) => sp`create table test_tabelle (id int)`);
+  await zurueckgerollt(sql, async (tx) => {
+    await scheitert(
+      tx,
+      { code: "42501" },
+      (sp) => sp`create table test_tabelle (id int)`,
+    );
   });
 });
 
