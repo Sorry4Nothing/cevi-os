@@ -1,0 +1,228 @@
+import { sql } from "drizzle-orm";
+import {
+  bigint,
+  boolean,
+  check,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+const id = () =>
+  uuid("id")
+    .primaryKey()
+    .default(sql`uuidv7()`);
+const zeitpunkt = (name: string) => timestamp(name, { withTimezone: true });
+
+export const abteilung = pgTable("abteilung", {
+  id: id(),
+  name: text("name").notNull(),
+  // Steht nur in der Datenbank, nie im Repo
+  googleKalenderId: text("google_kalender_id"),
+  // Text für die Hilfe-Seite
+  vertrauenspersonen: text("vertrauenspersonen"),
+  syncOkAm: zeitpunkt("sync_ok_am"),
+  syncFehler: text("sync_fehler"),
+});
+
+// Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
+export const user = pgTable("user", {
+  id: id(),
+  name: text("name").notNull(),
+  email: text("email").notNull().unique(),
+  emailVerified: boolean("email_verified").notNull().default(false),
+  // Bleibt leer; better-auth verlangt die Spalte
+  image: text("image"),
+  createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+  updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
+  username: text("username").unique(),
+  displayUsername: text("display_username"),
+  role: text("role"),
+  banned: boolean("banned").default(false),
+  banReason: text("ban_reason"),
+  banExpires: zeitpunkt("ban_expires"),
+  twoFactorEnabled: boolean("two_factor_enabled").default(false),
+  abteilungId: uuid("abteilung_id")
+    .notNull()
+    .references(() => abteilung.id, { onDelete: "restrict" }),
+  // Im Zweifel muss die Person das Passwort wechseln
+  mussPasswortAendern: boolean("muss_passwort_aendern").notNull().default(true),
+  startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
+  fehlversuche: integer("fehlversuche").notNull().default(0),
+  naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
+  deaktiviertAm: zeitpunkt("deaktiviert_am"),
+  telefon: text("telefon"),
+  pushChat: boolean("push_chat").notNull().default(true),
+  pushProgramme: boolean("push_programme").notNull().default(true),
+  datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
+});
+
+export const session = pgTable(
+  "session",
+  {
+    id: id(),
+    expiresAt: zeitpunkt("expires_at").notNull(),
+    token: text("token").notNull().unique(),
+    createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+    updatedAt: zeitpunkt("updated_at").notNull(),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Bleibt leer, es gibt keine Identitätsübernahme; better-auth verlangt die Spalte
+    impersonatedBy: text("impersonated_by"),
+  },
+  (t) => [
+    index("session_user_id_idx").on(t.userId),
+    // better-auth verlangt beide Spalten; der Hook in auth.ts leert sie, und die Datenbank lehnt jeden Wert ab
+    check(
+      "session_ohne_ip_und_user_agent",
+      sql`${t.ipAddress} is null and ${t.userAgent} is null`,
+    ),
+  ],
+);
+
+export const account = pgTable(
+  "account",
+  {
+    id: id(),
+    accountId: text("account_id").notNull(),
+    providerId: text("provider_id").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    accessToken: text("access_token"),
+    refreshToken: text("refresh_token"),
+    idToken: text("id_token"),
+    accessTokenExpiresAt: zeitpunkt("access_token_expires_at"),
+    refreshTokenExpiresAt: zeitpunkt("refresh_token_expires_at"),
+    scope: text("scope"),
+    password: text("password"),
+    createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+    updatedAt: zeitpunkt("updated_at").notNull(),
+  },
+  (t) => [index("account_user_id_idx").on(t.userId)],
+);
+
+export const verification = pgTable(
+  "verification",
+  {
+    id: id(),
+    identifier: text("identifier").notNull(),
+    value: text("value").notNull(),
+    expiresAt: zeitpunkt("expires_at").notNull(),
+    createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+    updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
+  },
+  (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
+
+export const rateLimit = pgTable("rate_limit", {
+  id: id(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  // Ohne Standardwert: Das Rate-Limit schreibt die Zeit immer selbst
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
+
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: id(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    // better-auth setzt hier keine Löschregel; ohne CASCADE scheitert das Löschen einer Person mit zweitem Faktor
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    verified: boolean("verified").default(true),
+    failedVerificationCount: integer("failed_verification_count").default(0),
+    lockedUntil: zeitpunkt("locked_until"),
+  },
+  (t) => [
+    index("two_factor_secret_idx").on(t.secret),
+    index("two_factor_user_id_idx").on(t.userId),
+  ],
+);
+
+// Umbenennbar, aber nicht löschbar: Die API-Rolle hat darauf kein DELETE (Migration 0001)
+export const stufe = pgTable("stufe", {
+  id: id(),
+  abteilungId: uuid("abteilung_id")
+    .notNull()
+    .references(() => abteilung.id, { onDelete: "restrict" }),
+  name: text("name").notNull(),
+  kuerzel: text("kuerzel").notNull(),
+  reihenfolge: integer("reihenfolge").notNull(),
+});
+
+// Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank
+export const rolle = pgTable(
+  "rolle",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    stufeId: uuid("stufe_id")
+      .notNull()
+      .references(() => stufe.id, { onDelete: "restrict" }),
+    typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.stufeId] }),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("rolle_typ_check", sql`${t.typ} in ('leitung', 'stufenleitung')`),
+  ],
+);
+
+export const kind = pgTable("kind", {
+  id: id(),
+  abteilungId: uuid("abteilung_id")
+    .notNull()
+    .references(() => abteilung.id, { onDelete: "restrict" }),
+  vorname: text("vorname").notNull(),
+  nachname: text("nachname").notNull(),
+  stufeId: uuid("stufe_id")
+    .notNull()
+    .references(() => stufe.id, { onDelete: "restrict" }),
+  stufeSeit: zeitpunkt("stufe_seit").notNull().defaultNow(),
+  // Ohne Datum ist das Kind aktiv
+  inaktivSeit: zeitpunkt("inaktiv_seit"),
+});
+
+export const kindEltern = pgTable(
+  "kind_eltern",
+  {
+    kindId: uuid("kind_id")
+      .notNull()
+      .references(() => kind.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.kindId, t.userId] })],
+);
+
+// akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
+export const auditLog = pgTable("audit_log", {
+  id: id(),
+  abteilungId: uuid("abteilung_id")
+    .notNull()
+    .references(() => abteilung.id, { onDelete: "restrict" }),
+  // UUID einer Person oder «cli» für die Kommandozeile, die kein Konto hat
+  akteurId: text("akteur_id").notNull(),
+  aktion: text("aktion").notNull(),
+  zielTyp: text("ziel_typ").notNull(),
+  zielId: uuid("ziel_id").notNull(),
+  // Ohne Personendaten
+  details: jsonb("details"),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+});
