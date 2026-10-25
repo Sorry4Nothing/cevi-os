@@ -1,8 +1,8 @@
-import postgres from "postgres";
-import { afterAll, expect, test } from "vitest";
+import { afterAll, expect, test, vi } from "vitest";
+import { verbindeDatenbank } from "../src/datenbank.js";
 
-// Prüft nur, dass die Datenbank aus docker-compose.yml bzw. der Service der CI erreichbar ist
-const sql = postgres(
+// Prüft mit dem Client des Servers, dass die Datenbank aus docker-compose.yml bzw. der Service der CI erreichbar ist
+const sql = verbindeDatenbank(
   process.env.DATABASE_URL ?? "postgres://postgres@localhost:5432/cevi_os",
 );
 
@@ -12,4 +12,11 @@ test("PostgreSQL 18 ist erreichbar", async () => {
   const [zeile] =
     await sql`select current_setting('server_version_num')::int as version`;
   expect(zeile.version).toBeGreaterThanOrEqual(180000);
+});
+
+test("NOTICEs der Datenbank kommen nicht auf die Konsole", async () => {
+  const ausgabe = vi.spyOn(console, "log").mockImplementation(() => {});
+  await sql`do $$ begin raise notice 'Max Muster'; end $$`;
+  expect(ausgabe).not.toHaveBeenCalled();
+  ausgabe.mockRestore();
 });
