@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Cevi OS",
+    "slug": "cevi-os",
+    "version": "0.1.0",
+    "orientation": "default",
+    "ios": {
+      "infoPlist": {
+        "CFBundleDevelopmentRegion": "de"
+      }
+    },
+    "android": {
+      "allowBackup": false
+    },
+    "plugins": ["expo-router"]
+  }
+}
