@@ -73,7 +73,7 @@ Bei Alarm:
 1. Das API-Log der letzten Stunde lesen: `docker compose -f deploy/docker-compose.prod.yml logs --since 1h api`
 2. Den Sync-Stand abfragen (die `id` entspricht den `abteilungIds` im Log): `docker compose -f deploy/docker-compose.prod.yml exec postgres psql -U postgres -d cevi_os -c "select id, name, google_kalender_id is not null as kalender, sync_ok_am, now() - sync_ok_am as sync_alter, sync_fehler from abteilung"`
 
-Alarmtest, einmal nach der Einrichtung:
+Alarmtest, einmal nach der Einrichtung und vor dem Pilotbetrieb — während des Tests synchronisiert rund 40 Minuten keine Abteilung:
 
 1. Mit der Abfrage oben prüfen, dass jede Abteilung mit `kalender` ein `sync_alter` von wenigen Minuten zeigt.
 2. Den Schlüssel unlesbar machen: `sudo chmod 000 deploy/secrets/google-service-account.json`. Die API läuft weiter, aber jeder Sync-Lauf scheitert. Nicht die Datei verschieben (per Bind eingebunden bliebe sie im Container sichtbar) und nicht `api` oder ein Netz stoppen (der Alarm käme aus einem anderen Grund).
