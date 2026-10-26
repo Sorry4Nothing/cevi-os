@@ -27,6 +27,13 @@ export function personAusSitzung(
       });
       // banned prüft better-auth nur beim Anlegen einer Sitzung, nicht beim Lesen
       if (!sitzung || sitzung.user.banned) throw new HTTPException(401);
+      // Bis zum Pflichtwechsel (#15) nur das eigene Profil; den Zustand kennt die App aus get-session
+      if (
+        sitzung.user.mussPasswortAendern &&
+        !(c.req.method === "GET" && c.req.path === "/api/v1/ich")
+      ) {
+        throw new HTTPException(403);
+      }
       // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
       const rollen = await db
         .select({ stufeId: rolle.stufeId, typ: rolle.typ })
