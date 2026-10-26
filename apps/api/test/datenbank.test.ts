@@ -1,10 +1,9 @@
 import { afterAll, expect, test, vi } from "vitest";
 import { verbindeDatenbank } from "../src/datenbank.js";
+import { API_URL } from "./hilfen/datenbank.js";
 
 // Prüft mit dem Client des Servers, dass die Datenbank aus docker-compose.yml bzw. der Service der CI erreichbar ist
-const sql = verbindeDatenbank(
-  process.env.DATABASE_URL ?? "postgres://postgres@localhost:5432/cevi_os",
-);
+const sql = verbindeDatenbank(API_URL);
 
 afterAll(() => sql.end());
 

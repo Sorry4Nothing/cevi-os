@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, expect, test } from "vitest";
+import { API_URL } from "./hilfen/datenbank.js";
 import { scheitert, zurueckgerollt } from "./transaktion.js";
 
-const sql = postgres(
-  process.env.DATABASE_URL ?? "postgres://cevi_os_api@localhost:5432/cevi_os",
-);
+const sql = postgres(API_URL);
 afterAll(() => sql.end());
 
 async function grunddaten(tx: postgres.TransactionSql) {
@@ -17,7 +16,7 @@ async function grunddaten(tx: postgres.TransactionSql) {
     returning id`;
   const [person] = await tx`
     insert into "user" (name, email, abteilung_id)
-    values ('Testperson', ${`${randomUUID()}@benutzer.invalid`}, ${abteilung.id})
+    values ('Testperson', ${`${randomUUID()}@example.org`}, ${abteilung.id})
     returning id`;
   return {
     abteilung: abteilung.id as string,
