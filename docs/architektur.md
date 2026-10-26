@@ -49,6 +49,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | ----------------- | ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | App               | Caddy                               | HTTPS                              | Login, Programme, Anmeldungen, Chat, Push-Token registrieren                                                  |
 | Browser           | Caddy                               | HTTPS                              | Seiten `/datenschutz`, `/konto-loeschen` und `/support`                                                       |
+| Uptime-Dienst     | Caddy                               | HTTPS                              | `/health` abfragen, Alarm bei Fehler                                                                          |
 | Caddy             | API                                 | internes Netz des Servers          | Anfragen weiterleiten                                                                                         |
 | Caddy             | Zertifizierungsstelle               | HTTPS (ACME)                       | Zertifikate holen und erneuern                                                                                |
 | API               | PostgreSQL                          | internes Netz, eigene Rolle        | Daten lesen und schreiben                                                                                     |
