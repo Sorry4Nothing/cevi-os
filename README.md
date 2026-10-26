@@ -57,7 +57,7 @@ npx prettier --check apps/mobile
 npm test -w apps/mobile
 ```
 
-- Die Tests der API brauchen die Datenbank aus `docker compose up -d db` mit allen Migrationen, darum steht `npm run db:migrieren -w apps/api` zuerst. Die Tests lesen `DATABASE_URL` und nehmen ohne die Variable die Datenbank aus `docker-compose.yml`; `apps/api/.env` lesen sie nicht.
+- Die Tests der API brauchen die Datenbank aus `docker compose up -d db` mit den Rollen aus `apps/api/src/db/rollen.sql`; auf einem neuen Volume legt Compose sie selbst an. Jeder Lauf von `npm test -w apps/api` baut die Testdatenbank `cevi_os_test` frisch aus den Migrationen auf und lässt `cevi_os` unberührt; ein zweiter Lauf, der währenddessen startet, wartet auf den ersten. Die Tests lesen weder `DATABASE_URL` noch `apps/api/.env`.
 - Der Audit der API macht die CI bei Funden ab `high` rot. Für die App läuft er in der CI nur als Hinweis.
 - `npm run format` formatiert nur `apps/`. Dateien ausserhalb, etwa die Doku, prüft `npx prettier --check <Pfad>`; die CI prüft sie nicht.
 

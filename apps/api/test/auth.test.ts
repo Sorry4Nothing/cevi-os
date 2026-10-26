@@ -1,20 +1,19 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { memoryAdapter, type MemoryDB } from "better-auth/adapters/memory";
 import { symmetricDecrypt } from "better-auth/crypto";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import { erstelleAuth, erstelleAuthRouten, offenePfade } from "../src/auth.js";
+import {
+  APP,
+  bereiteAuthTestsVor,
+  cookiesAus,
+  GELEAKT,
+  PASSWORT,
+} from "./hilfen/auth.js";
 
-// Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner braucht ein Test so ein Vielfaches der 5 s von Vitest
-vi.setConfig({ testTimeout: 120_000 });
+bereiteAuthTestsVor();
 
-// Erfundenes App-Schema; das echte legt die App fest
-const APP = "testapp://";
-vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
-vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", APP);
-
-const PASSWORT = "nur-fuer-tests-1";
 const NEU = "nur-fuer-tests-2";
-const GELEAKT = "nur-fuer-tests-geleakt";
 const TOKEN = "__Secure-better-auth.session_token";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -29,28 +28,6 @@ const OFFEN = [
   "POST /api/auth/two-factor/verify-backup-code",
   "POST /api/auth/two-factor/enable",
 ];
-
-// Kein Netz im Test: HIBP antwortet aus dieser Attrappe, jeder andere Zugriff lässt den Test scheitern
-const fremdeZugriffe: string[] = [];
-const sha1 = (text: string) =>
-  createHash("sha1").update(text).digest("hex").toUpperCase();
-vi.stubGlobal(
-  "fetch",
-  vi.fn(async (url: string | URL) => {
-    const praefix =
-      /^https:\/\/api\.pwnedpasswords\.com\/range\/([0-9A-F]{5})$/.exec(
-        String(url),
-      )?.[1];
-    if (!praefix) {
-      fremdeZugriffe.push(String(url));
-      throw new Error(`Kein Netz im Test: ${url}`);
-    }
-    const geleakt = sha1(GELEAKT);
-    const zeilen = geleakt.startsWith(praefix) ? `${geleakt.slice(5)}:3` : "";
-    return new Response(zeilen, { headers: { "content-type": "text/plain" } });
-  }),
-);
-afterEach(() => expect(fremdeZugriffe.splice(0)).toEqual([]));
 
 let db: MemoryDB;
 let auth: ReturnType<typeof erstelleAuth>;
@@ -80,15 +57,6 @@ function anfrage(
   });
 }
 
-// Wie der Cookie-Speicher des Expo-Clients: Was mit Max-Age=0 kommt, fällt weg
-function cookiesAus(antwort: Response) {
-  return antwort.headers
-    .getSetCookie()
-    .filter((c) => !/max-age=0(;|$)/i.test(c))
-    .map((c) => c.split(";")[0])
-    .join("; ");
-}
-
 let laufnummer = 0;
 async function legeAn(
   rolle: "admin" | "user" = "user",
@@ -98,7 +66,7 @@ async function legeAn(
   const benutzername = `person${++laufnummer}`;
   const { user } = await auth.api.createUser({
     body: {
-      email: `${randomUUID()}@benutzer.invalid`,
+      email: `${randomUUID()}@example.org`,
       password: passwort,
       name: "Testperson",
       role: rolle,
@@ -370,7 +338,7 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
       auth.api.createUser({
         headers,
         body: {
-          email: `${randomUUID()}@benutzer.invalid`,
+          email: `${randomUUID()}@example.org`,
           password: PASSWORT,
           name: "Neue Person",
           role: "admin",
@@ -918,7 +886,7 @@ describe("haveIBeenPwned", () => {
   });
 
   test("createUser mit einem Passwort aus einem Datenleck liefert 400, legt die Person aber ohne Konto an; ein zweiter Versuch scheitert an der E-Mail-Adresse", async () => {
-    const email = `${randomUUID()}@benutzer.invalid`;
+    const email = `${randomUUID()}@example.org`;
     const anlegen = (password: string) =>
       auth.api.createUser({
         body: {
@@ -946,7 +914,7 @@ describe("Grundeinstellungen", () => {
     const antwort = await auth.handler(
       anfrage("sign-up/email", {
         body: {
-          email: `${randomUUID()}@benutzer.invalid`,
+          email: `${randomUUID()}@example.org`,
           password: PASSWORT,
           name: "Neu",
         },
@@ -1015,7 +983,7 @@ describe("Grundeinstellungen", () => {
     await expect(
       auth.api.createUser({
         body: {
-          email: `${randomUUID()}@benutzer.invalid`,
+          email: `${randomUUID()}@example.org`,
           password: PASSWORT,
           name: "Testperson",
           data: { username: "mit-bindestrich" },
