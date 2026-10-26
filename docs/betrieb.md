@@ -63,6 +63,8 @@ npx eas-cli submit --platform android --latest
 npx eas-cli submit --platform ios --latest
 ```
 
+Nach dem Submit läuft die «Release-Checkliste» unten, bevor das Release in den Stores freigegeben wird.
+
 Für eine reine JavaScript-Korrektur reicht ein EAS Update; sie ist trotzdem ein Release mit neuer Version, Tag und Image, nur der App-Teil geht als Update statt als Build. Die App nimmt ein Update nur an, wenn sein Fingerprint dem des installierten Builds entspricht (`runtimeVersion` mit `policy: "fingerprint"` in `app.json`); ein Update mit nativer Änderung erreicht installierte Builds also nicht. Vorher pro Plattform die ID des letzten Produktions-Builds holen und den Fingerprint vergleichen:
 
 ```sh
