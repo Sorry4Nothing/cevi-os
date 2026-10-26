@@ -24,7 +24,7 @@ Ein Tag, dessen Lauf ein Image gebaut hat, wird nie verschoben, gelöscht oder n
 - Vorher ein sauberer Checkout von `main`, dessen HEAD der Tag ist: `git describe --tags --exact-match` gibt `vX.Y.Z` aus. Danach im Wurzelordner `npm ci`, denn Export und Fingerprint rechnen mit den lokalen Paketen.
 - Will eas-cli dabei eine Datei ändern, abbrechen und die Änderung per PR über `develop` bringen.
 
-Nach einer nativen Änderung — ein neues oder aktualisiertes Paket mit nativem Code, ein Expo-SDK-Update oder eine Änderung an `app.json` — braucht es einen Store-Build:
+Nach einer nativen Änderung — ein neues oder aktualisiertes Paket mit nativem Code, ein Expo-SDK-Update oder eine Änderung an `app.json` (ausser `expo.version`, die der Fingerprint ignoriert) — braucht es einen Store-Build:
 
 ```sh
 npx eas-cli build --profile production --platform all
