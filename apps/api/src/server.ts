@@ -5,6 +5,7 @@ import { erstelleAuth } from "./auth.js";
 import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
+import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { ladeSeiten } from "./seiten.js";
 
@@ -26,3 +27,9 @@ const app = erstelleApp({
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
 serve({ fetch: app.fetch, port: konfiguration.PORT });
+starteKalenderSync(() =>
+  synchronisiere({
+    datenbankUrl: konfiguration.DATABASE_URL,
+    schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
+  }),
+);

@@ -28,7 +28,13 @@ chore: Monorepo-Gerüst mit npm workspaces und CI (#2)
 
 Ein Release ist ein PR von `develop` nach `main`, gemergt mit «Create a merge commit». Nur so kommen die Commits von `develop` unverändert nach `main`. Squash und Rebase schreiben Kopien davon; der nächste Release-PR listet dann alte Commits noch einmal und kann Konflikte haben.
 
-Tags und Builds folgen mit #70.
+Ein Release läuft so:
+
+1. Versions-PR nach `develop`: hebt `expo.version` in `apps/mobile/app.json` auf `X.Y.Z`, unter einem Issue wie jeder PR. Versionen steigen nur.
+2. Release-PR von `develop` nach `main`, gemergt mit «Create a merge commit».
+3. Tag von Hand auf dem Merge-Commit, annotiert: `git fetch origin`, dann `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main` und `git push origin vX.Y.Z`. Kein Workflow erzeugt Tags.
+
+`eas build --profile production`, `eas submit` und EAS Update auf dem Kanal `production` laufen nur von `main` und startet eine benannte Person von Hand, ohne `EXPO_TOKEN` in GitHub Actions; EAS Update gibt es nur für reine JavaScript-Korrekturen. Image, Deploy und die EAS-Befehle stehen in [betrieb.md](betrieb.md) unter «Release».
 
 ## Was nie ins Repo kommt
 
