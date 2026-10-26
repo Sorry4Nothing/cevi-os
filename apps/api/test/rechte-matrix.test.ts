@@ -12,6 +12,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
   erstelleTestAuth,
@@ -33,7 +34,13 @@ bereiteAuthTestsVor();
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth });
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+});
 afterAll(() => sql.end());
 
 const FALSCH = "nur-fuer-tests-falsch";
@@ -56,6 +63,12 @@ const alle = (status: number) =>
 
 const MATRIX: Record<string, Zeile> = {
   "GET /health": { erwartet: alle(200) },
+  // Statische Seiten und .well-known: offen für alle, auch deaktiviert und ohne Login
+  "GET /datenschutz": { erwartet: alle(200) },
+  "GET /konto-loeschen": { erwartet: alle(200) },
+  "GET /support": { erwartet: alle(200) },
+  "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
+  "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
     // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen
     body: (konto) => ({
@@ -163,6 +176,7 @@ describe("Vollständigkeit", () => {
       sql,
       db,
       auth,
+      seiten: ladeSeiten(),
     }).get("/api/v1/ohne-eintrag", (c) => c.text("nie"));
     expect(ohneZeile(mitExtra)).toEqual(["GET /api/v1/ohne-eintrag"]);
   });

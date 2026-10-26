@@ -5,6 +5,7 @@ import { z } from "zod";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import { eingabe } from "../src/eingabe.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { erstelleTestAuth } from "./hilfen/auth.js";
 
 // Nie verbunden: Die Eingabeprüfung braucht keine Datenbank
@@ -21,7 +22,13 @@ afterEach(() => {
 });
 
 // Wie eine spätere Route, nur unter /api/ statt /api/v1/, wo personAusSitzung eine Sitzung verlangt; abteilung_id kommt aus der Sitzung, nie aus der Eingabe
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth }).post(
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+}).post(
   "/api/test",
   eingabe("json", z.strictObject({ titel: z.string().max(20) })),
   (c) => c.json(c.req.valid("json")),
