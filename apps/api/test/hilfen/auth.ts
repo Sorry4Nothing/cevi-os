@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { memoryAdapter } from "better-auth/adapters/memory";
 import { afterEach, expect, vi } from "vitest";
 import { erstelleAuth } from "../../src/auth.js";
 import type { Db } from "../../src/db/client.js";
@@ -12,8 +13,8 @@ export const GELEAKT = "nur-fuer-tests-geleakt";
 
 // Im Modul-Scope aufrufen, vor dem Bau der Auth-Instanz: better-auth liest beide Umgebungsvariablen beim Erstellen, Vitest friert die Zeitgrenze beim Definieren eines Tests ein, und vi.setConfig gilt nur für die eigene Datei
 export function bereiteAuthTestsVor() {
-  // Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner wurden bis 19 s pro Test gemessen, ein Vielfaches der 5 s von Vitest
-  vi.setConfig({ testTimeout: 120_000 });
+  // Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner wurden bis 19 s pro Test gemessen, ein Vielfaches der 5 s von Vitest. hookTimeout gleich: beforeAll der Rechte-Tests legt 14 Personas an
+  vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
   vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
   vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", APP);
 
@@ -56,4 +57,16 @@ export function erstelleTestAuth(db: Db) {
   return erstelleAuth(
     drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
   );
+}
+
+// GET und POST jedes Pfads, den better-auth mit diesen Plugins kennt, ohne die offenen Einträge; so treffen die Tests auch Pfade, die ein Update dazubringt
+export function geschlossenePfade(offen: readonly string[]) {
+  const pfade = new Set(
+    Object.values(erstelleAuth(memoryAdapter({})).api).flatMap((e) =>
+      e.path ? [e.path] : [],
+    ),
+  );
+  return [...pfade]
+    .flatMap((pfad) => [`GET /api/auth${pfad}`, `POST /api/auth${pfad}`])
+    .filter((eintrag) => !offen.includes(eintrag));
 }
