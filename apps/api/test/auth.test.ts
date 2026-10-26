@@ -4,6 +4,10 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { erstelleAuth, erstelleAuthRouten, offenePfade } from "../src/auth.js";
 import {
+  erzeugeStartpasswort,
+  normalisiereStartpasswort,
+} from "../src/startpasswort.js";
+import {
   APP,
   bereiteAuthTestsVor,
   cookiesAus,
@@ -15,6 +19,8 @@ import {
 bereiteAuthTestsVor();
 
 const NEU = "nur-fuer-tests-2";
+// Für Konten mit offenem Startpasswort gleich die normalisierte Form: Der sign-in-Hook ersetzt die Eingabe durch genau diese, die Normalisierung selbst prüfen login- und pflichtwechsel-Tests
+const STARTPASSWORT = normalisiereStartpasswort(erzeugeStartpasswort());
 const TOKEN = "__Secure-better-auth.session_token";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -34,7 +40,15 @@ let db: MemoryDB;
 let auth: ReturnType<typeof erstelleAuth>;
 let app: ReturnType<typeof erstelleAuthRouten>;
 beforeEach(() => {
-  db = { user: [], session: [], account: [], verification: [], twoFactor: [] };
+  // rateLimit dabei: Das Limit zählt jede Anfrage an auth.handler in der Datenbank
+  db = {
+    user: [],
+    session: [],
+    account: [],
+    verification: [],
+    twoFactor: [],
+    rateLimit: [],
+  };
   auth = erstelleAuth(memoryAdapter(db));
   app = erstelleAuthRouten(auth);
 });
@@ -108,9 +122,13 @@ async function totpCode(nutzerId: string) {
   return (await auth.api.generateTOTP({ body: { secret } })).code;
 }
 
-async function totpEinschalten(id: string, cookie: string) {
+async function totpEinschalten(
+  id: string,
+  cookie: string,
+  passwort = PASSWORT,
+) {
   const einrichten = await app.request(
-    anfrage("two-factor/enable", { cookie, body: { password: PASSWORT } }),
+    anfrage("two-factor/enable", { cookie, body: { password: passwort } }),
   );
   expect(einrichten.status).toBe(200);
   const { totpURI, backupCodes } = await einrichten.json();
@@ -124,10 +142,17 @@ async function totpEinschalten(id: string, cookie: string) {
   return { neuesCookie: cookiesAus(bestaetigen), totpURI, backupCodes };
 }
 
-async function adminMitTotp(daten: Record<string, unknown> = {}) {
-  const admin = await legeAn("admin", daten);
-  const cookie = await anmelden(admin.benutzername);
-  return { ...admin, cookie, ...(await totpEinschalten(admin.id, cookie)) };
+async function adminMitTotp(
+  daten: Record<string, unknown> = {},
+  passwort = PASSWORT,
+) {
+  const admin = await legeAn("admin", daten, passwort);
+  const cookie = await anmelden(admin.benutzername, passwort);
+  return {
+    ...admin,
+    cookie,
+    ...(await totpEinschalten(admin.id, cookie, passwort)),
+  };
 }
 
 describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () => {
@@ -294,8 +319,10 @@ describe("Zusatzfelder mit input: false", () => {
   );
 
   test("update-user verwirft false und null stillschweigend; die gespeicherten Werte bleiben", async () => {
-    const { id, benutzername } = await legeAn("user", gesetzt);
-    const cookie = await anmelden(benutzername);
+    const { id, benutzername } = await legeAn("user", gesetzt, STARTPASSWORT);
+    const cookie = await anmelden(benutzername, STARTPASSWORT);
+    // Die erfolgreiche Anmeldung setzt nur die Bremse zurück
+    const bleibt = { ...gesetzt, fehlversuche: 0, naechsterVersuchAb: null };
     const leer = {
       abteilungId: null,
       mussPasswortAendern: false,
@@ -315,13 +342,13 @@ describe("Zusatzfelder mit input: false", () => {
     });
     direkt.headers.set("origin", APP);
     expect((await auth.handler(direkt)).status).toBe(200);
-    expect(person(id)).toMatchObject({ name: "Direkt", ...gesetzt });
+    expect(person(id)).toMatchObject({ name: "Direkt", ...bleibt });
 
     await auth.api.updateUser({
       headers: new Headers({ cookie }),
       body: { name: "Ueber api", ...leer },
     });
-    expect(person(id)).toMatchObject({ name: "Ueber api", ...gesetzt });
+    expect(person(id)).toMatchObject({ name: "Ueber api", ...bleibt });
   });
 });
 
@@ -414,7 +441,8 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
     const neu = await anmelden(ziel.benutzername, NEU);
     await aufrufe.banUser(headers, ziel.id);
     expect(await sitzungZu(neu)).toBeNull();
-    const gesperrt = await app.request(
+    // Über auth.handler: Die Route macht aus dem 403 die eine 401-Meldung
+    const gesperrt = await auth.handler(
       anfrage("sign-in/username", {
         body: { username: ziel.benutzername, password: NEU },
       }),
@@ -434,13 +462,18 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
 describe("databaseHooks.session.create.before und die Hooks auf change-password", () => {
   const TAG = 86_400_000;
 
+  // Direkt über auth.handler: Die Route macht aus jedem 4xx der Anmeldung die eine 401-Meldung, hier zählen die inneren Codes
   test("abgelaufenes Startpasswort: falsches Passwort liefert das übliche 401, erst das richtige 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung", async () => {
-    const { id, benutzername } = await legeAn("user", {
-      mussPasswortAendern: true,
-      startpasswortGueltigBis: new Date(Date.now() - 1000),
-    });
+    const { id, benutzername } = await legeAn(
+      "user",
+      {
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() - 1000),
+      },
+      STARTPASSWORT,
+    );
 
-    const falsch = await app.request(
+    const falsch = await auth.handler(
       anfrage("sign-in/username", {
         body: { username: benutzername, password: NEU },
       }),
@@ -448,9 +481,9 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     expect(falsch.status).toBe(401);
     expect((await falsch.json()).code).toBe("INVALID_USERNAME_OR_PASSWORD");
 
-    const richtig = await app.request(
+    const richtig = await auth.handler(
       anfrage("sign-in/username", {
-        body: { username: benutzername, password: PASSWORT },
+        body: { username: benutzername, password: STARTPASSWORT },
       }),
     );
     expect(richtig.status).toBe(403);
@@ -473,13 +506,15 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   ])(
     "mussPasswortAendern mit Ablaufdatum %s: Anmeldung liefert 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung",
     async (_, ablauf) => {
-      const { id, benutzername } = await legeAn("user", {
-        mussPasswortAendern: true,
-      });
+      const { id, benutzername } = await legeAn(
+        "user",
+        { mussPasswortAendern: true },
+        STARTPASSWORT,
+      );
       person(id).startpasswortGueltigBis = ablauf;
-      const antwort = await app.request(
+      const antwort = await auth.handler(
         anfrage("sign-in/username", {
-          body: { username: benutzername, password: PASSWORT },
+          body: { username: benutzername, password: STARTPASSWORT },
         }),
       );
       expect(antwort.status).toBe(403);
@@ -489,27 +524,34 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   );
 
   test("mussPasswortAendern mit künftigem Ablaufdatum als ISO-Text im Speicher: Anmeldung geht", async () => {
-    const { id, benutzername } = await legeAn("user", {
-      mussPasswortAendern: true,
-    });
+    const { id, benutzername } = await legeAn(
+      "user",
+      { mussPasswortAendern: true },
+      STARTPASSWORT,
+    );
     person(id).startpasswortGueltigBis = new Date(
       Date.now() + 7 * TAG,
     ).toISOString();
-    await anmelden(benutzername);
+    await anmelden(benutzername, STARTPASSWORT);
   });
 
   test("das Sitzungs-Cookie einer anderen Person hebt die Prüfung bei der Anmeldung nicht auf", async () => {
     const andere = await anmelden((await legeAn()).benutzername);
-    const { id, benutzername } = await legeAn("user", {
-      mussPasswortAendern: true,
-      startpasswortGueltigBis: new Date(Date.now() - 1000),
-    });
-    const antwort = await app.request(
-      anfrage("sign-in/username", {
-        cookie: andere,
-        body: { username: benutzername, password: PASSWORT },
-      }),
+    const { id, benutzername } = await legeAn(
+      "user",
+      {
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() - 1000),
+      },
+      STARTPASSWORT,
     );
+    // Mit Cookie prüft better-auth die Herkunft auch direkt über auth.handler
+    const eingang = anfrage("sign-in/username", {
+      cookie: andere,
+      body: { username: benutzername, password: STARTPASSWORT },
+    });
+    eingang.headers.set("origin", APP);
+    const antwort = await auth.handler(eingang);
     expect(antwort.status).toBe(403);
     expect((await antwort.json()).code).toBe("STARTPASSWORT_ABGELAUFEN");
     expect(sitzungenVon(id)).toEqual([]);
@@ -518,14 +560,17 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   test.each(["verify-totp", "verify-backup-code"])(
     "läuft das Startpasswort im zweiten Schritt der Anmeldung ab, liefert two-factor/%s 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung",
     async (pfad) => {
-      const admin = await adminMitTotp({
-        mussPasswortAendern: true,
-        startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
-      });
+      const admin = await adminMitTotp(
+        {
+          mussPasswortAendern: true,
+          startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+        },
+        STARTPASSWORT,
+      );
       await app.request(anfrage("sign-out", { cookie: admin.neuesCookie }));
       const anmeldung = await app.request(
         anfrage("sign-in/username", {
-          body: { username: admin.benutzername, password: PASSWORT },
+          body: { username: admin.benutzername, password: STARTPASSWORT },
         }),
       );
       expect(await anmeldung.json()).toMatchObject({ twoFactorRedirect: true });
@@ -548,14 +593,22 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   );
 
   test("läuft das Startpasswort während einer Admin-Sitzung ab, schaltet verify-totp in dieser Sitzung den zweiten Faktor trotzdem ein", async () => {
-    const admin = await legeAn("admin", {
-      mussPasswortAendern: true,
-      startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
-    });
-    const cookie = await anmelden(admin.benutzername);
+    const admin = await legeAn(
+      "admin",
+      {
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+      },
+      STARTPASSWORT,
+    );
+    const cookie = await anmelden(admin.benutzername, STARTPASSWORT);
     person(admin.id).startpasswortGueltigBis = new Date(Date.now() - 1000);
 
-    const { neuesCookie } = await totpEinschalten(admin.id, cookie);
+    const { neuesCookie } = await totpEinschalten(
+      admin.id,
+      cookie,
+      STARTPASSWORT,
+    );
     expect(person(admin.id).twoFactorEnabled).toBe(true);
     expect(db.twoFactor).toEqual([
       expect.objectContaining({ userId: admin.id, verified: true }),
@@ -566,17 +619,21 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   });
 
   test("läuft das Startpasswort während der Sitzung ab, geht change-password trotzdem; danach ist mussPasswortAendern gelöscht", async () => {
-    const { id, benutzername } = await legeAn("user", {
-      mussPasswortAendern: true,
-      startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
-    });
-    const cookie = await anmelden(benutzername);
+    const { id, benutzername } = await legeAn(
+      "user",
+      {
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+      },
+      STARTPASSWORT,
+    );
+    const cookie = await anmelden(benutzername, STARTPASSWORT);
     person(id).startpasswortGueltigBis = new Date(Date.now() - 1000);
 
     const antwort = await app.request(
       anfrage("change-password", {
         cookie,
-        body: { currentPassword: PASSWORT, newPassword: NEU },
+        body: { currentPassword: STARTPASSWORT, newPassword: NEU },
       }),
     );
     expect(antwort.status).toBe(200);
@@ -586,11 +643,15 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   });
 
   test("ein fehlgeschlagener Wechsel lässt mussPasswortAendern stehen", async () => {
-    const { id, benutzername } = await legeAn("user", {
-      mussPasswortAendern: true,
-      startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
-    });
-    const cookie = await anmelden(benutzername);
+    const { id, benutzername } = await legeAn(
+      "user",
+      {
+        mussPasswortAendern: true,
+        startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+      },
+      STARTPASSWORT,
+    );
+    const cookie = await anmelden(benutzername, STARTPASSWORT);
 
     const antwort = await app.request(
       anfrage("change-password", {
@@ -986,7 +1047,8 @@ describe("Grundeinstellungen", () => {
       statusCode: 400,
       body: { code: "INVALID_USERNAME" },
     });
-    const antwort = await app.request(
+    // Über auth.handler: Die Route macht aus dem 422 die eine 401-Meldung
+    const antwort = await auth.handler(
       anfrage("sign-in/username", {
         body: { username: "mit-bindestrich", password: PASSWORT },
       }),

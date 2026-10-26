@@ -57,12 +57,12 @@ const alle = (status: number) =>
 const MATRIX: Record<string, Zeile> = {
   "GET /health": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
-    // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen
+    // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen. Deaktiviert und unbekannt bekommen dieselbe 401-Meldung (#15)
     body: (konto) => ({
       username: konto.benutzername ?? "gibt.es.nicht",
       password: konto.passwort ?? PASSWORT,
     }),
-    erwartet: { ...alle(200), deaktiviert: 403, ohneLogin: 401 },
+    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
   },
   "POST /api/auth/sign-out": {
     // Auch ohne oder mit abgelaufener Sitzung 200: better-auth räumt nur das Cookie weg

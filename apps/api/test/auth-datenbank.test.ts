@@ -3,9 +3,13 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
 import {
+  erzeugeStartpasswort,
+  normalisiereStartpasswort,
+} from "../src/startpasswort.js";
+import {
   bereiteAuthTestsVor,
   erstelleTestAuth,
-  PASSWORT,
+  zufallsIp,
 } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
@@ -31,13 +35,14 @@ afterAll(async () => {
   await Promise.all([sql.end(), db.$client.end()]);
 });
 
-// Ohne mussPasswortAendern: Es gilt der Standardwert der Datenbank, darum ein künftiges Ablaufdatum
+// Ohne mussPasswortAendern: Es gilt der Standardwert der Datenbank, darum ein künftiges Ablaufdatum und ein Startpasswort (der Hook vergleicht normalisiert)
 async function legeAn() {
   const benutzername = `test${randomUUID().slice(0, 8)}`;
+  const startpasswort = erzeugeStartpasswort();
   const { user } = await auth.api.createUser({
     body: {
       email: `${randomUUID()}@example.org`,
-      password: PASSWORT,
+      password: normalisiereStartpasswort(startpasswort),
       name: "Testperson",
       data: {
         username: benutzername,
@@ -46,20 +51,20 @@ async function legeAn() {
       },
     },
   });
-  return { id: user.id, benutzername };
+  return { id: user.id, benutzername, startpasswort };
 }
 
-function anmelden(benutzername: string) {
+function anmelden(benutzername: string, startpasswort: string) {
   return auth.handler(
     new Request("https://cevi-os.invalid/api/auth/sign-in/username", {
       method: "POST",
       headers: {
         "content-type": "application/json",
         "user-agent": "Testgeraet/1.0",
-        // Dokumentationsadresse aus RFC 5737
-        "x-forwarded-for": "203.0.113.7",
+        // Eigene IP pro Anfrage: rate_limit teilt sich der ganze Lauf
+        "x-forwarded-for": zufallsIp(),
       },
-      body: JSON.stringify({ username: benutzername, password: PASSWORT }),
+      body: JSON.stringify({ username: benutzername, password: startpasswort }),
     }),
   );
 }
@@ -89,27 +94,27 @@ test("auth.api.createUser legt die Person mit den Standardwerten der Datenbank u
 });
 
 test("Anmeldung mit User-Agent und X-Forwarded-For: 200, die Sitzung speichert beides nicht", async () => {
-  const { id, benutzername } = await legeAn();
-  expect((await anmelden(benutzername)).status).toBe(200);
+  const { id, benutzername, startpasswort } = await legeAn();
+  expect((await anmelden(benutzername, startpasswort)).status).toBe(200);
   expect(
     await sql`select ip_address, user_agent from session where user_id = ${id}`,
   ).toEqual([{ ip_address: null, user_agent: null }]);
 });
 
 test("ist das Startpasswort laut Datenbank abgelaufen, liefert die Anmeldung 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung", async () => {
-  const { id, benutzername } = await legeAn();
+  const { id, benutzername, startpasswort } = await legeAn();
   await sql`
     update "user" set startpasswort_gueltig_bis = now() - interval '1 minute'
     where id = ${id}`;
-  const antwort = await anmelden(benutzername);
+  const antwort = await anmelden(benutzername, startpasswort);
   expect(antwort.status).toBe(403);
   expect((await antwort.json()).code).toBe("STARTPASSWORT_ABGELAUFEN");
   expect(await sql`select id from session where user_id = ${id}`).toEqual([]);
 });
 
 test("sechs parallele get-session mit einem Cookie, während die Verlängerung fällig ist: alle 200, gleiches Token, eine Sitzung", async () => {
-  const { id, benutzername } = await legeAn();
-  const cookie = (await anmelden(benutzername)).headers
+  const { id, benutzername, startpasswort } = await legeAn();
+  const cookie = (await anmelden(benutzername, startpasswort)).headers
     .getSetCookie()
     .map((c) => c.split(";")[0])
     .join("; ");
