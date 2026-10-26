@@ -1,0 +1,112 @@
+# Produktion auf dem Server; deploy.sh rollt sie aus. Die Werte stehen in deploy/.env (Vorlage: .env.example)
+name: cevi-os
+
+# Für jeden Dienst. Ohne Root laufen caddy und postgres über user, api und migration über USER im Dockerfile
+x-gehaertet: &gehaertet
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+
+services:
+  caddy:
+    <<: *gehaertet
+    image: caddy:2
+    restart: unless-stopped
+    user: "1000:1000"
+    # Nur für die Ports 80 und 443 ohne Root
+    cap_add: [NET_BIND_SERVICE]
+    # Der einzige Dienst mit Ports: Docker öffnet veröffentlichte Ports an der Firewall vorbei
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  api:
+    <<: *gehaertet
+    image: ghcr.io/sorry4nothing/cevi-os-api:${TAG:-}
+    restart: unless-stopped
+    # node als PID 1 ignoriert SIGTERM, docker stop bräche ihn erst nach 10 s hart ab
+    init: true
+    environment:
+      DATABASE_URL: postgres://cevi_os_api:${API_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
+      APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
+      PORT: "3000"
+    # Für den Cache von tsx
+    tmpfs:
+      - /tmp
+    volumes:
+      - type: bind
+        source: ./secrets/google-service-account.json
+        target: /run/secrets/google-service-account.json
+        read_only: true
+        # Sonst legt Docker für eine fehlende Datei ein leeres Verzeichnis an
+        bind:
+          create_host_path: false
+    # intern zur Datenbank; default für Caddy und den Weg nach aussen (Pwned Passwords, später Google und Expo)
+    networks: [intern, default]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # Jede HTTP-Antwort zählt, auch ein 503: Ein Fehler, den /health meldet, soll nicht den Deploy blockieren, der ihn behebt
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3000/health').then(() => process.exit(0), () => process.exit(1))
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres:
+    <<: *gehaertet
+    image: postgres:18
+    restart: unless-stopped
+    user: postgres
+    environment:
+      POSTGRES_DB: cevi_os
+      # Gilt nur beim Einrichten eines leeren Volumes
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?fehlt in deploy/.env}
+      # deploy.sh setzt damit die Passwörter der Rollen, über \getenv in psql
+      API_DB_PASSWORD: ${API_DB_PASSWORD:?fehlt in deploy/.env}
+      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:?fehlt in deploy/.env}
+    tmpfs:
+      - /var/run/postgresql
+    volumes:
+      # Postgres 18 legt die Daten unter /var/lib/postgresql/18/docker ab; ein Volume auf …/data verlöre sie bei down
+      - postgres:/var/lib/postgresql
+    networks: [intern]
+    healthcheck:
+      # Über TCP: Der Server, der ein leeres Volume einrichtet, hört nur auf dem Socket
+      test: [CMD, pg_isready, -h, 127.0.0.1, -U, postgres, -d, cevi_os]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Startet nur über docker compose run in deploy.sh; der einzige Dienst mit der Besitzerrolle
+  migration:
+    <<: *gehaertet
+    image: ghcr.io/sorry4nothing/cevi-os-api:${TAG:-}
+    profiles: [migration]
+    command: [node, --import, tsx, src/db/migrieren.ts]
+    environment:
+      MIGRATION_DATABASE_URL: postgres://cevi_os_besitzer:${MIGRATION_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
+    tmpfs:
+      - /tmp
+    networks: [intern]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  # Ohne Weg nach aussen: Postgres erreichen nur api und migration
+  intern:
+    internal: true
+
+volumes:
+  postgres:
+  caddy_data:
+  caddy_config:
