@@ -11,6 +11,8 @@
     "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
     "db:generieren": "drizzle-kit generate",
     "db:migrieren": "tsx --env-file-if-exists=.env src/db/migrieren.ts",
+    "kalender:aufzeichnen": "tsx --env-file-if-exists=.env src/kalender/aufzeichnen.ts",
+    "sitzungen:beenden": "tsx --env-file-if-exists=.env src/cli/sitzungen-beenden.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"

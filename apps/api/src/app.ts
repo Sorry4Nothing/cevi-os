@@ -4,11 +4,16 @@ import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 import type { Sql } from "postgres";
+import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
+import type { Db } from "./db/client.js";
 import { log } from "./log.js";
+import { personAusSitzung } from "./rechte.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
   400: { code: "UNGUELTIGE_EINGABE", message: "Ungültige Eingabe" },
+  401: { code: "NICHT_ANGEMELDET", message: "Nicht angemeldet" },
+  403: { code: "KEINE_BERECHTIGUNG", message: "Keine Berechtigung" },
   404: { code: "NICHT_GEFUNDEN", message: "Nicht gefunden" },
   413: { code: "ZU_GROSS", message: "Anfrage zu gross" },
   426: { code: "APP_VERALTET", message: "Bitte App aktualisieren" },
@@ -27,9 +32,13 @@ function istVeraltet(version: string, minimum: string) {
 export function erstelleApp({
   appMinVersion,
   sql,
+  db,
+  auth,
 }: {
   appMinVersion: string;
   sql: Sql;
+  db: Db;
+  auth: ReturnType<typeof erstelleAuth>;
 }) {
   return (
     new Hono()
@@ -55,9 +64,24 @@ export function erstelleApp({
         }
         await next();
       })
+      .route("/", erstelleAuthRouten(auth))
+      // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
+      .use("/api/v1/*", personAusSitzung(auth, db))
       .get("/health", async (c) => {
         try {
-          await sql`select 1`;
+          // 30 Minuten fest: Der Sync läuft alle 5 Minuten, ein einzelner Fehlschlag löst noch keinen Alarm aus
+          const veraltet = await sql<{ id: string }[]>`
+            select id from abteilung
+            where google_kalender_id is not null
+              and sync_ok_am < now() - interval '30 minutes'`;
+          if (veraltet.length > 0) {
+            log(c, {
+              ereignis: "health",
+              code: "SYNC_VERALTET",
+              abteilungIds: veraltet.map((zeile) => zeile.id),
+            });
+            return c.text("fehler", 503);
+          }
           return c.text("ok");
         } catch (fehler) {
           // Nur der Code: postgres-js nennt Host und Port in message, address und port

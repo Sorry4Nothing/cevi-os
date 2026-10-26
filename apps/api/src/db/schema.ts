@@ -3,13 +3,16 @@ import {
   bigint,
   boolean,
   check,
+  date,
   index,
   integer,
   jsonb,
   pgTable,
   primaryKey,
   text,
+  time,
   timestamp,
+  unique,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -209,6 +212,80 @@ export const kindEltern = pgTable(
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.kindId, t.userId] })],
+);
+
+export const programm = pgTable(
+  "programm",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    googleEventId: text("google_event_id").notNull(),
+    // Roher recurringEventId; #28 kürzt den Stamm (_R…) erst beim Suchen
+    googleSerie: text("google_serie"),
+    titel: text("titel").notNull(),
+    ganztaegig: boolean("ganztaegig").notNull(),
+    beginn: zeitpunkt("beginn"),
+    ende: zeitpunkt("ende"),
+    tagVon: date("tag_von"),
+    // Googles Enddatum ist exklusiv; hier steht der letzte Programmtag
+    tagBis: date("tag_bis"),
+    googleOrt: text("google_ort"),
+    // Aus dem HTML der Google-Beschreibung; gilt als intern, Eltern sehen sie nie
+    googleBeschreibung: text("google_beschreibung"),
+    status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
+      .notNull()
+      .default("aktiv"),
+    // Fail-closed: Neues bleibt intern, bis SL oder Admin zuordnen
+    sichtbarkeit: text("sichtbarkeit", {
+      enum: ["intern", "leitende", "eltern"],
+    })
+      .notNull()
+      .default("intern"),
+    treffpunkt: text("treffpunkt"),
+    schlussOrt: text("schluss_ort"),
+    // Uhrzeit ohne Datum und Zone: Der Schluss gilt am letzten Programmtag vor Ort
+    schlussZeit: time("schluss_zeit"),
+    mitnehmen: text("mitnehmen"),
+    infoEltern: text("info_eltern"),
+    geaendertVon: uuid("geaendert_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    geaendertAm: zeitpunkt("geaendert_am"),
+  },
+  (t) => [
+    unique("programm_abteilung_google_event_eindeutig").on(
+      t.abteilungId,
+      t.googleEventId,
+    ),
+    check(
+      "programm_status_check",
+      sql`${t.status} in ('aktiv', 'abgesagt', 'pruefen')`,
+    ),
+    check(
+      "programm_sichtbarkeit_check",
+      sql`${t.sichtbarkeit} in ('intern', 'leitende', 'eltern')`,
+    ),
+    // Ganztägig genau dann, wenn Tage gesetzt und Zeitpunkte leer sind
+    check(
+      "programm_zeiten_passen_zu_ganztaegig",
+      sql`(${t.ganztaegig} and ${t.tagVon} is not null and ${t.tagBis} is not null and ${t.beginn} is null and ${t.ende} is null) or (not ${t.ganztaegig} and ${t.beginn} is not null and ${t.ende} is not null and ${t.tagVon} is null and ${t.tagBis} is null)`,
+    ),
+  ],
+);
+
+export const programmStufe = pgTable(
+  "programm_stufe",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    stufeId: uuid("stufe_id")
+      .notNull()
+      .references(() => stufe.id, { onDelete: "restrict" }),
+  },
+  (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht

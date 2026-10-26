@@ -8,6 +8,7 @@ import {
   bereiteAuthTestsVor,
   cookiesAus,
   GELEAKT,
+  geschlossenePfade,
   PASSWORT,
 } from "./hilfen/auth.js";
 
@@ -130,15 +131,7 @@ async function adminMitTotp(daten: Record<string, unknown> = {}) {
 }
 
 describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () => {
-  // Jeder Pfad, den better-auth mit diesen Plugins kennt, mit GET und POST; so prüft der Test auch Pfade, die ein Update dazubringt
-  const pfade = new Set(
-    Object.values(erstelleAuth(memoryAdapter({})).api).flatMap((e) =>
-      e.path ? [e.path] : [],
-    ),
-  );
-  const geschlossen = [...pfade]
-    .flatMap((pfad) => [`GET /api/auth${pfad}`, `POST /api/auth${pfad}`])
-    .filter((eintrag) => !OFFEN.includes(eintrag));
+  const geschlossen = geschlossenePfade(OFFEN);
 
   test("offenePfade sind genau die acht Pfade aus dem Issue", () => {
     expect(offenePfade).toEqual(OFFEN);
