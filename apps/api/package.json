@@ -12,6 +12,7 @@
     "db:generieren": "drizzle-kit generate",
     "db:migrieren": "tsx --env-file-if-exists=.env src/db/migrieren.ts",
     "kalender:aufzeichnen": "tsx --env-file-if-exists=.env src/kalender/aufzeichnen.ts",
+    "sitzungen:beenden": "tsx --env-file-if-exists=.env src/cli/sitzungen-beenden.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
@@ -20,7 +21,6 @@
     "@eslint/js": "^9.39.5",
     "@types/node": "^26.6.5",
     "drizzle-kit": "^0.31.11",
-    "tsx": "^4.23.15",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
   },
@@ -30,6 +30,7 @@
     "drizzle-orm": "^0.45.4",
     "hono": "4.13.14",
     "postgres": "^3.4.9",
+    "tsx": "^4.23.15",
     "zod": "^4.6.7"
   }
 }
