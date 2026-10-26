@@ -104,6 +104,33 @@ services:
       postgres:
         condition: service_healthy
 
+  # Startet nur über docker compose run in backup.sh; legt verschlüsselte Backups auf dem S3-Speicher ab
+  backup:
+    <<: *gehaertet
+    # Exakt gepinnt; Dependabot überwacht nur npm und GitHub Actions, das Image wird von Hand nachgeführt
+    image: restic/restic:0.19.1
+    profiles: [backup]
+    # Das Image setzt keinen Benutzer, sonst liefe restic als Root
+    user: "65534:65534"
+    # Als Liste: Blosse Namen übernehmen den Wert aus deploy/.env, und ohne :? laufen ps, logs und ein erster Deploy auch vor der S3-Einrichtung
+    environment:
+      # Ohne Cache-Pfad im tmpfs scheitert restic am read_only-Dateisystem
+      - RESTIC_CACHE_DIR=/tmp/restic-cache
+      # Fester Hostname: Jeder run bekäme sonst einen zufälligen, und forget behielte je Host eigene Stände
+      - RESTIC_HOST=cevi-os
+      - RESTIC_REPOSITORY
+      - RESTIC_PASSWORD
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
+      - AWS_DEFAULT_REGION
+    tmpfs:
+      - /tmp
+    # restic dump streamt die Datenbank nach stdout, und ein Log-Treiber behielte eine Kopie; der Aufrufer bekommt den Strom trotzdem
+    logging:
+      driver: none
+    # Nur der Weg nach aussen zum S3-Speicher; die Datenbank erreicht dieser Dienst nie
+    networks: [default]
+
 networks:
   # Ohne Weg nach aussen: Postgres erreichen nur api und migration
   intern:

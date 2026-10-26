@@ -8,7 +8,7 @@ Ein Monorepo mit npm workspaces:
 
 - `apps/api`: das Backend, eine API mit Hono auf Node
 - `apps/mobile`: die App für iOS und Android, mit Expo und expo-router
-- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit und Git-Workflow
+- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
 - `docker-compose.yml`: PostgreSQL 18 für die Entwicklung
@@ -19,7 +19,7 @@ Voraussetzungen: Node 26 wie in der CI und Docker mit Compose.
 
 1. Im Wurzelordner des Repos die Pakete installieren: `npm ci`
 2. Die Datenbank starten, PostgreSQL 18, nur von diesem Rechner aus erreichbar: `docker compose up -d db`
-3. `apps/api/.env.example` nach `apps/api/.env` kopieren. Die Vorlage passt schon zur Datenbank aus `docker-compose.yml`.
+3. `apps/api/.env.example` nach `apps/api/.env` kopieren. Die Vorlage passt schon zur Datenbank aus `docker-compose.yml` und setzt `BETTER_AUTH_URL` auf `http://localhost:3000`. Nur `BETTER_AUTH_SECRET` fehlt: ein zufälliges Geheimnis mit mindestens 32 Zeichen, zum Beispiel aus `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`.
 4. Die Migrationen ausführen: `npm run db:migrieren -w apps/api`. Das Skript legt die Tabellen an und vergibt die Rechte der API, als Besitzer der Tabellen mit `MIGRATION_DATABASE_URL` aus `apps/api/.env`. Bei Erfolg meldet es nichts.
 5. Die API starten: `npm run dev -w apps/api`. Das Skript startet sie mit tsx im Watch-Modus: Sie liest `apps/api/.env` und startet bei Änderungen am Code neu. Ihren Start meldet sie nicht, danach steht pro Anfrage eine JSON-Zeile im Terminal.
 6. `http://localhost:3000/health` im Browser öffnen. `ok` heisst: API und Datenbank laufen. `fehler` (Status 503) heisst: Die Datenbank ist nicht erreichbar oder ihre Tabellen fehlen, oder bei einer Abteilung mit Kalender liegt der letzte erfolgreiche Sync mehr als 30 Minuten zurück; den Grund nennt das Log der API. Der Port kommt aus `PORT` in `apps/api/.env`, in der Vorlage 3000.
@@ -71,7 +71,8 @@ npm test -w apps/mobile
 
 - [Architektur](docs/architektur.md): die Teile von Cevi OS und wer mit wem spricht
 - [Git-Workflow](docs/GIT_WORKFLOW.md): Branches, PRs, Commits und Releases
+- [Betrieb](docs/betrieb.md): der Release-Ablauf mit Tags, Image, Deploy und EAS
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
-- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release-Checkliste, Backups, Überwachung, Logs und der Ablauf bei einer Datenpanne
+- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release, Backups, Wiederherstellung, Überwachung, Logs und der Ablauf bei einer Datenpanne

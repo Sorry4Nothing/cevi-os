@@ -11,9 +11,13 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
+import { erstelleDb } from "../src/db/client.js";
+import { erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
 const sql = postgres(API_URL);
+const db = erstelleDb(sql);
+const auth = erstelleTestAuth(db);
 afterAll(() => sql.end());
 
 let ausgabe: MockInstance<typeof console.log>;
@@ -58,7 +62,7 @@ async function erstelleAbteilung(
 
 function health(verbindung: ReservedSql) {
   return testClient(
-    erstelleApp({ appMinVersion: "1.2.0", sql: verbindung }),
+    erstelleApp({ appMinVersion: "1.2.0", sql: verbindung, db, auth }),
   ).health.$get();
 }
 
