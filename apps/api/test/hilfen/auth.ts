@@ -43,6 +43,15 @@ export function bereiteAuthTestsVor() {
   afterEach(() => expect(fremdeZugriffe.splice(0)).toEqual([]));
 }
 
+// Eigene IP pro Persona oder Anfrage, damit die Testdateien eines Laufs sich kein Rate-Limit-Budget teilen (ohne Header zählen alle als 127.0.0.1). RFC-3849-Dokumentationsnetz, schon in better-auths normalisierter /64-Form: Der Schlüssel in rate_limit ist `${ip}|${pfad}`
+export function zufallsIp() {
+  const block = () =>
+    Math.floor(Math.random() * 0x1_0000)
+      .toString(16)
+      .padStart(4, "0");
+  return `2001:0db8:${block()}:${block()}:0000:0000:0000:0000`;
+}
+
 // Wie der Cookie-Speicher des Expo-Clients: Was mit Max-Age=0 kommt, fällt weg; nimmt eine Response oder ein returnHeaders-Ergebnis
 export function cookiesAus({ headers }: { headers: Headers }) {
   return headers

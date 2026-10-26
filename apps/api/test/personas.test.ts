@@ -103,19 +103,31 @@ test.each(PERSONAS)(
     const erwartet = ERWARTET[schluessel];
     expect(zeile).toEqual(erwartet && { ...GRUND, ...erwartet });
 
+    // Für «muss Passwort ändern» die Anzeigeform des Startpassworts, gespeichert ist die normalisierte
+    const start =
+      /^[2-9ACDEFGHJKMNPQRTUVWXY]{4}-[2-9ACDEFGHJKMNPQRTUVWXY]{4}-[2-9ACDEFGHJKMNPQRTUVWXY]{4}$/;
+    const ip = /^2001:0db8:[0-9a-f]{4}:[0-9a-f]{4}:0000:0000:0000:0000$/;
     expect(persona).toEqual({
       id: zeile ? persona.id : null,
       benutzername: zeile?.username ?? null,
-      passwort: zeile ? PASSWORT : null,
+      passwort: zeile
+        ? schluessel === "mussPasswortAendern"
+          ? expect.stringMatching(start)
+          : PASSWORT
+        : null,
       abteilungId: zeile?.abteilung_id ?? null,
       headers: zeile
         ? {
             "expo-origin": APP,
+            "x-forwarded-for": expect.stringMatching(ip),
             cookie: expect.stringMatching(
               /^__Secure-better-auth\.session_token=[^;]+$/,
             ),
           }
-        : { "expo-origin": APP },
+        : {
+            "expo-origin": APP,
+            "x-forwarded-for": expect.stringMatching(ip),
+          },
     });
 
     // Die deaktivierte Person behält nur ihr veraltetes Cookie
