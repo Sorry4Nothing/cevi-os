@@ -71,7 +71,6 @@ npm test -w apps/mobile
 
 - [Architektur](docs/architektur.md): die Teile von Cevi OS und wer mit wem spricht
 - [Git-Workflow](docs/GIT_WORKFLOW.md): Branches, PRs, Commits und Releases
-- [Betrieb](docs/betrieb.md): der Release-Ablauf mit Tags, Image, Deploy und EAS
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
