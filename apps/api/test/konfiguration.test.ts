@@ -49,6 +49,24 @@ describe.each(Object.keys(UNGUELTIG) as (keyof typeof UNGUELTIG)[])(
   },
 );
 
+test("GOOGLE_APPLICATION_CREDENTIALS ist freiwillig und wird durchgereicht", () => {
+  expect(
+    ladeKonfiguration(GUELTIG).GOOGLE_APPLICATION_CREDENTIALS,
+  ).toBeUndefined();
+  expect(
+    ladeKonfiguration({
+      ...GUELTIG,
+      GOOGLE_APPLICATION_CREDENTIALS: "/pfad/zur/schluesseldatei.json",
+    }).GOOGLE_APPLICATION_CREDENTIALS,
+  ).toBe("/pfad/zur/schluesseldatei.json");
+});
+
+test("GOOGLE_APPLICATION_CREDENTIALS ist leer: Die Meldung nennt nur den Namen", () => {
+  expect(meldung({ ...GUELTIG, GOOGLE_APPLICATION_CREDENTIALS: "" })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: GOOGLE_APPLICATION_CREDENTIALS",
+  );
+});
+
 test("ohne Konfiguration nennt die Meldung alle drei Namen", () => {
   expect(meldung({})).toBe(
     "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT",
