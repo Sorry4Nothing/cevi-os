@@ -16,6 +16,7 @@ import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { hatRolle, type Person } from "../src/rechte.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 import {
@@ -35,7 +36,13 @@ const auth = erstelleTestAuth(db);
 afterAll(() => sql.end());
 
 // Testrouten wie eine spätere Objekt-Route: erst der Abteilungsfilter in SQL (404), dann das Recht (403)
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth })
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+})
   .get("/api/v1/test/stufen/:id", async (c) => {
     const person = c.get("person");
     const [stufe] = await db

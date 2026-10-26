@@ -14,6 +14,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
@@ -33,7 +34,7 @@ const ECHO = `${NAME} 203.0.113.7\n    at ${NAME} 203.0.113.7`;
 
 // Testrouten, angehängt wie später die Routen der Issues; unter /api/ statt /api/v1/, weil dort personAusSitzung eine Sitzung verlangt
 const app = () =>
-  erstelleApp({ appMinVersion: "1.2.0", sql, db, auth })
+  erstelleApp({ appMinVersion: "1.2.0", sql, db, auth, seiten: ladeSeiten() })
     .post("/api/test/:token", async (c) => c.json(await c.req.json()))
     .get("/api/kaputt", () => {
       const fehler = new Error(ECHO);
@@ -130,7 +131,13 @@ describe("/health", () => {
     await tot.end();
     // db und auth aus dem Modul: Die Route /health berührt beide nie
     const res = await testClient(
-      erstelleApp({ appMinVersion: "1.2.0", sql: tot, db, auth }),
+      erstelleApp({
+        appMinVersion: "1.2.0",
+        sql: tot,
+        db,
+        auth,
+        seiten: ladeSeiten(),
+      }),
     ).health.$get(undefined, { headers: KOPFZEILEN });
     expect(res.status).toBe(503);
     expect(await res.text()).toBe("fehler");
