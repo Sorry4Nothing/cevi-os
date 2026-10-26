@@ -6,6 +6,9 @@ x-gehaertet: &gehaertet
   read_only: true
   cap_drop: [ALL]
   security_opt: ["no-new-privileges:true"]
+  # journald löscht nach Alter (14 Tage, docs/betrieb.md); json-file rotiert ohne Optionen nie, local nur nach Grösse
+  logging:
+    driver: journald
 
 services:
   caddy:
