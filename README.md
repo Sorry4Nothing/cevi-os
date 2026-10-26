@@ -8,7 +8,7 @@ Ein Monorepo mit npm workspaces:
 
 - `apps/api`: das Backend, eine API mit Hono auf Node
 - `apps/mobile`: die App für iOS und Android, mit Expo und expo-router
-- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit und Git-Workflow
+- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
 - `docker-compose.yml`: PostgreSQL 18 für die Entwicklung
@@ -71,6 +71,7 @@ npm test -w apps/mobile
 
 - [Architektur](docs/architektur.md): die Teile von Cevi OS und wer mit wem spricht
 - [Git-Workflow](docs/GIT_WORKFLOW.md): Branches, PRs, Commits und Releases
+- [Betrieb](docs/betrieb.md): der Release-Ablauf mit Tags, Image, Deploy und EAS
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
