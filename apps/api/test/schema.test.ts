@@ -121,6 +121,80 @@ test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async
   });
 });
 
+test("Löschen eines Programms entfernt die Stufen-Zuordnung; Löschen der Person lässt es mit geaendert_von NULL stehen", async () => {
+  await zurueckgerollt(sql, async (tx) => {
+    const { abteilung, stufe, person } = await grunddaten(tx);
+    const [programm] = await tx`
+      insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, geaendert_von)
+      values (${abteilung}, 'event00000000001', 'Testlager', true, '2027-07-30', '2027-08-02', ${person})
+      returning id`;
+    await tx`insert into programm_stufe (programm_id, stufe_id) values (${programm.id}, ${stufe})`;
+
+    await tx`delete from "user" where id = ${person}`;
+    expect(
+      await tx`select geaendert_von from programm where id = ${programm.id}`,
+    ).toEqual([{ geaendert_von: null }]);
+
+    await tx`delete from programm where id = ${programm.id}`;
+    expect(
+      await tx`select * from programm_stufe where programm_id = ${programm.id}`,
+    ).toEqual([]);
+  });
+});
+
+test("programm lehnt fremden Status, fremde Sichtbarkeit, unpassende Zeiten und doppelte Google-IDs ab", async () => {
+  await zurueckgerollt(sql, async (tx) => {
+    const { abteilung } = await grunddaten(tx);
+    await scheitert(
+      tx,
+      { code: "23514", constraint_name: "programm_status_check" },
+      (sp) => sp`
+        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, status)
+        values (${abteilung}, 'event00000000002', 'Test', true, '2027-07-30', '2027-08-02', 'geplant')`,
+    );
+    await scheitert(
+      tx,
+      { code: "23514", constraint_name: "programm_sichtbarkeit_check" },
+      (sp) => sp`
+        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, sichtbarkeit)
+        values (${abteilung}, 'event00000000002', 'Test', true, '2027-07-30', '2027-08-02', 'alle')`,
+    );
+    const zeiten = {
+      code: "23514",
+      constraint_name: "programm_zeiten_passen_zu_ganztaegig",
+    };
+    // Ganztägig mit Zeitpunkten statt Tagen
+    await scheitert(
+      tx,
+      zeiten,
+      (sp) => sp`
+        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, beginn, ende)
+        values (${abteilung}, 'event00000000002', 'Test', true, now(), now())`,
+    );
+    // Mit Uhrzeit, aber Tagen statt Zeitpunkten
+    await scheitert(
+      tx,
+      zeiten,
+      (sp) => sp`
+        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
+        values (${abteilung}, 'event00000000002', 'Test', false, '2027-07-30', '2027-08-02')`,
+    );
+    await tx`
+      insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
+      values (${abteilung}, 'event00000000002', 'Einmal', true, '2027-07-30', '2027-08-02')`;
+    await scheitert(
+      tx,
+      {
+        code: "23505",
+        constraint_name: "programm_abteilung_google_event_eindeutig",
+      },
+      (sp) => sp`
+        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
+        values (${abteilung}, 'event00000000002', 'Zweimal', true, '2027-07-30', '2027-08-02')`,
+    );
+  });
+});
+
 test("rolle.typ nimmt nur leitung und stufenleitung an", async () => {
   await zurueckgerollt(sql, async (tx) => {
     const { stufe, person } = await grunddaten(tx);

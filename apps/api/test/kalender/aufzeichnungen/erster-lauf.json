@@ -1,0 +1,80 @@
+[
+  {
+    "items": [
+      {
+        "id": "0aldtag000000001",
+        "status": "confirmed",
+        "summary": "Waldtag",
+        "description": "<b>Wurst &amp; Brot</b> mitnehmen<br>Fragen an leitung@example.org<br>Anmeldung: <a href=\"https://example.org/anmeldung\">Formular</a>",
+        "location": "Waldhütte",
+        "start": { "dateTime": "2027-09-25T13:30:00+02:00" },
+        "end": { "dateTime": "2027-09-25T17:00:00+02:00" }
+      },
+      {
+        "id": "gruppenstunde001_20270904T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": { "dateTime": "2027-09-04T14:00:00+02:00" },
+        "end": { "dateTime": "2027-09-04T16:00:00+02:00" },
+        "recurringEventId": "gruppenstunde001"
+      },
+      {
+        "id": "gruppenstunde001_20270911T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": { "dateTime": "2027-09-11T14:00:00+02:00" },
+        "end": { "dateTime": "2027-09-11T16:00:00+02:00" },
+        "recurringEventId": "gruppenstunde001"
+      },
+      {
+        "id": "gruppenstunde001_20270918T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": { "dateTime": "2027-09-18T14:00:00+02:00" },
+        "end": { "dateTime": "2027-09-18T16:00:00+02:00" },
+        "recurringEventId": "gruppenstunde001"
+      },
+      {
+        "id": "leitertreffen001",
+        "summary": "Leitertreffen",
+        "start": { "dateTime": "2027-09-08T19:30:00+02:00" },
+        "end": { "dateTime": "2027-09-08T21:00:00+02:00" }
+      },
+      {
+        "id": "sommerlager00001",
+        "summary": "Sommerlager",
+        "start": { "date": "2027-07-30" },
+        "end": { "date": "2027-08-03" }
+      },
+      {
+        "id": "herbstlager00001",
+        "summary": "Herbstlager",
+        "start": { "date": "2027-10-29" },
+        "end": { "date": "2027-11-01" }
+      },
+      {
+        "id": "herbst2tage00001",
+        "summary": "Herbstweekend",
+        "start": { "dateTime": "2027-10-30T10:00:00+02:00" },
+        "end": { "dateTime": "2027-10-31T16:00:00+01:00" }
+      },
+      {
+        "id": "privat0000000001",
+        "status": "confirmed",
+        "summary": "Privater Termin",
+        "visibility": "private",
+        "start": { "dateTime": "2027-09-15T18:00:00+02:00" },
+        "end": { "dateTime": "2027-09-15T19:30:00+02:00" }
+      },
+      {
+        "id": "0hnetitel0000001",
+        "status": "confirmed",
+        "start": { "dateTime": "2027-09-16T18:00:00+02:00" },
+        "end": { "dateTime": "2027-09-16T19:30:00+02:00" }
+      }
+    ]
+  }
+]
