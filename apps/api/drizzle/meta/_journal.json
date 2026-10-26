@@ -22,6 +22,13 @@
       "when": 1793045146832,
       "tag": "0002_programme",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793055540712,
+      "tag": "0003_chat",
+      "breakpoints": true
     }
   ]
 }
