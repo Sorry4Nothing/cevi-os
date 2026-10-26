@@ -69,7 +69,19 @@ export function erstelleApp({
       .use("/api/v1/*", personAusSitzung(auth, db))
       .get("/health", async (c) => {
         try {
-          await sql`select 1`;
+          // 30 Minuten fest: Der Sync läuft alle 5 Minuten, ein einzelner Fehlschlag löst noch keinen Alarm aus
+          const veraltet = await sql<{ id: string }[]>`
+            select id from abteilung
+            where google_kalender_id is not null
+              and sync_ok_am < now() - interval '30 minutes'`;
+          if (veraltet.length > 0) {
+            log(c, {
+              ereignis: "health",
+              code: "SYNC_VERALTET",
+              abteilungIds: veraltet.map((zeile) => zeile.id),
+            });
+            return c.text("fehler", 503);
+          }
           return c.text("ok");
         } catch (fehler) {
           // Nur der Code: postgres-js nennt Host und Port in message, address und port
