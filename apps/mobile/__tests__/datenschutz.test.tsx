@@ -27,6 +27,11 @@ test("zeigt den Hinweis als Kenntnisnahme mit dem Knopf «Gelesen»", async () =
   ).toBeOnTheScreen();
   expect(
     screen.getByText(
+      "Der Server speichert zu dir Name, Benutzername und deine Rollen; eine Telefonnummer nur, wenn du sie als Stufenleitung freiwillig angibst. Zu Kindern speichert er nur Vor- und Nachname und Stufe. Keine E-Mail-Adresse, keine Fotos.",
+    ),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByText(
       "Die App speichert keine Serverdaten auf dem Gerät. Sie hält sie nur im Arbeitsspeicher, solange sie läuft.",
     ),
   ).toBeOnTheScreen();

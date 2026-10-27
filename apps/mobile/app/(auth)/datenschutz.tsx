@@ -10,7 +10,7 @@ import { schrift, useFarben } from "../../src/ui/tokens";
 
 // Kenntnisnahme, keine Einwilligung; die Texte folgen den Grundsätzen des Bedrohungsmodells
 const HINWEIS = [
-  "Der Server speichert zu dir nur Name, Benutzername und deine Rollen, zu Kindern nur Vor- und Nachname und Stufe. Keine E-Mail-Adresse, keine Fotos.",
+  "Der Server speichert zu dir Name, Benutzername und deine Rollen; eine Telefonnummer nur, wenn du sie als Stufenleitung freiwillig angibst. Zu Kindern speichert er nur Vor- und Nachname und Stufe. Keine E-Mail-Adresse, keine Fotos.",
   "Es gibt kein Tracking und keine Analyse.",
   "Die App speichert keine Serverdaten auf dem Gerät. Sie hält sie nur im Arbeitsspeicher, solange sie läuft.",
   "Nur das Sitzungs-Token liegt im geschützten Speicher des Geräts (Secure Store).",
