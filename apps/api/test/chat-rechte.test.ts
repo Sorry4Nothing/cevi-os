@@ -18,6 +18,7 @@ import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { eingabe } from "../src/eingabe.js";
+import { ladeSeiten } from "../src/seiten.js";
 import {
   chatFuerPerson,
   chatMitglieder,
@@ -420,7 +421,13 @@ describe("Demo-Abteilung", () => {
 
 describe("Fremde Chats liefern per ID 404", () => {
   // Testroute wie die späteren Chat-Routen (#49): chatFuerPerson, undefined wird 404
-  const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth }).get(
+  const app = erstelleApp({
+    appMinVersion: "1.2.0",
+    sql,
+    db,
+    auth,
+    seiten: ladeSeiten(),
+  }).get(
     "/api/v1/test/chats/:id",
     eingabe("param", z.strictObject({ id: z.uuid() })),
     async (c) => {
