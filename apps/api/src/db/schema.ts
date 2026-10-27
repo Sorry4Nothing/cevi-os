@@ -13,6 +13,7 @@ import {
   time,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -287,6 +288,110 @@ export const programmStufe = pgTable(
   },
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
+
+// Mitgliedschaften stehen in keiner Tabelle; rechte.ts leitet sie aus Rollen und Kindern ab
+export const chat = pgTable(
+  "chat",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    typ: text("typ", { enum: ["stufe", "direkt"] }).notNull(),
+    stufeId: uuid("stufe_id")
+      .notNull()
+      .references(() => stufe.id, { onDelete: "restrict" }),
+    // Nur bei typ direkt: das Elternteil des Einzelchats
+    elternUserId: uuid("eltern_user_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (t) => [
+    // NULL gilt im UNIQUE als verschieden, darum Teilindizes statt unique()
+    uniqueIndex("chat_gruppe_pro_stufe")
+      .on(t.stufeId)
+      .where(sql`${t.typ} = 'stufe'`),
+    uniqueIndex("chat_direkt_pro_eltern")
+      .on(t.stufeId, t.elternUserId)
+      .where(sql`${t.typ} = 'direkt'`),
+    check("chat_typ_check", sql`${t.typ} in ('stufe', 'direkt')`),
+    check(
+      "chat_eltern_nur_direkt",
+      sql`(${t.typ} = 'stufe') = (${t.elternUserId} is null)`,
+    ),
+  ],
+);
+
+export const nachricht = pgTable("nachricht", {
+  id: id(),
+  chatId: uuid("chat_id")
+    .notNull()
+    .references(() => chat.id, { onDelete: "cascade" }),
+  autorId: uuid("autor_id")
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  text: text("text").notNull(),
+  programmId: uuid("programm_id").references(() => programm.id, {
+    onDelete: "set null",
+  }),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  // Massgebend ist ausgeblendet_am; ausgeblendet_von darf per SET NULL leeren, sonst scheiterte das Löschen dieses Kontos
+  ausgeblendetVon: uuid("ausgeblendet_von").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  ausgeblendetAm: zeitpunkt("ausgeblendet_am"),
+});
+
+// Eine Zeile entsteht erst mit dem ersten Lesen, darum gelesen_bis NOT NULL
+export const chatStatus = pgTable(
+  "chat_status",
+  {
+    chatId: uuid("chat_id")
+      .notNull()
+      .references(() => chat.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gelesenBis: zeitpunkt("gelesen_bis").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.chatId, t.userId] })],
+);
+
+export const blockierung = pgTable(
+  "blockierung",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    blockiertId: uuid("blockiert_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.blockiertId] })],
+);
+
+// text_kopie bleibt als Beleg, bis die Meldung erledigt ist; die Personen-Bezüge leeren per SET NULL
+export const meldung = pgTable("meldung", {
+  id: id(),
+  abteilungId: uuid("abteilung_id")
+    .notNull()
+    .references(() => abteilung.id, { onDelete: "restrict" }),
+  nachrichtId: uuid("nachricht_id").references(() => nachricht.id, {
+    onDelete: "set null",
+  }),
+  textKopie: text("text_kopie"),
+  autorId: uuid("autor_id").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  gemeldetVon: uuid("gemeldet_von").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  erledigtVon: uuid("erledigt_von").references(() => user.id, {
+    onDelete: "set null",
+  }),
+  erledigtAm: zeitpunkt("erledigt_am"),
+});
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
 export const auditLog = pgTable("audit_log", {
