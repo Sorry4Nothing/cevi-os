@@ -14,6 +14,7 @@ import {
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/admin/access";
 import { Hono } from "hono";
+import { BENUTZERNAME_MAX, BENUTZERNAME_MUSTER } from "./benutzername.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
@@ -298,7 +299,12 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       }),
     },
     plugins: [
-      username(),
+      // Der Standard verböte den Bindestrich und mehr als 30 Zeichen; geprüft wird die rohe Eingabe, gespeichert kleingeschrieben
+      username({
+        usernameValidator: (benutzername) =>
+          BENUTZERNAME_MUSTER.test(benutzername),
+        maxUsernameLength: BENUTZERNAME_MAX,
+      }),
       admin({ ac, roles: rollen }),
       twoFactor(),
       haveIBeenPwned(),
