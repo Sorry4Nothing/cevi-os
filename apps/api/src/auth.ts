@@ -83,6 +83,8 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       // 90 Tage, verlängert bei Nutzung (updateAge bleibt beim Standard von 1 Tag); kein cookieCache, damit beendete Sitzungen sofort enden
       expiresIn: 60 * 60 * 24 * 90,
     },
+    // Das App-Schema ist eine Baukonstante, darum im Code statt in der Umgebung: Fehlte die Variable, bekäme jeder Cookie-POST der App 403. Das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds; better-auth ergänzt BETTER_AUTH_TRUSTED_ORIGINS obendrauf (Tests)
+    trustedOrigins: ["cevi-os://"],
     rateLimit: {
       // enabled auch ausserhalb der Produktion; database zählt in rate_limit und übersteht Neustarts
       enabled: true,

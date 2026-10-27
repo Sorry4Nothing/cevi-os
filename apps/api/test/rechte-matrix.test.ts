@@ -126,6 +126,20 @@ const MATRIX: Record<string, Zeile> = {
       demoAdmin: 400,
     },
   },
+  // Die Felder je Rolle prüft test/ich.test.ts; GET /ich bleibt als einzige /api/v1-Route auch unter dem Pflichtwechsel offen (#15)
+  "GET /api/v1/ich": {
+    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
+  },
+  "POST /api/v1/ich/datenschutz": {
+    // Schreibt datenschutz_gelesen_am, darum eigene Personas
+    frischePersonas: true,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
   // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
   "GET /api/v1/programme": {
