@@ -3,7 +3,12 @@ import { Redirect, Slot, useSegments } from "expo-router";
 import { useEffect, useRef } from "react";
 import { StyleSheet, Text } from "react-native";
 
-import { authClient, queryClient, useAppVeraltet } from "../src/api/client";
+import {
+  authClient,
+  queryClient,
+  useAppVeraltet,
+  useOnline,
+} from "../src/api/client";
 import { useIch } from "../src/api/ich";
 import { usePushSchritt } from "../src/push";
 import { Bildschirm } from "../src/ui/Bildschirm";
@@ -22,6 +27,7 @@ export default function Layout() {
 function Tor() {
   const farben = useFarben();
   const veraltet = useAppVeraltet();
+  const online = useOnline();
   const sitzung = authClient.useSession();
   const userId = sitzung.data?.user.id ?? null;
   const ich = useIch(userId !== null);
@@ -54,12 +60,13 @@ function Tor() {
       </Bildschirm>
     );
   }
+  // Offline pausiert «ich» statt zu scheitern: Die Meldung erklärt das Warten
   if (
     sitzung.isPending ||
     (userId !== null && ich.isPending) ||
     pushes === "laden"
   ) {
-    return <Bildschirm titel="Cevi OS" zustand="laden" />;
+    return <Bildschirm titel="Cevi OS" zustand="laden" offline={!online} />;
   }
   // Fehler ohne Daten (kalter Start ohne Netz, 5xx): nochmals versuchen, nicht abmelden
   if (sitzung.error && !sitzung.data) {
@@ -67,6 +74,7 @@ function Tor() {
       <Bildschirm
         titel="Cevi OS"
         zustand="fehler"
+        offline={!online}
         onNeuLaden={() => sitzung.refetch()}
       />
     );
@@ -76,6 +84,7 @@ function Tor() {
       <Bildschirm
         titel="Cevi OS"
         zustand="fehler"
+        offline={!online}
         onNeuLaden={() => void ich.refetch()}
       />
     );
@@ -89,8 +98,11 @@ function Tor() {
     ziel = "/datenschutz";
   } else if (pushes === true) ziel = "/pushes";
 
+  // «/» ist die Weiterleitung auf den ersten Tab (app/index.tsx): durchlassen
   const amZiel =
-    ziel === null ? segmente[0] === "(tabs)" : segmente[1] === ziel.slice(1);
+    ziel === null
+      ? segmente[0] === "(tabs)" || segmente.length === 0
+      : segmente[1] === ziel.slice(1);
   if (!amZiel) return <Redirect href={ziel ?? "/"} />;
   return <Slot />;
 }
