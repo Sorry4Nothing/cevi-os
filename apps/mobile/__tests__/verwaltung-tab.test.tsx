@@ -31,6 +31,7 @@ jest.mock("../src/api/client", () => {
     useIchMock: () => useSyncExternalStore(abonniere, () => zustand.ich),
     useAppVeraltet: () =>
       useSyncExternalStore(abonniere, () => zustand.veraltet),
+    useOnline: () => true,
     authClient: {
       useSession: () => useSyncExternalStore(abonniere, () => zustand.sitzung),
       signIn: { username: jest.fn() },
@@ -97,7 +98,7 @@ test("mit admin steht der Tab «Verwaltung» nach «Profil» und öffnet die Sta
     await screen.findByRole("header", { name: "Verwaltung" }),
   ).toBeOnTheScreen();
   // Die Tab-Leiste führt alle drei Tabs in dieser Reihenfolge
-  const tabs = ["Start", "Profil", "Verwaltung"].map(
+  const tabs = ["Programme", "Profil", "Verwaltung"].map(
     (titel) => screen.getAllByText(titel)[0],
   );
   expect(tabs.every(Boolean)).toBe(true);
