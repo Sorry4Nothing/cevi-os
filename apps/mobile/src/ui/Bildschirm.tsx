@@ -1,4 +1,5 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import { NavigationContext } from "expo-router/react-navigation";
+import { use, useEffect, useRef, type ReactNode } from "react";
 import {
   ScrollView,
   StatusBar,
@@ -23,6 +24,8 @@ type Props = {
   leerText?: string;
   fehlerText?: string;
   onNeuLaden?: () => void;
+  // «Zurück» über der Überschrift: Die Wischgeste braucht einen Knopf (Checkliste 8.1)
+  onZurueck?: () => void;
   children?: ReactNode;
 };
 
@@ -33,6 +36,7 @@ export function Bildschirm({
   leerText = "Hier gibt es noch nichts.",
   fehlerText = "Das Laden hat nicht geklappt.",
   onNeuLaden,
+  onZurueck,
   children,
 }: Props) {
   const farben = useFarben();
@@ -40,9 +44,32 @@ export function Bildschirm({
   const ueberschrift = useRef<HostInstance>(null);
   const fehler = useRef<HostInstance>(null);
   const nochmals = useRef(false);
+  // undefined ausserhalb eines Navigators, z. B. im Tor; useFocusEffect würde dort werfen
+  const navigation = use(NavigationContext);
+  const fokussiert = useRef(false);
 
   // Fokus nach einer Navigation auf der Überschrift, nach einem Fehler auf der Meldung (Checkliste 6.1, 6.3)
-  useEffect(() => fokussieren(ueberschrift.current), []);
+  useEffect(() => {
+    // Beim Einhängen ist der Bildschirm zu sehen: Das erste focus-Ereignis ist damit verbraucht
+    fokussiert.current = true;
+    fokussieren(ueberschrift.current);
+  }, []);
+  // Im Navigator auch nach «Zurück» und nach einem Tabwechsel, einmal pro Fokus
+  useEffect(() => {
+    if (!navigation) return;
+    const beiFokus = navigation.addListener("focus", () => {
+      if (fokussiert.current) return;
+      fokussiert.current = true;
+      fokussieren(ueberschrift.current);
+    });
+    const beiBlur = navigation.addListener("blur", () => {
+      fokussiert.current = false;
+    });
+    return () => {
+      beiFokus();
+      beiBlur();
+    };
+  }, [navigation]);
   useEffect(() => {
     if (zustand === "laden") return;
     if (zustand === "fehler") fokussieren(fehler.current);
@@ -77,6 +104,11 @@ export function Bildschirm({
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.inhalt}
       >
+        {onZurueck ? (
+          <View style={styles.zurueck}>
+            <Button titel="Zurück" onPress={onZurueck} />
+          </View>
+        ) : null}
         <Text
           ref={ueberschrift}
           accessibilityRole="header"
@@ -130,4 +162,6 @@ const styles = StyleSheet.create({
   meldung: { marginTop: masse.abstand },
   offline: { padding: masse.abstand, borderRadius: masse.radius },
   block: { marginTop: masse.abstand, gap: masse.abstand },
+  // Nicht gestreckt: nur so breit wie sein Titel
+  zurueck: { alignSelf: "flex-start", marginBottom: masse.luecke },
 });
