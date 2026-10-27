@@ -182,6 +182,29 @@ test("endet «Nochmals versuchen» wieder im Fehler, bekommt die Meldung den Fok
   expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(3);
 });
 
+test("mit onZurueck steht «Zurück» über der Überschrift, der Fokus bleibt beim Öffnen auf ihr", async () => {
+  const onZurueck = jest.fn();
+  await render(<Bildschirm titel="Personen" onZurueck={onZurueck} />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Zurück" }));
+  expect(onZurueck).toHaveBeenCalledTimes(1);
+  // Checkliste 6.1: Beim Öffnen liegt der Fokus auf der Überschrift, nicht auf dem Knopf
+  expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1);
+  expect(letzterFokus()).toEqual({
+    props: expect.objectContaining({
+      accessibilityRole: "header",
+      children: "Personen",
+    }),
+    art: "focus",
+  });
+});
+
+test("ohne onZurueck gibt es keinen Knopf «Zurück»", async () => {
+  await render(<Bildschirm titel="Personen" />);
+
+  expect(screen.queryByRole("button", { name: "Zurück" })).toBeNull();
+});
+
 test("ohne onNeuLaden gibt es keinen Knopf zum nochmals Versuchen", async () => {
   await render(
     <Bildschirm
