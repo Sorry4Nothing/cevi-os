@@ -280,6 +280,19 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "PUT /api/v1/push-token": {
+    // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
+    body: (konto) => ({
+      token: `ExpoPushToken[${konto.benutzername ?? "ohne-login"}]`,
+      plattform: "ios",
+    }),
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
 };
 
 let welt: Welt;

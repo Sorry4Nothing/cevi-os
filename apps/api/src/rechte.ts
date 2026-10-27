@@ -39,7 +39,7 @@ export function personAusSitzung(
   auth: ReturnType<typeof erstelleAuth>,
   db: Db,
 ) {
-  return createMiddleware<{ Variables: { person: Person } }>(
+  return createMiddleware<{ Variables: { person: Person; sitzungId: string } }>(
     async (c, next) => {
       // disableRefresh: Die Verlängerung gehört zu get-session; hier schriebe sie die Zeile und verlöre ihr Set-Cookie
       const sitzung = await auth.api.getSession({
@@ -73,6 +73,8 @@ export function personAusSitzung(
         admin: sitzung.user.role === "admin",
         rollen,
       });
+      // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
+      c.set("sitzungId", sitzung.session.id);
       await next();
     },
   );

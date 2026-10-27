@@ -11,6 +11,7 @@ import { personAusSitzung } from "./rechte.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
+import { erstellePushTokenRouten } from "./routes/push-token.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -76,6 +77,7 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
+      .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
       .get("/health", async (c) => {
         try {
           // 30 Minuten fest: Der Sync läuft alle 5 Minuten, ein einzelner Fehlschlag löst noch keinen Alarm aus

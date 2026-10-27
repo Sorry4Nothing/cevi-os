@@ -43,9 +43,10 @@ function programmFelder(person: Person) {
     schlussZeit: programm.schlussZeit,
     mitnehmen: programm.mitnehmen,
     infoEltern: programm.infoEltern,
+    // Mit Namen für die App; nur Stufen der eigenen Abteilung, falls je eine fremde verknüpft wäre
     stufen: sql<
-      string[]
-    >`array(select stufe_id from programm_stufe where programm_stufe.programm_id = programm.id order by stufe_id)`,
+      { id: string; name: string }[]
+    >`coalesce((select jsonb_agg(jsonb_build_object('id', stufe.id, 'name', stufe.name) order by stufe.id) from programm_stufe join stufe on stufe.id = programm_stufe.stufe_id and stufe.abteilung_id = programm.abteilung_id where programm_stufe.programm_id = programm.id), '[]'::jsonb)`,
     // Die Google-Beschreibung gilt als intern: nur mit Leitungssicht, sonst null
     googleBeschreibung: sql<
       string | null
