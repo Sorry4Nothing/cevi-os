@@ -1,11 +1,13 @@
 import { Tabs } from "expo-router/js-tabs";
 import { StyleSheet, View } from "react-native";
 
+import { useIch } from "../../src/api/ich";
 import { useFarben } from "../../src/ui/tokens";
 
 // Kein tabBarAllowFontScaling: iOS skaliert Tab-Beschriftungen nie, zeigt aber den Large Content Viewer (Checkliste 5.10)
 export default function TabLayout() {
   const farben = useFarben();
+  const ich = useIch();
 
   return (
     <Tabs
@@ -28,6 +30,10 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index" options={{ title: "Start" }} />
       <Tabs.Screen name="profil" options={{ title: "Profil" }} />
+      {/* Nur Bedienschutz: Jede Admin-Route prüft das Recht aus der Sitzung selbst */}
+      <Tabs.Protected guard={ich.data?.admin === true}>
+        <Tabs.Screen name="verwaltung" options={{ title: "Verwaltung" }} />
+      </Tabs.Protected>
     </Tabs>
   );
 }

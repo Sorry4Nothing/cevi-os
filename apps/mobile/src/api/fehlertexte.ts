@@ -11,6 +11,10 @@ const FEHLERTEXTE: Record<string, string> = {
     "Dieses Passwort kommt in einem bekannten Datenleck vor. Bitte ein anderes wählen.",
   PASSWORT_UNVERAENDERT:
     "Das neue Passwort muss sich vom bisherigen unterscheiden.",
+  BENUTZERNAME_VERGEBEN: "Dieser Benutzername ist schon vergeben.",
+  LETZTER_ADMIN: "Der letzte Admin lässt sich nicht entfernen.",
+  EIGENES_KONTO:
+    "Das eigene Konto lässt sich hier nicht zurücksetzen, deaktivieren oder löschen.",
 };
 
 export const ALLGEMEINER_FEHLER =

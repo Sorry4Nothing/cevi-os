@@ -23,6 +23,8 @@ type Props = {
   leerText?: string;
   fehlerText?: string;
   onNeuLaden?: () => void;
+  // Zeigt den Knopf «Zurück» über der Überschrift (Checkliste 8.1)
+  onZurueck?: () => void;
   children?: ReactNode;
 };
 
@@ -33,6 +35,7 @@ export function Bildschirm({
   leerText = "Hier gibt es noch nichts.",
   fehlerText = "Das Laden hat nicht geklappt.",
   onNeuLaden,
+  onZurueck,
   children,
 }: Props) {
   const farben = useFarben();
@@ -77,6 +80,12 @@ export function Bildschirm({
         automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.inhalt}
       >
+        {/* Der Fokus bleibt beim Öffnen auf der Überschrift; der Rückfokus nach «Zurück» ist offen (#30) */}
+        {onZurueck ? (
+          <View style={styles.zurueck}>
+            <Button titel="Zurück" onPress={onZurueck} />
+          </View>
+        ) : null}
         <Text
           ref={ueberschrift}
           accessibilityRole="header"
@@ -130,4 +139,5 @@ const styles = StyleSheet.create({
   meldung: { marginTop: masse.abstand },
   offline: { padding: masse.abstand, borderRadius: masse.radius },
   block: { marginTop: masse.abstand, gap: masse.abstand },
+  zurueck: { alignSelf: "flex-start", marginBottom: masse.luecke },
 });
