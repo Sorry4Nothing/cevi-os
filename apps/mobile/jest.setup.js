@@ -27,6 +27,28 @@ jest.mock("expo-constants", () => {
   };
 });
 
+// Die nativen Attrappen von jest-expo lösten undefined auf; Standard «erlaubt, aber ohne projectId», so senden die bestehenden Abläufe kein PUT
+jest.mock("expo-notifications", () => {
+  const original = jest.requireActual("expo-notifications");
+  return {
+    ...original,
+    __esModule: true,
+    getPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+    })),
+    requestPermissionsAsync: jest.fn(async () => ({
+      granted: true,
+      canAskAgain: true,
+    })),
+    setNotificationChannelAsync: jest.fn(async () => null),
+    getExpoPushTokenAsync: jest.fn(async () => ({
+      type: "expo",
+      data: "ExpoPushToken[test]",
+    })),
+  };
+});
+
 // createURL würde mit dem leeren Manifest werfen; der Rest des Moduls bleibt echt (expo-router braucht ihn)
 jest.mock("expo-linking", () => {
   const original = jest.requireActual("expo-linking");
@@ -34,6 +56,21 @@ jest.mock("expo-linking", () => {
     ...original,
     createURL: (pfad, optionen) =>
       `${optionen?.scheme ?? "cevi-os"}://${pfad ?? ""}`,
+  };
+});
+
+// jest-expo mockt ExpoNetwork.addListener als nacktes jest.fn (remove() würde werfen);
+// __netzHorcher lässt die Tests den Netzstand melden. Keine jest.fn: restoreAllMocks nähme die Implementation weg
+jest.mock("expo-network", () => {
+  const horcher = new Set();
+  return {
+    __esModule: true,
+    __netzHorcher: horcher,
+    getNetworkStateAsync: async () => ({ isConnected: true }),
+    addNetworkStateListener: (melden) => {
+      horcher.add(melden);
+      return { remove: () => horcher.delete(melden) };
+    },
   };
 });
 

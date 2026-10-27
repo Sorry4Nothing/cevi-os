@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { NavigationContext } from "expo-router/react-navigation";
 import { AccessibilityInfo, Text, useColorScheme } from "react-native";
 
 import { Bildschirm } from "../src/ui/Bildschirm";
@@ -253,6 +254,52 @@ test.each(["laden", "leer", "fehler"] as const)(
     ).toHaveBeenCalledWith(meldung, { queue: true });
   },
 );
+
+test("mit onZurueck steht ein Knopf «Zurück» über der Überschrift", async () => {
+  const onZurueck = jest.fn();
+  await render(<Bildschirm titel="Waldtag" onZurueck={onZurueck} />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Zurück" }));
+  expect(onZurueck).toHaveBeenCalledTimes(1);
+});
+
+test("ohne onZurueck gibt es keinen Knopf «Zurück»", async () => {
+  await render(<Bildschirm titel="Programme" />);
+
+  expect(screen.queryByRole("button", { name: "Zurück" })).toBeNull();
+});
+
+test("im Navigator fokussiert jedes focus-Ereignis die Überschrift, aber nur einmal pro Fokus", async () => {
+  const horcher: Record<string, (() => void)[]> = { focus: [], blur: [] };
+  const navigation = {
+    addListener: (typ: "focus" | "blur", melden: () => void) => {
+      horcher[typ].push(melden);
+      return () => {};
+    },
+  };
+  await render(
+    <NavigationContext.Provider value={navigation as never}>
+      <Bildschirm titel="Programme" />
+    </NavigationContext.Provider>,
+  );
+
+  // Beim Einhängen einmal; das erste focus-Ereignis des Navigators ist damit verbraucht
+  expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1);
+  horcher.focus.forEach((melden) => melden());
+  expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1);
+
+  // Nach «Zurück» oder einem Tabwechsel: blur, dann focus
+  horcher.blur.forEach((melden) => melden());
+  horcher.focus.forEach((melden) => melden());
+  expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(2);
+  expect(letzterFokus()).toEqual({
+    props: expect.objectContaining({
+      accessibilityRole: "header",
+      children: "Programme",
+    }),
+    art: "focus",
+  });
+});
 
 test("ein Knopf bekommt den ersten Tipp auch bei offener Tastatur", async () => {
   await render(<Bildschirm titel="Anmelden" />);

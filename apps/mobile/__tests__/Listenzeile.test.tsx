@@ -23,3 +23,19 @@ test("ohne Zweitzeile ist der Titel der Name", async () => {
 
   expect(screen.getByRole("button", { name: "Waldtag" })).toBeOnTheScreen();
 });
+
+test("ein Badge steht zwischen Titel und Text und wird in dieser Reihenfolge angesagt", async () => {
+  await render(
+    <Listenzeile
+      titel="Waldtag"
+      badge={{ text: "Abgesagt", art: "negativ" }}
+      text="Samstag, 14 Uhr"
+      onPress={jest.fn()}
+    />,
+  );
+
+  expect(
+    screen.getByRole("button", { name: "Waldtag, Abgesagt, Samstag, 14 Uhr" }),
+  ).toBeOnTheScreen();
+  expect(screen.getByText("Abgesagt")).toBeOnTheScreen();
+});

@@ -15,7 +15,7 @@ compose() {
 }
 
 # Ohne Daten im Backup: Sitzungen enthalten Tokens. Eine neue Tabelle, die auf eine dieser verweist, gehört auch hierhin
-ausschluss=(session verification rate_limit)
+ausschluss=(session verification rate_limit push_token)
 
 # Zeilen je Tabelle als «schema.tabelle|anzahl», ohne Inhalte
 zaehl_sql="SELECT table_schema || '.' || table_name || '|' || (xpath('/table/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name), false, false, '')))[1]::text FROM information_schema.tables WHERE table_schema IN ('public', 'drizzle') AND table_type = 'BASE TABLE' ORDER BY 1"
@@ -56,8 +56,11 @@ if [[ $modus == pruefen ]]; then
 
   for tabelle in "${ausschluss[@]}"; do
     zeilen=$(grep "^public\.$tabelle|" <<<"$wieder" | cut -d '|' -f 2 || true)
-    if [[ $zeilen != 0 ]]; then
-      echo "Ausgeschlossene Tabelle public.$tabelle ist nicht leer oder fehlt (Zeilen: ${zeilen:-keine Tabelle})" >&2
+    if [[ -z $zeilen ]]; then
+      # Stand von vor der Migration dieser Tabelle; eine fehlende Tabelle hat keine Daten
+      echo "Hinweis: Ausgeschlossene Tabelle public.$tabelle fehlt im zurückgespielten Stand" >&2
+    elif [[ $zeilen != 0 ]]; then
+      echo "Ausgeschlossene Tabelle public.$tabelle ist nicht leer (Zeilen: $zeilen)" >&2
       exit 1
     fi
   done
@@ -87,11 +90,20 @@ fi
 
 sql_liste=$(printf ", ('%s')" "${ausschluss[@]}")
 sql_liste=${sql_liste:2}
+# Eine fehlende ausgeschlossene Tabelle hat keine Daten: warnen und ohne sie sichern (deploy.sh sichert vor der Migration, die sie anlegt)
+fehlend=$(compose exec -T postgres psql -tA -v ON_ERROR_STOP=1 -U postgres -d cevi_os -c "WITH ausschluss(name) AS (VALUES $sql_liste) SELECT name FROM ausschluss WHERE to_regclass('public.' || name) IS NULL")
+vorhanden=()
+for tabelle in "${ausschluss[@]}"; do
+  if grep -qx "$tabelle" <<<"$fehlend"; then
+    echo "Warnung: Ausgeschlossene Tabelle public.$tabelle gibt es noch nicht, Backup ohne sie" >&2
+  else
+    vorhanden+=("$tabelle")
+  fi
+done
+
 # Daten einer Tabelle, die auf eine ausgeschlossene verweist, machten die ganze Wiederherstellung ungültig
 probleme=$(compose exec -T postgres psql -tA -v ON_ERROR_STOP=1 -U postgres -d cevi_os <<SQL
 WITH ausschluss(name) AS (VALUES $sql_liste)
-SELECT 'fehlt: public.' || name FROM ausschluss WHERE to_regclass('public.' || name) IS NULL
-UNION ALL
 SELECT c.conrelid::regclass::text || ' verweist auf ' || c.confrelid::regclass::text
 FROM pg_constraint c
 JOIN ausschluss a ON c.confrelid = to_regclass('public.' || a.name)
@@ -111,7 +123,7 @@ trap 'rm -f "$tmp"' EXIT
 
 echo "Backup der Datenbank mit restic" >&2
 dump_args=()
-for tabelle in "${ausschluss[@]}"; do
+for tabelle in "${vorhanden[@]}"; do
   dump_args+=("--exclude-table-data=$tabelle")
 done
 # Erst in eine Datei: Ein Rohr direkt in restic ergäbe bei einem Fehler von pg_dump einen angeschnittenen Stand

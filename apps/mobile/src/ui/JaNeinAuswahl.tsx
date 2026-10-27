@@ -1,4 +1,7 @@
-import { Auswahl } from "./Auswahl";
+import { StyleSheet, View } from "react-native";
+
+import { Antwort } from "./Auswahl";
+import { masse } from "./tokens";
 
 type Props = {
   wert: boolean | null;
@@ -9,19 +12,27 @@ type Props = {
   hinweis?: string;
 };
 
-const OPTIONEN = [
-  { wert: "ja", text: "Ja" },
-  { wert: "nein", text: "Nein" },
-] as const;
-
 export function JaNeinAuswahl({ wert, onWahl, kontext, hinweis }: Props) {
   return (
-    <Auswahl
-      optionen={OPTIONEN}
-      wert={wert === null ? null : wert ? "ja" : "nein"}
-      onWahl={(wahl) => onWahl(wahl === "ja")}
-      kontext={kontext}
-      hinweis={hinweis}
-    />
+    <View style={styles.auswahl}>
+      <Antwort
+        text="Ja"
+        gewaehlt={wert === true}
+        onPress={() => onWahl(true)}
+        kontext={kontext}
+        hinweis={hinweis}
+      />
+      <Antwort
+        text="Nein"
+        gewaehlt={wert === false}
+        onPress={() => onWahl(false)}
+        kontext={kontext}
+        hinweis={hinweis}
+      />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  auswahl: { flexDirection: "row", flexWrap: "wrap", gap: masse.luecke },
+});

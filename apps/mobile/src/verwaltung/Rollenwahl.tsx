@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
 import type { PersonenAntwort } from "../api/personen";
-import { Auswahl } from "../ui/Auswahl";
+import { OptionenAuswahl } from "../ui/Auswahl";
 import { JaNeinAuswahl } from "../ui/JaNeinAuswahl";
 import { masse, schrift, useFarben } from "../ui/tokens";
 
@@ -52,7 +52,7 @@ export function Rollenwahl({
           <Text style={[styles.text, { color: farben.text }]}>
             {stufe.name}
           </Text>
-          <Auswahl
+          <OptionenAuswahl
             optionen={STUFENROLLEN}
             wert={rollen.find((r) => r.stufeId === stufe.id)?.typ ?? "keine"}
             onWahl={(wahl) =>

@@ -14,6 +14,8 @@ module.exports = {
     "/node_modules/react-native-reanimated/plugin/",
     "/node_modules/@react-native/babel-preset/",
   ],
+  // Nur *.test-Dateien: __tests__/hilfen hält geteilte Attrappen und Daten
+  testMatch: ["**/__tests__/**/*.test.[jt]s?(x)"],
   // Läuft nach den setupFiles des Presets
   setupFiles: ["./jest.setup.js"],
   // Gemessen am 2026-10-27: die ganze Suite (116 Tests) warm 17 s, mit kaltem Transform-Cache unter Parallel-Last 247 s; die 5 s von Jest rissen dabei einzelne Tests

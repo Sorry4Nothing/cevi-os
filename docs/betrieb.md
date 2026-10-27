@@ -105,10 +105,10 @@ Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät ein
 
 ### Nicht im Backup
 
-- Sitzungen, offene Bestätigungscodes und die Schlüssel des Rate-Limits (Tabellen `session`, `verification`, `rate_limit`): Sitzungen enthalten Tokens. **Nach einer Wiederherstellung melden sich darum alle neu an.** Push-Tokens hängen an Sitzungen; sobald es ihre Tabelle gibt, wird sie ebenso ausgeschlossen.
+- Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
 - Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/google-service-account.json` und die Zertifikate von Caddy. Caddy holt Zertifikate selbst neu; die beiden Dateien sind ohne eigene Kopie verloren.
 
-Das Skript bricht ohne Backup ab, wenn eine ausgeschlossene Tabelle fehlt oder eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen.
+Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
 
 ### Schlüssel
 

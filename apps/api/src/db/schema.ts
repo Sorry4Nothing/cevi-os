@@ -393,6 +393,29 @@ export const meldung = pgTable("meldung", {
   erledigtAm: zeitpunkt("erledigt_am"),
 });
 
+// Ein Token pro Sitzung; endet die Sitzung (Abmelden, überall abmelden, Deaktivieren, Konto löschen, täglicher Job), nimmt CASCADE das Token mit
+export const pushToken = pgTable(
+  "push_token",
+  {
+    sessionId: uuid("session_id")
+      .primaryKey()
+      .references(() => session.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    plattform: text("plattform", { enum: ["ios", "android"] }).notNull(),
+    zuletztGesehen: zeitpunkt("zuletzt_gesehen").notNull().defaultNow(),
+  },
+  (t) => [
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check(
+      "push_token_plattform_check",
+      sql`${t.plattform} in ('ios', 'android')`,
+    ),
+  ],
+);
+
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
 export const auditLog = pgTable("audit_log", {
   id: id(),
