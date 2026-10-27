@@ -29,6 +29,13 @@
       "when": 1793055540712,
       "tag": "0003_chat",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793072535480,
+      "tag": "0004_push_token",
+      "breakpoints": true
     }
   ]
 }
