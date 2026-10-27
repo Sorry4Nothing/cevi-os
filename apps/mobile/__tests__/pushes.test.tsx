@@ -44,10 +44,16 @@ jest.mock("../src/api/client", () => {
     },
     queryClient: new QueryClient(),
     abmelden: jest.fn(),
+    useOnline: () => true,
     api: {
       api: {
         v1: {
           ich: { datenschutz: { $post: jest.fn() } },
+          programme: {
+            $get: jest.fn(async () => ({
+              json: async () => ({ programme: [] }),
+            })),
+          },
           "push-token": { $put: jest.fn(async () => ({})) },
         },
       },
@@ -87,8 +93,12 @@ const ICH_BEREIT = {
   data: {
     name: "Eltern A",
     benutzername: "eltern.a",
+    admin: false,
     mussPasswortAendern: false,
     datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
+    rollen: [],
+    stufen: [],
+    kinder: [],
   },
   isPending: false,
   isError: false,
@@ -128,21 +138,21 @@ test("solange die Frage offen ist, endet der Startablauf beim Schritt «Pushes»
 test("mit erteilter Erlaubnis öffnen sich die Tabs ohne den Schritt", async () => {
   await renderRouter("./app", { initialUrl: "/" });
 
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
 });
 
 test("lässt das System keine Frage mehr zu (canAskAgain false), fällt der Schritt weg", async () => {
   erlaubnis.mockResolvedValue({ granted: false, canAskAgain: false } as never);
   await renderRouter("./app", { initialUrl: "/" });
 
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
 });
 
 test("eine scheiternde Abfrage überspringt den Schritt", async () => {
   erlaubnis.mockRejectedValue(new Error("kein Modul"));
   await renderRouter("./app", { initialUrl: "/" });
 
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
 });
 
 test("«Weiter» legt erst die Kanäle an, fragt dann das System und führt zu den Tabs, auch wenn canAskAgain true bleibt", async () => {
@@ -163,7 +173,7 @@ test("«Weiter» legt erst die Kanäle an, fragt dann das System und führt zu d
   expect(kanal.mock.invocationCallOrder[1]).toBeLessThan(
     frage.mock.invocationCallOrder[0],
   );
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
 });
 
 test("jede neue Sitzung meldet das Token erneut", async () => {
@@ -175,7 +185,7 @@ test("jede neue Sitzung meldet das Token erneut", async () => {
     data: "ExpoPushToken[geraet]",
   } as never);
   await renderRouter("./app", { initialUrl: "/" });
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
   await act(async () => {});
   expect(put).toHaveBeenCalledTimes(1);
   expect(put).toHaveBeenCalledWith({
