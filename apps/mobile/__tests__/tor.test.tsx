@@ -40,7 +40,19 @@ jest.mock("../src/api/client", () => {
     },
     queryClient: new QueryClient(),
     abmelden: jest.fn(),
-    api: { api: { v1: { ich: { datenschutz: { $post: jest.fn() } } } } },
+    useOnline: () => true,
+    api: {
+      api: {
+        v1: {
+          ich: { datenschutz: { $post: jest.fn() } },
+          programme: {
+            $get: jest.fn(async () => ({
+              json: async () => ({ programme: [] }),
+            })),
+          },
+        },
+      },
+    },
     ApiFehler: class ApiFehler extends Error {},
   };
 });
@@ -67,8 +79,12 @@ const ICH_BEREIT = {
   data: {
     name: "Eltern A",
     benutzername: "eltern.a",
+    admin: false,
     mussPasswortAendern: false,
     datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
+    rollen: [],
+    stufen: [],
+    kinder: [],
   },
   isPending: false,
   isError: false,
@@ -120,10 +136,11 @@ test("nach dem Pflichtwechsel folgt der Datenschutz-Hinweis, erst gelesen öffne
   await renderRouter("./app", { initialUrl: "/" });
   expect(screen).toHavePathname("/datenschutz");
 
+  // «/» leitet auf den ersten Tab weiter
   await act(async () => klient.__setze({ ich: ICH_BEREIT }));
-  expect(screen).toHavePathname("/");
+  expect(screen).toHavePathname("/programme");
   expect(
-    await screen.findByRole("header", { name: "Cevi OS" }),
+    await screen.findByRole("header", { name: "Programme" }),
   ).toBeOnTheScreen();
 });
 
