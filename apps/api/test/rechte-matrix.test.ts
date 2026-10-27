@@ -127,16 +127,22 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
-  // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern wie elternA: #15 sperrt das Konto erst später auf allen Routen
+  // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
   "GET /api/v1/programme": {
     // Ohne Fenster antwortet die Route 400, darum eine URL trotz fehlendem Pfad-Parameter
     url: () => "/api/v1/programme?von=2027-01-01&bis=2027-12-31",
-    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
   },
   "GET /api/v1/programme/:id": {
     url: () => `/api/v1/programme/${programmId}`,
     erwartet: {
       ...alle(200),
+      mussPasswortAendern: 403,
       leitendeB: 404,
       elternB: 404,
       deaktiviert: 401,

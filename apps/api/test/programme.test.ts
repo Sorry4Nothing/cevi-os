@@ -113,7 +113,7 @@ const MIT_ALLEN = Object.fromEntries(
 
 // true: mit Google-Beschreibung (Leitungssicht), false: ohne; fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
-  Exclude<Persona, "deaktiviert" | "ohneLogin">,
+  Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
   Partial<Record<Name, boolean>>
 > = {
   admin: MIT_ALLEN,
@@ -142,8 +142,6 @@ const SICHT: Record<
   },
   elternA: { "eltern-A": false, "eltern-AB": false },
   elternB: { "eltern-B": false, "eltern-AB": false },
-  // #15 sperrt das Konto später auf allen Routen; bis dahin wirkt die Persona wie elternA
-  mussPasswortAendern: { "eltern-A": false, "eltern-AB": false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };
@@ -161,6 +159,16 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         { headers },
       );
       expect(detail.status).toBe(401);
+      return;
+    }
+    // #15 sperrt das Konto bis zum Pflichtwechsel auf allen Routen ausser GET /api/v1/ich
+    if (persona === "mussPasswortAendern") {
+      expect(liste.status).toBe(403);
+      const detail = await app.request(
+        `/api/v1/programme/${programme.intern.id}`,
+        { headers },
+      );
+      expect(detail.status).toBe(403);
       return;
     }
     const sicht = SICHT[persona];

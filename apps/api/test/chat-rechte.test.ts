@@ -465,7 +465,7 @@ describe("Fremde Chats liefern per ID 404", () => {
     ];
   });
 
-  // 200 nur für Mitglieder (SL der Stufe oder das Elternteil selbst), alles andere 404, auch für Admins; ohne gültige Sitzung 401
+  // 200 nur für Mitglieder (SL der Stufe oder das Elternteil selbst), alles andere 404, auch für Admins; ohne gültige Sitzung 401, vor dem Pflichtwechsel 403 (#15)
   const ERWARTET: Record<Persona, number[]> = {
     admin: [404, 404, 404, 404, 404, 404, 404],
     adminOhneZweitenFaktor: [404, 404, 404, 404, 404, 404, 404],
@@ -476,7 +476,7 @@ describe("Fremde Chats liefern per ID 404", () => {
     leitendeAElternB: [404, 200, 404, 404, 404, 404, 404],
     elternA: [200, 404, 404, 200, 404, 404, 404],
     elternB: [404, 200, 404, 404, 404, 200, 404],
-    mussPasswortAendern: [200, 404, 404, 404, 404, 404, 404],
+    mussPasswortAendern: [403, 403, 403, 403, 403, 403, 403],
     deaktiviert: [401, 401, 401, 401, 401, 401, 401],
     ohneLogin: [401, 401, 401, 401, 401, 401, 401],
     demoAdmin: [404, 404, 404, 404, 404, 404, 404],
