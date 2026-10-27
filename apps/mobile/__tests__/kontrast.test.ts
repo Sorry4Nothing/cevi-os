@@ -4,7 +4,7 @@ type Farbe = keyof typeof farben.hell;
 
 // Relative Leuchtdichte nach WCAG 2.2
 function leuchtdichte(hex: string) {
-  // Kurzform oder rgba() läse parseInt still als eine andere Farbe
+  // Kurzform läse parseInt als andere Farbe; bei rgba(…) gäbe parseInt NaN, und die Bit-Operationen machten daraus Schwarz
   if (!/^#[0-9a-f]{6}$/i.test(hex)) throw new Error(`Kein #rrggbb: ${hex}`);
   const kanal = (wert: number) => {
     const c = wert / 255;
@@ -43,7 +43,13 @@ const paare: [Farbe, Farbe, number, string][] = [
   ["erfolg", "flaeche", 4.5, "dasselbe in einer Karte"],
   ["rand", "hintergrund", 3, "Rand von Textfeld und offener Antwort"],
   ["rand", "flaeche", 3, "dasselbe in einer Karte"],
-  ["akzent", "hintergrund", 3, "Button, gewählte Antwort, Fokusrand"],
+  // 4.5 statt 3: Die aktive Tab-Beschriftung ist Text in akzent auf hintergrund
+  [
+    "akzent",
+    "hintergrund",
+    4.5,
+    "Button, gewählte Antwort, Fokusrand, aktive Tab-Beschriftung",
+  ],
   ["akzent", "flaeche", 3, "dasselbe in einer Karte"],
 ];
 

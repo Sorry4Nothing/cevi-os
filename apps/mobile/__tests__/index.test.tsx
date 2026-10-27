@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react-native";
 import { useColorScheme } from "react-native";
 
-import Start from "../app/index";
+import Start from "../app/(tabs)/index";
 import { farben } from "../src/ui/tokens";
 
 afterEach(() => jest.mocked(useColorScheme).mockReset());
