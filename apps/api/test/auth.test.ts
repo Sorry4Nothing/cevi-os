@@ -1033,14 +1033,14 @@ describe("Grundeinstellungen", () => {
     }
   });
 
-  test("der Standard von username lehnt einen Bindestrich ab: createUser 400, Anmeldung 422", async () => {
+  test("der Validator von username lehnt ein Ausrufezeichen ab: createUser 400, Anmeldung 422", async () => {
     await expect(
       auth.api.createUser({
         body: {
           email: `${randomUUID()}@example.org`,
           password: PASSWORT,
           name: "Testperson",
-          data: { username: "mit-bindestrich" },
+          data: { username: "mit!zeichen" },
         },
       }),
     ).rejects.toMatchObject({
@@ -1050,7 +1050,7 @@ describe("Grundeinstellungen", () => {
     // Über auth.handler: Die Route macht aus dem 422 die eine 401-Meldung
     const antwort = await auth.handler(
       anfrage("sign-in/username", {
-        body: { username: "mit-bindestrich", password: PASSWORT },
+        body: { username: "mit!zeichen", password: PASSWORT },
       }),
     );
     expect(antwort.status).toBe(422);
