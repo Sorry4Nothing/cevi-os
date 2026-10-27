@@ -8,6 +8,7 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung } from "./rechte.js";
+import { erstelleProgrammRouten } from "./routes/programme.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -34,11 +35,14 @@ export function erstelleApp({
   sql,
   db,
   auth,
+  seiten,
 }: {
   appMinVersion: string;
   sql: Sql;
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
+  // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
+  seiten: { datenschutz: string; kontoLoeschen: string; support: string };
 }) {
   return (
     new Hono()
@@ -67,6 +71,7 @@ export function erstelleApp({
       .route("/", erstelleAuthRouten(auth))
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
+      .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .get("/health", async (c) => {
         try {
           // 30 Minuten fest: Der Sync läuft alle 5 Minuten, ein einzelner Fehlschlag löst noch keinen Alarm aus
@@ -92,6 +97,13 @@ export function erstelleApp({
           return c.text("fehler", 503);
         }
       })
+      // Seiten für die Stores, ohne Login und ausserhalb der Versionsprüfung; die Texte folgen in #63
+      .get("/datenschutz", (c) => c.html(seiten.datenschutz))
+      .get("/konto-loeschen", (c) => c.html(seiten.kontoLoeschen))
+      .get("/support", (c) => c.html(seiten.support))
+      // Eigene Routen statt Dateien, damit der Content-Type JSON ist; die Inhalte folgen in #24
+      .get("/.well-known/apple-app-site-association", (c) => c.json({}))
+      .get("/.well-known/assetlinks.json", (c) => c.json([]))
       .notFound((c) => c.json(FEHLER[404], 404))
       .onError((fehler, c) => {
         if (fehler instanceof HTTPException) {

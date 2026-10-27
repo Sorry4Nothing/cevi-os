@@ -26,9 +26,7 @@ echo "Images von postgres und caddy aktualisieren" >&2
 compose pull postgres caddy
 compose up -d --wait --wait-timeout 120 postgres
 
-echo "Backup nach vor-deploy.dump im Volume von postgres" >&2
-# Der alte Dump bleibt, bis der neue vollständig ist
-compose exec -T postgres sh -c 'pg_dump -U postgres -d cevi_os -Fc -f /var/lib/postgresql/vor-deploy.dump.neu && mv /var/lib/postgresql/vor-deploy.dump.neu /var/lib/postgresql/vor-deploy.dump'
+./backup.sh
 
 echo "Rollen und Passwörter setzen" >&2
 compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d cevi_os <../apps/api/src/db/rollen.sql

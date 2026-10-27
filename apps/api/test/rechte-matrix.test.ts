@@ -12,6 +12,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
   erstelleTestAuth,
@@ -27,13 +28,20 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { legeProgrammAn } from "./hilfen/programme.js";
 
 bereiteAuthTestsVor();
 
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth });
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+});
 afterAll(() => sql.end());
 
 const FALSCH = "nur-fuer-tests-falsch";
@@ -56,6 +64,12 @@ const alle = (status: number) =>
 
 const MATRIX: Record<string, Zeile> = {
   "GET /health": { erwartet: alle(200) },
+  // Statische Seiten und .well-known: offen für alle, auch deaktiviert und ohne Login
+  "GET /datenschutz": { erwartet: alle(200) },
+  "GET /konto-loeschen": { erwartet: alle(200) },
+  "GET /support": { erwartet: alle(200) },
+  "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
+  "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
     // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen. Deaktiviert und unbekannt bekommen dieselbe 401-Meldung (#15)
     body: (konto) => ({
@@ -112,10 +126,48 @@ const MATRIX: Record<string, Zeile> = {
       demoAdmin: 400,
     },
   },
+  // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
+  // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern wie elternA: #15 sperrt das Konto erst später auf allen Routen
+  "GET /api/v1/programme": {
+    // Ohne Fenster antwortet die Route 400, darum eine URL trotz fehlendem Pfad-Parameter
+    url: () => "/api/v1/programme?von=2027-01-01&bis=2027-12-31",
+    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
+  },
+  "GET /api/v1/programme/:id": {
+    url: () => `/api/v1/programme/${programmId}`,
+    erwartet: {
+      ...alle(200),
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/programme/:id/zuordnung": {
+    url: () => `/api/v1/programme/${programmId}/zuordnung`,
+    // Der aktuelle Stand als No-op: Der Matrix-Lauf verändert nichts
+    body: () => ({ stufen: [welt.stufeAId], sichtbarkeit: "eltern" }),
+    erwartet: {
+      ...alle(204),
+      leitendeA: 403,
+      leitendeAElternB: 403,
+      elternA: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
 };
 
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
+let programmId: string;
 
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
@@ -129,6 +181,13 @@ async function personasAnlegen() {
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
   standard = await personasAnlegen();
+  // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
+  const programm = await legeProgrammAn(db, {
+    abteilungId: welt.testabteilungId,
+    sichtbarkeit: "eltern",
+    stufen: [welt.stufeAId],
+  });
+  programmId = programm.id;
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -163,6 +222,7 @@ describe("Vollständigkeit", () => {
       sql,
       db,
       auth,
+      seiten: ladeSeiten(),
     }).get("/api/v1/ohne-eintrag", (c) => c.text("nie"));
     expect(ohneZeile(mitExtra)).toEqual(["GET /api/v1/ohne-eintrag"]);
   });
