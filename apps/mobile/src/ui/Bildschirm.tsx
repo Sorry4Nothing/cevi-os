@@ -73,6 +73,8 @@ export function Bildschirm({
       <ScrollView
         // Sonst schliesst der erste Tipp nur die Tastatur, und ein Knopf unter einem Textfeld braucht zwei
         keyboardShouldPersistTaps="handled"
+        // iOS schiebt so das fokussierte Feld über die Tastatur; Android macht das selbst über adjustResize (Checkliste 6.4)
+        automaticallyAdjustKeyboardInsets
         contentContainerStyle={styles.inhalt}
       >
         <Text
