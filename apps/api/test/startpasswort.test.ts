@@ -28,7 +28,9 @@ test("1000 Startpasswörter: Format 4-4-4, nur Zeichen aus dem Alphabet, und all
 });
 
 test("12 Zeichen aus 28 ergeben rund 58 Bit", () => {
-  const bits = 12 * Math.log2(28);
+  // Aus einer echten Ziehung abgeleitet: ändert sich Länge oder Alphabet, wird der Test rot
+  const laenge = erzeugeStartpasswort().replaceAll("-", "").length;
+  const bits = laenge * Math.log2(ALPHABET.length);
   expect(bits).toBeGreaterThan(57.5);
   expect(bits).toBeLessThan(58.5);
 });
