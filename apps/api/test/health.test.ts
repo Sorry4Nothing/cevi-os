@@ -12,6 +12,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
@@ -62,7 +63,13 @@ async function erstelleAbteilung(
 
 function health(verbindung: ReservedSql) {
   return testClient(
-    erstelleApp({ appMinVersion: "1.2.0", sql: verbindung, db, auth }),
+    erstelleApp({
+      appMinVersion: "1.2.0",
+      sql: verbindung,
+      db,
+      auth,
+      seiten: ladeSeiten(),
+    }),
   ).health.$get();
 }
 
