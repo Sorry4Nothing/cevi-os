@@ -8,7 +8,7 @@ Ein Monorepo mit npm workspaces:
 
 - `apps/api`: das Backend, eine API mit Hono auf Node
 - `apps/mobile`: die App für iOS und Android, mit Expo und expo-router
-- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit und Git-Workflow
+- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
 - `docker-compose.yml`: PostgreSQL 18 für die Entwicklung
@@ -74,4 +74,4 @@ npm test -w apps/mobile
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
-- [Betrieb](docs/betrieb.md): der Ablauf bei einer Datenpanne
+- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release, Backups, Wiederherstellung, Überwachung, Logs und der Ablauf bei einer Datenpanne
