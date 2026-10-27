@@ -13,6 +13,7 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import {
@@ -37,7 +38,13 @@ const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
 // Testrouten wie die späteren Issues: eine gesperrte und die eine Ausnahme GET /api/v1/ich
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth })
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+})
   .get("/api/v1/ich", (c) => c.json({ id: c.get("person").id }))
   .get("/api/v1/test/geheim", (c) => c.json({ ok: true }));
 afterAll(() => sql.end());

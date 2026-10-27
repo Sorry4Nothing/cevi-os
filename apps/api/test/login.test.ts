@@ -13,6 +13,7 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
+import { ladeSeiten } from "../src/seiten.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import {
@@ -36,7 +37,13 @@ bereiteAuthTestsVor();
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
-const app = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth });
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+});
 afterAll(() => sql.end());
 
 const FALSCH = "nur-fuer-tests-falsch";
