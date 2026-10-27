@@ -1,0 +1,281 @@
+import postgres from "postgres";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+  type MockInstance,
+} from "vitest";
+import { erstelleApp } from "../src/app.js";
+import { erstelleDb } from "../src/db/client.js";
+import * as schema from "../src/db/schema.js";
+import { ladeSeiten } from "../src/seiten.js";
+import {
+  APP,
+  bereiteAuthTestsVor,
+  cookiesAus,
+  erstelleTestAuth,
+  zufallsIp,
+} from "./hilfen/auth.js";
+import { API_URL } from "./hilfen/datenbank.js";
+import {
+  erstelleWelt,
+  legePersonaAn,
+  type PersonaKonto,
+  type Welt,
+} from "./hilfen/personas.js";
+
+bereiteAuthTestsVor();
+
+const sql = postgres(API_URL);
+const db = erstelleDb(sql);
+const auth = erstelleTestAuth(db);
+const app = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+});
+afterAll(() => sql.end());
+
+let welt: Welt;
+beforeAll(async () => {
+  welt = await erstelleWelt(db, auth);
+});
+
+// Jede Anfrage schreibt sonst eine Log-Zeile in die Testausgabe
+let ausgabe: MockInstance<typeof console.log>;
+beforeEach(() => {
+  ausgabe = vi.spyOn(console, "log").mockImplementation(() => {});
+});
+afterEach(() => ausgabe.mockRestore());
+
+async function ich(konto: PersonaKonto) {
+  return app.request("/api/v1/ich", { headers: konto.headers });
+}
+
+// Eine zweite Sitzung derselben Person, wie auf einem zweiten Gerät
+async function zweiteSitzung(konto: PersonaKonto) {
+  const anmeldung = await auth.api.signInUsername({
+    body: { username: konto.benutzername!, password: konto.passwort! },
+    returnHeaders: true,
+  });
+  return {
+    "expo-origin": APP,
+    "x-forwarded-for": zufallsIp(),
+    cookie: cookiesAus(anmeldung),
+  };
+}
+
+describe("GET /api/v1/ich", () => {
+  test("liefert Profil, Rollen, Stufen und Kinder, ohne E-Mail und Bremsfelder", async () => {
+    const konto = await legePersonaAn(welt, "leitendeAElternB");
+    const antwort = await ich(konto);
+    expect(antwort.status).toBe(200);
+    const koerper = await antwort.json();
+    expect(koerper).toEqual({
+      id: konto.id,
+      name: "Leitende A und zugleich Elternteil B",
+      benutzername: konto.benutzername,
+      admin: false,
+      mussPasswortAendern: false,
+      datenschutzGelesenAm: null,
+      telefon: null,
+      pushChat: true,
+      pushProgramme: true,
+      rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
+      // Die Stufen der Rollen und der Kinder, nach reihenfolge
+      stufen: [
+        { id: welt.stufeAId, name: "Stufe A", kuerzel: "A" },
+        { id: welt.stufeBId, name: "Stufe B", kuerzel: "B" },
+      ],
+      kinder: [
+        {
+          id: welt.kindBId,
+          vorname: "Kind",
+          nachname: "B",
+          stufeId: welt.stufeBId,
+        },
+      ],
+    });
+  });
+
+  test("Admin ohne Rollen und Kinder: admin true, leere Listen", async () => {
+    const konto = await legePersonaAn(welt, "admin");
+    const koerper = await (await ich(konto)).json();
+    expect(koerper).toMatchObject({
+      admin: true,
+      rollen: [],
+      stufen: [],
+      kinder: [],
+    });
+  });
+
+  test("SL A: Rolle stufenleitung und die Stufe A", async () => {
+    const konto = await legePersonaAn(welt, "slA");
+    const koerper = await (await ich(konto)).json();
+    expect(koerper).toMatchObject({
+      admin: false,
+      rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
+      stufen: [{ id: welt.stufeAId, name: "Stufe A", kuerzel: "A" }],
+      kinder: [],
+    });
+  });
+
+  test("mit offenem Pflichtwechsel bleibt GET /ich offen und meldet das Flag", async () => {
+    const konto = await legePersonaAn(welt, "mussPasswortAendern");
+    const antwort = await ich(konto);
+    expect(antwort.status).toBe(200);
+    expect(await antwort.json()).toMatchObject({
+      mussPasswortAendern: true,
+      kinder: [{ id: welt.kindAId }],
+    });
+  });
+
+  test("ein Kind der Demo-Abteilung und ein inaktives Kind bleiben draussen", async () => {
+    const konto = await legePersonaAn(welt, "elternB");
+    // Verknüpfung über die Abteilungsgrenze und ein inaktives Kind in einer eigenen Stufe
+    const [stufeC] = await db
+      .insert(schema.stufe)
+      .values({
+        abteilungId: welt.testabteilungId,
+        name: "Stufe C",
+        kuerzel: "C",
+        reihenfolge: 3,
+      })
+      .returning();
+    const [inaktiv] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Kind",
+        nachname: "Inaktiv",
+        stufeId: stufeC.id,
+        inaktivSeit: new Date(),
+      })
+      .returning();
+    await db.insert(schema.kindEltern).values([
+      { kindId: welt.demoKindId, userId: konto.id! },
+      { kindId: inaktiv.id, userId: konto.id! },
+    ]);
+    const koerper = await (await ich(konto)).json();
+    expect(koerper).toMatchObject({
+      kinder: [{ id: welt.kindBId }],
+      stufen: [{ id: welt.stufeBId }],
+    });
+  });
+});
+
+describe("POST /api/v1/ich/datenschutz", () => {
+  test("setzt das Datum einmal; ein zweiter Aufruf lässt das erste stehen", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const datum = async () =>
+      (await (await ich(konto)).json()).datenschutzGelesenAm as string | null;
+    expect(await datum()).toBeNull();
+
+    const erste = await app.request("/api/v1/ich/datenschutz", {
+      method: "POST",
+      headers: konto.headers,
+    });
+    expect(erste.status).toBe(204);
+    const gelesenAm = await datum();
+    expect(gelesenAm).not.toBeNull();
+
+    const zweite = await app.request("/api/v1/ich/datenschutz", {
+      method: "POST",
+      headers: konto.headers,
+    });
+    expect(zweite.status).toBe(204);
+    expect(await datum()).toBe(gelesenAm);
+  });
+});
+
+describe("Sitzungen", () => {
+  test("«Überall abmelden» beendet jede Sitzung der Person, keine einer anderen", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const andere = await legePersonaAn(welt, "elternB");
+    const zweitgeraet = await zweiteSitzung(konto);
+    expect((await ich(konto)).status).toBe(200);
+    expect(
+      (await app.request("/api/v1/ich", { headers: zweitgeraet })).status,
+    ).toBe(200);
+
+    const antwort = await app.request("/api/auth/revoke-sessions", {
+      method: "POST",
+      headers: konto.headers,
+    });
+    expect(antwort.status).toBe(200);
+
+    expect((await ich(konto)).status).toBe(401);
+    expect(
+      (await app.request("/api/v1/ich", { headers: zweitgeraet })).status,
+    ).toBe(401);
+    const sitzung = await app.request("/api/auth/get-session", {
+      headers: konto.headers,
+    });
+    expect(await sitzung.json()).toBeNull();
+    expect((await ich(andere)).status).toBe(200);
+  });
+
+  test("Passwort ändern ohne Pflichtwechsel beendet die andere Sitzung; das neue Cookie gilt", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const zweitgeraet = await zweiteSitzung(konto);
+
+    const antwort = await app.request("/api/auth/change-password", {
+      method: "POST",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify({
+        currentPassword: konto.passwort,
+        newPassword: "nur-fuer-tests-neu-1",
+      }),
+    });
+    expect(antwort.status).toBe(200);
+
+    const neu = {
+      "expo-origin": APP,
+      "x-forwarded-for": zufallsIp(),
+      cookie: cookiesAus(antwort),
+    };
+    expect((await app.request("/api/v1/ich", { headers: neu })).status).toBe(
+      200,
+    );
+    expect(
+      (await app.request("/api/v1/ich", { headers: zweitgeraet })).status,
+    ).toBe(401);
+  });
+});
+
+describe("Herkunft der App", () => {
+  test("cevi-os:// und cevi-os://<host:port> sind vertraut, exp://… nicht", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const abmelden = (origin: string, cookie: string) =>
+      app.request("/api/auth/sign-out", {
+        method: "POST",
+        headers: {
+          "expo-origin": origin,
+          "x-forwarded-for": zufallsIp(),
+          cookie,
+        },
+      });
+
+    const fremd = await abmelden("exp://192.0.2.1:8081", konto.headers.cookie);
+    expect(fremd.status).toBe(403);
+    expect(await fremd.json()).toMatchObject({ code: "INVALID_ORIGIN" });
+
+    // Wie ein Release-Build; die Sitzung lebt noch, der fremde Ursprung wurde vor dem Handler abgewiesen
+    expect((await abmelden("cevi-os://", konto.headers.cookie)).status).toBe(
+      200,
+    );
+
+    // Wie ein Dev-Build, der den Metro-Host in die Herkunft nimmt
+    const zweitgeraet = await zweiteSitzung(konto);
+    expect(
+      (await abmelden("cevi-os://192.0.2.1:8081", zweitgeraet.cookie)).status,
+    ).toBe(200);
+  });
+});

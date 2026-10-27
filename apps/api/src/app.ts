@@ -8,6 +8,7 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung } from "./rechte.js";
+import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
@@ -71,6 +72,7 @@ export function erstelleApp({
       .route("/", erstelleAuthRouten(auth))
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
+      .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .get("/health", async (c) => {
         try {
