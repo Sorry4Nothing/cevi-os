@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
   afterAll,
@@ -12,6 +13,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
@@ -54,6 +56,8 @@ interface Zeile {
   frischePersonas?: true;
   // Pflicht für jede Route mit Pfad-Parameter: ein Objekt der Testabteilung
   url?: (welt: Welt) => string;
+  // Statt url, wenn jede Anfrage ihr Ziel verbraucht (DELETE): eine frische URL pro Persona
+  urlJeAnfrage?: () => Promise<string>;
 }
 
 const alle = (status: number) =>
@@ -183,11 +187,123 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
+  "GET /api/v1/admin/personen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/personen": {
+    // Eigener Benutzername pro Persona; leere Listen, weil Testabteilungs-IDs dem demoAdmin 400 gäben
+    body: () => ({
+      vorname: "Matrix",
+      nachname: "Person",
+      benutzername: `matrix.${randomUUID().slice(0, 8)}`,
+      admin: false,
+      rollen: [],
+      elternteilVon: [],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/personen/:id": {
+    url: () => `/api/v1/admin/personen/${patchZielId}`,
+    body: () => ({ name: "Matrix Person" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/startpasswort": {
+    url: () => `/api/v1/admin/personen/${startpasswortZielId}/startpasswort`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/deaktivieren": {
+    url: () => `/api/v1/admin/personen/${deaktivierenZielId}/deaktivieren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/aktivieren": {
+    url: () => `/api/v1/admin/personen/${aktivierenZielId}/aktivieren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/personen/:id": {
+    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Admin weg
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/personen/${await wegwerfPersonId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
 };
 
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let programmId: string;
+let patchZielId: string;
+let startpasswortZielId: string;
+let deaktivierenZielId: string;
+let aktivierenZielId: string;
+
+// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
+async function wegwerfPersonId() {
+  const [zeile] = await welt.db
+    .insert(schema.user)
+    .values({
+      name: "Wegwerf Person",
+      email: `${randomUUID()}@example.org`,
+      username: `wegwerf.${randomUUID().slice(0, 8)}`,
+      abteilungId: welt.testabteilungId,
+      mussPasswortAendern: false,
+    })
+    .returning({ id: schema.user.id });
+  return zeile.id;
+}
 
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
@@ -208,6 +324,13 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  [patchZielId, startpasswortZielId, deaktivierenZielId, aktivierenZielId] =
+    await Promise.all([
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+    ]);
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -251,7 +374,7 @@ describe("Vollständigkeit", () => {
   test("jede Zeile mit Pfad-Parameter nennt eine URL und erwartet 404 für die Demo-Personas", () => {
     for (const [schluessel, zeile] of Object.entries(MATRIX)) {
       if (!schluessel.includes(":")) continue;
-      expect(zeile.url, schluessel).toBeDefined();
+      expect(zeile.url ?? zeile.urlJeAnfrage, schluessel).toBeDefined();
       expect(zeile.erwartet.demoAdmin, schluessel).toBe(404);
       expect(zeile.erwartet.demoEltern, schluessel).toBe(404);
     }
@@ -262,10 +385,11 @@ describe("Matrix: jede Route mal jede Persona", () => {
   test.each(Object.entries(MATRIX))("%s", async (schluessel, zeile) => {
     const [methode, pfad] = schluessel.split(" ");
     const eigene = zeile.frischePersonas ? await personasAnlegen() : standard;
-    const url = zeile.url?.(welt) ?? pfad;
+    const festeUrl = zeile.url?.(welt) ?? pfad;
     const ergebnis: Partial<Record<Persona, number>> = {};
     for (const persona of PERSONAS) {
       const konto = eigene[persona];
+      const url = zeile.urlJeAnfrage ? await zeile.urlJeAnfrage() : festeUrl;
       const antwort = await app.request(url, {
         method: methode,
         headers: zeile.body
