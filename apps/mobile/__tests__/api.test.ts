@@ -1,4 +1,6 @@
+import { focusManager, onlineManager } from "@tanstack/react-query";
 import { renderHook, waitFor } from "@testing-library/react-native";
+import { AppState, type AppStateStatus } from "react-native";
 
 import {
   abmelden,
@@ -67,6 +69,38 @@ afterAll(() => queryClient.clear());
 beforeEach(() => {
   speicher.clear();
   queryClient.clear();
+});
+
+test("der Fokus für TanStack Query folgt dem AppState", () => {
+  // Der Anschluss ans AppState passiert erst mit dem ersten Abonnenten
+  const abo = focusManager.subscribe(() => {});
+  const aufruf = jest
+    .mocked(AppState.addEventListener)
+    .mock.calls.find(([typ]) => typ === "change");
+  expect(aufruf).toBeDefined();
+  const melden = aufruf![1] as (status: AppStateStatus) => void;
+
+  melden("background");
+  expect(focusManager.isFocused()).toBe(false);
+  melden("active");
+  expect(focusManager.isFocused()).toBe(true);
+  abo();
+});
+
+test("der Online-Stand für TanStack Query folgt expo-network", async () => {
+  const { __netzHorcher } = jest.requireMock("expo-network") as {
+    __netzHorcher: Set<(stand: { isConnected?: boolean }) => void>;
+  };
+  const abo = onlineManager.subscribe(() => {});
+  // Der Listener meldet nur Änderungen: Den Anfang holt getNetworkStateAsync
+  await waitFor(() => expect(__netzHorcher.size).toBeGreaterThan(0));
+  expect(onlineManager.isOnline()).toBe(true);
+
+  __netzHorcher.forEach((melden) => melden({ isConnected: false }));
+  expect(onlineManager.isOnline()).toBe(false);
+  __netzHorcher.forEach((melden) => melden({ isConnected: true }));
+  expect(onlineManager.isOnline()).toBe(true);
+  abo();
 });
 
 test("während der Sitzung liegt im Secure Store nur das Cookie", async () => {

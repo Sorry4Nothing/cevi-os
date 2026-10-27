@@ -37,6 +37,21 @@ jest.mock("expo-linking", () => {
   };
 });
 
+// jest-expo mockt ExpoNetwork.addListener als nacktes jest.fn (remove() würde werfen);
+// __netzHorcher lässt die Tests den Netzstand melden. Keine jest.fn: restoreAllMocks nähme die Implementation weg
+jest.mock("expo-network", () => {
+  const horcher = new Set();
+  return {
+    __esModule: true,
+    __netzHorcher: horcher,
+    getNetworkStateAsync: async () => ({ isConnected: true }),
+    addNetworkStateListener: (melden) => {
+      horcher.add(melden);
+      return { remove: () => horcher.delete(melden) };
+    },
+  };
+});
+
 // Secure Store im Arbeitsspeicher; __speicher lässt die Tests die Schlüssel prüfen
 jest.mock("expo-secure-store", () => {
   const speicher = new Map();

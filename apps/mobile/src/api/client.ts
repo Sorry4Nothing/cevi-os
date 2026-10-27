@@ -1,13 +1,45 @@
 import { expoClient } from "@better-auth/expo/client";
-import { QueryClient } from "@tanstack/react-query";
+import {
+  focusManager,
+  onlineManager,
+  QueryClient,
+} from "@tanstack/react-query";
 import { usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
+import * as Network from "expo-network";
 import * as SecureStore from "expo-secure-store";
 import { hc } from "hono/client";
 import { useSyncExternalStore } from "react";
+import { AppState } from "react-native";
 
 import type { AppType } from "@cevi-os/api";
+
+// TanStack Query kennt React Native nicht: Fokus aus dem AppState, Online-Stand aus expo-network
+focusManager.setEventListener((imFokus) => {
+  const abo = AppState.addEventListener("change", (status) =>
+    imFokus(status === "active"),
+  );
+  return () => abo.remove();
+});
+onlineManager.setEventListener((setzeOnline) => {
+  // Der Listener meldet nur Änderungen: den aktuellen Stand einmal selbst holen
+  void Network.getNetworkStateAsync().then((stand) =>
+    setzeOnline(!!stand.isConnected),
+  );
+  const abo = Network.addNetworkStateListener((stand) =>
+    setzeOnline(!!stand.isConnected),
+  );
+  return () => abo.remove();
+});
+
+// Für die Offline-Meldung der Bildschirme
+export function useOnline() {
+  return useSyncExternalStore(
+    (melden) => onlineManager.subscribe(melden),
+    () => onlineManager.isOnline(),
+  );
+}
 
 const url = process.env.EXPO_PUBLIC_API_URL;
 const version = Constants.expoConfig?.version;
