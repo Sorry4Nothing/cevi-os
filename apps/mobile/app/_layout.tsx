@@ -5,6 +5,7 @@ import { StyleSheet, Text } from "react-native";
 
 import { authClient, queryClient, useAppVeraltet } from "../src/api/client";
 import { useIch } from "../src/api/ich";
+import { usePushSchritt } from "../src/push";
 import { Bildschirm } from "../src/ui/Bildschirm";
 import { schrift, useFarben } from "../src/ui/tokens";
 
@@ -26,6 +27,13 @@ function Tor() {
   const ich = useIch(userId !== null);
   // Ohne typedRoutes kennt der Router nur das erste Segment; hier zählt der ganze Pfad
   const segmente: string[] = useSegments();
+  // Der Schritt «Pushes» kommt zuletzt im Startablauf; er hängt an der Geräte-Erlaubnis, nicht am Profil
+  const bereit =
+    userId !== null &&
+    ich.data !== undefined &&
+    !ich.data.mussPasswortAendern &&
+    ich.data.datenschutzGelesenAm !== null;
+  const pushes = usePushSchritt(bereit);
 
   // Geteilte Handys: Wechselt oder endet die Sitzung, fliegen alle Serverdaten aus dem Speicher
   const vorherigeId = useRef(userId);
@@ -46,7 +54,11 @@ function Tor() {
       </Bildschirm>
     );
   }
-  if (sitzung.isPending || (userId !== null && ich.isPending)) {
+  if (
+    sitzung.isPending ||
+    (userId !== null && ich.isPending) ||
+    pushes === "laden"
+  ) {
     return <Bildschirm titel="Cevi OS" zustand="laden" />;
   }
   // Fehler ohne Daten (kalter Start ohne Netz, 5xx): nochmals versuchen, nicht abmelden
@@ -69,12 +81,13 @@ function Tor() {
     );
   }
 
-  let ziel: "/anmelden" | "/passwort-setzen" | "/datenschutz" | null = null;
+  let ziel:
+    "/anmelden" | "/passwort-setzen" | "/datenschutz" | "/pushes" | null = null;
   if (userId === null) ziel = "/anmelden";
   else if (ich.data?.mussPasswortAendern) ziel = "/passwort-setzen";
   else if (ich.data && ich.data.datenschutzGelesenAm === null) {
     ziel = "/datenschutz";
-  }
+  } else if (pushes === true) ziel = "/pushes";
 
   const amZiel =
     ziel === null ? segmente[0] === "(tabs)" : segmente[1] === ziel.slice(1);

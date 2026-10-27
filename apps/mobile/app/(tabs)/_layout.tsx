@@ -1,11 +1,20 @@
 import { Tabs } from "expo-router/js-tabs";
+import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 
+import { authClient } from "../../src/api/client";
+import { tokenRegistrieren } from "../../src/push";
 import { useFarben } from "../../src/ui/tokens";
 
 // Kein tabBarAllowFontScaling: iOS skaliert Tab-Beschriftungen nie, zeigt aber den Large Content Viewer (Checkliste 5.10)
 export default function TabLayout() {
   const farben = useFarben();
+  const sitzungId = authClient.useSession().data?.session?.id ?? null;
+
+  // Jeder App-Start und jede neue Sitzung melden das Token; ein Passwortwechsel ersetzt die Sitzung und registriert so neu
+  useEffect(() => {
+    if (sitzungId !== null) void tokenRegistrieren();
+  }, [sitzungId]);
 
   return (
     <Tabs
