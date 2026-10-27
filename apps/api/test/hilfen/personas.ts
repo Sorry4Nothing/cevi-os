@@ -38,6 +38,9 @@ export interface Welt {
   kindAId: string;
   kindBId: string;
   demoKindId: string;
+  gruppenchatAId: string;
+  gruppenchatBId: string;
+  demoGruppenchatId: string;
 }
 
 // Eine Welt pro Testdatei: Die Dateien laufen parallel und teilen sich so keine Zeilen
@@ -70,6 +73,16 @@ export async function erstelleWelt(db: Db, auth: TestAuth): Promise<Welt> {
   const [kindB] = await kind(testabteilung.id, "B", stufeB.id);
   const [demoKind] = await kind(demoAbteilung.id, "Demo", demoStufe.id);
 
+  // Wie in der Produktion: ein Gruppenchat pro Stufe (#49 legt ihn mit der Stufe an); Einzelchats legen die Tests selbst an
+  const gruppenchat = (abteilungId: string, stufeId: string) =>
+    db
+      .insert(schema.chat)
+      .values({ abteilungId, typ: "stufe", stufeId })
+      .returning();
+  const [gruppenchatA] = await gruppenchat(testabteilung.id, stufeA.id);
+  const [gruppenchatB] = await gruppenchat(testabteilung.id, stufeB.id);
+  const [demoGruppenchat] = await gruppenchat(demoAbteilung.id, demoStufe.id);
+
   return {
     db,
     auth,
@@ -81,6 +94,9 @@ export async function erstelleWelt(db: Db, auth: TestAuth): Promise<Welt> {
     kindAId: kindA.id,
     kindBId: kindB.id,
     demoKindId: demoKind.id,
+    gruppenchatAId: gruppenchatA.id,
+    gruppenchatBId: gruppenchatB.id,
+    demoGruppenchatId: demoGruppenchat.id,
   };
 }
 
