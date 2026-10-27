@@ -49,13 +49,16 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | ----------------- | ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | App               | Caddy                               | HTTPS                              | Login, Programme, Anmeldungen, Chat, Push-Token registrieren                                                  |
 | Browser           | Caddy                               | HTTPS                              | Seiten `/datenschutz`, `/konto-loeschen` und `/support`                                                       |
+| Uptime-Dienst     | Caddy                               | HTTPS                              | `/health` abfragen, Alarm bei Fehler                                                                          |
 | Caddy             | API                                 | internes Netz des Servers          | Anfragen weiterleiten                                                                                         |
 | Caddy             | Zertifizierungsstelle               | HTTPS (ACME)                       | Zertifikate holen und erneuern                                                                                |
 | API               | PostgreSQL                          | internes Netz, eigene Rolle        | Daten lesen und schreiben                                                                                     |
 | Migrationen       | PostgreSQL                          | Besitzerrolle der Datenbank        | Tabellen anlegen und umbauen                                                                                  |
+| Backup (restic)   | S3-Speicher in der Schweiz          | HTTPS                              | Verschlüsselte Backups ablegen, täglich und vor jedem Deploy                                                  |
 | API               | Google Calendar API                 | HTTPS, Service-Account             | Termine lesen, alle 5 Minuten                                                                                 |
 | API               | Pwned Passwords (Have I Been Pwned) | HTTPS                              | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
 | App               | Expo                                | HTTPS                              | Push-Token holen                                                                                              |
+| App               | Expo                                | HTTPS                              | Updates für reine JavaScript-Korrekturen holen (EAS Update)                                                   |
 | API               | Expo Push Service                   | HTTPS, expo-server-sdk             | Pushes senden                                                                                                 |
 | Expo Push Service | Gerät                               | über APNs (Apple) und FCM (Google) | Pushes zustellen                                                                                              |
 
