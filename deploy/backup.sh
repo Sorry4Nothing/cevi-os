@@ -15,7 +15,7 @@ compose() {
 }
 
 # Ohne Daten im Backup: Sitzungen enthalten Tokens. Eine neue Tabelle, die auf eine dieser verweist, gehört auch hierhin
-ausschluss=(session verification rate_limit)
+ausschluss=(session verification rate_limit push_token)
 
 # Zeilen je Tabelle als «schema.tabelle|anzahl», ohne Inhalte
 zaehl_sql="SELECT table_schema || '.' || table_name || '|' || (xpath('/table/row/c/text()', query_to_xml(format('select count(*) as c from %I.%I', table_schema, table_name), false, false, '')))[1]::text FROM information_schema.tables WHERE table_schema IN ('public', 'drizzle') AND table_type = 'BASE TABLE' ORDER BY 1"
