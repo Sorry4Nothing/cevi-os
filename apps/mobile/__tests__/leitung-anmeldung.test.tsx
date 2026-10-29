@@ -10,7 +10,13 @@ import { AccessibilityInfo, Platform } from "react-native";
 
 import Detail from "../app/(tabs)/programme/[id]";
 import { queryClient } from "../src/api/client";
-import { FALKEN, json, mockeNetz, netz, programm } from "./hilfen/programme";
+import {
+  FALKEN,
+  json,
+  mockeNetz,
+  netz,
+  programmDetail,
+} from "./hilfen/programme";
 
 function Wurzel() {
   return (
@@ -26,7 +32,7 @@ const starte = () =>
     { initialUrl: "/programme/p1" },
   );
 
-const WALD = programm({ id: "p1", titel: "Waldtag", stufen: [FALKEN] });
+const WALD = programmDetail({ id: "p1", titel: "Waldtag", stufen: [FALKEN] });
 const mitAnmeldung = (eigeneAnmeldung: "ja" | "nein" | "offen") => ({
   ...WALD,
   eigeneAnmeldung,

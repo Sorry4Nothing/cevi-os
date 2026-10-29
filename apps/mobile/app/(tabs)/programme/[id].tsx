@@ -1,24 +1,36 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Linking, Platform, StyleSheet, Text } from "react-native";
+import { Linking, Platform, StyleSheet, Text, View } from "react-native";
 
-import { queryClient, useOnline } from "../../../src/api/client";
-import { useProgramm, type Programm } from "../../../src/api/programme";
+import { ApiFehler, queryClient, useOnline } from "../../../src/api/client";
+import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
+import {
+  useProgramm,
+  useTeilnahmeMelden,
+  type Programm,
+  type ProgrammDetail as Detail,
+} from "../../../src/api/programme";
 import { LeitungAnmeldung } from "../../../src/programme/LeitungAnmeldung";
 import { Zuordnung } from "../../../src/programme/Zuordnung";
 import { schlussZeitText, zeitText } from "../../../src/programme/zeit";
 import { Badge } from "../../../src/ui/Badge";
+import { Ansage } from "../../../src/ui/Ansage";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
 import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
+import { JaNeinAuswahl } from "../../../src/ui/JaNeinAuswahl";
 import { Listenzeile } from "../../../src/ui/Listenzeile";
-import { schrift, useFarben } from "../../../src/ui/tokens";
+import { masse, schrift, useFarben } from "../../../src/ui/tokens";
 
 export default function ProgrammDetail() {
+  const farben = useFarben();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const programm = useProgramm(id);
   const online = useOnline();
   const [kartenFehler, setKartenFehler] = useState<string>();
+  const melden = useTeilnahmeMelden(id);
+  const [teilnahmeFehler, setTeilnahmeFehler] = useState<string>();
+  const [gespeichert, setGespeichert] = useState<string>();
 
   const detail = programm.data;
   // Bis das Detail geladen ist, steht der Titel aus der gecachten Liste, sonst «Programm»
@@ -40,6 +52,28 @@ export default function ProgrammDetail() {
     } catch {
       setKartenFehler("Die Karten-App liess sich nicht öffnen.");
     }
+  }
+
+  function antworten(kind: Detail["kinder"][number], status: "ja" | "nein") {
+    setGespeichert(undefined);
+    if (!online) {
+      setTeilnahmeFehler(KEIN_NETZ);
+      return;
+    }
+    setTeilnahmeFehler(undefined);
+    melden.mutate(
+      { kindId: kind.id, status },
+      {
+        onSuccess: () =>
+          setGespeichert(
+            `${kind.vorname}: ${status === "ja" ? "Ja" : "Nein"} gespeichert.`,
+          ),
+        onError: (fehler) =>
+          setTeilnahmeFehler(
+            fehler instanceof ApiFehler ? fehlertext(fehler) : KEIN_NETZ,
+          ),
+      },
+    );
   }
 
   // Solange niemand einen Treffpunkt ergänzt hat, zeigt die App den Ort aus Google
@@ -105,6 +139,53 @@ export default function ProgrammDetail() {
             label="Interne Beschreibung"
             wert={detail.googleBeschreibung ?? ""}
           />
+          {detail.kinder.length > 0 ? (
+            <>
+              <Text
+                accessibilityRole="header"
+                style={[styles.label, { color: farben.text }]}
+              >
+                Teilnahme
+              </Text>
+              <Fehlermeldung text={teilnahmeFehler} />
+              <Ansage
+                text={gespeichert}
+                stil={[styles.wert, { color: farben.erfolg }]}
+              />
+              {detail.kinder.map((kind) =>
+                detail.teilnahmeOffen ? (
+                  <View key={kind.id} style={styles.kind}>
+                    <Text style={[styles.wert, { color: farben.text }]}>
+                      {kind.vorname}
+                    </Text>
+                    <JaNeinAuswahl
+                      wert={
+                        kind.status === "ja"
+                          ? true
+                          : kind.status === "nein"
+                            ? false
+                            : null
+                      }
+                      onWahl={(ja) => antworten(kind, ja ? "ja" : "nein")}
+                      kontext={`${kind.vorname}, ${detail.titel}`}
+                    />
+                  </View>
+                ) : (
+                  <Feld
+                    key={kind.id}
+                    label={kind.vorname}
+                    wert={
+                      kind.status === "ja"
+                        ? "Ja"
+                        : kind.status === "nein"
+                          ? "Nein"
+                          : "Keine Antwort"
+                    }
+                  />
+                ),
+              )}
+            </>
+          ) : null}
           <Zuordnung programm={detail} />
         </>
       ) : null}
@@ -132,4 +213,5 @@ function Feld({ label, wert }: { label: string; wert: string }) {
 const styles = StyleSheet.create({
   label: { fontSize: schrift.text, fontWeight: "700" },
   wert: { fontSize: schrift.text },
+  kind: { gap: masse.luecke },
 });
