@@ -8,12 +8,12 @@ import { twoFactorClient, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
 import * as Network from "expo-network";
-import * as SecureStore from "expo-secure-store";
 import { hc } from "hono/client";
 import { useSyncExternalStore } from "react";
 import { AppState } from "react-native";
 
 import type { AppType } from "@cevi-os/api";
+import { SPERRE_SCHLUESSEL, speicher } from "../speicher";
 
 // TanStack Query kennt React Native nicht: Fokus aus dem AppState, Online-Stand aus expo-network
 focusManager.setEventListener((imFokus) => {
@@ -92,7 +92,7 @@ export const authClient = createAuthClient({
     // scheme kommt aus app.json; disableCache, damit get-session nie im Secure Store landet
     expoClient({
       storagePrefix: "cevi-os",
-      storage: SecureStore,
+      storage: speicher,
       disableCache: true,
     }),
     usernameClient(),
@@ -119,6 +119,8 @@ export async function abmelden() {
     // Offline: Der Client hat den Secure Store schon geleert; die Server-Sitzung endet mit ihrem Ablauf
   } finally {
     queryClient.clear();
+    // Geteiltes Handy: Die nächste Person startet mit eingeschalteter Sperre
+    await speicher.deleteItemAsync(SPERRE_SCHLUESSEL).catch(() => {});
   }
 }
 
