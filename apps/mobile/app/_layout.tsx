@@ -158,7 +158,9 @@ function Tor() {
   const amZiel =
     ziel === null
       ? segmente[0] === "(tabs)" || segmente.length === 0
-      : segmente[1] === ziel.slice(1);
+      : segmente[1] === ziel.slice(1) ||
+        // Der Code-Schritt der Anmeldung läuft noch ohne Sitzung
+        (userId === null && segmente[1] === "code");
   if (!amZiel) return <Redirect href={ziel ?? "/"} />;
   return <Slot />;
 }

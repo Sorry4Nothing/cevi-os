@@ -141,6 +141,7 @@ describe("person aus der Sitzung", () => {
       id: konto.id,
       abteilungId: welt.testabteilungId,
       admin: false,
+      zweiterFaktor: false,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     });
   });
@@ -184,6 +185,7 @@ describe("hatRolle", () => {
     id: "person-1",
     abteilungId: "abteilung-1",
     admin: false,
+    zweiterFaktor: false,
     rollen: [
       { stufeId: "a", typ: "leitung" },
       { stufeId: "b", typ: "stufenleitung" },
@@ -202,7 +204,12 @@ describe("hatRolle", () => {
 });
 
 describe("darfZuordnen", () => {
-  const basis = { id: "person-1", abteilungId: "abteilung-1", admin: false };
+  const basis = {
+    id: "person-1",
+    abteilungId: "abteilung-1",
+    admin: false,
+    zweiterFaktor: false,
+  };
   const admin: Person = { ...basis, admin: true, rollen: [] };
   const slA: Person = {
     ...basis,

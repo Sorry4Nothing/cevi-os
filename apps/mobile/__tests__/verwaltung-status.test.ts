@@ -49,6 +49,7 @@ describe("warnungen", () => {
     name: "Person",
     benutzername: "person",
     admin,
+    zweiterFaktor: false,
     deaktiviert,
     mussPasswortAendern: false,
     startpasswortGueltigBis: null,

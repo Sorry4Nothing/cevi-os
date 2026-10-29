@@ -187,6 +187,23 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "PUT /api/v1/programme/:id/teilnahmen/:kindId": {
+    url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
+    // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
+    body: () => ({ status: "ja" }),
+    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    erwartet: {
+      ...alle(204),
+      slB: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Admin und SL anderer Stufen sehen es, haben aber kein Recht
   "PUT /api/v1/programme/:id/leitung": {
     url: () => `/api/v1/programme/${leitungProgrammId}/leitung`,
@@ -206,12 +223,33 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
+  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
+  "GET /api/v1/hilfe": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
+  "PATCH /api/v1/admin/abteilung": {
+    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
   "GET /api/v1/admin/personen": {
     erwartet: {
       ...alle(403),
       admin: 200,
-      adminOhneZweitenFaktor: 200,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -230,7 +268,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 201,
-      adminOhneZweitenFaktor: 201,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 201,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -242,7 +280,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -254,7 +292,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 200,
-      adminOhneZweitenFaktor: 200,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -266,7 +304,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -278,7 +316,21 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/zweiter-faktor-zuruecksetzen": {
+    // Jede Anfrage setzt den Faktor ihres Ziels zurück; ein Ziel mit Faktor je Anfrage
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/personen/${await wegwerfPersonId(true)}/zweiter-faktor-zuruecksetzen`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -292,7 +344,101 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
+  "GET /api/v1/stufen": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/stufen": {
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/stufen/:id": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}`,
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/kinder": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/kinder": {
+    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Admin 400
+    body: (konto) => ({
+      vorname: "Matrix",
+      nachname: "Kind",
+      stufeId:
+        konto.abteilungId === welt.demoAbteilungId
+          ? welt.demoStufeId
+          : welt.stufeAId,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/kinder/:id": {
+    url: () => `/api/v1/admin/kinder/${patchKindId}`,
+    // Ohne eltern: Die Liste von Kind A hinge von den angelegten Personas ab
+    body: () => ({
+      vorname: "Matrix",
+      nachname: "Kind",
+      stufeId: welt.stufeAId,
+      aktiv: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/kinder/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () => `/api/v1/admin/kinder/${await wegwerfKindId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -312,6 +458,105 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  "GET /api/v1/chats": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  "POST /api/v1/chats/direkt": {
+    body: (konto) => ({
+      stufeId: welt.stufeAId,
+      // Nur die SL der Stufe A muss das Elternteil nennen; für alle anderen wäre der Name ein fremder
+      ...(konto === standard.slA && { elternUserId: standard.elternA.id }),
+    }),
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    body: () => ({ text: "Hallo aus der Matrix" }),
+    erwartet: {
+      ...alle(404),
+      slA: 201,
+      elternA: 201,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Moderation (#52): Melden darf, wer die Nachricht im Chat sieht (SL der Stufe und Eltern der Stufe A); Ausblenden die SL im Gruppenchat der eigenen Stufe, Admins nur über eine offene Meldung. Eltern sehen die Nachricht, dürfen sie aber nicht ausblenden (403). Details in test/moderation.test.ts
+  "POST /api/v1/nachrichten/:id/ausblenden": {
+    // Jede Anfrage blendet ihre Nachricht aus; eine feste URL nähme sie den Personen danach weg
+    urlJeAnfrage: async () =>
+      `/api/v1/nachrichten/${await gemeldeteNachrichtId()}/ausblenden`,
+    erwartet: {
+      ...alle(404),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      slA: 204,
+      elternA: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/nachrichten/:id/melden": {
+    url: () => `/api/v1/nachrichten/${meldeNachrichtId}/melden`,
+    erwartet: {
+      ...alle(404),
+      slA: 204,
+      elternA: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Eingang der Meldungen (#52): nur Admins. Die gemeldete Person bekommt 404, weil die Meldung für sie nicht existiert (test/moderation.test.ts)
+  "GET /api/v1/admin/meldungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/meldungen/:id": {
+    url: () => `/api/v1/admin/meldungen/${erledigenZielId}`,
+    body: () => ({ erledigt: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
 };
 
 let welt: Welt;
@@ -322,9 +567,13 @@ let patchZielId: string;
 let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
+let meldeNachrichtId: string;
+let erledigenZielId: string;
+let patchStufeId: string;
+let patchKindId: string;
 
-// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
-async function wegwerfPersonId() {
+// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
+async function wegwerfPersonId(zweiterFaktor = false) {
   const [zeile] = await welt.db
     .insert(schema.user)
     .values({
@@ -333,9 +582,54 @@ async function wegwerfPersonId() {
       username: `wegwerf.${randomUUID().slice(0, 8)}`,
       abteilungId: welt.testabteilungId,
       mussPasswortAendern: false,
+      twoFactorEnabled: zweiterFaktor,
     })
     .returning({ id: schema.user.id });
+  if (zweiterFaktor) {
+    await welt.db
+      .insert(schema.twoFactor)
+      .values({ userId: zeile.id, secret: "x", backupCodes: "x" });
+  }
   return zeile.id;
+}
+
+// Wegwerf-Kind der Testabteilung, direkt eingefügt; die Matrix-Zeilen fassen nie Kind A und B der Welt an
+async function wegwerfKindId() {
+  const [zeile] = await welt.db
+    .insert(schema.kind)
+    .values({
+      abteilungId: welt.testabteilungId,
+      vorname: "Wegwerf",
+      nachname: "Kind",
+      stufeId: welt.stufeAId,
+    })
+    .returning({ id: schema.kind.id });
+  return zeile.id;
+}
+
+// Eine Nachricht einer Wegwerf-Person im Gruppenchat der Stufe A
+async function wegwerfNachrichtId() {
+  const [zeile] = await welt.db
+    .insert(schema.nachricht)
+    .values({
+      chatId: welt.gruppenchatAId,
+      autorId: await wegwerfPersonId(),
+      text: "Nachricht aus der Matrix",
+    })
+    .returning({ id: schema.nachricht.id });
+  return zeile.id;
+}
+
+// Mit offener Meldung einer anderen Wegwerf-Person: So sehen sie auch Admins, die nicht im Chat sind
+async function gemeldeteNachrichtId() {
+  const id = await wegwerfNachrichtId();
+  await welt.db.insert(schema.meldung).values({
+    abteilungId: welt.testabteilungId,
+    nachrichtId: id,
+    textKopie: "Nachricht aus der Matrix",
+    gemeldetVon: await wegwerfPersonId(),
+  });
+  return id;
 }
 
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
@@ -357,6 +651,16 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  meldeNachrichtId = await wegwerfNachrichtId();
+  const [meldung] = await db
+    .insert(schema.meldung)
+    .values({
+      abteilungId: welt.testabteilungId,
+      nachrichtId: await wegwerfNachrichtId(),
+      textKopie: "Nachricht aus der Matrix",
+    })
+    .returning({ id: schema.meldung.id });
+  erledigenZielId = meldung.id;
   leitungProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
@@ -372,6 +676,17 @@ beforeAll(async () => {
       wegwerfPersonId(),
       wegwerfPersonId(),
     ]);
+  patchKindId = await wegwerfKindId();
+  const [patchStufe] = await db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: "Matrix Stufe",
+      kuerzel: "M",
+      reihenfolge: 50,
+    })
+    .returning({ id: schema.stufe.id });
+  patchStufeId = patchStufe.id;
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -382,7 +697,12 @@ beforeEach(() => {
 afterEach(() => ausgabe.mockRestore());
 
 // Unter MIDDLEWARE nur Middleware; Routen registrieren Issues nie mit all() oder use()
-const MIDDLEWARE = new Set(["ALL /*", "ALL /api/*", "ALL /api/v1/*"]);
+const MIDDLEWARE = new Set([
+  "ALL /*",
+  "ALL /api/*",
+  "ALL /api/v1/*",
+  "ALL /api/v1/admin/*",
+]);
 
 type Instanz = { routes: { method: string; path: string }[] };
 const schluesselVon = (instanz: Instanz) =>
@@ -419,6 +739,36 @@ describe("Vollständigkeit", () => {
       expect(zeile.erwartet.demoAdmin, schluessel).toBe(404);
       expect(zeile.erwartet.demoEltern, schluessel).toBe(404);
     }
+  });
+});
+
+describe("Sperre ohne zweiten Faktor (#23)", () => {
+  // Bewusst eine Schleife: Jede künftige Admin-Route erbt die Regel; ein leeres test.each ergäbe gar keinen Test
+  test("jede Admin-Route erwartet für «Admin ohne zweiten Faktor» 403", () => {
+    let n = 0;
+    for (const [schluessel, zeile] of Object.entries(MATRIX)) {
+      if (!schluessel.split(" ")[1].startsWith("/api/v1/admin/")) continue;
+      n++;
+      expect(zeile.erwartet.adminOhneZweitenFaktor, schluessel).toBe(403);
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  test("der Admin ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
+    const anfrageAn = (persona: Persona) =>
+      app.request("/api/v1/admin/personen", {
+        headers: standard[persona].headers,
+      });
+    const ohne = await anfrageAn("adminOhneZweitenFaktor");
+    expect(ohne.status).toBe(403);
+    expect(await ohne.json()).toEqual({
+      code: "ZWEITER_FAKTOR_FEHLT",
+      message: "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+    });
+    const eltern = await anfrageAn("elternA");
+    expect(eltern.status).toBe(403);
+    expect(await eltern.json()).toMatchObject({ code: "KEINE_BERECHTIGUNG" });
+    expect((await anfrageAn("admin")).status).toBe(200);
   });
 });
 

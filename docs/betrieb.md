@@ -1,6 +1,6 @@
 # Betrieb
 
-Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Release, Release-Checkliste, Backups, Überwachung, Logs und der Ablauf bei einer Datenpanne. Ausgerollt wird nur von `main`.
+Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Release, Release-Checkliste, Backups, Überwachung, Logs, der zweite Faktor und der Ablauf bei einer Datenpanne. Ausgerollt wird nur von `main`.
 
 ## Server
 
@@ -146,7 +146,7 @@ Auf dem Server, nie auf einem persönlichen Rechner: `deploy/backup.sh pruefen` 
 3. Letzten Stand zurückspielen: `docker compose -f docker-compose.prod.yml run --rm -T backup dump --retry-lock 5m latest /cevi_os.dump | docker compose -f docker-compose.prod.yml exec -T postgres pg_restore -U postgres -d cevi_os --exit-on-error --single-transaction`
 4. Release ausrollen: `./deploy.sh <Tag>`. Danach melden sich alle neu an.
 
-Fehlt auch die alte `deploy/.env`: Das Passwort der betreuenden Person oder der Abteilungsleitung als `RESTIC_PASSWORD` in die neue `deploy/.env` eintragen, denn die Wiederherstellung läuft über `run -T` und kann kein Passwort versteckt abfragen. Danach einen neuen Server-Schlüssel anlegen (`key add`, Wert als `RESTIC_PASSWORD` in `deploy/.env`) und den verlorenen entfernen (`key list` zeigt die IDs, `key remove <ID>`). Die zweiten Faktoren lassen sich ohne die alte `.env` nicht mehr entschlüsseln; die Admins richten sie neu ein.
+Fehlt auch die alte `deploy/.env`: Das Passwort der betreuenden Person oder der Abteilungsleitung als `RESTIC_PASSWORD` in die neue `deploy/.env` eintragen, denn die Wiederherstellung läuft über `run -T` und kann kein Passwort versteckt abfragen. Danach einen neuen Server-Schlüssel anlegen (`key add`, Wert als `RESTIC_PASSWORD` in `deploy/.env`) und den verlorenen entfernen (`key list` zeigt die IDs, `key remove <ID>`). Die zweiten Faktoren lassen sich ohne die alte `.env` nicht mehr entschlüsseln; die Admins richten sie neu ein, nachdem die CLI sie zurückgesetzt hat (siehe «Zweiter Faktor»).
 
 Bleibt nach einem Abbruch ein Lock im Archiv zurück: `docker compose -f docker-compose.prod.yml run --rm backup unlock`
 
@@ -208,6 +208,17 @@ Danach `sudo systemctl restart systemd-journald`; prüfen mit `systemd-analyze c
 
 Andere Log-Dateien auf dem Server, etwa die eines Syslog-Dienstes mit den IP-Adressen von SSH-Clients: ebenfalls höchstens 14 Tage aufbewahren oder den Schreiber abschalten. Die Befehle dazu hängen vom System ab (#68).
 
+## Zweiter Faktor
+
+Admins melden sich zusätzlich mit einem Code aus einer Authenticator-App oder einem Passwort-Manager an (TOTP, zehn Ersatzcodes, kein «Gerät vertrauen»). Ohne zweiten Faktor ist die Verwaltung gesperrt (`/api/v1/admin/*`); einrichten lässt er sich im Profil. Es handeln Rollen, keine bestimmten Personen.
+
+- **Neues Gerät, das alte ist gelöscht:** Ein anderer Admin setzt den zweiten Faktor in der Verwaltung zurück («Zweiten Faktor zurücksetzen» auf der Seite der Person). Die Person meldet sich danach ohne Code an und richtet ihn neu ein.
+- **Gerät verloren:** Derselbe Admin setzt zuerst ein «Neues Startpasswort» (das beendet jede Sitzung der Person; im Passwort-Manager des verlorenen Geräts kann das alte Passwort stehen) und setzt erst dann den zweiten Faktor zurück. Nie zurücksetzen, solange ein altes Passwort noch gilt, sonst richtet die fremde Person den neuen Faktor selbst ein (siehe «Datenpanne»).
+- **Kein Admin besteht den zweiten Faktor mehr:** Wer den Server betreibt, setzt ihn mit der CLI zurück, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/zweiter-faktor-zuruecksetzen.ts --benutzername <name>`; immer `exec`, nie `run`. Lokal: `npm run zweiter-faktor:zuruecksetzen -w apps/api -- --benutzername <name>`. Die CLI braucht nur `DATABASE_URL` und läuft ohne Anmeldung, auch nach einem Wechsel des Auth-Geheimnisses.
+- **Das Auth-Geheimnis ändert sich:** better-auth verschlüsselt die TOTP-Geheimnisse und die Ersatzcodes mit `BETTER_AUTH_SECRET`. Nach einem Wechsel lassen sie sich nicht mehr entschlüsseln: Wer den Server betreibt, setzt den Faktor jedes Admins mit der CLI zurück, danach meldet sich jeder an und richtet ihn neu ein.
+
+Jede Zurücksetzung schreibt eine Zeile ins Audit-Log; bei der CLI steht «cli» als Akteur.
+
 ## Datenpanne
 
 Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durch ein gekapertes Konto, ein geleaktes Geheimnis oder eine kopierte Datenbank. Es handeln Rollen, keine bestimmten Personen: Wer den Server betreibt, führt die Befehle aus; der Vorstand entscheidet und meldet.
@@ -220,5 +231,5 @@ Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durc
    - Google-Service-Account: einen neuen Schlüssel erzeugen, ihn überall einsetzen, wo der alte lag, die API neu starten und erst dann den alten Schlüssel löschen (#26, #27, #69).
    - Expo-Zugriffstoken (#43).
    - restic- und S3-Schlüssel (#71).
-4. **Gekapertes Konto sperren, dann zweite Faktoren neu einrichten.** Nach Schritt 3 besteht kein Admin den zweiten Faktor. Die CLI (#23) setzt den Faktor genau eines vertrauenswürdigen Admins zurück; diese Person meldet sich an und richtet ihren Faktor neu ein. Dann deaktiviert sie das gekaperte Konto oder gibt ihm ein neues Startpasswort (#18); nie den Faktor eines Kontos zurücksetzen, solange sein altes Passwort noch gilt, sonst richtet die fremde Person den neuen Faktor selbst ein. Danach setzt sie die Faktoren der übrigen Admins zurück (#23), und diese richten ihre neu ein. Bleibt kein vertrauenswürdiger Admin übrig, legt die CLI (#20) einen neuen an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --abteilung "<Name>"`; immer `exec`, nie `run`, sonst steht das Startpasswort 14 Tage im journald (siehe «Logs»).
+4. **Gekapertes Konto sperren, dann zweite Faktoren neu einrichten.** Nach Schritt 3 besteht kein Admin den zweiten Faktor. Die CLI (`docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/zweiter-faktor-zuruecksetzen.ts --benutzername <name>`, in `deploy/`) setzt den Faktor genau eines vertrauenswürdigen Admins zurück; diese Person meldet sich an und richtet ihren Faktor neu ein. Dann deaktiviert sie das gekaperte Konto oder gibt ihm ein neues Startpasswort (#18); nie den Faktor eines Kontos zurücksetzen, solange sein altes Passwort noch gilt, sonst richtet die fremde Person den neuen Faktor selbst ein. Danach setzt sie die Faktoren der übrigen Admins zurück (#23), und diese richten ihre neu ein. Bleibt kein vertrauenswürdiger Admin übrig, legt die CLI (#20) einen neuen an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --abteilung "<Name>"`; immer `exec`, nie `run`, sonst steht das Startpasswort 14 Tage im journald (siehe «Logs»).
 5. **Dokumentieren:** die Tatsachen rund um die Panne, ihre Auswirkungen und die getroffenen Massnahmen (Art. 15 Abs. 4 DSV), dazu ob gemeldet wurde und warum. Die Dokumentation bleibt mindestens zwei Jahre erhalten, nie im Repo, in Issues oder in PRs.

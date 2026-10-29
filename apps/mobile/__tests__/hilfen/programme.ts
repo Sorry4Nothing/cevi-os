@@ -4,7 +4,7 @@
 import type { InferResponseType } from "hono/client";
 
 import type { api } from "../../src/api/client";
-import type { Programm } from "../../src/api/programme";
+import type { Programm, ProgrammDetail } from "../../src/api/programme";
 
 type Ich = InferResponseType<typeof api.api.v1.ich.$get>;
 
@@ -40,6 +40,7 @@ const ICH_BASIS: Ich = {
   name: "Testperson",
   benutzername: "test.person",
   admin: false,
+  zweiterFaktor: false,
   mussPasswortAendern: false,
   datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
   telefon: null,
@@ -67,7 +68,7 @@ export const PERSONAS: Record<"eltern" | "leitende" | "sl" | "admin", Ich> = {
     rollen: [{ stufeId: FALKEN.id, typ: "stufenleitung" }],
     stufen: [{ ...FALKEN, kuerzel: "F" }],
   },
-  admin: { ...ICH_BASIS, admin: true },
+  admin: { ...ICH_BASIS, admin: true, zweiterFaktor: true },
 };
 
 export function programm(
@@ -89,6 +90,19 @@ export function programm(
     infoEltern: null,
     stufen: [],
     googleBeschreibung: null,
+    ...aenderung,
+  };
+}
+
+// Das Detail trägt zusätzlich die Kinder der Person und ob die Teilnahme noch offen ist
+export function programmDetail(
+  aenderung: Partial<ProgrammDetail> & { id: string; titel: string },
+): ProgrammDetail {
+  return {
+    ...programm({ id: aenderung.id, titel: aenderung.titel }),
+    teilnahmeOffen: true,
+    kinder: [],
+    eigeneAnmeldung: undefined,
     ...aenderung,
   };
 }

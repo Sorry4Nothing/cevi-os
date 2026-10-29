@@ -13,7 +13,14 @@ import {
 } from "../../benutzername.js";
 import type { Db } from "../../db/client.js";
 import * as schema from "../../db/schema.js";
-import { kind, kindEltern, rolle, stufe, user } from "../../db/schema.js";
+import {
+  auditLog,
+  kind,
+  kindEltern,
+  rolle,
+  stufe,
+  user,
+} from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
 import {
@@ -21,6 +28,7 @@ import {
   normalisiereStartpasswort,
   startpasswortFelder,
 } from "../../startpasswort.js";
+import { setzeZweitenFaktorZurueck } from "../../zweiter-faktor.js";
 
 // Eigene 409-Codes mit eigener Antwort: onError machte aus einer HTTPException(409) nur «FEHLER»
 const KONFLIKT = {
@@ -36,6 +44,14 @@ const KONFLIKT = {
     code: "EIGENES_KONTO",
     message:
       "Das eigene Konto lässt sich hier nicht zurücksetzen, deaktivieren oder löschen.",
+  },
+  EIGENER_ZWEITER_FAKTOR: {
+    code: "EIGENER_ZWEITER_FAKTOR",
+    message: "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
+  },
+  KEIN_ZWEITER_FAKTOR: {
+    code: "KEIN_ZWEITER_FAKTOR",
+    message: "Diese Person hat keinen zweiten Faktor.",
   },
 } as const;
 
@@ -136,6 +152,23 @@ export function erstellePersonenRouten({
     }
   }
 
+  // Im selben Commit wie die Aktion; details ohne Personendaten (IDs, Rollen, Flags)
+  const protokolliere = (
+    tx: Pick<Db, "insert">,
+    person: Person,
+    aktion: string,
+    zielId: string,
+    details?: Record<string, unknown>,
+  ) =>
+    tx.insert(auditLog).values({
+      abteilungId: person.abteilungId,
+      akteurId: person.id,
+      aktion,
+      zielTyp: "person",
+      zielId,
+      details,
+    });
+
   // Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
   async function sperreLetztenAdmin(
     tx: Pick<Db, "select">,
@@ -161,6 +194,7 @@ export function erstellePersonenRouten({
               name: user.name,
               benutzername: user.username,
               role: user.role,
+              twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
               startpasswortGueltigBis: user.startpasswortGueltigBis,
@@ -211,13 +245,14 @@ export function erstellePersonenRouten({
             .where(eq(kind.abteilungId, abteilungId))
             .orderBy(asc(kind.nachname), asc(kind.vorname), asc(kind.id)),
         ]);
-      // Nie email, telefon, banReason oder Bremsfelder: Der Rollen-Editor braucht nur das hier
+      // Nie email, telefon, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
       return c.json({
         personen: personen.map((p) => ({
           id: p.id,
           name: p.name,
           benutzername: p.benutzername,
           admin: p.role === "admin",
+          zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
           startpasswortGueltigBis: p.startpasswortGueltigBis,
@@ -272,6 +307,11 @@ export function erstellePersonenRouten({
               })),
             );
           }
+          await protokolliere(tx, person, "person_angelegt", neu.id, {
+            admin: eingaben.admin,
+            rollen: eingaben.rollen,
+            elternteilVon: eingaben.elternteilVon,
+          });
           // Das Plugin speichert kleingeschrieben; sein Typ kennt das Feld nicht
           return {
             id: neu.id,
@@ -312,18 +352,38 @@ export function erstellePersonenRouten({
               await sperreLetztenAdmin(tx, person.abteilungId, id);
             }
             const felder: Partial<{ name: string; role: string }> = {};
+            // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
+            const details: Record<string, unknown> = {};
             if (aenderung.name !== undefined) felder.name = aenderung.name;
             if (aenderung.admin !== undefined) {
               felder.role = aenderung.admin ? "admin" : "user";
+              const [bisher] = await tx
+                .select({ role: user.role })
+                .from(user)
+                .where(eq(user.id, id));
+              if ((bisher.role === "admin") !== aenderung.admin) {
+                details.admin = aenderung.admin;
+              }
             }
             if (Object.keys(felder).length > 0) {
               await tx.update(user).set(felder).where(eq(user.id, id));
             }
             if (aenderung.rollen) {
               const bisher = await tx
-                .select({ stufeId: rolle.stufeId })
+                .select({ stufeId: rolle.stufeId, typ: rolle.typ })
                 .from(rolle)
                 .where(eq(rolle.userId, id));
+              const bisherTypen = new Map(
+                bisher.map((zeile) => [zeile.stufeId, zeile.typ]),
+              );
+              if (
+                bisherTypen.size !== aenderung.rollen.length ||
+                aenderung.rollen.some(
+                  (r) => bisherTypen.get(r.stufeId) !== r.typ,
+                )
+              ) {
+                details.rollen = aenderung.rollen;
+              }
               const neueIds = new Set(aenderung.rollen.map((r) => r.stufeId));
               const weg = bisher
                 .map((zeile) => zeile.stufeId)
@@ -359,6 +419,9 @@ export function erstellePersonenRouten({
               const neu = aenderung.elternteilVon.filter(
                 (kindId) => !bisherMenge.has(kindId),
               );
+              if (weg.length > 0 || neu.length > 0) {
+                details.elternteilVon = aenderung.elternteilVon;
+              }
               if (weg.length > 0) {
                 await tx
                   .delete(kindEltern)
@@ -374,6 +437,9 @@ export function erstellePersonenRouten({
                   .insert(kindEltern)
                   .values(neu.map((kindId) => ({ kindId, userId: id })));
               }
+            }
+            if (Object.keys(details).length > 0) {
+              await protokolliere(tx, person, "rolle_geaendert", id, details);
             }
           });
         } catch (fehler) {
@@ -402,7 +468,10 @@ export function erstellePersonenRouten({
       });
       // Alle Sitzungen enden, die Push-Tokens mit ihnen (#42); danach Pflichtwechsel, 7 Tage und Bremse von vorn
       await auth.api.revokeUserSessions({ body: { userId: id }, headers });
-      await db.update(user).set(startpasswortFelder()).where(eq(user.id, id));
+      await db.transaction(async (tx) => {
+        await tx.update(user).set(startpasswortFelder()).where(eq(user.id, id));
+        await protokolliere(tx, person, "startpasswort_neu", id);
+      });
       return c.json({ startpasswort });
     })
     .post("/:id/deaktivieren", eingabe("param", pfad()), async (c) => {
@@ -413,6 +482,8 @@ export function erstellePersonenRouten({
       try {
         await db.transaction(async (tx) => {
           await sperreLetztenAdmin(tx, person.abteilungId, id);
+          // Vor banUser: Scheitert das, nimmt die Transaktion den Eintrag zurück
+          await protokolliere(tx, person, "person_deaktiviert", id);
           // banUser löscht auch die Sitzungen und läuft auf eigener Verbindung; die Transaktion fasst vorher keine Zeile der Zielperson an, sonst drohte ein Deadlock
           await auth.api.banUser({
             body: { userId: id },
@@ -439,9 +510,33 @@ export function erstellePersonenRouten({
         body: { userId: id },
         headers: c.req.raw.headers,
       });
-      await db.update(user).set({ deaktiviertAm: null }).where(eq(user.id, id));
+      await db.transaction(async (tx) => {
+        await tx
+          .update(user)
+          .set({ deaktiviertAm: null })
+          .where(eq(user.id, id));
+        await protokolliere(tx, person, "person_aktiviert", id);
+      });
       return c.body(null, 204);
     })
+    .post(
+      "/:id/zweiter-faktor-zuruecksetzen",
+      eingabe("param", pfad()),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        await ladeZiel(person, id);
+        if (id === person.id)
+          return c.json(KONFLIKT.EIGENER_ZWEITER_FAKTOR, 409);
+        const zurueckgesetzt = await setzeZweitenFaktorZurueck(db, {
+          zielId: id,
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+        });
+        if (!zurueckgesetzt) return c.json(KONFLIKT.KEIN_ZWEITER_FAKTOR, 409);
+        return c.body(null, 204);
+      },
+    )
     .delete("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");
@@ -450,6 +545,7 @@ export function erstellePersonenRouten({
       try {
         await db.transaction(async (tx) => {
           await sperreLetztenAdmin(tx, person.abteilungId, id);
+          await protokolliere(tx, person, "person_geloescht", id);
           // removeUser läuft auf eigener Verbindung; Rollen, Kinder-Verknüpfungen und Sitzungen löscht die Datenbank per CASCADE
           await auth.api.removeUser({
             body: { userId: id },

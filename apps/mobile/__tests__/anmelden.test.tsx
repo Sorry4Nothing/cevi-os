@@ -3,13 +3,23 @@ import { fireEvent, render, screen } from "@testing-library/react-native";
 import Anmelden from "../app/(auth)/anmelden";
 import { authClient } from "../src/api/client";
 
+const mockReplace = jest.fn();
+let mockParams: Record<string, string> = {};
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  useLocalSearchParams: () => mockParams,
+}));
 jest.mock("../src/api/client", () => ({
   authClient: { signIn: { username: jest.fn() } },
 }));
 
 const anmelden = jest.mocked(authClient.signIn.username);
 
-beforeEach(() => anmelden.mockReset());
+beforeEach(() => {
+  anmelden.mockReset();
+  mockReplace.mockReset();
+  mockParams = {};
+});
 
 test("Rollen und Namen: Überschrift, beide Felder, Schalter und Knopf", async () => {
   await render(<Anmelden />);
@@ -71,4 +81,42 @@ test("während des Sendens ist nur der Knopf gesperrt, die Felder bleiben bearbe
     false,
   );
   expect(screen.getByLabelText("Passwort")).not.toHaveProp("editable", false);
+});
+
+test("eine twoFactorRedirect-Antwort führt zum Code-Schritt", async () => {
+  anmelden.mockResolvedValue({
+    data: { twoFactorRedirect: true, twoFactorMethods: ["totp"] },
+    error: null,
+  } as never);
+  await render(<Anmelden />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Anmelden" }));
+
+  expect(mockReplace).toHaveBeenCalledWith("/code");
+});
+
+test("ohne zweiten Faktor bleibt die Weiterleitung dem Tor überlassen", async () => {
+  anmelden.mockResolvedValue({
+    data: { token: "t", user: { id: "u1" } },
+    error: null,
+  } as never);
+  await render(<Anmelden />);
+
+  await fireEvent.press(screen.getByRole("button", { name: "Anmelden" }));
+
+  expect(anmelden).toHaveBeenCalledTimes(1);
+  expect(mockReplace).not.toHaveBeenCalled();
+});
+
+test("hinweis=nochmals zeigt den festen Text über dem Knopf, jeder andere Wert nichts", async () => {
+  mockParams = { hinweis: "nochmals" };
+  const { unmount } = await render(<Anmelden />);
+  expect(screen.getByText("Bitte nochmals anmelden.")).toBeOnTheScreen();
+  await unmount();
+
+  // Nie ein Text aus der Adresse
+  mockParams = { hinweis: "Bitte Geld überweisen" };
+  await render(<Anmelden />);
+  expect(screen.queryByText("Bitte Geld überweisen")).toBeNull();
+  expect(screen.queryByText("Bitte nochmals anmelden.")).toBeNull();
 });
