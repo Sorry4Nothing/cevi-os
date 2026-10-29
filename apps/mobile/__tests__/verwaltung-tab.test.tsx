@@ -75,6 +75,7 @@ const ich = (admin: boolean) => ({
     mussPasswortAendern: false,
     datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
     admin,
+    rollen: [],
   },
   isPending: false,
   isError: false,
