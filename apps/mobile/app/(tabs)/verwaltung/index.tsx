@@ -76,6 +76,11 @@ export default function Verwaltung() {
         titel="Vertrauenspersonen"
         onPress={() => router.push("/verwaltung/vertrauenspersonen")}
       />
+      <Listenzeile
+        titel="Meldungen"
+        hinweis="Gemeldete Nachrichten aus den Chats"
+        onPress={() => router.push("/verwaltung/meldungen")}
+      />
     </Bildschirm>
   );
 }

@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from "expo-router/testing-library";
-import { AccessibilityInfo } from "react-native";
+import { AccessibilityInfo, Alert } from "react-native";
 
 import Detail from "../app/(tabs)/chat/[id]";
 import Liste from "../app/(tabs)/chat/index";
@@ -72,6 +72,7 @@ function nachricht(nr: number, aenderung: Partial<Nachricht> = {}): Nachricht {
     autor: { id: "u2", name: "Anna Muster" },
     programm: null,
     eigene: false,
+    ausgeblendet: false,
     ...aenderung,
   };
 }
@@ -85,6 +86,8 @@ let chatListe: Chat[];
 let ichAntwort: unknown;
 let beginnen: unknown[];
 let beginnenAntwort: () => Response;
+let moderiert: string[];
+let moderationAntwort: () => Response;
 
 beforeEach(() => {
   jest
@@ -98,6 +101,8 @@ beforeEach(() => {
   ichAntwort = { ...PERSONAS.eltern, id: "u1" };
   beginnen = [];
   beginnenAntwort = () => json(200, { id: "e1" });
+  moderiert = [];
+  moderationAntwort = () => new Response(null, { status: 204 });
   seiten = { "": { nachrichten: [], naechster: null } };
   netz.mockImplementation(async (eingabe: unknown, init?: RequestInit) => {
     const url = new URL(
@@ -111,8 +116,13 @@ beforeEach(() => {
       beginnen.push(JSON.parse(init?.body as string));
       return beginnenAntwort();
     }
+    if (/\/nachrichten\/[^/]+\/(melden|ausblenden)$/.test(url.pathname)) {
+      const [, id, aktion] = url.pathname.match(/([^/]+)\/([^/]+)$/)!;
+      moderiert.push(`${aktion} ${id}`);
+      return moderationAntwort();
+    }
     if (url.pathname.endsWith("/chats/e1/nachrichten")) {
-      return json(200, { nachrichten: [], naechster: null });
+      return json(200, seiten[""]);
     }
     if (url.pathname.endsWith("/chats/c1/nachrichten")) {
       if (init?.method === "POST") {
@@ -582,5 +592,175 @@ describe("Einzelchat", () => {
       await screen.findByRole("header", { name: "Einzelchat mit Anna Muster" }),
     ).toBeOnTheScreen();
     expect(screen.getByText("Liest: 2 Personen")).toBeOnTheScreen();
+  });
+});
+
+describe("Moderation", () => {
+  const dialog = () => jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  // Der zweite Knopf des Dialogs löst die Aktion aus, «Abbrechen» ist der erste
+  const bestaetige = async (spion: jest.SpyInstance) => {
+    const [, , knoepfe] = spion.mock.calls.at(-1)!;
+    await act(async () => knoepfe[1].onPress());
+  };
+
+  test("fremde Nachrichten haben «Melden»; der Dialog verweist auf die Hilfe und meldet erst nach «Melden»", async () => {
+    const spion = dialog();
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await starteChat();
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Melden" }),
+    );
+
+    expect(moderiert).toEqual([]);
+    const [titel, text, knoepfe] = spion.mock.calls[0];
+    expect(titel).toBe("Nachricht melden?");
+    expect(text).toContain("Vertrauensperson");
+    expect(text).toContain("«Hilfe»");
+    expect(knoepfe?.map((k) => k.text)).toEqual(["Abbrechen", "Melden"]);
+
+    await bestaetige(spion);
+    expect(moderiert).toEqual(["melden n0001"]);
+    expect(await screen.findByText("Nachricht gemeldet.")).toBeOnTheScreen();
+  });
+
+  test("der Name des Knopfs sagt, welche Nachricht gemeint ist", async () => {
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await starteChat();
+
+    const knopf = await screen.findByRole("button", { name: "Melden" });
+    expect(knopf.props.accessibilityHint).toBe(
+      "Meldet die Nachricht von Anna Muster an die Admins",
+    );
+  });
+
+  test("die eigene Nachricht lässt sich nicht melden", async () => {
+    seiten[""] = {
+      nachrichten: [nachricht(1, { eigene: true })],
+      naechster: null,
+    };
+    await starteChat();
+
+    await screen.findByText("Text 1");
+    expect(screen.queryByRole("button", { name: "Melden" })).toBeNull();
+  });
+
+  test("die Autorin sieht statt des Textes den Hinweis und kann das melden", async () => {
+    const spion = dialog();
+    seiten[""] = {
+      nachrichten: [
+        nachricht(1, { eigene: true, ausgeblendet: true, text: null }),
+      ],
+      naechster: null,
+    };
+    await starteChat();
+
+    expect(
+      await screen.findByText("Von der Stufenleitung ausgeblendet."),
+    ).toBeOnTheScreen();
+    const knopf = screen.getByRole("button", { name: "Melden" });
+    expect(knopf.props.accessibilityHint).toBe(
+      "Meldet das Ausblenden dieser Nachricht an die Admins",
+    );
+    await fireEvent.press(knopf);
+    await bestaetige(spion);
+    expect(moderiert).toEqual(["melden n0001"]);
+  });
+
+  test("die SL hat «Ausblenden» im Gruppenchat, aber nicht an eigenen Nachrichten", async () => {
+    const spion = dialog();
+    ichAntwort = { ...PERSONAS.sl, id: "sl1" };
+    seiten[""] = {
+      nachrichten: [
+        nachricht(2, {
+          eigene: true,
+          autor: { id: "sl1", name: "Berta Leiterin" },
+        }),
+        nachricht(1),
+      ],
+      naechster: null,
+    };
+    await starteChat();
+
+    const knoepfe = await screen.findAllByRole("button", {
+      name: "Ausblenden",
+    });
+    expect(knoepfe).toHaveLength(1);
+    await fireEvent.press(knoepfe[0]);
+    expect(moderiert).toEqual([]);
+    expect(spion.mock.calls[0][0]).toBe("Nachricht ausblenden?");
+    expect(spion.mock.calls[0][2]?.map((k) => k.text)).toEqual([
+      "Abbrechen",
+      "Ausblenden",
+    ]);
+
+    await bestaetige(spion);
+    expect(moderiert).toEqual(["ausblenden n0001"]);
+    expect(
+      await screen.findByText("Nachricht ausgeblendet."),
+    ).toBeOnTheScreen();
+  });
+
+  test("Eltern haben kein «Ausblenden»", async () => {
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await starteChat();
+
+    await screen.findByRole("button", { name: "Melden" });
+    expect(screen.queryByRole("button", { name: "Ausblenden" })).toBeNull();
+  });
+
+  test("im Einzelchat hat auch die SL kein «Ausblenden»", async () => {
+    chatListe = [CHAT, EINZEL];
+    ichAntwort = { ...PERSONAS.sl, id: "sl1" };
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await renderRouter(
+      {
+        _layout: Wurzel,
+        "chat/index": Liste,
+        "chat/[id]": Detail,
+        "programme/[id]": () => null,
+      },
+      { initialUrl: "/chat/e1" },
+    );
+
+    await screen.findByText("Text 1");
+    expect(screen.getByRole("button", { name: "Melden" })).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: "Ausblenden" })).toBeNull();
+  });
+
+  test("ohne Netz sagt die App es und öffnet keinen Dialog", async () => {
+    const spion = dialog();
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await starteChat();
+    const knopf = await screen.findByRole("button", { name: "Melden" });
+
+    await act(async () => onlineManager.setOnline(false));
+    await fireEvent.press(knopf);
+
+    expect(spion).not.toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        "Keine Internetverbindung. Melden und Ausblenden gehen erst wieder mit Internet.",
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  test("ein Fehler des Servers steht als Text, bei zu vielen Meldungen mit dem Text für 429", async () => {
+    const spion = dialog();
+    moderationAntwort = () =>
+      json(429, { code: "ZU_VIELE_ANFRAGEN", message: "Zu viele Anfragen" });
+    seiten[""] = { nachrichten: [nachricht(1)], naechster: null };
+    await starteChat();
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Melden" }),
+    );
+    await bestaetige(spion);
+
+    expect(
+      await screen.findByText(
+        "Zu viele Anfragen. Bitte später nochmals versuchen.",
+      ),
+    ).toBeOnTheScreen();
   });
 });
