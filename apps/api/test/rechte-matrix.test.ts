@@ -337,6 +337,100 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
+  "GET /api/v1/stufen": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/stufen": {
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/stufen/:id": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}`,
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/kinder": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/kinder": {
+    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Admin 400
+    body: (konto) => ({
+      vorname: "Matrix",
+      nachname: "Kind",
+      stufeId:
+        konto.abteilungId === welt.demoAbteilungId
+          ? welt.demoStufeId
+          : welt.stufeAId,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/kinder/:id": {
+    url: () => `/api/v1/admin/kinder/${patchKindId}`,
+    // Ohne eltern: Die Liste von Kind A hinge von den angelegten Personas ab
+    body: () => ({
+      vorname: "Matrix",
+      nachname: "Kind",
+      stufeId: welt.stufeAId,
+      aktiv: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/kinder/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () => `/api/v1/admin/kinder/${await wegwerfKindId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -408,6 +502,8 @@ let patchZielId: string;
 let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
+let patchStufeId: string;
+let patchKindId: string;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
 async function wegwerfPersonId() {
@@ -421,6 +517,20 @@ async function wegwerfPersonId() {
       mussPasswortAendern: false,
     })
     .returning({ id: schema.user.id });
+  return zeile.id;
+}
+
+// Wegwerf-Kind der Testabteilung, direkt eingefügt; die Matrix-Zeilen fassen nie Kind A und B der Welt an
+async function wegwerfKindId() {
+  const [zeile] = await welt.db
+    .insert(schema.kind)
+    .values({
+      abteilungId: welt.testabteilungId,
+      vorname: "Wegwerf",
+      nachname: "Kind",
+      stufeId: welt.stufeAId,
+    })
+    .returning({ id: schema.kind.id });
   return zeile.id;
 }
 
@@ -458,6 +568,17 @@ beforeAll(async () => {
       wegwerfPersonId(),
       wegwerfPersonId(),
     ]);
+  patchKindId = await wegwerfKindId();
+  const [patchStufe] = await db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: "Matrix Stufe",
+      kuerzel: "M",
+      reihenfolge: 50,
+    })
+    .returning({ id: schema.stufe.id });
+  patchStufeId = patchStufe.id;
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
