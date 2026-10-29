@@ -206,12 +206,12 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
+  // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
   "GET /api/v1/admin/personen": {
     erwartet: {
       ...alle(403),
       admin: 200,
-      adminOhneZweitenFaktor: 200,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -230,7 +230,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 201,
-      adminOhneZweitenFaktor: 201,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 201,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -242,7 +242,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -254,7 +254,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 200,
-      adminOhneZweitenFaktor: 200,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -266,7 +266,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -278,7 +278,21 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/zweiter-faktor-zuruecksetzen": {
+    // Jede Anfrage setzt den Faktor ihres Ziels zurück; ein Ziel mit Faktor je Anfrage
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/personen/${await wegwerfPersonId(true)}/zweiter-faktor-zuruecksetzen`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -292,7 +306,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -313,7 +327,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 201,
-      adminOhneZweitenFaktor: 201,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 201,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -325,7 +339,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -336,7 +350,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 200,
-      adminOhneZweitenFaktor: 200,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -355,7 +369,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 201,
-      adminOhneZweitenFaktor: 201,
+      adminOhneZweitenFaktor: 403,
       demoAdmin: 201,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -373,7 +387,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -386,7 +400,7 @@ const MATRIX: Record<string, Zeile> = {
     erwartet: {
       ...alle(403),
       admin: 204,
-      adminOhneZweitenFaktor: 204,
+      adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
       demoAdmin: 404,
@@ -419,8 +433,8 @@ let aktivierenZielId: string;
 let patchStufeId: string;
 let patchKindId: string;
 
-// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
-async function wegwerfPersonId() {
+// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
+async function wegwerfPersonId(zweiterFaktor = false) {
   const [zeile] = await welt.db
     .insert(schema.user)
     .values({
@@ -429,8 +443,14 @@ async function wegwerfPersonId() {
       username: `wegwerf.${randomUUID().slice(0, 8)}`,
       abteilungId: welt.testabteilungId,
       mussPasswortAendern: false,
+      twoFactorEnabled: zweiterFaktor,
     })
     .returning({ id: schema.user.id });
+  if (zweiterFaktor) {
+    await welt.db
+      .insert(schema.twoFactor)
+      .values({ userId: zeile.id, secret: "x", backupCodes: "x" });
+  }
   return zeile.id;
 }
 
@@ -503,7 +523,12 @@ beforeEach(() => {
 afterEach(() => ausgabe.mockRestore());
 
 // Unter MIDDLEWARE nur Middleware; Routen registrieren Issues nie mit all() oder use()
-const MIDDLEWARE = new Set(["ALL /*", "ALL /api/*", "ALL /api/v1/*"]);
+const MIDDLEWARE = new Set([
+  "ALL /*",
+  "ALL /api/*",
+  "ALL /api/v1/*",
+  "ALL /api/v1/admin/*",
+]);
 
 type Instanz = { routes: { method: string; path: string }[] };
 const schluesselVon = (instanz: Instanz) =>
@@ -540,6 +565,36 @@ describe("Vollständigkeit", () => {
       expect(zeile.erwartet.demoAdmin, schluessel).toBe(404);
       expect(zeile.erwartet.demoEltern, schluessel).toBe(404);
     }
+  });
+});
+
+describe("Sperre ohne zweiten Faktor (#23)", () => {
+  // Bewusst eine Schleife: Jede künftige Admin-Route erbt die Regel; ein leeres test.each ergäbe gar keinen Test
+  test("jede Admin-Route erwartet für «Admin ohne zweiten Faktor» 403", () => {
+    let n = 0;
+    for (const [schluessel, zeile] of Object.entries(MATRIX)) {
+      if (!schluessel.split(" ")[1].startsWith("/api/v1/admin/")) continue;
+      n++;
+      expect(zeile.erwartet.adminOhneZweitenFaktor, schluessel).toBe(403);
+    }
+    expect(n).toBeGreaterThan(0);
+  });
+
+  test("der Admin ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
+    const anfrageAn = (persona: Persona) =>
+      app.request("/api/v1/admin/personen", {
+        headers: standard[persona].headers,
+      });
+    const ohne = await anfrageAn("adminOhneZweitenFaktor");
+    expect(ohne.status).toBe(403);
+    expect(await ohne.json()).toEqual({
+      code: "ZWEITER_FAKTOR_FEHLT",
+      message: "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+    });
+    const eltern = await anfrageAn("elternA");
+    expect(eltern.status).toBe(403);
+    expect(await eltern.json()).toMatchObject({ code: "KEINE_BERECHTIGUNG" });
+    expect((await anfrageAn("admin")).status).toBe(200);
   });
 });
 

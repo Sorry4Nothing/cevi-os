@@ -14,6 +14,7 @@
     "kalender:aufzeichnen": "tsx --env-file-if-exists=.env src/kalender/aufzeichnen.ts",
     "admin:anlegen": "tsx --env-file-if-exists=.env src/cli/admin-anlegen.ts",
     "sitzungen:beenden": "tsx --env-file-if-exists=.env src/cli/sitzungen-beenden.ts",
+    "zweiter-faktor:zuruecksetzen": "tsx --env-file-if-exists=.env src/cli/zweiter-faktor-zuruecksetzen.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
