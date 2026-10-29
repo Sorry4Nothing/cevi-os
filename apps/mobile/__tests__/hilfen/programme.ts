@@ -103,6 +103,7 @@ export function programmDetail(
     teilnahmeOffen: true,
     kinder: [],
     eigeneAnmeldung: undefined,
+    darfErgaenzen: false,
     ...aenderung,
   };
 }

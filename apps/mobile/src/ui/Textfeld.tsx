@@ -36,12 +36,15 @@ type Props = Omit<
   fehler?: string;
   // Mehrzeilige Felder wachsen bis hierhin und scrollen dann in sich
   maxHoehe?: number;
+  // Ein neuer Wert zeigt denselben Fehlertext neu an und nimmt den Fokus wieder
+  fehlerSchluessel?: number;
 };
 
 export function Textfeld({
   label,
   fehler,
   maxHoehe,
+  fehlerSchluessel,
   onFocus,
   onBlur,
   ...eingabe
@@ -93,7 +96,7 @@ export function Textfeld({
           },
         ]}
       />
-      <Fehlermeldung text={fehler} />
+      <Fehlermeldung key={fehlerSchluessel} text={fehler} />
     </View>
   );
 }

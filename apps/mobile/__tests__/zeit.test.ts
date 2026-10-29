@@ -1,5 +1,6 @@
 import {
   nachrichtZeitText,
+  schlussZeitEingabe,
   schlussZeitText,
   tagInZuerich,
   zeitText,
@@ -83,4 +84,26 @@ test("nachrichtZeitText nennt Tag und Uhrzeit in Schweizer Zeit", () => {
   expect(nachrichtZeitText("2026-12-31T23:30:00.000Z")).toBe(
     "1. Januar, 00:30 Uhr",
   );
+});
+
+test.each([
+  ["16:30", "16:30"],
+  ["9:30", "09:30"],
+  ["9.30", "09:30"],
+  ["09.05", "09:05"],
+  [" 16:30 ", "16:30"],
+  ["0:00", "00:00"],
+  ["23:59", "23:59"],
+  ["", ""],
+  ["   ", ""],
+  ["24:00", null],
+  ["25:00", null],
+  ["16:60", null],
+  ["16:5", null],
+  ["1630", null],
+  ["16:30:00", null],
+  ["abc", null],
+  ["-1:30", null],
+])("schlussZeitEingabe(%j) = %j", (text, erwartet) => {
+  expect(schlussZeitEingabe(text)).toBe(erwartet);
 });

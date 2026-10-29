@@ -10,6 +10,7 @@ import {
   type Programm,
   type ProgrammDetail as Detail,
 } from "../../../src/api/programme";
+import { Ergaenzungen } from "../../../src/programme/Ergaenzungen";
 import { LeitungAnmeldung } from "../../../src/programme/LeitungAnmeldung";
 import { Zuordnung } from "../../../src/programme/Zuordnung";
 import { schlussZeitText, zeitText } from "../../../src/programme/zeit";
@@ -186,6 +187,8 @@ export default function ProgrammDetail() {
               )}
             </>
           ) : null}
+          {/* Ob das Formular erscheint, sagt der Server; die App entscheidet nie nach Rolle */}
+          {detail.darfErgaenzen ? <Ergaenzungen programm={detail} /> : null}
           <Zuordnung programm={detail} />
         </>
       ) : null}
