@@ -6,7 +6,14 @@ import { pushToken } from "./db/schema.js";
 import { log } from "./log.js";
 
 // Bewusst ohne Textfeld: Ein Push trägt nie Nachrichtentext oder Namen, nur den Titel und Typ und ID für den Deep Link
-export type Push = { typ: "chat" | "programm"; id: string; titel: string };
+export type Push = {
+  typ: "chat" | "programm" | "person";
+  id: string;
+  titel: string;
+};
+
+// Kein Kanal für «person»: #42 legt nur chat und programme an, ein Kanal, den das Gerät nicht kennt, zeigt den Push nicht, und ein fremder schaltete ihn mit Chat oder Programm stumm
+const KANAL = { chat: "chat", programm: "programme", person: undefined };
 
 type Fehler = {
   code?: unknown;
@@ -45,7 +52,7 @@ export async function sendePush(
         to: token,
         title: titel,
         data: { typ, id },
-        channelId: typ === "chat" ? "chat" : "programme",
+        channelId: KANAL[typ],
         sound: "default",
       })),
     );

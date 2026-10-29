@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import { readFileSync } from "node:fs";
 import { HTTPException } from "hono/http-exception";
 import { testClient } from "hono/testing";
@@ -34,7 +35,14 @@ const ECHO = `${NAME} 203.0.113.7\n    at ${NAME} 203.0.113.7`;
 
 // Testrouten, angehängt wie später die Routen der Issues; unter /api/ statt /api/v1/, weil dort personAusSitzung eine Sitzung verlangt
 const app = () =>
-  erstelleApp({ appMinVersion: "1.2.0", sql, db, auth, seiten: ladeSeiten() })
+  erstelleApp({
+    appMinVersion: "1.2.0",
+    sql,
+    db,
+    auth,
+    expo: new Expo({ accessToken: "test-zugang" }),
+    seiten: ladeSeiten(),
+  })
     .post("/api/test/:token", async (c) => c.json(await c.req.json()))
     .get("/api/kaputt", () => {
       const fehler = new Error(ECHO);
@@ -136,6 +144,7 @@ describe("/health", () => {
         sql: tot,
         db,
         auth,
+        expo: new Expo({ accessToken: "test-zugang" }),
         seiten: ladeSeiten(),
       }),
     ).health.$get(undefined, { headers: KOPFZEILEN });
