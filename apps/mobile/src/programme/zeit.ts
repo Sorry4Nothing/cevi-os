@@ -71,3 +71,14 @@ export function tagInZuerich(datum: Date): string {
     teile.find((t) => t.type === typ)?.value ?? "";
   return `${teil("year")}-${teil("month")}-${teil("day")}`;
 }
+
+// Eingabe «H:MM», «HH:MM», «H.MM» oder «HH.MM» als «HH:MM»; leer bleibt leer, alles andere ist null
+export function schlussZeitEingabe(text: string): string | null {
+  const t = text.trim();
+  if (!t) return "";
+  const treffer = /^(\d{1,2})[:.](\d{2})$/.exec(t);
+  if (!treffer || Number(treffer[1]) > 23 || Number(treffer[2]) > 59) {
+    return null;
+  }
+  return `${treffer[1].padStart(2, "0")}:${treffer[2]}`;
+}
