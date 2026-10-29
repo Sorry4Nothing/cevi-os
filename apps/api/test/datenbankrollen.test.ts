@@ -88,3 +88,21 @@ test("alle Tabellen in public gehören cevi_os_besitzer", async () => {
     new Set(["cevi_os_besitzer"]),
   );
 });
+
+test("die API-Rolle löscht per audit_log_aufraeumen() nur Einträge, die älter als 24 Monate sind", async () => {
+  await zurueckgerollt(sql, async (tx) => {
+    const [abteilung] =
+      await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
+    await tx`
+      insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, erstellt_am)
+      values (${abteilung.id}, 'cli', 'alt', 'abteilung', ${abteilung.id}, now() - interval '25 months'),
+             (${abteilung.id}, 'cli', 'neu', 'abteilung', ${abteilung.id}, now() - interval '23 months')`;
+
+    const [{ aufraeumen }] =
+      await tx`select audit_log_aufraeumen() as aufraeumen`;
+    expect(Number(aufraeumen)).toBeGreaterThanOrEqual(1);
+    expect(
+      await tx`select aktion from audit_log where abteilung_id = ${abteilung.id}`,
+    ).toEqual([{ aktion: "neu" }]);
+  });
+});

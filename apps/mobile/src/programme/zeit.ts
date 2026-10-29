@@ -71,3 +71,14 @@ export function tagInZuerich(datum: Date): string {
     teile.find((t) => t.type === typ)?.value ?? "";
   return `${teil("year")}-${teil("month")}-${teil("day")}`;
 }
+
+// Zeitpunkt einer Chat-Nachricht, in Schweizer Zeit und ausgeschrieben, damit der Screenreader sie klar vorliest
+const nachrichtDatumFormat = new Intl.DateTimeFormat("de-CH", {
+  timeZone: "Europe/Zurich",
+  day: "numeric",
+  month: "long",
+});
+export function nachrichtZeitText(zeitpunkt: string): string {
+  const datum = new Date(zeitpunkt);
+  return `${nachrichtDatumFormat.format(datum)}, ${zeitFormat.format(datum)} Uhr`;
+}
