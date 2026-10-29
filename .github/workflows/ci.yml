@@ -57,7 +57,7 @@ jobs:
       - run: npm run typecheck -w apps/mobile
       - run: npm run lint -w apps/mobile
       - run: npx prettier --check apps/mobile
-      - run: npm test -w apps/mobile --if-present
+      - run: npm test -w apps/mobile
 
   audit:
     name: Abhaengigkeiten (npm audit)
