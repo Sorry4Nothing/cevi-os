@@ -39,7 +39,7 @@ export function personAusSitzung(
   auth: ReturnType<typeof erstelleAuth>,
   db: Db,
 ) {
-  return createMiddleware<{ Variables: { person: Person } }>(
+  return createMiddleware<{ Variables: { person: Person; sitzungId: string } }>(
     async (c, next) => {
       // disableRefresh: Die Verlängerung gehört zu get-session; hier schriebe sie die Zeile und verlöre ihr Set-Cookie
       const sitzung = await auth.api.getSession({
@@ -48,6 +48,13 @@ export function personAusSitzung(
       });
       // banned prüft better-auth nur beim Anlegen einer Sitzung, nicht beim Lesen
       if (!sitzung || sitzung.user.banned) throw new HTTPException(401);
+      // Bis zum Pflichtwechsel (#15) nur das eigene Profil; den Zustand kennt die App aus get-session
+      if (
+        sitzung.user.mussPasswortAendern &&
+        !(c.req.method === "GET" && c.req.path === "/api/v1/ich")
+      ) {
+        throw new HTTPException(403);
+      }
       // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
       const rollen = await db
         .select({ stufeId: rolle.stufeId, typ: rolle.typ })
@@ -66,6 +73,8 @@ export function personAusSitzung(
         admin: sitzung.user.role === "admin",
         rollen,
       });
+      // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
+      c.set("sitzungId", sitzung.session.id);
       await next();
     },
   );
@@ -73,17 +82,21 @@ export function personAusSitzung(
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
+// banned ist null-sicher geprüft; Deaktivieren setzt beide Felder, jedes allein beendet die Mitgliedschaft
+function aktivesKonto(abteilungId: string) {
+  return and(
+    eq(user.abteilungId, abteilungId),
+    isNull(user.deaktiviertAm),
+    sql`${user.banned} is not true`,
+  );
+}
+
 // Alle Chat-Mitglieder der Abteilung als Unterabfrage { chatId, userId, sichtAb }; sichtAb null heisst ganzer Verlauf
 export function chatMitglieder(db: Db, abteilungId: string) {
   // Die Union nimmt Spaltennamen und Decoder aus dem ersten Zweig, darum in jedem Zweig derselbe Alias und der Decoder einer timestamptz-Spalte
   const sichtAb = (ausdruck: SQL) =>
     (ausdruck.mapWith(kind.stufeSeit) as SQL<Date | null>).as("sicht_ab");
-  // banned ist null-sicher geprüft; Deaktivieren setzt beide Felder, jedes allein beendet die Mitgliedschaft
-  const kontoAktiv = and(
-    eq(user.abteilungId, abteilungId),
-    isNull(user.deaktiviertAm),
-    sql`${user.banned} is not true`,
-  );
+  const kontoAktiv = aktivesKonto(abteilungId);
   const istSlDerStufe = (
     userId: typeof kindEltern.userId | typeof chat.elternUserId,
   ) =>
@@ -197,6 +210,22 @@ export async function chatFuerPerson(
     .innerJoin(mitglieder, eq(mitglieder.chatId, chat.id))
     .where(and(eq(chat.id, chatId), eq(mitglieder.userId, person.id)));
   return eigener;
+}
+
+// Die SL der Stufen, wie sie die Mitgliedschaft zählt: nur aktive Konten. Sie lesen jeden Einzelchat ihrer Stufe mit
+export function stufenleitungDerStufen(
+  db: Db,
+  abteilungId: string,
+  stufeIds: string[],
+) {
+  return db
+    .select({ stufeId: rolle.stufeId, id: user.id, name: user.name })
+    .from(rolle)
+    .innerJoin(user, and(eq(user.id, rolle.userId), aktivesKonto(abteilungId)))
+    .where(
+      and(inArray(rolle.stufeId, stufeIds), eq(rolle.typ, "stufenleitung")),
+    )
+    .orderBy(user.name, user.id);
 }
 
 // Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich); #52 und #53 ergänzen Ausblenden und Blockieren hier, nicht in den Routen

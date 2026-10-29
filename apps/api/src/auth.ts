@@ -1,5 +1,10 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { APIError, createAuthMiddleware, isAPIError } from "better-auth/api";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+  isAPIError,
+} from "better-auth/api";
 import {
   admin,
   haveIBeenPwned,
@@ -9,6 +14,8 @@ import {
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/admin/access";
 import { Hono } from "hono";
+import { BENUTZERNAME_MAX, BENUTZERNAME_MUSTER } from "./benutzername.js";
+import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
 
@@ -27,6 +34,18 @@ const anmeldepfade = new Set([
   "/two-factor/verify-totp",
   "/two-factor/verify-backup-code",
 ]);
+
+// Felder der Bremse und des Pflichtwechsels am User, wo better-auth nur seinen Grundtyp kennt
+type Bremsfelder = {
+  mussPasswortAendern?: boolean;
+  fehlversuche?: number;
+  naechsterVersuchAb?: Date | string | null;
+};
+
+// shortcut: better-auth verlangt eine eindeutige E-Mail-Adresse; .invalid ist nie zustellbar (RFC 2606). Ersetzen, sobald better-auth Konten ohne E-Mail-Adresse erlaubt
+export function platzhalterEmail() {
+  return `${crypto.randomUUID()}@benutzer.invalid`;
+}
 
 export function erstelleAuth(database: BetterAuthOptions["database"]) {
   return betterAuth({
@@ -61,10 +80,47 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
         datenschutzGelesenAm: { type: "date", input: false, required: false },
       },
     },
+    session: {
+      // 90 Tage, verlängert bei Nutzung (updateAge bleibt beim Standard von 1 Tag); kein cookieCache, damit beendete Sitzungen sofort enden
+      expiresIn: 60 * 60 * 24 * 90,
+    },
+    // Das App-Schema ist eine Baukonstante, darum im Code statt in der Umgebung: Fehlte die Variable, bekäme jeder Cookie-POST der App 403. Das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds; better-auth ergänzt BETTER_AUTH_TRUSTED_ORIGINS obendrauf (Tests)
+    trustedOrigins: ["cevi-os://"],
+    rateLimit: {
+      // enabled auch ausserhalb der Produktion; database zählt in rate_limit und übersteht Neustarts
+      enabled: true,
+      storage: "database",
+      // Pfade relativ zu /api/auth, exakter Vergleich; der Zähler beginnt erst neu, wenn das Fenster ohne zugelassene Anfrage verstreicht
+      customRules: {
+        // 30, damit ein Elternabend im selben WLAN nicht blockiert
+        "/sign-in/username": { window: 900, max: 30 },
+        "/change-password": { window: 900, max: 5 },
+        "/two-factor/verify-totp": { window: 900, max: 5 },
+        "/two-factor/verify-backup-code": { window: 900, max: 5 },
+      },
+    },
+    logger: {
+      // Eine JSON-Zeile wie src/log.ts, ohne Request-ID (better-auth kennt den Hono-Kontext nicht); args nie: Sie tragen Datenbankfehler mit Zeilen, und logger.error übergibt auch Error-Objekte als Meldung
+      log(stufe, meldung) {
+        console.log(
+          JSON.stringify({
+            zeit: new Date().toISOString(),
+            quelle: "better-auth",
+            stufe,
+            meldung:
+              typeof meldung === "string"
+                ? meldung
+                : (meldung as unknown as { name?: string })?.name,
+          }),
+        );
+      },
+    },
     advanced: {
       database: { generateId: "uuid" },
       // Sonst prüft better-auth die Herkunft unter NODE_ENV=test nicht
       disableOriginCheck: false,
+      // Heute der Standard, aber tragend: Das Rate-Limit zählt nur über den Header, den Caddy kontrolliert (#68)
+      ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     },
     databaseHooks: {
       session: {
@@ -100,11 +156,76 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       },
     },
     hooks: {
+      // Vor der Validierung: body kann alles sein, darum die typeof-Prüfungen
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-in/username") {
+          if (typeof ctx.body?.username !== "string") return;
+          const person = await ctx.context.adapter.findOne<Bremsfelder>({
+            model: "user",
+            // Das username-Plugin speichert und sucht in Kleinbuchstaben
+            where: [
+              { field: "username", value: ctx.body.username.toLowerCase() },
+            ],
+          });
+          // Wartezeit ohne Passwortprüfung, ohne Zählen und ohne Verlängern: Sonst könnte jede Person ein fremdes Konto dauerhaft sperren
+          if (
+            person?.naechsterVersuchAb &&
+            new Date(person.naechsterVersuchAb) > new Date()
+          ) {
+            throw new APIError("UNAUTHORIZED", {
+              code: "WARTEZEIT",
+              message: "Bitte warten und später nochmals versuchen.",
+            });
+          }
+          if (
+            person?.mussPasswortAendern &&
+            typeof ctx.body.password === "string"
+          ) {
+            return {
+              context: {
+                body: {
+                  ...ctx.body,
+                  password: normalisiereStartpasswort(ctx.body.password),
+                },
+              },
+            };
+          }
+          return;
+        }
+        if (ctx.path === "/two-factor/enable") {
+          // Ein Admin mit offenem Startpasswort erreicht enable vor dem Wechsel; der Vergleich bleibt normalisiert
+          const sitzung = await getSessionFromCtx(ctx);
+          if (
+            (sitzung?.user as Bremsfelder | undefined)?.mussPasswortAendern &&
+            typeof ctx.body?.password === "string"
+          ) {
+            return {
+              context: {
+                body: {
+                  ...ctx.body,
+                  password: normalisiereStartpasswort(ctx.body.password),
+                },
+              },
+            };
+          }
+          return;
+        }
         if (ctx.path !== "/change-password") return;
+        const sitzung = await getSessionFromCtx(ctx);
+        const offen =
+          (sitzung?.user as Bremsfelder | undefined)?.mussPasswortAendern ===
+          true;
+        const body = { ...ctx.body, revokeOtherSessions: true };
+        if (offen && typeof body.currentPassword === "string") {
+          body.currentPassword = normalisiereStartpasswort(
+            body.currentPassword,
+          );
+        }
         if (
-          typeof ctx.body?.newPassword === "string" &&
-          ctx.body.newPassword === ctx.body.currentPassword
+          typeof body.newPassword === "string" &&
+          (offen
+            ? normalisiereStartpasswort(body.newPassword)
+            : body.newPassword) === body.currentPassword
         ) {
           throw new APIError("BAD_REQUEST", {
             code: "PASSWORT_UNVERAENDERT",
@@ -112,11 +233,58 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
               "Das neue Passwort muss sich vom bisherigen unterscheiden.",
           });
         }
-        return {
-          context: { body: { ...ctx.body, revokeOtherSessions: true } },
-        };
+        return { context: { body } };
       }),
       after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/sign-in/username") {
+          const { adapter, newSession, returned } = ctx.context;
+          if (newSession) {
+            // Dieser Hook läuft vor dem des twoFactor-Plugins, die neue Sitzung ist also auch bei dessen Umleitung noch da
+            const person = newSession.user as Bremsfelder & { id: string };
+            if (person.fehlversuche || person.naechsterVersuchAb) {
+              await adapter.update({
+                model: "user",
+                where: [{ field: "id", value: person.id }],
+                update: { fehlversuche: 0, naechsterVersuchAb: null },
+              });
+            }
+            return;
+          }
+          // Nur echte Fehlversuche zählen: Ablauf (403), Sperre (403) und Formatfehler (422) nicht
+          if (
+            !isAPIError(returned) ||
+            returned.body?.code !== "INVALID_USERNAME_OR_PASSWORD" ||
+            typeof ctx.body?.username !== "string"
+          ) {
+            return;
+          }
+          const person = await adapter.findOne<{ id: string }>({
+            model: "user",
+            where: [
+              { field: "username", value: ctx.body.username.toLowerCase() },
+            ],
+          });
+          // Unbekannte Namen hinterlassen nichts
+          if (!person) return;
+          const erhoeht = await adapter.incrementOne<{ fehlversuche: number }>({
+            model: "user",
+            where: [{ field: "id", value: person.id }],
+            increment: { fehlversuche: 1 },
+          });
+          const n = erhoeht?.fehlversuche ?? 0;
+          // Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre
+          if (n >= 5) {
+            const minuten = n === 5 ? 1 : n === 6 ? 5 : 15;
+            await adapter.update({
+              model: "user",
+              where: [{ field: "id", value: person.id }],
+              update: {
+                naechsterVersuchAb: new Date(Date.now() + minuten * 60_000),
+              },
+            });
+          }
+          return;
+        }
         if (
           ctx.path !== "/change-password" ||
           isAPIError(ctx.context.returned) ||
@@ -131,7 +299,12 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       }),
     },
     plugins: [
-      username(),
+      // Der Standard verböte den Bindestrich und mehr als 30 Zeichen; geprüft wird die rohe Eingabe, gespeichert kleingeschrieben
+      username({
+        usernameValidator: (benutzername) =>
+          BENUTZERNAME_MUSTER.test(benutzername),
+        maxUsernameLength: BENUTZERNAME_MAX,
+      }),
       admin({ ac, roles: rollen }),
       twoFactor(),
       haveIBeenPwned(),
@@ -173,7 +346,34 @@ export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
   });
   for (const eintrag of offenePfade) {
     const [methode, pfad] = eintrag.split(" ");
-    routen.on(methode, pfad, (c) => auth.handler(mitExpoOrigin(c.req.raw)));
+    const anmeldung = eintrag === "POST /api/auth/sign-in/username";
+    // Beide Umbauten hier statt in einem after-Hook: dispatchAuthEndpoint behielte dessen Status und verriete den Fall
+    routen.on(methode, pfad, async (c) => {
+      const antwort = await auth.handler(mitExpoOrigin(c.req.raw));
+      // better-auth antwortet auf 429 nur mit einer englischen message; X-Retry-After bleibt
+      if (antwort.status === 429) {
+        return c.json(
+          {
+            code: "ZU_VIELE_ANFRAGEN",
+            message: "Zu viele Anfragen. Bitte später nochmals versuchen.",
+          },
+          429,
+          { "X-Retry-After": antwort.headers.get("X-Retry-After") ?? "" },
+        );
+      }
+      // Jeder Fehler bei der Anmeldung zeigt dieselbe Meldung: falsches Passwort, Wartezeit, abgelaufenes Startpasswort, deaktiviert, ungültiger Name
+      if (anmeldung && antwort.status >= 400 && antwort.status < 500) {
+        return c.json(
+          {
+            code: "ANMELDUNG_FEHLGESCHLAGEN",
+            message:
+              "Anmeldung nicht möglich. Bitte Benutzername und Passwort prüfen oder später nochmals versuchen. Sonst hilft ein Admin.",
+          },
+          401,
+        );
+      }
+      return antwort;
+    });
   }
   return routen;
 }

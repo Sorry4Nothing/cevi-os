@@ -289,6 +289,29 @@ export const programmStufe = pgTable(
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
 
+// Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
+export const teilnahme = pgTable(
+  "teilnahme",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    kindId: uuid("kind_id")
+      .notNull()
+      .references(() => kind.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["ja", "nein"] }).notNull(),
+    geaendertVon: uuid("geaendert_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.programmId, t.kindId] }),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("teilnahme_status_check", sql`${t.status} in ('ja', 'nein')`),
+  ],
+);
+
 // Mitgliedschaften stehen in keiner Tabelle; rechte.ts leitet sie aus Rollen und Kindern ab
 export const chat = pgTable(
   "chat",
@@ -392,6 +415,29 @@ export const meldung = pgTable("meldung", {
   }),
   erledigtAm: zeitpunkt("erledigt_am"),
 });
+
+// Ein Token pro Sitzung; endet die Sitzung (Abmelden, überall abmelden, Deaktivieren, Konto löschen, täglicher Job), nimmt CASCADE das Token mit
+export const pushToken = pgTable(
+  "push_token",
+  {
+    sessionId: uuid("session_id")
+      .primaryKey()
+      .references(() => session.id, { onDelete: "cascade" }),
+    token: text("token").notNull().unique(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    plattform: text("plattform", { enum: ["ios", "android"] }).notNull(),
+    zuletztGesehen: zeitpunkt("zuletzt_gesehen").notNull().defaultNow(),
+  },
+  (t) => [
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check(
+      "push_token_plattform_check",
+      sql`${t.plattform} in ('ios', 'android')`,
+    ),
+  ],
+);
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
 export const auditLog = pgTable("audit_log", {

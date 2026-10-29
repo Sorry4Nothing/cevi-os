@@ -1,5 +1,6 @@
-import { Bildschirm } from "../src/ui/Bildschirm";
+import { Redirect } from "expo-router";
 
-export default function Start() {
-  return <Bildschirm titel="Cevi OS" />;
+// Kalter Start und das Tor landen auf «/»: weiter zum ersten Tab
+export default function Index() {
+  return <Redirect href="/programme" />;
 }

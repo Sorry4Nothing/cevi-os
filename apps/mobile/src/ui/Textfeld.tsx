@@ -8,10 +8,11 @@ import {
   type TextInputProps,
 } from "react-native";
 
-import { Ansage } from "./Ansage";
+import { Fehlermeldung } from "./Fehlermeldung";
 import { masse, schrift, useFarben } from "./tokens";
 
-// Einfügen bleibt erlaubt, die Schrift wächst mit, und den Namen gibt nur die sichtbare Beschriftung (Checkliste 9.6, 5.3, 4.1)
+// Einfügen bleibt erlaubt, die Schrift wächst mit, und den Namen gibt nur die sichtbare Beschriftung (Checkliste 9.6, 5.3, 4.1).
+// Hinweis, Zustand und Platzhalterfarbe setzt das Feld selbst; die aria-Props kämen durch den Spread darüber (TextInput mischt sie vor den eigenen Zustand)
 type Props = Omit<
   TextInputProps,
   | "style"
@@ -22,14 +23,25 @@ type Props = Omit<
   | "aria-label"
   | "accessibilityLabelledBy"
   | "aria-labelledby"
+  | "aria-disabled"
+  | "aria-busy"
+  | "aria-checked"
+  | "aria-expanded"
+  | "aria-selected"
+  | "accessibilityHint"
+  | "accessibilityState"
+  | "placeholderTextColor"
 > & {
   label: string;
   fehler?: string;
+  // Mehrzeilige Felder wachsen bis hierhin und scrollen dann in sich
+  maxHoehe?: number;
 };
 
 export function Textfeld({
   label,
   fehler,
+  maxHoehe,
   onFocus,
   onBlur,
   ...eingabe
@@ -70,6 +82,7 @@ export function Textfeld({
           styles.eingabe,
           {
             color: farben.text,
+            maxHeight: maxHoehe,
             // Fokus und Fehler machen den Rand je 1 dicker, so bleibt der Fokus auch bei einem Fehler sichtbar
             borderWidth: 1 + (fokus ? 1 : 0) + (fehler ? 1 : 0),
             borderColor: fehler
@@ -80,7 +93,7 @@ export function Textfeld({
           },
         ]}
       />
-      <Ansage text={fehler} stil={[styles.text, { color: farben.fehler }]} />
+      <Fehlermeldung text={fehler} />
     </View>
   );
 }

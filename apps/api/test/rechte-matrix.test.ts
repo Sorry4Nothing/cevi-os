@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
   afterAll,
@@ -12,6 +13,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
@@ -54,6 +56,8 @@ interface Zeile {
   frischePersonas?: true;
   // Pflicht für jede Route mit Pfad-Parameter: ein Objekt der Testabteilung
   url?: (welt: Welt) => string;
+  // Statt url, wenn jede Anfrage ihr Ziel verbraucht (DELETE): eine frische URL pro Persona
+  urlJeAnfrage?: () => Promise<string>;
 }
 
 const alle = (status: number) =>
@@ -71,12 +75,12 @@ const MATRIX: Record<string, Zeile> = {
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
-    // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen
+    // Eigene Zugangsdaten; ohneLogin mit erfundenem Namen. Deaktiviert und unbekannt bekommen dieselbe 401-Meldung (#15)
     body: (konto) => ({
       username: konto.benutzername ?? "gibt.es.nicht",
       password: konto.passwort ?? PASSWORT,
     }),
-    erwartet: { ...alle(200), deaktiviert: 403, ohneLogin: 401 },
+    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
   },
   "POST /api/auth/sign-out": {
     // Auch ohne oder mit abgelaufener Sitzung 200: better-auth räumt nur das Cookie weg
@@ -126,17 +130,37 @@ const MATRIX: Record<string, Zeile> = {
       demoAdmin: 400,
     },
   },
+  // Die Felder je Rolle prüft test/ich.test.ts; GET /ich bleibt als einzige /api/v1-Route auch unter dem Pflichtwechsel offen (#15)
+  "GET /api/v1/ich": {
+    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
+  },
+  "POST /api/v1/ich/datenschutz": {
+    // Schreibt datenschutz_gelesen_am, darum eigene Personas
+    frischePersonas: true,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
-  // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern wie elternA: #15 sperrt das Konto erst später auf allen Routen
+  // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
   "GET /api/v1/programme": {
     // Ohne Fenster antwortet die Route 400, darum eine URL trotz fehlendem Pfad-Parameter
     url: () => "/api/v1/programme?von=2027-01-01&bis=2027-12-31",
-    erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
   },
   "GET /api/v1/programme/:id": {
     url: () => `/api/v1/programme/${programmId}`,
     erwartet: {
       ...alle(200),
+      mussPasswortAendern: 403,
       leitendeB: 404,
       elternB: 404,
       deaktiviert: 401,
@@ -163,11 +187,222 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "PUT /api/v1/programme/:id/teilnahmen/:kindId": {
+    url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
+    // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
+    body: () => ({ status: "ja" }),
+    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    erwartet: {
+      ...alle(204),
+      slB: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
+  "GET /api/v1/hilfe": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
+  "PATCH /api/v1/admin/abteilung": {
+    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
+  "GET /api/v1/admin/personen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/personen": {
+    // Eigener Benutzername pro Persona; leere Listen, weil Testabteilungs-IDs dem demoAdmin 400 gäben
+    body: () => ({
+      vorname: "Matrix",
+      nachname: "Person",
+      benutzername: `matrix.${randomUUID().slice(0, 8)}`,
+      admin: false,
+      rollen: [],
+      elternteilVon: [],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/personen/:id": {
+    url: () => `/api/v1/admin/personen/${patchZielId}`,
+    body: () => ({ name: "Matrix Person" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/startpasswort": {
+    url: () => `/api/v1/admin/personen/${startpasswortZielId}/startpasswort`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/deaktivieren": {
+    url: () => `/api/v1/admin/personen/${deaktivierenZielId}/deaktivieren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/personen/:id/aktivieren": {
+    url: () => `/api/v1/admin/personen/${aktivierenZielId}/aktivieren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/personen/:id": {
+    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Admin weg
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/personen/${await wegwerfPersonId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/push-token": {
+    // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
+    body: (konto) => ({
+      token: `ExpoPushToken[${konto.benutzername ?? "ohne-login"}]`,
+      plattform: "ios",
+    }),
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  "GET /api/v1/chats": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  "POST /api/v1/chats/direkt": {
+    body: (konto) => ({
+      stufeId: welt.stufeAId,
+      // Nur die SL der Stufe A muss das Elternteil nennen; für alle anderen wäre der Name ein fremder
+      ...(konto === standard.slA && { elternUserId: standard.elternA.id }),
+    }),
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    body: () => ({ text: "Hallo aus der Matrix" }),
+    erwartet: {
+      ...alle(404),
+      slA: 201,
+      elternA: 201,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
 };
 
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let programmId: string;
+let patchZielId: string;
+let startpasswortZielId: string;
+let deaktivierenZielId: string;
+let aktivierenZielId: string;
+
+// Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
+async function wegwerfPersonId() {
+  const [zeile] = await welt.db
+    .insert(schema.user)
+    .values({
+      name: "Wegwerf Person",
+      email: `${randomUUID()}@example.org`,
+      username: `wegwerf.${randomUUID().slice(0, 8)}`,
+      abteilungId: welt.testabteilungId,
+      mussPasswortAendern: false,
+    })
+    .returning({ id: schema.user.id });
+  return zeile.id;
+}
 
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
@@ -188,6 +423,13 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  [patchZielId, startpasswortZielId, deaktivierenZielId, aktivierenZielId] =
+    await Promise.all([
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+      wegwerfPersonId(),
+    ]);
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -231,7 +473,7 @@ describe("Vollständigkeit", () => {
   test("jede Zeile mit Pfad-Parameter nennt eine URL und erwartet 404 für die Demo-Personas", () => {
     for (const [schluessel, zeile] of Object.entries(MATRIX)) {
       if (!schluessel.includes(":")) continue;
-      expect(zeile.url, schluessel).toBeDefined();
+      expect(zeile.url ?? zeile.urlJeAnfrage, schluessel).toBeDefined();
       expect(zeile.erwartet.demoAdmin, schluessel).toBe(404);
       expect(zeile.erwartet.demoEltern, schluessel).toBe(404);
     }
@@ -242,10 +484,11 @@ describe("Matrix: jede Route mal jede Persona", () => {
   test.each(Object.entries(MATRIX))("%s", async (schluessel, zeile) => {
     const [methode, pfad] = schluessel.split(" ");
     const eigene = zeile.frischePersonas ? await personasAnlegen() : standard;
-    const url = zeile.url?.(welt) ?? pfad;
+    const festeUrl = zeile.url?.(welt) ?? pfad;
     const ergebnis: Partial<Record<Persona, number>> = {};
     for (const persona of PERSONAS) {
       const konto = eigene[persona];
+      const url = zeile.urlJeAnfrage ? await zeile.urlJeAnfrage() : festeUrl;
       const antwort = await app.request(url, {
         method: methode,
         headers: zeile.body
