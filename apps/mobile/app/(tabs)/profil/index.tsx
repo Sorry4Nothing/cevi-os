@@ -64,7 +64,7 @@ export default function Profil() {
     setLeerDruecke(0);
     Alert.alert(
       "Konto löschen?",
-      "Das Konto wird mit allen Rollen und Zuordnungen zu Kindern gelöscht. Das lässt sich nicht rückgängig machen.",
+      "Das Konto wird mit allen Rollen, Zuordnungen zu Kindern und eigenen Nachrichten gelöscht. Bei Eltern verschwinden auch die Einzelchats mit der Stufenleitung. Das lässt sich nicht rückgängig machen.",
       [
         {
           text: "Abbrechen",

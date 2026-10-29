@@ -271,7 +271,7 @@ describe("Konto löschen", () => {
     expect(alert).toHaveBeenCalledTimes(1);
     expect(alert).toHaveBeenCalledWith(
       "Konto löschen?",
-      "Das Konto wird mit allen Rollen und Zuordnungen zu Kindern gelöscht. Das lässt sich nicht rückgängig machen.",
+      "Das Konto wird mit allen Rollen, Zuordnungen zu Kindern und eigenen Nachrichten gelöscht. Bei Eltern verschwinden auch die Einzelchats mit der Stufenleitung. Das lässt sich nicht rückgängig machen.",
       [
         { text: "Abbrechen", style: "cancel", onPress: expect.any(Function) },
         {
