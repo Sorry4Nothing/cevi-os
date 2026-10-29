@@ -8,6 +8,7 @@ import { useIch } from "../../../src/api/ich";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
 import { Button } from "../../../src/ui/Button";
 import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
+import { Listenzeile } from "../../../src/ui/Listenzeile";
 import { Passwortwechsel } from "../../../src/ui/Passwortwechsel";
 import { schrift, useFarben } from "../../../src/ui/tokens";
 
@@ -58,6 +59,11 @@ export default function Profil() {
       <Text style={[styles.text, { color: farben.textLeise }]}>
         Benutzername: {ich.data?.benutzername}
       </Text>
+      <Listenzeile
+        titel="Hilfe"
+        text="Vertrauenspersonen und Anlaufstellen"
+        onPress={() => router.push("/profil/hilfe")}
+      />
       <Text
         accessibilityRole="header"
         style={[styles.abschnitt, { color: farben.text }]}

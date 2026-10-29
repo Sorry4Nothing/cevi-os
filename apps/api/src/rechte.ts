@@ -101,17 +101,21 @@ export const zweiterFaktorPflicht = createMiddleware<{
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
+// banned ist null-sicher geprüft; Deaktivieren setzt beide Felder, jedes allein beendet die Mitgliedschaft
+function aktivesKonto(abteilungId: string) {
+  return and(
+    eq(user.abteilungId, abteilungId),
+    isNull(user.deaktiviertAm),
+    sql`${user.banned} is not true`,
+  );
+}
+
 // Alle Chat-Mitglieder der Abteilung als Unterabfrage { chatId, userId, sichtAb }; sichtAb null heisst ganzer Verlauf
 export function chatMitglieder(db: Db, abteilungId: string) {
   // Die Union nimmt Spaltennamen und Decoder aus dem ersten Zweig, darum in jedem Zweig derselbe Alias und der Decoder einer timestamptz-Spalte
   const sichtAb = (ausdruck: SQL) =>
     (ausdruck.mapWith(kind.stufeSeit) as SQL<Date | null>).as("sicht_ab");
-  // banned ist null-sicher geprüft; Deaktivieren setzt beide Felder, jedes allein beendet die Mitgliedschaft
-  const kontoAktiv = and(
-    eq(user.abteilungId, abteilungId),
-    isNull(user.deaktiviertAm),
-    sql`${user.banned} is not true`,
-  );
+  const kontoAktiv = aktivesKonto(abteilungId);
   const istSlDerStufe = (
     userId: typeof kindEltern.userId | typeof chat.elternUserId,
   ) =>
@@ -225,6 +229,22 @@ export async function chatFuerPerson(
     .innerJoin(mitglieder, eq(mitglieder.chatId, chat.id))
     .where(and(eq(chat.id, chatId), eq(mitglieder.userId, person.id)));
   return eigener;
+}
+
+// Die SL der Stufen, wie sie die Mitgliedschaft zählt: nur aktive Konten. Sie lesen jeden Einzelchat ihrer Stufe mit
+export function stufenleitungDerStufen(
+  db: Db,
+  abteilungId: string,
+  stufeIds: string[],
+) {
+  return db
+    .select({ stufeId: rolle.stufeId, id: user.id, name: user.name })
+    .from(rolle)
+    .innerJoin(user, and(eq(user.id, rolle.userId), aktivesKonto(abteilungId)))
+    .where(
+      and(inArray(rolle.stufeId, stufeIds), eq(rolle.typ, "stufenleitung")),
+    )
+    .orderBy(user.name, user.id);
 }
 
 // Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich); #52 und #53 ergänzen Ausblenden und Blockieren hier, nicht in den Routen

@@ -113,6 +113,18 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
   ).toBeOnTheScreen();
 });
 
+test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
+  await render(<Profil />);
+
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: "Hilfe, Vertrauenspersonen und Anlaufstellen",
+    }),
+  );
+
+  expect(mockPush).toHaveBeenCalledWith("/profil/hilfe");
+});
+
 describe("zweiter Faktor", () => {
   const alsAdmin = (zweiterFaktor: boolean) =>
     ich.mockReturnValue({

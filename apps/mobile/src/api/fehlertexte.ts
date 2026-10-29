@@ -22,6 +22,8 @@ const FEHLERTEXTE: Record<string, string> = {
   PASSWORT_UNVERAENDERT:
     "Das neue Passwort muss sich vom bisherigen unterscheiden.",
   BENUTZERNAME_VERGEBEN: "Dieser Benutzername ist schon vergeben.",
+  PROGRAMM_GESCHLOSSEN:
+    "Das Programm ist abgesagt oder hat schon begonnen. Die Teilnahme lässt sich nicht mehr ändern.",
   LETZTER_ADMIN: "Der letzte Admin lässt sich nicht entfernen.",
   EIGENES_KONTO:
     "Das eigene Konto lässt sich hier nicht zurücksetzen, deaktivieren oder löschen.",

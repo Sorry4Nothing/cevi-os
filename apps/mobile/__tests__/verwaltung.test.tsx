@@ -68,7 +68,7 @@ test("die Zeilen «Kinder» und «Stufen» folgen auf «Personen» und öffnen i
     screen
       .getAllByRole("button")
       .map((knopf) => knopf.props.accessibilityLabel),
-  ).toEqual(["Personen", "Kinder", "Stufen"]);
+  ).toEqual(["Personen", "Kinder", "Stufen", "Vertrauenspersonen"]);
   await fireEvent.press(screen.getByRole("button", { name: "Kinder" }));
   expect(mockPush).toHaveBeenLastCalledWith("/verwaltung/kinder");
   await fireEvent.press(screen.getByRole("button", { name: "Stufen" }));
