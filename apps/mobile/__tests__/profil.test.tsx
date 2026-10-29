@@ -1,8 +1,13 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import {
+  getEnrolledLevelAsync,
+  SecurityLevel,
+} from "expo-local-authentication";
 
 import Profil from "../app/(tabs)/profil";
 import { abmelden, authClient } from "../src/api/client";
 import { useIch } from "../src/api/ich";
+import { SperreProvider } from "../src/sperre/SperreProvider";
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -16,15 +21,38 @@ jest.mock("../src/api/ich", () => ({ useIch: jest.fn() }));
 
 const ich = jest.mocked(useIch);
 const ueberall = jest.mocked(authClient.revokeSessions);
+const speicher = (
+  jest.requireMock("expo-secure-store") as { __speicher: Map<string, string> }
+).__speicher;
+
+function zeige() {
+  return render(
+    <SperreProvider anfangsAus={false}>
+      <Profil />
+    </SperreProvider>,
+  );
+}
+
+function mitRolle(admin: boolean, rollen: string[]) {
+  ich.mockReturnValue({
+    data: { ...ich().data, admin, rollen },
+    isPending: false,
+    isError: false,
+    refetch: jest.fn(),
+  } as never);
+}
 
 beforeEach(() => {
   jest.clearAllMocks();
+  speicher.clear();
   ich.mockReturnValue({
     data: {
       name: "Eltern A",
       benutzername: "eltern.a",
       mussPasswortAendern: false,
       datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
+      admin: false,
+      rollen: [],
     },
     isPending: false,
     isError: false,
@@ -33,7 +61,7 @@ beforeEach(() => {
 });
 
 test("zeigt Name und Benutzername aus GET /ich mit den Abschnitten und Knöpfen", async () => {
-  await render(<Profil />);
+  await zeige();
 
   expect(screen.getByRole("header", { name: "Profil" })).toBeOnTheScreen();
   expect(screen.getByText("Eltern A")).toBeOnTheScreen();
@@ -53,7 +81,7 @@ test("zeigt Name und Benutzername aus GET /ich mit den Abschnitten und Knöpfen"
 });
 
 test("«Abmelden» ruft die eine Abmelde-Funktion", async () => {
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(screen.getByRole("button", { name: "Abmelden" }));
 
@@ -62,7 +90,7 @@ test("«Abmelden» ruft die eine Abmelde-Funktion", async () => {
 
 test("«Überall abmelden» beendet alle Sitzungen und meldet dann ab", async () => {
   ueberall.mockResolvedValue({ error: null } as never);
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", { name: "Überall abmelden" }),
@@ -74,7 +102,7 @@ test("«Überall abmelden» beendet alle Sitzungen und meldet dann ab", async ()
 
 test("ohne Netz bleibt die Person angemeldet und sieht eine Meldung", async () => {
   ueberall.mockRejectedValue(new TypeError("Network request failed"));
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", { name: "Überall abmelden" }),
@@ -92,7 +120,7 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
   jest
     .mocked(authClient.changePassword)
     .mockResolvedValue({ error: null } as never);
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.changeText(
     screen.getByLabelText("Bisheriges Passwort"),
@@ -113,8 +141,58 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
   ).toBeOnTheScreen();
 });
 
+test("«App-Sperre»: für Eltern ein Schalter, standardmässig an; aus schreibt «aus», an löscht den Schlüssel", async () => {
+  await zeige();
+  expect(screen.getByRole("header", { name: "App-Sperre" })).toBeOnTheScreen();
+  const schalter = screen.getByRole("switch", { name: "App-Sperre" });
+  expect(schalter).toBeChecked();
+
+  await fireEvent.press(schalter);
+  expect(speicher.get("cevi-os_sperre")).toBe("aus");
+  expect(screen.getByRole("switch", { name: "App-Sperre" })).not.toBeChecked();
+
+  await fireEvent.press(screen.getByRole("switch", { name: "App-Sperre" }));
+  expect(speicher.has("cevi-os_sperre")).toBe(false);
+  expect(screen.getByRole("switch", { name: "App-Sperre" })).toBeChecked();
+});
+
+test.each([
+  ["Leitende", false, ["leitung"]],
+  ["Admins", true, []],
+])(
+  "«App-Sperre»: für %s kein Schalter, nur der Hinweis",
+  async (_name, admin, rollen) => {
+    mitRolle(admin, rollen);
+    await zeige();
+
+    expect(
+      screen.getByText(
+        "Für Leitende, SL und Admins ist die App-Sperre immer an.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole("switch", { name: "App-Sperre" })).toBeNull();
+  },
+);
+
+test("«App-Sperre»: ohne Geräte-Code steht die Zeile, dass die Sperre einen braucht", async () => {
+  jest.mocked(getEnrolledLevelAsync).mockResolvedValueOnce(SecurityLevel.NONE);
+  await zeige();
+
+  expect(
+    await screen.findByText(
+      "Die App-Sperre wirkt erst, wenn das Gerät mit einem Geräte-Code gesichert ist.",
+    ),
+  ).toBeOnTheScreen();
+});
+
+test("«App-Sperre»: mit Geräte-Code steht die Zeile nicht", async () => {
+  await zeige();
+
+  expect(screen.queryByText(/mit einem Geräte-Code/)).toBeNull();
+});
+
 test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", {
@@ -140,7 +218,7 @@ describe("zweiter Faktor", () => {
     } as never);
 
   test("Eltern und Leitende sehen den Abschnitt nicht", async () => {
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.queryByRole("header", { name: "Zweiter Faktor" })).toBeNull();
     expect(
@@ -150,7 +228,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin ohne Faktor sieht «Zweiten Faktor einrichten» und kommt damit zur Einrichtung", async () => {
     alsAdmin(false);
-    await render(<Profil />);
+    await zeige();
 
     expect(
       screen.getByRole("header", { name: "Zweiter Faktor" }),
@@ -164,7 +242,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin mit Faktor sieht «Zweiter Faktor eingerichtet», aber keinen Knopf", async () => {
     alsAdmin(true);
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
     expect(

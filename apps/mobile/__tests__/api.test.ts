@@ -9,6 +9,7 @@ import {
   queryClient,
   useAppVeraltet,
 } from "../src/api/client";
+import { SCHLUESSEL } from "../src/speicher";
 
 // Der echte Auth-Client mit dem Secure Store aus jest.setup.js; nur das Netz ist eine Attrappe
 const speicher = (
@@ -106,6 +107,8 @@ test("der Online-Stand für TanStack Query folgt expo-network", async () => {
 test("während der Sitzung liegt im Secure Store nur das Cookie", async () => {
   await anmelden();
   expect([...speicher.keys()]).toEqual(["cevi-os_cookie"]);
+  // Die Liste fürs Löschen nach einer Neuinstallation kennt jeden geschriebenen Schlüssel
+  expect(SCHLUESSEL).toEqual(expect.arrayContaining([...speicher.keys()]));
 
   // disableCache: Auch get-session legt keine Serverdaten im Secure Store ab
   await authClient.getSession();
@@ -125,6 +128,26 @@ test("Abmelden leert Secure Store und Query-Cache", async () => {
   expect(speicher.get("cevi-os_cookie")).toBe("{}");
   expect(speicher.get("cevi-os_session_data")).toBe("{}");
   expect(queryClient.getQueryCache().getAll()).toEqual([]);
+});
+
+test("Abmelden löscht auch die Einstellung der App-Sperre, damit das nächste Mal die Sperre an ist", async () => {
+  await anmelden();
+  speicher.set("cevi-os_sperre", "aus");
+  mockeNetz({ "/sign-out": () => json(200, { success: true }) });
+
+  await abmelden();
+
+  expect(speicher.has("cevi-os_sperre")).toBe(false);
+});
+
+test("Abmelden ohne Netz löscht die Einstellung der App-Sperre trotzdem", async () => {
+  await anmelden();
+  speicher.set("cevi-os_sperre", "aus");
+  netz.mockRejectedValue(new TypeError("Network request failed"));
+
+  await abmelden();
+
+  expect(speicher.has("cevi-os_sperre")).toBe(false);
 });
 
 test("«Überall abmelden»: revoke-sessions, danach dieselbe Abmelde-Funktion", async () => {
