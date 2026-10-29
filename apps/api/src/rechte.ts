@@ -33,6 +33,7 @@ export type Person = {
   id: string;
   abteilungId: string;
   admin: boolean;
+  zweiterFaktor: boolean;
   rollen: { stufeId: string; typ: "leitung" | "stufenleitung" }[];
 };
 
@@ -73,6 +74,7 @@ export function personAusSitzung(
         id: sitzung.user.id,
         abteilungId: sitzung.user.abteilungId,
         admin: sitzung.user.role === "admin",
+        zweiterFaktor: sitzung.user.twoFactorEnabled === true,
         rollen,
       });
       // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
@@ -81,6 +83,23 @@ export function personAusSitzung(
     },
   );
 }
+
+// Admin-Routen erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
+export const zweiterFaktorPflicht = createMiddleware<{
+  Variables: { person: Person };
+}>(async (c, next) => {
+  const person = c.get("person");
+  if (person.admin && !person.zweiterFaktor) {
+    return c.json(
+      {
+        code: "ZWEITER_FAKTOR_FEHLT",
+        message: "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+      },
+      403,
+    );
+  }
+  await next();
+});
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
@@ -354,6 +373,17 @@ export function programmSichtbar(person: Person): SQL {
   const leitungssicht = programmLeitungssicht(person);
   if (adminOderSl(person)) return leitungssicht;
   return sql`(${leitungssicht} or ${programmElternsicht(person)})`;
+}
+
+// Beginn des Programms; ganztägige beginnen um 00:00 Schweizer Zeit, nie über die Sitzungszone (tag_von::timestamptz)
+export const programmBeginn: SQL = sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`;
+
+// Leitende und SL melden sich nur für Programme einer eigenen Stufe an; Admins ohne Stufenrolle und Eltern nie
+export function darfLeitungAnmelden(
+  person: Person,
+  stufeIds: readonly string[],
+) {
+  return stufeIds.some((stufeId) => hatRolle(person, stufeId, "leitung"));
 }
 
 // Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen; Leitende und Eltern nie, auch kein No-op

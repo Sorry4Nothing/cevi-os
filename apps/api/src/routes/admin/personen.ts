@@ -28,6 +28,7 @@ import {
   normalisiereStartpasswort,
   startpasswortFelder,
 } from "../../startpasswort.js";
+import { setzeZweitenFaktorZurueck } from "../../zweiter-faktor.js";
 
 // Eigene 409-Codes mit eigener Antwort: onError machte aus einer HTTPException(409) nur «FEHLER»
 const KONFLIKT = {
@@ -43,6 +44,14 @@ const KONFLIKT = {
     code: "EIGENES_KONTO",
     message:
       "Das eigene Konto lässt sich hier nicht zurücksetzen, deaktivieren oder löschen.",
+  },
+  EIGENER_ZWEITER_FAKTOR: {
+    code: "EIGENER_ZWEITER_FAKTOR",
+    message: "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
+  },
+  KEIN_ZWEITER_FAKTOR: {
+    code: "KEIN_ZWEITER_FAKTOR",
+    message: "Diese Person hat keinen zweiten Faktor.",
   },
 } as const;
 
@@ -185,6 +194,7 @@ export function erstellePersonenRouten({
               name: user.name,
               benutzername: user.username,
               role: user.role,
+              twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
               startpasswortGueltigBis: user.startpasswortGueltigBis,
@@ -235,13 +245,14 @@ export function erstellePersonenRouten({
             .where(eq(kind.abteilungId, abteilungId))
             .orderBy(asc(kind.nachname), asc(kind.vorname), asc(kind.id)),
         ]);
-      // Nie email, telefon, banReason oder Bremsfelder: Der Rollen-Editor braucht nur das hier
+      // Nie email, telefon, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
       return c.json({
         personen: personen.map((p) => ({
           id: p.id,
           name: p.name,
           benutzername: p.benutzername,
           admin: p.role === "admin",
+          zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
           startpasswortGueltigBis: p.startpasswortGueltigBis,
@@ -508,6 +519,24 @@ export function erstellePersonenRouten({
       });
       return c.body(null, 204);
     })
+    .post(
+      "/:id/zweiter-faktor-zuruecksetzen",
+      eingabe("param", pfad()),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        await ladeZiel(person, id);
+        if (id === person.id)
+          return c.json(KONFLIKT.EIGENER_ZWEITER_FAKTOR, 409);
+        const zurueckgesetzt = await setzeZweitenFaktorZurueck(db, {
+          zielId: id,
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+        });
+        if (!zurueckgesetzt) return c.json(KONFLIKT.KEIN_ZWEITER_FAKTOR, 409);
+        return c.body(null, 204);
+      },
+    )
     .delete("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");

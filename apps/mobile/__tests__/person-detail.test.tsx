@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react-native";
+import { act, fireEvent, render, screen } from "@testing-library/react-native";
 import { Alert } from "react-native";
 
 import PersonDetail from "../app/(tabs)/verwaltung/personen/[id]";
@@ -11,6 +11,7 @@ import {
   usePersonDeaktivieren,
   usePersonen,
   usePersonLoeschen,
+  usePersonZweitenFaktorZuruecksetzen,
 } from "../src/api/personen";
 
 const mockPush = jest.fn();
@@ -40,6 +41,7 @@ jest.mock("../src/api/personen", () => ({
   usePersonDeaktivieren: jest.fn(),
   usePersonAktivieren: jest.fn(),
   usePersonLoeschen: jest.fn(),
+  usePersonZweitenFaktorZuruecksetzen: jest.fn(),
 }));
 
 const DATEN = {
@@ -49,6 +51,7 @@ const DATEN = {
       name: "Anna Muster",
       benutzername: "anna.muster",
       admin: true,
+      zweiterFaktor: true,
       deaktiviert: false,
       mussPasswortAendern: false,
       startpasswortGueltigBis: null,
@@ -60,6 +63,7 @@ const DATEN = {
       name: "Beat Beispiel",
       benutzername: "beat.beispiel",
       admin: false,
+      zweiterFaktor: false,
       deaktiviert: false,
       mussPasswortAendern: true,
       startpasswortGueltigBis: "2026-11-03T12:00:00.000Z",
@@ -85,6 +89,7 @@ let startpasswort: Attrappe;
 let deaktivieren: Attrappe;
 let aktivieren: Attrappe;
 let loeschen: Attrappe;
+let zuruecksetzen: Attrappe;
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -100,11 +105,15 @@ beforeEach(() => {
   deaktivieren = mutation();
   aktivieren = mutation();
   loeschen = mutation();
+  zuruecksetzen = mutation();
   jest.mocked(usePersonAendern).mockReturnValue(speichern as never);
   jest.mocked(useNeuesStartpasswort).mockReturnValue(startpasswort as never);
   jest.mocked(usePersonDeaktivieren).mockReturnValue(deaktivieren as never);
   jest.mocked(usePersonAktivieren).mockReturnValue(aktivieren as never);
   jest.mocked(usePersonLoeschen).mockReturnValue(loeschen as never);
+  jest
+    .mocked(usePersonZweitenFaktorZuruecksetzen)
+    .mockReturnValue(zuruecksetzen as never);
 });
 
 test("zeigt Status, Namensfeld, Rollen und alle Knöpfe; «Speichern» schickt die Änderungen", async () => {
@@ -203,4 +212,85 @@ test("gibt es die Person nicht mehr, zeigt der Bildschirm den Leer-Zustand", asy
   expect(
     screen.getByText("Diese Person gibt es nicht mehr."),
   ).toBeOnTheScreen();
+});
+
+describe("zweiter Faktor", () => {
+  const mitFaktor = (ids: string[]) =>
+    jest.mocked(usePersonen).mockReturnValue({
+      data: {
+        ...DATEN,
+        personen: DATEN.personen.map((person) => ({
+          ...person,
+          zweiterFaktor: ids.includes(person.id),
+        })),
+      },
+      isPending: false,
+      refetch: jest.fn(),
+    } as never);
+
+  test("ohne Faktor fehlen Hinweis und Knopf", async () => {
+    mitFaktor([]);
+    await render(<PersonDetail />);
+
+    expect(screen.queryByText("Zweiter Faktor eingerichtet")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Zweiten Faktor zurücksetzen" }),
+    ).toBeNull();
+  });
+
+  test("auf dem eigenen Eintrag steht der Hinweis, aber kein Knopf", async () => {
+    mitFaktor(["p1"]);
+    mockParams.id = "p1";
+    await render(<PersonDetail />);
+
+    expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
+    expect(
+      screen.queryByRole("button", { name: "Zweiten Faktor zurücksetzen" }),
+    ).toBeNull();
+  });
+
+  test("bei einer anderen Person fragt der Dialog, erst «Zurücksetzen» sendet; der Erfolg bleibt stehen", async () => {
+    mitFaktor(["p2"]);
+    const dialog = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+    await render(<PersonDetail />);
+
+    expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Zweiten Faktor zurücksetzen" }),
+    );
+    expect(zuruecksetzen.mutate).not.toHaveBeenCalled();
+    const [titel, nachricht, knoepfe] = dialog.mock.calls[0];
+    expect(titel).toBe("Zweiten Faktor zurücksetzen?");
+    expect(nachricht).toBe(
+      "Die Person meldet sich danach ohne Code an und richtet den zweiten Faktor neu ein. Ist ihr Gerät verloren, zuerst ein neues Startpasswort setzen: Auf dem Gerät kann das Passwort gespeichert sein.",
+    );
+    expect(knoepfe?.map((knopf) => knopf.text)).toEqual([
+      "Abbrechen",
+      "Zurücksetzen",
+    ]);
+
+    await act(async () => knoepfe?.[1].onPress?.());
+    expect(zuruecksetzen.mutate).toHaveBeenCalledWith("p2", expect.anything());
+    const optionen = zuruecksetzen.mutate.mock.calls[0][1] as {
+      onSuccess: () => void;
+    };
+    await act(async () => optionen.onSuccess());
+    expect(
+      screen.getByText("Der zweite Faktor ist zurückgesetzt."),
+    ).toBeOnTheScreen();
+  });
+
+  test("ein Fehler steht über dem Knopf, Wort für Wort vom Server", async () => {
+    mitFaktor(["p2"]);
+    zuruecksetzen.error = new ApiFehler(
+      409,
+      "KEIN_ZWEITER_FAKTOR",
+      "Diese Person hat keinen zweiten Faktor.",
+    ) as never;
+    await render(<PersonDetail />);
+
+    expect(
+      screen.getByText("Diese Person hat keinen zweiten Faktor."),
+    ).toBeOnTheScreen();
+  });
 });

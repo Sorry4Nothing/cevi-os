@@ -12,10 +12,11 @@ export type PersonAenderung = InferRequestType<
   (typeof route)[":id"]["$patch"]
 >["json"];
 
-// Alle Personen, Stufen und Kinder der Abteilung; nur für Admins, nur im Arbeitsspeicher
-export function usePersonen() {
+// Alle Personen, Stufen und Kinder der Abteilung; nur für Admins mit zweitem Faktor, nur im Arbeitsspeicher
+export function usePersonen(aktiv = true) {
   return useQuery({
     queryKey: ["admin", "personen"],
+    enabled: aktiv,
     queryFn: async () => {
       const antwort = await route.$get();
       return antwort.json() as Promise<PersonenAntwort>;
@@ -74,6 +75,14 @@ export function usePersonAktivieren() {
   return useMutation({
     mutationFn: (id: string) =>
       route[":id"].aktivieren.$post({ param: { id } }),
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+}
+
+export function usePersonZweitenFaktorZuruecksetzen() {
+  return useMutation({
+    mutationFn: (id: string) =>
+      route[":id"]["zweiter-faktor-zuruecksetzen"].$post({ param: { id } }),
     onSuccess: () => queryClient.invalidateQueries(),
   });
 }

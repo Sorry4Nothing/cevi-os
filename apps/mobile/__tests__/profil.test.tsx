@@ -4,6 +4,10 @@ import Profil from "../app/(tabs)/profil";
 import { abmelden, authClient } from "../src/api/client";
 import { useIch } from "../src/api/ich";
 
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 jest.mock("../src/api/client", () => ({
   abmelden: jest.fn(),
   authClient: { changePassword: jest.fn(), revokeSessions: jest.fn() },
@@ -107,4 +111,64 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
       "Das Passwort ist geändert. Alle anderen Geräte sind abgemeldet.",
     ),
   ).toBeOnTheScreen();
+});
+
+test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
+  await render(<Profil />);
+
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: "Hilfe, Vertrauenspersonen und Anlaufstellen",
+    }),
+  );
+
+  expect(mockPush).toHaveBeenCalledWith("/profil/hilfe");
+});
+
+describe("zweiter Faktor", () => {
+  const alsAdmin = (zweiterFaktor: boolean) =>
+    ich.mockReturnValue({
+      data: {
+        name: "Anna Muster",
+        benutzername: "anna.muster",
+        admin: true,
+        zweiterFaktor,
+      },
+      isPending: false,
+      isError: false,
+      refetch: jest.fn(),
+    } as never);
+
+  test("Eltern und Leitende sehen den Abschnitt nicht", async () => {
+    await render(<Profil />);
+
+    expect(screen.queryByRole("header", { name: "Zweiter Faktor" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Zweiten Faktor einrichten" }),
+    ).toBeNull();
+  });
+
+  test("Admin ohne Faktor sieht «Zweiten Faktor einrichten» und kommt damit zur Einrichtung", async () => {
+    alsAdmin(false);
+    await render(<Profil />);
+
+    expect(
+      screen.getByRole("header", { name: "Zweiter Faktor" }),
+    ).toBeOnTheScreen();
+    expect(screen.queryByText("Zweiter Faktor eingerichtet")).toBeNull();
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Zweiten Faktor einrichten" }),
+    );
+    expect(mockPush).toHaveBeenCalledWith("/profil/zweiter-faktor");
+  });
+
+  test("Admin mit Faktor sieht «Zweiter Faktor eingerichtet», aber keinen Knopf", async () => {
+    alsAdmin(true);
+    await render(<Profil />);
+
+    expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
+    expect(
+      screen.queryByRole("button", { name: "Zweiten Faktor einrichten" }),
+    ).toBeNull();
+  });
 });
