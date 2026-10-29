@@ -1,0 +1,29 @@
+name: Image
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+# Der einzige Workflow mit packages: write
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  api:
+    name: API-Image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Ein Tag, der nicht vX.Y.Z heisst oder nicht zur App-Version passt, baut kein Image
+      - run: |
+          echo "$GITHUB_REF_NAME" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+$'
+          test "$GITHUB_REF_NAME" = "v$(jq -r .expo.version apps/mobile/app.json)"
+      - run: echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Der Tag kommt aus der Umgebung, nicht als Ausdruck ins Skript: So kann kein Name Shell-Code einschleusen
+      - run: docker build -f apps/api/Dockerfile -t "ghcr.io/sorry4nothing/cevi-os-api:$GITHUB_REF_NAME" .
+      - run: docker push "ghcr.io/sorry4nothing/cevi-os-api:$GITHUB_REF_NAME"

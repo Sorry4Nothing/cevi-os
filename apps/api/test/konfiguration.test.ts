@@ -7,11 +7,16 @@ const GUELTIG = {
   DATABASE_URL: "postgres://cevi:geheim-1@db.example.org:5432/cevi_os",
   APP_MIN_VERSION: "0.1.0",
   PORT: "3000",
+  BETTER_AUTH_SECRET: "geheim-6-0123456789abcdef0123456789abcdef",
+  BETTER_AUTH_URL: "http://localhost:3000",
 };
 const UNGUELTIG = {
   DATABASE_URL: ["mysql://cevi:geheim-2@db.example.org/cevi_os", "geheim-3"],
   APP_MIN_VERSION: ["1.2", "1.2.0-beta", "geheim-4"],
   PORT: ["0", "65536", "30.5", "-1.5", "geheim-5"],
+  // Unter 32 Zeichen
+  BETTER_AUTH_SECRET: ["geheim-7"],
+  BETTER_AUTH_URL: ["ftp://api.example.org", "geheim-8"],
 };
 
 function meldung(env: Record<string, string | undefined>) {
@@ -23,11 +28,13 @@ function meldung(env: Record<string, string | undefined>) {
   throw new Error("ladeKonfiguration hat nicht geworfen");
 }
 
-test("liest die drei Werte und übergeht andere Variablen", () => {
+test("liest die fünf Werte und übergeht andere Variablen", () => {
   expect(ladeKonfiguration({ ...GUELTIG, HOME: "/home/cevi" })).toEqual({
     DATABASE_URL: GUELTIG.DATABASE_URL,
     APP_MIN_VERSION: "0.1.0",
     PORT: 3000,
+    BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: "http://localhost:3000",
   });
 });
 
@@ -49,9 +56,27 @@ describe.each(Object.keys(UNGUELTIG) as (keyof typeof UNGUELTIG)[])(
   },
 );
 
-test("ohne Konfiguration nennt die Meldung alle drei Namen", () => {
+test("GOOGLE_APPLICATION_CREDENTIALS ist freiwillig und wird durchgereicht", () => {
+  expect(
+    ladeKonfiguration(GUELTIG).GOOGLE_APPLICATION_CREDENTIALS,
+  ).toBeUndefined();
+  expect(
+    ladeKonfiguration({
+      ...GUELTIG,
+      GOOGLE_APPLICATION_CREDENTIALS: "/pfad/zur/schluesseldatei.json",
+    }).GOOGLE_APPLICATION_CREDENTIALS,
+  ).toBe("/pfad/zur/schluesseldatei.json");
+});
+
+test("GOOGLE_APPLICATION_CREDENTIALS ist leer: Die Meldung nennt nur den Namen", () => {
+  expect(meldung({ ...GUELTIG, GOOGLE_APPLICATION_CREDENTIALS: "" })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: GOOGLE_APPLICATION_CREDENTIALS",
+  );
+});
+
+test("ohne Konfiguration nennt die Meldung alle fünf Namen", () => {
   expect(meldung({})).toBe(
-    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT",
+    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL",
   );
 });
 
@@ -67,6 +92,8 @@ test("der Server startet ohne Konfiguration nicht", () => {
         DATABASE_URL: undefined,
         APP_MIN_VERSION: undefined,
         PORT: undefined,
+        BETTER_AUTH_SECRET: undefined,
+        BETTER_AUTH_URL: undefined,
       },
       encoding: "utf8",
       // Auf einem ausgelasteten Rechner dauert der Start mit tsx ein Vielfaches
@@ -75,6 +102,6 @@ test("der Server startet ohne Konfiguration nicht", () => {
   );
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT",
+    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL",
   );
 }, 70_000);
