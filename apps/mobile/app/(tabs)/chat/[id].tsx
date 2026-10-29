@@ -1,12 +1,14 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useIsFocused } from "expo-router/react-navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
 import {
   useChats,
   useEinzelchatBeginnen,
+  useNachrichtAusblenden,
   useNachrichten,
+  useNachrichtMelden,
   useNachrichtSenden,
   type Nachricht,
 } from "../../../src/api/chats";
@@ -27,6 +29,9 @@ const MAX_ZEICHEN = 2000;
 const OFFLINE_SENDEN =
   "Keine Internetverbindung. Senden geht erst wieder mit Internet. Deine Nachricht bleibt stehen.";
 
+const OFFLINE_MODERATION =
+  "Keine Internetverbindung. Melden und Ausblenden gehen erst wieder mit Internet.";
+
 const OFFLINE_BEGINNEN =
   "Keine Internetverbindung. Der Einzelchat lässt sich erst wieder mit Internet öffnen.";
 
@@ -41,6 +46,9 @@ export default function Chat() {
   const nachrichten = useNachrichten(id, offen);
   const senden = useNachrichtSenden(id);
   const beginnen = useEinzelchatBeginnen();
+  const melden = useNachrichtMelden();
+  const ausblenden = useNachrichtAusblenden();
+  const [aktionFehler, setAktionFehler] = useState<string>();
   const [beginnenFehler, setBeginnenFehler] = useState<string>();
   const [entwurf, setEntwurf] = useState("");
   const [sendeFehler, setSendeFehler] = useState<string>();
@@ -120,6 +128,64 @@ export default function Chat() {
     setAnsage((alt) => ({ text, nr: (alt?.nr ?? 0) + 1 }));
   }
 
+  // Der Dialog verweist bei Grenzverletzungen auf die Hilfe; die App ist kein Ort für Falldokumentation
+  function meldenGedrueckt(n: Nachricht) {
+    setAktionFehler(undefined);
+    if (!online) {
+      setAktionFehler(OFFLINE_MODERATION);
+      return;
+    }
+    Alert.alert(
+      "Nachricht melden?",
+      "Die Admins der Abteilung lesen die Nachricht und entscheiden, was geschieht. Sie bekommen eine Kopie des Textes. Die Kopie wird gelöscht, sobald die Meldung erledigt ist, spätestens nach 30 Tagen.\n\nBei Grenzverletzungen melde dich bitte zusätzlich bei einer Vertrauensperson der Abteilung. Die Anlaufstellen stehen unter «Hilfe» im Profil. Diese App ist kein Ort, um Vorfälle zu dokumentieren.",
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Melden",
+          onPress: () =>
+            melden.mutate(n.id, {
+              onSuccess: () => ansagen("Nachricht gemeldet."),
+              onError: aktionFehlgeschlagen,
+            }),
+        },
+      ],
+    );
+  }
+
+  function ausblendenGedrueckt(n: Nachricht) {
+    setAktionFehler(undefined);
+    if (!online) {
+      setAktionFehler(OFFLINE_MODERATION);
+      return;
+    }
+    Alert.alert(
+      "Nachricht ausblenden?",
+      `Die Nachricht von ${n.autor.name} verschwindet für alle ausser für ${n.autor.name}. Sie oder er sieht den Hinweis «von der Stufenleitung ausgeblendet» und kann das melden. Die Ausblendung steht im Protokoll der Admins.`,
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Ausblenden",
+          style: "destructive",
+          onPress: () =>
+            ausblenden.mutate(n.id, {
+              onSuccess: () => ansagen("Nachricht ausgeblendet."),
+              onError: aktionFehlgeschlagen,
+            }),
+        },
+      ],
+    );
+  }
+
+  function aktionFehlgeschlagen(fehler: unknown) {
+    setAktionFehler(
+      fehler instanceof ApiFehler ? fehlertext(fehler) : KEIN_NETZ,
+    );
+    // 404: Die Nachricht ist inzwischen weg oder ausgeblendet
+    if (fehler instanceof ApiFehler && fehler.status === 404) {
+      void nachrichten.refetch();
+    }
+  }
+
   function absenden() {
     setSendeFehler(undefined);
     if (!online) {
@@ -172,6 +238,7 @@ export default function Chat() {
               text={ansage && ansage.text + (ansage.nr % 2 === 0 ? "​" : "")}
               stil={[styles.text, { color: farben.text }]}
             />
+            <Fehlermeldung text={aktionFehler} />
             <Fehlermeldung text={sendeFehler} />
             <Textfeld
               label="Nachricht"
@@ -281,6 +348,13 @@ export default function Chat() {
           key={n.id}
           nachricht={n}
           onProgramm={(programmId) => router.push(`/programme/${programmId}`)}
+          onMelden={() => meldenGedrueckt(n)}
+          // Die SL blendet nur im Gruppenchat aus, nie im Einzelchat, und keine eigenen Nachrichten
+          onAusblenden={
+            istSl && !einzel && !n.eigene
+              ? () => ausblendenGedrueckt(n)
+              : undefined
+          }
         />
       ))}
     </Bildschirm>
@@ -291,11 +365,17 @@ export default function Chat() {
 function NachrichtZeile({
   nachricht,
   onProgramm,
+  onMelden,
+  onAusblenden,
 }: {
   nachricht: Nachricht;
   onProgramm: (programmId: string) => void;
+  onMelden: () => void;
+  onAusblenden?: () => void;
 }) {
   const farben = useFarben();
+  // Die eigene, nicht ausgeblendete Nachricht lässt sich nicht melden
+  const meldbar = !nachricht.eigene || nachricht.ausgeblendet;
   return (
     <View style={[styles.nachricht, { borderColor: farben.rand }]}>
       {/* Als Überschrift, damit Screenreader von Nachricht zu Nachricht springen können; «Du» statt Farbe oder Seite für die eigenen */}
@@ -306,15 +386,44 @@ function NachrichtZeile({
         {nachricht.eigene ? "Du" : nachricht.autor.name},{" "}
         {nachrichtZeitText(nachricht.erstelltAm)}
       </Text>
-      <Text style={[styles.text, { color: farben.text }]}>
-        {nachricht.text}
-      </Text>
+      {nachricht.ausgeblendet ? (
+        // Nur die Autorin bekommt diese Zeile; der Text selbst kommt nicht mehr vom Server
+        <Text style={[styles.text, { color: farben.textLeise }]}>
+          Von der Stufenleitung ausgeblendet.
+        </Text>
+      ) : (
+        <Text style={[styles.text, { color: farben.text }]}>
+          {nachricht.text}
+        </Text>
+      )}
       {nachricht.programm ? (
         <Listenzeile
           titel={`Programm: ${nachricht.programm.titel}`}
           hinweis="Öffnet das Programm"
           onPress={() => onProgramm(nachricht.programm!.id)}
         />
+      ) : null}
+      {meldbar || onAusblenden ? (
+        <View style={styles.aktionen}>
+          {meldbar ? (
+            <Button
+              titel="Melden"
+              hinweis={
+                nachricht.ausgeblendet
+                  ? "Meldet das Ausblenden dieser Nachricht an die Admins"
+                  : `Meldet die Nachricht von ${nachricht.autor.name} an die Admins`
+              }
+              onPress={onMelden}
+            />
+          ) : null}
+          {onAusblenden ? (
+            <Button
+              titel="Ausblenden"
+              hinweis={`Blendet die Nachricht von ${nachricht.autor.name} für alle aus`}
+              onPress={onAusblenden}
+            />
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
@@ -329,6 +438,7 @@ const styles = StyleSheet.create({
     paddingBottom: masse.luecke,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
+  aktionen: { flexDirection: "row", flexWrap: "wrap", gap: masse.luecke },
   eingabe: {
     gap: masse.luecke,
     padding: masse.abstand,

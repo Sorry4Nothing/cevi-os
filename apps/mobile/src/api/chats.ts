@@ -71,3 +71,25 @@ export function useNachrichtSenden(id: string) {
       queryClient.invalidateQueries({ queryKey: ["chats", id, "nachrichten"] }),
   });
 }
+
+// Melden und Ausblenden laden den Verlauf neu: Ausgeblendetes verschwindet bei den anderen, die Autorin sieht den Hinweis
+export function useNachrichtMelden() {
+  return useMutation({
+    mutationFn: (nachrichtId: string) =>
+      api.api.v1.nachrichten[":id"].melden.$post({
+        param: { id: nachrichtId },
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["chats"] }),
+  });
+}
+
+export function useNachrichtAusblenden() {
+  return useMutation({
+    mutationFn: (nachrichtId: string) =>
+      api.api.v1.nachrichten[":id"].ausblenden.$post({
+        param: { id: nachrichtId },
+      }),
+    // Ohne Filter: Der Eingang der Meldungen zeigt den Zustand «ausgeblendet» ebenso
+    onSuccess: () => queryClient.invalidateQueries(),
+  });
+}

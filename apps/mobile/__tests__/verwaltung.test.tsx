@@ -67,6 +67,9 @@ test("zeigt die Warnungen in einer Karte und die Zeile «Personen»", async () =
 
   await fireEvent.press(screen.getByRole("button", { name: "Personen" }));
   expect(mockPush).toHaveBeenCalledWith("/verwaltung/personen");
+
+  await fireEvent.press(screen.getByRole("button", { name: "Meldungen" }));
+  expect(mockPush).toHaveBeenCalledWith("/verwaltung/meldungen");
 });
 
 test("ohne Warnungen gibt es keine Karte mit Meldungen", async () => {

@@ -35,6 +35,11 @@ export default function Verwaltung() {
         titel="Personen"
         onPress={() => router.push("/verwaltung/personen")}
       />
+      <Listenzeile
+        titel="Meldungen"
+        hinweis="Gemeldete Nachrichten aus den Chats"
+        onPress={() => router.push("/verwaltung/meldungen")}
+      />
     </Bildschirm>
   );
 }
