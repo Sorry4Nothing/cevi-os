@@ -281,6 +281,17 @@ export function programmSichtbar(person: Person): SQL {
   return sql`(${leitungssicht} or ${programmElternsicht(person)})`;
 }
 
+// Beginn des Programms; ganztägige beginnen um 00:00 Schweizer Zeit, nie über die Sitzungszone (tag_von::timestamptz)
+export const programmBeginn: SQL = sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`;
+
+// Leitende und SL melden sich nur für Programme einer eigenen Stufe an; Admins ohne Stufenrolle und Eltern nie
+export function darfLeitungAnmelden(
+  person: Person,
+  stufeIds: readonly string[],
+) {
+  return stufeIds.some((stufeId) => hatRolle(person, stufeId, "leitung"));
+}
+
 // Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen; Leitende und Eltern nie, auch kein No-op
 export function darfZuordnen(
   person: Person,
