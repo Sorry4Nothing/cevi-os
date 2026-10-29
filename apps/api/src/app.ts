@@ -78,7 +78,7 @@ export function erstelleApp({
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
-      .route("/api/v1/ich", erstelleIchRouten({ db }))
+      .route("/api/v1/ich", erstelleIchRouten({ db, auth }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
