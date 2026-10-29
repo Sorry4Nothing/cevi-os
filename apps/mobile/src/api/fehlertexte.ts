@@ -16,6 +16,7 @@ const FEHLERTEXTE: Record<string, string> = {
     "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
   KEIN_ZWEITER_FAKTOR: "Diese Person hat keinen zweiten Faktor.",
   INVALID_PASSWORD: "Das bisherige Passwort stimmt nicht.",
+  PASSWORT_FALSCH: "Das Passwort stimmt nicht.",
   PASSWORD_TOO_SHORT: "Das neue Passwort braucht mindestens 12 Zeichen.",
   PASSWORD_COMPROMISED:
     "Dieses Passwort kommt in einem bekannten Datenleck vor. Bitte ein anderes wählen.",
