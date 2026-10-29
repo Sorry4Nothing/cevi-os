@@ -1,4 +1,16 @@
-import { and, count, desc, eq, exists, gt, isNull, lt, sql } from "drizzle-orm";
+import {
+  and,
+  count,
+  desc,
+  eq,
+  exists,
+  gt,
+  inArray,
+  isNull,
+  lt,
+  sql,
+} from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -8,6 +20,7 @@ import {
   nachricht,
   programm,
   programmStufe,
+  rolle,
   stufe,
   user,
 } from "../db/schema.js";
@@ -15,7 +28,9 @@ import { eingabe } from "../eingabe.js";
 import {
   chatFuerPerson,
   chatMitglieder,
+  hatRolle,
   sichtbareNachrichten,
+  stufenleitungDerStufen,
   type Person,
 } from "../rechte.js";
 
@@ -26,6 +41,11 @@ const NACHRICHTEN_PRO_MINUTE = 20;
 const pfadSchema = z.strictObject({ id: z.uuid() });
 // Der Cursor ist die ID der ältesten bekannten Nachricht; UUIDv7 ordnet nach Zeit
 const seiteSchema = z.strictObject({ vor: z.uuid().optional() });
+// Eltern nennen nur die Stufe; eine SL zusätzlich das Elternteil. Mehr Felder, vor allem die SL einer Person, gibt es nicht (Mehr-Augen-Prinzip)
+const direktSchema = z.strictObject({
+  stufeId: z.uuid().toLowerCase(),
+  elternUserId: z.uuid().toLowerCase().optional(),
+});
 const sendenSchema = z.strictObject({
   // Postgres lehnt NUL in text ab (22021); ohne Prüfung wäre das ein 500
   text: z
@@ -59,22 +79,130 @@ export function erstelleChatRouten({ db }: { db: Db }) {
 
   return (
     new Hono<{ Variables: { person: Person } }>()
-      // Einzelchats folgen mit #50 und erscheinen erst dann in der Liste
       .get("/", async (c) => {
         const person = c.get("person");
         const mitglieder = chatMitglieder(db, person.abteilungId);
+        const eltern = alias(user, "eltern");
         const chats = await db
           .select({
             id: chat.id,
             typ: chat.typ,
             stufe: { id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel },
+            eltern: { id: eltern.id, name: eltern.name },
           })
           .from(chat)
           .innerJoin(mitglieder, eq(mitglieder.chatId, chat.id))
           .innerJoin(stufe, eq(stufe.id, chat.stufeId))
-          .where(and(eq(mitglieder.userId, person.id), eq(chat.typ, "stufe")))
-          .orderBy(stufe.reihenfolge, chat.id);
-        return c.json({ chats });
+          .leftJoin(eltern, eq(eltern.id, chat.elternUserId))
+          .where(eq(mitglieder.userId, person.id))
+          // Gruppenchats vor Einzelchats («stufe» sortiert nach «direkt»), dann nach Stufe und Elternteil
+          .orderBy(desc(chat.typ), stufe.reihenfolge, eltern.name, chat.id);
+        // Wer mitliest, steht in jedem Chat der Stufe: Im Gruppenchat die Liste «Stufenleitung», im Einzelchat der Kopf
+        const leitung =
+          chats.length === 0
+            ? []
+            : await stufenleitungDerStufen(db, person.abteilungId, [
+                ...new Set(chats.map((k) => k.stufe.id)),
+              ]);
+        return c.json({
+          chats: chats.map(({ eltern: e, ...k }) => ({
+            ...k,
+            // Der Join liefert bei Gruppenchats ein Objekt aus null
+            eltern: e && e.id ? e : null,
+            stufenleitung: leitung
+              .filter((l) => l.stufeId === k.stufe.id)
+              .map(({ id, name }) => ({ id, name })),
+          })),
+        });
+      })
+      // Idempotent: Der Einzelchat eines Elternteils in einer Stufe entsteht beim ersten Aufruf, danach liefert die Route denselben
+      .post("/direkt", eingabe("json", direktSchema), async (c) => {
+        const person = c.get("person");
+        const { stufeId, elternUserId } = c.req.valid("json");
+        const istSl = hatRolle(person, stufeId, "stufenleitung");
+        // Eine SL nennt das Elternteil, ein Elternteil kann nur sich selbst meinen; ein fremder Name ist wie ein fremder Chat
+        if (istSl && !elternUserId) throw new HTTPException(400);
+        if (!istSl && elternUserId && elternUserId !== person.id) {
+          throw new HTTPException(404);
+        }
+        const ziel = istSl ? elternUserId! : person.id;
+        // Kein Fremdschlüssel sichert die Abteilung; und eine unbekannte ID wäre sonst ein 500. Eine SL ist nie das Elternteil: Der Chat bliebe sonst ein Kanal unter SL
+        const [stufeZeile, zielZeile, zielIstSl] = await Promise.all([
+          db
+            .select({ id: stufe.id })
+            .from(stufe)
+            .where(
+              and(
+                eq(stufe.id, stufeId),
+                eq(stufe.abteilungId, person.abteilungId),
+              ),
+            ),
+          db
+            .select({ id: user.id })
+            .from(user)
+            .where(
+              and(eq(user.id, ziel), eq(user.abteilungId, person.abteilungId)),
+            ),
+          db
+            .select({ id: rolle.userId })
+            .from(rolle)
+            .where(
+              and(
+                eq(rolle.userId, ziel),
+                eq(rolle.stufeId, stufeId),
+                eq(rolle.typ, "stufenleitung"),
+              ),
+            ),
+        ]);
+        if (!stufeZeile[0] || !zielZeile[0]) throw new HTTPException(404);
+        if (istSl && zielIstSl[0]) throw new HTTPException(404);
+
+        // Zeile anlegen oder finden; ob beide Seiten Mitglied sind, entscheidet danach die abgeleitete Mitgliedschaft (rechte.ts), nicht ein zweites Regelwerk hier
+        const [neu] = await db
+          .insert(chat)
+          .values({
+            abteilungId: person.abteilungId,
+            typ: "direkt",
+            stufeId,
+            elternUserId: ziel,
+          })
+          .onConflictDoNothing()
+          .returning({ id: chat.id });
+        const [bestehend] = neu
+          ? [neu]
+          : await db
+              .select({ id: chat.id })
+              .from(chat)
+              .where(
+                and(
+                  eq(chat.typ, "direkt"),
+                  eq(chat.stufeId, stufeId),
+                  eq(chat.elternUserId, ziel),
+                ),
+              );
+        // Nur im Wettlauf mit dem Aufräumen einer gleichzeitigen, unzulässigen Anfrage derselben Paarung
+        if (!bestehend) throw new HTTPException(404);
+        const chatId = bestehend.id;
+        const mitglieder = chatMitglieder(db, person.abteilungId);
+        const vorhanden = await db
+          .select({ userId: mitglieder.userId })
+          .from(mitglieder)
+          .where(
+            and(
+              eq(mitglieder.chatId, chatId),
+              inArray(mitglieder.userId, [person.id, ziel]),
+            ),
+          );
+        // Die SL ist selbst Mitglied (SL-Zweig), das Elternteil über sein Kind in der Stufe
+        if (
+          new Set(vorhanden.map((v) => v.userId)).size !==
+          new Set([person.id, ziel]).size
+        ) {
+          // Eine Zeile, die wir eben angelegt haben, ohne dass jemand Zugang hat, bleibt nicht liegen
+          if (neu) await db.delete(chat).where(eq(chat.id, chatId));
+          throw new HTTPException(404);
+        }
+        return c.json({ id: chatId });
       })
       // Neueste zuerst; naechster ist der Cursor für ältere Nachrichten, null am Anfang des Verlaufs
       .get(

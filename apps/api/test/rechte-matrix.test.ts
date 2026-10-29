@@ -319,6 +319,22 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  "POST /api/v1/chats/direkt": {
+    body: (konto) => ({
+      stufeId: welt.stufeAId,
+      // Nur die SL der Stufe A muss das Elternteil nennen; für alle anderen wäre der Name ein fremder
+      ...(konto === standard.slA && { elternUserId: standard.elternA.id }),
+    }),
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/chats/:id/nachrichten": {
     url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
     erwartet: {
