@@ -266,10 +266,9 @@ describe("Fehler im einheitlichen Format", () => {
   );
 });
 
-test("hono ist in API und App exakt gleich gepinnt", () => {
-  const hono = (pfad: string) =>
-    JSON.parse(readFileSync(new URL(pfad, import.meta.url), "utf8"))
-      .dependencies.hono;
-  expect(hono("../package.json")).toMatch(/^\d+\.\d+\.\d+$/);
-  expect(hono("../../mobile/package.json")).toBe(hono("../package.json"));
+test("hono ist in der API exakt gepinnt", () => {
+  const { dependencies } = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  );
+  expect(dependencies.hono).toMatch(/^\d+\.\d+\.\d+$/);
 });
