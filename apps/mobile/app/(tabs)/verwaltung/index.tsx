@@ -43,6 +43,10 @@ export default function Verwaltung() {
         titel="Stufen"
         onPress={() => router.push("/verwaltung/stufen")}
       />
+      <Listenzeile
+        titel="Vertrauenspersonen"
+        onPress={() => router.push("/verwaltung/vertrauenspersonen")}
+      />
     </Bildschirm>
   );
 }

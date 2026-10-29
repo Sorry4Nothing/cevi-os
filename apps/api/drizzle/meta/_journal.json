@@ -40,8 +40,29 @@
     {
       "idx": 5,
       "version": "7",
-      "when": 1793282269308,
-      "tag": "0005_leitung_anmeldung",
+      "when": 1793073535480,
+      "tag": "0005_audit_aufraeumen",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793285374012,
+      "tag": "0006_teilnahme",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793286922974,
+      "tag": "0007_gruppenchats",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793292410453,
+      "tag": "0008_leitung_anmeldung",
       "breakpoints": true
     }
   ]

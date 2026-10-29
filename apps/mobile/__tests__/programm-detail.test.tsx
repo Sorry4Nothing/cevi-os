@@ -1,4 +1,4 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { onlineManager, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook, waitFor } from "@testing-library/react-native";
 import { Slot } from "expo-router";
 import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
@@ -8,7 +8,14 @@ import { Linking, Platform } from "react-native";
 import Detail from "../app/(tabs)/programme/[id]";
 import { queryClient } from "../src/api/client";
 import { useProgramm } from "../src/api/programme";
-import { FALKEN, json, mockeNetz, programm } from "./hilfen/programme";
+import {
+  FALKEN,
+  json,
+  mockeNetz,
+  netz,
+  programm,
+  programmDetail,
+} from "./hilfen/programme";
 
 function Wurzel() {
   return (
@@ -24,7 +31,7 @@ const starte = (id: string) =>
     { initialUrl: `/programme/${id}` },
   );
 
-const WALD = programm({
+const WALD = programmDetail({
   id: "p1",
   titel: "Waldtag",
   googleOrt: "Dorfplatz Adliswil",
@@ -36,7 +43,10 @@ const WALD = programm({
 });
 
 beforeEach(() => queryClient.clear());
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.restoreAllMocks();
+  onlineManager.setOnline(true);
+});
 
 test("zeigt Zeit, Treffpunkt, Schluss, Mitnehmen und Info mit sichtbarer Beschriftung", async () => {
   mockeNetz({ "/programme/p1": () => json(200, WALD) });
@@ -94,7 +104,8 @@ test("ein ergänzter Treffpunkt ersetzt den Ort aus Google", async () => {
 
 test("leere Felder fallen weg", async () => {
   mockeNetz({
-    "/programme/p2": () => json(200, programm({ id: "p2", titel: "Waldtag" })),
+    "/programme/p2": () =>
+      json(200, programmDetail({ id: "p2", titel: "Waldtag" })),
   });
   await starte("p2");
 
@@ -183,6 +194,155 @@ test("404 zeigt «nicht mehr sichtbar», keine alten Felder, und leert die Liste
   ]);
 });
 
+describe("Teilnahme", () => {
+  const LEA: { id: string; vorname: string; status: "ja" | "nein" | null } = {
+    id: "k1",
+    vorname: "Lea",
+    status: null,
+  };
+  const MIT_KIND = { ...WALD, kinder: [LEA] };
+  // Die Aufrufe früherer Tests zählen nicht
+  beforeEach(() => netz.mockClear());
+  // Der Client ruft fetch mit (url, init) auf
+  const wahlen = () =>
+    netz.mock.calls.filter(([, init]) => init?.method === "PUT");
+
+  test("Ja und Nein stehen pro Kind, der Name beginnt mit dem sichtbaren Text", async () => {
+    mockeNetz({ "/programme/p1": () => json(200, MIT_KIND) });
+    await starte("p1");
+
+    expect(
+      await screen.findByRole("header", { name: "Teilnahme" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Lea")).toBeOnTheScreen();
+    // Ohne Antwort ist nichts gewählt
+    expect(
+      screen.getByRole("button", { name: "Ja, Lea, Waldtag", selected: false }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", {
+        name: "Nein, Lea, Waldtag",
+        selected: false,
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  test("die gespeicherte Antwort ist gewählt", async () => {
+    mockeNetz({
+      "/programme/p1": () =>
+        json(200, { ...WALD, kinder: [{ ...LEA, status: "nein" }] }),
+    });
+    await starte("p1");
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Nein, Lea, Waldtag",
+        selected: true,
+      }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole("button", { name: "Ja, Lea, Waldtag", selected: false }),
+    ).toBeOnTheScreen();
+  });
+
+  test("Ja sendet die Antwort, lädt neu und sagt «gespeichert» an", async () => {
+    let kinder = [LEA];
+    mockeNetz({
+      "/programme/p1/teilnahmen/k1": () => {
+        kinder = [{ ...LEA, status: "ja" }];
+        return new Response(null, { status: 204 });
+      },
+      "/programme/p1": () => json(200, { ...WALD, kinder }),
+    });
+    await starte("p1");
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Ja, Lea, Waldtag" }),
+    );
+
+    expect(await screen.findByText("Lea: Ja gespeichert.")).toBeOnTheScreen();
+    expect(
+      await screen.findByRole("button", {
+        name: "Ja, Lea, Waldtag",
+        selected: true,
+      }),
+    ).toBeOnTheScreen();
+    const [[, init]] = wahlen();
+    expect(JSON.parse(init.body as string)).toEqual({ status: "ja" });
+  });
+
+  test("ohne Internet erscheint die Meldung und nichts geht raus", async () => {
+    mockeNetz({ "/programme/p1": () => json(200, MIT_KIND) });
+    await starte("p1");
+    const nein = await screen.findByRole("button", {
+      name: "Nein, Lea, Waldtag",
+    });
+
+    await act(async () => onlineManager.setOnline(false));
+    await fireEvent.press(nein);
+
+    expect(
+      await screen.findByText(
+        "Keine Internetverbindung. Bitte später nochmals versuchen.",
+      ),
+    ).toBeOnTheScreen();
+    expect(wahlen()).toHaveLength(0);
+  });
+
+  test("409 zeigt den Text des Servers", async () => {
+    mockeNetz({
+      "/programme/p1/teilnahmen/k1": () =>
+        json(409, {
+          code: "PROGRAMM_GESCHLOSSEN",
+          message: "Das Programm ist abgesagt oder hat schon begonnen.",
+        }),
+      "/programme/p1": () => json(200, MIT_KIND),
+    });
+    await starte("p1");
+
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "Ja, Lea, Waldtag" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Das Programm ist abgesagt oder hat schon begonnen. Die Teilnahme lässt sich nicht mehr ändern.",
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  test("begonnen oder abgesagt: nur die Antwort als Text, keine Auswahl", async () => {
+    mockeNetz({
+      "/programme/p1": () =>
+        json(200, {
+          ...WALD,
+          teilnahmeOffen: false,
+          kinder: [
+            { ...LEA, status: "ja" },
+            { id: "k2", vorname: "Noah", status: null },
+          ],
+        }),
+    });
+    await starte("p1");
+
+    expect(
+      await screen.findByRole("header", { name: "Lea" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Ja")).toBeOnTheScreen();
+    expect(screen.getByText("Keine Antwort")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /Ja, Lea/ })).toBeNull();
+  });
+
+  test("ohne Kinder fällt der Abschnitt weg", async () => {
+    mockeNetz({ "/programme/p1": () => json(200, WALD) });
+    await starte("p1");
+
+    await screen.findByRole("header", { name: "Zeit" });
+    expect(screen.queryByRole("header", { name: "Teilnahme" })).toBeNull();
+  });
+});
+
+// Zuletzt: Die Fake-Timer dieses Tests stören nachfolgende Tests
 test("ein geladenes Detail bleibt 6 Minuten nach dem Verlassen im Speicher", async () => {
   jest.useFakeTimers();
   mockeNetz({ "/programme/p1": () => json(200, WALD) });
