@@ -286,6 +286,24 @@ describe("Eingabe und Passwort", () => {
     expect((await loesche(konto.headers)).status).toBe(204);
   });
 
+  test("parallele Versuche: höchstens einer prüft zur Zeit, die übrigen bekommen 429 und zählen nicht", async () => {
+    const { konto } = await eigeneWelt("elternA");
+    const antworten = await Promise.all(
+      Array.from({ length: 20 }, (_, i) =>
+        loesche(konto.headers, `falsch-${i}`),
+      ),
+    );
+    const status = antworten.map((a) => a.status);
+    const geprueft = status.filter((s) => s === 400).length;
+    expect(geprueft).toBeLessThan(5);
+    expect(status.filter((s) => s === 429).length).toBe(20 - geprueft);
+    // Nur geprüfte Versuche zählen; die Reservierung ist wieder frei
+    const zeile = await userZeile(konto.id!);
+    expect(zeile.fehlversuche).toBe(geprueft);
+    expect(zeile.naechsterVersuchAb).toBeNull();
+    expect((await loesche(konto.headers)).status).toBe(204);
+  });
+
   test("das Löschen und die Anmeldung zählen auf demselben Zähler", async () => {
     const { konto } = await eigeneWelt("elternA");
     for (let i = 0; i < 4; i++) {
