@@ -249,6 +249,7 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "infoEltern",
         "stufen",
         "googleBeschreibung",
+        "darfErgaenzen",
       ].sort(),
     );
     expect(koerper.googleBeschreibung).toBeNull();

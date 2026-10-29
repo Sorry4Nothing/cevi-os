@@ -1,4 +1,9 @@
-import { schlussZeitText, tagInZuerich, zeitText } from "../src/programme/zeit";
+import {
+  schlussZeitEingabe,
+  schlussZeitText,
+  tagInZuerich,
+  zeitText,
+} from "../src/programme/zeit";
 
 const mitZeit = (beginn: string, ende: string) => ({
   ganztaegig: false,
@@ -68,4 +73,26 @@ test("schlussZeit ist eine Wanduhrzeit: HH:MM ohne Umrechnung", () => {
 test("tagInZuerich nennt den Schweizer Kalendertag, egal wo das Gerät steht", () => {
   expect(tagInZuerich(new Date("2026-10-31T23:30:00Z"))).toBe("2026-11-01");
   expect(tagInZuerich(new Date("2026-03-29T13:00:00Z"))).toBe("2026-03-29");
+});
+
+test.each([
+  ["16:30", "16:30"],
+  ["9:30", "09:30"],
+  ["9.30", "09:30"],
+  ["09.05", "09:05"],
+  [" 16:30 ", "16:30"],
+  ["0:00", "00:00"],
+  ["23:59", "23:59"],
+  ["", ""],
+  ["   ", ""],
+  ["24:00", null],
+  ["25:00", null],
+  ["16:60", null],
+  ["16:5", null],
+  ["1630", null],
+  ["16:30:00", null],
+  ["abc", null],
+  ["-1:30", null],
+])("schlussZeitEingabe(%j) = %j", (text, erwartet) => {
+  expect(schlussZeitEingabe(text)).toBe(erwartet);
 });

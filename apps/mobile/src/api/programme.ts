@@ -102,3 +102,23 @@ export function useZuordnen(id: string) {
     },
   });
 }
+
+export type Ergaenzungen = InferRequestType<
+  (typeof api.api.v1.programme)[":id"]["$patch"]
+>["json"];
+
+// networkMode always: Offline pausierte TanStack das Speichern und schickte es später ab; die Meldung «nicht gespeichert» muss stimmen
+export function useErgaenzen(id: string) {
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (json: Ergaenzungen) =>
+      api.api.v1.programme[":id"].$patch({ param: { id }, json }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programme"] }),
+    onError: (fehler) => {
+      // 404: das Detail kommt als «nicht mehr sichtbar». Bei 403 kein Neuladen: Das Flag könnte das Formular samt Meldung ausblenden
+      if (fehler instanceof ApiFehler && fehler.status === 404) {
+        void queryClient.invalidateQueries({ queryKey: ["programme", id] });
+      }
+    },
+  });
+}
