@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import postgres from "postgres";
@@ -46,6 +47,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 })
   .get("/api/v1/test/stufen/:id", async (c) => {

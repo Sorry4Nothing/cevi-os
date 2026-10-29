@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import type { AddressInfo } from "node:net";
 import { serve } from "@hono/node-server";
 import postgres from "postgres";
@@ -34,6 +35,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 

@@ -25,6 +25,11 @@ import type { Person } from "../rechte.js";
 const PRUEFDAUER_MS = 10_000;
 // 128 wie das Standard-Maximum von better-auth; die Länge ist keine Regel, sondern nur die Grenze der Eingabe
 const loeschenSchema = z.strictObject({ passwort: z.string().min(1).max(128) });
+// Mindestens ein Schalter: Ein leeres set() wirft in Drizzle («No values to set»)
+const pushSchema = z
+  .strictObject({ pushChat: z.boolean(), pushProgramme: z.boolean() })
+  .partial()
+  .refine((b) => b.pushChat !== undefined || b.pushProgramme !== undefined);
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
 export function erstelleIchRouten({
@@ -118,6 +123,15 @@ export function erstelleIchRouten({
           .where(
             and(eq(user.id, person.id), isNull(user.datenschutzGelesenAm)),
           );
+        return c.body(null, 204);
+      })
+      // Nur die eigenen Schalter; die Person kommt aus der Sitzung, nie aus dem Body
+      .patch("/", eingabe("json", pushSchema), async (c) => {
+        const person = c.get("person");
+        await db
+          .update(user)
+          .set(c.req.valid("json"))
+          .where(eq(user.id, person.id));
         return c.body(null, 204);
       })
       // Passwort wie bei der Anmeldung (Bremse #15); deleteUser von better-auth prüft es nur, wenn eines mitkommt, und braucht eine zweite Verbindung

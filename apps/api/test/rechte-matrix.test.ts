@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
@@ -42,6 +43,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -137,6 +139,17 @@ const MATRIX: Record<string, Zeile> = {
   "POST /api/v1/ich/datenschutz": {
     // Schreibt datenschutz_gelesen_am, darum eigene Personas
     frischePersonas: true,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/ich": {
+    // Schreibt push_chat, darum eigene Personas; die Felder prüft test/ich.test.ts
+    frischePersonas: true,
+    body: () => ({ pushChat: false }),
     erwartet: {
       ...alle(204),
       mussPasswortAendern: 403,
@@ -754,6 +767,7 @@ describe("Vollständigkeit", () => {
       sql,
       db,
       auth,
+      expo: new Expo({ accessToken: "test-zugang" }),
       seiten: ladeSeiten(),
     }).get("/api/v1/ohne-eintrag", (c) => c.text("nie"));
     expect(ohneZeile(mitExtra)).toEqual(["GET /api/v1/ohne-eintrag"]);
