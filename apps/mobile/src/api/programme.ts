@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 
 import { tagInZuerich } from "../programme/zeit";
@@ -7,6 +7,11 @@ import { api, ApiFehler, queryClient } from "./client";
 export type Programm = InferResponseType<
   typeof api.api.v1.programme.$get
 >["programme"][number];
+
+export type ProgrammDetail = InferResponseType<
+  (typeof api.api.v1.programme)[":id"]["$get"],
+  200
+>;
 
 // Das Sync-Fenster: heute bis heute + 400 Tage, in Schweizer Kalendertagen (die API verlangt beide)
 function fenster() {
@@ -33,7 +38,7 @@ export function useProgramm(id: string) {
   return useQuery({
     queryKey: ["programme", id],
     gcTime: Infinity,
-    queryFn: async (): Promise<Programm | null> => {
+    queryFn: async (): Promise<ProgrammDetail | null> => {
       try {
         const antwort = await api.api.v1.programme[":id"].$get({
           param: { id },
@@ -51,5 +56,24 @@ export function useProgramm(id: string) {
         throw fehler;
       }
     },
+  });
+}
+
+// Nur die Antwort ändert sich; ein Fehler steht im Zustand der Mutation, das Detail lädt danach neu
+export function useTeilnahmeMelden(id: string) {
+  return useMutation({
+    mutationFn: ({
+      kindId,
+      status,
+    }: {
+      kindId: string;
+      status: "ja" | "nein";
+    }) =>
+      api.api.v1.programme[":id"].teilnahmen[":kindId"].$put({
+        param: { id, kindId },
+        json: { status },
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["programme", id] }),
   });
 }
