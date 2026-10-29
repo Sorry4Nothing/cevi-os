@@ -40,6 +40,7 @@ const ICH_BASIS: Ich = {
   name: "Testperson",
   benutzername: "test.person",
   admin: false,
+  zweiterFaktor: false,
   mussPasswortAendern: false,
   datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
   telefon: null,
@@ -67,7 +68,7 @@ export const PERSONAS: Record<"eltern" | "leitende" | "sl" | "admin", Ich> = {
     rollen: [{ stufeId: FALKEN.id, typ: "stufenleitung" }],
     stufen: [{ ...FALKEN, kuerzel: "F" }],
   },
-  admin: { ...ICH_BASIS, admin: true },
+  admin: { ...ICH_BASIS, admin: true, zweiterFaktor: true },
 };
 
 export function programm(

@@ -1,3 +1,4 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 
 import { authClient } from "../../src/api/client";
@@ -8,13 +9,17 @@ import { Fehlermeldung } from "../../src/ui/Fehlermeldung";
 import { Passwortfeld } from "../../src/ui/Passwortfeld";
 import { Textfeld } from "../../src/ui/Textfeld";
 
+const NOCHMALS = "Bitte nochmals anmelden.";
+
 export default function Anmelden() {
+  const router = useRouter();
+  const { hinweis } = useLocalSearchParams<{ hinweis?: string }>();
   const [benutzername, setBenutzername] = useState("");
   const [passwort, setPasswort] = useState("");
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string>();
 
-  // Nach dem Erfolg übernimmt das Tor in app/_layout.tsx; eine twoFactorRedirect-Antwort gibt es erst mit #23
+  // Ohne zweiten Faktor übernimmt nach dem Erfolg das Tor in app/_layout.tsx; sonst folgt der Code-Schritt
   async function anmelden() {
     setFehler(undefined);
     setLaeuft(true);
@@ -24,6 +29,13 @@ export default function Anmelden() {
         password: passwort,
       });
       if (ergebnis.error) setFehler(fehlertext(ergebnis.error));
+      else if (
+        (ergebnis.data as { twoFactorRedirect?: boolean } | null)
+          ?.twoFactorRedirect
+      ) {
+        // Ersetzen statt schieben: Das Passwort bleibt nicht im Zustand dieses Bildschirms zurück
+        router.replace("/code");
+      }
     } catch {
       setFehler(KEIN_NETZ);
     } finally {
@@ -49,8 +61,10 @@ export default function Anmelden() {
         autoComplete="current-password"
         textContentType="password"
       />
-      {/* Der Anmeldefehler gehört zu keinem Feld und steht über dem Knopf */}
-      <Fehlermeldung text={fehler} />
+      {/* Der Anmeldefehler gehört zu keinem Feld und steht über dem Knopf; der Hinweis ist ein fester Text, nie einer aus der Adresse */}
+      <Fehlermeldung
+        text={fehler ?? (hinweis === "nochmals" ? NOCHMALS : undefined)}
+      />
       <Button
         titel="Anmelden"
         onPress={() => void anmelden()}

@@ -84,6 +84,26 @@ export default function Profil() {
         }
         erfolgText="Das Passwort ist geändert. Alle anderen Geräte sind abgemeldet."
       />
+      {ich.data?.admin ? (
+        <>
+          <Text
+            accessibilityRole="header"
+            style={[styles.abschnitt, { color: farben.text }]}
+          >
+            Zweiter Faktor
+          </Text>
+          {ich.data.zweiterFaktor ? (
+            <Text style={[styles.text, { color: farben.text }]}>
+              Zweiter Faktor eingerichtet
+            </Text>
+          ) : (
+            <Button
+              titel="Zweiten Faktor einrichten"
+              onPress={() => router.push("/profil/zweiter-faktor")}
+            />
+          )}
+        </>
+      ) : null}
       <Text
         accessibilityRole="header"
         style={[styles.abschnitt, { color: farben.text }]}

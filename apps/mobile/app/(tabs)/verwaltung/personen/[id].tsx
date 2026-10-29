@@ -12,6 +12,7 @@ import {
   usePersonDeaktivieren,
   usePersonen,
   usePersonLoeschen,
+  usePersonZweitenFaktorZuruecksetzen,
   type PersonZeile,
   type PersonenAntwort,
 } from "../../../../src/api/personen";
@@ -84,6 +85,7 @@ function Formular({
   const deaktivieren = usePersonDeaktivieren();
   const aktivieren = usePersonAktivieren();
   const loeschen = usePersonLoeschen();
+  const zuruecksetzen = usePersonZweitenFaktorZuruecksetzen();
 
   // 404: Die Person gibt es nicht mehr — Daten neu laden und zurück zur Liste
   function beiFehler(fehler: unknown) {
@@ -112,6 +114,26 @@ function Formular({
     );
   }
 
+  function zuruecksetzenGedrueckt() {
+    Alert.alert(
+      "Zweiten Faktor zurücksetzen?",
+      "Die Person meldet sich danach ohne Code an und richtet den zweiten Faktor neu ein. Ist ihr Gerät verloren, zuerst ein neues Startpasswort setzen: Auf dem Gerät kann das Passwort gespeichert sein.",
+      [
+        { text: "Abbrechen", style: "cancel" },
+        {
+          text: "Zurücksetzen",
+          style: "destructive",
+          onPress: () =>
+            zuruecksetzen.mutate(person.id, {
+              onSuccess: () =>
+                setErfolg("Der zweite Faktor ist zurückgesetzt."),
+              onError: beiFehler,
+            }),
+        },
+      ],
+    );
+  }
+
   const text = (fehler: unknown) =>
     fehler
       ? fehlertext(fehler instanceof ApiFehler ? fehler : null)
@@ -125,6 +147,11 @@ function Formular({
       <Text style={[styles.text, { color: farben.text }]}>
         {statusText(person)}
       </Text>
+      {person.zweiterFaktor ? (
+        <Text style={[styles.text, { color: farben.text }]}>
+          Zweiter Faktor eingerichtet
+        </Text>
+      ) : null}
       {/* Die Erfolgsmeldung bleibt stehen (Checkliste 8.2) */}
       <Ansage text={erfolg} stil={[styles.text, { color: farben.erfolg }]} />
       <Textfeld
@@ -199,6 +226,16 @@ function Formular({
               disabled={deaktivieren.isPending}
             />
           )}
+          {person.zweiterFaktor ? (
+            <>
+              <Fehlermeldung text={text(zuruecksetzen.error)} />
+              <Button
+                titel="Zweiten Faktor zurücksetzen"
+                onPress={zuruecksetzenGedrueckt}
+                disabled={zuruecksetzen.isPending}
+              />
+            </>
+          ) : null}
           <Fehlermeldung text={text(loeschen.error)} />
           <Button
             titel="Löschen"

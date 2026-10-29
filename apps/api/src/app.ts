@@ -7,7 +7,7 @@ import type { Sql } from "postgres";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
-import { personAusSitzung } from "./rechte.js";
+import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
@@ -81,6 +81,7 @@ export function erstelleApp({
       .route("/", erstelleAuthRouten(auth))
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
+      .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db }))
