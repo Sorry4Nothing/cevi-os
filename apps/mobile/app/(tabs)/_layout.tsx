@@ -4,7 +4,7 @@ import { StyleSheet, View } from "react-native";
 
 import { authClient } from "../../src/api/client";
 import { useIch } from "../../src/api/ich";
-import { tokenRegistrieren } from "../../src/push";
+import { tokenRegistrieren, usePushTipps } from "../../src/push";
 import { useFarben } from "../../src/ui/tokens";
 
 // Kein tabBarAllowFontScaling: iOS skaliert Tab-Beschriftungen nie, zeigt aber den Large Content Viewer (Checkliste 5.10)
@@ -17,6 +17,8 @@ export default function TabLayout() {
   useEffect(() => {
     if (sitzungId !== null) void tokenRegistrieren();
   }, [sitzungId]);
+
+  usePushTipps();
 
   return (
     <Tabs

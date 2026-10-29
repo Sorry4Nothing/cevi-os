@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { setNotificationHandler } from "expo-notifications";
 import { Redirect, Slot, useSegments } from "expo-router";
 import { useEffect, useRef } from "react";
 import { StyleSheet, Text } from "react-native";
@@ -10,9 +11,12 @@ import {
   useOnline,
 } from "../src/api/client";
 import { useIch } from "../src/api/ich";
-import { usePushSchritt } from "../src/push";
+import { pushHandler, usePushSchritt } from "../src/push";
 import { Bildschirm } from "../src/ui/Bildschirm";
 import { schrift, useFarben } from "../src/ui/tokens";
+
+// Einmal beim Laden des Moduls: Bis dahin zeigt Expo jeden Push im Vordergrund
+setNotificationHandler({ handleNotification: pushHandler });
 
 // Ohne native Kopfzeile: Deren Titel wächst auf iOS nicht mit der Schriftgrösse (Checkliste 5.10)
 export default function Layout() {

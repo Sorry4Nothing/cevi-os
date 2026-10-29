@@ -2,9 +2,14 @@ import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { Alert, StyleSheet, Text, type HostInstance } from "react-native";
 
-import { abmelden, ApiFehler, authClient } from "../../../src/api/client";
+import {
+  abmelden,
+  ApiFehler,
+  authClient,
+  useOnline,
+} from "../../../src/api/client";
 import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
-import { useIch } from "../../../src/api/ich";
+import { useIch, usePushEinstellung } from "../../../src/api/ich";
 import { useKontoLoeschen } from "../../../src/api/konto";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
 import { Button } from "../../../src/ui/Button";
@@ -12,12 +17,49 @@ import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
 import { fokussieren } from "../../../src/ui/fokus";
 import { Passwortfeld } from "../../../src/ui/Passwortfeld";
 import { Passwortwechsel } from "../../../src/ui/Passwortwechsel";
+import { Schalter } from "../../../src/ui/Schalter";
 import { schrift, useFarben } from "../../../src/ui/tokens";
+
+// Zeigt den Wert sofort wie ein Systemschalter; schlägt das Speichern fehl, steht wieder der Wert des Servers da und die Meldung bleibt bis zum nächsten Tipp
+function PushSchalter({
+  schluessel,
+  label,
+  wert,
+  offline,
+}: {
+  schluessel: "pushChat" | "pushProgramme";
+  label: string;
+  wert: boolean;
+  offline: boolean;
+}) {
+  const speichern = usePushEinstellung(schluessel);
+  const angezeigt = speichern.isPending ? speichern.variables : wert;
+  return (
+    <>
+      <Schalter
+        label={label}
+        checked={angezeigt}
+        disabled={offline}
+        onChange={() => {
+          if (!speichern.isPending) speichern.mutate(!angezeigt);
+        }}
+      />
+      <Fehlermeldung
+        text={
+          speichern.isError
+            ? "Die Einstellung liess sich nicht speichern."
+            : undefined
+        }
+      />
+    </>
+  );
+}
 
 export default function Profil() {
   const farben = useFarben();
   const router = useRouter();
   const ich = useIch();
+  const online = useOnline();
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string>();
   const loeschen = useKontoLoeschen();
@@ -96,6 +138,7 @@ export default function Profil() {
     <Bildschirm
       titel="Profil"
       zustand={ich.data ? "bereit" : ich.isPending ? "laden" : "fehler"}
+      offline={!online}
       onNeuLaden={() => void ich.refetch()}
     >
       <Text style={[styles.text, { color: farben.text }]}>
@@ -142,6 +185,28 @@ export default function Profil() {
               onPress={() => router.push("/profil/zweiter-faktor")}
             />
           )}
+        </>
+      ) : null}
+      <Text
+        accessibilityRole="header"
+        style={[styles.abschnitt, { color: farben.text }]}
+      >
+        Pushes
+      </Text>
+      {ich.data ? (
+        <>
+          <PushSchalter
+            schluessel="pushChat"
+            label="Chat-Pushes"
+            wert={ich.data.pushChat}
+            offline={!online}
+          />
+          <PushSchalter
+            schluessel="pushProgramme"
+            label="Programm-Pushes"
+            wert={ich.data.pushProgramme}
+            offline={!online}
+          />
         </>
       ) : null}
       <Text

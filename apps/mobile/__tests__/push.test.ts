@@ -2,7 +2,13 @@ import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
 
-import { kanaeleAnlegen, tokenRegistrieren } from "../src/push";
+import {
+  kanaeleAnlegen,
+  pushHandler,
+  setzeOffenenChat,
+  tokenRegistrieren,
+  zielAusPush,
+} from "../src/push";
 
 const erlaubnis = jest.mocked(Notifications.getPermissionsAsync);
 const kanal = jest.mocked(Notifications.setNotificationChannelAsync);
@@ -85,4 +91,73 @@ test("ohne Erlaubnis, ohne projectId oder ohne Token: kein PUT und kein Fehler",
   await expect(tokenRegistrieren()).resolves.toBeUndefined();
 
   expect(netz).not.toHaveBeenCalled();
+});
+
+const ID = "0192f7a0-1b2c-7d3e-8f4a-5b6c7d8e9f01";
+const ANDERE_ID = "0192f7a0-1b2c-7d3e-8f4a-5b6c7d8e9f02";
+
+describe("zielAusPush", () => {
+  test.each([
+    ["Programm", { typ: "programm", id: ID }, `/programme/${ID}`],
+    ["Chat", { typ: "chat", id: ID }, `/chat/${ID}`],
+    [
+      "Grossbuchstaben in der Id",
+      { typ: "programm", id: ID.toUpperCase() },
+      `/programme/${ID.toUpperCase()}`,
+    ],
+    ["Person (noch kein Ziel)", { typ: "person", id: ID }, null],
+    ["unbekannter Typ", { typ: "admin", id: ID }, null],
+    ["Id keine UUID", { typ: "programm", id: "p1" }, null],
+    ["Pfad statt Id", { typ: "programm", id: "../verwaltung" }, null],
+    ["Id mit Anhang", { typ: "programm", id: `${ID}/../x` }, null],
+    ["Id keine Zeichenkette", { typ: "programm", id: 42 }, null],
+    ["ohne Id", { typ: "programm" }, null],
+    ["ohne Daten", undefined, null],
+  ])("%s", (_titel, data, erwartet) => {
+    expect(zielAusPush(data)).toBe(erwartet);
+  });
+});
+
+describe("pushHandler", () => {
+  const push = (data: Record<string, unknown> | undefined) =>
+    ({ request: { content: { data } } }) as never;
+  const alles = {
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+  };
+  const nichts = {
+    shouldShowBanner: false,
+    shouldShowList: false,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+  };
+
+  afterEach(() => setzeOffenenChat(null));
+
+  test("zeigt jeden Push, solange kein Chat offen ist", async () => {
+    expect(await pushHandler(push({ typ: "chat", id: ID }))).toEqual(alles);
+  });
+
+  test("unterdrückt den Push des offenen Chats ganz", async () => {
+    setzeOffenenChat(ID);
+    expect(await pushHandler(push({ typ: "chat", id: ID }))).toEqual(nichts);
+  });
+
+  test("zeigt Pushes anderer Chats, von Programmen und von Personen", async () => {
+    setzeOffenenChat(ID);
+    expect(await pushHandler(push({ typ: "chat", id: ANDERE_ID }))).toEqual(
+      alles,
+    );
+    expect(await pushHandler(push({ typ: "programm", id: ID }))).toEqual(alles);
+    expect(await pushHandler(push({ typ: "person", id: ID }))).toEqual(alles);
+    expect(await pushHandler(push(undefined))).toEqual(alles);
+  });
+
+  test("nach dem Verlassen des Chats zeigt er wieder", async () => {
+    setzeOffenenChat(ID);
+    setzeOffenenChat(null);
+    expect(await pushHandler(push({ typ: "chat", id: ID }))).toEqual(alles);
+  });
 });
