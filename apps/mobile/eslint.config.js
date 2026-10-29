@@ -11,4 +11,29 @@ module.exports = defineConfig([
     plugins: { "react-native-a11y": fixupPluginRules(a11y) },
     rules: a11y.configs.all.rules,
   },
+  {
+    // Aus der API nur Typen, sonst bündelt Metro Servercode; eslint-config-expo kennt das Plugin nur für .ts und .tsx
+    files: ["**/*.ts", "**/*.tsx"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@cevi-os/api",
+              allowTypeImports: true,
+              message: "Aus der API nur «import type».",
+            },
+          ],
+          patterns: [
+            {
+              regex: "(^|/)api/src(/|$)",
+              message:
+                'Die API nur über «import type … from "@cevi-os/api"» einbinden.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);

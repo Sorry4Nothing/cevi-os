@@ -4,6 +4,9 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { erstelleAuth, erstelleAuthRouten, offenePfade } from "../src/auth.js";
 
+// Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner braucht ein Test so ein Vielfaches der 5 s von Vitest
+vi.setConfig({ testTimeout: 120_000 });
+
 // Erfundenes App-Schema; das echte legt die App fest
 const APP = "testapp://";
 vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
