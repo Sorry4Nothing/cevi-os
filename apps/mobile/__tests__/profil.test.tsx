@@ -192,7 +192,7 @@ test("«App-Sperre»: mit Geräte-Code steht die Zeile nicht", async () => {
 });
 
 test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", {
@@ -218,7 +218,7 @@ describe("zweiter Faktor", () => {
     } as never);
 
   test("Eltern und Leitende sehen den Abschnitt nicht", async () => {
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.queryByRole("header", { name: "Zweiter Faktor" })).toBeNull();
     expect(
@@ -228,7 +228,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin ohne Faktor sieht «Zweiten Faktor einrichten» und kommt damit zur Einrichtung", async () => {
     alsAdmin(false);
-    await render(<Profil />);
+    await zeige();
 
     expect(
       screen.getByRole("header", { name: "Zweiter Faktor" }),
@@ -242,7 +242,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin mit Faktor sieht «Zweiter Faktor eingerichtet», aber keinen Knopf", async () => {
     alsAdmin(true);
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
     expect(
