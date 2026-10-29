@@ -310,6 +310,38 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  "GET /api/v1/chats": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    body: () => ({ text: "Hallo aus der Matrix" }),
+    erwartet: {
+      ...alle(404),
+      slA: 201,
+      elternA: 201,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
 };
 
 let welt: Welt;
