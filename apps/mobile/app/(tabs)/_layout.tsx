@@ -38,6 +38,7 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen name="programme" options={{ title: "Programme" }} />
+      <Tabs.Screen name="chat" options={{ title: "Chat" }} />
       <Tabs.Screen name="profil" options={{ title: "Profil" }} />
       {/* Nur Bedienschutz: Jede Admin-Route prüft das Recht aus der Sitzung selbst */}
       <Tabs.Protected guard={ich.data?.admin === true}>

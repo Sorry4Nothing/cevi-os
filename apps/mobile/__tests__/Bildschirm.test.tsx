@@ -325,3 +325,22 @@ test.each(["light", "dark"] as const)(
     });
   },
 );
+
+test("der Fuss steht unter dem Inhalt und bleibt auch beim Laden", async () => {
+  const { rerender } = await render(
+    <Bildschirm titel="Chat" fuss={<Text>Eingabezeile</Text>}>
+      <Text>Verlauf</Text>
+    </Bildschirm>,
+  );
+  expect(screen.getByText("Verlauf")).toBeOnTheScreen();
+  expect(screen.getByText("Eingabezeile")).toBeOnTheScreen();
+
+  await rerender(
+    <Bildschirm
+      titel="Chat"
+      zustand="laden"
+      fuss={<Text>Eingabezeile</Text>}
+    />,
+  );
+  expect(screen.getByText("Eingabezeile")).toBeOnTheScreen();
+});
