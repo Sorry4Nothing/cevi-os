@@ -37,13 +37,12 @@ const speicher = (
   jest.requireMock("expo-secure-store") as { __speicher: Map<string, string> }
 ).__speicher;
 
-function zeige() {
-  return render(
-    <SperreProvider anfangsAus={false}>
-      <Profil />
-    </SperreProvider>,
-  );
-}
+const baum = () => (
+  <SperreProvider anfangsAus={false}>
+    <Profil />
+  </SperreProvider>
+);
+const zeige = () => render(baum());
 
 function mitRolle(admin: boolean, rollen: string[]) {
   ich.mockReturnValue({
@@ -287,7 +286,7 @@ describe("Konto löschen", () => {
   afterEach(() => jest.restoreAllMocks());
 
   test("der Abschnitt steht nach «Überall abmelden» mit Überschrift, Passwortfeld und Knopf", async () => {
-    await render(<Profil />);
+    await zeige();
 
     const rollen = screen
       .getAllByRole("header")
@@ -302,7 +301,7 @@ describe("Konto löschen", () => {
 
   test("ohne Passwort kein Dialog, keine Anfrage, dafür der Hinweis am Feld mit Fokus", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
 
     await fireEvent.press(knopf());
 
@@ -316,7 +315,7 @@ describe("Konto löschen", () => {
   test("alter Fehler und leeres Feld: genau eine Meldung, die am Feld", async () => {
     dialog();
     loeschen.error = new ApiFehler(429, "ZU_VIELE_ANFRAGEN", "x");
-    await render(<Profil />);
+    await zeige();
     expect(
       screen.getByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
     ).toBeOnTheScreen();
@@ -331,7 +330,7 @@ describe("Konto löschen", () => {
   });
 
   test("die Meldung am leeren Feld geht beim Tippen weg", async () => {
-    await render(<Profil />);
+    await zeige();
     await fireEvent.press(knopf());
     expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
 
@@ -341,7 +340,7 @@ describe("Konto löschen", () => {
   });
 
   test("zweiter Druck bei leerem Feld nimmt den Fokus erneut", async () => {
-    await render(<Profil />);
+    await zeige();
     await fireEvent.press(knopf());
     jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear();
 
@@ -353,7 +352,7 @@ describe("Konto löschen", () => {
 
   test("mit Passwort fragt ein Dialog nach; «Abbrechen» schickt nichts und setzt den Fokus auf den Knopf", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
 
     await fireEvent.press(knopf());
@@ -381,7 +380,7 @@ describe("Konto löschen", () => {
 
   test("«Löschen» sendet das Passwort einmal", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
     await fireEvent.press(knopf());
 
@@ -393,7 +392,7 @@ describe("Konto löschen", () => {
 
   test("während des Sendens ist der Knopf gesperrt", async () => {
     loeschen.isPending = true;
-    await render(<Profil />);
+    await zeige();
 
     expect(
       screen.getByRole("button", { name: "Konto löschen", disabled: true }),
@@ -401,11 +400,11 @@ describe("Konto löschen", () => {
   });
 
   test("ein falsches Passwort steht am Feld, mit Fokus; das Feld behält den Text", async () => {
-    const { rerender } = await render(<Profil />);
+    const { rerender } = await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
     // Der Fehler kommt nach dem Absenden, nicht schon beim ersten Zeichnen
     loeschen.error = new ApiFehler(400, "PASSWORT_FALSCH", "x");
-    await rerender(<Profil />);
+    await rerender(baum());
 
     const text = screen.getByText("Das Passwort stimmt nicht.");
     expect(text).toBeOnTheScreen();
@@ -435,9 +434,9 @@ describe("Konto löschen", () => {
       "Das hat nicht geklappt. Bitte später nochmals versuchen.",
     ],
   ])("%s: Text über dem Knopf, mit Fokus", async (_, fehler, erwartet) => {
-    const { rerender } = await render(<Profil />);
+    const { rerender } = await zeige();
     loeschen.error = fehler;
-    await rerender(<Profil />);
+    await rerender(baum());
 
     const text = screen.getByText(erwartet);
     expect(text).toBeOnTheScreen();
