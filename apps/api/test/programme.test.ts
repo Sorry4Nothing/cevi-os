@@ -113,7 +113,7 @@ const MIT_ALLEN = Object.fromEntries(
 
 // true: mit Google-Beschreibung (Leitungssicht), false: ohne; fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
-  Exclude<Persona, "deaktiviert" | "ohneLogin">,
+  Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
   Partial<Record<Name, boolean>>
 > = {
   admin: MIT_ALLEN,
@@ -142,8 +142,6 @@ const SICHT: Record<
   },
   elternA: { "eltern-A": false, "eltern-AB": false },
   elternB: { "eltern-B": false, "eltern-AB": false },
-  // #15 sperrt das Konto später auf allen Routen; bis dahin wirkt die Persona wie elternA
-  mussPasswortAendern: { "eltern-A": false, "eltern-AB": false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };
@@ -161,6 +159,16 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         { headers },
       );
       expect(detail.status).toBe(401);
+      return;
+    }
+    // #15 sperrt das Konto bis zum Pflichtwechsel auf allen Routen ausser GET /api/v1/ich
+    if (persona === "mussPasswortAendern") {
+      expect(liste.status).toBe(403);
+      const detail = await app.request(
+        `/api/v1/programme/${programme.intern.id}`,
+        { headers },
+      );
+      expect(detail.status).toBe(403);
       return;
     }
     const sicht = SICHT[persona];
@@ -241,21 +249,55 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "infoEltern",
         "stufen",
         "googleBeschreibung",
+        "teilnahmeOffen",
+        "kinder",
       ].sort(),
     );
     expect(koerper.googleBeschreibung).toBeNull();
     // Der Google-Ort bleibt sichtbar: Die App zeigt ihn, solange kein Treffpunkt gesetzt ist
     expect(koerper.googleOrt).toBe("Google-Ort");
-    expect(koerper.stufen).toEqual([welt.stufeAId]);
+    expect(koerper.stufen).toEqual([{ id: welt.stufeAId, name: "Stufe A" }]);
   });
 
-  test("die Stufen eines Abteilungsanlasses kommen sortiert", async () => {
+  test("die Stufen eines Abteilungsanlasses kommen sortiert, mit Namen", async () => {
     const res = await app.request(
       `/api/v1/programme/${programme["eltern-AB"].id}`,
       { headers: konten.admin.headers },
     );
-    const koerper = (await res.json()) as { stufen: string[] };
-    expect(koerper.stufen).toEqual([welt.stufeAId, welt.stufeBId].sort());
+    const koerper = (await res.json()) as {
+      stufen: { id: string; name: string }[];
+    };
+    const namen: Record<string, string> = {
+      [welt.stufeAId]: "Stufe A",
+      [welt.stufeBId]: "Stufe B",
+    };
+    expect(koerper.stufen).toEqual(
+      [welt.stufeAId, welt.stufeBId].sort().map((id) => ({
+        id,
+        name: namen[id],
+      })),
+    );
+  });
+
+  test("der Name einer fremden Stufe erreicht keine andere Abteilung", async () => {
+    // Quer verknüpft wie nach einem Fehler: Die Antwort lässt die fremde Stufe trotzdem weg
+    const quer = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+      stufen: [welt.stufeAId, welt.demoStufeId],
+      titel: "quer",
+      // April: ausserhalb des Persona-Fensters und der Fenster-Tests
+      beginn: new Date(Date.UTC(2027, 3, 10, 8)),
+    });
+    const res = await app.request(`/api/v1/programme/${quer.id}`, {
+      headers: konten.elternA.headers,
+    });
+    expect(res.status).toBe(200);
+    const koerper = (await res.json()) as {
+      stufen: { id: string; name: string }[];
+    };
+    expect(koerper.stufen).toEqual([{ id: welt.stufeAId, name: "Stufe A" }]);
+    expect(JSON.stringify(koerper)).not.toContain("Demo-Stufe");
   });
 
   test("ein inaktives Kind gibt keine Elternsicht", async () => {

@@ -3,7 +3,18 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import { eq } from "drizzle-orm";
 import type { Db } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
-import { APP, cookiesAus, erstelleTestAuth, PASSWORT } from "./auth.js";
+import {
+  erzeugeStartpasswort,
+  normalisiereStartpasswort,
+  startpasswortFelder,
+} from "../../src/startpasswort.js";
+import {
+  APP,
+  cookiesAus,
+  erstelleTestAuth,
+  PASSWORT,
+  zufallsIp,
+} from "./auth.js";
 
 // Die 14 Personas der Rechte-Matrix, in der Reihenfolge des Matrix-Tests
 export const PERSONAS = [
@@ -108,8 +119,6 @@ export interface PersonaKonto {
   // Kopfzeilen wie vom Expo-Client: Herkunft im App-Schema und das gespeicherte Cookie
   headers: Record<string, string>;
 }
-
-const TAG = 86_400_000;
 
 interface Steckbrief {
   name: string;
@@ -218,7 +227,7 @@ export async function legePersonaAn(
       benutzername: null,
       passwort: null,
       abteilungId: null,
-      headers: { "expo-origin": APP },
+      headers: { "expo-origin": APP, "x-forwarded-for": zufallsIp() },
     };
   }
   const { db, auth } = welt;
@@ -227,23 +236,27 @@ export async function legePersonaAn(
     ? welt.demoAbteilungId
     : welt.testabteilungId;
   const benutzername = `${steckbrief.benutzername}.${randomUUID().slice(0, 8)}`;
+  // Gespeichert wird die normalisierte Form des Startpassworts; angemeldet und zurückgegeben wird die Anzeigeform
+  const startpasswort = steckbrief.mussPasswortAendern
+    ? erzeugeStartpasswort()
+    : null;
 
   // Ohne Header übergeht createUser die Rechteprüfung; so braucht die Fabrik keinen schon angemeldeten Admin
   const { user } = await auth.api.createUser({
     body: {
       email: `${randomUUID()}@example.org`,
-      password: PASSWORT,
+      password: startpasswort
+        ? normalisiereStartpasswort(startpasswort)
+        : PASSWORT,
       name: steckbrief.name,
       role: steckbrief.admin ? "admin" : "user",
       data: {
         username: benutzername,
         abteilungId,
         // Sonst gilt der Standardwert true, und ohne künftiges Ablaufdatum scheitert jede Anmeldung
-        mussPasswortAendern: steckbrief.mussPasswortAendern ?? false,
-        // Startpasswörter gelten 7 Tage
-        ...(steckbrief.mussPasswortAendern && {
-          startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
-        }),
+        mussPasswortAendern: false,
+        // Wie nach einem frisch gesetzten Startpasswort (#18): Flag an, 7 Tage gültig
+        ...(startpasswort && startpasswortFelder()),
       },
     },
   });
@@ -263,7 +276,7 @@ export async function legePersonaAn(
 
   // Über auth.api statt auth.handler: Herkunftsprüfung und Rate-Limit laufen nur in dessen Router, und das Budget teilten sich alle Testdateien eines Laufs
   const anmeldung = await auth.api.signInUsername({
-    body: { username: benutzername, password: PASSWORT },
+    body: { username: benutzername, password: startpasswort ?? PASSWORT },
     returnHeaders: true,
   });
   let cookie = cookiesAus(anmeldung);
@@ -282,8 +295,8 @@ export async function legePersonaAn(
   return {
     id: user.id,
     benutzername,
-    passwort: PASSWORT,
+    passwort: startpasswort ?? PASSWORT,
     abteilungId,
-    headers: { "expo-origin": APP, cookie },
+    headers: { "expo-origin": APP, "x-forwarded-for": zufallsIp(), cookie },
   };
 }

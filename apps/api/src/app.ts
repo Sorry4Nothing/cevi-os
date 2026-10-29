@@ -8,7 +8,13 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung } from "./rechte.js";
+import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
+import { erstellePersonenRouten } from "./routes/admin/personen.js";
+import { erstelleChatRouten } from "./routes/chats.js";
+import { erstelleHilfeRouten } from "./routes/hilfe.js";
+import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
+import { erstellePushTokenRouten } from "./routes/push-token.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -17,6 +23,7 @@ const FEHLER: Record<number, { code: string; message: string }> = {
   403: { code: "KEINE_BERECHTIGUNG", message: "Keine Berechtigung" },
   404: { code: "NICHT_GEFUNDEN", message: "Nicht gefunden" },
   413: { code: "ZU_GROSS", message: "Anfrage zu gross" },
+  429: { code: "ZU_VIELE_ANFRAGEN", message: "Zu viele Anfragen" },
   426: { code: "APP_VERALTET", message: "Bitte App aktualisieren" },
   500: { code: "INTERNER_FEHLER", message: "Interner Fehler" },
 };
@@ -71,7 +78,13 @@ export function erstelleApp({
       .route("/", erstelleAuthRouten(auth))
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
+      .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
+      .route("/api/v1/chats", erstelleChatRouten({ db }))
+      .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
+      .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
+      .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
+      .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
       .get("/health", async (c) => {
         try {
           // 30 Minuten fest: Der Sync läuft alle 5 Minuten, ein einzelner Fehlschlag löst noch keinen Alarm aus
