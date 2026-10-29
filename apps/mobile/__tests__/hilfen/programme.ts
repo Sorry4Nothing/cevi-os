@@ -101,6 +101,7 @@ export function programmDetail(
     ...programm({ id: aenderung.id, titel: aenderung.titel }),
     teilnahmeOffen: true,
     kinder: [],
+    eigeneAnmeldung: undefined,
     ...aenderung,
   };
 }

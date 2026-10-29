@@ -204,6 +204,25 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Admin und SL anderer Stufen sehen es, haben aber kein Recht
+  "PUT /api/v1/programme/:id/leitung": {
+    url: () => `/api/v1/programme/${leitungProgrammId}/leitung`,
+    body: () => ({ status: "ja" }),
+    erwartet: {
+      ...alle(204),
+      admin: 403,
+      adminOhneZweitenFaktor: 403,
+      slB: 403,
+      elternA: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
   "GET /api/v1/hilfe": {
     erwartet: {
@@ -384,6 +403,7 @@ const MATRIX: Record<string, Zeile> = {
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let programmId: string;
+let leitungProgrammId: string;
 let patchZielId: string;
 let startpasswortZielId: string;
 let deaktivierenZielId: string;
@@ -423,6 +443,14 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  leitungProgrammId = (
+    await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+      stufen: [welt.stufeAId],
+      beginn: new Date(Date.now() + 365 * 86_400_000),
+    })
+  ).id;
   [patchZielId, startpasswortZielId, deaktivierenZielId, aktivierenZielId] =
     await Promise.all([
       wegwerfPersonId(),
