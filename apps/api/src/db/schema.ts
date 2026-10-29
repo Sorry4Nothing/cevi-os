@@ -289,6 +289,29 @@ export const programmStufe = pgTable(
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
 
+// Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
+export const teilnahme = pgTable(
+  "teilnahme",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    kindId: uuid("kind_id")
+      .notNull()
+      .references(() => kind.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["ja", "nein"] }).notNull(),
+    geaendertVon: uuid("geaendert_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.programmId, t.kindId] }),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("teilnahme_status_check", sql`${t.status} in ('ja', 'nein')`),
+  ],
+);
+
 // Keine Zeile heisst «offen»; dass die Person Leitung einer Stufe des Programms ist, prüft die Route
 export const leitungAnmeldung = pgTable(
   "leitung_anmeldung",
@@ -390,27 +413,41 @@ export const blockierung = pgTable(
 );
 
 // text_kopie bleibt als Beleg, bis die Meldung erledigt ist; die Personen-Bezüge leeren per SET NULL
-export const meldung = pgTable("meldung", {
-  id: id(),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  nachrichtId: uuid("nachricht_id").references(() => nachricht.id, {
-    onDelete: "set null",
-  }),
-  textKopie: text("text_kopie"),
-  autorId: uuid("autor_id").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  gemeldetVon: uuid("gemeldet_von").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
-  erledigtVon: uuid("erledigt_von").references(() => user.id, {
-    onDelete: "set null",
-  }),
-  erledigtAm: zeitpunkt("erledigt_am"),
-});
+export const meldung = pgTable(
+  "meldung",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    nachrichtId: uuid("nachricht_id").references(() => nachricht.id, {
+      onDelete: "set null",
+    }),
+    textKopie: text("text_kopie"),
+    autorId: uuid("autor_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    gemeldetVon: uuid("gemeldet_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+    erledigtVon: uuid("erledigt_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erledigtAm: zeitpunkt("erledigt_am"),
+  },
+  (t) => [
+    // Dieselbe Person meldet dieselbe Nachricht nur einmal, solange die Meldung offen ist; NULL gilt im UNIQUE als verschieden, darum ein Teilindex
+    uniqueIndex("meldung_offen_pro_person")
+      .on(t.nachrichtId, t.gemeldetVon)
+      .where(sql`${t.erledigtAm} is null`),
+    // Die Kopie des Textes lebt höchstens bis zur Erledigung (Aufbewahrung); die Frist von 30 Tagen räumt meldung_textkopien_aufraeumen() ab
+    check(
+      "meldung_kopie_nur_offen",
+      sql`${t.erledigtAm} is null or ${t.textKopie} is null`,
+    ),
+  ],
+);
 
 // Ein Token pro Sitzung; endet die Sitzung (Abmelden, überall abmelden, Deaktivieren, Konto löschen, täglicher Job), nimmt CASCADE das Token mit
 export const pushToken = pgTable(

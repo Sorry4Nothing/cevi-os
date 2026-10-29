@@ -1,5 +1,5 @@
 {
-  "id": "958d1f52-5224-4197-a683-bc7b4180b00e",
+  "id": "6117ad49-5d0d-4b02-a91d-59f609481630",
   "prevId": "c854ad2b-5740-4e68-9f53-a0bda7a00ad1",
   "version": "7",
   "dialect": "postgresql",
@@ -661,77 +661,6 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.leitung_anmeldung": {
-      "name": "leitung_anmeldung",
-      "schema": "",
-      "columns": {
-        "programm_id": {
-          "name": "programm_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "leitung_anmeldung_programm_id_programm_id_fk": {
-          "name": "leitung_anmeldung_programm_id_programm_id_fk",
-          "tableFrom": "leitung_anmeldung",
-          "tableTo": "programm",
-          "columnsFrom": [
-            "programm_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "leitung_anmeldung_user_id_user_id_fk": {
-          "name": "leitung_anmeldung_user_id_user_id_fk",
-          "tableFrom": "leitung_anmeldung",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "leitung_anmeldung_programm_id_user_id_pk": {
-          "name": "leitung_anmeldung_programm_id_user_id_pk",
-          "columns": [
-            "programm_id",
-            "user_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "leitung_anmeldung_status_check": {
-          "name": "leitung_anmeldung_status_check",
-          "value": "\"leitung_anmeldung\".\"status\" in ('ja', 'nein')"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.meldung": {

@@ -8,10 +8,15 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
+import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
+import { erstelleMeldungenRouten } from "./routes/admin/meldungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
+import { erstelleChatRouten } from "./routes/chats.js";
+import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
+import { erstelleNachrichtenRouten } from "./routes/nachrichten.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 import { erstelleStufenRouten } from "./routes/stufen.js";
@@ -23,6 +28,7 @@ const FEHLER: Record<number, { code: string; message: string }> = {
   403: { code: "KEINE_BERECHTIGUNG", message: "Keine Berechtigung" },
   404: { code: "NICHT_GEFUNDEN", message: "Nicht gefunden" },
   413: { code: "ZU_GROSS", message: "Anfrage zu gross" },
+  429: { code: "ZU_VIELE_ANFRAGEN", message: "Zu viele Anfragen" },
   426: { code: "APP_VERALTET", message: "Bitte App aktualisieren" },
   500: { code: "INTERNER_FEHLER", message: "Interner Fehler" },
 };
@@ -80,6 +86,11 @@ export function erstelleApp({
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
+      .route("/api/v1/chats", erstelleChatRouten({ db }))
+      .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
+      .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
+      .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
+      .route("/api/v1/admin/meldungen", erstelleMeldungenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
