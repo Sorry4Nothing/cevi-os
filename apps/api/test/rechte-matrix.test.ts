@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
@@ -42,6 +43,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -765,6 +767,7 @@ describe("Vollständigkeit", () => {
       sql,
       db,
       auth,
+      expo: new Expo({ accessToken: "test-zugang" }),
       seiten: ladeSeiten(),
     }).get("/api/v1/ohne-eintrag", (c) => c.text("nie"));
     expect(ohneZeile(mitExtra)).toEqual(["GET /api/v1/ohne-eintrag"]);
