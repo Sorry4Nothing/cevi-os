@@ -4,6 +4,7 @@ import { Linking, Platform, StyleSheet, Text } from "react-native";
 
 import { queryClient, useOnline } from "../../../src/api/client";
 import { useProgramm, type Programm } from "../../../src/api/programme";
+import { LeitungAnmeldung } from "../../../src/programme/LeitungAnmeldung";
 import { schlussZeitText, zeitText } from "../../../src/programme/zeit";
 import { Badge } from "../../../src/ui/Badge";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
@@ -90,6 +91,14 @@ export default function ProgrammDetail() {
           <Feld label="Schluss" wert={schluss} />
           <Feld label="Mitnehmen" wert={detail.mitnehmen ?? ""} />
           <Feld label="Info" wert={detail.infoEltern ?? ""} />
+          {detail.eigeneAnmeldung ? (
+            <LeitungAnmeldung
+              programmId={detail.id}
+              titel={detail.titel}
+              wert={detail.eigeneAnmeldung}
+              online={online}
+            />
+          ) : null}
           {/* Der Server liefert sie nur mit Leitungssicht; die App entscheidet nie nach Rolle */}
           <Feld
             label="Interne Beschreibung"

@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type { InferResponseType } from "hono/client";
 
 import { tagInZuerich } from "../programme/zeit";
@@ -7,6 +7,12 @@ import { api, ApiFehler, queryClient } from "./client";
 export type Programm = InferResponseType<
   typeof api.api.v1.programme.$get
 >["programme"][number];
+
+// Mit eigeneAnmeldung nur für Leitende und SL der Stufen des Programms; für alle anderen fehlt der Schlüssel
+export type ProgrammDetail = InferResponseType<
+  (typeof api.api.v1.programme)[":id"]["$get"],
+  200
+>;
 
 // Das Sync-Fenster: heute bis heute + 400 Tage, in Schweizer Kalendertagen (die API verlangt beide)
 function fenster() {
@@ -33,7 +39,7 @@ export function useProgramm(id: string) {
   return useQuery({
     queryKey: ["programme", id],
     gcTime: Infinity,
-    queryFn: async (): Promise<Programm | null> => {
+    queryFn: async (): Promise<ProgrammDetail | null> => {
       try {
         const antwort = await api.api.v1.programme[":id"].$get({
           param: { id },
@@ -49,6 +55,25 @@ export function useProgramm(id: string) {
           return null;
         }
         throw fehler;
+      }
+    },
+  });
+}
+
+// networkMode always: Offline pausierte TanStack die Anfrage und schickte sie später, womöglich nach dem Programmbeginn
+export function useLeitungAnmelden(id: string) {
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (status: "ja" | "nein") =>
+      api.api.v1.programme[":id"].leitung.$put({
+        param: { id },
+        json: { status },
+      }),
+    // Das Detail kommt neu: bei 204 mit dem neuen Stand, bei 404 leert useProgramm die Daten
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programme"] }),
+    onError: (fehler) => {
+      if (fehler instanceof ApiFehler && fehler.status === 404) {
+        void queryClient.invalidateQueries({ queryKey: ["programme", id] });
       }
     },
   });
