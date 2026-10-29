@@ -204,6 +204,27 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
+  "GET /api/v1/hilfe": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
+  "PATCH /api/v1/admin/abteilung": {
+    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
   "GET /api/v1/admin/personen": {
     erwartet: {
