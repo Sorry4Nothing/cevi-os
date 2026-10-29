@@ -35,6 +35,14 @@ export default function Verwaltung() {
         titel="Personen"
         onPress={() => router.push("/verwaltung/personen")}
       />
+      <Listenzeile
+        titel="Kinder"
+        onPress={() => router.push("/verwaltung/kinder")}
+      />
+      <Listenzeile
+        titel="Stufen"
+        onPress={() => router.push("/verwaltung/stufen")}
+      />
     </Bildschirm>
   );
 }

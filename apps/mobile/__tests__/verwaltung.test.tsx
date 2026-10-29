@@ -50,6 +50,20 @@ beforeEach(() => {
   } as never);
 });
 
+test("die Zeilen «Kinder» und «Stufen» folgen auf «Personen» und öffnen ihre Listen", async () => {
+  await render(<Verwaltung />);
+
+  expect(
+    screen
+      .getAllByRole("button")
+      .map((knopf) => knopf.props.accessibilityLabel),
+  ).toEqual(["Personen", "Kinder", "Stufen"]);
+  await fireEvent.press(screen.getByRole("button", { name: "Kinder" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/verwaltung/kinder");
+  await fireEvent.press(screen.getByRole("button", { name: "Stufen" }));
+  expect(mockPush).toHaveBeenLastCalledWith("/verwaltung/stufen");
+});
+
 test("zeigt die Warnungen in einer Karte und die Zeile «Personen»", async () => {
   await render(<Verwaltung />);
 
