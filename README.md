@@ -9,7 +9,6 @@ Dieses Repo ist das Backend. Die Apps entstehen nativ in eigenen Repos: [cevi-os
 Ein Monorepo mit npm workspaces:
 
 - `apps/api`: das Backend, eine API mit Hono auf Node
-- `apps/mobile`: die bisherige App mit Expo und expo-router. Sie wird durch die nativen Apps ersetzt und bleibt bis dahin als Referenz für Verhalten und Texte. Die Anleitung unten zum Starten der App gilt nur für sie.
 - `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
@@ -26,16 +25,6 @@ Voraussetzungen: Node 26 wie in der CI und Docker mit Compose.
 5. Das erste Admin-Konto anlegen (die API muss dafür nicht laufen): `npm run admin:anlegen -w apps/api -- --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Der Befehl legt die Abteilung an und zeigt das Startpasswort genau einmal; mit ihm erfolgt die erste Anmeldung in der App (#16).
 6. Die API starten: `npm run dev -w apps/api`. Das Skript startet sie mit tsx im Watch-Modus: Sie liest `apps/api/.env` und startet bei Änderungen am Code neu. Ihren Start meldet sie nicht, danach steht pro Anfrage eine JSON-Zeile im Terminal.
 7. `http://localhost:3000/health` im Browser öffnen. `ok` heisst: API und Datenbank laufen. `fehler` (Status 503) heisst: Die Datenbank ist nicht erreichbar oder ihre Tabellen fehlen, oder bei einer Abteilung mit Kalender liegt der letzte erfolgreiche Sync mehr als 30 Minuten zurück; den Grund nennt das Log der API. Der Port kommt aus `PORT` in `apps/api/.env`, in der Vorlage 3000.
-8. Falls noch kein Dev-Build der App installiert ist, in `apps/mobile` bei Expo anmelden, mit einem Konto, das Zugriff auf das EAS-Projekt der App hat: `npx eas-cli login`
-9. Falls noch kein Dev-Build der App installiert ist, ihn in `apps/mobile` bei EAS bauen lassen, mit dem Profil `development` aus `apps/mobile/eas.json`: `npx eas-cli build --profile development --platform android`. Auf ein Gerät kommt er über den QR-Code oder den Link, den eas-cli am Ende ausgibt; auf einem Emulator bietet eas-cli die Installation selbst an.
-10. `apps/mobile/.env.example` nach `apps/mobile/.env` kopieren und `EXPO_PUBLIC_API_URL` setzen: die LAN-Adresse dieses Rechners mit dem Port aus `apps/api/.env`, zum Beispiel `http://<LAN-Adresse>:3000`. Die App auf dem Gerät erreicht die API über das Netz; `localhost` zeigt dort auf das Gerät selbst.
-11. In `apps/mobile` den Entwicklungsserver starten: `npx expo start`. Er bedient von selbst den Dev-Build und nicht Expo Go, weil `expo-dev-client` direkt in `apps/mobile/package.json` steht. Gerät und Rechner müssen im selben Netz sein. Dann den QR-Code aus dem Terminal scannen oder im Dev-Build den Server wählen.
-
-Einen neuen Dev-Build braucht es nur nach einem neuen oder aktualisierten Paket mit nativem Code, nach einer Änderung an `apps/mobile/app.json` oder nach einem Update des Expo-SDK. Auf einem Emulator installiert `npx eas-cli build:run -p android` einen fertigen Build später noch einmal.
-
-EAS baut nur, was committet ist (`requireCommit` in `apps/mobile/eas.json`). Darum vor dem Build alles committen. Fragt eas-cli trotzdem «Commit changes to git?», mit `n` antworten: eas-cli bricht ab, danach von Hand committen und den Build neu starten. Mit `y` oder Enter führt eas-cli `git add -A` aus und committet jede nicht ignorierte Datei im ganzen Repo, ohne sie vorher zu zeigen.
-
-Der Dev-Build für das iPhone folgt mit #6.
 
 ## Prüfen
 
@@ -52,17 +41,8 @@ npm test -w apps/api
 npm audit --omit=dev --audit-level=high -w apps/api
 ```
 
-App, wie der Job «App (Typen, Lint, Tests)»:
-
-```sh
-npm run typecheck -w apps/mobile
-npm run lint -w apps/mobile
-npx prettier --check apps/mobile
-npm test -w apps/mobile
-```
-
 - Die Tests der API brauchen die Datenbank aus `docker compose up -d db` mit den Rollen aus `apps/api/src/db/rollen.sql`; auf einem neuen Volume legt Compose sie selbst an. Jeder Lauf von `npm test -w apps/api` baut die Testdatenbank `cevi_os_test` frisch aus den Migrationen auf und lässt `cevi_os` unberührt; ein zweiter Lauf, der währenddessen startet, wartet auf den ersten. Die Tests lesen weder `DATABASE_URL` noch `apps/api/.env`.
-- Der Audit der API macht die CI bei Funden ab `high` rot. Für die App läuft er in der CI nur als Hinweis.
+- Der Audit der API macht die CI bei Funden ab `high` rot.
 - `npm run format` formatiert nur `apps/`. Dateien ausserhalb, etwa die Doku, prüft `npx prettier --check <Pfad>`; die CI prüft sie nicht.
 
 ## Mitwirken
