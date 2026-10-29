@@ -36,6 +36,7 @@ services:
     environment:
       DATABASE_URL: postgres://cevi_os_api:${API_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
       APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
+      EXPO_ACCESS_TOKEN: ${EXPO_ACCESS_TOKEN:?fehlt in deploy/.env}
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:
