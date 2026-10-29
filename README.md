@@ -2,12 +2,14 @@
 
 App für eine Cevi-Abteilung: Programme aus dem Google-Kalender, Ja/Nein-Anmeldung und Chat zwischen Eltern und Stufenleitung (iOS und Android).
 
+Dieses Repo ist das Backend. Die Apps entstehen nativ in eigenen Repos: [cevi-os-ios](https://github.com/Sorry4Nothing/cevi-os-ios) mit SwiftUI und [cevi-os-android](https://github.com/Sorry4Nothing/cevi-os-android) mit Jetpack Compose. Push-Nachrichten laufen über Firebase Cloud Messaging (FCM).
+
 ## Aufbau
 
 Ein Monorepo mit npm workspaces:
 
 - `apps/api`: das Backend, eine API mit Hono auf Node
-- `apps/mobile`: die App für iOS und Android, mit Expo und expo-router
+- `apps/mobile`: die bisherige App mit Expo und expo-router. Sie wird durch die nativen Apps ersetzt und bleibt bis dahin als Referenz für Verhalten und Texte. Die Anleitung unten zum Starten der App gilt nur für sie.
 - `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
