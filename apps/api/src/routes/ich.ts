@@ -1,5 +1,5 @@
 import { isAPIError } from "better-auth/api";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -21,6 +21,8 @@ import {
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
 
+// Länger als eine scrypt-Prüfung; läuft nur ab, wenn der Prozess dazwischen stirbt
+const PRUEFDAUER_MS = 10_000;
 // 128 wie das Standard-Maximum von better-auth; die Länge ist keine Regel, sondern nur die Grenze der Eingabe
 const loeschenSchema = z.strictObject({ passwort: z.string().min(1).max(128) });
 
@@ -122,17 +124,24 @@ export function erstelleIchRouten({
       .delete("/", eingabe("json", loeschenSchema), async (c) => {
         const person = c.get("person");
         const { passwort } = c.req.valid("json");
-        const [bremse] = await db
-          .select({ naechsterVersuchAb: user.naechsterVersuchAb })
-          .from(user)
-          .where(eq(user.id, person.id));
-        // Wartezeit ohne Prüfung und ohne Zählen, wie bei der Anmeldung
-        if (
-          bremse?.naechsterVersuchAb &&
-          bremse.naechsterVersuchAb > new Date()
-        ) {
-          return c.json(ZU_VIELE_ANFRAGEN, 429);
-        }
+        // Ein Versuch zur Zeit: Wer die Wartezeit frei findet, setzt sie für die Dauer der Prüfung selbst (bedingtes UPDATE, atomar); parallele Versuche bekommen 429
+        const [reserviert] = await db
+          .update(user)
+          .set({ naechsterVersuchAb: new Date(Date.now() + PRUEFDAUER_MS) })
+          .where(
+            and(
+              eq(user.id, person.id),
+              or(
+                isNull(user.naechsterVersuchAb),
+                lte(user.naechsterVersuchAb, new Date()),
+              ),
+            ),
+          )
+          .returning({ id: user.id });
+        if (!reserviert) return c.json(ZU_VIELE_ANFRAGEN, 429);
+        // Nach der Prüfung gilt die Wartezeit des Zählers oder keine; ein richtiges Passwort lässt den Zähler unberührt
+        let naechsterVersuchAb: Date | null = null;
+        let falsch = false;
         try {
           // Läuft vor der Transaktion: scrypt hält keine Sperre; disableRefresh, damit /api/v1 keine Sitzung verlängert
           await auth.api.verifyPassword({
@@ -144,6 +153,7 @@ export function erstelleIchRouten({
           if (!isAPIError(fehler) || fehler.body?.code !== "INVALID_PASSWORD") {
             throw fehler;
           }
+          falsch = true;
           const [erhoeht] = await db
             .update(user)
             .set({ fehlversuche: sql`${user.fehlversuche} + 1` })
@@ -151,13 +161,15 @@ export function erstelleIchRouten({
             .returning({ fehlversuche: user.fehlversuche });
           const minuten = wartezeitMinuten(erhoeht?.fehlversuche ?? 0);
           if (minuten > 0) {
-            await db
-              .update(user)
-              .set({
-                naechsterVersuchAb: new Date(Date.now() + minuten * 60_000),
-              })
-              .where(eq(user.id, person.id));
+            naechsterVersuchAb = new Date(Date.now() + minuten * 60_000);
           }
+        } finally {
+          await db
+            .update(user)
+            .set({ naechsterVersuchAb })
+            .where(eq(user.id, person.id));
+        }
+        if (falsch) {
           return c.json(
             {
               code: "PASSWORT_FALSCH",

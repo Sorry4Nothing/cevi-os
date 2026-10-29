@@ -31,6 +31,9 @@ const ueberall = jest.mocked(authClient.revokeSessions);
 
 const loeschen = {
   mutate: jest.fn(),
+  reset: jest.fn(() => {
+    loeschen.error = null;
+  }),
   isPending: false,
   error: null as unknown,
 };
@@ -218,6 +221,44 @@ describe("Konto löschen", () => {
     const text = screen.getByText("Bitte das Passwort eingeben.");
     expect(text).toBeOnTheScreen();
     expect(fokusProps().children).toBe(text.props.children);
+  });
+
+  test("alter Fehler und leeres Feld: genau eine Meldung, die am Feld", async () => {
+    dialog();
+    loeschen.error = new ApiFehler(429, "ZU_VIELE_ANFRAGEN", "x");
+    await render(<Profil />);
+    expect(
+      screen.getByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
+    ).toBeOnTheScreen();
+
+    await fireEvent.press(knopf());
+
+    expect(loeschen.reset).toHaveBeenCalled();
+    expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
+    expect(
+      screen.queryByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
+    ).toBeNull();
+  });
+
+  test("die Meldung am leeren Feld geht beim Tippen weg", async () => {
+    await render(<Profil />);
+    await fireEvent.press(knopf());
+    expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText("Passwort"), "g");
+
+    expect(screen.queryByText("Bitte das Passwort eingeben.")).toBeNull();
+  });
+
+  test("zweiter Druck bei leerem Feld nimmt den Fokus erneut", async () => {
+    await render(<Profil />);
+    await fireEvent.press(knopf());
+    jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear();
+
+    await fireEvent.press(knopf());
+
+    expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1);
+    expect(fokusProps().children).toBe("Bitte das Passwort eingeben.");
   });
 
   test("mit Passwort fragt ein Dialog nach; «Abbrechen» schickt nichts und setzt den Fokus auf den Knopf", async () => {

@@ -22,7 +22,8 @@ export default function Profil() {
   const [fehler, setFehler] = useState<string>();
   const loeschen = useKontoLoeschen();
   const [loeschPasswort, setLoeschPasswort] = useState("");
-  const [passwortLeer, setPasswortLeer] = useState(false);
+  // Zählt die Drücke ohne Passwort: Ein neuer Schlüssel zeigt die gleiche Meldung neu und nimmt den Fokus wieder
+  const [leerDruecke, setLeerDruecke] = useState(0);
   const loeschKnopf = useRef<HostInstance>(null);
 
   async function abmeldenGedrueckt() {
@@ -54,8 +55,13 @@ export default function Profil() {
   }
 
   function loeschenGedrueckt() {
-    setPasswortLeer(!loeschPasswort);
-    if (!loeschPasswort) return;
+    // Ein Fehler aufs Mal: Der Fehler des letzten Versuchs geht, bevor ein neuer erscheint
+    loeschen.reset();
+    if (!loeschPasswort) {
+      setLeerDruecke((n) => n + 1);
+      return;
+    }
+    setLeerDruecke(0);
     Alert.alert(
       "Konto löschen?",
       "Das Konto wird mit allen Rollen und Zuordnungen zu Kindern gelöscht. Das lässt sich nicht rückgängig machen.",
@@ -165,11 +171,15 @@ export default function Profil() {
       <Passwortfeld
         label="Passwort"
         value={loeschPasswort}
-        onChangeText={setLoeschPasswort}
+        onChangeText={(text) => {
+          setLoeschPasswort(text);
+          setLeerDruecke(0);
+        }}
         autoComplete="current-password"
         textContentType="password"
+        fehlerSchluessel={leerDruecke}
         fehler={
-          passwortLeer
+          leerDruecke > 0
             ? "Bitte das Passwort eingeben."
             : passwortFalsch
               ? fehlertext(loeschFehler)
