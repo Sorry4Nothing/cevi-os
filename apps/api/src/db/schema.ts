@@ -289,6 +289,29 @@ export const programmStufe = pgTable(
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
 
+// Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
+export const teilnahme = pgTable(
+  "teilnahme",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    kindId: uuid("kind_id")
+      .notNull()
+      .references(() => kind.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["ja", "nein"] }).notNull(),
+    geaendertVon: uuid("geaendert_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.programmId, t.kindId] }),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("teilnahme_status_check", sql`${t.status} in ('ja', 'nein')`),
+  ],
+);
+
 // Mitgliedschaften stehen in keiner Tabelle; rechte.ts leitet sie aus Rollen und Kindern ab
 export const chat = pgTable(
   "chat",

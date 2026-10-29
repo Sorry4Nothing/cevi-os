@@ -1,12 +1,21 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { auditLog, programm, programmStufe, stufe } from "../db/schema.js";
+import {
+  auditLog,
+  kind,
+  kindEltern,
+  programm,
+  programmStufe,
+  stufe,
+  teilnahme,
+} from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import {
   darfZuordnen,
+  hatRolle,
   programmLeitungssicht,
   programmSichtbar,
   type Person,
@@ -16,6 +25,10 @@ import {
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
 const fensterSchema = z.strictObject({ von: tag, bis: tag });
 const pfadSchema = z.strictObject({ id: z.uuid() });
+const teilnahmePfad = z.strictObject({ id: z.uuid(), kindId: z.uuid() });
+const teilnahmeSchema = z.strictObject({ status: z.enum(["ja", "nein"]) });
+// Beginn in Schweizer Zeit: Ein ganztägiges Programm beginnt um Mitternacht seines ersten Tages
+const BEGINN = sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`;
 // Kleingeschrieben, weil die Route die IDs mit denen aus PostgreSQL vergleicht
 const zuordnungSchema = z.strictObject({
   stufen: z
@@ -55,6 +68,21 @@ function programmFelder(person: Person) {
 }
 
 export function erstelleProgrammRouten({ db }: { db: Db }) {
+  // Aktiv und noch nicht begonnen: nur dann lässt sich die Teilnahme melden und ändern
+  async function teilnahmeOffen(programmId: string) {
+    const [zeile] = await db
+      .select({ id: programm.id })
+      .from(programm)
+      .where(
+        and(
+          eq(programm.id, programmId),
+          eq(programm.status, "aktiv"),
+          sql`${BEGINN} > now()`,
+        ),
+      );
+    return !!zeile;
+  }
+
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", eingabe("query", fensterSchema), async (c) => {
       const person = c.get("person");
@@ -84,8 +112,112 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         .from(programm)
         .where(and(eq(programm.id, id), programmSichtbar(person)));
       if (!zeile) throw new HTTPException(404);
-      return c.json(zeile);
+      // Nur die eigenen Kinder in einer zugeordneten Stufe; Leitende korrigieren per PUT, ihre Übersicht folgt mit #38
+      const kinder = await db
+        .select({
+          id: kind.id,
+          vorname: kind.vorname,
+          status: teilnahme.status,
+        })
+        .from(kind)
+        .innerJoin(
+          kindEltern,
+          and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+        )
+        .innerJoin(
+          programmStufe,
+          and(
+            eq(programmStufe.stufeId, kind.stufeId),
+            eq(programmStufe.programmId, id),
+          ),
+        )
+        .leftJoin(
+          teilnahme,
+          and(eq(teilnahme.kindId, kind.id), eq(teilnahme.programmId, id)),
+        )
+        .where(
+          and(
+            eq(kind.abteilungId, person.abteilungId),
+            isNull(kind.inaktivSeit),
+          ),
+        )
+        .orderBy(kind.vorname, kind.id);
+      return c.json({
+        ...zeile,
+        teilnahmeOffen: await teilnahmeOffen(id),
+        kinder,
+      });
     })
+    .put(
+      "/:id/teilnahmen/:kindId",
+      eingabe("param", teilnahmePfad),
+      eingabe("json", teilnahmeSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id, kindId } = c.req.valid("param");
+        const { status } = c.req.valid("json");
+        // Fremde wie unbekannte Programme und Kinder sind 404, erst danach zählt das Recht
+        const [zeile] = await db
+          .select({ id: programm.id })
+          .from(programm)
+          .where(and(eq(programm.id, id), programmSichtbar(person)));
+        const [ziel] = await db
+          .select({ stufeId: kind.stufeId, inaktivSeit: kind.inaktivSeit })
+          .from(kind)
+          .where(
+            and(eq(kind.id, kindId), eq(kind.abteilungId, person.abteilungId)),
+          );
+        if (!zeile || !ziel) throw new HTTPException(404);
+        const [eigenes] = await db
+          .select({ eins: sql`1` })
+          .from(kindEltern)
+          .where(
+            and(
+              eq(kindEltern.kindId, kindId),
+              eq(kindEltern.userId, person.id),
+            ),
+          );
+        const zustaendig =
+          person.admin ||
+          hatRolle(person, ziel.stufeId, "leitung") ||
+          !!eigenes;
+        const [zugeordnet] = await db
+          .select({ eins: sql`1` })
+          .from(programmStufe)
+          .where(
+            and(
+              eq(programmStufe.programmId, id),
+              eq(programmStufe.stufeId, ziel.stufeId),
+            ),
+          );
+        if (!zustaendig || !zugeordnet || ziel.inaktivSeit) {
+          throw new HTTPException(403);
+        }
+        if (!(await teilnahmeOffen(id))) {
+          return c.json(
+            {
+              code: "PROGRAMM_GESCHLOSSEN",
+              message:
+                "Das Programm ist abgesagt oder hat schon begonnen. Die Teilnahme lässt sich nicht mehr ändern.",
+            },
+            409,
+          );
+        }
+        await db
+          .insert(teilnahme)
+          .values({
+            programmId: id,
+            kindId,
+            status,
+            geaendertVon: person.id,
+          })
+          .onConflictDoUpdate({
+            target: [teilnahme.programmId, teilnahme.kindId],
+            set: { status, geaendertVon: person.id, geaendertAm: sql`now()` },
+          });
+        return c.body(null, 204);
+      },
+    )
     .put(
       "/:id/zuordnung",
       eingabe("param", pfadSchema),

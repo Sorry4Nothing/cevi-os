@@ -43,6 +43,13 @@
       "when": 1793073535480,
       "tag": "0005_audit_aufraeumen",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793285374012,
+      "tag": "0006_teilnahme",
+      "breakpoints": true
     }
   ]
 }

@@ -187,6 +187,23 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "PUT /api/v1/programme/:id/teilnahmen/:kindId": {
+    url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
+    // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
+    body: () => ({ status: "ja" }),
+    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    erwartet: {
+      ...alle(204),
+      slB: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Verwaltung (#18): nur Admins; adminOhneZweitenFaktor sperrt erst #23. Status in test/admin-personen.test.ts begründet
   "GET /api/v1/admin/personen": {
     erwartet: {
