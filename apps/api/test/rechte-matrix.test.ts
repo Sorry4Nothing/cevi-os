@@ -144,6 +144,17 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  "PATCH /api/v1/ich": {
+    // Schreibt push_chat, darum eigene Personas; die Felder prüft test/ich.test.ts
+    frischePersonas: true,
+    body: () => ({ pushChat: false }),
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "DELETE /api/v1/ich": {
     // Löscht das Konto, darum eigene Personas; mit den geteilten hat die Testabteilung vier Admins und die Demo-Abteilung zwei, also darf jeder Admin (Status 409 für den letzten: test/konto-loeschen.test.ts). Nicht beim Pflichtwechsel: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
     frischePersonas: true,
