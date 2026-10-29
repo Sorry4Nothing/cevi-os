@@ -7,6 +7,7 @@ import {
   auditLog,
   kind,
   kindEltern,
+  leitungAnmeldung,
   programm,
   programmStufe,
   stufe,
@@ -14,8 +15,10 @@ import {
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import {
+  darfLeitungAnmelden,
   darfZuordnen,
   hatRolle,
+  programmBeginn,
   programmLeitungssicht,
   programmSichtbar,
   type Person,
@@ -25,6 +28,7 @@ import {
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
 const fensterSchema = z.strictObject({ von: tag, bis: tag });
 const pfadSchema = z.strictObject({ id: z.uuid() });
+const leitungSchema = z.strictObject({ status: z.enum(["ja", "nein"]) });
 const teilnahmePfad = z.strictObject({ id: z.uuid(), kindId: z.uuid() });
 const teilnahmeSchema = z.strictObject({ status: z.enum(["ja", "nein"]) });
 // Beginn in Schweizer Zeit: Ein ganztägiges Programm beginnt um Mitternacht seines ersten Tages
@@ -112,6 +116,25 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         .from(programm)
         .where(and(eq(programm.id, id), programmSichtbar(person)));
       if (!zeile) throw new HTTPException(404);
+      // Nur wer sich anmelden dürfte, bekommt den Schlüssel; undefined fällt aus dem JSON, für alle anderen fehlt er
+      let eigeneAnmeldung: "ja" | "nein" | "offen" | undefined;
+      if (
+        darfLeitungAnmelden(
+          person,
+          zeile.stufen.map((s) => s.id),
+        )
+      ) {
+        const [anmeldung] = await db
+          .select({ status: leitungAnmeldung.status })
+          .from(leitungAnmeldung)
+          .where(
+            and(
+              eq(leitungAnmeldung.programmId, id),
+              eq(leitungAnmeldung.userId, person.id),
+            ),
+          );
+        eigeneAnmeldung = anmeldung?.status ?? "offen";
+      }
       // Nur die eigenen Kinder in einer zugeordneten Stufe; Leitende korrigieren per PUT, ihre Übersicht folgt mit #38
       const kinder = await db
         .select({
@@ -146,8 +169,51 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         ...zeile,
         teilnahmeOffen: await teilnahmeOffen(id),
         kinder,
+        eigeneAnmeldung,
       });
     })
+    .put(
+      "/:id/leitung",
+      eingabe("param", pfadSchema),
+      eingabe("json", leitungSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        const { status } = c.req.valid("json");
+        // Die Uhr der Datenbank entscheidet, nicht JavaScript
+        const [zeile] = await db
+          .select({
+            begonnen: sql<boolean>`${programmBeginn} <= now()`,
+            stufen: sql<
+              string[]
+            >`coalesce((select array_agg(programm_stufe.stufe_id) from programm_stufe where programm_stufe.programm_id = programm.id), '{}')`,
+          })
+          .from(programm)
+          .where(and(eq(programm.id, id), programmSichtbar(person)));
+        if (!zeile) throw new HTTPException(404);
+        if (!darfLeitungAnmelden(person, zeile.stufen)) {
+          throw new HTTPException(403);
+        }
+        // Eigener Code per c.json: onError machte aus einem unbekannten HTTPException-Status den allgemeinen Text
+        if (zeile.begonnen) {
+          return c.json(
+            {
+              code: "PROGRAMM_BEGONNEN",
+              message: "Das Programm hat schon begonnen.",
+            },
+            409,
+          );
+        }
+        await db
+          .insert(leitungAnmeldung)
+          .values({ programmId: id, userId: person.id, status })
+          .onConflictDoUpdate({
+            target: [leitungAnmeldung.programmId, leitungAnmeldung.userId],
+            set: { status },
+          });
+        return c.body(null, 204);
+      },
+    )
     .put(
       "/:id/teilnahmen/:kindId",
       eingabe("param", teilnahmePfad),
