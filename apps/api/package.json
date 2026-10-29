@@ -9,6 +9,8 @@
   },
   "scripts": {
     "dev": "tsx watch --env-file-if-exists=.env src/server.ts",
+    "db:generieren": "drizzle-kit generate",
+    "db:migrieren": "tsx --env-file-if-exists=.env src/db/migrieren.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
@@ -16,6 +18,7 @@
   "devDependencies": {
     "@eslint/js": "^9.39.5",
     "@types/node": "^26.6.5",
+    "drizzle-kit": "^0.31.11",
     "tsx": "^4.23.15",
     "typescript-eslint": "^8.72.0",
     "vitest": "^5.0.5"
@@ -23,6 +26,7 @@
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "better-auth": "1.7.12",
+    "drizzle-orm": "^0.45.4",
     "hono": "4.13.14",
     "postgres": "^3.4.9",
     "zod": "^4.6.7"
