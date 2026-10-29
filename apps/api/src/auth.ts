@@ -42,6 +42,18 @@ type Bremsfelder = {
   naechsterVersuchAb?: Date | string | null;
 };
 
+// Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre; gemeinsam für die Anmeldung und das Löschen des Kontos (#21)
+export function wartezeitMinuten(fehlversuche: number) {
+  if (fehlversuche < 5) return 0;
+  return fehlversuche === 5 ? 1 : fehlversuche === 6 ? 5 : 15;
+}
+
+// Eine Stelle für den Text, den die App kennt: Die Anmeldung und das Löschen des Kontos antworten damit
+export const ZU_VIELE_ANFRAGEN = {
+  code: "ZU_VIELE_ANFRAGEN",
+  message: "Zu viele Anfragen. Bitte später nochmals versuchen.",
+} as const;
+
 // shortcut: better-auth verlangt eine eindeutige E-Mail-Adresse; .invalid ist nie zustellbar (RFC 2606). Ersetzen, sobald better-auth Konten ohne E-Mail-Adresse erlaubt
 export function platzhalterEmail() {
   return `${crypto.randomUUID()}@benutzer.invalid`;
@@ -278,10 +290,8 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
             where: [{ field: "id", value: person.id }],
             increment: { fehlversuche: 1 },
           });
-          const n = erhoeht?.fehlversuche ?? 0;
-          // Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre
-          if (n >= 5) {
-            const minuten = n === 5 ? 1 : n === 6 ? 5 : 15;
+          const minuten = wartezeitMinuten(erhoeht?.fehlversuche ?? 0);
+          if (minuten > 0) {
             await adapter.update({
               model: "user",
               where: [{ field: "id", value: person.id }],
@@ -400,14 +410,9 @@ export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
       const antwort = await auth.handler(mitExpoOrigin(c.req.raw));
       // better-auth antwortet auf 429 nur mit einer englischen message; X-Retry-After bleibt
       if (antwort.status === 429) {
-        return c.json(
-          {
-            code: "ZU_VIELE_ANFRAGEN",
-            message: "Zu viele Anfragen. Bitte später nochmals versuchen.",
-          },
-          429,
-          { "X-Retry-After": antwort.headers.get("X-Retry-After") ?? "" },
-        );
+        return c.json(ZU_VIELE_ANFRAGEN, 429, {
+          "X-Retry-After": antwort.headers.get("X-Retry-After") ?? "",
+        });
       }
       // Jeder Fehler bei der Anmeldung zeigt dieselbe Meldung: falsches Passwort, Wartezeit, abgelaufenes Startpasswort, deaktiviert, ungültiger Name
       if (anmeldung && antwort.status >= 400 && antwort.status < 500) {
