@@ -5,12 +5,15 @@ import { StyleSheet, Text, View } from "react-native";
 
 import {
   useChats,
+  useEinzelchatBeginnen,
   useNachrichten,
   useNachrichtSenden,
   type Nachricht,
 } from "../../../src/api/chats";
 import { ApiFehler, useOnline } from "../../../src/api/client";
 import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
+import { useIch } from "../../../src/api/ich";
+import { EINZELCHAT_HINWEIS, liestText } from "../../../src/chat/liest";
 import { nachrichtZeitText } from "../../../src/programme/zeit";
 import { Ansage } from "../../../src/ui/Ansage";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
@@ -24,21 +27,70 @@ const MAX_ZEICHEN = 2000;
 const OFFLINE_SENDEN =
   "Keine Internetverbindung. Senden geht erst wieder mit Internet. Deine Nachricht bleibt stehen.";
 
-export default function Gruppenchat() {
+const OFFLINE_BEGINNEN =
+  "Keine Internetverbindung. Der Einzelchat lässt sich erst wieder mit Internet öffnen.";
+
+export default function Chat() {
   const farben = useFarben();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const online = useOnline();
   const offen = useIsFocused();
   const chats = useChats();
+  const ich = useIch();
   const nachrichten = useNachrichten(id, offen);
   const senden = useNachrichtSenden(id);
+  const beginnen = useEinzelchatBeginnen();
+  const [beginnenFehler, setBeginnenFehler] = useState<string>();
   const [entwurf, setEntwurf] = useState("");
   const [sendeFehler, setSendeFehler] = useState<string>();
   const [ansage, setAnsage] = useState<{ text: string; nr: number }>();
 
   const chat = chats.data?.find((c) => c.id === id);
-  const titel = chat ? `Gruppenchat ${chat.stufe.name}` : "Gruppenchat";
+  const einzel = chat?.typ === "direkt";
+  const leitung = chat?.stufenleitung ?? [];
+  // Wer nicht zur Stufenleitung gehört, ist hier Elternteil; ohne das eigene Profil bleibt beides offen
+  const ichId = ich.data?.id;
+  const istSl = leitung.some((l) => l.id === ichId);
+  const titel = !chat
+    ? "Chat"
+    : !einzel
+      ? `Gruppenchat ${chat.stufe.name}`
+      : istSl
+        ? `Einzelchat mit ${chat.eltern?.name ?? "Elternteil"}`
+        : `Einzelchat mit der Stufenleitung ${chat.stufe.name}`;
+  // shortcut: nur Eltern, die in den geladenen Nachrichten schreiben; eine Liste aller Eltern der Stufe braucht eine eigene Route, sobald die SL stille Familien erreichen müssen
+  const eltern = istSl
+    ? [
+        ...new Map(
+          (nachrichten.data?.pages ?? [])
+            .flatMap((s) => s.nachrichten)
+            .filter(
+              (n) => !n.eigene && !leitung.some((l) => l.id === n.autor.id),
+            )
+            .map((n) => [n.autor.id, n.autor.name] as const),
+        ),
+      ]
+    : [];
+
+  function einzelchatOeffnen(elternUserId?: string) {
+    if (!chat) return;
+    setBeginnenFehler(undefined);
+    if (!online) {
+      setBeginnenFehler(OFFLINE_BEGINNEN);
+      return;
+    }
+    beginnen.mutate(
+      { stufeId: chat.stufe.id, ...(elternUserId && { elternUserId }) },
+      {
+        onSuccess: (neueId) => router.push(`/chat/${neueId}`),
+        onError: (fehler) =>
+          setBeginnenFehler(
+            fehler instanceof ApiFehler ? fehlertext(fehler) : KEIN_NETZ,
+          ),
+      },
+    );
+  }
   // Die Seiten kommen neueste zuerst, jede Seite ebenso; gelesen wird von alt nach neu
   const alle = useMemo(
     () =>
@@ -138,6 +190,70 @@ export default function Gruppenchat() {
         ) : undefined
       }
     >
+      {einzel ? (
+        // Wer mitliest, steht über dem Verlauf: Es gibt keinen Kanal zu einer einzelnen Person
+        <View style={styles.abschnitt}>
+          <Text style={[styles.kopf, { color: farben.text }]}>
+            {liestText(leitung.length)}
+          </Text>
+          {leitung.length > 0 ? (
+            <Text style={[styles.text, { color: farben.text }]}>
+              {leitung.map((l) => l.name).join(", ")}
+            </Text>
+          ) : null}
+          <Text style={[styles.text, { color: farben.textLeise }]}>
+            {EINZELCHAT_HINWEIS}
+          </Text>
+        </View>
+      ) : chat && ichId ? (
+        <View style={styles.abschnitt}>
+          <Text
+            accessibilityRole="header"
+            style={[styles.kopf, { color: farben.text }]}
+          >
+            Stufenleitung
+          </Text>
+          {leitung.length === 0 ? (
+            <Text style={[styles.text, { color: farben.text }]}>
+              Zurzeit niemand.
+            </Text>
+          ) : (
+            leitung.map((l) => (
+              <Text key={l.id} style={[styles.text, { color: farben.text }]}>
+                {l.name}
+              </Text>
+            ))
+          )}
+          <Fehlermeldung text={beginnenFehler} />
+          {istSl ? (
+            eltern.length > 0 ? (
+              <>
+                <Text
+                  accessibilityRole="header"
+                  style={[styles.kopf, { color: farben.text }]}
+                >
+                  Einzelchat mit Eltern
+                </Text>
+                {eltern.map(([elternId, name]) => (
+                  <Listenzeile
+                    key={elternId}
+                    titel={`Einzelchat mit ${name}`}
+                    hinweis="Öffnet den Einzelchat, die ganze Stufenleitung liest mit"
+                    onPress={() => einzelchatOeffnen(elternId)}
+                  />
+                ))}
+              </>
+            ) : null
+          ) : (
+            <Button
+              titel="Einzelchat mit der Stufenleitung"
+              hinweis="Alle Personen der Stufenleitung lesen mit"
+              onPress={() => einzelchatOeffnen()}
+              disabled={beginnen.isPending}
+            />
+          )}
+        </View>
+      ) : null}
       {nachrichten.hasNextPage ? (
         <>
           <Fehlermeldung
@@ -206,6 +322,7 @@ function NachrichtZeile({
 
 const styles = StyleSheet.create({
   text: { fontSize: schrift.text },
+  abschnitt: { gap: masse.luecke },
   kopf: { fontSize: schrift.klein, fontWeight: "700" },
   nachricht: {
     gap: masse.luecke / 2,

@@ -47,7 +47,19 @@ export function useNachrichten(id: string, offen: boolean) {
   });
 }
 
-// Nur der Text: Der Bezug auf ein Programm kommt mit dem Knopf «Kontakt» (#50)
+// Eltern nennen nur die Stufe, eine SL zusätzlich das Elternteil; der zweite Aufruf liefert denselben Chat
+export function useEinzelchatBeginnen() {
+  return useMutation({
+    mutationFn: async (ziel: { stufeId: string; elternUserId?: string }) => {
+      const antwort = await api.api.v1.chats.direkt.$post({ json: ziel });
+      return (await antwort.json()).id;
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["chats", "liste"] }),
+  });
+}
+
+// Nur der Text: Der Bezug auf ein Programm kommt mit dem Knopf «Kontakt» (#92)
 export function useNachrichtSenden(id: string) {
   return useMutation({
     mutationFn: (text: string) =>

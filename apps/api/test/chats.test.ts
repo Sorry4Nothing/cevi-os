@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -94,42 +94,36 @@ describe("GET /api/v1/chats", () => {
       person("elternB"),
       person("admin"),
     ]);
-    const erwartet = (chatId: string, name: string) => ({
+    const erwartet = (
+      chatId: string,
+      name: string,
+      stufenleitung: { id: string; name: string }[],
+    ) => ({
       chats: [
         {
           id: chatId,
           typ: "stufe",
           stufe: { id: expect.any(String), name, kuerzel: expect.any(String) },
+          eltern: null,
+          stufenleitung,
         },
       ],
     });
+    // Die Liste «Stufenleitung» im Gruppenchat; Konten, die nicht mehr aktiv sind, stehen nicht darin
+    const leitungA = [{ id: sl.id as string, name: "SL A" }];
     for (const konto of [eltern, sl]) {
       const antwort = await aufruf(konto, "GET", "/api/v1/chats");
       expect(antwort.status).toBe(200);
       expect(await antwort.json()).toEqual(
-        erwartet(welt.gruppenchatAId, "Stufe A"),
+        erwartet(welt.gruppenchatAId, "Stufe A", leitungA),
       );
     }
     expect(
       await (await aufruf(elternB, "GET", "/api/v1/chats")).json(),
-    ).toEqual(erwartet(welt.gruppenchatBId, "Stufe B"));
+    ).toEqual(erwartet(welt.gruppenchatBId, "Stufe B", []));
     expect(await (await aufruf(admin, "GET", "/api/v1/chats")).json()).toEqual({
       chats: [],
     });
-  });
-
-  test("Einzelchats stehen noch nicht in der Liste", async () => {
-    const eltern = await person("elternA");
-    await db.insert(schema.chat).values({
-      abteilungId: welt.testabteilungId,
-      typ: "direkt",
-      stufeId: welt.stufeAId,
-      elternUserId: eltern.id as string,
-    });
-    const { chats } = (await (
-      await aufruf(eltern, "GET", "/api/v1/chats")
-    ).json()) as { chats: { typ: string }[] };
-    expect(chats.map((c) => c.typ)).toEqual(["stufe"]);
   });
 });
 
@@ -546,5 +540,310 @@ describe("Datenmigration 0007", () => {
         if (fehler !== Zurueck) throw fehler;
       });
     expect(typen).toEqual(["stufe"]);
+  });
+});
+
+describe("Einzelchat", () => {
+  const direkt = (konto: PersonaKonto, body: unknown) =>
+    aufruf(konto, "POST", "/api/v1/chats/direkt", body);
+  const chatsVon = async (konto: PersonaKonto) =>
+    (
+      (await (await aufruf(konto, "GET", "/api/v1/chats")).json()) as {
+        chats: {
+          id: string;
+          typ: string;
+          eltern: { id: string; name: string } | null;
+          stufenleitung: { id: string; name: string }[];
+        }[];
+      }
+    ).chats;
+  const einzelchats = async (stufeId: string) =>
+    db
+      .select()
+      .from(schema.chat)
+      .where(
+        and(eq(schema.chat.stufeId, stufeId), eq(schema.chat.typ, "direkt")),
+      );
+  const idVon = async (antwort: Response) =>
+    ((await antwort.json()) as { id: string }).id;
+
+  test("Eltern beginnen den Chat mit der Stufenleitung der Stufe ihres Kindes, ein zweiter Aufruf liefert denselben", async () => {
+    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
+    const erster = await direkt(eltern, { stufeId: welt.stufeAId });
+    expect(erster.status).toBe(200);
+    const id = await idVon(erster);
+    expect(await idVon(await direkt(eltern, { stufeId: welt.stufeAId }))).toBe(
+      id,
+    );
+    // Auch die SL beginnt ihn und landet im selben Chat
+    expect(
+      await idVon(
+        await direkt(sl, { stufeId: welt.stufeAId, elternUserId: eltern.id }),
+      ),
+    ).toBe(id);
+    expect(await einzelchats(welt.stufeAId)).toHaveLength(1);
+  });
+
+  test("gleichzeitige Aufrufe legen genau einen Chat an", async () => {
+    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
+    const antworten = await Promise.all([
+      ...Array.from({ length: 5 }, () =>
+        direkt(eltern, { stufeId: welt.stufeAId }),
+      ),
+      ...Array.from({ length: 5 }, () =>
+        direkt(sl, { stufeId: welt.stufeAId, elternUserId: eltern.id }),
+      ),
+    ]);
+    expect(antworten.map((a) => a.status)).toEqual(Array(10).fill(200));
+    expect(new Set(await Promise.all(antworten.map(idVon))).size).toBe(1);
+    expect(await einzelchats(welt.stufeAId)).toHaveLength(1);
+  });
+
+  test("beide SL und das Elternteil schreiben und lesen, das Elternteil sieht den ganzen Verlauf", async () => {
+    const [eltern, sl, zweite] = await Promise.all([
+      person("elternA"),
+      person("slA"),
+      person("slA"),
+    ]);
+    const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
+    await db.insert(schema.nachricht).values({
+      chatId: id,
+      autorId: zweite.id as string,
+      text: "Älter als das Konto",
+      erstelltAm: new Date(Date.now() - 86_400_000),
+    });
+    expect((await sende(eltern, id, { text: "Frage" })).status).toBe(201);
+    expect((await sende(sl, id, { text: "Antwort" })).status).toBe(201);
+
+    for (const konto of [eltern, sl, zweite]) {
+      const { nachrichten } = (await (await lies(konto, id)).json()) as {
+        nachrichten: Nachricht[];
+      };
+      expect(nachrichten.map((n) => n.text)).toEqual([
+        "Antwort",
+        "Frage",
+        "Älter als das Konto",
+      ]);
+    }
+  });
+
+  test("die Liste zeigt dem Elternteil seinen Einzelchat, der SL die Einzelchats aller Eltern, mit den Mitlesenden", async () => {
+    const [eltern, zweitesElternteil, sl, zweite] = await Promise.all([
+      person("elternA"),
+      person("elternA"),
+      person("slA"),
+      person("slA"),
+    ]);
+    const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
+    const id2 = await idVon(
+      await direkt(sl, {
+        stufeId: welt.stufeAId,
+        elternUserId: zweitesElternteil.id,
+      }),
+    );
+
+    const leitung = [
+      { id: sl.id as string, name: "SL A" },
+      { id: zweite.id as string, name: "SL A" },
+    ].sort((a, b) => a.id.localeCompare(b.id));
+    const vonEltern = await chatsVon(eltern);
+    // Gruppenchat zuerst, dann der eigene Einzelchat; der des anderen Elternteils fehlt
+    expect(vonEltern.map((c) => [c.typ, c.id])).toEqual([
+      ["stufe", welt.gruppenchatAId],
+      ["direkt", id],
+    ]);
+    expect(vonEltern[1].eltern).toEqual({ id: eltern.id, name: "Eltern A" });
+    expect(vonEltern[1].stufenleitung).toEqual(leitung);
+
+    const vonSl = await chatsVon(sl);
+    expect(vonSl[0].typ).toBe("stufe");
+    expect(vonSl.map((c) => c.id).sort()).toEqual(
+      [welt.gruppenchatAId, id, id2].sort(),
+    );
+  });
+
+  test("eine deaktivierte SL liest nicht mehr mit", async () => {
+    const [eltern, sl, zweite] = await Promise.all([
+      person("elternA"),
+      person("slA"),
+      person("slA"),
+    ]);
+    await direkt(eltern, { stufeId: welt.stufeAId });
+    const leser = async () =>
+      (await chatsVon(eltern)).find((c) => c.typ === "direkt")!.stufenleitung;
+    expect(await leser()).toHaveLength(2);
+    await db
+      .update(schema.user)
+      .set({ deaktiviertAm: new Date(), banned: true })
+      .where(eq(schema.user.id, zweite.id as string));
+    expect(await leser()).toEqual([{ id: sl.id, name: "SL A" }]);
+  });
+
+  test("fremde Eltern, andere Stufen, Leitende, Admins und andere Abteilungen kommen nie an den Chat", async () => {
+    const [eltern, anderes, elternB, leitende, slB, admin, demo] =
+      await Promise.all([
+        person("elternA"),
+        person("elternA"),
+        person("elternB"),
+        person("leitendeA"),
+        person("slB"),
+        person("admin"),
+        person("demoEltern"),
+      ]);
+    const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
+    for (const konto of [anderes, elternB, leitende, slB, admin, demo]) {
+      expect((await lies(konto, id)).status).toBe(404);
+      expect((await sende(konto, id, { text: "Hallo" })).status).toBe(404);
+      expect(
+        (await chatsVon(konto)).some((c) => c.id === id),
+        "Liste",
+      ).toBe(false);
+    }
+  });
+
+  test("ein Elternteil nennt nur sich selbst; ein fremder Name und eine fremde Stufe sind 404 und legen nichts an", async () => {
+    const [eltern, anderes, elternB] = await Promise.all([
+      person("elternA"),
+      person("elternA"),
+      person("elternB"),
+    ]);
+    // Der eigene Name ist erlaubt
+    expect(
+      (
+        await direkt(eltern, {
+          stufeId: welt.stufeAId,
+          elternUserId: eltern.id,
+        })
+      ).status,
+    ).toBe(200);
+    for (const [konto, body] of [
+      [eltern, { stufeId: welt.stufeAId, elternUserId: anderes.id }],
+      [eltern, { stufeId: welt.stufeAId, elternUserId: randomUUID() }],
+      // Kein Kind in Stufe A
+      [elternB, { stufeId: welt.stufeAId }],
+      [eltern, { stufeId: welt.stufeBId }],
+      [eltern, { stufeId: randomUUID() }],
+      [eltern, { stufeId: welt.demoStufeId }],
+    ] as const) {
+      expect((await direkt(konto, body)).status, JSON.stringify(body)).toBe(
+        404,
+      );
+    }
+    expect(await einzelchats(welt.stufeAId)).toHaveLength(1);
+    expect(await einzelchats(welt.stufeBId)).toHaveLength(0);
+  });
+
+  test("Leitende, Admins und andere Abteilungen können keinen Einzelchat beginnen", async () => {
+    const [leitende, admin, demo, eltern] = await Promise.all([
+      person("leitendeA"),
+      person("admin"),
+      person("demoEltern"),
+      person("elternA"),
+    ]);
+    for (const konto of [leitende, admin, demo]) {
+      expect((await direkt(konto, { stufeId: welt.stufeAId })).status).toBe(
+        404,
+      );
+      expect(
+        (
+          await direkt(konto, {
+            stufeId: welt.stufeAId,
+            elternUserId: eltern.id,
+          })
+        ).status,
+      ).toBe(404);
+    }
+    expect(await einzelchats(welt.stufeAId)).toHaveLength(0);
+  });
+
+  test("die SL nennt das Elternteil; ohne Namen 400, bei anderer SL, Fremden und Unbekannten 404", async () => {
+    const [sl, zweite, slB, elternB, demo] = await Promise.all([
+      person("slA"),
+      person("slA"),
+      person("slB"),
+      person("elternB"),
+      person("demoEltern"),
+    ]);
+    const stufeA = welt.stufeAId;
+    expect((await direkt(sl, { stufeId: stufeA })).status).toBe(400);
+    for (const [konto, elternUserId] of [
+      // Kein Kanal unter SL: weder zur Kollegin noch zu sich selbst
+      [sl, zweite.id],
+      [sl, sl.id],
+      // Eltern einer anderen Stufe, einer anderen Abteilung, unbekannt
+      [sl, elternB.id],
+      [sl, demo.id],
+      [sl, randomUUID()],
+      // Die SL der Stufe B hat in Stufe A keine Rolle
+      [slB, elternB.id],
+    ] as const) {
+      expect(
+        (await direkt(konto, { stufeId: stufeA, elternUserId })).status,
+        String(elternUserId),
+      ).toBe(404);
+    }
+    expect(await einzelchats(stufeA)).toHaveLength(0);
+    expect(await einzelchats(welt.stufeBId)).toHaveLength(0);
+  });
+
+  test("wer in der Stufe SL und Elternteil ist, hat dort keinen Einzelchat als Elternteil", async () => {
+    const sl = await person("slA");
+    await db
+      .insert(schema.kindEltern)
+      .values({ kindId: welt.kindAId, userId: sl.id as string });
+    expect((await direkt(sl, { stufeId: welt.stufeAId })).status).toBe(400);
+    expect(
+      (await direkt(sl, { stufeId: welt.stufeAId, elternUserId: sl.id }))
+        .status,
+    ).toBe(404);
+    expect(await einzelchats(welt.stufeAId)).toHaveLength(0);
+  });
+
+  test("endet die Mitgliedschaft des Elternteils, endet der Zugang", async () => {
+    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
+    const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
+    // Das Kind verlässt die Stufe
+    await db
+      .update(schema.kind)
+      .set({ inaktivSeit: new Date() })
+      .where(eq(schema.kind.id, welt.kindAId));
+    expect((await lies(eltern, id)).status).toBe(404);
+    expect((await direkt(eltern, { stufeId: welt.stufeAId })).status).toBe(404);
+    // Die SL liest den Verlauf weiter, beginnt aber keinen neuen Chat mit dem Elternteil
+    expect((await lies(sl, id)).status).toBe(200);
+    expect(
+      (await direkt(sl, { stufeId: welt.stufeAId, elternUserId: eltern.id }))
+        .status,
+    ).toBe(404);
+  });
+
+  test("Bezug auf ein Programm und Rate-Limit gelten wie im Gruppenchat, das Limit über alle Chats der Person", async () => {
+    const eltern = await person("elternA");
+    const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
+    const programm = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "intern",
+      stufen: [welt.stufeAId],
+    });
+    expect(
+      (await sende(eltern, id, { text: "Hallo", programmId: programm.id }))
+        .status,
+    ).toBe(400);
+    for (let i = 0; i < 10; i++) {
+      await sende(eltern, id, { text: `Einzel ${i}` });
+      await sende(eltern, welt.gruppenchatAId, { text: `Gruppe ${i}` });
+    }
+    expect((await sende(eltern, id, { text: "21" })).status).toBe(429);
+  });
+
+  test.each([
+    ["ohne Stufe", {}],
+    ["Stufe keine UUID", { stufeId: "x" }],
+    ["Name keine UUID", { stufeId: randomUUID(), elternUserId: "x" }],
+    ["fremdes Feld", { stufeId: randomUUID(), slUserId: randomUUID() }],
+    ["kein Objekt", "x"],
+  ])("%s ist 400", async (_, body) => {
+    const eltern = await person("elternA");
+    expect((await direkt(eltern, body)).status).toBe(400);
   });
 });

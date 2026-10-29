@@ -5,6 +5,7 @@ import {
   fireEvent,
   renderRouter,
   screen,
+  waitFor,
 } from "expo-router/testing-library";
 import { AccessibilityInfo } from "react-native";
 
@@ -12,7 +13,7 @@ import Detail from "../app/(tabs)/chat/[id]";
 import Liste from "../app/(tabs)/chat/index";
 import type { Chat, Nachricht } from "../src/api/chats";
 import { queryClient } from "../src/api/client";
-import { json, netz } from "./hilfen/programme";
+import { json, netz, PERSONAS } from "./hilfen/programme";
 
 function Wurzel() {
   return (
@@ -43,10 +44,23 @@ const starteChat = () =>
     { initialUrl: "/chat/c1" },
   );
 
+const LEITUNG = [
+  { id: "sl1", name: "Berta Leiterin" },
+  { id: "sl2", name: "Chris Leiter" },
+];
 const CHAT: Chat = {
   id: "c1",
   typ: "stufe",
   stufe: { id: "s1", name: "Falken", kuerzel: "F" },
+  eltern: null,
+  stufenleitung: LEITUNG,
+};
+const EINZEL: Chat = {
+  id: "e1",
+  typ: "direkt",
+  stufe: { id: "s1", name: "Falken", kuerzel: "F" },
+  eltern: { id: "u1", name: "Anna Muster" },
+  stufenleitung: LEITUNG,
 };
 
 // Die IDs ordnen sich wie UUIDv7 nach der Zeit
@@ -67,6 +81,10 @@ type Seite = { nachrichten: Nachricht[]; naechster: string | null };
 let seiten: Record<string, Seite>;
 let gesendet: unknown[];
 let sendeAntwort: () => Response;
+let chatListe: Chat[];
+let ichAntwort: unknown;
+let beginnen: unknown[];
+let beginnenAntwort: () => Response;
 
 beforeEach(() => {
   jest
@@ -76,12 +94,26 @@ beforeEach(() => {
   netz.mockClear();
   gesendet = [];
   sendeAntwort = () => json(201, { id: "n9999" });
+  chatListe = [CHAT];
+  ichAntwort = { ...PERSONAS.eltern, id: "u1" };
+  beginnen = [];
+  beginnenAntwort = () => json(200, { id: "e1" });
   seiten = { "": { nachrichten: [], naechster: null } };
   netz.mockImplementation(async (eingabe: unknown, init?: RequestInit) => {
     const url = new URL(
       String(eingabe instanceof Request ? eingabe.url : eingabe),
     );
-    if (url.pathname.endsWith("/chats")) return json(200, { chats: [CHAT] });
+    if (url.pathname.endsWith("/chats")) {
+      return json(200, { chats: chatListe });
+    }
+    if (url.pathname.endsWith("/ich")) return json(200, ichAntwort);
+    if (url.pathname.endsWith("/chats/direkt")) {
+      beginnen.push(JSON.parse(init?.body as string));
+      return beginnenAntwort();
+    }
+    if (url.pathname.endsWith("/chats/e1/nachrichten")) {
+      return json(200, { nachrichten: [], naechster: null });
+    }
     if (url.pathname.endsWith("/chats/c1/nachrichten")) {
       if (init?.method === "POST") {
         gesendet.push(JSON.parse(init.body as string));
@@ -118,6 +150,42 @@ describe("Liste", () => {
     );
 
     expect(screen).toHavePathname("/chat/c1");
+  });
+
+  test("Einzelchats stehen unter dem Gruppenchat, für das Elternteil mit der Stufenleitung", async () => {
+    chatListe = [CHAT, EINZEL];
+    await starteListe();
+
+    const knopf = await screen.findByRole("button", {
+      name: "Stufenleitung Falken, Liest: 2 Personen",
+    });
+    expect(
+      screen.getByRole("header", { name: "Einzelchats" }),
+    ).toBeOnTheScreen();
+    expect(
+      screen.getByRole("header", { name: "Gruppenchats" }),
+    ).toBeOnTheScreen();
+    await fireEvent.press(knopf);
+    expect(screen).toHavePathname("/chat/e1");
+  });
+
+  test("die SL sieht den Namen des Elternteils", async () => {
+    ichAntwort = { ...PERSONAS.sl, id: "sl1" };
+    chatListe = [CHAT, EINZEL];
+    await starteListe();
+
+    expect(
+      await screen.findByRole("button", {
+        name: "Anna Muster, Falken, Liest: 2 Personen",
+      }),
+    ).toBeOnTheScreen();
+  });
+
+  test("ohne Einzelchat gibt es keine Abschnittsüberschriften", async () => {
+    await starteListe();
+    await screen.findByRole("button", { name: /^Gruppenchat Falken/ });
+
+    expect(screen.queryByRole("header", { name: "Einzelchats" })).toBeNull();
   });
 
   test("ohne Chat steht ein Hinweis", async () => {
@@ -364,5 +432,155 @@ describe("neue Nachrichten ansagen", () => {
     await screen.findByText("Text 4");
 
     expect(angesagt().filter((t) => /neue/.test(t))).toEqual([]);
+  });
+});
+
+describe("Stufenleitung im Gruppenchat", () => {
+  test("die Liste nennt die Stufenleitung, ohne Telefonnummer und Anruf", async () => {
+    await starteChat();
+
+    expect(
+      await screen.findByRole("header", { name: "Stufenleitung" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Berta Leiterin")).toBeOnTheScreen();
+    expect(screen.getByText("Chris Leiter")).toBeOnTheScreen();
+    expect(screen.queryByRole("button", { name: /anrufen/i })).toBeNull();
+  });
+
+  test("das Elternteil öffnet den Einzelchat mit der ganzen Stufenleitung", async () => {
+    await starteChat();
+
+    await fireEvent.press(
+      await screen.findByRole("button", {
+        name: "Einzelchat mit der Stufenleitung",
+      }),
+    );
+
+    await waitFor(() => expect(screen).toHavePathname("/chat/e1"));
+    // Nur die Stufe, nie eine einzelne Person
+    expect(beginnen).toEqual([{ stufeId: "s1" }]);
+  });
+
+  test("ein Fehler beim Öffnen steht im Text, und der Chat bleibt offen", async () => {
+    beginnenAntwort = () =>
+      json(404, { code: "NICHT_GEFUNDEN", message: "Nicht gefunden" });
+    await starteChat();
+
+    await fireEvent.press(
+      await screen.findByRole("button", {
+        name: "Einzelchat mit der Stufenleitung",
+      }),
+    );
+
+    expect(
+      await screen.findByText(
+        "Das hat nicht geklappt. Bitte später nochmals versuchen.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen).toHavePathname("/chat/c1");
+  });
+
+  test("ohne Internet geht nichts raus und es erscheint die Meldung", async () => {
+    await starteChat();
+    const knopf = await screen.findByRole("button", {
+      name: "Einzelchat mit der Stufenleitung",
+    });
+    await act(async () => onlineManager.setOnline(false));
+
+    await fireEvent.press(knopf);
+
+    expect(
+      await screen.findByText(
+        "Keine Internetverbindung. Der Einzelchat lässt sich erst wieder mit Internet öffnen.",
+      ),
+    ).toBeOnTheScreen();
+    expect(beginnen).toEqual([]);
+  });
+
+  test("die SL hat keinen Knopf für die Stufenleitung, aber einen pro schreibendem Elternteil", async () => {
+    ichAntwort = { ...PERSONAS.sl, id: "sl1" };
+    seiten[""] = {
+      nachrichten: [
+        nachricht(3, { autor: { id: "sl2", name: "Chris Leiter" } }),
+        nachricht(2, { autor: { id: "u2", name: "Anna Muster" } }),
+        nachricht(1, { autor: { id: "u2", name: "Anna Muster" } }),
+      ],
+      naechster: null,
+    };
+    await starteChat();
+
+    await screen.findByRole("button", { name: "Einzelchat mit Anna Muster" });
+    expect(
+      screen.queryByRole("button", {
+        name: "Einzelchat mit der Stufenleitung",
+      }),
+    ).toBeNull();
+    // Die Kollegin ist kein Elternteil, und Anna steht trotz zwei Nachrichten einmal da
+    expect(screen.queryByRole("button", { name: /Chris Leiter/ })).toBeNull();
+    expect(
+      screen.getAllByRole("button", { name: "Einzelchat mit Anna Muster" }),
+    ).toHaveLength(1);
+
+    await fireEvent.press(
+      screen.getByRole("button", { name: "Einzelchat mit Anna Muster" }),
+    );
+
+    await waitFor(() => expect(screen).toHavePathname("/chat/e1"));
+    expect(beginnen).toEqual([{ stufeId: "s1", elternUserId: "u2" }]);
+  });
+});
+
+describe("Einzelchat", () => {
+  beforeEach(() => {
+    chatListe = [CHAT, EINZEL];
+  });
+  const starteEinzel = () =>
+    renderRouter(
+      {
+        _layout: Wurzel,
+        "chat/index": Liste,
+        "chat/[id]": Detail,
+        "programme/[id]": () => null,
+      },
+      { initialUrl: "/chat/e1" },
+    );
+
+  test("der Kopf nennt, wer mitliest, und der Hinweis steht darunter", async () => {
+    await starteEinzel();
+
+    expect(
+      await screen.findByRole("header", {
+        name: "Einzelchat mit der Stufenleitung Falken",
+      }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Liest: 2 Personen")).toBeOnTheScreen();
+    expect(screen.getByText("Berta Leiterin, Chris Leiter")).toBeOnTheScreen();
+    expect(
+      screen.getByText("Bitte nur das Nötigste schreiben, keine Diagnosen."),
+    ).toBeOnTheScreen();
+    // Kein Gruppenchat-Zubehör im Einzelchat
+    expect(screen.queryByRole("header", { name: "Stufenleitung" })).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "Einzelchat mit der Stufenleitung",
+      }),
+    ).toBeNull();
+  });
+
+  test("bei einer einzigen SL steht «Liest: 1 Person»", async () => {
+    chatListe = [{ ...EINZEL, stufenleitung: [LEITUNG[0]] }];
+    await starteEinzel();
+
+    expect(await screen.findByText("Liest: 1 Person")).toBeOnTheScreen();
+  });
+
+  test("die SL sieht den Namen der Familie im Titel", async () => {
+    ichAntwort = { ...PERSONAS.sl, id: "sl1" };
+    await starteEinzel();
+
+    expect(
+      await screen.findByRole("header", { name: "Einzelchat mit Anna Muster" }),
+    ).toBeOnTheScreen();
+    expect(screen.getByText("Liest: 2 Personen")).toBeOnTheScreen();
   });
 });
