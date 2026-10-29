@@ -289,6 +289,25 @@ export const programmStufe = pgTable(
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
 
+// Keine Zeile heisst «offen»; dass die Person Leitung einer Stufe des Programms ist, prüft die Route
+export const leitungAnmeldung = pgTable(
+  "leitung_anmeldung",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    status: text("status", { enum: ["ja", "nein"] }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.programmId, t.userId] }),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("leitung_anmeldung_status_check", sql`${t.status} in ('ja', 'nein')`),
+  ],
+);
+
 // Mitgliedschaften stehen in keiner Tabelle; rechte.ts leitet sie aus Rollen und Kindern ab
 export const chat = pgTable(
   "chat",
