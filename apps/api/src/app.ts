@@ -8,10 +8,13 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung } from "./rechte.js";
+import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
+import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
+import { erstelleStufenRouten } from "./routes/stufen.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -77,6 +80,9 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
+      .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
+      .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route("/api/v1/stufen", erstelleStufenRouten({ db }))
       .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
       .get("/health", async (c) => {
         try {
