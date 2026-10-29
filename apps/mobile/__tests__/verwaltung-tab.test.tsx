@@ -49,6 +49,7 @@ jest.mock("../src/api/ich", () => ({
     (
       jest.requireMock("../src/api/client") as { useIchMock: () => unknown }
     ).useIchMock(),
+  usePushEinstellung: () => ({ mutate: jest.fn(), isPending: false }),
 }));
 jest.mock("../src/api/hilfe", () => ({
   useHilfe: () => ({

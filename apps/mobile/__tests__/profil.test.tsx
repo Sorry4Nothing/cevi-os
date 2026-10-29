@@ -6,8 +6,8 @@ import {
 } from "expo-local-authentication";
 
 import Profil from "../app/(tabs)/profil";
-import { abmelden, ApiFehler, authClient } from "../src/api/client";
-import { useIch } from "../src/api/ich";
+import { abmelden, ApiFehler, authClient, useOnline } from "../src/api/client";
+import { useIch, usePushEinstellung } from "../src/api/ich";
 import { useKontoLoeschen } from "../src/api/konto";
 import { SperreProvider } from "../src/sperre/SperreProvider";
 
@@ -27,8 +27,12 @@ jest.mock("../src/api/client", () => ({
     }
   },
   authClient: { changePassword: jest.fn(), revokeSessions: jest.fn() },
+  useOnline: jest.fn(),
 }));
-jest.mock("../src/api/ich", () => ({ useIch: jest.fn() }));
+jest.mock("../src/api/ich", () => ({
+  useIch: jest.fn(),
+  usePushEinstellung: jest.fn(),
+}));
 jest.mock("../src/api/konto", () => ({ useKontoLoeschen: jest.fn() }));
 
 const ich = jest.mocked(useIch);
@@ -62,8 +66,35 @@ const loeschen = {
   error: null as unknown,
 };
 
+// Ein Schalter-Zustand je Schlüssel, wie ihn useMutation liefert
+const speichern = {
+  pushChat: {
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    variables: undefined as boolean | undefined,
+  },
+  pushProgramme: {
+    mutate: jest.fn(),
+    isPending: false,
+    isError: false,
+    variables: undefined as boolean | undefined,
+  },
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  jest.mocked(useOnline).mockReturnValue(true);
+  for (const zustand of Object.values(speichern)) {
+    Object.assign(zustand, {
+      isPending: false,
+      isError: false,
+      variables: undefined,
+    });
+  }
+  jest
+    .mocked(usePushEinstellung)
+    .mockImplementation((schluessel) => speichern[schluessel] as never);
   loeschen.isPending = false;
   loeschen.error = null;
   jest.mocked(useKontoLoeschen).mockReturnValue(loeschen as never);
@@ -74,6 +105,8 @@ beforeEach(() => {
       benutzername: "eltern.a",
       mussPasswortAendern: false,
       datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
+      pushChat: true,
+      pushProgramme: false,
       admin: false,
       rollen: [],
     },
@@ -162,6 +195,72 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
       "Das Passwort ist geändert. Alle anderen Geräte sind abgemeldet.",
     ),
   ).toBeOnTheScreen();
+});
+
+describe("Pushes", () => {
+  const chat = () => screen.getByRole("switch", { name: /^Chat-Pushes/ });
+  const programme = () =>
+    screen.getByRole("switch", { name: /^Programm-Pushes/ });
+
+  test("der Abschnitt steht vor «Abmelden»; die Schalter zeigen die Werte des Servers", async () => {
+    await render(baum());
+
+    const koepfe = screen
+      .getAllByRole("header")
+      .map((kopf) => kopf.props.children);
+    // «App-Sperre» liegt dazwischen
+    expect(koepfe.indexOf("Pushes")).toBe(koepfe.indexOf("Abmelden") - 2);
+    expect(koepfe.indexOf("App-Sperre")).toBe(koepfe.indexOf("Abmelden") - 1);
+    expect(chat()).toBeChecked();
+    expect(programme()).not.toBeChecked();
+  });
+
+  test("ein Tipp sendet den umgekehrten Wert für genau diesen Schalter", async () => {
+    await render(baum());
+
+    await fireEvent.press(chat());
+    await fireEvent.press(programme());
+
+    expect(speichern.pushChat.mutate).toHaveBeenCalledWith(false);
+    expect(speichern.pushProgramme.mutate).toHaveBeenCalledWith(true);
+  });
+
+  test("während des Speicherns zeigt der Schalter den neuen Wert, weitere Tipps zählen nicht", async () => {
+    Object.assign(speichern.pushChat, { isPending: true, variables: false });
+    await render(baum());
+
+    expect(chat()).not.toBeChecked();
+    await fireEvent.press(chat());
+    expect(speichern.pushChat.mutate).not.toHaveBeenCalled();
+  });
+
+  test("ein Fehler lässt den Wert des Servers stehen; die Meldung nimmt den Fokus und bleibt", async () => {
+    speichern.pushChat.isError = true;
+    await render(baum());
+
+    expect(chat()).toBeChecked();
+    const text = screen.getByText(
+      "Die Einstellung liess sich nicht speichern.",
+    );
+    expect(text).toBeOnTheScreen();
+    // Beim ersten Zeichnen nimmt danach die Überschrift den Fokus; die Meldung war vorher dran
+    const fokussiert = jest
+      .mocked(AccessibilityInfo.sendAccessibilityEvent)
+      .mock.calls.map(
+        ([element]) =>
+          (element as unknown as { props: { children: unknown } }).props
+            .children,
+      );
+    expect(fokussiert).toContain(text.props.children);
+  });
+
+  test("ohne Netz sind beide Schalter gesperrt", async () => {
+    jest.mocked(useOnline).mockReturnValue(false);
+    await render(baum());
+
+    expect(chat()).toBeDisabled();
+    expect(programme()).toBeDisabled();
+  });
 });
 
 test("«App-Sperre»: für Eltern ein Schalter, standardmässig an; aus schreibt «aus», an löscht den Schlüssel", async () => {

@@ -1,9 +1,11 @@
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { isAPIError } from "better-auth/api";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import type { Expo } from "expo-server-sdk";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { pushAnAndereAdmins } from "../../admin-push.js";
 import {
   aktiveAdminIds,
   istLetzterAdmin,
@@ -106,18 +108,21 @@ const pfad = () => z.strictObject({ id: z.uuid() });
 export function erstellePersonenRouten({
   db,
   auth,
+  expo,
 }: {
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
+  expo: Expo;
 }) {
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id })
+      .select({ id: user.id, role: user.role })
       .from(user)
       .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
     if (!ziel) throw new HTTPException(404);
     if (!person.admin) throw new HTTPException(403);
+    return ziel;
   }
 
   // Fremde wie unbekannte Stufen- und Kind-IDs sind eine ungültige Eingabe, vor jedem Schreibzugriff geprüft
@@ -319,6 +324,23 @@ export function erstellePersonenRouten({
               eingaben.benutzername.toLowerCase(),
           };
         });
+        // Nach dem Commit, vor der Antwort: Ein zurückgenommenes Anlegen löst keinen Push aus
+        if (eingaben.admin) {
+          await pushAnAndereAdmins(
+            { db, expo, c },
+            person,
+            angelegt.id,
+            "admin_vergeben",
+          );
+        }
+        if (eingaben.rollen.some((r) => r.typ === "stufenleitung")) {
+          await pushAnAndereAdmins(
+            { db, expo, c },
+            person,
+            angelegt.id,
+            "stufenleitung_vergeben",
+          );
+        }
         // 201 erst nach dem Commit: Ein zurückgenommenes Startpasswort darf die Antwort nie erreichen
         return c.json({ ...angelegt, startpasswort }, 201);
       } catch (fehler) {
@@ -339,12 +361,14 @@ export function erstellePersonenRouten({
         const person = c.get("person");
         const { id } = c.req.valid("param");
         const aenderung = c.req.valid("json");
-        await ladeZiel(person, id);
+        const ziel = await ladeZiel(person, id);
         await pruefeIds(
           person,
           aenderung.rollen ?? [],
           aenderung.elternteilVon ?? [],
         );
+        const adminVergeben = aenderung.admin === true && ziel.role !== "admin";
+        let stufenleitungVergeben = false;
         try {
           await db.transaction(async (tx) => {
             if (aenderung.admin === false) {
@@ -383,6 +407,13 @@ export function erstellePersonenRouten({
               ) {
                 details.rollen = aenderung.rollen;
               }
+              stufenleitungVergeben = aenderung.rollen.some(
+                (r) =>
+                  r.typ === "stufenleitung" &&
+                  !bisher.some(
+                    (z) => z.stufeId === r.stufeId && z.typ === "stufenleitung",
+                  ),
+              );
               const neueIds = new Set(aenderung.rollen.map((r) => r.stufeId));
               const weg = bisher
                 .map((zeile) => zeile.stufeId)
@@ -447,6 +478,22 @@ export function erstellePersonenRouten({
           }
           throw fehler;
         }
+        if (adminVergeben) {
+          await pushAnAndereAdmins(
+            { db, expo, c },
+            person,
+            id,
+            "admin_vergeben",
+          );
+        }
+        if (stufenleitungVergeben) {
+          await pushAnAndereAdmins(
+            { db, expo, c },
+            person,
+            id,
+            "stufenleitung_vergeben",
+          );
+        }
         return c.body(null, 204);
       },
     )
@@ -471,6 +518,12 @@ export function erstellePersonenRouten({
         await tx.update(user).set(startpasswortFelder()).where(eq(user.id, id));
         await protokolliere(tx, person, "startpasswort_neu", id);
       });
+      await pushAnAndereAdmins(
+        { db, expo, c },
+        person,
+        id,
+        "startpasswort_neu",
+      );
       return c.json({ startpasswort });
     })
     .post("/:id/deaktivieren", eingabe("param", pfad()), async (c) => {
@@ -533,6 +586,12 @@ export function erstellePersonenRouten({
           akteurId: person.id,
         });
         if (!zurueckgesetzt) return c.json(KONFLIKT.KEIN_ZWEITER_FAKTOR, 409);
+        await pushAnAndereAdmins(
+          { db, expo, c },
+          person,
+          id,
+          "zweiter_faktor_zurueckgesetzt",
+        );
         return c.body(null, 204);
       },
     )
@@ -557,6 +616,7 @@ export function erstellePersonenRouten({
         }
         throw fehler;
       }
+      await pushAnAndereAdmins({ db, expo, c }, person, id, "person_geloescht");
       return c.body(null, 204);
     });
 }

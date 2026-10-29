@@ -1,3 +1,5 @@
+import { Expo } from "expo-server-sdk";
+import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -39,6 +41,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -193,6 +196,89 @@ describe("POST /api/v1/ich/datenschutz", () => {
     });
     expect(zweite.status).toBe(204);
     expect(await datum()).toBe(gelesenAm);
+  });
+});
+
+describe("PATCH /api/v1/ich", () => {
+  async function patch(konto: PersonaKonto, body: unknown) {
+    return app.request("/api/v1/ich", {
+      method: "PATCH",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+  async function schalter(konto: PersonaKonto) {
+    const profil = await (await ich(konto)).json();
+    const [zeile] = await db
+      .select({
+        pushChat: schema.user.pushChat,
+        pushProgramme: schema.user.pushProgramme,
+      })
+      .from(schema.user)
+      .where(eq(schema.user.id, konto.id!));
+    // Die Antwort von GET /ich und die Zeile müssen übereinstimmen
+    expect({
+      pushChat: profil.pushChat,
+      pushProgramme: profil.pushProgramme,
+    }).toEqual(zeile);
+    return zeile;
+  }
+
+  test.each(["elternA", "leitendeA", "slA", "admin"] as const)(
+    "%s schaltet beide Pushes aus und wieder ein, je ein Schalter für sich",
+    async (persona) => {
+      const konto = await legePersonaAn(welt, persona);
+      const andere = await legePersonaAn(welt, "elternB");
+      expect(await schalter(konto)).toEqual({
+        pushChat: true,
+        pushProgramme: true,
+      });
+
+      expect((await patch(konto, { pushChat: false })).status).toBe(204);
+      expect(await schalter(konto)).toEqual({
+        pushChat: false,
+        pushProgramme: true,
+      });
+
+      expect((await patch(konto, { pushProgramme: false })).status).toBe(204);
+      expect(await schalter(konto)).toEqual({
+        pushChat: false,
+        pushProgramme: false,
+      });
+
+      expect(
+        (await patch(konto, { pushChat: true, pushProgramme: true })).status,
+      ).toBe(204);
+      expect(await schalter(konto)).toEqual({
+        pushChat: true,
+        pushProgramme: true,
+      });
+      // Eine andere Person bleibt, wie sie war
+      expect(await schalter(andere)).toEqual({
+        pushChat: true,
+        pushProgramme: true,
+      });
+    },
+  );
+
+  test.each([
+    ["ein leerer Body", {}],
+    ["ein Wert, der kein Boolean ist", { pushChat: "nein" }],
+    ["ein fremdes Feld", { abteilungId: "x" }],
+    [
+      "ein fremdes Feld neben einem Schalter",
+      { pushChat: false, telefon: "1" },
+    ],
+  ])("%s ergibt 400 und ändert nichts", async (_titel, body) => {
+    const konto = await legePersonaAn(welt, "elternA");
+
+    const antwort = await patch(konto, body);
+
+    expect(antwort.status).toBe(400);
+    expect(await schalter(konto)).toEqual({
+      pushChat: true,
+      pushProgramme: true,
+    });
   });
 });
 

@@ -1,3 +1,4 @@
+import type { Expo } from "expo-server-sdk";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
@@ -47,12 +48,14 @@ export function erstelleApp({
   sql,
   db,
   auth,
+  expo,
   seiten,
 }: {
   appMinVersion: string;
   sql: Sql;
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
+  expo: Expo;
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: { datenschutz: string; kontoLoeschen: string; support: string };
 }) {
@@ -91,7 +94,10 @@ export function erstelleApp({
       .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
       .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
       .route("/api/v1/admin/meldungen", erstelleMeldungenRouten({ db }))
-      .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
+      .route(
+        "/api/v1/admin/personen",
+        erstellePersonenRouten({ db, auth, expo }),
+      )
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
       .route("/api/v1/stufen", erstelleStufenRouten({ db }))

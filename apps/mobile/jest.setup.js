@@ -27,12 +27,22 @@ jest.mock("expo-constants", () => {
   };
 });
 
-// Die nativen Attrappen von jest-expo lösten undefined auf; Standard «erlaubt, aber ohne projectId», so senden die bestehenden Abläufe kein PUT
+// Die nativen Attrappen von jest-expo lösten undefined auf; Standard «erlaubt, aber ohne projectId», so senden die bestehenden Abläufe kein PUT.
+// __tipp ruft die Horcher wie ein Tipp auf eine Benachrichtigung; die echte getLastNotificationResponse wirft ohne natives Modul
 jest.mock("expo-notifications", () => {
   const original = jest.requireActual("expo-notifications");
+  const horcher = new Set();
   return {
     ...original,
     __esModule: true,
+    __tipp: (antwort) => horcher.forEach((melden) => melden(antwort)),
+    setNotificationHandler: jest.fn(),
+    getLastNotificationResponse: jest.fn(() => null),
+    clearLastNotificationResponse: jest.fn(),
+    addNotificationResponseReceivedListener: jest.fn((melden) => {
+      horcher.add(melden);
+      return { remove: () => horcher.delete(melden) };
+    }),
     getPermissionsAsync: jest.fn(async () => ({
       granted: true,
       canAskAgain: true,

@@ -1,4 +1,5 @@
 import { QueryClientProvider } from "@tanstack/react-query";
+import { setNotificationHandler } from "expo-notifications";
 import { Redirect, Slot, useSegments } from "expo-router";
 import { enableAppSwitcherProtectionAsync } from "expo-screen-capture";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -11,7 +12,7 @@ import {
   useOnline,
 } from "../src/api/client";
 import { useIch } from "../src/api/ich";
-import { usePushSchritt } from "../src/push";
+import { pushHandler, usePushSchritt } from "../src/push";
 import { SperreProvider } from "../src/sperre/SperreProvider";
 import { Sperrschicht } from "../src/sperre/Sperrschicht";
 import {
@@ -21,6 +22,9 @@ import {
 } from "../src/speicher";
 import { Bildschirm } from "../src/ui/Bildschirm";
 import { schrift, useFarben } from "../src/ui/tokens";
+
+// Einmal beim Laden des Moduls: Bis dahin zeigt Expo jeden Push im Vordergrund
+setNotificationHandler({ handleNotification: pushHandler });
 
 // Ohne native Kopfzeile: Deren Titel wächst auf iOS nicht mit der Schriftgrösse (Checkliste 5.10)
 export default function Layout() {

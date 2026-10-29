@@ -2,9 +2,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { masse, schrift, useFarben } from "./tokens";
 
-type Props = { label: string; checked: boolean; onChange: () => void };
+type Props = {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+  disabled?: boolean;
+};
 
-export function Schalter({ label, checked, onChange }: Props) {
+// Kästchen mit ✓ und Beschriftung; der Zustand steht im Symbol, die Zustandsworte sagt das Gerät an (Checkliste 5.6, 9.8)
+export function Schalter({ label, checked, onChange, disabled }: Props) {
   const farben = useFarben();
 
   return (
@@ -14,9 +20,10 @@ export function Schalter({ label, checked, onChange }: Props) {
       accessibilityLabel={label}
       // Kein Hinweis: Der Name sagt die Folge schon; die Lint-Regel verlangt nur den Prop
       accessibilityHint={undefined}
-      accessibilityState={{ checked }}
+      accessibilityState={{ checked, disabled }}
+      disabled={disabled}
       onPress={onChange}
-      style={styles.schalter}
+      style={[styles.schalter, disabled && styles.gedimmt]}
     >
       <View
         aria-hidden
@@ -46,6 +53,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: masse.luecke,
   },
+  gedimmt: { opacity: 0.5 },
   kaestchen: {
     width: 24,
     height: 24,
