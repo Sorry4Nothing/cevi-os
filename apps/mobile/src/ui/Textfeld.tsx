@@ -34,11 +34,14 @@ type Props = Omit<
 > & {
   label: string;
   fehler?: string;
+  // Ein neuer Wert zeigt denselben Fehlertext neu an und nimmt den Fokus wieder
+  fehlerSchluessel?: number;
 };
 
 export function Textfeld({
   label,
   fehler,
+  fehlerSchluessel,
   onFocus,
   onBlur,
   ...eingabe
@@ -89,7 +92,7 @@ export function Textfeld({
           },
         ]}
       />
-      <Fehlermeldung text={fehler} />
+      <Fehlermeldung key={fehlerSchluessel} text={fehler} />
     </View>
   );
 }

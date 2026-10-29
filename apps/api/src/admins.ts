@@ -27,3 +27,14 @@ export async function aktiveAdminIds(
     );
   return zeilen.map((zeile) => zeile.id);
 }
+
+// Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
+export function istLetzterAdmin(admins: readonly string[], zielId: string) {
+  return admins.includes(zielId) && !admins.some((id) => id !== zielId);
+}
+
+// Der Text, den die App kennt (fehlertexte.ts); die Verwaltung und das Löschen des eigenen Kontos antworten damit
+export const LETZTER_ADMIN = {
+  code: "LETZTER_ADMIN",
+  message: "Der letzte Admin lässt sich nicht entfernen.",
+} as const;
