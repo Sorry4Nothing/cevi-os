@@ -210,6 +210,13 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
           }
           return;
         }
+        if (
+          ctx.path === "/two-factor/verify-totp" ||
+          ctx.path === "/two-factor/verify-backup-code"
+        ) {
+          // Kein «Gerät vertrauen»: Auf jedem neuen Gerät fragt der Login nach dem Code, was der Client auch schickt
+          return { context: { body: { ...ctx.body, trustDevice: false } } };
+        }
         if (ctx.path !== "/change-password") return;
         const sitzung = await getSessionFromCtx(ctx);
         const offen =
@@ -285,6 +292,46 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
           }
           return;
         }
+        if (ctx.path === "/two-factor/enable") {
+          const { returned, session } = ctx.context;
+          const link = (returned as { totpURI?: unknown } | undefined)?.totpURI;
+          const benutzername = (session?.user as { username?: string })
+            ?.username;
+          if (isAPIError(returned) || typeof link !== "string") return;
+          const schluessel = new URL(link).searchParams.get("secret");
+          if (!schluessel || !benutzername) return;
+          // better-auth schriebe die Platzhalter-E-Mail-Adresse in den Link; Apps zeigen daran den Eintrag. Format wie dort: Leerzeichen als %20, 6 Stellen, 30 s
+          const name = encodeURIComponent("Cevi OS");
+          return ctx.json({
+            ...(returned as object),
+            totpURI: `otpauth://totp/${name}:${encodeURIComponent(benutzername)}?secret=${schluessel}&issuer=${name}&digits=6&period=30`,
+          });
+        }
+        if (ctx.path === "/two-factor/verify-totp") {
+          const { newSession, session } = ctx.context;
+          const vorher = session?.user as { twoFactorEnabled?: boolean };
+          // Nur der Schritt, der den Faktor einschaltet (in der Anmeldung gibt es noch keine Sitzung): Andere Sitzungen kamen ohne Code zustande und enden hier
+          if (
+            session &&
+            newSession &&
+            vorher.twoFactorEnabled !== true &&
+            (newSession.user as { twoFactorEnabled?: boolean })
+              .twoFactorEnabled === true
+          ) {
+            await ctx.context.adapter.deleteMany({
+              model: "session",
+              where: [
+                { field: "userId", value: newSession.user.id },
+                {
+                  field: "token",
+                  operator: "ne",
+                  value: newSession.session.token,
+                },
+              ],
+            });
+          }
+          return;
+        }
         if (
           ctx.path !== "/change-password" ||
           isAPIError(ctx.context.returned) ||
@@ -306,7 +353,8 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
         maxUsernameLength: BENUTZERNAME_MAX,
       }),
       admin({ ac, roles: rollen }),
-      twoFactor(),
+      // Name wie in app.json; sonst die Standards: 6 Stellen, 30 s, zehn Ersatzcodes
+      twoFactor({ issuer: "Cevi OS" }),
       haveIBeenPwned(),
     ],
   });
