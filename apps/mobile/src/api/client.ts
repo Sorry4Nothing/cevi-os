@@ -4,7 +4,7 @@ import {
   onlineManager,
   QueryClient,
 } from "@tanstack/react-query";
-import { usernameClient } from "better-auth/client/plugins";
+import { twoFactorClient, usernameClient } from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import Constants from "expo-constants";
 import * as Network from "expo-network";
@@ -96,6 +96,8 @@ export const authClient = createAuthClient({
       disableCache: true,
     }),
     usernameClient(),
+    // Ohne Optionen: Die Umleitung auf den Code-Schritt macht anmelden.tsx selbst; das Plugin frischt nach /two-factor/* die Sitzung auf
+    twoFactorClient(),
   ],
 });
 

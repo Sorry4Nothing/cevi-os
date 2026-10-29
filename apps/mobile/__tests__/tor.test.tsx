@@ -35,6 +35,7 @@ jest.mock("../src/api/client", () => {
     authClient: {
       useSession: () => useSyncExternalStore(abonniere, () => zustand.sitzung),
       signIn: { username: jest.fn() },
+      twoFactor: { verifyTotp: jest.fn(), verifyBackupCode: jest.fn() },
       changePassword: jest.fn(),
       revokeSessions: jest.fn(),
     },
@@ -110,6 +111,18 @@ test("ohne Sitzung landet jede Adresse auf «Anmelden»", async () => {
 
   expect(screen).toHavePathname("/anmelden");
   expect(screen.getByRole("header", { name: "Anmelden" })).toBeOnTheScreen();
+});
+
+test("ohne Sitzung bleibt der Code-Schritt der Anmeldung stehen, mit Sitzung geht es weiter", async () => {
+  await renderRouter("./app", { initialUrl: "/code" });
+  expect(screen).toHavePathname("/code");
+  expect(
+    screen.getByRole("header", { name: "Code eingeben" }),
+  ).toBeOnTheScreen();
+
+  // Nach dem Code: Die Sitzung ist da, der Code-Schritt ist kein Ziel mehr
+  await act(async () => klient.__setze({ sitzung: SITZUNG, ich: ICH_BEREIT }));
+  expect(screen).toHavePathname("/programme");
 });
 
 test("mit offenem Pflichtwechsel zeigt die App nur «Passwort setzen»", async () => {

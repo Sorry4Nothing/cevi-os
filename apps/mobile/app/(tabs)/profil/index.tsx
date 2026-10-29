@@ -1,17 +1,19 @@
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text } from "react-native";
 
-import { abmelden, authClient } from "../../src/api/client";
-import { fehlertext, KEIN_NETZ } from "../../src/api/fehlertexte";
-import { useIch } from "../../src/api/ich";
-import { Bildschirm } from "../../src/ui/Bildschirm";
-import { Button } from "../../src/ui/Button";
-import { Fehlermeldung } from "../../src/ui/Fehlermeldung";
-import { Passwortwechsel } from "../../src/ui/Passwortwechsel";
-import { schrift, useFarben } from "../../src/ui/tokens";
+import { abmelden, authClient } from "../../../src/api/client";
+import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
+import { useIch } from "../../../src/api/ich";
+import { Bildschirm } from "../../../src/ui/Bildschirm";
+import { Button } from "../../../src/ui/Button";
+import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
+import { Passwortwechsel } from "../../../src/ui/Passwortwechsel";
+import { schrift, useFarben } from "../../../src/ui/tokens";
 
 export default function Profil() {
   const farben = useFarben();
+  const router = useRouter();
   const ich = useIch();
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string>();
@@ -76,6 +78,26 @@ export default function Profil() {
         }
         erfolgText="Das Passwort ist geändert. Alle anderen Geräte sind abgemeldet."
       />
+      {ich.data?.admin ? (
+        <>
+          <Text
+            accessibilityRole="header"
+            style={[styles.abschnitt, { color: farben.text }]}
+          >
+            Zweiter Faktor
+          </Text>
+          {ich.data.zweiterFaktor ? (
+            <Text style={[styles.text, { color: farben.text }]}>
+              Zweiter Faktor eingerichtet
+            </Text>
+          ) : (
+            <Button
+              titel="Zweiten Faktor einrichten"
+              onPress={() => router.push("/profil/zweiter-faktor")}
+            />
+          )}
+        </>
+      ) : null}
       <Text
         accessibilityRole="header"
         style={[styles.abschnitt, { color: farben.text }]}
