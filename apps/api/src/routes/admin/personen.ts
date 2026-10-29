@@ -4,7 +4,11 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { aktiveAdminIds } from "../../admins.js";
+import {
+  aktiveAdminIds,
+  istLetzterAdmin,
+  LETZTER_ADMIN,
+} from "../../admins.js";
 import { erstelleAuth, platzhalterEmail } from "../../auth.js";
 import {
   BENUTZERNAME_MAX,
@@ -29,10 +33,7 @@ const KONFLIKT = {
     code: "BENUTZERNAME_VERGEBEN",
     message: "Dieser Benutzername ist schon vergeben.",
   },
-  LETZTER_ADMIN: {
-    code: "LETZTER_ADMIN",
-    message: "Der letzte Admin lässt sich nicht entfernen.",
-  },
+  LETZTER_ADMIN,
   EIGENES_KONTO: {
     code: "EIGENES_KONTO",
     message:
@@ -145,16 +146,13 @@ export function erstellePersonenRouten({
     }
   }
 
-  // Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
   async function sperreLetztenAdmin(
     tx: Pick<Db, "select">,
     abteilungId: string,
     zielId: string,
   ) {
     const admins = await aktiveAdminIds(tx, abteilungId);
-    if (admins.includes(zielId) && !admins.some((id) => id !== zielId)) {
-      throw new Konflikt("LETZTER_ADMIN");
-    }
+    if (istLetzterAdmin(admins, zielId)) throw new Konflikt("LETZTER_ADMIN");
   }
 
   return new Hono<{ Variables: { person: Person } }>()
