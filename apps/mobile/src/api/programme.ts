@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import type { InferResponseType } from "hono/client";
+import type { InferRequestType, InferResponseType } from "hono/client";
 
 import { tagInZuerich } from "../programme/zeit";
 import { api, ApiFehler, queryClient } from "./client";
@@ -74,6 +74,30 @@ export function useLeitungAnmelden(id: string) {
     onError: (fehler) => {
       if (fehler instanceof ApiFehler && fehler.status === 404) {
         void queryClient.invalidateQueries({ queryKey: ["programme", id] });
+      }
+    },
+  });
+}
+
+export type Auswahlstand = InferRequestType<
+  (typeof api.api.v1.programme)[":id"]["zuordnung"]["$put"]
+>["json"];
+
+// networkMode always: Offline pausierte TanStack die Anfrage und schickte sie später, womöglich gegen einen dann anderen Stand
+export function useZuordnen(id: string) {
+  return useMutation({
+    networkMode: "always",
+    mutationFn: (json: Auswahlstand) =>
+      api.api.v1.programme[":id"].zuordnung.$put({ param: { id }, json }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["programme"] }),
+    onError: (fehler) => {
+      if (!(fehler instanceof ApiFehler)) return;
+      // 404: das Detail kommt als «nicht mehr sichtbar»; 403: Jemand hat es geändert, oder die Rollen haben sich geändert
+      if (fehler.status === 404 || fehler.status === 403) {
+        void queryClient.invalidateQueries({ queryKey: ["programme", id] });
+      }
+      if (fehler.status === 403) {
+        void queryClient.invalidateQueries({ queryKey: ["ich"] });
       }
     },
   });

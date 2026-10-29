@@ -5,6 +5,7 @@ import { Linking, Platform, StyleSheet, Text } from "react-native";
 import { queryClient, useOnline } from "../../../src/api/client";
 import { useProgramm, type Programm } from "../../../src/api/programme";
 import { LeitungAnmeldung } from "../../../src/programme/LeitungAnmeldung";
+import { Zuordnung } from "../../../src/programme/Zuordnung";
 import { schlussZeitText, zeitText } from "../../../src/programme/zeit";
 import { Badge } from "../../../src/ui/Badge";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
@@ -104,6 +105,7 @@ export default function ProgrammDetail() {
             label="Interne Beschreibung"
             wert={detail.googleBeschreibung ?? ""}
           />
+          <Zuordnung programm={detail} />
         </>
       ) : null}
     </Bildschirm>

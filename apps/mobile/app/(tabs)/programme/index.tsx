@@ -1,24 +1,28 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
+import { Text } from "react-native";
 
 import { useOnline } from "../../../src/api/client";
 import { useIch } from "../../../src/api/ich";
-import { useProgramme, type Programm } from "../../../src/api/programme";
-import { zeitText } from "../../../src/programme/zeit";
+import { useProgramme } from "../../../src/api/programme";
+import { Programmzeile } from "../../../src/programme/Programmzeile";
+import {
+  anzahlText,
+  istNichtZugeordnet,
+  istZuPruefen,
+  siehtEingaenge,
+} from "../../../src/programme/zuordnen";
 import { Auswahl } from "../../../src/ui/Auswahl";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
+import { Karte } from "../../../src/ui/Karte";
 import { Listenzeile } from "../../../src/ui/Listenzeile";
+import { schrift, useFarben } from "../../../src/ui/tokens";
 
 const ALLE = "Alle";
 
-function zeilenText(programm: Programm) {
-  const zeit = zeitText(programm);
-  const namen = programm.stufen.map((stufe) => stufe.name);
-  return namen.length > 0 ? `${zeit}, ${namen.join(", ")}` : zeit;
-}
-
 export default function Programme() {
   const router = useRouter();
+  const farben = useFarben();
   const ich = useIch();
   const programme = useProgramme();
   const online = useOnline();
@@ -54,6 +58,31 @@ export default function Programme() {
       leerText="Keine kommenden Programme."
       onNeuLaden={() => void programme.refetch()}
     >
+      {/* Die Eingänge zählen über alle Programme, der Stufenfilter gilt für sie nicht */}
+      {ich.data && siehtEingaenge(ich.data) ? (
+        <Karte>
+          <Text
+            accessibilityRole="header"
+            style={{
+              fontSize: schrift.text,
+              fontWeight: "700",
+              color: farben.text,
+            }}
+          >
+            Eingänge
+          </Text>
+          <Listenzeile
+            titel="Nicht zugeordnet"
+            text={anzahlText(alle.filter(istNichtZugeordnet).length)}
+            onPress={() => router.push("/programme/nicht-zugeordnet")}
+          />
+          <Listenzeile
+            titel="Prüfen"
+            text={anzahlText(alle.filter(istZuPruefen).length)}
+            onPress={() => router.push("/programme/pruefen")}
+          />
+        </Karte>
+      ) : null}
       {mitFilter ? (
         <Auswahl
           label="Stufe"
@@ -65,17 +94,7 @@ export default function Programme() {
       ) : null}
       {/* shortcut: renders every row, switch to a virtualized list when long lists lag */}
       {zeilen.map((programm) => (
-        <Listenzeile
-          key={programm.id}
-          titel={programm.titel}
-          badge={
-            programm.status === "abgesagt"
-              ? { text: "Abgesagt", art: "negativ" }
-              : undefined
-          }
-          text={zeilenText(programm)}
-          onPress={() => router.push(`/programme/${programm.id}`)}
-        />
+        <Programmzeile key={programm.id} programm={programm} />
       ))}
     </Bildschirm>
   );
