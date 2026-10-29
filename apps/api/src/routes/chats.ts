@@ -6,7 +6,6 @@ import {
   exists,
   gt,
   inArray,
-  isNull,
   lt,
   sql,
 } from "drizzle-orm";
@@ -221,6 +220,7 @@ export function erstelleChatRouten({ db }: { db: Db }) {
               id: n.id,
               text: n.text,
               erstelltAm: n.erstelltAm,
+              ausgeblendetAm: n.ausgeblendetAm,
               autor: { id: user.id, name: user.name },
               // Verschwindet ein Programm aus der Elternsicht, verschwindet auch sein Titel aus dem Chat
               programm: { id: programm.id, titel: programm.titel },
@@ -234,20 +234,17 @@ export function erstelleChatRouten({ db }: { db: Db }) {
                 fuerElternDerStufe(eigener.stufeId, person.abteilungId),
               ),
             )
-            .where(
-              and(
-                eq(n.chatId, id),
-                // Ausgeblendete zeigt erst #52, mit Hinweis für die Autorin
-                isNull(n.ausgeblendetAm),
-                vor ? lt(n.id, vor) : undefined,
-              ),
-            )
+            .where(and(eq(n.chatId, id), vor ? lt(n.id, vor) : undefined))
             .orderBy(desc(n.id))
             .limit(SEITE + 1);
           const seite = zeilen.slice(0, SEITE);
           return c.json({
-            nachrichten: seite.map((zeile) => ({
+            // Ausgeblendete liefert sichtbareNachrichten nur der Autorin: ohne Text und Programm, die App zeigt den Hinweis
+            nachrichten: seite.map(({ ausgeblendetAm, ...zeile }) => ({
               ...zeile,
+              text: ausgeblendetAm ? null : zeile.text,
+              programm: ausgeblendetAm ? null : zeile.programm,
+              ausgeblendet: ausgeblendetAm !== null,
               eigene: zeile.autor.id === person.id,
             })),
             naechster:

@@ -358,6 +358,57 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Moderation (#52): Melden darf, wer die Nachricht im Chat sieht (SL der Stufe und Eltern der Stufe A); Ausblenden die SL im Gruppenchat der eigenen Stufe, Admins nur über eine offene Meldung. Eltern sehen die Nachricht, dürfen sie aber nicht ausblenden (403). Details in test/moderation.test.ts
+  "POST /api/v1/nachrichten/:id/ausblenden": {
+    // Jede Anfrage blendet ihre Nachricht aus; eine feste URL nähme sie den Personen danach weg
+    urlJeAnfrage: async () =>
+      `/api/v1/nachrichten/${await gemeldeteNachrichtId()}/ausblenden`,
+    erwartet: {
+      ...alle(404),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      slA: 204,
+      elternA: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/nachrichten/:id/melden": {
+    url: () => `/api/v1/nachrichten/${meldeNachrichtId}/melden`,
+    erwartet: {
+      ...alle(404),
+      slA: 204,
+      elternA: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Eingang der Meldungen (#52): nur Admins. Die gemeldete Person bekommt 404, weil die Meldung für sie nicht existiert (test/moderation.test.ts)
+  "GET /api/v1/admin/meldungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/meldungen/:id": {
+    url: () => `/api/v1/admin/meldungen/${erledigenZielId}`,
+    body: () => ({ erledigt: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
 };
 
 let welt: Welt;
@@ -367,6 +418,8 @@ let patchZielId: string;
 let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
+let meldeNachrichtId: string;
+let erledigenZielId: string;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile
 async function wegwerfPersonId() {
@@ -381,6 +434,31 @@ async function wegwerfPersonId() {
     })
     .returning({ id: schema.user.id });
   return zeile.id;
+}
+
+// Eine Nachricht einer Wegwerf-Person im Gruppenchat der Stufe A
+async function wegwerfNachrichtId() {
+  const [zeile] = await welt.db
+    .insert(schema.nachricht)
+    .values({
+      chatId: welt.gruppenchatAId,
+      autorId: await wegwerfPersonId(),
+      text: "Nachricht aus der Matrix",
+    })
+    .returning({ id: schema.nachricht.id });
+  return zeile.id;
+}
+
+// Mit offener Meldung einer anderen Wegwerf-Person: So sehen sie auch Admins, die nicht im Chat sind
+async function gemeldeteNachrichtId() {
+  const id = await wegwerfNachrichtId();
+  await welt.db.insert(schema.meldung).values({
+    abteilungId: welt.testabteilungId,
+    nachrichtId: id,
+    textKopie: "Nachricht aus der Matrix",
+    gemeldetVon: await wegwerfPersonId(),
+  });
+  return id;
 }
 
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
@@ -402,6 +480,16 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  meldeNachrichtId = await wegwerfNachrichtId();
+  const [meldung] = await db
+    .insert(schema.meldung)
+    .values({
+      abteilungId: welt.testabteilungId,
+      nachrichtId: await wegwerfNachrichtId(),
+      textKopie: "Nachricht aus der Matrix",
+    })
+    .returning({ id: schema.meldung.id });
+  erledigenZielId = meldung.id;
   [patchZielId, startpasswortZielId, deaktivierenZielId, aktivierenZielId] =
     await Promise.all([
       wegwerfPersonId(),

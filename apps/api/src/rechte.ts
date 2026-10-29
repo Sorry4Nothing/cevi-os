@@ -5,6 +5,7 @@ import {
   gte,
   inArray,
   isNull,
+  ne,
   notExists,
   or,
   sql,
@@ -19,6 +20,7 @@ import {
   chat,
   kind,
   kindEltern,
+  meldung,
   nachricht,
   programmStufe,
   rolle,
@@ -228,7 +230,7 @@ export function stufenleitungDerStufen(
     .orderBy(user.name, user.id);
 }
 
-// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich); #52 und #53 ergänzen Ausblenden und Blockieren hier, nicht in den Routen
+// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich). Ausgeblendete sieht nur, wer sie geschrieben hat; #53 ergänzt Blockieren hier, nicht in den Routen
 export function sichtbareNachrichten(
   db: Db,
   person: Pick<Person, "id" | "abteilungId">,
@@ -254,12 +256,65 @@ export function sichtbareNachrichten(
       ),
     )
     .where(
-      or(
-        isNull(mitglieder.sichtAb),
-        gte(nachricht.erstelltAm, mitglieder.sichtAb),
+      and(
+        or(
+          isNull(mitglieder.sichtAb),
+          gte(nachricht.erstelltAm, mitglieder.sichtAb),
+        ),
+        or(isNull(nachricht.ausgeblendetAm), eq(nachricht.autorId, person.id)),
       ),
     )
     .as("sichtbare_nachrichten");
+}
+
+// Eine Nachricht für Melden und Ausblenden. «mitglied»: die Person sieht sie in ihrem Chat. «gemeldet»: Admins sehen sie über eine offene Meldung, nie über eine Meldung über sich selbst. undefined heisst 404
+export async function nachrichtFuerPerson(
+  db: Db,
+  person: Person,
+  nachrichtId: string,
+) {
+  const n = sichtbareNachrichten(db, person);
+  const [imChat] = await db
+    .select({
+      id: n.id,
+      autorId: n.autorId,
+      text: n.text,
+      ausgeblendetAm: n.ausgeblendetAm,
+      chatId: chat.id,
+      chatTyp: chat.typ,
+      stufeId: chat.stufeId,
+    })
+    .from(n)
+    .innerJoin(chat, eq(chat.id, n.chatId))
+    .where(eq(n.id, nachrichtId));
+  const [ueberMeldung] = person.admin
+    ? await db
+        .select({
+          id: nachricht.id,
+          autorId: nachricht.autorId,
+          text: nachricht.text,
+          ausgeblendetAm: nachricht.ausgeblendetAm,
+          chatId: chat.id,
+          chatTyp: chat.typ,
+          stufeId: chat.stufeId,
+        })
+        .from(meldung)
+        .innerJoin(nachricht, eq(nachricht.id, meldung.nachrichtId))
+        .innerJoin(chat, eq(chat.id, nachricht.chatId))
+        .where(
+          and(
+            eq(meldung.nachrichtId, nachrichtId),
+            eq(meldung.abteilungId, person.abteilungId),
+            isNull(meldung.erledigtAm),
+            // Der Autor einer gemeldeten Nachricht ist die gemeldete Person; null (Konto gelöscht) trifft keinen Admin
+            or(isNull(meldung.autorId), ne(meldung.autorId, person.id)),
+          ),
+        )
+        .limit(1)
+    : [];
+  const zeile = imChat ?? ueberMeldung;
+  if (!zeile) return undefined;
+  return { ...zeile, mitglied: !!imChat, gemeldet: !!ueberMeldung };
 }
 
 // «stufenleitung» erfüllt nur die SL, «leitung» auch die SL derselben Stufe; Admin ist keine Stufenrolle

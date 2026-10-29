@@ -8,9 +8,11 @@ import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
 import { personAusSitzung } from "./rechte.js";
+import { erstelleMeldungenRouten } from "./routes/admin/meldungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleIchRouten } from "./routes/ich.js";
+import { erstelleNachrichtenRouten } from "./routes/nachrichten.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 
@@ -79,6 +81,8 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db }))
+      .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
+      .route("/api/v1/admin/meldungen", erstelleMeldungenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
       .get("/health", async (c) => {
