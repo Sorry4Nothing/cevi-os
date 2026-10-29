@@ -4,6 +4,10 @@ import Profil from "../app/(tabs)/profil";
 import { abmelden, authClient } from "../src/api/client";
 import { useIch } from "../src/api/ich";
 
+const mockPush = jest.fn();
+jest.mock("expo-router", () => ({
+  useRouter: () => ({ push: mockPush }),
+}));
 jest.mock("../src/api/client", () => ({
   abmelden: jest.fn(),
   authClient: { changePassword: jest.fn(), revokeSessions: jest.fn() },
@@ -107,4 +111,16 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
       "Das Passwort ist geändert. Alle anderen Geräte sind abgemeldet.",
     ),
   ).toBeOnTheScreen();
+});
+
+test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
+  await render(<Profil />);
+
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: "Hilfe, Vertrauenspersonen und Anlaufstellen",
+    }),
+  );
+
+  expect(mockPush).toHaveBeenCalledWith("/profil/hilfe");
 });

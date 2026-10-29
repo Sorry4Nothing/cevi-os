@@ -35,6 +35,10 @@ export default function Verwaltung() {
         titel="Personen"
         onPress={() => router.push("/verwaltung/personen")}
       />
+      <Listenzeile
+        titel="Vertrauenspersonen"
+        onPress={() => router.push("/verwaltung/vertrauenspersonen")}
+      />
     </Bildschirm>
   );
 }
