@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { Expo } from "expo-server-sdk";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
 import { verbindeDatenbank } from "./datenbank.js";
@@ -23,6 +24,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: konfiguration.EXPO_ACCESS_TOKEN }),
   seiten,
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
