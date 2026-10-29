@@ -1,49 +1,24 @@
 import { randomUUID } from "node:crypto";
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import postgres from "postgres";
-import { afterAll, afterEach, beforeAll, expect, test, vi } from "vitest";
-import { erstelleAuth } from "../src/auth.js";
+import { afterAll, beforeAll, expect, test } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
-import * as schema from "../src/db/schema.js";
+import {
+  bereiteAuthTestsVor,
+  erstelleTestAuth,
+  PASSWORT,
+} from "./hilfen/auth.js";
+import { API_URL } from "./hilfen/datenbank.js";
 
-// Wie in auth.test.ts: Anlegen und Anmelden rechnen scrypt mit 32 MiB; auf einem ausgelasteten Rechner braucht ein Test so ein Vielfaches der 5 s von Vitest
-vi.setConfig({ testTimeout: 120_000 });
+bereiteAuthTestsVor();
 
-// Wie in auth.test.ts: erfundene Adresse und erfundenes App-Schema
-vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
-vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", "testapp://");
-
-// Kein Netz im Test: HIBP findet kein Passwort, jeder andere Zugriff lässt den Test scheitern
-const fremdeZugriffe: string[] = [];
-vi.stubGlobal(
-  "fetch",
-  vi.fn(async (url: string | URL) => {
-    if (
-      !/^https:\/\/api\.pwnedpasswords\.com\/range\/[0-9A-F]{5}$/.test(
-        String(url),
-      )
-    ) {
-      fremdeZugriffe.push(String(url));
-      throw new Error(`Kein Netz im Test: ${url}`);
-    }
-    return new Response("", { headers: { "content-type": "text/plain" } });
-  }),
-);
-afterEach(() => expect(fremdeZugriffe.splice(0)).toEqual([]));
-
-const PASSWORT = "nur-fuer-tests-1";
 const TAG = 86_400_000;
 const UUID_V7 =
   /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
-const url =
-  process.env.DATABASE_URL ?? "postgres://cevi_os_api@localhost:5432/cevi_os";
-const sql = postgres(url);
+const sql = postgres(API_URL);
 // Eigener Client für Drizzle: drizzle() liefert Zeitpunkte seines Clients danach als Text
-const db = erstelleDb(postgres(url));
-const auth = erstelleAuth(
-  drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
-);
+const db = erstelleDb(postgres(API_URL));
+const auth = erstelleTestAuth(db);
 
 let abteilungId: string;
 beforeAll(async () => {
@@ -61,7 +36,7 @@ async function legeAn() {
   const benutzername = `test${randomUUID().slice(0, 8)}`;
   const { user } = await auth.api.createUser({
     body: {
-      email: `${randomUUID()}@benutzer.invalid`,
+      email: `${randomUUID()}@example.org`,
       password: PASSWORT,
       name: "Testperson",
       data: {

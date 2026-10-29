@@ -31,8 +31,7 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      # Die Tests laufen als API-Rolle, nur die Migration als Besitzer der Tabellen
-      DATABASE_URL: postgres://cevi_os_api@localhost:5432/cevi_os
+      # Nur für den Migrationsschritt auf cevi_os; die Tests bauen cevi_os_test über feste URLs selbst auf
       MIGRATION_DATABASE_URL: postgres://cevi_os_besitzer@localhost:5432/cevi_os
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
