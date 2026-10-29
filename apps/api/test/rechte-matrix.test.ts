@@ -187,6 +187,23 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "PUT /api/v1/programme/:id/teilnahmen/:kindId": {
+    url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
+    // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
+    body: () => ({ status: "ja" }),
+    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    erwartet: {
+      ...alle(204),
+      slB: 403,
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Admin und SL anderer Stufen sehen es, haben aber kein Recht
   "PUT /api/v1/programme/:id/leitung": {
     url: () => `/api/v1/programme/${leitungProgrammId}/leitung`,
@@ -204,6 +221,27 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
+  "GET /api/v1/hilfe": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
+  "PATCH /api/v1/admin/abteilung": {
+    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
@@ -415,6 +453,54 @@ const MATRIX: Record<string, Zeile> = {
     }),
     erwartet: {
       ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  "GET /api/v1/chats": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  "POST /api/v1/chats/direkt": {
+    body: (konto) => ({
+      stufeId: welt.stufeAId,
+      // Nur die SL der Stufe A muss das Elternteil nennen; für alle anderen wäre der Name ein fremder
+      ...(konto === standard.slA && { elternUserId: standard.elternA.id }),
+    }),
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    erwartet: {
+      ...alle(404),
+      slA: 200,
+      elternA: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/chats/:id/nachrichten": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/nachrichten`,
+    body: () => ({ text: "Hallo aus der Matrix" }),
+    erwartet: {
+      ...alle(404),
+      slA: 201,
+      elternA: 201,
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
