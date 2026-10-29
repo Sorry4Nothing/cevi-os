@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from "@testing-library/react-native";
-import { Linking, Share } from "react-native";
+import { AccessibilityInfo, Linking, Share } from "react-native";
 
 import ZweiterFaktor from "../app/(tabs)/profil/zweiter-faktor";
 import { authClient, queryClient } from "../src/api/client";
@@ -193,6 +193,29 @@ test("Schritt 3 erst nach dem bestätigten Code: zehn Ersatzcodes, buchstabiert 
   expect(mockReplace).toHaveBeenCalledWith("/profil");
   // Die Codes sind aus dem Zustand
   for (const code of CODES) expect(screen.queryByText(code)).toBeNull();
+});
+
+test("jeder Schritt nimmt den Fokus auf seine Überschrift", async () => {
+  // Die Ref zeigt im Test auf die Mock-Komponente von Text, deren Props sich ändern; der Titel wird darum beim Aufruf festgehalten
+  const fokus: unknown[] = [];
+  jest
+    .mocked(AccessibilityInfo.sendAccessibilityEvent)
+    .mockImplementation((element) =>
+      fokus.push(
+        (element as unknown as { props: { children: unknown } }).props.children,
+      ),
+    );
+  await bisZumLink();
+  expect(fokus).toContain("App für Codes verbinden");
+
+  verifyTotp.mockResolvedValue({ data: { token: "t" }, error: null } as never);
+  await fireEvent.changeText(
+    screen.getByLabelText("Code aus der App"),
+    "123456",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "Bestätigen" }));
+  await screen.findByRole("header", { name: "Ersatzcodes" });
+  expect(fokus).toContain("Ersatzcodes");
 });
 
 test("«Zurück» führt zum Profil", async () => {

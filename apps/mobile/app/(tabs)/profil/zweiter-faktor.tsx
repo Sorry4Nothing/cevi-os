@@ -23,7 +23,7 @@ import { schrift, useFarben } from "../../../src/ui/tokens";
 const ERSATZ_HINWEIS =
   "Jeder Code gilt einmal. Bewahre sie sicher auf, zum Beispiel im Passwort-Manager. Du siehst sie nur jetzt.";
 
-// Jeder Schritt nimmt beim Erscheinen den Fokus (Checkliste 6.1)
+// Jeder Schritt nimmt beim Erscheinen den Fokus (Checkliste 6.1); der key am Aufruf hängt ihn pro Schritt neu ein
 function Schritt({ titel, children }: { titel: string; children: ReactNode }) {
   const farben = useFarben();
   const ueberschrift = useRef<HostInstance>(null);
@@ -149,7 +149,7 @@ export default function ZweiterFaktor() {
       onZurueck={() => router.replace("/profil")}
     >
       {!daten ? (
-        <Schritt titel="Passwort bestätigen">
+        <Schritt key="Passwort bestätigen" titel="Passwort bestätigen">
           <Passwortfeld
             label="Passwort"
             value={passwort}
@@ -166,7 +166,7 @@ export default function ZweiterFaktor() {
           />
         </Schritt>
       ) : !aktiviert ? (
-        <Schritt titel="App für Codes verbinden">
+        <Schritt key="App für Codes verbinden" titel="App für Codes verbinden">
           <Text style={[styles.text, { color: farben.text }]}>
             Öffne den Link in deinem Passwort-Manager oder in einer
             Authenticator-App. Oder trage den Schlüssel von Hand ein.
@@ -199,7 +199,7 @@ export default function ZweiterFaktor() {
           />
         </Schritt>
       ) : (
-        <Schritt titel="Ersatzcodes">
+        <Schritt key="Ersatzcodes" titel="Ersatzcodes">
           <Text style={[styles.text, { color: farben.text }]}>
             Der zweite Faktor ist eingerichtet.
           </Text>
