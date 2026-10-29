@@ -1,17 +1,20 @@
 import { SecurityLevel } from "expo-local-authentication";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, Text } from "react-native";
+import { useRef, useState } from "react";
+import { Alert, StyleSheet, Text, type HostInstance } from "react-native";
 
-import { abmelden, authClient } from "../../../src/api/client";
+import { abmelden, ApiFehler, authClient } from "../../../src/api/client";
 import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
 import { useIch } from "../../../src/api/ich";
+import { useKontoLoeschen } from "../../../src/api/konto";
 import { istVorgegeben } from "../../../src/sperre/sperrzustand";
 import { useSperre } from "../../../src/sperre/SperreProvider";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
 import { Button } from "../../../src/ui/Button";
 import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
 import { Listenzeile } from "../../../src/ui/Listenzeile";
+import { fokussieren } from "../../../src/ui/fokus";
+import { Passwortfeld } from "../../../src/ui/Passwortfeld";
 import { Passwortwechsel } from "../../../src/ui/Passwortwechsel";
 import { Schalter } from "../../../src/ui/Schalter";
 import { schrift, useFarben } from "../../../src/ui/tokens";
@@ -22,6 +25,11 @@ export default function Profil() {
   const ich = useIch();
   const [laeuft, setLaeuft] = useState(false);
   const [fehler, setFehler] = useState<string>();
+  const loeschen = useKontoLoeschen();
+  const [loeschPasswort, setLoeschPasswort] = useState("");
+  // Zählt die Drücke ohne Passwort: Ein neuer Schlüssel zeigt die gleiche Meldung neu und nimmt den Fokus wieder
+  const [leerDruecke, setLeerDruecke] = useState(0);
+  const loeschKnopf = useRef<HostInstance>(null);
   const { niveau, aus, setzeAus } = useSperre();
   const [sperreFehler, setSperreFehler] = useState<string>();
 
@@ -63,6 +71,44 @@ export default function Profil() {
       setLaeuft(false);
     }
   }
+
+  function loeschenGedrueckt() {
+    // Ein Fehler aufs Mal: Der Fehler des letzten Versuchs geht, bevor ein neuer erscheint
+    loeschen.reset();
+    if (!loeschPasswort) {
+      setLeerDruecke((n) => n + 1);
+      return;
+    }
+    setLeerDruecke(0);
+    Alert.alert(
+      "Konto löschen?",
+      "Das Konto wird mit allen Rollen, Zuordnungen zu Kindern und eigenen Nachrichten gelöscht. Bei Eltern verschwinden auch die Einzelchats mit der Stufenleitung. Das lässt sich nicht rückgängig machen.",
+      [
+        {
+          text: "Abbrechen",
+          style: "cancel",
+          onPress: () => fokussieren(loeschKnopf.current),
+        },
+        {
+          text: "Löschen",
+          style: "destructive",
+          onPress: () => loeschen.mutate(loeschPasswort),
+        },
+      ],
+    );
+  }
+
+  // Ein falsches Passwort steht am Feld, alles andere über dem Knopf; nur ein Fehler aufs Mal
+  const loeschFehler = loeschen.error;
+  const passwortFalsch =
+    loeschFehler instanceof ApiFehler &&
+    loeschFehler.code === "PASSWORT_FALSCH";
+  const loeschMeldung =
+    loeschFehler && !passwortFalsch
+      ? loeschFehler instanceof ApiFehler
+        ? fehlertext(loeschFehler)
+        : KEIN_NETZ
+      : undefined;
 
   return (
     <Bildschirm
@@ -164,6 +210,37 @@ export default function Profil() {
         hinweis="Beendet die Sitzungen auf allen Geräten"
         onPress={() => void ueberallAbmelden()}
         disabled={laeuft}
+      />
+      <Text
+        accessibilityRole="header"
+        style={[styles.abschnitt, { color: farben.text }]}
+      >
+        Konto löschen
+      </Text>
+      <Passwortfeld
+        label="Passwort"
+        value={loeschPasswort}
+        onChangeText={(text) => {
+          setLoeschPasswort(text);
+          setLeerDruecke(0);
+        }}
+        autoComplete="current-password"
+        textContentType="password"
+        fehlerSchluessel={leerDruecke}
+        fehler={
+          leerDruecke > 0
+            ? "Bitte das Passwort eingeben."
+            : passwortFalsch
+              ? fehlertext(loeschFehler)
+              : undefined
+        }
+      />
+      <Fehlermeldung text={loeschMeldung} />
+      <Button
+        ref={loeschKnopf}
+        titel="Konto löschen"
+        onPress={loeschenGedrueckt}
+        disabled={loeschen.isPending}
       />
     </Bildschirm>
   );

@@ -1,12 +1,14 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
+import { AccessibilityInfo, Alert } from "react-native";
 import {
   getEnrolledLevelAsync,
   SecurityLevel,
 } from "expo-local-authentication";
 
 import Profil from "../app/(tabs)/profil";
-import { abmelden, authClient } from "../src/api/client";
+import { abmelden, ApiFehler, authClient } from "../src/api/client";
 import { useIch } from "../src/api/ich";
+import { useKontoLoeschen } from "../src/api/konto";
 import { SperreProvider } from "../src/sperre/SperreProvider";
 
 const mockPush = jest.fn();
@@ -15,9 +17,19 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("../src/api/client", () => ({
   abmelden: jest.fn(),
+  ApiFehler: class extends Error {
+    status: number;
+    code: string;
+    constructor(status: number, code: string, message: string) {
+      super(message);
+      this.status = status;
+      this.code = code;
+    }
+  },
   authClient: { changePassword: jest.fn(), revokeSessions: jest.fn() },
 }));
 jest.mock("../src/api/ich", () => ({ useIch: jest.fn() }));
+jest.mock("../src/api/konto", () => ({ useKontoLoeschen: jest.fn() }));
 
 const ich = jest.mocked(useIch);
 const ueberall = jest.mocked(authClient.revokeSessions);
@@ -25,13 +37,12 @@ const speicher = (
   jest.requireMock("expo-secure-store") as { __speicher: Map<string, string> }
 ).__speicher;
 
-function zeige() {
-  return render(
-    <SperreProvider anfangsAus={false}>
-      <Profil />
-    </SperreProvider>,
-  );
-}
+const baum = () => (
+  <SperreProvider anfangsAus={false}>
+    <Profil />
+  </SperreProvider>
+);
+const zeige = () => render(baum());
 
 function mitRolle(admin: boolean, rollen: string[]) {
   ich.mockReturnValue({
@@ -42,8 +53,20 @@ function mitRolle(admin: boolean, rollen: string[]) {
   } as never);
 }
 
+const loeschen = {
+  mutate: jest.fn(),
+  reset: jest.fn(() => {
+    loeschen.error = null;
+  }),
+  isPending: false,
+  error: null as unknown,
+};
+
 beforeEach(() => {
   jest.clearAllMocks();
+  loeschen.isPending = false;
+  loeschen.error = null;
+  jest.mocked(useKontoLoeschen).mockReturnValue(loeschen as never);
   speicher.clear();
   ich.mockReturnValue({
     data: {
@@ -248,5 +271,176 @@ describe("zweiter Faktor", () => {
     expect(
       screen.queryByRole("button", { name: "Zweiten Faktor einrichten" }),
     ).toBeNull();
+  });
+});
+
+describe("Konto löschen", () => {
+  const dialog = () => jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  const knopf = () => screen.getByRole("button", { name: "Konto löschen" });
+  const fokus = () =>
+    jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mock.calls.at(-1);
+  // Nur die Props, nie das Element selbst: Ein Fehlschlag druckte den ganzen Fiber-Baum
+  const fokusProps = () =>
+    (fokus()![0] as unknown as { props: Record<string, unknown> }).props;
+
+  afterEach(() => jest.restoreAllMocks());
+
+  test("der Abschnitt steht nach «Überall abmelden» mit Überschrift, Passwortfeld und Knopf", async () => {
+    await zeige();
+
+    const rollen = screen
+      .getAllByRole("header")
+      .map((kopf) => kopf.props.children);
+    expect(rollen.at(-1)).toBe("Konto löschen");
+    expect(screen.getByLabelText("Passwort")).toBeOnTheScreen();
+    expect(
+      screen.getAllByRole("switch", { name: "Passwort anzeigen" }),
+    ).toHaveLength(3);
+    expect(knopf()).toBeOnTheScreen();
+  });
+
+  test("ohne Passwort kein Dialog, keine Anfrage, dafür der Hinweis am Feld mit Fokus", async () => {
+    const alert = dialog();
+    await zeige();
+
+    await fireEvent.press(knopf());
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(loeschen.mutate).not.toHaveBeenCalled();
+    const text = screen.getByText("Bitte das Passwort eingeben.");
+    expect(text).toBeOnTheScreen();
+    expect(fokusProps().children).toBe(text.props.children);
+  });
+
+  test("alter Fehler und leeres Feld: genau eine Meldung, die am Feld", async () => {
+    dialog();
+    loeschen.error = new ApiFehler(429, "ZU_VIELE_ANFRAGEN", "x");
+    await zeige();
+    expect(
+      screen.getByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
+    ).toBeOnTheScreen();
+
+    await fireEvent.press(knopf());
+
+    expect(loeschen.reset).toHaveBeenCalled();
+    expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
+    expect(
+      screen.queryByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
+    ).toBeNull();
+  });
+
+  test("die Meldung am leeren Feld geht beim Tippen weg", async () => {
+    await zeige();
+    await fireEvent.press(knopf());
+    expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
+
+    await fireEvent.changeText(screen.getByLabelText("Passwort"), "g");
+
+    expect(screen.queryByText("Bitte das Passwort eingeben.")).toBeNull();
+  });
+
+  test("zweiter Druck bei leerem Feld nimmt den Fokus erneut", async () => {
+    await zeige();
+    await fireEvent.press(knopf());
+    jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear();
+
+    await fireEvent.press(knopf());
+
+    expect(AccessibilityInfo.sendAccessibilityEvent).toHaveBeenCalledTimes(1);
+    expect(fokusProps().children).toBe("Bitte das Passwort eingeben.");
+  });
+
+  test("mit Passwort fragt ein Dialog nach; «Abbrechen» schickt nichts und setzt den Fokus auf den Knopf", async () => {
+    const alert = dialog();
+    await zeige();
+    await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
+
+    await fireEvent.press(knopf());
+
+    expect(alert).toHaveBeenCalledTimes(1);
+    expect(alert).toHaveBeenCalledWith(
+      "Konto löschen?",
+      "Das Konto wird mit allen Rollen, Zuordnungen zu Kindern und eigenen Nachrichten gelöscht. Bei Eltern verschwinden auch die Einzelchats mit der Stufenleitung. Das lässt sich nicht rückgängig machen.",
+      [
+        { text: "Abbrechen", style: "cancel", onPress: expect.any(Function) },
+        {
+          text: "Löschen",
+          style: "destructive",
+          onPress: expect.any(Function),
+        },
+      ],
+    );
+    jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear();
+    alert.mock.calls[0][2]![0].onPress!();
+    expect(loeschen.mutate).not.toHaveBeenCalled();
+    const art = fokus()![1];
+    expect(art).toBe("focus");
+    expect(fokusProps().accessibilityLabel).toBe("Konto löschen");
+  });
+
+  test("«Löschen» sendet das Passwort einmal", async () => {
+    const alert = dialog();
+    await zeige();
+    await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
+    await fireEvent.press(knopf());
+
+    alert.mock.calls[0][2]![1].onPress!();
+
+    expect(loeschen.mutate).toHaveBeenCalledTimes(1);
+    expect(loeschen.mutate).toHaveBeenCalledWith("geheim");
+  });
+
+  test("während des Sendens ist der Knopf gesperrt", async () => {
+    loeschen.isPending = true;
+    await zeige();
+
+    expect(
+      screen.getByRole("button", { name: "Konto löschen", disabled: true }),
+    ).toBeOnTheScreen();
+  });
+
+  test("ein falsches Passwort steht am Feld, mit Fokus; das Feld behält den Text", async () => {
+    const { rerender } = await zeige();
+    await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
+    // Der Fehler kommt nach dem Absenden, nicht schon beim ersten Zeichnen
+    loeschen.error = new ApiFehler(400, "PASSWORT_FALSCH", "x");
+    await rerender(baum());
+
+    const text = screen.getByText("Das Passwort stimmt nicht.");
+    expect(text).toBeOnTheScreen();
+    expect(fokusProps().children).toBe(text.props.children);
+    expect(screen.getByLabelText("Passwort").props.value).toBe("geheim");
+  });
+
+  test.each([
+    [
+      "letzter Admin",
+      new ApiFehler(409, "LETZTER_ADMIN", "x"),
+      "Der letzte Admin lässt sich nicht entfernen.",
+    ],
+    [
+      "Wartezeit",
+      new ApiFehler(429, "ZU_VIELE_ANFRAGEN", "x"),
+      "Zu viele Anfragen. Bitte später nochmals versuchen.",
+    ],
+    [
+      "kein Netz",
+      new TypeError("Network request failed"),
+      "Keine Internetverbindung. Bitte später nochmals versuchen.",
+    ],
+    [
+      "unbekannter Code",
+      new ApiFehler(500, "INTERNER_FEHLER", "x"),
+      "Das hat nicht geklappt. Bitte später nochmals versuchen.",
+    ],
+  ])("%s: Text über dem Knopf, mit Fokus", async (_, fehler, erwartet) => {
+    const { rerender } = await zeige();
+    loeschen.error = fehler;
+    await rerender(baum());
+
+    const text = screen.getByText(erwartet);
+    expect(text).toBeOnTheScreen();
+    expect(fokusProps().children).toBe(text.props.children);
+    expect(screen.queryByText("Das Passwort stimmt nicht.")).toBeNull();
   });
 });
