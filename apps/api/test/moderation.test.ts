@@ -375,7 +375,7 @@ describe("GET und PATCH /api/v1/admin/meldungen", () => {
   test("Kein Admin sieht eine Meldung über sich selbst, alle anderen Admins schon", async () => {
     const [gemeldet, anderer, sl, eltern] = await Promise.all([
       person("admin"),
-      person("adminOhneZweitenFaktor"),
+      person("admin"),
       person("slA"),
       person("elternA"),
     ]);

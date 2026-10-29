@@ -76,4 +76,4 @@ npm test -w apps/mobile
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
-- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release, Backups, Wiederherstellung, Überwachung, Logs und der Ablauf bei einer Datenpanne
+- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release, Backups, Wiederherstellung, Überwachung, Logs, zweiter Faktor und der Ablauf bei einer Datenpanne

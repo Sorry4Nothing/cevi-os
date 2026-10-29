@@ -61,8 +61,15 @@
     {
       "idx": 8,
       "version": "7",
-      "when": 1793290244488,
-      "tag": "0008_moderation",
+      "when": 1793292410453,
+      "tag": "0008_leitung_anmeldung",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793297214788,
+      "tag": "0009_moderation",
       "breakpoints": true
     }
   ]

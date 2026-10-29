@@ -83,6 +83,7 @@ describe("GET /api/v1/ich", () => {
       name: "Leitende A und zugleich Elternteil B",
       benutzername: konto.benutzername,
       admin: false,
+      zweiterFaktor: false,
       mussPasswortAendern: false,
       datenschutzGelesenAm: null,
       telefon: null,

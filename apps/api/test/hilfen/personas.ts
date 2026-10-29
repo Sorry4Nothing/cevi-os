@@ -191,11 +191,9 @@ const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
   },
 };
 
-// Schaltet den zweiten Faktor in der laufenden Sitzung ein; das neue Cookie ersetzt das der Anmeldung
-async function zweiterFaktorEin(welt: Welt, userId: string, cookie: string) {
+// Der aktuelle Code der Person, aus dem gespeicherten und entschlüsselten Geheimnis
+export async function totpCode(welt: Welt, userId: string) {
   const { auth, db } = welt;
-  const headers = { cookie };
-  await auth.api.enableTwoFactor({ body: { password: PASSWORT }, headers });
   const [{ secret }] = await db
     .select({ secret: schema.twoFactor.secret })
     .from(schema.twoFactor)
@@ -208,8 +206,16 @@ async function zweiterFaktorEin(welt: Welt, userId: string, cookie: string) {
       }),
     },
   });
+  return code;
+}
+
+// Schaltet den zweiten Faktor in der laufenden Sitzung ein; das neue Cookie ersetzt das der Anmeldung
+async function zweiterFaktorEin(welt: Welt, userId: string, cookie: string) {
+  const { auth } = welt;
+  const headers = { cookie };
+  await auth.api.enableTwoFactor({ body: { password: PASSWORT }, headers });
   const bestaetigt = await auth.api.verifyTOTP({
-    body: { code },
+    body: { code: await totpCode(welt, userId) },
     headers,
     returnHeaders: true,
   });

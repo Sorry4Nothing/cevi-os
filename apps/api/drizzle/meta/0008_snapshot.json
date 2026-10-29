@@ -1,5 +1,5 @@
 {
-  "id": "64475f5c-5977-4e01-ae40-1d8913f33e44",
+  "id": "85ac3f20-c8e7-4e6e-9b0a-fe2803f294d8",
   "prevId": "5898473e-7cc3-4a2d-98a6-4d9a73067e1a",
   "version": "7",
   "dialect": "postgresql",
@@ -663,6 +663,77 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.leitung_anmeldung": {
+      "name": "leitung_anmeldung",
+      "schema": "",
+      "columns": {
+        "programm_id": {
+          "name": "programm_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "leitung_anmeldung_programm_id_programm_id_fk": {
+          "name": "leitung_anmeldung_programm_id_programm_id_fk",
+          "tableFrom": "leitung_anmeldung",
+          "tableTo": "programm",
+          "columnsFrom": [
+            "programm_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "leitung_anmeldung_user_id_user_id_fk": {
+          "name": "leitung_anmeldung_user_id_user_id_fk",
+          "tableFrom": "leitung_anmeldung",
+          "tableTo": "user",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "leitung_anmeldung_programm_id_user_id_pk": {
+          "name": "leitung_anmeldung_programm_id_user_id_pk",
+          "columns": [
+            "programm_id",
+            "user_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "leitung_anmeldung_status_check": {
+          "name": "leitung_anmeldung_status_check",
+          "value": "\"leitung_anmeldung\".\"status\" in ('ja', 'nein')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.meldung": {
       "name": "meldung",
       "schema": "",
@@ -724,30 +795,7 @@
           "notNull": false
         }
       },
-      "indexes": {
-        "meldung_offen_pro_person": {
-          "name": "meldung_offen_pro_person",
-          "columns": [
-            {
-              "expression": "nachricht_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "gemeldet_von",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"meldung\".\"erledigt_am\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "meldung_abteilung_id_abteilung_id_fk": {
           "name": "meldung_abteilung_id_abteilung_id_fk",
@@ -818,12 +866,7 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
-      "checkConstraints": {
-        "meldung_kopie_nur_offen": {
-          "name": "meldung_kopie_nur_offen",
-          "value": "\"meldung\".\"erledigt_am\" is null or \"meldung\".\"text_kopie\" is null"
-        }
-      },
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.nachricht": {
