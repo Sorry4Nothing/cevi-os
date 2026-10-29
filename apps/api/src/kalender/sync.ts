@@ -1,11 +1,20 @@
-import { and, eq, inArray, isNotNull, sql as roh } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  notInArray,
+  sql as roh,
+} from "drizzle-orm";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
 import { abteilung, programm } from "../db/schema.js";
 import { log } from "../log.js";
+import { programmBeginn } from "../rechte.js";
 import { gleicheAb } from "./abgleich.js";
 import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeSeiten, holeToken } from "./google.js";
+import { findeNachfolger } from "./nachfolger.js";
 
 // Beliebige feste Zahl: pg_try_advisory_lock braucht einen Schlüssel, der in der ganzen Datenbank nur diesem Job gehört
 const SPERRE_KALENDER = 740_027;
@@ -67,6 +76,43 @@ async function lauf(db: Db, schluesselDatei: string | undefined, jetzt: Date) {
         abteilungId: eine.id,
       }));
       await db.transaction(async (tx) => {
+        // Kommende Programme, die der Abruf weder behält noch absagt, fehlen (etwa nach «ab diesem Termin» oder weil sie privat wurden)
+        const fehlende = await tx
+          .select()
+          .from(programm)
+          .where(
+            and(
+              eq(programm.abteilungId, eine.id),
+              inArray(programm.status, ["aktiv", "pruefen"]),
+              roh`${programmBeginn} > ${jetzt.toISOString()}`,
+              notInArray(programm.googleEventId, [...proId.keys(), ...absagen]),
+            ),
+          );
+        const bekannt = new Set(
+          (
+            await tx
+              .select({ id: programm.googleEventId })
+              .from(programm)
+              .where(
+                and(
+                  eq(programm.abteilungId, eine.id),
+                  inArray(programm.googleEventId, [...proId.keys()]),
+                ),
+              )
+          ).map((z) => z.id),
+        );
+        const { uebernahmen, pruefen } = findeNachfolger(
+          fehlende,
+          zeilen,
+          bekannt,
+        );
+        // Übernehmen heisst umschlüsseln: Die Zeile behält id, Zuordnung, Ergänzungen und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
+        for (const u of uebernahmen) {
+          await tx
+            .update(programm)
+            .set({ googleEventId: u.googleEventId })
+            .where(eq(programm.id, u.programmId));
+        }
         // shortcut: ein INSERT trägt höchstens 65535 Parameter (rund 5000 Termine); bei grösseren Kalendern in Blöcke teilen
         if (zeilen.length > 0) {
           await tx
@@ -103,9 +149,16 @@ async function lauf(db: Db, schluesselDatei: string | undefined, jetzt: Date) {
               ),
             );
         }
+        if (pruefen.length > 0) {
+          await tx
+            .update(programm)
+            .set({ status: "pruefen" })
+            .where(inArray(programm.id, pruefen));
+        }
         await tx
           .update(abteilung)
-          .set({ syncOkAm: jetzt, syncFehler: null })
+          // Datenbankuhr statt jetzt: /health (#33) misst das Alter an now()
+          .set({ syncOkAm: roh`now()`, syncFehler: null })
           .where(eq(abteilung.id, eine.id));
       });
     } catch (fehler) {
