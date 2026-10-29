@@ -34,6 +34,8 @@ type Props = Omit<
 > & {
   label: string;
   fehler?: string;
+  // Mehrzeilige Felder wachsen bis hierhin und scrollen dann in sich
+  maxHoehe?: number;
   // Ein neuer Wert zeigt denselben Fehlertext neu an und nimmt den Fokus wieder
   fehlerSchluessel?: number;
 };
@@ -41,6 +43,7 @@ type Props = Omit<
 export function Textfeld({
   label,
   fehler,
+  maxHoehe,
   fehlerSchluessel,
   onFocus,
   onBlur,
@@ -82,6 +85,7 @@ export function Textfeld({
           styles.eingabe,
           {
             color: farben.text,
+            maxHeight: maxHoehe,
             // Fokus und Fehler machen den Rand je 1 dicker, so bleibt der Fokus auch bei einem Fehler sichtbar
             borderWidth: 1 + (fokus ? 1 : 0) + (fehler ? 1 : 0),
             borderColor: fehler

@@ -9,6 +9,7 @@ import ProgrammeLayout from "../app/(tabs)/programme/_layout";
 import Liste from "../app/(tabs)/programme/index";
 import Profil from "../app/(tabs)/profil";
 import { queryClient } from "../src/api/client";
+import { SperreProvider } from "../src/sperre/SperreProvider";
 import {
   FALKEN,
   json,
@@ -20,7 +21,9 @@ import {
 function Wurzel() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Slot />
+      <SperreProvider anfangsAus={false}>
+        <Slot />
+      </SperreProvider>
     </QueryClientProvider>
   );
 }

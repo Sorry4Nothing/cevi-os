@@ -10,7 +10,13 @@ import { AccessibilityInfo, Platform } from "react-native";
 
 import Detail from "../app/(tabs)/programme/[id]";
 import { queryClient } from "../src/api/client";
-import { FALKEN, json, netz, PERSONAS, programm } from "./hilfen/programme";
+import {
+  FALKEN,
+  json,
+  netz,
+  PERSONAS,
+  programmDetail,
+} from "./hilfen/programme";
 
 function Wurzel() {
   return (
@@ -26,7 +32,7 @@ const starte = () =>
     { initialUrl: "/programme/p1" },
   );
 
-const WALD = programm({
+const WALD = programmDetail({
   id: "p1",
   titel: "Waldtag",
   stufen: [FALKEN],
@@ -55,10 +61,12 @@ const netzHorcher = (
 // Der Stand auf dem Server; GET und PATCH treffen denselben Pfad, darum entscheidet die Methode.
 // Ein PATCH mit 204 übernimmt den Körper in den Stand, wie es die API tut
 function server(
-  start: Partial<Parameters<typeof programm>[0]> & { darfErgaenzen?: boolean },
+  start: Partial<Parameters<typeof programmDetail>[0]> & {
+    darfErgaenzen?: boolean;
+  },
   patch: () => Response = () => new Response(null, { status: 204 }),
 ) {
-  const stand = { darfErgaenzen: true, ...WALD, ...start } as Record<
+  const stand = { ...WALD, darfErgaenzen: true, ...start } as Record<
     string,
     unknown
   >;

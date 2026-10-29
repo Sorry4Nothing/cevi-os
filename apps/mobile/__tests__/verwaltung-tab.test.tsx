@@ -1,4 +1,4 @@
-import { renderRouter, screen } from "expo-router/testing-library";
+import { fireEvent, renderRouter, screen } from "expo-router/testing-library";
 
 jest.mock("../src/api/client", () => {
   const { useSyncExternalStore } = jest.requireActual("react");
@@ -51,6 +51,19 @@ jest.mock("../src/api/ich", () => ({
     ).useIchMock(),
   usePushEinstellung: () => ({ mutate: jest.fn(), isPending: false }),
 }));
+jest.mock("../src/api/hilfe", () => ({
+  useHilfe: () => ({
+    data: { vertrauenspersonen: null },
+    isPending: false,
+    isError: false,
+    refetch: jest.fn(),
+  }),
+  useVertrauenspersonenSpeichern: () => ({
+    mutate: jest.fn(),
+    error: null,
+    isPending: false,
+  }),
+}));
 jest.mock("../src/api/personen", () => ({
   usePersonen: () => ({
     data: { personen: [], stufen: [], kinder: [] },
@@ -76,6 +89,8 @@ const ich = (admin: boolean) => ({
     mussPasswortAendern: false,
     datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
     admin,
+    rollen: [],
+    zweiterFaktor: admin,
   },
   isPending: false,
   isError: false,
@@ -103,4 +118,37 @@ test("mit admin steht der Tab «Verwaltung» nach «Profil» und öffnet die Sta
     (titel) => screen.getAllByText(titel)[0],
   );
   expect(tabs.every(Boolean)).toBe(true);
+});
+
+test("Hilfe unter Profil steht allen offen, auch ohne admin", async () => {
+  klient.__setze({ ich: ich(false) });
+  await renderRouter("./app", { initialUrl: "/profil/hilfe" });
+
+  expect(screen).toHavePathname("/profil/hilfe");
+  expect(
+    await screen.findByRole("header", { name: "Hilfe" }),
+  ).toBeOnTheScreen();
+  expect(screen.getByRole("button", { name: "147 anrufen" })).toBeOnTheScreen();
+});
+
+test("ohne admin leitet /verwaltung/vertrauenspersonen um", async () => {
+  klient.__setze({ ich: ich(false) });
+  await renderRouter("./app", { initialUrl: "/verwaltung/vertrauenspersonen" });
+
+  expect(screen).not.toHavePathname("/verwaltung/vertrauenspersonen");
+  expect(screen.queryByLabelText("Text für die Hilfe-Seite")).toBeNull();
+});
+
+test("mit admin öffnet die Verwaltung den Bildschirm «Vertrauenspersonen»", async () => {
+  klient.__setze({ ich: ich(true) });
+  await renderRouter("./app", { initialUrl: "/verwaltung" });
+
+  await fireEvent.press(
+    await screen.findByRole("button", { name: "Vertrauenspersonen" }),
+  );
+
+  expect(screen).toHavePathname("/verwaltung/vertrauenspersonen");
+  expect(
+    await screen.findByLabelText("Text für die Hilfe-Seite"),
+  ).toBeOnTheScreen();
 });

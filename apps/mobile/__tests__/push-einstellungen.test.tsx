@@ -17,6 +17,7 @@ import { AccessibilityInfo } from "react-native";
 import Profil from "../app/(tabs)/profil";
 import { queryClient } from "../src/api/client";
 import { usePushEinstellung } from "../src/api/ich";
+import { SperreProvider } from "../src/sperre/SperreProvider";
 import { json, netz, PERSONAS } from "./hilfen/programme";
 
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: jest.fn() }) }));
@@ -47,7 +48,7 @@ function mockeIch(
 function Rahmen({ children }: { children: ReactNode }) {
   return (
     <QueryClientProvider client={queryClient as QueryClient}>
-      {children}
+      <SperreProvider anfangsAus={false}>{children}</SperreProvider>
     </QueryClientProvider>
   );
 }

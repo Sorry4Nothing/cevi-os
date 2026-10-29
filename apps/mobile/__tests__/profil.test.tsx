@@ -1,10 +1,15 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 import { AccessibilityInfo, Alert } from "react-native";
+import {
+  getEnrolledLevelAsync,
+  SecurityLevel,
+} from "expo-local-authentication";
 
 import Profil from "../app/(tabs)/profil";
 import { abmelden, ApiFehler, authClient, useOnline } from "../src/api/client";
 import { useIch, usePushEinstellung } from "../src/api/ich";
 import { useKontoLoeschen } from "../src/api/konto";
+import { SperreProvider } from "../src/sperre/SperreProvider";
 
 const mockPush = jest.fn();
 jest.mock("expo-router", () => ({
@@ -32,6 +37,25 @@ jest.mock("../src/api/konto", () => ({ useKontoLoeschen: jest.fn() }));
 
 const ich = jest.mocked(useIch);
 const ueberall = jest.mocked(authClient.revokeSessions);
+const speicher = (
+  jest.requireMock("expo-secure-store") as { __speicher: Map<string, string> }
+).__speicher;
+
+const baum = () => (
+  <SperreProvider anfangsAus={false}>
+    <Profil />
+  </SperreProvider>
+);
+const zeige = () => render(baum());
+
+function mitRolle(admin: boolean, rollen: string[]) {
+  ich.mockReturnValue({
+    data: { ...ich().data, admin, rollen },
+    isPending: false,
+    isError: false,
+    refetch: jest.fn(),
+  } as never);
+}
 
 const loeschen = {
   mutate: jest.fn(),
@@ -74,6 +98,7 @@ beforeEach(() => {
   loeschen.isPending = false;
   loeschen.error = null;
   jest.mocked(useKontoLoeschen).mockReturnValue(loeschen as never);
+  speicher.clear();
   ich.mockReturnValue({
     data: {
       name: "Eltern A",
@@ -82,6 +107,8 @@ beforeEach(() => {
       datenschutzGelesenAm: "2026-10-01T00:00:00.000Z",
       pushChat: true,
       pushProgramme: false,
+      admin: false,
+      rollen: [],
     },
     isPending: false,
     isError: false,
@@ -90,7 +117,7 @@ beforeEach(() => {
 });
 
 test("zeigt Name und Benutzername aus GET /ich mit den Abschnitten und Knöpfen", async () => {
-  await render(<Profil />);
+  await zeige();
 
   expect(screen.getByRole("header", { name: "Profil" })).toBeOnTheScreen();
   expect(screen.getByText("Eltern A")).toBeOnTheScreen();
@@ -110,7 +137,7 @@ test("zeigt Name und Benutzername aus GET /ich mit den Abschnitten und Knöpfen"
 });
 
 test("«Abmelden» ruft die eine Abmelde-Funktion", async () => {
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(screen.getByRole("button", { name: "Abmelden" }));
 
@@ -119,7 +146,7 @@ test("«Abmelden» ruft die eine Abmelde-Funktion", async () => {
 
 test("«Überall abmelden» beendet alle Sitzungen und meldet dann ab", async () => {
   ueberall.mockResolvedValue({ error: null } as never);
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", { name: "Überall abmelden" }),
@@ -131,7 +158,7 @@ test("«Überall abmelden» beendet alle Sitzungen und meldet dann ab", async ()
 
 test("ohne Netz bleibt die Person angemeldet und sieht eine Meldung", async () => {
   ueberall.mockRejectedValue(new TypeError("Network request failed"));
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.press(
     screen.getByRole("button", { name: "Überall abmelden" }),
@@ -149,7 +176,7 @@ test("nach dem Passwortwechsel bleibt die Erfolgsmeldung stehen (Checkliste 8.2)
   jest
     .mocked(authClient.changePassword)
     .mockResolvedValue({ error: null } as never);
-  await render(<Profil />);
+  await zeige();
 
   await fireEvent.changeText(
     screen.getByLabelText("Bisheriges Passwort"),
@@ -176,18 +203,20 @@ describe("Pushes", () => {
     screen.getByRole("switch", { name: /^Programm-Pushes/ });
 
   test("der Abschnitt steht vor «Abmelden»; die Schalter zeigen die Werte des Servers", async () => {
-    await render(<Profil />);
+    await render(baum());
 
     const koepfe = screen
       .getAllByRole("header")
       .map((kopf) => kopf.props.children);
-    expect(koepfe.indexOf("Pushes")).toBe(koepfe.indexOf("Abmelden") - 1);
+    // «App-Sperre» liegt dazwischen
+    expect(koepfe.indexOf("Pushes")).toBe(koepfe.indexOf("Abmelden") - 2);
+    expect(koepfe.indexOf("App-Sperre")).toBe(koepfe.indexOf("Abmelden") - 1);
     expect(chat()).toBeChecked();
     expect(programme()).not.toBeChecked();
   });
 
   test("ein Tipp sendet den umgekehrten Wert für genau diesen Schalter", async () => {
-    await render(<Profil />);
+    await render(baum());
 
     await fireEvent.press(chat());
     await fireEvent.press(programme());
@@ -198,7 +227,7 @@ describe("Pushes", () => {
 
   test("während des Speicherns zeigt der Schalter den neuen Wert, weitere Tipps zählen nicht", async () => {
     Object.assign(speichern.pushChat, { isPending: true, variables: false });
-    await render(<Profil />);
+    await render(baum());
 
     expect(chat()).not.toBeChecked();
     await fireEvent.press(chat());
@@ -207,7 +236,7 @@ describe("Pushes", () => {
 
   test("ein Fehler lässt den Wert des Servers stehen; die Meldung nimmt den Fokus und bleibt", async () => {
     speichern.pushChat.isError = true;
-    await render(<Profil />);
+    await render(baum());
 
     expect(chat()).toBeChecked();
     const text = screen.getByText(
@@ -227,11 +256,73 @@ describe("Pushes", () => {
 
   test("ohne Netz sind beide Schalter gesperrt", async () => {
     jest.mocked(useOnline).mockReturnValue(false);
-    await render(<Profil />);
+    await render(baum());
 
     expect(chat()).toBeDisabled();
     expect(programme()).toBeDisabled();
   });
+});
+
+test("«App-Sperre»: für Eltern ein Schalter, standardmässig an; aus schreibt «aus», an löscht den Schlüssel", async () => {
+  await zeige();
+  expect(screen.getByRole("header", { name: "App-Sperre" })).toBeOnTheScreen();
+  const schalter = screen.getByRole("switch", { name: "App-Sperre" });
+  expect(schalter).toBeChecked();
+
+  await fireEvent.press(schalter);
+  expect(speicher.get("cevi-os_sperre")).toBe("aus");
+  expect(screen.getByRole("switch", { name: "App-Sperre" })).not.toBeChecked();
+
+  await fireEvent.press(screen.getByRole("switch", { name: "App-Sperre" }));
+  expect(speicher.has("cevi-os_sperre")).toBe(false);
+  expect(screen.getByRole("switch", { name: "App-Sperre" })).toBeChecked();
+});
+
+test.each([
+  ["Leitende", false, ["leitung"]],
+  ["Admins", true, []],
+])(
+  "«App-Sperre»: für %s kein Schalter, nur der Hinweis",
+  async (_name, admin, rollen) => {
+    mitRolle(admin, rollen);
+    await zeige();
+
+    expect(
+      screen.getByText(
+        "Für Leitende, SL und Admins ist die App-Sperre immer an.",
+      ),
+    ).toBeOnTheScreen();
+    expect(screen.queryByRole("switch", { name: "App-Sperre" })).toBeNull();
+  },
+);
+
+test("«App-Sperre»: ohne Geräte-Code steht die Zeile, dass die Sperre einen braucht", async () => {
+  jest.mocked(getEnrolledLevelAsync).mockResolvedValueOnce(SecurityLevel.NONE);
+  await zeige();
+
+  expect(
+    await screen.findByText(
+      "Die App-Sperre wirkt erst, wenn das Gerät mit einem Geräte-Code gesichert ist.",
+    ),
+  ).toBeOnTheScreen();
+});
+
+test("«App-Sperre»: mit Geräte-Code steht die Zeile nicht", async () => {
+  await zeige();
+
+  expect(screen.queryByText(/mit einem Geräte-Code/)).toBeNull();
+});
+
+test("«Hilfe» öffnet die Hilfe-Seite unter /profil/hilfe", async () => {
+  await zeige();
+
+  await fireEvent.press(
+    screen.getByRole("button", {
+      name: "Hilfe, Vertrauenspersonen und Anlaufstellen",
+    }),
+  );
+
+  expect(mockPush).toHaveBeenCalledWith("/profil/hilfe");
 });
 
 describe("zweiter Faktor", () => {
@@ -249,7 +340,7 @@ describe("zweiter Faktor", () => {
     } as never);
 
   test("Eltern und Leitende sehen den Abschnitt nicht", async () => {
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.queryByRole("header", { name: "Zweiter Faktor" })).toBeNull();
     expect(
@@ -259,7 +350,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin ohne Faktor sieht «Zweiten Faktor einrichten» und kommt damit zur Einrichtung", async () => {
     alsAdmin(false);
-    await render(<Profil />);
+    await zeige();
 
     expect(
       screen.getByRole("header", { name: "Zweiter Faktor" }),
@@ -273,7 +364,7 @@ describe("zweiter Faktor", () => {
 
   test("Admin mit Faktor sieht «Zweiter Faktor eingerichtet», aber keinen Knopf", async () => {
     alsAdmin(true);
-    await render(<Profil />);
+    await zeige();
 
     expect(screen.getByText("Zweiter Faktor eingerichtet")).toBeOnTheScreen();
     expect(
@@ -294,7 +385,7 @@ describe("Konto löschen", () => {
   afterEach(() => jest.restoreAllMocks());
 
   test("der Abschnitt steht nach «Überall abmelden» mit Überschrift, Passwortfeld und Knopf", async () => {
-    await render(<Profil />);
+    await zeige();
 
     const rollen = screen
       .getAllByRole("header")
@@ -309,7 +400,7 @@ describe("Konto löschen", () => {
 
   test("ohne Passwort kein Dialog, keine Anfrage, dafür der Hinweis am Feld mit Fokus", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
 
     await fireEvent.press(knopf());
 
@@ -323,7 +414,7 @@ describe("Konto löschen", () => {
   test("alter Fehler und leeres Feld: genau eine Meldung, die am Feld", async () => {
     dialog();
     loeschen.error = new ApiFehler(429, "ZU_VIELE_ANFRAGEN", "x");
-    await render(<Profil />);
+    await zeige();
     expect(
       screen.getByText("Zu viele Anfragen. Bitte später nochmals versuchen."),
     ).toBeOnTheScreen();
@@ -338,7 +429,7 @@ describe("Konto löschen", () => {
   });
 
   test("die Meldung am leeren Feld geht beim Tippen weg", async () => {
-    await render(<Profil />);
+    await zeige();
     await fireEvent.press(knopf());
     expect(screen.getByText("Bitte das Passwort eingeben.")).toBeOnTheScreen();
 
@@ -348,7 +439,7 @@ describe("Konto löschen", () => {
   });
 
   test("zweiter Druck bei leerem Feld nimmt den Fokus erneut", async () => {
-    await render(<Profil />);
+    await zeige();
     await fireEvent.press(knopf());
     jest.mocked(AccessibilityInfo.sendAccessibilityEvent).mockClear();
 
@@ -360,7 +451,7 @@ describe("Konto löschen", () => {
 
   test("mit Passwort fragt ein Dialog nach; «Abbrechen» schickt nichts und setzt den Fokus auf den Knopf", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
 
     await fireEvent.press(knopf());
@@ -388,7 +479,7 @@ describe("Konto löschen", () => {
 
   test("«Löschen» sendet das Passwort einmal", async () => {
     const alert = dialog();
-    await render(<Profil />);
+    await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
     await fireEvent.press(knopf());
 
@@ -400,7 +491,7 @@ describe("Konto löschen", () => {
 
   test("während des Sendens ist der Knopf gesperrt", async () => {
     loeschen.isPending = true;
-    await render(<Profil />);
+    await zeige();
 
     expect(
       screen.getByRole("button", { name: "Konto löschen", disabled: true }),
@@ -408,11 +499,11 @@ describe("Konto löschen", () => {
   });
 
   test("ein falsches Passwort steht am Feld, mit Fokus; das Feld behält den Text", async () => {
-    const { rerender } = await render(<Profil />);
+    const { rerender } = await zeige();
     await fireEvent.changeText(screen.getByLabelText("Passwort"), "geheim");
     // Der Fehler kommt nach dem Absenden, nicht schon beim ersten Zeichnen
     loeschen.error = new ApiFehler(400, "PASSWORT_FALSCH", "x");
-    await rerender(<Profil />);
+    await rerender(baum());
 
     const text = screen.getByText("Das Passwort stimmt nicht.");
     expect(text).toBeOnTheScreen();
@@ -442,9 +533,9 @@ describe("Konto löschen", () => {
       "Das hat nicht geklappt. Bitte später nochmals versuchen.",
     ],
   ])("%s: Text über dem Knopf, mit Fokus", async (_, fehler, erwartet) => {
-    const { rerender } = await render(<Profil />);
+    const { rerender } = await zeige();
     loeschen.error = fehler;
-    await rerender(<Profil />);
+    await rerender(baum());
 
     const text = screen.getByText(erwartet);
     expect(text).toBeOnTheScreen();

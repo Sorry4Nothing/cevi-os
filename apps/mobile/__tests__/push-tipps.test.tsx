@@ -20,6 +20,7 @@ import Liste from "../app/(tabs)/programme/index";
 import Profil from "../app/(tabs)/profil";
 import { queryClient } from "../src/api/client";
 import { pushHandler, setzeOffenenChat, usePushTipps } from "../src/push";
+import { SperreProvider } from "../src/sperre/SperreProvider";
 import { Bildschirm } from "../src/ui/Bildschirm";
 import {
   FALKEN,
@@ -27,6 +28,7 @@ import {
   mockeNetz,
   PERSONAS,
   programm,
+  programmDetail,
 } from "./hilfen/programme";
 
 const PROGRAMM_ID = "0192f7a0-1b2c-7d3e-8f4a-5b6c7d8e9f01";
@@ -35,7 +37,9 @@ const CHAT_ID = "0192f7a0-1b2c-7d3e-8f4a-5b6c7d8e9f02";
 function Wurzel() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Slot />
+      <SperreProvider anfangsAus={false}>
+        <Slot />
+      </SperreProvider>
     </QueryClientProvider>
   );
 }
@@ -136,7 +140,8 @@ beforeEach(() => {
   mockeNetz({
     "/ich": () => json(200, PERSONAS.eltern),
     "/programme": () => json(200, { programme: [WALD] }),
-    [`/programme/${PROGRAMM_ID}`]: () => json(200, WALD),
+    [`/programme/${PROGRAMM_ID}`]: () =>
+      json(200, programmDetail({ id: WALD.id, titel: WALD.titel })),
   });
 });
 

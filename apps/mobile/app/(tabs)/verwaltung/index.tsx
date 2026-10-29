@@ -72,6 +72,15 @@ export default function Verwaltung() {
         titel="Stufen"
         onPress={() => router.push("/verwaltung/stufen")}
       />
+      <Listenzeile
+        titel="Vertrauenspersonen"
+        onPress={() => router.push("/verwaltung/vertrauenspersonen")}
+      />
+      <Listenzeile
+        titel="Meldungen"
+        hinweis="Gemeldete Nachrichten aus den Chats"
+        onPress={() => router.push("/verwaltung/meldungen")}
+      />
     </Bildschirm>
   );
 }

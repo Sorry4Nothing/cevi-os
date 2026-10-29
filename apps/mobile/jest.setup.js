@@ -84,17 +84,64 @@ jest.mock("expo-network", () => {
   };
 });
 
-// Secure Store im Arbeitsspeicher; __speicher lässt die Tests die Schlüssel prüfen
+// Secure Store im Arbeitsspeicher; __speicher lässt die Tests die Schlüssel prüfen.
+// Die Konstanten bleiben echt (sonst sind alle undefined und eine falsche Option fiele nicht auf); __aufrufe hält Methode, Schlüssel und Optionen
 jest.mock("expo-secure-store", () => {
+  const original = jest.requireActual("expo-secure-store");
   const speicher = new Map();
+  const aufrufe = [];
+  const merke = (methode, schluessel, optionen) =>
+    void aufrufe.push({ methode, schluessel, optionen });
   return {
+    ...original,
     __esModule: true,
     __speicher: speicher,
-    getItem: (schluessel) => speicher.get(schluessel) ?? null,
-    getItemAsync: async (schluessel) => speicher.get(schluessel) ?? null,
-    setItem: (schluessel, wert) => void speicher.set(schluessel, wert),
-    setItemAsync: async (schluessel, wert) =>
-      void speicher.set(schluessel, wert),
-    deleteItemAsync: async (schluessel) => void speicher.delete(schluessel),
+    __aufrufe: aufrufe,
+    getItem: (schluessel, optionen) => {
+      merke("getItem", schluessel, optionen);
+      return speicher.get(schluessel) ?? null;
+    },
+    getItemAsync: async (schluessel, optionen) => {
+      merke("getItemAsync", schluessel, optionen);
+      return speicher.get(schluessel) ?? null;
+    },
+    setItem: (schluessel, wert, optionen) => {
+      merke("setItem", schluessel, optionen);
+      speicher.set(schluessel, wert);
+    },
+    setItemAsync: async (schluessel, wert, optionen) => {
+      merke("setItemAsync", schluessel, optionen);
+      speicher.set(schluessel, wert);
+    },
+    deleteItemAsync: async (schluessel, optionen) => {
+      merke("deleteItemAsync", schluessel, optionen);
+      speicher.delete(schluessel);
+    },
+  };
+});
+
+// RN's Settings braucht SettingsManager, den das Preset nicht kennt; hier ein Speicher im Arbeitsspeicher (NSUserDefaults)
+jest.mock("react-native/Libraries/Settings/Settings", () => {
+  const werte = new Map();
+  return {
+    __esModule: true,
+    default: {
+      __werte: werte,
+      get: (schluessel) => werte.get(schluessel),
+      set: (neu) => Object.entries(neu).forEach(([k, v]) => werte.set(k, v)),
+    },
+  };
+});
+
+// Die nativen Attrappen von jest-expo liefern undefined; Standard «Code und Fingerabdruck da, Entsperren gelingt», damit Tests mit dem echten Wurzel-Layout von selbst entsperren
+jest.mock("expo-local-authentication", () => {
+  const original = jest.requireActual("expo-local-authentication");
+  return {
+    ...original,
+    __esModule: true,
+    getEnrolledLevelAsync: jest.fn(
+      async () => original.SecurityLevel.BIOMETRIC_STRONG,
+    ),
+    authenticateAsync: jest.fn(async () => ({ success: true })),
   };
 });

@@ -1,4 +1,5 @@
 import {
+  nachrichtZeitText,
   schlussZeitEingabe,
   schlussZeitText,
   tagInZuerich,
@@ -73,6 +74,16 @@ test("schlussZeit ist eine Wanduhrzeit: HH:MM ohne Umrechnung", () => {
 test("tagInZuerich nennt den Schweizer Kalendertag, egal wo das Gerät steht", () => {
   expect(tagInZuerich(new Date("2026-10-31T23:30:00Z"))).toBe("2026-11-01");
   expect(tagInZuerich(new Date("2026-03-29T13:00:00Z"))).toBe("2026-03-29");
+});
+
+test("nachrichtZeitText nennt Tag und Uhrzeit in Schweizer Zeit", () => {
+  expect(nachrichtZeitText("2026-10-31T13:30:00.000Z")).toBe(
+    "31. Oktober, 14:30 Uhr",
+  );
+  // Nach Mitternacht in der Schweiz ist es dort schon der nächste Tag
+  expect(nachrichtZeitText("2026-12-31T23:30:00.000Z")).toBe(
+    "1. Januar, 00:30 Uhr",
+  );
 });
 
 test.each([

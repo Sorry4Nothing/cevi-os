@@ -536,9 +536,13 @@ describe("DELETE /api/v1/admin/kinder/:id", () => {
 
   test("ein Kind ohne Eltern löschen schreibt keinen Eintrag", async () => {
     const id = await legeKindAn();
-    const vorher = await db.select().from(schema.auditLog);
     expect((await anfrage(admin, "DELETE", `${BASIS}/${id}`)).status).toBe(204);
-    expect(await db.select().from(schema.auditLog)).toHaveLength(vorher.length);
+    expect(
+      await db
+        .select()
+        .from(schema.auditLog)
+        .where(eq(schema.auditLog.zielId, id)),
+    ).toHaveLength(0);
   });
 
   test("unbekannt oder fremd 404, kein Admin 403; das Kind bleibt", async () => {

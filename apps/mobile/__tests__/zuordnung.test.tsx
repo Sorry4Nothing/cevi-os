@@ -20,7 +20,7 @@ import {
   netz,
   PERSONAS,
   PINGUINE,
-  programm,
+  programmDetail,
 } from "./hilfen/programme";
 
 function Wurzel() {
@@ -48,7 +48,7 @@ const STUFEN = {
     { ...PINGUINE, kuerzel: "P", reihenfolge: 2 },
   ],
 };
-const NEU = programm({
+const NEU = programmDetail({
   id: "p1",
   titel: "Neuer Termin",
   sichtbarkeit: "intern",
@@ -81,7 +81,7 @@ const aufrufe = (endung: string) =>
 // Der Stand auf dem Server, den die Attrappe beim PUT ändert
 function server(
   persona: keyof typeof PERSONAS,
-  start: Partial<Parameters<typeof programm>[0]> = {},
+  start: Partial<Parameters<typeof programmDetail>[0]> = {},
   zuordnung: () => Response = () => new Response(null, { status: 204 }),
   // Was der Server aus der Auswahl macht; sonst übernimmt er sie
   speichere = (koerper: Auswahlstand) => koerper,

@@ -103,6 +103,25 @@ export function useZuordnen(id: string) {
   });
 }
 
+// Nur die Antwort ändert sich; ein Fehler steht im Zustand der Mutation, das Detail lädt danach neu
+export function useTeilnahmeMelden(id: string) {
+  return useMutation({
+    mutationFn: ({
+      kindId,
+      status,
+    }: {
+      kindId: string;
+      status: "ja" | "nein";
+    }) =>
+      api.api.v1.programme[":id"].teilnahmen[":kindId"].$put({
+        param: { id, kindId },
+        json: { status },
+      }),
+    onSettled: () =>
+      queryClient.invalidateQueries({ queryKey: ["programme", id] }),
+  });
+}
+
 export type Ergaenzungen = InferRequestType<
   (typeof api.api.v1.programme)[":id"]["$patch"]
 >["json"];

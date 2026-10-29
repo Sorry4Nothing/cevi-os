@@ -1,3 +1,4 @@
+import { SecurityLevel } from "expo-local-authentication";
 import { useRouter } from "expo-router";
 import { useRef, useState } from "react";
 import { Alert, StyleSheet, Text, type HostInstance } from "react-native";
@@ -11,9 +12,12 @@ import {
 import { fehlertext, KEIN_NETZ } from "../../../src/api/fehlertexte";
 import { useIch, usePushEinstellung } from "../../../src/api/ich";
 import { useKontoLoeschen } from "../../../src/api/konto";
+import { istVorgegeben } from "../../../src/sperre/sperrzustand";
+import { useSperre } from "../../../src/sperre/SperreProvider";
 import { Bildschirm } from "../../../src/ui/Bildschirm";
 import { Button } from "../../../src/ui/Button";
 import { Fehlermeldung } from "../../../src/ui/Fehlermeldung";
+import { Listenzeile } from "../../../src/ui/Listenzeile";
 import { fokussieren } from "../../../src/ui/fokus";
 import { Passwortfeld } from "../../../src/ui/Passwortfeld";
 import { Passwortwechsel } from "../../../src/ui/Passwortwechsel";
@@ -67,6 +71,19 @@ export default function Profil() {
   // Zählt die Drücke ohne Passwort: Ein neuer Schlüssel zeigt die gleiche Meldung neu und nimmt den Fokus wieder
   const [leerDruecke, setLeerDruecke] = useState(0);
   const loeschKnopf = useRef<HostInstance>(null);
+  const { niveau, aus, setzeAus } = useSperre();
+  const [sperreFehler, setSperreFehler] = useState<string>();
+
+  async function sperreUmschalten() {
+    setSperreFehler(undefined);
+    try {
+      await setzeAus(!aus);
+    } catch {
+      setSperreFehler(
+        "Die Einstellung konnte nicht gespeichert werden. Bitte nochmals versuchen.",
+      );
+    }
+  }
 
   async function abmeldenGedrueckt() {
     setLaeuft(true);
@@ -147,6 +164,11 @@ export default function Profil() {
       <Text style={[styles.text, { color: farben.textLeise }]}>
         Benutzername: {ich.data?.benutzername}
       </Text>
+      <Listenzeile
+        titel="Hilfe"
+        text="Vertrauenspersonen und Anlaufstellen"
+        onPress={() => router.push("/profil/hilfe")}
+      />
       <Text
         accessibilityRole="header"
         style={[styles.abschnitt, { color: farben.text }]}
@@ -209,6 +231,32 @@ export default function Profil() {
           />
         </>
       ) : null}
+      <Text
+        accessibilityRole="header"
+        style={[styles.abschnitt, { color: farben.text }]}
+      >
+        App-Sperre
+      </Text>
+      {ich.data && istVorgegeben(ich.data) ? (
+        <Text style={[styles.text, { color: farben.text }]}>
+          Für Leitende, SL und Admins ist die App-Sperre immer an.
+        </Text>
+      ) : (
+        <>
+          <Schalter
+            label="App-Sperre"
+            checked={!aus}
+            onChange={() => void sperreUmschalten()}
+          />
+          {niveau !== undefined && niveau < SecurityLevel.SECRET ? (
+            <Text style={[styles.text, { color: farben.textLeise }]}>
+              Die App-Sperre wirkt erst, wenn das Gerät mit einem Geräte-Code
+              gesichert ist.
+            </Text>
+          ) : null}
+          <Fehlermeldung text={sperreFehler} />
+        </>
+      )}
       <Text
         accessibilityRole="header"
         style={[styles.abschnitt, { color: farben.text }]}
