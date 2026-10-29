@@ -1,3 +1,4 @@
+import { Expo } from "expo-server-sdk";
 import { and, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
 import { randomUUID } from "node:crypto";
@@ -37,6 +38,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
