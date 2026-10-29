@@ -276,6 +276,7 @@ describe("GET /api/v1/admin/personen", () => {
       "name",
       "rollen",
       "startpasswortGueltigBis",
+      "zweiterFaktor",
     ]);
     expect(person).toMatchObject({
       admin: false,
@@ -583,7 +584,8 @@ describe("Schutz des letzten Admins", () => {
 
   test("gegenseitiges Deaktivieren über Promise.all lässt genau einen aktiven Admin übrig", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
-    const zweiter = await legePersonaAn(eigene, "adminOhneZweitenFaktor");
+    // Mit zweitem Faktor: Ohne ihn sperrt die Admin-Sperre (#23) seine Anfrage vor dem Rennen
+    const zweiter = await legePersonaAn(eigene, "admin");
 
     const antworten = await Promise.all([
       anfrage(ersterAdmin, "POST", `/${zweiter.id}/deaktivieren`),
@@ -600,7 +602,7 @@ describe("Schutz des letzten Admins", () => {
 
   test("gegenseitiges Zurückstufen über Promise.all lässt genau einen aktiven Admin übrig", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
-    const zweiter = await legePersonaAn(eigene, "adminOhneZweitenFaktor");
+    const zweiter = await legePersonaAn(eigene, "admin");
 
     const antworten = await Promise.all([
       anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }),

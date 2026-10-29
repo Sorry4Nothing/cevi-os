@@ -11,7 +11,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
     new Hono<{ Variables: { person: Person } }>()
       .get("/", async (c) => {
         const person = c.get("person");
-        // Nie email, Bremsfelder, banned oder startpasswortGueltigBis: Die App braucht sie nicht
+        // Nie email, Bremsfelder, banned, startpasswortGueltigBis oder Geheimnisse und Codes des zweiten Faktors: Die App braucht sie nicht
         const [profil] = await db
           .select({
             id: user.id,
@@ -76,6 +76,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         return c.json({
           ...profil,
           admin: person.admin,
+          zweiterFaktor: person.zweiterFaktor,
           rollen: person.rollen,
           stufen,
           kinder,

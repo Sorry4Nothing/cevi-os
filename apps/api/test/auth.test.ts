@@ -802,8 +802,13 @@ describe("Abmelden", () => {
 describe("Zweiter Faktor (TOTP) im Login des Expo-Clients", () => {
   test("ein Admin richtet TOTP über die Positivliste ein; ein verify-totp in derselben Sitzung schaltet ihn ein und ersetzt das Cookie", async () => {
     const admin = await adminMitTotp();
-    // Der otpauth-Link nennt die E-Mail-Adresse als Konto
-    expect(decodeURIComponent(admin.totpURI)).toContain(person(admin.id).email);
+    // Der otpauth-Link nennt den Benutzernamen als Konto, nie die E-Mail-Adresse
+    expect(decodeURIComponent(admin.totpURI)).toContain(
+      `:${admin.benutzername}?`,
+    );
+    expect(admin.totpURI).not.toContain(
+      encodeURIComponent(person(admin.id).email),
+    );
     expect(admin.backupCodes).toHaveLength(10);
     expect(person(admin.id).twoFactorEnabled).toBe(true);
     expect(db.twoFactor).toEqual([
@@ -860,22 +865,33 @@ describe("Zweiter Faktor (TOTP) im Login des Expo-Clients", () => {
     expect((await sitzungZu(cookiesAus(antwort))).user.id).toBe(admin.id);
   });
 
-  test("verify-totp nimmt trustDevice an und setzt ein trust_device-Cookie", async () => {
-    const admin = await adminMitTotp();
-    const anmeldung = await app.request(
-      anfrage("sign-in/username", {
-        body: { username: admin.benutzername, password: PASSWORT },
-      }),
-    );
-    const antwort = await app.request(
-      anfrage("two-factor/verify-totp", {
-        cookie: cookiesAus(anmeldung),
-        body: { code: await totpCode(admin.id), trustDevice: true },
-      }),
-    );
-    expect(antwort.status).toBe(200);
-    expect(cookiesAus(antwort)).toContain("__Secure-better-auth.trust_device=");
-  });
+  test.each(["verify-totp", "verify-backup-code"])(
+    "%s nimmt trustDevice an, setzt aber kein trust_device-Cookie: Der nächste Login fragt wieder nach dem Code",
+    async (pfad) => {
+      const admin = await adminMitTotp();
+      const anmelden2 = () =>
+        app.request(
+          anfrage("sign-in/username", {
+            body: { username: admin.benutzername, password: PASSWORT },
+          }),
+        );
+      const code =
+        pfad === "verify-totp"
+          ? await totpCode(admin.id)
+          : admin.backupCodes[0];
+      const antwort = await app.request(
+        anfrage(`two-factor/${pfad}`, {
+          cookie: cookiesAus(await anmelden2()),
+          body: { code, trustDevice: true },
+        }),
+      );
+      expect(antwort.status).toBe(200);
+      expect(cookiesAus(antwort)).not.toContain("trust_device");
+      const naechste = await anmelden2();
+      expect(await naechste.json()).toMatchObject({ twoFactorRedirect: true });
+      expect(cookiesAus(naechste)).not.toContain(TOKEN);
+    },
+  );
 
   test("ein TOTP-Code gilt in seinem Zeitfenster mehr als einmal", async () => {
     const admin = await adminMitTotp();

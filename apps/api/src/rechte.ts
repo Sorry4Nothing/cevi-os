@@ -31,6 +31,7 @@ export type Person = {
   id: string;
   abteilungId: string;
   admin: boolean;
+  zweiterFaktor: boolean;
   rollen: { stufeId: string; typ: "leitung" | "stufenleitung" }[];
 };
 
@@ -71,6 +72,7 @@ export function personAusSitzung(
         id: sitzung.user.id,
         abteilungId: sitzung.user.abteilungId,
         admin: sitzung.user.role === "admin",
+        zweiterFaktor: sitzung.user.twoFactorEnabled === true,
         rollen,
       });
       // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
@@ -79,6 +81,23 @@ export function personAusSitzung(
     },
   );
 }
+
+// Admin-Routen erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
+export const zweiterFaktorPflicht = createMiddleware<{
+  Variables: { person: Person };
+}>(async (c, next) => {
+  const person = c.get("person");
+  if (person.admin && !person.zweiterFaktor) {
+    return c.json(
+      {
+        code: "ZWEITER_FAKTOR_FEHLT",
+        message: "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+      },
+      403,
+    );
+  }
+  await next();
+});
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
