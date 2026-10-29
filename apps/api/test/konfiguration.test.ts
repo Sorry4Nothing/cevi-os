@@ -61,7 +61,7 @@ test("der Server startet ohne Konfiguration nicht", () => {
     ["--import", "tsx", "src/server.ts"],
     {
       cwd: new URL("..", import.meta.url),
-      // Die CI setzt DATABASE_URL; Schlüssel mit undefined lässt Node weg
+      // Die Umgebung kann DATABASE_URL setzen; Schlüssel mit undefined lässt Node weg
       env: {
         ...process.env,
         DATABASE_URL: undefined,
