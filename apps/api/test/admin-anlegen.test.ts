@@ -30,6 +30,7 @@ const UMGEBUNG = {
   PORT: "4020",
   BETTER_AUTH_SECRET: "nur-fuer-tests-0123456789abcdef0123456789abcdef",
   BETTER_AUTH_URL: "http://localhost:4020",
+  EXPO_ACCESS_TOKEN: "nur-fuer-tests",
 };
 
 // Direkt die Datei statt npm run (kein npm.cmd-Umweg, wie #73); die Attrappe ersetzt fetch im Kindprozess
