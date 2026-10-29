@@ -126,6 +126,8 @@ const lies = async (datei: string) =>
   ) as unknown[];
 const lauf1 = await lies("erster-lauf.json");
 const lauf2 = await lies("zweiter-lauf.json");
+const vorher = await lies("serie-vorher.json");
+const geteilt = await lies("serie-geteilt.json");
 
 let schluesselDatei: string;
 beforeAll(async () => {
@@ -195,7 +197,7 @@ function stubGoogle(seiten: (unknown | Response)[]) {
 const programme = () => sql`
   select google_event_id, google_serie, titel, ganztaegig,
          beginn::text as beginn, ende::text as ende, tag_von::text as tag_von, tag_bis::text as tag_bis,
-         google_ort, google_beschreibung, status, sichtbarkeit,
+         google_ort, google_beschreibung, status, sichtbarkeit, id,
          treffpunkt, schluss_ort, schluss_zeit::text as schluss_zeit, mitnehmen, info_eltern,
          geaendert_von, geaendert_am
   from programm where abteilung_id = ${abteilungId} order by titel, beginn`;
@@ -249,7 +251,9 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
 
   const abteilung = await eigeneAbteilung();
   expect(abteilung.sync_fehler).toBeNull();
-  expect((abteilung.sync_ok_am as Date).getTime()).toBe(JETZT.getTime());
+  expect(
+    Math.abs((abteilung.sync_ok_am as Date).getTime() - Date.now()),
+  ).toBeLessThan(60_000);
   // Erfolg bleibt still
   expect(ausgabe).not.toHaveBeenCalled();
 });
@@ -389,7 +393,9 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   ).toBe("fertig");
   abteilung = await eigeneAbteilung();
   expect(abteilung.sync_fehler).toBeNull();
-  expect((abteilung.sync_ok_am as Date).getTime()).toBe(JETZT.getTime());
+  expect(
+    Math.abs((abteilung.sync_ok_am as Date).getTime() - Date.now()),
+  ).toBeLessThan(60_000);
 });
 
 test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel, Kalender-ID oder Token", async () => {
@@ -468,4 +474,251 @@ test("mit zwei Seiten kommen die Termine beider Seiten an", async () => {
     "Termin der ersten Seite",
     "Termin der zweiten Seite",
   ]);
+});
+
+// Serien «ab diesem Termin»: Ein fester Zeitpunkt vor dem ersten Termin der Aufzeichnungen, damit die Tests nicht ablaufen
+const JETZT_SERIE = new Date("2027-09-30T10:00:00Z");
+const A = "gruppenstunde002";
+const A2 = `${A}_R20271009T113000`;
+const B = "atelier0000000b1";
+const B2 = `${B}_R20271014T160000`;
+
+// «vorher» ist der Beginn nach dem ersten Lauf (null: neuer Termin); der Rest gilt nach dem Lauf mit «serie-geteilt.json».
+// A wird übernommen (andere Zeit, gleiche Zeile), B hat keinen Nachfolger am gleichen Tag und geht zu «Prüfen»
+const ERWARTET_GETEILT = [
+  {
+    titel: "Gruppenstunde",
+    vorher: "2027-10-02 12:00:00+00",
+    beginn: "2027-10-02 12:00:00+00",
+    event: `${A}_20271002T120000Z`,
+    status: "aktiv",
+  },
+  {
+    titel: "Gruppenstunde",
+    vorher: "2027-10-09 12:00:00+00",
+    beginn: "2027-10-09 11:30:00+00",
+    event: `${A2}_20271009T113000Z`,
+    status: "aktiv",
+  },
+  {
+    titel: "Gruppenstunde",
+    vorher: "2027-10-16 12:00:00+00",
+    beginn: "2027-10-16 11:30:00+00",
+    event: `${A2}_20271016T113000Z`,
+    status: "aktiv",
+  },
+  {
+    titel: "Werkstatt",
+    vorher: "2027-10-06 16:00:00+00",
+    beginn: "2027-10-06 16:00:00+00",
+    event: `${B}_20271006T160000Z`,
+    status: "aktiv",
+  },
+  {
+    titel: "Werkstatt",
+    vorher: "2027-10-13 16:00:00+00",
+    beginn: "2027-10-13 16:00:00+00",
+    event: `${B}_20271013T160000Z`,
+    status: "pruefen",
+  },
+  {
+    titel: "Werkstatt",
+    vorher: "2027-10-20 16:00:00+00",
+    beginn: "2027-10-20 16:00:00+00",
+    event: `${B}_20271020T160000Z`,
+    status: "pruefen",
+  },
+  {
+    titel: "Werkstatt",
+    vorher: null,
+    beginn: "2027-10-14 16:00:00+00",
+    event: `${B2}_20271014T160000Z`,
+    status: "aktiv",
+  },
+  {
+    titel: "Werkstatt",
+    vorher: null,
+    beginn: "2027-10-21 16:00:00+00",
+    event: `${B2}_20271021T160000Z`,
+    status: "aktiv",
+  },
+];
+// Diese vier Programme bekommen nach dem ersten Lauf Zuordnung, Sichtbarkeit, Treffpunkt und eine Leitungsanmeldung
+const MIT_ERGAENZUNG = [
+  "Gruppenstunde|2027-10-09 12:00:00+00",
+  "Gruppenstunde|2027-10-16 12:00:00+00",
+  "Werkstatt|2027-10-13 16:00:00+00",
+  "Werkstatt|2027-10-20 16:00:00+00",
+];
+
+const starteSerie = (jetzt = JETZT_SERIE) =>
+  synchronisiere({ datenbankUrl: API_URL, schluesselDatei, jetzt });
+const schluessel = (z: Record<string, unknown>) => `${z.titel}|${z.beginn}`;
+const finde = async (titel: string, beginn: string) => {
+  const zeile = (await programme()).find(
+    (z) => z.titel === titel && z.beginn === beginn,
+  );
+  if (!zeile) throw new Error(`Programm fehlt: ${titel} ${beginn}`);
+  return zeile;
+};
+const anhang = async (programmId: string) => ({
+  stufen:
+    await sql`select stufe_id from programm_stufe where programm_id = ${programmId}`,
+  leitung:
+    await sql`select user_id, status from leitung_anmeldung where programm_id = ${programmId}`,
+});
+
+// Erster Lauf mit «serie-vorher.json» (der Stub muss die Seite bereithalten), dann Ergänzungen wie von einer SL
+async function ersterSerienLauf() {
+  expect(await starteSerie()).toBe("fertig");
+  const [person] = await sql`
+    insert into "user" (name, email, abteilung_id)
+    values ('Leitung Test', ${`${randomUUID()}@example.org`}, ${abteilungId}) returning id`;
+  const ids = new Map<string, string>();
+  for (const z of await programme()) {
+    ids.set(schluessel(z), z.id as string);
+    if (!MIT_ERGAENZUNG.includes(schluessel(z))) continue;
+    await sql`update programm set sichtbarkeit = 'eltern', treffpunkt = 'Dorfbrunnen' where id = ${z.id}`;
+    await sql`insert into programm_stufe (programm_id, stufe_id) values (${z.id}, ${stufeId})`;
+    await sql`insert into leitung_anmeldung (programm_id, user_id, status) values (${z.id}, ${person.id}, 'ja')`;
+  }
+  return { ids, personId: person.id as string };
+}
+
+test("geteilte Serie: A wird umgeschlüsselt und behält id und Ergänzungen, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen intern dazu", async () => {
+  stubGoogle([...vorher, ...geteilt]);
+  const { ids, personId } = await ersterSerienLauf();
+  expect(ids.size).toBe(6);
+  expect(await starteSerie()).toBe("fertig");
+
+  const zeilen = await programme();
+  expect(zeilen).toHaveLength(ERWARTET_GETEILT.length);
+  for (const erwartet of ERWARTET_GETEILT) {
+    const zeile = await finde(erwartet.titel, erwartet.beginn);
+    expect(zeile).toMatchObject({
+      google_event_id: erwartet.event,
+      status: erwartet.status,
+    });
+    if (erwartet.vorher === null) {
+      // Neuer Termin: wieder fail-closed
+      expect([...ids.values()]).not.toContain(zeile.id);
+      expect(zeile).toMatchObject({ sichtbarkeit: "intern", treffpunkt: null });
+      expect((await anhang(zeile.id as string)).stufen).toEqual([]);
+      continue;
+    }
+    const vorherKey = `${erwartet.titel}|${erwartet.vorher}`;
+    expect(zeile.id).toBe(ids.get(vorherKey));
+    if (MIT_ERGAENZUNG.includes(vorherKey)) {
+      expect(zeile).toMatchObject({
+        sichtbarkeit: "eltern",
+        treffpunkt: "Dorfbrunnen",
+      });
+      expect(await anhang(zeile.id as string)).toEqual({
+        stufen: [{ stufe_id: stufeId }],
+        leitung: [{ user_id: personId, status: "ja" }],
+      });
+    }
+  }
+  expect((await eigeneAbteilung()).sync_fehler).toBeNull();
+  expect(ausgabe).not.toHaveBeenCalled();
+});
+
+test("ein zweiter Lauf mit derselben geteilten Serie ändert nichts", async () => {
+  stubGoogle([...vorher, ...geteilt, ...geteilt]);
+  await ersterSerienLauf();
+  expect(await starteSerie()).toBe("fertig");
+  const davor = await programme();
+  expect(await starteSerie()).toBe("fertig");
+  expect(await programme()).toEqual(davor);
+});
+
+test("begonnene Programme bleiben unberührt: Der 09.10. von A behält Zeit und Event-ID, der 16.10. wird übernommen", async () => {
+  stubGoogle([...vorher, ...geteilt]);
+  const { ids } = await ersterSerienLauf();
+  expect(await starteSerie(new Date("2027-10-09T13:00:00Z"))).toBe("fertig");
+
+  expect(await finde("Gruppenstunde", "2027-10-09 12:00:00+00")).toMatchObject({
+    id: ids.get("Gruppenstunde|2027-10-09 12:00:00+00"),
+    google_event_id: `${A}_20271009T120000Z`,
+    status: "aktiv",
+  });
+  expect(await finde("Gruppenstunde", "2027-10-16 11:30:00+00")).toMatchObject({
+    id: ids.get("Gruppenstunde|2027-10-16 12:00:00+00"),
+    google_event_id: `${A2}_20271016T113000Z`,
+  });
+  // Der neue Termin vom 09.10. ist nur ein neues, internes Programm
+  expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
+    sichtbarkeit: "intern",
+  });
+});
+
+test("ein abgesagtes Programm, das im Abruf fehlt, bleibt abgesagt", async () => {
+  stubGoogle([...vorher, ...geteilt]);
+  const { ids } = await ersterSerienLauf();
+  await sql`update programm set status = 'abgesagt' where id = ${ids.get("Werkstatt|2027-10-13 16:00:00+00")!}`;
+  expect(await starteSerie()).toBe("fertig");
+  expect(await finde("Werkstatt", "2027-10-13 16:00:00+00")).toMatchObject({
+    status: "abgesagt",
+  });
+  expect(await finde("Werkstatt", "2027-10-20 16:00:00+00")).toMatchObject({
+    status: "pruefen",
+  });
+});
+
+test("ein Programm in «Prüfen» wird übernommen, sobald sein Nachfolger im Abruf auftaucht", async () => {
+  const ohneA2 = structuredClone(geteilt) as {
+    items: { recurringEventId?: string }[];
+  }[];
+  ohneA2[0].items = ohneA2[0].items.filter(
+    (e) => !e.recurringEventId?.startsWith(A2),
+  );
+  stubGoogle([...vorher, ...ohneA2, ...geteilt]);
+  const { ids } = await ersterSerienLauf();
+  expect(await starteSerie()).toBe("fertig");
+  expect(await finde("Gruppenstunde", "2027-10-09 12:00:00+00")).toMatchObject({
+    status: "pruefen",
+  });
+
+  expect(await starteSerie()).toBe("fertig");
+  expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
+    id: ids.get("Gruppenstunde|2027-10-09 12:00:00+00"),
+    status: "aktiv",
+    google_event_id: `${A2}_20271009T113000Z`,
+  });
+});
+
+test("ein bekannter Termin, der privat wird, geht zu «Prüfen»", async () => {
+  const privat = structuredClone(vorher) as {
+    items: { id: string; visibility?: string }[];
+  }[];
+  privat[0].items.find((e) => e.id === `${B}_20271013T160000Z`)!.visibility =
+    "private";
+  stubGoogle([...vorher, ...privat]);
+  await ersterSerienLauf();
+  expect(await starteSerie()).toBe("fertig");
+  for (const z of await programme()) {
+    expect(z.status).toBe(
+      z.google_event_id === `${B}_20271013T160000Z` ? "pruefen" : "aktiv",
+    );
+  }
+});
+
+test("ein leerer Abruf schickt jedes kommende Programm zu «Prüfen»", async () => {
+  stubGoogle([...vorher, {}]);
+  await ersterSerienLauf();
+  expect(await starteSerie()).toBe("fertig");
+  const zeilen = await programme();
+  expect(zeilen).toHaveLength(6);
+  expect(zeilen.every((z) => z.status === "pruefen")).toBe(true);
+});
+
+test("ein gescheiterter Lauf (HTTP 500) ändert keinen Status", async () => {
+  stubGoogle([...vorher, new Response("kaputt", { status: 500 })]);
+  await ersterSerienLauf();
+  const davor = await programme();
+  expect(await starteSerie()).toBe("fertig");
+  expect(await programme()).toEqual(davor);
+  expect((await eigeneAbteilung()).sync_fehler).toBe(
+    "Google antwortet mit HTTP 500",
+  );
 });

@@ -1,0 +1,81 @@
+[
+  {
+    "items": [
+      {
+        "id": "gruppenstunde002_20271002T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": {
+          "dateTime": "2027-10-02T14:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-02T16:00:00+02:00"
+        },
+        "recurringEventId": "gruppenstunde002"
+      },
+      {
+        "id": "gruppenstunde002_20271009T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": {
+          "dateTime": "2027-10-09T14:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-09T16:00:00+02:00"
+        },
+        "recurringEventId": "gruppenstunde002"
+      },
+      {
+        "id": "gruppenstunde002_20271016T120000Z",
+        "status": "confirmed",
+        "summary": "Gruppenstunde",
+        "location": "Kirchgemeindehaus",
+        "start": {
+          "dateTime": "2027-10-16T14:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-16T16:00:00+02:00"
+        },
+        "recurringEventId": "gruppenstunde002"
+      },
+      {
+        "id": "atelier0000000b1_20271006T160000Z",
+        "status": "confirmed",
+        "summary": "Werkstatt",
+        "start": {
+          "dateTime": "2027-10-06T18:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-06T19:30:00+02:00"
+        },
+        "recurringEventId": "atelier0000000b1"
+      },
+      {
+        "id": "atelier0000000b1_20271013T160000Z",
+        "status": "confirmed",
+        "summary": "Werkstatt",
+        "start": {
+          "dateTime": "2027-10-13T18:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-13T19:30:00+02:00"
+        },
+        "recurringEventId": "atelier0000000b1"
+      },
+      {
+        "id": "atelier0000000b1_20271020T160000Z",
+        "status": "confirmed",
+        "summary": "Werkstatt",
+        "start": {
+          "dateTime": "2027-10-20T18:00:00+02:00"
+        },
+        "end": {
+          "dateTime": "2027-10-20T19:30:00+02:00"
+        },
+        "recurringEventId": "atelier0000000b1"
+      }
+    ]
+  }
+]
