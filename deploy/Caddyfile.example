@@ -1,0 +1,4 @@
+# Vorlage für deploy/Caddyfile auf dem Server; die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst
+api.example.org {
+	reverse_proxy api:3000
+}

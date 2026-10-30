@@ -4,7 +4,8 @@ Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Relea
 
 ## Server
 
-- Ein VPS in der Schweiz; Anbieter und Domain sind noch offen (#68).
+- Ein VPS; Anbieter, Region und Domain sind noch offen (#68). Im Gespräch ist Oracle Cloud «Always Free» (ARM, Ampere); ob die Region in der Schweiz liegt, ist ungeprüft, und die Home-Region lässt sich nach der Anmeldung nicht ändern.
+- Das API-Image ist nur für arm64 gebaut (`image.yml` läuft auf `ubuntu-24.04-arm`). Die Images von postgres, caddy und restic gibt es auch für arm64. Auf einem amd64-Server startet das API-Image nicht.
 - Auf dem Server laufen Linux mit systemd-journald, die Docker Engine mit dem Compose-Plugin und git.
 - Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind.
 - Das Repo liegt auf dem Server als Checkout des ausgerollten Tags. Befehle in dieser Doku laufen im Wurzelordner dieses Checkouts, jene im Abschnitt «Backups» im Ordner `deploy/`.
@@ -25,7 +26,7 @@ Erste Einrichtung auf dem Server:
 1. Das Repo klonen und den Release-Tag auschecken: `git fetch --tags && git checkout vX.Y.Z`
 2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`), dann `chmod 600 deploy/.env`. `VERANTWORTLICHE_STELLE` und `KONTAKT_EMAIL` nennt die Abteilung; die Seiten `/datenschutz`, `/konto-loeschen` und `/support` setzen beide ein (#63). Ohne `KONTAKT_EMAIL` loggt die API beim Start `seiten` / `ohne-kontakt`, und die Seiten sagen, dass die Adresse fehlt
 3. Den Schlüssel des Google-Service-Accounts (#26) nach `deploy/secrets/google-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Ebenso den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json`
-4. `deploy/Caddyfile` mit `reverse_proxy api:3000` anlegen (#68)
+4. `deploy/Caddyfile.example` nach `deploy/Caddyfile` kopieren und die Domain eintragen (#68)
 5. Nach dem ersten Tag das API-Image auf GHCR öffentlich schalten (#70), sonst findet der Server es nicht
 
 Jedes Release rollt `deploy/deploy.sh vX.Y.Z` aus, nach `git fetch --tags && git checkout vX.Y.Z`. Das Skript aktualisiert die Images von postgres und caddy, sichert die Datenbank (siehe «Backups»), setzt die Passwörter der Datenbankrollen aus `deploy/.env`, führt die Migrationen mit der Besitzerrolle aus — nur vorwärts, nie zurück —, startet alle Dienste mit dem Tag neu und stoppt jeden Dienst ausser caddy, der einen Port veröffentlicht.
