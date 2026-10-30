@@ -31,8 +31,10 @@ import {
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import {
+  ausblendenDurch,
   chatFuerPerson,
   chatMitglieder,
+  gemeldeteNachrichten,
   hatRolle,
   sichtbareNachrichten,
   stufenleitungDerStufen,
@@ -251,7 +253,23 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               text: n.text,
               erstelltAm: n.erstelltAm,
               ausgeblendetAm: n.ausgeblendetAm,
-              autor: { id: user.id, name: user.name },
+              autor: {
+                id: user.id,
+                name: user.name,
+                // Nur diese eine Rolle und nur für die Stufe des Chats: Für Eltern und Leitende gibt es kein Kennzeichen
+                stufenleitung: exists(
+                  db
+                    .select({ eins: sql`1` })
+                    .from(rolle)
+                    .where(
+                      and(
+                        eq(rolle.userId, n.autorId),
+                        eq(rolle.stufeId, eigener.stufeId),
+                        eq(rolle.typ, "stufenleitung"),
+                      ),
+                    ),
+                ),
+              },
               // Verschwindet ein Programm aus der Elternsicht, verschwindet auch sein Titel aus dem Chat
               programm: { id: programm.id, titel: programm.titel },
             })
@@ -268,10 +286,24 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             .orderBy(desc(n.id))
             .limit(SEITE + 1);
           const seite = zeilen.slice(0, SEITE);
+          const gemeldet = await gemeldeteNachrichten(
+            db,
+            person,
+            seite.map((z) => z.id),
+          );
           return c.json({
             // Ausgeblendete liefert sichtbareNachrichten nur der Autorin: ohne Text und Programm, die App zeigt den Hinweis
             nachrichten: seite.map(({ ausgeblendetAm, ...zeile }) => ({
               ...zeile,
+              // Dieselbe Regel wie die Route; eine ausgeblendete Nachricht blendet niemand ein zweites Mal aus
+              darfAusblenden:
+                ausgeblendetAm === null &&
+                ausblendenDurch(person, {
+                  mitglied: true,
+                  chatTyp: eigener.typ,
+                  stufeId: eigener.stufeId,
+                  gemeldet: gemeldet.has(zeile.id),
+                }) !== null,
               text: ausgeblendetAm ? null : zeile.text,
               programm: ausgeblendetAm ? null : zeile.programm,
               ausgeblendet: ausgeblendetAm !== null,

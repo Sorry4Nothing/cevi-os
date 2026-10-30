@@ -82,6 +82,7 @@ type Gelesen = {
   id: string;
   text: string | null;
   ausgeblendet: boolean;
+  darfAusblenden: boolean;
   eigene: boolean;
 };
 const lies = async (konto: PersonaKonto, chatId: string) =>
@@ -260,6 +261,143 @@ describe("POST /api/v1/nachrichten/:id/ausblenden", () => {
     const meldungId = await meldeDirekt(id, eltern, sl);
     expect((await erledigen(admin, meldungId)).status).toBe(204);
     expect((await ausblenden(admin, id)).status).toBe(404);
+  });
+});
+
+describe("darfAusblenden je Nachricht", () => {
+  // Ein Chat ohne Zugang (404) ergibt eine leere Tabelle
+  const darf = async (konto: PersonaKonto, chatId: string) => {
+    const antwort = await aufruf(
+      konto,
+      "GET",
+      `/api/v1/chats/${chatId}/nachrichten`,
+    );
+    if (antwort.status !== 200) return new Map<string, boolean>();
+    const { nachrichten } = (await antwort.json()) as {
+      nachrichten: Gelesen[];
+    };
+    return new Map(nachrichten.map((n) => [n.id, n.darfAusblenden] as const));
+  };
+
+  test("SL im Gruppenchat der eigenen Stufe wahr, Eltern und die Autorin selbst falsch", async () => {
+    const [sl, autorin, andere] = await Promise.all([
+      person("slA"),
+      person("elternA"),
+      person("elternA"),
+    ]);
+    const vonEltern = await schreibe(autorin, welt.gruppenchatAId);
+    const vonSl = await schreibe(sl, welt.gruppenchatAId);
+
+    // Die SL blendet auch die eigene Nachricht aus, wie es die Route zulässt
+    expect(await darf(sl, welt.gruppenchatAId)).toEqual(
+      new Map([
+        [vonEltern, true],
+        [vonSl, true],
+      ]),
+    );
+    for (const konto of [autorin, andere]) {
+      expect(await darf(konto, welt.gruppenchatAId)).toEqual(
+        new Map([
+          [vonEltern, false],
+          [vonSl, false],
+        ]),
+      );
+    }
+  });
+
+  test("im Einzelchat falsch, auch für die SL", async () => {
+    const [sl, eltern] = await Promise.all([person("slA"), person("elternA")]);
+    const chatId = await einzelchat(eltern, sl);
+    const id = await schreibe(eltern, chatId);
+    await schreibe(sl, chatId);
+
+    for (const konto of [sl, eltern]) {
+      expect([...(await darf(konto, chatId)).values()]).toEqual([false, false]);
+    }
+    expect((await ausblenden(sl, id)).status).toBe(403);
+  });
+
+  test("eine bereits ausgeblendete Nachricht ist falsch, für die Autorin sichtbar", async () => {
+    const [sl, autorin] = await Promise.all([person("slA"), person("elternA")]);
+    const id = await schreibe(autorin, welt.gruppenchatAId);
+    expect((await ausblenden(sl, id)).status).toBe(204);
+
+    expect(await darf(autorin, welt.gruppenchatAId)).toEqual(
+      new Map([[id, false]]),
+    );
+  });
+
+  // Feld und Route gehen von derselben Regel aus: Pro Person und Nachricht ist das Feld genau dann wahr, wenn die Route die Nachricht ausblendet
+  test("Feld und Route laufen nie auseinander", async () => {
+    const [sl, eltern, andere, adminMitglied, admin] = await Promise.all([
+      person("slA"),
+      person("elternA"),
+      person("elternA"),
+      person("admin"),
+      person("admin"),
+    ]);
+    // Ein Admin, der zugleich Elternteil in Stufe A ist, sieht Nachrichten im Chat und kann über eine Meldung ausblenden
+    await db
+      .insert(schema.kindEltern)
+      .values({ kindId: welt.kindAId, userId: adminMitglied.id as string });
+    const einzel = await einzelchat(eltern, sl);
+
+    const nachrichten = {
+      gruppeEltern: [
+        welt.gruppenchatAId,
+        await schreibe(eltern, welt.gruppenchatAId),
+      ],
+      gruppeSl: [welt.gruppenchatAId, await schreibe(sl, welt.gruppenchatAId)],
+      gruppeAdmin: [
+        welt.gruppenchatAId,
+        await schreibe(adminMitglied, welt.gruppenchatAId),
+      ],
+      gruppeGemeldet: [
+        welt.gruppenchatAId,
+        await schreibe(eltern, welt.gruppenchatAId),
+      ],
+      gruppeEigeneGemeldet: [
+        welt.gruppenchatAId,
+        await schreibe(adminMitglied, welt.gruppenchatAId),
+      ],
+      einzelEltern: [einzel, await schreibe(eltern, einzel)],
+      einzelSl: [einzel, await schreibe(sl, einzel)],
+    } as const;
+    await meldeDirekt(nachrichten.gruppeGemeldet[1], eltern, sl);
+    await meldeDirekt(nachrichten.gruppeEigeneGemeldet[1], adminMitglied, sl);
+    // Eine erledigte Meldung zählt nicht
+    const erledigte = await schreibe(eltern, welt.gruppenchatAId);
+    const erledigteMeldung = await meldeDirekt(erledigte, eltern, sl);
+    expect((await erledigen(admin, erledigteMeldung)).status).toBe(204);
+
+    const alle = [
+      ...Object.values(nachrichten),
+      [welt.gruppenchatAId, erledigte],
+    ] as [string, string][];
+    let wahr = 0;
+    for (const konto of [sl, eltern, andere, adminMitglied]) {
+      for (const [chatId, id] of alle) {
+        const feld = (await darf(konto, chatId)).get(id);
+        // Nicht sichtbar für die Person: nichts zu vergleichen
+        if (feld === undefined) continue;
+        const antwort = await ausblenden(konto, id);
+        const [zeile] = await db
+          .select({ am: schema.nachricht.ausgeblendetAm })
+          .from(schema.nachricht)
+          .where(eq(schema.nachricht.id, id));
+        expect(feld, `${konto.benutzername} ${id} (${antwort.status})`).toBe(
+          zeile.am !== null,
+        );
+        if (feld) wahr += 1;
+        // Zurück auf unveröffentlicht für die nächste Person
+        await db
+          .update(schema.nachricht)
+          .set({ ausgeblendetAm: null, ausgeblendetVon: null })
+          .where(eq(schema.nachricht.id, id));
+      }
+    }
+    // Der Test prüft beide Seiten: SL, Admin über Meldung und Eltern ohne Recht kommen vor
+    expect(wahr).toBeGreaterThan(4);
   });
 });
 

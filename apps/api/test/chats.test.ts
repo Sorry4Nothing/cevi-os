@@ -82,7 +82,7 @@ type Nachricht = {
   id: string;
   text: string;
   eigene: boolean;
-  autor: { id: string; name: string };
+  autor: { id: string; name: string; stufenleitung: boolean };
   programm: { id: string; titel: string } | null;
 };
 
@@ -156,6 +156,48 @@ describe("Nachrichten senden und lesen", () => {
       ]);
       expect(nachrichten.find((n) => n.eigene)?.text).toBe(eigene);
       expect(naechster).toBeNull();
+    }
+  });
+
+  test("autor.stufenleitung ist wahr nur für die SL dieser Stufe, nicht für Eltern, Leitende oder die SL einer anderen Stufe", async () => {
+    const [eltern, sl, slB, leitende] = await Promise.all([
+      person("elternA"),
+      person("slA"),
+      person("slB"),
+      person("leitendeA"),
+    ]);
+    // Eine SL der Stufe B und eine Leitende der Stufe A sind zugleich Elternteil in Stufe A und schreiben im Gruppenchat
+    await db.insert(schema.kindEltern).values([
+      { kindId: welt.kindAId, userId: slB.id as string },
+      { kindId: welt.kindAId, userId: leitende.id as string },
+    ]);
+    for (const [konto, text] of [
+      [eltern, "Eltern"],
+      [sl, "SL"],
+      [slB, "SL B"],
+      [leitende, "Leitende"],
+    ] as const) {
+      expect((await sende(konto, welt.gruppenchatAId, { text })).status).toBe(
+        201,
+      );
+    }
+
+    for (const leser of [eltern, sl]) {
+      const { nachrichten } = (await (
+        await lies(leser, welt.gruppenchatAId)
+      ).json()) as { nachrichten: Nachricht[] };
+      expect(
+        Object.fromEntries(nachrichten.map((n) => [n.text, n.autor])),
+      ).toEqual({
+        Eltern: { id: eltern.id, name: "Eltern A", stufenleitung: false },
+        SL: { id: sl.id, name: "SL A", stufenleitung: true },
+        "SL B": { id: slB.id, name: "SL B", stufenleitung: false },
+        Leitende: {
+          id: leitende.id,
+          name: "Leitende A",
+          stufenleitung: false,
+        },
+      });
     }
   });
 
