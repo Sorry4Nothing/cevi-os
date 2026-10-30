@@ -1138,7 +1138,7 @@ paths:
       tags:
         - Programme
       description: |
-        Liefert die Felder des Listeneintrags und zusätzlich `teilnahmeOffen`, `kinder` und
+        Liefert die Felder des Listeneintrags (mit `kinder`) und zusätzlich `teilnahmeOffen` und
         (nur für anmeldeberechtigte Leitende) `eigeneAnmeldung`.
 
         Wer aufrufen darf: jede angemeldete Person, für die das Programm sichtbar ist (Regeln wie bei der Liste).
@@ -2917,7 +2917,7 @@ components:
     ProgrammListeneintrag:
       type: object
       description: |
-        Programm, wie es Liste und Detail liefern. Alle Schlüssel sind immer vorhanden. Entweder ist `ganztaegig`
+        Programm, wie es Liste und Detail liefern, mit `kinder` (derselben Regel in beiden). Alle Schlüssel sind immer vorhanden. Entweder ist `ganztaegig`
         wahr, dann sind `tagVon` und `tagBis` gesetzt und `beginn` und `ende` `null`, oder `ganztaegig` ist falsch,
         dann sind `beginn` und `ende` gesetzt und `tagVon` und `tagBis` `null`.
       required:
@@ -2933,6 +2933,7 @@ components:
         - googleOrt
         - stufen
         - googleBeschreibung
+        - kinder
       properties:
         id:
           type: string
@@ -2994,6 +2995,11 @@ components:
             - string
             - "null"
           description: Beschreibung aus Google; gilt als intern. Nur mit Leitungssicht gefüllt, sonst `null`.
+        kinder:
+          type: array
+          description: Eigene aktive Kinder der Person in zugeordneten Stufen, sortiert nach Vorname, dann `id`. Leer für alle ohne eigene Kinder dort, auch für Admins und Leitende.
+          items:
+            $ref: "#/components/schemas/ProgrammKind"
     ProgrammListe:
       type: object
       required:
@@ -3032,16 +3038,10 @@ components:
         - type: object
           required:
             - teilnahmeOffen
-            - kinder
           properties:
             teilnahmeOffen:
               type: boolean
               description: Wahr, wenn das Programm «aktiv» ist und noch nicht begonnen hat; nur dann lässt sich die Teilnahme melden oder ändern.
-            kinder:
-              type: array
-              description: Eigene aktive Kinder der Person in zugeordneten Stufen, sortiert nach Vorname, dann `id`.
-              items:
-                $ref: "#/components/schemas/ProgrammKind"
             eigeneAnmeldung:
               type: string
               enum:
