@@ -15,6 +15,7 @@ import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMeldungenRouten } from "./routes/admin/meldungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
+import { erstelleBlockierungenRouten } from "./routes/blockierungen.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
@@ -95,6 +96,7 @@ export function erstelleApp({
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1/ich", erstelleIchRouten({ db, auth }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
+      .route("/api/v1/blockierungen", erstelleBlockierungenRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db }))
       .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
       .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
