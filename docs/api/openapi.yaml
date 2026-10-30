@@ -1147,7 +1147,8 @@ paths:
 
         - `kinder`: nur die eigenen, aktiven Kinder der Person aus Stufen, denen das Programm zugeordnet ist,
           sortiert nach Vorname, dann `id`. Leitende und SL sehen hier nicht die Kinder ihrer Stufe, sondern nur
-          eigene Kinder; sie korrigieren eine Antwort über `PUT /api/v1/programme/{id}/teilnahmen/{kindId}`.
+          eigene Kinder; ihre Übersicht liefert `GET /api/v1/programme/{id}/teilnahmen`, eine Antwort korrigieren sie über
+          `PUT /api/v1/programme/{id}/teilnahmen/{kindId}`.
         - `eigeneAnmeldung`: nur vorhanden, wenn die Person Leitung oder SL einer zugeordneten Stufe ist.
           Administratorinnen und Administratoren ohne solche Stufenrolle sowie Eltern bekommen den Schlüssel nie.
           Ohne gespeicherte Antwort steht «offen».
@@ -1263,6 +1264,56 @@ paths:
       responses:
         "204":
           description: Zuordnung gespeichert. Kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/programme/{id}/teilnahmen:
+    get:
+      operationId: programmTeilnahmenLesen
+      summary: Übersicht der Teilnahmen eines Programms lesen
+      tags:
+        - Programme
+      description: |
+        Liefert die Zahlen (Anzahl «ja», «nein» und «offen») sowie die Liste der Kinder und die Liste der Leitenden.
+        «offen» heisst: noch keine Antwort gespeichert. Es zählen nur aktive Kinder und aktive Konten, jeweils in
+        den Stufen, denen das Programm zugeordnet ist. Die Antwort ist nicht seitenweise: Sie ist durch die Grösse
+        der Stufen begrenzt.
+
+        **Was wer sieht.**
+        - Administratorinnen und Administratoren: alle Kinder und Leitenden aller zugeordneten Stufen.
+        - Leitende und SL: alle Kinder und alle Leitenden und SL der zugeordneten Stufen, in denen sie selbst
+          Leitung oder SL sind.
+        - Eltern: nur die eigenen Kinder in zugeordneten Stufen. `leitende` ist leer.
+        - Wer beides ist (Leitung einer Stufe und Elternteil in einer anderen), bekommt die Vereinigung.
+        Die `zahlen` zählen genau die gelieferten Listen.
+
+        Sortiert: Kinder nach Vorname, Nachname, `id`; Leitende nach Name, `id`.
+
+        **Reihenfolge der Prüfung.** Eingabe (400), Sichtbarkeit des Programms (404), Recht (403). 403 bekommt, wer
+        das Programm sieht, aber weder Admin noch Leitung einer zugeordneten Stufe noch Elternteil eines Kindes
+        darin ist, zum Beispiel die SL einer anderen Stufe.
+        Statuscodes: 200 Erfolg; 400 `id` keine UUID; 401 keine gültige Sitzung; 403 kein Recht auf die Übersicht
+        oder Konto muss zuerst das Passwort ändern; 404 Programm unbekannt oder nicht sichtbar; 426 App-Version
+        zu alt; 429 zu viele Anfragen.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/ProgrammIdPfad"
+      responses:
+        "200":
+          description: Die Übersicht der Teilnahmen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeilnahmenUebersicht"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -2741,6 +2792,96 @@ components:
                   - string
                   - "null"
                 description: Nur für Eltern mit einem aktiven Kind in der Stufe der SL, sonst `null`.
+    TeilnahmenZahlen:
+      type: object
+      required:
+        - ja
+        - nein
+        - offen
+      properties:
+        ja:
+          type: integer
+          minimum: 0
+        nein:
+          type: integer
+          minimum: 0
+        offen:
+          type: integer
+          minimum: 0
+    TeilnahmenUebersicht:
+      type: object
+      required:
+        - zahlen
+        - kinder
+        - leitende
+      properties:
+        zahlen:
+          type: object
+          required:
+            - kinder
+            - leitende
+          properties:
+            kinder:
+              $ref: "#/components/schemas/TeilnahmenZahlen"
+            leitende:
+              $ref: "#/components/schemas/TeilnahmenZahlen"
+        kinder:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - vorname
+              - nachname
+              - stufeId
+              - status
+            properties:
+              id:
+                type: string
+                format: uuid
+              vorname:
+                type: string
+              nachname:
+                type: string
+              stufeId:
+                type: string
+                format: uuid
+              status:
+                type: string
+                enum:
+                  - ja
+                  - nein
+                  - offen
+        leitende:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - stufeId
+              - rolle
+              - status
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              stufeId:
+                type: string
+                format: uuid
+              rolle:
+                type: string
+                enum:
+                  - leitung
+                  - stufenleitung
+              status:
+                type: string
+                enum:
+                  - ja
+                  - nein
+                  - offen
     PushTokenAnfrage:
       type: object
       additionalProperties: false
