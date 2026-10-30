@@ -48,7 +48,7 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit, Ort und Treffpunkt der Programme. Sie stammen aus dem Kalender der Abteilung.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung.",
     frist:
       "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert.",
     apple: [],
@@ -227,13 +227,6 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "google_beschreibung",
       "status",
       "sichtbarkeit",
-      "treffpunkt",
-      "schluss_ort",
-      "schluss_zeit",
-      "mitnehmen",
-      "info_eltern",
-      "geaendert_von",
-      "geaendert_am",
     ],
   },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
