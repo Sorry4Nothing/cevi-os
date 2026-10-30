@@ -6,9 +6,9 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 
 ### App
 
-- Expo mit expo-router, eine Codebasis für iOS und Android.
+- Die iOS- und die Android-App sind nativ und liegen in eigenen Repos, nicht in diesem.
 - Ihre Daten holt die App nur von der API, über HTTPS.
-- Daten vom Server hält sie nur im Arbeitsspeicher. Auf dem Gerät bleibt nur das Sitzungs-Token, im geschützten Speicher des Systems (Secure Store).
+- Daten vom Server hält sie nur im Arbeitsspeicher. Auf dem Gerät bleibt nur das Sitzungs-Token, im geschützten Speicher des Systems.
 
 ### API
 
@@ -60,7 +60,6 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | API               | Google Calendar API                 | HTTPS, Service-Account             | Termine lesen, alle 5 Minuten                                                                                 |
 | API               | Pwned Passwords (Have I Been Pwned) | HTTPS                              | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
 | App               | Expo                                | HTTPS                              | Push-Token holen                                                                                              |
-| App               | Expo                                | HTTPS                              | Updates für reine JavaScript-Korrekturen holen (EAS Update)                                                   |
 | API               | Expo Push Service                   | HTTPS, expo-server-sdk             | Pushes senden                                                                                                 |
 | Expo Push Service | Gerät                               | über APNs (Apple) und FCM (Google) | Pushes zustellen                                                                                              |
 

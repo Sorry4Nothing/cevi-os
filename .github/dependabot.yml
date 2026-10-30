@@ -11,11 +11,6 @@ updates:
       npm-minor-patch:
         update-types: [minor, patch]
     ignore:
-      # eslint-plugin-react und eslint-plugin-import aus eslint-config-expo 58 unterstützen ESLint 10 nicht
-      - dependency-name: "eslint"
-        versions: [">=10.0.0"]
-      - dependency-name: "@eslint/js"
-        versions: [">=10.0.0"]
       # typescript-eslint unterstützt nur TypeScript unter 6.1
       - dependency-name: "typescript"
         versions: [">=6.1.0"]
