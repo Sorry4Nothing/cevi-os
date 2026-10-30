@@ -1,8 +1,8 @@
-import { and, eq, ne, notExists, sql } from "drizzle-orm";
+import { and, eq, ne } from "drizzle-orm";
 import type { Expo } from "expo-server-sdk";
 import type { Context } from "hono";
 import type { Db } from "./db/client.js";
-import { blockierung, chat, stufe, user } from "./db/schema.js";
+import { chat, stufe, user } from "./db/schema.js";
 import { log } from "./log.js";
 import { sendePush } from "./push.js";
 import { chatMitglieder } from "./rechte.js";
@@ -42,18 +42,6 @@ export async function pushNeueNachricht(
             eq(mitglieder.chatId, chatId),
             ne(mitglieder.userId, autorId),
             eq(user.pushChat, true),
-            // Wer den Absender blockiert hat, bekommt auch keinen Push
-            notExists(
-              db
-                .select({ eins: sql`1` })
-                .from(blockierung)
-                .where(
-                  and(
-                    eq(blockierung.userId, user.id),
-                    eq(blockierung.blockiertId, autorId),
-                  ),
-                ),
-            ),
           ),
         ),
       db

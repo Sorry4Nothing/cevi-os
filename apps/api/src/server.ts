@@ -1,7 +1,6 @@
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { Expo } from "expo-server-sdk";
-import { starteAufbewahrung } from "./aufbewahrung.js";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
 import { verbindeDatenbank } from "./datenbank.js";
@@ -40,4 +39,3 @@ starteKalenderSync(() =>
   }),
 );
 starteMeldungenAufraeumen(db);
-starteAufbewahrung(db);

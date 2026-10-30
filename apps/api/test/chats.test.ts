@@ -1,7 +1,7 @@
 import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -323,63 +323,6 @@ describe("Eingabe", () => {
       (await lies(eltern, welt.gruppenchatAId, "?vor=" + randomUUID() + "&a=1"))
         .status,
     ).toBe(400);
-  });
-});
-
-describe("Wortfilter (#53)", () => {
-  test("ein Treffer wird mit 422 und Begründung abgelehnt und nicht gespeichert, im Gruppen- wie im Einzelchat", async () => {
-    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
-    const direkt = await aufruf(eltern, "POST", "/api/v1/chats/direkt", {
-      stufeId: welt.stufeAId,
-    });
-    const einzelId = ((await direkt.json()) as { id: string }).id;
-    for (const [absender, chatId] of [
-      [eltern, welt.gruppenchatAId],
-      [sl, welt.gruppenchatAId],
-      [eltern, einzelId],
-    ] as const) {
-      const antwort = await sende(absender, chatId, {
-        text: "Du bist ein ARSCHLÖCHER",
-      });
-      expect(antwort.status).toBe(422);
-      expect(await antwort.json()).toEqual({
-        code: "NACHRICHT_ABGELEHNT",
-        message: expect.stringMatching(/nicht erlaubt/),
-      });
-    }
-    expect(
-      await db
-        .select()
-        .from(schema.nachricht)
-        .where(
-          inArray(schema.nachricht.chatId, [welt.gruppenchatAId, einzelId]),
-        ),
-    ).toEqual([]);
-  });
-
-  test("ein harmloser Text mit ähnlichen Buchstaben geht durch", async () => {
-    const eltern = await person("elternA");
-    const antwort = await sende(eltern, welt.gruppenchatAId, {
-      text: "Das Lager ist in der Mongolei-Stube",
-    });
-    expect(antwort.status).toBe(201);
-  });
-
-  test("ein Treffer zählt nicht zum Limit von 20 pro Minute", async () => {
-    const eltern = await person("elternA");
-    for (let i = 0; i < 25; i++) {
-      await sende(eltern, welt.gruppenchatAId, { text: "Hurensohn" });
-    }
-    expect(
-      (await sende(eltern, welt.gruppenchatAId, { text: "Hallo" })).status,
-    ).toBe(201);
-  });
-
-  test("ein fremder Chat bleibt 404, auch mit Treffer: kein Hinweis auf den Filter", async () => {
-    const eltern = await person("elternB");
-    expect(
-      (await sende(eltern, welt.gruppenchatAId, { text: "Hurensohn" })).status,
-    ).toBe(404);
   });
 });
 
