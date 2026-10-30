@@ -1296,6 +1296,88 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/blockierungen:
+    get:
+      operationId: listeBlockierungen
+      summary: Eigene Blockierungen auflisten
+      tags:
+        - Moderation
+      description: |
+        Liefert die Personen, die die angemeldete Person blockiert hat, nach Name sortiert. Die App braucht die Liste, um eine Blockierung aufzuheben, denn Nachrichten blockierter Personen stehen nicht mehr im Chat. Wer blockiert wurde, erfährt davon nichts und sieht die Blockierung nirgends.
+
+        Wer darf: alle angemeldeten Personen (ohne offenen Passwortwechsel, dann 403). Ohne Blockierung ist die Liste leer.
+
+        Statuscodes: 200; 401; 403 Passwortwechsel offen; 426.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die blockierten Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BlockierungenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/blockierungen/{userId}:
+    put:
+      operationId: blockierePerson
+      summary: Ein anderes Elternteil im Gruppenchat blockieren
+      tags:
+        - Moderation
+      description: |
+        Blockiert ein anderes Elternteil nur für die angemeldete Person: Dessen Nachrichten (alte wie neue) fehlen in ihren Gruppenchats und in ihren Antworten. Für alle anderen und für die blockierte Person ändert sich nichts; sie erfährt nichts davon. Idempotent: Eine zweite Blockierung derselben Person ist ein No-op und gibt ebenfalls 204.
+
+        Wer darf: Eltern, die mit der Zielperson einen Gruppenchat («stufe») teilen, also beide mit aktivem Kind in derselben Stufe. Stufenleitungen blockieren nicht und lassen sich nicht blockieren (403), damit der Kontakt zur Stufenleitung bleibt; Einzelchats sind nie betroffen. Wird eine blockierte Person später Stufenleitung der Stufe, sind ihre Nachrichten in deren Chats wieder sichtbar. Wer die Zielperson nicht in einem gemeinsamen Gruppenchat hat (Admins, Leitende ohne Elternrolle, andere Stufen, andere Abteilungen, deaktivierte Konten, unbekannte ID), bekommt 404.
+
+        Statuscodes: 204 blockiert oder bereits blockiert; 400 `userId` keine UUID oder die eigene ID; 401; 403 die blockierende oder die blockierte Person ist Stufenleitung, oder Passwortwechsel offen; 404 kein gemeinsamer Gruppenchat; 426.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/BlockierungPfadUserId"
+      responses:
+        "204":
+          description: Die Person ist blockiert. Kein Inhalt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: hebeBlockierungAuf
+      summary: Eine Blockierung aufheben
+      tags:
+        - Moderation
+      description: |
+        Hebt die eigene Blockierung der Person auf; deren Nachrichten erscheinen wieder. Idempotent: Ohne Blockierung ist es ein No-op und gibt ebenfalls 204. Geprüft wird nur, dass die Zielperson zur Abteilung gehört; ein gemeinsamer Gruppenchat ist nicht nötig, sodass sich auch die Blockierung einer Person aufheben lässt, die den Chat verlassen hat.
+
+        Wer darf: alle angemeldeten Personen (ohne offenen Passwortwechsel).
+
+        Statuscodes: 204 aufgehoben oder gar nicht gesetzt; 400 `userId` keine UUID; 401; 403 Passwortwechsel offen; 404 Person unbekannt oder aus einer anderen Abteilung; 426.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/BlockierungPfadUserId"
+      responses:
+        "204":
+          description: Die Blockierung besteht nicht mehr. Kein Inhalt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/chats:
     get:
       operationId: listeChats
@@ -1381,7 +1463,7 @@ paths:
 
         Paginierung: Der Query-Parameter `vor` ist die ID der ältesten bereits bekannten Nachricht; geliefert werden nur Nachrichten mit kleinerer ID (UUIDv7, ordnet nach Zeit). Ohne `vor` kommt die neueste Seite. `naechster` in der Antwort ist der Wert für `vor` der nächsten (älteren) Seite; `null`, wenn der Verlauf zu Ende ist (auch bei genau 50 Nachrichten). Ein Limit-Parameter existiert nicht, die Seitengrösse ist fest 50.
 
-        Sichtbarkeit: Stufenleitungen sehen den ganzen Verlauf. Eltern sehen im Gruppenchat nur Nachrichten ab ihrem Beitritt (frühestes aktives Kind der Stufe bzw. Verknüpfung mit dem Kind), im eigenen Einzelchat den ganzen Verlauf. Ausgeblendete Nachrichten sieht nur ihre Autorin oder ihr Autor, und zwar ohne Text und ohne Programm (`text: null`, `programm: null`, `ausgeblendet: true`); die App zeigt dann einen Hinweis. Für alle anderen fehlen sie in der Liste.
+        Sichtbarkeit: Stufenleitungen sehen den ganzen Verlauf. Eltern sehen im Gruppenchat nur Nachrichten ab ihrem Beitritt (frühestes aktives Kind der Stufe bzw. Verknüpfung mit dem Kind), im eigenen Einzelchat den ganzen Verlauf. Ausgeblendete Nachrichten sieht nur ihre Autorin oder ihr Autor, und zwar ohne Text und ohne Programm (`text: null`, `programm: null`, `ausgeblendet: true`); die App zeigt dann einen Hinweis. Für alle anderen fehlen sie in der Liste. Nachrichten von Eltern, die die lesende Person blockiert hat (siehe `PUT /api/v1/blockierungen/{userId}`), fehlen ebenfalls, nur für sie; Nachrichten einer Stufenleitung der Stufe bleiben immer sichtbar.
 
         Nicht-Mitglieder (andere Stufen, andere Abteilungen, Admins, Leitende ohne SL-Rolle, unbekannte ID) bekommen 404; ein 403 gibt es hier nicht.
 
@@ -1417,9 +1499,11 @@ paths:
 
         Optional verweist die Nachricht auf ein Programm (`programmId`). Erlaubt sind nur Programme der eigenen Abteilung mit Sichtbarkeit «eltern», die der Stufe des Chats zugeordnet sind; sonst kommt 400 (so landet kein interner Titel im Chat).
 
+        Wortfilter: Enthält der Text ein Wort aus der festen Liste im Code (Beschimpfungen, Herabwürdigungen, sexuelle Belästigung), lehnt die Route die Nachricht ab: 422 mit `code: NACHRICHT_ABGELEHNT` und einer Begründung in `message`, die das Wort nicht wiederholt. Es wird nichts gespeichert und nichts auf das Limit angerechnet. Der Filter gilt in jedem Chat und für jede Rolle. Er prüft ohne Gross-/Kleinschreibung, Akzente und ß, aber nicht auf Buchstabentausch oder auseinandergezogene Wörter. Ein Nicht-Mitglied bekommt weiter 404, damit der Filter kein Hinweis auf fremde Chats wird.
+
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
-        Statuscodes: 201 Nachricht angelegt; 400 ungültige Eingabe (Text leer nach dem Trimmen, länger als 2000 Zeichen, enthält NUL, unbekannte Felder, `programmId` nicht zulässig); 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 426; 429 Limit überschritten.
+        Statuscodes: 201 Nachricht angelegt; 400 ungültige Eingabe (Text leer nach dem Trimmen, länger als 2000 Zeichen, enthält NUL, unbekannte Felder, `programmId` nicht zulässig); 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 422 Wortfilter; 426; 429 Limit überschritten.
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/ChatPfadId"
@@ -1444,6 +1528,8 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "422":
+          $ref: "#/components/responses/NachrichtAbgelehnt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -2901,6 +2987,26 @@ components:
           type: string
           format: uuid
           description: ID des Chats.
+    BlockierungenListe:
+      type: object
+      required:
+        - blockiert
+      properties:
+        blockiert:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+            properties:
+              id:
+                type: string
+                format: uuid
+                description: ID der blockierten Person.
+              name:
+                type: string
+                description: Anzeigename der blockierten Person.
     NachrichtKennung:
       type: object
       required:
@@ -3549,6 +3655,14 @@ components:
       schema:
         type: string
         format: uuid
+    BlockierungPfadUserId:
+      name: userId
+      in: path
+      required: true
+      description: ID der Person, die blockiert oder freigegeben wird.
+      schema:
+        type: string
+        format: uuid
     MeldungPfadId:
       name: id
       in: path
@@ -3657,6 +3771,12 @@ components:
             $ref: "#/components/schemas/Fehler"
     AppVeraltet426:
       description: App-Version unter dem Minimum (code APP_VERALTET)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    NachrichtAbgelehnt422:
+      description: Der Wortfilter hat die Nachricht abgelehnt (code NACHRICHT_ABGELEHNT); `message` nennt den Grund
       content:
         application/json:
           schema:
