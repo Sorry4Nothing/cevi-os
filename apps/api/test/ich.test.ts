@@ -365,3 +365,16 @@ describe("Herkunft der App", () => {
     ).toBe(200);
   });
 });
+
+describe("Kein Löschen durch die Person", () => {
+  test("DELETE /api/v1/ich gibt es nicht: 404, das Konto bleibt", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const antwort = await app.request("/api/v1/ich", {
+      method: "DELETE",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify({ passwort: konto.passwort }),
+    });
+    expect(antwort.status).toBe(404);
+    expect((await ich(konto)).status).toBe(200);
+  });
+});

@@ -18,7 +18,7 @@ export const KATEGORIEN = {
     titel: "Konto und Anmeldung",
     zweck:
       "Anmelden, Rechte prüfen und das Konto vor Missbrauch schützen. Dazu gehört das Passwort, das nur als Prüfwert gespeichert ist.",
-    frist: `Bis das Konto gelöscht wird, in der App oder auf Anfrage. ${AUF_ANFRAGE}`,
+    frist: `Bis das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Contact Info: Name", "Identifiers: User ID"],
     google: ["Personal info: Name", "Personal info: User IDs"],
   },
@@ -76,15 +76,6 @@ export const KATEGORIEN = {
     zweck:
       "Austausch zwischen Eltern und Stufenleitung im Gruppenchat der Stufe und im Einzelchat mit der Stufenleitung.",
     frist: `Bis die Nachricht oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
-    apple: ["User Content: Emails or Text Messages"],
-    google: ["Messages: Other in-app messages"],
-  },
-  meldungen: {
-    titel: "Meldungen",
-    zweck:
-      "Nachrichten prüfen, die jemand gemeldet hat. Die Meldung behält eine Kopie des Textes, damit der Beleg bleibt.",
-    frist:
-      "Die Kopie des Textes bleibt bis zur Erledigung der Meldung. Die Meldung selbst bleibt, bis die Leitung sie löscht.",
     apple: ["User Content: Emails or Text Messages"],
     google: ["Messages: Other in-app messages"],
   },
@@ -195,30 +186,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   leitung_anmeldung: {
     anmeldungen: ["programm_id", "user_id", "status"],
   },
-  meldung: {
-    meldungen: [
-      "id",
-      "abteilung_id",
-      "nachricht_id",
-      "text_kopie",
-      "autor_id",
-      "gemeldet_von",
-      "erstellt_am",
-      "erledigt_von",
-      "erledigt_am",
-    ],
-  },
   nachricht: {
-    chat: [
-      "id",
-      "chat_id",
-      "autor_id",
-      "text",
-      "programm_id",
-      "erstellt_am",
-      "ausgeblendet_von",
-      "ausgeblendet_am",
-    ],
+    chat: ["id", "chat_id", "autor_id", "text", "programm_id", "erstellt_am"],
   },
   programm: {
     programme: [

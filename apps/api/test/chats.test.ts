@@ -238,20 +238,6 @@ describe("Nachrichten senden und lesen", () => {
     expect(await texte(sl)).toEqual(["Danach", "Vor deinem Beitritt"]);
   });
 
-  test("ausgeblendete Nachrichten erscheinen nicht", async () => {
-    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
-    await db.insert(schema.nachricht).values({
-      chatId: welt.gruppenchatAId,
-      autorId: sl.id as string,
-      text: "Ausgeblendet",
-      ausgeblendetAm: new Date(),
-    });
-    const { nachrichten } = (await (
-      await lies(eltern, welt.gruppenchatAId)
-    ).json()) as { nachrichten: Nachricht[] };
-    expect(nachrichten).toEqual([]);
-  });
-
   test("Cursor: 120 Nachrichten kommen in Seiten zu 50, ohne Lücke und Doppelte", async () => {
     const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
     // Eigene Stufe, damit andere Tests dieser Datei die Zählung nicht stören

@@ -14,14 +14,12 @@ import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
-import { erstelleMeldungenRouten } from "./routes/admin/meldungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
-import { erstelleNachrichtenRouten } from "./routes/nachrichten.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
@@ -117,13 +115,11 @@ export function erstelleApp({
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
-      .route("/api/v1/ich", erstelleIchRouten({ db, auth }))
+      .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
       .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
-      .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
-      .route("/api/v1/admin/meldungen", erstelleMeldungenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))

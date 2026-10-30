@@ -32,21 +32,19 @@ export function erstelleSystemRouten({
       const start = performance.now();
       let erreichbar = true;
       let verbindungen: number | null = null;
-      let bestand = { personen: 0, kinder: 0, meldungen: 0, push: 0 };
+      let bestand = { personen: 0, kinder: 0, push: 0 };
       try {
         // Ein Aufruf: Er misst die Antwortzeit der Datenbank und zählt zugleich den Bestand der Abteilung
         const [z] = await sql<
           {
             personen: number;
             kinder: number;
-            meldungen: number;
             push: number;
             verbindungen: number;
           }[]
         >`select
             (select count(*) from "user" where abteilung_id = ${person.abteilungId} and banned is not true)::int as personen,
             (select count(*) from kind where abteilung_id = ${person.abteilungId} and inaktiv_seit is null)::int as kinder,
-            (select count(*) from meldung where abteilung_id = ${person.abteilungId} and erledigt_am is null)::int as meldungen,
             (select count(*) from push_token p join "user" u on u.id = p.user_id where u.abteilung_id = ${person.abteilungId})::int as push,
             (select count(*) from pg_stat_activity where datname = current_database())::int as verbindungen`;
         bestand = z;
@@ -93,7 +91,6 @@ export function erstelleSystemRouten({
         bestand: {
           aktivePersonen: bestand.personen,
           aktiveKinder: bestand.kinder,
-          offeneMeldungen: bestand.meldungen,
           pushTokens: bestand.push,
         },
         // Der Fehlertext ist einer von wenigen festen Texten des Syncs (kalender/fehler.ts)

@@ -24,6 +24,7 @@ import {
   rolle,
   stufe,
   user,
+  verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
@@ -546,6 +547,8 @@ export function erstellePersonenRouten({
         await db.transaction(async (tx) => {
           await sperreLetztenAdmin(tx, person.abteilungId, id);
           await protokolliere(tx, person, "person_geloescht", id);
+          // Ohne Fremdschlüssel: Der zweite Faktor legt die Person-ID als Wert ab; better-auth räumt sie nicht weg
+          await tx.delete(verification).where(eq(verification.value, id));
           // removeUser läuft auf eigener Verbindung; Rollen, Kinder-Verknüpfungen und Sitzungen löscht die Datenbank per CASCADE
           await auth.api.removeUser({
             body: { userId: id },

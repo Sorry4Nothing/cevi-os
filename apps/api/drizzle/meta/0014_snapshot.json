@@ -1,5 +1,5 @@
 {
-  "id": "2d8e5b7c-f9d7-4d56-996a-636bffd02aa7",
+  "id": "3b3d830a-dd57-4671-aa71-ee61c7b394f1",
   "prevId": "04951aae-571c-4eb7-9bd4-01e02fe02ce2",
   "version": "7",
   "dialect": "postgresql",
@@ -734,169 +734,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.meldung": {
-      "name": "meldung",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuidv7()"
-        },
-        "abteilung_id": {
-          "name": "abteilung_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nachricht_id": {
-          "name": "nachricht_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "text_kopie": {
-          "name": "text_kopie",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "autor_id": {
-          "name": "autor_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "gemeldet_von": {
-          "name": "gemeldet_von",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erstellt_am": {
-          "name": "erstellt_am",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "erledigt_von": {
-          "name": "erledigt_von",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "erledigt_am": {
-          "name": "erledigt_am",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "meldung_offen_pro_person": {
-          "name": "meldung_offen_pro_person",
-          "columns": [
-            {
-              "expression": "nachricht_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "gemeldet_von",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"meldung\".\"erledigt_am\" is null",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "meldung_abteilung_id_abteilung_id_fk": {
-          "name": "meldung_abteilung_id_abteilung_id_fk",
-          "tableFrom": "meldung",
-          "tableTo": "abteilung",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "meldung_nachricht_id_nachricht_id_fk": {
-          "name": "meldung_nachricht_id_nachricht_id_fk",
-          "tableFrom": "meldung",
-          "tableTo": "nachricht",
-          "columnsFrom": [
-            "nachricht_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "meldung_autor_id_user_id_fk": {
-          "name": "meldung_autor_id_user_id_fk",
-          "tableFrom": "meldung",
-          "tableTo": "user",
-          "columnsFrom": [
-            "autor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "meldung_gemeldet_von_user_id_fk": {
-          "name": "meldung_gemeldet_von_user_id_fk",
-          "tableFrom": "meldung",
-          "tableTo": "user",
-          "columnsFrom": [
-            "gemeldet_von"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "meldung_erledigt_von_user_id_fk": {
-          "name": "meldung_erledigt_von_user_id_fk",
-          "tableFrom": "meldung",
-          "tableTo": "user",
-          "columnsFrom": [
-            "erledigt_von"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "meldung_kopie_nur_offen": {
-          "name": "meldung_kopie_nur_offen",
-          "value": "\"meldung\".\"erledigt_am\" is null or \"meldung\".\"text_kopie\" is null"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.nachricht": {
       "name": "nachricht",
       "schema": "",
@@ -938,18 +775,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
-        },
-        "ausgeblendet_von": {
-          "name": "ausgeblendet_von",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ausgeblendet_am": {
-          "name": "ausgeblendet_am",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
@@ -992,76 +817,12 @@
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        },
-        "nachricht_ausgeblendet_von_user_id_fk": {
-          "name": "nachricht_ausgeblendet_von_user_id_fk",
-          "tableFrom": "nachricht",
-          "tableTo": "user",
-          "columnsFrom": [
-            "ausgeblendet_von"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.profilbild": {
-      "name": "profilbild",
-      "schema": "",
-      "columns": {
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "inhalt": {
-          "name": "inhalt",
-          "type": "bytea",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "geaendert_am": {
-          "name": "geaendert_am",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "profilbild_user_id_user_id_fk": {
-          "name": "profilbild_user_id_user_id_fk",
-          "tableFrom": "profilbild",
-          "tableTo": "user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "profilbild_inhalt_klein": {
-          "name": "profilbild_inhalt_klein",
-          "value": "octet_length(\"profilbild\".\"inhalt\") <= 262144"
-        }
-      },
       "isRLSEnabled": false
     },
     "public.programm": {

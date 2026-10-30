@@ -42,7 +42,7 @@ type Bremsfelder = {
   naechsterVersuchAb?: Date | string | null;
 };
 
-// Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre; gemeinsam für die Anmeldung und das Löschen des Kontos (#21)
+// Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre
 export function wartezeitMinuten(fehlversuche: number) {
   if (fehlversuche < 5) return 0;
   return fehlversuche === 5 ? 1 : fehlversuche === 6 ? 5 : 15;

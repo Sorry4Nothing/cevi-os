@@ -71,7 +71,7 @@ describe("GET /api/v1/admin/system", () => {
     expect(daten.datenbank.erreichbar).toBe(true);
     expect(daten.datenbank.pingMs).toBeGreaterThanOrEqual(0);
     expect(daten.datenbank.poolMaximum).toBeGreaterThan(0);
-    // Der Admin selbst ist aktiv; Kinder, Meldungen und Tokens gehören der Testabteilung
+    // Der Admin selbst ist aktiv; Kinder und Tokens gehören der Testabteilung
     expect(daten.bestand.aktivePersonen).toBeGreaterThanOrEqual(1);
     expect(daten.bestand.pushTokens).toBeGreaterThanOrEqual(0);
     expect(daten.kalender).toEqual({

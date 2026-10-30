@@ -135,25 +135,6 @@ describe("Ungelesen-Zähler", () => {
     expect(await ungelesen(spaeter, welt.gruppenchatAId)).toBe(0);
   });
 
-  test("ausgeblendete Nachrichten zählen für andere nicht mehr", async () => {
-    const [eltern, zweite, sl] = await Promise.all([
-      person("elternA"),
-      person("elternA"),
-      person("slA"),
-    ]);
-    const antwort = await sende(eltern, welt.gruppenchatAId, "Unpassend");
-    const { id } = (await antwort.json()) as { id: string };
-    expect(await ungelesen(zweite, welt.gruppenchatAId)).toBe(1);
-    const aus = await aufruf(
-      sl,
-      "POST",
-      `/api/v1/nachrichten/${id}/ausblenden`,
-    );
-    expect(aus.status).toBe(204);
-    expect(await ungelesen(zweite, welt.gruppenchatAId)).toBe(0);
-    expect(await ungelesen(eltern, welt.gruppenchatAId)).toBe(0);
-  });
-
   test("Einzelchat: Alle SL der Stufe sehen die Nachricht des Elternteils als ungelesen", async () => {
     const [eltern, sl, zweiteSl] = await Promise.all([
       person("elternA"),

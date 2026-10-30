@@ -113,34 +113,6 @@ describe("letzteNachricht in der Chatliste", () => {
     expect((await letzte(sl, welt.gruppenchatAId))?.text).toBe("b".repeat(120));
   });
 
-  test("ausgeblendete Nachrichten zählen nicht, dann gilt die letzte sichtbare, auch für die Autorin", async () => {
-    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
-    const chat = welt.gruppenchatAId;
-    await sende(sl, chat, "Sichtbar");
-    const antwort = await sende(eltern, chat, "Unpassend");
-    const { id } = (await antwort.json()) as { id: string };
-    expect((await letzte(sl, chat))?.text).toBe("Unpassend");
-    const aus = await aufruf(
-      sl,
-      "POST",
-      `/api/v1/nachrichten/${id}/ausblenden`,
-    );
-    expect(aus.status).toBe(204);
-    for (const konto of [sl, eltern]) {
-      expect((await letzte(konto, chat))?.text).toBe("Sichtbar");
-    }
-  });
-
-  test("ist nur eine Nachricht da und ausgeblendet, bleibt null", async () => {
-    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
-    const { id } = (await (
-      await sende(eltern, welt.gruppenchatAId, "Unpassend")
-    ).json()) as { id: string };
-    await aufruf(sl, "POST", `/api/v1/nachrichten/${id}/ausblenden`);
-    expect(await letzte(eltern, welt.gruppenchatAId)).toBeNull();
-    expect(await letzte(sl, welt.gruppenchatAId)).toBeNull();
-  });
-
   test("Nachrichten vor dem Beitritt der Eltern erscheinen nicht", async () => {
     const sl = await person("slA");
     await sende(sl, welt.gruppenchatAId, "Von früher");
