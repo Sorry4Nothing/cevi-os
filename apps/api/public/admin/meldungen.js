@@ -1,5 +1,14 @@
 import { anfrage, fehlertext } from "./api.js";
-import { bestaetigen, chip, el, knopf, zeit } from "./dom.js";
+import {
+  aktionenZelle,
+  bestaetigen,
+  chip,
+  el,
+  knopf,
+  menue,
+  tabelle,
+  zeit,
+} from "./dom.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -15,7 +24,19 @@ function chatName(chat) {
 function zeichne(bereich, ctx, erste) {
   let eintraege = [...erste.meldungen];
   let naechster = erste.naechster;
-  const liste = el("ul", { class: "liste", "aria-label": "Offene Meldungen" });
+  const { wurzel: tabellenRahmen, koerper } = tabelle({
+    beschriftung: "Offene Meldungen",
+    spalten: [
+      "Gemeldet am",
+      "Gemeldeter Text",
+      "Chat",
+      "Gemeldet von",
+      "Verfasst von",
+      "Status",
+      "Aktionen",
+    ],
+    zeilen: [],
+  });
   const leer = el("p", { class: "leer" }, "Keine offenen Meldungen.");
   const mehr = knopf("Ältere laden", {
     onclick: async () => {
@@ -36,80 +57,44 @@ function zeichne(bereich, ctx, erste) {
     },
   });
 
-  function karte(m) {
-    const chips = [
-      m.chat && chip(chatName(m.chat), "stufe"),
+  function zeile(m) {
+    const autor = m.autor ? m.autor.name : "gelöschtes Konto";
+    const status = [
       m.ausgeblendet && chip("Ausgeblendet", "warn"),
       m.autor?.deaktiviert && chip("Konto deaktiviert", "fehler"),
+      !m.chat && chip("Nachricht gelöscht", "fehler"),
     ].filter(Boolean);
-    const autor = m.autor ? m.autor.name : "gelöschtes Konto";
     return el(
-      "li",
-      { class: "karte" },
-      el("h3", {}, `Meldung vom ${zeit(m.erstelltAm)}`),
+      "tr",
+      {},
+      el("th", { scope: "row" }, zeit(m.erstelltAm)),
       el(
-        "p",
-        { class: "meta" },
-        `Gemeldet von: ${m.gemeldetVon ?? "gelöschtes Konto"}. Verfasst von: ${autor}.`,
+        "td",
+        { class: "breit" },
+        m.text === null
+          ? el("span", { class: "leise" }, "Die Kopie des Textes ist gelöscht.")
+          : el("blockquote", { class: "zitat" }, m.text),
       ),
-      chips.length > 0 && el("ul", { class: "chips" }, chips),
-      !m.chat && el("p", { class: "meta" }, "Die Nachricht ist gelöscht."),
-      m.text === null
-        ? el("p", { class: "meta" }, "Die Kopie des Textes ist gelöscht.")
-        : el("blockquote", { class: "zitat" }, m.text),
       el(
-        "div",
-        { class: "aktionen" },
-        m.nachrichtId &&
-          !m.ausgeblendet &&
-          knopf("Ausblenden", {
-            kontext: `Nachricht von ${autor}`,
-            onclick: () =>
-              bestaetigen({
-                titel: "Nachricht ausblenden",
-                beschreibung:
-                  "Die Nachricht verschwindet für alle ausser der Autorin oder dem Autor.",
-                ok: "Ausblenden",
-                aktion: () =>
-                  anfrage(
-                    "POST",
-                    `/api/v1/nachrichten/${m.nachrichtId}/ausblenden`,
-                  ),
-                danach: () => {
-                  for (const e of eintraege) {
-                    if (e.nachrichtId === m.nachrichtId) e.ausgeblendet = true;
-                  }
-                  zeichneListe();
-                  ctx.melde("Die Nachricht ist ausgeblendet.");
-                },
-              }),
-          }),
-        m.autor &&
-          !m.autor.deaktiviert &&
-          m.autor.id !== ctx.ich.id &&
-          knopf("Person deaktivieren", {
-            kontext: m.autor.name,
-            onclick: () =>
-              bestaetigen({
-                titel: "Person deaktivieren",
-                beschreibung: `«${m.autor.name}» kann sich nicht mehr anmelden und wird überall abgemeldet.`,
-                ok: "Deaktivieren",
-                aktion: () =>
-                  anfrage(
-                    "POST",
-                    `/api/v1/admin/personen/${m.autor.id}/deaktivieren`,
-                  ),
-                danach: () => {
-                  for (const e of eintraege) {
-                    if (e.autor?.id === m.autor.id) e.autor.deaktiviert = true;
-                  }
-                  zeichneListe();
-                  ctx.melde(`«${m.autor.name}» ist deaktiviert.`);
-                },
-              }),
-          }),
+        "td",
+        {},
+        m.chat
+          ? el("ul", { class: "chips" }, chip(chatName(m.chat), "stufe"))
+          : el("span", { class: "leise" }, "–"),
+      ),
+      el("td", {}, m.gemeldetVon ?? "gelöschtes Konto"),
+      el("td", {}, autor),
+      el(
+        "td",
+        {},
+        status.length > 0
+          ? el("ul", { class: "chips" }, status)
+          : el("span", { class: "leise" }, "–"),
+      ),
+      aktionenZelle(
         knopf("Erledigt", {
           art: "haupt",
+          klein: true,
           kontext: `Meldung vom ${zeit(m.erstelltAm)}`,
           onclick: () =>
             bestaetigen({
@@ -129,14 +114,65 @@ function zeichne(bereich, ctx, erste) {
               },
             }),
         }),
+        menue(`Meldung vom ${zeit(m.erstelltAm)}`, [
+          m.nachrichtId &&
+            !m.ausgeblendet && {
+              text: "Ausblenden",
+              onclick: () =>
+                bestaetigen({
+                  titel: "Nachricht ausblenden",
+                  beschreibung:
+                    "Die Nachricht verschwindet für alle ausser der Autorin oder dem Autor.",
+                  ok: "Ausblenden",
+                  aktion: () =>
+                    anfrage(
+                      "POST",
+                      `/api/v1/nachrichten/${m.nachrichtId}/ausblenden`,
+                    ),
+                  danach: () => {
+                    for (const e of eintraege) {
+                      if (e.nachrichtId === m.nachrichtId)
+                        e.ausgeblendet = true;
+                    }
+                    zeichneListe();
+                    ctx.melde("Die Nachricht ist ausgeblendet.");
+                  },
+                }),
+            },
+          m.autor &&
+            !m.autor.deaktiviert &&
+            m.autor.id !== ctx.ich.id && {
+              text: "Person deaktivieren",
+              gefaehrlich: true,
+              onclick: () =>
+                bestaetigen({
+                  titel: "Person deaktivieren",
+                  beschreibung: `«${m.autor.name}» kann sich nicht mehr anmelden und wird überall abgemeldet.`,
+                  ok: "Deaktivieren",
+                  aktion: () =>
+                    anfrage(
+                      "POST",
+                      `/api/v1/admin/personen/${m.autor.id}/deaktivieren`,
+                    ),
+                  danach: () => {
+                    for (const e of eintraege) {
+                      if (e.autor?.id === m.autor.id)
+                        e.autor.deaktiviert = true;
+                    }
+                    zeichneListe();
+                    ctx.melde(`«${m.autor.name}» ist deaktiviert.`);
+                  },
+                }),
+            },
+        ]),
       ),
     );
   }
 
   function zeichneListe() {
-    liste.replaceChildren(...eintraege.map(karte));
+    koerper.replaceChildren(...eintraege.map(zeile));
     leer.hidden = eintraege.length > 0;
-    liste.hidden = eintraege.length === 0;
+    tabellenRahmen.hidden = eintraege.length === 0;
     mehr.hidden = naechster === null;
   }
 
@@ -148,7 +184,7 @@ function zeichne(bereich, ctx, erste) {
       "Offene Meldungen, neueste zuerst. Meldungen über deine eigenen Beiträge siehst du nicht.",
     ),
     leer,
-    liste,
-    el("div", { class: "aktionen" }, mehr),
+    tabellenRahmen,
+    el("div", { class: "aktionen aktionen--unten" }, mehr),
   );
 }

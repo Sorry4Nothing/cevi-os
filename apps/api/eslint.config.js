@@ -16,6 +16,8 @@ export default defineConfig(
         location: "readonly",
         navigator: "readonly",
         setTimeout: "readonly",
+        setInterval: "readonly",
+        clearInterval: "readonly",
         window: "readonly",
       },
     },

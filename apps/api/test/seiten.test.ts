@@ -132,7 +132,14 @@ describe("Verwaltung unter /admin", () => {
       expect(admin[datei]).not.toMatch(
         /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
       );
-      expect(admin[datei]).not.toMatch(/https?:\/\//);
+      // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
+      expect(admin[datei]).not.toMatch(
+        /setAttribute\(\s*["'`]style|\.style\.cssText/,
+      );
+      // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
+      expect(
+        admin[datei].replaceAll("http://www.w3.org/2000/svg", ""),
+      ).not.toMatch(/https?:\/\//);
     },
   );
 });
