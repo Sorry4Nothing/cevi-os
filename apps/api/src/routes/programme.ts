@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -10,12 +10,15 @@ import {
   leitungAnmeldung,
   programm,
   programmStufe,
+  rolle,
   stufe,
   teilnahme,
+  user,
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon } from "../kontakte.js";
 import {
+  aktivesKonto,
   darfLeitungAnmelden,
   darfZuordnen,
   hatRolle,
@@ -27,6 +30,9 @@ import {
 } from "../rechte.js";
 
 // PostgreSQL 18 lehnt das Jahr 0000 ab (Fehler 22008), zod lässt es durch
+// «offen» hat keine Zeile; die Routen füllen es mit coalesce
+type Antwort = "ja" | "nein" | "offen";
+
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
 const fensterSchema = z.strictObject({ von: tag, bis: tag });
 const pfadSchema = z.strictObject({ id: z.uuid() });
@@ -132,7 +138,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           );
         eigeneAnmeldung = anmeldung?.status ?? "offen";
       }
-      // Nur die eigenen Kinder in einer zugeordneten Stufe; Leitende korrigieren per PUT, ihre Übersicht folgt mit #38
+      // Nur die eigenen Kinder in einer zugeordneten Stufe; Leitende korrigieren per PUT und sehen die Übersicht über GET /:id/teilnahmen
       const kinder = await db
         .select({
           id: kind.id,
@@ -167,6 +173,115 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         teilnahmeOffen: await teilnahmeOffen(id),
         kinder,
         eigeneAnmeldung,
+      });
+    })
+    .get("/:id/teilnahmen", eingabe("param", pfadSchema), async (c) => {
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      const [zeile] = await db
+        .select({ id: programm.id })
+        .from(programm)
+        .where(and(eq(programm.id, id), programmSichtbar(person)));
+      if (!zeile) throw new HTTPException(404);
+      const stufen = await db
+        .select({ id: stufe.id })
+        .from(programmStufe)
+        .innerJoin(
+          stufe,
+          and(
+            eq(stufe.id, programmStufe.stufeId),
+            eq(stufe.abteilungId, person.abteilungId),
+          ),
+        )
+        .where(eq(programmStufe.programmId, id));
+      // Ganze Liste: Admins und die Leitung der Stufe (SL eingeschlossen); sonst nur die eigenen Kinder
+      const leitungStufen = stufen
+        .map((s) => s.id)
+        .filter(
+          (stufeId) => person.admin || hatRolle(person, stufeId, "leitung"),
+        );
+      const kinder = await db
+        .select({
+          id: kind.id,
+          vorname: kind.vorname,
+          nachname: kind.nachname,
+          stufeId: kind.stufeId,
+          status: sql<Antwort>`coalesce(${teilnahme.status}, 'offen')`,
+        })
+        .from(kind)
+        .innerJoin(
+          programmStufe,
+          and(
+            eq(programmStufe.stufeId, kind.stufeId),
+            eq(programmStufe.programmId, id),
+          ),
+        )
+        .leftJoin(
+          teilnahme,
+          and(eq(teilnahme.kindId, kind.id), eq(teilnahme.programmId, id)),
+        )
+        .where(
+          and(
+            eq(kind.abteilungId, person.abteilungId),
+            isNull(kind.inaktivSeit),
+            or(
+              inArray(kind.stufeId, leitungStufen),
+              exists(
+                db
+                  .select({ eins: sql`1` })
+                  .from(kindEltern)
+                  .where(
+                    and(
+                      eq(kindEltern.kindId, kind.id),
+                      eq(kindEltern.userId, person.id),
+                    ),
+                  ),
+              ),
+            ),
+          ),
+        )
+        .orderBy(asc(kind.vorname), asc(kind.nachname), asc(kind.id));
+      // Sichtbar, aber weder Admin noch Leitung einer Stufe noch Elternteil eines Kindes im Programm (z. B. SL einer anderen Stufe): kein Recht
+      if (!person.admin && leitungStufen.length === 0 && kinder.length === 0) {
+        throw new HTTPException(403);
+      }
+      const leitende =
+        leitungStufen.length === 0
+          ? []
+          : await db
+              .select({
+                id: user.id,
+                name: user.name,
+                stufeId: rolle.stufeId,
+                rolle: rolle.typ,
+                status: sql<Antwort>`coalesce(${leitungAnmeldung.status}, 'offen')`,
+              })
+              .from(rolle)
+              .innerJoin(
+                user,
+                and(
+                  eq(user.id, rolle.userId),
+                  aktivesKonto(person.abteilungId),
+                ),
+              )
+              .leftJoin(
+                leitungAnmeldung,
+                and(
+                  eq(leitungAnmeldung.programmId, id),
+                  eq(leitungAnmeldung.userId, rolle.userId),
+                ),
+              )
+              .where(inArray(rolle.stufeId, leitungStufen))
+              .orderBy(asc(user.name), asc(user.id));
+      const zaehle = (liste: { status: Antwort }[]) => ({
+        ja: liste.filter((e) => e.status === "ja").length,
+        nein: liste.filter((e) => e.status === "nein").length,
+        offen: liste.filter((e) => e.status === "offen").length,
+      });
+      return c.json({
+        zahlen: { kinder: zaehle(kinder), leitende: zaehle(leitende) },
+        kinder,
+        leitende,
       });
     })
     .get("/:id/kontakte", eingabe("param", pfadSchema), async (c) => {
