@@ -10,13 +10,20 @@ const schema = z.object({
   BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
   // Freiwillig: Ohne Schlüsseldatei startet die API, und der Kalender-Sync meldet den Fehler pro Abteilung
   GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1).optional(),
-  // Freiwillig: Webseite der Abteilung, von der Treffpunkt, Schluss und Mitnehmen kommen (…/cevistufe-<stufe>); ohne sie startet die API und die Programme zeigen diese Angaben nicht
-  ECKDATEN_BASIS_URL: z.url({ protocol: /^https$/ }).optional(),
+  // Webseite der Abteilung, von der Treffpunkt, Schluss und Mitnehmen kommen (…/cevistufe-<stufe>); öffentlich, darum eine feste Vorgabe, die die Variable überschreibt
+  ECKDATEN_BASIS_URL: z
+    .url({ protocol: /^https$/ })
+    .default("https://cevi-staefa-hombi.ch"),
   // Freiwillig: Pfad zur Schlüsseldatei des Firebase-Dienstkontos für FCM; ohne sie startet die API und sendet keine Pushes
   FCM_SCHLUESSEL_DATEI: z.string().min(1).optional(),
-  // Freiwillig: Name der verantwortlichen Stelle und ihre E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; ohne sie nennen die Seiten keine
-  VERANTWORTLICHE_STELLE: z.string().trim().min(1).max(200).optional(),
-  KONTAKT_EMAIL: z.email().optional(),
+  // Verantwortliche Stelle und ihre E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; beide sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
+  VERANTWORTLICHE_STELLE: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .default("Abteilungsleitung Cevi Stäfa-Hombi"),
+  KONTAKT_EMAIL: z.email().default("cevi-al@cevi-staefa-hombi.ch"),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {

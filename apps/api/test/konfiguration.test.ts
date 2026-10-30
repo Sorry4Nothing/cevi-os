@@ -28,13 +28,16 @@ function meldung(env: Record<string, string | undefined>) {
   throw new Error("ladeKonfiguration hat nicht geworfen");
 }
 
-test("liest die fünf Werte und übergeht andere Variablen", () => {
+test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () => {
   expect(ladeKonfiguration({ ...GUELTIG, HOME: "/home/cevi" })).toEqual({
     DATABASE_URL: GUELTIG.DATABASE_URL,
     APP_MIN_VERSION: "0.1.0",
     PORT: 3000,
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
+    ECKDATEN_BASIS_URL: "https://cevi-staefa-hombi.ch",
+    VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
+    KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
   });
 });
 
@@ -117,10 +120,12 @@ test("FCM_SCHLUESSEL_DATEI ist freiwillig und wird durchgereicht", () => {
   );
 });
 
-test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL sind freiwillig und müssen gültig sein", () => {
+test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL haben feste Vorgaben, die die Umgebung überschreibt und gültig sein muss", () => {
   const leer = ladeKonfiguration(GUELTIG);
-  expect(leer.VERANTWORTLICHE_STELLE).toBeUndefined();
-  expect(leer.KONTAKT_EMAIL).toBeUndefined();
+  expect(leer.VERANTWORTLICHE_STELLE).toBe(
+    "Abteilungsleitung Cevi Stäfa-Hombi",
+  );
+  expect(leer.KONTAKT_EMAIL).toBe("cevi-al@cevi-staefa-hombi.ch");
   const mit = ladeKonfiguration({
     ...GUELTIG,
     VERANTWORTLICHE_STELLE: "Cevi Beispiel",
