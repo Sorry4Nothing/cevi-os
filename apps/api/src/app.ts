@@ -107,7 +107,7 @@ export function erstelleApp({
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1/ich", erstelleIchRouten({ db, auth }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
-      .route("/api/v1/chats", erstelleChatRouten({ db }))
+      .route("/api/v1/chats", erstelleChatRouten({ db, expo }))
       .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
       .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
       .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
