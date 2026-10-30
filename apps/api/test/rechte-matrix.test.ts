@@ -85,6 +85,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/meldungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
+  "GET /admin/system.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -204,6 +206,20 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Kontakte (#39): Namen der SL für alle, die das Programm sehen; die Nummer gibt es nur Eltern mit aktivem Kind in der Stufe der SL (test/kontakte.test.ts). Antworten tragen Cache-Control: no-store
+  "GET /api/v1/programme/:id/kontakte": {
+    url: () => `/api/v1/programme/${programmId}/kontakte`,
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Ergänzungen (#32): Admin sowie SL und Leitende einer zugeordneten Stufe; mussPasswortAendern wie überall 403. Ein null auf «mitnehmen» ändert nichts Sichtbares
   "PATCH /api/v1/programme/:id": {
     url: () => `/api/v1/programme/${programmId}`,
@@ -297,6 +313,27 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
+  // Betriebszahlen (#143): nur Admins, wie die übrigen Admin-Routen; Inhalt in test/admin-system.test.ts
+  "GET /api/v1/admin/system": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/system/requests": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/admin/personen": {
     erwartet: {
       ...alle(403),
@@ -410,6 +447,21 @@ const MATRIX: Record<string, Zeile> = {
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
+  "GET /api/v1/stufen/:id/kontakte": {
+    url: () => `/api/v1/stufen/${welt.stufeAId}/kontakte`,
+    erwartet: {
+      ...alle(200),
+      slB: 404,
+      leitendeB: 404,
+      elternB: 404,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
     },
   },
   "POST /api/v1/admin/stufen": {
@@ -553,6 +605,18 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(404),
       slA: 201,
       elternA: 201,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Gelesen-Stand (#51): Wie das Lesen des Chats, nur Mitglieder (SL der Stufe A und Eltern der Stufe A); für alle anderen existiert der Chat nicht (404). Schreibt nur die eigene Zeile in chat_status
+  "PUT /api/v1/chats/:id/gelesen": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/gelesen`,
+    erwartet: {
+      ...alle(404),
+      slA: 204,
+      elternA: 204,
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,

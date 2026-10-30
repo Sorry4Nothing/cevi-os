@@ -29,6 +29,12 @@ const datum = new Intl.DateTimeFormat("de-CH", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const nurTag = new Intl.DateTimeFormat("de-CH", { dateStyle: "medium" });
+export function tag(iso) {
+  const wert = new Date(iso);
+  return Number.isNaN(wert.getTime()) ? "" : nurTag.format(wert);
+}
+
 export function zeit(iso) {
   const wert = new Date(iso);
   return Number.isNaN(wert.getTime()) ? "" : datum.format(wert);
@@ -38,13 +44,124 @@ export function chip(text, art) {
   return el("li", { class: art ? `chip chip--${art}` : "chip" }, text);
 }
 
+// Tabelle mit versteckter Beschriftung und Spaltenköpfen; der Rahmen scrollt auf schmalen Bildschirmen waagrecht und ist dafür mit der Tastatur erreichbar
+// spalten: ["Name", …]; die letzte heisst «Aktionen» und steht rechts; ["Anzahl", "zahl"] richtet eine Zahlenspalte rechts aus
+export function tabelle({ beschriftung, spalten, zeilen }) {
+  const koerper = el("tbody", {}, zeilen);
+  const wurzel = el(
+    "div",
+    {
+      class: "tabellenrahmen",
+      role: "region",
+      "aria-label": beschriftung,
+      tabindex: "0",
+    },
+    el(
+      "table",
+      { class: "tabelle" },
+      el("caption", { class: "nur-leser" }, beschriftung),
+      el(
+        "thead",
+        {},
+        el(
+          "tr",
+          {},
+          spalten.map((spalte) => {
+            const [name, klasse] = Array.isArray(spalte)
+              ? spalte
+              : [spalte, spalte === "Aktionen" ? "rechts" : undefined];
+            return el("th", { scope: "col", class: klasse }, name);
+          }),
+        ),
+      ),
+      koerper,
+    ),
+  );
+  return { wurzel, koerper };
+}
+
+// Zelle mit den Knöpfen einer Zeile; leere Einträge (false) fallen weg
+export function aktionenZelle(...knoepfe) {
+  return el(
+    "td",
+    { class: "rechts" },
+    el("div", { class: "aktionen" }, knoepfe),
+  );
+}
+
+// Weitere Aktionen einer Zeile hinter einem Knopf «Mehr»; ohne Einträge entfällt er
+// eintraege: [{ text, onclick, gefaehrlich }, …] oder false
+export function menue(kontext, eintraege) {
+  const liste = eintraege.filter(Boolean);
+  if (liste.length === 0) return false;
+  return el(
+    "details",
+    { class: "menue" },
+    el(
+      "summary",
+      { class: "knopf knopf--klein", "aria-label": `Mehr: ${kontext}` },
+      "Mehr",
+    ),
+    el(
+      "div",
+      { class: "menue-liste" },
+      liste.map((e) =>
+        el(
+          "button",
+          {
+            type: "button",
+            class: e.gefaehrlich
+              ? "menue-eintrag menue-eintrag--gefahr"
+              : "menue-eintrag",
+            "aria-label": `${e.text}: ${kontext}`,
+            onclick: e.onclick,
+          },
+          e.text,
+        ),
+      ),
+    ),
+  );
+}
+
+// Offene Menüs schliessen: Klick daneben oder auf einen Eintrag, Escape (Fokus zurück auf «Mehr»), Fokus verlässt das Menü
+document.addEventListener("click", (ereignis) => {
+  for (const m of document.querySelectorAll("details.menue[open]")) {
+    if (
+      !m.contains(ereignis.target) ||
+      ereignis.target.closest(".menue-eintrag")
+    )
+      m.open = false;
+  }
+});
+document.addEventListener("keydown", (ereignis) => {
+  if (ereignis.key !== "Escape") return;
+  const offen = document.querySelector("details.menue[open]");
+  if (!offen) return;
+  offen.open = false;
+  offen.querySelector("summary").focus();
+});
+document.addEventListener("focusout", (ereignis) => {
+  const m = ereignis.target.closest?.("details.menue[open]");
+  if (m && ereignis.relatedTarget && !m.contains(ereignis.relatedTarget)) {
+    m.open = false;
+  }
+});
+
+// Wer den Dialog öffnete: bei einem Menü-Eintrag der Knopf «Mehr», denn das Menü schliesst sich danach
+function ausloeser() {
+  const aktiv = document.activeElement;
+  return aktiv?.closest?.("details.menue")?.querySelector("summary") ?? aktiv;
+}
+
 // Der Name beginnt mit dem sichtbaren Text, damit Sprachsteuerung ihn trifft; der Zusatz sagt, für wen
-export function knopf(text, { art, kontext, ...rest } = {}) {
+export function knopf(text, { art, klein, kontext, ...rest } = {}) {
   return el(
     "button",
     {
       type: "button",
-      class: art ? `knopf knopf--${art}` : "knopf",
+      class: ["knopf", art && `knopf--${art}`, klein && "knopf--klein"]
+        .filter(Boolean)
+        .join(" "),
       "aria-label": kontext ? `${text}: ${kontext}` : undefined,
       ...rest,
     },
@@ -136,7 +253,7 @@ export function dialogFormular({
   danach,
   fehlertext = standardFehlertext,
 }) {
-  const ausloeser = document.activeElement;
+  const zurueck = ausloeser();
   const titelId = neueId("titel");
   const fehler = el("p", {
     class: "hinweis hinweis--fehler",
@@ -189,7 +306,7 @@ export function dialogFormular({
     // Folgt gleich ein weiterer Dialog (Startpasswort), gehört ihm der Fokus
     if (document.querySelector("dialog[open]")) return;
     // Zurück zum Auslöser; ist er nach dem Neuladen weg, bleibt der Fokus beim Titel der Seite
-    if (ausloeser?.isConnected) ausloeser.focus();
+    if (zurueck?.isConnected) zurueck.focus();
     else document.querySelector("h1")?.focus();
   });
   document.body.append(dialog);
@@ -221,7 +338,7 @@ export function bestaetigen({
 
 // Zeigt ein Geheimnis (Startpasswort) genau einmal; beim Schliessen wird der Text aus der Seite gelöscht
 export function geheimnisDialog({ titel, beschreibung, wert }) {
-  const ausloeser = document.activeElement;
+  const zurueck = ausloeser();
   const titelId = neueId("titel");
   // Ein Absatz statt <output>: Das hätte die Rolle «status» und sagte das Passwort ungefragt an
   const anzeige = el("p", { class: "geheimnis" }, wert);
@@ -258,7 +375,7 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
   dialog.addEventListener("close", () => {
     anzeige.textContent = "";
     dialog.remove();
-    if (ausloeser?.isConnected) ausloeser.focus();
+    if (zurueck?.isConnected) zurueck.focus();
     else document.querySelector("h1")?.focus();
   });
   document.body.append(dialog);

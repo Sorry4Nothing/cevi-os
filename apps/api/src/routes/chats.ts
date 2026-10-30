@@ -6,16 +6,22 @@ import {
   exists,
   gt,
   inArray,
+  isNull,
   lt,
+  ne,
+  or,
   sql,
 } from "drizzle-orm";
+import type { Expo } from "expo-server-sdk";
 import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
+import { pushNeueNachricht } from "../chat.js";
 import {
   chat,
+  chatStatus,
   nachricht,
   programm,
   programmStufe,
@@ -58,7 +64,7 @@ const sendenSchema = z.strictObject({
 });
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
-export function erstelleChatRouten({ db }: { db: Db }) {
+export function erstelleChatRouten({ db, expo }: { db: Db; expo: Expo }) {
   // Nur Programme, die auch Eltern der Stufe sehen: Sonst landete ein interner Titel im Chat
   const fuerElternDerStufe = (stufeId: string, abteilungId: string) =>
     and(
@@ -97,6 +103,29 @@ export function erstelleChatRouten({ db }: { db: Db }) {
           .where(eq(mitglieder.userId, person.id))
           // Gruppenchats vor Einzelchats («stufe» sortiert nach «direkt»), dann nach Stufe und Elternteil
           .orderBy(desc(chat.typ), stufe.reihenfolge, eltern.name, chat.id);
+        // Fremde, sichtbare Nachrichten nach gelesen_bis; ohne Zeile ist alles ungelesen, was die Person sehen darf
+        // shortcut: Der Zähler wird bei jedem Abruf der Chatliste neu gezählt und die App fragt per Polling nach (Liste alle 30 s, offener Chat alle 5 s); auf SSE oder WebSocket umstellen, erst wenn Polling spürbar stört
+        const n = sichtbareNachrichten(db, person);
+        const ungelesen = await db
+          .select({ chatId: n.chatId, anzahl: count() })
+          .from(n)
+          .leftJoin(
+            chatStatus,
+            and(
+              eq(chatStatus.chatId, n.chatId),
+              eq(chatStatus.userId, person.id),
+            ),
+          )
+          .where(
+            and(
+              ne(n.autorId, person.id),
+              or(
+                isNull(chatStatus.gelesenBis),
+                gt(n.erstelltAm, chatStatus.gelesenBis),
+              ),
+            ),
+          )
+          .groupBy(n.chatId);
         // Wer mitliest, steht in jedem Chat der Stufe: Im Gruppenchat die Liste «Stufenleitung», im Einzelchat der Kopf
         const leitung =
           chats.length === 0
@@ -107,6 +136,7 @@ export function erstelleChatRouten({ db }: { db: Db }) {
         return c.json({
           chats: chats.map(({ eltern: e, ...k }) => ({
             ...k,
+            ungelesen: ungelesen.find((u) => u.chatId === k.id)?.anzahl ?? 0,
             // Der Join liefert bei Gruppenchats ein Objekt aus null
             eltern: e && e.id ? e : null,
             stufenleitung: leitung
@@ -255,6 +285,24 @@ export function erstelleChatRouten({ db }: { db: Db }) {
           });
         },
       )
+      // Setzt gelesen_bis auf die Serverzeit und nie zurück; Lesebestätigungen für andere gibt es nicht (nicht Teil von V1)
+      .put("/:id/gelesen", eingabe("param", pfadSchema), async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        if (!(await chatFuerPerson(db, person, id))) {
+          throw new HTTPException(404);
+        }
+        await db
+          .insert(chatStatus)
+          .values({ chatId: id, userId: person.id, gelesenBis: sql`now()` })
+          .onConflictDoUpdate({
+            target: [chatStatus.chatId, chatStatus.userId],
+            set: {
+              gelesenBis: sql`greatest(${chatStatus.gelesenBis}, excluded.gelesen_bis)`,
+            },
+          });
+        return c.body(null, 204);
+      })
       .post(
         "/:id/nachrichten",
         eingabe("param", pfadSchema),
@@ -309,6 +357,10 @@ export function erstelleChatRouten({ db }: { db: Db }) {
               .returning({ id: nachricht.id });
             return zeile;
           });
+          await pushNeueNachricht(
+            { db, expo, c },
+            { chatId: id, abteilungId: person.abteilungId, autorId: person.id },
+          );
           return c.json(neu, 201);
         },
       )

@@ -126,13 +126,26 @@ describe("Verwaltung unter /admin", () => {
     expect(html).not.toMatch(/<style/i);
   });
 
+  test("die Verwaltung ist immer dunkel, ohne Umschalten nach Systemeinstellung", () => {
+    expect(admin["index.html"]).toContain('name="color-scheme" content="dark"');
+    expect(admin["admin.css"]).toContain("color-scheme: dark;");
+    expect(admin["admin.css"]).not.toContain("prefers-color-scheme");
+  });
+
   test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
     "%s schreibt keine Daten als HTML und lädt nichts von aussen",
     (datei) => {
       expect(admin[datei]).not.toMatch(
         /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
       );
-      expect(admin[datei]).not.toMatch(/https?:\/\//);
+      // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
+      expect(admin[datei]).not.toMatch(
+        /setAttribute\(\s*["'`]style|\.style\.cssText/,
+      );
+      // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
+      expect(
+        admin[datei].replaceAll("http://www.w3.org/2000/svg", ""),
+      ).not.toMatch(/https?:\/\//);
     },
   );
 });

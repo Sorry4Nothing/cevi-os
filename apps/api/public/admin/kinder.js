@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import {
+  aktionenZelle,
   ankreuzen,
   auswahl,
   chip,
@@ -8,6 +9,7 @@ import {
   feld,
   gruppe,
   knopf,
+  tabelle,
 } from "./dom.js";
 
 export function zeige(bereich, ctx) {
@@ -117,59 +119,92 @@ function bearbeiten(kind, daten, ctx, neu) {
 function zeichne(bereich, ctx, daten, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
   const personenname = new Map(daten.personen.map((p) => [p.id, p.name]));
-  const liste = el(
-    "ul",
-    { class: "liste", "aria-label": "Kinder" },
-    daten.kinder.map((kind) =>
-      el(
-        "li",
+  const { wurzel, koerper } = tabelle({
+    beschriftung: "Kinder",
+    spalten: ["Name", "Stufe", "Status", "Eltern", "Aktionen"],
+    zeilen: daten.kinder.map((kind) => {
+      const name = `${kind.vorname} ${kind.nachname}`;
+      return el(
+        "tr",
         {
-          class: kind.aktiv ? "karte" : "karte karte--inaktiv",
-          "data-suche": `${kind.vorname} ${kind.nachname}`.toLowerCase(),
+          class: kind.aktiv ? undefined : "inaktiv",
+          "data-suche": name.toLowerCase(),
+          "data-stufe": kind.stufeId,
         },
-        el("h3", {}, `${kind.vorname} ${kind.nachname}`),
+        el("th", { scope: "row" }, name),
         el(
-          "ul",
-          { class: "chips" },
-          chip(stufenname.get(kind.stufeId) ?? "Ohne Stufe", "stufe"),
-          chip(kind.aktiv ? "Aktiv" : "Inaktiv", kind.aktiv ? "ok" : "fehler"),
+          "td",
+          {},
+          el(
+            "ul",
+            { class: "chips" },
+            chip(stufenname.get(kind.stufeId) ?? "Ohne Stufe", "stufe"),
+          ),
         ),
         el(
-          "p",
-          { class: "meta" },
+          "td",
+          {},
+          el(
+            "ul",
+            { class: "chips" },
+            chip(
+              kind.aktiv ? "Aktiv" : "Inaktiv",
+              kind.aktiv ? "ok" : "fehler",
+            ),
+          ),
+        ),
+        el(
+          "td",
+          {},
           kind.eltern.length > 0
-            ? `Eltern: ${kind.eltern.map((id) => personenname.get(id) ?? "Person").join(", ")}`
-            : "Keine Eltern verknüpft",
+            ? el(
+                "ul",
+                { class: "zeilen" },
+                kind.eltern.map((id) =>
+                  el("li", {}, personenname.get(id) ?? "Person"),
+                ),
+              )
+            : el("span", { class: "leise" }, "Keine verknüpft"),
         ),
-        el(
-          "div",
-          { class: "aktionen" },
+        aktionenZelle(
           knopf("Bearbeiten", {
-            kontext: `${kind.vorname} ${kind.nachname}`,
+            klein: true,
+            kontext: name,
             onclick: () => bearbeiten(kind, daten, ctx, neu),
           }),
         ),
-      ),
-    ),
-  );
-  const zaehler = el("p", { class: "meta", role: "status" });
+      );
+    }),
+  });
+  const zaehler = el("p", { class: "meta zaehler", role: "status" });
   const suche = feld({ label: "Suchen", typ: "search", autocomplete: "off" });
+  const filter = auswahl({
+    label: "Stufe",
+    optionen: [["", "Alle Stufen"], ...stufenOptionen(daten.stufen)],
+    wert: "",
+  });
   const aktualisiere = () => {
     const frage = suche.eingabe.value.trim().toLowerCase();
     let treffer = 0;
-    for (const eintrag of liste.children) {
-      eintrag.hidden = !eintrag.dataset.suche.includes(frage);
+    for (const eintrag of koerper.children) {
+      eintrag.hidden =
+        !eintrag.dataset.suche.includes(frage) ||
+        (filter.eingabe.value !== "" &&
+          eintrag.dataset.stufe !== filter.eingabe.value);
       if (!eintrag.hidden) treffer++;
     }
     zaehler.textContent = `${treffer} von ${daten.kinder.length} Kindern`;
   };
   suche.eingabe.addEventListener("input", aktualisiere);
+  filter.eingabe.addEventListener("change", aktualisiere);
   aktualisiere();
   bereich.append(
     el(
       "div",
       { class: "werkzeuge" },
       suche.wurzel,
+      filter.wurzel,
+      zaehler,
       daten.stufen.length > 0
         ? knopf("Kind anlegen", {
             art: "haupt",
@@ -177,7 +212,6 @@ function zeichne(bereich, ctx, daten, neu) {
           })
         : el("p", { class: "hilfe" }, "Lege zuerst eine Stufe an."),
     ),
-    zaehler,
-    liste,
+    wurzel,
   );
 }

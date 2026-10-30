@@ -5,13 +5,17 @@ import * as kinder from "./kinder.js";
 import * as meldungen from "./meldungen.js";
 import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
+import * as system from "./system.js";
+import * as uebersicht from "./uebersicht.js";
 
 const BEREICHE = [
+  ["uebersicht", "Übersicht", uebersicht],
   ["personen", "Personen", personen],
   ["stufen", "Stufen", stufen],
   ["kinder", "Kinder", kinder],
   ["meldungen", "Meldungen", meldungen],
   ["abteilung", "Abteilung", abteilung],
+  ["system", "System", system],
 ];
 
 const app = document.getElementById("app");
@@ -48,7 +52,7 @@ function anmeldeSeite(titel, text, hinweis, ...inhalt) {
     el(
       "main",
       { class: "anmeldung", id: "inhalt" },
-      el("p", { class: "ueberzeile" }, "Cevi OS · Verwaltung"),
+      el("p", { class: "marke" }, "Cevi OS", el("span", {}, "Verwaltung")),
       ueberschrift,
       el("p", {}, text),
       meldung,
@@ -298,11 +302,35 @@ function erstelleLader(bereich) {
 
 function zeigeVerwaltung() {
   const titel = el("h1", { id: "titel", tabindex: "-1" });
-  const reiter = el(
+  const rahmen = el("div", { class: "rahmen" });
+  const menueknopf = el(
+    "button",
+    {
+      type: "button",
+      class: "knopf knopf--klein",
+      "aria-expanded": "false",
+      "aria-controls": "seitenleiste",
+      onclick: () => schalteMenue(!rahmen.classList.contains("rahmen--offen")),
+    },
+    "Menü",
+  );
+  function schalteMenue(offen) {
+    rahmen.classList.toggle("rahmen--offen", offen);
+    menueknopf.setAttribute("aria-expanded", String(offen));
+  }
+  const bereiche = el(
     "nav",
-    { class: "reiter", "aria-label": "Bereiche" },
+    { class: "bereiche", "aria-label": "Bereiche" },
     BEREICHE.map(([schluessel, name]) =>
-      el("a", { href: `#${schluessel}`, "data-bereich": schluessel }, name),
+      el(
+        "a",
+        {
+          href: `#${schluessel}`,
+          "data-bereich": schluessel,
+          onclick: () => schalteMenue(false),
+        },
+        name,
+      ),
     ),
   );
   const rueckmeldung = el("div", {
@@ -310,35 +338,35 @@ function zeigeVerwaltung() {
     class: "rueckmeldung",
     role: "status",
   });
-  zeichne(
+  rahmen.append(
     el(
       "div",
-      { class: "seite" },
+      { class: "topleiste" },
+      el("p", { class: "marke" }, "Cevi OS", el("span", {}, "Verwaltung")),
+      menueknopf,
+    ),
+    el(
+      "div",
+      { class: "seitenleiste", id: "seitenleiste" },
+      el("p", { class: "marke" }, "Cevi OS", el("span", {}, "Verwaltung")),
+      bereiche,
       el(
-        "header",
-        { class: "kopf" },
-        el(
-          "div",
-          {},
-          el("p", { class: "ueberzeile" }, "Cevi OS · Verwaltung"),
-          titel,
-        ),
-        el(
-          "div",
-          { class: "konto" },
-          el("span", {}, `Angemeldet als ${ich.name}`),
-          knopf("Abmelden", { onclick: abmelden }),
-        ),
-      ),
-      reiter,
-      el(
-        "main",
-        { id: "inhalt", tabindex: "-1" },
-        rueckmeldung,
-        el("div", { id: "bereich" }),
+        "div",
+        { class: "konto" },
+        el("p", { class: "meta" }, "Angemeldet als"),
+        el("p", { class: "kontoname" }, ich.name),
+        knopf("Abmelden", { onclick: abmelden }),
       ),
     ),
+    el(
+      "main",
+      { class: "haupt", id: "inhalt", tabindex: "-1" },
+      titel,
+      rueckmeldung,
+      el("div", { id: "bereich" }),
+    ),
   );
+  zeichne(rahmen);
   navigiere();
 }
 
@@ -346,7 +374,7 @@ function navigiere() {
   if (!ich || !document.getElementById("bereich")) return;
   const [schluessel, name, ansicht] =
     BEREICHE.find(([s]) => s === location.hash.slice(1)) ?? BEREICHE[0];
-  for (const link of document.querySelectorAll("nav.reiter a")) {
+  for (const link of document.querySelectorAll("nav.bereiche a")) {
     if (link.dataset.bereich === schluessel)
       link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");

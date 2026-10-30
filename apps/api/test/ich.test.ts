@@ -267,7 +267,7 @@ describe("PATCH /api/v1/ich", () => {
     ["ein fremdes Feld", { abteilungId: "x" }],
     [
       "ein fremdes Feld neben einem Schalter",
-      { pushChat: false, telefon: "1" },
+      { pushChat: false, email: "x@example.org" },
     ],
   ])("%s ergibt 400 und ändert nichts", async (_titel, body) => {
     const konto = await legePersonaAn(welt, "elternA");

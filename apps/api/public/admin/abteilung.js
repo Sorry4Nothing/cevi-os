@@ -52,5 +52,5 @@ function zeichne(bereich, ctx, text) {
       speichern.disabled = false;
     }
   });
-  bereich.append(formular);
+  bereich.append(el("div", { class: "panel panel--schmal" }, formular));
 }

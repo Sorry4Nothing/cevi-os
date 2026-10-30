@@ -246,6 +246,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/system.js:
+    get:
+      operationId: getAdminSystemSkript
+      summary: Skript der Verwaltung – Bereich System
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht.js:
+    get:
+      operationId: getAdminUebersichtSkript
+      summary: Skript der Verwaltung – Bereich Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /.well-known/apple-app-site-association:
     get:
       operationId: getAppleAppSiteAssociation
@@ -761,24 +791,31 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     patch:
       operationId: ichAendern
-      summary: Eigene Push-Schalter ändern
+      summary: Eigene Push-Schalter und Telefonnummer ändern
       tags:
         - Profil
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme»; die Person kommt immer aus der
-        Sitzung. Mindestens ein Schalter muss im Body stehen. Der Body ist strikt: Jedes andere Feld (auch `telefon`,
-        `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Wert, der kein Boolean ist.
+        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme» und die eigene Telefonnummer; die
+        Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
+        andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
-        Statuscodes: 204, 400, 401, 403, 426.
+        **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
+        `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
+        entfernt die Nummer. Eine Nummer speichern darf nur, wer SL einer Stufe ist (sonst 403); entfernen darf sie
+        jede Person, auch eine, die die Rolle verloren hat. Die Nummer sehen danach nur Eltern mit einem aktiven Kind
+        in der Stufe der SL, siehe `GET /api/v1/programme/{id}/kontakte` und `GET /api/v1/stufen/{id}/kontakte`; die
+        App weist vor dem Speichern darauf hin.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); die Nummer nur
+        SL. Statuscodes: 204, 400, 401, 403, 426.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/IchPushEinstellungen"
+              $ref: "#/components/schemas/IchEinstellungen"
       responses:
         "204":
           description: Gespeichert; kein Body.
@@ -938,6 +975,56 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/stufen/{id}/kontakte:
+    get:
+      operationId: stufeKontakteLesen
+      summary: SL einer Stufe lesen
+      tags:
+        - Stufen
+      description: |
+        Liefert alle SL der Stufe mit aktivem Konto, sortiert nach `name`, dann `id`; sie sind die Kontaktpersonen
+        im Gruppenchat. `telefon` ist nur für Eltern mit einem aktiven Kind in der Stufe gefüllt, sonst `null`
+        (auch für Admins, Leitende und SL).
+
+        Die Antwort trägt `Cache-Control: no-store`.
+
+        **Rollen.** Admins, Leitende und SL der Stufe sowie Eltern mit einem aktiven Kind in der Stufe. Für alle
+        anderen und für Stufen anderer Abteilungen oder unbekannte Stufen ist die Antwort 404.
+        Statuscodes: 200, 400, 401, 403, 404, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die SL der Stufe.
+          headers:
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KontakteAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/push-token:
     put:
       operationId: pushTokenRegistrieren
@@ -1117,6 +1204,54 @@ paths:
       responses:
         "204":
           description: Ergänzungen gespeichert. Kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/programme/{id}/kontakte:
+    get:
+      operationId: programmKontakteLesen
+      summary: Kontaktpersonen eines Programms lesen
+      tags:
+        - Programme
+      description: |
+        Kontaktpersonen sind die SL der zugeordneten Stufen, die sich für das Programm mit Status «ja» angemeldet
+        haben (`PUT /api/v1/programme/{id}/leitung`) und deren Konto aktiv ist. Wer sich abmeldet oder noch nicht
+        geantwortet hat, fehlt sofort. Ist keine SL angemeldet, ist `kontakte` leer; die App zeigt dann
+        «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
+
+        **Telefonnummer.** `telefon` ist nur für Eltern mit einem aktiven Kind in einer Stufe dieser SL gefüllt,
+        sonst `null`. Das gilt auch für Admins, Leitende und SL, auch für die der eigenen Stufe. Sortiert nach `name`,
+        dann `id`.
+
+        Die Antwort trägt `Cache-Control: no-store`.
+
+        **Rollen.** Jede angemeldete Person, für die das Programm sichtbar ist (Regeln wie bei
+        `GET /api/v1/programme/{id}`); sonst 404. Statuscodes: 200, 400, 401, 403, 404, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/ProgrammIdPfad"
+      responses:
+        "200":
+          description: Die Kontaktpersonen des Programms.
+          headers:
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KontakteAntwort"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -1394,6 +1529,9 @@ paths:
         Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Reihenfolge der Stufe, dann nach Name des Elternteils.
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
+        `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (ausgeblendete, vor dem Beitritt geschriebene) Nachrichten zählen nicht.
+        Die App fragt die Liste per Polling ab (Liste alle 30 Sekunden, offener Chat alle 5 Sekunden); eine Echtzeit-Verbindung gibt es nicht.
+
         Statuscodes: 200 Erfolg; 401 nicht angemeldet oder Konto deaktiviert; 403 Konto muss zuerst das Passwort ändern; 426 App zu alt.
       parameters:
         - $ref: "#/components/parameters/AppVersion"
@@ -1503,6 +1641,8 @@ paths:
 
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
+        Push: Die anderen Mitglieder des Chats mit eingeschaltetem Chat-Push (`pushChat`) bekommen einen Push mit Titel «Neue Nachricht im Chat <Stufe>» (im Einzelchat «Neue Nachricht im Einzelchat <Stufe>») und `data: { typ: "chat", id: <Chat-ID> }`, nie mit Nachrichtentext oder Namen. Kein Push geht an den Absender, an Konten, die nicht (mehr) Mitglied oder deaktiviert sind, und an Personen, die den Absender blockiert haben. Ein Fehler beim Pushen ändert das Ergebnis nicht.
+
         Statuscodes: 201 Nachricht angelegt; 400 ungültige Eingabe (Text leer nach dem Trimmen, länger als 2000 Zeichen, enthält NUL, unbekannte Felder, `programmId` nicht zulässig); 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 422 Wortfilter; 426; 429 Limit überschritten.
       parameters:
         - $ref: "#/components/parameters/AppVersion"
@@ -1534,6 +1674,34 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/chats/{id}/gelesen:
+    put:
+      operationId: markiereChatGelesen
+      summary: Chat als gelesen markieren
+      tags:
+        - Chat
+      description: |
+        Setzt den Gelesen-Stand der angemeldeten Person im Chat auf die aktuelle Serverzeit. Danach zählt `ungelesen` in der Chatliste nur Nachrichten, die später eingehen. Der Stand geht nie zurück; ein wiederholter Aufruf ist unschädlich. Die Anfrage hat keinen Body. Andere Personen sehen den Stand nicht (keine Lesebestätigungen in V1).
+
+        Nicht-Mitglieder (andere Stufen, andere Abteilungen, Admins, Leitende ohne SL-Rolle, unbekannte ID) bekommen 404.
+
+        Statuscodes: 204 gespeichert; 400 `id` keine UUID; 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 426.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/ChatPfadId"
+      responses:
+        "204":
+          description: Gelesen-Stand gespeichert. Kein Inhalt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/nachrichten/{id}/ausblenden:
     post:
       operationId: blendeNachrichtAus
@@ -1975,6 +2143,64 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/system:
+    get:
+      operationId: holeAdminSystem
+      summary: Zustand der API und Bestand der Abteilung
+      description: |
+        Nur Admins (mit zweitem Faktor). Liefert Zahlen für die Übersicht der Verwaltung: Prozess (Node-Version, Laufzeit, Speicher, Verzögerung der Ereignisschleife), Datenbank (erreichbar, Antwortzeit, Verbindungen), Bestand der eigenen Abteilung, Kalender-Sync und einige Umgebungs-Flags.
+
+        Die Antwort enthält nie Werte aus der Umgebung, Hosts, Adressen, Schlüssel oder Namen. Ist die Datenbank nicht erreichbar, antwortet die Route trotzdem mit 200 und `datenbank.erreichbar: false`.
+
+        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zustand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystem"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/system/requests:
+    get:
+      operationId: holeAdminSystemRequests
+      summary: Zahlen zu den Anfragen an die API
+      description: |
+        Nur Admins (mit zweitem Faktor). Liefert Zähler und Dauern der Anfragen seit dem Start der API (höchstens die letzten 24 Stunden, in Minuten-Eimern im Arbeitsspeicher). Nach einem Neustart ist alles leer.
+
+        Erfasst werden nur Methode, Routenmuster (nie der konkrete Pfad), Statuscode und Dauer; keine Query, kein Body, keine Header, keine IP-Adressen und keine Personen. Die Abrufe dieser beiden System-Routen und die statischen Dateien unter `/admin` zählen nicht mit. Dauern (`p50Ms`, `p95Ms`) sind die obere Grenze der Dauerklasse, in der das Quantil liegt (Klassen bis 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 ms); `null` ohne Anfragen. Die Zähler je Route gelten seit dem Start.
+
+        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zähler und Dauern.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystemRequests"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -2522,7 +2748,7 @@ components:
           type:
             - string
             - "null"
-          description: Telefonnummer, wenn hinterlegt (nur lesbar, die App ändert sie nicht).
+          description: Eigene Telefonnummer, wenn hinterlegt (nur SL setzen sie, per `PATCH /api/v1/ich`).
         pushChat:
           type: boolean
           description: Push-Benachrichtigungen für Chats.
@@ -2549,16 +2775,22 @@ components:
           description: Die aktiven Kinder der Person (nur Eltern), nach `id` sortiert.
           items:
             $ref: "#/components/schemas/IchKind"
-    IchPushEinstellungen:
+    IchEinstellungen:
       type: object
       additionalProperties: false
       minProperties: 1
-      description: Mindestens einer der beiden Schalter. Fremde Felder ergeben 400.
+      description: Mindestens ein Feld. Fremde Felder ergeben 400.
       properties:
         pushChat:
           type: boolean
         pushProgramme:
           type: boolean
+        telefon:
+          type:
+            - string
+            - "null"
+          maxLength: 30
+          description: Eigene Telefonnummer, nur für SL; leerer Text oder `null` entfernt sie.
     IchKontoLoeschenAnfrage:
       type: object
       additionalProperties: false
@@ -2611,6 +2843,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StufenAntwortEintrag"
+    KontakteAntwort:
+      type: object
+      required:
+        - kontakte
+      properties:
+        kontakte:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - telefon
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              telefon:
+                type:
+                  - string
+                  - "null"
+                description: Nur für Eltern mit einem aktiven Kind in der Stufe der SL, sonst `null`.
     PushTokenAnfrage:
       type: object
       additionalProperties: false
@@ -2922,10 +3178,15 @@ components:
         - stufe
         - eltern
         - stufenleitung
+        - ungelesen
       properties:
         id:
           type: string
           format: uuid
+        ungelesen:
+          type: integer
+          minimum: 0
+          description: Anzahl ungelesener Nachrichten anderer Personen in diesem Chat.
         typ:
           $ref: "#/components/schemas/ChatTyp"
         stufe:
@@ -2958,6 +3219,7 @@ components:
               name: Pfadi
               kuerzel: PF
             eltern: null
+            ungelesen: 2
             stufenleitung:
               - id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
                 name: Beispiel Leitung
@@ -3545,6 +3807,222 @@ components:
           description: Nach Nachname, Vorname sortiert.
           items:
             $ref: "#/components/schemas/AdminKind"
+    AdminSystem:
+      type: object
+      additionalProperties: false
+      required: [prozess, datenbank, bestand, kalender, umgebung]
+      properties:
+        prozess:
+          type: object
+          additionalProperties: false
+          required:
+            [
+              node,
+              gestartetAm,
+              laufzeitSekunden,
+              rssMb,
+              heapGenutztMb,
+              heapGesamtMb,
+              schleifeP99Ms,
+              commit,
+            ]
+          properties:
+            node:
+              type: string
+              example: v24.15.0
+            gestartetAm:
+              type: string
+              format: date-time
+            laufzeitSekunden:
+              type: integer
+            rssMb:
+              type: number
+            heapGenutztMb:
+              type: number
+            heapGesamtMb:
+              type: number
+            schleifeP99Ms:
+              type: [number, "null"]
+              description: 99. Perzentil der Verzögerung der Ereignisschleife seit dem letzten Abruf; `null` ohne Messwerte.
+            commit:
+              type: [string, "null"]
+              description: Commit-Hash des Builds, nur wenn die Umgebung ihn setzt (`COMMIT_SHA`, 7 bis 40 Hex-Zeichen).
+        datenbank:
+          type: object
+          additionalProperties: false
+          required: [erreichbar, pingMs, verbindungen, poolMaximum]
+          properties:
+            erreichbar:
+              type: boolean
+            pingMs:
+              type: [integer, "null"]
+            verbindungen:
+              type: [integer, "null"]
+              description: Offene Verbindungen zur Datenbank, aller Anwendungen (API, Jobs).
+            poolMaximum:
+              type: integer
+              description: Grösse des Pools der API.
+        bestand:
+          type: object
+          additionalProperties: false
+          required: [aktivePersonen, aktiveKinder, offeneMeldungen, pushTokens]
+          properties:
+            aktivePersonen:
+              type: integer
+            aktiveKinder:
+              type: integer
+            offeneMeldungen:
+              type: integer
+              description: Alle offenen Meldungen der Abteilung, auch die über eigene Beiträge des Admins (die `GET /api/v1/admin/meldungen` ausblendet).
+            pushTokens:
+              type: integer
+        kalender:
+          type: object
+          additionalProperties: false
+          required: [eingerichtet, letzterErfolgAm, fehler]
+          properties:
+            eingerichtet:
+              type: boolean
+            letzterErfolgAm:
+              type: [string, "null"]
+              format: date-time
+            fehler:
+              type: [string, "null"]
+              description: Einer der festen Fehlertexte des Syncs.
+        umgebung:
+          type: object
+          additionalProperties: false
+          required: [https, produktion, kalenderSchluessel]
+          properties:
+            https:
+              type: boolean
+              description: "`BETTER_AUTH_URL` beginnt mit https."
+            produktion:
+              type: boolean
+            kalenderSchluessel:
+              type: boolean
+              description: Eine Schlüsseldatei für Google ist konfiguriert (nur ob, nicht welche).
+    AdminSystemPunkt:
+      type: object
+      additionalProperties: false
+      required: [ab, anzahl, fehler4xx, fehler5xx]
+      properties:
+        ab:
+          type: string
+          format: date-time
+          description: Beginn des Zeitraums.
+        anzahl:
+          type: integer
+        fehler4xx:
+          type: integer
+        fehler5xx:
+          type: integer
+    AdminSystemRequests:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          seit,
+          gesamt,
+          letzteMinute,
+          letzteStunde,
+          statusklassen,
+          quote5xx,
+          quote4xx,
+          p50Ms,
+          p95Ms,
+          stunden,
+          minuten,
+          routen,
+          letzteFehler,
+        ]
+      properties:
+        seit:
+          type: string
+          format: date-time
+          description: Start der API; davor gibt es keine Zahlen.
+        gesamt:
+          type: integer
+          description: Anfragen der letzten 24 Stunden bzw. seit dem Start.
+        letzteMinute:
+          type: integer
+        letzteStunde:
+          type: integer
+        statusklassen:
+          type: object
+          additionalProperties: false
+          required: ["1xx", "2xx", "3xx", "4xx", "5xx"]
+          properties:
+            "1xx":
+              type: integer
+            "2xx":
+              type: integer
+            "3xx":
+              type: integer
+            "4xx":
+              type: integer
+            "5xx":
+              type: integer
+        quote5xx:
+          type: number
+          description: Anteil der Antworten mit 5xx an allen (0 bis 1).
+        quote4xx:
+          type: number
+        p50Ms:
+          type: [integer, "null"]
+        p95Ms:
+          type: [integer, "null"]
+        stunden:
+          type: array
+          description: 24 Stunden bis jetzt, ältester Zeitraum zuerst.
+          items:
+            $ref: "#/components/schemas/AdminSystemPunkt"
+        minuten:
+          type: array
+          description: 60 Minuten bis jetzt, älteste zuerst.
+          items:
+            $ref: "#/components/schemas/AdminSystemPunkt"
+        routen:
+          type: array
+          description: Seit dem Start, häufigste zuerst. Höchstens 200 Muster; weitere zählen unter `andere` (ohne Methode).
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [methode, route, anzahl, fehler4xx, fehler5xx, p50Ms, p95Ms]
+            properties:
+              methode:
+                type: string
+              route:
+                type: string
+                description: Muster wie `/api/v1/admin/personen/:id`, nie der konkrete Pfad.
+              anzahl:
+                type: integer
+              fehler4xx:
+                type: integer
+              fehler5xx:
+                type: integer
+              p50Ms:
+                type: [integer, "null"]
+              p95Ms:
+                type: [integer, "null"]
+        letzteFehler:
+          type: array
+          description: Die letzten höchstens 30 Antworten mit Status 400 oder höher, neueste zuerst. Nur Zeit, Methode, Routenmuster und Status.
+          items:
+            type: object
+            additionalProperties: false
+            required: [zeit, methode, route, status]
+            properties:
+              zeit:
+                type: string
+                format: date-time
+              methode:
+                type: string
+              route:
+                type: string
+              status:
+                type: integer
     AdminKindAnlegen:
       type: object
       required:
