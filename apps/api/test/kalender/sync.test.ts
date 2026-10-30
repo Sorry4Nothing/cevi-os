@@ -1092,3 +1092,169 @@ test("Nachfolger einer geteilten Serie mit anderer Zeit: wird übernommen und al
   );
   expect(gesendet[0].daten).toEqual({ typ: "programm", id });
 });
+
+// Automatische Zuordnung nach dem Titel (#34): «Stufen» meint alle, sonst Stufenname oder Kürzel als ganzes Wort
+async function stufenFuerZuordnung() {
+  const [biber] = await sql`
+    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
+    values (${abteilungId}, 'Biber', 'BI', 2) returning id`;
+  const [woelfe] = await sql`
+    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
+    values (${abteilungId}, 'Wölfe', 'WÖ', 3) returning id`;
+  return { biber: biber.id as string, woelfe: woelfe.id as string };
+}
+
+const mitTitel = (titel: string, id = "auto000000000001") =>
+  stubNetz({ items: [termin(id, { summary: titel })] });
+
+const zugeordnet = async (id = "auto000000000001") => {
+  const [p] = await sql`
+    select id, sichtbarkeit from programm
+    where abteilung_id = ${abteilungId} and google_event_id = ${id}`;
+  const stufen = await sql`
+    select stufe_id from programm_stufe where programm_id = ${p.id}`;
+  return {
+    id: p.id as string,
+    sichtbarkeit: p.sichtbarkeit as string,
+    stufen: stufen.map((s) => s.stufe_id as string).sort(),
+  };
+};
+
+const auditEintraege = (programmId: string) => sql`
+  select akteur_id, aktion, ziel_typ, details from audit_log
+  where ziel_id = ${programmId} order by erstellt_am, id`;
+
+test("«Stufen» im Titel: alle Stufen der Abteilung, für Eltern sichtbar, Audit-Eintrag vom System", async () => {
+  const { biber, woelfe } = await stufenFuerZuordnung();
+  mitTitel("Samstag aller STUFEN");
+  await lauf();
+
+  const z = await zugeordnet();
+  expect(z.sichtbarkeit).toBe("eltern");
+  expect(z.stufen).toEqual([stufeId, biber, woelfe].sort());
+  expect(await auditEintraege(z.id)).toEqual([
+    {
+      akteur_id: "system",
+      aktion: "programm_zugeordnet",
+      ziel_typ: "programm",
+      details: { stufen: z.stufen, sichtbarkeit: "eltern" },
+    },
+  ]);
+});
+
+test("ein Stufenname im Titel: nur diese Stufe, für Eltern sichtbar", async () => {
+  const { biber } = await stufenFuerZuordnung();
+  mitTitel("Waldtag biber");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "eltern",
+    stufen: [biber],
+  });
+});
+
+test("zwei Stufennamen im Titel: beide Stufen", async () => {
+  const { biber, woelfe } = await stufenFuerZuordnung();
+  mitTitel("Biber und Wölfe: Waldtag");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "eltern",
+    stufen: [biber, woelfe].sort(),
+  });
+});
+
+test("kein Treffer: Der Termin bleibt intern und ohne Stufe, ohne Audit-Eintrag", async () => {
+  await stufenFuerZuordnung();
+  mitTitel("Waldtag mit Stufenleitung und Biberburg");
+  await lauf();
+  const z = await zugeordnet();
+  expect(z).toMatchObject({ sichtbarkeit: "intern", stufen: [] });
+  expect(await auditEintraege(z.id)).toEqual([]);
+});
+
+test("eine Zuordnung von Hand bleibt, auch wenn der Titel eine Stufe nennt", async () => {
+  const { biber } = await stufenFuerZuordnung();
+  mitTitel("Waldtag Wölfe");
+  await lauf();
+  const vorher = await zugeordnet();
+
+  // Wie eine SL: auf Biber umgestellt, mit Audit-Eintrag einer Person
+  await sql`delete from programm_stufe where programm_id = ${vorher.id}`;
+  await sql`insert into programm_stufe (programm_id, stufe_id) values (${vorher.id}, ${biber})`;
+  await sql`update programm set sichtbarkeit = 'leitende' where id = ${vorher.id}`;
+  await sql`insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, details)
+            values (${abteilungId}, ${randomUUID()}, 'programm_zugeordnet', 'programm', ${vorher.id}, '{}')`;
+
+  mitTitel("Waldtag Stufen");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "leitende",
+    stufen: [biber],
+  });
+  expect(await auditEintraege(vorher.id)).toHaveLength(2);
+});
+
+test("eine Zuordnung von Hand, die alles wieder entfernt, bleibt unzugeordnet", async () => {
+  await stufenFuerZuordnung();
+  mitTitel("Waldtag");
+  await lauf();
+  const { id } = await zugeordnet();
+  // Eine Person hat zugeordnet und wieder entfernt: Stand «intern ohne Stufe», aber mit ihrem Eintrag
+  await sql`insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, details)
+            values (${abteilungId}, ${randomUUID()}, 'programm_zugeordnet', 'programm', ${id}, '{}')`;
+
+  mitTitel("Waldtag Biber");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "intern",
+    stufen: [],
+  });
+});
+
+test("Titeländerung: Die Automatik folgt dem neuen Titel, bis keine Stufe mehr passt, und ein unveränderter Lauf schreibt nichts", async () => {
+  const { biber, woelfe } = await stufenFuerZuordnung();
+  mitTitel("Waldtag Biber");
+  await lauf();
+  const { id } = await zugeordnet();
+  expect(await zugeordnet()).toMatchObject({ stufen: [biber] });
+
+  await lauf();
+  expect(await auditEintraege(id)).toHaveLength(1);
+
+  mitTitel("Waldtag Wölfe");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "eltern",
+    stufen: [woelfe],
+  });
+
+  mitTitel("Waldtag");
+  await lauf();
+  expect(await zugeordnet()).toMatchObject({
+    sichtbarkeit: "intern",
+    stufen: [],
+  });
+
+  const eintraege = await auditEintraege(id);
+  expect(eintraege.map((e) => e.akteur_id)).toEqual([
+    "system",
+    "system",
+    "system",
+  ]);
+  expect(eintraege[2].details).toEqual({ stufen: [], sichtbarkeit: "intern" });
+});
+
+test("ein Zustand, den weder Standard noch Automatik gesetzt haben, bleibt auch ohne Audit-Eintrag", async () => {
+  await stufenFuerZuordnung();
+  const id = await programm("hand0000000000001", {
+    titel: "Waldtag",
+    stufen: [stufeId],
+    sichtbarkeit: "leitende",
+  });
+  mitTitel("Waldtag Biber", "hand0000000000001");
+  await lauf();
+  expect(await zugeordnet("hand0000000000001")).toMatchObject({
+    id,
+    sichtbarkeit: "leitende",
+    stufen: [stufeId],
+  });
+});

@@ -467,7 +467,7 @@ export const auditLog = pgTable("audit_log", {
   abteilungId: uuid("abteilung_id")
     .notNull()
     .references(() => abteilung.id, { onDelete: "restrict" }),
-  // UUID einer Person oder «cli» für die Kommandozeile, die kein Konto hat
+  // UUID einer Person, «cli» für die Kommandozeile, die kein Konto hat, oder «system» für die automatische Zuordnung des Kalender-Syncs
   akteurId: text("akteur_id").notNull(),
   aktion: text("aktion").notNull(),
   zielTyp: text("ziel_typ").notNull(),

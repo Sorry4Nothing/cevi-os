@@ -16,6 +16,7 @@ import { gleicheAb } from "./abgleich.js";
 import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeSeiten, holeToken } from "./google.js";
 import { findeNachfolger } from "./nachfolger.js";
+import { ordneAutomatischZu } from "./zuordnung.js";
 import {
   abgesagt,
   pushProgrammaenderungen,
@@ -151,7 +152,7 @@ async function lauf(
         }
         // shortcut: ein INSERT trägt höchstens 65535 Parameter (rund 5000 Termine); bei grösseren Kalendern in Blöcke teilen
         if (zeilen.length > 0) {
-          await tx
+          const aktuell = await tx
             .insert(programm)
             .values(zeilen)
             .onConflictDoUpdate({
@@ -171,7 +172,14 @@ async function lauf(
                 // Wieder im Kalender heisst wieder aktiv, auch nach einer Absage
                 status: "aktiv",
               },
-            });
+            })
+            .returning({ id: programm.id });
+          // Nach dem Upsert, damit ein neuer Titel gleich zählt; Zuordnungen von Hand bleiben (zuordnung.ts)
+          await ordneAutomatischZu(
+            tx,
+            eine.id,
+            aktuell.map((z) => z.id),
+          );
         }
         // Nach den Übernahmen, damit eine Absage im selben Lauf gewinnt; unbekannte IDs treffen nichts
         if (absagen.length > 0) {
