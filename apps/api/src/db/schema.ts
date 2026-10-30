@@ -269,6 +269,25 @@ export const programm = pgTable(
   ],
 );
 
+// Von der Webseite der Stufe abgerufen (kalender/eckdaten-sync.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
+// Der Schlüssel ist Stufe und Tag; die Route hängt sie über beides an das Programm
+export const programmEckdaten = pgTable(
+  "programm_eckdaten",
+  {
+    stufeId: uuid("stufe_id")
+      .notNull()
+      .references(() => stufe.id, { onDelete: "restrict" }),
+    tag: date("tag").notNull(),
+    treffpunkt: text("treffpunkt"),
+    schlussOrt: text("schluss_ort"),
+    // HH:mm
+    schlussZeit: text("schluss_zeit"),
+    mitnehmen: text("mitnehmen"),
+    abgerufenAm: zeitpunkt("abgerufen_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.stufeId, t.tag] })],
+);
+
 export const programmStufe = pgTable(
   "programm_stufe",
   {

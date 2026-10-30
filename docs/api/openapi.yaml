@@ -2976,7 +2976,32 @@ components:
         - type: object
           required:
             - teilnahmeOffen
+            - treffpunkt
+            - schlussOrt
+            - schlussZeit
+            - mitnehmen
           properties:
+            treffpunkt:
+              type:
+                - string
+                - "null"
+              description: Treffpunkt mit Zeit (mehrere Zeilen möglich, etwa «14:00 Uhr» und der Ort). Von der Webseite der Stufe, wenn deren «Cevi-Programm» auf den Tag dieses Programms fällt, sonst `null`. Die App liest nur; es gibt keinen Schreibzugriff.
+            schlussOrt:
+              type:
+                - string
+                - "null"
+              description: Ort des Schlusses; `null`, wenn die Webseite keinen nennt oder nicht zum Tag passt.
+            schlussZeit:
+              type:
+                - string
+                - "null"
+              pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+              description: Zeit des Schlusses als `HH:mm`; `null`, wenn die Webseite keine nennt oder nicht zum Tag passt.
+            mitnehmen:
+              type:
+                - string
+                - "null"
+              description: Was die Kinder mitnehmen, eine Zeile pro Eintrag; `null`, wenn die Webseite nichts nennt oder nicht zum Tag passt.
             teilnahmeOffen:
               type: boolean
               description: Wahr, wenn das Programm «aktiv» ist und noch nicht begonnen hat; nur dann lässt sich die Teilnahme melden oder ändern.
