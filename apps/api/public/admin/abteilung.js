@@ -1,5 +1,5 @@
 import { anfrage, fehlertext } from "./api.js";
-import { el, feld } from "./dom.js";
+import { el, feld, knopf } from "./dom.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -23,11 +23,11 @@ function zeichne(bereich, ctx, text) {
     hidden: true,
     tabindex: "-1",
   });
-  const speichern = el(
-    "button",
-    { type: "submit", class: "knopf knopf--haupt" },
-    "Speichern",
-  );
+  const speichern = knopf("Speichern", {
+    art: "haupt",
+    symbol: "haken",
+    type: "submit",
+  });
   const formular = el(
     "form",
     { class: "formular", novalidate: true },
@@ -52,5 +52,12 @@ function zeichne(bereich, ctx, text) {
       speichern.disabled = false;
     }
   });
-  bereich.append(el("div", { class: "panel panel--schmal" }, formular));
+  bereich.append(
+    el(
+      "section",
+      { class: "panel panel--schmal", "aria-labelledby": "abteilung-hilfe" },
+      el("h2", { id: "abteilung-hilfe" }, "Hilfe-Seite der App"),
+      formular,
+    ),
+  );
 }

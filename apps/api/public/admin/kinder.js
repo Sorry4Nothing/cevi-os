@@ -7,8 +7,11 @@ import {
   dialogFormular,
   el,
   feld,
+  filterGruppe,
   gruppe,
+  icon,
   knopf,
+  neueId,
   tabelle,
 } from "./dom.js";
 
@@ -116,12 +119,32 @@ function bearbeiten(kind, daten, ctx, neu) {
   });
 }
 
+function elternZelle(kind, personen) {
+  if (kind.eltern.length === 0) {
+    return el("ul", { class: "chips" }, chip("Keine Eltern verknüpft", "warn"));
+  }
+  return el(
+    "ul",
+    { class: "zeilen" },
+    kind.eltern.map((id) => {
+      const person = personen.get(id);
+      return el(
+        "li",
+        { class: "eltern-zeile" },
+        person?.name ?? "Person",
+        person?.deaktiviert &&
+          el("ul", { class: "chips" }, chip("Konto deaktiviert", "fehler")),
+      );
+    }),
+  );
+}
+
 function zeichne(bereich, ctx, daten, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
-  const personenname = new Map(daten.personen.map((p) => [p.id, p.name]));
+  const personen = new Map(daten.personen.map((p) => [p.id, p]));
   const { wurzel, koerper } = tabelle({
     beschriftung: "Kinder",
-    spalten: ["Name", "Stufe", "Status", "Eltern", "Aktionen"],
+    spalten: ["Kind", "Stufe", "Eltern", "Status", "Aktionen"],
     zeilen: daten.kinder.map((kind) => {
       const name = `${kind.vorname} ${kind.nachname}`;
       return el(
@@ -131,7 +154,7 @@ function zeichne(bereich, ctx, daten, neu) {
           "data-suche": name.toLowerCase(),
           "data-stufe": kind.stufeId,
         },
-        el("th", { scope: "row" }, name),
+        el("th", { scope: "row" }, el("span", { class: "name" }, name)),
         el(
           "td",
           {},
@@ -141,34 +164,22 @@ function zeichne(bereich, ctx, daten, neu) {
             chip(stufenname.get(kind.stufeId) ?? "Ohne Stufe", "stufe"),
           ),
         ),
+        el("td", {}, elternZelle(kind, personen)),
         el(
           "td",
           {},
           el(
             "ul",
             { class: "chips" },
-            chip(
-              kind.aktiv ? "Aktiv" : "Inaktiv",
-              kind.aktiv ? "ok" : "fehler",
-            ),
+            kind.aktiv
+              ? chip("Aktiv", "ok")
+              : chip("Inaktiv", undefined, "schliessen"),
           ),
-        ),
-        el(
-          "td",
-          {},
-          kind.eltern.length > 0
-            ? el(
-                "ul",
-                { class: "zeilen" },
-                kind.eltern.map((id) =>
-                  el("li", {}, personenname.get(id) ?? "Person"),
-                ),
-              )
-            : el("span", { class: "leise" }, "Keine verknüpft"),
         ),
         aktionenZelle(
           knopf("Bearbeiten", {
             klein: true,
+            symbol: "bearbeiten",
             kontext: name,
             onclick: () => bearbeiten(kind, daten, ctx, neu),
           }),
@@ -176,42 +187,79 @@ function zeichne(bereich, ctx, daten, neu) {
       );
     }),
   });
-  const zaehler = el("p", { class: "meta zaehler", role: "status" });
-  const suche = feld({ label: "Suchen", typ: "search", autocomplete: "off" });
-  const filter = auswahl({
-    label: "Stufe",
-    optionen: [["", "Alle Stufen"], ...stufenOptionen(daten.stufen)],
-    wert: "",
+  ctx.kopfAktion(
+    daten.stufen.length > 0
+      ? knopf("Kind anlegen", {
+          art: "haupt",
+          symbol: "plus",
+          onclick: () => anlegen(daten, ctx, neu),
+        })
+      : el("p", { class: "hilfe" }, "Lege zuerst eine Stufe an."),
+  );
+
+  const ohneEltern = daten.kinder.filter((k) => k.eltern.length === 0).length;
+  const zaehler = el("p", { class: "meta klein", role: "status" });
+  const sucheId = neueId("suche");
+  const suche = el("input", {
+    id: sucheId,
+    class: "eingabe",
+    type: "search",
+    placeholder: "Vorname oder Nachname",
+    autocomplete: "off",
   });
-  const aktualisiere = () => {
-    const frage = suche.eingabe.value.trim().toLowerCase();
+  const filter =
+    daten.stufen.length > 0
+      ? filterGruppe({
+          beschriftung: "Stufe",
+          eintraege: [
+            { text: "Alle", n: daten.kinder.length, wert: "" },
+            ...daten.stufen.map((s) => ({
+              text: s.name,
+              n: daten.kinder.filter((k) => k.stufeId === s.id).length,
+              wert: s.id,
+            })),
+          ],
+          beiAenderung: () => aktualisiere(),
+        })
+      : null;
+  function aktualisiere() {
+    const frage = suche.value.trim().toLowerCase();
+    const stufe = filter?.wert() ?? "";
     let treffer = 0;
     for (const eintrag of koerper.children) {
       eintrag.hidden =
         !eintrag.dataset.suche.includes(frage) ||
-        (filter.eingabe.value !== "" &&
-          eintrag.dataset.stufe !== filter.eingabe.value);
+        (stufe !== "" && eintrag.dataset.stufe !== stufe);
       if (!eintrag.hidden) treffer++;
     }
     zaehler.textContent = `${treffer} von ${daten.kinder.length} Kindern`;
-  };
-  suche.eingabe.addEventListener("input", aktualisiere);
-  filter.eingabe.addEventListener("change", aktualisiere);
+  }
+  suche.addEventListener("input", aktualisiere);
   aktualisiere();
   bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      suche.wurzel,
-      filter.wurzel,
+    ...[
+      ohneEltern > 0 &&
+        el(
+          "p",
+          { class: "hinweis hinweis--warn" },
+          ohneEltern === 1
+            ? "1 Kind hat noch keine Eltern verknüpft."
+            : `${ohneEltern} Kinder haben noch keine Eltern verknüpft.`,
+        ),
+      el(
+        "div",
+        { class: "werkzeuge" },
+        el(
+          "div",
+          { class: "suche" },
+          el("label", { class: "nur-leser", for: sucheId }, "Kinder suchen"),
+          icon("lupe"),
+          suche,
+        ),
+        filter?.wurzel,
+      ),
       zaehler,
-      daten.stufen.length > 0
-        ? knopf("Kind anlegen", {
-            art: "haupt",
-            onclick: () => anlegen(daten, ctx, neu),
-          })
-        : el("p", { class: "hilfe" }, "Lege zuerst eine Stufe an."),
-    ),
-    wurzel,
+      wurzel,
+    ].filter(Boolean),
   );
 }
