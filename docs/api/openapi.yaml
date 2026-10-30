@@ -898,7 +898,9 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
       description: |
         Löscht das Profilbild der angemeldeten Person, jederzeit. Ohne Bild ebenfalls 204. Mit dem Konto verschwindet
-        das Bild von selbst, auch wenn ein Admin die Person löscht.
+        das Bild von selbst, auch wenn ein Admin die Person löscht. Deaktiviert ein Admin die Person
+        (`POST /api/v1/admin/personen/{id}/deaktivieren`), löscht der Server das Bild ebenfalls; Aktivieren bringt es nicht
+        zurück, die Person lädt dann ein neues hoch.
 
         **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
         Statuscodes: 204, 401, 403, 426.

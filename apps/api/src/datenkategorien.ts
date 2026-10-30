@@ -35,7 +35,7 @@ export const KATEGORIEN = {
     zweck:
       "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch.",
     frist:
-      "Bis die Person das Bild löscht oder das Konto gelöscht wird. Von Kindern gibt es nie ein Bild.",
+      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },

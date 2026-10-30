@@ -277,6 +277,33 @@ describe("DELETE /api/v1/ich/bild und Löschen mit dem Konto", () => {
     expect(await zeilen(ziel.id)).toHaveLength(0);
   });
 
+  test("deaktiviert ein Admin die Person, geht das Bild mit; Aktivieren bringt es nicht zurück", async () => {
+    const [admin, ziel, leser] = await Promise.all([
+      person("admin"),
+      person("slA"),
+      person("elternA"),
+    ]);
+    await hochladen(ziel, await jpeg());
+    expect((await holen(leser, ziel.id)).status).toBe(200);
+    const admin_ = (aktion: string) =>
+      app.request(`/api/v1/admin/personen/${ziel.id}/${aktion}`, {
+        method: "POST",
+        headers: admin.headers,
+      });
+    expect((await admin_("deaktivieren")).status).toBe(204);
+    expect(await zeilen(ziel.id)).toHaveLength(0);
+    expect((await holen(leser, ziel.id)).status).toBe(404);
+    expect((await admin_("aktivieren")).status).toBe(204);
+    expect((await holen(leser, ziel.id)).status).toBe(404);
+    // bildUrl ist null: in den Kontakten der Stufe und im eigenen Profil
+    const { kontakte } = (await (
+      await app.request(`/api/v1/stufen/${welt.stufeAId}/kontakte`, {
+        headers: leser.headers,
+      })
+    ).json()) as { kontakte: { id: string; bildUrl: string | null }[] };
+    expect(kontakte.find((k) => k.id === ziel.id)?.bildUrl).toBeNull();
+  });
+
   test("verschwindet das Konto auf anderem Weg (Fremdschlüssel), geht das Bild mit", async () => {
     const ziel = await person("elternA");
     await hochladen(ziel, await jpeg());
