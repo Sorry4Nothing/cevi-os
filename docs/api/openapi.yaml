@@ -246,6 +246,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/system.js:
+    get:
+      operationId: getAdminSystemSkript
+      summary: Skript der Verwaltung – Bereich System
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht.js:
+    get:
+      operationId: getAdminUebersichtSkript
+      summary: Skript der Verwaltung – Bereich Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /.well-known/apple-app-site-association:
     get:
       operationId: getAppleAppSiteAssociation
@@ -1893,6 +1923,64 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/system:
+    get:
+      operationId: holeAdminSystem
+      summary: Zustand der API und Bestand der Abteilung
+      description: |
+        Nur Admins (mit zweitem Faktor). Liefert Zahlen für die Übersicht der Verwaltung: Prozess (Node-Version, Laufzeit, Speicher, Verzögerung der Ereignisschleife), Datenbank (erreichbar, Antwortzeit, Verbindungen), Bestand der eigenen Abteilung, Kalender-Sync und einige Umgebungs-Flags.
+
+        Die Antwort enthält nie Werte aus der Umgebung, Hosts, Adressen, Schlüssel oder Namen. Ist die Datenbank nicht erreichbar, antwortet die Route trotzdem mit 200 und `datenbank.erreichbar: false`.
+
+        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zustand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystem"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/system/requests:
+    get:
+      operationId: holeAdminSystemRequests
+      summary: Zahlen zu den Anfragen an die API
+      description: |
+        Nur Admins (mit zweitem Faktor). Liefert Zähler und Dauern der Anfragen seit dem Start der API (höchstens die letzten 24 Stunden, in Minuten-Eimern im Arbeitsspeicher). Nach einem Neustart ist alles leer.
+
+        Erfasst werden nur Methode, Routenmuster (nie der konkrete Pfad), Statuscode und Dauer; keine Query, kein Body, keine Header, keine IP-Adressen und keine Personen. Die Abrufe dieser beiden System-Routen und die statischen Dateien unter `/admin` zählen nicht mit. Dauern (`p50Ms`, `p95Ms`) sind die obere Grenze der Dauerklasse, in der das Quantil liegt (Klassen bis 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 ms); `null` ohne Anfragen. Die Zähler je Route gelten seit dem Start.
+
+        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zähler und Dauern.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystemRequests"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/stufen:
     post:
       operationId: legeAdminStufeAn
@@ -3439,6 +3527,222 @@ components:
           description: Nach Nachname, Vorname sortiert.
           items:
             $ref: "#/components/schemas/AdminKind"
+    AdminSystem:
+      type: object
+      additionalProperties: false
+      required: [prozess, datenbank, bestand, kalender, umgebung]
+      properties:
+        prozess:
+          type: object
+          additionalProperties: false
+          required:
+            [
+              node,
+              gestartetAm,
+              laufzeitSekunden,
+              rssMb,
+              heapGenutztMb,
+              heapGesamtMb,
+              schleifeP99Ms,
+              commit,
+            ]
+          properties:
+            node:
+              type: string
+              example: v24.15.0
+            gestartetAm:
+              type: string
+              format: date-time
+            laufzeitSekunden:
+              type: integer
+            rssMb:
+              type: number
+            heapGenutztMb:
+              type: number
+            heapGesamtMb:
+              type: number
+            schleifeP99Ms:
+              type: [number, "null"]
+              description: 99. Perzentil der Verzögerung der Ereignisschleife seit dem letzten Abruf; `null` ohne Messwerte.
+            commit:
+              type: [string, "null"]
+              description: Commit-Hash des Builds, nur wenn die Umgebung ihn setzt (`COMMIT_SHA`, 7 bis 40 Hex-Zeichen).
+        datenbank:
+          type: object
+          additionalProperties: false
+          required: [erreichbar, pingMs, verbindungen, poolMaximum]
+          properties:
+            erreichbar:
+              type: boolean
+            pingMs:
+              type: [integer, "null"]
+            verbindungen:
+              type: [integer, "null"]
+              description: Offene Verbindungen zur Datenbank, aller Anwendungen (API, Jobs).
+            poolMaximum:
+              type: integer
+              description: Grösse des Pools der API.
+        bestand:
+          type: object
+          additionalProperties: false
+          required: [aktivePersonen, aktiveKinder, offeneMeldungen, pushTokens]
+          properties:
+            aktivePersonen:
+              type: integer
+            aktiveKinder:
+              type: integer
+            offeneMeldungen:
+              type: integer
+              description: Alle offenen Meldungen der Abteilung, auch die über eigene Beiträge des Admins (die `GET /api/v1/admin/meldungen` ausblendet).
+            pushTokens:
+              type: integer
+        kalender:
+          type: object
+          additionalProperties: false
+          required: [eingerichtet, letzterErfolgAm, fehler]
+          properties:
+            eingerichtet:
+              type: boolean
+            letzterErfolgAm:
+              type: [string, "null"]
+              format: date-time
+            fehler:
+              type: [string, "null"]
+              description: Einer der festen Fehlertexte des Syncs.
+        umgebung:
+          type: object
+          additionalProperties: false
+          required: [https, produktion, kalenderSchluessel]
+          properties:
+            https:
+              type: boolean
+              description: "`BETTER_AUTH_URL` beginnt mit https."
+            produktion:
+              type: boolean
+            kalenderSchluessel:
+              type: boolean
+              description: Eine Schlüsseldatei für Google ist konfiguriert (nur ob, nicht welche).
+    AdminSystemPunkt:
+      type: object
+      additionalProperties: false
+      required: [ab, anzahl, fehler4xx, fehler5xx]
+      properties:
+        ab:
+          type: string
+          format: date-time
+          description: Beginn des Zeitraums.
+        anzahl:
+          type: integer
+        fehler4xx:
+          type: integer
+        fehler5xx:
+          type: integer
+    AdminSystemRequests:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          seit,
+          gesamt,
+          letzteMinute,
+          letzteStunde,
+          statusklassen,
+          quote5xx,
+          quote4xx,
+          p50Ms,
+          p95Ms,
+          stunden,
+          minuten,
+          routen,
+          letzteFehler,
+        ]
+      properties:
+        seit:
+          type: string
+          format: date-time
+          description: Start der API; davor gibt es keine Zahlen.
+        gesamt:
+          type: integer
+          description: Anfragen der letzten 24 Stunden bzw. seit dem Start.
+        letzteMinute:
+          type: integer
+        letzteStunde:
+          type: integer
+        statusklassen:
+          type: object
+          additionalProperties: false
+          required: ["1xx", "2xx", "3xx", "4xx", "5xx"]
+          properties:
+            "1xx":
+              type: integer
+            "2xx":
+              type: integer
+            "3xx":
+              type: integer
+            "4xx":
+              type: integer
+            "5xx":
+              type: integer
+        quote5xx:
+          type: number
+          description: Anteil der Antworten mit 5xx an allen (0 bis 1).
+        quote4xx:
+          type: number
+        p50Ms:
+          type: [integer, "null"]
+        p95Ms:
+          type: [integer, "null"]
+        stunden:
+          type: array
+          description: 24 Stunden bis jetzt, ältester Zeitraum zuerst.
+          items:
+            $ref: "#/components/schemas/AdminSystemPunkt"
+        minuten:
+          type: array
+          description: 60 Minuten bis jetzt, älteste zuerst.
+          items:
+            $ref: "#/components/schemas/AdminSystemPunkt"
+        routen:
+          type: array
+          description: Seit dem Start, häufigste zuerst. Höchstens 200 Muster; weitere zählen unter `andere` (ohne Methode).
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [methode, route, anzahl, fehler4xx, fehler5xx, p50Ms, p95Ms]
+            properties:
+              methode:
+                type: string
+              route:
+                type: string
+                description: Muster wie `/api/v1/admin/personen/:id`, nie der konkrete Pfad.
+              anzahl:
+                type: integer
+              fehler4xx:
+                type: integer
+              fehler5xx:
+                type: integer
+              p50Ms:
+                type: [integer, "null"]
+              p95Ms:
+                type: [integer, "null"]
+        letzteFehler:
+          type: array
+          description: Die letzten höchstens 30 Antworten mit Status 400 oder höher, neueste zuerst. Nur Zeit, Methode, Routenmuster und Status.
+          items:
+            type: object
+            additionalProperties: false
+            required: [zeit, methode, route, status]
+            properties:
+              zeit:
+                type: string
+                format: date-time
+              methode:
+                type: string
+              route:
+                type: string
+              status:
+                type: integer
     AdminKindAnlegen:
       type: object
       required:

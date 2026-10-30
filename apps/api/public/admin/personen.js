@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import {
+  aktionenZelle,
   ankreuzen,
   auswahl,
   bestaetigen,
@@ -10,7 +11,9 @@ import {
   geheimnisDialog,
   gruppe,
   knopf,
-  zeit,
+  menue,
+  tabelle,
+  tag,
 } from "./dom.js";
 
 const ROLLEN = [
@@ -221,89 +224,123 @@ function faktorZuruecksetzen(person, ctx, neu) {
   });
 }
 
-function karte(person, daten, ctx, neu) {
+const leer = () => el("span", { class: "leise" }, "–");
+
+function zeile(person, daten, ctx, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
   const kindname = new Map(
     daten.kinder.map((k) => [k.id, `${k.vorname} ${k.nachname}`]),
   );
   const eigenes = person.id === ctx.ich.id;
-  const chips = [
-    person.admin && chip("Admin", "stufe"),
-    person.zweiterFaktor && chip("Zweiter Faktor eingerichtet", "ok"),
-    person.deaktiviert && chip("Deaktiviert", "fehler"),
+  const rollenTypen = [...new Set(person.rollen.map((r) => r.typ))];
+  const status = [
+    person.deaktiviert ? chip("Deaktiviert", "fehler") : chip("Aktiv", "ok"),
+    person.zweiterFaktor && chip("2FA", "ok"),
     person.mussPasswortAendern &&
       chip(
         person.startpasswortGueltigBis
-          ? `Startpasswort offen bis ${zeit(person.startpasswortGueltigBis)}`
+          ? `Startpasswort bis ${tag(person.startpasswortGueltigBis)}`
           : "Passwortwechsel offen",
         "warn",
       ),
   ];
-  const rollen = person.rollen.map(
-    (r) => `${stufenname.get(r.stufeId) ?? "Stufe"}: ${ROLLENNAME[r.typ]}`,
-  );
-  const li = el(
-    "li",
+  return el(
+    "tr",
     {
-      class: person.deaktiviert ? "karte karte--inaktiv" : "karte",
+      class: person.deaktiviert ? "inaktiv" : undefined,
       "data-suche": `${person.name} ${person.benutzername ?? ""}`.toLowerCase(),
     },
-    el("h3", {}, person.name, eigenes && " (du)"),
+    el("th", { scope: "row" }, person.name, eigenes && " (du)"),
+    el("td", {}, person.benutzername ?? leer()),
     el(
-      "p",
-      { class: "meta" },
-      `Benutzername: ${person.benutzername ?? "keiner"}`,
+      "td",
+      {},
+      person.admin || rollenTypen.length > 0
+        ? el("ul", { class: "chips" }, [
+            person.admin && chip("Admin", "stufe"),
+            ...rollenTypen.map((t) => chip(ROLLENNAME[t])),
+          ])
+        : leer(),
     ),
-    chips.some(Boolean) && el("ul", { class: "chips" }, chips.filter(Boolean)),
-    rollen.length > 0 &&
-      el("p", { class: "meta" }, `Rollen: ${rollen.join(", ")}`),
-    person.elternteilVon.length > 0 &&
-      el(
-        "p",
-        { class: "meta" },
-        `Elternteil von: ${person.elternteilVon.map((id) => kindname.get(id) ?? "Kind").join(", ")}`,
-      ),
     el(
-      "div",
-      { class: "aktionen" },
+      "td",
+      {},
+      person.rollen.length > 0
+        ? el(
+            "ul",
+            { class: "zeilen" },
+            person.rollen.map((r) =>
+              el(
+                "li",
+                {},
+                `${stufenname.get(r.stufeId) ?? "Stufe"} (${ROLLENNAME[r.typ]})`,
+              ),
+            ),
+          )
+        : leer(),
+    ),
+    el(
+      "td",
+      {},
+      person.elternteilVon.length > 0
+        ? el(
+            "ul",
+            { class: "zeilen" },
+            person.elternteilVon.map((id) =>
+              el("li", {}, kindname.get(id) ?? "Kind"),
+            ),
+          )
+        : leer(),
+    ),
+    el("td", {}, el("ul", { class: "chips" }, status)),
+    aktionenZelle(
       knopf("Bearbeiten", {
+        klein: true,
         kontext: person.name,
         onclick: () => bearbeiten(person, daten, ctx, neu),
       }),
-      // Was die API für das eigene Konto ablehnt, gibt es als Knopf gar nicht
+      // Was die API für das eigene Konto ablehnt, gibt es gar nicht erst
       !eigenes &&
-        knopf("Startpasswort", {
-          kontext: person.name,
-          onclick: () => neuesStartpasswort(person, ctx, neu),
-        }),
-      !eigenes &&
-        knopf(person.deaktiviert ? "Aktivieren" : "Deaktivieren", {
-          kontext: person.name,
-          onclick: () => umschalten(person, ctx, neu),
-        }),
-      !eigenes &&
-        person.zweiterFaktor &&
-        knopf("Zweiten Faktor zurücksetzen", {
-          kontext: person.name,
-          onclick: () => faktorZuruecksetzen(person, ctx, neu),
-        }),
+        menue(person.name, [
+          {
+            text: "Startpasswort",
+            onclick: () => neuesStartpasswort(person, ctx, neu),
+          },
+          {
+            text: person.deaktiviert ? "Aktivieren" : "Deaktivieren",
+            gefaehrlich: !person.deaktiviert,
+            onclick: () => umschalten(person, ctx, neu),
+          },
+          person.zweiterFaktor && {
+            text: "Zweiten Faktor zurücksetzen",
+            gefaehrlich: true,
+            onclick: () => faktorZuruecksetzen(person, ctx, neu),
+          },
+        ]),
     ),
   );
-  return li;
 }
 
 function zeichne(bereich, ctx, daten, neu) {
-  const liste = el(
-    "ul",
-    { class: "liste", "aria-label": "Personen" },
-    daten.personen.map((p) => karte(p, daten, ctx, neu)),
-  );
-  const zaehler = el("p", { class: "meta", role: "status" });
+  const { wurzel, koerper } = tabelle({
+    beschriftung: "Personen",
+    spalten: [
+      "Name",
+      "Benutzername",
+      "Rollen",
+      "Stufen",
+      "Elternteil von",
+      "Status",
+      "Aktionen",
+    ],
+    zeilen: daten.personen.map((p) => zeile(p, daten, ctx, neu)),
+  });
+  const zaehler = el("p", { class: "meta zaehler", role: "status" });
   const suche = feld({ label: "Suchen", typ: "search", autocomplete: "off" });
   const aktualisiere = () => {
     const frage = suche.eingabe.value.trim().toLowerCase();
     let treffer = 0;
-    for (const eintrag of liste.children) {
+    for (const eintrag of koerper.children) {
       eintrag.hidden = !eintrag.dataset.suche.includes(frage);
       if (!eintrag.hidden) treffer++;
     }
@@ -316,12 +353,12 @@ function zeichne(bereich, ctx, daten, neu) {
       "div",
       { class: "werkzeuge" },
       suche.wurzel,
+      zaehler,
       knopf("Person anlegen", {
         art: "haupt",
         onclick: () => anlegen(daten, ctx, neu),
       }),
     ),
-    zaehler,
-    liste,
+    wurzel,
   );
 }

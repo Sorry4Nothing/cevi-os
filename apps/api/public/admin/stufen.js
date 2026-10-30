@@ -1,5 +1,12 @@
 import { anfrage, fehlertext } from "./api.js";
-import { dialogFormular, el, feld, knopf } from "./dom.js";
+import {
+  aktionenZelle,
+  dialogFormular,
+  el,
+  feld,
+  knopf,
+  tabelle,
+} from "./dom.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -88,7 +95,11 @@ function zeichne(bereich, ctx, stufen, neu) {
     el(
       "div",
       { class: "werkzeuge" },
-      el("p", { class: "meta", role: "status" }, `${stufen.length} Stufen`),
+      el(
+        "p",
+        { class: "meta zaehler", role: "status" },
+        `${stufen.length} Stufen`,
+      ),
       knopf("Stufe anlegen", {
         art: "haupt",
         onclick: () => dialog({ ctx, neu }),
@@ -96,26 +107,25 @@ function zeichne(bereich, ctx, stufen, neu) {
     ),
     stufen.length === 0
       ? el("p", { class: "leer" }, "Es gibt noch keine Stufen.")
-      : el(
-          "ul",
-          { class: "liste", "aria-label": "Stufen" },
-          stufen.map((stufe) =>
+      : tabelle({
+          beschriftung: "Stufen",
+          spalten: ["Name", "Kürzel", "Reihenfolge", "Aktionen"],
+          zeilen: stufen.map((stufe) =>
             el(
-              "li",
-              { class: "karte" },
-              el("h3", {}, stufe.name),
-              el("p", { class: "meta" }, `Kürzel: ${stufe.kuerzel}`),
-              el("p", { class: "meta" }, `Reihenfolge: ${stufe.reihenfolge}`),
-              el(
-                "div",
-                { class: "aktionen" },
+              "tr",
+              {},
+              el("th", { scope: "row" }, stufe.name),
+              el("td", {}, stufe.kuerzel),
+              el("td", {}, String(stufe.reihenfolge)),
+              aktionenZelle(
                 knopf("Bearbeiten", {
+                  klein: true,
                   kontext: stufe.name,
                   onclick: () => dialog({ stufe, ctx, neu }),
                 }),
               ),
             ),
           ),
-        ),
+        }).wurzel,
   );
 }

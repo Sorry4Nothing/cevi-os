@@ -9,12 +9,14 @@ import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
+import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMeldungenRouten } from "./routes/admin/meldungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
+import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
@@ -65,6 +67,8 @@ export function erstelleApp({
     support: string;
   };
 }) {
+  // Zahlen der laufenden Instanz; nach einem Neustart leer
+  const metriken = erstelleMetriken();
   return (
     new Hono()
       // Ohne Header-Name übernimmt Hono keine ID vom Client und schickt keine zurück
@@ -73,12 +77,20 @@ export function erstelleApp({
         const start = performance.now();
         await next();
         // Das Muster der Route statt des Pfads: Pfad und Query können Tokens enthalten
-        log(c, {
+        const eintrag = {
           methode: c.req.method,
           route: routePath(c, -1),
           status: c.res.status,
           dauerMs: Math.round(performance.now() - start),
-        });
+        };
+        log(c, eintrag);
+        // Nicht gezählt: die statischen Dateien der Verwaltung und die Abrufe der Übersicht selbst, sonst misst sich die Übersicht ständig selbst
+        if (
+          !eintrag.route.startsWith("/admin") &&
+          !eintrag.route.startsWith("/api/v1/admin/system")
+        ) {
+          metriken.erfasse(eintrag);
+        }
       })
       .use(bodyLimit({ maxSize: 64 * 1024 }))
       .use("/api/*", async (c, next) => {
@@ -106,6 +118,10 @@ export function erstelleApp({
       )
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route(
+        "/api/v1/admin/system",
+        erstelleSystemRouten({ db, sql, metriken }),
+      )
       .route("/api/v1/stufen", erstelleStufenRouten({ db }))
       .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
       .get("/health", async (c) => {
