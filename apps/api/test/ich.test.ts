@@ -88,6 +88,7 @@ describe("GET /api/v1/ich", () => {
       mussPasswortAendern: false,
       datenschutzGelesenAm: null,
       telefon: null,
+      bildUrl: null,
       pushChat: true,
       pushProgramme: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],

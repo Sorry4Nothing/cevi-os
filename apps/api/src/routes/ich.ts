@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { kind, kindEltern, stufe, user } from "../db/schema.js";
+import { kind, kindEltern, profilbild, stufe, user } from "../db/schema.js";
+import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
 
@@ -41,8 +42,10 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             telefon: user.telefon,
             pushChat: user.pushChat,
             pushProgramme: user.pushProgramme,
+            bildUrl,
           })
           .from(user)
+          .leftJoin(profilbild, eq(profilbild.userId, user.id))
           .where(
             and(
               eq(user.id, person.id),

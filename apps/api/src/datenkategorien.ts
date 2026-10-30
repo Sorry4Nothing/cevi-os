@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  profilbild: {
+    titel: "Profilbild",
+    zweck:
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch.",
+    frist:
+      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild.",
+    apple: ["User Content: Photos or Videos"],
+    google: ["Photos and videos: Photos"],
+  },
   kinder: {
     titel: "Kinder",
     zweck:
@@ -199,6 +208,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
+  profilbild: { profilbild: ["user_id", "inhalt", "geaendert_am"] },
   push_token: {
     benachrichtigungen: [
       "session_id",

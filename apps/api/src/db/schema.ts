@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  customType,
   date,
   index,
   integer,
@@ -20,6 +21,9 @@ const id = () =>
   uuid("id")
     .primaryKey()
     .default(sql`uuidv7()`);
+const bytea = customType<{ data: Uint8Array }>({
+  dataType: () => "bytea",
+});
 const zeitpunkt = (name: string) => timestamp(name, { withTimezone: true });
 
 export const abteilung = pgTable("abteilung", {
@@ -434,3 +438,19 @@ export const auditLog = pgTable("audit_log", {
   details: jsonb("details"),
   erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
 });
+
+// Das Profilbild einer Person (#173): höchstens eines, vom Server auf 256 × 256 JPEG neu kodiert; die Zeile geht mit dem Konto
+export const profilbild = pgTable(
+  "profilbild",
+  {
+    userId: uuid("user_id")
+      .primaryKey()
+      .references(() => user.id, { onDelete: "cascade" }),
+    inhalt: bytea("inhalt").notNull(),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    // Die Route kodiert auf rund 20 KB; die Grenze fängt einen Fehler im Code ab, bevor die Tabelle wächst
+    check("profilbild_inhalt_klein", sql`octet_length(${t.inhalt}) <= 262144`),
+  ],
+);

@@ -2,6 +2,7 @@ import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
+import { kodiereProfilbild } from "./bild-sharp.js";
 import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
@@ -37,6 +38,7 @@ const app = erstelleApp({
   db,
   auth,
   fcm,
+  kodiereBild: kodiereProfilbild,
   seiten,
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports

@@ -5,6 +5,7 @@ import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 import type { Sql } from "postgres";
 import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
+import type { BildKodierer } from "./bild.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
@@ -19,6 +20,7 @@ import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
+import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 import { erstelleStufenRouten } from "./routes/stufen.js";
@@ -50,6 +52,7 @@ export function erstelleApp({
   db,
   auth,
   fcm,
+  kodiereBild,
   seiten,
 }: {
   appMinVersion: string;
@@ -57,6 +60,8 @@ export function erstelleApp({
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
   fcm?: Fcm;
+  // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
+  kodiereBild?: BildKodierer;
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -67,6 +72,7 @@ export function erstelleApp({
 }) {
   // Zahlen der laufenden Instanz; nach einem Neustart leer
   const metriken = erstelleMetriken();
+  const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   return (
     new Hono()
       // Ohne Header-Name übernimmt Hono keine ID vom Client und schickt keine zurück
@@ -90,7 +96,12 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      .use(bodyLimit({ maxSize: 64 * 1024 }))
+      // Einzige Ausnahme: der Upload des Profilbilds, den seine Route selbst auf 5 MB begrenzt
+      .use((c, next) =>
+        c.req.method === "PUT" && c.req.path === "/api/v1/ich/bild"
+          ? next()
+          : kleinesLimit(c, next),
+      )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
         // Ohne Header weiter: 426 nur für eine ältere Version; den Header setzt der Client selbst, aussperren kann die Prüfung also niemanden
@@ -103,6 +114,7 @@ export function erstelleApp({
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
+      .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))

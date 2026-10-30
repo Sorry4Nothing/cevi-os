@@ -21,6 +21,7 @@ import {
   auditLog,
   kind,
   kindEltern,
+  profilbild,
   rolle,
   stufe,
   user,
@@ -494,6 +495,8 @@ export function erstellePersonenRouten({
             .update(user)
             .set({ deaktiviertAm: sql`now()` })
             .where(eq(user.id, id));
+          // Das Profilbild geht mit dem Deaktivieren; Aktivieren bringt es nicht zurück (#173)
+          await tx.delete(profilbild).where(eq(profilbild.userId, id));
         });
       } catch (fehler) {
         if (fehler instanceof Konflikt) {
