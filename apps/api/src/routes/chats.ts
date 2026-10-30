@@ -42,6 +42,8 @@ import {
 const SEITE = 50;
 const MAX_ZEICHEN = 2000;
 const NACHRICHTEN_PRO_MINUTE = 20;
+// Länge der Vorschau in der Chatliste
+const LISTE_ZEICHEN = 120;
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
 // Der Cursor ist die ID der ältesten bekannten Nachricht; UUIDv7 ordnet nach Zeit
@@ -125,6 +127,24 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             ),
           )
           .groupBy(n.chatId);
+        // Je Chat die neueste Nachricht, die die Person sieht (UUIDv7 ordnet nach Zeit); ausgeblendete zeigt auch der Autorin die Liste nicht. Der Text wird in der Datenbank gekürzt, nie ganz geladen
+        const letzte = await db
+          .selectDistinctOn([n.chatId], {
+            chatId: n.chatId,
+            text: sql<string>`left(${n.text}, ${LISTE_ZEICHEN})`,
+            erstelltAm: n.erstelltAm,
+            autor: { id: user.id, name: user.name },
+          })
+          .from(n)
+          .innerJoin(user, eq(user.id, n.autorId))
+          .where(isNull(n.ausgeblendetAm))
+          .orderBy(n.chatId, desc(n.id));
+        const letzteJeChat = new Map(
+          letzte.map(({ chatId, ...l }) => [
+            chatId,
+            { ...l, eigene: l.autor.id === person.id },
+          ]),
+        );
         // Wer mitliest, steht in jedem Chat der Stufe: Im Gruppenchat die Liste «Stufenleitung», im Einzelchat der Kopf
         const leitung =
           chats.length === 0
@@ -136,6 +156,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           chats: chats.map(({ eltern: e, ...k }) => ({
             ...k,
             ungelesen: ungelesen.find((u) => u.chatId === k.id)?.anzahl ?? 0,
+            letzteNachricht: letzteJeChat.get(k.id) ?? null,
             // Der Join liefert bei Gruppenchats ein Objekt aus null
             eltern: e && e.id ? e : null,
             stufenleitung: leitung
