@@ -17,6 +17,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 - Login und Sitzungen mit better-auth unter `/api/auth`. Dort sind nur acht Pfade offen, jeder andere liefert 404.
 - Die Rechte prüft die API bei jeder Anfrage, nie die App. Jede Abfrage ist auf die Abteilung aus der Sitzung beschränkt.
 - Ohne Login liefert sie ausserdem die Seiten `/datenschutz`, `/konto-loeschen` und `/support`, die die App-Stores verlangen, sowie `/health`. `/health` antwortet nur «ok» oder mit einem Fehler, ohne Details.
+- Die Web-Verwaltung unter `/admin` besteht aus statischen Dateien aus `apps/api/public/admin`, ohne Build-Schritt. Sie enthalten keine Daten: Die Seite meldet sich über `/api/auth` an und ruft `/api/v1/admin/*` auf, mit Sitzung und zweitem Faktor. Die Antworten tragen eine strenge Content-Security-Policy (kein Inline-Skript, kein Inline-Stil, `frame-ancestors 'none'`).
 
 ### PostgreSQL
 
@@ -48,7 +49,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | Von               | Zu                                  | Weg                                | Wozu                                                                                                          |
 | ----------------- | ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | App               | Caddy                               | HTTPS                              | Login, Programme, Anmeldungen, Chat, Push-Token registrieren                                                  |
-| Browser           | Caddy                               | HTTPS                              | Seiten `/datenschutz`, `/konto-loeschen` und `/support`                                                       |
+| Browser           | Caddy                               | HTTPS                              | Seiten `/datenschutz`, `/konto-loeschen`, `/support` und die Verwaltung `/admin`                              |
 | Uptime-Dienst     | Caddy                               | HTTPS                              | `/health` abfragen, Alarm bei Fehler                                                                          |
 | Caddy             | API                                 | internes Netz des Servers          | Anfragen weiterleiten                                                                                         |
 | Caddy             | Zertifizierungsstelle               | HTTPS (ACME)                       | Zertifikate holen und erneuern                                                                                |
