@@ -99,6 +99,13 @@
       "when": 1793367961330,
       "tag": "0013_ergaenzungen_entfernen",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793372491667,
+      "tag": "0014_profilbild",
+      "breakpoints": true
     }
   ]
 }

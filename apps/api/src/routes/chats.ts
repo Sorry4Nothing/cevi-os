@@ -16,6 +16,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrl } from "../bild.js";
 import type { Db } from "../db/client.js";
 import { pushNeueNachricht } from "../chat.js";
 import type { Fcm } from "../push.js";
@@ -25,6 +26,7 @@ import {
   nachricht,
   programm,
   programmStufe,
+  profilbild,
   rolle,
   stufe,
   user,
@@ -277,6 +279,8 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               autor: {
                 id: user.id,
                 name: user.name,
+                // Wer den Namen sieht, bekommt den Pfad zum Bild; die Route dahinter prüft es noch einmal
+                bildUrl,
                 // Nur diese eine Rolle und nur für die Stufe des Chats: Für Eltern und Leitende gibt es kein Kennzeichen
                 stufenleitung: exists(
                   db
@@ -296,6 +300,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             })
             .from(n)
             .innerJoin(user, eq(user.id, n.autorId))
+            .leftJoin(profilbild, eq(profilbild.userId, n.autorId))
             .leftJoin(
               programm,
               and(

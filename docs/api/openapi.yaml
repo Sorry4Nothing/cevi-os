@@ -900,6 +900,152 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/ich/bild:
+    put:
+      operationId: ichBildSetzen
+      summary: Eigenes Profilbild hochladen
+      tags:
+        - Profil
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Setzt das Profilbild der angemeldeten Person; ein vorhandenes Bild wird ersetzt. Jede Person lädt nur ihr
+        eigenes hoch. Kinder haben kein Konto und nie ein Bild.
+
+        **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
+        ergibt sich aus den ersten Bytes der Datei, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB
+        (5 242 880 Bytes) und höchstens 50 Millionen Pixel; grössere Bilder verkleinert die App vor dem Senden.
+        Wählt die App vorher einen quadratischen Ausschnitt, schneidet der Server nicht noch einmal die Mitte zu.
+
+        **Verarbeitung.** Der Server liest das Bild, dreht es nach der EXIF-Angabe, schneidet es quadratisch aus der
+        Mitte zu, skaliert es auf 256 × 256 Pixel und speichert es als JPEG. Dabei gehen alle Metadaten verloren
+        (EXIF, Aufnahmeort, Farbprofil); das Original wird nicht gespeichert. Transparenz wird weiss.
+
+        **Begrenzung.** Höchstens 10 Uploads je Person in 10 Minuten, fehlgeschlagene eingeschlossen; der Zähler liegt
+        im Arbeitsspeicher des Servers.
+
+        Danach liefert `GET /api/v1/ich` unter `bildUrl` den neuen Pfad.
+
+        **Barrierefreiheit.** Das Bild trägt keinen Text. Die App zeigt es als Zierde neben dem Namen (leerer
+        Alternativtext) und nennt in der Bedienung nur den Namen; ein Bild darf nie allein die Information tragen.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
+        Statuscodes: 204, 401, 403, 413, 415, 426, 429.
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Gespeichert; kein Body.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "413":
+          description: Das Bild ist grösser als 5 MiB (code `ZU_GROSS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "415":
+          description: Kein JPEG, PNG oder WebP, kein lesbares Bild oder zu viele Pixel (code `BILD_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: ichBildLoeschen
+      summary: Eigenes Profilbild löschen
+      tags:
+        - Profil
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Löscht das Profilbild der angemeldeten Person, jederzeit. Ohne Bild ebenfalls 204. Mit dem Konto verschwindet
+        das Bild von selbst, auch wenn ein Admin die Person löscht.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
+        Statuscodes: 204, 401, 403, 426.
+      responses:
+        "204":
+          description: Gelöscht oder nie vorhanden; kein Body.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/personen/{id}/bild:
+    get:
+      operationId: personBildLesen
+      summary: Profilbild einer Person lesen
+      tags:
+        - Profil
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Person (`autor.id` einer Nachricht, `id` eines Kontakts oder die eigene).
+          schema:
+            type: string
+            format: uuid
+      description: |
+        Liefert das Profilbild als JPEG, 256 × 256 Pixel. Die Adresse steht als `bildUrl` bei `autor` einer Nachricht,
+        bei den Kontakten und in `GET /api/v1/ich`; die App ruft sie mit der Sitzung auf und baut sie nicht selbst.
+        Das Bild ist nie öffentlich: ohne Sitzung 401.
+
+        **Cache.** Die Antwort trägt `Cache-Control: private, no-store` (auch die Ablehnung) und
+        `X-Content-Type-Options: nosniff`. Das Bild gehört nicht in einen Zwischenspeicher auf der Platte; die App
+        hält es höchstens im Arbeitsspeicher der laufenden Ansicht. Der Wert `v` in `bildUrl` ändert sich mit
+        jedem neuen Bild, ändert aber nichts an der Antwort.
+
+        **Rollen.** Wer eine Person mit Namen sieht, sieht auch ihr Bild, sonst niemand: die Person selbst, wer eine
+        Nachricht von ihr im Chat sieht, die SL im Einzelchat mit einem Elternteil, die Kontakte einer Stufe (Admins,
+        Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin sehen die SL) und die Kontakte eines Programms
+        (die SL mit Status «ja», für alle, die das Programm sehen). Für alle anderen, für Personen ohne Bild, für
+        unbekannte Personen und für andere Abteilungen ist die Antwort 404, ohne Unterschied.
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      responses:
+        "200":
+          description: Das Bild.
+          headers:
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/ich/datenschutz:
     post:
       operationId: datenschutzBestaetigen
@@ -2643,6 +2789,7 @@ components:
         - mussPasswortAendern
         - datenschutzGelesenAm
         - telefon
+        - bildUrl
         - pushChat
         - pushProgramme
         - admin
@@ -2676,6 +2823,11 @@ components:
             - string
             - "null"
           description: Eigene Telefonnummer, wenn hinterlegt (nur SL setzen sie, per `PATCH /api/v1/ich`).
+        bildUrl:
+          type:
+            - string
+            - "null"
+          description: Pfad zum eigenen Profilbild (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Hochladen und Löschen geht mit `PUT` und `DELETE /api/v1/ich/bild`.
         pushChat:
           type: boolean
           description: Push-Benachrichtigungen für Chats.
@@ -2782,6 +2934,7 @@ components:
             required:
               - id
               - name
+              - bildUrl
               - telefon
             properties:
               id:
@@ -2789,6 +2942,11 @@ components:
                 format: uuid
               name:
                 type: string
+              bildUrl:
+                type:
+                  - string
+                  - "null"
+                description: Pfad zum Profilbild der SL (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Unabhängig von `telefon`, denn das Bild sieht, wer den Namen sieht.
               telefon:
                 type:
                   - string
@@ -3322,6 +3480,7 @@ components:
       required:
         - id
         - name
+        - bildUrl
         - stufenleitung
       properties:
         id:
@@ -3329,6 +3488,11 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          type:
+            - string
+            - "null"
+          description: Pfad zum Profilbild der Autorin oder des Autors (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Das Bild sieht, wer den Namen sieht.
         stufenleitung:
           type: boolean
           description: Die Person ist Stufenleitung der Stufe dieses Chats. Es gibt keine weitere Rolle und keine Angabe für Eltern (`false`).

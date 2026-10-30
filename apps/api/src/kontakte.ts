@@ -1,6 +1,7 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { bildUrl } from "./bild.js";
 import type { Db } from "./db/client.js";
-import { kind, kindEltern, user } from "./db/schema.js";
+import { kind, kindEltern, profilbild, user } from "./db/schema.js";
 import type { Person } from "./rechte.js";
 
 // Die Stufen unter den gefragten, in denen die Person ein aktives Kind hat
@@ -62,9 +63,19 @@ export async function kontakteMitTelefon(
       );
     for (const z of zeilen) nummern.set(z.id, z.telefon);
   }
+  // Das Bild sieht, wer den Namen sieht, auch ohne Nummer; der Pfad führt nur auf eine Route mit eigener Prüfung
+  const bilder = new Map<string, string | null>();
+  if (stufenJeSl.size > 0) {
+    const zeilen = await db
+      .select({ id: profilbild.userId, bildUrl })
+      .from(profilbild)
+      .where(inArray(profilbild.userId, [...stufenJeSl.keys()]));
+    for (const z of zeilen) bilder.set(z.id, z.bildUrl);
+  }
   return [...stufenJeSl].map(([id, e]) => ({
     id,
     name: e.name,
+    bildUrl: bilder.get(id) ?? null,
     telefon: nummern.get(id) ?? null,
   }));
 }

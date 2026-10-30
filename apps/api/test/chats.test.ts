@@ -82,7 +82,12 @@ type Nachricht = {
   id: string;
   text: string;
   eigene: boolean;
-  autor: { id: string; name: string; stufenleitung: boolean };
+  autor: {
+    id: string;
+    name: string;
+    bildUrl: string | null;
+    stufenleitung: boolean;
+  };
   programm: { id: string; titel: string } | null;
 };
 
@@ -190,12 +195,23 @@ describe("Nachrichten senden und lesen", () => {
       expect(
         Object.fromEntries(nachrichten.map((n) => [n.text, n.autor])),
       ).toEqual({
-        Eltern: { id: eltern.id, name: "Eltern A", stufenleitung: false },
-        SL: { id: sl.id, name: "SL A", stufenleitung: true },
-        "SL B": { id: slB.id, name: "SL B", stufenleitung: false },
+        Eltern: {
+          id: eltern.id,
+          name: "Eltern A",
+          bildUrl: null,
+          stufenleitung: false,
+        },
+        SL: { id: sl.id, name: "SL A", bildUrl: null, stufenleitung: true },
+        "SL B": {
+          id: slB.id,
+          name: "SL B",
+          bildUrl: null,
+          stufenleitung: false,
+        },
         Leitende: {
           id: leitende.id,
           name: "Leitende A",
+          bildUrl: null,
           stufenleitung: false,
         },
       });

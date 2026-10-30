@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
+import sharp from "sharp";
 import {
   afterAll,
   afterEach,
@@ -12,6 +13,7 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
+import { kodiereProfilbild } from "../src/bild-sharp.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
@@ -42,6 +44,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
+  kodiereBild: kodiereProfilbild,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -52,6 +55,8 @@ interface Zeile {
   // Literale Werte: beobachtet und gegen better-auth gegengelesen, nie aus rechte.ts berechnet
   erwartet: Record<Persona, number>;
   body?: (konto: PersonaKonto) => Record<string, unknown>;
+  // Statt body: Der Body ist das Bild selbst (Profilbild-Upload)
+  bild?: true;
   // Für Zeilen, die die Sitzungen der geteilten Personas beenden würden
   frischePersonas?: true;
   // Pflicht für jede Route mit Pfad-Parameter: ein Objekt der Testabteilung
@@ -460,6 +465,41 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Profilbild (#173): Jede Person mit Sitzung lädt ihr eigenes hoch und löscht es; nur die Person selbst, nie eine andere. Typ, Grösse und Rate-Limit prüft test/profilbild.test.ts. Das Bild einer Person sieht, wer ihren Namen ohnehin sieht; die Wege dahin ebenfalls dort
+  "PUT /api/v1/ich/bild": {
+    bild: true,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/ich/bild": {
+    // Löscht das Bild der Persona; slA und Co. behalten ihres für die Zeile darunter
+    frischePersonas: true,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Ziel ist eine SL der Stufe A ohne Chat und Programm: Es bleibt der Weg über die Kontakte der Stufe (Admin, Leitende und SL der Stufe, Eltern mit aktivem Kind darin)
+  "GET /api/v1/personen/:id/bild": {
+    url: () => `/api/v1/personen/${bildZielId}/bild`,
+    erwartet: {
+      ...alle(200),
+      slB: 404,
+      leitendeB: 404,
+      elternB: 404,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "POST /api/v1/admin/stufen": {
     body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
     erwartet: {
@@ -683,6 +723,8 @@ let meldeNachrichtId: string;
 let erledigenZielId: string;
 let patchStufeId: string;
 let patchKindId: string;
+let bildZielId: string;
+let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
 async function wegwerfPersonId(zweiterFaktor = false) {
@@ -789,6 +831,20 @@ beforeAll(async () => {
       wegwerfPersonId(),
     ]);
   patchKindId = await wegwerfKindId();
+  testBild = await sharp({
+    create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
+  })
+    .jpeg()
+    .toBuffer();
+  bildZielId = await wegwerfPersonId();
+  await db.insert(schema.rolle).values({
+    userId: bildZielId,
+    stufeId: welt.stufeAId,
+    typ: "stufenleitung",
+  });
+  await db
+    .insert(schema.profilbild)
+    .values({ userId: bildZielId, inhalt: testBild });
   const [patchStufe] = await db
     .insert(schema.stufe)
     .values({
@@ -898,7 +954,9 @@ describe("Matrix: jede Route mal jede Persona", () => {
         headers: zeile.body
           ? { ...konto.headers, "content-type": "application/json" }
           : konto.headers,
-        body: zeile.body && JSON.stringify(zeile.body(konto)),
+        body: zeile.bild
+          ? new Uint8Array(testBild)
+          : zeile.body && JSON.stringify(zeile.body(konto)),
       });
       ergebnis[persona] = antwort.status;
     }
