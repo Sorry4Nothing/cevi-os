@@ -88,6 +88,164 @@ paths:
             text/html:
               schema:
                 type: string
+  /admin:
+    get:
+      operationId: getAdminSeite
+      summary: Verwaltung im Browser als HTML-Seite
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Statische Hülle der Web-Verwaltung, ohne Anmeldung und ausserhalb der Versionsprüfung. Sie enthält keine Daten:
+        Die Seite meldet sich über `/api/auth/*` an und ruft danach `/api/v1/admin/*` auf, mit dem Session-Cookie
+        und dem zweiten Faktor wie in der App. Alle Personen (auch nicht angemeldete) erhalten 200.
+
+        Die Antwort trägt eine strenge `Content-Security-Policy` (`script-src 'self'`, `style-src 'self'`,
+        `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+        `X-Frame-Options: DENY` und `Cache-Control: no-store`. Skripte und Stilvorlage liegen unter
+        `/admin/<Datei>` und tragen dieselben Kopfzeilen (mit `Cache-Control: no-cache`).
+      responses:
+        "200":
+          description: HTML-Seite (`text/html; charset=UTF-8`).
+          content:
+            text/html:
+              schema:
+                type: string
+  /admin/abteilung.js:
+    get:
+      operationId: getAdminAbteilungSkript
+      summary: Skript der Verwaltung – Bereich Abteilung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/admin.css:
+    get:
+      operationId: getAdminStilvorlage
+      summary: Stilvorlage der Verwaltung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/admin.js:
+    get:
+      operationId: getAdminSkript
+      summary: Hauptskript der Verwaltung (Anmeldung und Navigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/api.js:
+    get:
+      operationId: getAdminApiSkript
+      summary: Skript der Verwaltung – Aufrufe gegen die API
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/dom.js:
+    get:
+      operationId: getAdminDomSkript
+      summary: Skript der Verwaltung – Bausteine der Oberfläche
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/kinder.js:
+    get:
+      operationId: getAdminKinderSkript
+      summary: Skript der Verwaltung – Bereich Kinder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/meldungen.js:
+    get:
+      operationId: getAdminMeldungenSkript
+      summary: Skript der Verwaltung – Bereich Meldungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/personen.js:
+    get:
+      operationId: getAdminPersonenSkript
+      summary: Skript der Verwaltung – Bereich Personen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/stufen.js:
+    get:
+      operationId: getAdminStufenSkript
+      summary: Skript der Verwaltung – Bereich Stufen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /.well-known/apple-app-site-association:
     get:
       operationId: getAppleAppSiteAssociation

@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 import type { Sql } from "postgres";
+import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
@@ -57,7 +58,12 @@ export function erstelleApp({
   auth: ReturnType<typeof erstelleAuth>;
   expo: Expo;
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
-  seiten: { datenschutz: string; kontoLoeschen: string; support: string };
+  seiten: {
+    admin: AdminDateien;
+    datenschutz: string;
+    kontoLoeschen: string;
+    support: string;
+  };
 }) {
   return (
     new Hono()
@@ -131,6 +137,8 @@ export function erstelleApp({
       .get("/datenschutz", (c) => c.html(seiten.datenschutz))
       .get("/konto-loeschen", (c) => c.html(seiten.kontoLoeschen))
       .get("/support", (c) => c.html(seiten.support))
+      // Verwaltung im Browser (#141): nur die statische Hülle, Daten kommen über /api/v1/admin/*
+      .route("/admin", erstelleAdminSeiten(seiten.admin))
       // Eigene Routen statt Dateien, damit der Content-Type JSON ist; die Inhalte folgen in #24
       .get("/.well-known/apple-app-site-association", (c) => c.json({}))
       .get("/.well-known/assetlinks.json", (c) => c.json([]))

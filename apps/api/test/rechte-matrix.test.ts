@@ -74,6 +74,17 @@ const MATRIX: Record<string, Zeile> = {
   "GET /datenschutz": { erwartet: alle(200) },
   "GET /konto-loeschen": { erwartet: alle(200) },
   "GET /support": { erwartet: alle(200) },
+  // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  "GET /admin": { erwartet: alle(200) },
+  "GET /admin/abteilung.js": { erwartet: alle(200) },
+  "GET /admin/admin.css": { erwartet: alle(200) },
+  "GET /admin/admin.js": { erwartet: alle(200) },
+  "GET /admin/api.js": { erwartet: alle(200) },
+  "GET /admin/dom.js": { erwartet: alle(200) },
+  "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/meldungen.js": { erwartet: alle(200) },
+  "GET /admin/personen.js": { erwartet: alle(200) },
+  "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {

@@ -5,6 +5,7 @@ import {
   afterAll,
   afterEach,
   beforeEach,
+  describe,
   expect,
   test,
   vi,
@@ -63,3 +64,75 @@ test.each<[string, string, string | null]>([
     }
   },
 );
+
+// Verwaltung im Browser (#141)
+const admin = ladeSeiten().admin;
+const adminPfad = (datei: string) =>
+  datei === "index.html" ? "/admin" : `/admin/${datei}`;
+const ADMIN_TYPEN: Record<string, string> = {
+  html: "text/html; charset=UTF-8",
+  css: "text/css; charset=UTF-8",
+  js: "text/javascript; charset=UTF-8",
+};
+
+describe("Verwaltung unter /admin", () => {
+  test("die Dateien aus public/admin sind geladen", () => {
+    expect(Object.keys(admin)).toContain("index.html");
+    expect(Object.keys(admin)).toContain("admin.js");
+    expect(Object.keys(admin)).toContain("admin.css");
+  });
+
+  test.each(Object.keys(admin))(
+    "GET %s antwortet ohne Login mit 200, dem Typ der Datei und den Sicherheits-Kopfzeilen",
+    async (datei) => {
+      const antwort = await app.request(adminPfad(datei));
+      expect(antwort.status).toBe(200);
+      expect(antwort.headers.get("content-type")).toBe(
+        ADMIN_TYPEN[datei.split(".").pop()!],
+      );
+      expect(await antwort.text()).toBe(admin[datei]);
+      const csp = antwort.headers.get("content-security-policy")!;
+      for (const regel of [
+        "default-src 'none'",
+        "script-src 'self'",
+        "style-src 'self'",
+        "frame-ancestors 'none'",
+        "base-uri 'none'",
+        "form-action 'self'",
+        "connect-src 'self'",
+      ]) {
+        expect(csp).toContain(regel);
+      }
+      expect(csp).not.toContain("unsafe");
+      expect(antwort.headers.get("x-content-type-options")).toBe("nosniff");
+      expect(antwort.headers.get("referrer-policy")).toBe("no-referrer");
+      expect(antwort.headers.get("x-frame-options")).toBe("DENY");
+      expect(antwort.headers.get("cache-control")).toBe(
+        datei.endsWith(".html") ? "no-store" : "no-cache",
+      );
+    },
+  );
+
+  test("unbekannte Dateien unter /admin sind 404 ohne Sicherheits-Kopfzeilen der Seite", async () => {
+    const antwort = await app.request("/admin/gibt-es-nicht.js");
+    expect(antwort.status).toBe(404);
+  });
+
+  test("die Seite enthält kein Inline-Skript, keinen Inline-Stil und keine Ereignis-Attribute", () => {
+    const html = admin["index.html"];
+    expect(html).not.toMatch(/<script(?![^>]*\ssrc=)/i);
+    expect(html).not.toMatch(/\sstyle\s*=/i);
+    expect(html).not.toMatch(/\son[a-z]+\s*=/i);
+    expect(html).not.toMatch(/<style/i);
+  });
+
+  test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
+    "%s schreibt keine Daten als HTML und lädt nichts von aussen",
+    (datei) => {
+      expect(admin[datei]).not.toMatch(
+        /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
+      );
+      expect(admin[datei]).not.toMatch(/https?:\/\//);
+    },
+  );
+});

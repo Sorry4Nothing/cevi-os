@@ -1,0 +1,627 @@
+/* Verwaltung: Farben, Schrift, Abstände und Radien aus den Tokens der App-Vorlage; die Bausteine sind hier eigens formuliert. Keine externen Schriften (CSP): Archivo wird nicht mitgeliefert, es gilt die Systemschrift. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Tag */
+  --surface: #f7f7fc;
+  --karte: #ffffff;
+  --leiste: #ecectf8;
+  --erhoben: #dfdff3;
+  --text: #141412;
+  --text-leise: #5c5c57;
+  --rand: #7a7a74;
+  --rand-leise: #e2e2ec;
+  --rot: #c41333;
+  --auf-rot: #ffffff;
+  --rot-text: #a30f2a;
+  --blau: #323394;
+  --auf-blau: #ffffff;
+  --blau-flaeche: #ececf8;
+  --auf-blau-flaeche: #323394;
+  --akzent: #323394;
+  --ok-flaeche: #e7f4ec;
+  --ok-text: #17703a;
+  --fehler-flaeche: #fce9ec;
+  --fehler-text: #9e1b2c;
+  --warn-flaeche: #fff4d6;
+  --warn-text: #8a5a00;
+  --stufe-flaeche: #e3f2f6;
+  --stufe-text: #1d6274;
+  --fokus: #323394;
+  --schleier: rgba(20, 20, 18, 0.48);
+  --schatten: 0 8px 24px rgba(20, 20, 60, 0.16);
+
+  --raum-1: 4px;
+  --raum-2: 8px;
+  --raum-3: 12px;
+  --raum-4: 16px;
+  --raum-5: 20px;
+  --raum-6: 24px;
+  --raum-8: 32px;
+  --ziel: 48px;
+  --feld: 52px;
+  --knopf: 56px;
+  --breite: 1080px;
+  --ecke-s: 12px;
+  --ecke-m: 16px;
+  --ecke-xl: 24px;
+  --ecke-voll: 9999px;
+}
+
+/* Nacht */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #161620;
+    --karte: #17172a;
+    --leiste: #1e1f38;
+    --erhoben: #23244a;
+    --text: #ededeb;
+    --text-leise: #ababa6;
+    --rand: #8a8a90;
+    --rand-leise: #2c2c44;
+    --rot-text: #ff7a8a;
+    --blau-flaeche: #23244a;
+    --auf-blau-flaeche: #dcddf9;
+    --akzent: #a9abf2;
+    --ok-flaeche: #16271d;
+    --ok-text: #6fd39a;
+    --fehler-flaeche: #2e1519;
+    --fehler-text: #ff8e9a;
+    --warn-flaeche: #2a2312;
+    --warn-text: #f2c063;
+    --stufe-flaeche: #0f2a31;
+    --stufe-text: #7fd0e3;
+    --fokus: #a9abf2;
+    --schleier: rgba(0, 0, 0, 0.6);
+    --schatten: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  /* Die Schrift folgt der Einstellung des Browsers */
+  font-size: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--surface);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+h1 {
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.375rem;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+p {
+  margin: 0;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+/* Titel nach einer Navigation: Der Fokus liegt darauf, der Ring stört dort nicht */
+h1:focus,
+h2:focus {
+  outline: none;
+}
+
+.nur-leser {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.sprung {
+  position: absolute;
+  left: var(--raum-2);
+  top: -100px;
+  z-index: 10;
+  padding: var(--raum-3) var(--raum-4);
+  background: var(--erhoben);
+  color: var(--text);
+  border-radius: var(--ecke-voll);
+}
+
+.sprung:focus {
+  top: var(--raum-2);
+}
+
+/* Seitenrahmen */
+
+.seite {
+  max-width: var(--breite);
+  margin: 0 auto;
+  padding: var(--raum-5);
+}
+
+.kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--raum-3);
+  padding-bottom: var(--raum-4);
+}
+
+.ueberzeile {
+  margin-bottom: var(--raum-1);
+  color: var(--akzent);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.konto {
+  display: flex;
+  align-items: center;
+  gap: var(--raum-3);
+  color: var(--text-leise);
+  font-size: 0.875rem;
+}
+
+.reiter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--raum-2);
+  margin-bottom: var(--raum-6);
+  padding: var(--raum-2);
+  background: var(--leiste);
+  border-radius: var(--ecke-xl);
+}
+
+.reiter a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--ziel);
+  padding: 0 var(--raum-4);
+  border-radius: var(--ecke-voll);
+  color: var(--text-leise);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.reiter a[aria-current="page"] {
+  background: var(--blau);
+  color: var(--auf-blau);
+}
+
+.reiter a:hover:not([aria-current="page"]) {
+  color: var(--text);
+  background: var(--erhoben);
+}
+
+.werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--raum-3);
+  margin-bottom: var(--raum-4);
+}
+
+.werkzeuge .feld {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+
+/* Karten */
+
+.liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: var(--raum-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.karte {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raum-2);
+  padding: var(--raum-4);
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--ecke-m);
+}
+
+.karte--inaktiv h3 {
+  color: var(--text-leise);
+}
+
+.meta {
+  color: var(--text-leise);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.zitat {
+  margin: 0;
+  padding: var(--raum-3);
+  background: var(--leiste);
+  border-radius: var(--ecke-s);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--raum-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 var(--raum-2);
+  border-radius: var(--ecke-voll);
+  background: var(--blau-flaeche);
+  color: var(--auf-blau-flaeche);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chip--ok {
+  background: var(--ok-flaeche);
+  color: var(--ok-text);
+}
+
+.chip--warn {
+  background: var(--warn-flaeche);
+  color: var(--warn-text);
+}
+
+.chip--fehler {
+  background: var(--fehler-flaeche);
+  color: var(--fehler-text);
+}
+
+.chip--stufe {
+  background: var(--stufe-flaeche);
+  color: var(--stufe-text);
+}
+
+.aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--raum-2);
+  margin-top: auto;
+  padding-top: var(--raum-2);
+}
+
+/* Knöpfe */
+
+.knopf {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--ziel);
+  padding: 0 var(--raum-5);
+  border: 2px solid var(--rand);
+  border-radius: var(--ecke-voll);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.knopf:hover {
+  background: var(--erhoben);
+}
+
+.knopf--haupt {
+  border-color: var(--rot);
+  background: var(--rot);
+  color: var(--auf-rot);
+}
+
+.knopf--haupt:hover {
+  background: var(--rot);
+  filter: brightness(1.12);
+}
+
+.knopf--gefahr {
+  border-color: var(--fehler-text);
+  background: var(--fehler-flaeche);
+  color: var(--fehler-text);
+}
+
+.knopf--gross {
+  min-height: var(--knopf);
+}
+
+.knopf--still {
+  border-color: transparent;
+  color: var(--akzent);
+}
+
+.knopf:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* Formulare */
+
+.formular {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raum-4);
+}
+
+.feld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raum-1);
+}
+
+.feld > label,
+legend {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.feld input:not([type="checkbox"]),
+.feld select,
+.feld textarea {
+  width: 100%;
+  min-height: var(--feld);
+  padding: 0 var(--raum-4);
+  border: 2px solid var(--rand);
+  border-radius: var(--ecke-s);
+  background: var(--karte);
+  color: var(--text);
+  font: inherit;
+}
+
+.feld textarea {
+  min-height: 9rem;
+  padding: var(--raum-3) var(--raum-4);
+  resize: vertical;
+}
+
+.feld input:focus-visible,
+.feld select:focus-visible,
+.feld textarea:focus-visible {
+  outline-offset: 0;
+  border-color: var(--fokus);
+}
+
+.hilfe {
+  color: var(--text-leise);
+  font-size: 0.8125rem;
+}
+
+fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: var(--raum-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--raum-3) var(--raum-4);
+  border: 1px solid var(--rand);
+  border-radius: var(--ecke-s);
+}
+
+.wahl {
+  display: flex;
+  align-items: center;
+  gap: var(--raum-3);
+  min-height: var(--ziel);
+}
+
+.wahl input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+  accent-color: var(--blau);
+}
+
+.wahl label {
+  flex: 1;
+  padding: var(--raum-2) 0;
+}
+
+.wahl select {
+  flex: none;
+  width: auto;
+  min-width: 11rem;
+  min-height: var(--ziel);
+}
+
+.scrollfeld {
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+/* Rückmeldung */
+
+.hinweis {
+  padding: var(--raum-3) var(--raum-4);
+  border-radius: var(--ecke-m);
+  background: var(--blau-flaeche);
+  color: var(--auf-blau-flaeche);
+  overflow-wrap: anywhere;
+}
+
+.hinweis--ok {
+  background: var(--ok-flaeche);
+  color: var(--ok-text);
+}
+
+.hinweis--fehler {
+  background: var(--fehler-flaeche);
+  color: var(--fehler-text);
+}
+
+.hinweis:focus {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.rueckmeldung {
+  margin-bottom: var(--raum-4);
+}
+
+.leer {
+  padding: var(--raum-6);
+  border: 1px dashed var(--rand);
+  border-radius: var(--ecke-m);
+  color: var(--text-leise);
+  text-align: center;
+}
+
+/* Anmeldung */
+
+.anmeldung {
+  max-width: 28rem;
+  margin: var(--raum-8) auto;
+  padding: var(--raum-6);
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--ecke-xl);
+}
+
+.anmeldung h1 {
+  margin-bottom: var(--raum-2);
+  font-size: 1.75rem;
+}
+
+.anmeldung > p {
+  margin-bottom: var(--raum-5);
+  color: var(--text-leise);
+}
+
+/* Dialog */
+
+dialog {
+  width: min(32rem, calc(100vw - 2 * var(--raum-4)));
+  max-height: calc(100vh - 2 * var(--raum-4));
+  padding: var(--raum-6);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--ecke-xl);
+  background: var(--erhoben);
+  color: var(--text);
+  box-shadow: var(--schatten);
+  overflow-y: auto;
+}
+
+dialog::backdrop {
+  background: var(--schleier);
+}
+
+dialog h2 {
+  margin-bottom: var(--raum-2);
+}
+
+dialog .beschreibung {
+  margin-bottom: var(--raum-4);
+  color: var(--text-leise);
+}
+
+dialog .feld > label,
+dialog legend {
+  color: var(--text);
+}
+
+dialog .feld input:not([type="checkbox"]),
+dialog .feld select,
+dialog .feld textarea {
+  background: var(--surface);
+}
+
+.dialog-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--raum-2);
+  margin-top: var(--raum-2);
+}
+
+.geheimnis {
+  display: block;
+  margin-bottom: var(--raum-4);
+  padding: var(--raum-4);
+  border: 2px solid var(--rand);
+  border-radius: var(--ecke-s);
+  background: var(--surface);
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: center;
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .seite {
+    padding: var(--raum-4);
+  }
+
+  h1 {
+    font-size: 1.625rem;
+  }
+
+  .wahl {
+    flex-wrap: wrap;
+  }
+
+  .wahl select {
+    flex: 1 1 100%;
+  }
+
+  .dialog-knoepfe .knopf {
+    flex: 1 1 100%;
+  }
+}
