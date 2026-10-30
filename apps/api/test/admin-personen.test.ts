@@ -225,6 +225,7 @@ describe("POST /api/v1/admin/personen", () => {
     ["unbekanntes Kind", () => ({ elternteilVon: [randomUUID()] })],
     ["doppeltes Kind", () => ({ elternteilVon: [welt.kindAId, welt.kindAId] })],
     ["überzähliger Schlüssel", () => ({ telefon: "079" })],
+    ["Cevi-Name mit 51 Zeichen", () => ({ ceviName: "a".repeat(51) })],
     ["Benutzername mit !", () => ({ benutzername: "mit!zeichen" })],
     ["Benutzername mit 2 Zeichen", () => ({ benutzername: "ab" })],
     ["Benutzername mit 65 Zeichen", () => ({ benutzername: "a".repeat(65) })],
@@ -269,6 +270,7 @@ describe("GET /api/v1/admin/personen", () => {
     expect(Object.keys(person).sort()).toEqual([
       "admin",
       "benutzername",
+      "ceviName",
       "deaktiviert",
       "elternteilVon",
       "id",
@@ -323,6 +325,37 @@ describe("GET /api/v1/admin/personen", () => {
             rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
           }),
         )
+      ).status,
+    ).toBe(400);
+  });
+});
+
+describe("Cevi-Name", () => {
+  test("wird getrimmt gespeichert, in der Liste genannt und über PATCH geändert und gelöscht", async () => {
+    const angelegt = await legePersonAn({ ceviName: "  Wolke " });
+    expect((await userZeile(angelegt.id)).ceviName).toBe("Wolke");
+    const liste = async () =>
+      (
+        (await (await anfrage(admin, "GET")).json()) as {
+          personen: { id: string; ceviName: string | null }[];
+        }
+      ).personen.find((p) => p.id === angelegt.id)!.ceviName;
+    expect(await liste()).toBe("Wolke");
+    expect(
+      (await anfrage(admin, "PATCH", `/${angelegt.id}`, { ceviName: "Blitz" }))
+        .status,
+    ).toBe(204);
+    expect(await liste()).toBe("Blitz");
+    // Ohne den Schlüssel bleibt er, leer löscht ihn
+    await anfrage(admin, "PATCH", `/${angelegt.id}`, { admin: false });
+    expect(await liste()).toBe("Blitz");
+    await anfrage(admin, "PATCH", `/${angelegt.id}`, { ceviName: " " });
+    expect(await liste()).toBeNull();
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/${angelegt.id}`, {
+          ceviName: "a".repeat(51),
+        })
       ).status,
     ).toBe(400);
   });

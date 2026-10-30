@@ -2778,6 +2778,7 @@ components:
       required:
         - id
         - name
+        - ceviName
         - benutzername
         - mussPasswortAendern
         - datenschutzGelesenAm
@@ -2797,6 +2798,11 @@ components:
         name:
           type: string
           description: Anzeigename.
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Cevi-Name (Spitzname), `null` ohne Angabe.
         benutzername:
           type:
             - string
@@ -2916,6 +2922,7 @@ components:
             required:
               - id
               - name
+              - ceviName
               - bildUrl
               - telefon
             properties:
@@ -2924,6 +2931,11 @@ components:
                 format: uuid
               name:
                 type: string
+              ceviName:
+                type:
+                  - string
+                  - "null"
+                description: Cevi-Name (Spitzname), `null` ohne Angabe.
               bildUrl:
                 type:
                   - string
@@ -3079,6 +3091,7 @@ components:
           required:
             - id
             - name
+            - ceviName
             - rolle
           properties:
             id:
@@ -3086,6 +3099,11 @@ components:
               format: uuid
             name:
               type: string
+            ceviName:
+              type:
+                - string
+                - "null"
+              description: Cevi-Name (Spitzname), `null` ohne Angabe.
             rolle:
               type: string
               enum:
@@ -3218,6 +3236,7 @@ components:
             required:
               - id
               - name
+              - ceviName
               - stufeId
               - rolle
               - status
@@ -3227,6 +3246,11 @@ components:
                 format: uuid
               name:
                 type: string
+              ceviName:
+                type:
+                  - string
+                  - "null"
+                description: Cevi-Name (Spitzname), `null` ohne Angabe.
               stufeId:
                 type: string
                 format: uuid
@@ -3490,16 +3514,22 @@ components:
         kuerzel: PF
     ChatPerson:
       type: object
-      description: Person mit ID und Anzeigename.
+      description: Person mit ID, Anzeigename und Cevi-Name.
       required:
         - id
         - name
+        - ceviName
       properties:
         id:
           type: string
           format: uuid
         name:
           type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Cevi-Name (Spitzname), `null` ohne Angabe.
     ChatListeLetzteNachricht:
       type: object
       description: Vorschau der neuesten sichtbaren Nachricht in der Chatliste.
@@ -3529,6 +3559,7 @@ components:
         autor:
           id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
           name: Beispiel Leitung
+          ceviName: Wolke
     ChatListeneintrag:
       type: object
       required:
@@ -3592,9 +3623,11 @@ components:
               autor:
                 id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
                 name: Beispiel Leitung
+                ceviName: Wolke
             stufenleitung:
               - id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
                 name: Beispiel Leitung
+                ceviName: Wolke
     EinzelchatAnfrage:
       type: object
       additionalProperties: false
@@ -3693,6 +3726,7 @@ components:
       required:
         - id
         - name
+        - ceviName
         - bildUrl
         - stufenleitung
       properties:
@@ -3701,6 +3735,11 @@ components:
           format: uuid
         name:
           type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Cevi-Name (Spitzname), `null` ohne Angabe.
         bildUrl:
           type:
             - string
@@ -3767,6 +3806,7 @@ components:
       required:
         - id
         - name
+        - ceviName
         - benutzername
         - admin
         - zweiterFaktor
@@ -3782,6 +3822,11 @@ components:
         name:
           type: string
           description: «Vorname Nachname» in einem Feld.
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Cevi-Name (Spitzname), `null` ohne Angabe.
         benutzername:
           type:
             - string
@@ -3898,6 +3943,10 @@ components:
           minLength: 1
           maxLength: 100
           description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
+        ceviName:
+          type: string
+          maxLength: 50
+          description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
         benutzername:
           type: string
           minLength: 3
@@ -3959,6 +4008,12 @@ components:
           minLength: 1
           maxLength: 201
           description: «Vorname Nachname» in einem Feld. Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
+        ceviName:
+          type:
+            - string
+            - "null"
+          maxLength: 50
+          description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
         admin:
           type: boolean
           description: "`false` für den letzten aktiven Admin ergibt 409 `LETZTER_ADMIN`."

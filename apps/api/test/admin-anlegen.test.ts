@@ -105,6 +105,8 @@ test("die CLI legt Abteilung und Admin an, und die Anmeldung mit dem Startpasswo
     benutzername,
     "--name",
     "Testperson CLI",
+    "--cevi-name",
+    " Wolke ",
     "--neue-abteilung",
     abteilungsname,
   ]);
@@ -126,6 +128,7 @@ test("die CLI legt Abteilung und Admin an, und die Anmeldung mit dem Startpasswo
 
   const [benutzer] = await benutzerMitNamen(benutzername);
   expect(benutzer.role).toBe("admin");
+  expect(benutzer.ceviName).toBe("Wolke");
   expect(benutzer.abteilungId).toBe(abteilung.id);
   expect(benutzer.mussPasswortAendern).toBe(true);
   expect(benutzer.fehlversuche).toBe(0);

@@ -13,7 +13,7 @@ import {
   startpasswortFelder,
 } from "../startpasswort.js";
 
-const VERWENDUNG = `Verwendung: npm run admin:anlegen -w apps/api -- --benutzername <benutzername> --name "<Vorname Nachname>" (--abteilung <Name> | --neue-abteilung <Name>)
+const VERWENDUNG = `Verwendung: npm run admin:anlegen -w apps/api -- --benutzername <benutzername> --name "<Vorname Nachname>" [--cevi-name <Name>] (--abteilung <Name> | --neue-abteilung <Name>)
 --abteilung nimmt eine bestehende Abteilung, --neue-abteilung legt eine an; genau eine der beiden Angaben.
 Das Startpasswort erzeugt die CLI selbst und nimmt keines entgegen.`;
 
@@ -27,6 +27,7 @@ function leseArgumente() {
       options: {
         benutzername: { type: "string" },
         name: { type: "string" },
+        "cevi-name": { type: "string" },
         abteilung: { type: "string" },
         "neue-abteilung": { type: "string" },
       },
@@ -35,13 +36,15 @@ function leseArgumente() {
     });
     const benutzername = values.benutzername?.trim();
     const name = values.name?.trim();
+    const ceviName = values["cevi-name"]?.trim() || undefined;
+    if (ceviName && ceviName.length > 50) return null;
     const neu = values["neue-abteilung"] !== undefined;
     if (neu === (values.abteilung !== undefined)) return null;
     const abteilungsname = (
       values.abteilung ?? values["neue-abteilung"]
     )?.trim();
     if (!benutzername || !name || !abteilungsname) return null;
-    return { benutzername, name, neu, abteilungsname };
+    return { benutzername, name, ceviName, neu, abteilungsname };
   } catch {
     return null;
   }
@@ -69,7 +72,7 @@ if (!argumente) {
   const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
   try {
     const db = erstelleDb(sql);
-    const { benutzername, name, neu, abteilungsname } = argumente;
+    const { benutzername, name, ceviName, neu, abteilungsname } = argumente;
     // Eine Transaktion für alle Schreibzugriffe: createUser legt den User vor der HIBP-Prüfung an, ein Fehlschlag dort liesse sonst ein Konto ohne Passwort zurück
     const ergebnis = await db.transaction(async (tx) => {
       let abteilungId: string;
@@ -113,6 +116,7 @@ if (!argumente) {
           role: "admin",
           data: {
             username: benutzername,
+            ceviName,
             abteilungId,
             ...startpasswortFelder(),
           },

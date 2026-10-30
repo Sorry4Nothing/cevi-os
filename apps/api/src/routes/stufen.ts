@@ -200,7 +200,12 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
             )
             .orderBy(asc(kind.vorname), asc(kind.nachname), asc(kind.id)),
           db
-            .select({ id: user.id, name: user.name, rolle: rolle.typ })
+            .select({
+              id: user.id,
+              name: user.name,
+              ceviName: user.ceviName,
+              rolle: rolle.typ,
+            })
             .from(rolle)
             .innerJoin(
               user,

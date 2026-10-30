@@ -148,7 +148,13 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     await legePersonaAn(welt, "slA");
     const r = await programmKontakte(p.id, konten.elternA);
     expect(r.kontakte).toEqual([
-      { id: idVon("slA"), name: "SL A", bildUrl: null, telefon: NUMMER_A },
+      {
+        id: idVon("slA"),
+        name: "SL A",
+        ceviName: null,
+        bildUrl: null,
+        telefon: NUMMER_A,
+      },
     ]);
   });
 
@@ -288,8 +294,20 @@ describe("GET /api/v1/stufen/:id/kontakte", () => {
     expect(eltern.cacheControl).toBe("no-store");
     expect(eltern.kontakte).toEqual(
       expect.arrayContaining([
-        { id: idVon("slA"), name: "SL A", bildUrl: null, telefon: NUMMER_A },
-        { id: ohneNummer.id, name: "SL A", bildUrl: null, telefon: null },
+        {
+          id: idVon("slA"),
+          name: "SL A",
+          ceviName: null,
+          bildUrl: null,
+          telefon: NUMMER_A,
+        },
+        {
+          id: ohneNummer.id,
+          name: "SL A",
+          ceviName: null,
+          bildUrl: null,
+          telefon: null,
+        },
       ]),
     );
     expect(eltern.kontakte.map((k) => k.id)).not.toContain(idVon("slB"));

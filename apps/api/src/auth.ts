@@ -73,6 +73,7 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       // Wie die Spalten in src/db/schema.ts; better-auth schreibt beim Anlegen seinen defaultValue, darum gleich dem der Datenbank
       additionalFields: {
         abteilungId: { type: "string", input: false, required: true },
+        ceviName: { type: "string", input: false, required: false },
         mussPasswortAendern: {
           type: "boolean",
           input: false,
