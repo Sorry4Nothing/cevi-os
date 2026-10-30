@@ -1099,6 +1099,208 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/stufen/{id}/anwesenheit:
+    get:
+      operationId: stufeAnwesenheitLesen
+      summary: Anwesenheit einer Stufe lesen
+      tags:
+        - Stufen
+      description: |
+        Liefert die Übersicht für den Bildschirm «Anwesenheit»: die letzten `anzahl` begonnenen Programme der Stufe
+        (Standard 5, höchstens 20) und das nächste kommende, dazu je Kind und je Leitungsperson der Stufe den Stand
+        pro Programm. Der Server rechnet die Zahlen; die App rechnet nichts nach.
+
+        **Anlässe.** `anlaesse` ist nach Beginn aufsteigend sortiert: zuerst die vergangenen, der kommende zuletzt
+        (`vergangen: false`). Es zählen nur aktive Programme der Stufe mit Sichtbarkeit `leitende` oder `eltern`.
+        `erfassbar` ist `true`, solange das Programm begonnen hat und der Beginn höchstens 14 Tage zurückliegt;
+        nur dann nimmt `PUT` einen Stand an.
+
+        **Personen.** `kinder` sind die aktiven Kinder der Stufe, sortiert nach `vorname`, `nachname`, `id`;
+        `leitende` alle Leitenden und SL der Stufe mit aktivem Konto, sortiert nach `name`, `id`. Beide Listen
+        tragen je Person zwei Reihen mit je einem Eintrag pro Anlass, in der Reihenfolge von `anlaesse`:
+        `anwesenheit` (`da`, `nicht_da` oder `null` für «nicht erfasst», bei kommenden Anlässen immer `null`)
+        und `zusage` (die Antwort der Eltern bzw. der Leitung: `ja`, `nein` oder `offen`). Die Zusage ändert die
+        Leitung nie; sie bleibt getrennt von der Anwesenheit.
+
+        **Zahlen.** `da` und `von` zählen je Person nur erfasste, vergangene Anlässe: «nicht erfasst» zählt weder
+        als da noch als nicht da. `prozent` ist `da` von `von`, gerundet, oder `null`, wenn `von` 0 ist.
+        `zahlen` fasst die Personen der Stufe zusammen. `naechster` zählt die Zusagen zum kommenden Anlass und ist
+        `null`, wenn keiner ansteht.
+
+        Die Antwort trägt `Cache-Control: no-store`.
+
+        **Rollen.** Administratorinnen und Administratoren sowie Leitende und SL der Stufe. Eltern und Leitende
+        anderer Stufen bekommen 403; unbekannte Stufen und Stufen anderer Abteilungen 404.
+        Statuscodes: 200, 400, 401, 403, 404, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe.
+          schema:
+            type: string
+            format: uuid
+        - name: anzahl
+          in: query
+          required: false
+          description: Wie viele vergangene Anlässe die Übersicht enthält.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 5
+      responses:
+        "200":
+          description: Die Anwesenheit der Stufe.
+          headers:
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnwesenheitUebersicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/stufen/{id}/anwesenheit/{programmId}/kinder/{kindId}:
+    put:
+      operationId: anwesenheitKindSetzen
+      summary: Anwesenheit eines Kindes erfassen, ändern oder zurücknehmen
+      tags:
+        - Stufen
+      description: |
+        Hält fest, ob ein Kind bei einem Programm da war (`da: true`) oder nicht (`da: false`); ein bestehender
+        Stand wird überschrieben. `da: null` nimmt den Eintrag zurück, danach gilt wieder «nicht erfasst». Der
+        Server merkt sich, wer zuletzt erfasst hat. Die Zusage der Eltern bleibt unberührt.
+
+        Das Programm muss aktiv, der Stufe zugeordnet und für Leitende sichtbar sein (`leitende` oder `eltern`),
+        das Kind aktiv und in der Stufe. Erfassen lässt sich ab Beginn des Programms und bis 14 Tage danach,
+        siehe `erfassbar` in `GET /api/v1/stufen/{id}/anwesenheit`.
+
+        Reihenfolge der Prüfung: Eingabe (400); Stufe unbekannt oder aus anderer Abteilung (404); Recht (403);
+        Kind nicht in der Stufe oder inaktiv sowie Programm unbekannt, nicht der Stufe zugeordnet, abgesagt oder
+        nicht sichtbar (404); Zeitfenster (409).
+
+        **Rollen.** Administratorinnen und Administratoren sowie Leitende und SL der Stufe.
+        Statuscodes: 204, 400, 401, 403, 404, 409, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe.
+          schema:
+            type: string
+            format: uuid
+        - name: programmId
+          in: path
+          required: true
+          description: ID des Programms.
+          schema:
+            type: string
+            format: uuid
+        - name: kindId
+          in: path
+          required: true
+          description: ID des Kindes.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnwesenheitErfassen"
+      responses:
+        "204":
+          description: Gespeichert oder zurückgenommen. Kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnwesenheitGeschlossen409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/stufen/{id}/anwesenheit/{programmId}/leitende/{userId}:
+    put:
+      operationId: anwesenheitLeitungSetzen
+      summary: Anwesenheit einer Leitungsperson erfassen, ändern oder zurücknehmen
+      tags:
+        - Stufen
+      description: |
+        Wie `PUT /api/v1/stufen/{id}/anwesenheit/{programmId}/kinder/{kindId}`, nur für eine Leitungsperson: Hält
+        fest, ob sie bei dem Programm da war. `da: null` nimmt den Eintrag zurück. Die Person muss Leitung oder SL
+        der Stufe sein und ein aktives Konto haben; sonst 404. Die Zusage der Leitung bleibt unberührt.
+
+        **Rollen.** Administratorinnen und Administratoren sowie Leitende und SL der Stufe.
+        Statuscodes: 204, 400, 401, 403, 404, 409, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe.
+          schema:
+            type: string
+            format: uuid
+        - name: programmId
+          in: path
+          required: true
+          description: ID des Programms.
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: path
+          required: true
+          description: ID der Leitungsperson.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnwesenheitErfassen"
+      responses:
+        "204":
+          description: Gespeichert oder zurückgenommen. Kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnwesenheitGeschlossen409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/push-token:
     put:
       operationId: pushTokenRegistrieren
@@ -2732,6 +2934,223 @@ components:
                   - string
                   - "null"
                 description: Nur für Eltern mit einem aktiven Kind in der Stufe der SL, sonst `null`.
+    AnwesenheitErfassen:
+      type: object
+      additionalProperties: false
+      required:
+        - da
+      properties:
+        da:
+          type:
+            - boolean
+            - "null"
+          description: "`true` war da, `false` war nicht da, `null` nimmt den Eintrag zurück («nicht erfasst»)."
+    AnwesenheitQuote:
+      type: object
+      required:
+        - da
+        - von
+        - prozent
+      properties:
+        da:
+          type: integer
+          minimum: 0
+          description: Erfasste vergangene Anlässe, bei denen die Person oder die Stufe da war.
+        von:
+          type: integer
+          minimum: 0
+          description: Erfasste vergangene Anlässe. «Nicht erfasst» zählt nicht mit.
+        prozent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: "`da` von `von`, gerundet; `null`, wenn `von` 0 ist."
+    AnwesenheitAnlass:
+      type: object
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - vergangen
+        - erfassbar
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Nur bei Programmen mit Zeit, sonst `null`.
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Nur bei ganztägigen Programmen, sonst `null`.
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+        vergangen:
+          type: boolean
+          description: "`true`, wenn das Programm begonnen hat; nur der letzte Anlass kann `false` sein."
+        erfassbar:
+          type: boolean
+          description: "`true`, wenn der Stand sich noch erfassen und ändern lässt: begonnen und höchstens 14 Tage her."
+    AnwesenheitReihen:
+      type: object
+      required:
+        - anwesenheit
+        - zusage
+        - da
+        - von
+        - prozent
+      properties:
+        anwesenheit:
+          type: array
+          description: Ein Eintrag pro Anlass in der Reihenfolge von `anlaesse`; `null` heisst nicht erfasst (und bei kommenden Anlässen immer).
+          items:
+            type:
+              - string
+              - "null"
+            enum:
+              - da
+              - nicht_da
+              - null
+        zusage:
+          type: array
+          description: Ein Eintrag pro Anlass in der Reihenfolge von `anlaesse`.
+          items:
+            type: string
+            enum:
+              - ja
+              - nein
+              - offen
+        da:
+          type: integer
+          minimum: 0
+        von:
+          type: integer
+          minimum: 0
+        prozent:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+    AnwesenheitKindEintrag:
+      allOf:
+        - $ref: "#/components/schemas/AnwesenheitReihen"
+        - type: object
+          required:
+            - id
+            - vorname
+            - nachname
+          properties:
+            id:
+              type: string
+              format: uuid
+            vorname:
+              type: string
+            nachname:
+              type: string
+    AnwesenheitLeitungEintrag:
+      allOf:
+        - $ref: "#/components/schemas/AnwesenheitReihen"
+        - type: object
+          required:
+            - id
+            - name
+            - rolle
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            rolle:
+              type: string
+              enum:
+                - leitung
+                - stufenleitung
+    AnwesenheitUebersicht:
+      type: object
+      required:
+        - stufe
+        - anlaesse
+        - zahlen
+        - naechster
+        - kinder
+        - leitende
+      properties:
+        stufe:
+          type: object
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        anlaesse:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnwesenheitAnlass"
+        zahlen:
+          type: object
+          required:
+            - kinder
+            - leitende
+          properties:
+            kinder:
+              $ref: "#/components/schemas/AnwesenheitQuote"
+            leitende:
+              $ref: "#/components/schemas/AnwesenheitQuote"
+        naechster:
+          description: Zusagen zum kommenden Anlass; `null`, wenn keiner ansteht.
+          oneOf:
+            - type: "null"
+            - type: object
+              required:
+                - programmId
+                - kinder
+                - leitende
+              properties:
+                programmId:
+                  type: string
+                  format: uuid
+                kinder:
+                  $ref: "#/components/schemas/TeilnahmenZahlen"
+                leitende:
+                  $ref: "#/components/schemas/TeilnahmenZahlen"
+        kinder:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnwesenheitKindEintrag"
+        leitende:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnwesenheitLeitungEintrag"
     TeilnahmenZahlen:
       type: object
       required:
@@ -4064,6 +4483,17 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Fehler"
+    AnwesenheitGeschlossen409:
+      description: |
+        Das Programm hat noch nicht begonnen oder liegt mehr als 14 Tage zurück. Die Anwesenheit lässt sich nicht
+        erfassen oder ändern. Der Fehlercode ist `ANWESENHEIT_GESCHLOSSEN`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+          example:
+            code: ANWESENHEIT_GESCHLOSSEN
+            message: Die Anwesenheit lässt sich erst nach Beginn des Programms und bis 14 Tage danach erfassen.
     ZuVieleAnfragen429:
       description: Zu viele Anfragen (code ZU_VIELE_ANFRAGEN)
       content:

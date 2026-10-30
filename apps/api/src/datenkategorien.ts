@@ -71,6 +71,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["App activity: Other actions"],
   },
+  anwesenheit: {
+    titel: "Anwesenheit",
+    zweck:
+      "Die Leitung hält fest, wer bei einem Programm da war, und sieht pro Stufe, wie oft jemand kam.",
+    frist: `Bis die Leitung den Eintrag, das Kind oder das Programm löscht. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["App activity: Other actions"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -246,6 +254,12 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   stufe: {
     abteilung: ["id", "abteilung_id", "name", "kuerzel", "reihenfolge"],
+  },
+  anwesenheit_kind: {
+    anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],
+  },
+  anwesenheit_leitung: {
+    anwesenheit: ["programm_id", "user_id", "da", "erfasst_von", "erfasst_am"],
   },
   teilnahme: {
     anmeldungen: [

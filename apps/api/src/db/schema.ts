@@ -343,6 +343,43 @@ export const leitungAnmeldung = pgTable(
   ],
 );
 
+// Was die Leitung nach dem Programm festhält; unabhängig von der Zusage der Eltern. Keine Zeile heisst «nicht erfasst»
+export const anwesenheitKind = pgTable(
+  "anwesenheit_kind",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    kindId: uuid("kind_id")
+      .notNull()
+      .references(() => kind.id, { onDelete: "cascade" }),
+    da: boolean("da").notNull(),
+    erfasstVon: uuid("erfasst_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erfasstAm: zeitpunkt("erfasst_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.programmId, t.kindId] })],
+);
+
+export const anwesenheitLeitung = pgTable(
+  "anwesenheit_leitung",
+  {
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    da: boolean("da").notNull(),
+    erfasstVon: uuid("erfasst_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erfasstAm: zeitpunkt("erfasst_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.programmId, t.userId] })],
+);
+
 // Mitgliedschaften stehen in keiner Tabelle; rechte.ts leitet sie aus Rollen und Kindern ab
 export const chat = pgTable(
   "chat",
