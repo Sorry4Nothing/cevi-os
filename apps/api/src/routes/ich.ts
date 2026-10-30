@@ -25,11 +25,22 @@ import type { Person } from "../rechte.js";
 const PRUEFDAUER_MS = 10_000;
 // 128 wie das Standard-Maximum von better-auth; die Länge ist keine Regel, sondern nur die Grenze der Eingabe
 const loeschenSchema = z.strictObject({ passwort: z.string().min(1).max(128) });
-// Mindestens ein Schalter: Ein leeres set() wirft in Drizzle («No values to set»)
-const pushSchema = z
-  .strictObject({ pushChat: z.boolean(), pushProgramme: z.boolean() })
+// Freiwillig, nur SL; leer oder null entfernt die Nummer. Nur Ziffern und die üblichen Trennzeichen, damit der Wert in «tel:» taugt
+const telefonSchema = z
+  .string()
+  .trim()
+  .transform((wert) => wert || null)
+  .refine((wert) => wert === null || /^\+?\d[\d ()/.-]{4,28}\d$/.test(wert))
+  .nullable();
+// Mindestens ein Feld: Ein leeres set() wirft in Drizzle («No values to set»)
+const profilSchema = z
+  .strictObject({
+    pushChat: z.boolean(),
+    pushProgramme: z.boolean(),
+    telefon: telefonSchema,
+  })
   .partial()
-  .refine((b) => b.pushChat !== undefined || b.pushProgramme !== undefined);
+  .refine((b) => Object.values(b).some((wert) => wert !== undefined));
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
 export function erstelleIchRouten({
@@ -125,13 +136,18 @@ export function erstelleIchRouten({
           );
         return c.body(null, 204);
       })
-      // Nur die eigenen Schalter; die Person kommt aus der Sitzung, nie aus dem Body
-      .patch("/", eingabe("json", pushSchema), async (c) => {
+      // Nur die eigenen Schalter und die eigene Nummer; die Person kommt aus der Sitzung, nie aus dem Body
+      .patch("/", eingabe("json", profilSchema), async (c) => {
         const person = c.get("person");
-        await db
-          .update(user)
-          .set(c.req.valid("json"))
-          .where(eq(user.id, person.id));
+        const daten = c.req.valid("json");
+        // Eine Nummer speichern nur SL; entfernen darf jede Person, auch eine, die die Rolle verloren hat
+        if (
+          daten.telefon &&
+          !person.rollen.some((r) => r.typ === "stufenleitung")
+        ) {
+          throw new HTTPException(403);
+        }
+        await db.update(user).set(daten).where(eq(user.id, person.id));
         return c.body(null, 204);
       })
       // Passwort wie bei der Anmeldung (Bremse #15); deleteUser von better-auth prüft es nur, wenn eines mitkommt, und braucht eine zweite Verbindung
