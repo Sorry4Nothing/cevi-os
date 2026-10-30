@@ -36,6 +36,9 @@ services:
     environment:
       DATABASE_URL: postgres://cevi_os_api:${API_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
       APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?fehlt in deploy/.env}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL:?fehlt in deploy/.env}
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
       PORT: "3000"
     # Für den Cache von tsx
