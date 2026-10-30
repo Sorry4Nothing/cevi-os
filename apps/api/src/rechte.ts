@@ -104,7 +104,7 @@ export const zweiterFaktorPflicht = createMiddleware<{
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
 // banned ist null-sicher geprüft; Deaktivieren setzt beide Felder, jedes allein beendet die Mitgliedschaft
-function aktivesKonto(abteilungId: string) {
+export function aktivesKonto(abteilungId: string) {
   return and(
     eq(user.abteilungId, abteilungId),
     isNull(user.deaktiviertAm),
