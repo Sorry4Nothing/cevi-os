@@ -249,7 +249,7 @@ export function stufenleitungDerStufen(
     .orderBy(user.name, user.id);
 }
 
-// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich). Ausgeblendete sieht nur, wer sie geschrieben hat; #53 ergänzt Blockieren hier, nicht in den Routen
+// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich). Ausgeblendete sieht nur, wer sie geschrieben hat
 export function sichtbareNachrichten(
   db: Db,
   person: Pick<Person, "id" | "abteilungId">,

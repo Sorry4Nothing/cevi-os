@@ -8,7 +8,6 @@ import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { ladeKonfiguration } from "./konfiguration.js";
-import { starteMeldungenAufraeumen } from "./meldungen.js";
 import { ladeSeiten } from "./seiten.js";
 
 // Ohne gültige Konfiguration endet der Prozess hier mit Status 1
@@ -38,4 +37,3 @@ starteKalenderSync(() =>
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );
-starteMeldungenAufraeumen(db);

@@ -441,7 +441,7 @@ export const meldung = pgTable(
     uniqueIndex("meldung_offen_pro_person")
       .on(t.nachrichtId, t.gemeldetVon)
       .where(sql`${t.erledigtAm} is null`),
-    // Die Kopie des Textes lebt höchstens bis zur Erledigung (Aufbewahrung); die Frist von 30 Tagen räumt meldung_textkopien_aufraeumen() ab
+    // Die Kopie des Textes lebt nur bis zur Erledigung der Meldung
     check(
       "meldung_kopie_nur_offen",
       sql`${t.erledigtAm} is null or ${t.textKopie} is null`,

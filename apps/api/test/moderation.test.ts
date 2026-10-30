@@ -15,7 +15,6 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { raeumeTextkopienAuf } from "../src/meldungen.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -550,33 +549,7 @@ describe("GET und PATCH /api/v1/admin/meldungen", () => {
   });
 });
 
-describe("Textkopien aufräumen", () => {
-  test("leert Kopien nach 30 Tagen, lässt jüngere und die Meldung selbst stehen", async () => {
-    const [sl, autorin] = await Promise.all([person("slA"), person("elternA")]);
-    const neu = (alterTage: number) =>
-      db
-        .insert(schema.meldung)
-        .values({
-          abteilungId: welt.testabteilungId,
-          textKopie: `Kopie ${alterTage}`,
-          autorId: autorin.id as string,
-          gemeldetVon: sl.id as string,
-          erstelltAm: new Date(Date.now() - alterTage * 86_400_000),
-        })
-        .returning({ id: schema.meldung.id });
-    const [[alt], [jung]] = await Promise.all([neu(31), neu(29)]);
-
-    expect(await raeumeTextkopienAuf(db)).toBeGreaterThanOrEqual(1);
-
-    const zeile = async (id: string) =>
-      (
-        await db.select().from(schema.meldung).where(eq(schema.meldung.id, id))
-      )[0];
-    expect((await zeile(alt.id)).textKopie).toBeNull();
-    expect((await zeile(jung.id)).textKopie).toBe("Kopie 29");
-    expect(await raeumeTextkopienAuf(db)).toBeGreaterThanOrEqual(0);
-  });
-
+describe("Textkopien", () => {
   test("eine erledigte Meldung mit Kopie ist für die Datenbank unzulässig", async () => {
     const sl = await person("slA");
     await expect(

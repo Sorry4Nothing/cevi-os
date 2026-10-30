@@ -71,6 +71,13 @@
       "when": 1793297214788,
       "tag": "0009_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793361329574,
+      "tag": "0010_fristen_entfernen",
+      "breakpoints": true
     }
   ]
 }
