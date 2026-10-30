@@ -17,7 +17,6 @@ import { HTTPException } from "hono/http-exception";
 import type { erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import {
-  blockierung,
   chat,
   kind,
   kindEltern,
@@ -250,7 +249,7 @@ export function stufenleitungDerStufen(
     .orderBy(user.name, user.id);
 }
 
-// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich). Ausgeblendete sieht nur, wer sie geschrieben hat. Blockierte Eltern fehlen für die blockierende Person (#53); eine SL der Stufe bleibt sichtbar, auch wenn sie nach der Blockierung SL wurde
+// Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich). Ausgeblendete sieht nur, wer sie geschrieben hat; #53 ergänzt Blockieren hier, nicht in den Routen
 export function sichtbareNachrichten(
   db: Db,
   person: Pick<Person, "id" | "abteilungId">,
@@ -268,7 +267,6 @@ export function sichtbareNachrichten(
       ausgeblendetAm: nachricht.ausgeblendetAm,
     })
     .from(nachricht)
-    .innerJoin(chat, eq(chat.id, nachricht.chatId))
     .innerJoin(
       mitglieder,
       and(
@@ -283,31 +281,6 @@ export function sichtbareNachrichten(
           gte(nachricht.erstelltAm, mitglieder.sichtAb),
         ),
         or(isNull(nachricht.ausgeblendetAm), eq(nachricht.autorId, person.id)),
-        or(
-          notExists(
-            db
-              .select({ eins: sql`1` })
-              .from(blockierung)
-              .where(
-                and(
-                  eq(blockierung.userId, person.id),
-                  eq(blockierung.blockiertId, nachricht.autorId),
-                ),
-              ),
-          ),
-          exists(
-            db
-              .select({ eins: sql`1` })
-              .from(rolle)
-              .where(
-                and(
-                  eq(rolle.userId, nachricht.autorId),
-                  eq(rolle.stufeId, chat.stufeId),
-                  eq(rolle.typ, "stufenleitung"),
-                ),
-              ),
-          ),
-        ),
       ),
     )
     .as("sichtbare_nachrichten");
