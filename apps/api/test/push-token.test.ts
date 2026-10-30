@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
@@ -30,7 +29,6 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 
@@ -40,7 +38,8 @@ beforeAll(async () => {
 });
 afterAll(() => sql.end());
 
-const token = () => `ExpoPushToken[${randomUUID()}]`;
+// Form eines FCM-Registrierungstokens: Instanz-ID, Doppelpunkt, langer Rest
+const token = () => `${randomUUID().replace(/-/g, "")}:APA91b${randomUUID()}`;
 
 function melden(konto: PersonaKonto, body: unknown) {
   return app.request("/api/v1/push-token", {
@@ -126,6 +125,31 @@ test("dasselbe Token aus der Sitzung einer anderen Person zieht um (geteiltes Ha
   ).toEqual([{ user_id: nachher.id }]);
 });
 
+test("ein FCM-Token wird gespeichert, die Expo-Form und Unbrauchbares geben 400", async () => {
+  const konto = await legePersonaAn(welt, "elternA");
+  const gueltig = token();
+  expect(
+    (await melden(konto, { token: gueltig, plattform: "android" })).status,
+  ).toBe(204);
+  expect((await zeilen(konto.id)).map((z) => z.token)).toEqual([gueltig]);
+
+  for (const schlecht of [
+    `ExponentPushToken[${randomUUID()}]`,
+    `ExpoPushToken[${randomUUID()}]`,
+    "",
+    "zu-kurz",
+    `${gueltig} mit Leerzeichen`,
+    `${gueltig}\n`,
+    "x".repeat(513),
+  ]) {
+    expect(
+      (await melden(konto, { token: schlecht, plattform: "ios" })).status,
+      schlecht.slice(0, 30),
+    ).toBe(400);
+  }
+  expect((await zeilen(konto.id)).map((z) => z.token)).toEqual([gueltig]);
+});
+
 test("überzählige Felder, falsche Token-Form, fremde Plattform und leerer Body geben 400", async () => {
   const konto = await legePersonaAn(welt, "elternA");
   const gueltig = { token: token(), plattform: "ios" };
@@ -133,7 +157,7 @@ test("überzählige Felder, falsche Token-Form, fremde Plattform und leerer Body
   for (const body of [
     { ...gueltig, userId: konto.id },
     { ...gueltig, sessionId: randomUUID() },
-    { ...gueltig, token: "kein-expo-token" },
+    { ...gueltig, token: "kein token" },
     { ...gueltig, plattform: "web" },
   ]) {
     expect((await melden(konto, body)).status, JSON.stringify(body)).toBe(400);

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { gunzipSync } from "node:zlib";
 import { inArray } from "drizzle-orm";
-import { Expo, type ExpoPushMessage } from "expo-server-sdk";
+import type { TokenMessage } from "firebase-admin/messaging";
 import postgres from "postgres";
 import {
   afterAll,
@@ -15,46 +14,39 @@ import {
 } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { sendePush } from "../src/push.js";
+import { sendePush, type Fcm } from "../src/push.js";
+import { fcmNachricht } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
-const SENDEN = "https://exp.host/--/api/v2/push/send";
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
-const expo = new Expo({ accessToken: "test-zugang" });
 const { pushToken } = schema;
 
-type Anfrage = { authorization: string | null; nachrichten: ExpoPushMessage[] };
-let anfragen: Anfrage[];
-// Antwort pro Anfrage; die Anfrage steht schon in `anfragen`
-let antwort: (nachrichten: ExpoPushMessage[]) => Response;
-let ticketFuer: Record<string, object>;
+// Eine Attrappe statt firebase-admin: Kein Netz, keine Schlüssel
+let aufrufe: TokenMessage[][];
+let codes: Record<string, string>;
+let wirft: (aufruf: number) => unknown;
+const fcm: Fcm = {
+  async sendEach(nachrichten) {
+    aufrufe.push(nachrichten);
+    const fehler = wirft(aufrufe.length);
+    if (fehler) throw fehler;
+    return {
+      responses: nachrichten.map(({ token }) =>
+        codes[token]
+          ? { success: false, error: { code: codes[token] } }
+          : { success: true },
+      ),
+    };
+  },
+};
 let logZeilen: Record<string, unknown>[];
-
-const json = (daten: unknown, status = 200) =>
-  new Response(JSON.stringify(daten), {
-    status,
-    headers: { "content-type": "application/json" },
-  });
 
 let max: string;
 let erika: string;
 let sitzungen: string[];
 
 beforeAll(async () => {
-  vi.stubGlobal("fetch", async (url: string | URL, init: RequestInit) => {
-    if (String(url) !== SENDEN) throw new Error(`Kein Netz im Test: ${url}`);
-    const kopf = new Headers(init.headers);
-    // Das SDK komprimiert JSON über 1024 Zeichen
-    const koerper =
-      kopf.get("content-encoding") === "gzip"
-        ? gunzipSync(init.body as Buffer)
-        : (init.body as string);
-    const nachrichten = JSON.parse(String(koerper)) as ExpoPushMessage[];
-    anfragen.push({ authorization: kopf.get("authorization"), nachrichten });
-    return antwort(nachrichten);
-  });
-
   const [abteilung] = await db
     .insert(schema.abteilung)
     .values({ name: "Push-Test" })
@@ -73,15 +65,15 @@ beforeAll(async () => {
   erika = personen[1]!.id;
   const jetzt = new Date();
   const ablauf = new Date(jetzt.getTime() + 3_600_000);
-  // Eine Sitzung pro Token: 201 für Max, eine für Erika
+  // Eine Sitzung pro Token: 501 für Max, eine für Erika
   const zeilen = await db
     .insert(schema.session)
     .values(
-      Array.from({ length: 202 }, (_, i) => ({
+      Array.from({ length: 502 }, (_, i) => ({
         token: randomUUID(),
         expiresAt: ablauf,
         updatedAt: jetzt,
-        userId: i < 201 ? max : erika,
+        userId: i < 501 ? max : erika,
       })),
     )
     .returning({ id: schema.session.id });
@@ -89,14 +81,9 @@ beforeAll(async () => {
 });
 
 beforeEach(() => {
-  anfragen = [];
-  ticketFuer = {};
-  antwort = (nachrichten) =>
-    json({
-      data: nachrichten.map(
-        (n) => ticketFuer[String(n.to)] ?? { status: "ok", id: randomUUID() },
-      ),
-    });
+  aufrufe = [];
+  codes = {};
+  wirft = () => undefined;
   logZeilen = [];
   vi.spyOn(console, "log").mockImplementation((zeile: string) => {
     const eintrag = JSON.parse(zeile) as Record<string, unknown>;
@@ -110,7 +97,6 @@ afterEach(async () => {
 });
 
 afterAll(async () => {
-  vi.unstubAllGlobals();
   await db.delete(schema.user).where(inArray(schema.user.id, [max, erika]));
   await sql.end();
 });
@@ -118,8 +104,8 @@ afterAll(async () => {
 // Max' Sitzungen der Reihe nach; Erikas steht als letzte
 async function legeTokens(anzahl: number, userId = max) {
   const zeilen = Array.from({ length: anzahl }, (_, i) => ({
-    sessionId: userId === max ? sitzungen[i]! : sitzungen[201]!,
-    token: `ExponentPushToken[test-${randomUUID()}]`,
+    sessionId: userId === max ? sitzungen[i]! : sitzungen[501]!,
+    token: `fcm-test-${randomUUID()}`,
     userId,
     plattform: "ios" as const,
   }));
@@ -136,152 +122,152 @@ const vorhanden = async (tokens: string[]) =>
   ).map((z) => z.token);
 
 const PUSH = { typ: "chat", id: "chat-1", titel: "Neue Nachricht" } as const;
+const alleTokens = () => aufrufe.flat().map((n) => n.token);
 
-test("201 Tokens gehen in Chunks zu 100, 100 und 1, jedes Token einmal und mit Access Token", async () => {
-  const tokens = await legeTokens(201);
-  await sendePush({ db, expo }, [max], PUSH);
-  expect(anfragen.map((a) => a.nachrichten.length)).toEqual([100, 100, 1]);
-  expect(
-    anfragen.flatMap((a) => a.nachrichten.map((n) => n.to)).sort(),
-  ).toEqual([...tokens].sort());
-  expect(anfragen.map((a) => a.authorization)).toEqual(
-    Array(3).fill("Bearer test-zugang"),
-  );
+test("501 Tokens gehen in Blöcken zu 500 und 1, jedes Token einmal", async () => {
+  const tokens = await legeTokens(501);
+  await sendePush({ db, fcm }, [max], PUSH);
+  expect(aufrufe.map((a) => a.length)).toEqual([500, 1]);
+  expect(alleTokens().sort()).toEqual([...tokens].sort());
   expect(logZeilen).toEqual([]);
 });
 
-test("nur DeviceNotRegistered löscht das Token; jedes Fehlerticket wird ohne Token geloggt", async () => {
-  const [ok, tot, limit] = await legeTokens(3);
-  ticketFuer = {
-    [tot!]: {
-      status: "error",
-      message: `"${tot}" is not a registered push notification recipient`,
-      details: { error: "DeviceNotRegistered", expoPushToken: tot },
-    },
-    [limit!]: {
-      status: "error",
-      message: `Zu viele Pushes an ${limit}`,
-      details: { error: "MessageRateExceeded", expoPushToken: limit },
-    },
+test("scheitert der erste Block, geht der zweite trotzdem hinaus", async () => {
+  await legeTokens(501);
+  wirft = (aufruf) =>
+    aufruf === 1
+      ? Object.assign(new Error("Netz"), { code: "app/network-error" })
+      : undefined;
+  await sendePush({ db, fcm }, [max], PUSH);
+  expect(aufrufe.map((a) => a.length)).toEqual([500, 1]);
+  expect(logZeilen).toEqual([
+    expect.objectContaining({ ereignis: "push", code: "app/network-error" }),
+  ]);
+});
+
+test("nur die Codes für ein ungültiges Token löschen es; jeder Fehler wird ohne Token geloggt", async () => {
+  const [ok, tot, ungueltig, limit] = await legeTokens(4);
+  codes = {
+    [tot!]: "messaging/registration-token-not-registered",
+    [ungueltig!]: "messaging/invalid-registration-token",
+    [limit!]: "messaging/message-rate-exceeded",
   };
-  await sendePush({ db, expo }, [max], PUSH);
-  expect((await vorhanden([ok!, tot!, limit!])).sort()).toEqual(
+  await sendePush({ db, fcm }, [max], PUSH);
+  expect((await vorhanden([ok!, tot!, ungueltig!, limit!])).sort()).toEqual(
     [ok!, limit!].sort(),
   );
   expect(logZeilen.map((z) => z.code).sort()).toEqual([
-    "DeviceNotRegistered",
-    "MessageRateExceeded",
+    "messaging/invalid-registration-token",
+    "messaging/message-rate-exceeded",
+    "messaging/registration-token-not-registered",
   ]);
   const zeilen = JSON.stringify(logZeilen);
-  for (const token of [ok!, tot!, limit!]) expect(zeilen).not.toContain(token);
+  for (const token of [ok!, tot!, ungueltig!, limit!])
+    expect(zeilen).not.toContain(token);
 });
 
 describe("Inhalt", () => {
   test("genau Titel, Typ und ID, Kanal und Ton; keine Personendaten", async () => {
     const [chat] = await legeTokens(1);
-    await sendePush({ db, expo }, [max], {
+    await sendePush({ db, fcm }, [max], {
       typ: "chat",
       id: "chat-1",
       titel: "Neue Nachricht im Chat Jungschi",
     });
-    await sendePush({ db, expo }, [max], {
+    await sendePush({ db, fcm }, [max], {
       typ: "programm",
       id: "programm-1",
       titel: "Waldtag am Sa 31.10. wurde verschoben",
     });
-    expect(anfragen.flatMap((a) => a.nachrichten)).toEqual([
-      {
-        to: chat,
-        title: "Neue Nachricht im Chat Jungschi",
-        data: { typ: "chat", id: "chat-1" },
-        channelId: "chat",
-        sound: "default",
-      },
-      {
-        to: chat,
-        title: "Waldtag am Sa 31.10. wurde verschoben",
-        data: { typ: "programm", id: "programm-1" },
-        channelId: "programme",
-        sound: "default",
-      },
+    await sendePush({ db, fcm }, [max], {
+      typ: "person",
+      id: "person-1",
+      titel: "Neues Startpasswort",
+    });
+    expect(aufrufe.flat()).toStrictEqual([
+      fcmNachricht(
+        chat!,
+        "Neue Nachricht im Chat Jungschi",
+        { typ: "chat", id: "chat-1" },
+        "chat",
+      ),
+      fcmNachricht(
+        chat!,
+        "Waldtag am Sa 31.10. wurde verschoben",
+        { typ: "programm", id: "programm-1" },
+        "programme",
+      ),
+      fcmNachricht(chat!, "Neues Startpasswort", {
+        typ: "person",
+        id: "person-1",
+      }),
     ]);
     // Namen und E-Mail-Adressen der Personen stehen in den Zeilen, aber in keiner Anfrage
-    const anfrage = JSON.stringify(anfragen);
+    const anfrage = JSON.stringify(aufrufe);
     for (const geheim of ["Muster", "Beispiel", "example.org", max, erika])
       expect(anfrage).not.toContain(geheim);
   });
 
-  test("ein zusätzliches Feld im Push erreicht Expo nicht", async () => {
+  test("ein zusätzliches Feld im Push erreicht FCM nicht", async () => {
     await legeTokens(1);
-    await sendePush({ db, expo }, [max], {
+    await sendePush({ db, fcm }, [max], {
       ...PUSH,
       // @ts-expect-error Push hat kein Textfeld
       text: "Geheimer Nachrichtentext",
       daten: { kind: "Kindername" },
     });
-    const [nachricht] = anfragen[0]!.nachrichten;
+    const [nachricht] = aufrufe[0]!;
     expect(Object.keys(nachricht!).sort()).toEqual([
-      "channelId",
+      "android",
+      "apns",
       "data",
-      "sound",
-      "title",
-      "to",
+      "notification",
+      "token",
     ]);
+    expect(nachricht!.notification).toEqual({ title: "Neue Nachricht" });
     expect(nachricht!.data).toEqual({ typ: "chat", id: "chat-1" });
-    expect(JSON.stringify(anfragen)).not.toMatch(/Geheimer|Kindername/);
+    expect(JSON.stringify(aufrufe)).not.toMatch(/Geheimer|Kindername/);
   });
 });
 
 test("ohne Token der Empfänger geht keine Anfrage hinaus", async () => {
   await legeTokens(1, erika);
-  await sendePush({ db, expo }, [], PUSH);
+  await sendePush({ db, fcm }, [], PUSH);
   // Max hat kein Token; Erikas Token gehört nicht zu den Empfängern
-  await sendePush({ db, expo }, [max], PUSH);
-  expect(anfragen).toEqual([]);
+  await sendePush({ db, fcm }, [max], PUSH);
+  expect(aufrufe).toEqual([]);
 });
 
-test("Expo antwortet 401: Die Funktion kehrt zurück, loggt den Code und lässt die Token stehen", async () => {
+test("ohne Fcm (kein Schlüssel) geht nichts hinaus und die Token bleiben", async () => {
   const tokens = await legeTokens(2);
-  antwort = () =>
-    json(
-      {
-        errors: [
-          { code: "UNAUTHORIZED", message: `Kein Zugriff ${tokens[0]}` },
-        ],
-      },
-      401,
-    );
-  await sendePush({ db, expo }, [max], PUSH);
+  await sendePush({ db }, [max], PUSH);
+  expect(aufrufe).toEqual([]);
+  expect(logZeilen).toEqual([]);
+  expect((await vorhanden(tokens)).sort()).toEqual([...tokens].sort());
+});
+
+test("FCM wirft: Die Funktion kehrt zurück, loggt den Code und lässt die Token stehen", async () => {
+  const tokens = await legeTokens(2);
+  wirft = () =>
+    Object.assign(new Error(`Kein Zugriff ${tokens[0]}`), {
+      code: "app/invalid-credential",
+    });
+  await sendePush({ db, fcm }, [max], PUSH);
   expect(logZeilen).toEqual([
     expect.objectContaining({
       ereignis: "push",
-      code: "UNAUTHORIZED",
-      status: 401,
+      code: "app/invalid-credential",
     }),
   ]);
   expect(JSON.stringify(logZeilen)).not.toContain(tokens[0]);
   expect((await vorhanden(tokens)).sort()).toEqual([...tokens].sort());
 });
 
-test("scheitert der erste Chunk, geht der zweite trotzdem hinaus", async () => {
-  await legeTokens(101);
-  const ersteAntwort = antwort;
-  antwort = (nachrichten) => {
-    if (anfragen.length > 1) return ersteAntwort(nachrichten);
-    throw new TypeError("fetch failed", { cause: { code: "ECONNRESET" } });
-  };
-  await sendePush({ db, expo }, [max], PUSH);
-  expect(anfragen.map((a) => a.nachrichten.length).sort()).toEqual([1, 100]);
-  expect(logZeilen).toEqual([
-    expect.objectContaining({ ereignis: "push", code: "ECONNRESET" }),
-  ]);
-});
-
 test("beendete Datenbankverbindung: Die Funktion kehrt zurück, ohne Anfrage und mit einer Logzeile", async () => {
   const beendet = postgres(API_URL);
   await beendet.end();
-  await sendePush({ db: erstelleDb(beendet), expo }, [max], PUSH);
-  expect(anfragen).toEqual([]);
+  await sendePush({ db: erstelleDb(beendet), fcm }, [max], PUSH);
+  expect(aufrufe).toEqual([]);
   expect(logZeilen).toEqual([
     expect.objectContaining({ ereignis: "push", code: "CONNECTION_ENDED" }),
   ]);

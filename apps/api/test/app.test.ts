@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { readFileSync } from "node:fs";
 import { HTTPException } from "hono/http-exception";
 import { testClient } from "hono/testing";
@@ -40,7 +39,6 @@ const app = () =>
     sql,
     db,
     auth,
-    expo: new Expo({ accessToken: "test-zugang" }),
     seiten: ladeSeiten(),
   })
     .post("/api/test/:token", async (c) => c.json(await c.req.json()))
@@ -144,7 +142,6 @@ describe("/health", () => {
         sql: tot,
         db,
         auth,
-        expo: new Expo({ accessToken: "test-zugang" }),
         seiten: ladeSeiten(),
       }),
     ).health.$get(undefined, { headers: KOPFZEILEN });

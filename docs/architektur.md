@@ -1,6 +1,6 @@
 # Architektur
 
-Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und Datenbank. Die Programme kommen aus dem Google-Kalender der Abteilung, die Pushes laufen über Expo. Dieses Dokument beschreibt den Aufbau von Version 1.
+Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und Datenbank. Die Programme kommen aus dem Google-Kalender der Abteilung, die Pushes laufen über Firebase Cloud Messaging (FCM). Dieses Dokument beschreibt den Aufbau von Version 1.
 
 ## Teile
 
@@ -39,28 +39,29 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 - Die ID des Kalenders steht nur in der Datenbank.
 - Nur lesen kann der Service-Account, weil der Kalender für ihn nur mit der Freigabe «Alle Termindetails sehen» geteilt ist. Der Scope allein verhindert das Schreiben nicht: Wer den Schlüssel hat, wählt den Scope selbst (Bedrohung 13 im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md)).
 
-### Push über Expo
+### Push über FCM
 
-- Die App holt ihr Push-Token bei Expo und registriert es bei der API.
-- Die API schickt Pushes mit expo-server-sdk an den Expo Push Service. Er stellt sie über APNs (Apple) und FCM (Google) zu.
+- Die App holt ihr FCM-Registrierungstoken bei Firebase und registriert es bei der API.
+- Die API schickt Pushes mit firebase-admin direkt an FCM (HTTP v1). FCM stellt sie über APNs (Apple) und an Android-Geräte zu.
+- Meldet FCM ein Token als nicht mehr registriert, löscht die API es. Ohne Schlüsseldatei des Dienstkontos (`FCM_SCHLUESSEL_DATEI`) startet die API und sendet keine Pushes.
 - Pushes enthalten nie Nachrichtentext und nie Namen von Kindern.
 
 ## Wer spricht mit wem
 
-| Von               | Zu                                  | Weg                                | Wozu                                                                                                          |
-| ----------------- | ----------------------------------- | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| App               | Caddy                               | HTTPS                              | Login, Programme, Anmeldungen, Chat, Push-Token registrieren                                                  |
-| Browser           | Caddy                               | HTTPS                              | Seiten `/datenschutz`, `/konto-loeschen`, `/support` und die Verwaltung `/admin`                              |
-| Uptime-Dienst     | Caddy                               | HTTPS                              | `/health` abfragen, Alarm bei Fehler                                                                          |
-| Caddy             | API                                 | internes Netz des Servers          | Anfragen weiterleiten                                                                                         |
-| Caddy             | Zertifizierungsstelle               | HTTPS (ACME)                       | Zertifikate holen und erneuern                                                                                |
-| API               | PostgreSQL                          | internes Netz, eigene Rolle        | Daten lesen und schreiben                                                                                     |
-| Migrationen       | PostgreSQL                          | Besitzerrolle der Datenbank        | Tabellen anlegen und umbauen                                                                                  |
-| Backup (restic)   | S3-Speicher in der Schweiz          | HTTPS                              | Verschlüsselte Backups ablegen, täglich und vor jedem Deploy                                                  |
-| API               | Google Calendar API                 | HTTPS, Service-Account             | Termine lesen, alle 5 Minuten                                                                                 |
-| API               | Pwned Passwords (Have I Been Pwned) | HTTPS                              | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
-| App               | Expo                                | HTTPS                              | Push-Token holen                                                                                              |
-| API               | Expo Push Service                   | HTTPS, expo-server-sdk             | Pushes senden                                                                                                 |
-| Expo Push Service | Gerät                               | über APNs (Apple) und FCM (Google) | Pushes zustellen                                                                                              |
+| Von             | Zu                                  | Weg                          | Wozu                                                                                                          |
+| --------------- | ----------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| App             | Caddy                               | HTTPS                        | Login, Programme, Anmeldungen, Chat, Push-Token registrieren                                                  |
+| Browser         | Caddy                               | HTTPS                        | Seiten `/datenschutz`, `/konto-loeschen`, `/support` und die Verwaltung `/admin`                              |
+| Uptime-Dienst   | Caddy                               | HTTPS                        | `/health` abfragen, Alarm bei Fehler                                                                          |
+| Caddy           | API                                 | internes Netz des Servers    | Anfragen weiterleiten                                                                                         |
+| Caddy           | Zertifizierungsstelle               | HTTPS (ACME)                 | Zertifikate holen und erneuern                                                                                |
+| API             | PostgreSQL                          | internes Netz, eigene Rolle  | Daten lesen und schreiben                                                                                     |
+| Migrationen     | PostgreSQL                          | Besitzerrolle der Datenbank  | Tabellen anlegen und umbauen                                                                                  |
+| Backup (restic) | S3-Speicher in der Schweiz          | HTTPS                        | Verschlüsselte Backups ablegen, täglich und vor jedem Deploy                                                  |
+| API             | Google Calendar API                 | HTTPS, Service-Account       | Termine lesen, alle 5 Minuten                                                                                 |
+| API             | Pwned Passwords (Have I Been Pwned) | HTTPS                        | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
+| App             | Firebase (FCM)                      | HTTPS                        | Push-Token holen                                                                                              |
+| API             | FCM                                 | HTTPS, firebase-admin        | Pushes senden                                                                                                 |
+| FCM             | Gerät                               | über APNs (Apple) und Google | Pushes zustellen                                                                                              |
 
 Wie Cevi OS die Daten schützt und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).

@@ -1,8 +1,7 @@
-import { createHash, randomUUID } from "node:crypto";
-import { gunzipSync } from "node:zlib";
+import { createHash } from "node:crypto";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import type { ExpoPushMessage } from "expo-server-sdk";
+import type { TokenMessage } from "firebase-admin/messaging";
 import { afterEach, expect, vi } from "vitest";
 import { erstelleAuth } from "../../src/auth.js";
 import type { Db } from "../../src/db/client.js";
@@ -13,48 +12,49 @@ export const APP = "testapp://";
 export const PASSWORT = "nur-fuer-tests-1";
 export const GELEAKT = "nur-fuer-tests-geleakt";
 
-const EXPO_SENDEN = "https://exp.host/--/api/v2/push/send";
-
 // Im Modul-Scope aufrufen, vor dem Bau der Auth-Instanz: better-auth liest beide Umgebungsvariablen beim Erstellen, Vitest friert die Zeitgrenze beim Definieren eines Tests ein, und vi.setConfig gilt nur für die eigene Datei
-// Gibt die Expo-Attrappe zurück: Die Push-Tests lesen `nachrichten` und schalten `ausfall` ein, alle anderen Dateien ignorieren sie
+// Gibt die FCM-Attrappe zurück: Die Push-Tests übergeben sie als `fcm`, lesen `nachrichten` und schalten `ausfall` ein, alle anderen Dateien ignorieren sie
 export function bereiteAuthTestsVor() {
   // Jedes Passwort, das better-auth prüft oder speichert, rechnet scrypt mit 32 MiB; auf einem ausgelasteten Rechner wurden bis 19 s pro Test gemessen, ein Vielfaches der 5 s von Vitest. hookTimeout gleich: beforeAll der Rechte-Tests legt 14 Personas an
   vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
   vi.stubEnv("BETTER_AUTH_URL", "https://cevi-os.invalid");
   vi.stubEnv("BETTER_AUTH_TRUSTED_ORIGINS", APP);
 
-  // Kein Netz im Test: HIBP und Expo antworten aus dieser Attrappe, jeder andere Zugriff lässt den Test scheitern
+  // Kein Netz im Test: HIBP antwortet aus dieser Attrappe, jeder andere Zugriff lässt den Test scheitern
   const fremdeZugriffe: string[] = [];
   const sha1 = (text: string) =>
     createHash("sha1").update(text).digest("hex").toUpperCase();
-  const expo = {
-    nachrichten: [] as ExpoPushMessage[],
+  const fcm = {
+    nachrichten: [] as TokenMessage[],
     ausfall: false,
+    // Die Tokens, die FCM als nicht registriert meldet
+    abgemeldet: new Set<string>(),
     zuruecksetzen() {
       this.nachrichten.length = 0;
       this.ausfall = false;
+      this.abgemeldet.clear();
+    },
+    async sendEach(nachrichten: TokenMessage[]) {
+      this.nachrichten.push(...nachrichten);
+      if (this.ausfall)
+        throw Object.assign(new Error("Fehler"), {
+          code: "messaging/internal-error",
+        });
+      return {
+        responses: nachrichten.map(({ token }) =>
+          this.abgemeldet.has(token)
+            ? {
+                success: false,
+                error: { code: "messaging/registration-token-not-registered" },
+              }
+            : { success: true },
+        ),
+      };
     },
   };
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (url: string | URL, init?: RequestInit) => {
-      if (String(url) === EXPO_SENDEN) {
-        // Das SDK komprimiert JSON über 1024 Zeichen
-        const kopf = new Headers(init?.headers);
-        const koerper =
-          kopf.get("content-encoding") === "gzip"
-            ? gunzipSync(init?.body as Buffer)
-            : (init?.body as string);
-        const nachrichten = JSON.parse(String(koerper)) as ExpoPushMessage[];
-        expo.nachrichten.push(...nachrichten);
-        if (expo.ausfall) return new Response("Fehler", { status: 500 });
-        return new Response(
-          JSON.stringify({
-            data: nachrichten.map(() => ({ status: "ok", id: randomUUID() })),
-          }),
-          { headers: { "content-type": "application/json" } },
-        );
-      }
+    vi.fn(async (url: string | URL) => {
       const praefix =
         /^https:\/\/api\.pwnedpasswords\.com\/range\/([0-9A-F]{5})$/.exec(
           String(url),
@@ -71,7 +71,7 @@ export function bereiteAuthTestsVor() {
     }),
   );
   afterEach(() => expect(fremdeZugriffe.splice(0)).toEqual([]));
-  return expo;
+  return fcm;
 }
 
 // Eigene IP pro Persona oder Anfrage, damit die Testdateien eines Laufs sich kein Rate-Limit-Budget teilen (ohne Header zählen alle als 127.0.0.1). RFC-3849-Dokumentationsnetz, schon in better-auths normalisierter /64-Form: Der Schlüssel in rate_limit ist `${ip}|${pfad}`
@@ -110,3 +110,20 @@ export function geschlossenePfade(offen: readonly string[]) {
     .flatMap((pfad) => [`GET /api/auth${pfad}`, `POST /api/auth${pfad}`])
     .filter((eintrag) => !offen.includes(eintrag));
 }
+
+// So sieht der Push aus, den sendePush an FCM gibt; kanal fehlt bei «person»
+export const fcmNachricht = (
+  token: string,
+  title: string,
+  data: { typ: string; id: string },
+  channelId?: string,
+): TokenMessage => ({
+  token,
+  notification: { title },
+  data,
+  android: {
+    priority: "high",
+    notification: { sound: "default", ...(channelId && { channelId }) },
+  },
+  apns: { payload: { aps: { sound: "default" } } },
+});

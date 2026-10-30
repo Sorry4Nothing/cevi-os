@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import postgres from "postgres";
 import {
   afterAll,
@@ -37,7 +36,6 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());

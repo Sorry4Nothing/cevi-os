@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
@@ -427,7 +426,6 @@ describe("Fremde Chats liefern per ID 404", () => {
     sql,
     db,
     auth,
-    expo: new Expo({ accessToken: "test-zugang" }),
     seiten: ladeSeiten(),
   }).get(
     "/api/v1/test/chats/:id",

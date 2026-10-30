@@ -6,9 +6,8 @@ import { pushToken } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
 
-// Genau die Formen, die Expo.isExpoPushToken (expo-server-sdk 8.0.0) annimmt: Präfix-Form mit festem Gross-Klein oder UUID in beliebigem
-const TOKEN_MUSTER =
-  /^(?:(?:Expo|Exponent)PushToken\[[\s\S]*\]|[a-zA-Z\d]{8}-[a-zA-Z\d]{4}-[a-zA-Z\d]{4}-[a-zA-Z\d]{4}-[a-zA-Z\d]{12})$/;
+// FCM-Registrierungstoken: Buchstaben, Ziffern und _ : . - ohne Klammern, darum fällt die Form «ExponentPushToken[…]» durch
+const TOKEN_MUSTER = /^[\w:.-]{20,512}$/;
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
 export function erstellePushTokenRouten({ db }: { db: Db }) {
@@ -19,7 +18,7 @@ export function erstellePushTokenRouten({ db }: { db: Db }) {
     eingabe(
       "json",
       z.strictObject({
-        token: z.string().max(200).regex(TOKEN_MUSTER),
+        token: z.string().regex(TOKEN_MUSTER),
         plattform: z.enum(["ios", "android"]),
       }),
     ),

@@ -1,5 +1,5 @@
 import { inArray } from "drizzle-orm";
-import type { Expo, ExpoPushMessage } from "expo-server-sdk";
+import type { TokenMessage } from "firebase-admin/messaging";
 import type { Context } from "hono";
 import type { Db } from "./db/client.js";
 import { pushToken } from "./db/schema.js";
@@ -12,65 +12,82 @@ export type Push = {
   titel: string;
 };
 
+// Was sendePush vom Messaging-Dienst von firebase-admin braucht; im Test eine Attrappe
+export type Fcm = {
+  sendEach(nachrichten: TokenMessage[]): Promise<{
+    responses: { success: boolean; error?: { code?: string } }[];
+  }>;
+};
+
+// sendEach nimmt höchstens 500 Nachrichten
+const BLOCK = 500;
+
+// Diese Codes meldet FCM, wenn das Token nicht mehr gilt (App deinstalliert, Token erneuert)
+const ABGEMELDET = [
+  "messaging/registration-token-not-registered",
+  "messaging/invalid-registration-token",
+];
+
 // Kein Kanal für «person»: #42 legt nur chat und programme an, ein Kanal, den das Gerät nicht kennt, zeigt den Push nicht, und ein fremder schaltete ihn mit Chat oder Programm stumm
 const KANAL = { chat: "chat", programm: "programme", person: undefined };
 
-type Fehler = {
-  code?: unknown;
-  cause?: { code?: unknown };
-  details?: { error?: unknown };
-  statusCode?: unknown;
-};
+type Fehler = { code?: unknown; cause?: { code?: unknown } };
 
-const alsText = (wert: unknown) =>
-  typeof wert === "string" ? wert : undefined;
-
-// Nur Codes und Status: message, details und errorText enthalten das Token, Drizzles message die SQL-Parameter
+// Nur der Code: message enthält das Token, Drizzles message die SQL-Parameter
 function meldeFehler(c: Context | undefined, fehler: unknown) {
   const f = (fehler ?? {}) as Fehler;
+  const code = f.code ?? f.cause?.code;
   log(c, {
     ereignis: "push",
-    code: alsText(f.details?.error ?? f.code ?? f.cause?.code),
-    status: typeof f.statusCode === "number" ? f.statusCode : undefined,
+    code: typeof code === "string" ? code : undefined,
   });
 }
 
 // Wirft nie: Aufrufer pushen nach dem Speichern ihrer Änderung, ein Fehler hier darf sie nicht wiederholen lassen
+// Ohne Fcm (kein Schlüssel des Dienstkontos) geht nichts hinaus
 export async function sendePush(
-  { db, expo, c }: { db: Db; expo: Expo; c?: Context },
+  { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   empfaenger: string[],
   { typ, id, titel }: Push,
 ): Promise<void> {
-  let chunks: ExpoPushMessage[][];
+  if (!fcm) return;
+  const kanal = KANAL[typ];
+  let tokens: string[];
   try {
     const zeilen = await db
       .select({ token: pushToken.token })
       .from(pushToken)
       .where(inArray(pushToken.userId, empfaenger));
-    chunks = expo.chunkPushNotifications(
-      zeilen.map(({ token }) => ({
-        to: token,
-        title: titel,
-        data: { typ, id },
-        channelId: KANAL[typ],
-        sound: "default",
-      })),
-    );
+    tokens = zeilen.map(({ token }) => token);
   } catch (fehler) {
     meldeFehler(c, fehler);
     return;
   }
 
   const abgemeldet: string[] = [];
-  for (const chunk of chunks) {
+  for (let i = 0; i < tokens.length; i += BLOCK) {
+    const block = tokens.slice(i, i + BLOCK);
     try {
-      const tickets = await expo.sendPushNotificationsAsync(chunk);
-      tickets.forEach((ticket, i) => {
-        if (ticket.status !== "error") return;
-        meldeFehler(c, ticket);
-        // `to` ist hier immer ein String, also gehört Ticket i zu Nachricht i
-        if (ticket.details?.error === "DeviceNotRegistered")
-          abgemeldet.push(chunk[i]!.to as string);
+      const { responses } = await fcm.sendEach(
+        block.map((token): TokenMessage => ({
+          token,
+          notification: { title: titel },
+          data: { typ, id },
+          android: {
+            priority: "high",
+            notification: {
+              sound: "default",
+              ...(kanal && { channelId: kanal }),
+            },
+          },
+          apns: { payload: { aps: { sound: "default" } } },
+        })),
+      );
+      responses.forEach((antwort, j) => {
+        if (antwort.success) return;
+        meldeFehler(c, antwort.error);
+        if (ABGEMELDET.includes(antwort.error?.code ?? ""))
+          abgemeldet.push(block[j]!);
       });
     } catch (fehler) {
       meldeFehler(c, fehler);

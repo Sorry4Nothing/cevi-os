@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
@@ -43,7 +42,6 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -552,7 +550,7 @@ const MATRIX: Record<string, Zeile> = {
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
-      token: `ExpoPushToken[${konto.benutzername ?? "ohne-login"}]`,
+      token: `fcm-test-token-${konto.benutzername ?? "ohne-login"}`,
       plattform: "ios",
     }),
     erwartet: {
@@ -842,7 +840,6 @@ describe("Vollständigkeit", () => {
       sql,
       db,
       auth,
-      expo: new Expo({ accessToken: "test-zugang" }),
       seiten: ladeSeiten(),
     }).get("/api/v1/ohne-eintrag", (c) => c.text("nie"));
     expect(ohneZeile(mitExtra)).toEqual(["GET /api/v1/ohne-eintrag"]);

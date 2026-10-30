@@ -2,8 +2,6 @@ import { generateKeyPairSync, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { gunzipSync } from "node:zlib";
-import { Expo } from "expo-server-sdk";
 import postgres from "postgres";
 import {
   afterAll,
@@ -16,10 +14,10 @@ import {
   type MockInstance,
 } from "vitest";
 import { synchronisiere } from "../../src/kalender/sync.js";
+import type { Fcm } from "../../src/push.js";
 import { API_URL } from "../hilfen/datenbank.js";
 
 const JETZT = new Date();
-const expo = new Expo();
 const TOKEN = "zugangstoken-geheim-1";
 const BESCHREIBUNG =
   "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: Formular (https://example.org/anmeldung)";
@@ -215,7 +213,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -267,7 +265,7 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und Zu
   const starte = () =>
     synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     });
@@ -347,7 +345,7 @@ test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzi
 
   const laufA = synchronisiere({
     datenbankUrl: API_URL,
-    expo,
+    fcm,
     schluesselDatei,
     jetzt: JETZT,
   });
@@ -356,7 +354,7 @@ test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzi
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -378,7 +376,7 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -399,7 +397,7 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -430,7 +428,7 @@ test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel,
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -461,7 +459,7 @@ test("ohne Schlüsseldatei trägt jede Abteilung mit Kalender den Schlüsselfehl
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei: undefined,
       jetzt: JETZT,
     }),
@@ -480,7 +478,7 @@ test("mit zwei Seiten kommen die Termine beider Seiten an", async () => {
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      expo,
+      fcm,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -568,7 +566,7 @@ const MIT_ERGAENZUNG = [
 ];
 
 const starteSerie = (jetzt = JETZT_SERIE) =>
-  synchronisiere({ datenbankUrl: API_URL, expo, schluesselDatei, jetzt });
+  synchronisiere({ datenbankUrl: API_URL, fcm, schluesselDatei, jetzt });
 const schluessel = (z: Record<string, unknown>) => `${z.titel}|${z.beginn}`;
 const finde = async (titel: string, beginn: string) => {
   const zeile = (await programme()).find(
@@ -740,12 +738,29 @@ test("ein gescheiterter Lauf (HTTP 500) ändert keinen Status", async () => {
 });
 
 // Push bei Programmänderung (#44). Im selben File wie die Läufe oben: Jeder Lauf synchronisiert alle Abteilungen mit Kalender, zwei Dateien liefen sich in die Quere
-const SENDEN = "https://exp.host/--/api/v2/push/send";
 let stufeB: string;
 // Token → Name der Person; so zeigt ein Fehlschlag, wer den Push bekam
 let tokenZuName: Map<string, string>;
 let gesendet: { name: string; titel: string; daten: unknown }[];
-let expoAntwort: (anzahl: number) => Response;
+let fcmAusfall: boolean;
+
+// FCM als Attrappe: Jeder Push landet in `gesendet`, mit dem Namen der Person statt des Tokens
+const fcm: Fcm = {
+  async sendEach(nachrichten) {
+    if (fcmAusfall)
+      throw Object.assign(new Error("kaputt"), {
+        code: "messaging/internal-error",
+      });
+    for (const n of nachrichten) {
+      gesendet.push({
+        name: tokenZuName.get(n.token) ?? n.token,
+        titel: n.notification?.title ?? "",
+        daten: n.data,
+      });
+    }
+    return { responses: nachrichten.map(() => ({ success: true })) };
+  },
+};
 
 const TERMIN = {
   start: { dateTime: "2027-09-25T14:00:00+02:00" },
@@ -755,18 +770,12 @@ const TERMIN = {
 beforeEach(() => {
   tokenZuName = new Map();
   gesendet = [];
-  expoAntwort = (anzahl) =>
-    Response.json({
-      data: Array.from({ length: anzahl }, () => ({
-        status: "ok",
-        id: randomUUID(),
-      })),
-    });
+  fcmAusfall = false;
 });
 
-// Google und Expo als Attrappe; jede fremde URL wirft. Die Seite des Kalenders gilt für jeden Lauf
+// Google als Attrappe; jede fremde URL wirft. Die Seite des Kalenders gilt für jeden Lauf
 function stubNetz(seite: unknown) {
-  vi.stubGlobal("fetch", async (eingabe: unknown, init?: RequestInit) => {
+  vi.stubGlobal("fetch", async (eingabe: unknown) => {
     const url = new URL(String(eingabe));
     if (url.href === "https://oauth2.googleapis.com/token") {
       return Response.json({ access_token: "zugangstoken" });
@@ -776,27 +785,6 @@ function stubNetz(seite: unknown) {
       `/calendar/v3/calendars/${encodeURIComponent(kalenderId)}/events`
     ) {
       return Response.json(seite);
-    }
-    if (url.href === SENDEN) {
-      // Das SDK komprimiert JSON über 1024 Zeichen
-      const kopf = new Headers(init?.headers);
-      const koerper =
-        kopf.get("content-encoding") === "gzip"
-          ? gunzipSync(init?.body as Buffer)
-          : init?.body;
-      const nachrichten = JSON.parse(String(koerper)) as {
-        to: string;
-        title: string;
-        data: unknown;
-      }[];
-      for (const n of nachrichten) {
-        gesendet.push({
-          name: tokenZuName.get(n.to) ?? n.to,
-          titel: n.title,
-          daten: n.data,
-        });
-      }
-      return expoAntwort(nachrichten.length);
     }
     throw new Error(`unerwartete URL im Test: ${url.href}`);
   });
@@ -821,7 +809,7 @@ async function person(name: string, optionen: PersonOptionen = {}) {
     insert into session (token, expires_at, updated_at, user_id)
     values (${randomUUID()}, ${new Date(Date.now() + 3_600_000)}, now(), ${userId})
     returning id`;
-  const token = `ExponentPushToken[test-${randomUUID()}]`;
+  const token = `fcm-test-${randomUUID()}`;
   tokenZuName.set(token, name);
   await sql`
     insert into push_token (session_id, token, user_id, plattform)
@@ -881,7 +869,7 @@ const termin = (id: string, extra: Record<string, unknown> = {}) => ({
 const lauf = () =>
   synchronisiere({
     datenbankUrl: API_URL,
-    expo,
+    fcm,
     schluesselDatei,
     jetzt: JETZT,
   });
@@ -1080,7 +1068,7 @@ test("Ein bereits abgesagtes Programm, das unverändert zurückkehrt, pusht nich
 test("Fehler beim Versand: Der Sync ist trotzdem fertig, die Änderung gespeichert und nichts Vertrauliches im Log", async () => {
   await einrichten();
   await programm("waldtag-1");
-  expoAntwort = () => new Response("kaputt", { status: 500 });
+  fcmAusfall = true;
   stubNetz({ items: [termin("waldtag-1", { location: "Bahnhof" })] });
   expect(await lauf()).toBe("fertig");
 
@@ -1094,7 +1082,7 @@ test("Fehler beim Versand: Der Sync ist trotzdem fertig, die Änderung gespeiche
     )[0].google_ort,
   ).toBe("Bahnhof");
   for (const [zeile] of ausgabe.mock.calls as string[][]) {
-    expect(zeile).not.toContain("ExponentPushToken");
+    expect(zeile).not.toContain("fcm-test-");
     expect(zeile).not.toContain("Waldtag");
   }
 });

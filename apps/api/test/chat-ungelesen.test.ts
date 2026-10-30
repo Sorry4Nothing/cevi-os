@@ -1,4 +1,4 @@
-import { Expo, type ExpoPushMessage } from "expo-server-sdk";
+import type { TokenMessage } from "firebase-admin/messaging";
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
@@ -16,7 +16,11 @@ import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
-import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
+import {
+  bereiteAuthTestsVor,
+  erstelleTestAuth,
+  fcmNachricht,
+} from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
@@ -26,7 +30,7 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 
-const expoAttrappe = bereiteAuthTestsVor();
+const fcmAttrappe = bereiteAuthTestsVor();
 
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
@@ -36,7 +40,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
+  fcm: fcmAttrappe,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -52,7 +56,7 @@ afterEach(() => ausgabe.mockRestore());
 let welt: Welt;
 beforeEach(async () => {
   welt = await erstelleWelt(db, auth);
-  expoAttrappe.zuruecksetzen();
+  fcmAttrappe.zuruecksetzen();
 });
 
 const person = (persona: Persona) => legePersonaAn(welt, persona);
@@ -88,7 +92,7 @@ async function ungelesen(konto: PersonaKonto, chatId: string) {
 
 // Ein Token pro Konto, angemeldet über die Route wie in der App
 async function melde(konto: PersonaKonto) {
-  const token = `ExponentPushToken[test-${randomUUID()}]`;
+  const token = `fcm-test-${randomUUID()}`;
   const antwort = await aufruf(konto, "PUT", "/api/v1/push-token", {
     token,
     plattform: "android",
@@ -216,8 +220,8 @@ describe("PUT /api/v1/chats/:id/gelesen", () => {
 });
 
 describe("Chat-Push bei neuer Nachricht", () => {
-  const texte = (nachrichten: ExpoPushMessage[]) =>
-    nachrichten.map((n) => n.to).sort();
+  const texte = (nachrichten: TokenMessage[]) =>
+    nachrichten.map((n) => n.token).sort();
 
   test("geht an Mitglieder mit Chat-Push, ohne Nachrichtentext, nie an den Absender", async () => {
     const [eltern, zweite, sl, fremde, slB] = await Promise.all([
@@ -235,20 +239,19 @@ describe("Chat-Push bei neuer Nachricht", () => {
     const antwort = await sende(eltern, welt.gruppenchatAId, "Geheimer Text");
     expect(antwort.status).toBe(201);
 
-    expect(texte(expoAttrappe.nachrichten)).toEqual([tZweite, tSl].sort());
-    expect(expoAttrappe.nachrichten).toStrictEqual(
+    expect(texte(fcmAttrappe.nachrichten)).toEqual([tZweite, tSl].sort());
+    expect(fcmAttrappe.nachrichten).toStrictEqual(
       expect.arrayContaining([
-        {
-          to: tSl,
-          title: "Neue Nachricht im Chat Stufe A",
-          data: { typ: "chat", id: welt.gruppenchatAId },
-          channelId: "chat",
-          sound: "default",
-        },
+        fcmNachricht(
+          tSl,
+          "Neue Nachricht im Chat Stufe A",
+          { typ: "chat", id: welt.gruppenchatAId },
+          "chat",
+        ),
       ]),
     );
-    expect(JSON.stringify(expoAttrappe.nachrichten)).not.toContain("Geheimer");
-    expect(JSON.stringify(expoAttrappe.nachrichten)).not.toContain(tEltern);
+    expect(JSON.stringify(fcmAttrappe.nachrichten)).not.toContain("Geheimer");
+    expect(JSON.stringify(fcmAttrappe.nachrichten)).not.toContain(tEltern);
   });
 
   test("Einzelchat: Titel nennt den Einzelchat, Empfänger sind das Elternteil und die SL der Stufe", async () => {
@@ -267,15 +270,13 @@ describe("Chat-Push bei neuer Nachricht", () => {
     );
 
     await sende(sl, id, "Antwort");
-    expect(texte(expoAttrappe.nachrichten)).toEqual(
-      [tEltern, tAndereSl].sort(),
-    );
+    expect(texte(fcmAttrappe.nachrichten)).toEqual([tEltern, tAndereSl].sort());
     expect(
-      expoAttrappe.nachrichten.every(
-        (n) => n.title === "Neue Nachricht im Einzelchat Stufe A",
+      fcmAttrappe.nachrichten.every(
+        (n) => n.notification?.title === "Neue Nachricht im Einzelchat Stufe A",
       ),
     ).toBe(true);
-    expect(texte(expoAttrappe.nachrichten)).not.toContain(tSl);
+    expect(texte(fcmAttrappe.nachrichten)).not.toContain(tSl);
   });
 
   test("nicht an Personen mit abgeschaltetem Chat-Push, Deaktivierte", async () => {
@@ -298,9 +299,9 @@ describe("Chat-Push bei neuer Nachricht", () => {
       .where(eq(schema.user.id, deaktiviert.id!));
 
     await sende(eltern, welt.gruppenchatAId, "Hallo");
-    expect(texte(expoAttrappe.nachrichten)).toEqual([tSl]);
+    expect(texte(fcmAttrappe.nachrichten)).toEqual([tSl]);
     for (const token of [tStill, tDeaktiviert]) {
-      expect(texte(expoAttrappe.nachrichten)).not.toContain(token);
+      expect(texte(fcmAttrappe.nachrichten)).not.toContain(token);
     }
   });
 
@@ -315,13 +316,13 @@ describe("Chat-Push bei neuer Nachricht", () => {
     expect((await sende(fremde, welt.gruppenchatAId, "Hallo")).status).toBe(
       404,
     );
-    expect(expoAttrappe.nachrichten).toEqual([]);
+    expect(fcmAttrappe.nachrichten).toEqual([]);
   });
 
   test("ein Fehler beim Pushen lässt das Senden nicht scheitern", async () => {
     const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
     await melde(sl);
-    expoAttrappe.ausfall = true;
+    fcmAttrappe.ausfall = true;
     const antwort = await sende(eltern, welt.gruppenchatAId, "Hallo");
     expect(antwort.status).toBe(201);
   });

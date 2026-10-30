@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { testClient } from "hono/testing";
 import postgres, { type ReservedSql } from "postgres";
 import {
@@ -69,7 +68,6 @@ function health(verbindung: ReservedSql) {
       sql: verbindung,
       db,
       auth,
-      expo: new Expo({ accessToken: "test-zugang" }),
       seiten: ladeSeiten(),
     }),
   ).health.$get();
