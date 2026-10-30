@@ -23,9 +23,6 @@ const seiten = ladeSeiten({
   stelle: konfiguration.VERANTWORTLICHE_STELLE,
   email: konfiguration.KONTAKT_EMAIL,
 });
-if (!konfiguration.KONTAKT_EMAIL) {
-  log(undefined, { ereignis: "seiten", code: "ohne-kontakt" });
-}
 // Ohne Schlüsseldatei startet die API und sendet keine Pushes
 const fcm = konfiguration.FCM_SCHLUESSEL_DATEI
   ? erstelleFcm(konfiguration.FCM_SCHLUESSEL_DATEI)
@@ -54,11 +51,9 @@ starteKalenderSync(() =>
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );
-const eckdatenUrl = konfiguration.ECKDATEN_BASIS_URL;
-if (eckdatenUrl)
-  starteEckdatenSync(() =>
-    synchronisiereEckdaten({
-      datenbankUrl: konfiguration.DATABASE_URL,
-      basisUrl: eckdatenUrl,
-    }),
-  );
+starteEckdatenSync(() =>
+  synchronisiereEckdaten({
+    datenbankUrl: konfiguration.DATABASE_URL,
+    basisUrl: konfiguration.ECKDATEN_BASIS_URL,
+  }),
+);
