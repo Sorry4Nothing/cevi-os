@@ -761,24 +761,31 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     patch:
       operationId: ichAendern
-      summary: Eigene Push-Schalter ändern
+      summary: Eigene Push-Schalter und Telefonnummer ändern
       tags:
         - Profil
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme»; die Person kommt immer aus der
-        Sitzung. Mindestens ein Schalter muss im Body stehen. Der Body ist strikt: Jedes andere Feld (auch `telefon`,
-        `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Wert, der kein Boolean ist.
+        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme» und die eigene Telefonnummer; die
+        Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
+        andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
-        Statuscodes: 204, 400, 401, 403, 426.
+        **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
+        `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
+        entfernt die Nummer. Eine Nummer speichern darf nur, wer SL einer Stufe ist (sonst 403); entfernen darf sie
+        jede Person, auch eine, die die Rolle verloren hat. Die Nummer sehen danach nur Eltern mit einem aktiven Kind
+        in der Stufe der SL, siehe `GET /api/v1/programme/{id}/kontakte` und `GET /api/v1/stufen/{id}/kontakte`; die
+        App weist vor dem Speichern darauf hin.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); die Nummer nur
+        SL. Statuscodes: 204, 400, 401, 403, 426.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/IchPushEinstellungen"
+              $ref: "#/components/schemas/IchEinstellungen"
       responses:
         "204":
           description: Gespeichert; kein Body.
@@ -938,6 +945,56 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/stufen/{id}/kontakte:
+    get:
+      operationId: stufeKontakteLesen
+      summary: SL einer Stufe lesen
+      tags:
+        - Stufen
+      description: |
+        Liefert alle SL der Stufe mit aktivem Konto, sortiert nach `name`, dann `id`; sie sind die Kontaktpersonen
+        im Gruppenchat. `telefon` ist nur für Eltern mit einem aktiven Kind in der Stufe gefüllt, sonst `null`
+        (auch für Admins, Leitende und SL).
+
+        Die Antwort trägt `Cache-Control: no-store`.
+
+        **Rollen.** Admins, Leitende und SL der Stufe sowie Eltern mit einem aktiven Kind in der Stufe. Für alle
+        anderen und für Stufen anderer Abteilungen oder unbekannte Stufen ist die Antwort 404.
+        Statuscodes: 200, 400, 401, 403, 404, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die SL der Stufe.
+          headers:
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KontakteAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/push-token:
     put:
       operationId: pushTokenRegistrieren
@@ -1117,6 +1174,54 @@ paths:
       responses:
         "204":
           description: Ergänzungen gespeichert. Kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/programme/{id}/kontakte:
+    get:
+      operationId: programmKontakteLesen
+      summary: Kontaktpersonen eines Programms lesen
+      tags:
+        - Programme
+      description: |
+        Kontaktpersonen sind die SL der zugeordneten Stufen, die sich für das Programm mit Status «ja» angemeldet
+        haben (`PUT /api/v1/programme/{id}/leitung`) und deren Konto aktiv ist. Wer sich abmeldet oder noch nicht
+        geantwortet hat, fehlt sofort. Ist keine SL angemeldet, ist `kontakte` leer; die App zeigt dann
+        «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
+
+        **Telefonnummer.** `telefon` ist nur für Eltern mit einem aktiven Kind in einer Stufe dieser SL gefüllt,
+        sonst `null`. Das gilt auch für Admins, Leitende und SL, auch für die der eigenen Stufe. Sortiert nach `name`,
+        dann `id`.
+
+        Die Antwort trägt `Cache-Control: no-store`.
+
+        **Rollen.** Jede angemeldete Person, für die das Programm sichtbar ist (Regeln wie bei
+        `GET /api/v1/programme/{id}`); sonst 404. Statuscodes: 200, 400, 401, 403, 404, 426, 429.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/ProgrammIdPfad"
+      responses:
+        "200":
+          description: Die Kontaktpersonen des Programms.
+          headers:
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KontakteAntwort"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -2436,7 +2541,7 @@ components:
           type:
             - string
             - "null"
-          description: Telefonnummer, wenn hinterlegt (nur lesbar, die App ändert sie nicht).
+          description: Eigene Telefonnummer, wenn hinterlegt (nur SL setzen sie, per `PATCH /api/v1/ich`).
         pushChat:
           type: boolean
           description: Push-Benachrichtigungen für Chats.
@@ -2463,16 +2568,22 @@ components:
           description: Die aktiven Kinder der Person (nur Eltern), nach `id` sortiert.
           items:
             $ref: "#/components/schemas/IchKind"
-    IchPushEinstellungen:
+    IchEinstellungen:
       type: object
       additionalProperties: false
       minProperties: 1
-      description: Mindestens einer der beiden Schalter. Fremde Felder ergeben 400.
+      description: Mindestens ein Feld. Fremde Felder ergeben 400.
       properties:
         pushChat:
           type: boolean
         pushProgramme:
           type: boolean
+        telefon:
+          type:
+            - string
+            - "null"
+          maxLength: 30
+          description: Eigene Telefonnummer, nur für SL; leerer Text oder `null` entfernt sie.
     IchKontoLoeschenAnfrage:
       type: object
       additionalProperties: false
@@ -2525,6 +2636,30 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StufenAntwortEintrag"
+    KontakteAntwort:
+      type: object
+      required:
+        - kontakte
+      properties:
+        kontakte:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - telefon
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              telefon:
+                type:
+                  - string
+                  - "null"
+                description: Nur für Eltern mit einem aktiven Kind in der Stufe der SL, sonst `null`.
     PushTokenAnfrage:
       type: object
       additionalProperties: false
