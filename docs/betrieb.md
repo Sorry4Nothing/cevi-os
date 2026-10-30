@@ -23,7 +23,7 @@ Der Betrieb braucht diese Konten: Apple Developer Program, Google Play Console, 
 Erste Einrichtung auf dem Server:
 
 1. Das Repo klonen und den Release-Tag auschecken: `git fetch --tags && git checkout vX.Y.Z`
-2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`), dann `chmod 600 deploy/.env`
+2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`), dann `chmod 600 deploy/.env`. `VERANTWORTLICHE_STELLE` und `KONTAKT_EMAIL` nennt die Abteilung; die Seiten `/datenschutz`, `/konto-loeschen` und `/support` setzen beide ein (#63). Ohne `KONTAKT_EMAIL` loggt die API beim Start `seiten` / `ohne-kontakt`, und die Seiten sagen, dass die Adresse fehlt
 3. Den Schlüssel des Google-Service-Accounts (#26) nach `deploy/secrets/google-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Ebenso den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json`
 4. `deploy/Caddyfile` mit `reverse_proxy api:3000` anlegen (#68)
 5. Nach dem ersten Tag das API-Image auf GHCR öffentlich schalten (#70), sonst findet der Server es nicht

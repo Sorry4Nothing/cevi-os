@@ -12,6 +12,9 @@ const schema = z.object({
   GOOGLE_APPLICATION_CREDENTIALS: z.string().min(1).optional(),
   // Freiwillig: Pfad zur Schlüsseldatei des Firebase-Dienstkontos für FCM; ohne sie startet die API und sendet keine Pushes
   FCM_SCHLUESSEL_DATEI: z.string().min(1).optional(),
+  // Freiwillig: Name der verantwortlichen Stelle und ihre E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; ohne sie nennen die Seiten keine
+  VERANTWORTLICHE_STELLE: z.string().trim().min(1).max(200).optional(),
+  KONTAKT_EMAIL: z.email().optional(),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {

@@ -48,6 +48,8 @@ paths:
       description: |
         Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
         Alle Personen (auch deaktivierte und nicht angemeldete) erhalten 200.
+        Die Seite nennt die Datenkategorien, Empfänger, Fristen und Rechte; die verantwortliche Stelle
+        und ihre E-Mail-Adresse setzt der Server aus `VERANTWORTLICHE_STELLE` und `KONTAKT_EMAIL` ein.
       responses:
         "200":
           description: HTML-Seite (`text/html; charset=UTF-8`).
@@ -64,7 +66,8 @@ paths:
       security: []
       description: |
         Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
-        Das Konto löscht die App selbst über `DELETE /api/v1/ich`.
+        Das Konto löscht die App selbst über `DELETE /api/v1/ich`. Die Seite nennt zusätzlich den Weg
+        ohne App über die E-Mail-Adresse der Abteilung (`KONTAKT_EMAIL`).
       responses:
         "200":
           description: HTML-Seite (`text/html; charset=UTF-8`).
@@ -81,6 +84,7 @@ paths:
       security: []
       description: |
         Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
+        Nennt die Kontaktadresse der Abteilung (`KONTAKT_EMAIL`) und wer bei was hilft.
       responses:
         "200":
           description: HTML-Seite (`text/html; charset=UTF-8`).
