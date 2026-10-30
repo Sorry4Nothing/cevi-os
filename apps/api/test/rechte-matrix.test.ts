@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import sharp from "sharp";
 import {
@@ -895,6 +896,114 @@ describe("jeder übrige better-auth-Pfad liefert 404 aus der App", () => {
         code: "NICHT_GEFUNDEN",
         message: "Nicht gefunden",
       });
+    }
+  });
+});
+
+// Export für docs/api/endpunkte.md und die Postman-Collection (#186): läuft nur mit POSTMAN_EXPORT=1, schreibt die Zeilen der Matrix mit ID-Platzhaltern und je Persona eine Umgebung mit Sitzung. Die Datenbank bleibt danach stehen, die API kann auf ihr laufen (docs/api/postman.md)
+describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
+  test("schreibt apps/api/.postman-lokal/", async () => {
+    const ordner = new URL("../.postman-lokal/", import.meta.url);
+    await mkdir(ordner, { recursive: true });
+    const ids: Record<string, string> = {
+      ...Object.fromEntries(
+        Object.entries(welt).filter(([, v]) => typeof v === "string"),
+      ),
+      programmId,
+      leitungProgrammId,
+      patchZielId,
+      startpasswortZielId,
+      deaktivierenZielId,
+      aktivierenZielId,
+      patchStufeId,
+      patchKindId,
+      bildZielId,
+      elternAUserId: standard.elternA.id!,
+    };
+    const ersetze = (text: string) =>
+      Object.entries(ids).reduce(
+        (t, [name, id]) => t.replaceAll(id, `{{${name}}}`),
+        text,
+      );
+    const platzhalter = {
+      benutzername: "{{benutzername}}",
+      passwort: "{{passwort}}",
+    } as PersonaKonto;
+    const uuid = /[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}/;
+
+    const zeilen = Object.entries(MATRIX).map(([schluessel, zeile], n) => ({
+      schluessel,
+      methode: schluessel.split(" ")[0],
+      pfad: ersetze(zeile.url?.(welt) ?? schluessel.split(" ")[1]),
+      body: zeile.body && ersetze(JSON.stringify(zeile.body(platzhalter))),
+      bild: zeile.bild === true,
+      zielJeAnfrage: zeile.urlJeAnfrage !== undefined,
+      sitzungEnde: zeile.frischePersonas === true,
+      bodyJePersona: false,
+      erwartet: zeile.erwartet,
+      n,
+    }));
+    for (const z of zeilen.filter((z) => z.zielJeAnfrage)) {
+      z.pfad = (await MATRIX[z.schluessel].urlJeAnfrage!()).replace(
+        uuid,
+        `{{ziel_${z.n}}}`,
+      );
+    }
+
+    // Bodies, die von der Persona abhängen (eigene Stufe, Elternname), stehen als Variable body_<n> in deren Umgebung
+    const bodyJePersona = (z: (typeof zeilen)[number], persona: Persona) => {
+      const konto = standard[persona];
+      const text = ersetze(JSON.stringify(MATRIX[z.schluessel].body!(konto)));
+      return text
+        .replaceAll(konto.benutzername ?? " ", "{{benutzername}}")
+        .replaceAll(konto.passwort ?? " ", "{{passwort}}");
+    };
+    for (const z of zeilen.filter((z) => z.body)) {
+      const texte = PERSONAS.map((p) => bodyJePersona(z, p));
+      if (texte.some((t) => t !== z.body)) z.bodyJePersona = true;
+    }
+    await writeFile(
+      new URL("matrix.json", ordner),
+      JSON.stringify({ personas: PERSONAS, zeilen }, null, 1),
+    );
+
+    for (const persona of PERSONAS) {
+      const konto = standard[persona];
+      const werte: Record<string, string> = {
+        baseUrl: "http://localhost:3000",
+        persona,
+        expoOrigin: konto.headers["expo-origin"],
+        ip: konto.headers["x-forwarded-for"],
+        cookie: konto.headers.cookie ?? "",
+        benutzername: konto.benutzername ?? "gibt.es.nicht",
+        passwort: konto.passwort ?? PASSWORT,
+        ...ids,
+        erwartet: JSON.stringify(
+          Object.fromEntries(
+            zeilen.map((z) => [z.schluessel, z.erwartet[persona]]),
+          ),
+        ),
+      };
+      for (const z of zeilen.filter((z) => z.bodyJePersona))
+        werte[`body_${z.n}`] = bodyJePersona(z, persona);
+      for (const z of zeilen.filter((z) => z.zielJeAnfrage)) {
+        const url = await MATRIX[z.schluessel].urlJeAnfrage!();
+        werte[`ziel_${z.n}`] = uuid.exec(url)![0];
+      }
+      const geheim = new Set(["cookie", "passwort"]);
+      await writeFile(
+        new URL(`${persona}.environment.yaml`, ordner),
+        // JSON ist gültiges YAML; so bleibt jeder Wert eine Zeichenkette
+        JSON.stringify({
+          name: `Cevi OS lokal: ${persona}`,
+          values: Object.entries(werte).map(([key, value]) => ({
+            key,
+            value,
+            enabled: true,
+            type: geheim.has(key) ? "secret" : "default",
+          })),
+        }),
+      );
     }
   });
 });

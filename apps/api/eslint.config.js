@@ -6,6 +6,11 @@ export default defineConfig(
   js.configs.recommended,
   tseslint.configs.recommended,
   {
+    // Skript für Postman (#186) läuft in Node; nur die benutzten Namen
+    files: ["scripts/**/*.mjs"],
+    languageOptions: { globals: { URL: "readonly", console: "readonly" } },
+  },
+  {
     // Skripte der Verwaltung laufen im Browser; ohne Abhängigkeit «globals» nur die benutzten Namen
     files: ["public/admin/**/*.js"],
     languageOptions: {
