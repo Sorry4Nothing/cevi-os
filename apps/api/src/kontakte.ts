@@ -30,12 +30,21 @@ export async function stufenMitKind(
 export async function kontakteMitTelefon(
   db: Db,
   person: Pick<Person, "id" | "abteilungId">,
-  sl: { stufeId: string; id: string; name: string }[],
+  sl: {
+    stufeId: string;
+    id: string;
+    name: string;
+    ceviName: string | null;
+  }[],
 ) {
-  const stufenJeSl = new Map<string, { name: string; stufen: Set<string> }>();
+  const stufenJeSl = new Map<
+    string,
+    { name: string; ceviName: string | null; stufen: Set<string> }
+  >();
   for (const z of sl) {
     const eintrag = stufenJeSl.get(z.id) ?? {
       name: z.name,
+      ceviName: z.ceviName,
       stufen: new Set<string>(),
     };
     eintrag.stufen.add(z.stufeId);
@@ -75,6 +84,7 @@ export async function kontakteMitTelefon(
   return [...stufenJeSl].map(([id, e]) => ({
     id,
     name: e.name,
+    ceviName: e.ceviName,
     bildUrl: bilder.get(id) ?? null,
     telefon: nummern.get(id) ?? null,
   }));

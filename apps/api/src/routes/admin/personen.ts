@@ -70,6 +70,12 @@ const benutzernameFeld = z
   .min(BENUTZERNAME_MIN)
   .max(BENUTZERNAME_MAX)
   .regex(BENUTZERNAME_MUSTER);
+// Leer oder nur Leerraum heisst nicht gesetzt
+const ceviNameFeld = z
+  .string()
+  .trim()
+  .max(50)
+  .transform((wert) => wert || null);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const rollenFeld = z
   .array(
@@ -91,6 +97,7 @@ const elternteilVonFeld = z
 const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
+  ceviName: ceviNameFeld.optional(),
   benutzername: benutzernameFeld,
   admin: z.boolean(),
   rollen: rollenFeld,
@@ -99,6 +106,7 @@ const anlegenSchema = z.strictObject({
 // name fasst «Vorname Nachname» in einem Feld, wie user.name beim Anlegen (#20)
 const aendernSchema = z.strictObject({
   name: text(201).optional(),
+  ceviName: ceviNameFeld.nullable().optional(),
   admin: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
@@ -194,6 +202,7 @@ export function erstellePersonenRouten({
             .select({
               id: user.id,
               name: user.name,
+              ceviName: user.ceviName,
               benutzername: user.username,
               role: user.role,
               twoFactorEnabled: user.twoFactorEnabled,
@@ -252,6 +261,7 @@ export function erstellePersonenRouten({
         personen: personen.map((p) => ({
           id: p.id,
           name: p.name,
+          ceviName: p.ceviName,
           benutzername: p.benutzername,
           admin: p.role === "admin",
           zweiterFaktor: p.twoFactorEnabled === true,
@@ -289,6 +299,7 @@ export function erstellePersonenRouten({
               role: eingaben.admin ? "admin" : "user",
               data: {
                 username: eingaben.benutzername,
+                ceviName: eingaben.ceviName ?? undefined,
                 abteilungId: person.abteilungId,
                 ...startpasswortFelder(),
               },
@@ -353,10 +364,17 @@ export function erstellePersonenRouten({
             if (aenderung.admin === false) {
               await sperreLetztenAdmin(tx, person.abteilungId, id);
             }
-            const felder: Partial<{ name: string; role: string }> = {};
+            const felder: Partial<{
+              name: string;
+              ceviName: string | null;
+              role: string;
+            }> = {};
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
             const details: Record<string, unknown> = {};
             if (aenderung.name !== undefined) felder.name = aenderung.name;
+            if (aenderung.ceviName !== undefined) {
+              felder.ceviName = aenderung.ceviName;
+            }
             if (aenderung.admin !== undefined) {
               felder.role = aenderung.admin ? "admin" : "user";
               const [bisher] = await tx

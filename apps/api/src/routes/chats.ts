@@ -97,7 +97,11 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             id: chat.id,
             typ: chat.typ,
             stufe: { id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel },
-            eltern: { id: eltern.id, name: eltern.name },
+            eltern: {
+              id: eltern.id,
+              name: eltern.name,
+              ceviName: eltern.ceviName,
+            },
           })
           .from(chat)
           .innerJoin(mitglieder, eq(mitglieder.chatId, chat.id))
@@ -135,7 +139,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             chatId: n.chatId,
             text: sql<string>`left(${n.text}, ${LISTE_ZEICHEN})`,
             erstelltAm: n.erstelltAm,
-            autor: { id: user.id, name: user.name },
+            autor: { id: user.id, name: user.name, ceviName: user.ceviName },
           })
           .from(n)
           .innerJoin(user, eq(user.id, n.autorId))
@@ -162,7 +166,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             eltern: e && e.id ? e : null,
             stufenleitung: leitung
               .filter((l) => l.stufeId === k.stufe.id)
-              .map(({ id, name }) => ({ id, name })),
+              .map(({ id, name, ceviName }) => ({ id, name, ceviName })),
           })),
         });
       })
@@ -275,6 +279,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               autor: {
                 id: user.id,
                 name: user.name,
+                ceviName: user.ceviName,
                 // Wer den Namen sieht, bekommt den Pfad zum Bild; die Route dahinter prüft es noch einmal
                 bildUrl,
                 // Nur diese eine Rolle und nur für die Stufe des Chats: Für Eltern und Leitende gibt es kein Kennzeichen

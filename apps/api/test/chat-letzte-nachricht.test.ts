@@ -99,7 +99,7 @@ describe("letzteNachricht in der Chatliste", () => {
       text: "Zwei",
       erstelltAm: expect.stringMatching(/Z$/),
       eigene: false,
-      autor: { id: sl.id, name: "SL A" },
+      autor: { id: sl.id, name: "SL A", ceviName: null },
     });
     expect((await letzte(sl, chat))?.eigene).toBe(true);
   });
@@ -156,6 +156,10 @@ describe("letzteNachricht in der Chatliste", () => {
       "erstelltAm",
       "text",
     ]);
-    expect(Object.keys(letzteNachricht!.autor).sort()).toEqual(["id", "name"]);
+    expect(Object.keys(letzteNachricht!.autor).sort()).toEqual([
+      "ceviName",
+      "id",
+      "name",
+    ]);
   });
 });

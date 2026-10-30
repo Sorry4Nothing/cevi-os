@@ -82,6 +82,7 @@ describe("GET /api/v1/ich", () => {
     expect(koerper).toEqual({
       id: konto.id,
       name: "Leitende A und zugleich Elternteil B",
+      ceviName: null,
       benutzername: konto.benutzername,
       admin: false,
       zweiterFaktor: false,

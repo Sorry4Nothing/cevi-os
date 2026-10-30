@@ -49,6 +49,8 @@ export const user = pgTable("user", {
   updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
   username: text("username").unique(),
   displayUsername: text("display_username"),
+  // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
+  ceviName: text("cevi_name"),
   role: text("role"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),

@@ -117,7 +117,7 @@ describe("GET /api/v1/chats", () => {
       ],
     });
     // Die Liste «Stufenleitung» im Gruppenchat; Konten, die nicht mehr aktiv sind, stehen nicht darin
-    const leitungA = [{ id: sl.id as string, name: "SL A" }];
+    const leitungA = [{ id: sl.id as string, name: "SL A", ceviName: null }];
     for (const konto of [eltern, sl]) {
       const antwort = await aufruf(konto, "GET", "/api/v1/chats");
       expect(antwort.status).toBe(200);
@@ -198,19 +198,28 @@ describe("Nachrichten senden und lesen", () => {
         Eltern: {
           id: eltern.id,
           name: "Eltern A",
+          ceviName: null,
           bildUrl: null,
           stufenleitung: false,
         },
-        SL: { id: sl.id, name: "SL A", bildUrl: null, stufenleitung: true },
+        SL: {
+          id: sl.id,
+          name: "SL A",
+          ceviName: null,
+          bildUrl: null,
+          stufenleitung: true,
+        },
         "SL B": {
           id: slB.id,
           name: "SL B",
+          ceviName: null,
           bildUrl: null,
           stufenleitung: false,
         },
         Leitende: {
           id: leitende.id,
           name: "Leitende A",
+          ceviName: null,
           bildUrl: null,
           stufenleitung: false,
         },
@@ -692,8 +701,8 @@ describe("Einzelchat", () => {
     );
 
     const leitung = [
-      { id: sl.id as string, name: "SL A" },
-      { id: zweite.id as string, name: "SL A" },
+      { id: sl.id as string, name: "SL A", ceviName: null },
+      { id: zweite.id as string, name: "SL A", ceviName: null },
     ].sort((a, b) => a.id.localeCompare(b.id));
     const vonEltern = await chatsVon(eltern);
     // Gruppenchat zuerst, dann der eigene Einzelchat; der des anderen Elternteils fehlt
@@ -701,7 +710,11 @@ describe("Einzelchat", () => {
       ["stufe", welt.gruppenchatAId],
       ["direkt", id],
     ]);
-    expect(vonEltern[1].eltern).toEqual({ id: eltern.id, name: "Eltern A" });
+    expect(vonEltern[1].eltern).toEqual({
+      id: eltern.id,
+      name: "Eltern A",
+      ceviName: null,
+    });
     expect(vonEltern[1].stufenleitung).toEqual(leitung);
 
     const vonSl = await chatsVon(sl);
@@ -725,7 +738,9 @@ describe("Einzelchat", () => {
       .update(schema.user)
       .set({ deaktiviertAm: new Date(), banned: true })
       .where(eq(schema.user.id, zweite.id as string));
-    expect(await leser()).toEqual([{ id: sl.id, name: "SL A" }]);
+    expect(await leser()).toEqual([
+      { id: sl.id, name: "SL A", ceviName: null },
+    ]);
   });
 
   test("fremde Eltern, andere Stufen, Leitende, Admins und andere Abteilungen kommen nie an den Chat", async () => {

@@ -238,7 +238,12 @@ export function stufenleitungDerStufen(
   stufeIds: string[],
 ) {
   return db
-    .select({ stufeId: rolle.stufeId, id: user.id, name: user.name })
+    .select({
+      stufeId: rolle.stufeId,
+      id: user.id,
+      name: user.name,
+      ceviName: user.ceviName,
+    })
     .from(rolle)
     .innerJoin(user, and(eq(user.id, rolle.userId), aktivesKonto(abteilungId)))
     .where(
