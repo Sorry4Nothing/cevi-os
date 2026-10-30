@@ -90,6 +90,51 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
     return !!zeile;
   }
 
+  // Nur die eigenen, aktiven Kinder in einer zugeordneten Stufe, für alle Programme in einer Abfrage; Leitende korrigieren per PUT und sehen die Übersicht über GET /:id/teilnahmen
+  async function eigeneKinder(person: Person, programmIds: string[]) {
+    const nachProgramm = new Map<
+      string,
+      { id: string; vorname: string; status: "ja" | "nein" | null }[]
+    >();
+    if (programmIds.length === 0) return nachProgramm;
+    const zeilen = await db
+      .select({
+        programmId: programmStufe.programmId,
+        id: kind.id,
+        vorname: kind.vorname,
+        status: teilnahme.status,
+      })
+      .from(kind)
+      .innerJoin(
+        kindEltern,
+        and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+      )
+      .innerJoin(
+        programmStufe,
+        and(
+          eq(programmStufe.stufeId, kind.stufeId),
+          inArray(programmStufe.programmId, programmIds),
+        ),
+      )
+      .leftJoin(
+        teilnahme,
+        and(
+          eq(teilnahme.kindId, kind.id),
+          eq(teilnahme.programmId, programmStufe.programmId),
+        ),
+      )
+      .where(
+        and(eq(kind.abteilungId, person.abteilungId), isNull(kind.inaktivSeit)),
+      )
+      .orderBy(kind.vorname, kind.id);
+    for (const { programmId, ...eintrag } of zeilen) {
+      const liste = nachProgramm.get(programmId) ?? [];
+      liste.push(eintrag);
+      nachProgramm.set(programmId, liste);
+    }
+    return nachProgramm;
+  }
+
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", eingabe("query", fensterSchema), async (c) => {
       const person = c.get("person");
@@ -109,7 +154,16 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`,
           programm.id,
         );
-      return c.json({ programme });
+      const kinder = await eigeneKinder(
+        person,
+        programme.map((p) => p.id),
+      );
+      return c.json({
+        programme: programme.map((p) => ({
+          ...p,
+          kinder: kinder.get(p.id) ?? [],
+        })),
+      });
     })
     .get("/:id", eingabe("param", pfadSchema), async (c) => {
       const person = c.get("person");
@@ -138,36 +192,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           );
         eigeneAnmeldung = anmeldung?.status ?? "offen";
       }
-      // Nur die eigenen Kinder in einer zugeordneten Stufe; Leitende korrigieren per PUT und sehen die Übersicht über GET /:id/teilnahmen
-      const kinder = await db
-        .select({
-          id: kind.id,
-          vorname: kind.vorname,
-          status: teilnahme.status,
-        })
-        .from(kind)
-        .innerJoin(
-          kindEltern,
-          and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
-        )
-        .innerJoin(
-          programmStufe,
-          and(
-            eq(programmStufe.stufeId, kind.stufeId),
-            eq(programmStufe.programmId, id),
-          ),
-        )
-        .leftJoin(
-          teilnahme,
-          and(eq(teilnahme.kindId, kind.id), eq(teilnahme.programmId, id)),
-        )
-        .where(
-          and(
-            eq(kind.abteilungId, person.abteilungId),
-            isNull(kind.inaktivSeit),
-          ),
-        )
-        .orderBy(kind.vorname, kind.id);
+      const kinder = (await eigeneKinder(person, [id])).get(id) ?? [];
       return c.json({
         ...zeile,
         teilnahmeOffen: await teilnahmeOffen(id),

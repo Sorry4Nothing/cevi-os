@@ -14,7 +14,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
-import { kind, programm, teilnahme } from "../src/db/schema.js";
+import { kind, kindEltern, programm, teilnahme } from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -254,5 +254,90 @@ describe("GET /api/v1/programme/:id mit Teilnahme", () => {
     expect(
       (await detail(konten.elternA, begonnen.id)).body.teilnahmeOffen,
     ).toBe(false);
+  });
+});
+
+describe("GET /api/v1/programme mit Teilnahme je Kind", () => {
+  const FENSTER = "von=2027-03-01&bis=2027-03-31";
+  const liste = async (konto: PersonaKonto) => {
+    const res = await app.request(`/api/v1/programme?${FENSTER}`, {
+      headers: konto.headers,
+    });
+    expect(res.status).toBe(200);
+    const { programme } = (await res.json()) as {
+      programme: { id: string; kinder: unknown }[];
+    };
+    return (id: string) => programme.find((p) => p.id === id)?.kinder;
+  };
+
+  test("Eltern sehen nur eigene Kinder in zugeordneten Stufen, mit Stand", async () => {
+    const a = await frisch();
+    const ab = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+      stufen: [welt.stufeAId, welt.stufeBId],
+    });
+    const nurB = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+      stufen: [welt.stufeBId],
+    });
+    await put(konten.elternA, a.id, welt.kindAId, { status: "ja" });
+    await put(konten.elternA, ab.id, welt.kindAId, { status: "nein" });
+    const eltern = await liste(konten.elternA);
+    expect(eltern(a.id)).toEqual([
+      { id: welt.kindAId, vorname: "Kind", status: "ja" },
+    ]);
+    expect(eltern(ab.id)).toEqual([
+      { id: welt.kindAId, vorname: "Kind", status: "nein" },
+    ]);
+    // Für elternA unsichtbar, also kein Eintrag
+    expect(eltern(nurB.id)).toBeUndefined();
+    // Dieselbe Person mit Kind in B: Das Kind in der nicht zugeordneten Stufe fehlt
+    const gemischt = await liste(konten.leitendeAElternB);
+    expect(gemischt(a.id)).toEqual([]);
+    expect(gemischt(ab.id)).toEqual([
+      { id: welt.kindBId, vorname: "Kind", status: null },
+    ]);
+    expect(gemischt(nurB.id)).toEqual([
+      { id: welt.kindBId, vorname: "Kind", status: null },
+    ]);
+  });
+
+  test("gleich wie im Detail; Admin und Leitende ohne eigene Kinder: leer", async () => {
+    const p = await frisch();
+    const detailKinder = (await detail(konten.elternA, p.id)).body.kinder;
+    expect((await liste(konten.elternA))(p.id)).toEqual(detailKinder);
+    for (const konto of [konten.admin, konten.slA, konten.leitendeA]) {
+      expect((await liste(konto))(p.id)).toEqual([]);
+    }
+  });
+
+  test("abgesagte Programme zeigen den Stand weiter; inaktive Kinder fehlen", async () => {
+    const p = await frisch();
+    await put(konten.elternA, p.id, welt.kindAId, { status: "ja" });
+    await db
+      .update(programm)
+      .set({ status: "abgesagt" })
+      .where(eq(programm.id, p.id));
+    expect((await liste(konten.elternA))(p.id)).toEqual([
+      { id: welt.kindAId, vorname: "Kind", status: "ja" },
+    ]);
+    const [inaktiv] = await db
+      .insert(kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Alt",
+        nachname: "Inaktiv",
+        stufeId: welt.stufeAId,
+        inaktivSeit: new Date(),
+      })
+      .returning({ id: kind.id });
+    await db
+      .insert(kindEltern)
+      .values({ kindId: inaktiv.id, userId: konten.elternA.id! });
+    expect((await liste(konten.elternA))(p.id)).toEqual([
+      { id: welt.kindAId, vorname: "Kind", status: "ja" },
+    ]);
   });
 });
