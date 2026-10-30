@@ -107,6 +107,7 @@ describe("GET /api/v1/chats", () => {
           typ: "stufe",
           stufe: { id: expect.any(String), name, kuerzel: expect.any(String) },
           eltern: null,
+          ungelesen: 0,
           stufenleitung,
         },
       ],

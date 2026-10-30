@@ -558,6 +558,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Gelesen-Stand (#51): Wie das Lesen des Chats, nur Mitglieder (SL der Stufe A und Eltern der Stufe A); für alle anderen existiert der Chat nicht (404). Schreibt nur die eigene Zeile in chat_status
+  "PUT /api/v1/chats/:id/gelesen": {
+    url: () => `/api/v1/chats/${welt.gruppenchatAId}/gelesen`,
+    erwartet: {
+      ...alle(404),
+      slA: 204,
+      elternA: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Moderation (#52): Melden darf, wer die Nachricht im Chat sieht (SL der Stufe und Eltern der Stufe A); Ausblenden die SL im Gruppenchat der eigenen Stufe, Admins nur über eine offene Meldung. Eltern sehen die Nachricht, dürfen sie aber nicht ausblenden (403). Details in test/moderation.test.ts
   "POST /api/v1/nachrichten/:id/ausblenden": {
     // Jede Anfrage blendet ihre Nachricht aus; eine feste URL nähme sie den Personen danach weg

@@ -1312,6 +1312,9 @@ paths:
         Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Reihenfolge der Stufe, dann nach Name des Elternteils.
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
+        `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (ausgeblendete, vor dem Beitritt geschriebene) Nachrichten zählen nicht.
+        Die App fragt die Liste per Polling ab (Liste alle 30 Sekunden, offener Chat alle 5 Sekunden); eine Echtzeit-Verbindung gibt es nicht.
+
         Statuscodes: 200 Erfolg; 401 nicht angemeldet oder Konto deaktiviert; 403 Konto muss zuerst das Passwort ändern; 426 App zu alt.
       parameters:
         - $ref: "#/components/parameters/AppVersion"
@@ -1419,6 +1422,8 @@ paths:
 
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
+        Push: Die anderen Mitglieder des Chats mit eingeschaltetem Chat-Push (`pushChat`) bekommen einen Push mit Titel «Neue Nachricht im Chat <Stufe>» (im Einzelchat «Neue Nachricht im Einzelchat <Stufe>») und `data: { typ: "chat", id: <Chat-ID> }`, nie mit Nachrichtentext oder Namen. Kein Push geht an den Absender, an Konten, die nicht (mehr) Mitglied oder deaktiviert sind, und an Personen, die den Absender blockiert haben. Ein Fehler beim Pushen ändert das Ergebnis nicht.
+
         Statuscodes: 201 Nachricht angelegt; 400 ungültige Eingabe (Text leer nach dem Trimmen, länger als 2000 Zeichen, enthält NUL, unbekannte Felder, `programmId` nicht zulässig); 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 426; 429 Limit überschritten.
       parameters:
         - $ref: "#/components/parameters/AppVersion"
@@ -1448,6 +1453,34 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/chats/{id}/gelesen:
+    put:
+      operationId: markiereChatGelesen
+      summary: Chat als gelesen markieren
+      tags:
+        - Chat
+      description: |
+        Setzt den Gelesen-Stand der angemeldeten Person im Chat auf die aktuelle Serverzeit. Danach zählt `ungelesen` in der Chatliste nur Nachrichten, die später eingehen. Der Stand geht nie zurück; ein wiederholter Aufruf ist unschädlich. Die Anfrage hat keinen Body. Andere Personen sehen den Stand nicht (keine Lesebestätigungen in V1).
+
+        Nicht-Mitglieder (andere Stufen, andere Abteilungen, Admins, Leitende ohne SL-Rolle, unbekannte ID) bekommen 404.
+
+        Statuscodes: 204 gespeichert; 400 `id` keine UUID; 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 426.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/ChatPfadId"
+      responses:
+        "204":
+          description: Gelesen-Stand gespeichert. Kein Inhalt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/nachrichten/{id}/ausblenden:
     post:
       operationId: blendeNachrichtAus
@@ -2836,10 +2869,15 @@ components:
         - stufe
         - eltern
         - stufenleitung
+        - ungelesen
       properties:
         id:
           type: string
           format: uuid
+        ungelesen:
+          type: integer
+          minimum: 0
+          description: Anzahl ungelesener Nachrichten anderer Personen in diesem Chat.
         typ:
           $ref: "#/components/schemas/ChatTyp"
         stufe:
@@ -2872,6 +2910,7 @@ components:
               name: Pfadi
               kuerzel: PF
             eltern: null
+            ungelesen: 2
             stufenleitung:
               - id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
                 name: Beispiel Leitung
