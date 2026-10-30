@@ -1,0 +1,132 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792949264875,
+      "tag": "0000_grundtabellen",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792949439587,
+      "tag": "0001_datenbankrollen",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793045146832,
+      "tag": "0002_programme",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793055540712,
+      "tag": "0003_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793072535480,
+      "tag": "0004_push_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793073535480,
+      "tag": "0005_audit_aufraeumen",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793285374012,
+      "tag": "0006_teilnahme",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793286922974,
+      "tag": "0007_gruppenchats",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793292410453,
+      "tag": "0008_leitung_anmeldung",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793297214788,
+      "tag": "0009_moderation",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1793361329574,
+      "tag": "0010_fristen_entfernen",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793364059231,
+      "tag": "0011_push_fcm",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793366105039,
+      "tag": "0012_gruppenchats_nachtragen",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793367961330,
+      "tag": "0013_ergaenzungen_entfernen",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1793372336885,
+      "tag": "0014_melden_ausblenden_entfernen",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1793373831697,
+      "tag": "0015_profilbild",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793387068552,
+      "tag": "0016_programm_eckdaten",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793389592763,
+      "tag": "0017_anwesenheit",
+      "breakpoints": true
+    }
+  ]
+}

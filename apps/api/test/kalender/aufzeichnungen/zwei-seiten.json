@@ -1,0 +1,23 @@
+[
+  {
+    "items": [
+      {
+        "id": "erste0seite00001",
+        "summary": "Termin der ersten Seite",
+        "start": { "dateTime": "2027-09-04T10:00:00+02:00" },
+        "end": { "dateTime": "2027-09-04T11:00:00+02:00" }
+      }
+    ],
+    "nextPageToken": "zweite-seite"
+  },
+  {
+    "items": [
+      {
+        "id": "zweite0seite0001",
+        "summary": "Termin der zweiten Seite",
+        "start": { "dateTime": "2027-09-05T10:00:00+02:00" },
+        "end": { "dateTime": "2027-09-05T11:00:00+02:00" }
+      }
+    ]
+  }
+]

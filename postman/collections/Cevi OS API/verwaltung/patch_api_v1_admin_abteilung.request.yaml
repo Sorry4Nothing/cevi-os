@@ -1,0 +1,22 @@
+$kind: http-request
+name: "PATCH /api/v1/admin/abteilung"
+order: 37000
+method: PATCH
+url: "{{baseUrl}}/api/v1/admin/abteilung"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "vertrauenspersonen": "Platzhalter für die Matrix"
+    }
