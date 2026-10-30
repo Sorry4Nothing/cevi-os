@@ -2124,7 +2124,7 @@ paths:
       operationId: legeAdminStufeAn
       summary: Stufe anlegen
       description: |
-        Nur Admins. Legt eine Stufe in der eigenen Abteilung an.
+        Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen, Reihenfolge ausserhalb 1 bis 999). 403 für Nicht-Admins.
       tags:

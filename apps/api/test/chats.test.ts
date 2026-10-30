@@ -513,36 +513,39 @@ describe("Gruppenchat anlegen", () => {
   });
 });
 
-describe("Datenmigration 0007", () => {
-  test("ergänzt den Gruppenchat für bestehende Stufen und lässt sich wiederholen", async () => {
-    const migration = readFileSync(
-      new URL("../drizzle/0007_gruppenchats.sql", import.meta.url),
-      "utf8",
-    );
-    const Zurueck = new Error("zurückrollen");
-    let typen: string[] = [];
-    await sql
-      .begin(async (tx) => {
-        const [abteilung] = await tx<{ id: string }[]>`
+describe.each(["0007_gruppenchats", "0012_gruppenchats_nachtragen"])(
+  "Datenmigration %s",
+  (name) => {
+    test("ergänzt den Gruppenchat für bestehende Stufen und lässt sich wiederholen", async () => {
+      const migration = readFileSync(
+        new URL(`../drizzle/${name}.sql`, import.meta.url),
+        "utf8",
+      );
+      const Zurueck = new Error("zurückrollen");
+      let typen: string[] = [];
+      await sql
+        .begin(async (tx) => {
+          const [abteilung] = await tx<{ id: string }[]>`
           insert into abteilung (name) values ('Migrationstest') returning id`;
-        const [stufe] = await tx<{ id: string }[]>`
+          const [stufe] = await tx<{ id: string }[]>`
           insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
           values (${abteilung.id}, 'M', 'M', 1) returning id`;
-        await tx.unsafe(migration);
-        await tx.unsafe(migration);
-        typen = (
-          await tx<{ typ: string }[]>`
+          await tx.unsafe(migration);
+          await tx.unsafe(migration);
+          typen = (
+            await tx<{ typ: string }[]>`
             select typ from chat where stufe_id = ${stufe.id}`
-        ).map((z) => z.typ);
-        // Nichts davon bleibt in der geteilten Testdatenbank
-        throw Zurueck;
-      })
-      .catch((fehler: unknown) => {
-        if (fehler !== Zurueck) throw fehler;
-      });
-    expect(typen).toEqual(["stufe"]);
-  });
-});
+          ).map((z) => z.typ);
+          // Nichts davon bleibt in der geteilten Testdatenbank
+          throw Zurueck;
+        })
+        .catch((fehler: unknown) => {
+          if (fehler !== Zurueck) throw fehler;
+        });
+      expect(typen).toEqual(["stufe"]);
+    });
+  },
+);
 
 describe("Einzelchat", () => {
   const direkt = (konto: PersonaKonto, body: unknown) =>

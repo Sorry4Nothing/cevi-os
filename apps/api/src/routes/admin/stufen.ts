@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
+import { legeGruppenchatAn } from "../../chat.js";
 import { stufe } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
@@ -25,11 +26,18 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
       if (!person.admin) throw new HTTPException(403);
-      // Hier entsteht später auch der Gruppenchat der Stufe (#92), in derselben Transaktion
-      const [neu] = await db
-        .insert(stufe)
-        .values({ ...c.req.valid("json"), abteilungId: person.abteilungId })
-        .returning({ id: stufe.id });
+      // Der Gruppenchat entsteht in derselben Transaktion: Keine Stufe ohne Chat, kein Chat ohne Stufe
+      const neu = await db.transaction(async (tx) => {
+        const [zeile] = await tx
+          .insert(stufe)
+          .values({ ...c.req.valid("json"), abteilungId: person.abteilungId })
+          .returning({ id: stufe.id });
+        await legeGruppenchatAn(tx, {
+          abteilungId: person.abteilungId,
+          stufeId: zeile.id,
+        });
+        return zeile;
+      });
       return c.json({ id: neu.id }, 201);
     })
     .patch(

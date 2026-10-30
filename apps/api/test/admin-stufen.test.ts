@@ -108,14 +108,59 @@ describe("POST /api/v1/admin/stufen", () => {
     expect((await stufeZeile(id)).abteilungId).toBe(welt.demoAbteilungId);
   });
 
-  test("legt keinen Gruppenchat an (kommt mit #92)", async () => {
+  test("legt in derselben Anfrage genau einen Gruppenchat der Stufe an", async () => {
     const id = await legeStufeAn();
     expect(
       await db
-        .select({ id: schema.chat.id })
+        .select({ typ: schema.chat.typ, abteilungId: schema.chat.abteilungId })
         .from(schema.chat)
         .where(eq(schema.chat.stufeId, id)),
-    ).toEqual([]);
+    ).toEqual([{ typ: "stufe", abteilungId: welt.testabteilungId }]);
+  });
+
+  test("Eltern und SL der neuen Stufe finden den Chat und die Nummer der SL", async () => {
+    const id = await legeStufeAn();
+    const sl = await legePersonaAn(welt, "slA");
+    const eltern = await legePersonaAn(welt, "elternA");
+    const [kind] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Test",
+        nachname: "Kind",
+        stufeId: id,
+      })
+      .returning({ id: schema.kind.id });
+    await db.insert(schema.kindEltern).values({
+      kindId: kind.id,
+      userId: eltern.id as string,
+    });
+    await db.insert(schema.rolle).values({
+      userId: sl.id as string,
+      stufeId: id,
+      typ: "stufenleitung",
+    });
+    await db
+      .update(schema.user)
+      .set({ telefon: "+41 79 000 00 00" })
+      .where(eq(schema.user.id, sl.id as string));
+
+    for (const konto of [sl, eltern]) {
+      const chats = (await (
+        await anfrage(konto, "GET", "/api/v1/chats")
+      ).json()) as {
+        chats: { typ: string; stufe: { id: string } }[];
+      };
+      expect(
+        chats.chats.filter((c) => c.stufe.id === id).map((c) => c.typ),
+      ).toEqual(["stufe"]);
+    }
+    const kontakte = (await (
+      await anfrage(eltern, "GET", `/api/v1/stufen/${id}/kontakte`)
+    ).json()) as { kontakte: { telefon: string | null }[] };
+    expect(kontakte.kontakte.map((k) => k.telefon)).toEqual([
+      "+41 79 000 00 00",
+    ]);
   });
 
   test.each([
