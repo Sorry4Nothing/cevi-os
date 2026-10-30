@@ -14,7 +14,13 @@ import { ladeSeiten } from "./seiten.js";
 // Ohne gültige Konfiguration endet der Prozess hier mit Status 1
 const konfiguration = ladeKonfiguration(process.env);
 // Einmal beim Start; eine fehlende Seite beendet den Prozess wie eine fehlende Variable
-const seiten = ladeSeiten();
+const seiten = ladeSeiten({
+  stelle: konfiguration.VERANTWORTLICHE_STELLE,
+  email: konfiguration.KONTAKT_EMAIL,
+});
+if (!konfiguration.KONTAKT_EMAIL) {
+  log(undefined, { ereignis: "seiten", code: "ohne-kontakt" });
+}
 // Ohne Schlüsseldatei startet die API und sendet keine Pushes
 const fcm = konfiguration.FCM_SCHLUESSEL_DATEI
   ? erstelleFcm(konfiguration.FCM_SCHLUESSEL_DATEI)

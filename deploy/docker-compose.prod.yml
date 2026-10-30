@@ -37,6 +37,8 @@ services:
       DATABASE_URL: postgres://cevi_os_api:${API_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
       APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
+      VERANTWORTLICHE_STELLE: ${VERANTWORTLICHE_STELLE:?fehlt in deploy/.env}
+      KONTAKT_EMAIL: ${KONTAKT_EMAIL:?fehlt in deploy/.env}
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:

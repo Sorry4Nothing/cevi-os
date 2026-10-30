@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import {
   afterAll,
@@ -12,7 +11,7 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
-import { ladeSeiten } from "../src/seiten.js";
+import { ladeSeiten, setzeKontakt } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
@@ -37,28 +36,28 @@ beforeEach(() => {
 });
 afterEach(() => ausgabe.mockRestore());
 
-// Ohne Cookie («ohne Login»); datei === null heisst: Der genaue Inhalt kommt erst mit #24, hier zählt nur gültiges JSON
+const geladen = ladeSeiten();
+
+// Ohne Cookie («ohne Login»); seite === null heisst: Der genaue Inhalt kommt erst mit #24, hier zählt nur gültiges JSON
 test.each<[string, string, string | null]>([
-  ["/datenschutz", "text/html; charset=UTF-8", "datenschutz.html"],
-  ["/konto-loeschen", "text/html; charset=UTF-8", "konto-loeschen.html"],
-  ["/support", "text/html; charset=UTF-8", "support.html"],
+  ["/datenschutz", "text/html; charset=UTF-8", geladen.datenschutz],
+  ["/konto-loeschen", "text/html; charset=UTF-8", geladen.kontoLoeschen],
+  ["/support", "text/html; charset=UTF-8", geladen.support],
   ["/.well-known/apple-app-site-association", "application/json", null],
   ["/.well-known/assetlinks.json", "application/json", null],
 ])(
   "GET %s antwortet ohne Login mit 200 und %s, ohne Weiterleitung",
-  async (pfad, typ, datei) => {
+  async (pfad, typ, seite) => {
     const antwort = await app.request(pfad);
     expect(antwort.status).toBe(200);
     expect(antwort.headers.get("content-type")).toBe(typ);
     expect(antwort.headers.get("location")).toBeNull();
     const text = await antwort.text();
-    if (datei === null) {
+    if (seite === null) {
       expect(() => JSON.parse(text)).not.toThrow();
     } else {
-      // Gleich der Datei aus public/: Jeder Pfad liefert seine eigene Seite
-      expect(text).toBe(
-        readFileSync(new URL(`../public/${datei}`, import.meta.url), "utf8"),
-      );
+      // Jeder Pfad liefert seine eigene Seite
+      expect(text).toBe(seite);
     }
   },
 );
@@ -146,4 +145,77 @@ describe("Verwaltung unter /admin", () => {
       ).not.toMatch(/https?:\/\//);
     },
   );
+});
+
+describe("Seiten für die Stores", () => {
+  const kontakt = {
+    stelle: "Cevi <Beispiel> & Co",
+    email: "kontakt@example.org",
+  };
+  const seiten = ladeSeiten(kontakt);
+  const alle = Object.entries({
+    datenschutz: seiten.datenschutz,
+    kontoLoeschen: seiten.kontoLoeschen,
+    support: seiten.support,
+  });
+
+  test.each(alle)(
+    "%s: Stil und Adresse sind eingesetzt, nichts bleibt offen",
+    (_name, html) => {
+      expect(html).not.toMatch(/\{\{|STIL/);
+      expect(html).toContain("color-scheme: light dark");
+      expect(html).toContain(
+        '<a href="mailto:kontakt@example.org">kontakt@example.org</a>',
+      );
+    },
+  );
+
+  test("die Stelle wird maskiert", () => {
+    expect(seiten.datenschutz).toContain("Cevi &lt;Beispiel&gt; &amp; Co");
+    expect(seiten.datenschutz).not.toContain("<Beispiel>");
+  });
+
+  test("ohne Angaben nennen die Seiten weder Stelle noch Adresse, sagen es aber", () => {
+    expect(geladen.datenschutz).toContain("noch nicht eingetragen");
+    expect(geladen.datenschutz).not.toContain("mailto:");
+    expect(setzeKontakt("{{STELLE}}", {})).toBe("die Abteilung");
+  });
+
+  test.each(alle)(
+    "%s: Sprache, Hauptbereich, eine Überschrift 1, nichts von aussen, kein Eszett",
+    (_name, html) => {
+      expect(html).toContain('<html lang="de-CH">');
+      expect(html).toContain("<main>");
+      expect(html.match(/<h1[ >]/g)).toHaveLength(1);
+      expect(html).toContain('name="viewport"');
+      expect(html).not.toMatch(
+        /<script|<img|<iframe|<link|\ssrc\s*=|@import|url\(/i,
+      );
+      // Einziger Verweis nach aussen: die Aufsichtsbehörde
+      const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
+        (m) => m[1],
+      );
+      expect(aussen.every((u) => u === "https://www.edoeb.admin.ch")).toBe(
+        true,
+      );
+      expect(html).not.toContain("ß");
+    },
+  );
+
+  test("jede Seite verlinkt die beiden anderen", () => {
+    for (const [html, pfade] of [
+      [seiten.datenschutz, ["/konto-loeschen", "/support"]],
+      [seiten.kontoLoeschen, ["/datenschutz", "/support"]],
+      [seiten.support, ["/datenschutz", "/konto-loeschen"]],
+    ] as const) {
+      for (const pfad of pfade) expect(html).toContain(`href="${pfad}"`);
+    }
+  });
+
+  test("die Seite zum Löschen nennt den Löschtext und den Weg ohne App", () => {
+    expect(seiten.kontoLoeschen.replace(/\s+/g, " ")).toContain(
+      "Auf Anfrage löscht die Leitung Daten.",
+    );
+    expect(seiten.kontoLoeschen).toContain("mailto:kontakt@example.org");
+  });
 });

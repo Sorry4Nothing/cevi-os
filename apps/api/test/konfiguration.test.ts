@@ -116,3 +116,22 @@ test("FCM_SCHLUESSEL_DATEI ist freiwillig und wird durchgereicht", () => {
     "Fehlende oder ungültige Umgebungsvariablen: FCM_SCHLUESSEL_DATEI",
   );
 });
+
+test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL sind freiwillig und müssen gültig sein", () => {
+  const leer = ladeKonfiguration(GUELTIG);
+  expect(leer.VERANTWORTLICHE_STELLE).toBeUndefined();
+  expect(leer.KONTAKT_EMAIL).toBeUndefined();
+  const mit = ladeKonfiguration({
+    ...GUELTIG,
+    VERANTWORTLICHE_STELLE: "Cevi Beispiel",
+    KONTAKT_EMAIL: "kontakt@example.org",
+  });
+  expect(mit.VERANTWORTLICHE_STELLE).toBe("Cevi Beispiel");
+  expect(mit.KONTAKT_EMAIL).toBe("kontakt@example.org");
+  expect(meldung({ ...GUELTIG, KONTAKT_EMAIL: "keine-adresse" })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: KONTAKT_EMAIL",
+  );
+  expect(meldung({ ...GUELTIG, VERANTWORTLICHE_STELLE: "  " })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_STELLE",
+  );
+});
