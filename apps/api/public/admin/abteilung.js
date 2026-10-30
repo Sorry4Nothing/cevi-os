@@ -30,7 +30,7 @@ function zeichne(bereich, ctx, text) {
   );
   const formular = el(
     "form",
-    { class: "formular formular--schmal", novalidate: true },
+    { class: "formular", novalidate: true },
     eingabe.wurzel,
     fehler,
     el("div", { class: "aktionen" }, speichern),
@@ -52,5 +52,5 @@ function zeichne(bereich, ctx, text) {
       speichern.disabled = false;
     }
   });
-  bereich.append(formular);
+  bereich.append(el("div", { class: "panel panel--schmal" }, formular));
 }

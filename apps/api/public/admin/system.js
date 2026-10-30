@@ -268,7 +268,7 @@ export function fehlerTabelle(fehler, max = fehler.length) {
   }
   return tabelle({
     beschriftung: "Letzte Fehler",
-    spalten: ["Zeit", "Status", "Anfrage"],
+    spalten: ["Zeit", "Status", "Methode", "Route"],
     zeilen: gezeigt.map((f) =>
       el(
         "tr",
@@ -283,7 +283,8 @@ export function fehlerTabelle(fehler, max = fehler.length) {
             chip(String(f.status), f.status >= 500 ? "fehler" : "warn"),
           ),
         ),
-        el("td", { class: "code" }, `${f.methode} ${f.route}`),
+        el("td", { class: "code" }, f.methode),
+        el("td", { class: "code" }, f.route),
       ),
     ),
   }).wurzel;

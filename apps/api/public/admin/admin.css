@@ -1,36 +1,42 @@
-/* Verwaltung am Bildschirm: Farben und Schrift aus den Tokens der App-Vorlage, Layout und Dichte für Maus und Tastatur. Keine externen Schriften (CSP): Archivo wird nicht mitgeliefert, es gilt die Systemschrift. */
+/* Verwaltung: immer dunkel, im Stil «Nachthimmel» der Cevi-App. Die Farben sind Wert für Wert die Nacht-Werte aus tokens.json der Designvorlage (Name in der Vorlage im Kommentar). Alle Textpaare erreichen mindestens 4.5:1, Ränder von Feldern 3:1 (gemessen). Keine externen Schriften (CSP): Archivo wird nicht mitgeliefert, es gilt die Systemschrift. */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  /* Tag */
-  --surface: #f7f7fc;
-  --karte: #ffffff;
-  --leiste: #ecectf8;
-  --erhoben: #dfdff3;
-  --text: #141412;
-  --text-leise: #5c5c57;
-  --rand: #7a7a74;
-  --rand-leise: #e2e2ec;
-  --rot: #c41333;
-  --auf-rot: #ffffff;
-  --rot-text: #a30f2a;
-  --blau: #323394;
-  --auf-blau: #ffffff;
-  --blau-flaeche: #ececf8;
-  --auf-blau-flaeche: #323394;
-  --akzent: #323394;
-  --ok-flaeche: #e7f4ec;
-  --ok-text: #17703a;
-  --fehler-flaeche: #fce9ec;
-  --fehler-text: #9e1b2c;
-  --warn-flaeche: #fff4d6;
-  --warn-text: #8a5a00;
-  --stufe-flaeche: #e3f2f6;
-  --stufe-text: #1d6274;
-  --fokus: #323394;
-  --schleier: rgba(20, 20, 18, 0.48);
-  --schatten: 0 8px 24px rgba(20, 20, 60, 0.16);
+  /* Flächen stufen sich: surface, Karten, Kopfzeilen und Hover, Dialoge und Menüs */
+  --surface: #161620; /* surface */
+  --karte: #17172a; /* surface-container-low */
+  --leiste: #1e1f38; /* surface-container */
+  --erhoben: #23244a; /* surface-container-high */
+  --text: #ededeb; /* on-surface */
+  --text-leise: #ababa6; /* on-surface-variant */
+  --rand: #8a8a90; /* outline: Felder und Knöpfe mit Rand */
+  --rand-leise: #2c2c44; /* outline-variant: Kartenränder, Trennlinien */
+
+  /* Cevi-Rot: die eine Hauptaktion; als Text primary-text */
+  --rot: #c41333; /* primary */
+  --auf-rot: #ffffff; /* on-primary */
+  --rot-text: #ff7a8a; /* primary-text */
+  /* Cevi-Blau: zeigt, wo man ist (aktive Navigation) */
+  --blau: #323394; /* secondary */
+  --auf-blau: #ffffff; /* on-secondary */
+  --blau-flaeche: #23244a; /* secondary-container */
+  --auf-blau-flaeche: #dcddf9; /* on-secondary-container */
+  /* Links, Überzeilen, Fokus */
+  --akzent: #a9abf2; /* accent */
+  --fokus: #a9abf2; /* focus */
+
+  --ok-flaeche: #16271d; /* success-container */
+  --ok-text: #6fd39a; /* on-success-container */
+  --fehler-flaeche: #2e1519; /* error-container */
+  --fehler-text: #ff8e9a; /* on-error-container */
+  --warn-flaeche: #2a2312; /* warning-container */
+  --warn-text: #f2c063; /* on-warning-container */
+  --stufe-flaeche: #0f2a31; /* stufe-container */
+  --stufe-text: #7fd0e3; /* on-stufe-container */
+
+  --schleier: rgba(0, 0, 0, 0.6); /* scrim */
+  --schatten: 0 8px 24px rgba(0, 0, 0, 0.5); /* elevation-float */
 
   --raum-1: 4px;
   --raum-2: 8px;
@@ -45,39 +51,13 @@
   --feld: 36px;
   --knopf: 40px;
   --leiste-breite: 15rem;
+  /* Hover von Zeilen und Menüeinträgen: surface-container, im Menü outline-variant */
+  --hover: var(--leiste);
   --breite: 1400px;
-  --ecke-s: 6px;
-  --ecke-m: 8px;
+  --ecke-s: 8px;
+  --ecke-m: 12px;
+  --ecke-xl: 16px;
   --ecke-voll: 9999px;
-}
-
-/* Nacht */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --surface: #161620;
-    --karte: #17172a;
-    --leiste: #1e1f38;
-    --erhoben: #23244a;
-    --text: #ededeb;
-    --text-leise: #ababa6;
-    --rand: #8a8a90;
-    --rand-leise: #2c2c44;
-    --rot-text: #ff7a8a;
-    --blau-flaeche: #23244a;
-    --auf-blau-flaeche: #dcddf9;
-    --akzent: #a9abf2;
-    --ok-flaeche: #16271d;
-    --ok-text: #6fd39a;
-    --fehler-flaeche: #2e1519;
-    --fehler-text: #ff8e9a;
-    --warn-flaeche: #2a2312;
-    --warn-text: #f2c063;
-    --stufe-flaeche: #0f2a31;
-    --stufe-text: #7fd0e3;
-    --fokus: #a9abf2;
-    --schleier: rgba(0, 0, 0, 0.6);
-    --schatten: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
 }
 
 /* Grober Zeiger (Touch): wieder grosse Ziele */
@@ -119,12 +99,12 @@ h1,
 h2,
 h3 {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   letter-spacing: -0.01em;
 }
 
@@ -134,10 +114,15 @@ h2 {
 
 h3 {
   font-size: 0.875rem;
+  font-weight: 700;
 }
 
 p {
   margin: 0;
+}
+
+a {
+  color: var(--akzent);
 }
 
 [hidden] {
@@ -145,7 +130,7 @@ p {
 }
 
 :focus-visible {
-  outline: 2px solid var(--fokus);
+  outline: 3px solid var(--fokus);
   outline-offset: 2px;
 }
 
@@ -251,10 +236,11 @@ main:focus {
   color: var(--text);
 }
 
+/* Aktiv: Cevi-Blau mit weissem Text, wie der aktive Punkt im Footer der App */
 .bereiche a[aria-current="page"] {
-  background: var(--blau-flaeche);
-  color: var(--auf-blau-flaeche);
-  font-weight: 600;
+  background: var(--blau);
+  color: var(--auf-blau);
+  font-weight: 700;
 }
 
 .konto {
@@ -354,8 +340,10 @@ main:focus {
 .tabelle thead th {
   background: var(--leiste);
   color: var(--text-leise);
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -392,8 +380,8 @@ main:focus {
 }
 
 .tabelle .breit {
-  min-width: 18rem;
-  max-width: 34rem;
+  min-width: 13rem;
+  max-width: 30rem;
 }
 
 .zeilen {
@@ -440,7 +428,7 @@ main:focus {
   background: var(--blau-flaeche);
   color: var(--auf-blau-flaeche);
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -489,7 +477,7 @@ main:focus {
   padding: 0 var(--raum-4);
   border: 1px solid var(--rand);
   border-radius: var(--ecke-s);
-  background: var(--karte);
+  background: none;
   color: var(--text);
   font: inherit;
   font-weight: 500;
@@ -509,7 +497,7 @@ main:focus {
 
 .knopf--haupt:hover {
   background: var(--rot);
-  filter: brightness(1.12);
+  filter: brightness(0.92);
 }
 
 .knopf--gefahr {
@@ -573,7 +561,7 @@ main:focus {
   padding: var(--raum-1);
   border: 1px solid var(--rand-leise);
   border-radius: var(--ecke-m);
-  background: var(--karte);
+  background: var(--erhoben);
   box-shadow: var(--schatten);
 }
 
@@ -592,7 +580,7 @@ main:focus {
 }
 
 .menue-eintrag:hover {
-  background: var(--erhoben);
+  background: var(--rand-leise);
 }
 
 .menue-eintrag--gefahr {
@@ -607,19 +595,19 @@ main:focus {
   gap: var(--raum-4);
 }
 
-.formular--schmal {
-  max-width: 40rem;
-}
-
 .feld {
   display: flex;
   flex-direction: column;
   gap: var(--raum-1);
 }
 
-.feld > label,
+.feld > label {
+  color: var(--text-leise);
+  font-weight: 500;
+}
+
 legend {
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .feld input:not([type="checkbox"]),
@@ -723,7 +711,7 @@ fieldset .feld select {
 }
 
 .hinweis:focus {
-  outline: 2px solid var(--fokus);
+  outline: 3px solid var(--fokus);
   outline-offset: 2px;
 }
 
@@ -767,8 +755,8 @@ dialog {
   max-height: calc(100vh - 2 * var(--raum-4));
   padding: var(--raum-6);
   border: 1px solid var(--rand-leise);
-  border-radius: var(--ecke-m);
-  background: var(--karte);
+  border-radius: var(--ecke-xl);
+  background: var(--erhoben);
   color: var(--text);
   box-shadow: var(--schatten);
   overflow-y: auto;
@@ -861,9 +849,9 @@ dialog .feld textarea {
 }
 
 .kachel-wert {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.25;
   letter-spacing: -0.01em;
 }
@@ -910,6 +898,7 @@ dialog .feld textarea {
 
 .raster {
   display: grid;
+  align-items: start;
   gap: var(--raum-3);
   margin-bottom: var(--raum-4);
 }
@@ -933,6 +922,7 @@ dialog .feld textarea {
 .panel > h2 {
   margin-bottom: var(--raum-3);
   font-size: 0.9375rem;
+  font-weight: 700;
 }
 
 .panel > .meta {
@@ -1181,6 +1171,10 @@ dialog .feld textarea {
   }
 }
 
-.haupt > .hilfe {
+#bereich > .hilfe {
   margin-bottom: var(--raum-3);
+}
+
+.panel--schmal {
+  max-width: 44rem;
 }

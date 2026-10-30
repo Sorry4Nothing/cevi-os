@@ -126,6 +126,12 @@ describe("Verwaltung unter /admin", () => {
     expect(html).not.toMatch(/<style/i);
   });
 
+  test("die Verwaltung ist immer dunkel, ohne Umschalten nach Systemeinstellung", () => {
+    expect(admin["index.html"]).toContain('name="color-scheme" content="dark"');
+    expect(admin["admin.css"]).toContain("color-scheme: dark;");
+    expect(admin["admin.css"]).not.toContain("prefers-color-scheme");
+  });
+
   test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
     "%s schreibt keine Daten als HTML und lädt nichts von aussen",
     (datei) => {

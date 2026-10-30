@@ -13,7 +13,7 @@ import {
   knopf,
   menue,
   tabelle,
-  zeit,
+  tag,
 } from "./dom.js";
 
 const ROLLEN = [
@@ -239,7 +239,7 @@ function zeile(person, daten, ctx, neu) {
     person.mussPasswortAendern &&
       chip(
         person.startpasswortGueltigBis
-          ? `Startpasswort bis ${zeit(person.startpasswortGueltigBis)}`
+          ? `Startpasswort bis ${tag(person.startpasswortGueltigBis)}`
           : "Passwortwechsel offen",
         "warn",
       ),

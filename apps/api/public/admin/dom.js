@@ -29,6 +29,12 @@ const datum = new Intl.DateTimeFormat("de-CH", {
   dateStyle: "medium",
   timeStyle: "short",
 });
+const nurTag = new Intl.DateTimeFormat("de-CH", { dateStyle: "medium" });
+export function tag(iso) {
+  const wert = new Date(iso);
+  return Number.isNaN(wert.getTime()) ? "" : nurTag.format(wert);
+}
+
 export function zeit(iso) {
   const wert = new Date(iso);
   return Number.isNaN(wert.getTime()) ? "" : datum.format(wert);
