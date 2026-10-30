@@ -32,6 +32,7 @@ import {
   stufenleitungDerStufen,
   type Person,
 } from "../rechte.js";
+import { enthaeltVerbotenes, WORTFILTER_ANTWORT } from "../wortfilter.js";
 
 const SEITE = 50;
 const MAX_ZEICHEN = 2000;
@@ -264,6 +265,10 @@ export function erstelleChatRouten({ db }: { db: Db }) {
           const { text, programmId } = c.req.valid("json");
           const eigener = await chatFuerPerson(db, person, id);
           if (!eigener) throw new HTTPException(404);
+          // 422 mit Grund statt 400 ohne Details: Die Person muss wissen, was sie ändern soll
+          if (enthaeltVerbotenes(text)) {
+            return c.json(WORTFILTER_ANTWORT, 422);
+          }
           if (programmId) {
             const [zeile] = await db
               .select({ id: programm.id })
