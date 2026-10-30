@@ -1,10 +1,9 @@
 import { and, eq, ne } from "drizzle-orm";
-import type { Expo } from "expo-server-sdk";
 import type { Context } from "hono";
 import type { Db } from "./db/client.js";
 import { chat, stufe, user } from "./db/schema.js";
 import { log } from "./log.js";
-import { sendePush } from "./push.js";
+import { type Fcm, sendePush } from "./push.js";
 import { chatMitglieder } from "./rechte.js";
 
 // Der Gruppenchat einer Stufe; idempotent über den Teilindex chat_gruppe_pro_stufe. Akzeptiert auch eine Transaktion (db.transaction(tx => …))
@@ -21,7 +20,7 @@ export async function legeGruppenchatAn(
 // Nach dem Speichern der Nachricht aufrufen; wirft nie: Ein Fehler hier darf das Senden nicht wiederholen lassen
 // Der Titel nennt nur die Stufe, nie Text, Absender oder Kind: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export async function pushNeueNachricht(
-  { db, expo, c }: { db: Db; expo: Expo; c?: Context },
+  { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   {
     chatId,
     abteilungId,
@@ -57,7 +56,7 @@ export async function pushNeueNachricht(
     log(c, { ereignis: "push", code: (fehler as { code?: unknown }).code });
     return;
   }
-  await sendePush({ db, expo, c }, empfaenger, {
+  await sendePush({ db, fcm, c }, empfaenger, {
     typ: "chat",
     id: chatId,
     titel,

@@ -9,7 +9,6 @@ const GUELTIG = {
   PORT: "3000",
   BETTER_AUTH_SECRET: "geheim-6-0123456789abcdef0123456789abcdef",
   BETTER_AUTH_URL: "http://localhost:3000",
-  EXPO_ACCESS_TOKEN: "geheim-9",
 };
 const UNGUELTIG = {
   DATABASE_URL: ["mysql://cevi:geheim-2@db.example.org/cevi_os", "geheim-3"],
@@ -18,8 +17,6 @@ const UNGUELTIG = {
   // Unter 32 Zeichen
   BETTER_AUTH_SECRET: ["geheim-7"],
   BETTER_AUTH_URL: ["ftp://api.example.org", "geheim-8"],
-  // Jeder nicht leere Text gilt; nur «fehlt» und «ist leer» laufen
-  EXPO_ACCESS_TOKEN: [],
 };
 
 function meldung(env: Record<string, string | undefined>) {
@@ -31,14 +28,13 @@ function meldung(env: Record<string, string | undefined>) {
   throw new Error("ladeKonfiguration hat nicht geworfen");
 }
 
-test("liest die sechs Werte und übergeht andere Variablen", () => {
+test("liest die fünf Werte und übergeht andere Variablen", () => {
   expect(ladeKonfiguration({ ...GUELTIG, HOME: "/home/cevi" })).toEqual({
     DATABASE_URL: GUELTIG.DATABASE_URL,
     APP_MIN_VERSION: "0.1.0",
     PORT: 3000,
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
-    EXPO_ACCESS_TOKEN: "geheim-9",
   });
 });
 
@@ -78,9 +74,9 @@ test("GOOGLE_APPLICATION_CREDENTIALS ist leer: Die Meldung nennt nur den Namen",
   );
 });
 
-test("ohne Konfiguration nennt die Meldung alle sechs Namen", () => {
+test("ohne Konfiguration nennt die Meldung alle fünf Namen", () => {
   expect(meldung({})).toBe(
-    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL, EXPO_ACCESS_TOKEN",
+    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL",
   );
 });
 
@@ -98,7 +94,6 @@ test("der Server startet ohne Konfiguration nicht", () => {
         PORT: undefined,
         BETTER_AUTH_SECRET: undefined,
         BETTER_AUTH_URL: undefined,
-        EXPO_ACCESS_TOKEN: undefined,
       },
       encoding: "utf8",
       // Auf einem ausgelasteten Rechner dauert der Start mit tsx ein Vielfaches
@@ -107,6 +102,17 @@ test("der Server startet ohne Konfiguration nicht", () => {
   );
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL, EXPO_ACCESS_TOKEN",
+    "Fehlende oder ungültige Umgebungsvariablen: DATABASE_URL, APP_MIN_VERSION, PORT, BETTER_AUTH_SECRET, BETTER_AUTH_URL",
   );
 }, 70_000);
+
+test("FCM_SCHLUESSEL_DATEI ist freiwillig und wird durchgereicht", () => {
+  expect(ladeKonfiguration(GUELTIG).FCM_SCHLUESSEL_DATEI).toBeUndefined();
+  expect(
+    ladeKonfiguration({ ...GUELTIG, FCM_SCHLUESSEL_DATEI: "/pfad/fcm.json" })
+      .FCM_SCHLUESSEL_DATEI,
+  ).toBe("/pfad/fcm.json");
+  expect(meldung({ ...GUELTIG, FCM_SCHLUESSEL_DATEI: "" })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: FCM_SCHLUESSEL_DATEI",
+  );
+});

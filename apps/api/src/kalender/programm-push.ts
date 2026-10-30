@@ -1,9 +1,8 @@
 import { and, eq, exists, inArray, ne, sql } from "drizzle-orm";
-import type { Expo } from "expo-server-sdk";
 import type { Db } from "../db/client.js";
 import { programm, programmStufe, rolle, stufe, user } from "../db/schema.js";
 import { log } from "../log.js";
-import { sendePush } from "../push.js";
+import { type Fcm, sendePush } from "../push.js";
 import { aktivesKonto, programmSichtbar, type Person } from "../rechte.js";
 import { programmTag } from "./nachfolger.js";
 
@@ -33,7 +32,7 @@ function kurzDatum(tag: string) {
   return `${WOCHENTAG[wochentag]} ${tagNr}.${monat}.`;
 }
 
-// Nur Titel und Datum des Programms, nie Namen: Der Text läuft über Expo, Apple und Google
+// Nur Titel und Datum des Programms, nie Namen: Der Text läuft über Apple und Google
 export function pushTitel({ art, titel, tag }: Aenderung) {
   const was = {
     verschoben: "verschoben",
@@ -77,7 +76,7 @@ export const abgesagt = (programmId: string, alt: Stand): Aenderung => ({
 
 // Nach dem Commit des Abgleichs; wirft nie: Ein Fehler hier darf den Sync nicht scheitern lassen, die Änderung ist schon gespeichert
 export async function pushProgrammaenderungen(
-  { db, expo }: { db: Db; expo: Expo },
+  { db, fcm }: { db: Db; fcm?: Fcm },
   abteilungId: string,
   aenderungen: Aenderung[],
 ): Promise<void> {
@@ -152,7 +151,7 @@ export async function pushProgrammaenderungen(
     for (const a of aenderungen) {
       const an = empfaenger.get(a.programmId);
       if (!an) continue;
-      await sendePush({ db, expo }, an, {
+      await sendePush({ db, fcm }, an, {
         typ: "programm",
         id: a.programmId,
         titel: pushTitel(a),

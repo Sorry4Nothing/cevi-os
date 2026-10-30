@@ -6,9 +6,9 @@ import {
   notInArray,
   sql as roh,
 } from "drizzle-orm";
-import type { Expo } from "expo-server-sdk";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
+import type { Fcm } from "../push.js";
 import { abteilung, programm } from "../db/schema.js";
 import { log } from "../log.js";
 import { programmBeginn } from "../rechte.js";
@@ -29,12 +29,12 @@ const SPERRE_KALENDER = 740_027;
 // Ein Lauf über alle Abteilungen mit Kalender; «gesperrt» heisst: ein anderer Lauf arbeitet gerade
 export async function synchronisiere({
   datenbankUrl,
-  expo,
+  fcm,
   schluesselDatei,
   jetzt = new Date(),
 }: {
   datenbankUrl: string;
-  expo: Expo;
+  fcm?: Fcm;
   schluesselDatei: string | undefined;
   jetzt?: Date;
 }): Promise<"fertig" | "gesperrt"> {
@@ -45,7 +45,7 @@ export async function synchronisiere({
       await sql`select pg_try_advisory_lock(${SPERRE_KALENDER}) as erhalten`;
     if (!sperre.erhalten) return "gesperrt";
     try {
-      await lauf(erstelleDb(sql), expo, schluesselDatei, jetzt);
+      await lauf(erstelleDb(sql), fcm, schluesselDatei, jetzt);
       return "fertig";
     } finally {
       // Scheitert nur mit der Verbindung, und dann fällt die Sperre mit ihr
@@ -58,7 +58,7 @@ export async function synchronisiere({
 
 async function lauf(
   db: Db,
-  expo: Expo,
+  fcm: Fcm | undefined,
   schluesselDatei: string | undefined,
   jetzt: Date,
 ) {
@@ -198,7 +198,7 @@ async function lauf(
           .where(eq(abteilung.id, eine.id));
       });
       // Erst nach dem Commit; wirft nie, ein Push-Fehler lässt den Lauf der Abteilung nicht scheitern
-      await pushProgrammaenderungen({ db, expo }, eine.id, aenderungen);
+      await pushProgrammaenderungen({ db, fcm }, eine.id, aenderungen);
     } catch (fehler) {
       await merkeFehler(db, eine.id, fehler);
     }

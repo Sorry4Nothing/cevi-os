@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { and, asc, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
@@ -25,7 +24,6 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());

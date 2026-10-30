@@ -1040,8 +1040,8 @@ paths:
         Löschen des Kontos) verschwindet auch das Token.
 
         Der Body ist strikt: Fremde Felder (`userId`, `sessionId`), ein Token in falscher Form, eine andere
-        Plattform oder ein leerer Body ergeben 400. Das Token hat die Form der Expo-Push-Tokens
-        (`ExpoPushToken[…]` oder `ExponentPushToken[…]`, oder eine UUID).
+        Plattform oder ein leerer Body ergeben 400. Das Token ist ein FCM-Registrierungstoken: 20 bis 512 Zeichen aus Buchstaben, Ziffern
+        und `_ : . -`. Die Form `ExponentPushToken[…]` aus der früheren Expo-Anbindung ergibt 400.
 
         **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
         Statuscodes: 204, 400, 401, 403, 426.
@@ -2790,10 +2790,9 @@ components:
       properties:
         token:
           type: string
-          maxLength: 200
-          pattern: ^(?:(?:Expo|Exponent)PushToken\[[\s\S]*\]|[a-zA-Z\d]{8}-[a-zA-Z\d]{4}-[a-zA-Z\d]{4}-[a-zA-Z\d]{4}-[a-zA-Z\d]{12})$
-          description: Push-Token des Geräts in der Form der Expo-Push-Tokens.
-          example: ExpoPushToken[xxxxxxxxxxxxxxxxxxxxxx]
+          pattern: ^[\w:.-]{20,512}$
+          description: FCM-Registrierungstoken des Geräts.
+          example: cX1y2Z3a4B5c6D7e8F9g:APA91bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         plattform:
           type: string
           enum:

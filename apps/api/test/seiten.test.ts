@@ -1,4 +1,3 @@
-import { Expo } from "expo-server-sdk";
 import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import {
@@ -27,7 +26,6 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());

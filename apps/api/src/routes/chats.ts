@@ -12,13 +12,13 @@ import {
   or,
   sql,
 } from "drizzle-orm";
-import type { Expo } from "expo-server-sdk";
 import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { pushNeueNachricht } from "../chat.js";
+import type { Fcm } from "../push.js";
 import {
   chat,
   chatStatus,
@@ -63,7 +63,7 @@ const sendenSchema = z.strictObject({
 });
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
-export function erstelleChatRouten({ db, expo }: { db: Db; expo: Expo }) {
+export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   // Nur Programme, die auch Eltern der Stufe sehen: Sonst landete ein interner Titel im Chat
   const fuerElternDerStufe = (stufeId: string, abteilungId: string) =>
     and(
@@ -353,7 +353,7 @@ export function erstelleChatRouten({ db, expo }: { db: Db; expo: Expo }) {
             return zeile;
           });
           await pushNeueNachricht(
-            { db, expo, c },
+            { db, fcm, c },
             { chatId: id, abteilungId: person.abteilungId, autorId: person.id },
           );
           return c.json(neu, 201);

@@ -9,7 +9,7 @@ if [[ $# -ne 1 || ! $1 =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
 fi
 cd "$(dirname "$0")"
 # Fehlt die Schlüsseldatei, legt Docker an ihrer Stelle ein leeres Verzeichnis an
-for datei in .env Caddyfile secrets/google-service-account.json; do
+for datei in .env Caddyfile secrets/google-service-account.json secrets/fcm-service-account.json; do
   if [[ ! -f $datei ]]; then
     echo "Fehlt oder ist keine Datei: deploy/$datei" >&2
     exit 1

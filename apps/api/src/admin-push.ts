@@ -1,10 +1,9 @@
 import { and, eq, ne, sql } from "drizzle-orm";
-import type { Expo } from "expo-server-sdk";
 import type { Context } from "hono";
 import type { Db } from "./db/client.js";
 import { user } from "./db/schema.js";
 import { log } from "./log.js";
-import { sendePush } from "./push.js";
+import { type Fcm, sendePush } from "./push.js";
 import type { Person } from "./rechte.js";
 
 // Nur die Aktion, nie Namen, Benutzernamen, Stufen oder Abteilung: Eine Stufe kann auf eine Person zeigen
@@ -20,7 +19,7 @@ export const ADMIN_PUSH_TITEL = {
 
 // Nach dem Commit der Aktion aufrufen; wirft nie: Ein Fehler hier darf die Aktion nicht wiederholen lassen
 export async function pushAnAndereAdmins(
-  { db, expo, c }: { db: Db; expo: Expo; c?: Context },
+  { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   akteur: Pick<Person, "id" | "abteilungId">,
   zielId: string,
   aktion: keyof typeof ADMIN_PUSH_TITEL,
@@ -45,7 +44,7 @@ export async function pushAnAndereAdmins(
   }
   if (admins.length === 0) return;
   await sendePush(
-    { db, expo, c },
+    { db, fcm, c },
     admins.map(({ id }) => id),
     { typ: "person", id: zielId, titel: ADMIN_PUSH_TITEL[aktion] },
   );

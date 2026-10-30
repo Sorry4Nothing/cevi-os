@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
-import { Expo, type ExpoPushMessage } from "expo-server-sdk";
+import type { TokenMessage } from "firebase-admin/messaging";
 import postgres from "postgres";
 import {
   afterAll,
@@ -19,6 +19,7 @@ import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
   erstelleTestAuth,
+  fcmNachricht,
   PASSWORT,
 } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -30,7 +31,7 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 
-const expoAttrappe = bereiteAuthTestsVor();
+const fcmAttrappe = bereiteAuthTestsVor();
 
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
@@ -40,7 +41,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: "test-zugang" }),
+  fcm: fcmAttrappe,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -58,7 +59,7 @@ let demoEltern: PersonaKonto;
 // Die Tokens, die nach jeder Aktion einen Push bekommen: alle Admins der Testabteilung ausser dem Aktor; Aktor, SL, Eltern und Demo haben auch eines und bekommen nie etwas
 let empfaenger: string[];
 
-const neuesToken = () => `ExponentPushToken[test-${randomUUID()}]`;
+const neuesToken = () => `fcm-test-${randomUUID()}`;
 
 async function melde(konto: PersonaKonto) {
   const token = neuesToken();
@@ -100,7 +101,7 @@ beforeAll(async () => {
   empfaenger = andere.slice(0, 3);
 });
 
-beforeEach(() => expoAttrappe.zuruecksetzen());
+beforeEach(() => fcmAttrappe.zuruecksetzen());
 
 const BASIS = "/api/v1/admin/personen";
 
@@ -145,9 +146,14 @@ async function legeAn(
 // Eine Person ohne Admin und Rolle: das Anlegen allein löst keinen Push aus
 async function legeZielAn() {
   const ziel = await legeAn();
-  expect(expoAttrappe.nachrichten).toEqual([]);
+  expect(fcmAttrappe.nachrichten).toEqual([]);
   return ziel;
 }
+
+const nachNachricht = (a: TokenMessage, b: TokenMessage) =>
+  `${a.token}${a.notification?.title}`.localeCompare(
+    `${b.token}${b.notification?.title}`,
+  );
 
 function erwarte(
   aktionen: (keyof typeof ADMIN_PUSH_TITEL)[],
@@ -156,22 +162,20 @@ function erwarte(
 ) {
   const erwartet = aktionen
     .flatMap((aktion) =>
-      tokens.map((to): ExpoPushMessage => ({
-        to,
-        title: ADMIN_PUSH_TITEL[aktion],
-        data: { typ: "person", id: zielId },
-        sound: "default",
-      })),
+      tokens.map((token) =>
+        fcmNachricht(token, ADMIN_PUSH_TITEL[aktion], {
+          typ: "person",
+          id: zielId,
+        }),
+      ),
     )
-    .sort((a, b) => `${a.to}${a.title}`.localeCompare(`${b.to}${b.title}`));
-  const erhalten = [...expoAttrappe.nachrichten].sort((a, b) =>
-    `${a.to}${a.title}`.localeCompare(`${b.to}${b.title}`),
-  );
+    .sort(nachNachricht);
+  const erhalten = [...fcmAttrappe.nachrichten].sort(nachNachricht);
   // Streng: «channelId» darf nicht einmal als undefined auftauchen
   expect(erhalten).toStrictEqual(erwartet);
 }
 
-const keinPush = () => expect(expoAttrappe.nachrichten).toEqual([]);
+const keinPush = () => expect(fcmAttrappe.nachrichten).toEqual([]);
 
 describe("Push an die anderen Admins", () => {
   test("neues Startpasswort", async () => {
@@ -185,14 +189,14 @@ describe("Push an die anderen Admins", () => {
     const admin = await legeAn({ admin: true });
     erwarte(["admin_vergeben"], admin.id);
 
-    expoAttrappe.zuruecksetzen();
+    fcmAttrappe.zuruecksetzen();
     const sl = await legeAn({
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     });
     erwarte(["stufenleitung_vergeben"], sl.id);
 
     // Zwei Rollen sind zwei Pushes, mehrere Stufen mit SL nur einer
-    expoAttrappe.zuruecksetzen();
+    fcmAttrappe.zuruecksetzen();
     const beides = await legeAn({
       admin: true,
       rollen: [
@@ -215,7 +219,7 @@ describe("Push an die anderen Admins", () => {
     ).toBe(204);
     erwarte(["admin_vergeben"], ziel.id);
 
-    expoAttrappe.zuruecksetzen();
+    fcmAttrappe.zuruecksetzen();
     await anfrage(aktor, "PATCH", `/${ziel.id}`, { admin: true });
     keinPush();
 
@@ -235,7 +239,7 @@ describe("Push an die anderen Admins", () => {
     expect((await patch([rolleA("stufenleitung")])).status).toBe(204);
     erwarte(["stufenleitung_vergeben"], ziel.id);
 
-    expoAttrappe.zuruecksetzen();
+    fcmAttrappe.zuruecksetzen();
     await patch([rolleA("stufenleitung")]);
     keinPush();
 
@@ -324,7 +328,7 @@ describe("kein Push", () => {
       admin: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     });
-    expoAttrappe.zuruecksetzen();
+    fcmAttrappe.zuruecksetzen();
     for (const [methode, pfad, body] of [
       ["POST", `/${ziel.id}/deaktivieren`],
       ["POST", `/${ziel.id}/aktivieren`],
@@ -409,7 +413,7 @@ describe("kein Push", () => {
 });
 
 describe("Inhalt und Ausfall", () => {
-  test("Namen, Benutzername, Startpasswort und Stufen stehen in keiner Anfrage an Expo", async () => {
+  test("Namen, Benutzername, Startpasswort und Stufen stehen in keiner Anfrage an FCM", async () => {
     const vorname = `Vorname${randomUUID().slice(0, 8)}`;
     const nachname = `Nachname${randomUUID().slice(0, 8)}`;
     const ziel = await legeAn(
@@ -424,8 +428,8 @@ describe("Inhalt und Ausfall", () => {
     const { startpasswort } = (await neu.json()) as { startpasswort: string };
     await anfrage(aktor, "DELETE", `/${ziel.id}`);
 
-    expect(expoAttrappe.nachrichten).toHaveLength(empfaenger.length * 4);
-    const text = JSON.stringify(expoAttrappe.nachrichten);
+    expect(fcmAttrappe.nachrichten).toHaveLength(empfaenger.length * 4);
+    const text = JSON.stringify(fcmAttrappe.nachrichten);
     for (const geheim of [
       vorname,
       nachname,
@@ -440,13 +444,13 @@ describe("Inhalt und Ausfall", () => {
     }
   });
 
-  test("Expo antwortet 500: gleiche Antwort, die Änderung bleibt, eine Log-Zeile", async () => {
+  test("FCM fällt aus: gleiche Antwort, die Änderung bleibt, eine Log-Zeile", async () => {
     const zeilen: Record<string, unknown>[] = [];
     const ausgabe = vi.spyOn(console, "log").mockImplementation((zeile) => {
       zeilen.push(JSON.parse(String(zeile)) as Record<string, unknown>);
     });
     try {
-      expoAttrappe.ausfall = true;
+      fcmAttrappe.ausfall = true;
       const ziel = await legeZielAn();
       zeilen.length = 0;
 
