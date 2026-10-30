@@ -649,6 +649,37 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Blockieren (#53): Nur Eltern blockieren, und nur Eltern, mit denen sie einen Gruppenchat teilen. Wer keinen Gruppenchat mit dem Ziel hat, bekommt 404 (Admins, Leitende, andere Stufen, Demo); die SL der Stufe A ist selbst Mitglied und bekommt 403. Aufheben und Liste stehen allen offen, das Aufheben prüft nur die Abteilung des Ziels. Details in test/blockieren.test.ts
+  "GET /api/v1/blockierungen": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/blockierungen/:userId": {
+    url: () => `/api/v1/blockierungen/${blockierZielId}`,
+    erwartet: {
+      ...alle(404),
+      slA: 403,
+      elternA: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/blockierungen/:userId": {
+    url: () => `/api/v1/blockierungen/${patchZielId}`,
+    erwartet: {
+      ...alle(204),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Eingang der Meldungen (#52): nur Admins. Die gemeldete Person bekommt 404, weil die Meldung für sie nicht existiert (test/moderation.test.ts)
   "GET /api/v1/admin/meldungen": {
     erwartet: {
@@ -684,6 +715,7 @@ let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
 let meldeNachrichtId: string;
+let blockierZielId: string;
 let erledigenZielId: string;
 let patchStufeId: string;
 let patchKindId: string;
@@ -707,6 +739,15 @@ async function wegwerfPersonId(zweiterFaktor = false) {
       .values({ userId: zeile.id, secret: "x", backupCodes: "x" });
   }
   return zeile.id;
+}
+
+// Wegwerf-Elternteil des Kindes A: Mitglied im Gruppenchat der Stufe A, ohne Anmeldung
+async function wegwerfElternId() {
+  const id = await wegwerfPersonId();
+  await welt.db
+    .insert(schema.kindEltern)
+    .values({ kindId: welt.kindAId, userId: id });
+  return id;
 }
 
 // Wegwerf-Kind der Testabteilung, direkt eingefügt; die Matrix-Zeilen fassen nie Kind A und B der Welt an
@@ -768,6 +809,7 @@ beforeAll(async () => {
   });
   programmId = programm.id;
   meldeNachrichtId = await wegwerfNachrichtId();
+  blockierZielId = await wegwerfElternId();
   const [meldung] = await db
     .insert(schema.meldung)
     .values({
