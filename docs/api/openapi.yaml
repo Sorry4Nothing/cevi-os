@@ -1459,6 +1459,8 @@ paths:
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
         `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (ausgeblendete, vor dem Beitritt geschriebene) Nachrichten zählen nicht.
+        `letzteNachricht` ist die neueste Nachricht, die die Person im Chat sieht, oder `null`, wenn es noch keine gibt. Es gilt dieselbe Sichtbarkeitsregel wie bei `ungelesen`, ausser dass auch eigene Nachrichten zählen: Ausgeblendete Nachrichten zählen nicht (auch nicht für ihre Autorin oder ihren Autor; dann gilt die letzte sichtbare), vor dem Beitritt geschriebene ebenfalls nicht. Eltern sehen die letzte Nachricht nur in ihren eigenen Chats.
+        Der `text` ist auf höchstens 120 Zeichen gekürzt (ohne Auslassungszeichen); Anhänge und Programmverweise der Nachricht gehören nicht dazu. Den vollständigen Text liefert `GET /api/v1/chats/{id}/nachrichten`.
         Die App fragt die Liste per Polling ab (Liste alle 30 Sekunden, offener Chat alle 5 Sekunden); eine Echtzeit-Verbindung gibt es nicht.
 
         Statuscodes: 200 Erfolg; 401 nicht angemeldet oder Konto deaktiviert; 403 Konto muss zuerst das Passwort ändern; 426 App zu alt.
@@ -3116,6 +3118,35 @@ components:
           format: uuid
         name:
           type: string
+    ChatListeLetzteNachricht:
+      type: object
+      description: Vorschau der neuesten sichtbaren Nachricht in der Chatliste.
+      required:
+        - text
+        - erstelltAm
+        - eigene
+        - autor
+      properties:
+        text:
+          type: string
+          maxLength: 120
+          description: Text der Nachricht, auf höchstens 120 Zeichen gekürzt.
+        erstelltAm:
+          type: string
+          format: date-time
+          description: Zeitpunkt der Nachricht in UTC.
+        eigene:
+          type: boolean
+          description: "`true`, wenn die angemeldete Person die Nachricht geschrieben hat."
+        autor:
+          $ref: "#/components/schemas/ChatPerson"
+      example:
+        text: Treffpunkt ist um 14 Uhr beim Pfadiheim.
+        erstelltAm: "2026-05-02T12:30:00Z"
+        eigene: false
+        autor:
+          id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
+          name: Beispiel Leitung
     ChatListeneintrag:
       type: object
       required:
@@ -3125,10 +3156,16 @@ components:
         - eltern
         - stufenleitung
         - ungelesen
+        - letzteNachricht
       properties:
         id:
           type: string
           format: uuid
+        letzteNachricht:
+          description: Neueste für die Person sichtbare Nachricht des Chats; `null`, solange es keine gibt. Ausgeblendete und vor dem Beitritt geschriebene Nachrichten zählen nicht.
+          oneOf:
+            - $ref: "#/components/schemas/ChatListeLetzteNachricht"
+            - type: "null"
         ungelesen:
           type: integer
           minimum: 0
@@ -3166,6 +3203,13 @@ components:
               kuerzel: PF
             eltern: null
             ungelesen: 2
+            letzteNachricht:
+              text: Treffpunkt ist um 14 Uhr beim Pfadiheim.
+              erstelltAm: "2026-05-02T12:30:00Z"
+              eigene: false
+              autor:
+                id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
+                name: Beispiel Leitung
             stufenleitung:
               - id: 0190a1b2-1111-7e5f-8a9b-0c1d2e3f4a5b
                 name: Beispiel Leitung
