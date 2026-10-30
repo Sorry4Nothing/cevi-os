@@ -85,6 +85,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/meldungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
+  "GET /admin/system.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -297,6 +299,27 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
+  // Betriebszahlen (#143): nur Admins, wie die übrigen Admin-Routen; Inhalt in test/admin-system.test.ts
+  "GET /api/v1/admin/system": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/system/requests": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/admin/personen": {
     erwartet: {
       ...alle(403),
