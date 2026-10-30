@@ -63,7 +63,7 @@ const person = (persona: Persona) => legePersonaAn(welt, persona);
 
 const aufruf = (
   konto: PersonaKonto,
-  methode: "GET" | "POST" | "PUT",
+  methode: "GET" | "POST" | "PUT" | "PATCH",
   pfad: string,
   body?: unknown,
 ) =>
@@ -303,6 +303,25 @@ describe("Chat-Push bei neuer Nachricht", () => {
     for (const token of [tStill, tDeaktiviert]) {
       expect(texte(fcmAttrappe.nachrichten)).not.toContain(token);
     }
+  });
+
+  test("der Schalter «Chat-Pushes» über PATCH /ich stellt den Push ab und wieder an", async () => {
+    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
+    const tSl = await melde(sl);
+    const schalter = (pushChat: boolean) =>
+      aufruf(sl, "PATCH", "/api/v1/ich", { pushChat });
+
+    expect((await schalter(false)).status).toBe(204);
+    await sende(eltern, welt.gruppenchatAId, "Eins");
+    expect(fcmAttrappe.nachrichten).toEqual([]);
+
+    expect((await schalter(true)).status).toBe(204);
+    await sende(eltern, welt.gruppenchatAId, "Zwei");
+    expect(texte(fcmAttrappe.nachrichten)).toEqual([tSl]);
+    expect(fcmAttrappe.nachrichten[0]!.data).toEqual({
+      typ: "chat",
+      id: welt.gruppenchatAId,
+    });
   });
 
   test("eine abgelehnte Nachricht löst keinen Push aus", async () => {
