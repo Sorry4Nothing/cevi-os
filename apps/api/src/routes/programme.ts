@@ -9,6 +9,7 @@ import {
   kindEltern,
   leitungAnmeldung,
   programm,
+  programmEckdaten,
   programmStufe,
   rolle,
   stufe,
@@ -193,8 +194,41 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         eigeneAnmeldung = anmeldung?.status ?? "offen";
       }
       const kinder = (await eigeneKinder(person, [id])).get(id) ?? [];
+      // Eckdaten der Webseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Reihenfolge
+      const [eckdaten] = await db
+        .select({
+          treffpunkt: programmEckdaten.treffpunkt,
+          schlussOrt: programmEckdaten.schlussOrt,
+          schlussZeit: programmEckdaten.schlussZeit,
+          mitnehmen: programmEckdaten.mitnehmen,
+        })
+        .from(programmStufe)
+        .innerJoin(
+          stufe,
+          and(
+            eq(stufe.id, programmStufe.stufeId),
+            eq(stufe.abteilungId, person.abteilungId),
+          ),
+        )
+        .innerJoin(
+          programmEckdaten,
+          and(
+            eq(programmEckdaten.stufeId, stufe.id),
+            eq(
+              programmEckdaten.tag,
+              sql`(select coalesce(p.tag_von, (p.beginn at time zone 'Europe/Zurich')::date) from programm p where p.id = ${id})`,
+            ),
+          ),
+        )
+        .where(eq(programmStufe.programmId, id))
+        .orderBy(stufe.reihenfolge, stufe.id)
+        .limit(1);
       return c.json({
         ...zeile,
+        treffpunkt: eckdaten?.treffpunkt ?? null,
+        schlussOrt: eckdaten?.schlussOrt ?? null,
+        schlussZeit: eckdaten?.schlussZeit ?? null,
+        mitnehmen: eckdaten?.mitnehmen ?? null,
         teilnahmeOffen: await teilnahmeOffen(id),
         kinder,
         eigeneAnmeldung,

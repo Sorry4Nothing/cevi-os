@@ -39,6 +39,7 @@ services:
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
       VERANTWORTLICHE_STELLE: ${VERANTWORTLICHE_STELLE:?fehlt in deploy/.env}
       KONTAKT_EMAIL: ${KONTAKT_EMAIL:?fehlt in deploy/.env}
+      ECKDATEN_BASIS_URL: ${ECKDATEN_BASIS_URL:?fehlt in deploy/.env}
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:

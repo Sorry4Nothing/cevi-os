@@ -57,7 +57,7 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von der Webseite der Stufen.",
     frist:
       "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert.",
     apple: [],
@@ -205,6 +205,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "google_beschreibung",
       "status",
       "sichtbarkeit",
+    ],
+  },
+  programm_eckdaten: {
+    programme: [
+      "stufe_id",
+      "tag",
+      "treffpunkt",
+      "schluss_ort",
+      "schluss_zeit",
+      "mitnehmen",
+      "abgerufen_am",
     ],
   },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },

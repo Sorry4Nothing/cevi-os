@@ -7,6 +7,10 @@ import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
+import {
+  starteEckdatenSync,
+  synchronisiereEckdaten,
+} from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { log } from "./log.js";
@@ -50,3 +54,11 @@ starteKalenderSync(() =>
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );
+const eckdatenUrl = konfiguration.ECKDATEN_BASIS_URL;
+if (eckdatenUrl)
+  starteEckdatenSync(() =>
+    synchronisiereEckdaten({
+      datenbankUrl: konfiguration.DATABASE_URL,
+      basisUrl: eckdatenUrl,
+    }),
+  );
