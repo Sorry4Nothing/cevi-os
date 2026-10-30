@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/chats/:id/gelesen"
-order: 63000
+order: 66000
 method: PUT
 url: "{{baseUrl}}/api/v1/chats/{{gruppenchatAId}}/gelesen"
 headers:

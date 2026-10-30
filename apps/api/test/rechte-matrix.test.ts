@@ -454,6 +454,60 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Anwesenheit (#192): Admin sowie Leitende und SL der Stufe lesen und erfassen; Eltern und fremde Stufen haben kein Recht. Die Inhalte, die Frist und die Ziele prüft test/anwesenheit.test.ts
+  "GET /api/v1/stufen/:id/anwesenheit": {
+    url: () => `/api/v1/stufen/${welt.stufeAId}/anwesenheit`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 200,
+      slA: 200,
+      leitendeA: 200,
+      leitendeAElternB: 200,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/stufen/:id/anwesenheit/:programmId/kinder/:kindId": {
+    url: () =>
+      `/api/v1/stufen/${welt.stufeAId}/anwesenheit/${anwesenheitProgrammId}/kinder/${welt.kindAId}`,
+    // Immer derselbe Stand: Der Matrix-Lauf überschreibt ihn nur mit sich selbst
+    body: () => ({ da: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      slA: 204,
+      leitendeA: 204,
+      leitendeAElternB: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/stufen/:id/anwesenheit/:programmId/leitende/:userId": {
+    url: () =>
+      `/api/v1/stufen/${welt.stufeAId}/anwesenheit/${anwesenheitProgrammId}/leitende/${anwesenheitLeitungId}`,
+    body: () => ({ da: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 204,
+      slA: 204,
+      leitendeA: 204,
+      leitendeAElternB: 204,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Profilbild (#173): Jede Person mit Sitzung lädt ihr eigenes hoch und löscht es; nur die Person selbst, nie eine andere. Typ, Grösse und Rate-Limit prüft test/profilbild.test.ts. Das Bild einer Person sieht, wer ihren Namen ohnehin sieht; die Wege dahin ebenfalls dort
   "PUT /api/v1/ich/bild": {
     bild: true,
@@ -652,6 +706,8 @@ const MATRIX: Record<string, Zeile> = {
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let programmId: string;
+let anwesenheitProgrammId: string;
+let anwesenheitLeitungId: string;
 let leitungProgrammId: string;
 let patchZielId: string;
 let startpasswortZielId: string;
@@ -709,6 +765,7 @@ async function personasAnlegen() {
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
   standard = await personasAnlegen();
+  anwesenheitLeitungId = standard.slA.id as string;
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
@@ -716,6 +773,15 @@ beforeAll(async () => {
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
+  // Vor einem Tag begonnen: innerhalb der Frist, in der die Anwesenheit sich erfassen lässt
+  anwesenheitProgrammId = (
+    await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+      stufen: [welt.stufeAId],
+      beginn: new Date(Date.now() - 86_400_000),
+    })
+  ).id;
   leitungProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
@@ -910,6 +976,8 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
         Object.entries(welt).filter(([, v]) => typeof v === "string"),
       ),
       programmId,
+      anwesenheitProgrammId,
+      anwesenheitLeitungId,
       leitungProgrammId,
       patchZielId,
       startpasswortZielId,

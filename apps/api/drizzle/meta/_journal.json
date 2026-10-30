@@ -120,6 +120,13 @@
       "when": 1793387068552,
       "tag": "0016_programm_eckdaten",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1793389592763,
+      "tag": "0017_anwesenheit",
+      "breakpoints": true
     }
   ]
 }
