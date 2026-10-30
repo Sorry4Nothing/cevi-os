@@ -14,6 +14,7 @@ import {
   teilnahme,
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
+import { kontakteMitTelefon } from "../kontakte.js";
 import {
   darfErgaenzen,
   darfLeitungAnmelden,
@@ -22,6 +23,7 @@ import {
   programmBeginn,
   programmLeitungssicht,
   programmSichtbar,
+  stufenleitungDerStufen,
   type Person,
 } from "../rechte.js";
 
@@ -200,6 +202,53 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           zeile.stufen.map((s) => s.id),
         ),
       });
+    })
+    .get("/:id/kontakte", eingabe("param", pfadSchema), async (c) => {
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      // Antworten mit Nummern gehören nie in einen Cache
+      c.header("Cache-Control", "no-store");
+      // Kontakte: die SL der zugeordneten Stufen mit Status Ja; wer abgemeldet oder offen ist, fehlt, und die leere Liste heisst für die App «Stufenleitung»
+      const [zeile] = await db
+        .select({ id: programm.id })
+        .from(programm)
+        .where(and(eq(programm.id, id), programmSichtbar(person)));
+      if (!zeile) throw new HTTPException(404);
+      const stufen = await db
+        .select({ stufeId: programmStufe.stufeId })
+        .from(programmStufe)
+        .where(eq(programmStufe.programmId, id));
+      const sl =
+        stufen.length === 0
+          ? []
+          : await stufenleitungDerStufen(
+              db,
+              person.abteilungId,
+              stufen.map((s) => s.stufeId),
+            );
+      const angemeldet =
+        sl.length === 0
+          ? []
+          : await db
+              .select({ userId: leitungAnmeldung.userId })
+              .from(leitungAnmeldung)
+              .where(
+                and(
+                  eq(leitungAnmeldung.programmId, id),
+                  eq(leitungAnmeldung.status, "ja"),
+                  inArray(
+                    leitungAnmeldung.userId,
+                    sl.map((z) => z.id),
+                  ),
+                ),
+              );
+      const ja = new Set(angemeldet.map((a) => a.userId));
+      const kontakte = await kontakteMitTelefon(
+        db,
+        person,
+        sl.filter((z) => ja.has(z.id)),
+      );
+      return c.json({ kontakte });
     })
     .patch(
       "/:id",

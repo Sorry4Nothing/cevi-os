@@ -204,6 +204,20 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Kontakte (#39): Namen der SL für alle, die das Programm sehen; die Nummer gibt es nur Eltern mit aktivem Kind in der Stufe der SL (test/kontakte.test.ts). Antworten tragen Cache-Control: no-store
+  "GET /api/v1/programme/:id/kontakte": {
+    url: () => `/api/v1/programme/${programmId}/kontakte`,
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      leitendeB: 404,
+      elternB: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Ergänzungen (#32): Admin sowie SL und Leitende einer zugeordneten Stufe; mussPasswortAendern wie überall 403. Ein null auf «mitnehmen» ändert nichts Sichtbares
   "PATCH /api/v1/programme/:id": {
     url: () => `/api/v1/programme/${programmId}`,
@@ -410,6 +424,21 @@ const MATRIX: Record<string, Zeile> = {
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
+  "GET /api/v1/stufen/:id/kontakte": {
+    url: () => `/api/v1/stufen/${welt.stufeAId}/kontakte`,
+    erwartet: {
+      ...alle(200),
+      slB: 404,
+      leitendeB: 404,
+      elternB: 404,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
     },
   },
   "POST /api/v1/admin/stufen": {
