@@ -18,7 +18,7 @@ export const KATEGORIEN = {
     titel: "Konto und Anmeldung",
     zweck:
       "Anmelden, Rechte prüfen und das Konto vor Missbrauch schützen. Dazu gehört das Passwort, das nur als Prüfwert gespeichert ist.",
-    frist: `Bis das Konto gelöscht wird, in der App oder auf Anfrage. ${AUF_ANFRAGE}`,
+    frist: `Bis das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Contact Info: Name", "Identifiers: User ID"],
     google: ["Personal info: Name", "Personal info: User IDs"],
   },

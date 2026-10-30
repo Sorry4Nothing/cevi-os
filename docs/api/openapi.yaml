@@ -60,14 +60,16 @@ paths:
   /konto-loeschen:
     get:
       operationId: getKontoLoeschenSeite
-      summary: Anleitung zum Löschen des Kontos als HTML-Seite
+      summary: Hinweis zum Löschen des Kontos als HTML-Seite
       tags:
         - Allgemein
       security: []
       description: |
         Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
-        Das Konto löscht die App selbst über `DELETE /api/v1/ich`. Die Seite nennt zusätzlich den Weg
-        ohne App über die E-Mail-Adresse der Abteilung (`KONTAKT_EMAIL`).
+        Die Person löscht ihr Konto nicht selbst; die App bietet keine Löschung an und die API hat keine Route dafür.
+        Die Seite nennt den Weg über die Leitung: Auf Anfrage löscht die Leitung Daten, die Anfrage geht an die
+        E-Mail-Adresse der Abteilung (`KONTAKT_EMAIL`). Die Leitung löscht das Konto in der Verwaltung
+        (`DELETE /api/v1/admin/personen/{id}`).
       responses:
         "200":
           description: HTML-Seite (`text/html; charset=UTF-8`).
@@ -833,73 +835,6 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
-    delete:
-      operationId: ichLoeschen
-      summary: Eigenes Konto löschen
-      tags:
-        - Profil
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      description: |
-        Löscht das eigene Konto samt Sitzungen, Rollen, Zuordnungen und Push-Tokens endgültig. Die App fragt zuvor
-        das Passwort ab und schickt es mit.
-
-        **Bremse.** Das Passwort wird wie bei der Anmeldung geprüft und zählt Fehlversuche mit derselben Wartezeit
-        (ab dem 5. Fehlversuch 1, 5, dann 15 Minuten). Es läuft nur ein Versuch zur Zeit pro Person: Solange eine
-        Prüfung oder Wartezeit läuft, antwortet die Route mit 429 `ZU_VIELE_ANFRAGEN`, auch bei richtigem Passwort.
-        Ein richtiges Passwort lässt den Zähler unberührt.
-
-        **Letzter Admin.** Der letzte aktive Admin der Abteilung kann sein Konto nicht löschen: 409 `LETZTER_ADMIN`.
-
-        Nach Erfolg sind alle Sitzungen der Person weg; die App verwirft ihr Cookie.
-
-        **Rollen.** Alle angemeldeten Personen (auch Admins ohne zweiten Faktor) ausser bei offenem Pflichtwechsel
-        des Passworts (403). Statuscodes: 204, 400, 401, 403, 409, 426, 429.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IchKontoLoeschenAnfrage"
-      responses:
-        "204":
-          description: Konto gelöscht; kein Body.
-        "400":
-          description: |
-            Ungültige Eingabe (`UNGUELTIGE_EINGABE`: Passwort fehlt, leer, über 128 Zeichen oder fremdes Feld)
-            oder falsches Passwort (`PASSWORT_FALSCH`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
-              examples:
-                passwortFalsch:
-                  summary: Falsches Passwort
-                  value:
-                    code: PASSWORT_FALSCH
-                    message: Das Passwort stimmt nicht.
-                ungueltig:
-                  summary: Ungültige Eingabe
-                  value:
-                    code: UNGUELTIGE_EINGABE
-                    message: Ungültige Eingabe
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "409":
-          description: Der letzte aktive Admin der Abteilung lässt sich nicht entfernen.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
-              example:
-                code: LETZTER_ADMIN
-                message: Der letzte Admin lässt sich nicht entfernen.
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/ich/datenschutz:
     post:
       operationId: datenschutzBestaetigen
@@ -1876,7 +1811,7 @@ paths:
       operationId: loescheAdminPerson
       summary: Person löschen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern und Sitzungen.
+        Nur Admins, nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für den letzten aktiven Admin.
       tags:
@@ -2718,17 +2653,6 @@ components:
             - "null"
           maxLength: 30
           description: Eigene Telefonnummer, nur für SL; leerer Text oder `null` entfernt sie.
-    IchKontoLoeschenAnfrage:
-      type: object
-      additionalProperties: false
-      required:
-        - passwort
-      properties:
-        passwort:
-          type: string
-          minLength: 1
-          maxLength: 128
-          description: Das aktuelle Passwort der Person.
     HilfeAntwort:
       type: object
       required:

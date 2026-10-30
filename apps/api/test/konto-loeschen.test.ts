@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
 import { randomUUID } from "node:crypto";
 import { afterAll, describe, expect, test, vi } from "vitest";
-import { aktiveAdminIds } from "../src/admins.js";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
@@ -12,7 +11,6 @@ import {
   bereiteAuthTestsVor,
   cookiesAus,
   erstelleTestAuth,
-  PASSWORT,
   zufallsIp,
 } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -46,14 +44,19 @@ type Kopfzeilen = Record<string, string>;
 // Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Admins ihrer Abteilung
 async function eigeneWelt(persona: Persona = "admin") {
   const welt = await erstelleWelt(db, auth);
-  return { welt, konto: await legePersonaAn(welt, persona) };
+  return {
+    welt,
+    konto: await legePersonaAn(welt, persona),
+    // Mit zweitem Faktor: Ohne ihn sperrt die Admin-Sperre (#23) die Anfragen an /api/v1/admin/*
+    admin: await legePersonaAn(welt, "admin"),
+  };
 }
 
-const loesche = (headers: Kopfzeilen, passwort: unknown = PASSWORT) =>
-  app.request("/api/v1/ich", {
+// Die Person löscht ihr Konto nicht selbst; das tut ein Admin (DELETE /api/v1/ich gibt es nicht mehr, #180)
+const loesche = (aktor: PersonaKonto, zielId: string) =>
+  app.request(`/api/v1/admin/personen/${zielId}`, {
     method: "DELETE",
-    headers: { ...headers, "content-type": "application/json" },
-    body: JSON.stringify({ passwort }),
+    headers: aktor.headers,
   });
 const post = (pfad: string, headers: Kopfzeilen, body: object) =>
   app.request(pfad, {
@@ -112,12 +115,10 @@ async function treffer(werte: string[]) {
   return gefunden;
 }
 
-describe("Konto löschen", () => {
+describe("Konto löschen durch einen Admin", () => {
   test("nach dem Löschen zeigt keine Zeile mehr auf die Person, ausser dem Audit-Log", async () => {
-    const { welt, konto: admin } = await eigeneWelt();
+    const { welt, konto: admin, admin: aktor } = await eigeneWelt();
     const id = admin.id!;
-    // Ohne zweiten Faktor allein wäre «admin» der letzte; die Sperre (#23) trifft nur /api/v1/admin/*
-    await legePersonaAn(welt, "adminOhneZweitenFaktor");
     const anderesElternteil = await legePersonaAn(welt, "elternA");
     await db
       .insert(schema.rolle)
@@ -152,7 +153,7 @@ describe("Konto löschen", () => {
     expect(verifikation.length).toBeGreaterThanOrEqual(1);
     const { email } = await userZeile(id);
 
-    const antwort = await loesche(admin.headers);
+    const antwort = await loesche(aktor, id);
     expect(antwort.status).toBe(204);
     expect(await antwort.text()).toBe("");
 
@@ -168,7 +169,7 @@ describe("Konto löschen", () => {
       (await auditZeilen(id)).find((z) => z.aktion === "person_geloescht"),
     ).toMatchObject({
       abteilungId: welt.testabteilungId,
-      akteurId: id,
+      akteurId: aktor.id,
       zielTyp: "person",
       zielId: id,
       details: null,
@@ -200,14 +201,6 @@ describe("Konto löschen", () => {
     expect(await neu.json()).toMatchObject({
       code: "ANMELDUNG_FEHLGESCHLAGEN",
     });
-  });
-
-  test("Eltern ohne Admin-Recht löschen ihr Konto, auch wenn sie nicht der letzte Admin sind", async () => {
-    const { welt, konto: eltern } = await eigeneWelt("elternA");
-    // Nur dieser eine Admin in der Abteilung: Eltern sind kein Admin und dürfen trotzdem
-    await legePersonaAn(welt, "admin");
-    expect((await loesche(eltern.headers)).status).toBe(204);
-    expect(await userZeile(eltern.id!)).toBeUndefined();
   });
 });
 
@@ -299,7 +292,7 @@ describe("Chat-Daten", () => {
     );
 
   test("löscht ein Elternteil sein Konto, sind seine Nachrichten und sein Einzelchat samt den Antworten der SL weg", async () => {
-    const { welt, konto: p } = await eigeneWelt("elternA");
+    const { welt, konto: p, admin } = await eigeneWelt("elternA");
     const q = await legePersonaAn(welt, "elternA");
     const s1 = await legePersonaAn(welt, "slA");
     const s2 = await legePersonaAn(welt, "slA");
@@ -351,7 +344,7 @@ describe("Chat-Daten", () => {
       "Kopie der SL-Antwort",
     );
 
-    expect((await loesche(p.headers)).status).toBe(204);
+    expect((await loesche(admin, p.id!)).status).toBe(204);
 
     // Die Nachrichten des Elternteils und alles in seinem Einzelchat, auch die Antworten beider SL
     expect(await nachrichtenVon(alle)).toEqual(
@@ -388,14 +381,12 @@ describe("Chat-Daten", () => {
       gemeldetVon: null,
       erledigtAm: null,
     });
-    expect(new Set(await treffer([p.id!]))).toEqual(
-      new Set(["audit_log.akteur_id", "audit_log.ziel_id"]),
-    );
+    expect(await treffer([p.id!])).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([p.benutzername!])).toEqual([]);
   });
 
   test("löscht eine SL ihr Konto, fehlen nur ihre Nachrichten; die Einzelchats und die Nachrichten der anderen bleiben", async () => {
-    const { welt, konto: s1 } = await eigeneWelt("slA");
+    const { welt, konto: s1, admin } = await eigeneWelt("slA");
     const s2 = await legePersonaAn(welt, "slA");
     const p = await legePersonaAn(welt, "elternA");
     const gruppe = welt.gruppenchatAId;
@@ -438,7 +429,7 @@ describe("Chat-Daten", () => {
       "Kopie des Beitrags",
     );
 
-    expect((await loesche(s1.headers)).status).toBe(204);
+    expect((await loesche(admin, s1.id!)).status).toBe(204);
 
     const alle = [
       gruppeS1,
@@ -478,194 +469,7 @@ describe("Chat-Daten", () => {
       gemeldetVon: null,
       erledigtAm: null,
     });
-    expect(new Set(await treffer([s1.id!]))).toEqual(
-      new Set(["audit_log.akteur_id", "audit_log.ziel_id"]),
-    );
+    expect(await treffer([s1.id!])).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([s1.benutzername!])).toEqual([]);
-  });
-});
-
-describe("Eingabe und Passwort", () => {
-  test("falsches Passwort: 400 PASSWORT_FALSCH, Konto, Sitzungen und Audit-Log unverändert, Fehlversuch gezählt", async () => {
-    const { konto } = await eigeneWelt("elternA");
-    const vorher = (await sitzungen(konto.id!)).length;
-    const antwort = await loesche(konto.headers, "nicht-das-passwort");
-    expect(antwort.status).toBe(400);
-    expect(await antwort.json()).toEqual({
-      code: "PASSWORT_FALSCH",
-      message: "Das Passwort stimmt nicht.",
-    });
-    expect(await userZeile(konto.id!)).toMatchObject({ fehlversuche: 1 });
-    expect(await sitzungen(konto.id!)).toHaveLength(vorher);
-    expect(await auditZeilen(konto.id!)).toEqual([]);
-    expect((await hole("/api/v1/ich", konto.headers)).status).toBe(200);
-  });
-
-  test.each([
-    ["leer", { passwort: "" }],
-    ["kein Text", { passwort: 12 }],
-    ["zu lang", { passwort: "x".repeat(129) }],
-    ["fehlt", {}],
-    ["zusätzliches Feld", { passwort: PASSWORT, mehr: true }],
-  ])("%s: 400 UNGUELTIGE_EINGABE, Konto bleibt", async (_, body) => {
-    const { konto } = await eigeneWelt("elternA");
-    const antwort = await app.request("/api/v1/ich", {
-      method: "DELETE",
-      headers: { ...konto.headers, "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    expect(antwort.status).toBe(400);
-    expect(await antwort.json()).toMatchObject({ code: "UNGUELTIGE_EINGABE" });
-    expect(await userZeile(konto.id!)).toMatchObject({ fehlversuche: 0 });
-  });
-
-  test("ohne Body: 400, Konto bleibt", async () => {
-    const { konto } = await eigeneWelt("elternA");
-    const antwort = await app.request("/api/v1/ich", {
-      method: "DELETE",
-      headers: konto.headers,
-    });
-    expect(antwort.status).toBe(400);
-    expect(await userZeile(konto.id!)).toBeDefined();
-  });
-
-  test("ohne Sitzung: 401", async () => {
-    const antwort = await loesche({ "expo-origin": APP });
-    expect(antwort.status).toBe(401);
-  });
-
-  test("Bremse: fünf falsche Passwörter, dann gibt auch das richtige 429; nach der Wartezeit geht es", async () => {
-    const { konto } = await eigeneWelt("elternA");
-    for (let i = 0; i < 5; i++) {
-      expect((await loesche(konto.headers, "falsch-falsch")).status).toBe(400);
-    }
-    const zeile = await userZeile(konto.id!);
-    expect(zeile).toMatchObject({ fehlversuche: 5 });
-    expect(zeile.naechsterVersuchAb!.getTime()).toBeGreaterThan(Date.now());
-
-    const gesperrt = await loesche(konto.headers);
-    expect(gesperrt.status).toBe(429);
-    expect(await gesperrt.json()).toEqual({
-      code: "ZU_VIELE_ANFRAGEN",
-      message: "Zu viele Anfragen. Bitte später nochmals versuchen.",
-    });
-    // Ohne Prüfung und ohne Zählen
-    expect((await loesche(konto.headers, "falsch-falsch")).status).toBe(429);
-    expect(await userZeile(konto.id!)).toMatchObject({ fehlversuche: 5 });
-
-    await db
-      .update(schema.user)
-      .set({ naechsterVersuchAb: new Date(Date.now() - 1000) })
-      .where(eq(schema.user.id, konto.id!));
-    expect((await loesche(konto.headers)).status).toBe(204);
-  });
-
-  test("parallele Versuche: höchstens einer prüft zur Zeit, die übrigen bekommen 429 und zählen nicht", async () => {
-    const { konto } = await eigeneWelt("elternA");
-    const antworten = await Promise.all(
-      Array.from({ length: 20 }, (_, i) =>
-        loesche(konto.headers, `falsch-${i}`),
-      ),
-    );
-    const status = antworten.map((a) => a.status);
-    const geprueft = status.filter((s) => s === 400).length;
-    expect(geprueft).toBeLessThan(5);
-    expect(status.filter((s) => s === 429).length).toBe(20 - geprueft);
-    // Nur geprüfte Versuche zählen; die Reservierung ist wieder frei
-    const zeile = await userZeile(konto.id!);
-    expect(zeile.fehlversuche).toBe(geprueft);
-    expect(zeile.naechsterVersuchAb).toBeNull();
-    expect((await loesche(konto.headers)).status).toBe(204);
-  });
-
-  test("das Löschen und die Anmeldung zählen auf demselben Zähler", async () => {
-    const { konto } = await eigeneWelt("elternA");
-    for (let i = 0; i < 4; i++) {
-      const falsch = await post(
-        "/api/auth/sign-in/username",
-        { "expo-origin": APP },
-        { username: konto.benutzername, password: "falsch-falsch-1" },
-      );
-      expect(falsch.status).toBe(401);
-    }
-    expect((await loesche(konto.headers, "falsch-falsch")).status).toBe(400);
-    expect(
-      (await userZeile(konto.id!)).naechsterVersuchAb!.getTime(),
-    ).toBeGreaterThan(Date.now());
-    expect((await loesche(konto.headers)).status).toBe(429);
-  });
-});
-
-describe("Der letzte Admin", () => {
-  const letzter = {
-    code: "LETZTER_ADMIN",
-    message: "Der letzte Admin lässt sich nicht entfernen.",
-  };
-
-  test("der einzige Admin bleibt: 409, nichts verändert", async () => {
-    const { konto } = await eigeneWelt();
-    const vorher = (await sitzungen(konto.id!)).length;
-    const antwort = await loesche(konto.headers);
-    expect(antwort.status).toBe(409);
-    expect(await antwort.json()).toEqual(letzter);
-    expect(await userZeile(konto.id!)).toBeDefined();
-    expect(await sitzungen(konto.id!)).toHaveLength(vorher);
-    expect(await auditZeilen(konto.id!)).toEqual([]);
-  });
-
-  test("in der Demo-Abteilung gilt dasselbe", async () => {
-    const { konto } = await eigeneWelt("demoAdmin");
-    const antwort = await loesche(konto.headers);
-    expect(antwort.status).toBe(409);
-    expect(await antwort.json()).toEqual(letzter);
-    expect(await userZeile(konto.id!)).toBeDefined();
-  });
-
-  test("ein deaktivierter zweiter Admin zählt nicht", async () => {
-    const { welt, konto } = await eigeneWelt();
-    const zweiter = await legePersonaAn(welt, "adminOhneZweitenFaktor");
-    await db
-      .update(schema.user)
-      .set({ banned: true })
-      .where(eq(schema.user.id, zweiter.id!));
-    expect((await loesche(konto.headers)).status).toBe(409);
-    expect(await userZeile(konto.id!)).toBeDefined();
-  });
-
-  test("mit einem zweiten aktiven Admin geht es", async () => {
-    const { welt, konto } = await eigeneWelt();
-    const zweiter = await legePersonaAn(welt, "adminOhneZweitenFaktor");
-    expect((await loesche(konto.headers)).status).toBe(204);
-    expect(await aktiveAdminIds(db, welt.testabteilungId)).toEqual([
-      zweiter.id,
-    ]);
-  });
-
-  test("zwei Admins löschen sich gleichzeitig: einer geht, einer bleibt", async () => {
-    const { welt, konto } = await eigeneWelt();
-    // Mit zweitem Faktor wie im Rennen mit PATCH unten: Beide handeln auf dem eigenen Konto
-    const zweiter = await legePersonaAn(welt, "admin");
-    const antworten = await Promise.all([
-      loesche(konto.headers),
-      loesche(zweiter.headers),
-    ]);
-    expect(antworten.map((a) => a.status).sort()).toEqual([204, 409]);
-    expect(await aktiveAdminIds(db, welt.testabteilungId)).toHaveLength(1);
-  });
-
-  test("einer löscht sich, der andere stuft sich zurück: einer geht durch, einer bekommt 409", async () => {
-    const { welt, konto } = await eigeneWelt();
-    // Mit zweitem Faktor: Ohne ihn sperrt #23 die Anfrage an /api/v1/admin/* vor dem Rennen
-    const zweiter = await legePersonaAn(welt, "admin");
-    const antworten = await Promise.all([
-      loesche(konto.headers),
-      app.request(`/api/v1/admin/personen/${zweiter.id}`, {
-        method: "PATCH",
-        headers: { ...zweiter.headers, "content-type": "application/json" },
-        body: JSON.stringify({ admin: false }),
-      }),
-    ]);
-    expect(antworten.map((a) => a.status).sort()).toEqual([204, 409]);
-    expect(await aktiveAdminIds(db, welt.testabteilungId)).toHaveLength(1);
   });
 });
