@@ -167,17 +167,6 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  "DELETE /api/v1/ich": {
-    // Löscht das Konto, darum eigene Personas; mit den geteilten hat die Testabteilung vier Admins und die Demo-Abteilung zwei, also darf jeder Admin (Status 409 für den letzten: test/konto-loeschen.test.ts). Nicht beim Pflichtwechsel: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
-    frischePersonas: true,
-    body: (konto) => ({ passwort: konto.passwort ?? PASSWORT }),
-    erwartet: {
-      ...alle(204),
-      mussPasswortAendern: 403,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
   // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
   // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
   "GET /api/v1/programme": {
