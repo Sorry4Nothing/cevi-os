@@ -217,12 +217,7 @@ describe("Chat-Daten", () => {
         })
         .returning()
     )[0].id;
-  const schreibe = async (
-    chatId: string,
-    autorId: string,
-    text: string,
-    ausgeblendetVon?: string,
-  ) =>
+  const schreibe = async (chatId: string, autorId: string, text: string) =>
     (
       await db
         .insert(schema.nachricht)
@@ -230,27 +225,6 @@ describe("Chat-Daten", () => {
           chatId,
           autorId,
           text,
-          ausgeblendetVon,
-          ausgeblendetAm: ausgeblendetVon ? new Date() : undefined,
-        })
-        .returning()
-    )[0].id;
-  const melde = async (
-    welt: Welt,
-    nachrichtId: string,
-    autorId: string,
-    gemeldetVon: string,
-    textKopie: string,
-  ) =>
-    (
-      await db
-        .insert(schema.meldung)
-        .values({
-          abteilungId: welt.testabteilungId,
-          nachrichtId,
-          autorId,
-          gemeldetVon,
-          textKopie,
         })
         .returning()
     )[0].id;
@@ -272,10 +246,6 @@ describe("Chat-Daten", () => {
           .where(inArray(schema.chat.id, ids))
       ).map((z) => z.id),
     );
-  const meldungZeile = async (id: string) =>
-    (
-      await db.select().from(schema.meldung).where(eq(schema.meldung.id, id))
-    )[0];
   const statusVon = async (chatIds: string[], userId: string) =>
     new Set(
       (
@@ -329,21 +299,6 @@ describe("Chat-Daten", () => {
       { userId: p.id!, blockiertId: q.id! },
       { userId: q.id!, blockiertId: p.id! },
     ]);
-    const meldungUeberP = await melde(
-      welt,
-      gruppeP,
-      p.id!,
-      q.id!,
-      "Kopie der Gruppen-Nachricht",
-    );
-    const meldungVonP = await melde(
-      welt,
-      einzelPS1,
-      s1.id!,
-      p.id!,
-      "Kopie der SL-Antwort",
-    );
-
     expect((await loesche(admin, p.id!)).status).toBe(204);
 
     // Die Nachrichten des Elternteils und alles in seinem Einzelchat, auch die Antworten beider SL
@@ -366,21 +321,6 @@ describe("Chat-Daten", () => {
         .from(schema.blockierung)
         .where(inArray(schema.blockierung.userId, [p.id!, q.id!])),
     ).toEqual([]);
-    // Offene Meldungen behalten die Textkopie, die Bezüge auf die Person werden leer
-    expect(await meldungZeile(meldungUeberP)).toMatchObject({
-      textKopie: "Kopie der Gruppen-Nachricht",
-      nachrichtId: null,
-      autorId: null,
-      gemeldetVon: q.id,
-      erledigtAm: null,
-    });
-    expect(await meldungZeile(meldungVonP)).toMatchObject({
-      textKopie: "Kopie der SL-Antwort",
-      nachrichtId: null,
-      autorId: s1.id,
-      gemeldetVon: null,
-      erledigtAm: null,
-    });
     expect(await treffer([p.id!])).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([p.benutzername!])).toEqual([]);
   });
@@ -398,77 +338,22 @@ describe("Chat-Daten", () => {
     const einzelS1 = await schreibe(einzelP, s1.id!, "Antwort der SL");
     const einzelS2 = await schreibe(einzelP, s2.id!, "Antwort der anderen SL");
     const einzelPP = await schreibe(einzelP, p.id!, "Privat vom Elternteil");
-    const versteckt = await schreibe(
-      gruppe,
-      p.id!,
-      "Ausgeblendeter Beitrag",
-      s1.id!,
-    );
-    const [vorher] = await db
-      .select()
-      .from(schema.nachricht)
-      .where(eq(schema.nachricht.id, versteckt));
-    expect(vorher.ausgeblendetAm).not.toBeNull();
     const gelesenBis = new Date();
     await db.insert(schema.chatStatus).values([
       { chatId: gruppe, userId: s1.id!, gelesenBis },
       { chatId: gruppe, userId: s2.id!, gelesenBis },
     ]);
-    const meldungUeberS1 = await melde(
-      welt,
-      einzelS1,
-      s1.id!,
-      p.id!,
-      "Kopie der SL-Antwort",
-    );
-    const meldungVonS1 = await melde(
-      welt,
-      gruppeP,
-      p.id!,
-      s1.id!,
-      "Kopie des Beitrags",
-    );
-
     expect((await loesche(admin, s1.id!)).status).toBe(204);
 
-    const alle = [
-      gruppeS1,
-      gruppeS2,
-      gruppeP,
-      einzelS1,
-      einzelS2,
-      einzelPP,
-      versteckt,
-    ];
+    const alle = [gruppeS1, gruppeS2, gruppeP, einzelS1, einzelS2, einzelPP];
     expect(await nachrichtenVon(alle)).toEqual(
-      new Set([gruppeS2, gruppeP, einzelS2, einzelPP, versteckt]),
+      new Set([gruppeS2, gruppeP, einzelS2, einzelPP]),
     );
     expect(await chatsVon([gruppe, einzelP])).toEqual(
       new Set([gruppe, einzelP]),
     );
-    // Ausgeblendet bleibt ausgeblendet, nur der Bezug auf die SL wird leer
-    const [nachher] = await db
-      .select()
-      .from(schema.nachricht)
-      .where(eq(schema.nachricht.id, versteckt));
-    expect(nachher.ausgeblendetAm).toEqual(vorher.ausgeblendetAm);
-    expect(nachher.ausgeblendetVon).toBeNull();
     expect(await statusVon([gruppe], s1.id!)).toEqual(new Set());
     expect(await statusVon([gruppe], s2.id!)).toEqual(new Set([gruppe]));
-    expect(await meldungZeile(meldungUeberS1)).toMatchObject({
-      textKopie: "Kopie der SL-Antwort",
-      nachrichtId: null,
-      autorId: null,
-      gemeldetVon: p.id,
-      erledigtAm: null,
-    });
-    expect(await meldungZeile(meldungVonS1)).toMatchObject({
-      textKopie: "Kopie des Beitrags",
-      nachrichtId: gruppeP,
-      autorId: p.id,
-      gemeldetVon: null,
-      erledigtAm: null,
-    });
     expect(await treffer([s1.id!])).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([s1.benutzername!])).toEqual([]);
   });

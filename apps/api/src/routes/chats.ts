@@ -31,10 +31,8 @@ import {
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import {
-  ausblendenDurch,
   chatFuerPerson,
   chatMitglieder,
-  gemeldeteNachrichten,
   hatRolle,
   sichtbareNachrichten,
   stufenleitungDerStufen,
@@ -129,7 +127,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             ),
           )
           .groupBy(n.chatId);
-        // Je Chat die neueste Nachricht, die die Person sieht (UUIDv7 ordnet nach Zeit); ausgeblendete zeigt auch der Autorin die Liste nicht. Der Text wird in der Datenbank gekürzt, nie ganz geladen
+        // Je Chat die neueste Nachricht, die die Person sieht (UUIDv7 ordnet nach Zeit). Der Text wird in der Datenbank gekürzt, nie ganz geladen
         const letzte = await db
           .selectDistinctOn([n.chatId], {
             chatId: n.chatId,
@@ -139,7 +137,6 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           })
           .from(n)
           .innerJoin(user, eq(user.id, n.autorId))
-          .where(isNull(n.ausgeblendetAm))
           .orderBy(n.chatId, desc(n.id));
         const letzteJeChat = new Map(
           letzte.map(({ chatId, ...l }) => [
@@ -273,7 +270,6 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               id: n.id,
               text: n.text,
               erstelltAm: n.erstelltAm,
-              ausgeblendetAm: n.ausgeblendetAm,
               autor: {
                 id: user.id,
                 name: user.name,
@@ -307,27 +303,9 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             .orderBy(desc(n.id))
             .limit(SEITE + 1);
           const seite = zeilen.slice(0, SEITE);
-          const gemeldet = await gemeldeteNachrichten(
-            db,
-            person,
-            seite.map((z) => z.id),
-          );
           return c.json({
-            // Ausgeblendete liefert sichtbareNachrichten nur der Autorin: ohne Text und Programm, die App zeigt den Hinweis
-            nachrichten: seite.map(({ ausgeblendetAm, ...zeile }) => ({
+            nachrichten: seite.map((zeile) => ({
               ...zeile,
-              // Dieselbe Regel wie die Route; eine ausgeblendete Nachricht blendet niemand ein zweites Mal aus
-              darfAusblenden:
-                ausgeblendetAm === null &&
-                ausblendenDurch(person, {
-                  mitglied: true,
-                  chatTyp: eigener.typ,
-                  stufeId: eigener.stufeId,
-                  gemeldet: gemeldet.has(zeile.id),
-                }) !== null,
-              text: ausgeblendetAm ? null : zeile.text,
-              programm: ausgeblendetAm ? null : zeile.programm,
-              ausgeblendet: ausgeblendetAm !== null,
               eigene: zeile.autor.id === person.id,
             })),
             naechster:

@@ -145,7 +145,7 @@ test("die Löschregeln der fünf Chat-Tabellen stimmen", async () => {
     cross join lateral unnest(c.conkey) as spalten(attnum)
     join pg_attribute a on a.attrelid = c.conrelid and a.attnum = spalten.attnum
     where c.contype = 'f'
-      and c.conrelid::regclass::text in ('chat', 'nachricht', 'chat_status', 'blockierung', 'meldung')
+      and c.conrelid::regclass::text in ('chat', 'nachricht', 'chat_status', 'blockierung')
     order by tabelle, spalte`;
   expect(regeln).toEqual([
     { tabelle: "blockierung", spalte: "blockiert_id", regel: "c" },
@@ -155,12 +155,6 @@ test("die Löschregeln der fünf Chat-Tabellen stimmen", async () => {
     { tabelle: "chat", spalte: "stufe_id", regel: "r" },
     { tabelle: "chat_status", spalte: "chat_id", regel: "c" },
     { tabelle: "chat_status", spalte: "user_id", regel: "c" },
-    { tabelle: "meldung", spalte: "abteilung_id", regel: "r" },
-    { tabelle: "meldung", spalte: "autor_id", regel: "n" },
-    { tabelle: "meldung", spalte: "erledigt_von", regel: "n" },
-    { tabelle: "meldung", spalte: "gemeldet_von", regel: "n" },
-    { tabelle: "meldung", spalte: "nachricht_id", regel: "n" },
-    { tabelle: "nachricht", spalte: "ausgeblendet_von", regel: "n" },
     { tabelle: "nachricht", spalte: "autor_id", regel: "c" },
     { tabelle: "nachricht", spalte: "chat_id", regel: "c" },
     { tabelle: "nachricht", spalte: "programm_id", regel: "n" },

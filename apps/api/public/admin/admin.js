@@ -2,7 +2,6 @@ import { anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { el, feld, knopf, leere } from "./dom.js";
 import * as abteilung from "./abteilung.js";
 import * as kinder from "./kinder.js";
-import * as meldungen from "./meldungen.js";
 import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
@@ -13,7 +12,6 @@ const BEREICHE = [
   ["personen", "Personen", personen],
   ["stufen", "Stufen", stufen],
   ["kinder", "Kinder", kinder],
-  ["meldungen", "Meldungen", meldungen],
   ["abteilung", "Abteilung", abteilung],
   ["system", "System", system],
 ];
