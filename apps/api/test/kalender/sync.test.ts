@@ -2,6 +2,8 @@ import { generateKeyPairSync, randomUUID } from "node:crypto";
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { gunzipSync } from "node:zlib";
+import { Expo } from "expo-server-sdk";
 import postgres from "postgres";
 import {
   afterAll,
@@ -17,6 +19,7 @@ import { synchronisiere } from "../../src/kalender/sync.js";
 import { API_URL } from "../hilfen/datenbank.js";
 
 const JETZT = new Date();
+const expo = new Expo();
 const TOKEN = "zugangstoken-geheim-1";
 const BESCHREIBUNG =
   "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: Formular (https://example.org/anmeldung)";
@@ -212,6 +215,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -261,7 +265,12 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
 test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und Zuordnung samt Ergänzungen bleiben", async () => {
   stubGoogle([...lauf1, ...lauf2]);
   const starte = () =>
-    synchronisiere({ datenbankUrl: API_URL, schluesselDatei, jetzt: JETZT });
+    synchronisiere({
+      datenbankUrl: API_URL,
+      expo,
+      schluesselDatei,
+      jetzt: JETZT,
+    });
   expect(await starte()).toBe("fertig");
 
   // Wie eine SL nach dem ersten Lauf: Stufe zuordnen, Sichtbarkeit öffnen, Treffpunkt ergänzen
@@ -338,6 +347,7 @@ test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzi
 
   const laufA = synchronisiere({
     datenbankUrl: API_URL,
+    expo,
     schluesselDatei,
     jetzt: JETZT,
   });
@@ -346,6 +356,7 @@ test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzi
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -367,6 +378,7 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -387,6 +399,7 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -417,6 +430,7 @@ test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel,
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -447,6 +461,7 @@ test("ohne Schlüsseldatei trägt jede Abteilung mit Kalender den Schlüsselfehl
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei: undefined,
       jetzt: JETZT,
     }),
@@ -465,6 +480,7 @@ test("mit zwei Seiten kommen die Termine beider Seiten an", async () => {
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
+      expo,
       schluesselDatei,
       jetzt: JETZT,
     }),
@@ -552,7 +568,7 @@ const MIT_ERGAENZUNG = [
 ];
 
 const starteSerie = (jetzt = JETZT_SERIE) =>
-  synchronisiere({ datenbankUrl: API_URL, schluesselDatei, jetzt });
+  synchronisiere({ datenbankUrl: API_URL, expo, schluesselDatei, jetzt });
 const schluessel = (z: Record<string, unknown>) => `${z.titel}|${z.beginn}`;
 const finde = async (titel: string, beginn: string) => {
   const zeile = (await programme()).find(
@@ -721,4 +737,383 @@ test("ein gescheiterter Lauf (HTTP 500) ändert keinen Status", async () => {
   expect((await eigeneAbteilung()).sync_fehler).toBe(
     "Google antwortet mit HTTP 500",
   );
+});
+
+// Push bei Programmänderung (#44). Im selben File wie die Läufe oben: Jeder Lauf synchronisiert alle Abteilungen mit Kalender, zwei Dateien liefen sich in die Quere
+const SENDEN = "https://exp.host/--/api/v2/push/send";
+let stufeB: string;
+// Token → Name der Person; so zeigt ein Fehlschlag, wer den Push bekam
+let tokenZuName: Map<string, string>;
+let gesendet: { name: string; titel: string; daten: unknown }[];
+let expoAntwort: (anzahl: number) => Response;
+
+const TERMIN = {
+  start: { dateTime: "2027-09-25T14:00:00+02:00" },
+  end: { dateTime: "2027-09-25T16:00:00+02:00" },
+};
+
+beforeEach(() => {
+  tokenZuName = new Map();
+  gesendet = [];
+  expoAntwort = (anzahl) =>
+    Response.json({
+      data: Array.from({ length: anzahl }, () => ({
+        status: "ok",
+        id: randomUUID(),
+      })),
+    });
+});
+
+// Google und Expo als Attrappe; jede fremde URL wirft. Die Seite des Kalenders gilt für jeden Lauf
+function stubNetz(seite: unknown) {
+  vi.stubGlobal("fetch", async (eingabe: unknown, init?: RequestInit) => {
+    const url = new URL(String(eingabe));
+    if (url.href === "https://oauth2.googleapis.com/token") {
+      return Response.json({ access_token: "zugangstoken" });
+    }
+    if (
+      url.pathname ===
+      `/calendar/v3/calendars/${encodeURIComponent(kalenderId)}/events`
+    ) {
+      return Response.json(seite);
+    }
+    if (url.href === SENDEN) {
+      // Das SDK komprimiert JSON über 1024 Zeichen
+      const kopf = new Headers(init?.headers);
+      const koerper =
+        kopf.get("content-encoding") === "gzip"
+          ? gunzipSync(init?.body as Buffer)
+          : init?.body;
+      const nachrichten = JSON.parse(String(koerper)) as {
+        to: string;
+        title: string;
+        data: unknown;
+      }[];
+      for (const n of nachrichten) {
+        gesendet.push({
+          name: tokenZuName.get(n.to) ?? n.to,
+          titel: n.title,
+          daten: n.data,
+        });
+      }
+      return expoAntwort(nachrichten.length);
+    }
+    throw new Error(`unerwartete URL im Test: ${url.href}`);
+  });
+}
+
+type PersonOptionen = {
+  pushProgramme?: boolean;
+  role?: "admin";
+  deaktiviert?: boolean;
+  abteilung?: string;
+};
+// Eine Person mit Sitzung und Push-Token
+async function person(name: string, optionen: PersonOptionen = {}) {
+  const [zeile] = await sql`
+    insert into "user" (name, email, abteilung_id, role, push_programme, deaktiviert_am)
+    values (${name}, ${`${randomUUID()}@example.org`}, ${optionen.abteilung ?? abteilungId},
+            ${optionen.role ?? null}, ${optionen.pushProgramme ?? true},
+            ${optionen.deaktiviert ? new Date() : null})
+    returning id`;
+  const userId = zeile.id as string;
+  const [sitzung] = await sql`
+    insert into session (token, expires_at, updated_at, user_id)
+    values (${randomUUID()}, ${new Date(Date.now() + 3_600_000)}, now(), ${userId})
+    returning id`;
+  const token = `ExponentPushToken[test-${randomUUID()}]`;
+  tokenZuName.set(token, name);
+  await sql`
+    insert into push_token (session_id, token, user_id, plattform)
+    values (${sitzung.id}, ${token}, ${userId}, 'ios')`;
+  return userId;
+}
+
+const rolle = (userId: string, stufeId: string, typ: string) =>
+  sql`insert into rolle (user_id, stufe_id, typ) values (${userId}, ${stufeId}, ${typ})`;
+
+async function elternteil(name: string, stufeId: string, o?: PersonOptionen) {
+  const userId = await person(name, o);
+  const [kind] = await sql`
+    insert into kind (abteilung_id, vorname, nachname, stufe_id)
+    values (${abteilungId}, 'Kind', ${name}, ${stufeId}) returning id`;
+  await sql`insert into kind_eltern (kind_id, user_id) values (${kind.id}, ${userId})`;
+  return userId;
+}
+
+// Das Programm, wie der Sync es schon kennt; Zuordnung und Sichtbarkeit setzt sonst eine SL
+async function programm(
+  event: string,
+  {
+    titel = "Waldtag",
+    ort = "Waldhütte",
+    sichtbarkeit = "eltern",
+    stufen = [stufeId],
+    status = "aktiv",
+  }: {
+    titel?: string;
+    ort?: string | null;
+    sichtbarkeit?: string;
+    stufen?: string[];
+    status?: string;
+  } = {},
+) {
+  const [zeile] = await sql`
+    insert into programm (abteilung_id, google_event_id, titel, ganztaegig, beginn, ende,
+                          google_ort, sichtbarkeit, status)
+    values (${abteilungId}, ${event}, ${titel}, false, '2027-09-25T12:00:00Z',
+            '2027-09-25T14:00:00Z', ${ort}, ${sichtbarkeit}, ${status})
+    returning id`;
+  for (const stufeId of stufen) {
+    await sql`insert into programm_stufe (programm_id, stufe_id) values (${zeile.id}, ${stufeId})`;
+  }
+  return zeile.id as string;
+}
+
+const termin = (id: string, extra: Record<string, unknown> = {}) => ({
+  id,
+  summary: "Waldtag",
+  location: "Waldhütte",
+  ...TERMIN,
+  ...extra,
+});
+
+const lauf = () =>
+  synchronisiere({
+    datenbankUrl: API_URL,
+    expo,
+    schluesselDatei,
+    jetzt: JETZT,
+  });
+
+const namen = () => gesendet.map((g) => g.name).sort();
+
+async function einrichten() {
+  const stufen = await sql`
+    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
+    values (${abteilungId}, 'Stufe B', 'B', 2) returning id`;
+  stufeB = stufen[0].id as string;
+  const eltern = await elternteil("Eltern A", stufeId);
+  await elternteil("Eltern A aus", stufeId, { pushProgramme: false });
+  await elternteil("Eltern B", stufeB);
+  await elternteil("Eltern A deaktiviert", stufeId, { deaktiviert: true });
+  const leitungA = await person("Leitung A");
+  await rolle(leitungA, stufeId, "leitung");
+  const slA = await person("SL A");
+  await rolle(slA, stufeId, "stufenleitung");
+  const slB = await person("SL B");
+  await rolle(slB, stufeB, "stufenleitung");
+  await person("Admin", { role: "admin" });
+  await person("Admin aus", { role: "admin", pushProgramme: false });
+  // Fremde Abteilung: Auch ein Admin dort sieht dieses Programm nie
+  const [fremd] = await sql`
+    insert into abteilung (name) values ('Fremde Abteilung') returning id`;
+  await person("Admin fremd", {
+    role: "admin",
+    abteilung: fremd.id as string,
+  });
+  return { eltern };
+}
+
+test("Zeit geändert: nur wer das Programm sehen darf und Programm-Pushes eingeschaltet hat, bekommt «wurde verschoben» ohne Personendaten", async () => {
+  await einrichten();
+  const id = await programm("waldtag-1");
+  stubNetz({
+    items: [
+      termin("waldtag-1", {
+        start: { dateTime: "2027-09-25T15:00:00+02:00" },
+        end: { dateTime: "2027-09-25T17:00:00+02:00" },
+      }),
+    ],
+  });
+  expect(await lauf()).toBe("fertig");
+
+  // Eltern und Leitende der Stufe A, alle SL und Admins der Abteilung (sie sehen jedes Programm); nie Eltern der Stufe B, ausgeschaltet, deaktiviert oder fremd
+  expect(namen()).toEqual(["Admin", "Eltern A", "Leitung A", "SL A", "SL B"]);
+  for (const push of gesendet) {
+    expect(push.titel).toBe("Waldtag am Sa 25.9. wurde verschoben");
+    // Deep Link: nur Typ und ID des Programms
+    expect(push.daten).toEqual({ typ: "programm", id });
+  }
+  expect(ausgabe).not.toHaveBeenCalled();
+});
+
+test("Sichtbarkeit «leitende»: Eltern bekommen keinen Push, Leitende und SL schon", async () => {
+  await einrichten();
+  await programm("waldtag-1", { sichtbarkeit: "leitende" });
+  stubNetz({ items: [termin("waldtag-1", { location: "Bahnhof" })] });
+  await lauf();
+  expect(namen()).toEqual(["Admin", "Leitung A", "SL A", "SL B"]);
+});
+
+test("Ort oder Titel geändert: «wurde geändert» mit dem neuen Titel", async () => {
+  await einrichten();
+  await programm("ort-1");
+  await programm("titel-1", { titel: "Pfadi" });
+  stubNetz({
+    items: [
+      termin("ort-1", { location: "Bahnhof" }),
+      termin("titel-1", { summary: "Pfadi mit Feuer" }),
+    ],
+  });
+  await lauf();
+  expect([...new Set(gesendet.map((g) => g.titel))].sort()).toEqual([
+    "Pfadi mit Feuer am Sa 25.9. wurde geändert",
+    "Waldtag am Sa 25.9. wurde geändert",
+  ]);
+});
+
+test("Ganztägiges Programm: Datum aus dem Tag, nicht über die Zeitzone verschoben", async () => {
+  await einrichten();
+  const id = await programm("lager-1");
+  await sql`update programm set ganztaegig = true, beginn = null, ende = null,
+    tag_von = '2027-10-29', tag_bis = '2027-10-29' where id = ${id}`;
+  stubNetz({
+    items: [
+      {
+        id: "lager-1",
+        summary: "Waldtag",
+        location: "Waldhütte",
+        start: { date: "2027-10-30" },
+        end: { date: "2027-10-31" },
+      },
+    ],
+  });
+  await lauf();
+  expect(new Set(gesendet.map((g) => g.titel))).toEqual(
+    new Set(["Waldtag am Sa 30.10. wurde verschoben"]),
+  );
+});
+
+test("Absage: «wurde abgesagt», und ein zweiter Lauf mit derselben Absage pusht nicht noch einmal", async () => {
+  await einrichten();
+  await programm("waldtag-1");
+  stubNetz({ items: [{ id: "waldtag-1", status: "cancelled" }] });
+  await lauf();
+  expect(namen()).toEqual(["Admin", "Eltern A", "Leitung A", "SL A", "SL B"]);
+  expect(new Set(gesendet.map((g) => g.titel))).toEqual(
+    new Set(["Waldtag am Sa 25.9. wurde abgesagt"]),
+  );
+
+  gesendet.length = 0;
+  await lauf();
+  expect(gesendet).toEqual([]);
+});
+
+test("Mehrfach-Sync derselben Änderung pusht nicht doppelt", async () => {
+  await einrichten();
+  await programm("waldtag-1");
+  stubNetz({ items: [termin("waldtag-1", { summary: "Waldtag mit Feuer" })] });
+  await lauf();
+  expect(gesendet).toHaveLength(5);
+
+  gesendet.length = 0;
+  await lauf();
+  await lauf();
+  expect(gesendet).toEqual([]);
+});
+
+test("Unverändert oder nur die Beschreibung geändert: kein Push", async () => {
+  await einrichten();
+  await programm("waldtag-1");
+  stubNetz({
+    items: [termin("waldtag-1", { description: "Neu: Wurst mitnehmen" })],
+  });
+  await lauf();
+  expect(gesendet).toEqual([]);
+  expect(
+    (
+      await sql`select google_beschreibung from programm where google_event_id = 'waldtag-1' and abteilung_id = ${abteilungId}`
+    )[0].google_beschreibung,
+  ).toBe("Neu: Wurst mitnehmen");
+});
+
+test("Neuer Termin: kein Push", async () => {
+  await einrichten();
+  stubNetz({ items: [termin("neu-1")] });
+  await lauf();
+  expect(gesendet).toEqual([]);
+  expect(
+    await sql`select 1 from programm where google_event_id = 'neu-1' and abteilung_id = ${abteilungId}`,
+  ).toHaveLength(1);
+});
+
+test("Nicht zugeordnet (intern oder ohne Stufe): Änderung und Absage pushen nicht", async () => {
+  await einrichten();
+  await programm("intern-1", { sichtbarkeit: "intern", stufen: [] });
+  await programm("ohne-stufe-1", { sichtbarkeit: "eltern", stufen: [] });
+  await programm("intern-stufe-1", { sichtbarkeit: "intern" });
+  await programm("abgesagt-1", { sichtbarkeit: "intern", stufen: [] });
+  stubNetz({
+    items: [
+      termin("intern-1", { location: "Bahnhof" }),
+      termin("ohne-stufe-1", { location: "Bahnhof" }),
+      termin("intern-stufe-1", { location: "Bahnhof" }),
+      { id: "abgesagt-1", status: "cancelled" },
+    ],
+  });
+  await lauf();
+  expect(gesendet).toEqual([]);
+});
+
+test("Fehlt ein künftiges Programm im Abruf, geht es zu «Prüfen» und pusht nicht", async () => {
+  await einrichten();
+  await programm("weg-1");
+  stubNetz({ items: [termin("anderes-1", { summary: "Etwas anderes" })] });
+  await lauf();
+  expect(gesendet).toEqual([]);
+  expect(
+    (
+      await sql`select status from programm where google_event_id = 'weg-1' and abteilung_id = ${abteilungId}`
+    )[0].status,
+  ).toBe("pruefen");
+});
+
+test("Ein bereits abgesagtes Programm, das unverändert zurückkehrt, pusht nicht", async () => {
+  await einrichten();
+  await programm("waldtag-1", { status: "abgesagt" });
+  stubNetz({ items: [termin("waldtag-1")] });
+  await lauf();
+  expect(gesendet).toEqual([]);
+});
+
+test("Fehler beim Versand: Der Sync ist trotzdem fertig, die Änderung gespeichert und nichts Vertrauliches im Log", async () => {
+  await einrichten();
+  await programm("waldtag-1");
+  expoAntwort = () => new Response("kaputt", { status: 500 });
+  stubNetz({ items: [termin("waldtag-1", { location: "Bahnhof" })] });
+  expect(await lauf()).toBe("fertig");
+
+  const [abteilung] = await sql`
+    select sync_ok_am, sync_fehler from abteilung where id = ${abteilungId}`;
+  expect(abteilung.sync_fehler).toBeNull();
+  expect(abteilung.sync_ok_am).not.toBeNull();
+  expect(
+    (
+      await sql`select google_ort from programm where google_event_id = 'waldtag-1' and abteilung_id = ${abteilungId}`
+    )[0].google_ort,
+  ).toBe("Bahnhof");
+  for (const [zeile] of ausgabe.mock.calls as string[][]) {
+    expect(zeile).not.toContain("ExponentPushToken");
+    expect(zeile).not.toContain("Waldtag");
+  }
+});
+
+test("Nachfolger einer geteilten Serie mit anderer Zeit: wird übernommen und als verschoben gepusht", async () => {
+  await einrichten();
+  const id = await programm("alt-1");
+  stubNetz({
+    items: [
+      termin("neu-1", {
+        start: { dateTime: "2027-09-25T15:00:00+02:00" },
+        end: { dateTime: "2027-09-25T17:00:00+02:00" },
+      }),
+    ],
+  });
+  await lauf();
+  expect(namen()).toEqual(["Admin", "Eltern A", "Leitung A", "SL A", "SL B"]);
+  expect(new Set(gesendet.map((g) => g.titel))).toEqual(
+    new Set(["Waldtag am Sa 25.9. wurde verschoben"]),
+  );
+  expect(gesendet[0].daten).toEqual({ typ: "programm", id });
 });

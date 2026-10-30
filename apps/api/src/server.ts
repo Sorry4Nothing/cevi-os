@@ -16,6 +16,7 @@ import { ladeSeiten } from "./seiten.js";
 const konfiguration = ladeKonfiguration(process.env);
 // Einmal beim Start; eine fehlende Seite beendet den Prozess wie eine fehlende Variable
 const seiten = ladeSeiten();
+const expo = new Expo({ accessToken: konfiguration.EXPO_ACCESS_TOKEN });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
 const auth = erstelleAuth(
@@ -26,7 +27,7 @@ const app = erstelleApp({
   sql,
   db,
   auth,
-  expo: new Expo({ accessToken: konfiguration.EXPO_ACCESS_TOKEN }),
+  expo,
   seiten,
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
@@ -34,6 +35,7 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(() =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
+    expo,
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );
