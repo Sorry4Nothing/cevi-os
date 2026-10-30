@@ -205,21 +205,6 @@ paths:
             text/javascript:
               schema:
                 type: string
-  /admin/meldungen.js:
-    get:
-      operationId: getAdminMeldungenSkript
-      summary: Skript der Verwaltung – Bereich Meldungen
-      tags:
-        - Allgemein
-      security: []
-      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
-      responses:
-        "200":
-          description: Datei (`text/javascript; charset=UTF-8`).
-          content:
-            text/javascript:
-              schema:
-                type: string
   /admin/personen.js:
     get:
       operationId: getAdminPersonenSkript
@@ -1458,8 +1443,8 @@ paths:
         Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Reihenfolge der Stufe, dann nach Name des Elternteils.
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
-        `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (ausgeblendete, vor dem Beitritt geschriebene) Nachrichten zählen nicht.
-        `letzteNachricht` ist die neueste Nachricht, die die Person im Chat sieht, oder `null`, wenn es noch keine gibt. Es gilt dieselbe Sichtbarkeitsregel wie bei `ungelesen`, ausser dass auch eigene Nachrichten zählen: Ausgeblendete Nachrichten zählen nicht (auch nicht für ihre Autorin oder ihren Autor; dann gilt die letzte sichtbare), vor dem Beitritt geschriebene ebenfalls nicht. Eltern sehen die letzte Nachricht nur in ihren eigenen Chats.
+        `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (vor dem Beitritt geschriebene) Nachrichten zählen nicht.
+        `letzteNachricht` ist die neueste Nachricht, die die Person im Chat sieht, oder `null`, wenn es noch keine gibt. Es gilt dieselbe Sichtbarkeitsregel wie bei `ungelesen`, ausser dass auch eigene Nachrichten zählen; vor dem Beitritt geschriebene zählen nicht. Eltern sehen die letzte Nachricht nur in ihren eigenen Chats.
         Der `text` ist auf höchstens 120 Zeichen gekürzt (ohne Auslassungszeichen); Anhänge und Programmverweise der Nachricht gehören nicht dazu. Den vollständigen Text liefert `GET /api/v1/chats/{id}/nachrichten`.
         Die App fragt die Liste per Polling ab (Liste alle 30 Sekunden, offener Chat alle 5 Sekunden); eine Echtzeit-Verbindung gibt es nicht.
 
@@ -1532,7 +1517,7 @@ paths:
 
         Paginierung: Der Query-Parameter `vor` ist die ID der ältesten bereits bekannten Nachricht; geliefert werden nur Nachrichten mit kleinerer ID (UUIDv7, ordnet nach Zeit). Ohne `vor` kommt die neueste Seite. `naechster` in der Antwort ist der Wert für `vor` der nächsten (älteren) Seite; `null`, wenn der Verlauf zu Ende ist (auch bei genau 50 Nachrichten). Ein Limit-Parameter existiert nicht, die Seitengrösse ist fest 50.
 
-        Sichtbarkeit: Stufenleitungen sehen den ganzen Verlauf. Eltern sehen im Gruppenchat nur Nachrichten ab ihrem Beitritt (frühestes aktives Kind der Stufe bzw. Verknüpfung mit dem Kind), im eigenen Einzelchat den ganzen Verlauf. Ausgeblendete Nachrichten sieht nur ihre Autorin oder ihr Autor, und zwar ohne Text und ohne Programm (`text: null`, `programm: null`, `ausgeblendet: true`); die App zeigt dann einen Hinweis. Für alle anderen fehlen sie in der Liste.
+        Sichtbarkeit: Stufenleitungen sehen den ganzen Verlauf. Eltern sehen im Gruppenchat nur Nachrichten ab ihrem Beitritt (frühestes aktives Kind der Stufe bzw. Verknüpfung mit dem Kind), im eigenen Einzelchat den ganzen Verlauf.
 
         Nicht-Mitglieder (andere Stufen, andere Abteilungen, Admins, Leitende ohne SL-Rolle, unbekannte ID) bekommen 404; ein 403 gibt es hier nicht.
 
@@ -1619,137 +1604,6 @@ paths:
       responses:
         "204":
           description: Gelesen-Stand gespeichert. Kein Inhalt.
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-  /api/v1/nachrichten/{id}/ausblenden:
-    post:
-      operationId: blendeNachrichtAus
-      summary: Nachricht ausblenden
-      tags:
-        - Moderation
-      description: |
-        Blendet eine Nachricht aus. Sie verschwindet für alle ausser ihrer Autorin oder ihrem Autor, die sie ohne Text mit Hinweis sehen. Der Vorgang steht im Audit-Log (ohne Text und Namen). Wiederholtes Ausblenden ist ein No-op und gibt ebenfalls 204.
-
-        Wer darf:
-        - Eine Stufenleitung nur im Gruppenchat («stufe») der eigenen Stufe, nie im Einzelchat.
-        - Ein Admin nur eine Nachricht mit offener Meldung, auch im Einzelchat. Diese Route liegt nicht unter `/api/v1/admin`; der zweite Faktor wird hier nicht verlangt. Ein Admin kann keine Nachricht ausblenden, über die er selbst gemeldet wurde.
-        - Eltern sehen die Nachricht, dürfen sie aber nicht ausblenden (403).
-
-        Statuscodes: 204 ausgeblendet oder bereits ausgeblendet; 400 `id` keine UUID; 401; 403 die Person sieht die Nachricht, darf sie aber nicht ausblenden (kein SL im Gruppenchat der eigenen Stufe und keine offene Meldung), oder Passwortwechsel offen; 404 die Nachricht ist für die Person nicht sichtbar oder unbekannt (andere Stufe, andere Abteilung, Eltern vor ihrem Beitritt, ohne offene Meldung bei Admins; eine bereits ausgeblendete Nachricht ist für die SL nicht mehr sichtbar, Admins sehen sie über die offene Meldung weiterhin); 426.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/NachrichtPfadId"
-      responses:
-        "204":
-          description: Nachricht ist ausgeblendet. Kein Inhalt.
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-  /api/v1/nachrichten/{id}/melden:
-    post:
-      operationId: meldeNachricht
-      summary: Nachricht melden
-      tags:
-        - Moderation
-      description: |
-        Meldet eine Nachricht den Admins. Die Meldung speichert eine Kopie des Textes als Beleg. Idempotent: Dieselbe Person meldet dieselbe Nachricht nur einmal, solange die Meldung offen ist; ein zweiter Aufruf gibt ebenfalls 204.
-
-        Wer darf: jede Person, die die Nachricht in ihrem Chat sieht (Stufenleitung der Stufe, Eltern der Stufe ab ihrem Beitritt). Admins ohne Mitgliedschaft im Chat sehen die Nachricht nicht und bekommen 404. Die eigene Nachricht lässt sich nur melden, wenn sie ausgeblendet wurde; sonst 400.
-
-        Begrenzung: höchstens 10 Meldungen pro Person und Stunde; die weitere Meldung ergibt 429.
-
-        Statuscodes: 204 gemeldet; 400 `id` keine UUID oder eigene, nicht ausgeblendete Nachricht; 401; 403 Passwortwechsel offen; 404 Nachricht für die Person nicht sichtbar oder unbekannt; 426; 429.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/NachrichtPfadId"
-      responses:
-        "204":
-          description: Nachricht ist gemeldet. Kein Inhalt.
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/admin/meldungen:
-    get:
-      operationId: listeMeldungen
-      summary: Offene Meldungen auflisten
-      tags:
-        - Moderation
-      description: |
-        Liefert die offenen (nicht erledigten) Meldungen der Abteilung, neueste zuerst, in Seiten zu 50. Nur für Admins mit eingerichtetem zweitem Faktor.
-
-        Meldungen über den eigenen Beitrag sieht ein Admin nicht; alle anderen Admins sehen sie. Meldungen, deren Autor-Konto gelöscht wurde (`autor: null`), sehen alle Admins.
-
-        Paginierung: Der Query-Parameter `vor` ist die ID der ältesten bereits bekannten Meldung; geliefert werden nur Meldungen mit kleinerer ID (UUIDv7). `naechster` in der Antwort ist der Wert für `vor` der nächsten Seite, `null` am Ende. Kein Limit-Parameter, Seitengrösse fest 50.
-
-        Die Antwort enthält nie E-Mail, Benutzername oder Sperrgrund der Personen.
-
-        Statuscodes: 200; 400 `vor` keine UUID oder unbekannte Query-Parameter; 401; 403 kein Admin, oder Admin ohne zweiten Faktor (dann mit `code: ZWEITER_FAKTOR_FEHLT`), oder Passwortwechsel offen; 426.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/MeldungenCursorVor"
-      responses:
-        "200":
-          description: Eine Seite offener Meldungen.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MeldungenSeite"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-  /api/v1/admin/meldungen/{id}:
-    patch:
-      operationId: erledigeMeldung
-      summary: Meldung erledigen
-      tags:
-        - Moderation
-      description: |
-        Markiert eine Meldung als erledigt. Die Kopie des Nachrichtentextes wird dabei gelöscht, der Vorgang steht im Audit-Log (ohne Personendaten). Wiederholtes Erledigen ist ein No-op und gibt ebenfalls 204. Ausblenden der Nachricht und Deaktivieren der Person laufen über ihre eigenen Routen.
-
-        Nur für Admins mit eingerichtetem zweitem Faktor. Die Meldung wird zuerst geladen: Existiert sie nicht in der Abteilung der Person oder ist es eine Meldung über die Person selbst, kommt 404 (auch für Nicht-Admins); erst danach wird das Recht geprüft und Nicht-Admins bekommen 403.
-
-        Statuscodes: 204 erledigt oder bereits erledigt; 400 `id` keine UUID oder Body ungültig (nur `{"erledigt": true}` ist erlaubt); 401; 403 kein Admin, Admin ohne zweiten Faktor (`code: ZWEITER_FAKTOR_FEHLT`) oder Passwortwechsel offen; 404 Meldung unbekannt, aus anderer Abteilung oder über die Person selbst; 426.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/MeldungPfadId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MeldungErledigenAnfrage"
-      responses:
-        "204":
-          description: Meldung ist erledigt. Kein Inhalt.
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -3162,7 +3016,7 @@ components:
           type: string
           format: uuid
         letzteNachricht:
-          description: Neueste für die Person sichtbare Nachricht des Chats; `null`, solange es keine gibt. Ausgeblendete und vor dem Beitritt geschriebene Nachrichten zählen nicht.
+          description: Neueste für die Person sichtbare Nachricht des Chats; `null`, solange es keine gibt. Vor dem Beitritt geschriebene Nachrichten zählen nicht.
           oneOf:
             - $ref: "#/components/schemas/ChatListeLetzteNachricht"
             - type: "null"
@@ -3284,35 +3138,24 @@ components:
         - erstelltAm
         - autor
         - programm
-        - ausgeblendet
-        - darfAusblenden
         - eigene
       properties:
         id:
           type: string
           format: uuid
         text:
-          type:
-            - string
-            - "null"
-          description: Nachrichtentext; `null`, wenn die Nachricht ausgeblendet ist (die Autorin oder der Autor sieht sie nur so).
+          type: string
+          description: Nachrichtentext.
         erstelltAm:
           type: string
           format: date-time
         autor:
           $ref: "#/components/schemas/ChatNachrichtAutor"
         programm:
-          description: Programm, auf das sich die Nachricht bezieht. `null` ohne Bezug, bei ausgeblendeten Nachrichten und wenn das Programm für Eltern der Stufe nicht mehr sichtbar ist.
+          description: Programm, auf das sich die Nachricht bezieht. `null` ohne Bezug und wenn das Programm für Eltern der Stufe nicht mehr sichtbar ist.
           oneOf:
             - $ref: "#/components/schemas/ChatProgrammBezug"
             - type: "null"
-        ausgeblendet:
-          type: boolean
-          description: Die Nachricht wurde ausgeblendet; die App zeigt einen Hinweis statt des Textes.
-        darfAusblenden:
-          type: boolean
-          description: |
-            `POST /api/v1/nachrichten/{id}/ausblenden` würde diese Nachricht für die angemeldete Person ausblenden. Die Regel steht im Server an einer Stelle und gilt für Feld und Route gleich: eine Stufenleitung im Gruppenchat der eigenen Stufe, ein Admin bei einer offenen Meldung (nicht über sich selbst). Falsch im Einzelchat, für Eltern und für eine bereits ausgeblendete Nachricht. Die App bietet «Ausblenden» nur bei `true` an; entschieden wird immer im Server.
         eigene:
           type: boolean
           description: Die angemeldete Person ist die Autorin oder der Autor.
@@ -3350,109 +3193,6 @@ components:
             - "null"
           format: uuid
           description: Cursor für `vor`, um ältere Nachrichten zu laden; `null`, wenn es keine älteren gibt.
-    MeldungChat:
-      type: object
-      required:
-        - typ
-        - stufe
-      properties:
-        typ:
-          $ref: "#/components/schemas/ChatTyp"
-        stufe:
-          $ref: "#/components/schemas/ChatStufe"
-    MeldungAutor:
-      type: object
-      required:
-        - id
-        - name
-        - deaktiviert
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        deaktiviert:
-          type: boolean
-          description: Das Konto der gemeldeten Person ist gesperrt.
-    ModerationsMeldung:
-      type: object
-      required:
-        - id
-        - erstelltAm
-        - text
-        - nachrichtId
-        - ausgeblendet
-        - chat
-        - autor
-        - gemeldetVon
-      properties:
-        id:
-          type: string
-          format: uuid
-        erstelltAm:
-          type: string
-          format: date-time
-        text:
-          type:
-            - string
-            - "null"
-          description: Kopie des gemeldeten Textes; `null`, wenn die Kopie gelöscht wurde.
-        nachrichtId:
-          type:
-            - string
-            - "null"
-          format: uuid
-          description: ID der gemeldeten Nachricht; `null`, wenn die Nachricht gelöscht ist (die Meldung behält den Beleg).
-        ausgeblendet:
-          type: boolean
-          description: Die gemeldete Nachricht ist ausgeblendet. `false` auch, wenn die Nachricht gelöscht ist.
-        chat:
-          description: Chat der Nachricht; `null`, wenn die Nachricht gelöscht ist.
-          oneOf:
-            - $ref: "#/components/schemas/MeldungChat"
-            - type: "null"
-        autor:
-          description: Gemeldete Person; `null`, wenn ihr Konto gelöscht wurde.
-          oneOf:
-            - $ref: "#/components/schemas/MeldungAutor"
-            - type: "null"
-        gemeldetVon:
-          type:
-            - string
-            - "null"
-          description: Name der meldenden Person; `null`, wenn ihr Konto gelöscht wurde.
-    MeldungenSeite:
-      type: object
-      required:
-        - meldungen
-        - naechster
-      properties:
-        meldungen:
-          type: array
-          maxItems: 50
-          description: Höchstens 50 offene Meldungen, neueste zuerst.
-          items:
-            $ref: "#/components/schemas/ModerationsMeldung"
-        naechster:
-          type:
-            - string
-            - "null"
-          format: uuid
-          description: Cursor für `vor`, um ältere Meldungen zu laden; `null` am Ende.
-    MeldungErledigenAnfrage:
-      type: object
-      additionalProperties: false
-      required:
-        - erledigt
-      properties:
-        erledigt:
-          type: boolean
-          enum:
-            - true
-          description: Muss `true` sein.
-      example:
-        erledigt: true
     AdminKonflikt:
       type: object
       description: |
@@ -3856,15 +3596,12 @@ components:
         bestand:
           type: object
           additionalProperties: false
-          required: [aktivePersonen, aktiveKinder, offeneMeldungen, pushTokens]
+          required: [aktivePersonen, aktiveKinder, pushTokens]
           properties:
             aktivePersonen:
               type: integer
             aktiveKinder:
               type: integer
-            offeneMeldungen:
-              type: integer
-              description: Alle offenen Meldungen der Abteilung, auch die über eigene Beiträge des Admins (die `GET /api/v1/admin/meldungen` ausblendet).
             pushTokens:
               type: integer
         kalender:
@@ -4116,35 +3853,11 @@ components:
       schema:
         type: string
         format: uuid
-    NachrichtPfadId:
-      name: id
-      in: path
-      required: true
-      description: ID der Nachricht.
-      schema:
-        type: string
-        format: uuid
-    MeldungPfadId:
-      name: id
-      in: path
-      required: true
-      description: ID der Meldung.
-      schema:
-        type: string
-        format: uuid
     NachrichtenCursorVor:
       name: vor
       in: query
       required: false
       description: Cursor. ID der ältesten bereits bekannten Nachricht; geliefert werden ältere. Wert aus `naechster` der vorherigen Antwort.
-      schema:
-        type: string
-        format: uuid
-    MeldungenCursorVor:
-      name: vor
-      in: query
-      required: false
-      description: Cursor. ID der ältesten bereits bekannten Meldung; geliefert werden ältere. Wert aus `naechster` der vorherigen Antwort.
       schema:
         type: string
         format: uuid

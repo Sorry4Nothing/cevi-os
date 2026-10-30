@@ -70,15 +70,6 @@ export const KATEGORIEN = {
     apple: ["User Content: Emails or Text Messages"],
     google: ["Messages: Other in-app messages"],
   },
-  meldungen: {
-    titel: "Meldungen",
-    zweck:
-      "Nachrichten prüfen, die jemand gemeldet hat. Die Meldung behält eine Kopie des Textes, damit der Beleg bleibt.",
-    frist:
-      "Die Kopie des Textes bleibt bis zur Erledigung der Meldung. Die Meldung selbst bleibt, bis die Leitung sie löscht.",
-    apple: ["User Content: Emails or Text Messages"],
-    google: ["Messages: Other in-app messages"],
-  },
   benachrichtigungen: {
     titel: "Benachrichtigungen",
     zweck:
@@ -186,30 +177,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   leitung_anmeldung: {
     anmeldungen: ["programm_id", "user_id", "status"],
   },
-  meldung: {
-    meldungen: [
-      "id",
-      "abteilung_id",
-      "nachricht_id",
-      "text_kopie",
-      "autor_id",
-      "gemeldet_von",
-      "erstellt_am",
-      "erledigt_von",
-      "erledigt_am",
-    ],
-  },
   nachricht: {
-    chat: [
-      "id",
-      "chat_id",
-      "autor_id",
-      "text",
-      "programm_id",
-      "erstellt_am",
-      "ausgeblendet_von",
-      "ausgeblendet_am",
-    ],
+    chat: ["id", "chat_id", "autor_id", "text", "programm_id", "erstellt_am"],
   },
   programm: {
     programme: [

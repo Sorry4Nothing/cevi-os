@@ -68,16 +68,6 @@ function zeichneSeite(bereich, daten) {
     kacheln.replaceChildren(
       kachel({ titel: "Aktive Personen", wert: zahl(b.aktivePersonen) }),
       kachel({ titel: "Aktive Kinder", wert: zahl(b.aktiveKinder) }),
-      kachel({
-        titel: "Offene Meldungen",
-        wert: zahl(b.offeneMeldungen),
-        status: b.offeneMeldungen > 0 ? "warn" : "ok",
-        link: el(
-          "a",
-          { class: "kachel-link", href: "#meldungen" },
-          "Zu den Meldungen",
-        ),
-      }),
       kachel({ titel: "Push-Tokens", wert: zahl(b.pushTokens) }),
       kalenderKachel(s.kalender),
       kachel({
