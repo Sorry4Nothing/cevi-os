@@ -338,7 +338,7 @@ Zwingend ist sie nicht, für Kinderdaten mit Treffpunkten und Chats aber angebra
 | Backups                                  | 30 tägliche und 3 monatliche Stände, also bis 3 Monate nach dem Löschen                                                                        |
 | Programme mit Treffpunkt und Ergänzungen | noch keine Frist festgelegt                                                                                                                    |
 
-Löscht ein Elternteil sein Konto, gehen seine Nachrichten und sein Einzelchat mit, bei einer SL nur ihre Nachrichten (#21, #55). Die Fristen in der Datenbank setzt ein täglicher Job im Server-Prozess um (`src/aufbewahrung.ts`), neben dem stündlichen für die Textkopien; ein Fehler in einem Teil stoppt die anderen nicht, und seine Tests prüfen jede Frist knapp davor und knapp danach (#66). Teilnahmen laufen ab ihrer letzten Änderung. Deaktiviert werden nur Eltern, die mit Kindern verknüpft sind und deren Kinder alle inaktiv sind; ein frisch angelegtes Konto ohne Kind bleibt. Das Deaktivieren und Löschen von Konten steht im Audit-Log mit dem Akteur `job`. Logs rotieren nach 14 Tagen (#72), und restic behält 30 tägliche und 3 monatliche Stände (#71).
+Löscht ein Elternteil sein Konto, gehen seine Nachrichten und sein Einzelchat mit, bei einer SL nur ihre Nachrichten (#21, #55). Die Fristen in der Datenbank setzen Jobs um, deren Tests jede Frist knapp davor und knapp danach prüfen (#66). Logs rotieren nach 14 Tagen (#72), und restic behält 30 tägliche und 3 monatliche Stände (#71).
 
 ### Risiken und Massnahmen
 
