@@ -5,7 +5,11 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { auditLog, meldung, nachricht } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
-import { hatRolle, nachrichtFuerPerson, type Person } from "../rechte.js";
+import {
+  ausblendenDurch,
+  nachrichtFuerPerson,
+  type Person,
+} from "../rechte.js";
 
 // Begrenzt den Missbrauch der Melde-Funktion: Wer mehr meldet, wartet; echte Fälle sind selten
 const MELDUNGEN_PRO_STUNDE = 10;
@@ -22,12 +26,8 @@ export function erstelleNachrichtenRouten({ db }: { db: Db }) {
         const { id } = c.req.valid("param");
         const ziel = await nachrichtFuerPerson(db, person, id);
         if (!ziel) throw new HTTPException(404);
-        // SL nur im Gruppenchat der eigenen Stufe, nie im Einzelchat; Admins nur gemeldete Nachrichten, auch im Einzelchat
-        const alsSl =
-          ziel.mitglied &&
-          ziel.chatTyp === "stufe" &&
-          hatRolle(person, ziel.stufeId, "stufenleitung");
-        if (!alsSl && !ziel.gemeldet) throw new HTTPException(403);
+        const durch = ausblendenDurch(person, ziel);
+        if (!durch) throw new HTTPException(403);
         await db.transaction(async (tx) => {
           const [geaendert] = await tx
             .update(nachricht)
@@ -44,7 +44,7 @@ export function erstelleNachrichtenRouten({ db }: { db: Db }) {
             // Ohne Personendaten: weder Text noch Namen
             details: {
               chatId: ziel.chatId,
-              durch: alsSl ? "stufenleitung" : "admin",
+              durch,
             },
           });
         });

@@ -286,6 +286,55 @@ export function sichtbareNachrichten(
     .as("sichtbare_nachrichten");
 }
 
+// Eine offene Meldung in der Abteilung der Person, über die ein Admin die Nachricht sieht und ausblendet. Einzige Stelle dieser Bedingung: nachrichtFuerPerson und gemeldeteNachrichten lesen sie hier
+function offeneMeldungFuerAdmin(person: Pick<Person, "id" | "abteilungId">) {
+  return and(
+    eq(meldung.abteilungId, person.abteilungId),
+    isNull(meldung.erledigtAm),
+    // Der Autor einer gemeldeten Nachricht ist die gemeldete Person; null (Konto gelöscht) trifft keinen Admin
+    or(isNull(meldung.autorId), ne(meldung.autorId, person.id)),
+  );
+}
+
+// Welche der Nachrichten ein Admin über eine offene Meldung ausblenden darf; eine Abfrage für die ganze Seite. Für alle anderen leer
+export async function gemeldeteNachrichten(
+  db: Db,
+  person: Person,
+  nachrichtIds: string[],
+) {
+  if (!person.admin || nachrichtIds.length === 0) return new Set<string>();
+  const zeilen = await db
+    .selectDistinct({ id: meldung.nachrichtId })
+    .from(meldung)
+    .where(
+      and(
+        inArray(meldung.nachrichtId, nachrichtIds),
+        offeneMeldungFuerAdmin(person),
+      ),
+    );
+  return new Set(zeilen.flatMap((z) => (z.id ? [z.id] : [])));
+}
+
+// Wer eine Nachricht ausblenden darf: die einzige Regel, die die Route «ausblenden» und das Feld «darfAusblenden» benutzen. «stufenleitung»: nur im Gruppenchat der eigenen Stufe, nie im Einzelchat. «admin»: nur eine gemeldete Nachricht, auch im Einzelchat. null: niemand von beiden
+export function ausblendenDurch(
+  person: Person,
+  ziel: {
+    mitglied: boolean;
+    chatTyp: "stufe" | "direkt";
+    stufeId: string;
+    gemeldet: boolean;
+  },
+): "stufenleitung" | "admin" | null {
+  if (
+    ziel.mitglied &&
+    ziel.chatTyp === "stufe" &&
+    hatRolle(person, ziel.stufeId, "stufenleitung")
+  ) {
+    return "stufenleitung";
+  }
+  return ziel.gemeldet ? "admin" : null;
+}
+
 // Eine Nachricht für Melden und Ausblenden. «mitglied»: die Person sieht sie in ihrem Chat. «gemeldet»: Admins sehen sie über eine offene Meldung, nie über eine Meldung über sich selbst. undefined heisst 404
 export async function nachrichtFuerPerson(
   db: Db,
@@ -323,10 +372,7 @@ export async function nachrichtFuerPerson(
         .where(
           and(
             eq(meldung.nachrichtId, nachrichtId),
-            eq(meldung.abteilungId, person.abteilungId),
-            isNull(meldung.erledigtAm),
-            // Der Autor einer gemeldeten Nachricht ist die gemeldete Person; null (Konto gelöscht) trifft keinen Admin
-            or(isNull(meldung.autorId), ne(meldung.autorId, person.id)),
+            offeneMeldungFuerAdmin(person),
           ),
         )
         .limit(1)
