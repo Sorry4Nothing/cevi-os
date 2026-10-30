@@ -242,20 +242,14 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "tagVon",
         "tagBis",
         "googleOrt",
-        "treffpunkt",
-        "schlussOrt",
-        "schlussZeit",
-        "mitnehmen",
-        "infoEltern",
         "stufen",
         "googleBeschreibung",
         "teilnahmeOffen",
         "kinder",
-        "darfErgaenzen",
       ].sort(),
     );
     expect(koerper.googleBeschreibung).toBeNull();
-    // Der Google-Ort bleibt sichtbar: Die App zeigt ihn, solange kein Treffpunkt gesetzt ist
+    // Der Google-Ort bleibt sichtbar
     expect(koerper.googleOrt).toBe("Google-Ort");
     expect(koerper.stufen).toEqual([{ id: welt.stufeAId, name: "Stufe A" }]);
   });

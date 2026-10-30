@@ -142,7 +142,7 @@ async function lauf(
           if (absagen.includes(v.googleEventId) && v.status !== "abgesagt")
             aenderungen.push(abgesagt(v.id, v));
         }
-        // Übernehmen heisst umschlüsseln: Die Zeile behält id, Zuordnung, Ergänzungen und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
+        // Übernehmen heisst umschlüsseln: Die Zeile behält id, Zuordnung und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
         for (const u of uebernahmen) {
           await tx
             .update(programm)
@@ -157,7 +157,7 @@ async function lauf(
             .onConflictDoUpdate({
               target: [programm.abteilungId, programm.googleEventId],
               // Jede Google-Spalte aus excluded, auch NULL: Der Wechsel ganztägig ↔ mit Zeit leert das andere Paar.
-              // Zuordnung, Sichtbarkeit, Ergänzungen und geaendert_* bleiben unberührt
+              // Zuordnung und Sichtbarkeit bleiben unberührt
               set: {
                 googleSerie: roh`excluded.google_serie`,
                 titel: roh`excluded.titel`,

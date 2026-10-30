@@ -121,19 +121,14 @@ test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async
   });
 });
 
-test("Löschen eines Programms entfernt die Stufen-Zuordnung; Löschen der Person lässt es mit geaendert_von NULL stehen", async () => {
+test("Löschen eines Programms entfernt die Stufen-Zuordnung", async () => {
   await zurueckgerollt(sql, async (tx) => {
-    const { abteilung, stufe, person } = await grunddaten(tx);
+    const { abteilung, stufe } = await grunddaten(tx);
     const [programm] = await tx`
-      insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, geaendert_von)
-      values (${abteilung}, 'event00000000001', 'Testlager', true, '2027-07-30', '2027-08-02', ${person})
+      insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
+      values (${abteilung}, 'event00000000001', 'Testlager', true, '2027-07-30', '2027-08-02')
       returning id`;
     await tx`insert into programm_stufe (programm_id, stufe_id) values (${programm.id}, ${stufe})`;
-
-    await tx`delete from "user" where id = ${person}`;
-    expect(
-      await tx`select geaendert_von from programm where id = ${programm.id}`,
-    ).toEqual([{ geaendert_von: null }]);
 
     await tx`delete from programm where id = ${programm.id}`;
     expect(

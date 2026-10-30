@@ -386,11 +386,6 @@ export function darfLeitungAnmelden(
   return stufeIds.some((stufeId) => hatRolle(person, stufeId, "leitung"));
 }
 
-// Ergänzungen (Treffpunkt, Schluss, Mitnehmen, Info) dürfen Admins sowie Leitende und SL einer zugeordneten Stufe; Eltern nie
-export function darfErgaenzen(person: Person, stufeIds: readonly string[]) {
-  return person.admin || darfLeitungAnmelden(person, stufeIds);
-}
-
 // Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen; Leitende und Eltern nie, auch kein No-op
 export function darfZuordnen(
   person: Person,
