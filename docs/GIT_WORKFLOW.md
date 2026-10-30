@@ -30,11 +30,10 @@ Ein Release ist ein PR von `develop` nach `main`, gemergt mit «Create a merge c
 
 Ein Release läuft so:
 
-1. Versions-PR nach `develop`: hebt `expo.version` in `apps/mobile/app.json` auf `X.Y.Z`, unter einem Issue wie jeder PR. Versionen steigen nur.
-2. Release-PR von `develop` nach `main`, gemergt mit «Create a merge commit».
-3. Tag von Hand auf dem Merge-Commit, annotiert: `git fetch origin`, dann `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main` und `git push origin vX.Y.Z`. Kein Workflow erzeugt Tags.
+1. Release-PR von `develop` nach `main`, gemergt mit «Create a merge commit».
+2. Tag von Hand auf dem Merge-Commit, annotiert: `git fetch origin`, dann `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main` und `git push origin vX.Y.Z`. Kein Workflow erzeugt Tags.
 
-`eas build --profile production`, `eas submit` und EAS Update auf dem Kanal `production` laufen nur von `main` und startet eine benannte Person von Hand, ohne `EXPO_TOKEN` in GitHub Actions; EAS Update gibt es nur für reine JavaScript-Korrekturen. Image, Deploy und die EAS-Befehle stehen in [betrieb.md](betrieb.md) unter «Release».
+Das gilt für die API. Die iOS- und die Android-App liegen in eigenen Repos und haben dort ihren eigenen Ablauf. Image und Deploy der API stehen in [betrieb.md](betrieb.md) unter «Release».
 
 ## Was nie ins Repo kommt
 
