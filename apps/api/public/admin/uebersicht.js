@@ -20,6 +20,26 @@ export function zeige(bereich, ctx) {
   ctx.lade(ladeBetrieb, (daten) => zeichneSeite(bereich, daten));
 }
 
+const syncVeraltet = (k) =>
+  !k.letzterErfolgAm ||
+  Date.now() - new Date(k.letzterErfolgAm).getTime() > SYNC_VERALTET_MS;
+
+// Eine Zeile zur Lage; der Zustand steht im Wort, die Farbe und das Symbol (aus dem CSS) verstärken nur
+function lage(s) {
+  const probleme = [];
+  if (!s.datenbank.erreichbar) {
+    probleme.push(["fehler", "Die Datenbank ist nicht erreichbar."]);
+  }
+  if (s.kalender.eingerichtet && s.kalender.fehler) {
+    probleme.push(["fehler", "Der Kalender-Sync meldet einen Fehler."]);
+  } else if (s.kalender.eingerichtet && syncVeraltet(s.kalender)) {
+    probleme.push(["warn", "Der Kalender-Sync ist veraltet."]);
+  }
+  if (probleme.length === 0) return ["ok", "Alles in Ordnung."];
+  const art = probleme.some(([a]) => a === "fehler") ? "fehler" : "warn";
+  return [art, probleme.map(([, text]) => text).join(" ")];
+}
+
 function kalenderKachel(k) {
   const hinweisErfolg = k.letzterErfolgAm
     ? `Letzter Erfolg ${vor(k.letzterErfolgAm)} (${zeit(k.letzterErfolgAm)})`
@@ -41,9 +61,7 @@ function kalenderKachel(k) {
       hinweis: `${k.fehler}. ${hinweisErfolg}`,
     });
   }
-  const veraltet =
-    !k.letzterErfolgAm ||
-    Date.now() - new Date(k.letzterErfolgAm).getTime() > SYNC_VERALTET_MS;
+  const veraltet = syncVeraltet(k);
   return kachel({
     titel: "Kalender-Sync",
     wert: veraltet ? "Veraltet" : "In Ordnung",
@@ -57,6 +75,7 @@ function zeichneSeite(bereich, daten) {
   const offen = { wert: false };
   const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
   const stand = el("p", { class: "meta stand" });
+  const hinweis = el("p", { class: "hinweis" });
   const kacheln = el("div", { class: "kacheln" });
   const verlauf = el("div", {});
   const fehler = el("div", {});
@@ -65,6 +84,9 @@ function zeichneSeite(bereich, daten) {
   function zeichne({ system: s, anfragen: a }) {
     stand.textContent = `Stand ${new Date().toLocaleTimeString("de-CH")}, wird alle 15 Sekunden aktualisiert.`;
     const b = s.bestand;
+    const [art, text] = lage(s);
+    hinweis.className = `hinweis hinweis--${art}`;
+    hinweis.textContent = text;
     kacheln.replaceChildren(
       kachel({ titel: "Aktive Personen", wert: zahl(b.aktivePersonen) }),
       kachel({ titel: "Aktive Kinder", wert: zahl(b.aktiveKinder) }),
@@ -100,6 +122,7 @@ function zeichneSeite(bereich, daten) {
 
   zeichne(daten);
   bereich.append(
+    hinweis,
     el("div", { class: "stand-zeile" }, stand, fehlerFeld),
     kacheln,
     el(
