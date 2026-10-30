@@ -311,6 +311,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
               .select({
                 id: user.id,
                 name: user.name,
+                ceviName: user.ceviName,
                 stufeId: rolle.stufeId,
                 rolle: rolle.typ,
                 status: sql<Antwort>`coalesce(${leitungAnmeldung.status}, 'offen')`,

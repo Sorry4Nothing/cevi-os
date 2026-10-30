@@ -292,6 +292,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "updated_at",
       "username",
       "display_username",
+      "cevi_name",
       "role",
       "banned",
       "ban_reason",
