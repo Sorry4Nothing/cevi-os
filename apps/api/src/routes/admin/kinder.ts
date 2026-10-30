@@ -131,7 +131,7 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
           )
           .orderBy(asc(kindEltern.userId)),
       ]);
-      // Keine Daten: Die Datumsfelder lesen #48 und #66 in SQL
+      // Keine Daten: Die Datumsfelder liest #48 in SQL
       return c.json({
         kinder: kinder.map((k) => ({
           id: k.id,
@@ -168,7 +168,7 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
         }
         if (eltern) await pruefeEltern(person, eltern);
         await db.transaction(async (tx) => {
-          // Die App schickt das ganze Formular: Nur echte Änderungen setzen die Zeitpunkte, auf die Chat-Sicht und Aufbewahrung bauen (#48, #66)
+          // Die App schickt das ganze Formular: Nur echte Änderungen setzen die Zeitpunkte, auf die die Chat-Sicht baut (#48)
           const felder: Partial<typeof aenderung> & {
             stufeSeit?: SQL;
             inaktivSeit?: SQL | null;

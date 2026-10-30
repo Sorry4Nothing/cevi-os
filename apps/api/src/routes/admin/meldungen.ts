@@ -85,7 +85,7 @@ export function erstelleMeldungenRouten({ db }: { db: Db }) {
           meldungen: seite.map((z) => ({
             id: z.id,
             erstelltAm: z.erstelltAm,
-            // null: Die Kopie ist nach spätestens 30 Tagen gelöscht
+            // null: Die Kopie ist gelöscht
             text: z.text,
             // null: Die Nachricht ist gelöscht, die Meldung behält den Beleg
             nachrichtId: z.nachrichtId,

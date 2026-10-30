@@ -2254,7 +2254,7 @@ paths:
       operationId: aendereAdminKind
       summary: Kind ändern
       description: |
-        Nur Admins, nur Kinder der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Die App darf das ganze Formular schicken: Nur echte Änderungen von `stufeId` und `aktiv` setzen die Zeitpunkte, auf die Chat-Sicht und Aufbewahrung aufbauen. `eltern` ersetzt die bisherige Liste der Elternteile vollständig.
+        Nur Admins, nur Kinder der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Die App darf das ganze Formular schicken: Nur echte Änderungen von `stufeId` und `aktiv` setzen die Zeitpunkte, auf die die Chat-Sicht aufbaut. `eltern` ersetzt die bisherige Liste der Elternteile vollständig.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Kind in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufe und Elternteile (400).
 
@@ -3300,7 +3300,7 @@ components:
           type:
             - string
             - "null"
-          description: Kopie des gemeldeten Textes; `null`, wenn die Kopie nach spätestens 30 Tagen gelöscht wurde.
+          description: Kopie des gemeldeten Textes; `null`, wenn die Kopie gelöscht wurde.
         nachrichtId:
           type:
             - string
