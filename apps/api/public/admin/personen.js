@@ -1,83 +1,161 @@
-import { anfrage } from "./api.js";
+import { anfrage, fehlertext } from "./api.js";
 import {
   aktionenZelle,
   ankreuzen,
-  auswahl,
   bestaetigen,
   chip,
   dialogFormular,
   el,
   feld,
+  filterGruppe,
   geheimnisDialog,
-  gruppe,
+  icon,
+  avatar,
   knopf,
-  menue,
+  neueId,
+  seitenblatt,
   tabelle,
   tag,
 } from "./dom.js";
 
 const ROLLEN = [
-  ["", "Keine Rolle"],
+  ["", "Keine"],
   ["leitung", "Leitung"],
   ["stufenleitung", "Stufenleitung"],
 ];
 const ROLLENNAME = { leitung: "Leitung", stufenleitung: "Stufenleitung" };
 
+// Suche und Filter überleben das Neuladen nach einer Aktion; fokus: Person, deren Zeile danach den Fokus bekommt
+const zustand = { frage: "", filter: "alle", fokus: null };
+
 export function zeige(bereich, ctx) {
+  zustand.frage = "";
+  zustand.filter = "alle";
+  zustand.fokus = null;
   ctx.lade(
     () => anfrage("GET", "/api/v1/admin/personen"),
     (daten, neu) => zeichne(bereich, ctx, daten, neu),
   );
 }
 
-// Rollen-Editor: eine Auswahl je Stufe
+// Rollen-Editor: eine Gruppe von Optionsknöpfen je Stufe
 function rollenFelder(stufen, rollen) {
   const aktuell = new Map(rollen.map((r) => [r.stufeId, r.typ]));
   const zeilen = stufen.map((stufe) => {
-    const auswahlfeld = auswahl({
-      label: `Rolle in ${stufe.name}`,
-      optionen: ROLLEN,
-      wert: aktuell.get(stufe.id) ?? "",
+    const name = neueId("rolle");
+    const gewaehlt = aktuell.get(stufe.id) ?? "";
+    const optionen = ROLLEN.map(([wert, text]) => {
+      const id = neueId("rolle-option");
+      return {
+        wert,
+        eingabe: el("input", {
+          type: "radio",
+          id,
+          name,
+          value: wert,
+          checked: wert === gewaehlt,
+        }),
+        label: el("label", { for: id }, icon("haken"), text),
+      };
     });
-    auswahlfeld.eingabe.dataset.stufeId = stufe.id;
-    return auswahlfeld;
+    return {
+      stufe,
+      optionen,
+      wurzel: el(
+        "fieldset",
+        { class: "rolle" },
+        el("legend", {}, stufe.name),
+        el(
+          "div",
+          { class: "seg" },
+          optionen.flatMap((o) => [o.eingabe, o.label]),
+        ),
+      ),
+    };
   });
   return {
-    wurzel: gruppe(
-      "Stufenrollen",
+    wurzel: el(
+      "div",
+      { class: "abschnitt" },
+      el("h3", {}, "Stufenrollen"),
       zeilen.length
         ? zeilen.map((z) => z.wurzel)
         : el("p", { class: "hilfe" }, "Es gibt noch keine Stufen."),
     ),
     wert: () =>
       zeilen
-        .filter((z) => z.eingabe.value)
         .map((z) => ({
-          stufeId: z.eingabe.dataset.stufeId,
-          typ: z.eingabe.value,
-        })),
+          stufeId: z.stufe.id,
+          typ: z.optionen.find((o) => o.eingabe.checked)?.wert ?? "",
+        }))
+        .filter((r) => r.typ),
   };
 }
 
 function kinderFelder(kinder, stufen, gewaehlt) {
   const stufenname = new Map(stufen.map((s) => [s.id, s.name]));
-  const boxen = kinder.map((kind) =>
-    ankreuzen({
-      label: `${kind.vorname} ${kind.nachname} (${stufenname.get(kind.stufeId) ?? "ohne Stufe"})`,
+  const zaehler = el("span", { class: "klein leise" });
+  const suchId = neueId("kind-suche");
+  const zeilen = kinder.map((kind) => {
+    const name = `${kind.vorname} ${kind.nachname}`;
+    const box = ankreuzen({
+      label: name,
       gewaehlt: gewaehlt.includes(kind.id),
       wert: kind.id,
-    }),
+    });
+    box.wurzel.dataset.suche = name.toLowerCase();
+    box.wurzel.append(
+      el(
+        "span",
+        { class: "chip chip--stufe" },
+        stufenname.get(kind.stufeId) ?? "ohne Stufe",
+      ),
+    );
+    return box;
+  });
+  const anzahl = () => {
+    const n = zeilen.filter((b) => b.eingabe.checked).length;
+    zaehler.textContent = `${n} gewählt`;
+  };
+  const suche = el("input", {
+    class: "eingabe",
+    id: suchId,
+    type: "search",
+    placeholder: "Kind suchen",
+    autocomplete: "off",
+    oninput: () => {
+      const frage = suche.value.trim().toLowerCase();
+      for (const z of zeilen)
+        z.wurzel.hidden = !z.wurzel.dataset.suche.includes(frage);
+    },
+  });
+  const liste = el(
+    "div",
+    { class: "kinderliste", role: "group", "aria-label": "Kinder" },
+    zeilen.map((z) => z.wurzel),
   );
+  liste.addEventListener("change", anzahl);
+  anzahl();
   return {
-    wurzel: gruppe(
-      "Elternteil von",
-      boxen.length
-        ? boxen.map((b) => b.wurzel)
+    wurzel: el(
+      "div",
+      { class: "abschnitt" },
+      el("div", { class: "zeile" }, el("h3", {}, "Elternteil von"), zaehler),
+      zeilen.length
+        ? [
+            el(
+              "div",
+              { class: "suche suche--voll" },
+              el("label", { class: "nur-leser", for: suchId }, "Kind suchen"),
+              icon("lupe"),
+              suche,
+            ),
+            liste,
+          ]
         : el("p", { class: "hilfe" }, "Es gibt noch keine Kinder."),
-      { scrollen: true },
     ),
     wert: () =>
-      boxen.filter((b) => b.eingabe.checked).map((b) => b.eingabe.value),
+      zeilen.filter((b) => b.eingabe.checked).map((b) => b.eingabe.value),
   };
 }
 
@@ -130,40 +208,8 @@ function anlegen(daten, ctx, neu) {
   });
 }
 
-function bearbeiten(person, daten, ctx, neu) {
-  const name = feld({
-    label: "Name",
-    hilfe: "Vorname und Nachname in einem Feld.",
-    wert: person.name,
-    maxlength: 201,
-    required: true,
-  });
-  const admin = ankreuzen({
-    label: "Admin-Rechte",
-    gewaehlt: person.admin,
-  });
-  const rollen = rollenFelder(daten.stufen, person.rollen);
-  const kinder = kinderFelder(daten.kinder, daten.stufen, person.elternteilVon);
-  dialogFormular({
-    titel: `Person bearbeiten`,
-    beschreibung: person.name,
-    felder: [name.wurzel, admin.wurzel, rollen.wurzel, kinder.wurzel],
-    ok: "Speichern",
-    senden: () =>
-      anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {
-        name: name.eingabe.value.trim(),
-        admin: admin.eingabe.checked,
-        rollen: rollen.wert(),
-        elternteilVon: kinder.wert(),
-      }),
-    danach: () => {
-      neu();
-      ctx.melde("Gespeichert.");
-    },
-  });
-}
-
-function neuesStartpasswort(person, ctx, neu) {
+// fertig() schliesst das Seitenblatt nach einer geglückten Aktion, denn seine Angaben sind danach veraltet
+function neuesStartpasswort(person, ctx, neu, fertig) {
   bestaetigen({
     titel: "Neues Startpasswort erzeugen",
     beschreibung: `«${person.name}» wird überall abgemeldet und muss beim nächsten Login ein neues Passwort wählen. Das Startpasswort gilt 7 Tage.`,
@@ -178,11 +224,12 @@ function neuesStartpasswort(person, ctx, neu) {
         beschreibung: `Gib das Startpasswort für «${person.name}» sicher weiter. Es gilt 7 Tage und wird nicht nochmals angezeigt.`,
         wert: antwort.startpasswort,
       });
+      fertig();
     },
   });
 }
 
-function umschalten(person, ctx, neu) {
+function umschalten(person, ctx, neu, fertig) {
   const deaktivieren = !person.deaktiviert;
   bestaetigen({
     titel: deaktivieren ? "Person deaktivieren" : "Person aktivieren",
@@ -197,17 +244,19 @@ function umschalten(person, ctx, neu) {
         `/api/v1/admin/personen/${person.id}/${deaktivieren ? "deaktivieren" : "aktivieren"}`,
       ),
     danach: () => {
+      zustand.fokus = person.id;
       neu();
       ctx.melde(
         deaktivieren
           ? `«${person.name}» ist deaktiviert.`
           : `«${person.name}» ist aktiviert.`,
       );
+      fertig();
     },
   });
 }
 
-function faktorZuruecksetzen(person, ctx, neu) {
+function faktorZuruecksetzen(person, ctx, neu, fertig) {
   bestaetigen({
     titel: "Zweiten Faktor zurücksetzen",
     beschreibung: `«${person.name}» muss den zweiten Faktor danach neu einrichten.`,
@@ -218,13 +267,199 @@ function faktorZuruecksetzen(person, ctx, neu) {
         `/api/v1/admin/personen/${person.id}/zweiter-faktor-zuruecksetzen`,
       ),
     danach: () => {
+      zustand.fokus = person.id;
       neu();
       ctx.melde(`Der zweite Faktor von «${person.name}» ist zurückgesetzt.`);
+      fertig();
     },
   });
 }
 
 const leer = () => el("span", { class: "leise" }, "–");
+
+// Chips mit Symbol und Wort; «Aktiv» nur, wenn sonst nichts zu sagen ist
+function statusChips(person) {
+  const liste = [
+    person.admin && chip("Admin", undefined, "stern"),
+    person.zweiterFaktor && chip("Zweiter Faktor", "ok", "schild"),
+    person.mussPasswortAendern &&
+      chip(
+        person.startpasswortGueltigBis
+          ? `Startpasswort offen bis ${tag(person.startpasswortGueltigBis)}`
+          : "Passwortwechsel offen",
+        "warn",
+        "uhr",
+      ),
+    person.deaktiviert && chip("Deaktiviert", "fehler"),
+  ].filter(Boolean);
+  if (liste.length === 0) liste.push(chip("Aktiv", "ok"));
+  return el("ul", { class: "chips" }, liste);
+}
+
+// Aktion im Seitenblatt: Titel und Erklärung links, Knopf rechts
+function kontoAktion(titel, text, knopfKnoten) {
+  return el(
+    "div",
+    { class: "zeile" },
+    el(
+      "div",
+      { class: "personen-aktion" },
+      el("p", { class: "name" }, titel),
+      el("p", { class: "klein leise" }, text),
+    ),
+    knopfKnoten,
+  );
+}
+
+function bearbeiten(person, daten, ctx, neu, tr) {
+  const eigenes = person.id === ctx.ich.id;
+  const formId = neueId("person-form");
+  const name = feld({
+    label: "Name",
+    hilfe: "Vorname und Nachname in einem Feld.",
+    wert: person.name,
+    maxlength: 201,
+    required: true,
+  });
+  const admin = ankreuzen({
+    label: "Admin-Rechte",
+    gewaehlt: person.admin,
+  });
+  const rollen = rollenFelder(daten.stufen, person.rollen);
+  const kinder = kinderFelder(daten.kinder, daten.stufen, person.elternteilVon);
+  const fehler = el("p", {
+    class: "hinweis hinweis--fehler",
+    role: "alert",
+    hidden: true,
+    tabindex: "-1",
+  });
+  const schliesse = () => blatt.close();
+  const formular = el(
+    "form",
+    { id: formId, novalidate: true },
+    el(
+      "div",
+      { class: "abschnitt" },
+      el("h3", {}, "Angaben"),
+      name.wurzel,
+      el(
+        "div",
+        { class: "feld" },
+        el("span", { class: "legende" }, "Benutzername"),
+        el("p", { class: "personen-benutzername" }, person.benutzername ?? "–"),
+        el("p", { class: "hilfe" }, "Der Benutzername bleibt fest."),
+      ),
+    ),
+    el(
+      "div",
+      { class: "abschnitt" },
+      el("h3", {}, "Rechte"),
+      admin.wurzel,
+      el(
+        "p",
+        { class: "hilfe" },
+        "Admins brauchen einen zweiten Faktor, bevor sie die Verwaltung öffnen können.",
+      ),
+    ),
+    rollen.wurzel,
+    kinder.wurzel,
+    fehler,
+  );
+  const abbrechen = knopf("Abbrechen", { onclick: schliesse });
+  const speichern = el(
+    "button",
+    { type: "submit", form: formId, class: "knopf knopf--haupt" },
+    "Speichern",
+  );
+  formular.addEventListener("submit", async (ereignis) => {
+    ereignis.preventDefault();
+    fehler.hidden = true;
+    abbrechen.disabled = speichern.disabled = true;
+    try {
+      await anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {
+        name: name.eingabe.value.trim(),
+        admin: admin.eingabe.checked,
+        rollen: rollen.wert(),
+        elternteilVon: kinder.wert(),
+      });
+      zustand.fokus = person.id;
+      blatt.close();
+      neu();
+      ctx.melde("Gespeichert.");
+    } catch (f) {
+      fehler.textContent = fehlertext(f);
+      fehler.hidden = false;
+      fehler.focus();
+    } finally {
+      abbrechen.disabled = speichern.disabled = false;
+    }
+  });
+  const konto = el(
+    "div",
+    { class: "abschnitt" },
+    el("h3", {}, "Konto"),
+    eigenes
+      ? el(
+          "p",
+          { class: "hilfe" },
+          "Für das eigene Konto gibt es diese Aktionen nicht.",
+        )
+      : [
+          kontoAktion(
+            "Neues Startpasswort",
+            "Meldet die Person überall ab. Das Passwort gilt 7 Tage und erscheint nur einmal.",
+            knopf("Startpasswort erzeugen", {
+              klein: true,
+              symbol: "schluessel",
+              onclick: () => neuesStartpasswort(person, ctx, neu, schliesse),
+            }),
+          ),
+          person.zweiterFaktor &&
+            kontoAktion(
+              "Zweiter Faktor",
+              "Die Person muss ihn danach neu einrichten.",
+              knopf("Zweiten Faktor zurücksetzen", {
+                klein: true,
+                art: "gefahr",
+                symbol: "schild",
+                onclick: () => faktorZuruecksetzen(person, ctx, neu, schliesse),
+              }),
+            ),
+          person.deaktiviert
+            ? kontoAktion(
+                "Person aktivieren",
+                "Sie kann sich wieder anmelden.",
+                knopf("Aktivieren", {
+                  klein: true,
+                  symbol: "haken",
+                  onclick: () => umschalten(person, ctx, neu, schliesse),
+                }),
+              )
+            : kontoAktion(
+                "Person deaktivieren",
+                "Sie kann sich nicht mehr anmelden und wird überall abgemeldet.",
+                knopf("Deaktivieren", {
+                  klein: true,
+                  art: "gefahr",
+                  symbol: "sperre",
+                  onclick: () => umschalten(person, ctx, neu, schliesse),
+                }),
+              ),
+        ],
+  );
+  tr.classList.add("gewaehlt");
+  const blatt = seitenblatt({
+    titel: person.name,
+    untertitel: "Person bearbeiten",
+    inhalt: [
+      el("div", { class: "blatt-status" }, statusChips(person)),
+      formular,
+      konto,
+    ],
+    fusszeile: [abbrechen, speichern],
+    schliessen: () => tr.classList.remove("gewaehlt"),
+  });
+}
 
 function zeile(person, daten, ctx, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
@@ -232,133 +467,134 @@ function zeile(person, daten, ctx, neu) {
     daten.kinder.map((k) => [k.id, `${k.vorname} ${k.nachname}`]),
   );
   const eigenes = person.id === ctx.ich.id;
-  const rollenTypen = [...new Set(person.rollen.map((r) => r.typ))];
-  const status = [
-    person.deaktiviert ? chip("Deaktiviert", "fehler") : chip("Aktiv", "ok"),
-    person.zweiterFaktor && chip("2FA", "ok"),
-    person.mussPasswortAendern &&
-      chip(
-        person.startpasswortGueltigBis
-          ? `Startpasswort bis ${tag(person.startpasswortGueltigBis)}`
-          : "Passwortwechsel offen",
-        "warn",
-      ),
-  ];
-  return el(
-    "tr",
-    {
-      class: person.deaktiviert ? "inaktiv" : undefined,
-      "data-suche": `${person.name} ${person.benutzername ?? ""}`.toLowerCase(),
-    },
-    el("th", { scope: "row" }, person.name, eigenes && " (du)"),
-    el("td", {}, person.benutzername ?? leer()),
-    el(
-      "td",
-      {},
-      person.admin || rollenTypen.length > 0
-        ? el("ul", { class: "chips" }, [
-            person.admin && chip("Admin", "stufe"),
-            ...rollenTypen.map((t) => chip(ROLLENNAME[t])),
-          ])
-        : leer(),
-    ),
-    el(
-      "td",
-      {},
-      person.rollen.length > 0
-        ? el(
-            "ul",
-            { class: "zeilen" },
-            person.rollen.map((r) =>
-              el(
-                "li",
-                {},
-                `${stufenname.get(r.stufeId) ?? "Stufe"} (${ROLLENNAME[r.typ]})`,
-              ),
-            ),
-          )
-        : leer(),
-    ),
-    el(
-      "td",
-      {},
-      person.elternteilVon.length > 0
-        ? el(
-            "ul",
-            { class: "zeilen" },
-            person.elternteilVon.map((id) =>
-              el("li", {}, kindname.get(id) ?? "Kind"),
-            ),
-          )
-        : leer(),
-    ),
-    el("td", {}, el("ul", { class: "chips" }, status)),
-    aktionenZelle(
-      knopf("Bearbeiten", {
-        klein: true,
-        kontext: person.name,
-        onclick: () => bearbeiten(person, daten, ctx, neu),
-      }),
-      // Was die API für das eigene Konto ablehnt, gibt es gar nicht erst
-      !eigenes &&
-        menue(person.name, [
-          {
-            text: "Startpasswort",
-            onclick: () => neuesStartpasswort(person, ctx, neu),
-          },
-          {
-            text: person.deaktiviert ? "Aktivieren" : "Deaktivieren",
-            gefaehrlich: !person.deaktiviert,
-            onclick: () => umschalten(person, ctx, neu),
-          },
-          person.zweiterFaktor && {
-            text: "Zweiten Faktor zurücksetzen",
-            gefaehrlich: true,
-            onclick: () => faktorZuruecksetzen(person, ctx, neu),
-          },
-        ]),
+  const rollenChips = person.rollen.map((r) =>
+    chip(
+      `${stufenname.get(r.stufeId) ?? "Stufe"} · ${ROLLENNAME[r.typ]}`,
+      "stufe",
+      false,
     ),
   );
+  const kinder = person.elternteilVon.map((id) => kindname.get(id) ?? "Kind");
+  const bearbeitenKnopf = knopf("Bearbeiten", {
+    klein: true,
+    kontext: person.name,
+    symbol: "bearbeiten",
+    onclick: () => bearbeiten(person, daten, ctx, neu, tr),
+  });
+  const tr = el(
+    "tr",
+    { class: person.deaktiviert ? "inaktiv" : undefined },
+    el(
+      "th",
+      { scope: "row" },
+      el(
+        "div",
+        { class: "wer" },
+        avatar(person.name, { hell: !eigenes }),
+        el(
+          "div",
+          {},
+          el("span", { class: "name" }, person.name, eigenes && " (du)"),
+          el("span", { class: "leise" }, person.benutzername ?? "–"),
+        ),
+      ),
+    ),
+    el(
+      "td",
+      {},
+      rollenChips.length ? el("ul", { class: "chips" }, rollenChips) : leer(),
+    ),
+    el("td", {}, kinder.length ? kinder.join(", ") : leer()),
+    el("td", {}, statusChips(person)),
+    aktionenZelle(bearbeitenKnopf),
+  );
+  return { tr, knopf: bearbeitenKnopf, person };
 }
 
 function zeichne(bereich, ctx, daten, neu) {
-  const { wurzel, koerper } = tabelle({
+  const eintraege = daten.personen.map((p) => zeile(p, daten, ctx, neu));
+  const { wurzel } = tabelle({
     beschriftung: "Personen",
-    spalten: [
-      "Name",
-      "Benutzername",
-      "Rollen",
-      "Stufen",
-      "Elternteil von",
-      "Status",
-      "Aktionen",
-    ],
-    zeilen: daten.personen.map((p) => zeile(p, daten, ctx, neu)),
+    spalten: ["Person", "Rollen", "Elternteil von", "Status", "Aktionen"],
+    zeilen: eintraege.map((e) => e.tr),
   });
+  const FILTER = {
+    alle: () => true,
+    admins: (p) => p.admin,
+    offen: (p) => p.mussPasswortAendern,
+    deaktiviert: (p) => p.deaktiviert,
+  };
+  const anzahl = (wert) => daten.personen.filter((p) => FILTER[wert](p)).length;
   const zaehler = el("p", { class: "meta zaehler", role: "status" });
-  const suche = feld({ label: "Suchen", typ: "search", autocomplete: "off" });
+  const suchId = neueId("suche");
   const aktualisiere = () => {
-    const frage = suche.eingabe.value.trim().toLowerCase();
+    const frage = zustand.frage.trim().toLowerCase();
     let treffer = 0;
-    for (const eintrag of koerper.children) {
-      eintrag.hidden = !eintrag.dataset.suche.includes(frage);
-      if (!eintrag.hidden) treffer++;
+    for (const e of eintraege) {
+      const sichtbar =
+        FILTER[zustand.filter](e.person) &&
+        `${e.person.name} ${e.person.benutzername ?? ""}`
+          .toLowerCase()
+          .includes(frage);
+      e.tr.hidden = !sichtbar;
+      if (sichtbar) treffer++;
     }
     zaehler.textContent = `${treffer} von ${daten.personen.length} Personen`;
   };
-  suche.eingabe.addEventListener("input", aktualisiere);
+  const suche = el("input", {
+    class: "eingabe",
+    id: suchId,
+    type: "search",
+    placeholder: "Name oder Benutzername",
+    autocomplete: "off",
+    oninput: () => {
+      zustand.frage = suche.value;
+      aktualisiere();
+    },
+  });
+  suche.value = zustand.frage;
+  const filter = filterGruppe({
+    beschriftung: "Filter",
+    wert: zustand.filter,
+    eintraege: [
+      { text: "Alle", wert: "alle" },
+      { text: "Admins", wert: "admins" },
+      { text: "Startpasswort offen", wert: "offen" },
+      { text: "Deaktiviert", wert: "deaktiviert" },
+    ].map((e) => ({ ...e, n: anzahl(e.wert) })),
+    beiAenderung: (wert) => {
+      zustand.filter = wert;
+      aktualisiere();
+    },
+  });
   aktualisiere();
+  ctx.kopfAktion(
+    knopf("Person anlegen", {
+      art: "haupt",
+      symbol: "plus",
+      onclick: () => anlegen(daten, ctx, neu),
+    }),
+  );
   bereich.append(
     el(
       "div",
       { class: "werkzeuge" },
-      suche.wurzel,
-      zaehler,
-      knopf("Person anlegen", {
-        art: "haupt",
-        onclick: () => anlegen(daten, ctx, neu),
-      }),
+      el(
+        "div",
+        { class: "suche" },
+        el("label", { class: "nur-leser", for: suchId }, "Personen suchen"),
+        icon("lupe"),
+        suche,
+      ),
+      filter.wurzel,
     ),
+    zaehler,
     wurzel,
   );
+  // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn kein Dialog den Fokus hält
+  if (zustand.fokus) {
+    const ziel = eintraege.find((e) => e.person.id === zustand.fokus);
+    zustand.fokus = null;
+    if (!document.querySelector("dialog[open]")) ziel?.knopf.focus();
+  }
 }

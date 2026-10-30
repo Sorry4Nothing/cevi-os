@@ -1,5 +1,15 @@
 import { anfrage, fehlertext } from "./api.js";
-import { auswahl, chip, el, tabelle, zeit } from "./dom.js";
+import {
+  auswahl,
+  chip,
+  el,
+  filterGruppe,
+  icon,
+  knopf,
+  neueId,
+  tabelle,
+  zeit,
+} from "./dom.js";
 
 // Betriebszahlen der API: Seite «System» und Bausteine für die «Übersicht». Alles kommt als Zahl oder fester Text von /api/v1/admin/system*; Anfragen werden nur im Arbeitsspeicher der API gezählt und beginnen nach jedem Neustart bei null.
 
@@ -61,15 +71,17 @@ export async function ladeBetrieb() {
 export function laufend(bereich, laden, zeichnen, fehlerFeld, sekunden = 15) {
   let laeuft = false;
   async function lauf() {
-    if (laeuft || document.hidden) return;
+    if (laeuft || document.hidden) return false;
     laeuft = true;
     try {
       zeichnen(await laden());
       fehlerFeld.textContent = "";
+      return true;
     } catch (f) {
       if (bereich.isConnected) {
         fehlerFeld.textContent = `Aktualisieren nicht möglich: ${fehlertext(f)}`;
       }
+      return false;
     } finally {
       laeuft = false;
     }
@@ -86,14 +98,55 @@ export function laufend(bereich, laden, zeichnen, fehlerFeld, sekunden = 15) {
     document.removeEventListener("visibilitychange", sichtbar);
   }
   document.addEventListener("visibilitychange", sichtbar);
+  // Für «Aktualisieren» von Hand: liefert, ob es geklappt hat
+  return lauf;
 }
 
-// Zustand steht immer auch als Wort im Text, nie nur als Farbe des Punktes
-export function kachel({ titel, wert, hinweis, status, link, text }) {
+// Beim Neuzeichnen bleibt der Fokus auf dem Element mit demselben data-fokus, sonst verlöre ihn die Tastatur alle 15 Sekunden
+function ersetze(behaelter, ...knoten) {
+  const aktiv = behaelter.contains(document.activeElement)
+    ? document.activeElement.dataset?.fokus
+    : undefined;
+  behaelter.replaceChildren(...knoten);
+  if (aktiv) {
+    [...behaelter.querySelectorAll("[data-fokus]")]
+      .find((k) => k.dataset.fokus === aktiv)
+      ?.focus({ preventScroll: true });
+  }
+}
+
+// Text nur bei Änderung setzen: Live-Regionen sagen sonst jede Aktualisierung an
+function setzeText(knoten, text) {
+  if (knoten.textContent !== text) knoten.textContent = text;
+}
+
+// Zustand steht immer auch als Wort im Text, nie nur als Farbe oder Symbol
+// zustand: Wort im Chip oben rechts (mit status auch Symbol); ohne zustand zeigt das CSS nur ein Symbol
+export function kachel({ titel, wert, hinweis, status, zustand, link, text }) {
+  const titelKnoten = el("p", { class: "kachel-titel" }, titel);
   return el(
     "div",
-    { class: status ? `kachel kachel--${status}` : "kachel" },
-    el("p", { class: "kachel-titel" }, titel),
+    {
+      class: [
+        "kachel",
+        status && `kachel--${status}`,
+        zustand && "kachel--chip",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    },
+    zustand
+      ? el(
+          "div",
+          { class: "kachel-kopf" },
+          titelKnoten,
+          el(
+            "ul",
+            { class: "chips" },
+            chip(zustand, status, status ? undefined : "info"),
+          ),
+        )
+      : titelKnoten,
     el(
       "p",
       { class: text ? "kachel-wert kachel-wert--text" : "kachel-wert" },
@@ -132,7 +185,7 @@ function svg(tag, eigenschaften = {}, ...kinder) {
   return knoten;
 }
 
-// Gestapelte Balken je Zeitraum: in Ordnung, 4xx, 5xx. Die Tabelle dahinter enthält dieselben Zahlen.
+// Gestapelte Balken je Zeitraum: in Ordnung, 4xx, 5xx. Die Farben tragen zusätzlich Muster (4xx Streifen, 5xx Punkte), die Legende zeigt dieselben. Die Tabelle dahinter enthält dieselben Zahlen.
 export function diagramm({ titel, punkte, beschriftung, einheit, offen }) {
   const B = 720;
   const H = 160;
@@ -144,12 +197,46 @@ export function diagramm({ titel, punkte, beschriftung, einheit, offen }) {
     (a, p) => (p.anzahl > a.anzahl ? p : a),
     punkte[0],
   );
+  // Die Muster-IDs müssen je Diagramm eindeutig sein, auf einer Seite stehen mehrere
+  const musterId = neueId("muster");
+  const muster = svg(
+    "defs",
+    {},
+    svg(
+      "pattern",
+      {
+        id: `${musterId}-4xx`,
+        width: 6,
+        height: 6,
+        patternUnits: "userSpaceOnUse",
+        patternTransform: "rotate(45)",
+      },
+      svg("line", {
+        class: "muster-linie",
+        x1: 1.5,
+        y1: 0,
+        x2: 1.5,
+        y2: 6,
+        "stroke-width": 3,
+      }),
+    ),
+    svg(
+      "pattern",
+      {
+        id: `${musterId}-5xx`,
+        width: 6,
+        height: 6,
+        patternUnits: "userSpaceOnUse",
+      },
+      svg("circle", { class: "muster-punkt", cx: 3, cy: 3, r: 1.6 }),
+    ),
+  );
   const balken = punkte.map((p, i) => {
     const x = i * schritt + (schritt - breite) / 2;
     const teile = [
-      ["bal--ok", p.anzahl - p.fehler4xx - p.fehler5xx],
-      ["bal--4xx", p.fehler4xx],
-      ["bal--5xx", p.fehler5xx],
+      ["bal--ok", p.anzahl - p.fehler4xx - p.fehler5xx, null],
+      ["bal--4xx", p.fehler4xx, `${musterId}-4xx`],
+      ["bal--5xx", p.fehler5xx, `${musterId}-5xx`],
     ];
     let unten = H;
     return svg(
@@ -164,17 +251,19 @@ export function diagramm({ titel, punkte, beschriftung, einheit, offen }) {
       svg("rect", { class: "bal--flaeche", x, y: 0, width: breite, height: H }),
       teile
         .filter(([, n]) => n > 0)
-        .map(([klasse, n]) => {
+        .map(([klasse, n, musterName]) => {
           const h = Math.max(1.5, (n / max) * (H - 4));
           unten -= h;
-          return svg("rect", {
-            class: klasse,
-            x,
-            y: unten,
-            width: breite,
-            height: h,
-            rx: 1,
-          });
+          const form = { x, y: unten, width: breite, height: h, rx: 1 };
+          return [
+            svg("rect", { class: klasse, ...form }),
+            musterName &&
+              svg("rect", {
+                ...form,
+                class: "bal--muster",
+                fill: `url(#${musterName})`,
+              }),
+          ].filter(Boolean);
         }),
     );
   });
@@ -195,6 +284,7 @@ export function diagramm({ titel, punkte, beschriftung, einheit, offen }) {
       role: "img",
       "aria-label": `${titel}: ${zahl(gesamt)} Anfragen insgesamt, Spitze ${zahl(spitze.anzahl)} ${einheit} (${beschriftung(spitze.ab)}).`,
     },
+    muster,
     gitter,
     balken,
   );
@@ -213,16 +303,17 @@ export function diagramm({ titel, punkte, beschriftung, einheit, offen }) {
           "tr",
           {},
           el("th", { scope: "row" }, beschriftung(p.ab)),
-          el("td", {}, zahl(p.anzahl)),
-          el("td", {}, zahl(p.fehler4xx)),
-          el("td", {}, zahl(p.fehler5xx)),
+          el("td", { class: "zahl" }, zahl(p.anzahl)),
+          el("td", { class: "zahl" }, zahl(p.fehler4xx)),
+          el("td", { class: "zahl" }, zahl(p.fehler5xx)),
         ),
       ),
   });
+  zeilen.wurzel.dataset.fokus = "diagramm-rahmen";
   const alternative = el(
     "details",
     { class: "diagramm-tabelle", open: offen.wert },
-    el("summary", {}, "Als Tabelle anzeigen"),
+    el("summary", { "data-fokus": "diagramm-tabelle" }, "Als Tabelle anzeigen"),
     zeilen.wurzel,
   );
   alternative.addEventListener("toggle", () => {
@@ -263,10 +354,11 @@ export function fehlerTabelle(fehler, max = fehler.length) {
     return el(
       "p",
       { class: "leer leer--klein" },
-      "Keine Fehler seit dem Start.",
+      icon("haken"),
+      " Keine Fehler seit dem Start.",
     );
   }
-  return tabelle({
+  const rahmen = tabelle({
     beschriftung: "Letzte Fehler",
     spalten: ["Zeit", "Status", "Methode", "Route"],
     zeilen: gezeigt.map((f) =>
@@ -283,11 +375,13 @@ export function fehlerTabelle(fehler, max = fehler.length) {
             chip(String(f.status), f.status >= 500 ? "fehler" : "warn"),
           ),
         ),
-        el("td", { class: "code" }, f.methode),
-        el("td", { class: "code" }, f.route),
+        el("td", { class: "mono" }, f.methode),
+        el("td", { class: "mono" }, f.route),
       ),
     ),
   }).wurzel;
+  rahmen.dataset.fokus = "fehler-rahmen";
+  return rahmen;
 }
 
 export function hinweisSeitStart(anfragen) {
@@ -305,185 +399,585 @@ const wertFuer = {
   p95Ms: (r) => r.p95Ms ?? -1,
   fehler: fehlerzahl,
 };
+const STATUS_FILTER = [
+  { text: "Alle", wert: "alle" },
+  { text: "Mit 4xx", wert: "4xx" },
+  { text: "Mit 5xx", wert: "5xx" },
+];
+const ZEITRAEUME = [
+  ["minuten", "Letzte Stunde"],
+  ["stunden", "Letzte 24 Stunden"],
+];
+
+// Wie /health: Nach 30 Minuten ohne Erfolg gilt der Sync als veraltet
+const SYNC_VERALTET_MS = 30 * 60 * 1000;
+const syncVeraltet = (k) =>
+  !k.letzterErfolgAm ||
+  Date.now() - new Date(k.letzterErfolgAm).getTime() > SYNC_VERALTET_MS;
 
 export function zeige(bereich, ctx) {
-  ctx.lade(ladeBetrieb, (daten) => zeichneSeite(bereich, daten));
+  ctx.lade(ladeBetrieb, (daten) => zeichneSeite(bereich, daten, ctx));
 }
 
-function zeichneSeite(bereich, daten) {
+// Reiter innerhalb der Seite (ein Hash je Bereich): Pfeiltasten wechseln und aktivieren, Tab geht in den Inhalt
+function reiter(beschriftung, eintraege) {
+  const knoepfe = eintraege.map((e) =>
+    el(
+      "button",
+      {
+        type: "button",
+        class: "tab",
+        role: "tab",
+        id: `${e.id}-reiter`,
+        "aria-controls": e.id,
+        onclick: () => waehle(e.id),
+      },
+      e.text,
+    ),
+  );
+  const tafeln = eintraege.map((e) =>
+    el(
+      "div",
+      {
+        class: "system-tafel",
+        role: "tabpanel",
+        id: e.id,
+        "aria-labelledby": `${e.id}-reiter`,
+      },
+      e.inhalt,
+    ),
+  );
+  function waehle(id, fokus = true) {
+    eintraege.forEach((e, i) => {
+      const aktiv = e.id === id;
+      knoepfe[i].setAttribute("aria-selected", String(aktiv));
+      knoepfe[i].tabIndex = aktiv ? 0 : -1;
+      tafeln[i].hidden = !aktiv;
+      if (aktiv && fokus) knoepfe[i].focus();
+    });
+  }
+  const leiste = el(
+    "div",
+    { class: "tabs", role: "tablist", "aria-label": beschriftung },
+    knoepfe,
+  );
+  leiste.addEventListener("keydown", (ereignis) => {
+    const i = knoepfe.indexOf(document.activeElement);
+    const ziel = {
+      ArrowRight: (i + 1) % knoepfe.length,
+      ArrowLeft: (i - 1 + knoepfe.length) % knoepfe.length,
+      Home: 0,
+      End: knoepfe.length - 1,
+    }[ereignis.key];
+    if (i < 0 || ziel === undefined) return;
+    ereignis.preventDefault();
+    waehle(eintraege[ziel].id);
+  });
+  waehle(eintraege[0].id, false);
+  return { leiste, tafeln, waehle };
+}
+
+// Eine Zeile zur Lage; der Zustand steht im Wort, die Farbe und das Symbol (aus dem CSS) verstärken nur
+function lage(s, a) {
+  const probleme = [];
+  if (!s.datenbank.erreichbar) {
+    probleme.push(["fehler", "Die Datenbank ist nicht erreichbar."]);
+  }
+  if (s.kalender.eingerichtet && s.kalender.fehler) {
+    probleme.push(["fehler", "Der Kalender-Sync meldet einen Fehler."]);
+  } else if (s.kalender.eingerichtet && syncVeraltet(s.kalender)) {
+    probleme.push(["warn", "Der Kalender-Sync ist veraltet."]);
+  }
+  if (a.quote5xx > 0.01) {
+    probleme.push([
+      "warn",
+      `${prozent(a.quote5xx)} der Anfragen enden mit einem Serverfehler (5xx).`,
+    ]);
+  }
+  if (probleme.length === 0) {
+    return [
+      "ok",
+      "Alles läuft: Datenbank erreichbar, keine auffälligen Fehler.",
+    ];
+  }
+  return [
+    probleme.some(([art]) => art === "fehler") ? "fehler" : "warn",
+    probleme.map(([, text]) => text).join(" "),
+  ];
+}
+
+function kalenderKachel(k) {
+  if (!k.eingerichtet) {
+    return kachel({
+      titel: "Kalender-Sync",
+      wert: "–",
+      zustand: "Nicht eingerichtet",
+      hinweis: "Kein Google-Kalender verbunden.",
+    });
+  }
+  const wert = k.letzterErfolgAm ? vor(k.letzterErfolgAm) : "noch nie";
+  const letzter = k.letzterErfolgAm
+    ? `Letzter Erfolg ${zeit(k.letzterErfolgAm)}`
+    : "Noch nie erfolgreich";
+  if (k.fehler) {
+    return kachel({
+      titel: "Kalender-Sync",
+      wert,
+      text: true,
+      status: "fehler",
+      zustand: "Fehler",
+      hinweis: `${k.fehler}. ${letzter}`,
+    });
+  }
+  const veraltet = syncVeraltet(k);
+  return kachel({
+    titel: "Kalender-Sync",
+    wert,
+    text: true,
+    status: veraltet ? "warn" : "ok",
+    zustand: veraltet ? "Veraltet" : "Aktuell",
+    hinweis: veraltet
+      ? `${letzter}. Veraltet nach 30 Min. ohne Erfolg.`
+      : letzter,
+  });
+}
+
+function systemKacheln(s, a) {
+  const p = s.prozess;
+  const d = s.datenbank;
+  return [
+    kachel({
+      titel: "API",
+      wert: `Node ${p.node}`,
+      text: true,
+      status: "ok",
+      zustand: "Läuft",
+      hinweis: `Gestartet ${zeit(p.gestartetAm)}, Laufzeit ${dauer(p.laufzeitSekunden)}`,
+    }),
+    kachel({
+      titel: "Datenbank",
+      wert: d.pingMs === null ? "–" : ms(d.pingMs),
+      status: d.erreichbar ? "ok" : "fehler",
+      zustand: d.erreichbar ? "Erreichbar" : "Nicht erreichbar",
+      hinweis: "Antwortzeit der Abfrage",
+    }),
+    kalenderKachel(s.kalender),
+    kachel({
+      titel: "Push-Tokens",
+      wert: zahl(s.bestand.pushTokens),
+      hinweis: "Registrierte Geräte der Abteilung",
+    }),
+    kachel({
+      titel: "Anfragen (24 Std.)",
+      wert: zahl(a.gesamt),
+      hinweis: `${zahl(a.statusklassen["4xx"])} mit 4xx · ${zahl(a.statusklassen["5xx"])} mit 5xx`,
+    }),
+  ];
+}
+
+function systemPanels(s) {
+  const p = s.prozess;
+  const d = s.datenbank;
+  const k = s.kalender;
+  const ja = (b) => (b ? "Ja" : "Nein");
+  return [
+    panel(
+      "Prozess",
+      werte([
+        ["Node", p.node],
+        ["Commit", p.commit ?? "nicht gesetzt"],
+        ["Gestartet", zeit(p.gestartetAm)],
+        ["Laufzeit", dauer(p.laufzeitSekunden)],
+        ["Speicher (RSS)", `${ZAHL.format(p.rssMb)} MB`],
+        [
+          "Heap genutzt / gesamt",
+          `${ZAHL.format(p.heapGenutztMb)} / ${ZAHL.format(p.heapGesamtMb)} MB`,
+        ],
+        [
+          "Ereignisschleife (p99)",
+          p.schleifeP99Ms === null ? "–" : `${ZAHL.format(p.schleifeP99Ms)} ms`,
+        ],
+      ]),
+    ),
+    panel(
+      "Datenbank",
+      werte([
+        [
+          "Zustand",
+          el(
+            "ul",
+            { class: "chips" },
+            chip(
+              d.erreichbar ? "Erreichbar" : "Nicht erreichbar",
+              d.erreichbar ? "ok" : "fehler",
+            ),
+          ),
+        ],
+        [
+          "Antwortzeit",
+          d.pingMs === null ? "–" : `${ZAHL.format(d.pingMs)} ms`,
+        ],
+        [
+          "Verbindungen",
+          d.verbindungen === null
+            ? "–"
+            : `${zahl(d.verbindungen)} (alle Anwendungen)`,
+        ],
+        ["Pool der API", `höchstens ${zahl(d.poolMaximum)}`],
+      ]),
+    ),
+    panel(
+      "Kalender-Sync",
+      werte([
+        ["Eingerichtet", ja(k.eingerichtet)],
+        [
+          "Letzter Erfolg",
+          k.letzterErfolgAm
+            ? `${zeit(k.letzterErfolgAm)} (${vor(k.letzterErfolgAm)})`
+            : "noch nie",
+        ],
+        ["Fehler", k.fehler ?? "keiner"],
+      ]),
+    ),
+    panel(
+      "Umgebung",
+      werte([
+        ["HTTPS", ja(s.umgebung.https)],
+        ["Produktion", ja(s.umgebung.produktion)],
+        ["Google-Schlüssel konfiguriert", ja(s.umgebung.kalenderSchluessel)],
+      ]),
+    ),
+  ];
+}
+
+// Aufklappbarer Teil einer Route: ihre Fehler unter den letzten Fehlern, neueste zuerst
+function routenDetail(r, fehler) {
+  const eigene = fehler.filter(
+    (f) => f.methode === r.methode && f.route === r.route,
+  );
+  return el(
+    "div",
+    { class: "route-detail" },
+    el(
+      "p",
+      { class: "klein leise" },
+      eigene.length === 0
+        ? "Keine Fehler dieser Route unter den letzten Fehlern."
+        : "Letzte Fehler dieser Route (Zeit, Status):",
+    ),
+    eigene.length > 0 &&
+      el(
+        "pre",
+        { class: "stack mono" },
+        eigene
+          .map((f) => `${UHR_SEKUNDEN.format(new Date(f.zeit))}  ${f.status}`)
+          .join("\n"),
+      ),
+    el(
+      "p",
+      { class: "hilfe" },
+      "p50 und p95 sind die Obergrenze der Dauerklasse, in der das Quantil liegt.",
+    ),
+  );
+}
+
+function zeichneSeite(bereich, daten, ctx) {
   let anfragen;
   let sortierung = "anzahl";
+  let statusFilter = "alle";
+  let zeitraum = "minuten";
+  let suche = "";
+  const offeneRouten = new Set();
   const offen = { wert: false };
+  const basis = neueId("system");
   // Nur ein Fehler wird angesagt; die regelmässige Aktualisierung bleibt still
   const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
   const stand = el("p", { class: "meta stand" });
+  const lageFeld = el("div", { class: "hinweis", role: "status" });
   const kacheln = el("div", { class: "kacheln" });
+  const kurzFehler = el("div", {});
+  const panels = el("div", { class: "raster raster--2" });
+  const hinweisStart = el("p", { class: "hinweis" });
+  const anfragenKachelnFeld = el("div", { class: "kacheln" });
   const verlauf = el("div", {});
+  const verlaufTitel = el("h2", {});
   const routen = el("div", {});
+  const routenZahl = el("p", { class: "klein leise", role: "status" });
   const fehler = el("div", {});
-  const system = el("div", { class: "raster raster--2" });
+
   const sortieren = auswahl({
     label: "Sortieren",
     optionen: SORTIERUNG,
     wert: sortierung,
   });
+  const zeitraumWahl = auswahl({
+    label: "Zeitraum",
+    optionen: ZEITRAEUME,
+    wert: zeitraum,
+  });
+  const statusWahl = filterGruppe({
+    beschriftung: "Status",
+    eintraege: STATUS_FILTER,
+    wert: statusFilter,
+    beiAenderung: (wert) => {
+      statusFilter = wert;
+      zeichneRouten();
+    },
+  });
+  const sucheId = neueId("suche");
+  const sucheFeld = el("input", {
+    id: sucheId,
+    class: "eingabe",
+    type: "search",
+    placeholder: "Route oder Methode",
+    autocomplete: "off",
+  });
 
-  function zeichneRouten() {
-    const zeilen = [...anfragen.routen].sort(
-      (a, b) => wertFuer[sortierung](b) - wertFuer[sortierung](a),
-    );
-    routen.replaceChildren(
-      zeilen.length === 0
-        ? el(
-            "p",
-            { class: "leer leer--klein" },
-            "Noch keine Anfragen seit dem Start.",
-          )
-        : tabelle({
-            beschriftung: "Anfragen je Route",
-            spalten: [
-              "Methode",
-              "Route",
-              ["Anzahl", "zahl"],
-              ["4xx", "zahl"],
-              ["5xx", "zahl"],
-              ["Fehlerquote", "zahl"],
-              ["p50", "zahl"],
-              ["p95", "zahl"],
-            ],
-            zeilen: zeilen.map((r) =>
-              el(
-                "tr",
-                {},
-                el("th", { scope: "row" }, r.methode || "–"),
-                el("td", { class: "code" }, r.route),
-                el("td", { class: "zahl" }, zahl(r.anzahl)),
-                el("td", { class: "zahl" }, zahl(r.fehler4xx)),
-                el("td", { class: "zahl" }, zahl(r.fehler5xx)),
-                el("td", { class: "zahl" }, prozent(fehlerzahl(r) / r.anzahl)),
-                el("td", { class: "zahl" }, ms(r.p50Ms)),
-                el("td", { class: "zahl" }, ms(r.p95Ms)),
-              ),
-            ),
-          }).wurzel,
-    );
-  }
-
-  function zeichne({ system: s, anfragen: a }) {
-    anfragen = a;
-    const p = s.prozess;
-    const d = s.datenbank;
-    const k = s.kalender;
-    const ja = (b) => (b ? "Ja" : "Nein");
-    stand.textContent = `Stand ${UHR_SEKUNDEN.format(new Date())}, wird alle 15 Sekunden aktualisiert.`;
-    kacheln.replaceChildren(...anfragenKacheln(a));
-    verlauf.replaceChildren(
+  function zeichneVerlauf() {
+    const stunden = zeitraum === "stunden";
+    verlaufTitel.textContent = stunden
+      ? "Anfragen pro Stunde"
+      : "Anfragen pro Minute";
+    ersetze(
+      verlauf,
       diagramm({
-        titel: "Anfragen pro Minute, letzte Stunde",
-        punkte: a.minuten,
-        beschriftung: minutenName,
-        einheit: "Minute",
+        titel: stunden
+          ? "Anfragen pro Stunde, letzte 24 Stunden"
+          : "Anfragen pro Minute, letzte Stunde",
+        punkte: stunden ? anfragen.stunden : anfragen.minuten,
+        beschriftung: stunden ? stundenName : minutenName,
+        einheit: stunden ? "Stunde" : "Minute",
         offen,
       }),
     );
-    fehler.replaceChildren(fehlerTabelle(a.letzteFehler, 15));
-    system.replaceChildren(
-      panel(
-        "Prozess",
-        werte([
-          ["Node", p.node],
-          ["Commit", p.commit ?? "nicht gesetzt"],
-          ["Gestartet", zeit(p.gestartetAm)],
-          ["Laufzeit", dauer(p.laufzeitSekunden)],
-          ["Speicher (RSS)", `${ZAHL.format(p.rssMb)} MB`],
-          [
-            "Heap genutzt / gesamt",
-            `${ZAHL.format(p.heapGenutztMb)} / ${ZAHL.format(p.heapGesamtMb)} MB`,
-          ],
-          [
-            "Ereignisschleife (p99)",
-            p.schleifeP99Ms === null
-              ? "–"
-              : `${ZAHL.format(p.schleifeP99Ms)} ms`,
-          ],
-        ]),
-      ),
-      panel(
-        "Datenbank",
-        werte([
-          [
-            "Zustand",
-            el(
-              "ul",
-              { class: "chips" },
-              chip(
-                d.erreichbar ? "Erreichbar" : "Nicht erreichbar",
-                d.erreichbar ? "ok" : "fehler",
-              ),
-            ),
-          ],
-          [
-            "Antwortzeit",
-            d.pingMs === null ? "–" : `${ZAHL.format(d.pingMs)} ms`,
-          ],
-          [
-            "Verbindungen",
-            d.verbindungen === null
-              ? "–"
-              : `${zahl(d.verbindungen)} (alle Anwendungen)`,
-          ],
-          ["Pool der API", `höchstens ${zahl(d.poolMaximum)}`],
-        ]),
-      ),
-      panel(
-        "Kalender-Sync",
-        werte([
-          ["Eingerichtet", ja(k.eingerichtet)],
-          [
-            "Letzter Erfolg",
-            k.letzterErfolgAm
-              ? `${zeit(k.letzterErfolgAm)} (${vor(k.letzterErfolgAm)})`
-              : "noch nie",
-          ],
-          ["Fehler", k.fehler ?? "keiner"],
-        ]),
-      ),
-      panel(
-        "Umgebung",
-        werte([
-          ["HTTPS", ja(s.umgebung.https)],
-          ["Produktion", ja(s.umgebung.produktion)],
-          ["Google-Schlüssel konfiguriert", ja(s.umgebung.kalenderSchluessel)],
-        ]),
-      ),
-    );
-    zeichneRouten();
   }
+
+  function zeichneRouten() {
+    const suchtext = suche.trim().toLowerCase();
+    const zeilen = anfragen.routen
+      .filter(
+        (r) =>
+          (statusFilter === "alle" ||
+            (statusFilter === "4xx" ? r.fehler4xx : r.fehler5xx) > 0) &&
+          `${r.methode} ${r.route}`.toLowerCase().includes(suchtext),
+      )
+      .sort((a, b) => wertFuer[sortierung](b) - wertFuer[sortierung](a));
+    setzeText(
+      routenZahl,
+      zeilen.length === anfragen.routen.length
+        ? `${zahl(zeilen.length)} Routen`
+        : `${zahl(zeilen.length)} von ${zahl(anfragen.routen.length)} Routen`,
+    );
+    if (zeilen.length === 0) {
+      ersetze(
+        routen,
+        el(
+          "p",
+          { class: "leer leer--klein" },
+          anfragen.routen.length === 0
+            ? "Noch keine Anfragen seit dem Start."
+            : "Keine Route passt zu Suche und Filter.",
+        ),
+      );
+      return;
+    }
+    const tabelleRouten = tabelle({
+      beschriftung: "Anfragen je Route",
+      spalten: [
+        "Methode",
+        "Route",
+        ["Anzahl", "zahl"],
+        ["4xx", "zahl"],
+        ["5xx", "zahl"],
+        ["Fehlerquote", "zahl"],
+        ["p50", "zahl"],
+        ["p95", "zahl"],
+        [el("span", { class: "nur-leser" }, "Details"), "rechts"],
+      ],
+      zeilen: zeilen.flatMap((r, i) => {
+        const schluessel = `${r.methode} ${r.route}`;
+        const aufgeklappt = offeneRouten.has(schluessel);
+        const detailId = `${basis}-detail-${i}`;
+        const zeile = el(
+          "tr",
+          {},
+          el(
+            "th",
+            { scope: "row" },
+            r.methode ? el("ul", { class: "chips" }, chip(r.methode)) : "–",
+          ),
+          el("td", { class: "mono" }, r.route),
+          el("td", { class: "zahl" }, zahl(r.anzahl)),
+          el("td", { class: "zahl" }, zahl(r.fehler4xx)),
+          el("td", { class: "zahl" }, zahl(r.fehler5xx)),
+          el("td", { class: "zahl" }, prozent(fehlerzahl(r) / r.anzahl)),
+          el("td", { class: "zahl" }, ms(r.p50Ms)),
+          el("td", { class: "zahl" }, ms(r.p95Ms)),
+          el(
+            "td",
+            { class: "rechts" },
+            el(
+              "button",
+              {
+                type: "button",
+                class: "knopf knopf--rund",
+                "data-fokus": schluessel,
+                "aria-label": `Details: ${schluessel}`,
+                "aria-expanded": String(aufgeklappt),
+                "aria-controls": aufgeklappt ? detailId : undefined,
+                onclick: () => {
+                  if (aufgeklappt) offeneRouten.delete(schluessel);
+                  else offeneRouten.add(schluessel);
+                  zeichneRouten();
+                },
+              },
+              icon(aufgeklappt ? "schliessen" : "plus"),
+            ),
+          ),
+        );
+        return aufgeklappt
+          ? [
+              zeile,
+              el(
+                "tr",
+                { class: "offen", id: detailId },
+                el(
+                  "td",
+                  { colspan: "9" },
+                  routenDetail(r, anfragen.letzteFehler),
+                ),
+              ),
+            ]
+          : [zeile];
+      }),
+    });
+    tabelleRouten.wurzel.dataset.fokus = "routen-rahmen";
+    ersetze(routen, tabelleRouten.wurzel);
+  }
+
+  const zeichne = ({ system: s, anfragen: a }) => {
+    anfragen = a;
+    setzeText(
+      stand,
+      `Stand ${UHR_SEKUNDEN.format(new Date())}, wird alle 15 Sekunden aktualisiert.`,
+    );
+    const [art, text] = lage(s, a);
+    lageFeld.className = `hinweis hinweis--${art}`;
+    setzeText(lageFeld, text);
+    ersetze(kacheln, ...systemKacheln(s, a));
+    ersetze(kurzFehler, fehlerTabelle(a.letzteFehler, 8));
+    ersetze(panels, ...systemPanels(s));
+    setzeText(hinweisStart, hinweisSeitStart(a));
+    ersetze(anfragenKachelnFeld, ...anfragenKacheln(a));
+    zeichneVerlauf();
+    zeichneRouten();
+    ersetze(fehler, fehlerTabelle(a.letzteFehler, 15));
+  };
 
   sortieren.eingabe.addEventListener("change", () => {
     sortierung = sortieren.eingabe.value;
     zeichneRouten();
   });
+  zeitraumWahl.eingabe.addEventListener("change", () => {
+    zeitraum = zeitraumWahl.eingabe.value;
+    zeichneVerlauf();
+  });
+  sucheFeld.addEventListener("input", () => {
+    suche = sucheFeld.value;
+    zeichneRouten();
+  });
   zeichne(daten);
+
+  const ansicht = reiter("System", [
+    {
+      id: `${basis}-uebersicht`,
+      text: "Übersicht",
+      inhalt: [
+        lageFeld,
+        kacheln,
+        el(
+          "section",
+          { class: "spalte", "aria-labelledby": `${basis}-fehler-kurz` },
+          el(
+            "div",
+            { class: "zeile" },
+            el("h2", { id: `${basis}-fehler-kurz` }, "Letzte Fehler"),
+            knopf("Alle Anfragen", {
+              art: "still",
+              klein: true,
+              onclick: () => ansicht.waehle(`${basis}-anfragen`),
+            }),
+          ),
+          kurzFehler,
+        ),
+        panels,
+      ],
+    },
+    {
+      id: `${basis}-anfragen`,
+      text: "Anfragen",
+      inhalt: [
+        hinweisStart,
+        anfragenKachelnFeld,
+        el(
+          "section",
+          { class: "panel" },
+          el("div", { class: "zeile" }, verlaufTitel, zeitraumWahl.wurzel),
+          verlauf,
+        ),
+        el(
+          "section",
+          { class: "spalte", "aria-labelledby": `${basis}-routen` },
+          el("h2", { id: `${basis}-routen` }, "Anfragen je Route"),
+          el(
+            "div",
+            { class: "werkzeuge" },
+            el(
+              "div",
+              { class: "suche" },
+              el(
+                "label",
+                { class: "nur-leser", for: sucheId },
+                "Routen suchen",
+              ),
+              icon("lupe"),
+              sucheFeld,
+            ),
+            statusWahl.wurzel,
+            sortieren.wurzel,
+          ),
+          routenZahl,
+          routen,
+        ),
+        el(
+          "section",
+          { class: "spalte", "aria-labelledby": `${basis}-fehler` },
+          el("h2", { id: `${basis}-fehler` }, "Letzte Fehler"),
+          fehler,
+        ),
+      ],
+    },
+  ]);
+
+  const nachladen = laufend(bereich, ladeBetrieb, zeichne, fehlerFeld);
+  ctx.kopfAktion(
+    knopf("Aktualisieren", {
+      symbol: "aktualisieren",
+      onclick: async () => {
+        if (await nachladen()) ctx.melde("Zahlen aktualisiert.");
+      },
+    }),
+  );
   bereich.append(
     el("div", { class: "stand-zeile" }, stand, fehlerFeld),
-    system,
-    el("h2", { class: "abschnitt" }, "API-Anfragen"),
-    el("p", { class: "hilfe" }, hinweisSeitStart(daten.anfragen)),
-    kacheln,
-    panel("Anfragen pro Minute", verlauf),
-    panel(
-      "Anfragen je Route",
-      el("div", { class: "werkzeuge" }, sortieren.wurzel),
-      routen,
-    ),
-    panel("Letzte Fehler", fehler),
+    ansicht.leiste,
+    ...ansicht.tafeln,
   );
-  laufend(bereich, ladeBetrieb, zeichne, fehlerFeld);
 }
 
 // Kacheln zu den Anfragen, auf «System» und «Übersicht» gleich
 export function anfragenKacheln(a) {
+  const hoch = a.quote5xx > 0.01;
   return [
     kachel({
       titel: "Anfragen (24 Std.)",
@@ -494,7 +988,8 @@ export function anfragenKacheln(a) {
     kachel({
       titel: "Fehlerquote 5xx",
       wert: prozent(a.quote5xx),
-      status: a.quote5xx > 0.01 ? "fehler" : "ok",
+      status: hoch ? "fehler" : "ok",
+      zustand: hoch ? "Erhöht" : "In Ordnung",
       hinweis: `4xx: ${prozent(a.quote4xx)}`,
     }),
     kachel({

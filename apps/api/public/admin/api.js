@@ -8,6 +8,11 @@ export class ApiFehler extends Error {
     this.meldung = meldung;
     this.warten = warten;
   }
+
+  // Status 0: Die Anfrage kam gar nicht beim Server an
+  get offline() {
+    return this.status === 0;
+  }
 }
 
 // Läuft die Sitzung während der Arbeit ab (401 auf einer Daten-Route), führt die Seite zurück zur Anmeldung
@@ -91,6 +96,9 @@ export function fehlertext(fehler) {
         sekunden > 0 ? ` in ${Math.ceil(sekunden / 60)} Min.` : " später";
       return `Zu viele Anfragen. Bitte versuche es${frist} nochmals.`;
     }
+    case 502:
+    case 503:
+      return "Der Server antwortet nicht oder wird gerade neu gestartet. Versuche es in ein paar Minuten nochmals.";
     default:
       return "Der Server hat einen Fehler gemeldet. Versuche es nochmals.";
   }
