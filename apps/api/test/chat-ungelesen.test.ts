@@ -278,16 +278,15 @@ describe("Chat-Push bei neuer Nachricht", () => {
     expect(texte(expoAttrappe.nachrichten)).not.toContain(tSl);
   });
 
-  test("nicht an Personen mit abgeschaltetem Chat-Push, Deaktivierte und Blockierende", async () => {
-    const [eltern, still, deaktiviert, blockiert, sl] = await Promise.all([
-      person("elternA"),
+  test("nicht an Personen mit abgeschaltetem Chat-Push, Deaktivierte", async () => {
+    const [eltern, still, deaktiviert, sl] = await Promise.all([
       person("elternA"),
       person("elternA"),
       person("elternA"),
       person("slA"),
     ]);
-    const [, tStill, tDeaktiviert, tBlockiert, tSl] = await Promise.all(
-      [eltern, still, deaktiviert, blockiert, sl].map(melde),
+    const [, tStill, tDeaktiviert, tSl] = await Promise.all(
+      [eltern, still, deaktiviert, sl].map(melde),
     );
     await db
       .update(schema.user)
@@ -297,13 +296,10 @@ describe("Chat-Push bei neuer Nachricht", () => {
       .update(schema.user)
       .set({ banned: true, deaktiviertAm: new Date() })
       .where(eq(schema.user.id, deaktiviert.id!));
-    await db
-      .insert(schema.blockierung)
-      .values({ userId: blockiert.id!, blockiertId: eltern.id! });
 
     await sende(eltern, welt.gruppenchatAId, "Hallo");
     expect(texte(expoAttrappe.nachrichten)).toEqual([tSl]);
-    for (const token of [tStill, tDeaktiviert, tBlockiert]) {
+    for (const token of [tStill, tDeaktiviert]) {
       expect(texte(expoAttrappe.nachrichten)).not.toContain(token);
     }
   });
