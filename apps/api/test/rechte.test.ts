@@ -15,12 +15,7 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import {
-  darfErgaenzen,
-  darfZuordnen,
-  hatRolle,
-  type Person,
-} from "../src/rechte.js";
+import { darfZuordnen, hatRolle, type Person } from "../src/rechte.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -300,35 +295,5 @@ describe("darfZuordnen", () => {
     ],
   ] as const)("%s", (_titel, person, eingabe, erwartet) => {
     expect(darfZuordnen(person, eingabe)).toBe(erwartet);
-  });
-});
-
-describe("darfErgaenzen", () => {
-  const basis = {
-    id: "person-1",
-    abteilungId: "abteilung-1",
-    admin: false,
-    zweiterFaktor: false,
-  };
-  const admin: Person = { ...basis, admin: true, rollen: [] };
-  const slA: Person = {
-    ...basis,
-    rollen: [{ stufeId: "a", typ: "stufenleitung" }],
-  };
-  const leitungA: Person = {
-    ...basis,
-    rollen: [{ stufeId: "a", typ: "leitung" }],
-  };
-  const ohneRolle: Person = { ...basis, rollen: [] };
-  test.each([
-    ["Admin, Programm ohne Stufe", admin, [], true],
-    ["SL A, Programm der Stufe A", slA, ["a"], true],
-    ["SL A, Programm der Stufe B", slA, ["b"], false],
-    ["SL A, Programm ohne Stufe", slA, [], false],
-    ["Leitende A, Programm der Stufen A und B", leitungA, ["a", "b"], true],
-    ["Leitende A, Programm der Stufe B", leitungA, ["b"], false],
-    ["Person ohne Rolle (Eltern)", ohneRolle, ["a"], false],
-  ] as const)("%s", (_titel, person, stufen, erwartet) => {
-    expect(darfErgaenzen(person, stufen)).toBe(erwartet);
   });
 });

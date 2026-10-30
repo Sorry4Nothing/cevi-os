@@ -10,7 +10,6 @@ import {
   pgTable,
   primaryKey,
   text,
-  time,
   timestamp,
   unique,
   uniqueIndex,
@@ -244,16 +243,6 @@ export const programm = pgTable(
     })
       .notNull()
       .default("intern"),
-    treffpunkt: text("treffpunkt"),
-    schlussOrt: text("schluss_ort"),
-    // Uhrzeit ohne Datum und Zone: Der Schluss gilt am letzten Programmtag vor Ort
-    schlussZeit: time("schluss_zeit"),
-    mitnehmen: text("mitnehmen"),
-    infoEltern: text("info_eltern"),
-    geaendertVon: uuid("geaendert_von").references(() => user.id, {
-      onDelete: "set null",
-    }),
-    geaendertAm: zeitpunkt("geaendert_am"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(

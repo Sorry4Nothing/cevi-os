@@ -16,7 +16,6 @@ import {
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon } from "../kontakte.js";
 import {
-  darfErgaenzen,
   darfLeitungAnmelden,
   darfZuordnen,
   hatRolle,
@@ -45,31 +44,7 @@ const zuordnungSchema = z.strictObject({
   sichtbarkeit: z.enum(["intern", "leitende", "eltern"]),
 });
 
-// NUL lehnt PostgreSQL in text ab (22021); leer heisst «Angabe entfernen»: Dann gilt wieder der Ort aus Google
-const ergaenzung = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .refine((wert) => !wert.includes("\u0000"))
-    .transform((wert) => wert || null)
-    .nullable()
-    .optional();
-const ergaenzungenSchema = z
-  .strictObject({
-    treffpunkt: ergaenzung(200),
-    schlussOrt: ergaenzung(200),
-    schlussZeit: z
-      .union([z.iso.time({ precision: -1 }), z.literal("")])
-      .transform((wert) => wert || null)
-      .nullable()
-      .optional(),
-    mitnehmen: ergaenzung(2000),
-    infoEltern: ergaenzung(2000),
-  })
-  .refine((werte) => Object.keys(werte).length > 0);
-
-// Ein Satz Felder für Liste und Detail; nie abteilung_id, google_event_id, google_serie oder geaendert_*
+// Ein Satz Felder für Liste und Detail; nie abteilung_id, google_event_id oder google_serie
 function programmFelder(person: Person) {
   return {
     id: programm.id,
@@ -82,11 +57,6 @@ function programmFelder(person: Person) {
     tagVon: programm.tagVon,
     tagBis: programm.tagBis,
     googleOrt: programm.googleOrt,
-    treffpunkt: programm.treffpunkt,
-    schlussOrt: programm.schlussOrt,
-    schlussZeit: programm.schlussZeit,
-    mitnehmen: programm.mitnehmen,
-    infoEltern: programm.infoEltern,
     // Mit Namen für die App; nur Stufen der eigenen Abteilung, falls je eine fremde verknüpft wäre
     stufen: sql<
       { id: string; name: string }[]
@@ -197,10 +167,6 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         teilnahmeOffen: await teilnahmeOffen(id),
         kinder,
         eigeneAnmeldung,
-        darfErgaenzen: darfErgaenzen(
-          person,
-          zeile.stufen.map((s) => s.id),
-        ),
       });
     })
     .get("/:id/kontakte", eingabe("param", pfadSchema), async (c) => {
@@ -250,36 +216,6 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
       );
       return c.json({ kontakte });
     })
-    .patch(
-      "/:id",
-      eingabe("param", pfadSchema),
-      eingabe("json", ergaenzungenSchema),
-      async (c) => {
-        const person = c.get("person");
-        const { id } = c.req.valid("param");
-        const daten = c.req.valid("json");
-        const [zeile] = await db
-          .select({
-            stufen: sql<
-              string[]
-            >`coalesce((select array_agg(programm_stufe.stufe_id) from programm_stufe where programm_stufe.programm_id = programm.id), '{}')`,
-          })
-          .from(programm)
-          .where(and(eq(programm.id, id), programmSichtbar(person)));
-        if (!zeile) throw new HTTPException(404);
-        if (!darfErgaenzen(person, zeile.stufen)) throw new HTTPException(403);
-        await db
-          .update(programm)
-          .set({ ...daten, geaendertVon: person.id, geaendertAm: sql`now()` })
-          .where(
-            and(
-              eq(programm.id, id),
-              eq(programm.abteilungId, person.abteilungId),
-            ),
-          );
-        return c.body(null, 204);
-      },
-    )
     .put(
       "/:id/leitung",
       eingabe("param", pfadSchema),

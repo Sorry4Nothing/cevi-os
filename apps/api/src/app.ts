@@ -112,10 +112,7 @@ export function erstelleApp({
       .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
       .route("/api/v1/nachrichten", erstelleNachrichtenRouten({ db }))
       .route("/api/v1/admin/meldungen", erstelleMeldungenRouten({ db }))
-      .route(
-        "/api/v1/admin/personen",
-        erstellePersonenRouten({ db, auth, fcm }),
-      )
+      .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
       .route(

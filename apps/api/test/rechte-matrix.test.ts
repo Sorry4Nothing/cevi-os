@@ -218,23 +218,6 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Ergänzungen (#32): Admin sowie SL und Leitende einer zugeordneten Stufe; mussPasswortAendern wie überall 403. Ein null auf «mitnehmen» ändert nichts Sichtbares
-  "PATCH /api/v1/programme/:id": {
-    url: () => `/api/v1/programme/${programmId}`,
-    body: () => ({ mitnehmen: null }),
-    erwartet: {
-      ...alle(204),
-      slB: 403,
-      elternA: 403,
-      mussPasswortAendern: 403,
-      leitendeB: 404,
-      elternB: 404,
-      deaktiviert: 401,
-      ohneLogin: 401,
-      demoAdmin: 404,
-      demoEltern: 404,
-    },
-  },
   "PUT /api/v1/programme/:id/zuordnung": {
     url: () => `/api/v1/programme/${programmId}/zuordnung`,
     // Der aktuelle Stand als No-op: Der Matrix-Lauf verändert nichts

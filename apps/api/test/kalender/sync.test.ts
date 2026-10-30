@@ -198,9 +198,7 @@ function stubGoogle(seiten: (unknown | Response)[]) {
 const programme = () => sql`
   select google_event_id, google_serie, titel, ganztaegig,
          beginn::text as beginn, ende::text as ende, tag_von::text as tag_von, tag_bis::text as tag_bis,
-         google_ort, google_beschreibung, status, sichtbarkeit, id,
-         treffpunkt, schluss_ort, schluss_zeit::text as schluss_zeit, mitnehmen, info_eltern,
-         geaendert_von, geaendert_am
+         google_ort, google_beschreibung, status, sichtbarkeit, id
   from programm where abteilung_id = ${abteilungId} order by titel, beginn`;
 
 const eigeneAbteilung = async () =>
@@ -237,13 +235,6 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
     expect(zeile).toMatchObject({
       status: "aktiv",
       sichtbarkeit: "intern",
-      treffpunkt: null,
-      schluss_ort: null,
-      schluss_zeit: null,
-      mitnehmen: null,
-      info_eltern: null,
-      geaendert_von: null,
-      geaendert_am: null,
     });
   }
   // Fail-closed, Bedrohung 8: keine Zuordnung zu einer Stufe, bis SL oder Admin sie setzen
@@ -260,7 +251,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
   expect(ausgabe).not.toHaveBeenCalled();
 });
 
-test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und Zuordnung samt Ergänzungen bleiben", async () => {
+test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und die Zuordnung bleibt", async () => {
   stubGoogle([...lauf1, ...lauf2]);
   const starte = () =>
     synchronisiere({
@@ -271,16 +262,16 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und Zu
     });
   expect(await starte()).toBe("fertig");
 
-  // Wie eine SL nach dem ersten Lauf: Stufe zuordnen, Sichtbarkeit öffnen, Treffpunkt ergänzen
+  // Wie eine SL nach dem ersten Lauf: Stufe zuordnen, Sichtbarkeit öffnen
   const [waldtag] = await sql`
     select id from programm where abteilung_id = ${abteilungId} and google_event_id = '0aldtag000000001'`;
-  await sql`update programm set sichtbarkeit = 'eltern', treffpunkt = 'Dorfbrunnen' where id = ${waldtag.id}`;
+  await sql`update programm set sichtbarkeit = 'eltern' where id = ${waldtag.id}`;
   await sql`insert into programm_stufe (programm_id, stufe_id) values (${waldtag.id}, ${stufeId})`;
 
   expect(await starte()).toBe("fertig");
   const zeilen = await programme();
 
-  // Geändert (Titel, Zeit, Ort): aktualisiert, Zuordnung und Ergänzungen unberührt
+  // Geändert (Titel, Zeit, Ort): aktualisiert, Zuordnung unberührt
   const feuer = zeilen.find((z) => z.google_event_id === "0aldtag000000001");
   expect(feuer).toMatchObject({
     titel: "Waldtag mit Feuer",
@@ -289,7 +280,6 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und Zu
     google_ort: "Bahnhof",
     status: "aktiv",
     sichtbarkeit: "eltern",
-    treffpunkt: "Dorfbrunnen",
   });
   expect(
     await sql`select stufe_id from programm_stufe where programm_id = ${waldtag.id}`,
@@ -557,8 +547,8 @@ const ERWARTET_GETEILT = [
     status: "aktiv",
   },
 ];
-// Diese vier Programme bekommen nach dem ersten Lauf Zuordnung, Sichtbarkeit, Treffpunkt und eine Leitungsanmeldung
-const MIT_ERGAENZUNG = [
+// Diese vier Programme bekommen nach dem ersten Lauf Zuordnung, Sichtbarkeit und eine Leitungsanmeldung
+const MIT_ZUORDNUNG = [
   "Gruppenstunde|2027-10-09 12:00:00+00",
   "Gruppenstunde|2027-10-16 12:00:00+00",
   "Werkstatt|2027-10-13 16:00:00+00",
@@ -582,7 +572,7 @@ const anhang = async (programmId: string) => ({
     await sql`select user_id, status from leitung_anmeldung where programm_id = ${programmId}`,
 });
 
-// Erster Lauf mit «serie-vorher.json» (der Stub muss die Seite bereithalten), dann Ergänzungen wie von einer SL
+// Erster Lauf mit «serie-vorher.json» (der Stub muss die Seite bereithalten), dann Zuordnungen wie von einer SL
 async function ersterSerienLauf() {
   expect(await starteSerie()).toBe("fertig");
   const [person] = await sql`
@@ -591,15 +581,15 @@ async function ersterSerienLauf() {
   const ids = new Map<string, string>();
   for (const z of await programme()) {
     ids.set(schluessel(z), z.id as string);
-    if (!MIT_ERGAENZUNG.includes(schluessel(z))) continue;
-    await sql`update programm set sichtbarkeit = 'eltern', treffpunkt = 'Dorfbrunnen' where id = ${z.id}`;
+    if (!MIT_ZUORDNUNG.includes(schluessel(z))) continue;
+    await sql`update programm set sichtbarkeit = 'eltern' where id = ${z.id}`;
     await sql`insert into programm_stufe (programm_id, stufe_id) values (${z.id}, ${stufeId})`;
     await sql`insert into leitung_anmeldung (programm_id, user_id, status) values (${z.id}, ${person.id}, 'ja')`;
   }
   return { ids, personId: person.id as string };
 }
 
-test("geteilte Serie: A wird umgeschlüsselt und behält id und Ergänzungen, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen intern dazu", async () => {
+test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen intern dazu", async () => {
   stubGoogle([...vorher, ...geteilt]);
   const { ids, personId } = await ersterSerienLauf();
   expect(ids.size).toBe(6);
@@ -616,17 +606,14 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Ergänzungen, B 
     if (erwartet.vorher === null) {
       // Neuer Termin: wieder fail-closed
       expect([...ids.values()]).not.toContain(zeile.id);
-      expect(zeile).toMatchObject({ sichtbarkeit: "intern", treffpunkt: null });
+      expect(zeile).toMatchObject({ sichtbarkeit: "intern" });
       expect((await anhang(zeile.id as string)).stufen).toEqual([]);
       continue;
     }
     const vorherKey = `${erwartet.titel}|${erwartet.vorher}`;
     expect(zeile.id).toBe(ids.get(vorherKey));
-    if (MIT_ERGAENZUNG.includes(vorherKey)) {
-      expect(zeile).toMatchObject({
-        sichtbarkeit: "eltern",
-        treffpunkt: "Dorfbrunnen",
-      });
+    if (MIT_ZUORDNUNG.includes(vorherKey)) {
+      expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
       expect(await anhang(zeile.id as string)).toEqual({
         stufen: [{ stufe_id: stufeId }],
         leitung: [{ user_id: personId, status: "ja" }],

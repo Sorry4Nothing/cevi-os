@@ -1138,7 +1138,7 @@ paths:
       tags:
         - Programme
       description: |
-        Liefert die Felder des Listeneintrags und zusätzlich `teilnahmeOffen`, `kinder`, `darfErgaenzen` und
+        Liefert die Felder des Listeneintrags und zusätzlich `teilnahmeOffen`, `kinder` und
         (nur für anmeldeberechtigte Leitende) `eigeneAnmeldung`.
 
         Wer aufrufen darf: jede angemeldete Person, für die das Programm sichtbar ist (Regeln wie bei der Liste).
@@ -1151,7 +1151,6 @@ paths:
         - `eigeneAnmeldung`: nur vorhanden, wenn die Person Leitung oder SL einer zugeordneten Stufe ist.
           Administratorinnen und Administratoren ohne solche Stufenrolle sowie Eltern bekommen den Schlüssel nie.
           Ohne gespeicherte Antwort steht «offen».
-        - `darfErgaenzen`: Admin oder Leitung/SL einer zugeordneten Stufe.
 
         Statuscodes: 200 Erfolg; 400 `id` ist keine UUID; 401 keine gültige Sitzung; 403 Konto muss zuerst das
         Passwort ändern; 404 Programm unbekannt oder nicht sichtbar; 426 App-Version zu alt; 429 zu viele Anfragen.
@@ -1165,51 +1164,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ProgrammDetail"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-    patch:
-      operationId: programmErgaenzen
-      summary: Ergänzungen eines Programms ändern
-      tags:
-        - Programme
-      description: |
-        Setzt die Ergänzungen `treffpunkt`, `schlussOrt`, `schlussZeit`, `mitnehmen` und `infoEltern`. Nur die
-        im Body genannten Felder ändern sich; mindestens ein Feld ist Pflicht. Ein leerer Text, ein Text nur aus
-        Leerzeichen oder `null` entfernt die Angabe (Wert `null`); dann gilt wieder der Ort aus Google.
-        Texte werden vor der Prüfung an den Rändern von Leerzeichen befreit.
-        Die Änderung wird mit Person und Zeitpunkt vermerkt.
-
-        Wer aufrufen darf: Administratorinnen und Administratoren sowie Leitende und SL einer Stufe, der das
-        Programm zugeordnet ist. Eltern nie.
-
-        Reihenfolge der Prüfung: zuerst die Eingabe (400), dann Sichtbarkeit (404), dann Recht (403).
-        Statuscodes: 204 geändert, kein Body; 400 ungültige Eingabe (unbekanntes oder fehlendes Feld, leeres
-        Objekt, zu langer Text, NUL-Zeichen, `schlussZeit` im falschen Format, `id` keine UUID); 401 keine gültige
-        Sitzung; 403 Programm sichtbar, aber kein Ergänzungsrecht (zum Beispiel Eltern, SL einer nicht zugeordneten
-        Stufe) oder Konto muss zuerst das Passwort ändern; 404 Programm unbekannt oder nicht sichtbar;
-        426 App-Version zu alt; 429 zu viele Anfragen.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/ProgrammIdPfad"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProgrammErgaenzungen"
-      responses:
-        "204":
-          description: Ergänzungen gespeichert. Kein Body.
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -1869,7 +1823,7 @@ paths:
       operationId: loescheAdminPerson
       summary: Person löschen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern und Sitzungen. Löst einen Push an die anderen Admins aus.
+        Nur Admins, nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern und Sitzungen.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für den letzten aktiven Admin.
       tags:
@@ -1903,7 +1857,7 @@ paths:
       operationId: setzeAdminStartpasswortNeu
       summary: Neues Startpasswort für eine Person erzeugen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Löst einen Push an die anderen Admins aus. Kein Request-Body.
+        Nur Admins, nur Personen der eigenen Abteilung. Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -2005,7 +1959,7 @@ paths:
       operationId: setzeAdminZweitenFaktorZurueck
       summary: Zweiten Faktor einer Person zurücksetzen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Entfernt den zweiten Faktor der Person. Kein Request-Body. Löst einen Push an die anderen Admins aus.
+        Nur Admins, nur Personen der eigenen Abteilung. Entfernt den zweiten Faktor der Person. Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENER_ZWEITER_FAKTOR` für den eigenen Faktor (ein anderer Admin setzt ihn zurück) oder `KEIN_ZWEITER_FAKTOR`, wenn die Person keinen hat.
       tags:
@@ -2834,11 +2788,6 @@ components:
         - tagVon
         - tagBis
         - googleOrt
-        - treffpunkt
-        - schlussOrt
-        - schlussZeit
-        - mitnehmen
-        - infoEltern
         - stufen
         - googleBeschreibung
       properties:
@@ -2891,29 +2840,7 @@ components:
           type:
             - string
             - "null"
-          description: Ort aus dem Google-Kalender. Die App zeigt ihn, solange kein `treffpunkt` gesetzt ist.
-        treffpunkt:
-          type:
-            - string
-            - "null"
-        schlussOrt:
-          type:
-            - string
-            - "null"
-        schlussZeit:
-          type:
-            - string
-            - "null"
-          description: Uhrzeit des Schlusses ohne Datum und Zone, Format `HH:MM:SS`. Gilt am letzten Programmtag.
-          example: 16:30:00
-        mitnehmen:
-          type:
-            - string
-            - "null"
-        infoEltern:
-          type:
-            - string
-            - "null"
+          description: Ort aus dem Google-Kalender.
         stufen:
           type: array
           description: Zugeordnete Stufen der eigenen Abteilung, aufsteigend nach `id` sortiert. Leer, wenn keine zugeordnet ist.
@@ -2963,7 +2890,6 @@ components:
           required:
             - teilnahmeOffen
             - kinder
-            - darfErgaenzen
           properties:
             teilnahmeOffen:
               type: boolean
@@ -2980,46 +2906,6 @@ components:
                 - nein
                 - offen
               description: Eigene Anmeldung als Leitung. Der Schlüssel fehlt, wenn die Person nicht Leitung oder SL einer zugeordneten Stufe ist.
-            darfErgaenzen:
-              type: boolean
-              description: Wahr für Admins sowie Leitung und SL einer zugeordneten Stufe (Recht für `PATCH /api/v1/programme/{id}`).
-    ProgrammErgaenzungen:
-      type: object
-      description: Mindestens ein Feld ist Pflicht. Nicht genannte Felder bleiben unverändert. Leerer Text oder `null` entfernt die Angabe.
-      additionalProperties: false
-      minProperties: 1
-      properties:
-        treffpunkt:
-          type:
-            - string
-            - "null"
-          maxLength: 200
-          description: Nach dem Trimmen höchstens 200 Zeichen, ohne NUL-Zeichen. Leer oder `null` entfernt die Angabe.
-        schlussOrt:
-          type:
-            - string
-            - "null"
-          maxLength: 200
-          description: Nach dem Trimmen höchstens 200 Zeichen, ohne NUL-Zeichen. Leer oder `null` entfernt die Angabe.
-        schlussZeit:
-          type:
-            - string
-            - "null"
-          pattern: ^(([01][0-9]|2[0-3]):[0-5][0-9])?$
-          description: Uhrzeit im Format `HH:MM` (ohne Sekunden). Leerer String oder `null` entfernt die Angabe.
-          example: 16:30
-        mitnehmen:
-          type:
-            - string
-            - "null"
-          maxLength: 2000
-          description: Nach dem Trimmen höchstens 2000 Zeichen, ohne NUL-Zeichen. Leer oder `null` entfernt die Angabe.
-        infoEltern:
-          type:
-            - string
-            - "null"
-          maxLength: 2000
-          description: Nach dem Trimmen höchstens 2000 Zeichen, ohne NUL-Zeichen. Leer oder `null` entfernt die Angabe.
     ProgrammZuordnung:
       type: object
       required:
