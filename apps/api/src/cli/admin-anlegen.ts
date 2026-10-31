@@ -118,7 +118,7 @@ if (!argumente) {
             username: benutzername,
             ceviName,
             abteilungId,
-            ...startpasswortFelder(),
+            ...startpasswortFelder(new Date(), startpasswort),
           },
         },
       });

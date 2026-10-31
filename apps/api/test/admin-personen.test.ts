@@ -169,7 +169,7 @@ describe("POST /api/v1/admin/personen", () => {
     expect(await sitzungen(angelegt.id)).toHaveLength(1);
   });
 
-  test("das Startpasswort steht nur in der Antwort: nicht in account.password, nicht in GET, nicht in den Logs", async () => {
+  test("das Startpasswort steht nicht im Klartext in account.password, in der Datenbank oder in den Logs; die Liste zeigt es nur dem Admin", async () => {
     const angelegt = await legePersonAn();
     const formen = [
       angelegt.startpasswort,
@@ -179,11 +179,14 @@ describe("POST /api/v1/admin/personen", () => {
       .select({ password: schema.account.password })
       .from(schema.account)
       .where(eq(schema.account.userId, angelegt.id));
-    const liste = await (await anfrage(admin, "GET")).text();
+    const [zeile] = await db
+      .select({ chiffre: schema.user.startpasswortVerschluesselt })
+      .from(schema.user)
+      .where(eq(schema.user.id, angelegt.id));
     const logs = ausgabe.mock.calls.flat().join(" ");
     for (const form of formen) {
       expect(konto.password).not.toContain(form);
-      expect(liste).not.toContain(form);
+      expect(zeile.chiffre).not.toContain(form);
       expect(logs).not.toContain(form);
     }
   });
@@ -227,7 +230,7 @@ describe("POST /api/v1/admin/personen", () => {
     ["überzähliger Schlüssel", () => ({ telefon: "079" })],
     ["Cevi-Name mit 51 Zeichen", () => ({ ceviName: "a".repeat(51) })],
     ["Benutzername mit !", () => ({ benutzername: "mit!zeichen" })],
-    ["Benutzername mit 2 Zeichen", () => ({ benutzername: "ab" })],
+    ["Benutzername mit 1 Zeichen", () => ({ benutzername: "a" })],
     ["Benutzername mit 65 Zeichen", () => ({ benutzername: "a".repeat(65) })],
   ])("%s gibt 400", async (_titel, extra) => {
     const antwort = await anfrage(admin, "POST", "", anlegenBody(extra()));
@@ -277,6 +280,7 @@ describe("GET /api/v1/admin/personen", () => {
       "mussPasswortAendern",
       "name",
       "rollen",
+      "startpasswort",
       "startpasswortGueltigBis",
       "zweiterFaktor",
     ]);
@@ -413,6 +417,50 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
       name: "Admin Umbenannt",
     });
     expect(antwort.status).toBe(204);
+  });
+});
+
+describe("Startpasswort in der Personenliste", () => {
+  const holeListe = async (id: string) => {
+    const antwort = await anfrage(admin, "GET");
+    const { personen } = (await antwort.json()) as {
+      personen: { id: string; startpasswort: string | null }[];
+    };
+    return personen.find((p) => p.id === id)!.startpasswort;
+  };
+
+  test("zeigt ein offenes Startpasswort, ein neues ersetzt es, nach Wechsel oder Ablauf nichts mehr", async () => {
+    const angelegt = await legePersonAn();
+    expect(await holeListe(angelegt.id)).toBe(angelegt.startpasswort);
+
+    const neu = (await (
+      await anfrage(admin, "POST", `/${angelegt.id}/startpasswort`)
+    ).json()) as { startpasswort: string };
+    expect(await holeListe(angelegt.id)).toBe(neu.startpasswort);
+
+    await db
+      .update(schema.user)
+      .set({ startpasswortGueltigBis: new Date(Date.now() - 1000) })
+      .where(eq(schema.user.id, angelegt.id));
+    expect(await holeListe(angelegt.id)).toBeNull();
+
+    await db
+      .update(schema.user)
+      .set({
+        startpasswortGueltigBis: new Date(Date.now() + 1000),
+        mussPasswortAendern: false,
+      })
+      .where(eq(schema.user.id, angelegt.id));
+    expect(await holeListe(angelegt.id)).toBeNull();
+  });
+
+  test("in der Datenbank liegt es nur verschlüsselt", async () => {
+    const angelegt = await legePersonAn();
+    const zeile = await userZeile(angelegt.id);
+    expect(zeile.startpasswortVerschluesselt).toBeTruthy();
+    expect(zeile.startpasswortVerschluesselt).not.toContain(
+      angelegt.startpasswort,
+    );
   });
 });
 

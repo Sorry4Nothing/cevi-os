@@ -48,7 +48,7 @@ Einrichtung, einmal:
 
 Ablauf: Tag setzen, warten bis «Image» grün ist, dann unter Actions → Deploy → Run workflow den Tag eintragen und freigeben. Der Lauf zeigt die Ausgabe von `deploy.sh`; sie enthält keine Passwörter. Ein Schlüssel wird rotiert, indem man ein neues Paar erzeugt, die Zeile in `authorized_keys` ersetzt und das Secret setzt.
 
-Das erste Admin-Konto legt die CLI im laufenden API-Container an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Sie zeigt das Startpasswort genau einmal. Immer `exec`, nie `run`: Die Ausgabe von `run` landet für 14 Tage im journald (siehe «Logs»), die von `exec` in keinem Log.
+Das erste Admin-Konto legt die CLI im laufenden API-Container an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Sie zeigt das Startpasswort; es steht danach auch in der Personenliste, bis die Person es ersetzt hat. Immer `exec`, nie `run`: Die Ausgabe von `run` landet für 14 Tage im journald (siehe «Logs»), die von `exec` in keinem Log.
 
 ## Release
 

@@ -1,5 +1,6 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
+import * as importieren from "./import.js";
 import * as kinder from "./kinder.js";
 import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
@@ -26,6 +27,13 @@ const BEREICHE = [
   ],
   ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
   ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
+  [
+    "import",
+    "Import",
+    importieren,
+    "ablage",
+    "Kinder und Leitende aus einem Export der Cevi-Datenbank anlegen.",
+  ],
   [
     "mitteilungen",
     "Mitteilungen",
