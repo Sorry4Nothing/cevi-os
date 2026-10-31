@@ -56,7 +56,6 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(() =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
-    fcm,
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );

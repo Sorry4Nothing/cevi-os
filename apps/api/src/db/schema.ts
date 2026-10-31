@@ -66,6 +66,7 @@ export const user = pgTable("user", {
   telefon: text("telefon"),
   pushChat: boolean("push_chat").notNull().default(true),
   pushProgramme: boolean("push_programme").notNull().default(true),
+  pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
   datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
 });
 
