@@ -1,0 +1,1 @@
+ALTER TABLE "abteilung" DROP COLUMN "vertrauenspersonen";

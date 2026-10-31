@@ -14,7 +14,7 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
-import { kodiereProfilbild } from "../src/bild-sharp.js";
+import { kodiereProfilbild, kodiereStufenlogo } from "../src/bild-sharp.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
@@ -46,6 +46,7 @@ const app = erstelleApp({
   db,
   auth,
   kodiereBild: kodiereProfilbild,
+  kodiereLogo: kodiereStufenlogo,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -80,7 +81,6 @@ const MATRIX: Record<string, Zeile> = {
   "GET /support": { erwartet: alle(200) },
   // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
   "GET /admin": { erwartet: alle(200) },
-  "GET /admin/abteilung.js": { erwartet: alle(200) },
   "GET /admin/admin.css": { erwartet: alle(200) },
   "GET /admin/admin.js": { erwartet: alle(200) },
   "GET /admin/api.js": { erwartet: alle(200) },
@@ -282,27 +282,6 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
-  "GET /api/v1/hilfe": {
-    erwartet: {
-      ...alle(200),
-      mussPasswortAendern: 403,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
-  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
-  "PATCH /api/v1/admin/abteilung": {
-    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
-    erwartet: {
-      ...alle(403),
-      admin: 204,
-      adminOhneZweitenFaktor: 403,
-      demoAdmin: 204,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
   // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
   // Betriebszahlen (#143): nur Admins, wie die übrigen Admin-Routen; Inhalt in test/admin-system.test.ts
   "GET /api/v1/admin/system": {
@@ -438,6 +417,43 @@ const MATRIX: Record<string, Zeile> = {
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  // Stufenlogo (#212): Hochladen und Löschen nur Admins; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
+  "PUT /api/v1/admin/stufen/:id/logo": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/stufen/:id/logo": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/stufen/:id/logo": {
+    url: () => `/api/v1/stufen/${welt.stufeAId}/logo`,
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
     },
   },
   // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
@@ -813,6 +829,9 @@ beforeAll(async () => {
   await db
     .insert(schema.profilbild)
     .values({ userId: bildZielId, inhalt: testBild });
+  await db
+    .insert(schema.stufenlogo)
+    .values({ stufeId: welt.stufeAId, inhalt: testBild });
   const [patchStufe] = await db
     .insert(schema.stufe)
     .values({

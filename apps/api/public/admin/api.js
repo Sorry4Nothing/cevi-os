@@ -28,9 +28,15 @@ export async function anfrage(methode, pfad, body) {
       method: methode,
       credentials: "same-origin",
       cache: "no-store",
+      // Eine Datei geht unverändert hin (Logo-Upload), alles andere als JSON
       headers:
-        body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
+        body === undefined || body instanceof Blob
+          ? undefined
+          : { "Content-Type": "application/json" },
+      body:
+        body === undefined || body instanceof Blob
+          ? body
+          : JSON.stringify(body),
     });
   } catch {
     throw new ApiFehler(0, "NETZ");
@@ -57,6 +63,7 @@ export async function anfrage(methode, pfad, body) {
 const CODES = {
   ANMELDUNG_FEHLGESCHLAGEN:
     "Anmeldung nicht möglich. Prüfe Benutzername und Passwort oder versuche es später nochmals.",
+  BILD_FORMAT: "Bitte ein Bild als JPEG, PNG oder WebP wählen.",
   NETZ: "Keine Verbindung. Prüfe das Internet und versuche es nochmals.",
   ZWEITER_FAKTOR_FEHLT:
     "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",

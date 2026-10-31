@@ -16,3 +16,13 @@ export const kodiereProfilbild: BildKodierer = async (daten) =>
     .flatten({ background: "#ffffff" })
     .jpeg({ quality: 82 })
     .toBuffer();
+
+const LOGO_SEITE = 512;
+
+// Logo: Seitenverhältnis und Transparenz bleiben, höchstens 512 px, ohne Metadaten; immer WebP
+export const kodiereStufenlogo: BildKodierer = async (daten) =>
+  sharp(daten, { limitInputPixels: MAX_PIXEL, failOn: "error" })
+    .rotate()
+    .resize(LOGO_SEITE, LOGO_SEITE, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 85 })
+    .toBuffer();

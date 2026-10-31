@@ -131,7 +131,7 @@ describe("GET /api/v1/admin/system/requests", () => {
       body: JSON.stringify({ name: "x" }),
     });
     expect(fehler.status).toBe(404);
-    expect((await hole(admin, "/api/v1/hilfe")).status).toBe(200);
+    expect((await hole(admin, "/api/v1/stufen")).status).toBe(200);
 
     const antwort = await hole(admin, "/api/v1/admin/system/requests");
     expect(antwort.status).toBe(200);
@@ -146,7 +146,7 @@ describe("GET /api/v1/admin/system/requests", () => {
       (r: { methode: string; route: string }) => `${r.methode} ${r.route}`,
     );
     expect(muster).toContain("PATCH /api/v1/admin/stufen/:id");
-    expect(muster).toContain("GET /api/v1/hilfe");
+    expect(muster).toContain("GET /api/v1/stufen");
     expect(daten.letzteFehler[0]).toEqual({
       zeit: expect.any(String),
       methode: "PATCH",
@@ -182,7 +182,7 @@ describe("GET /api/v1/admin/system/requests", () => {
 
   test("Query und Header gelangen nicht in die Zahlen", async () => {
     const geheim = `tok-${randomUUID()}`;
-    await app.request(`/api/v1/hilfe?token=${geheim}`, {
+    await app.request(`/api/v1/stufen?token=${geheim}`, {
       headers: { ...admin.headers, "x-geheim": geheim },
     });
     const text = await (

@@ -303,8 +303,20 @@ describe("GET /api/v1/stufen", () => {
     const [fuerEltern, fuerAdmin] = [await liste(eltern), await liste(admin)];
     expect(fuerEltern).toEqual(fuerAdmin);
     expect(fuerEltern.slice(0, 2)).toEqual([
-      { id: welt.stufeAId, name: "Stufe A", kuerzel: "A", reihenfolge: 1 },
-      { id: welt.stufeBId, name: "Stufe B", kuerzel: "B", reihenfolge: 2 },
+      {
+        id: welt.stufeAId,
+        name: "Stufe A",
+        kuerzel: "A",
+        reihenfolge: 1,
+        logoUrl: null,
+      },
+      {
+        id: welt.stufeBId,
+        name: "Stufe B",
+        kuerzel: "B",
+        reihenfolge: 2,
+        logoUrl: null,
+      },
     ]);
     expect(fuerEltern.map((s) => s.id)).not.toContain(welt.demoStufeId);
   });

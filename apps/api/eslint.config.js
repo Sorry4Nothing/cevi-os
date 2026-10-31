@@ -15,6 +15,7 @@ export default defineConfig(
     files: ["public/admin/**/*.js"],
     languageOptions: {
       globals: {
+        Blob: "readonly",
         Node: "readonly",
         document: "readonly",
         fetch: "readonly",
