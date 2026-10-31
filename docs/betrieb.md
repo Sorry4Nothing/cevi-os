@@ -55,7 +55,7 @@ Das erste Admin-Konto legt die CLI im laufenden API-Container an, in `deploy/`: 
 Ein Release der API ist ein Tag `vX.Y.Z` auf `main`; die Nummer steigt nur. Die iOS- und die Android-App liegen in eigenen Repos und haben dort ihren eigenen Release-Ablauf.
 
 1. Release-PR von `develop` nach `main`, gemergt mit «Create a merge commit» ([GIT_WORKFLOW.md](GIT_WORKFLOW.md) sagt warum).
-2. Tag von Hand auf dem Merge-Commit, annotiert: `git fetch origin`, dann `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main` und `git push origin vX.Y.Z`. Kein Workflow erzeugt Tags.
+2. Workflow «Release» starten (Actions → Release → Run workflow, Branch `main`). Er setzt den annotierten Tag auf den Kopf von `main` und ruft «Image» auf. Die Stufe `minor` erhöht z (`v0.9.9` → `v0.9.10`), `major` erhöht y und setzt z auf 0 (`v0.9.9` → `v0.10.0`). x steigt nie von selbst: Nur das Feld «version» (z. B. `1.0.0`) erhöht es, und die Nummer muss grösser als der letzte Tag sein. Jede Stelle ist eine ganze Zahl ohne Obergrenze; die Rechnung steht in `deploy/naechste-version.sh`. Von Hand geht es weiter: `git fetch origin`, `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main`, `git push origin vX.Y.Z`.
 3. Warten, bis der Workflow «Image» ([`.github/workflows/image.yml`](../.github/workflows/image.yml)) grün ist: Er prüft, dass der Tag `vX.Y.Z` heisst, baut das API-Image und legt es als `ghcr.io/sorry4nothing/cevi-os-api:vX.Y.Z` in GHCR ab. Ein falscher Tag baut kein Image.
 4. Auf dem Server ausrollen: Workflow «Deploy» starten und freigeben (siehe «Deploy aus GitHub»), oder von Hand den Tag auschecken und `deploy/deploy.sh vX.Y.Z` ausführen (Backup, Migration, Neustart, Portprüfung).
 
