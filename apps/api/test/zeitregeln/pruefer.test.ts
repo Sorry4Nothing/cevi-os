@@ -31,9 +31,11 @@ const AUSLOESUNG = new Date("2026-10-28T07:00:00Z");
 const NACH_BEGINN = new Date("2026-10-31T13:00:01Z");
 
 let nachrichten: TokenMessage[];
+// Der Prüfer liest die ganze Datenbank; Pushes an Konten anderer Testdateien zählen hier nicht
+const tokens = new Map<string, string>();
 const fcm: Fcm = {
   async sendEach(liste) {
-    nachrichten.push(...liste);
+    nachrichten.push(...liste.filter((n) => tokens.has(n.token)));
     return { responses: liste.map(() => ({ success: true })) };
   },
 };
@@ -70,7 +72,6 @@ async function neueWelt() {
     (typeof stufen)[number],
     (typeof stufen)[number],
   ];
-  const tokens = new Map<string, string>();
 
   // Ein Elternteil mit Push-Token; die Kinder legt kindVon an
   async function elternteil(
