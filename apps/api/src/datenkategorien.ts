@@ -116,7 +116,7 @@ export const KATEGORIEN = {
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
-      "Die Abteilung, ihre Stufen und die Anbindung an den Kalender.",
+      "Die Abteilung, ihre Stufen (mit freiwilligem Logo) und die Anbindung an den Kalender.",
     frist: "Bis die Leitung die Angaben ändert oder löscht.",
     apple: [],
     google: [],
@@ -254,6 +254,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   stufe: {
     abteilung: ["id", "abteilung_id", "name", "kuerzel", "reihenfolge"],
   },
+  stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
   anwesenheit_kind: {
     anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],
   },

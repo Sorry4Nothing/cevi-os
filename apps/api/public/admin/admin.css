@@ -1940,6 +1940,13 @@ dialog.blatt[open] {
   font-weight: 800;
 }
 
+.stufe-logo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
 .stufe-text {
   display: flex;
   flex: 1 1 auto;

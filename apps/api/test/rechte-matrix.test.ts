@@ -14,7 +14,7 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
-import { kodiereProfilbild } from "../src/bild-sharp.js";
+import { kodiereProfilbild, kodiereStufenlogo } from "../src/bild-sharp.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
@@ -46,6 +46,7 @@ const app = erstelleApp({
   db,
   auth,
   kodiereBild: kodiereProfilbild,
+  kodiereLogo: kodiereStufenlogo,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -416,6 +417,43 @@ const MATRIX: Record<string, Zeile> = {
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  // Stufenlogo (#212): Hochladen und Löschen nur Admins; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
+  "PUT /api/v1/admin/stufen/:id/logo": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/stufen/:id/logo": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/stufen/:id/logo": {
+    url: () => `/api/v1/stufen/${welt.stufeAId}/logo`,
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
     },
   },
   // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
@@ -791,6 +829,9 @@ beforeAll(async () => {
   await db
     .insert(schema.profilbild)
     .values({ userId: bildZielId, inhalt: testBild });
+  await db
+    .insert(schema.stufenlogo)
+    .values({ stufeId: welt.stufeAId, inhalt: testBild });
   const [patchStufe] = await db
     .insert(schema.stufe)
     .values({

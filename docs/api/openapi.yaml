@@ -1019,6 +1019,53 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/stufen/{id}/logo:
+    get:
+      operationId: stufeLogoLesen
+      summary: Logo einer Stufe lesen
+      tags:
+        - Stufen
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Stufe (UUID).
+          schema:
+            type: string
+            format: uuid
+      description: |
+        Liefert das eigene Logo der Stufe als WebP, höchstens 512 Pixel je Seite, mit Transparenz. Die Adresse steht
+        als `logoUrl` in `GET /api/v1/stufen`; die App ruft sie mit der Sitzung auf und baut sie nicht selbst. Ohne
+        eigenes Logo, bei unbekannten Stufen und bei Stufen anderer Abteilungen ist die Antwort 404; dann zeigt die
+        App das Cevi-Logo.
+
+        Die Antwort trägt `Cache-Control: private, max-age=86400` und `X-Content-Type-Options: nosniff`. Der Wert `v`
+        in `logoUrl` wechselt mit jedem neuen Logo.
+
+        **Barrierefreiheit.** Das Logo trägt keinen Text. Die App zeigt es als Zierde neben dem Namen der Stufe
+        (leerer Alternativtext).
+
+        **Rollen.** Alle angemeldeten Personen, ausser bei offenem Pflichtwechsel des Passworts (403).
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      responses:
+        "200":
+          description: Das Logo.
+          content:
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/stufen/{id}/kontakte:
     get:
       operationId: stufeKontakteLesen
@@ -2277,6 +2324,97 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/stufen/{id}/logo:
+    put:
+      operationId: setzeAdminStufeLogo
+      summary: Logo einer Stufe hochladen
+      description: |
+        Nur Admins, nur Stufen der eigenen Abteilung. Ein vorhandenes Logo wird ersetzt.
+
+        **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
+        ergibt sich aus den ersten Bytes, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB und höchstens
+        50 Millionen Pixel.
+
+        **Verarbeitung.** Der Server dreht das Bild nach der EXIF-Angabe, verkleinert es auf höchstens 512 × 512 Pixel
+        (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als
+        WebP. Alle Metadaten gehen verloren; das Original wird nicht gespeichert.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist
+        oder zu einer anderen Abteilung gehört. 413 über 5 MiB. 415 bei Nicht-Bild (code `BILD_FORMAT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminStufeId"
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Gespeichert; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "413":
+          description: Das Bild ist grösser als 5 MiB.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "415":
+          description: Kein JPEG, PNG oder WebP, kein lesbares Bild oder zu viele Pixel (code `BILD_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminStufeLogo
+      summary: Logo einer Stufe löschen
+      description: |
+        Nur Admins, nur Stufen der eigenen Abteilung. Danach gilt wieder das Cevi-Logo. Ohne eigenes Logo ebenfalls 204.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminStufeId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/kinder:
     get:
       operationId: listeAdminKinder
@@ -2826,6 +2964,11 @@ components:
         reihenfolge:
           type: integer
           description: Sortierung der Stufen, aufsteigend.
+        logoUrl:
+          type:
+            - string
+            - "null"
+          description: Pfad zum Logo der Stufe (`GET /api/v1/stufen/{id}/logo`, mit Sitzung), `null` ohne eigenes Logo. Dann zeigen die Clients das Cevi-Logo. `v` ändert sich mit jedem neuen Logo.
     StufenAntwort:
       type: object
       required:

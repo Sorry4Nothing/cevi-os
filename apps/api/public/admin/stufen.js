@@ -1,5 +1,9 @@
 import { anfrage, fehlertext } from "./api.js";
-import { chip, dialogFormular, el, feld, knopf } from "./dom.js";
+import { ankreuzen, chip, dialogFormular, el, feld, knopf } from "./dom.js";
+
+// Ohne eigenes Logo gilt das Cevi-Symbol
+const STANDARD_LOGO = "/admin/favicon.svg";
+const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -41,6 +45,17 @@ function felder(stufe) {
       wert: stufe ? String(stufe.reihenfolge) : "",
       required: true,
     }),
+    logo: feld({
+      label: "Logo (freiwillig)",
+      hilfe:
+        "JPEG, PNG oder WebP, höchstens 5 MB. Ohne eigenes Logo gilt das Cevi-Logo.",
+      typ: "file",
+      accept: "image/jpeg,image/png,image/webp",
+    }),
+    // Nur bei einer Stufe mit Logo
+    entfernen: stufe?.logoUrl
+      ? ankreuzen({ label: "Eigenes Logo entfernen", wert: "entfernen" })
+      : null,
   };
 }
 
@@ -66,23 +81,43 @@ function dialog({ stufe, ctx, neu }) {
   dialogFormular({
     titel: stufe ? "Stufe bearbeiten" : "Stufe anlegen",
     beschreibung: stufe?.name,
-    felder: [f.name.wurzel, f.kuerzel.wurzel, f.reihenfolge.wurzel],
+    felder: [
+      f.name.wurzel,
+      f.kuerzel.wurzel,
+      f.reihenfolge.wurzel,
+      f.logo.wurzel,
+      f.entfernen?.wurzel,
+    ].filter(Boolean),
     ok: stufe ? "Speichern" : "Anlegen",
-    senden: () => {
+    senden: async () => {
       let body;
       try {
         body = lesen(f);
       } catch {
         return ungueltig();
       }
-      return stufe
-        ? anfrage("PATCH", `/api/v1/admin/stufen/${stufe.id}`, body)
-        : anfrage("POST", "/api/v1/admin/stufen", body);
+      const datei = f.logo.eingabe.files[0];
+      if (datei && datei.size > LOGO_MAX_BYTES) {
+        throw Object.assign(new Error("400"), {
+          status: 400,
+          code: "LOGO_GROSS",
+        });
+      }
+      const ergebnis = stufe
+        ? await anfrage("PATCH", `/api/v1/admin/stufen/${stufe.id}`, body)
+        : await anfrage("POST", "/api/v1/admin/stufen", body);
+      const id = stufe?.id ?? ergebnis.id;
+      const logoPfad = `/api/v1/admin/stufen/${id}/logo`;
+      if (datei) await anfrage("PUT", logoPfad, datei);
+      else if (f.entfernen?.eingabe.checked) await anfrage("DELETE", logoPfad);
+      return ergebnis;
     },
     fehlertext: (fehler) =>
       fehler.code === "UNGUELTIG"
         ? "Die Reihenfolge muss eine ganze Zahl von 1 bis 999 sein."
-        : fehlertext(fehler),
+        : fehler.code === "LOGO_GROSS"
+          ? "Das Logo ist grösser als 5 MB."
+          : fehlertext(fehler),
     danach: () => {
       neu();
       ctx.melde(stufe ? "Gespeichert." : "Stufe ist angelegt.");
@@ -101,6 +136,12 @@ function karte(stufe, anzahl, ctx, neu) {
       el("span", { class: "nur-leser" }, "Reihenfolge "),
       el("span", { class: "stufe-nr-zahl" }, String(stufe.reihenfolge)),
     ),
+    // Dekorativ: Name und Chip daneben nennen schon alles
+    el("img", {
+      class: "stufe-logo",
+      src: stufe.logoUrl ?? STANDARD_LOGO,
+      alt: "",
+    }),
     el(
       "div",
       { class: "stufe-text" },
@@ -109,6 +150,7 @@ function karte(stufe, anzahl, ctx, neu) {
         "ul",
         { class: "chips" },
         chip(`Kürzel ${stufe.kuerzel}`, "stufe"),
+        chip(stufe.logoUrl ? "Eigenes Logo" : "Cevi-Logo"),
         anzahl !== null && chip(anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`),
       ),
     ),

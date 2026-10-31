@@ -169,6 +169,22 @@ export const stufe = pgTable("stufe", {
   reihenfolge: integer("reihenfolge").notNull(),
 });
 
+// Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo
+export const stufenlogo = pgTable(
+  "stufenlogo",
+  {
+    stufeId: uuid("stufe_id")
+      .primaryKey()
+      .references(() => stufe.id, { onDelete: "restrict" }),
+    inhalt: bytea("inhalt").notNull(),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    // Die Route kodiert auf wenige KB; die Grenze fängt einen Fehler im Code ab, bevor die Tabelle wächst
+    check("stufenlogo_inhalt_klein", sql`octet_length(${t.inhalt}) <= 262144`),
+  ],
+);
+
 // Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank
 export const rolle = pgTable(
   "rolle",
