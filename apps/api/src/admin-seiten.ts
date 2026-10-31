@@ -7,6 +7,7 @@ const TYPEN: Record<string, string> = {
   html: "text/html; charset=UTF-8",
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
+  svg: "image/svg+xml",
 };
 
 // Nichts Fremdes: Skript, Stil, Bild (data: für Symbole) und Verbindungen nur von der eigenen Herkunft; die Seite lässt sich nicht einbetten
