@@ -70,6 +70,7 @@ const ADMIN_TYPEN: Record<string, string> = {
   html: "text/html; charset=UTF-8",
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
+  svg: "image/svg+xml",
 };
 
 describe("Verwaltung unter /admin", () => {

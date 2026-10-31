@@ -177,6 +177,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/favicon.svg:
+    get:
+      operationId: getAdminFavicon
+      summary: Symbol der Verwaltung im Browser-Tab
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`image/svg+xml`).
+          content:
+            image/svg+xml:
+              schema:
+                type: string
   /admin/kinder.js:
     get:
       operationId: getAdminKinderSkript

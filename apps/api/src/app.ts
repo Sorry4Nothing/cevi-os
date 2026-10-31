@@ -85,6 +85,8 @@ export function erstelleApp({
           status: c.res.status,
           dauerMs: Math.round(performance.now() - start),
         };
+        // Der Healthcheck von Docker fragt alle 30 s; ein Erfolg füllt weder Log noch Zahlen, ein Fehler bleibt sichtbar (die requestId verbindet ihn mit seinem Grund)
+        if (eintrag.route === "/health" && eintrag.status === 200) return;
         log(c, eintrag);
         // Nicht gezählt: die statischen Dateien der Verwaltung und die Abrufe der Übersicht selbst, sonst misst sich die Übersicht ständig selbst
         if (

@@ -152,7 +152,7 @@ Lesen:
 
 Was in den Logs steht:
 
-- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Personendaten. Der Healthcheck des Containers ruft `/health` alle 5 Sekunden auf, rund 17'000 Zeilen pro Tag; das Löschen nach Alter fängt das auf.
+- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Personendaten. Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Das Löschen nach Alter begrenzt das Log.
 - Caddy: IP-Adressen. Caddy schreibt auf stderr und damit nach journald; keine Log-Datei, kein Volume.
 - PostgreSQL: Fehlerzeilen können Werte aus Abfragen zitieren, etwa `DETAIL: Key (…)=(…)` oder `STATEMENT: …`.
 
