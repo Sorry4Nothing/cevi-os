@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { profilbild } from "./db/schema.js";
+import { profilbild, stufenlogo } from "./db/schema.js";
 
 // Hart, vor dem Einlesen: Das Bild wird danach ohnehin auf rund 20 KB verkleinert, das Original ist nur der Weg dorthin
 export const BILD_MAX_BYTES = 5 * 1024 * 1024;
@@ -23,3 +23,8 @@ export function istErlaubtesBild(b: Uint8Array) {
 export const bildUrl = sql<
   string | null
 >`case when ${profilbild.userId} is null then null else '/api/v1/personen/' || ${profilbild.userId} || '/bild?v=' || (extract(epoch from ${profilbild.geaendertAm}) * 1000)::bigint end`;
+
+// Wie bildUrl, für das Logo einer Stufe; setzt einen Join auf stufenlogo voraus
+export const logoUrl = sql<
+  string | null
+>`case when ${stufenlogo.stufeId} is null then null else '/api/v1/stufen/' || ${stufenlogo.stufeId} || '/logo?v=' || (extract(epoch from ${stufenlogo.geaendertAm}) * 1000)::bigint end`;

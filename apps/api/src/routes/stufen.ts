@@ -12,9 +12,11 @@ import {
   programmStufe,
   rolle,
   stufe,
+  stufenlogo,
   teilnahme,
   user,
 } from "../db/schema.js";
+import { logoUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon, stufenMitKind } from "../kontakte.js";
 import {
@@ -112,8 +114,10 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
           name: stufe.name,
           kuerzel: stufe.kuerzel,
           reihenfolge: stufe.reihenfolge,
+          logoUrl,
         })
         .from(stufe)
+        .leftJoin(stufenlogo, eq(stufenlogo.stufeId, stufe.id))
         .where(eq(stufe.abteilungId, person.abteilungId))
         .orderBy(asc(stufe.reihenfolge), asc(stufe.name), asc(stufe.id));
       return c.json({ stufen });

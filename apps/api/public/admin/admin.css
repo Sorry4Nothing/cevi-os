@@ -321,8 +321,6 @@ a.punkt[aria-current="page"] .i {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1120px;
-  margin: 0 auto;
 }
 
 .kopf {
@@ -1591,11 +1589,6 @@ fieldset .feld .auswahl {
   border-radius: 16px;
 }
 
-.code-feld:has(input:focus-visible) {
-  outline: 3px solid var(--fokus);
-  outline-offset: 6px;
-}
-
 .code-feld input {
   position: absolute;
   inset: 0;
@@ -1943,6 +1936,13 @@ dialog.blatt[open] {
   font-size: 1.25rem;
   line-height: 1.375rem;
   font-weight: 800;
+}
+
+.stufe-logo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
 }
 
 .stufe-text {

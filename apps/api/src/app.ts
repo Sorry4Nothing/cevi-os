@@ -12,15 +12,14 @@ import { log } from "./log.js";
 import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
-import { erstelleAbteilungRouten } from "./routes/admin/abteilung.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleChatRouten } from "./routes/chats.js";
-import { erstelleHilfeRouten } from "./routes/hilfe.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
+import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 import { erstelleStufenRouten } from "./routes/stufen.js";
@@ -53,6 +52,7 @@ export function erstelleApp({
   auth,
   fcm,
   kodiereBild,
+  kodiereLogo,
   seiten,
 }: {
   appMinVersion: string;
@@ -62,6 +62,7 @@ export function erstelleApp({
   fcm?: Fcm;
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
   kodiereBild?: BildKodierer;
+  kodiereLogo?: BildKodierer;
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -87,6 +88,8 @@ export function erstelleApp({
           status: c.res.status,
           dauerMs: Math.round(performance.now() - start),
         };
+        // Der Healthcheck von Docker fragt alle 30 s; ein Erfolg füllt weder Log noch Zahlen, ein Fehler bleibt sichtbar (die requestId verbindet ihn mit seinem Grund)
+        if (eintrag.route === "/health" && eintrag.status === 200) return;
         log(c, eintrag);
         // Nicht gezählt: die statischen Dateien der Verwaltung und die Abrufe der Übersicht selbst, sonst misst sich die Übersicht ständig selbst
         if (
@@ -96,9 +99,11 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Einzige Ausnahme: der Upload des Profilbilds, den seine Route selbst auf 5 MB begrenzt
+      // Einzige Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen
       .use((c, next) =>
-        c.req.method === "PUT" && c.req.path === "/api/v1/ich/bild"
+        c.req.method === "PUT" &&
+        (c.req.path === "/api/v1/ich/bild" ||
+          /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))
           ? next()
           : kleinesLimit(c, next),
       )
@@ -115,11 +120,10 @@ export function erstelleApp({
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
+      .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
-      .route("/api/v1/hilfe", erstelleHilfeRouten({ db }))
-      .route("/api/v1/admin/abteilung", erstelleAbteilungRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))

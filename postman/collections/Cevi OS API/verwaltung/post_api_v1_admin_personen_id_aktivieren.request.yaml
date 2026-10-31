@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/personen/:id/aktivieren"
-order: 45000
+order: 43000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/personen/{{aktivierenZielId}}/aktivieren"
 headers:

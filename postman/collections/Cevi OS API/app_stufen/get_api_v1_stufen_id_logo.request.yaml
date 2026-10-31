@@ -1,8 +1,8 @@
 $kind: http-request
-name: "GET /api/v1/hilfe"
-order: 36000
+name: "GET /api/v1/stufen/:id/logo"
+order: 48000
 method: GET
-url: "{{baseUrl}}/api/v1/hilfe"
+url: "{{baseUrl}}/api/v1/stufen/{{stufeAId}}/logo"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

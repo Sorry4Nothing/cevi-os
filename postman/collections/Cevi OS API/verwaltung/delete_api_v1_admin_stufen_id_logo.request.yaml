@@ -1,8 +1,8 @@
 $kind: http-request
-name: "GET /admin/abteilung.js"
-order: 6000
-method: GET
-url: "{{baseUrl}}/admin/abteilung.js"
+name: "DELETE /api/v1/admin/stufen/:id/logo"
+order: 47000
+method: DELETE
+url: "{{baseUrl}}/api/v1/admin/stufen/{{patchStufeId}}/logo"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
