@@ -9,7 +9,7 @@ on:
         required: true
         type: string
 
-# Dieser Workflow braucht kein Schreibrecht; packages: write hat allein image.yml
+# Dieser Workflow braucht kein Schreibrecht; packages: write haben nur image.yml und der Aufruf davon in release.yml
 permissions:
   contents: read
 
