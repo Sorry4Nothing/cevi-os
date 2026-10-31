@@ -222,6 +222,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/mitteilungen.js:
+    get:
+      operationId: getAdminMitteilungenSkript
+      summary: Skript der Verwaltung – Bereich Mitteilungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/personen.js:
     get:
       operationId: getAdminPersonenSkript
@@ -2278,6 +2293,53 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/mitteilungen:
+    post:
+      operationId: sendeAdminMitteilung
+      summary: Mitteilung als Push senden
+      description: |
+        Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt nur den Titel, keinen Textkörper. Der Titel darf keine Namen enthalten: Er läuft über Apple und Google.
+
+        Empfänger `alle`: alle aktiven Konten der Abteilung. Empfänger `stufen`: die Eltern aktiver Kinder und die Leitenden der gewählten Stufen. Voraussetzung ist in beiden Fällen ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`). Die absendende Person bekommt den Push auch, sofern ihre Option an ist.
+
+        Der Versand steht im Audit-Log (`mitteilung_gesendet`, Ziel ist die Abteilung): wer, wann, Empfängergruppe (`alle` oder die Stufen-IDs) und Zahl der Empfänger, nie der Text.
+
+        Limit: höchstens 10 Mitteilungen pro Abteilung und Stunde.
+
+        Statuscodes: 200 mit der Zahl der Konten, an deren Geräte der Push ging (auch 0). 400 bei ungültiger Eingabe oder wenn eine Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins. 429 beim Limit. 503 mit Code `PUSH_NICHT_EINGERICHTET`, wenn der Server keinen Schlüssel für den Push-Dienst hat; dann geht nichts hinaus und nichts ins Audit-Log.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMitteilung"
+      responses:
+        "200":
+          description: Gesendet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMitteilungErgebnis"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          description: Der Server hat keinen Schlüssel für den Push-Dienst (`PUSH_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   /api/v1/admin/stufen:
     post:
       operationId: legeAdminStufeAn
@@ -4180,6 +4242,40 @@ components:
         id:
           type: string
           format: uuid
+    AdminMitteilung:
+      type: object
+      required:
+        - titel
+        - empfaenger
+      additionalProperties: false
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Der ganze Text des Push. Leerraum am Rand wird entfernt. Keine Namen.
+        empfaenger:
+          type: string
+          enum:
+            - alle
+            - stufen
+        stufeIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: Pflicht bei `stufen`, verboten bei `alle`.
+    AdminMitteilungErgebnis:
+      type: object
+      required:
+        - empfaenger
+      properties:
+        empfaenger:
+          type: integer
+          minimum: 0
+          description: Zahl der Konten, an deren Geräte der Push ging.
     AdminStufeAnlegen:
       type: object
       required:

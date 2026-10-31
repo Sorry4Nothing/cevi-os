@@ -7,7 +7,7 @@ import { log } from "./log.js";
 
 // Bewusst ohne Textfeld: Ein Push trägt nie Nachrichtentext oder Namen, nur den Titel und Typ und ID für den Deep Link
 export type Push = {
-  typ: "chat" | "programm";
+  typ: "chat" | "programm" | "mitteilung";
   id: string;
   titel: string;
 };
@@ -28,7 +28,12 @@ const ABGEMELDET = [
   "messaging/invalid-registration-token",
 ];
 
-const KANAL = { chat: "chat", programm: "programme" };
+const KANAL = {
+  chat: "chat",
+  programm: "programme",
+  // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
+  mitteilung: "mitteilungen",
+};
 
 type Fehler = { code?: unknown; cause?: { code?: unknown } };
 
