@@ -70,8 +70,10 @@ function anfrage(
 }
 
 const BASIS = "/api/v1/admin/stufen";
+// Der Name ist pro Abteilung eindeutig, jede Stufe braucht darum ihren eigenen
+let zaehler = 0;
 const stufenBody = (extra: Record<string, unknown> = {}) => ({
-  name: "Neue Stufe",
+  name: `Neue Stufe ${++zaehler}`,
   kuerzel: "NS",
   ...extra,
 });
@@ -97,6 +99,33 @@ describe("POST /api/v1/admin/stufen", () => {
       name: "Pfadi",
       kuerzel: "P",
     });
+  });
+
+  test("ohne Kürzel entsteht eine Stufe mit leerem Kürzel", async () => {
+    const antwort = await anfrage(admin, "POST", BASIS, { name: "Eichhorn" });
+    expect(antwort.status).toBe(201);
+    const { id } = (await antwort.json()) as { id: string };
+    expect(await stufeZeile(id)).toMatchObject({
+      name: "Eichhorn",
+      kuerzel: "",
+    });
+  });
+
+  test("ein vergebener Name gibt 409, auch in anderer Schreibweise", async () => {
+    await legeStufeAn(admin, { name: "Fuchs" });
+    for (const name of ["Fuchs", " fuchs "]) {
+      const antwort = await anfrage(admin, "POST", BASIS, { name });
+      expect(antwort.status).toBe(409);
+      expect(await antwort.json()).toMatchObject({
+        code: "STUFENNAME_VERGEBEN",
+      });
+    }
+  });
+
+  test("derselbe Name in einer anderen Abteilung ist erlaubt", async () => {
+    const demoAdmin = await legePersonaAn(welt, "demoAdmin");
+    await legeStufeAn(admin, { name: "Wolf" });
+    await legeStufeAn(demoAdmin, { name: "Wolf" });
   });
 
   test("der Demo-Admin legt in der Demo-Abteilung an", async () => {
@@ -190,6 +219,24 @@ describe("POST /api/v1/admin/stufen", () => {
 });
 
 describe("PATCH /api/v1/admin/stufen/:id", () => {
+  test("ein Name, den eine andere Stufe trägt, gibt 409", async () => {
+    await legeStufeAn(admin, { name: "Rover" });
+    const id = await legeStufeAn(admin, { name: "Pio A" });
+    const antwort = await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
+      name: "rover",
+    });
+    expect(antwort.status).toBe(409);
+    expect((await stufeZeile(id)).name).toBe("Pio A");
+  });
+
+  test("die eigene Stufe unter demselben Namen zu speichern ist kein Konflikt", async () => {
+    const id = await legeStufeAn(admin, { name: "Pio B" });
+    const antwort = await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
+      name: "Pio B",
+    });
+    expect(antwort.status).toBe(204);
+  });
+
   test("benennt um und ändert das Kürzel einzeln", async () => {
     const id = await legeStufeAn();
     expect(
@@ -249,24 +296,86 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
 
   test("kein Admin: 403 ohne Änderung", async () => {
     const sl = await legePersonaAn(welt, "slA");
-    const id = await legeStufeAn();
+    const id = await legeStufeAn(admin, { name: "Unverändert" });
     expect(
       (await anfrage(sl, "PATCH", `${BASIS}/${id}`, { name: "Verboten" }))
         .status,
     ).toBe(403);
-    expect((await stufeZeile(id)).name).toBe("Neue Stufe");
+    expect((await stufeZeile(id)).name).toBe("Unverändert");
   });
 });
 
 describe("DELETE /api/v1/admin/stufen/:id", () => {
-  test("gibt es nicht: 404 NICHT_GEFUNDEN, die Stufe bleibt", async () => {
+  const zaehleChats = async () => (await db.select().from(schema.chat)).length;
+
+  test("löscht die leere Stufe samt Gruppenchat und schreibt das Audit-Log", async () => {
     const id = await legeStufeAn();
-    const antwort = await anfrage(admin, "DELETE", `${BASIS}/${id}`);
-    expect(antwort.status).toBe(404);
-    expect(await antwort.json()).toEqual({
-      code: "NICHT_GEFUNDEN",
-      message: "Nicht gefunden",
+    await db.insert(schema.stufenlogo).values({
+      stufeId: id,
+      inhalt: Buffer.from("x"),
     });
+    const antwort = await anfrage(admin, "DELETE", `${BASIS}/${id}`);
+    expect(antwort.status).toBe(204);
+    expect(await stufeZeile(id)).toBeUndefined();
+    expect(
+      await db.select().from(schema.chat).where(eq(schema.chat.stufeId, id)),
+    ).toEqual([]);
+    const [eintrag] = await db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.zielId, id));
+    expect(eintrag).toMatchObject({
+      aktion: "stufe_geloescht",
+      zielTyp: "stufe",
+      akteurId: admin.id,
+      abteilungId: welt.testabteilungId,
+    });
+  });
+
+  test("mit einem Kind (auch inaktiv): 409 STUFE_BELEGT, nichts ändert sich", async () => {
+    const id = await legeStufeAn();
+    await db.insert(schema.kind).values({
+      abteilungId: welt.testabteilungId,
+      vorname: "Test",
+      nachname: "Kind",
+      stufeId: id,
+      inaktivSeit: new Date(),
+    });
+    const chats = await zaehleChats();
+    const antwort = await anfrage(admin, "DELETE", `${BASIS}/${id}`);
+    expect(antwort.status).toBe(409);
+    expect(((await antwort.json()) as { code: string }).code).toBe(
+      "STUFE_BELEGT",
+    );
+    expect(await stufeZeile(id)).toBeDefined();
+    expect(await zaehleChats()).toBe(chats);
+  });
+
+  test("mit Leitung: 409 STUFE_BELEGT", async () => {
+    const id = await legeStufeAn();
+    const leitung = await legePersonaAn(welt, "slA");
+    await db
+      .insert(schema.rolle)
+      .values({ userId: leitung.id!, stufeId: id, typ: "leitung" });
+    const antwort = await anfrage(admin, "DELETE", `${BASIS}/${id}`);
+    expect(antwort.status).toBe(409);
+    expect(await stufeZeile(id)).toBeDefined();
+  });
+
+  test("unbekannte Stufe 404; die Demo-Abteilung erreicht die Stufe der Testabteilung nicht", async () => {
+    expect(
+      (await anfrage(admin, "DELETE", `${BASIS}/${randomUUID()}`)).status,
+    ).toBe(404);
+    const id = await legeStufeAn();
+    const demo = await legePersonaAn(welt, "demoAdmin");
+    expect((await anfrage(demo, "DELETE", `${BASIS}/${id}`)).status).toBe(404);
+    expect(await stufeZeile(id)).toBeDefined();
+  });
+
+  test("kein Admin: 403, die Stufe bleibt", async () => {
+    const id = await legeStufeAn();
+    const sl = await legePersonaAn(welt, "slA");
+    expect((await anfrage(sl, "DELETE", `${BASIS}/${id}`)).status).toBe(403);
     expect(await stufeZeile(id)).toBeDefined();
   });
 });

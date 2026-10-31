@@ -2,6 +2,7 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   STANDARD_LOGO,
   ankreuzen,
+  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -33,12 +34,6 @@ function felder(stufe) {
       maxlength: 100,
       required: true,
     }),
-    kuerzel: feld({
-      label: "Kürzel",
-      wert: stufe?.kuerzel ?? "",
-      maxlength: 20,
-      required: true,
-    }),
     logo: feld({
       label: "Logo (optional)",
       hilfe:
@@ -54,10 +49,7 @@ function felder(stufe) {
 }
 
 function lesen(f) {
-  return {
-    name: f.name.eingabe.value.trim(),
-    kuerzel: f.kuerzel.eingabe.value.trim(),
-  };
+  return { name: f.name.eingabe.value.trim() };
 }
 
 function dialog({ stufe, ctx, neu }) {
@@ -65,12 +57,7 @@ function dialog({ stufe, ctx, neu }) {
   dialogFormular({
     titel: stufe ? "Stufe bearbeiten" : "Stufe anlegen",
     beschreibung: stufe?.name,
-    felder: [
-      f.name.wurzel,
-      f.kuerzel.wurzel,
-      f.logo.wurzel,
-      f.entfernen?.wurzel,
-    ].filter(Boolean),
+    felder: [f.name.wurzel, f.logo.wurzel, f.entfernen?.wurzel].filter(Boolean),
     ok: stufe ? "Speichern" : "Anlegen",
     senden: async () => {
       const body = lesen(f);
@@ -101,34 +88,61 @@ function dialog({ stufe, ctx, neu }) {
   });
 }
 
+function loeschen(stufe, ctx, neu) {
+  bestaetigen({
+    titel: "Stufe löschen",
+    beschreibung: `«${stufe.name}» wird mit Gruppenchat und allen Nachrichten gelöscht. Das lässt sich nicht rückgängig machen. Es geht nur, solange der Stufe keine Kinder oder Leitenden zugewiesen sind.`,
+    ok: "Löschen",
+    aktion: () => anfrage("DELETE", `/api/v1/admin/stufen/${stufe.id}`),
+    danach: () => {
+      neu();
+      ctx.melde(`«${stufe.name}» ist gelöscht.`);
+    },
+  });
+}
+
 function karte(stufe, anzahl, ctx, neu) {
   return el(
     "li",
     { class: "karte stufe-karte" },
-    // Dekorativ: Name und Chip daneben nennen schon alles
-    el("img", {
-      class: "stufe-logo",
-      src: stufe.logoUrl ?? STANDARD_LOGO,
-      alt: "",
-    }),
     el(
       "div",
-      { class: "stufe-text" },
-      el("h2", { class: "name" }, stufe.name),
+      { class: "stufe-kopf" },
+      // Dekorativ: Name und Chip daneben nennen schon alles
+      el("img", {
+        class: "stufe-logo",
+        src: stufe.logoUrl ?? STANDARD_LOGO,
+        alt: "",
+      }),
       el(
-        "ul",
-        { class: "chips" },
-        chip(`Kürzel ${stufe.kuerzel}`, "stufe"),
-        chip(stufe.logoUrl ? "Eigenes Logo" : "Cevi-Logo"),
-        anzahl !== null && chip(anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`),
+        "div",
+        { class: "stufe-text" },
+        el("h2", { class: "name" }, stufe.name),
+        el(
+          "ul",
+          { class: "chips" },
+          chip(stufe.logoUrl ? "Eigenes Logo" : "Cevi-Logo"),
+          anzahl !== null && chip(anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`),
+        ),
       ),
     ),
-    knopf("Bearbeiten", {
-      klein: true,
-      symbol: "bearbeiten",
-      kontext: stufe.name,
-      onclick: () => dialog({ stufe, ctx, neu }),
-    }),
+    el(
+      "div",
+      { class: "stufe-aktionen" },
+      knopf("Bearbeiten", {
+        klein: true,
+        symbol: "bearbeiten",
+        kontext: stufe.name,
+        onclick: () => dialog({ stufe, ctx, neu }),
+      }),
+      knopf("Löschen", {
+        klein: true,
+        art: "gefahr",
+        symbol: "papierkorb",
+        kontext: stufe.name,
+        onclick: () => loeschen(stufe, ctx, neu),
+      }),
+    ),
   );
 }
 

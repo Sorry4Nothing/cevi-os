@@ -1401,7 +1401,8 @@ legend,
   outline-offset: 0;
 }
 
-.feld input[aria-invalid="true"] {
+.feld input[aria-invalid="true"],
+.feld textarea[aria-invalid="true"] {
   border-color: var(--fe);
 }
 
@@ -1462,6 +1463,14 @@ input[type="search"]::-webkit-search-decoration {
 input[type="password"]::-ms-reveal,
 input::-ms-clear {
   display: none;
+}
+
+.feld-fehler {
+  margin: 0;
+  color: var(--fe);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.125rem;
 }
 
 fieldset {
@@ -1640,6 +1649,10 @@ fieldset .feld .auswahl {
   padding: 0 12px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.auswahl-eintrag:hover {
+  background: var(--erhoben);
 }
 
 .auswahl-eintrag.ist-aktiv {
@@ -1992,9 +2005,22 @@ dialog.blatt[open] {
 }
 
 .stufe-karte {
-  flex-direction: row;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+}
+
+.stufe-kopf {
+  display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+}
+
+.stufe-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .stufe-logo {

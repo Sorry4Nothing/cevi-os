@@ -561,7 +561,8 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/stufen": {
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M" }),
+    // Jeder Aufruf braucht einen eigenen Namen: In einer Abteilung ist er eindeutig
+    body: () => ({ name: `Matrix Stufe ${++stufenZaehler}`, kuerzel: "M" }),
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -573,7 +574,20 @@ const MATRIX: Record<string, Zeile> = {
   },
   "PATCH /api/v1/admin/stufen/:id": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}`,
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M" }),
+    body: () => ({ name: `Matrix Stufe ${++stufenZaehler}`, kuerzel: "M" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/stufen/:id": {
+    // Jede Anfrage löscht ihr Ziel; die Antworten für Eltern und SL (403) lassen es stehen
+    urlJeAnfrage: async () => `/api/v1/admin/stufen/${await wegwerfStufeId()}`,
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -731,6 +745,7 @@ let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
 let patchStufeId: string;
+let stufenZaehler = 0;
 let patchKindId: string;
 let bildZielId: string;
 let testBild: Buffer;
@@ -753,6 +768,19 @@ async function wegwerfPersonId(zweiterFaktor = false) {
       .insert(schema.twoFactor)
       .values({ userId: zeile.id, secret: "x", backupCodes: "x" });
   }
+  return zeile.id;
+}
+
+// Wegwerf-Stufe der Testabteilung ohne Kinder und Leitung: Die Löschroute darf sie wegnehmen
+async function wegwerfStufeId() {
+  const [zeile] = await welt.db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Wegwerf Stufe ${randomUUID()}`,
+      kuerzel: "W",
+    })
+    .returning({ id: schema.stufe.id });
   return zeile.id;
 }
 

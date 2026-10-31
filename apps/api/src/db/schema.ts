@@ -158,15 +158,25 @@ export const twoFactor = pgTable(
   ],
 );
 
-// Umbenennbar, aber nicht löschbar: Die API-Rolle hat darauf kein DELETE (Migration 0001)
-export const stufe = pgTable("stufe", {
-  id: id(),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  name: text("name").notNull(),
-  kuerzel: text("kuerzel").notNull(),
-});
+// Löschbar nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT, die API-Rolle hat DELETE seit Migration 0023
+export const stufe = pgTable(
+  "stufe",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    kuerzel: text("kuerzel").notNull(),
+  },
+  (t) => [
+    // Ohne Gross-/Kleinschreibung: «Biber» und «biber» sind dieselbe Stufe
+    uniqueIndex("stufe_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+  ],
+);
 
 // Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo
 export const stufenlogo = pgTable(
