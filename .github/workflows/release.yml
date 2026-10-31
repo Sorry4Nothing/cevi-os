@@ -1,6 +1,6 @@
 name: Release
 
-# Setzt den Release-Tag auf main und baut das Image. Läuft nur von Hand; die Nummer rechnet deploy/naechste-version.sh
+# Setzt den Release-Tag auf main, baut das Image und rollt es nach der Freigabe aus. Läuft nur von Hand; die Nummer rechnet deploy/naechste-version.sh
 on:
   workflow_dispatch:
     inputs:
@@ -14,6 +14,11 @@ on:
         description: Nur um x zu erhöhen oder eine Nummer zu erzwingen, z. B. 1.0.0; ersetzt die Stufe und muss grösser als der letzte Tag sein
         required: false
         type: string
+      ausrollen:
+        description: Nach dem Image ausrollen; die Umgebung production wartet vorher auf eine Freigabe
+        required: true
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -74,3 +79,15 @@ jobs:
     uses: ./.github/workflows/image.yml
     with:
       tag: ${{ needs.tag.outputs.tag }}
+
+  # Die Umgebung production in deploy.yml verlangt die Freigabe einer Person; ihre Secrets gelten nur für diesen Aufruf
+  ausrollen:
+    name: Ausrollen
+    needs: [tag, image]
+    if: inputs.ausrollen
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit
