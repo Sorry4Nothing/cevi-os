@@ -2,14 +2,15 @@
 
 App für eine Cevi-Abteilung: Programme aus dem Google-Kalender, Ja/Nein-Anmeldung und Chat zwischen Eltern und Stufenleitung (iOS und Android).
 
-Dieses Repo ist das Backend. Die Apps entstehen nativ in eigenen Repos: [cevi-os-ios](https://github.com/Sorry4Nothing/cevi-os-ios) mit SwiftUI und [cevi-os-android](https://github.com/Sorry4Nothing/cevi-os-android) mit Jetpack Compose. Push-Nachrichten laufen über Firebase Cloud Messaging (FCM).
+Dieses Repo ist das Backend. Die Apps entstehen nativ in eigenen Repos: [cevi-os-ios](https://github.com/Sorry4Nothing/cevi-os-ios) mit SwiftUI und [cevi-os-android](https://github.com/Sorry4Nothing/cevi-os-android) mit Jetpack Compose. Push-Nachrichten laufen über Firebase Cloud Messaging (FCM). Admins verwalten Personen, Kinder, Stufen und Mitteilungen im Browser unter `/admin`; diese Verwaltung gehört zum Backend.
 
 ## Aufbau
 
 Ein Monorepo mit npm workspaces:
 
-- `apps/api`: das Backend, eine API mit Hono auf Node
-- `docs`: Doku zu Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
+- `apps/api`: das Backend, eine API mit Hono auf Node; unter `apps/api/public` liegt die Verwaltung im Browser
+- `docs`: Doku zu API, Architektur, Sicherheit, Barrierefreiheit, Betrieb und Git-Workflow
+- `postman`: die Postman-Collection, die jede Route der Rechte-Matrix prüft
 - `deploy`: Dateien für den Betrieb auf dem Server
 - `.github`: CI, Dependabot und PR-Vorlage
 - `docker-compose.yml`: PostgreSQL 18 für die Entwicklung
@@ -22,7 +23,7 @@ Voraussetzungen: Node 26 wie in der CI und Docker mit Compose.
 2. Die Datenbank starten, PostgreSQL 18, nur von diesem Rechner aus erreichbar: `docker compose up -d db`
 3. `apps/api/.env.example` nach `apps/api/.env` kopieren. Die Vorlage passt schon zur Datenbank aus `docker-compose.yml` und setzt `BETTER_AUTH_URL` auf `http://localhost:3000`. Nur `BETTER_AUTH_SECRET` fehlt: ein zufälliges Geheimnis mit mindestens 32 Zeichen, zum Beispiel aus `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64'))"`.
 4. Die Migrationen ausführen: `npm run db:migrieren -w apps/api`. Das Skript legt die Tabellen an und vergibt die Rechte der API, als Besitzer der Tabellen mit `MIGRATION_DATABASE_URL` aus `apps/api/.env`. Bei Erfolg meldet es nichts.
-5. Das erste Admin-Konto anlegen (die API muss dafür nicht laufen): `npm run admin:anlegen -w apps/api -- --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Der Befehl legt die Abteilung an und zeigt das Startpasswort genau einmal; mit ihm erfolgt die erste Anmeldung in der App (#16).
+5. Das erste Admin-Konto anlegen (die API muss dafür nicht laufen): `npm run admin:anlegen -w apps/api -- --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Der Befehl legt die Abteilung an und zeigt das Startpasswort genau einmal; mit ihm erfolgt die erste Anmeldung.
 6. Die API starten: `npm run dev -w apps/api`. Das Skript startet sie mit tsx im Watch-Modus: Sie liest `apps/api/.env` und startet bei Änderungen am Code neu. Ihren Start meldet sie nicht, danach steht pro Anfrage eine JSON-Zeile im Terminal.
 7. `http://localhost:3000/health` im Browser öffnen. `ok` heisst: API und Datenbank laufen. `fehler` (Status 503) heisst: Die Datenbank ist nicht erreichbar oder ihre Tabellen fehlen, oder bei einer Abteilung mit Kalender liegt der letzte erfolgreiche Sync mehr als 30 Minuten zurück; den Grund nennt das Log der API. Der Port kommt aus `PORT` in `apps/api/.env`, in der Vorlage 3000.
 
@@ -53,9 +54,12 @@ npm audit --omit=dev --audit-level=high -w apps/api
 
 ## Doku
 
+- [API-Beschreibung](docs/api/openapi.yaml): der Vertrag der API für die Apps (OpenAPI)
+- [Endpunkte und Zugriff](docs/api/endpunkte.md): jede Route mit dem Status je Persona
+- [Endpunkte mit Postman prüfen](docs/api/postman.md): die Collection und ihre lokalen Umgebungen
 - [Architektur](docs/architektur.md): die Teile von Cevi OS und wer mit wem spricht
 - [Git-Workflow](docs/GIT_WORKFLOW.md): Branches, PRs, Commits und Releases
 - [Sicherheit](SECURITY.md): Sicherheitslücken melden
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md): Bedrohungen, Massnahmen und bewusste Verzichte
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte für jeden Bildschirm der App
-- [Betrieb](docs/betrieb.md): Server, Konten, Deploy, Release, Backups, Wiederherstellung, Überwachung, Logs, zweiter Faktor und der Ablauf bei einer Datenpanne
+- [Betrieb](docs/betrieb.md): Server, Konten, Deploy (auch aus GitHub mit Freigabe), Release, Backups, Wiederherstellung, Überwachung, Logs, zweiter Faktor und der Ablauf bei einer Datenpanne
