@@ -14,6 +14,7 @@ import {
   knopf,
   neueId,
   seitenblatt,
+  seitenwahl,
   tabelle,
   tag,
 } from "./dom.js";
@@ -162,6 +163,10 @@ function kinderFelder(kinder, stufen, gewaehlt) {
 function anlegen(daten, ctx, neu) {
   const vorname = feld({ label: "Vorname", maxlength: 100, required: true });
   const nachname = feld({ label: "Nachname", maxlength: 100, required: true });
+  const ceviName = feld({
+    label: "Cevi-Name (optional)",
+    maxlength: 50,
+  });
   const benutzername = feld({
     label: "Benutzername",
     hilfe:
@@ -181,6 +186,7 @@ function anlegen(daten, ctx, neu) {
     felder: [
       vorname.wurzel,
       nachname.wurzel,
+      ceviName.wurzel,
       benutzername.wurzel,
       admin.wurzel,
       rollen.wurzel,
@@ -191,6 +197,7 @@ function anlegen(daten, ctx, neu) {
       anfrage("POST", "/api/v1/admin/personen", {
         vorname: vorname.eingabe.value.trim(),
         nachname: nachname.eingabe.value.trim(),
+        ceviName: ceviName.eingabe.value,
         benutzername: benutzername.eingabe.value.trim(),
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
@@ -321,6 +328,11 @@ function bearbeiten(person, daten, ctx, neu, tr) {
     maxlength: 201,
     required: true,
   });
+  const ceviName = feld({
+    label: "Cevi-Name (optional)",
+    wert: person.ceviName ?? "",
+    maxlength: 50,
+  });
   const admin = ankreuzen({
     label: "Admin-Rechte",
     gewaehlt: person.admin,
@@ -342,6 +354,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
       { class: "abschnitt" },
       el("h3", {}, "Angaben"),
       name.wurzel,
+      ceviName.wurzel,
       el(
         "div",
         { class: "feld" },
@@ -378,6 +391,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
     try {
       await anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {
         name: name.eingabe.value.trim(),
+        ceviName: ceviName.eingabe.value,
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),
@@ -495,7 +509,13 @@ function zeile(person, daten, ctx, neu) {
           "div",
           {},
           el("span", { class: "name" }, person.name, eigenes && " (du)"),
-          el("span", { class: "leise" }, person.benutzername ?? "–"),
+          el(
+            "span",
+            { class: "leise" },
+            [person.ceviName, person.benutzername ?? "–"]
+              .filter(Boolean)
+              .join(" · "),
+          ),
         ),
       ),
     ),
@@ -529,27 +549,33 @@ function zeichne(bereich, ctx, daten, neu) {
   const suchId = neueId("suche");
   const aktualisiere = () => {
     const frage = zustand.frage.trim().toLowerCase();
-    let treffer = 0;
-    for (const e of eintraege) {
-      const sichtbar =
+    treffer = eintraege.filter(
+      (e) =>
         FILTER[zustand.filter](e.person) &&
-        `${e.person.name} ${e.person.benutzername ?? ""}`
+        `${e.person.name} ${e.person.ceviName ?? ""} ${e.person.benutzername ?? ""}`
           .toLowerCase()
-          .includes(frage);
-      e.tr.hidden = !sichtbar;
-      if (sichtbar) treffer++;
-    }
-    zaehler.textContent = `${treffer} von ${daten.personen.length} Personen`;
+          .includes(frage),
+    );
+    const [von, bis] = seiten.fenster(treffer.length);
+    const sichtbar = new Set(treffer.slice(von, bis));
+    for (const e of eintraege) e.tr.hidden = !sichtbar.has(e);
+    zaehler.textContent = `${treffer.length} von ${daten.personen.length} Personen`;
+  };
+  let treffer = [];
+  const seiten = seitenwahl({ beiWechsel: aktualisiere });
+  const vonVorn = () => {
+    seiten.anfang();
+    aktualisiere();
   };
   const suche = el("input", {
     class: "eingabe",
     id: suchId,
     type: "search",
-    placeholder: "Name oder Benutzername",
+    placeholder: "Name, Cevi-Name oder Benutzername",
     autocomplete: "off",
     oninput: () => {
       zustand.frage = suche.value;
-      aktualisiere();
+      vonVorn();
     },
   });
   suche.value = zustand.frage;
@@ -564,7 +590,7 @@ function zeichne(bereich, ctx, daten, neu) {
     ].map((e) => ({ ...e, n: anzahl(e.wert) })),
     beiAenderung: (wert) => {
       zustand.filter = wert;
-      aktualisiere();
+      vonVorn();
     },
   });
   aktualisiere();
@@ -590,11 +616,17 @@ function zeichne(bereich, ctx, daten, neu) {
     ),
     zaehler,
     wurzel,
+    seiten.wurzel,
   );
   // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn kein Dialog den Fokus hält
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.person.id === zustand.fokus);
     zustand.fokus = null;
+    // Steht die Person auf einer späteren Seite, blättert die Liste zu ihr, damit der Fokus eine sichtbare Zeile trifft
+    if (ziel && ziel.tr.hidden) {
+      seiten.zu(treffer.indexOf(ziel));
+      aktualisiere();
+    }
     if (!document.querySelector("dialog[open]")) ziel?.knopf.focus();
   }
 }

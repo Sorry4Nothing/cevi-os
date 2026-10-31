@@ -10,6 +10,7 @@ import {
   LETZTER_ADMIN,
 } from "../../admins.js";
 import { erstelleAuth, platzhalterEmail } from "../../auth.js";
+import { ceviNameFeld } from "../../cevi-name.js";
 import {
   BENUTZERNAME_MAX,
   BENUTZERNAME_MIN,
@@ -70,12 +71,6 @@ const benutzernameFeld = z
   .min(BENUTZERNAME_MIN)
   .max(BENUTZERNAME_MAX)
   .regex(BENUTZERNAME_MUSTER);
-// Leer oder nur Leerraum heisst nicht gesetzt
-const ceviNameFeld = z
-  .string()
-  .trim()
-  .max(50)
-  .transform((wert) => wert || null);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const rollenFeld = z
   .array(
