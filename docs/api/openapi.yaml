@@ -834,7 +834,7 @@ paths:
 
         **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes der Datei, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB
-        (5 242 880 Bytes) und höchstens 50 Millionen Pixel; grössere Bilder verkleinert die App vor dem Senden.
+        (5 242 880 Bytes) und höchstens 16 Millionen Pixel; grössere Bilder verkleinert die App vor dem Senden.
         Wählt die App vorher einen quadratischen Ausschnitt, schneidet der Server nicht noch einmal die Mitte zu.
 
         **Verarbeitung.** Der Server liest das Bild, dreht es nach der EXIF-Angabe, schneidet es quadratisch aus der
@@ -2333,7 +2333,7 @@ paths:
 
         **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB und höchstens
-        50 Millionen Pixel.
+        16 Millionen Pixel.
 
         **Verarbeitung.** Der Server dreht das Bild nach der EXIF-Angabe, verkleinert es auf höchstens 512 × 512 Pixel
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als
