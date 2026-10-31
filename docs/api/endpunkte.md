@@ -13,7 +13,6 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /konto-loeschen`                         | Hinweis zum Löschen des Kontos als HTML-Seite         | **200** alle      |
 | `GET /support`                                | Support-Seite als HTML-Seite                          | **200** alle      |
 | `GET /admin`                                  | Verwaltung im Browser als HTML-Seite                  | **200** alle      |
-| `GET /admin/abteilung.js`                     | Skript der Verwaltung – Bereich Abteilung             | **200** alle      |
 | `GET /admin/admin.css`                        | Stilvorlage der Verwaltung                            | **200** alle      |
 | `GET /admin/admin.js`                         | Hauptskript der Verwaltung (Anmeldung und Navigation) | **200** alle      |
 | `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API         | **200** alle      |
@@ -61,17 +60,10 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /api/v1/programme/:id/teilnahmen`         | Übersicht der Teilnahmen eines Programms lesen       | **200** admin, adminOhneZweitenFaktor, slA, leitendeA, leitendeAElternB, elternA<br>**401** deaktiviert, ohneLogin<br>**403** slB, mussPasswortAendern<br>**404** leitendeB, elternB, demoAdmin, demoEltern |
 | `PUT /api/v1/programme/:id/leitung`            | Eigene Anmeldung als Leitung melden oder ändern      | **204** slA, leitendeA, leitendeAElternB<br>**401** deaktiviert, ohneLogin<br>**403** admin, adminOhneZweitenFaktor, slB, elternA, mussPasswortAendern<br>**404** leitendeB, elternB, demoAdmin, demoEltern |
 
-## App: hilfe
-
-| Route               | Zweck                                                    | Status je Persona                                                                                                                                                                                 |
-| ------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/hilfe` | Hilfetext mit den Vertrauenspersonen der Abteilung lesen | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
-
 ## Verwaltung
 
 | Route                                                          | Zweck                                                          | Status je Persona                                                                                                                                                                                           |
 | -------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PATCH /api/v1/admin/abteilung`                                | Vertrauenspersonen der Abteilung ändern                        | **204** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `GET /api/v1/admin/system`                                     | Zustand der API und Bestand der Abteilung                      | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `GET /api/v1/admin/system/requests`                            | Zahlen zu den Anfragen an die API                              | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `GET /api/v1/admin/personen`                                   | Personen, Stufen und Kinder der Abteilung für die Verwaltung   | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |

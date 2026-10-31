@@ -65,7 +65,6 @@ const ICONS = {
     ["rect", { x: 3, y: 16, width: 8, height: 5, rx: 2 }],
   ],
   meldungen: ["M5 21V4", "M5 4h12l-2.5 4L17 12H5"],
-  abteilung: ["M3 21h18", "M5 21V9l7-5 7 5v12", "M10 21v-6h4v6"],
   bearbeiten: ["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"],
   plus: ["M12 5v14M5 12h14"],
   haken: ["m5 12.5 4.5 4.5L19 7.5"],

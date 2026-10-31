@@ -116,7 +116,7 @@ export const KATEGORIEN = {
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
-      "Die Abteilung, ihre Stufen, die Anbindung an den Kalender und der Text der Hilfe-Seite.",
+      "Die Abteilung, ihre Stufen und die Anbindung an den Kalender.",
     frist: "Bis die Leitung die Angaben ändert oder löscht.",
     apple: [],
     google: [],
@@ -140,7 +140,6 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "id",
       "name",
       "google_kalender_id",
-      "vertrauenspersonen",
       "sync_ok_am",
       "sync_fehler",
     ],

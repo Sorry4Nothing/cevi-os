@@ -117,21 +117,6 @@ paths:
             text/html:
               schema:
                 type: string
-  /admin/abteilung.js:
-    get:
-      operationId: getAdminAbteilungSkript
-      summary: Skript der Verwaltung – Bereich Abteilung
-      tags:
-        - Allgemein
-      security: []
-      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
-      responses:
-        "200":
-          description: Datei (`text/javascript; charset=UTF-8`).
-          content:
-            text/javascript:
-              schema:
-                type: string
   /admin/admin.css:
     get:
       operationId: getAdminStilvorlage
@@ -990,36 +975,6 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-  /api/v1/hilfe:
-    get:
-      operationId: hilfeLesen
-      summary: Hilfetext mit den Vertrauenspersonen der Abteilung lesen
-      tags:
-        - Hilfe
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      description: |
-        Liefert den Text der Hilfe-Seite (Vertrauenspersonen der eigenen Abteilung). Die Abteilung kommt aus der
-        Sitzung. Ohne Eintrag ist `vertrauenspersonen` `null`. Die Admins pflegen den Text über
-        `PATCH /api/v1/admin/abteilung`.
-
-        **Rollen.** Alle angemeldeten Personen der Abteilung (Eltern, Leitende, Stufenleitung, Admins), ausser bei
-        offenem Pflichtwechsel des Passworts (403). Statuscodes: 200, 401, 403, 404 (Abteilung nicht gefunden), 426.
-      responses:
-        "200":
-          description: Der Hilfetext oder `null`.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HilfeAntwort"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
   /api/v1/stufen:
@@ -2180,39 +2135,6 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/admin/abteilung:
-    patch:
-      operationId: aendereAdminAbteilung
-      summary: Vertrauenspersonen der Abteilung ändern
-      description: |
-        Nur Admins. Setzt den Text für die Hilfe-Seite. Ein leerer Text (nach dem Kürzen von Leerraum) löscht den Eintrag. Ein unveränderter Text ist ein No-op.
-
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Text über 2000 Zeichen). 403 für Nicht-Admins. 404, falls die Abteilung der Sitzung nicht existiert.
-      tags:
-        - Verwaltung
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminAbteilungAendern"
-      responses:
-        "204":
-          description: Gespeichert.
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/system:
     get:
       operationId: holeAdminSystem
@@ -2869,18 +2791,6 @@ components:
             - "null"
           maxLength: 30
           description: Eigene Telefonnummer, nur für SL; leerer Text oder `null` entfernt sie.
-    HilfeAntwort:
-      type: object
-      required:
-        - vertrauenspersonen
-      properties:
-        vertrauenspersonen:
-          type:
-            - string
-            - "null"
-          description: |
-            Freier Text der Abteilung zu den Vertrauenspersonen (Funktion, Erreichbarkeit); `null`, wenn die Admins
-            nichts eingetragen haben. Die Admins speichern höchstens 2000 Zeichen.
     StufenAntwortEintrag:
       type: object
       required:
@@ -4031,16 +3941,6 @@ components:
           items:
             type: string
             format: uuid
-    AdminAbteilungAendern:
-      type: object
-      required:
-        - vertrauenspersonen
-      additionalProperties: false
-      properties:
-        vertrauenspersonen:
-          type: string
-          maxLength: 2000
-          description: Text für die Hilfe-Seite. Leerraum am Rand wird entfernt; ein leerer Text löscht den Eintrag.
     AdminAngelegt:
       type: object
       required:

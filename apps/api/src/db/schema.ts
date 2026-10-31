@@ -31,8 +31,6 @@ export const abteilung = pgTable("abteilung", {
   name: text("name").notNull(),
   // Steht nur in der Datenbank, nie im Repo
   googleKalenderId: text("google_kalender_id"),
-  // Text für die Hilfe-Seite
-  vertrauenspersonen: text("vertrauenspersonen"),
   syncOkAm: zeitpunkt("sync_ok_am"),
   syncFehler: text("sync_fehler"),
 });

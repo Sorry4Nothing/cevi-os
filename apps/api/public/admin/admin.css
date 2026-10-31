@@ -1591,11 +1591,6 @@ fieldset .feld .auswahl {
   border-radius: 16px;
 }
 
-.code-feld:has(input:focus-visible) {
-  outline: 3px solid var(--fokus);
-  outline-offset: 6px;
-}
-
 .code-feld input {
   position: absolute;
   inset: 0;

@@ -134,6 +134,13 @@
       "when": 1793401658045,
       "tag": "0018_cevi_name",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793411455064,
+      "tag": "0019_vertrauenspersonen_entfernen",
+      "breakpoints": true
     }
   ]
 }

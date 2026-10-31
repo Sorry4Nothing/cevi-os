@@ -80,7 +80,6 @@ const MATRIX: Record<string, Zeile> = {
   "GET /support": { erwartet: alle(200) },
   // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
   "GET /admin": { erwartet: alle(200) },
-  "GET /admin/abteilung.js": { erwartet: alle(200) },
   "GET /admin/admin.css": { erwartet: alle(200) },
   "GET /admin/admin.js": { erwartet: alle(200) },
   "GET /admin/api.js": { erwartet: alle(200) },
@@ -279,27 +278,6 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
-    },
-  },
-  // Hilfe (#54): Alle angemeldeten Personen lesen den Text ihrer Abteilung; Details in test/hilfe.test.ts
-  "GET /api/v1/hilfe": {
-    erwartet: {
-      ...alle(200),
-      mussPasswortAendern: 403,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
-  // Nur Admins; der Text ist stets derselbe, darum schreibt nur die erste Anfrage je Abteilung und die übrigen sind No-ops
-  "PATCH /api/v1/admin/abteilung": {
-    body: () => ({ vertrauenspersonen: "Platzhalter für die Matrix" }),
-    erwartet: {
-      ...alle(403),
-      admin: 204,
-      adminOhneZweitenFaktor: 403,
-      demoAdmin: 204,
-      deaktiviert: 401,
-      ohneLogin: 401,
     },
   },
   // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
