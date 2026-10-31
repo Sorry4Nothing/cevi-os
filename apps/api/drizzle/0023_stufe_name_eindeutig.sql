@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "stufe_name_pro_abteilung" ON "stufe" USING btree ("abteilung_id",lower("name"));

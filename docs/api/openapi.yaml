@@ -2263,7 +2263,7 @@ paths:
       description: |
         Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins. 409 mit Code `STUFENNAME_VERGEBEN`, wenn es in der Abteilung schon eine Stufe mit diesem Namen gibt (Gross-/Kleinschreibung zählt nicht).
       tags:
         - Verwaltung
       parameters:
@@ -2287,6 +2287,12 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt in der Abteilung schon eine Stufe mit diesem Namen (`STUFENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -2298,7 +2304,7 @@ paths:
       description: |
         Nur Admins, nur Stufen der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `STUFENNAME_VERGEBEN`, wenn der neue Name schon vergeben ist.
       tags:
         - Verwaltung
       parameters:
@@ -2321,6 +2327,47 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Es gibt in der Abteilung schon eine Stufe mit diesem Namen (`STUFENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminStufe
+      summary: Stufe löschen
+      description: |
+        Nur Admins, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
+
+        Eine Stufe mit zugewiesenen Kindern (auch inaktiven) oder Leitenden lässt sich nicht löschen: Sie müssen zuerst einer anderen Stufe zugewiesen oder entfernt werden.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `STUFE_BELEGT`, wenn der Stufe noch Kinder oder Leitende zugewiesen sind.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminStufeId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Stufe sind noch Kinder oder Leitende zugewiesen (`STUFE_BELEGT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -3847,6 +3894,8 @@ components:
             - EIGENES_KONTO
             - EIGENER_ZWEITER_FAKTOR
             - KEIN_ZWEITER_FAKTOR
+            - STUFENNAME_VERGEBEN
+            - STUFE_BELEGT
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -4108,7 +4157,6 @@ components:
       type: object
       required:
         - name
-        - kuerzel
       additionalProperties: false
       properties:
         name:
@@ -4120,7 +4168,7 @@ components:
           type: string
           minLength: 1
           maxLength: 20
-          description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
+          description: Freiwillig; ohne Angabe bleibt das Kürzel leer und der Kalender ordnet nur über den Namen zu.
     AdminStufeAendern:
       type: object
       description: Alle Felder optional; ein leeres Objekt ist erlaubt (No-op).

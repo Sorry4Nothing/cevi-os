@@ -67,6 +67,7 @@ const ICONS = {
   meldungen: ["M5 21V4", "M5 4h12l-2.5 4L17 12H5"],
   bearbeiten: ["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"],
   plus: ["M12 5v14M5 12h14"],
+  papierkorb: ["M4 7h16", "M9 7V4h6v3", "M6 7l1 13h10l1-13"],
   haken: ["m5 12.5 4.5 4.5L19 7.5"],
   uhr: [["circle", { cx: 12, cy: 12, r: 9 }], "M12 7v5l3 2"],
   stern: [
@@ -629,6 +630,43 @@ export function gruppe(legende, inhalt, { scrollen = false } = {}) {
   );
 }
 
+// Leere Pflichtfelder bekommen die Meldung direkt unter dem Feld (nicht nur Farbe) und den Fokus; true, wenn eines fehlt
+function pruefePflichtfelder(formular) {
+  let erstes = null;
+  for (const eingabe of formular.querySelectorAll(
+    "input[required], textarea[required]",
+  )) {
+    const wurzel = eingabe.closest(".feld");
+    wurzel?.querySelector(".feld-fehler")?.remove();
+    eingabe.removeAttribute("aria-invalid");
+    if (eingabe.value.trim() !== "") continue;
+    const meldung = el(
+      "p",
+      { class: "feld-fehler", id: `${eingabe.id}-fehler`, role: "alert" },
+      "Bitte ausfüllen.",
+    );
+    wurzel?.append(meldung);
+    eingabe.setAttribute("aria-invalid", "true");
+    eingabe.setAttribute(
+      "aria-describedby",
+      [eingabe.getAttribute("aria-describedby"), meldung.id]
+        .filter(Boolean)
+        .join(" "),
+    );
+    eingabe.addEventListener(
+      "input",
+      () => {
+        eingabe.removeAttribute("aria-invalid");
+        meldung.remove();
+      },
+      { once: true },
+    );
+    erstes ??= eingabe;
+  }
+  erstes?.focus();
+  return erstes !== null;
+}
+
 // Liefert den Dialog-Inhalt in der Reihenfolge: Titel, Beschreibung, Felder, Fehler, Knöpfe
 // senden() darf werfen; die Meldung erscheint im Dialog, er bleibt offen
 export function dialogFormular({
@@ -676,6 +714,7 @@ export function dialogFormular({
   formular.addEventListener("submit", async (ereignis) => {
     ereignis.preventDefault();
     fehler.hidden = true;
+    if (pruefePflichtfelder(formular)) return;
     abbrechen.disabled = bestaetigen.disabled = true;
     try {
       const ergebnis = await senden();
