@@ -47,6 +47,12 @@ const app = erstelleApp({
   auth,
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
+  // Eine Attrappe statt firebase-admin: Ohne Push-Dienst antwortet die Mitteilung mit 503, und kein Test der Matrix soll ins Netz gehen
+  fcm: {
+    sendEach: async (nachrichten) => ({
+      responses: nachrichten.map(() => ({ success: true })),
+    }),
+  },
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -88,6 +94,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /admin/system.js": { erwartet: alle(200) },
@@ -598,6 +605,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  // Mitteilung per Push (#240): nur Admins; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
+  "POST /api/v1/admin/mitteilungen": {
+    body: () => ({ titel: "Matrix-Mitteilung", empfaenger: "alle" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   "GET /api/v1/admin/kinder": {

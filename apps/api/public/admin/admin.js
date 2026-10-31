@@ -1,6 +1,7 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
 import * as kinder from "./kinder.js";
+import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
@@ -25,6 +26,13 @@ const BEREICHE = [
   ],
   ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
   ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
+  [
+    "mitteilungen",
+    "Mitteilungen",
+    mitteilungen,
+    "glocke",
+    "Push-Mitteilung an Eltern und Leitende senden.",
+  ],
   [
     "zeitregeln",
     "Erinnerungen",

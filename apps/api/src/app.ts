@@ -13,6 +13,7 @@ import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
+import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
@@ -171,6 +172,10 @@ export function erstelleApp({
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
+      .route(
+        "/api/v1/admin/mitteilungen",
+        erstelleMitteilungenRouten({ db, fcm }),
+      )
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken }),
