@@ -1405,6 +1405,65 @@ legend,
   border-color: var(--fe);
 }
 
+/* Dateifeld: der Auswahlknopf sieht aus wie ein .knopf, nicht wie der Browser-Standard */
+.feld input[type="file"] {
+  min-height: 0;
+  padding: 5px; /* Platz für den Fokusring des Knopfs, sonst schneidet das Feld ihn ab */
+  background: none;
+  border: 0;
+  color: var(--leise);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  cursor: pointer;
+}
+
+.feld input[type="file"]:focus-visible {
+  outline: none;
+}
+
+.feld input[type="file"]:focus-visible::file-selector-button {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.feld input[type="file"]::file-selector-button {
+  min-height: 36px;
+  margin: 0 12px 0 0;
+  padding: 0 16px;
+  background: transparent;
+  color: var(--text);
+  border: 2px solid var(--rand);
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.feld input[type="file"]:hover::file-selector-button {
+  background: var(--erhoben);
+}
+
+/* Eigene Bedienung statt der Zusatzknöpfe des Browsers (Zahlpfeile, «×» im Suchfeld, Auge im Passwortfeld) */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button,
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="password"]::-ms-reveal,
+input::-ms-clear {
+  display: none;
+}
+
 fieldset {
   display: flex;
   flex-direction: column;
@@ -1743,6 +1802,10 @@ dialog .feld input:not([type="checkbox"], [type="radio"], [type="hidden"]),
 dialog .feld textarea,
 .blatt .eingabe {
   background: var(--surface);
+}
+
+dialog .feld input[type="file"] {
+  background: none;
 }
 
 dialog .wahl input {
