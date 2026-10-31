@@ -34,6 +34,20 @@ Jedes Release rollt `deploy/deploy.sh vX.Y.Z` aus, nach `git fetch --tags && git
 
 `deploy/Caddyfile` liegt nur auf dem Server und folgt der Vorlage nicht von selbst. Ändert sich `deploy/Caddyfile.example` in einem Release, die Änderung von Hand nach `deploy/Caddyfile` übernehmen (die Domain bleibt) und in `deploy/` Caddy neu starten: `docker compose -f docker-compose.prod.yml restart caddy`. Mit #220 kamen HSTS und die Sicherheits-Kopfzeilen dazu; ein Server, der vorher eingerichtet wurde, braucht diesen Schritt. Prüfen mit `curl -sI https://<Domain>/health`: Die Antwort zeigt `strict-transport-security`, aber keine Zeile `server`.
 
+### Deploy aus GitHub
+
+Statt von Hand rollt der Workflow «Deploy» ([`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml)) einen Tag aus, nachdem eine Person ihn in GitHub freigegeben hat (#252). Er prüft, dass der Tag `vX.Y.Z` heisst, auf `main` liegt und sein Image im GHCR existiert, und verbindet sich dann per SSH. Der Server führt für diesen Schlüssel nur [`deploy/ssh-deploy.sh`](../deploy/ssh-deploy.sh) aus: Es nimmt den Tag als einziges Argument, checkt ihn aus und startet `deploy/deploy.sh vX.Y.Z`. Der Ablauf auf dem Server bleibt derselbe wie von Hand.
+
+Einrichtung, einmal:
+
+1. Auf dem Server ein eigenes Schlüsselpaar nur für den Deploy erzeugen: `ssh-keygen -t ed25519 -N "" -C cevi-os-deploy -f cevi-os-deploy`. Den öffentlichen Teil in `~/.ssh/authorized_keys` des Deploy-Benutzers eintragen, in einer Zeile mit festem Befehl: `restrict,command="<Pfad des Checkouts>/deploy/ssh-deploy.sh" ssh-ed25519 AAAA… cevi-os-deploy`. `restrict` schaltet Terminal, Port- und Agent-Weiterleitung ab. Der private Teil kommt nur in das Secret und wird danach vom Server gelöscht.
+2. Der Deploy-Benutzer muss `deploy/deploy.sh` ohne `sudo` ausführen können: Docker-Gruppe, Leserecht auf `deploy/secrets/` (siehe Schritt 3 oben) und ein Checkout, in dem er `git fetch` und `git checkout` ausführen darf.
+3. In GitHub unter Settings → Environments die Umgebung `production` anlegen. «Required reviewers»: die Person, die freigibt; «Prevent self-review» ist nur sinnvoll, wenn eine zweite Person freigibt. «Deployment branches»: nur `main`, sonst könnte ein Branch den Workflow ändern.
+4. In der Umgebung `production` vier Secrets setzen: `DEPLOY_HOST` (Name oder Adresse des Servers), `DEPLOY_USER`, `DEPLOY_SSH_KEY` (der private Schlüssel) und `DEPLOY_HOST_KEY` (eine Zeile für `known_hosts`, aus `ssh-keyscan -t ed25519 <Host>` auf dem Server selbst geholt, nicht aus dem Internet). Der Workflow verbindet sich nur mit diesem Hostschlüssel.
+5. Die Firewall des Servers lässt SSH aus dem Internet zu, oder aus den Adressen der GitHub-Runner (die Liste steht unter `https://api.github.com/meta`, Feld `actions`, und ändert sich).
+
+Ablauf: Tag setzen, warten bis «Image» grün ist, dann unter Actions → Deploy → Run workflow den Tag eintragen und freigeben. Der Lauf zeigt die Ausgabe von `deploy.sh`; sie enthält keine Passwörter. Ein Schlüssel wird rotiert, indem man ein neues Paar erzeugt, die Zeile in `authorized_keys` ersetzt und das Secret setzt.
+
 Das erste Admin-Konto legt die CLI im laufenden API-Container an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Sie zeigt das Startpasswort genau einmal. Immer `exec`, nie `run`: Die Ausgabe von `run` landet für 14 Tage im journald (siehe «Logs»), die von `exec` in keinem Log.
 
 ## Release
@@ -43,7 +57,7 @@ Ein Release der API ist ein Tag `vX.Y.Z` auf `main`; die Nummer steigt nur. Die 
 1. Release-PR von `develop` nach `main`, gemergt mit «Create a merge commit» ([GIT_WORKFLOW.md](GIT_WORKFLOW.md) sagt warum).
 2. Tag von Hand auf dem Merge-Commit, annotiert: `git fetch origin`, dann `git tag -a vX.Y.Z -m "Release X.Y.Z" origin/main` und `git push origin vX.Y.Z`. Kein Workflow erzeugt Tags.
 3. Warten, bis der Workflow «Image» ([`.github/workflows/image.yml`](../.github/workflows/image.yml)) grün ist: Er prüft, dass der Tag `vX.Y.Z` heisst, baut das API-Image und legt es als `ghcr.io/sorry4nothing/cevi-os-api:vX.Y.Z` in GHCR ab. Ein falscher Tag baut kein Image.
-4. Auf dem Server ausrollen: den Tag auschecken, dann `deploy/deploy.sh vX.Y.Z` (Backup, Migration, Neustart, Portprüfung).
+4. Auf dem Server ausrollen: Workflow «Deploy» starten und freigeben (siehe «Deploy aus GitHub»), oder von Hand den Tag auschecken und `deploy/deploy.sh vX.Y.Z` ausführen (Backup, Migration, Neustart, Portprüfung).
 
 Vor dem Store-Release einer App läuft die «Release-Checkliste» unten.
 
