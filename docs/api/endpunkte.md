@@ -18,6 +18,7 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /admin/admin.js`                         | Hauptskript der Verwaltung (Anmeldung und Navigation) | **200** alle      |
 | `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API         | **200** alle      |
 | `GET /admin/dom.js`                           | Skript der Verwaltung – Bausteine der Oberfläche      | **200** alle      |
+| `GET /admin/favicon.svg`                      | Symbol der Verwaltung im Browser-Tab                  | **200** alle      |
 | `GET /admin/kinder.js`                        | Skript der Verwaltung – Bereich Kinder                | **200** alle      |
 | `GET /admin/personen.js`                      | Skript der Verwaltung – Bereich Personen              | **200** alle      |
 | `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                | **200** alle      |
