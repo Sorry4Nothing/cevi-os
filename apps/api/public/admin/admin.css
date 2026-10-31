@@ -1914,30 +1914,6 @@ dialog.blatt[open] {
   gap: 16px;
 }
 
-.stufe-nr {
-  display: inline-flex;
-  flex: none;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  background: var(--blau-f);
-  color: var(--auf-blau-f);
-  border-radius: 12px;
-}
-
-.stufe-nr .mini {
-  font-weight: 700;
-  letter-spacing: 0.06em;
-}
-
-.stufe-nr-zahl {
-  font-size: 1.25rem;
-  line-height: 1.375rem;
-  font-weight: 800;
-}
-
 .stufe-logo {
   flex: none;
   width: 56px;

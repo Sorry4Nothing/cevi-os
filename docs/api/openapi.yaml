@@ -761,7 +761,7 @@ paths:
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
 
-        `stufen` enthält die Stufen der Rollen und der aktiven Kinder (ohne Doppelte), nach Reihenfolge.
+        `stufen` enthält die Stufen der Rollen und der aktiven Kinder (ohne Doppelte), nach Name.
         Inaktive Kinder und Kinder anderer Abteilungen fehlen.
 
         **Einzige Route unter `/api/v1`, die bei offenem Pflichtwechsel des Passworts (`mussPasswortAendern: true`)
@@ -1001,7 +1001,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Liefert alle Stufen der eigenen Abteilung, sortiert nach `reihenfolge`, dann `name`, dann `id`.
+        Liefert alle Stufen der eigenen Abteilung, sortiert nach `name`, dann `id`.
         Stufen tragen keine Personendaten. Die App braucht sie für «Stufen wählen» und die Verwaltung.
 
         **Rollen.** Alle angemeldeten Personen, ausser bei offenem Pflichtwechsel des Passworts (403).
@@ -1742,7 +1742,7 @@ paths:
         Admins und Leitende ohne SL-Rolle sind keine Mitglieder; für sie ist die Liste leer (200, `chats: []`).
         Wer in einer Stufe SL ist, nimmt dort nur als SL teil.
 
-        Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Reihenfolge der Stufe, dann nach Name des Elternteils.
+        Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Name der Stufe, dann nach Name des Elternteils.
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
         `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (vor dem Beitritt geschriebene) Nachrichten zählen nicht.
@@ -1921,7 +1921,7 @@ paths:
       operationId: listeAdminPersonen
       summary: Personen, Stufen und Kinder der Abteilung für die Verwaltung
       description: |
-        Nur Admins. Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Reihenfolge) und alle Kinder (nach Nachname, Vorname) für den Rollen-Editor.
+        Nur Admins. Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und alle Kinder (nach Nachname, Vorname) für den Rollen-Editor.
         Enthält nie E-Mail, Telefon, Sperrgrund, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors.
 
         Statuscodes: 200 bei Erfolg. 403, wenn die Person kein Admin ist, wenn ein Admin noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Admin-Routen) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
@@ -2262,7 +2262,7 @@ paths:
       description: |
         Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen, Reihenfolge ausserhalb 1 bis 999). 403 für Nicht-Admins.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins.
       tags:
         - Verwaltung
       parameters:
@@ -2920,7 +2920,7 @@ components:
             $ref: "#/components/schemas/IchRolle"
         stufen:
           type: array
-          description: Die Stufen der Rollen und der aktiven Kinder, nach Reihenfolge, ohne Doppelte.
+          description: Die Stufen der Rollen und der aktiven Kinder, nach Name, ohne Doppelte.
           items:
             $ref: "#/components/schemas/IchStufe"
         kinder:
@@ -2950,7 +2950,6 @@ components:
         - id
         - name
         - kuerzel
-        - reihenfolge
       properties:
         id:
           type: string
@@ -2961,9 +2960,6 @@ components:
         kuerzel:
           type: string
           example: A
-        reihenfolge:
-          type: integer
-          description: Sortierung der Stufen, aufsteigend.
         logoUrl:
           type:
             - string
@@ -3918,7 +3914,7 @@ components:
           description: Ende der Gültigkeit des Startpassworts; null, wenn keines gesetzt ist.
         rollen:
           type: array
-          description: Stufenrollen, nach Reihenfolge der Stufe.
+          description: Stufenrollen, nach Name der Stufe.
           items:
             $ref: "#/components/schemas/AdminRolle"
         elternteilVon:
@@ -3982,7 +3978,7 @@ components:
             $ref: "#/components/schemas/AdminPerson"
         stufen:
           type: array
-          description: Nach Reihenfolge sortiert.
+          description: Nach Name sortiert.
           items:
             $ref: "#/components/schemas/AdminStufe"
         kinder:
@@ -4112,7 +4108,6 @@ components:
       required:
         - name
         - kuerzel
-        - reihenfolge
       additionalProperties: false
       properties:
         name:
@@ -4125,10 +4120,6 @@ components:
           minLength: 1
           maxLength: 20
           description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
-        reihenfolge:
-          type: integer
-          minimum: 1
-          maximum: 999
     AdminStufeAendern:
       type: object
       description: Alle Felder optional; ein leeres Objekt ist erlaubt (No-op).
@@ -4142,10 +4133,6 @@ components:
           type: string
           minLength: 1
           maxLength: 20
-        reihenfolge:
-          type: integer
-          minimum: 1
-          maximum: 999
     AdminKind:
       type: object
       required:

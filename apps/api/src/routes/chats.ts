@@ -109,7 +109,7 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           .leftJoin(eltern, eq(eltern.id, chat.elternUserId))
           .where(eq(mitglieder.userId, person.id))
           // Gruppenchats vor Einzelchats («stufe» sortiert nach «direkt»), dann nach Stufe und Elternteil
-          .orderBy(desc(chat.typ), stufe.reihenfolge, eltern.name, chat.id);
+          .orderBy(desc(chat.typ), stufe.name, eltern.name, chat.id);
         // Fremde, sichtbare Nachrichten nach gelesen_bis; ohne Zeile ist alles ungelesen, was die Person sehen darf
         // shortcut: Der Zähler wird bei jedem Abruf der Chatliste neu gezählt und die App fragt per Polling nach (Liste alle 30 s, offener Chat alle 5 s); auf SSE oder WebSocket umstellen, erst wenn Polling spürbar stört
         const n = sichtbareNachrichten(db, person);

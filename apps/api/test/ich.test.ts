@@ -93,7 +93,7 @@ describe("GET /api/v1/ich", () => {
       pushChat: true,
       pushProgramme: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
-      // Die Stufen der Rollen und der Kinder, nach reihenfolge
+      // Die Stufen der Rollen und der Kinder, nach Name
       stufen: [
         { id: welt.stufeAId, name: "Stufe A", kuerzel: "A" },
         { id: welt.stufeBId, name: "Stufe B", kuerzel: "B" },
@@ -150,7 +150,6 @@ describe("GET /api/v1/ich", () => {
         abteilungId: welt.testabteilungId,
         name: "Stufe C",
         kuerzel: "C",
-        reihenfolge: 3,
       })
       .returning();
     const [inaktiv] = await db

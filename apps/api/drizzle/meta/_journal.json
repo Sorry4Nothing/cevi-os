@@ -148,6 +148,13 @@
       "when": 1793412090851,
       "tag": "0020_stufenlogo",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793451826856,
+      "tag": "0021_stufe_reihenfolge_entfernen",
+      "breakpoints": true
     }
   ]
 }
