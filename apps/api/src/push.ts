@@ -7,7 +7,7 @@ import { log } from "./log.js";
 
 // Bewusst ohne Textfeld: Ein Push trägt nie Nachrichtentext oder Namen, nur den Titel und Typ und ID für den Deep Link
 export type Push = {
-  typ: "chat" | "programm" | "person";
+  typ: "chat" | "programm" | "person" | "mitteilung";
   id: string;
   titel: string;
 };
@@ -29,7 +29,13 @@ const ABGEMELDET = [
 ];
 
 // Kein Kanal für «person»: #42 legt nur chat und programme an, ein Kanal, den das Gerät nicht kennt, zeigt den Push nicht, und ein fremder schaltete ihn mit Chat oder Programm stumm
-const KANAL = { chat: "chat", programm: "programme", person: undefined };
+const KANAL = {
+  chat: "chat",
+  programm: "programme",
+  person: undefined,
+  // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
+  mitteilung: "mitteilungen",
+};
 
 type Fehler = { code?: unknown; cause?: { code?: unknown } };
 
