@@ -57,7 +57,9 @@ html {
 
 body {
   margin: 0;
-  background: var(--surface);
+  /* Blasses Cevi-Logo mittig hinter allen Flächen; bleibt beim Scrollen stehen */
+  background: var(--surface) url("hintergrund.svg") no-repeat center /
+    min(70vmin, 720px) fixed;
   color: var(--text);
   font-family: var(--schrift);
   font-size: 1rem;
