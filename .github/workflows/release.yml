@@ -1,7 +1,9 @@
 name: Release
 
-# Setzt den Release-Tag auf main, baut das Image und rollt es nach der Freigabe aus. Läuft nur von Hand; die Nummer rechnet deploy/naechste-version.sh
+# Setzt den Release-Tag auf main, baut das Image und rollt es nach der Freigabe aus. Läuft bei jedem Push auf main (Stufe minor, ausrollen) und von Hand; die Nummer rechnet deploy/naechste-version.sh
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       stufe:
@@ -32,7 +34,7 @@ jobs:
     name: Tag setzen
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Nur main kann released werden
+    # Nur main kann released werden; der Tag liegt auf dem Commit, der den Lauf auslöst, nicht auf einem späteren Kopf
     if: github.ref == 'refs/heads/main'
     # contents: write hat allein dieser Job
     permissions:
@@ -42,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           fetch-tags: true
           persist-credentials: false
@@ -50,7 +52,8 @@ jobs:
       - name: Nummer berechnen
         id: nummer
         env:
-          STUFE: ${{ inputs.stufe }}
+          # Beim Push fehlen die Eingaben: Dann gilt minor ohne erzwungene Version
+          STUFE: ${{ inputs.stufe || 'minor' }}
           VERSION: ${{ inputs.version }}
         run: |
           letzter=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1 || true)
@@ -84,7 +87,7 @@ jobs:
   ausrollen:
     name: Ausrollen
     needs: [tag, image]
-    if: inputs.ausrollen
+    if: github.event_name == 'push' || inputs.ausrollen
     permissions:
       contents: read
     uses: ./.github/workflows/deploy.yml

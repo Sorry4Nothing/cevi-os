@@ -35,7 +35,7 @@ test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () =
     PORT: 3000,
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
-    ECKDATEN_BASIS_URL: "https://cevi-staefa-hombi.ch",
+    ECKDATEN_BASIS_URL: "https://www.cevi-staefa-hombi.ch",
     VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
   });
