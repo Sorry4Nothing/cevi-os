@@ -256,7 +256,6 @@ describe("Nachrichten senden und lesen", () => {
         abteilungId: welt.testabteilungId,
         name: "Stufe P",
         kuerzel: "P",
-        reihenfolge: 9,
       })
       .returning();
     await legeGruppenchatAn(db, {
@@ -309,7 +308,6 @@ describe("Nachrichten senden und lesen", () => {
         abteilungId: welt.testabteilungId,
         name: "Stufe Q",
         kuerzel: "Q",
-        reihenfolge: 10,
       })
       .returning();
     await legeGruppenchatAn(db, {
@@ -537,7 +535,6 @@ describe("Gruppenchat anlegen", () => {
         abteilungId: welt.testabteilungId,
         name,
         kuerzel: name,
-        reihenfolge: 20,
       })
       .returning();
     return stufe.id;
@@ -582,8 +579,8 @@ describe.each(["0007_gruppenchats", "0012_gruppenchats_nachtragen"])(
           const [abteilung] = await tx<{ id: string }[]>`
           insert into abteilung (name) values ('Migrationstest') returning id`;
           const [stufe] = await tx<{ id: string }[]>`
-          insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-          values (${abteilung.id}, 'M', 'M', 1) returning id`;
+          insert into stufe (abteilung_id, name, kuerzel)
+          values (${abteilung.id}, 'M', 'M') returning id`;
           await tx.unsafe(migration);
           await tx.unsafe(migration);
           typen = (

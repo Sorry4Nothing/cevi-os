@@ -192,6 +192,7 @@ describe("GET /api/v1/admin/kinder", () => {
     vorname: string;
     nachname: string;
     stufeId: string;
+    ceviName: string | null;
     aktiv: boolean;
     eltern: string[];
   };
@@ -211,6 +212,7 @@ describe("GET /api/v1/admin/kinder", () => {
     const eintrag = (id: string) => kinder.find((k) => k.id === id)!;
     expect(Object.keys(eintrag(aktiv)).sort()).toEqual([
       "aktiv",
+      "ceviName",
       "eltern",
       "id",
       "nachname",
@@ -221,6 +223,7 @@ describe("GET /api/v1/admin/kinder", () => {
       id: aktiv,
       vorname: "Zoe",
       nachname: "Aaa",
+      ceviName: null,
       stufeId: welt.stufeAId,
       aktiv: true,
       eltern: [eltern.id],
@@ -230,6 +233,23 @@ describe("GET /api/v1/admin/kinder", () => {
     const namen = kinder.map((k) => `${k.nachname} ${k.vorname}`);
     expect(namen).toEqual([...namen].sort((a, b) => a.localeCompare(b, "en")));
     expect(namen.indexOf("Aaa Amy")).toBe(namen.indexOf("Aaa Zoe") - 1);
+  });
+
+  test("Cevi-Name: beim Anlegen getrimmt, leer heisst null, per PATCH setz- und löschbar", async () => {
+    const mit = await legeKindAn(admin, { ceviName: "  Wolke " });
+    const ohne = await legeKindAn(admin, { ceviName: "   " });
+    const lies = async (id: string) =>
+      (
+        (await (await anfrage(admin, "GET", BASIS)).json()) as {
+          kinder: Eintrag[];
+        }
+      ).kinder.find((k) => k.id === id)!.ceviName;
+    expect(await lies(mit)).toBe("Wolke");
+    expect(await lies(ohne)).toBeNull();
+    await aendere(ohne, { ceviName: "Blitz" });
+    expect(await lies(ohne)).toBe("Blitz");
+    await aendere(mit, { ceviName: null });
+    expect(await lies(mit)).toBeNull();
   });
 
   test("Eltern aus einer anderen Abteilung erscheinen nicht", async () => {

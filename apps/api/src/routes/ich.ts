@@ -20,6 +20,7 @@ const profilSchema = z
   .strictObject({
     pushChat: z.boolean(),
     pushProgramme: z.boolean(),
+    pushAnmeldungen: z.boolean(),
     telefon: telefonSchema,
   })
   .partial()
@@ -43,6 +44,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             telefon: user.telefon,
             pushChat: user.pushChat,
             pushProgramme: user.pushProgramme,
+            pushAnmeldungen: user.pushAnmeldungen,
             bildUrl,
           })
           .from(user)
@@ -95,9 +97,12 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                     eq(stufe.abteilungId, person.abteilungId),
                   ),
                 )
-                .orderBy(asc(stufe.reihenfolge));
+                .orderBy(asc(stufe.name), asc(stufe.id));
+        // Der Anmelde-Push gilt nur Leitenden: Allen anderen zeigt die API den Schalter nicht
+        const { pushAnmeldungen, ...rest } = profil;
         return c.json({
-          ...profil,
+          ...rest,
+          ...(person.rollen.length > 0 && { pushAnmeldungen }),
           admin: person.admin,
           zweiterFaktor: person.zweiterFaktor,
           rollen: person.rollen,

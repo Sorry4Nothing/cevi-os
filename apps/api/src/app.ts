@@ -13,9 +13,11 @@ import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
+import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
+import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
@@ -35,6 +37,16 @@ const FEHLER: Record<number, { code: string; message: string }> = {
   426: { code: "APP_VERALTET", message: "Bitte App aktualisieren" },
   500: { code: "INTERNER_FEHLER", message: "Interner Fehler" },
 };
+
+// An jeder Antwort (#220); die Verwaltung setzt eine volle CSP selbst, die behält sie
+const SICHERHEITS_KOPFZEILEN = {
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
+  "Content-Security-Policy": "frame-ancestors 'none'",
+};
+
+// Lesende Methoden ändern nichts; der Origin zählt nur bei den übrigen (#221)
+const LESEND = new Set(["GET", "HEAD", "OPTIONS"]);
 
 // Drei Zahlen statt semver: Die App schickt ihre Version als x.y.z
 function istVeraltet(version: string, minimum: string) {
@@ -75,9 +87,23 @@ export function erstelleApp({
   const metriken = erstelleMetriken();
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   return (
-    new Hono()
+    // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
+    new Hono<{ Variables: { nutzerId?: string } }>()
       // Ohne Header-Name übernimmt Hono keine ID vom Client und schickt keine zurück
       .use(requestId({ headerName: "" }))
+      .use(async (c, next) => {
+        await next();
+        for (const [kopf, wert] of Object.entries(SICHERHEITS_KOPFZEILEN)) {
+          if (!c.res.headers.has(kopf)) c.header(kopf, wert);
+        }
+        // Nur JSON: Bilder und Seiten behalten ihre eigenen Cache-Regeln
+        if (
+          !c.res.headers.has("Cache-Control") &&
+          c.res.headers.get("Content-Type")?.startsWith("application/json")
+        ) {
+          c.header("Cache-Control", "no-store");
+        }
+      })
       .use(async (c, next) => {
         const start = performance.now();
         await next();
@@ -90,7 +116,13 @@ export function erstelleApp({
         };
         // Der Healthcheck von Docker fragt alle 30 s; ein Erfolg füllt weder Log noch Zahlen, ein Fehler bleibt sichtbar (die requestId verbindet ihn mit seinem Grund)
         if (eintrag.route === "/health" && eintrag.status === 200) return;
-        log(c, eintrag);
+        const nutzerId = c.get("nutzerId");
+        // Den Akteur nur bei 401 und 403 (#224): die ID, kein Name
+        log(c, {
+          ...eintrag,
+          ...((eintrag.status === 401 || eintrag.status === 403) &&
+            nutzerId !== undefined && { nutzerId }),
+        });
         // Nicht gezählt: die statischen Dateien der Verwaltung und die Abrufe der Übersicht selbst, sonst misst sich die Übersicht ständig selbst
         if (
           !eintrag.route.startsWith("/admin") &&
@@ -116,17 +148,34 @@ export function erstelleApp({
         await next();
       })
       .route("/", erstelleAuthRouten(auth))
+      // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
+      .use("/api/v1/*", async (c, next) => {
+        const herkunft = c.req.header("Origin");
+        if (
+          herkunft !== undefined &&
+          !LESEND.has(c.req.method) &&
+          !(await auth.$context).isTrustedOrigin(herkunft)
+        ) {
+          throw new HTTPException(403);
+        }
+        await next();
+      })
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
       .route("/api/v1/ich", erstelleIchRouten({ db }))
-      .route("/api/v1/programme", erstelleProgrammRouten({ db }))
+      .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
+      .route(
+        "/api/v1/admin/mitteilungen",
+        erstelleMitteilungenRouten({ db, fcm }),
+      )
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken }),

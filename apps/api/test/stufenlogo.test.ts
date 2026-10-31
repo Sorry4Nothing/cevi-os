@@ -36,7 +36,6 @@ beforeAll(async () => {
       abteilungId: welt.testabteilungId,
       name: "Logo Stufe",
       kuerzel: "L",
-      reihenfolge: 60,
     })
     .returning({ id: schema.stufe.id });
   stufeId = zeile.id;
@@ -104,6 +103,17 @@ describe("Stufenlogo", () => {
       (await hochladen("admin", new TextEncoder().encode("<svg/>"))).status,
     ).toBe(415);
     expect((await hochladen("elternA", await png())).status).toBe(403);
+  });
+
+  test("ein Bild über 16 Mio. Pixel wird mit 415 abgelehnt, nicht mit 500", async () => {
+    const zuGross = await sharp({
+      create: { width: 4000, height: 4001, channels: 3, background: "#fff" },
+    })
+      .png()
+      .toBuffer();
+    const res = await hochladen("admin", zuGross);
+    expect(res.status).toBe(415);
+    expect(await res.json()).toMatchObject({ code: "BILD_FORMAT" });
   });
 
   test("DELETE entfernt das Logo, danach 404 und logoUrl null", async () => {

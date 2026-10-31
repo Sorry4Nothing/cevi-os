@@ -64,9 +64,11 @@ const ICONS = {
     ["rect", { x: 13, y: 12, width: 8, height: 9, rx: 2 }],
     ["rect", { x: 3, y: 16, width: 8, height: 5, rx: 2 }],
   ],
+  glocke: ["M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z", "M10 21h4"],
   meldungen: ["M5 21V4", "M5 4h12l-2.5 4L17 12H5"],
   bearbeiten: ["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"],
   plus: ["M12 5v14M5 12h14"],
+  papierkorb: ["M4 7h16", "M9 7V4h6v3", "M6 7l1 13h10l1-13"],
   haken: ["m5 12.5 4.5 4.5L19 7.5"],
   uhr: [["circle", { cx: 12, cy: 12, r: 9 }], "M12 7v5l3 2"],
   stern: [
@@ -225,6 +227,56 @@ export function tabelle({ beschriftung, spalten, zeilen }) {
     ),
   );
   return { wurzel, koerper };
+}
+
+// Blättern in einer schon gefilterten Liste, höchstens SEITENGROESSE Zeilen pro Seite; ab einer Seite unsichtbar
+// fenster(anzahl) meldet die Trefferzahl und gibt [von, bis) für slice() zurück; beiWechsel zeichnet danach neu
+export const SEITENGROESSE = 50;
+export function seitenwahl({ beiWechsel }) {
+  let seite = 1;
+  let seiten = 1;
+  const status = el("span", { class: "klein leise", role: "status" });
+  const gehe = (n, fokus) => {
+    seite = n;
+    beiWechsel();
+    // Der Knopf, der eben geklickt wurde, ist auf der letzten oder ersten Seite gesperrt und verliert sonst den Fokus
+    if (fokus.disabled) (fokus === zurueck ? weiter : zurueck).focus();
+  };
+  const zurueck = knopf("Zurück", {
+    klein: true,
+    onclick: () => gehe(seite - 1, zurueck),
+  });
+  const weiter = knopf("Weiter", {
+    klein: true,
+    onclick: () => gehe(seite + 1, weiter),
+  });
+  const wurzel = el(
+    "nav",
+    { class: "seitenwahl", "aria-label": "Seiten" },
+    zurueck,
+    status,
+    weiter,
+  );
+  return {
+    wurzel,
+    fenster(anzahl) {
+      seiten = Math.max(1, Math.ceil(anzahl / SEITENGROESSE));
+      seite = Math.min(seite, seiten);
+      wurzel.hidden = seiten === 1;
+      status.textContent = `Seite ${seite} von ${seiten}`;
+      zurueck.disabled = seite === 1;
+      weiter.disabled = seite === seiten;
+      return [(seite - 1) * SEITENGROESSE, seite * SEITENGROESSE];
+    },
+    // Nach Suche oder Filter beginnt die Liste wieder vorn
+    anfang() {
+      seite = 1;
+    },
+    // Springt auf die Seite, auf der die Zeile mit diesem Index steht
+    zu(index) {
+      seite = Math.floor(index / SEITENGROESSE) + 1;
+    },
+  };
 }
 
 // Zelle mit den Knöpfen einer Zeile; leere Einträge (false) fallen weg
@@ -398,7 +450,10 @@ export function codefeld({ label, hilfe, stellen = 6, ...rest }) {
 }
 
 // Eigene Auswahl (Combobox mit Liste); das versteckte select hält den Wert, damit .eingabe.value und «change» wie bei einem normalen Feld funktionieren
-// optionen: [[wert, beschriftung], …]
+// optionen: [[wert, beschriftung, bild?], …]; bild ist die URL eines Symbols vor der Beschriftung
+// Ohne eigenes Logo gilt das Cevi-Symbol
+export const STANDARD_LOGO = "/admin/favicon.svg";
+
 export function auswahl({ label, optionen, wert, ...rest }) {
   const id = neueId("auswahl");
   const listeId = `${id}-liste`;
@@ -408,7 +463,14 @@ export function auswahl({ label, optionen, wert, ...rest }) {
     optionen.map(([w, text]) => el("option", { value: w }, text)),
   );
   feldSelect.value = wert;
-  const text = el("span", {});
+  const inhalt = ([, beschriftung, bild]) =>
+    el(
+      "span",
+      { class: "auswahl-wert" },
+      bild && el("img", { class: "auswahl-bild", src: bild, alt: "" }),
+      beschriftung,
+    );
+  const text = el("span", { class: "auswahl-wert" });
   const knopf = el(
     "button",
     {
@@ -423,11 +485,11 @@ export function auswahl({ label, optionen, wert, ...rest }) {
     },
     text,
   );
-  const eintraege = optionen.map(([, beschriftung], i) =>
+  const eintraege = optionen.map((option, i) =>
     el(
       "li",
       { id: `${id}-o${i}`, role: "option", class: "auswahl-eintrag" },
-      beschriftung,
+      inhalt(option),
     ),
   );
   const liste = el(
@@ -437,7 +499,7 @@ export function auswahl({ label, optionen, wert, ...rest }) {
       class: "auswahl-liste",
       role: "listbox",
       "aria-labelledby": `${id}-label`,
-      hidden: true,
+      popover: "manual",
     },
     eintraege,
   );
@@ -445,7 +507,8 @@ export function auswahl({ label, optionen, wert, ...rest }) {
 
   const gewaehlt = () => feldSelect.selectedIndex;
   const zeigeWahl = () => {
-    text.textContent = optionen[gewaehlt()]?.[1] ?? "";
+    const wahl = optionen[gewaehlt()];
+    text.replaceChildren(...(wahl ? inhalt(wahl).childNodes : []));
     eintraege.forEach((e, i) =>
       e.setAttribute("aria-selected", String(i === gewaehlt())),
     );
@@ -456,14 +519,30 @@ export function auswahl({ label, optionen, wert, ...rest }) {
     knopf.setAttribute("aria-activedescendant", eintraege[aktiv].id);
     eintraege[aktiv].scrollIntoView({ block: "nearest" });
   };
-  const offen = () => !liste.hidden;
+  const offen = () => liste.matches(":popover-open");
+  // Die Liste liegt im Top-Layer und ragt so über das Dialogfenster hinaus; Lage und Breite folgen dem Knopf
+  const platziere = () => {
+    const r = knopf.getBoundingClientRect();
+    liste.style.top = `${r.bottom + 4}px`;
+    liste.style.left = `${r.left}px`;
+    liste.style.width = `${r.width}px`;
+  };
+  // Scrollt oder wächst das Fenster, stimmt die Lage nicht mehr: schliessen statt nachführen
+  const beiLageAenderung = (e) => {
+    if (e.target !== liste) schliesse();
+  };
   const oeffne = () => {
-    liste.hidden = false;
+    platziere();
+    liste.showPopover();
+    window.addEventListener("resize", beiLageAenderung);
+    document.addEventListener("scroll", beiLageAenderung, true);
     knopf.setAttribute("aria-expanded", "true");
     markiere(gewaehlt());
   };
   const schliesse = () => {
-    liste.hidden = true;
+    if (offen()) liste.hidePopover();
+    window.removeEventListener("resize", beiLageAenderung);
+    document.removeEventListener("scroll", beiLageAenderung, true);
     knopf.setAttribute("aria-expanded", "false");
     knopf.removeAttribute("aria-activedescendant");
   };
@@ -552,6 +631,43 @@ export function gruppe(legende, inhalt, { scrollen = false } = {}) {
   );
 }
 
+// Leere Pflichtfelder bekommen die Meldung direkt unter dem Feld (nicht nur Farbe) und den Fokus; true, wenn eines fehlt
+function pruefePflichtfelder(formular) {
+  let erstes = null;
+  for (const eingabe of formular.querySelectorAll(
+    "input[required], textarea[required]",
+  )) {
+    const wurzel = eingabe.closest(".feld");
+    wurzel?.querySelector(".feld-fehler")?.remove();
+    eingabe.removeAttribute("aria-invalid");
+    if (eingabe.value.trim() !== "") continue;
+    const meldung = el(
+      "p",
+      { class: "feld-fehler", id: `${eingabe.id}-fehler`, role: "alert" },
+      "Bitte ausfüllen.",
+    );
+    wurzel?.append(meldung);
+    eingabe.setAttribute("aria-invalid", "true");
+    eingabe.setAttribute(
+      "aria-describedby",
+      [eingabe.getAttribute("aria-describedby"), meldung.id]
+        .filter(Boolean)
+        .join(" "),
+    );
+    eingabe.addEventListener(
+      "input",
+      () => {
+        eingabe.removeAttribute("aria-invalid");
+        meldung.remove();
+      },
+      { once: true },
+    );
+    erstes ??= eingabe;
+  }
+  erstes?.focus();
+  return erstes !== null;
+}
+
 // Liefert den Dialog-Inhalt in der Reihenfolge: Titel, Beschreibung, Felder, Fehler, Knöpfe
 // senden() darf werfen; die Meldung erscheint im Dialog, er bleibt offen
 export function dialogFormular({
@@ -599,6 +715,7 @@ export function dialogFormular({
   formular.addEventListener("submit", async (ereignis) => {
     ereignis.preventDefault();
     fehler.hidden = true;
+    if (pruefePflichtfelder(formular)) return;
     abbrechen.disabled = bestaetigen.disabled = true;
     try {
       const ergebnis = await senden();

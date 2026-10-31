@@ -179,11 +179,6 @@ describe("Inhalt", () => {
       id: "programm-1",
       titel: "Waldtag am Sa 31.10. wurde verschoben",
     });
-    await sendePush({ db, fcm }, [max], {
-      typ: "person",
-      id: "person-1",
-      titel: "Neues Startpasswort",
-    });
     expect(aufrufe.flat()).toStrictEqual([
       fcmNachricht(
         chat!,
@@ -197,10 +192,6 @@ describe("Inhalt", () => {
         { typ: "programm", id: "programm-1" },
         "programme",
       ),
-      fcmNachricht(chat!, "Neues Startpasswort", {
-        typ: "person",
-        id: "person-1",
-      }),
     ]);
     // Namen und E-Mail-Adressen der Personen stehen in den Zeilen, aber in keiner Anfrage
     const anfrage = JSON.stringify(aufrufe);

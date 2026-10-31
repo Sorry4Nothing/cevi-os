@@ -34,24 +34,21 @@ test("die API-Rolle ergänzt und liest audit_log, kann Einträge aber weder änd
   });
 });
 
-test("die API-Rolle benennt Stufen um, löscht aber keine", async () => {
+test("die API-Rolle benennt Stufen um und löscht sie", async () => {
   await zurueckgerollt(sql, async (tx) => {
     const [abteilung] =
       await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
     const [stufe] = await tx`
-      insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-      values (${abteilung.id}, 'Teststufe', 'TS', 1)
+      insert into stufe (abteilung_id, name, kuerzel)
+      values (${abteilung.id}, 'Teststufe', 'TS')
       returning id`;
 
     await tx`update stufe set name = 'Umbenannt' where id = ${stufe.id}`;
-    await scheitert(
-      tx,
-      { code: "42501" },
-      (sp) => sp`delete from stufe where id = ${stufe.id}`,
-    );
     expect(await tx`select name from stufe where id = ${stufe.id}`).toEqual([
       { name: "Umbenannt" },
     ]);
+    await tx`delete from stufe where id = ${stufe.id}`;
+    expect(await tx`select id from stufe where id = ${stufe.id}`).toEqual([]);
   });
 });
 

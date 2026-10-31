@@ -148,6 +148,48 @@
       "when": 1793412090851,
       "tag": "0020_stufenlogo",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1793451826856,
+      "tag": "0021_stufe_reihenfolge_entfernen",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1793455415237,
+      "tag": "0022_kind_cevi_name",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1793455942479,
+      "tag": "0023_stufe_name_eindeutig",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1793455945333,
+      "tag": "0024_stufe_loeschbar",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1793459534406,
+      "tag": "0025_anmelde_push",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793459647394,
+      "tag": "0026_zeitregeln",
+      "breakpoints": true
     }
   ]
 }

@@ -7,6 +7,7 @@ Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Relea
 - Ein VPS; Anbieter, Region und Domain sind noch offen (#68). Im Gespräch ist Oracle Cloud «Always Free» (ARM, Ampere); ob die Region in der Schweiz liegt, ist ungeprüft, und die Home-Region lässt sich nach der Anmeldung nicht ändern.
 - Das API-Image ist nur für arm64 gebaut (`image.yml` läuft auf `ubuntu-24.04-arm`). Die Images von postgres, caddy und restic gibt es auch für arm64. Auf einem amd64-Server startet das API-Image nicht.
 - Auf dem Server laufen Linux mit systemd-journald, die Docker Engine mit dem Compose-Plugin und git.
+- Der Dienst `api` hat in `deploy/docker-compose.prod.yml` höchstens 1 GB Arbeitsspeicher (`mem_limit`) und 256 Prozesse und Threads (`pids_limit`), damit viele gleichzeitige Bild-Uploads (bis 16 Mio. Pixel, beim Dekodieren rund 64 MB je Bild) nur die API treffen und nicht Postgres und Caddy; der Wert muss zum Server passen, und meldet `docker inspect` für den Container `OOMKilled`, ist er zu klein.
 - Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind.
 - Das Repo liegt auf dem Server als Checkout des ausgerollten Tags. Befehle in dieser Doku laufen im Wurzelordner dieses Checkouts, jene im Abschnitt «Backups» im Ordner `deploy/`.
 - Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Google-Service-Accounts unter `deploy/secrets/` (Ordner 700, Datei 400).
@@ -24,12 +25,14 @@ Der Betrieb braucht diese Konten: Apple Developer Program, Google Play Console, 
 Erste Einrichtung auf dem Server:
 
 1. Das Repo klonen und den Release-Tag auschecken: `git fetch --tags && git checkout vX.Y.Z`
-2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`; `BETTER_AUTH_SECRET` aus `openssl rand -base64 32`, `BETTER_AUTH_URL` ist die öffentliche Adresse der API mit `https://`), dann `chmod 600 deploy/.env`. Die verantwortliche Stelle, ihre E-Mail-Adresse (Seiten `/datenschutz`, `/konto-loeschen` und `/support`, #63) und die Basis-Adresse der Webseite sind öffentlich und stehen als Vorgabe in `apps/api/src/konfiguration.ts`; sie brauchen keinen Eintrag in `deploy/.env`. Alle 30 Minuten ruft die API unter der Basis-Adresse `/cevistufe-<stufe>` ab (Stufenname kleingeschrieben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern) und liest Treffpunkt, Schluss und Mitnehmen; passwortgeschützte oder unlesbare Seiten überspringt sie. Ändern sich die Werte, setzt man `VERANTWORTLICHE_STELLE`, `KONTAKT_EMAIL` oder `ECKDATEN_BASIS_URL` in `deploy/.env` und in `docker-compose.prod.yml`
+2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`; `BETTER_AUTH_SECRET` aus `openssl rand -base64 32`, `BETTER_AUTH_URL` ist die öffentliche Adresse der API mit `https://`; mit `http://` startet die API in Produktion nicht), dann `chmod 600 deploy/.env`. Die verantwortliche Stelle, ihre E-Mail-Adresse (Seiten `/datenschutz`, `/konto-loeschen` und `/support`, #63) und die Basis-Adresse der Webseite sind öffentlich und stehen als Vorgabe in `apps/api/src/konfiguration.ts`; sie brauchen keinen Eintrag in `deploy/.env`. Alle 30 Minuten ruft die API unter der Basis-Adresse `/cevistufe-<stufe>` ab (Stufenname kleingeschrieben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern) und liest Treffpunkt, Schluss und Mitnehmen; passwortgeschützte oder unlesbare Seiten überspringt sie. Ändern sich die Werte, setzt man `VERANTWORTLICHE_STELLE`, `KONTAKT_EMAIL` oder `ECKDATEN_BASIS_URL` in `deploy/.env` und in `docker-compose.prod.yml`
 3. Den Schlüssel des Google-Service-Accounts (#26) nach `deploy/secrets/google-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Ebenso den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json`
 4. `deploy/Caddyfile.example` nach `deploy/Caddyfile` kopieren und die Domain eintragen (#68)
 5. Nach dem ersten Tag das API-Image auf GHCR öffentlich schalten (#70), sonst findet der Server es nicht
 
 Jedes Release rollt `deploy/deploy.sh vX.Y.Z` aus, nach `git fetch --tags && git checkout vX.Y.Z`. Das Skript aktualisiert die Images von postgres und caddy, sichert die Datenbank (siehe «Backups»), setzt die Passwörter der Datenbankrollen aus `deploy/.env`, führt die Migrationen mit der Besitzerrolle aus — nur vorwärts, nie zurück —, startet alle Dienste mit dem Tag neu und stoppt jeden Dienst ausser caddy, der einen Port veröffentlicht.
+
+`deploy/Caddyfile` liegt nur auf dem Server und folgt der Vorlage nicht von selbst. Ändert sich `deploy/Caddyfile.example` in einem Release, die Änderung von Hand nach `deploy/Caddyfile` übernehmen (die Domain bleibt) und in `deploy/` Caddy neu starten: `docker compose -f docker-compose.prod.yml restart caddy`. Mit #220 kamen HSTS und die Sicherheits-Kopfzeilen dazu; ein Server, der vorher eingerichtet wurde, braucht diesen Schritt. Prüfen mit `curl -sI https://<Domain>/health`: Die Antwort zeigt `strict-transport-security`, aber keine Zeile `server`.
 
 Das erste Admin-Konto legt die CLI im laufenden API-Container an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --neue-abteilung "<Name>"`. Sie zeigt das Startpasswort genau einmal. Immer `exec`, nie `run`: Die Ausgabe von `run` landet für 14 Tage im journald (siehe «Logs»), die von `exec` in keinem Log.
 
@@ -152,7 +155,7 @@ Lesen:
 
 Was in den Logs steht:
 
-- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Personendaten. Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Das Löschen nach Alter begrenzt das Log.
+- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Namen, Inhalte oder IP-Adressen. Bei 401 und 403 einer angemeldeten Anfrage steht zusätzlich `nutzerId` darin, die ID des Kontos (siehe «Abgewiesene Anfragen prüfen»). Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Beim Start und danach alle 24 Stunden löscht die API abgelaufene Sitzungen samt ihren Push-Tokens und schreibt eine Zeile mit `"ereignis":"sitzungen"` und der Anzahl (`geloescht`), bei einem Fehler nur dessen Code. Das Löschen nach Alter begrenzt das Log.
 - Caddy: IP-Adressen. Caddy schreibt auf stderr und damit nach journald; keine Log-Datei, kein Volume.
 - PostgreSQL: Fehlerzeilen können Werte aus Abfragen zitieren, etwa `DETAIL: Key (…)=(…)` oder `STATEMENT: …`.
 
@@ -170,6 +173,19 @@ MaxFileSec=1day
 Danach `sudo systemctl restart systemd-journald`; prüfen mit `systemd-analyze cat-config systemd/journald.conf`. `MaxRetentionSec` löscht ganze Journal-Dateien; ohne `MaxFileSec=1day` wechselten die Dateien nur monatlich, und Einträge blieben Wochen über die 14 Tage hinaus. `Storage=persistent` legt die Logs auf die Platte; der Standardwert ist beim Kompilieren festgelegt, und `auto` hielte sie ohne `/var/log/journal` nur im RAM.
 
 Andere Log-Dateien auf dem Server, etwa die eines Syslog-Dienstes mit den IP-Adressen von SSH-Clients: ebenfalls höchstens 14 Tage aufbewahren oder den Schreiber abschalten. Die Befehle dazu hängen vom System ab (#68).
+
+### Abgewiesene Anfragen prüfen
+
+Einen Alarm für gehäufte 401 (nicht angemeldet, Anmeldung fehlgeschlagen) und 403 (keine Berechtigung) gibt es nicht; geprüft wird von Hand im Log der API, in `deploy/`:
+
+1. Nach Route zählen, hier für die letzten 24 Stunden: `docker compose -f docker-compose.prod.yml logs --since 24h --no-log-prefix api | grep -oE '"route":"[^"]*","status":40[13]' | sort | uniq -c | sort -rn`
+2. Nach Konto zählen: `docker compose -f docker-compose.prod.yml logs --since 24h --no-log-prefix api | grep -oE '"nutzerId":"[^"]*"' | sort | uniq -c | sort -rn`. `nutzerId` steht nur bei 401 und 403 und nur, wenn die Anfrage eine gültige Sitzung hatte.
+
+Worauf achten:
+
+- Viele 401 auf `/api/auth/sign-in/username`: Jemand rät Passwörter. Wartezeit und Rate-Limit bremsen; die IP-Adressen dazu stehen nur im Log von Caddy.
+- Viele 403 bei derselben `nutzerId`: Ein Konto versucht, was es nicht darf. Die ID ist die Spalte `id` der Tabelle `user`. Deutet es auf ein gekapertes Konto, gilt «Datenpanne».
+- 403 ohne `nutzerId` auf einer ändernden Route unter `/api/v1`: Die Anfrage kam mit einem fremden `Origin`, etwa von einer anderen Webseite im Browser einer angemeldeten Person.
 
 ## Zweiter Faktor
 

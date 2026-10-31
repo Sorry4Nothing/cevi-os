@@ -5,6 +5,7 @@ import {
   auswahl,
   chip,
   dialogFormular,
+  STANDARD_LOGO,
   el,
   feld,
   filterGruppe,
@@ -12,6 +13,7 @@ import {
   icon,
   knopf,
   neueId,
+  seitenwahl,
   tabelle,
 } from "./dom.js";
 
@@ -33,11 +35,16 @@ export function zeige(bereich, ctx) {
   );
 }
 
-const stufenOptionen = (stufen) => stufen.map((s) => [s.id, s.name]);
+const stufenOptionen = (stufen) =>
+  stufen.map((s) => [s.id, s.name, s.logoUrl ?? STANDARD_LOGO]);
 
 function anlegen(daten, ctx, neu) {
   const vorname = feld({ label: "Vorname", maxlength: 100, required: true });
   const nachname = feld({ label: "Nachname", maxlength: 100, required: true });
+  const ceviName = feld({
+    label: "Cevi-Name (optional)",
+    maxlength: 50,
+  });
   const stufe = auswahl({
     label: "Stufe",
     optionen: stufenOptionen(daten.stufen),
@@ -46,12 +53,13 @@ function anlegen(daten, ctx, neu) {
   dialogFormular({
     titel: "Kind anlegen",
     beschreibung: "Elternteile verknüpfst du danach beim Bearbeiten.",
-    felder: [vorname.wurzel, nachname.wurzel, stufe.wurzel],
+    felder: [vorname.wurzel, nachname.wurzel, ceviName.wurzel, stufe.wurzel],
     ok: "Anlegen",
     senden: () =>
       anfrage("POST", "/api/v1/admin/kinder", {
         vorname: vorname.eingabe.value.trim(),
         nachname: nachname.eingabe.value.trim(),
+        ceviName: ceviName.eingabe.value,
         stufeId: stufe.eingabe.value,
       }),
     danach: () => {
@@ -74,6 +82,11 @@ function bearbeiten(kind, daten, ctx, neu) {
     maxlength: 100,
     required: true,
   });
+  const ceviName = feld({
+    label: "Cevi-Name (optional)",
+    wert: kind.ceviName ?? "",
+    maxlength: 50,
+  });
   const stufe = auswahl({
     label: "Stufe",
     optionen: stufenOptionen(daten.stufen),
@@ -93,6 +106,7 @@ function bearbeiten(kind, daten, ctx, neu) {
     felder: [
       vorname.wurzel,
       nachname.wurzel,
+      ceviName.wurzel,
       stufe.wurzel,
       aktiv.wurzel,
       gruppe(
@@ -106,6 +120,7 @@ function bearbeiten(kind, daten, ctx, neu) {
       anfrage("PATCH", `/api/v1/admin/kinder/${kind.id}`, {
         vorname: vorname.eingabe.value.trim(),
         nachname: nachname.eingabe.value.trim(),
+        ceviName: ceviName.eingabe.value,
         stufeId: stufe.eingabe.value,
         aktiv: aktiv.eingabe.checked,
         eltern: boxen
@@ -151,10 +166,15 @@ function zeichne(bereich, ctx, daten, neu) {
         "tr",
         {
           class: kind.aktiv ? undefined : "inaktiv",
-          "data-suche": name.toLowerCase(),
+          "data-suche": `${name} ${kind.ceviName ?? ""}`.toLowerCase(),
           "data-stufe": kind.stufeId,
         },
-        el("th", { scope: "row" }, el("span", { class: "name" }, name)),
+        el(
+          "th",
+          { scope: "row" },
+          el("span", { class: "name" }, name),
+          kind.ceviName && el("span", { class: "leise" }, kind.ceviName),
+        ),
         el(
           "td",
           {},
@@ -204,9 +224,14 @@ function zeichne(bereich, ctx, daten, neu) {
     id: sucheId,
     class: "eingabe",
     type: "search",
-    placeholder: "Vorname oder Nachname",
+    placeholder: "Name oder Cevi-Name",
     autocomplete: "off",
   });
+  const seiten = seitenwahl({ beiWechsel: aktualisiere });
+  const vonVorn = () => {
+    seiten.anfang();
+    aktualisiere();
+  };
   const filter =
     daten.stufen.length > 0
       ? filterGruppe({
@@ -219,22 +244,25 @@ function zeichne(bereich, ctx, daten, neu) {
               wert: s.id,
             })),
           ],
-          beiAenderung: () => aktualisiere(),
+          beiAenderung: vonVorn,
         })
       : null;
   function aktualisiere() {
     const frage = suche.value.trim().toLowerCase();
     const stufe = filter?.wert() ?? "";
-    let treffer = 0;
+    const treffer = [...koerper.children].filter(
+      (eintrag) =>
+        eintrag.dataset.suche.includes(frage) &&
+        (stufe === "" || eintrag.dataset.stufe === stufe),
+    );
+    const [von, bis] = seiten.fenster(treffer.length);
+    const sichtbar = new Set(treffer.slice(von, bis));
     for (const eintrag of koerper.children) {
-      eintrag.hidden =
-        !eintrag.dataset.suche.includes(frage) ||
-        (stufe !== "" && eintrag.dataset.stufe !== stufe);
-      if (!eintrag.hidden) treffer++;
+      eintrag.hidden = !sichtbar.has(eintrag);
     }
-    zaehler.textContent = `${treffer} von ${daten.kinder.length} Kindern`;
+    zaehler.textContent = `${treffer.length} von ${daten.kinder.length} Kindern`;
   }
-  suche.addEventListener("input", aktualisiere);
+  suche.addEventListener("input", vonVorn);
   aktualisiere();
   bereich.append(
     ...[
@@ -260,6 +288,7 @@ function zeichne(bereich, ctx, daten, neu) {
       ),
       zaehler,
       wurzel,
+      seiten.wurzel,
     ].filter(Boolean),
   );
 }

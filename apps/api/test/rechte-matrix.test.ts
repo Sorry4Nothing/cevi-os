@@ -47,6 +47,12 @@ const app = erstelleApp({
   auth,
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
+  // Eine Attrappe statt firebase-admin: Ohne Push-Dienst antwortet die Mitteilung mit 503, und kein Test der Matrix soll ins Netz gehen
+  fcm: {
+    sendEach: async (nachrichten) => ({
+      responses: nachrichten.map(() => ({ success: true })),
+    }),
+  },
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -86,11 +92,14 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/api.js": { erwartet: alle(200) },
   "GET /admin/dom.js": { erwartet: alle(200) },
   "GET /admin/favicon.svg": { erwartet: alle(200) },
+  "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /admin/system.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
+  "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -561,7 +570,8 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/stufen": {
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    // Jeder Aufruf braucht einen eigenen Namen: In einer Abteilung ist er eindeutig
+    body: () => ({ name: `Matrix Stufe ${++stufenZaehler}`, kuerzel: "M" }),
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -573,7 +583,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "PATCH /api/v1/admin/stufen/:id": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}`,
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    body: () => ({ name: `Matrix Stufe ${++stufenZaehler}`, kuerzel: "M" }),
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -582,6 +592,31 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/stufen/:id": {
+    // Jede Anfrage löscht ihr Ziel; die Antworten für Eltern und SL (403) lassen es stehen
+    urlJeAnfrage: async () => `/api/v1/admin/stufen/${await wegwerfStufeId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Mitteilung per Push (#240): nur Admins; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
+  "POST /api/v1/admin/mitteilungen": {
+    body: () => ({ titel: "Matrix-Mitteilung", empfaenger: "alle" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   "GET /api/v1/admin/kinder": {
@@ -635,6 +670,60 @@ const MATRIX: Record<string, Zeile> = {
   "DELETE /api/v1/admin/kinder/:id": {
     // Jede Anfrage löscht ihr Ziel
     urlJeAnfrage: async () => `/api/v1/admin/kinder/${await wegwerfKindId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/zeitregeln": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/zeitregeln": {
+    body: () => ({
+      stufeId: null,
+      wochentag: 3,
+      uhrzeit: "08:00",
+      text: "{Programm} am {Datum}",
+      aktiv: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/zeitregeln/:id": {
+    url: () => `/api/v1/admin/zeitregeln/${patchRegelId}`,
+    body: () => ({ uhrzeit: "09:30" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/zeitregeln/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/zeitregeln/${await wegwerfRegelId()}`,
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -731,7 +820,9 @@ let startpasswortZielId: string;
 let deaktivierenZielId: string;
 let aktivierenZielId: string;
 let patchStufeId: string;
+let stufenZaehler = 0;
 let patchKindId: string;
+let patchRegelId: string;
 let bildZielId: string;
 let testBild: Buffer;
 
@@ -756,6 +847,19 @@ async function wegwerfPersonId(zweiterFaktor = false) {
   return zeile.id;
 }
 
+// Wegwerf-Stufe der Testabteilung ohne Kinder und Leitung: Die Löschroute darf sie wegnehmen
+async function wegwerfStufeId() {
+  const [zeile] = await welt.db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Wegwerf Stufe ${randomUUID()}`,
+      kuerzel: "W",
+    })
+    .returning({ id: schema.stufe.id });
+  return zeile.id;
+}
+
 // Wegwerf-Kind der Testabteilung, direkt eingefügt; die Matrix-Zeilen fassen nie Kind A und B der Welt an
 async function wegwerfKindId() {
   const [zeile] = await welt.db
@@ -767,6 +871,20 @@ async function wegwerfKindId() {
       stufeId: welt.stufeAId,
     })
     .returning({ id: schema.kind.id });
+  return zeile.id;
+}
+
+async function wegwerfRegelId() {
+  const [zeile] = await welt.db
+    .insert(schema.zeitregel)
+    .values({
+      abteilungId: welt.testabteilungId,
+      wochentag: 3,
+      uhrzeit: "08:00",
+      text: "Wegwerf",
+      aktiv: false,
+    })
+    .returning({ id: schema.zeitregel.id });
   return zeile.id;
 }
 
@@ -815,6 +933,7 @@ beforeAll(async () => {
       wegwerfPersonId(),
     ]);
   patchKindId = await wegwerfKindId();
+  patchRegelId = await wegwerfRegelId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })
@@ -838,7 +957,6 @@ beforeAll(async () => {
       abteilungId: welt.testabteilungId,
       name: "Matrix Stufe",
       kuerzel: "M",
-      reihenfolge: 50,
     })
     .returning({ id: schema.stufe.id });
   patchStufeId = patchStufe.id;
@@ -1005,6 +1123,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       aktivierenZielId,
       patchStufeId,
       patchKindId,
+      patchRegelId,
       bildZielId,
       elternAUserId: standard.elternA.id!,
     };

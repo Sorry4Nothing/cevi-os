@@ -1,0 +1,1 @@
+ALTER TABLE "kind" ADD COLUMN "cevi_name" text;

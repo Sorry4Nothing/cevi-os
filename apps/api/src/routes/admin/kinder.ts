@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { ceviNameFeld } from "../../cevi-name.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, kind, kindEltern, stufe, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -17,11 +18,13 @@ const elternFeld = z
 const anlegenSchema = z.strictObject({
   vorname: text,
   nachname: text,
+  ceviName: ceviNameFeld.optional(),
   stufeId: z.uuid(),
 });
 const aendernSchema = z.strictObject({
   vorname: text.optional(),
   nachname: text.optional(),
+  ceviName: ceviNameFeld.nullable().optional(),
   stufeId: z.uuid().optional(),
   aktiv: z.boolean().optional(),
   eltern: elternFeld.optional(),
@@ -106,6 +109,7 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
             id: kind.id,
             vorname: kind.vorname,
             nachname: kind.nachname,
+            ceviName: kind.ceviName,
             stufeId: kind.stufeId,
             inaktivSeit: kind.inaktivSeit,
           })
@@ -137,6 +141,7 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
           id: k.id,
           vorname: k.vorname,
           nachname: k.nachname,
+          ceviName: k.ceviName,
           stufeId: k.stufeId,
           aktiv: k.inaktivSeit === null,
           eltern: links.filter((l) => l.kindId === k.id).map((l) => l.userId),

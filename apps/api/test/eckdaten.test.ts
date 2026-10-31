@@ -68,7 +68,6 @@ beforeAll(async () => {
       abteilungId: welt.testabteilungId,
       name: "Fröschli",
       kuerzel: "F",
-      reihenfolge: 3,
     })
     .returning();
   froeschliId = froeschli.id;

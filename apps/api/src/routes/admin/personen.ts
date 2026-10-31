@@ -10,6 +10,7 @@ import {
   LETZTER_ADMIN,
 } from "../../admins.js";
 import { erstelleAuth, platzhalterEmail } from "../../auth.js";
+import { ceviNameFeld } from "../../cevi-name.js";
 import {
   BENUTZERNAME_MAX,
   BENUTZERNAME_MIN,
@@ -70,12 +71,6 @@ const benutzernameFeld = z
   .min(BENUTZERNAME_MIN)
   .max(BENUTZERNAME_MAX)
   .regex(BENUTZERNAME_MUSTER);
-// Leer oder nur Leerraum heisst nicht gesetzt
-const ceviNameFeld = z
-  .string()
-  .trim()
-  .max(50)
-  .transform((wert) => wert || null);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const rollenFeld = z
   .array(
@@ -227,7 +222,7 @@ export function erstellePersonenRouten({
                 eq(stufe.abteilungId, abteilungId),
               ),
             )
-            .orderBy(asc(stufe.reihenfolge)),
+            .orderBy(asc(stufe.name), asc(stufe.id)),
           db
             .select({ userId: kindEltern.userId, kindId: kindEltern.kindId })
             .from(kindEltern)
@@ -243,7 +238,7 @@ export function erstellePersonenRouten({
             .select({ id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel })
             .from(stufe)
             .where(eq(stufe.abteilungId, abteilungId))
-            .orderBy(asc(stufe.reihenfolge)),
+            .orderBy(asc(stufe.name), asc(stufe.id)),
           db
             .select({
               id: kind.id,

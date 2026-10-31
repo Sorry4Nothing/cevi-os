@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "push_anmeldungen" boolean DEFAULT true NOT NULL;

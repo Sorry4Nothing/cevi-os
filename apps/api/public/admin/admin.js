@@ -1,10 +1,12 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
 import * as kinder from "./kinder.js";
+import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as uebersicht from "./uebersicht.js";
+import * as zeitregeln from "./zeitregeln.js";
 
 // [Schlüssel im Hash, Name, Modul, Icon, Untertitel im Seitenkopf]
 const BEREICHE = [
@@ -24,6 +26,20 @@ const BEREICHE = [
   ],
   ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
   ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
+  [
+    "mitteilungen",
+    "Mitteilungen",
+    mitteilungen,
+    "glocke",
+    "Push-Mitteilung an Eltern und Leitende senden.",
+  ],
+  [
+    "zeitregeln",
+    "Erinnerungen",
+    zeitregeln,
+    "uhr",
+    "Pushes an Eltern, die noch nicht geantwortet haben.",
+  ],
   [
     "system",
     "System",

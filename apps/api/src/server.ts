@@ -15,6 +15,14 @@ import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { log } from "./log.js";
 import { ladeSeiten } from "./seiten.js";
+import {
+  loescheAbgelaufeneSitzungen,
+  starteSitzungenAufraeumen,
+} from "./sitzungen-aufraeumen.js";
+import {
+  pruefeZeitregeln,
+  starteZeitregelPruefer,
+} from "./zeitregeln/pruefer.js";
 
 // Ohne gültige Konfiguration endet der Prozess hier mit Status 1
 const konfiguration = ladeKonfiguration(process.env);
@@ -48,7 +56,6 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(() =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
-    fcm,
     schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   }),
 );
@@ -58,3 +65,10 @@ starteEckdatenSync(() =>
     basisUrl: konfiguration.ECKDATEN_BASIS_URL,
   }),
 );
+starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Ohne Schlüssel gäbe es nichts zu senden, und eine Erinnerung gälte trotzdem als gesendet
+if (fcm) {
+  starteZeitregelPruefer(() =>
+    pruefeZeitregeln({ datenbankUrl: konfiguration.DATABASE_URL, fcm }),
+  );
+}

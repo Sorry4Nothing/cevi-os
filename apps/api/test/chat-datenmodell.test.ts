@@ -15,8 +15,8 @@ async function grunddaten(tx: postgres.TransactionSql) {
   const [abteilung] =
     await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
   const [stufe] = await tx`
-    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-    values (${abteilung.id}, 'Teststufe', 'TS', 1)
+    insert into stufe (abteilung_id, name, kuerzel)
+    values (${abteilung.id}, 'Teststufe', 'TS')
     returning id`;
   const [eltern] = await tx`
     insert into "user" (name, email, abteilung_id)
@@ -99,7 +99,6 @@ test("ein zweiter Einzelchat entsteht per insert … on conflict do nothing nich
           abteilungId: abteilung.id,
           name: "Teststufe",
           kuerzel: "TS",
-          reihenfolge: 1,
         })
         .returning();
       const [eltern] = await tx

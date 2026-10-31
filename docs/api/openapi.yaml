@@ -192,10 +192,40 @@ paths:
             image/svg+xml:
               schema:
                 type: string
+  /admin/hintergrund.svg:
+    get:
+      operationId: getAdminHintergrund
+      summary: Logo als Hintergrund der Verwaltung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`image/svg+xml`).
+          content:
+            image/svg+xml:
+              schema:
+                type: string
   /admin/kinder.js:
     get:
       operationId: getAdminKinderSkript
       summary: Skript der Verwaltung – Bereich Kinder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/mitteilungen.js:
+    get:
+      operationId: getAdminMitteilungenSkript
+      summary: Skript der Verwaltung – Bereich Mitteilungen
       tags:
         - Allgemein
       security: []
@@ -256,6 +286,21 @@ paths:
     get:
       operationId: getAdminUebersichtSkript
       summary: Skript der Verwaltung – Bereich Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zeitregeln.js:
+    get:
+      operationId: getAdminZeitregelnSkript
+      summary: Skript der Verwaltung – Bereich Erinnerungen
       tags:
         - Allgemein
       security: []
@@ -340,7 +385,8 @@ paths:
         Die App kann die Fälle nicht unterscheiden.
 
         **Bremse.** Ab dem 5. Fehlversuch in Folge gilt pro Benutzername eine Wartezeit: 1 Minute, dann 5, dann
-        15 Minuten, ohne Dauersperre. Während der Wartezeit antwortet die Route auch bei richtigem Passwort mit 401.
+        15 Minuten. Liegt der letzte Fehlversuch 15 Minuten zurück, also spätestens nach der längsten Wartezeit,
+        beginnt die Zählung bei 0. Während der Wartezeit antwortet die Route auch bei richtigem Passwort mit 401.
         Zusätzlich gilt ein Limit von 30 Anfragen je 15 Minuten und Client-IP (429 `ZU_VIELE_ANFRAGEN`, Header
         `X-Retry-After` in Sekunden).
 
@@ -761,7 +807,7 @@ paths:
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
 
-        `stufen` enthält die Stufen der Rollen und der aktiven Kinder (ohne Doppelte), nach Reihenfolge.
+        `stufen` enthält die Stufen der Rollen und der aktiven Kinder (ohne Doppelte), nach Name.
         Inaktive Kinder und Kinder anderer Abteilungen fehlen.
 
         **Einzige Route unter `/api/v1`, die bei offenem Pflichtwechsel des Passworts (`mussPasswortAendern: true`)
@@ -792,7 +838,9 @@ paths:
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes bei verschobenen, geänderten oder abgesagten Programmen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet.
+        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet.
+
+        **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
 
         **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
         `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
@@ -834,7 +882,7 @@ paths:
 
         **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes der Datei, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB
-        (5 242 880 Bytes) und höchstens 50 Millionen Pixel; grössere Bilder verkleinert die App vor dem Senden.
+        (5 242 880 Bytes) und höchstens 16 Millionen Pixel; grössere Bilder verkleinert die App vor dem Senden.
         Wählt die App vorher einen quadratischen Ausschnitt, schneidet der Server nicht noch einmal die Mitte zu.
 
         **Verarbeitung.** Der Server liest das Bild, dreht es nach der EXIF-Angabe, schneidet es quadratisch aus der
@@ -1001,7 +1049,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Liefert alle Stufen der eigenen Abteilung, sortiert nach `reihenfolge`, dann `name`, dann `id`.
+        Liefert alle Stufen der eigenen Abteilung, sortiert nach `name`, dann `id`.
         Stufen tragen keine Personendaten. Die App braucht sie für «Stufen wählen» und die Verwaltung.
 
         **Rollen.** Alle angemeldeten Personen, ausser bei offenem Pflichtwechsel des Passworts (403).
@@ -1628,6 +1676,11 @@ paths:
         Administratoren. Das Programm muss der Stufe des Kindes zugeordnet und das Kind aktiv sein. Leitende oder
         SL einer anderen Stufe und Eltern fremder Kinder bekommen 403.
 
+        Setzt der Aufruf die Antwort neu oder ändert er sie, geht ein Push an die Leitenden der Stufen des Programms
+        (Rolle Leitung oder SL, aktives Konto, `pushAnmeldungen` an), ausser an die Person, die selbst aufruft:
+        «Neue Anmeldung für {Programm} am {Datum}» bei «ja», «Neue Abmeldung für …» bei «nein», ohne Namen. Bleibt der
+        Wert gleich, geht kein Push hinaus. Ein Fehler beim Push lässt den Aufruf nicht scheitern.
+
         Reihenfolge der Prüfung: Eingabe (400); Programm nicht sichtbar oder Kind nicht in der eigenen Abteilung
         (404, ohne Unterscheidung); Zuständigkeit, Stufenzuordnung und aktives Kind (403); Programm noch offen (409).
         Statuscodes: 204 gespeichert, kein Body; 400 ungültige Eingabe (unbekanntes oder fehlendes Feld, `status`
@@ -1742,7 +1795,7 @@ paths:
         Admins und Leitende ohne SL-Rolle sind keine Mitglieder; für sie ist die Liste leer (200, `chats: []`).
         Wer in einer Stufe SL ist, nimmt dort nur als SL teil.
 
-        Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Reihenfolge der Stufe, dann nach Name des Elternteils.
+        Sortierung: Gruppenchats («stufe») vor Einzelchats («direkt»), dann nach Name der Stufe, dann nach Name des Elternteils.
         Es gibt keine Paginierung; die Antwort enthält alle Chats.
 
         `ungelesen` zählt die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand (`PUT /api/v1/chats/{id}/gelesen`) eingegangen sind; ohne Stand sind es alle sichtbaren fremden Nachrichten. Eigene und für die Person nicht sichtbare (vor dem Beitritt geschriebene) Nachrichten zählen nicht.
@@ -1921,7 +1974,7 @@ paths:
       operationId: listeAdminPersonen
       summary: Personen, Stufen und Kinder der Abteilung für die Verwaltung
       description: |
-        Nur Admins. Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Reihenfolge) und alle Kinder (nach Nachname, Vorname) für den Rollen-Editor.
+        Nur Admins. Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und alle Kinder (nach Nachname, Vorname) für den Rollen-Editor.
         Enthält nie E-Mail, Telefon, Sperrgrund, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors.
 
         Statuscodes: 200 bei Erfolg. 403, wenn die Person kein Admin ist, wenn ein Admin noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Admin-Routen) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
@@ -2255,6 +2308,53 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/mitteilungen:
+    post:
+      operationId: sendeAdminMitteilung
+      summary: Mitteilung als Push senden
+      description: |
+        Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt nur den Titel, keinen Textkörper. Der Titel darf keine Namen enthalten: Er läuft über Apple und Google.
+
+        Empfänger `alle`: alle aktiven Konten der Abteilung. Empfänger `stufen`: die Eltern aktiver Kinder und die Leitenden der gewählten Stufen. Voraussetzung ist in beiden Fällen ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`). Die absendende Person bekommt den Push auch, sofern ihre Option an ist.
+
+        Der Versand steht im Audit-Log (`mitteilung_gesendet`, Ziel ist die Abteilung): wer, wann, Empfängergruppe (`alle` oder die Stufen-IDs) und Zahl der Empfänger, nie der Text.
+
+        Limit: höchstens 10 Mitteilungen pro Abteilung und Stunde.
+
+        Statuscodes: 200 mit der Zahl der Konten, an deren Geräte der Push ging (auch 0). 400 bei ungültiger Eingabe oder wenn eine Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins. 429 beim Limit. 503 mit Code `PUSH_NICHT_EINGERICHTET`, wenn der Server keinen Schlüssel für den Push-Dienst hat; dann geht nichts hinaus und nichts ins Audit-Log.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMitteilung"
+      responses:
+        "200":
+          description: Gesendet.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMitteilungErgebnis"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          description: Der Server hat keinen Schlüssel für den Push-Dienst (`PUSH_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   /api/v1/admin/stufen:
     post:
       operationId: legeAdminStufeAn
@@ -2262,7 +2362,7 @@ paths:
       description: |
         Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen, Reihenfolge ausserhalb 1 bis 999). 403 für Nicht-Admins.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins. 409 mit Code `STUFENNAME_VERGEBEN`, wenn es in der Abteilung schon eine Stufe mit diesem Namen gibt (Gross-/Kleinschreibung zählt nicht).
       tags:
         - Verwaltung
       parameters:
@@ -2286,6 +2386,12 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt in der Abteilung schon eine Stufe mit diesem Namen (`STUFENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -2297,7 +2403,7 @@ paths:
       description: |
         Nur Admins, nur Stufen der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `STUFENNAME_VERGEBEN`, wenn der neue Name schon vergeben ist.
       tags:
         - Verwaltung
       parameters:
@@ -2320,6 +2426,47 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Es gibt in der Abteilung schon eine Stufe mit diesem Namen (`STUFENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminStufe
+      summary: Stufe löschen
+      description: |
+        Nur Admins, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten, Erinnerungsregeln der Stufe und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
+
+        Eine Stufe mit zugewiesenen Kindern (auch inaktiven) oder Leitenden lässt sich nicht löschen: Sie müssen zuerst einer anderen Stufe zugewiesen oder entfernt werden.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `STUFE_BELEGT`, wenn der Stufe noch Kinder oder Leitende zugewiesen sind.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminStufeId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Stufe sind noch Kinder oder Leitende zugewiesen (`STUFE_BELEGT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -2333,7 +2480,7 @@ paths:
 
         **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB und höchstens
-        50 Millionen Pixel.
+        16 Millionen Pixel.
 
         **Verarbeitung.** Der Server dreht das Bild nach der EXIF-Angabe, verkleinert es auf höchstens 512 × 512 Pixel
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als
@@ -2524,6 +2671,130 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/zeitregeln:
+    get:
+      operationId: listeAdminZeitregeln
+      summary: Erinnerungsregeln der Abteilung
+      description: |
+        Nur Admins. Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Regeln der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminZeitregelListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminZeitregelAn
+      summary: Erinnerungsregel anlegen
+      description: |
+        Nur Admins. Legt eine Regel an, die Eltern ohne gespeichertes «ja» oder «nein» an ein Programm erinnert. Der Server prüft jede Minute, ob eine Regel fällig ist: Die Auslösezeit pro Programm ist der letzte passende Wochentag samt Uhrzeit (Schweizer Zeit) vor Programmbeginn. Pro Regel und Programm geht höchstens eine Erinnerung hinaus; eine Regel, die erst nach der Auslösezeit entsteht, holt sie bis zum Programmbeginn nach. Das Anlegen steht im Audit-Log (ohne den Text).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminZeitregelAnlegen"
+      responses:
+        "201":
+          description: Regel angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/zeitregeln/{id}:
+    patch:
+      operationId: aendereAdminZeitregel
+      summary: Erinnerungsregel ändern
+      description: |
+        Nur Admins, nur Regeln der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, ohne den Text). Eine schon gesendete Erinnerung wird durch eine Änderung nie wiederholt.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), dann Regel in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremder Stufe. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminZeitregelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminZeitregelAendern"
+      responses:
+        "204":
+          description: Geändert (auch bei einem No-op).
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminZeitregel
+      summary: Erinnerungsregel löschen
+      description: |
+        Nur Admins, nur Regeln der eigenen Abteilung. Löscht die Regel samt dem Vermerk der gesendeten Erinnerungen; das Löschen steht im Audit-Log.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminZeitregelId"
       responses:
         "204":
           description: Gelöscht.
@@ -2908,6 +3179,9 @@ components:
         pushProgramme:
           type: boolean
           description: Push-Benachrichtigungen für Programme.
+        pushAnmeldungen:
+          type: boolean
+          description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
         admin:
           type: boolean
         zweiterFaktor:
@@ -2920,7 +3194,7 @@ components:
             $ref: "#/components/schemas/IchRolle"
         stufen:
           type: array
-          description: Die Stufen der Rollen und der aktiven Kinder, nach Reihenfolge, ohne Doppelte.
+          description: Die Stufen der Rollen und der aktiven Kinder, nach Name, ohne Doppelte.
           items:
             $ref: "#/components/schemas/IchStufe"
         kinder:
@@ -2938,6 +3212,8 @@ components:
           type: boolean
         pushProgramme:
           type: boolean
+        pushAnmeldungen:
+          type: boolean
         telefon:
           type:
             - string
@@ -2950,7 +3226,6 @@ components:
         - id
         - name
         - kuerzel
-        - reihenfolge
       properties:
         id:
           type: string
@@ -2961,9 +3236,6 @@ components:
         kuerzel:
           type: string
           example: A
-        reihenfolge:
-          type: integer
-          description: Sortierung der Stufen, aufsteigend.
         logoUrl:
           type:
             - string
@@ -3850,6 +4122,8 @@ components:
             - EIGENES_KONTO
             - EIGENER_ZWEITER_FAKTOR
             - KEIN_ZWEITER_FAKTOR
+            - STUFENNAME_VERGEBEN
+            - STUFE_BELEGT
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -3918,7 +4192,7 @@ components:
           description: Ende der Gültigkeit des Startpassworts; null, wenn keines gesetzt ist.
         rollen:
           type: array
-          description: Stufenrollen, nach Reihenfolge der Stufe.
+          description: Stufenrollen, nach Name der Stufe.
           items:
             $ref: "#/components/schemas/AdminRolle"
         elternteilVon:
@@ -3982,7 +4256,7 @@ components:
             $ref: "#/components/schemas/AdminPerson"
         stufen:
           type: array
-          description: Nach Reihenfolge sortiert.
+          description: Nach Name sortiert.
           items:
             $ref: "#/components/schemas/AdminStufe"
         kinder:
@@ -4099,6 +4373,103 @@ components:
           items:
             type: string
             format: uuid
+    AdminZeitregelAnlegen:
+      type: object
+      required:
+        - stufeId
+        - wochentag
+        - uhrzeit
+        - text
+        - aktiv
+      additionalProperties: false
+      properties:
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "Stufe der Abteilung; `null` heisst alle Stufen."
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+          description: ISO, 1 Montag bis 7 Sonntag.
+        uhrzeit:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: HH:mm in Schweizer Zeit (Europe/Zurich, Sommerzeit inbegriffen).
+          example: "08:00"
+        text:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: |
+            Der ganze Push-Titel. Leerraum am Rand wird entfernt. Der Server ersetzt `{Programm}` durch den Titel und `{Datum}` durch den Tag des Programms (z. B. «Sa 31.10.»). Keine Namen: Der Text läuft über Apple und Google.
+          example: "{Programm} am {Datum}: bitte anmelden oder abmelden"
+        aktiv:
+          type: boolean
+    AdminZeitregelAendern:
+      type: object
+      description: Alle Felder optional; ein leeres Objekt ist erlaubt (No-op).
+      additionalProperties: false
+      properties:
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+        uhrzeit:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        text:
+          type: string
+          minLength: 1
+          maxLength: 150
+        aktiv:
+          type: boolean
+    AdminZeitregel:
+      type: object
+      required:
+        - id
+        - stufeId
+        - wochentag
+        - uhrzeit
+        - text
+        - aktiv
+      properties:
+        id:
+          type: string
+          format: uuid
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "`null` heisst alle Stufen."
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+        uhrzeit:
+          type: string
+          example: "08:00"
+        text:
+          type: string
+        aktiv:
+          type: boolean
+    AdminZeitregelListe:
+      type: object
+      required:
+        - regeln
+      properties:
+        regeln:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminZeitregel"
     AdminAngelegt:
       type: object
       required:
@@ -4107,12 +4478,55 @@ components:
         id:
           type: string
           format: uuid
+    AdminMitteilung:
+      type: object
+      required:
+        - titel
+        - empfaenger
+      additionalProperties: false
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Der ganze Text des Push. Leerraum am Rand wird entfernt. Keine Namen.
+        empfaenger:
+          type: string
+          enum:
+            - alle
+            - stufen
+        stufeIds:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: string
+            format: uuid
+          description: Pflicht bei `stufen`, verboten bei `alle`.
+        rollen:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+            enum:
+              - stufenleitung
+              - leitung
+              - eltern
+          description: Nur diese Rollen bekommen den Push, einzeln oder kombiniert. `eltern` sind die Teilnehmenden. Ohne Angabe gelten alle Rollen. Bei `alle` mit einem Teil der Rollen zählen alle Stufen der Abteilung.
+    AdminMitteilungErgebnis:
+      type: object
+      required:
+        - empfaenger
+      properties:
+        empfaenger:
+          type: integer
+          minimum: 0
+          description: Zahl der Konten, an deren Geräte der Push ging.
     AdminStufeAnlegen:
       type: object
       required:
         - name
-        - kuerzel
-        - reihenfolge
       additionalProperties: false
       properties:
         name:
@@ -4124,11 +4538,7 @@ components:
           type: string
           minLength: 1
           maxLength: 20
-          description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
-        reihenfolge:
-          type: integer
-          minimum: 1
-          maximum: 999
+          description: Freiwillig; ohne Angabe bleibt das Kürzel leer und der Kalender ordnet nur über den Namen zu.
     AdminStufeAendern:
       type: object
       description: Alle Felder optional; ein leeres Objekt ist erlaubt (No-op).
@@ -4142,16 +4552,13 @@ components:
           type: string
           minLength: 1
           maxLength: 20
-        reihenfolge:
-          type: integer
-          minimum: 1
-          maximum: 999
     AdminKind:
       type: object
       required:
         - id
         - vorname
         - nachname
+        - ceviName
         - stufeId
         - aktiv
         - eltern
@@ -4163,6 +4570,11 @@ components:
           type: string
         nachname:
           type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Freiwilliger Cevi-Name; `null`, wenn nicht gesetzt.
         stufeId:
           type: string
           format: uuid
@@ -4416,6 +4828,10 @@ components:
           minLength: 1
           maxLength: 100
           description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
+        ceviName:
+          type: string
+          maxLength: 50
+          description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
         stufeId:
           type: string
           format: uuid
@@ -4433,6 +4849,12 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+        ceviName:
+          type:
+            - string
+            - "null"
+          maxLength: 50
+          description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
         stufeId:
           type: string
           format: uuid
@@ -4532,6 +4954,14 @@ components:
       schema:
         type: string
         format: uuid
+    AdminZeitregelId:
+      name: id
+      in: path
+      required: true
+      description: ID der Erinnerungsregel (UUID).
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     sitzung:
       type: apiKey
@@ -4579,7 +5009,7 @@ components:
           schema:
             $ref: "#/components/schemas/Fehler"
     KeineBerechtigung403:
-      description: Keine Berechtigung (code KEINE_BERECHTIGUNG)
+      description: Keine Berechtigung (code KEINE_BERECHTIGUNG); bei ändernden Methoden auch, wenn der Origin-Header einer fremden Herkunft angehört
       content:
         application/json:
           schema:

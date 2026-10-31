@@ -90,7 +90,7 @@ export const KATEGORIEN = {
   benachrichtigungen: {
     titel: "Benachrichtigungen",
     zweck:
-      "Pushes zu neuen Nachrichten und zu Änderungen an Programmen zustellen. Das Token gehört zum Gerät und zur Sitzung.",
+      "Pushes zu neuen Nachrichten, zu An- und Abmeldungen und zu Erinnerungen zustellen. Das Token gehört zum Gerät und zur Sitzung.",
     frist:
       "Bis die Sitzung endet, also beim Abmelden, beim Deaktivieren und beim Löschen des Kontos.",
     apple: ["Identifiers: Device ID"],
@@ -184,6 +184,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "abteilung_id",
       "vorname",
       "nachname",
+      "cevi_name",
       "stufe_id",
       "stufe_seit",
       "inaktiv_seit",
@@ -252,7 +253,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   stufe: {
-    abteilung: ["id", "abteilung_id", "name", "kuerzel", "reihenfolge"],
+    abteilung: ["id", "abteilung_id", "name", "kuerzel"],
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
   anwesenheit_kind: {
@@ -307,7 +308,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
-    benachrichtigungen: ["push_chat", "push_programme"],
+    benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },
   verification: {
     technik: [
@@ -318,6 +319,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "created_at",
       "updated_at",
     ],
+  },
+  zeitregel: {
+    benachrichtigungen: [
+      "id",
+      "abteilung_id",
+      "stufe_id",
+      "wochentag",
+      "uhrzeit",
+      "text",
+      "aktiv",
+      "erstellt_am",
+    ],
+  },
+  zeitregel_gesendet: {
+    benachrichtigungen: ["regel_id", "programm_id", "gesendet_am"],
   },
 };
 

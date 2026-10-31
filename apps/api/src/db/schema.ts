@@ -66,6 +66,7 @@ export const user = pgTable("user", {
   telefon: text("telefon"),
   pushChat: boolean("push_chat").notNull().default(true),
   pushProgramme: boolean("push_programme").notNull().default(true),
+  pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
   datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
 });
 
@@ -158,16 +159,25 @@ export const twoFactor = pgTable(
   ],
 );
 
-// Umbenennbar, aber nicht löschbar: Die API-Rolle hat darauf kein DELETE (Migration 0001)
-export const stufe = pgTable("stufe", {
-  id: id(),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  name: text("name").notNull(),
-  kuerzel: text("kuerzel").notNull(),
-  reihenfolge: integer("reihenfolge").notNull(),
-});
+// Löschbar nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT, die API-Rolle hat DELETE seit Migration 0023
+export const stufe = pgTable(
+  "stufe",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    kuerzel: text("kuerzel").notNull(),
+  },
+  (t) => [
+    // Ohne Gross-/Kleinschreibung: «Biber» und «biber» sind dieselbe Stufe
+    uniqueIndex("stufe_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+  ],
+);
 
 // Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo
 export const stufenlogo = pgTable(
@@ -212,6 +222,8 @@ export const kind = pgTable("kind", {
     .references(() => abteilung.id, { onDelete: "restrict" }),
   vorname: text("vorname").notNull(),
   nachname: text("nachname").notNull(),
+  // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
+  ceviName: text("cevi_name"),
   stufeId: uuid("stufe_id")
     .notNull()
     .references(() => stufe.id, { onDelete: "restrict" }),
@@ -493,6 +505,49 @@ export const pushToken = pgTable(
       sql`${t.plattform} in ('ios', 'android')`,
     ),
   ],
+);
+
+// Erinnerung an Eltern ohne Antwort (#242); stufe_id leer heisst: alle Stufen. Wochentag ISO (1 Montag bis 7 Sonntag), Uhrzeit HH:mm Schweizer Zeit
+export const zeitregel = pgTable(
+  "zeitregel",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // RESTRICT wie jede Stufen-Referenz; die Löschroute der Stufe löscht die Regeln vorher
+    stufeId: uuid("stufe_id").references(() => stufe.id, {
+      onDelete: "restrict",
+    }),
+    wochentag: integer("wochentag").notNull(),
+    uhrzeit: text("uhrzeit").notNull(),
+    // Der ganze Push-Titel; {Programm} und {Datum} ersetzt der Server
+    text: text("text").notNull(),
+    aktiv: boolean("aktiv").notNull().default(true),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    check("zeitregel_wochentag_check", sql`${t.wochentag} between 1 and 7`),
+    check(
+      "zeitregel_uhrzeit_check",
+      sql`${t.uhrzeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`,
+    ),
+  ],
+);
+
+// Eine Zeile pro gesendeter Erinnerung; sie entsteht vor dem Versand und ist die Sperre gegen Doppelsendung
+export const zeitregelGesendet = pgTable(
+  "zeitregel_gesendet",
+  {
+    regelId: uuid("regel_id")
+      .notNull()
+      .references(() => zeitregel.id, { onDelete: "cascade" }),
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    gesendetAm: zeitpunkt("gesendet_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.regelId, t.programmId] })],
 );
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht

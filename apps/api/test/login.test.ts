@@ -112,6 +112,19 @@ async function bremse(id: string) {
   return zeile;
 }
 
+// Zeit vorrücken wie im Sitzungstest: zurückgestellt statt vorgespult, die Uhr bleibt echt
+async function vorruecken(id: string, minuten: number) {
+  const { naechsterVersuchAb } = await bremse(id);
+  await db
+    .update(schema.user)
+    .set({
+      naechsterVersuchAb: new Date(
+        naechsterVersuchAb!.getTime() - minuten * MINUTE,
+      ),
+    })
+    .where(eq(schema.user.id, id));
+}
+
 function sitzungen(id: string) {
   return db
     .select({ id: schema.session.id })
@@ -167,10 +180,10 @@ describe("Bremse pro Benutzername, nur für Fehlversuche", () => {
     const anderes = await legeKonto();
     for (const n of [1, 2, 3, 4]) {
       expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
-      expect(await bremse(konto.id)).toEqual({
-        fehlversuche: n,
-        naechsterVersuchAb: null,
-      });
+      const { fehlversuche, naechsterVersuchAb } = await bremse(konto.id);
+      expect(fehlversuche).toBe(n);
+      // Ohne Wartezeit hält naechsterVersuchAb nur den Fehlversuch fest
+      expect(naechsterVersuchAb!.getTime()).toBeLessThanOrEqual(Date.now());
     }
     const vorher = Date.now();
     expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
@@ -192,9 +205,12 @@ describe("Bremse pro Benutzername, nur für Fehlversuche", () => {
     [5, 1],
     [6, 5],
     [7, 15],
-    [10, 15],
   ])("der %i. Fehlversuch in Folge setzt %i Minuten", async (n, minuten) => {
-    const konto = await legeKonto({ fehlversuche: n - 1 });
+    // Die vorige Wartezeit ist eben um, der vorige Fehlversuch liegt weniger als 15 Minuten zurück
+    const konto = await legeKonto({
+      fehlversuche: n - 1,
+      naechsterVersuchAb: new Date(Date.now() - 1000),
+    });
     const vorher = Date.now();
     expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
     const { fehlversuche, naechsterVersuchAb } = await bremse(konto.id);
@@ -239,10 +255,52 @@ describe("Bremse pro Benutzername, nur für Fehlversuche", () => {
       .set(startpasswortFelder())
       .where(eq(schema.user.id, konto.id));
     expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
+    const { fehlversuche, naechsterVersuchAb } = await bremse(konto.id);
+    expect(fehlversuche).toBe(1);
+    expect(naechsterVersuchAb!.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  test("viele Fehlversuche, dann 15 Minuten ohne: Der Zähler beginnt bei 0, und das richtige Passwort meldet ohne Admin an", async () => {
+    const konto = await legeKonto();
+    // 4 ohne Wartezeit, dann 1, 5 und 15 Minuten, jede abgewartet
+    for (const minuten of [0, 0, 0, 0, 1, 5, 15]) {
+      expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
+      await vorruecken(konto.id, minuten);
+    }
+    expect((await bremse(konto.id)).fehlversuche).toBe(7);
+
+    expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
+    const { fehlversuche, naechsterVersuchAb } = await bremse(konto.id);
+    expect(fehlversuche).toBe(1);
+    expect(naechsterVersuchAb!.getTime()).toBeLessThanOrEqual(Date.now());
+
+    expect((await anmeldung(konto.benutzername, PASSWORT)).status).toBe(200);
     expect(await bremse(konto.id)).toEqual({
-      fehlversuche: 1,
+      fehlversuche: 0,
       naechsterVersuchAb: null,
     });
+  });
+
+  test("ein fremder Fehlversuch alle 15 Minuten setzt keine Wartezeit: Das Konto bleibt offen", async () => {
+    // 7 Fehlversuche, die Wartezeit von 15 Minuten ist eben um
+    const konto = await legeKonto({
+      fehlversuche: 7,
+      naechsterVersuchAb: new Date(Date.now() - 1000),
+    });
+    for (let runde = 0; runde < 8; runde++) {
+      expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
+      const { fehlversuche, naechsterVersuchAb } = await bremse(konto.id);
+      expect(fehlversuche, `Runde ${runde}`).toBe(1);
+      expect(naechsterVersuchAb!.getTime()).toBeLessThanOrEqual(Date.now());
+      await vorruecken(konto.id, 15);
+    }
+    expect((await anmeldung(konto.benutzername, PASSWORT)).status).toBe(200);
+  });
+
+  test("ein Zähler ohne Zeitpunkt beginnt beim nächsten Fehlversuch bei 0", async () => {
+    const konto = await legeKonto({ fehlversuche: 4 });
+    expect((await anmeldung(konto.benutzername, FALSCH)).status).toBe(401);
+    expect((await bremse(konto.id)).fehlversuche).toBe(1);
   });
 
   test("abgelaufenes Startpasswort: das richtige zählt keinen Fehlversuch und öffnet keine Sitzung, ein falsches zählt", async () => {

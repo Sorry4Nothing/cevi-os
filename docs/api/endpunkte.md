@@ -18,11 +18,14 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API         | **200** alle      |
 | `GET /admin/dom.js`                           | Skript der Verwaltung – Bausteine der Oberfläche      | **200** alle      |
 | `GET /admin/favicon.svg`                      | Symbol der Verwaltung im Browser-Tab                  | **200** alle      |
+| `GET /admin/hintergrund.svg`                  | Hintergrundbild der Verwaltung                        | **200** alle      |
 | `GET /admin/kinder.js`                        | Skript der Verwaltung – Bereich Kinder                | **200** alle      |
+| `GET /admin/mitteilungen.js`                  | Skript der Verwaltung – Bereich Mitteilungen          | **200** alle      |
 | `GET /admin/personen.js`                      | Skript der Verwaltung – Bereich Personen              | **200** alle      |
 | `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                | **200** alle      |
 | `GET /admin/system.js`                        | Skript der Verwaltung – Bereich System                | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht             | **200** alle      |
+| `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen          | **200** alle      |
 | `GET /.well-known/apple-app-site-association` | Apple App Site Association (noch leer)                | **200** alle      |
 | `GET /.well-known/assetlinks.json`            | Android Digital Asset Links (noch leer)               | **200** alle      |
 
@@ -79,10 +82,16 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `DELETE /api/v1/admin/stufen/:id/logo`                         | Logo einer Stufe löschen                                       | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `POST /api/v1/admin/stufen`                                    | Stufe anlegen                                                  | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `PATCH /api/v1/admin/stufen/:id`                               | Stufe ändern                                                   | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `DELETE /api/v1/admin/stufen/:id`                              | Stufe löschen                                                  | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `POST /api/v1/admin/mitteilungen`                              | Mitteilung als Push senden                                     | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `GET /api/v1/admin/kinder`                                     | Kinder der Abteilung mit Elternteilen                          | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `POST /api/v1/admin/kinder`                                    | Kind anlegen                                                   | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `PATCH /api/v1/admin/kinder/:id`                               | Kind ändern                                                    | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `DELETE /api/v1/admin/kinder/:id`                              | Kind löschen                                                   | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/zeitregeln`                                 | Erinnerungsregeln der Abteilung                                | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
+| `POST /api/v1/admin/zeitregeln`                                | Erinnerungsregel anlegen                                       | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
+| `PATCH /api/v1/admin/zeitregeln/:id`                           | Erinnerungsregel ändern                                        | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `DELETE /api/v1/admin/zeitregeln/:id`                          | Erinnerungsregel löschen                                       | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 
 ## App: stufen
 

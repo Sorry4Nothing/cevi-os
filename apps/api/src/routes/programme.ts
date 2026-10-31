@@ -16,8 +16,10 @@ import {
   teilnahme,
   user,
 } from "../db/schema.js";
+import { pushAnmeldung } from "../anmeldung-push.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon } from "../kontakte.js";
+import type { Fcm } from "../push.js";
 import {
   aktivesKonto,
   darfLeitungAnmelden,
@@ -75,7 +77,7 @@ function programmFelder(person: Person) {
   };
 }
 
-export function erstelleProgrammRouten({ db }: { db: Db }) {
+export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   // Aktiv und noch nicht begonnen: nur dann lässt sich die Teilnahme melden und ändern
   async function teilnahmeOffen(programmId: string) {
     const [zeile] = await db
@@ -194,7 +196,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         eigeneAnmeldung = anmeldung?.status ?? "offen";
       }
       const kinder = (await eigeneKinder(person, [id])).get(id) ?? [];
-      // Eckdaten der Webseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Reihenfolge
+      // Eckdaten der Webseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Name
       const [eckdaten] = await db
         .select({
           treffpunkt: programmEckdaten.treffpunkt,
@@ -221,7 +223,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           ),
         )
         .where(eq(programmStufe.programmId, id))
-        .orderBy(stufe.reihenfolge, stufe.id)
+        .orderBy(stufe.name, stufe.id)
         .limit(1);
       return c.json({
         ...zeile,
@@ -488,7 +490,8 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
             409,
           );
         }
-        await db
+        // Ohne Zeile in returning blieb der Wert gleich: Das löst keinen Push aus
+        const geaendert = await db
           .insert(teilnahme)
           .values({
             programmId: id,
@@ -499,7 +502,20 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           .onConflictDoUpdate({
             target: [teilnahme.programmId, teilnahme.kindId],
             set: { status, geaendertVon: person.id, geaendertAm: sql`now()` },
-          });
+            setWhere: sql`${teilnahme.status} is distinct from ${status}`,
+          })
+          .returning({ kindId: teilnahme.kindId });
+        if (geaendert.length > 0) {
+          await pushAnmeldung(
+            { db, fcm, c },
+            {
+              programmId: id,
+              abteilungId: person.abteilungId,
+              userId: person.id,
+              status,
+            },
+          );
+        }
         return c.body(null, 204);
       },
     )
