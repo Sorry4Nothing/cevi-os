@@ -1,10 +1,17 @@
-import { and, eq, ne, sql as roh } from "drizzle-orm";
+import { and, eq, like, ne, sql as roh } from "drizzle-orm";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
-import { programmEckdaten, stufe } from "../db/schema.js";
+import {
+  abteilung,
+  programm,
+  programmEckdaten,
+  programmStufe,
+  stufe,
+} from "../db/schema.js";
+import { programmBeginn } from "../rechte.js";
 import { log } from "../log.js";
 import { fehlerCode } from "./fehler.js";
-import { parseEckdaten, stufenSlug } from "./eckdaten.js";
+import { parseEckdaten, stufenSlug, type Eckdaten } from "./eckdaten.js";
 import {
   eckdatenLauf,
   sicherenFehlercode,
@@ -65,11 +72,80 @@ export async function synchronisiereEckdaten({
   }
 }
 
+type StufeZeile = {
+  id: string;
+  name: string;
+  abteilungId: string;
+  kalenderId: string | null;
+};
+type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+// Solange die Abteilung keinen Kalender hat, entsteht das Programm aus der Seite. Mit Kalender ist er die Quelle der Samstage
+// shortcut: Die ID «web:<Stufe>:<Tag>» ersetzt die Google-ID; hängt die Abteilung später einen Kalender an, räumt der Kalender-Sync diese Programme nicht weg, dann Spalte «quelle» einführen
+async function legeProgrammAn(tx: Tx, eine: StufeZeile, e: Eckdaten) {
+  if (eine.kalenderId !== null) return;
+  const googleEventId = `web:${eine.id}:${e.tag}`;
+  // Ohne beide Zeiten (oder mit Schluss vor Beginn) ganztägig; «HH:MM» vergleicht sich als Text
+  const mitZeit =
+    e.treffZeit !== null &&
+    e.schlussZeit !== null &&
+    e.treffZeit < e.schlussZeit;
+  const zeit = (hhmm: string | null) =>
+    mitZeit
+      ? roh`(${e.tag}::date + ${hhmm}::time) at time zone 'Europe/Zurich'`
+      : null;
+  const werte = {
+    titel: `Cevi-Programm ${eine.name}`,
+    ganztaegig: !mitZeit,
+    beginn: zeit(e.treffZeit),
+    ende: zeit(e.schlussZeit),
+    tagVon: mitZeit ? null : e.tag,
+    tagBis: mitZeit ? null : e.tag,
+    // Der Treffpunkt ohne die Zeit davor, sonst der Schluss
+    googleOrt:
+      e.treffpunkt?.replace(/^\d{1,2}[:.]\d{2}(\s*Uhr)?\s*/, "").trim() ||
+      e.schlussOrt,
+  };
+  const [eins] = await tx
+    .insert(programm)
+    .values({
+      abteilungId: eine.abteilungId,
+      googleEventId,
+      sichtbarkeit: "eltern",
+      ...werte,
+    })
+    .onConflictDoUpdate({
+      target: [programm.abteilungId, programm.googleEventId],
+      set: werte,
+    })
+    .returning({ id: programm.id });
+  await tx
+    .insert(programmStufe)
+    .values({ programmId: eins.id, stufeId: eine.id })
+    .onConflictDoNothing();
+  // Die Seite zeigt nur den nächsten Anlass: Ein kommendes Programm eines anderen Tags ist überholt (Vergangenes bleibt)
+  await tx
+    .delete(programm)
+    .where(
+      and(
+        like(programm.googleEventId, `web:${eine.id}:%`),
+        ne(programm.googleEventId, googleEventId),
+        roh`${programmBeginn} > now()`,
+      ),
+    );
+}
+
 async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
   const ergebnisse = new Map<string, StufenLauf>();
   const stufen = await db
-    .select({ id: stufe.id, name: stufe.name })
-    .from(stufe);
+    .select({
+      id: stufe.id,
+      name: stufe.name,
+      abteilungId: stufe.abteilungId,
+      kalenderId: abteilung.googleKalenderId,
+    })
+    .from(stufe)
+    .innerJoin(abteilung, eq(abteilung.id, stufe.abteilungId));
   for (const eine of stufen) {
     const slug = stufenSlug(eine.name);
     if (slug === "") continue;
@@ -110,6 +186,7 @@ async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
               ne(programmEckdaten.tag, e.tag),
             ),
           );
+        await legeProgrammAn(tx, eine, e);
       });
       ergebnisse.set(eine.id, {
         ausgang: "gelesen",

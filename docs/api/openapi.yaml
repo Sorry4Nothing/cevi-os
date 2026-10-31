@@ -2372,7 +2372,7 @@ paths:
       operationId: stosseAdminEckdatenAn
       summary: Abruf der Stufenwebseiten anstossen
       description: |
-        Nur Admins (mit zweitem Faktor). Ruft die Eckdaten aller Stufen von der Webseite ab. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
+        Nur Admins (mit zweitem Faktor). Ruft die Eckdaten aller Stufen von der Webseite ab. Hat die Abteilung keinen Google-Kalender, legt der Abruf zum nächsten Anlass auch das Programm an (Titel «Cevi-Programm <Stufe>», für Eltern sichtbar) oder aktualisiert es. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
 
         Statuscodes: 200 mit `ergebnis` `fertig` oder `gesperrt`. 401. 403 für Nicht-Admins. 426. 429 bei zu kurzem Abstand oder beim Limit. 501, wenn der Server keinen Abruf eingerichtet hat.
       tags:
