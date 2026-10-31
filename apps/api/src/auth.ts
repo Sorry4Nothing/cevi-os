@@ -42,10 +42,25 @@ type Bremsfelder = {
   naechsterVersuchAb?: Date | string | null;
 };
 
-// Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten, ohne Dauersperre
+// Ab dem 5. Fehlversuch in Folge: 1, dann 5, dann 15 Minuten
 export function wartezeitMinuten(fehlversuche: number) {
   if (fehlversuche < 5) return 0;
   return fehlversuche === 5 ? 1 : fehlversuche === 6 ? 5 : 15;
+}
+
+// So lang wie die längste Wartezeit: Nach ihr beginnt der Zähler bei 0, darum sperrt ein fremder Fehlversuch alle 15 Minuten das Konto nie
+const VERFALL_MINUTEN = 15;
+
+// naechsterVersuchAb ist der letzte Fehlversuch plus seine Wartezeit; ohne Datum gilt 1970, ein ungültiges Datum verfällt nie
+export function fehlversucheVerfallen(
+  fehlversuche: number,
+  naechsterVersuchAb: Date | string | null | undefined,
+  jetzt = Date.now(),
+) {
+  const letzter =
+    new Date(naechsterVersuchAb ?? 0).getTime() -
+    wartezeitMinuten(fehlversuche) * 60_000;
+  return jetzt - letzter >= VERFALL_MINUTEN * 60_000;
 }
 
 // Eine Stelle für den Text, den die App kennt: Die Anmeldung und das Löschen des Kontos antworten damit
@@ -278,7 +293,7 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
           ) {
             return;
           }
-          const person = await adapter.findOne<{ id: string }>({
+          const person = await adapter.findOne<Bremsfelder & { id: string }>({
             model: "user",
             where: [
               { field: "username", value: ctx.body.username.toLowerCase() },
@@ -286,21 +301,38 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
           });
           // Unbekannte Namen hinterlassen nichts
           if (!person) return;
+          const wo = [{ field: "id", value: person.id }];
+          if (
+            person.fehlversuche &&
+            fehlversucheVerfallen(
+              person.fehlversuche,
+              person.naechsterVersuchAb,
+            )
+          ) {
+            // Nur auf den gelesenen Stand: Von gleichzeitigen Fehlversuchen setzt einer zurück, die übrigen zählen weiter
+            await adapter.update({
+              model: "user",
+              where: [
+                ...wo,
+                { field: "fehlversuche", value: person.fehlversuche },
+              ],
+              update: { fehlversuche: 0 },
+            });
+          }
           const erhoeht = await adapter.incrementOne<{ fehlversuche: number }>({
             model: "user",
-            where: [{ field: "id", value: person.id }],
+            where: wo,
             increment: { fehlversuche: 1 },
           });
           const minuten = wartezeitMinuten(erhoeht?.fehlversuche ?? 0);
-          if (minuten > 0) {
-            await adapter.update({
-              model: "user",
-              where: [{ field: "id", value: person.id }],
-              update: {
-                naechsterVersuchAb: new Date(Date.now() + minuten * 60_000),
-              },
-            });
-          }
+          // Auch ohne Wartezeit: Daraus liest fehlversucheVerfallen den letzten Fehlversuch
+          await adapter.update({
+            model: "user",
+            where: wo,
+            update: {
+              naechsterVersuchAb: new Date(Date.now() + minuten * 60_000),
+            },
+          });
           return;
         }
         if (ctx.path === "/two-factor/enable") {

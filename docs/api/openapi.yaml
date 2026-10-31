@@ -340,7 +340,8 @@ paths:
         Die App kann die Fälle nicht unterscheiden.
 
         **Bremse.** Ab dem 5. Fehlversuch in Folge gilt pro Benutzername eine Wartezeit: 1 Minute, dann 5, dann
-        15 Minuten, ohne Dauersperre. Während der Wartezeit antwortet die Route auch bei richtigem Passwort mit 401.
+        15 Minuten. Liegt der letzte Fehlversuch 15 Minuten zurück, also spätestens nach der längsten Wartezeit,
+        beginnt die Zählung bei 0. Während der Wartezeit antwortet die Route auch bei richtigem Passwort mit 401.
         Zusätzlich gilt ein Limit von 30 Anfragen je 15 Minuten und Client-IP (429 `ZU_VIELE_ANFRAGEN`, Header
         `X-Retry-After` in Sekunden).
 
