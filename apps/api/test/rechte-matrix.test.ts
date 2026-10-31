@@ -315,6 +315,37 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Ausgaben der Hintergrund-Abrufe (#267): nur Admins; Inhalt in test/admin-system.test.ts. Die Matrix-App hat keine Abrufe, darum antwortet der Knopf 501
+  "GET /api/v1/admin/system/syncs": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/system/syncs/eckdaten": {
+    erwartet: {
+      ...alle(403),
+      admin: 501,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 501,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/system/syncs/kalender": {
+    erwartet: {
+      ...alle(403),
+      admin: 501,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 501,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/admin/personen": {
     erwartet: {
       ...alle(403),

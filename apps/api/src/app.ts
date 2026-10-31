@@ -67,6 +67,7 @@ export function erstelleApp({
   kodiereBild,
   kodiereLogo,
   seiten,
+  syncs,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -76,6 +77,11 @@ export function erstelleApp({
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
   kodiereBild?: BildKodierer;
   kodiereLogo?: BildKodierer;
+  // Die Abrufe im Hintergrund, von Hand anzustossen; ohne sie antwortet die Verwaltung mit 501
+  syncs?: {
+    eckdaten?: () => Promise<"fertig" | "gesperrt">;
+    kalender?: () => Promise<"fertig" | "gesperrt">;
+  };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -185,7 +191,7 @@ export function erstelleApp({
       )
       .route(
         "/api/v1/admin/system",
-        erstelleSystemRouten({ db, sql, metriken }),
+        erstelleSystemRouten({ db, sql, metriken, syncs }),
       )
       .route("/api/v1/stufen", erstelleStufenRouten({ db }))
       .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
