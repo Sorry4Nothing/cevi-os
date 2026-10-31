@@ -195,7 +195,7 @@ paths:
   /admin/hintergrund.svg:
     get:
       operationId: getAdminHintergrund
-      summary: Hintergrundbild der Verwaltung
+      summary: Logo als Hintergrund der Verwaltung
       tags:
         - Allgemein
       security: []
