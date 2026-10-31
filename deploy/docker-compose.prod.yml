@@ -33,6 +33,9 @@ services:
     restart: unless-stopped
     # node als PID 1 ignoriert SIGTERM, docker stop bräche ihn erst nach 10 s hart ab
     init: true
+    # Viele gleichzeitige Bild-Uploads oder ein Leck treffen nur die API, nicht Postgres und Caddy; der Wert muss zum Server passen (docs/betrieb.md)
+    mem_limit: 1g
+    pids_limit: 256
     environment:
       DATABASE_URL: postgres://cevi_os_api:${API_DB_PASSWORD:?fehlt in deploy/.env}@postgres:5432/cevi_os
       APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
