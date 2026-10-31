@@ -320,6 +320,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "updated_at",
     ],
   },
+  zeitregel: {
+    benachrichtigungen: [
+      "id",
+      "abteilung_id",
+      "stufe_id",
+      "wochentag",
+      "uhrzeit",
+      "text",
+      "aktiv",
+      "erstellt_am",
+    ],
+  },
+  zeitregel_gesendet: {
+    benachrichtigungen: ["regel_id", "programm_id", "gesendet_am"],
+  },
 };
 
 // Was die Apps auf dem Gerät ablegen (Schlüssel im geschützten Speicher des Systems) -> Kategorie. Die Apps liegen in eigenen Repos; wer dort einen Schlüssel ergänzt, ergänzt ihn auch hier

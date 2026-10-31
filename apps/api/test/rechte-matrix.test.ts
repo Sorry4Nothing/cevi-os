@@ -99,6 +99,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /admin/system.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
+  "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -679,6 +680,60 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "GET /api/v1/admin/zeitregeln": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/zeitregeln": {
+    body: () => ({
+      stufeId: null,
+      wochentag: 3,
+      uhrzeit: "08:00",
+      text: "{Programm} am {Datum}",
+      aktiv: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/zeitregeln/:id": {
+    url: () => `/api/v1/admin/zeitregeln/${patchRegelId}`,
+    body: () => ({ uhrzeit: "09:30" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/zeitregeln/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/zeitregeln/${await wegwerfRegelId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -767,6 +822,7 @@ let aktivierenZielId: string;
 let patchStufeId: string;
 let stufenZaehler = 0;
 let patchKindId: string;
+let patchRegelId: string;
 let bildZielId: string;
 let testBild: Buffer;
 
@@ -818,6 +874,20 @@ async function wegwerfKindId() {
   return zeile.id;
 }
 
+async function wegwerfRegelId() {
+  const [zeile] = await welt.db
+    .insert(schema.zeitregel)
+    .values({
+      abteilungId: welt.testabteilungId,
+      wochentag: 3,
+      uhrzeit: "08:00",
+      text: "Wegwerf",
+      aktiv: false,
+    })
+    .returning({ id: schema.zeitregel.id });
+  return zeile.id;
+}
+
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
   return Object.fromEntries(
@@ -863,6 +933,7 @@ beforeAll(async () => {
       wegwerfPersonId(),
     ]);
   patchKindId = await wegwerfKindId();
+  patchRegelId = await wegwerfRegelId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })
@@ -1052,6 +1123,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       aktivierenZielId,
       patchStufeId,
       patchKindId,
+      patchRegelId,
       bildZielId,
       elternAUserId: standard.elternA.id!,
     };

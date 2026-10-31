@@ -19,6 +19,10 @@ import {
   loescheAbgelaufeneSitzungen,
   starteSitzungenAufraeumen,
 } from "./sitzungen-aufraeumen.js";
+import {
+  pruefeZeitregeln,
+  starteZeitregelPruefer,
+} from "./zeitregeln/pruefer.js";
 
 // Ohne gültige Konfiguration endet der Prozess hier mit Status 1
 const konfiguration = ladeKonfiguration(process.env);
@@ -62,3 +66,9 @@ starteEckdatenSync(() =>
   }),
 );
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Ohne Schlüssel gäbe es nichts zu senden, und eine Erinnerung gälte trotzdem als gesendet
+if (fcm) {
+  starteZeitregelPruefer(() =>
+    pruefeZeitregeln({ datenbankUrl: konfiguration.DATABASE_URL, fcm }),
+  );
+}

@@ -6,6 +6,7 @@ import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as uebersicht from "./uebersicht.js";
+import * as zeitregeln from "./zeitregeln.js";
 
 // [Schlüssel im Hash, Name, Modul, Icon, Untertitel im Seitenkopf]
 const BEREICHE = [
@@ -31,6 +32,13 @@ const BEREICHE = [
     mitteilungen,
     "glocke",
     "Push-Mitteilung an Eltern und Leitende senden.",
+  ],
+  [
+    "zeitregeln",
+    "Erinnerungen",
+    zeitregeln,
+    "uhr",
+    "Pushes an Eltern, die noch nicht geantwortet haben.",
   ],
   [
     "system",

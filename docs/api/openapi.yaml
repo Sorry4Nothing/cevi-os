@@ -297,6 +297,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/zeitregeln.js:
+    get:
+      operationId: getAdminZeitregelnSkript
+      summary: Skript der Verwaltung – Bereich Erinnerungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /.well-known/apple-app-site-association:
     get:
       operationId: getAppleAppSiteAssociation
@@ -2425,7 +2440,7 @@ paths:
       operationId: loescheAdminStufe
       summary: Stufe löschen
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
+        Nur Admins, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten, Erinnerungsregeln der Stufe und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
 
         Eine Stufe mit zugewiesenen Kindern (auch inaktiven) oder Leitenden lässt sich nicht löschen: Sie müssen zuerst einer anderen Stufe zugewiesen oder entfernt werden.
 
@@ -2656,6 +2671,130 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/zeitregeln:
+    get:
+      operationId: listeAdminZeitregeln
+      summary: Erinnerungsregeln der Abteilung
+      description: |
+        Nur Admins. Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Regeln der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminZeitregelListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminZeitregelAn
+      summary: Erinnerungsregel anlegen
+      description: |
+        Nur Admins. Legt eine Regel an, die Eltern ohne gespeichertes «ja» oder «nein» an ein Programm erinnert. Der Server prüft jede Minute, ob eine Regel fällig ist: Die Auslösezeit pro Programm ist der letzte passende Wochentag samt Uhrzeit (Schweizer Zeit) vor Programmbeginn. Pro Regel und Programm geht höchstens eine Erinnerung hinaus; eine Regel, die erst nach der Auslösezeit entsteht, holt sie bis zum Programmbeginn nach. Das Anlegen steht im Audit-Log (ohne den Text).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminZeitregelAnlegen"
+      responses:
+        "201":
+          description: Regel angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/zeitregeln/{id}:
+    patch:
+      operationId: aendereAdminZeitregel
+      summary: Erinnerungsregel ändern
+      description: |
+        Nur Admins, nur Regeln der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, ohne den Text). Eine schon gesendete Erinnerung wird durch eine Änderung nie wiederholt.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), dann Regel in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremder Stufe. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminZeitregelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminZeitregelAendern"
+      responses:
+        "204":
+          description: Geändert (auch bei einem No-op).
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminZeitregel
+      summary: Erinnerungsregel löschen
+      description: |
+        Nur Admins, nur Regeln der eigenen Abteilung. Löscht die Regel samt dem Vermerk der gesendeten Erinnerungen; das Löschen steht im Audit-Log.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminZeitregelId"
       responses:
         "204":
           description: Gelöscht.
@@ -4234,6 +4373,103 @@ components:
           items:
             type: string
             format: uuid
+    AdminZeitregelAnlegen:
+      type: object
+      required:
+        - stufeId
+        - wochentag
+        - uhrzeit
+        - text
+        - aktiv
+      additionalProperties: false
+      properties:
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "Stufe der Abteilung; `null` heisst alle Stufen."
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+          description: ISO, 1 Montag bis 7 Sonntag.
+        uhrzeit:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+          description: HH:mm in Schweizer Zeit (Europe/Zurich, Sommerzeit inbegriffen).
+          example: "08:00"
+        text:
+          type: string
+          minLength: 1
+          maxLength: 150
+          description: |
+            Der ganze Push-Titel. Leerraum am Rand wird entfernt. Der Server ersetzt `{Programm}` durch den Titel und `{Datum}` durch den Tag des Programms (z. B. «Sa 31.10.»). Keine Namen: Der Text läuft über Apple und Google.
+          example: "{Programm} am {Datum}: bitte anmelden oder abmelden"
+        aktiv:
+          type: boolean
+    AdminZeitregelAendern:
+      type: object
+      description: Alle Felder optional; ein leeres Objekt ist erlaubt (No-op).
+      additionalProperties: false
+      properties:
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+        uhrzeit:
+          type: string
+          pattern: ^([01][0-9]|2[0-3]):[0-5][0-9]$
+        text:
+          type: string
+          minLength: 1
+          maxLength: 150
+        aktiv:
+          type: boolean
+    AdminZeitregel:
+      type: object
+      required:
+        - id
+        - stufeId
+        - wochentag
+        - uhrzeit
+        - text
+        - aktiv
+      properties:
+        id:
+          type: string
+          format: uuid
+        stufeId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "`null` heisst alle Stufen."
+        wochentag:
+          type: integer
+          minimum: 1
+          maximum: 7
+        uhrzeit:
+          type: string
+          example: "08:00"
+        text:
+          type: string
+        aktiv:
+          type: boolean
+    AdminZeitregelListe:
+      type: object
+      required:
+        - regeln
+      properties:
+        regeln:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminZeitregel"
     AdminAngelegt:
       type: object
       required:
@@ -4704,6 +4940,14 @@ components:
       in: path
       required: true
       description: ID des Kindes (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminZeitregelId:
+      name: id
+      in: path
+      required: true
+      description: ID der Erinnerungsregel (UUID).
       schema:
         type: string
         format: uuid

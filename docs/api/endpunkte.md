@@ -25,6 +25,7 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                | **200** alle      |
 | `GET /admin/system.js`                        | Skript der Verwaltung – Bereich System                | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht             | **200** alle      |
+| `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen          | **200** alle      |
 | `GET /.well-known/apple-app-site-association` | Apple App Site Association (noch leer)                | **200** alle      |
 | `GET /.well-known/assetlinks.json`            | Android Digital Asset Links (noch leer)               | **200** alle      |
 
@@ -87,6 +88,10 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `POST /api/v1/admin/kinder`                                    | Kind anlegen                                                   | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `PATCH /api/v1/admin/kinder/:id`                               | Kind ändern                                                    | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `DELETE /api/v1/admin/kinder/:id`                              | Kind löschen                                                   | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/zeitregeln`                                 | Erinnerungsregeln der Abteilung                                | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
+| `POST /api/v1/admin/zeitregeln`                                | Erinnerungsregel anlegen                                       | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
+| `PATCH /api/v1/admin/zeitregeln/:id`                           | Erinnerungsregel ändern                                        | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `DELETE /api/v1/admin/zeitregeln/:id`                          | Erinnerungsregel löschen                                       | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 
 ## App: stufen
 
