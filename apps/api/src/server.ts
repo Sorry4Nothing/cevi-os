@@ -41,6 +41,17 @@ const db = erstelleDb(sql);
 const auth = erstelleAuth(
   drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
 );
+// Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
+const kalenderLauf = () =>
+  synchronisiere({
+    datenbankUrl: konfiguration.DATABASE_URL,
+    schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
+  });
+const eckdatenLauf = () =>
+  synchronisiereEckdaten({
+    datenbankUrl: konfiguration.DATABASE_URL,
+    basisUrl: konfiguration.ECKDATEN_BASIS_URL,
+  });
 const app = erstelleApp({
   appMinVersion: konfiguration.APP_MIN_VERSION,
   sql,
@@ -50,21 +61,15 @@ const app = erstelleApp({
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
   seiten,
+  syncs: {
+    kalender: kalenderLauf,
+    eckdaten: eckdatenLauf,
+  },
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
 serve({ fetch: app.fetch, port: konfiguration.PORT });
-starteKalenderSync(() =>
-  synchronisiere({
-    datenbankUrl: konfiguration.DATABASE_URL,
-    schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
-  }),
-);
-starteEckdatenSync(() =>
-  synchronisiereEckdaten({
-    datenbankUrl: konfiguration.DATABASE_URL,
-    basisUrl: konfiguration.ECKDATEN_BASIS_URL,
-  }),
-);
+starteKalenderSync(kalenderLauf);
+starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
 // Ohne Schlüssel gäbe es nichts zu senden, und eine Erinnerung gälte trotzdem als gesendet
 if (fcm) {

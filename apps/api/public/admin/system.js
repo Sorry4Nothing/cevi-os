@@ -67,6 +67,12 @@ export async function ladeBetrieb() {
   return { system, anfragen };
 }
 
+// Die Seite «System» braucht zusätzlich die Ausgaben der Abrufe; die Übersicht nicht
+async function ladeSeite() {
+  const [betrieb, abrufe] = await Promise.all([ladeBetrieb(), ladeAbrufe()]);
+  return { ...betrieb, abrufe };
+}
+
 // Lädt alle 15 Sekunden neu, solange der Bereich auf der Seite steht und der Reiter sichtbar ist; ein Fehler lässt die alten Zahlen stehen
 export function laufend(bereich, laden, zeichnen, fehlerFeld, sekunden = 15) {
   let laeuft = false;
@@ -416,7 +422,7 @@ const syncVeraltet = (k) =>
   Date.now() - new Date(k.letzterErfolgAm).getTime() > SYNC_VERALTET_MS;
 
 export function zeige(bereich, ctx) {
-  ctx.lade(ladeBetrieb, (daten) => zeichneSeite(bereich, daten, ctx));
+  ctx.lade(ladeSeite, (daten) => zeichneSeite(bereich, daten, ctx));
 }
 
 // Reiter innerhalb der Seite (ein Hash je Bereich): Pfeiltasten wechseln und aktivieren, Tab geht in den Inhalt
@@ -681,6 +687,101 @@ function routenDetail(r, fehler) {
   );
 }
 
+const AUSGANG = {
+  gelesen: ["Gelesen", "ok"],
+  keine_seite: ["Keine Seite", "warn"],
+  ohne_datum: ["Ohne Datum", "warn"],
+  fehler: ["Fehler", "fehler"],
+};
+
+export const ladeAbrufe = () => anfrage("GET", "/api/v1/admin/system/syncs");
+
+// Die Ausgaben der Abrufe im Hintergrund (#267); «Jetzt abrufen» startet dieselben Läufe von Hand
+function zeichneAbrufe(ziel, d, starten, laeuft) {
+  const e = d.eckdaten;
+  const k = d.kalender;
+  const zeilen = e.stufen.map((z) => {
+    const [text, art] = z.ausgang
+      ? AUSGANG[z.ausgang]
+      : ["Noch kein Lauf", undefined];
+    const x = z.eckdaten;
+    return el(
+      "tr",
+      {},
+      el("th", { scope: "row" }, z.name),
+      el(
+        "td",
+        {},
+        el("ul", { class: "chips" }, chip(text, art, art ? undefined : "info")),
+      ),
+      el("td", { class: "mono" }, z.fehlercode ?? "–"),
+      el("td", {}, x ? `${x.tag}, ${x.treffpunkt ?? "–"}` : "–"),
+      el(
+        "td",
+        {},
+        x ? `${x.schlussOrt ?? "–"} ${x.schlussZeit ?? ""}`.trim() : "–",
+      ),
+      el("td", {}, x?.mitnehmen ?? "–"),
+      el("td", { class: "mono" }, z.adresse ?? "–"),
+    );
+  });
+  ersetze(
+    ziel,
+    panel(
+      "Stufenwebseiten",
+      el(
+        "p",
+        { class: "hilfe" },
+        e.letzterLaufAm
+          ? `Letzter Lauf ${zeit(e.letzterLaufAm)} (${vor(e.letzterLaufAm)}).`
+          : "Seit dem Start der API lief noch kein Abruf. Der Ausgang liegt im Arbeitsspeicher.",
+      ),
+      zeilen.length === 0
+        ? el("p", { class: "leer leer--klein" }, "Keine Stufen.")
+        : tabelle({
+            beschriftung: "Ausgaben je Stufe",
+            spalten: [
+              "Stufe",
+              "Ausgang",
+              "Code",
+              "Nächster Anlass",
+              "Schluss",
+              "Mitnehmen",
+              "Adresse",
+            ],
+            zeilen,
+          }).wurzel,
+      knopf("Jetzt abrufen", {
+        symbol: "aktualisieren",
+        disabled: laeuft.eckdaten,
+        "data-fokus": "abruf-eckdaten",
+        onclick: () => starten("eckdaten"),
+      }),
+    ),
+    panel(
+      "Kalender",
+      werte([
+        ["Eingerichtet", k.eingerichtet ? "Ja" : "Nein"],
+        [
+          "Letzter Erfolg",
+          k.letzterErfolgAm
+            ? `${zeit(k.letzterErfolgAm)} (${vor(k.letzterErfolgAm)})`
+            : "noch nie",
+        ],
+        ["Fehler", k.fehler ?? "keiner"],
+        ["Programme", zahl(k.programme)],
+      ]),
+      k.eingerichtet &&
+        knopf("Jetzt abgleichen", {
+          symbol: "aktualisieren",
+          disabled: laeuft.kalender,
+          "data-fokus": "abruf-kalender",
+          onclick: () => starten("kalender"),
+        }),
+    ),
+  );
+}
+
 function zeichneSeite(bereich, daten, ctx) {
   let anfragen;
   let sortierung = "anzahl";
@@ -704,6 +805,10 @@ function zeichneSeite(bereich, daten, ctx) {
   const routen = el("div", {});
   const routenZahl = el("p", { class: "klein leise", role: "status" });
   const fehler = el("div", {});
+  const abrufe = el("div", { class: "raster" });
+  const abrufeFehler = el("p", { class: "meta fehlerzeile", role: "status" });
+  const abrufLaeuft = { eckdaten: false, kalender: false };
+  let abrufDaten;
 
   const sortieren = auswahl({
     label: "Sortieren",
@@ -957,9 +1062,53 @@ function zeichneSeite(bereich, daten, ctx) {
         ),
       ],
     },
+    {
+      id: `${basis}-abrufe`,
+      text: "Abrufe",
+      inhalt: [abrufeFehler, abrufe],
+    },
   ]);
 
-  const nachladen = laufend(bereich, ladeBetrieb, zeichne, fehlerFeld);
+  const zeichneAbrufeNeu = (d) => {
+    abrufDaten = d;
+    zeichneAbrufe(abrufe, d, starteAbruf, abrufLaeuft);
+  };
+  async function starteAbruf(job) {
+    abrufLaeuft[job] = true;
+    zeichneAbrufe(abrufe, abrufDaten, starteAbruf, abrufLaeuft);
+    try {
+      const { ergebnis } = await anfrage(
+        "POST",
+        `/api/v1/admin/system/syncs/${job}`,
+      );
+      ctx.melde(
+        ergebnis === "fertig"
+          ? "Abruf abgeschlossen."
+          : "Es läuft schon ein Abruf.",
+      );
+      abrufeFehler.textContent = "";
+    } catch (f) {
+      abrufeFehler.textContent = `Abruf nicht möglich: ${fehlertext(f)}`;
+    } finally {
+      abrufLaeuft[job] = false;
+    }
+    try {
+      zeichneAbrufeNeu(await ladeAbrufe());
+    } catch {
+      zeichneAbrufe(abrufe, abrufDaten, starteAbruf, abrufLaeuft);
+    }
+  }
+  zeichneAbrufeNeu(daten.abrufe);
+
+  const nachladen = laufend(
+    bereich,
+    ladeSeite,
+    (neu) => {
+      zeichne(neu);
+      zeichneAbrufeNeu(neu.abrufe);
+    },
+    fehlerFeld,
+  );
   ctx.kopfAktion(
     knopf("Aktualisieren", {
       symbol: "aktualisieren",

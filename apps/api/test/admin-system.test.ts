@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import postgres from "postgres";
 import {
@@ -13,6 +14,8 @@ import {
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
+import * as schema from "../src/db/schema.js";
+import { eckdatenLauf } from "../src/kalender/laufstand.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -34,6 +37,24 @@ const app = erstelleApp({
   db,
   auth,
   seiten: ladeSeiten(),
+});
+const starts: string[] = [];
+const appMitSyncs = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+  syncs: {
+    eckdaten: async () => {
+      starts.push("eckdaten");
+      return "fertig";
+    },
+    kalender: async () => {
+      starts.push("kalender");
+      return "gesperrt";
+    },
+  },
 });
 afterAll(() => sql.end());
 
@@ -201,5 +222,110 @@ describe("GET /api/v1/admin/system/requests", () => {
       expect((await hole(eltern, pfad)).status).toBe(403);
       expect((await hole(ohne, pfad)).status).toBe(401);
     }
+  });
+});
+
+describe("Ausgaben der Hintergrund-Abrufe (#267)", () => {
+  test("GET /syncs zeigt pro Stufe Ausgang und gelesene Eckdaten, kalender zählt Programme", async () => {
+    await db.insert(schema.programmEckdaten).values({
+      stufeId: welt.stufeAId,
+      tag: "2030-05-04",
+      treffpunkt: "Bahnhof",
+      schlussOrt: null,
+      schlussZeit: "17:00",
+      mitnehmen: "Znüni",
+    });
+    eckdatenLauf.am = new Date("2030-05-01T10:00:00Z");
+    eckdatenLauf.stufen = new Map([
+      [
+        welt.stufeAId,
+        {
+          ausgang: "gelesen",
+          fehlercode: null,
+          adresse: "https://beispiel.example/cevistufe-a",
+        },
+      ],
+      [
+        welt.stufeBId,
+        {
+          ausgang: "fehler",
+          fehlercode: "ECONNRESET",
+          adresse: "https://beispiel.example/cevistufe-b",
+        },
+      ],
+    ]);
+    const antwort = await hole(admin, "/api/v1/admin/system/syncs");
+    expect(antwort.status).toBe(200);
+    const daten = await antwort.json();
+    expect(daten.eckdaten.letzterLaufAm).toBe("2030-05-01T10:00:00.000Z");
+    const a = daten.eckdaten.stufen.find(
+      (s: { id: string }) => s.id === welt.stufeAId,
+    );
+    expect(a).toMatchObject({
+      ausgang: "gelesen",
+      adresse: "https://beispiel.example/cevistufe-a",
+      eckdaten: {
+        tag: "2030-05-04",
+        treffpunkt: "Bahnhof",
+        schlussZeit: "17:00",
+      },
+    });
+    const b = daten.eckdaten.stufen.find(
+      (s: { id: string }) => s.id === welt.stufeBId,
+    );
+    expect(b).toMatchObject({
+      ausgang: "fehler",
+      fehlercode: "ECONNRESET",
+      eckdaten: null,
+    });
+    // Stufen anderer Abteilungen erscheinen nicht
+    expect(
+      daten.eckdaten.stufen.some(
+        (s: { id: string }) => s.id === welt.demoStufeId,
+      ),
+    ).toBe(false);
+    expect(daten.kalender).toMatchObject({ eingerichtet: false, fehler: null });
+    expect(daten.kalender.programme).toBeGreaterThanOrEqual(0);
+  });
+
+  test("Nicht-Admins bekommen 403, ohne Login 401", async () => {
+    const eltern = await legePersonaAn(welt, "elternA");
+    const ohne = await legePersonaAn(welt, "ohneLogin");
+    expect((await hole(eltern, "/api/v1/admin/system/syncs")).status).toBe(403);
+    expect((await hole(ohne, "/api/v1/admin/system/syncs")).status).toBe(401);
+  });
+
+  test("POST stösst den Abruf an, protokolliert ihn und bremst eine zweite Anfrage", async () => {
+    const post = (pfad: string) =>
+      appMitSyncs.request(pfad, { method: "POST", headers: admin.headers });
+    const erste = await post("/api/v1/admin/system/syncs/eckdaten");
+    expect(erste.status).toBe(200);
+    expect(await erste.json()).toEqual({ ergebnis: "fertig" });
+    expect(starts).toEqual(["eckdaten"]);
+    // Eigener Job, eigene Bremse; «gesperrt» wird weitergereicht
+    const kalender = await post("/api/v1/admin/system/syncs/kalender");
+    expect(await kalender.json()).toEqual({ ergebnis: "gesperrt" });
+    expect((await post("/api/v1/admin/system/syncs/eckdaten")).status).toBe(
+      429,
+    );
+    expect(starts).toEqual(["eckdaten", "kalender"]);
+    const eintraege = await db
+      .select({ aktion: schema.auditLog.aktion })
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.akteurId, admin.id!));
+    expect(eintraege.map((e) => e.aktion)).toEqual(
+      expect.arrayContaining([
+        "sync_angestossen_eckdaten",
+        "sync_angestossen_kalender",
+      ]),
+    );
+  });
+
+  test("ohne Starter antwortet der Knopf mit 501", async () => {
+    const antwort = await app.request("/api/v1/admin/system/syncs/kalender", {
+      method: "POST",
+      headers: admin.headers,
+    });
+    expect(antwort.status).toBe(501);
   });
 });
