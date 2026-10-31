@@ -3,8 +3,10 @@ import { memoryAdapter, type MemoryDB } from "better-auth/adapters/memory";
 import { expect, test } from "vitest";
 import { erstelleAuth, platzhalterEmail } from "../src/auth.js";
 import {
+  entschluesseleStartpasswort,
   erzeugeStartpasswort,
   normalisiereStartpasswort,
+  verschluesseleStartpasswort,
   startpasswortFelder,
 } from "../src/startpasswort.js";
 import { bereiteAuthTestsVor } from "./hilfen/auth.js";
@@ -48,6 +50,7 @@ test("startpasswortFelder: Pflichtwechsel an, 7 Tage gültig, Bremse zurück", (
   expect(startpasswortFelder(jetzt)).toEqual({
     mussPasswortAendern: true,
     startpasswortGueltigBis: new Date("2026-11-02T12:00:00Z"),
+    startpasswortVerschluesselt: null,
     fehlversuche: 0,
     naechsterVersuchAb: null,
   });
@@ -92,4 +95,16 @@ test("platzhalterEmail: zufällige UUID vor @benutzer.invalid, nie zweimal gleic
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}@benutzer\.invalid$/,
   );
   expect(platzhalterEmail()).not.toBe(eine);
+});
+
+test("Startpasswort: verschlüsseln und entschlüsseln; Fremdes und Leeres ergeben null", () => {
+  const klar = erzeugeStartpasswort();
+  const chiffre = verschluesseleStartpasswort(klar);
+  expect(chiffre).not.toContain(klar);
+  expect(entschluesseleStartpasswort(chiffre)).toBe(klar);
+  // Jede Ablage hat einen eigenen IV
+  expect(verschluesseleStartpasswort(klar)).not.toBe(chiffre);
+  expect(entschluesseleStartpasswort(null)).toBeNull();
+  expect(entschluesseleStartpasswort("kaputt")).toBeNull();
+  expect(entschluesseleStartpasswort(chiffre.slice(0, -2) + "AA")).toBeNull();
 });

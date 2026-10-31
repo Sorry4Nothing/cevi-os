@@ -302,6 +302,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "abteilung_id",
       "muss_passwort_aendern",
       "startpasswort_gueltig_bis",
+      "startpasswort_verschluesselt",
       "fehlversuche",
       "naechster_versuch_ab",
       "deaktiviert_am",

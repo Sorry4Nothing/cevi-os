@@ -12,6 +12,7 @@ import { log } from "./log.js";
 import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
+import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
@@ -86,6 +87,8 @@ export function erstelleApp({
   // Zahlen der laufenden Instanz; nach einem Neustart leer
   const metriken = erstelleMetriken();
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
+  // 500 Zeilen mit langen Namen passen nicht in 64 KB
+  const importLimit = bodyLimit({ maxSize: 256 * 1024 });
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
     new Hono<{ Variables: { nutzerId?: string } }>()
@@ -131,13 +134,16 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Einzige Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, und der Import mit 256 KB
       .use((c, next) =>
         c.req.method === "PUT" &&
         (c.req.path === "/api/v1/ich/bild" ||
           /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))
           ? next()
-          : kleinesLimit(c, next),
+          : c.req.method === "POST" &&
+              /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
+            ? importLimit(c, next)
+            : kleinesLimit(c, next),
       )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
@@ -171,6 +177,7 @@ export function erstelleApp({
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/mitteilungen",

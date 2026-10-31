@@ -14,7 +14,11 @@ import {
 import { createAccessControl } from "better-auth/plugins/access";
 import { defaultStatements } from "better-auth/plugins/admin/access";
 import { Hono } from "hono";
-import { BENUTZERNAME_MAX, BENUTZERNAME_MUSTER } from "./benutzername.js";
+import {
+  BENUTZERNAME_MAX,
+  BENUTZERNAME_MIN,
+  BENUTZERNAME_MUSTER,
+} from "./benutzername.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
@@ -98,6 +102,13 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
           type: "date",
           input: false,
           required: false,
+        },
+        // Nie in Antworten von better-auth
+        startpasswortVerschluesselt: {
+          type: "string",
+          input: false,
+          required: false,
+          returned: false,
         },
         fehlversuche: { type: "number", input: false, defaultValue: 0 },
         naechsterVersuchAb: { type: "date", input: false, required: false },
@@ -385,7 +396,7 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
         }
         await ctx.context.internalAdapter.updateUser(
           ctx.context.session.user.id,
-          { mussPasswortAendern: false },
+          { mussPasswortAendern: false, startpasswortVerschluesselt: null },
         );
       }),
     },
@@ -394,6 +405,7 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
       username({
         usernameValidator: (benutzername) =>
           BENUTZERNAME_MUSTER.test(benutzername),
+        minUsernameLength: BENUTZERNAME_MIN,
         maxUsernameLength: BENUTZERNAME_MAX,
       }),
       admin({ ac, roles: rollen }),

@@ -16,7 +16,7 @@ import {
   seitenblatt,
   seitenwahl,
   tabelle,
-  tag,
+  zeit,
 } from "./dom.js";
 
 const ROLLEN = [
@@ -170,7 +170,7 @@ function anlegen(daten, ctx, neu) {
   const benutzername = feld({
     label: "Benutzername",
     hilfe:
-      "3 bis 64 Zeichen: Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich. Gross- und Kleinschreibung zählt nicht.",
+      "2 bis 64 Zeichen: Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich. Gross- und Kleinschreibung zählt nicht.",
     maxlength: 64,
     autocapitalize: "none",
     spellcheck: "false",
@@ -182,7 +182,7 @@ function anlegen(daten, ctx, neu) {
   dialogFormular({
     titel: "Person anlegen",
     beschreibung:
-      "Die Person erhält ein Startpasswort. Es wird nur einmal angezeigt.",
+      "Die Person erhält ein Startpasswort. Es bleibt in der Liste sichtbar, bis die Person es ersetzt hat.",
     felder: [
       vorname.wurzel,
       nachname.wurzel,
@@ -208,7 +208,7 @@ function anlegen(daten, ctx, neu) {
       ctx.melde(`Person «${antwort.benutzername}» ist angelegt.`);
       geheimnisDialog({
         titel: "Startpasswort",
-        beschreibung: `Gib das Startpasswort für «${antwort.benutzername}» sicher weiter. Es gilt 7 Tage und wird nicht nochmals angezeigt.`,
+        beschreibung: `Gib das Startpasswort für «${antwort.benutzername}» sicher weiter. Es gilt 7 Tage und bleibt in der Liste sichtbar, bis die Person es ersetzt hat.`,
         wert: antwort.startpasswort,
       });
     },
@@ -228,7 +228,7 @@ function neuesStartpasswort(person, ctx, neu, fertig) {
       ctx.melde(`Neues Startpasswort für «${person.name}» ist erzeugt.`);
       geheimnisDialog({
         titel: "Startpasswort",
-        beschreibung: `Gib das Startpasswort für «${person.name}» sicher weiter. Es gilt 7 Tage und wird nicht nochmals angezeigt.`,
+        beschreibung: `Gib das Startpasswort für «${person.name}» sicher weiter. Es gilt 7 Tage und bleibt in der Liste sichtbar, bis die Person es ersetzt hat.`,
         wert: antwort.startpasswort,
       });
       fertig();
@@ -284,6 +284,16 @@ function faktorZuruecksetzen(person, ctx, neu, fertig) {
 
 const leer = () => el("span", { class: "leise" }, "–");
 
+// Restlaufzeit des Startpassworts in der grössten passenden Einheit
+function restzeit(iso) {
+  const min = Math.max(0, Math.floor((new Date(iso) - Date.now()) / 60000));
+  if (min >= 2880) return `noch ${Math.floor(min / 1440)} Tage`;
+  if (min >= 120) return `noch ${Math.floor(min / 60)} Std.`;
+  return `noch ${min} Min.`;
+}
+
+const gueltigText = (iso) => ` gültig bis ${zeit(iso)} (${restzeit(iso)})`;
+
 // Chips mit Symbol und Wort; «Aktiv» nur, wenn sonst nichts zu sagen ist
 function statusChips(person) {
   const liste = [
@@ -291,9 +301,15 @@ function statusChips(person) {
     person.zweiterFaktor && chip("Zweiter Faktor", "ok", "schild"),
     person.mussPasswortAendern &&
       chip(
-        person.startpasswortGueltigBis
-          ? `Startpasswort offen bis ${tag(person.startpasswortGueltigBis)}`
-          : "Passwortwechsel offen",
+        person.startpasswort
+          ? [
+              "Startpasswort ",
+              el("span", { class: "mono" }, person.startpasswort),
+              gueltigText(person.startpasswortGueltigBis),
+            ]
+          : person.startpasswortGueltigBis
+            ? `Startpasswort${gueltigText(person.startpasswortGueltigBis)}`
+            : "Passwortwechsel offen",
         "warn",
         "uhr",
       ),
@@ -421,7 +437,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
       : [
           kontoAktion(
             "Neues Startpasswort",
-            "Meldet die Person überall ab. Das Passwort gilt 7 Tage und erscheint nur einmal.",
+            "Meldet die Person überall ab. Das Passwort gilt 7 Tage und bleibt in der Liste sichtbar, bis die Person es ersetzt hat.",
             knopf("Startpasswort erzeugen", {
               klein: true,
               symbol: "schluessel",
