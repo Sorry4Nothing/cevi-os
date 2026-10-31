@@ -36,7 +36,6 @@ beforeAll(async () => {
       abteilungId: welt.testabteilungId,
       name: "Logo Stufe",
       kuerzel: "L",
-      reihenfolge: 60,
     })
     .returning({ id: schema.stufe.id });
   stufeId = zeile.id;

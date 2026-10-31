@@ -10,14 +10,12 @@ import type { Person } from "../../rechte.js";
 
 const name = z.string().trim().min(1).max(100);
 const kuerzel = z.string().trim().min(1).max(20);
-const reihenfolge = z.int().min(1).max(999);
 
 // Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
-const anlegenSchema = z.strictObject({ name, kuerzel, reihenfolge });
+const anlegenSchema = z.strictObject({ name, kuerzel });
 const aendernSchema = z.strictObject({
   name: name.optional(),
   kuerzel: kuerzel.optional(),
-  reihenfolge: reihenfolge.optional(),
 });
 const pfad = () => z.strictObject({ id: z.uuid() });
 

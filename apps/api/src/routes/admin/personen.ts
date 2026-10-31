@@ -227,7 +227,7 @@ export function erstellePersonenRouten({
                 eq(stufe.abteilungId, abteilungId),
               ),
             )
-            .orderBy(asc(stufe.reihenfolge)),
+            .orderBy(asc(stufe.name), asc(stufe.id)),
           db
             .select({ userId: kindEltern.userId, kindId: kindEltern.kindId })
             .from(kindEltern)
@@ -243,7 +243,7 @@ export function erstellePersonenRouten({
             .select({ id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel })
             .from(stufe)
             .where(eq(stufe.abteilungId, abteilungId))
-            .orderBy(asc(stufe.reihenfolge)),
+            .orderBy(asc(stufe.name), asc(stufe.id)),
           db
             .select({
               id: kind.id,

@@ -95,7 +95,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                     eq(stufe.abteilungId, person.abteilungId),
                   ),
                 )
-                .orderBy(asc(stufe.reihenfolge));
+                .orderBy(asc(stufe.name), asc(stufe.id));
         return c.json({
           ...profil,
           admin: person.admin,

@@ -160,8 +160,8 @@ beforeEach(async () => {
     values ('Sync-Testabteilung', ${kalenderId}) returning id`;
   abteilungId = abteilung.id as string;
   const [stufe] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-    values (${abteilungId}, 'Teststufe', 'TS', 1) returning id`;
+    insert into stufe (abteilung_id, name, kuerzel)
+    values (${abteilungId}, 'Teststufe', 'TS') returning id`;
   stufeId = stufe.id as string;
   ausgabe = vi.spyOn(console, "log").mockImplementation(() => {});
 });
@@ -865,8 +865,8 @@ const namen = () => gesendet.map((g) => g.name).sort();
 
 async function einrichten() {
   const stufen = await sql`
-    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-    values (${abteilungId}, 'Stufe B', 'B', 2) returning id`;
+    insert into stufe (abteilung_id, name, kuerzel)
+    values (${abteilungId}, 'Stufe B', 'B') returning id`;
   stufeB = stufen[0].id as string;
   const eltern = await elternteil("Eltern A", stufeId);
   await elternteil("Eltern A aus", stufeId, { pushProgramme: false });
@@ -1096,11 +1096,11 @@ test("Nachfolger einer geteilten Serie mit anderer Zeit: wird übernommen und al
 // Automatische Zuordnung nach dem Titel (#34): «Stufen» meint alle, sonst Stufenname oder Kürzel als ganzes Wort
 async function stufenFuerZuordnung() {
   const [biber] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-    values (${abteilungId}, 'Biber', 'BI', 2) returning id`;
+    insert into stufe (abteilung_id, name, kuerzel)
+    values (${abteilungId}, 'Biber', 'BI') returning id`;
   const [woelfe] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-    values (${abteilungId}, 'Wölfe', 'WÖ', 3) returning id`;
+    insert into stufe (abteilung_id, name, kuerzel)
+    values (${abteilungId}, 'Wölfe', 'WÖ') returning id`;
   return { biber: biber.id as string, woelfe: woelfe.id as string };
 }
 
