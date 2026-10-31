@@ -111,19 +111,19 @@ export function geschlossenePfade(offen: readonly string[]) {
     .filter((eintrag) => !offen.includes(eintrag));
 }
 
-// So sieht der Push aus, den sendePush an FCM gibt; kanal fehlt bei «person»
+// So sieht der Push aus, den sendePush an FCM gibt
 export const fcmNachricht = (
   token: string,
   title: string,
   data: { typ: string; id: string },
-  channelId?: string,
+  channelId: string,
 ): TokenMessage => ({
   token,
   notification: { title },
   data,
   android: {
     priority: "high",
-    notification: { sound: "default", ...(channelId && { channelId }) },
+    notification: { sound: "default", channelId },
   },
   apns: { payload: { aps: { sound: "default" } } },
 });
