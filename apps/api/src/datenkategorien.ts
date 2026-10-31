@@ -90,7 +90,7 @@ export const KATEGORIEN = {
   benachrichtigungen: {
     titel: "Benachrichtigungen",
     zweck:
-      "Pushes zu neuen Nachrichten zustellen. Das Token gehört zum Gerät und zur Sitzung.",
+      "Pushes zu neuen Nachrichten, zu An- und Abmeldungen und zu Erinnerungen zustellen. Das Token gehört zum Gerät und zur Sitzung.",
     frist:
       "Bis die Sitzung endet, also beim Abmelden, beim Deaktivieren und beim Löschen des Kontos.",
     apple: ["Identifiers: Device ID"],
