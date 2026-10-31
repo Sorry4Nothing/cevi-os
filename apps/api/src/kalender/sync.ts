@@ -8,7 +8,6 @@ import {
 } from "drizzle-orm";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
-import type { Fcm } from "../push.js";
 import { abteilung, programm } from "../db/schema.js";
 import { log } from "../log.js";
 import { programmBeginn } from "../rechte.js";
@@ -17,12 +16,6 @@ import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeSeiten, holeToken } from "./google.js";
 import { findeNachfolger } from "./nachfolger.js";
 import { ordneAutomatischZu } from "./zuordnung.js";
-import {
-  abgesagt,
-  pushProgrammaenderungen,
-  vergleiche,
-  type Aenderung,
-} from "./programm-push.js";
 
 // Beliebige feste Zahl: pg_try_advisory_lock braucht einen Schlüssel, der in der ganzen Datenbank nur diesem Job gehört
 const SPERRE_KALENDER = 740_027;
@@ -30,12 +23,10 @@ const SPERRE_KALENDER = 740_027;
 // Ein Lauf über alle Abteilungen mit Kalender; «gesperrt» heisst: ein anderer Lauf arbeitet gerade
 export async function synchronisiere({
   datenbankUrl,
-  fcm,
   schluesselDatei,
   jetzt = new Date(),
 }: {
   datenbankUrl: string;
-  fcm?: Fcm;
   schluesselDatei: string | undefined;
   jetzt?: Date;
 }): Promise<"fertig" | "gesperrt"> {
@@ -46,7 +37,7 @@ export async function synchronisiere({
       await sql`select pg_try_advisory_lock(${SPERRE_KALENDER}) as erhalten`;
     if (!sperre.erhalten) return "gesperrt";
     try {
-      await lauf(erstelleDb(sql), fcm, schluesselDatei, jetzt);
+      await lauf(erstelleDb(sql), schluesselDatei, jetzt);
       return "fertig";
     } finally {
       // Scheitert nur mit der Verbindung, und dann fällt die Sperre mit ihr
@@ -57,12 +48,7 @@ export async function synchronisiere({
   }
 }
 
-async function lauf(
-  db: Db,
-  fcm: Fcm | undefined,
-  schluesselDatei: string | undefined,
-  jetzt: Date,
-) {
+async function lauf(db: Db, schluesselDatei: string | undefined, jetzt: Date) {
   const abteilungen = await db
     .select({ id: abteilung.id, kalenderId: abteilung.googleKalenderId })
     .from(abteilung)
@@ -90,7 +76,6 @@ async function lauf(
         ...p,
         abteilungId: eine.id,
       }));
-      const aenderungen: Aenderung[] = [];
       await db.transaction(async (tx) => {
         // Kommende Programme, die der Abruf weder behält noch absagt, fehlen (etwa nach «ab diesem Termin» oder weil sie privat wurden)
         const fehlende = await tx
@@ -123,26 +108,6 @@ async function lauf(
           zeilen,
           bekannt,
         );
-        // Push-Auslöser vor dem Upsert: Zeit, Ort oder Titel geändert, oder neu abgesagt. Neue Termine und «Prüfen» (fehlende ohne Nachfolger) lösen nichts aus
-        const alt = new Map(
-          vorhandene
-            .filter((v) => proId.has(v.googleEventId))
-            .map((v) => [v.googleEventId, v]),
-        );
-        for (const u of uebernahmen) {
-          const vorher = fehlende.find((f) => f.id === u.programmId);
-          if (vorher) alt.set(u.googleEventId, vorher);
-        }
-        for (const [eventId, vorher] of alt) {
-          // Ein abgesagtes Programm, das zurückkehrt, ist keine Änderung
-          if (vorher.status === "abgesagt") continue;
-          const a = vergleiche(vorher.id, vorher, proId.get(eventId)!);
-          if (a) aenderungen.push(a);
-        }
-        for (const v of vorhandene) {
-          if (absagen.includes(v.googleEventId) && v.status !== "abgesagt")
-            aenderungen.push(abgesagt(v.id, v));
-        }
         // Übernehmen heisst umschlüsseln: Die Zeile behält id, Zuordnung und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
         for (const u of uebernahmen) {
           await tx
@@ -205,8 +170,6 @@ async function lauf(
           .set({ syncOkAm: roh`now()`, syncFehler: null })
           .where(eq(abteilung.id, eine.id));
       });
-      // Erst nach dem Commit; wirft nie, ein Push-Fehler lässt den Lauf der Abteilung nicht scheitern
-      await pushProgrammaenderungen({ db, fcm }, eine.id, aenderungen);
     } catch (fehler) {
       await merkeFehler(db, eine.id, fehler);
     }
