@@ -59,6 +59,22 @@ describe.each(Object.keys(UNGUELTIG) as (keyof typeof UNGUELTIG)[])(
   },
 );
 
+test("BETTER_AUTH_URL mit http: in Produktion ein Fehler, sonst erlaubt (#222)", () => {
+  expect(meldung({ ...GUELTIG, NODE_ENV: "production" })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: BETTER_AUTH_URL",
+  );
+  expect(
+    ladeKonfiguration({
+      ...GUELTIG,
+      NODE_ENV: "production",
+      BETTER_AUTH_URL: "https://api.example.org",
+    }).BETTER_AUTH_URL,
+  ).toBe("https://api.example.org");
+  expect(
+    ladeKonfiguration({ ...GUELTIG, NODE_ENV: "development" }).BETTER_AUTH_URL,
+  ).toBe("http://localhost:3000");
+});
+
 test("GOOGLE_APPLICATION_CREDENTIALS ist freiwillig und wird durchgereicht", () => {
   expect(
     ladeKonfiguration(GUELTIG).GOOGLE_APPLICATION_CREDENTIALS,

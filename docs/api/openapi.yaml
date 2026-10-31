@@ -4567,7 +4567,7 @@ components:
           schema:
             $ref: "#/components/schemas/Fehler"
     KeineBerechtigung403:
-      description: Keine Berechtigung (code KEINE_BERECHTIGUNG)
+      description: Keine Berechtigung (code KEINE_BERECHTIGUNG); bei ändernden Methoden auch, wenn der Origin-Header einer fremden Herkunft angehört
       content:
         application/json:
           schema:

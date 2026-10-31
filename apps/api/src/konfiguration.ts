@@ -26,8 +26,15 @@ const schema = z.object({
   KONTAKT_EMAIL: z.email().default("cevi-al@cevi-staefa-hombi.ch"),
 });
 
+// Mit http setzt better-auth Cookies ohne Secure, darum in Produktion nur https (#222); lokal bleibt http://localhost
+const produktion = schema.extend({
+  BETTER_AUTH_URL: z.url({ protocol: /^https$/ }),
+});
+
 export function ladeKonfiguration(env: Record<string, string | undefined>) {
-  const ergebnis = schema.safeParse(env);
+  const ergebnis = (
+    env.NODE_ENV === "production" ? produktion : schema
+  ).safeParse(env);
   if (ergebnis.success) return ergebnis.data;
   // Nur die Namen: DATABASE_URL enthält das Passwort
   const namen = new Set(ergebnis.error.issues.map((f) => String(f.path[0])));

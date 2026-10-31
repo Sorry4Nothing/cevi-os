@@ -40,46 +40,48 @@ export function personAusSitzung(
   auth: ReturnType<typeof erstelleAuth>,
   db: Db,
 ) {
-  return createMiddleware<{ Variables: { person: Person; sitzungId: string } }>(
-    async (c, next) => {
-      // disableRefresh: Die Verlängerung gehört zu get-session; hier schriebe sie die Zeile und verlöre ihr Set-Cookie
-      const sitzung = await auth.api.getSession({
-        headers: c.req.raw.headers,
-        query: { disableRefresh: true },
-      });
-      // banned prüft better-auth nur beim Anlegen einer Sitzung, nicht beim Lesen
-      if (!sitzung || sitzung.user.banned) throw new HTTPException(401);
-      // Bis zum Pflichtwechsel (#15) nur das eigene Profil; den Zustand kennt die App aus get-session
-      if (
-        sitzung.user.mussPasswortAendern &&
-        !(c.req.method === "GET" && c.req.path === "/api/v1/ich")
-      ) {
-        throw new HTTPException(403);
-      }
-      // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
-      const rollen = await db
-        .select({ stufeId: rolle.stufeId, typ: rolle.typ })
-        .from(rolle)
-        .innerJoin(
-          stufe,
-          and(
-            eq(rolle.stufeId, stufe.id),
-            eq(stufe.abteilungId, sitzung.user.abteilungId),
-          ),
-        )
-        .where(eq(rolle.userId, sitzung.user.id));
-      c.set("person", {
-        id: sitzung.user.id,
-        abteilungId: sitzung.user.abteilungId,
-        admin: sitzung.user.role === "admin",
-        zweiterFaktor: sitzung.user.twoFactorEnabled === true,
-        rollen,
-      });
-      // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
-      c.set("sitzungId", sitzung.session.id);
-      await next();
-    },
-  );
+  return createMiddleware<{
+    Variables: { person: Person; sitzungId: string; nutzerId: string };
+  }>(async (c, next) => {
+    // disableRefresh: Die Verlängerung gehört zu get-session; hier schriebe sie die Zeile und verlöre ihr Set-Cookie
+    const sitzung = await auth.api.getSession({
+      headers: c.req.raw.headers,
+      query: { disableRefresh: true },
+    });
+    // Für das Anfrage-Log bei 401 und 403 (#224); vor den Prüfungen, damit auch ein gesperrtes Konto und der Pflichtwechsel die ID zeigen
+    if (sitzung) c.set("nutzerId", sitzung.user.id);
+    // banned prüft better-auth nur beim Anlegen einer Sitzung, nicht beim Lesen
+    if (!sitzung || sitzung.user.banned) throw new HTTPException(401);
+    // Bis zum Pflichtwechsel (#15) nur das eigene Profil; den Zustand kennt die App aus get-session
+    if (
+      sitzung.user.mussPasswortAendern &&
+      !(c.req.method === "GET" && c.req.path === "/api/v1/ich")
+    ) {
+      throw new HTTPException(403);
+    }
+    // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
+    const rollen = await db
+      .select({ stufeId: rolle.stufeId, typ: rolle.typ })
+      .from(rolle)
+      .innerJoin(
+        stufe,
+        and(
+          eq(rolle.stufeId, stufe.id),
+          eq(stufe.abteilungId, sitzung.user.abteilungId),
+        ),
+      )
+      .where(eq(rolle.userId, sitzung.user.id));
+    c.set("person", {
+      id: sitzung.user.id,
+      abteilungId: sitzung.user.abteilungId,
+      admin: sitzung.user.role === "admin",
+      zweiterFaktor: sitzung.user.twoFactorEnabled === true,
+      rollen,
+    });
+    // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
+    c.set("sitzungId", sitzung.session.id);
+    await next();
+  });
 }
 
 // Admin-Routen erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
