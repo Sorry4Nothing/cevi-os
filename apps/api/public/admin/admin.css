@@ -193,6 +193,20 @@ main:focus {
   gap: 12px;
 }
 
+/* Zugeklappter Bereich für Nebensächliches (Import: Spalten ändern, weitere Rollen) */
+.mehr > summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--akzent);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mehr[open] > summary {
+  margin-bottom: 8px;
+}
+
 .reihe {
   display: flex;
   flex-wrap: wrap;

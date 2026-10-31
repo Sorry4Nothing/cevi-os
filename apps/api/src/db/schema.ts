@@ -60,6 +60,8 @@ export const user = pgTable("user", {
   // Im Zweifel muss die Person das Passwort wechseln
   mussPasswortAendern: boolean("muss_passwort_aendern").notNull().default(true),
   startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
+  // AES-GCM-verschlüsselt, nur solange das Startpasswort offen ist; die Verwaltung zeigt es an
+  startpasswortVerschluesselt: text("startpasswort_verschluesselt"),
   fehlversuche: integer("fehlversuche").notNull().default(0),
   naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
   deaktiviertAm: zeitpunkt("deaktiviert_am"),

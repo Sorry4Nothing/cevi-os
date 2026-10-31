@@ -100,6 +100,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/system.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
+  "GET /admin/csv.js": { erwartet: alle(200) },
+  "GET /admin/import.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -638,6 +640,41 @@ const MATRIX: Record<string, Zeile> = {
         konto.abteilungId === welt.demoAbteilungId
           ? welt.demoStufeId
           : welt.stufeAId,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Je Persona eine eigene Zeile mit zufälligem Namen; nur Kinder, damit kein Konto (scrypt) entsteht
+  "POST /api/v1/admin/import/vorschau": {
+    body: (konto) => ({
+      stufeId:
+        konto.abteilungId === welt.demoAbteilungId
+          ? welt.demoStufeId
+          : welt.stufeAId,
+      zeilen: [{ vorname: "Matrix", nachname: randomUUID(), art: "kind" }],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/import": {
+    body: (konto) => ({
+      stufeId:
+        konto.abteilungId === welt.demoAbteilungId
+          ? welt.demoStufeId
+          : welt.stufeAId,
+      zeilen: [{ vorname: "Matrix", nachname: randomUUID(), art: "kind" }],
     }),
     erwartet: {
       ...alle(403),

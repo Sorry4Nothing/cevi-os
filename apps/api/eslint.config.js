@@ -17,6 +17,7 @@ export default defineConfig(
       globals: {
         Blob: "readonly",
         Node: "readonly",
+        TextDecoder: "readonly",
         document: "readonly",
         fetch: "readonly",
         location: "readonly",

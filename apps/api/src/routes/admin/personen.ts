@@ -1,4 +1,3 @@
-import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { isAPIError } from "better-auth/api";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
@@ -9,7 +8,7 @@ import {
   istLetzterAdmin,
   LETZTER_ADMIN,
 } from "../../admins.js";
-import { erstelleAuth, platzhalterEmail } from "../../auth.js";
+import type { erstelleAuth } from "../../auth.js";
 import { ceviNameFeld } from "../../cevi-name.js";
 import {
   BENUTZERNAME_MAX,
@@ -17,7 +16,6 @@ import {
   BENUTZERNAME_MUSTER,
 } from "../../benutzername.js";
 import type { Db } from "../../db/client.js";
-import * as schema from "../../db/schema.js";
 import {
   auditLog,
   kind,
@@ -29,8 +27,10 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
 import {
+  entschluesseleStartpasswort,
   erzeugeStartpasswort,
   normalisiereStartpasswort,
   startpasswortFelder,
@@ -204,6 +204,7 @@ export function erstellePersonenRouten({
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
               startpasswortGueltigBis: user.startpasswortGueltigBis,
+              startpasswortVerschluesselt: user.startpasswortVerschluesselt,
             })
             .from(user)
             .where(eq(user.abteilungId, abteilungId))
@@ -263,6 +264,13 @@ export function erstellePersonenRouten({
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
           startpasswortGueltigBis: p.startpasswortGueltigBis,
+          // Nur solange es offen und gültig ist
+          startpasswort:
+            p.mussPasswortAendern &&
+            p.startpasswortGueltigBis &&
+            p.startpasswortGueltigBis > new Date()
+              ? entschluesseleStartpasswort(p.startpasswortVerschluesselt)
+              : null,
           rollen: rollenZeilen
             .filter((zeile) => zeile.userId === p.id)
             .map(({ stufeId, typ }) => ({ stufeId, typ })),
@@ -281,53 +289,12 @@ export function erstellePersonenRouten({
       await pruefeIds(person, eingaben.rollen, eingaben.elternteilVon);
       const startpasswort = erzeugeStartpasswort();
       try {
-        const angelegt = await db.transaction(async (tx) => {
-          // createUser legt den User vor der HIBP-Prüfung an; die Transaktion nimmt bei jedem Fehler alles zurück, sonst hielte ein Konto ohne Passwort den Benutzernamen fest
-          const txAuth = erstelleAuth(
-            drizzleAdapter(tx, { provider: "pg", schema, transaction: true }),
-          );
-          const { user: neu } = await txAuth.api.createUser({
-            body: {
-              email: platzhalterEmail(),
-              password: normalisiereStartpasswort(startpasswort),
-              name: `${eingaben.vorname} ${eingaben.nachname}`,
-              role: eingaben.admin ? "admin" : "user",
-              data: {
-                username: eingaben.benutzername,
-                ceviName: eingaben.ceviName ?? undefined,
-                abteilungId: person.abteilungId,
-                ...startpasswortFelder(),
-              },
-            },
-            // Mit den Headern der Admin-Anfrage; ohne sie prüfte createUser keine Rechte
-            headers: c.req.raw.headers,
-          });
-          if (eingaben.rollen.length > 0) {
-            await tx
-              .insert(rolle)
-              .values(eingaben.rollen.map((r) => ({ userId: neu.id, ...r })));
-          }
-          if (eingaben.elternteilVon.length > 0) {
-            await tx.insert(kindEltern).values(
-              eingaben.elternteilVon.map((kindId) => ({
-                kindId,
-                userId: neu.id,
-              })),
-            );
-          }
-          await protokolliere(tx, person, "person_angelegt", neu.id, {
-            admin: eingaben.admin,
-            rollen: eingaben.rollen,
-            elternteilVon: eingaben.elternteilVon,
-          });
-          // Das Plugin speichert kleingeschrieben; sein Typ kennt das Feld nicht
-          return {
-            id: neu.id,
-            benutzername:
-              (neu as { username?: string }).username ??
-              eingaben.benutzername.toLowerCase(),
-          };
-        });
+        const angelegt = await db.transaction((tx) =>
+          legePersonAn(tx, person, c.req.raw.headers, {
+            ...eingaben,
+            startpasswort,
+          }),
+        );
         // 201 erst nach dem Commit: Ein zurückgenommenes Startpasswort darf die Antwort nie erreichen
         return c.json({ ...angelegt, startpasswort }, 201);
       } catch (fehler) {
@@ -484,7 +451,10 @@ export function erstellePersonenRouten({
       // Alle Sitzungen enden, die Push-Tokens mit ihnen (#42); danach Pflichtwechsel, 7 Tage und Bremse von vorn
       await auth.api.revokeUserSessions({ body: { userId: id }, headers });
       await db.transaction(async (tx) => {
-        await tx.update(user).set(startpasswortFelder()).where(eq(user.id, id));
+        await tx
+          .update(user)
+          .set(startpasswortFelder(new Date(), startpasswort))
+          .where(eq(user.id, id));
         await protokolliere(tx, person, "startpasswort_neu", id);
       });
       return c.json({ startpasswort });

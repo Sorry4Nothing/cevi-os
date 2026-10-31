@@ -64,6 +64,11 @@ const ICONS = {
     ["rect", { x: 13, y: 12, width: 8, height: 9, rx: 2 }],
     ["rect", { x: 3, y: 16, width: 8, height: 5, rx: 2 }],
   ],
+  ablage: [
+    "M12 4v11",
+    "m7.5 10.5 4.5 4.5 4.5-4.5",
+    "M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
+  ],
   glocke: ["M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z", "M10 21h4"],
   meldungen: ["M5 21V4", "M5 4h12l-2.5 4L17 12H5"],
   bearbeiten: ["M4 20h4L19 9l-4-4L4 16z", "m13.5 6.5 4 4"],

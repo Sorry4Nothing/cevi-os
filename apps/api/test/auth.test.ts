@@ -627,6 +627,7 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
+        startpasswortVerschluesselt: "irgendwas",
       },
       STARTPASSWORT,
     );
@@ -641,6 +642,7 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     );
     expect(antwort.status).toBe(200);
     expect(person(id).mussPasswortAendern).toBe(false);
+    expect(person(id).startpasswortVerschluesselt).toBeNull();
     expect(await sitzungZu(cookiesAus(antwort))).not.toBeNull();
     await anmelden(benutzername, NEU);
   });
