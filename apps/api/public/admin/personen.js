@@ -292,6 +292,12 @@ function restzeit(iso) {
   return `noch ${min} Min.`;
 }
 
+// Abgelaufen: Der Wechsel ist offen und die Frist vorbei, die Person kommt nicht mehr hinein
+const startpasswortAbgelaufen = (person) =>
+  person.mussPasswortAendern &&
+  Boolean(person.startpasswortGueltigBis) &&
+  new Date(person.startpasswortGueltigBis) <= new Date();
+
 const gueltigText = (iso) => ` gültig bis ${zeit(iso)} (${restzeit(iso)})`;
 
 // Chips mit Symbol und Wort; «Aktiv» nur, wenn sonst nichts zu sagen ist
@@ -299,20 +305,26 @@ function statusChips(person) {
   const liste = [
     person.admin && chip("Admin", undefined, "stern"),
     person.zweiterFaktor && chip("Zweiter Faktor", "ok", "schild"),
-    person.mussPasswortAendern &&
-      chip(
-        person.startpasswort
-          ? [
-              "Startpasswort ",
-              el("span", { class: "mono" }, person.startpasswort),
-              gueltigText(person.startpasswortGueltigBis),
-            ]
-          : person.startpasswortGueltigBis
-            ? `Startpasswort${gueltigText(person.startpasswortGueltigBis)}`
-            : "Passwortwechsel offen",
-        "warn",
-        "uhr",
-      ),
+    startpasswortAbgelaufen(person)
+      ? chip(
+          `Startpasswort abgelaufen am ${zeit(person.startpasswortGueltigBis)}`,
+          "fehler",
+          "uhr",
+        )
+      : person.mussPasswortAendern &&
+        chip(
+          person.startpasswort
+            ? [
+                "Startpasswort ",
+                el("span", { class: "mono" }, person.startpasswort),
+                gueltigText(person.startpasswortGueltigBis),
+              ]
+            : person.startpasswortGueltigBis
+              ? `Startpasswort${gueltigText(person.startpasswortGueltigBis)}`
+              : "Passwortwechsel offen",
+          "warn",
+          "uhr",
+        ),
     person.deaktiviert && chip("Deaktiviert", "fehler"),
   ].filter(Boolean);
   if (liste.length === 0) liste.push(chip("Aktiv", "ok"));
@@ -542,7 +554,20 @@ function zeile(person, daten, ctx, neu) {
     ),
     el("td", {}, kinder.length ? kinder.join(", ") : leer()),
     el("td", {}, statusChips(person)),
-    aktionenZelle(bearbeitenKnopf),
+    aktionenZelle(
+      !eigenes &&
+        startpasswortAbgelaufen(person) &&
+        knopf("Erneuern", {
+          klein: true,
+          kontext: `Startpasswort für ${person.name}`,
+          symbol: "schluessel",
+          onclick: () => {
+            zustand.fokus = person.id;
+            neuesStartpasswort(person, ctx, neu, () => {});
+          },
+        }),
+      bearbeitenKnopf,
+    ),
   );
   return { tr, knopf: bearbeitenKnopf, person };
 }

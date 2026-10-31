@@ -5,6 +5,11 @@ import { programmEckdaten, stufe } from "../db/schema.js";
 import { log } from "../log.js";
 import { fehlerCode } from "./fehler.js";
 import { parseEckdaten, stufenSlug } from "./eckdaten.js";
+import {
+  eckdatenLauf,
+  sicherenFehlercode,
+  type StufenLauf,
+} from "./laufstand.js";
 
 // Eigener Schlüssel neben dem des Kalender-Syncs (740027)
 const SPERRE_ECKDATEN = 740_028;
@@ -43,7 +48,14 @@ export async function synchronisiereEckdaten({
       await sql`select pg_try_advisory_lock(${SPERRE_ECKDATEN}) as erhalten`;
     if (!sperre.erhalten) return "gesperrt";
     try {
-      await lauf(erstelleDb(sql), basisUrl.replace(/\/+$/, ""), abrufen);
+      const stufen = await lauf(
+        erstelleDb(sql),
+        basisUrl.replace(/\/+$/, ""),
+        abrufen,
+      );
+      // Erst am Ende ersetzen: Die Verwaltung sieht nie einen halben Lauf
+      eckdatenLauf.stufen = stufen;
+      eckdatenLauf.am = new Date();
       return "fertig";
     } finally {
       await sql`select pg_advisory_unlock(${SPERRE_ECKDATEN})`.catch(() => {});
@@ -54,17 +66,26 @@ export async function synchronisiereEckdaten({
 }
 
 async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
+  const ergebnisse = new Map<string, StufenLauf>();
   const stufen = await db
     .select({ id: stufe.id, name: stufe.name })
     .from(stufe);
   for (const eine of stufen) {
     const slug = stufenSlug(eine.name);
     if (slug === "") continue;
+    const adresse = `${basisUrl}/cevistufe-${slug}`;
     try {
-      const html = await abrufen(`${basisUrl}/cevistufe-${slug}`);
+      const html = await abrufen(adresse);
       // Keine Seite, geschützt oder ohne Datum: Der alte Stand bleibt, die Programme zeigen einfach nichts Neues
       const e = html === null ? null : parseEckdaten(html);
-      if (!e) continue;
+      if (!e) {
+        ergebnisse.set(eine.id, {
+          ausgang: html === null ? "keine_seite" : "ohne_datum",
+          fehlercode: null,
+          adresse,
+        });
+        continue;
+      }
       await db.transaction(async (tx) => {
         const werte = {
           treffpunkt: e.treffpunkt,
@@ -90,6 +111,11 @@ async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
             ),
           );
       });
+      ergebnisse.set(eine.id, {
+        ausgang: "gelesen",
+        fehlercode: null,
+        adresse,
+      });
     } catch (fehler) {
       // Nur der Code, nie URL oder Text der Seite; die nächste Stufe läuft trotzdem
       log(undefined, {
@@ -97,8 +123,14 @@ async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
         stufeId: eine.id,
         code: fehlerCode(fehler) ?? "abruf",
       });
+      ergebnisse.set(eine.id, {
+        ausgang: "fehler",
+        fehlercode: sicherenFehlercode(fehlerCode(fehler)),
+        adresse,
+      });
     }
   }
+  return ergebnisse;
 }
 
 // Startet den Lauf sofort und dann alle 30 Minuten; Erfolg und «gesperrt» bleiben still

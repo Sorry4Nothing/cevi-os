@@ -1086,7 +1086,8 @@ a.tab[aria-current="page"] {
 
 .kacheln {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  /* auto-fit: Leere Spalten fallen weg, die Kacheln füllen die Zeile */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
   gap: 12px;
 }
 
@@ -2222,6 +2223,7 @@ button.tab[aria-selected="true"] {
 
 .kachel-kopf {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;

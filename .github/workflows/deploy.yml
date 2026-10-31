@@ -1,8 +1,14 @@
 name: Deploy
 
-# Nur von Hand und nur für einen Release-Tag; die Umgebung «production» verlangt eine Freigabe und gilt nur für den Branch main
+# Von Hand oder aus release.yml, nur für einen Release-Tag; die Umgebung «production» verlangt eine Freigabe und gilt nur für den Branch main
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: Release-Tag vX.Y.Z, dessen Image schon gebaut ist
+        required: true
+        type: string
+  workflow_call:
     inputs:
       tag:
         description: Release-Tag vX.Y.Z, dessen Image schon gebaut ist
