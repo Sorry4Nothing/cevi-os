@@ -795,6 +795,8 @@ paths:
 
         **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes bei verschobenen, geänderten oder abgesagten Programmen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet.
 
+        **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
+
         **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
         `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
         entfernt die Nummer. Eine Nummer speichern darf nur, wer SL einer Stufe ist (sonst 403); entfernen darf sie
@@ -1628,6 +1630,11 @@ paths:
         Wer aufrufen darf: Eltern des Kindes, Leitende und SL der Stufe des Kindes sowie Administratorinnen und
         Administratoren. Das Programm muss der Stufe des Kindes zugeordnet und das Kind aktiv sein. Leitende oder
         SL einer anderen Stufe und Eltern fremder Kinder bekommen 403.
+
+        Setzt der Aufruf die Antwort neu oder ändert er sie, geht ein Push an die Leitenden der Stufen des Programms
+        (Rolle Leitung oder SL, aktives Konto, `pushAnmeldungen` an), ausser an die Person, die selbst aufruft:
+        «Neue Anmeldung für {Programm} am {Datum}» bei «ja», «Neue Abmeldung für …» bei «nein», ohne Namen. Bleibt der
+        Wert gleich, geht kein Push hinaus. Ein Fehler beim Push lässt den Aufruf nicht scheitern.
 
         Reihenfolge der Prüfung: Eingabe (400); Programm nicht sichtbar oder Kind nicht in der eigenen Abteilung
         (404, ohne Unterscheidung); Zuständigkeit, Stufenzuordnung und aktives Kind (403); Programm noch offen (409).
@@ -2956,6 +2963,9 @@ components:
         pushProgramme:
           type: boolean
           description: Push-Benachrichtigungen für Programme.
+        pushAnmeldungen:
+          type: boolean
+          description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
         admin:
           type: boolean
         zweiterFaktor:
@@ -2985,6 +2995,8 @@ components:
         pushChat:
           type: boolean
         pushProgramme:
+          type: boolean
+        pushAnmeldungen:
           type: boolean
         telefon:
           type:

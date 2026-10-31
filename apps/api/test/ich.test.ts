@@ -92,6 +92,7 @@ describe("GET /api/v1/ich", () => {
       bildUrl: null,
       pushChat: true,
       pushProgramme: true,
+      pushAnmeldungen: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
       // Die Stufen der Rollen und der Kinder, nach Name
       stufen: [
@@ -279,6 +280,34 @@ describe("PATCH /api/v1/ich", () => {
       pushProgramme: true,
     });
   });
+});
+
+describe("Schalter pushAnmeldungen", () => {
+  test("Leitende sehen ihn und schalten ihn aus und ein", async () => {
+    const konto = await legePersonaAn(welt, "leitendeA");
+    expect((await (await ich(konto)).json()).pushAnmeldungen).toBe(true);
+
+    const patchen = (wert: boolean) =>
+      app.request("/api/v1/ich", {
+        method: "PATCH",
+        headers: { ...konto.headers, "content-type": "application/json" },
+        body: JSON.stringify({ pushAnmeldungen: wert }),
+      });
+    expect((await patchen(false)).status).toBe(204);
+    expect((await (await ich(konto)).json()).pushAnmeldungen).toBe(false);
+    expect((await patchen(true)).status).toBe(204);
+    expect((await (await ich(konto)).json()).pushAnmeldungen).toBe(true);
+  });
+
+  test.each(["elternA", "admin"] as const)(
+    "%s ohne Stufenrolle bekommt ihn nicht zu sehen",
+    async (persona) => {
+      const konto = await legePersonaAn(welt, persona);
+      expect(await (await ich(konto)).json()).not.toHaveProperty(
+        "pushAnmeldungen",
+      );
+    },
+  );
 });
 
 describe("Sitzungen", () => {

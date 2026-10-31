@@ -164,7 +164,7 @@ export function erstelleApp({
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
       .route("/api/v1/ich", erstelleIchRouten({ db }))
-      .route("/api/v1/programme", erstelleProgrammRouten({ db }))
+      .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))

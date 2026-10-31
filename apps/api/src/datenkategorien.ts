@@ -308,7 +308,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
-    benachrichtigungen: ["push_chat", "push_programme"],
+    benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },
   verification: {
     technik: [

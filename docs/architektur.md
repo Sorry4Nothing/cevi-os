@@ -47,6 +47,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 - Pushes enthalten nie Nachrichtentext und nie Namen von Kindern.
 - Deep Link: Jeder Push trägt als Daten genau `typ` und `id`. Bei `typ: "chat"` ist `id` die Chat-ID, bei `typ: "programm"` die Programm-ID. Die App baut daraus das Ziel (Chat oder Programm-Detail), auch beim Kaltstart; die API liefert keine URL. Android-Kanäle: `chat` für Chat-Pushes, `programme` für Programm-Pushes. Die App legt sie an und kann pro Kanal stummschalten.
 - Schalter: Jede Person steuert `pushChat` und `pushProgramme` selbst (`PATCH /api/v1/ich`, beide standardmässig an). Die API prüft sie beim Senden: Wer einen Schalter ausschaltet, bekommt diese Art Push nicht mehr, ohne dass das Token gelöscht wird. Den Push für den gerade offenen Chat unterdrückt die App.
+- Anmelde-Push: Ändert sich die Teilnahme eines Kindes an einem Programm (`PUT /api/v1/programme/{id}/teilnahmen/{kindId}`, gleicher Wert zählt nicht), bekommen die Leitenden der Stufen des Programms einen Push («Neue Anmeldung für …» bzw. «Neue Abmeldung für …», nur Programm und Datum). Ausgenommen sind die handelnde Person und alle mit ausgeschaltetem `pushAnmeldungen` (Standard an, `GET /api/v1/ich` gibt ihn nur Personen mit Stufenrolle zurück). Typ `programm`, Kanal `programme`.
 
 ## Wer spricht mit wem
 
