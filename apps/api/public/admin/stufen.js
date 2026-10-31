@@ -1,8 +1,14 @@
 import { anfrage, fehlertext } from "./api.js";
-import { ankreuzen, chip, dialogFormular, el, feld, knopf } from "./dom.js";
+import {
+  STANDARD_LOGO,
+  ankreuzen,
+  chip,
+  dialogFormular,
+  el,
+  feld,
+  knopf,
+} from "./dom.js";
 
-// Ohne eigenes Logo gilt das Cevi-Symbol
-const STANDARD_LOGO = "/admin/favicon.svg";
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
 export function zeige(bereich, ctx) {
@@ -46,7 +52,7 @@ function felder(stufe) {
       required: true,
     }),
     logo: feld({
-      label: "Logo (freiwillig)",
+      label: "Logo (optional)",
       hilfe:
         "JPEG, PNG oder WebP, höchstens 5 MB. Ohne eigenes Logo gilt das Cevi-Logo.",
       typ: "file",

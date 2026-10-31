@@ -1536,11 +1536,9 @@ fieldset .feld .auswahl {
 }
 
 .auswahl-liste {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  left: 0;
-  z-index: 30;
+  /* Popover im Top-Layer: Lage und Breite setzt dom.js, damit die Liste nicht im Dialog gefangen ist */
+  position: fixed;
+  inset: auto;
   max-height: 15rem;
   margin: 0;
   padding: 4px;
@@ -1550,6 +1548,28 @@ fieldset .feld .auswahl {
   border-radius: 12px;
   box-shadow: var(--schatten);
   list-style: none;
+}
+
+.seitenwahl {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.auswahl-wert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.auswahl-bild {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
 }
 
 .auswahl-eintrag {

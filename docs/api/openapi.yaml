@@ -4152,6 +4152,7 @@ components:
         - id
         - vorname
         - nachname
+        - ceviName
         - stufeId
         - aktiv
         - eltern
@@ -4163,6 +4164,11 @@ components:
           type: string
         nachname:
           type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+          description: Freiwilliger Cevi-Name; `null`, wenn nicht gesetzt.
         stufeId:
           type: string
           format: uuid
@@ -4416,6 +4422,10 @@ components:
           minLength: 1
           maxLength: 100
           description: Leerraum am Rand wird entfernt, danach mindestens 1 Zeichen.
+        ceviName:
+          type: string
+          maxLength: 50
+          description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
         stufeId:
           type: string
           format: uuid
@@ -4433,6 +4443,12 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+        ceviName:
+          type:
+            - string
+            - "null"
+          maxLength: 50
+          description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
         stufeId:
           type: string
           format: uuid

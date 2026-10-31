@@ -212,6 +212,8 @@ export const kind = pgTable("kind", {
     .references(() => abteilung.id, { onDelete: "restrict" }),
   vorname: text("vorname").notNull(),
   nachname: text("nachname").notNull(),
+  // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
+  ceviName: text("cevi_name"),
   stufeId: uuid("stufe_id")
     .notNull()
     .references(() => stufe.id, { onDelete: "restrict" }),

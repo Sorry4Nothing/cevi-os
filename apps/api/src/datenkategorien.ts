@@ -184,6 +184,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "abteilung_id",
       "vorname",
       "nachname",
+      "cevi_name",
       "stufe_id",
       "stufe_seit",
       "inaktiv_seit",
