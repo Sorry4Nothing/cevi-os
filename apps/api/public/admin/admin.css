@@ -1804,6 +1804,10 @@ dialog .feld textarea,
   background: var(--surface);
 }
 
+dialog .feld input[type="file"] {
+  background: none;
+}
+
 dialog .wahl input {
   background: var(--surface);
 }
