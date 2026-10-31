@@ -506,6 +506,49 @@ export const pushToken = pgTable(
   ],
 );
 
+// Erinnerung an Eltern ohne Antwort (#242); stufe_id leer heisst: alle Stufen. Wochentag ISO (1 Montag bis 7 Sonntag), Uhrzeit HH:mm Schweizer Zeit
+export const zeitregel = pgTable(
+  "zeitregel",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // RESTRICT wie jede Stufen-Referenz; die Löschroute der Stufe löscht die Regeln vorher
+    stufeId: uuid("stufe_id").references(() => stufe.id, {
+      onDelete: "restrict",
+    }),
+    wochentag: integer("wochentag").notNull(),
+    uhrzeit: text("uhrzeit").notNull(),
+    // Der ganze Push-Titel; {Programm} und {Datum} ersetzt der Server
+    text: text("text").notNull(),
+    aktiv: boolean("aktiv").notNull().default(true),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    check("zeitregel_wochentag_check", sql`${t.wochentag} between 1 and 7`),
+    check(
+      "zeitregel_uhrzeit_check",
+      sql`${t.uhrzeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`,
+    ),
+  ],
+);
+
+// Eine Zeile pro gesendeter Erinnerung; sie entsteht vor dem Versand und ist die Sperre gegen Doppelsendung
+export const zeitregelGesendet = pgTable(
+  "zeitregel_gesendet",
+  {
+    regelId: uuid("regel_id")
+      .notNull()
+      .references(() => zeitregel.id, { onDelete: "cascade" }),
+    programmId: uuid("programm_id")
+      .notNull()
+      .references(() => programm.id, { onDelete: "cascade" }),
+    gesendetAm: zeitpunkt("gesendet_am").notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.regelId, t.programmId] })],
+);
+
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
 export const auditLog = pgTable("audit_log", {
   id: id(),

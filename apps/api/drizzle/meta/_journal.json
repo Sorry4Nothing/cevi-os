@@ -176,6 +176,13 @@
       "when": 1793455945333,
       "tag": "0024_stufe_loeschbar",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1793459647394,
+      "tag": "0026_zeitregeln",
+      "breakpoints": true
     }
   ]
 }

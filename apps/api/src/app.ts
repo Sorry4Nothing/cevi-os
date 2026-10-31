@@ -16,6 +16,7 @@ import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
+import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
@@ -169,6 +170,7 @@ export function erstelleApp({
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken }),

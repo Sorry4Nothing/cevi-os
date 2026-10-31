@@ -13,6 +13,7 @@ import {
   rolle,
   stufe,
   stufenlogo,
+  zeitregel,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
@@ -137,6 +138,7 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             .delete(programmEckdaten)
             .where(eq(programmEckdaten.stufeId, id));
           await tx.delete(programmStufe).where(eq(programmStufe.stufeId, id));
+          await tx.delete(zeitregel).where(eq(zeitregel.stufeId, id));
           await tx.delete(chat).where(eq(chat.stufeId, id));
           await tx.delete(stufe).where(eq(stufe.id, id));
           await tx.insert(auditLog).values({
