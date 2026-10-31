@@ -4503,6 +4503,17 @@ components:
             type: string
             format: uuid
           description: Pflicht bei `stufen`, verboten bei `alle`.
+        rollen:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            type: string
+            enum:
+              - stufenleitung
+              - leitung
+              - eltern
+          description: Nur diese Rollen bekommen den Push, einzeln oder kombiniert. `eltern` sind die Teilnehmenden. Ohne Angabe gelten alle Rollen. Bei `alle` mit einem Teil der Rollen zählen alle Stufen der Abteilung.
     AdminMitteilungErgebnis:
       type: object
       required:

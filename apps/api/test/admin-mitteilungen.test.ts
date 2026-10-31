@@ -196,6 +196,83 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     expect(empfangen()).toEqual(erwartet("admin", "leitendeAElternB", "slB"));
   });
 
+  test.each([
+    ["Eltern", ["eltern"], ["elternA"]],
+    ["Stufenleitung", ["stufenleitung"], ["slA"]],
+    ["Leitende", ["leitung"], ["leitendeA"]],
+    ["Leitende und Eltern", ["leitung", "eltern"], ["leitendeA", "elternA"]],
+    [
+      "Stufenleitung und Leitende",
+      ["stufenleitung", "leitung"],
+      ["slA", "leitendeA"],
+    ],
+  ])(
+    "«stufen» nur an %s: sonst niemand, auch nicht die absendende Person",
+    async (_name, rollen, erwartetNamen) => {
+      const admin = await person("admin");
+      for (const n of [
+        "elternA",
+        "slA",
+        "leitendeA",
+        "elternB",
+        "slB",
+      ] as const)
+        await person(n);
+      const antwort = await senden(admin, {
+        titel: "Hallo",
+        empfaenger: "stufen",
+        stufeIds: [welt.stufeAId],
+        rollen,
+      });
+      expect(await antwort.json()).toEqual({
+        empfaenger: erwartetNamen.length,
+      });
+      expect(empfangen()).toEqual(erwartet(...erwartetNamen));
+    },
+  );
+
+  test("«alle» nur an eine Rolle trifft diese Rolle in allen Stufen, nicht die absendende Person", async () => {
+    const admin = await person("admin");
+    for (const n of ["elternA", "slA", "slB", "leitendeA"] as const)
+      await person(n);
+    const antwort = await senden(admin, { ...ALLE, rollen: ["stufenleitung"] });
+    expect(await antwort.json()).toEqual({ empfaenger: 2 });
+    expect(empfangen()).toEqual(erwartet("slA", "slB"));
+  });
+
+  test("alle drei Rollen sind dasselbe wie keine Angabe", async () => {
+    const admin = await person("admin");
+    await person("elternA");
+    // Eltern nur von Stufe B: Die Stufe A erreicht es nicht, «alle» schon
+    await person("elternB", "ohneKind");
+    const alle = ["stufenleitung", "leitung", "eltern"];
+    await senden(admin, { ...ALLE, rollen: alle });
+    expect(empfangen()).toEqual(erwartet("admin", "elternA", "ohneKind"));
+    gesendet = [];
+    await senden(admin, {
+      titel: "Hallo",
+      empfaenger: "stufen",
+      stufeIds: [welt.stufeAId],
+      rollen: alle,
+    });
+    expect(empfangen()).toEqual(erwartet("admin", "elternA"));
+  });
+
+  test("der Audit-Eintrag nennt die Rollen nur, wenn gefiltert wurde", async () => {
+    const admin = await person("admin");
+    await senden(admin, { ...ALLE, rollen: ["eltern", "stufenleitung"] });
+    await senden(admin, ALLE);
+    const zeilen = (await auditZeilen()).sort(
+      (a, b) => a.erstelltAm.getTime() - b.erstelltAm.getTime(),
+    );
+    expect(zeilen[0]!.details).toEqual({
+      empfaenger: "alle",
+      rollen: ["stufenleitung", "eltern"],
+      anzahl: 0,
+    });
+    expect(zeilen[1]!.details).toEqual({ empfaenger: "alle", anzahl: 1 });
+  });
+
   test("der Audit-Eintrag nennt Gruppe und Zahl, nie den Text", async () => {
     const admin = await person("admin");
     await person("elternA");
@@ -266,6 +343,8 @@ describe("POST /api/v1/admin/mitteilungen", () => {
       { titel: "Hallo", empfaenger: "alle", stufeIds: [randomUUID()] },
     ],
     ["unbekanntes Feld", { ...ALLE, text: "Textkörper" }],
+    ["leere Rollen", { ...ALLE, rollen: [] }],
+    ["unbekannte Rolle", { ...ALLE, rollen: ["admin"] }],
   ])("%s ist 400", async (_name, body) => {
     const admin = await person("admin");
     expect((await senden(admin, body)).status).toBe(400);
