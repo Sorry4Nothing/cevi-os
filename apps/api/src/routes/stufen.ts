@@ -113,13 +113,12 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
           id: stufe.id,
           name: stufe.name,
           kuerzel: stufe.kuerzel,
-          reihenfolge: stufe.reihenfolge,
           logoUrl,
         })
         .from(stufe)
         .leftJoin(stufenlogo, eq(stufenlogo.stufeId, stufe.id))
         .where(eq(stufe.abteilungId, person.abteilungId))
-        .orderBy(asc(stufe.reihenfolge), asc(stufe.name), asc(stufe.id));
+        .orderBy(asc(stufe.name), asc(stufe.id));
       return c.json({ stufen });
     })
     .get(

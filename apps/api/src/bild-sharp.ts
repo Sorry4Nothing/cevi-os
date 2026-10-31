@@ -5,8 +5,8 @@ import type { BildKodierer } from "./bild.js";
 sharp.cache(false);
 
 const SEITE = 256;
-// Schutz vor Dekompressionsbomben: Ein 5-MB-PNG kann Milliarden Pixel enthalten. 50 Mio. Pixel decken jede Handykamera ab
-const MAX_PIXEL = 50_000_000;
+// Schutz vor Dekompressionsbomben: Ein 5-MB-PNG kann Milliarden Pixel enthalten. 16 Mio. Pixel decken ein Handyfoto mit 12 MP (4032 × 3024) ab, kosten beim Dekodieren mit 4 Bytes je Pixel rund 64 MB, und das Ergebnis hat ohnehin nur 256 oder 512 px
+const MAX_PIXEL = 16_000_000;
 
 // Immer JPEG, quadratisch (Mitte), ohne EXIF, ICC und Ortsdaten: sharp übernimmt Metadaten nur mit withMetadata(). rotate() wendet die EXIF-Drehung vorher an, damit das Bild nicht kippt. Transparenz wird weiss
 export const kodiereProfilbild: BildKodierer = async (daten) =>

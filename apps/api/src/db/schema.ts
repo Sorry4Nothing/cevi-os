@@ -166,7 +166,6 @@ export const stufe = pgTable("stufe", {
     .references(() => abteilung.id, { onDelete: "restrict" }),
   name: text("name").notNull(),
   kuerzel: text("kuerzel").notNull(),
-  reihenfolge: integer("reihenfolge").notNull(),
 });
 
 // Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo

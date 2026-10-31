@@ -39,18 +39,6 @@ function felder(stufe) {
       maxlength: 20,
       required: true,
     }),
-    reihenfolge: feld({
-      label: "Reihenfolge",
-      hilfe:
-        "Eine ganze Zahl von 1 bis 999. Stufen mit kleineren Zahlen stehen weiter vorne. Tipp: in Zehnerschritten, dann passt später eine Stufe dazwischen.",
-      typ: "number",
-      min: 1,
-      max: 999,
-      step: 1,
-      inputmode: "numeric",
-      wert: stufe ? String(stufe.reihenfolge) : "",
-      required: true,
-    }),
     logo: feld({
       label: "Logo (optional)",
       hilfe:
@@ -66,21 +54,11 @@ function felder(stufe) {
 }
 
 function lesen(f) {
-  const reihenfolge = Number(f.reihenfolge.eingabe.value);
-  if (!Number.isInteger(reihenfolge) || reihenfolge < 1 || reihenfolge > 999) {
-    throw new Error("reihenfolge");
-  }
   return {
     name: f.name.eingabe.value.trim(),
     kuerzel: f.kuerzel.eingabe.value.trim(),
-    reihenfolge,
   };
 }
-
-// Ungültige Zahl: gleiche Anzeige wie ein 400 der API
-const ungueltig = () => {
-  throw Object.assign(new Error("400"), { status: 400, code: "UNGUELTIG" });
-};
 
 function dialog({ stufe, ctx, neu }) {
   const f = felder(stufe);
@@ -90,18 +68,12 @@ function dialog({ stufe, ctx, neu }) {
     felder: [
       f.name.wurzel,
       f.kuerzel.wurzel,
-      f.reihenfolge.wurzel,
       f.logo.wurzel,
       f.entfernen?.wurzel,
     ].filter(Boolean),
     ok: stufe ? "Speichern" : "Anlegen",
     senden: async () => {
-      let body;
-      try {
-        body = lesen(f);
-      } catch {
-        return ungueltig();
-      }
+      const body = lesen(f);
       const datei = f.logo.eingabe.files[0];
       if (datei && datei.size > LOGO_MAX_BYTES) {
         throw Object.assign(new Error("400"), {
@@ -119,11 +91,9 @@ function dialog({ stufe, ctx, neu }) {
       return ergebnis;
     },
     fehlertext: (fehler) =>
-      fehler.code === "UNGUELTIG"
-        ? "Die Reihenfolge muss eine ganze Zahl von 1 bis 999 sein."
-        : fehler.code === "LOGO_GROSS"
-          ? "Das Logo ist grösser als 5 MB."
-          : fehlertext(fehler),
+      fehler.code === "LOGO_GROSS"
+        ? "Das Logo ist grösser als 5 MB."
+        : fehlertext(fehler),
     danach: () => {
       neu();
       ctx.melde(stufe ? "Gespeichert." : "Stufe ist angelegt.");
@@ -135,13 +105,6 @@ function karte(stufe, anzahl, ctx, neu) {
   return el(
     "li",
     { class: "karte stufe-karte" },
-    el(
-      "span",
-      { class: "stufe-nr" },
-      el("span", { class: "mini", "aria-hidden": "true" }, "NR."),
-      el("span", { class: "nur-leser" }, "Reihenfolge "),
-      el("span", { class: "stufe-nr-zahl" }, String(stufe.reihenfolge)),
-    ),
     // Dekorativ: Name und Chip daneben nennen schon alles
     el("img", {
       class: "stufe-logo",

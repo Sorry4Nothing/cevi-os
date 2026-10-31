@@ -1,5 +1,5 @@
 {
-  "id": "b93b6a80-f83c-4334-99fd-9550c7c4ac9e",
+  "id": "4cc56d70-e858-4b2b-a55f-1f5a2a7b612b",
   "prevId": "14aaab1b-f7bc-4bc9-a9a7-606d295e57cb",
   "version": "7",
   "dialect": "postgresql",
@@ -718,12 +718,6 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
-        },
-        "cevi_name": {
-          "name": "cevi_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
         },
         "stufe_id": {
           "name": "stufe_id",
@@ -1680,12 +1674,6 @@
         "kuerzel": {
           "name": "kuerzel",
           "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reihenfolge": {
-          "name": "reihenfolge",
-          "type": "integer",
           "primaryKey": false,
           "notNull": true
         }

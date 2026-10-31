@@ -194,7 +194,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
         eigeneAnmeldung = anmeldung?.status ?? "offen";
       }
       const kinder = (await eigeneKinder(person, [id])).get(id) ?? [];
-      // Eckdaten der Webseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Reihenfolge
+      // Eckdaten der Webseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Name
       const [eckdaten] = await db
         .select({
           treffpunkt: programmEckdaten.treffpunkt,
@@ -221,7 +221,7 @@ export function erstelleProgrammRouten({ db }: { db: Db }) {
           ),
         )
         .where(eq(programmStufe.programmId, id))
-        .orderBy(stufe.reihenfolge, stufe.id)
+        .orderBy(stufe.name, stufe.id)
         .limit(1);
       return c.json({
         ...zeile,
