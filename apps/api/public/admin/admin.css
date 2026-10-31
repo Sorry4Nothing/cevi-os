@@ -1407,11 +1407,23 @@ legend,
 
 /* Dateifeld: der Auswahlknopf sieht aus wie ein .knopf, nicht wie der Browser-Standard */
 .feld input[type="file"] {
-  padding: 8px 8px 0;
+  min-height: 0;
+  padding: 5px; /* Platz für den Fokusring des Knopfs, sonst schneidet das Feld ihn ab */
+  background: none;
+  border: 0;
   color: var(--leise);
   font-size: 0.9375rem;
   line-height: 1.25rem;
   cursor: pointer;
+}
+
+.feld input[type="file"]:focus-visible {
+  outline: none;
+}
+
+.feld input[type="file"]:focus-visible::file-selector-button {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
 }
 
 .feld input[type="file"]::file-selector-button {
