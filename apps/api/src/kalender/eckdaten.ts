@@ -2,6 +2,7 @@ import { htmlZuText } from "./abgleich.js";
 
 export type Eckdaten = {
   tag: string;
+  treffZeit: string | null;
   treffpunkt: string | null;
   schlussOrt: string | null;
   schlussZeit: string | null;
@@ -109,6 +110,7 @@ export function parseEckdaten(html: string): Eckdaten | null {
 
   const ergebnis: Eckdaten = {
     tag,
+    treffZeit: null,
     treffpunkt: null,
     schlussOrt: null,
     schlussZeit: null,
@@ -125,6 +127,7 @@ export function parseEckdaten(html: string): Eckdaten | null {
         : einzel && zeit(einzel[1], einzel[2]);
       const bis = bereich ? zeit(bereich[3], bereich[4]) : null;
       const ort = b.zeilen.map(ohneZeit).filter(Boolean).join("\n");
+      ergebnis.treffZeit ??= von;
       ergebnis.treffpunkt ??= oderNull(
         kuerze(
           [von ? `${von} Uhr` : "", ort].filter(Boolean).join("\n"),
@@ -134,6 +137,8 @@ export function parseEckdaten(html: string): Eckdaten | null {
       ergebnis.schlussOrt ??= oderNull(kuerze(ort, MAX_FELD));
       ergebnis.schlussZeit ??= bis;
     } else if (b.label.startsWith("treff")) {
+      const einzel = ZEIT.exec(alle);
+      ergebnis.treffZeit ??= einzel ? zeit(einzel[1], einzel[2]) : null;
       ergebnis.treffpunkt ??= oderNull(kuerze(alle, MAX_FELD));
     } else if (b.label.startsWith("schluss")) {
       const einzel = ZEIT.exec(alle);

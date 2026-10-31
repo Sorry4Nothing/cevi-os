@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { erstelleApp } from "../src/app.js";
@@ -139,6 +139,83 @@ test("anderer Tag oder später Abend in UTC (schon der Folgetag in Zürich): nul
   expect(zeilen.some((z) => z.stufeId === froeschliId)).toBe(true);
 });
 
+const webProgramme = (stufeId: string) =>
+  db
+    .select({
+      titel: schema.programm.titel,
+      beginn: schema.programm.beginn,
+      ende: schema.programm.ende,
+      ganztaegig: schema.programm.ganztaegig,
+      tagVon: schema.programm.tagVon,
+      ort: schema.programm.googleOrt,
+      sichtbarkeit: schema.programm.sichtbarkeit,
+    })
+    .from(schema.programm)
+    .innerJoin(
+      schema.programmStufe,
+      eq(schema.programmStufe.programmId, schema.programm.id),
+    )
+    .where(
+      and(
+        eq(schema.programmStufe.stufeId, stufeId),
+        like(schema.programm.googleEventId, "web:%"),
+      ),
+    );
+
+test("ohne Kalender legt der Abruf das Programm an: Zeiten in Zürich, für Eltern sichtbar, der Stufe zugeordnet", async () => {
+  const zeilen = await webProgramme(froeschliId);
+  expect(zeilen).toEqual([
+    {
+      titel: "Cevi-Programm Fröschli",
+      // 14:00 und 17:00 Uhr Sommerzeit
+      beginn: new Date("2027-04-10T12:00:00Z"),
+      ende: new Date("2027-04-10T15:00:00Z"),
+      ganztaegig: false,
+      tagVon: null,
+      ort: "Beispielhaus 1, Musterdorf",
+      sichtbarkeit: "eltern",
+    },
+  ]);
+  // Ein zweiter Lauf desselben Tags legt kein zweites an
+  await synchronisiereEckdaten({
+    datenbankUrl: API_URL,
+    basisUrl: "https://seite.example.org",
+    abrufen: async (url) =>
+      url.endsWith("/cevistufe-froeschli") ? SEITE : null,
+  });
+  expect(await webProgramme(froeschliId)).toHaveLength(1);
+});
+
+test("ohne Zeit ganztägig; mit Kalender in der Abteilung entsteht nichts", async () => {
+  const ohneZeit = SEITE.replace("14:00-17:00 Uhr<br />", "");
+  const [mitKalender] = await db
+    .insert(schema.abteilung)
+    .values({ name: "Mit Kalender", googleKalenderId: "kalender-test" })
+    .returning();
+  const [kalenderStufe] = await db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: mitKalender.id,
+      name: "Kalenderstufe",
+      kuerzel: "K",
+    })
+    .returning();
+  await synchronisiereEckdaten({
+    datenbankUrl: API_URL,
+    basisUrl: "https://seite.example.org",
+    abrufen: async (url) =>
+      url.endsWith("/cevistufe-stufeb")
+        ? ohneZeit
+        : url.endsWith("/cevistufe-kalenderstufe")
+          ? SEITE
+          : null,
+  });
+  expect(await webProgramme(welt.stufeBId)).toMatchObject([
+    { ganztaegig: true, beginn: null, ende: null, tagVon: "2027-04-10" },
+  ]);
+  expect(await webProgramme(kalenderStufe.id)).toEqual([]);
+});
+
 test("ein neuer Lauf ersetzt den alten Tag der Stufe", async () => {
   const neu = SEITE.replace("10. April 2027", "17. April 2027");
   await synchronisiereEckdaten({
@@ -151,6 +228,10 @@ test("ein neuer Lauf ersetzt den alten Tag der Stufe", async () => {
     .from(schema.programmEckdaten)
     .where(eq(schema.programmEckdaten.stufeId, welt.stufeAId));
   expect(tage).toEqual([{ tag: "2027-04-17" }]);
+  // Das kommende Programm des alten Tags ist weg, das des neuen da
+  const programme = await webProgramme(welt.stufeAId);
+  expect(programme).toHaveLength(1);
+  expect(programme[0].beginn).toEqual(new Date("2027-04-17T12:00:00Z"));
 });
 
 test("ein Fehler beim Abruf lässt den Lauf der übrigen Stufen weiterlaufen und loggt nur den Code", async () => {
