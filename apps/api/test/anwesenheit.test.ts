@@ -188,7 +188,6 @@ describe("Erfassen und Übersicht", () => {
         abteilungId: welt.testabteilungId,
         name: "Anwesenheitsstufe",
         kuerzel: "AW",
-        reihenfolge: 99,
       })
       .returning({ id: stufe.id });
     const [k1, k2] = await db
@@ -301,7 +300,6 @@ describe("Erfassen und Übersicht", () => {
         abteilungId: welt.testabteilungId,
         name: "Leere Stufe",
         kuerzel: "LS",
-        reihenfolge: 98,
       })
       .returning({ id: stufe.id });
     const leer = await uebersicht(konten.admin, "", stufeNeu.id);
@@ -327,7 +325,6 @@ describe("Erfassen und Übersicht", () => {
         abteilungId: welt.testabteilungId,
         name: "Filterstufe",
         kuerzel: "FS",
-        reihenfolge: 97,
       })
       .returning({ id: stufe.id });
     const intern = await legeProgrammAn(db, {

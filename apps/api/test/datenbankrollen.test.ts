@@ -39,8 +39,8 @@ test("die API-Rolle benennt Stufen um, löscht aber keine", async () => {
     const [abteilung] =
       await tx`insert into abteilung (name) values ('Testabteilung') returning id`;
     const [stufe] = await tx`
-      insert into stufe (abteilung_id, name, kuerzel, reihenfolge)
-      values (${abteilung.id}, 'Teststufe', 'TS', 1)
+      insert into stufe (abteilung_id, name, kuerzel)
+      values (${abteilung.id}, 'Teststufe', 'TS')
       returning id`;
 
     await tx`update stufe set name = 'Umbenannt' where id = ${stufe.id}`;

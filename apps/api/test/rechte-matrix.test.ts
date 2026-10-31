@@ -561,7 +561,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/stufen": {
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M" }),
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -573,7 +573,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "PATCH /api/v1/admin/stufen/:id": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}`,
-    body: () => ({ name: "Matrix Stufe", kuerzel: "M", reihenfolge: 50 }),
+    body: () => ({ name: "Matrix Stufe", kuerzel: "M" }),
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -838,7 +838,6 @@ beforeAll(async () => {
       abteilungId: welt.testabteilungId,
       name: "Matrix Stufe",
       kuerzel: "M",
-      reihenfolge: 50,
     })
     .returning({ id: schema.stufe.id });
   patchStufeId = patchStufe.id;

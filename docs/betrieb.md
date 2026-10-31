@@ -7,6 +7,7 @@ Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Relea
 - Ein VPS; Anbieter, Region und Domain sind noch offen (#68). Im Gespräch ist Oracle Cloud «Always Free» (ARM, Ampere); ob die Region in der Schweiz liegt, ist ungeprüft, und die Home-Region lässt sich nach der Anmeldung nicht ändern.
 - Das API-Image ist nur für arm64 gebaut (`image.yml` läuft auf `ubuntu-24.04-arm`). Die Images von postgres, caddy und restic gibt es auch für arm64. Auf einem amd64-Server startet das API-Image nicht.
 - Auf dem Server laufen Linux mit systemd-journald, die Docker Engine mit dem Compose-Plugin und git.
+- Der Dienst `api` hat in `deploy/docker-compose.prod.yml` höchstens 1 GB Arbeitsspeicher (`mem_limit`) und 256 Prozesse und Threads (`pids_limit`), damit viele gleichzeitige Bild-Uploads (bis 16 Mio. Pixel, beim Dekodieren rund 64 MB je Bild) nur die API treffen und nicht Postgres und Caddy; der Wert muss zum Server passen, und meldet `docker inspect` für den Container `OOMKilled`, ist er zu klein.
 - Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind.
 - Das Repo liegt auf dem Server als Checkout des ausgerollten Tags. Befehle in dieser Doku laufen im Wurzelordner dieses Checkouts, jene im Abschnitt «Backups» im Ordner `deploy/`.
 - Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Google-Service-Accounts unter `deploy/secrets/` (Ordner 700, Datei 400).
@@ -154,7 +155,7 @@ Lesen:
 
 Was in den Logs steht:
 
-- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Namen, Inhalte oder IP-Adressen. Bei 401 und 403 einer angemeldeten Anfrage steht zusätzlich `nutzerId` darin, die ID des Kontos (siehe «Abgewiesene Anfragen prüfen»). Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Das Löschen nach Alter begrenzt das Log.
+- API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Namen, Inhalte oder IP-Adressen. Bei 401 und 403 einer angemeldeten Anfrage steht zusätzlich `nutzerId` darin, die ID des Kontos (siehe «Abgewiesene Anfragen prüfen»). Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Beim Start und danach alle 24 Stunden löscht die API abgelaufene Sitzungen samt ihren Push-Tokens und schreibt eine Zeile mit `"ereignis":"sitzungen"` und der Anzahl (`geloescht`), bei einem Fehler nur dessen Code. Das Löschen nach Alter begrenzt das Log.
 - Caddy: IP-Adressen. Caddy schreibt auf stderr und damit nach journald; keine Log-Datei, kein Volume.
 - PostgreSQL: Fehlerzeilen können Werte aus Abfragen zitieren, etwa `DETAIL: Key (…)=(…)` oder `STATEMENT: …`.
 

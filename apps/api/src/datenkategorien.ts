@@ -252,7 +252,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   stufe: {
-    abteilung: ["id", "abteilung_id", "name", "kuerzel", "reihenfolge"],
+    abteilung: ["id", "abteilung_id", "name", "kuerzel"],
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
   anwesenheit_kind: {

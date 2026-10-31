@@ -73,7 +73,6 @@ const BASIS = "/api/v1/admin/stufen";
 const stufenBody = (extra: Record<string, unknown> = {}) => ({
   name: "Neue Stufe",
   kuerzel: "NS",
-  reihenfolge: 7,
   ...extra,
 });
 
@@ -91,14 +90,12 @@ describe("POST /api/v1/admin/stufen", () => {
     const id = await legeStufeAn(admin, {
       name: "  Pfadi  ",
       kuerzel: " P ",
-      reihenfolge: 3,
     });
     expect(await stufeZeile(id)).toEqual({
       id,
       abteilungId: welt.testabteilungId,
       name: "Pfadi",
       kuerzel: "P",
-      reihenfolge: 3,
     });
   });
 
@@ -169,10 +166,7 @@ describe("POST /api/v1/admin/stufen", () => {
     ["Name mit 101 Zeichen", () => ({ name: "a".repeat(101) })],
     ["leeres Kürzel", () => ({ kuerzel: "" })],
     ["Kürzel mit 21 Zeichen", () => ({ kuerzel: "a".repeat(21) })],
-    ["Reihenfolge 0", () => ({ reihenfolge: 0 })],
-    ["Reihenfolge 1000", () => ({ reihenfolge: 1000 })],
-    ["Reihenfolge 1.5", () => ({ reihenfolge: 1.5 })],
-    ["Reihenfolge als Text", () => ({ reihenfolge: "3" })],
+    ["Reihenfolge (entfallen)", () => ({ reihenfolge: 3 })],
   ])("%s gibt 400", async (_titel, extra) => {
     const antwort = await anfrage(admin, "POST", BASIS, stufenBody(extra()));
     expect(antwort.status).toBe(400);
@@ -196,7 +190,7 @@ describe("POST /api/v1/admin/stufen", () => {
 });
 
 describe("PATCH /api/v1/admin/stufen/:id", () => {
-  test("benennt um und ändert Kürzel und Reihenfolge einzeln", async () => {
+  test("benennt um und ändert das Kürzel einzeln", async () => {
     const id = await legeStufeAn();
     expect(
       (await anfrage(admin, "PATCH", `${BASIS}/${id}`, { name: " Biber " }))
@@ -205,17 +199,9 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
     expect(await stufeZeile(id)).toMatchObject({
       name: "Biber",
       kuerzel: "NS",
-      reihenfolge: 7,
     });
-    await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
-      kuerzel: "B",
-      reihenfolge: 9,
-    });
-    expect(await stufeZeile(id)).toMatchObject({
-      name: "Biber",
-      kuerzel: "B",
-      reihenfolge: 9,
-    });
+    await anfrage(admin, "PATCH", `${BASIS}/${id}`, { kuerzel: "B" });
+    expect(await stufeZeile(id)).toMatchObject({ name: "Biber", kuerzel: "B" });
   });
 
   test("ein leerer Body ist ein No-op mit 204", async () => {
@@ -230,7 +216,7 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
   test.each([
     ["abteilungId", { abteilungId: randomUUID() }],
     ["leerer Name", { name: " " }],
-    ["Reihenfolge 0", { reihenfolge: 0 }],
+    ["Reihenfolge (entfallen)", { reihenfolge: 3 }],
   ])("%s gibt 400", async (_titel, body) => {
     const id = await legeStufeAn();
     expect((await anfrage(admin, "PATCH", `${BASIS}/${id}`, body)).status).toBe(
@@ -290,7 +276,6 @@ describe("GET /api/v1/stufen", () => {
     id: string;
     name: string;
     kuerzel: string;
-    reihenfolge: number;
   };
   const liste = async (konto: PersonaKonto) => {
     const antwort = await anfrage(konto, "GET", "/api/v1/stufen");
@@ -298,23 +283,23 @@ describe("GET /api/v1/stufen", () => {
     return ((await antwort.json()) as { stufen: Eintrag[] }).stufen;
   };
 
-  test("liefert Eltern und Admin dieselben Stufen der eigenen Abteilung: id, name, kuerzel, reihenfolge", async () => {
+  test("liefert Eltern und Admin dieselben Stufen der eigenen Abteilung: id, name, kuerzel, logoUrl", async () => {
     const eltern = await legePersonaAn(welt, "elternA");
     const [fuerEltern, fuerAdmin] = [await liste(eltern), await liste(admin)];
     expect(fuerEltern).toEqual(fuerAdmin);
-    expect(fuerEltern.slice(0, 2)).toEqual([
+    expect(
+      fuerEltern.filter((s) => [welt.stufeAId, welt.stufeBId].includes(s.id)),
+    ).toEqual([
       {
         id: welt.stufeAId,
         name: "Stufe A",
         kuerzel: "A",
-        reihenfolge: 1,
         logoUrl: null,
       },
       {
         id: welt.stufeBId,
         name: "Stufe B",
         kuerzel: "B",
-        reihenfolge: 2,
         logoUrl: null,
       },
     ]);
@@ -324,19 +309,22 @@ describe("GET /api/v1/stufen", () => {
   test("die Demo-Abteilung sieht nur Stufen der Demo-Abteilung", async () => {
     const demoEltern = await legePersonaAn(welt, "demoEltern");
     const ids = (await liste(demoEltern)).map((s) => s.id);
-    expect(ids[0]).toBe(welt.demoStufeId);
+    expect(ids).toContain(welt.demoStufeId);
     expect(ids).not.toContain(welt.stufeAId);
     expect(ids).not.toContain(welt.stufeBId);
   });
 
-  test("sortiert nach Reihenfolge, dann nach Name", async () => {
-    await legeStufeAn(admin, { name: "Zz", reihenfolge: 500 });
-    await legeStufeAn(admin, { name: "Aa", reihenfolge: 500 });
-    await legeStufeAn(admin, { name: "Mm", reihenfolge: 400 });
+  test("sortiert nach Name, ohne Feld «reihenfolge»", async () => {
+    const z = randomUUID();
+    await legeStufeAn(admin, { name: `Zz ${z}` });
+    await legeStufeAn(admin, { name: `Aa ${z}` });
+    await legeStufeAn(admin, { name: `Mm ${z}` });
     const stufen = await liste(admin);
-    expect(stufen.map((s) => s.name).slice(-3)).toEqual(["Mm", "Aa", "Zz"]);
-    expect(stufen.map((s) => s.reihenfolge)).toEqual(
-      stufen.map((s) => s.reihenfolge).sort((a, b) => a - b),
-    );
+    expect(stufen.map((s) => s.name).filter((n) => n.endsWith(z))).toEqual([
+      `Aa ${z}`,
+      `Mm ${z}`,
+      `Zz ${z}`,
+    ]);
+    expect(stufen.every((s) => !("reihenfolge" in s))).toBe(true);
   });
 });

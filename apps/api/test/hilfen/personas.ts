@@ -61,19 +61,11 @@ export async function erstelleWelt(db: Db, auth: TestAuth): Promise<Welt> {
   const [testabteilung] = await abteilung("Testabteilung");
   const [demoAbteilung] = await abteilung("Demo-Abteilung");
 
-  const stufe = (
-    abteilungId: string,
-    name: string,
-    kuerzel: string,
-    reihenfolge: number,
-  ) =>
-    db
-      .insert(schema.stufe)
-      .values({ abteilungId, name, kuerzel, reihenfolge })
-      .returning();
-  const [stufeA] = await stufe(testabteilung.id, "Stufe A", "A", 1);
-  const [stufeB] = await stufe(testabteilung.id, "Stufe B", "B", 2);
-  const [demoStufe] = await stufe(demoAbteilung.id, "Demo-Stufe", "D", 1);
+  const stufe = (abteilungId: string, name: string, kuerzel: string) =>
+    db.insert(schema.stufe).values({ abteilungId, name, kuerzel }).returning();
+  const [stufeA] = await stufe(testabteilung.id, "Stufe A", "A");
+  const [stufeB] = await stufe(testabteilung.id, "Stufe B", "B");
+  const [demoStufe] = await stufe(demoAbteilung.id, "Demo-Stufe", "D");
 
   const kind = (abteilungId: string, nachname: string, stufeId: string) =>
     db
