@@ -130,9 +130,7 @@ describe("/health überwacht den Kalender-Sync", () => {
       const res = await health(verbindung);
       expect(res.status).toBe(200);
       expect(await res.text()).toBe("ok");
-      expect(logEintraege()).toEqual([
-        expect.objectContaining({ route: "/health", status: 200 }),
-      ]);
+      expect(logEintraege()).toEqual([]);
     });
   });
 });
