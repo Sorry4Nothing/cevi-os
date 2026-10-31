@@ -16,6 +16,7 @@ test("Standard: Treff und Schlusspunkt mit Zeitbereich, Mitnehmen als Liste", ()
     ),
   ).toEqual({
     tag: "2026-10-24",
+    treffZeit: "14:00",
     treffpunkt: "14:00 Uhr\nBeispielhaus 1, Musterdorf",
     schlussOrt: "Beispielhaus 1, Musterdorf",
     schlussZeit: "17:00",
@@ -44,6 +45,7 @@ test("Getrennte Zeilen für Treffpunkt und Schlusspunkt, «Mitbringen» ohne Dop
     ),
   ).toEqual({
     tag: "2026-11-07",
+    treffZeit: "14:00",
     treffpunkt: "14:00 Uhr beim Haus",
     schlussOrt: "beim Haus",
     schlussZeit: "17:00",
@@ -58,6 +60,7 @@ test("Ohne Überschrift «Eckdaten» gilt die ganze Seite; fehlende Angaben sind
     ),
   ).toEqual({
     tag: "2026-12-01",
+    treffZeit: "09:30",
     treffpunkt: "9.30 Uhr Bahnhof",
     schlussOrt: null,
     schlussZeit: null,
