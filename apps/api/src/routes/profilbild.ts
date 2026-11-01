@@ -41,7 +41,16 @@ const FENSTER_MS = 10 * 60_000;
 // Wer die Person mit Namen sieht, sieht auch ihr Bild: dieselben Wege wie bei den Namen, keine neue Preisgabe. Die Wege sind der Chat (Autorin einer sichtbaren Nachricht, Gegenüber im Einzelchat), die Kontakte der Stufe und die Kontakte eines Programms
 async function darfBildSehen(db: Db, person: Person, zielId: string) {
   if (zielId === person.id) return true;
-  // Kontakte der Stufe: SL für Admins, Leitende, SL und Eltern mit aktivem Kind in der Stufe
+  // Die Verwaltung sieht alle Personen der Abteilung, also auch ihre Bilder
+  if (person.admin) {
+    const [ziel] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.id, zielId), eq(user.abteilungId, person.abteilungId)))
+      .limit(1);
+    return !!ziel;
+  }
+  // Kontakte der Stufe: SL für Leitende, SL und Eltern mit aktivem Kind in der Stufe
   const slStufen = (
     await db
       .select({ stufeId: rolle.stufeId })
@@ -54,8 +63,7 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   ).map((r) => r.stufeId);
   if (
     slStufen.length > 0 &&
-    (person.admin ||
-      slStufen.some((s) => hatRolle(person, s, "leitung")) ||
+    (slStufen.some((s) => hatRolle(person, s, "leitung")) ||
       (await stufenMitKind(db, person, slStufen)).size > 0)
   ) {
     return true;

@@ -658,6 +658,19 @@ a.punkt[aria-current="page"] .i {
   font-weight: 700;
 }
 
+.ava {
+  position: relative;
+  overflow: hidden;
+}
+
+.ava img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .ava--hell {
   background: var(--erhoben);
   color: var(--text);
