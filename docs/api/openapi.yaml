@@ -1152,7 +1152,8 @@ paths:
       tags:
         - Stufen
       description: |
-        Liefert alle SL der Stufe mit aktivem Konto, sortiert nach `name`, dann `id`; sie sind die Kontaktpersonen
+        Liefert alle SL der Stufe mit aktivem Konto, in der Reihenfolge der Verwaltung (`PUT /api/v1/admin/stufen/{id}/stufenleitung`):
+        die erste ist der Hauptkontakt, wer nicht eingereiht ist, folgt danach, jeweils nach `name`, dann `id`. Sie sind die Kontaktpersonen
         im Gruppenchat. `telefon` ist für Eltern mit einem aktiven Kind in der Stufe sowie für Leitende und SL der
         Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe).
 
@@ -1556,8 +1557,8 @@ paths:
         «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
 
         **Telefonnummer.** `telefon` ist für Eltern mit einem aktiven Kind in einer Stufe dieser SL sowie für
-        Leitende und SL dieser Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe). Sortiert nach
-        `name`, dann `id`.
+        Leitende und SL dieser Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe). Sortiert nach der
+        Reihenfolge der Verwaltung in der Stufe (die erste SL ist der Hauptkontakt, nicht eingereihte folgen), dann `name`, dann `id`.
 
         Die Antwort trägt `Cache-Control: no-store`.
 
@@ -2585,6 +2586,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/stufen/{id}/stufenleitung:
+    put:
+      operationId: ordneAdminStufenleitung
+      summary: Reihenfolge der Stufenleitung festlegen
+      description: |
+        Nur Admins, nur Stufen der eigenen Abteilung. `ids` nennt SL der Stufe in der Reihenfolge der Kontakte: die erste
+        ist der Hauptkontakt (`prioritaet` 1), dann 2, 3 und so weiter. SL der Stufe, die nicht in `ids` stehen, verlieren
+        ihren Rang und folgen danach nach Name; eine leere Liste hebt die Reihenfolge auf. Die Reihenfolge gilt für
+        `GET /api/v1/programme/{id}/kontakte`, `GET /api/v1/stufen/{id}/kontakte` und die Liste `stufenleitung` der Chats.
+        Der Vorgang steht im Audit-Log (`sl_reihenfolge_geaendert`, mit der Anzahl, ohne Namen).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID, doppelten Einträgen, mehr als 100 Einträgen oder einer Person, die keine SL dieser Stufe ist (auch eine Leitung). 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminStufeId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              additionalProperties: false
+              properties:
+                ids:
+                  type: array
+                  maxItems: 100
+                  uniqueItems: true
+                  description: IDs der SL, die erste ist der Hauptkontakt.
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -4134,7 +4185,7 @@ components:
             - type: "null"
         stufenleitung:
           type: array
-          description: Aktive Stufenleitungen der Stufe, sortiert nach Name; sie lesen jeden Chat der Stufe mit.
+          description: Aktive Stufenleitungen der Stufe, in der Reihenfolge der Verwaltung (nicht eingereihte zuletzt, dann nach Name); sie lesen jeden Chat der Stufe mit.
           items:
             $ref: "#/components/schemas/ChatPerson"
     ChatListe:
@@ -4343,6 +4394,29 @@ components:
           enum:
             - leitung
             - stufenleitung
+    AdminRolleAntwort:
+      type: object
+      description: Stufenrolle einer Person in der Personenliste, mit ihrem Rang unter den SL der Stufe.
+      required:
+        - stufeId
+        - typ
+        - prioritaet
+      additionalProperties: false
+      properties:
+        stufeId:
+          type: string
+          format: uuid
+        typ:
+          type: string
+          enum:
+            - leitung
+            - stufenleitung
+        prioritaet:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          description: Rang in der Reihenfolge der Kontakte (1 = Hauptkontakt); `null`, wenn die Person nicht eingereiht ist.
     AdminPerson:
       type: object
       required:
@@ -4412,7 +4486,7 @@ components:
           type: array
           description: Stufenrollen, nach Name der Stufe.
           items:
-            $ref: "#/components/schemas/AdminRolle"
+            $ref: "#/components/schemas/AdminRolleAntwort"
         elternteilVon:
           type: array
           description: IDs der Kinder, deren Elternteil die Person ist.

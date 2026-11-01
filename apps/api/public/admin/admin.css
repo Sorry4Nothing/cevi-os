@@ -2271,3 +2271,32 @@ button.tab[aria-selected="true"] {
 .bal--muster {
   pointer-events: none;
 }
+
+/* Reihenfolge der Stufenleitung */
+
+.stufe-sl h3 {
+  margin: 0 0 4px;
+  font-size: 0.875rem;
+}
+
+.sl-liste,
+.sl-reihenfolge {
+  margin: 0;
+  padding-left: 1.5rem;
+}
+
+.sl-reihenfolge {
+  display: grid;
+  gap: 8px;
+}
+
+.sl-reihenfolge li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.sl-reihenfolge .name {
+  flex: 1 1 10rem;
+}
