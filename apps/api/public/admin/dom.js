@@ -116,8 +116,8 @@ export function icon(name) {
   return knoten;
 }
 
-// Kreis mit Initialen (erster und letzter Namensteil, der mit einem Buchstaben beginnt); hell für Listen, blau fürs eigene Konto
-export function avatar(name, { hell = false } = {}) {
+// Kreis mit Initialen (erster und letzter Namensteil, der mit einem Buchstaben beginnt); hell für Listen, blau fürs eigene Konto; mit bildUrl liegt das Profilbild darüber, die Initialen bleiben, falls es nicht lädt
+export function avatar(name, { hell = false, bildUrl = null } = {}) {
   const teile = String(name ?? "")
     .split(/\s+/)
     .filter((t) => /^\p{L}/u.test(t));
@@ -125,10 +125,19 @@ export function avatar(name, { hell = false } = {}) {
     .map((t) => (t ? Array.from(t)[0] : ""))
     .join("")
     .toLocaleUpperCase("de-CH");
+  const bild =
+    bildUrl &&
+    el("img", {
+      src: bildUrl,
+      alt: "",
+      loading: "lazy",
+      onerror: (e) => e.target.remove(),
+    });
   return el(
     "span",
     { class: hell ? "ava ava--hell" : "ava", "aria-hidden": "true" },
     buchstaben || "?",
+    bild,
   );
 }
 

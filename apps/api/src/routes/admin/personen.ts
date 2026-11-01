@@ -9,6 +9,7 @@ import {
   LETZTER_ADMIN,
 } from "../../admins.js";
 import type { erstelleAuth } from "../../auth.js";
+import { bildUrl } from "../../bild.js";
 import { ceviNameFeld } from "../../cevi-name.js";
 import {
   BENUTZERNAME_MAX,
@@ -205,8 +206,10 @@ export function erstellePersonenRouten({
               mussPasswortAendern: user.mussPasswortAendern,
               startpasswortGueltigBis: user.startpasswortGueltigBis,
               startpasswortVerschluesselt: user.startpasswortVerschluesselt,
+              bildUrl,
             })
             .from(user)
+            .leftJoin(profilbild, eq(profilbild.userId, user.id))
             .where(eq(user.abteilungId, abteilungId))
             .orderBy(asc(user.name), asc(user.id)),
           db
@@ -258,6 +261,7 @@ export function erstellePersonenRouten({
           id: p.id,
           name: p.name,
           ceviName: p.ceviName,
+          bildUrl: p.bildUrl,
           benutzername: p.benutzername,
           admin: p.role === "admin",
           zweiterFaktor: p.twoFactorEnabled === true,

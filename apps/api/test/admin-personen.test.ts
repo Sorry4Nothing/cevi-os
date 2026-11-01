@@ -273,6 +273,7 @@ describe("GET /api/v1/admin/personen", () => {
     expect(Object.keys(person).sort()).toEqual([
       "admin",
       "benutzername",
+      "bildUrl",
       "ceviName",
       "deaktiviert",
       "elternteilVon",

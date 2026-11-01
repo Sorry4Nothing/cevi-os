@@ -532,7 +532,7 @@ function zeile(person, daten, ctx, neu) {
       el(
         "div",
         { class: "wer" },
-        avatar(person.name, { hell: !eigenes }),
+        avatar(person.name, { hell: !eigenes, bildUrl: person.bildUrl }),
         el(
           "div",
           {},
