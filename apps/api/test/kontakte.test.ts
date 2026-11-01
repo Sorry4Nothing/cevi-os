@@ -132,30 +132,34 @@ const nummernNachName = (kontakte: Kontakt[]) =>
   Object.fromEntries(kontakte.map((k) => [k.name, k.telefon]));
 
 describe("GET /api/v1/programme/:id/kontakte", () => {
-  test("ohne angemeldete SL: leere Liste, 200", async () => {
-    const p = await frisch([welt.stufeAId]);
-    const r = await programmKontakte(p.id, konten.elternA);
+  test("ohne zugeordnete Stufe: leere Liste, 200", async () => {
+    const p = await frisch([]);
+    const r = await programmKontakte(p.id, konten.admin);
     expect(r.status).toBe(200);
     expect(JSON.parse(r.text)).toEqual({ kontakte: [] });
   });
 
-  test("nur SL mit Status Ja zählen, nicht «nein», nicht «offen», nicht Leitende", async () => {
+  test("nur SL mit Status «nein» fehlen; «ja» und «offen» bleiben, Leitende nie", async () => {
     const p = await frisch([welt.stufeAId]);
     await anmelden(p.id, konten.slA, "ja");
     await anmelden(p.id, konten.leitendeA, "ja");
-    await anmelden(p.id, await legePersonaAn(welt, "slA"), "nein");
+    const abgemeldet = await legePersonaAn(welt, "slA");
+    await anmelden(p.id, abgemeldet, "nein");
     // Eine SL ganz ohne Zeile: «offen»
-    await legePersonaAn(welt, "slA");
+    const offen = await legePersonaAn(welt, "slA");
     const r = await programmKontakte(p.id, konten.elternA);
-    expect(r.kontakte).toEqual([
-      {
-        id: idVon("slA"),
-        name: "SL A",
-        ceviName: null,
-        bildUrl: null,
-        telefon: NUMMER_A,
-      },
-    ]);
+    const ids = r.kontakte.map((k) => k.id);
+    expect(ids).toContain(idVon("slA"));
+    expect(ids).toContain(offen.id);
+    expect(ids).not.toContain(abgemeldet.id);
+    expect(ids).not.toContain(idVon("leitendeA"));
+    expect(r.kontakte.find((k) => k.id === idVon("slA"))).toEqual({
+      id: idVon("slA"),
+      name: "SL A",
+      ceviName: null,
+      bildUrl: null,
+      telefon: NUMMER_A,
+    });
   });
 
   test("Eltern der Stufe sehen die Nummer, alle anderen nie, auch Admins nicht", async () => {
@@ -166,7 +170,12 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
       const r = await programmKontakte(p.id, konten[rolle]);
       expect(r.status).toBe(200);
       expect(r.cacheControl).toBe("no-store");
-      return r;
+      // Andere Tests legen weitere SL in den Stufen an; hier zählen nur diese beiden
+      const eigene = [idVon("slA"), idVon("slB")];
+      return {
+        ...r,
+        kontakte: r.kontakte.filter((k) => eigene.includes(k.id)),
+      };
     };
     // Die Namen sehen alle, die das Programm sehen; die Nummer Eltern mit aktivem Kind sowie Leitung und SL in der Stufe der SL
     const a = await sicht("elternA");
@@ -209,9 +218,9 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
   test("eine abgemeldete SL verschwindet sofort", async () => {
     const p = await frisch([welt.stufeAId]);
     await anmelden(p.id, konten.slA, "ja");
-    expect(
-      (await programmKontakte(p.id, konten.elternA)).kontakte,
-    ).toHaveLength(1);
+    const ids = async () =>
+      (await programmKontakte(p.id, konten.elternA)).kontakte.map((k) => k.id);
+    expect(await ids()).toContain(idVon("slA"));
 
     const res = await app.request(`/api/v1/programme/${p.id}/leitung`, {
       method: "PUT",
@@ -221,7 +230,7 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     expect(res.status).toBe(204);
     const danach = await programmKontakte(p.id, konten.elternA);
     expect(danach.status).toBe(200);
-    expect(danach.kontakte).toEqual([]);
+    expect(await ids()).not.toContain(idVon("slA"));
   });
 
   test("eine deaktivierte SL und eine ohne Rolle fehlen", async () => {
@@ -230,7 +239,9 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     await setzeNummer(sl, "044 123 45 67");
     await anmelden(p.id, sl, "ja");
     const ids = async () =>
-      (await programmKontakte(p.id, konten.elternA)).kontakte.map((k) => k.id);
+      (await programmKontakte(p.id, konten.elternA)).kontakte
+        .map((k) => k.id)
+        .filter((id) => id === sl.id);
     expect(await ids()).toEqual([sl.id]);
 
     await db

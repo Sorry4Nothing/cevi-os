@@ -1021,7 +1021,7 @@ paths:
         Nachricht von ihr im Chat sieht, die SL im Einzelchat mit einem Elternteil, die Kontakte einer Stufe (Leitende
         und SL der Stufe sehen alle Leitenden und SL der Stufe, wie in den Anmeldungen; Eltern mit aktivem Kind darin
         sehen die SL) und die Kontakte eines Programms
-        (die SL mit Status «ja», für alle, die das Programm sehen). Für alle anderen, für Personen ohne Bild, für
+        (die SL ohne Abmeldung mit Status «nein», für alle, die das Programm sehen). Für alle anderen, für Personen ohne Bild, für
         unbekannte Personen und für andere Abteilungen ist die Antwort 404, ohne Unterschied.
         Statuscodes: 200, 400, 401, 403, 404, 426.
       responses:
@@ -1552,9 +1552,10 @@ paths:
       tags:
         - Programme
       description: |
-        Kontaktpersonen sind die SL der zugeordneten Stufen, die sich für das Programm mit Status «ja» angemeldet
-        haben (`PUT /api/v1/programme/{id}/leitung`) und deren Konto aktiv ist. Wer sich abmeldet oder noch nicht
-        geantwortet hat, fehlt sofort. Ist keine SL angemeldet, ist `kontakte` leer; die App zeigt dann
+        Kontaktpersonen sind die SL der zugeordneten Stufen mit aktivem Konto, in der Reihenfolge der Stufenleitung
+        (die erste ist der Hauptkontakt, siehe `PUT /api/v1/admin/stufen/{id}/stufenleitung`). Nur wer sich für das
+        Programm mit Status «nein» abgemeldet hat (`PUT /api/v1/programme/{id}/leitung`), fehlt sofort; wer noch nicht
+        geantwortet hat («offen»), bleibt Kontakt. Hat die Stufe keine SL, ist `kontakte` leer; die App zeigt dann
         «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
 
         **Telefonnummer.** `telefon` ist für Eltern mit einem aktiven Kind in einer Stufe dieser SL sowie für
