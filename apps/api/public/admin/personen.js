@@ -315,6 +315,10 @@ function statusChips(person) {
   const liste = [
     person.admin && chip("Admin", undefined, "stern"),
     person.zweiterFaktor && chip("Zweiter Faktor", "ok", "schild"),
+    person.rollen.some((r) => r.typ === "stufenleitung") &&
+      (person.telefon
+        ? chip("Telefon hinterlegt", "ok", "telefon")
+        : chip("Keine Telefonnummer", "warn", "telefon")),
     startpasswortAbgelaufen(person)
       ? chip(
           `Startpasswort abgelaufen am ${zeit(person.startpasswortGueltigBis)}`,
