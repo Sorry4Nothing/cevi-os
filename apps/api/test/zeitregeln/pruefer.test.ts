@@ -180,7 +180,7 @@ describe("Erinnerungen", () => {
     const offen = await w.elternteil("offen");
     await w.kindVon([offen], w.stufeA.id);
     const p = await w.programm();
-    await w.regel();
+    await w.regel({ beschreibung: "Bitte {Programm} bis heute beantworten" });
 
     await lauf(VOR_AUSLOESUNG);
     expect(nachrichten).toHaveLength(0);
@@ -188,7 +188,10 @@ describe("Erinnerungen", () => {
     await lauf(AUSLOESUNG);
     expect(w.empfaenger()).toEqual(["offen"]);
     expect(nachrichten[0]).toMatchObject({
-      notification: { title: "Waldtag am Sa 31.10.: bitte antworten" },
+      notification: {
+        title: "Waldtag am Sa 31.10.: bitte antworten",
+        body: "Bitte Waldtag bis heute beantworten",
+      },
       data: { typ: "programm", id: p.id },
       android: { notification: { channelId: "programme" } },
     });

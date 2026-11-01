@@ -22,7 +22,7 @@ const SPERRE_ZEITREGELN = 740_029;
 // Die Auslösezeit liegt höchstens 7 Tage (plus eine Stunde Umstellung) vor dem Beginn; weiter entfernte Programme sind nie fällig
 const VORLAUF_MS = 8 * 86_400_000;
 
-// Der ganze Push-Titel; die Platzhalter ersetzt der Server, nie Namen
+// Titel und Beschreibung der Regel; die Platzhalter ersetzt der Server, nie Namen
 export const titelAusRegel = (
   text: string,
   programmTitel: string,
@@ -130,6 +130,9 @@ export async function sendeFaelligeErinnerungen(
             typ: "programm",
             id: p.id,
             titel: titelAusRegel(regel.text, p.titel, beginn),
+            ...(regel.beschreibung && {
+              text: titelAusRegel(regel.beschreibung, p.titel, beginn),
+            }),
           },
         );
       } catch (fehler) {

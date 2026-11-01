@@ -526,8 +526,10 @@ export const zeitregel = pgTable(
     }),
     wochentag: integer("wochentag").notNull(),
     uhrzeit: text("uhrzeit").notNull(),
-    // Der ganze Push-Titel; {Programm} und {Datum} ersetzt der Server
+    // Der Push-Titel; {Programm} und {Datum} ersetzt der Server
     text: text("text").notNull(),
+    // Der Text unter dem Titel; leer heisst: der Push hat keinen
+    beschreibung: text("beschreibung"),
     aktiv: boolean("aktiv").notNull().default(true),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
   },

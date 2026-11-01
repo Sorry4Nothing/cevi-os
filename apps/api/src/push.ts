@@ -5,11 +5,12 @@ import type { Db } from "./db/client.js";
 import { pushToken } from "./db/schema.js";
 import { log } from "./log.js";
 
-// Bewusst ohne Textfeld: Ein Push trägt nie Nachrichtentext oder Namen, nur den Titel und Typ und ID für den Deep Link
+// Der Text steht unter dem Titel. Er trägt nie Chat-Inhalt oder Namen von Kindern: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export type Push = {
   typ: "chat" | "programm" | "mitteilung";
   id: string;
   titel: string;
+  text?: string;
 };
 
 // Was sendePush vom Messaging-Dienst von firebase-admin braucht; im Test eine Attrappe
@@ -52,7 +53,7 @@ function meldeFehler(c: Context | undefined, fehler: unknown) {
 export async function sendePush(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   empfaenger: string[],
-  { typ, id, titel }: Push,
+  { typ, id, titel, text }: Push,
 ): Promise<void> {
   if (!fcm) return;
   const kanal = KANAL[typ];
@@ -75,7 +76,7 @@ export async function sendePush(
       const { responses } = await fcm.sendEach(
         block.map((token): TokenMessage => ({
           token,
-          notification: { title: titel },
+          notification: { title: titel, ...(text && { body: text }) },
           data: { typ, id },
           android: {
             priority: "high",

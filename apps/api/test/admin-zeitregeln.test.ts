@@ -132,6 +132,24 @@ describe("POST /api/v1/admin/zeitregeln", () => {
     expect(JSON.stringify(audit)).not.toContain("Erinnerung");
   });
 
+  test("die Beschreibung ist optional, wird getrimmt und läuft nicht ins Audit-Log", async () => {
+    const ohne = await legeRegelAn();
+    expect((await zeile(ohne))?.beschreibung).toBeNull();
+    const mit = await legeRegelAn(admin, {
+      beschreibung: "  Bitte bis Freitag antworten  ",
+    });
+    expect((await zeile(mit))?.beschreibung).toBe(
+      "Bitte bis Freitag antworten",
+    );
+    expect(JSON.stringify(await auditZeilen(mit))).not.toContain("Freitag");
+    for (const beschreibung of ["   ", "x".repeat(301)]) {
+      expect(
+        (await anfrage(admin, "POST", BASIS, regelBody({ beschreibung })))
+          .status,
+      ).toBe(400);
+    }
+  });
+
   test("eine Stufe einer anderen Abteilung gibt 400 und schreibt nichts", async () => {
     const antwort = await anfrage(
       admin,
@@ -184,6 +202,7 @@ describe("GET /api/v1/admin/zeitregeln", () => {
       wochentag: 2,
       uhrzeit: "07:00",
       text: "{Programm} am {Datum}: bitte antworten",
+      beschreibung: null,
       aktiv: true,
     });
   });
@@ -211,6 +230,26 @@ describe("PATCH /api/v1/admin/zeitregeln/:id", () => {
       details: { stufeId: null, uhrzeit: "09:15", textGeaendert: true },
     });
     expect(JSON.stringify(audit)).not.toContain("Neuer Text");
+  });
+
+  test("die Beschreibung lässt sich setzen und mit null entfernen, ohne im Audit-Log zu stehen", async () => {
+    const id = await legeRegelAn();
+    expect(
+      (
+        await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
+          beschreibung: "Geheime Beschreibung",
+        })
+      ).status,
+    ).toBe(204);
+    expect((await zeile(id))?.beschreibung).toBe("Geheime Beschreibung");
+    expect(
+      (await anfrage(admin, "PATCH", `${BASIS}/${id}`, { beschreibung: null }))
+        .status,
+    ).toBe(204);
+    expect((await zeile(id))?.beschreibung).toBeNull();
+    const [, audit] = await auditZeilen(id);
+    expect(audit).toMatchObject({ details: { textGeaendert: true } });
+    expect(JSON.stringify(await auditZeilen(id))).not.toContain("Geheime");
   });
 
   test("ein leerer Body ändert nichts und schreibt kein Audit-Log", async () => {

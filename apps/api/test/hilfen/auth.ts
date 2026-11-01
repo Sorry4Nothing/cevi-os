@@ -117,9 +117,10 @@ export const fcmNachricht = (
   title: string,
   data: { typ: string; id: string },
   channelId: string,
+  body?: string,
 ): TokenMessage => ({
   token,
-  notification: { title },
+  notification: { title, ...(body && { body }) },
   data,
   android: {
     priority: "high",

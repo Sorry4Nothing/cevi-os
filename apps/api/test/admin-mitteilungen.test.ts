@@ -135,7 +135,7 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     expect(empfangen()).toEqual(erwartet("admin", "elternA", "slB"));
   });
 
-  test("der Push trägt nur den Titel, Typ «mitteilung», leere ID und den Kanal «mitteilungen»", async () => {
+  test("der Push trägt Titel, Typ «mitteilung», leere ID und den Kanal «mitteilungen»; ohne Beschreibung hat er keinen Text", async () => {
     const admin = await person("admin");
     await senden(admin, ALLE);
     expect(gesendet).toEqual([
@@ -146,6 +146,25 @@ describe("POST /api/v1/admin/mitteilungen", () => {
         "mitteilungen",
       ),
     ]);
+  });
+
+  test("die Beschreibung ist der Text des Pushs und steht nicht im Audit-Log", async () => {
+    const admin = await person("admin");
+    const antwort = await senden(admin, {
+      ...ALLE,
+      beschreibung: "  Treffpunkt ist neu am Bahnhof  ",
+    });
+    expect(antwort.status).toBe(200);
+    expect(gesendet).toEqual([
+      fcmNachricht(
+        tokens.get("admin")!,
+        "Wichtige Mitteilung",
+        { typ: "mitteilung", id: "" },
+        "mitteilungen",
+        "Treffpunkt ist neu am Bahnhof",
+      ),
+    ]);
+    expect(JSON.stringify(await auditZeilen())).not.toContain("Bahnhof");
   });
 
   test("«stufen» erreicht Eltern aktiver Kinder und Leitende der Stufe, dazu die absendende Person", async () => {
@@ -332,6 +351,14 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     ["ohne Titel", { empfaenger: "alle" }],
     ["leerer Titel", { titel: "   ", empfaenger: "alle" }],
     ["zu langer Titel", { titel: "x".repeat(101), empfaenger: "alle" }],
+    [
+      "leere Beschreibung",
+      { titel: "Hallo", beschreibung: "   ", empfaenger: "alle" },
+    ],
+    [
+      "zu lange Beschreibung",
+      { titel: "Hallo", beschreibung: "x".repeat(301), empfaenger: "alle" },
+    ],
     ["unbekannte Gruppe", { titel: "Hallo", empfaenger: "admins" }],
     ["«stufen» ohne Stufen", { titel: "Hallo", empfaenger: "stufen" }],
     [

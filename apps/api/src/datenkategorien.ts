@@ -331,6 +331,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "wochentag",
       "uhrzeit",
       "text",
+      "beschreibung",
       "aktiv",
       "erstellt_am",
     ],
@@ -350,7 +351,7 @@ export const STORE_ALLGEMEIN = {
   tracking: false,
   werbung: false,
   analyse: false,
-  // Pushes tragen weder Nachrichtentext noch Kindernamen, nur den Namen eines Chats oder Programms
+  // Pushes tragen weder Chat-Inhalt noch Kindernamen, nur den Namen eines Chats oder Programms und den Text der Admins
   weitergabeAn: ["Apple (Push)", "Google (Push)"],
   verschluesselteUebertragung: true,
   loeschungMoeglich: true,
