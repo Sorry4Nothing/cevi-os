@@ -171,7 +171,7 @@ function anlegen(daten, ctx, neu) {
     label: "Telefon (optional)",
     typ: "tel",
     hilfe:
-      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
     maxlength: 30,
     autocomplete: "off",
   });
@@ -315,6 +315,10 @@ function statusChips(person) {
   const liste = [
     person.admin && chip("Admin", undefined, "stern"),
     person.zweiterFaktor && chip("Zweiter Faktor", "ok", "schild"),
+    person.rollen.some((r) => r.typ === "stufenleitung") &&
+      (person.telefon
+        ? chip("Telefon hinterlegt", "ok", "telefon")
+        : chip("Keine Telefonnummer", "warn", "telefon")),
     startpasswortAbgelaufen(person)
       ? chip(
           `Startpasswort abgelaufen am ${zeit(person.startpasswortGueltigBis)}`,
@@ -375,7 +379,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
     label: "Telefon (optional)",
     typ: "tel",
     hilfe:
-      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
     wert: person.telefon ?? "",
     maxlength: 30,
     autocomplete: "off",
