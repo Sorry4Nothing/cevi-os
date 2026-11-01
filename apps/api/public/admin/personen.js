@@ -171,7 +171,7 @@ function anlegen(daten, ctx, neu) {
     label: "Telefon (optional)",
     typ: "tel",
     hilfe:
-      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
     maxlength: 30,
     autocomplete: "off",
   });
@@ -375,7 +375,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
     label: "Telefon (optional)",
     typ: "tel",
     hilfe:
-      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
     wert: person.telefon ?? "",
     maxlength: 30,
     autocomplete: "off",
