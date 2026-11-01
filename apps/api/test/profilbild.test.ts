@@ -453,6 +453,11 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
           ],
           set: { status },
         });
+    // Die Kontakte nennen nur den Hauptkontakt je Stufe; weitere SL der Stufe stehen ohne Priorität dahinter
+    await db
+      .update(schema.rolle)
+      .set({ prioritaet: 1 })
+      .where(eq(schema.rolle.userId, sl.id as string));
     await anmelden("nein");
     expect((await holen(fremdeSl, sl.id)).status).toBe(404);
     await anmelden("ja");

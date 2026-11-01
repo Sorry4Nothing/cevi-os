@@ -355,7 +355,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       const { id } = c.req.valid("param");
       // Antworten mit Nummern gehören nie in einen Cache
       c.header("Cache-Control", "no-store");
-      // Kontakte: die SL der zugeordneten Stufen in der Reihenfolge der Stufenleitung; nur wer sich abgemeldet hat (Status Nein), fehlt, «offen» bleibt Kontakt. Die leere Liste heisst für die App «Stufenleitung»
+      // Kontakte: ein Kontakt je Stufe, die erste SL in der Reihenfolge der Stufenleitung ohne Absage (Status Nein); «offen» zählt als Zusage. Haben alle abgesagt, bleibt der Hauptkontakt. Die leere Liste heisst für die App «Stufenleitung»
       const [zeile] = await db
         .select({ id: programm.id })
         .from(programm)
@@ -390,10 +390,17 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 ),
               );
       const nein = new Set(abgemeldet.map((a) => a.userId));
+      // sl ist nach Priorität sortiert: je Stufe zählt die erste Zeile ohne Absage, sonst die allererste
+      const gewaehlt = new Map<string, (typeof sl)[number]>();
+      for (const z of sl) {
+        const bisher = gewaehlt.get(z.stufeId);
+        if (!bisher || (nein.has(bisher.id) && !nein.has(z.id)))
+          gewaehlt.set(z.stufeId, z);
+      }
       const kontakte = await kontakteMitTelefon(
         db,
         person,
-        sl.filter((z) => !nein.has(z.id)),
+        sl.filter((z) => gewaehlt.get(z.stufeId) === z),
       );
       return c.json({ kontakte });
     })
