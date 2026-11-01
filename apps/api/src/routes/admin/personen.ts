@@ -28,6 +28,7 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { telefonSchema } from "../../telefon.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
 import {
@@ -94,6 +95,7 @@ const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
   ceviName: ceviNameFeld.optional(),
+  telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
   admin: z.boolean(),
   rollen: rollenFeld,
@@ -103,10 +105,12 @@ const anlegenSchema = z.strictObject({
 const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
+  telefon: telefonSchema.optional(),
   admin: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
 });
+const istSl = (r: { typ: string }) => r.typ === "stufenleitung";
 const pfad = () => z.strictObject({ id: z.uuid() });
 
 export function erstellePersonenRouten({
@@ -199,6 +203,7 @@ export function erstellePersonenRouten({
               id: user.id,
               name: user.name,
               ceviName: user.ceviName,
+              telefon: user.telefon,
               benutzername: user.username,
               role: user.role,
               twoFactorEnabled: user.twoFactorEnabled,
@@ -255,13 +260,14 @@ export function erstellePersonenRouten({
             .where(eq(kind.abteilungId, abteilungId))
             .orderBy(asc(kind.nachname), asc(kind.vorname), asc(kind.id)),
         ]);
-      // Nie email, telefon, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
+      // Nie email, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
       return c.json({
         personen: personen.map((p) => ({
           id: p.id,
           name: p.name,
           ceviName: p.ceviName,
           bildUrl: p.bildUrl,
+          telefon: p.telefon,
           benutzername: p.benutzername,
           admin: p.role === "admin",
           zweiterFaktor: p.twoFactorEnabled === true,
@@ -291,6 +297,9 @@ export function erstellePersonenRouten({
       if (!person.admin) throw new HTTPException(403);
       const eingaben = c.req.valid("json");
       await pruefeIds(person, eingaben.rollen, eingaben.elternteilVon);
+      if (eingaben.telefon && !eingaben.rollen.some(istSl)) {
+        throw new HTTPException(400);
+      }
       const startpasswort = erzeugeStartpasswort();
       try {
         const angelegt = await db.transaction((tx) =>
@@ -325,6 +334,19 @@ export function erstellePersonenRouten({
           aenderung.rollen ?? [],
           aenderung.elternteilVon ?? [],
         );
+        // Eine Nummer speichern nur SL, gemessen an den Rollen nach dieser Änderung; entfernen geht immer
+        if (aenderung.telefon) {
+          const [sl] = aenderung.rollen
+            ? aenderung.rollen.filter(istSl)
+            : await db
+                .select({ id: rolle.userId })
+                .from(rolle)
+                .where(
+                  and(eq(rolle.userId, id), eq(rolle.typ, "stufenleitung")),
+                )
+                .limit(1);
+          if (!sl) throw new HTTPException(400);
+        }
         try {
           await db.transaction(async (tx) => {
             if (aenderung.admin === false) {
@@ -333,13 +355,28 @@ export function erstellePersonenRouten({
             const felder: Partial<{
               name: string;
               ceviName: string | null;
+              telefon: string | null;
               role: string;
             }> = {};
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
             const details: Record<string, unknown> = {};
+            let telefonDetails: Record<string, unknown> | undefined;
             if (aenderung.name !== undefined) felder.name = aenderung.name;
             if (aenderung.ceviName !== undefined) {
               felder.ceviName = aenderung.ceviName;
+            }
+            if (aenderung.telefon !== undefined) {
+              felder.telefon = aenderung.telefon;
+              const [bisher] = await tx
+                .select({ telefon: user.telefon })
+                .from(user)
+                .where(eq(user.id, id));
+              if (bisher.telefon !== aenderung.telefon) {
+                // Nie die Nummer selbst ins Log
+                telefonDetails = {
+                  telefon: aenderung.telefon ? "gesetzt" : "entfernt",
+                };
+              }
             }
             if (aenderung.admin !== undefined) {
               felder.role = aenderung.admin ? "admin" : "user";
@@ -426,6 +463,15 @@ export function erstellePersonenRouten({
             }
             if (Object.keys(details).length > 0) {
               await protokolliere(tx, person, "rolle_geaendert", id, details);
+            }
+            if (telefonDetails) {
+              await protokolliere(
+                tx,
+                person,
+                "telefon_geaendert",
+                id,
+                telefonDetails,
+              );
             }
           });
         } catch (fehler) {

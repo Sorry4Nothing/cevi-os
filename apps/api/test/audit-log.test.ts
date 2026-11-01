@@ -113,6 +113,23 @@ test("Person anlegen schreibt «person_angelegt» ohne Personendaten", async () 
   expect(JSON.stringify(log)).not.toMatch(/Vreni|Muster|person\./);
 });
 
+test("Telefon ändern schreibt «telefon_geaendert» ohne die Nummer; gleiche Nummer schreibt nichts", async () => {
+  const { id } = await legePersonAn({
+    rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
+  });
+  const patch = async (telefon: string | null) =>
+    expect((await anfrage("PATCH", `/${id}`, { telefon })).status).toBe(204);
+  await patch("044 123 45 67");
+  await patch("044 123 45 67");
+  await patch(null);
+  const log = await eintraege(id);
+  expect(log.slice(1)).toEqual([
+    vomAdmin("telefon_geaendert", { telefon: "gesetzt" }),
+    vomAdmin("telefon_geaendert", { telefon: "entfernt" }),
+  ]);
+  expect(JSON.stringify(log)).not.toMatch(/044/);
+});
+
 test("Rollen ändern schreibt «rolle_geaendert» mit den geänderten Schlüsseln; Name und No-op schreiben nichts", async () => {
   const { id } = await legePersonAn({
     rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
