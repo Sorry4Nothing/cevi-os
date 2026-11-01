@@ -1552,11 +1552,14 @@ paths:
       tags:
         - Programme
       description: |
-        Kontaktpersonen sind die SL der zugeordneten Stufen mit aktivem Konto, in der Reihenfolge der Stufenleitung
-        (die erste ist der Hauptkontakt, siehe `PUT /api/v1/admin/stufen/{id}/stufenleitung`). Nur wer sich für das
-        Programm mit Status «nein» abgemeldet hat (`PUT /api/v1/programme/{id}/leitung`), fehlt sofort; wer noch nicht
-        geantwortet hat («offen»), bleibt Kontakt. Hat die Stufe keine SL, ist `kontakte` leer; die App zeigt dann
-        «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
+        Je zugeordneter Stufe gibt es genau einen Kontakt: die erste SL mit aktivem Konto in der Reihenfolge der
+        Stufenleitung (siehe `PUT /api/v1/admin/stufen/{id}/stufenleitung`), die für das Programm nicht mit «nein»
+        abgesagt hat (`PUT /api/v1/programme/{id}/leitung`). Wer noch nicht geantwortet hat («offen»), zählt als
+        Zusage. Sagt die erste SL ab, rückt die nächste nach. Haben alle SL der Stufe abgesagt, bleibt die erste
+        (der Hauptkontakt), damit die Kontaktkarte nie leer ist. Hat die Stufe keine SL, steuert sie keinen Kontakt bei;
+        haben alle Stufen keine, ist `kontakte` leer, die App zeigt dann «Stufenleitung», und der Einzelchat mit der
+        SL der Stufe geht trotzdem. Bei mehreren Stufen kommt ein Kontakt je Stufe; dieselbe Person steht nur einmal
+        in der Antwort. `GET /api/v1/stufen/{id}/kontakte` liefert weiterhin alle SL einer Stufe.
 
         **Telefonnummer.** `telefon` ist für Eltern mit einem aktiven Kind in einer Stufe dieser SL sowie für
         Leitende und SL dieser Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe). Sortiert nach der

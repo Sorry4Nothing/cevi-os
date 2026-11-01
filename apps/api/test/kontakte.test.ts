@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
@@ -72,6 +73,15 @@ beforeAll(async () => {
   ) as Record<Rolle, PersonaKonto>;
   await setzeNummer(konten.slA, NUMMER_A);
   await setzeNummer(konten.slB, NUMMER_B);
+  // Andere Tests legen weitere SL ohne Priorität an; diese beiden sind je Stufe der Hauptkontakt
+  await db
+    .update(schema.rolle)
+    .set({ prioritaet: 1 })
+    .where(eq(schema.rolle.userId, idVon("slA")));
+  await db
+    .update(schema.rolle)
+    .set({ prioritaet: 1 })
+    .where(eq(schema.rolle.userId, idVon("slB")));
 });
 
 // Die Konten dieser Datei haben alle eine ID
@@ -131,6 +141,40 @@ const stufeKontakte = (id: string, konto: PersonaKonto) =>
 const nummernNachName = (kontakte: Kontakt[]) =>
   Object.fromEntries(kontakte.map((k) => [k.name, k.telefon]));
 
+// Frische Stufe mit SL; prioritaeten[i] ist die Priorität der i-ten SL (null = nicht eingereiht), namen[i] ihr Name, sonst «SL <Priorität>»
+const frischeStufe = async (
+  prioritaeten: (number | null)[],
+  namen: string[] = [],
+) => {
+  const [stufe] = await db
+    .insert(schema.stufe)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Stufe ${randomUUID()}`,
+      kuerzel: "F",
+    })
+    .returning();
+  const sl: PersonaKonto[] = [];
+  for (const [i, prioritaet] of prioritaeten.entries()) {
+    const konto = await legePersonaAn(welt, "slA");
+    const userId = konto.id as string;
+    await db.delete(schema.rolle).where(eq(schema.rolle.userId, userId));
+    await db
+      .insert(schema.rolle)
+      .values({ userId, stufeId: stufe.id, typ: "stufenleitung", prioritaet });
+    await db
+      .update(schema.user)
+      .set({ name: namen[i] ?? `SL ${prioritaet}` })
+      .where(eq(schema.user.id, userId));
+    sl.push(konto);
+  }
+  return { stufeId: stufe.id, sl };
+};
+
+// IDs der Kontakte, wie sie der Admin sieht, in Antwortreihenfolge
+const ids = async (programmId: string) =>
+  (await programmKontakte(programmId, konten.admin)).kontakte.map((k) => k.id);
+
 describe("GET /api/v1/programme/:id/kontakte", () => {
   test("ohne zugeordnete Stufe: leere Liste, 200", async () => {
     const p = await frisch([]);
@@ -139,27 +183,100 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     expect(JSON.parse(r.text)).toEqual({ kontakte: [] });
   });
 
-  test("nur SL mit Status «nein» fehlen; «ja» und «offen» bleiben, Leitende nie", async () => {
-    const p = await frisch([welt.stufeAId]);
-    await anmelden(p.id, konten.slA, "ja");
+  test("ein Kontakt je Stufe: die erste SL nach Priorität; «offen» zählt als Zusage", async () => {
+    const { stufeId, sl } = await frischeStufe([2, 1, 3]);
+    const p = await frisch([stufeId]);
+    const r = await programmKontakte(p.id, konten.admin);
+    expect(r.kontakte).toEqual([
+      {
+        id: sl[1].id,
+        name: "SL 1",
+        ceviName: null,
+        bildUrl: null,
+        telefon: null,
+      },
+    ]);
+    // Mit Status «ja» bleibt sie vorn
+    await anmelden(p.id, sl[1], "ja");
+    expect(await ids(p.id)).toEqual([sl[1].id]);
+  });
+
+  test("Absage lässt die nächste SL nachrücken; Leitende sind nie Kontakt", async () => {
+    const { stufeId, sl } = await frischeStufe([1, 2, 3]);
+    const p = await frisch([stufeId]);
     await anmelden(p.id, konten.leitendeA, "ja");
-    const abgemeldet = await legePersonaAn(welt, "slA");
-    await anmelden(p.id, abgemeldet, "nein");
-    // Eine SL ganz ohne Zeile: «offen»
-    const offen = await legePersonaAn(welt, "slA");
-    const r = await programmKontakte(p.id, konten.elternA);
-    const ids = r.kontakte.map((k) => k.id);
-    expect(ids).toContain(idVon("slA"));
-    expect(ids).toContain(offen.id);
-    expect(ids).not.toContain(abgemeldet.id);
-    expect(ids).not.toContain(idVon("leitendeA"));
-    expect(r.kontakte.find((k) => k.id === idVon("slA"))).toEqual({
-      id: idVon("slA"),
-      name: "SL A",
-      ceviName: null,
-      bildUrl: null,
-      telefon: NUMMER_A,
-    });
+    expect(await ids(p.id)).toEqual([sl[0].id]);
+    await anmelden(p.id, sl[0], "nein");
+    expect(await ids(p.id)).toEqual([sl[1].id]);
+    await anmelden(p.id, sl[1], "nein");
+    expect(await ids(p.id)).toEqual([sl[2].id]);
+    // Wer wieder zusagt, ist wieder vorn
+    await anmelden(p.id, sl[0], "ja");
+    expect(await ids(p.id)).toEqual([sl[0].id]);
+  });
+
+  test("haben alle abgesagt, bleibt der Hauptkontakt", async () => {
+    const { stufeId, sl } = await frischeStufe([1, 2, 3]);
+    const p = await frisch([stufeId]);
+    for (const s of sl) await anmelden(p.id, s, "nein");
+    expect(await ids(p.id)).toEqual([sl[0].id]);
+  });
+
+  test("ohne Priorität: eingereihte zuerst, dann nach Name, dann ID", async () => {
+    const { stufeId, sl } = await frischeStufe(
+      [null, null, 5],
+      ["Zora", "Anna", "Zeno"],
+    );
+    const p = await frisch([stufeId]);
+    expect(await ids(p.id)).toEqual([sl[2].id]);
+    await anmelden(p.id, sl[2], "nein");
+    expect(await ids(p.id)).toEqual([sl[1].id]);
+    await anmelden(p.id, sl[1], "nein");
+    expect(await ids(p.id)).toEqual([sl[0].id]);
+
+    // Gleicher Name: die kleinere ID gewinnt
+    const gleich = await frischeStufe([null, null], ["Gleich", "Gleich"]);
+    const q = await frisch([gleich.stufeId]);
+    const kleinere = gleich.sl.map((k) => k.id as string).sort()[0];
+    expect(await ids(q.id)).toEqual([kleinere]);
+  });
+
+  test("Stufe ohne SL: leere Liste, auch wenn alle zugeordneten Stufen keine haben", async () => {
+    const { stufeId } = await frischeStufe([]);
+    const p = await frisch([stufeId]);
+    const r = await programmKontakte(p.id, konten.admin);
+    expect(r.status).toBe(200);
+    expect(JSON.parse(r.text)).toEqual({ kontakte: [] });
+  });
+
+  test("zwei Stufen: ein Kontakt je Stufe, dieselbe SL nur einmal", async () => {
+    const a = await frischeStufe([1, 2]);
+    const b = await frischeStufe([1, 2]);
+    const p = await frisch([a.stufeId, b.stufeId]);
+    expect((await ids(p.id)).sort()).toEqual([a.sl[0].id, b.sl[0].id].sort());
+    // Stufe A: Erste sagt ab, Zweite rückt nach; Stufe B bleibt
+    await anmelden(p.id, a.sl[0], "nein");
+    expect((await ids(p.id)).sort()).toEqual([a.sl[1].id, b.sl[0].id].sort());
+
+    // Dieselbe Person in beiden Stufen an erster Stelle: einmal
+    const doppelt = await legePersonaAn(welt, "slA");
+    for (const stufeId of [a.stufeId, b.stufeId]) {
+      await db
+        .insert(schema.rolle)
+        .values({
+          userId: doppelt.id as string,
+          stufeId,
+          typ: "stufenleitung",
+          prioritaet: 1,
+        })
+        .onConflictDoNothing();
+    }
+    await db
+      .update(schema.rolle)
+      .set({ prioritaet: 1 })
+      .where(eq(schema.rolle.userId, doppelt.id as string));
+    expect(await ids(p.id)).toContain(doppelt.id);
+    expect((await ids(p.id)).filter((id) => id === doppelt.id)).toHaveLength(1);
   });
 
   test("Eltern der Stufe sehen die Nummer, alle anderen nie, auch Admins nicht", async () => {
@@ -233,32 +350,26 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     expect(await ids()).not.toContain(idVon("slA"));
   });
 
-  test("eine deaktivierte SL und eine ohne Rolle fehlen", async () => {
-    const p = await frisch([welt.stufeAId]);
-    const sl = await legePersonaAn(welt, "slA");
-    await setzeNummer(sl, "044 123 45 67");
-    await anmelden(p.id, sl, "ja");
-    const ids = async () =>
-      (await programmKontakte(p.id, konten.elternA)).kontakte
-        .map((k) => k.id)
-        .filter((id) => id === sl.id);
-    expect(await ids()).toEqual([sl.id]);
+  test("eine deaktivierte SL und eine ohne Rolle zählen nicht", async () => {
+    const { stufeId, sl } = await frischeStufe([1, 2]);
+    const p = await frisch([stufeId]);
+    expect(await ids(p.id)).toEqual([sl[0].id]);
 
     await db
       .update(schema.user)
       .set({ deaktiviertAm: new Date() })
-      .where(eq(schema.user.id, sl.id as string));
-    expect(await ids()).toEqual([]);
+      .where(eq(schema.user.id, sl[0].id as string));
+    expect(await ids(p.id)).toEqual([sl[1].id]);
 
     await db
       .update(schema.user)
       .set({ deaktiviertAm: null })
-      .where(eq(schema.user.id, sl.id as string));
-    expect(await ids()).toEqual([sl.id]);
+      .where(eq(schema.user.id, sl[0].id as string));
+    expect(await ids(p.id)).toEqual([sl[0].id]);
     await db
       .delete(schema.rolle)
-      .where(eq(schema.rolle.userId, sl.id as string));
-    expect(await ids()).toEqual([]);
+      .where(eq(schema.rolle.userId, sl[0].id as string));
+    expect(await ids(p.id)).toEqual([sl[1].id]);
   });
 
   test("Eltern mit nur noch inaktivem Kind verlieren Programm und Nummer", async () => {
