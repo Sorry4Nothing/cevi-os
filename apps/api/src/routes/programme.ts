@@ -11,11 +11,13 @@ import {
   programm,
   programmEckdaten,
   programmStufe,
+  profilbild,
   rolle,
   stufe,
   teilnahme,
   user,
 } from "../db/schema.js";
+import { bildUrl } from "../bild.js";
 import { pushAnmeldung } from "../anmeldung-push.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon } from "../kontakte.js";
@@ -314,6 +316,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 id: user.id,
                 name: user.name,
                 ceviName: user.ceviName,
+                bildUrl,
                 stufeId: rolle.stufeId,
                 rolle: rolle.typ,
                 status: sql<Antwort>`coalesce(${leitungAnmeldung.status}, 'offen')`,
@@ -326,6 +329,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                   aktivesKonto(person.abteilungId),
                 ),
               )
+              .leftJoin(profilbild, eq(profilbild.userId, user.id))
               .leftJoin(
                 leitungAnmeldung,
                 and(

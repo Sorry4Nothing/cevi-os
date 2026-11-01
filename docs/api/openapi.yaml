@@ -1019,7 +1019,8 @@ paths:
         **Rollen.** Wer eine Person mit Namen sieht, sieht auch ihr Bild, sonst niemand: die Person selbst, Admins für alle
         Personen ihrer Abteilung, wer eine
         Nachricht von ihr im Chat sieht, die SL im Einzelchat mit einem Elternteil, die Kontakte einer Stufe (Leitende
-        und SL der Stufe sowie Eltern mit aktivem Kind darin sehen die SL) und die Kontakte eines Programms
+        und SL der Stufe sehen alle Leitenden und SL der Stufe, wie in den Anmeldungen; Eltern mit aktivem Kind darin
+        sehen die SL) und die Kontakte eines Programms
         (die SL mit Status «ja», für alle, die das Programm sehen). Für alle anderen, für Personen ohne Bild, für
         unbekannte Personen und für andere Abteilungen ist die Antwort 404, ohne Unterschied.
         Statuscodes: 200, 400, 401, 403, 404, 426.
@@ -3828,6 +3829,7 @@ components:
               - id
               - name
               - ceviName
+              - bildUrl
               - stufeId
               - rolle
               - status
@@ -3842,6 +3844,11 @@ components:
                   - string
                   - "null"
                 description: Cevi-Name (Spitzname), `null` ohne Angabe.
+              bildUrl:
+                type:
+                  - string
+                  - "null"
+                description: Pfad zum Profilbild (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Das Bild sieht, wer die Person in der Liste sieht. Kinder haben kein Bild.
               stufeId:
                 type: string
                 format: uuid
