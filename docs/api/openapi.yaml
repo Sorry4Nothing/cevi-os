@@ -4350,6 +4350,7 @@ components:
         - name
         - ceviName
         - bildUrl
+        - telefon
         - benutzername
         - admin
         - zweiterFaktor
@@ -4376,6 +4377,11 @@ components:
             - string
             - "null"
           description: Pfad zum Profilbild (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Die Verwaltung sieht die Bilder aller Personen der Abteilung.
+        telefon:
+          type:
+            - string
+            - "null"
+          description: Telefonnummer einer Stufenleitung, `null` ohne Nummer.
         benutzername:
           type:
             - string
@@ -4501,6 +4507,10 @@ components:
           type: string
           maxLength: 50
           description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
+        telefon:
+          type: string
+          description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
+          example: +41 79 123 45 67
         benutzername:
           type: string
           minLength: 2
@@ -4568,6 +4578,11 @@ components:
             - "null"
           maxLength: 50
           description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
+        telefon:
+          type:
+            - string
+            - "null"
+          description: Eine Nummer speichert nur, wer nach der Änderung eine Rolle `stufenleitung` hat (sonst 400); leer oder `null` entfernt sie, das geht immer. Ändert sich der Wert, schreibt die API `telefon_geaendert` ins Audit-Log, ohne die Nummer.
         admin:
           type: boolean
           description: "`false` für den letzten aktiven Admin ergibt 409 `LETZTER_ADMIN`."

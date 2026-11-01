@@ -1,4 +1,5 @@
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { eq } from "drizzle-orm";
 import { erstelleAuth, platzhalterEmail } from "./auth.js";
 import type { Db } from "./db/client.js";
 import * as schema from "./db/schema.js";
@@ -15,6 +16,7 @@ export interface NeuePerson {
   vorname: string;
   nachname: string;
   ceviName?: string | null;
+  telefon?: string | null;
   benutzername: string;
   admin: boolean;
   rollen: readonly { stufeId: string; typ: "leitung" | "stufenleitung" }[];
@@ -49,6 +51,12 @@ export async function legePersonAn(
     // Mit den Headern der Admin-Anfrage; ohne sie prüfte createUser keine Rechte
     headers,
   });
+  if (eingaben.telefon) {
+    await tx
+      .update(schema.user)
+      .set({ telefon: eingaben.telefon })
+      .where(eq(schema.user.id, neu.id));
+  }
   if (eingaben.rollen.length > 0) {
     await tx
       .insert(rolle)
