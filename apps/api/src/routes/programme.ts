@@ -355,7 +355,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       const { id } = c.req.valid("param");
       // Antworten mit Nummern gehören nie in einen Cache
       c.header("Cache-Control", "no-store");
-      // Kontakte: die SL der zugeordneten Stufen mit Status Ja; wer abgemeldet oder offen ist, fehlt, und die leere Liste heisst für die App «Stufenleitung»
+      // Kontakte: die SL der zugeordneten Stufen in der Reihenfolge der Stufenleitung; nur wer sich abgemeldet hat (Status Nein), fehlt, «offen» bleibt Kontakt. Die leere Liste heisst für die App «Stufenleitung»
       const [zeile] = await db
         .select({ id: programm.id })
         .from(programm)
@@ -373,7 +373,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               person.abteilungId,
               stufen.map((s) => s.stufeId),
             );
-      const angemeldet =
+      const abgemeldet =
         sl.length === 0
           ? []
           : await db
@@ -382,18 +382,18 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               .where(
                 and(
                   eq(leitungAnmeldung.programmId, id),
-                  eq(leitungAnmeldung.status, "ja"),
+                  eq(leitungAnmeldung.status, "nein"),
                   inArray(
                     leitungAnmeldung.userId,
                     sl.map((z) => z.id),
                   ),
                 ),
               );
-      const ja = new Set(angemeldet.map((a) => a.userId));
+      const nein = new Set(abgemeldet.map((a) => a.userId));
       const kontakte = await kontakteMitTelefon(
         db,
         person,
-        sl.filter((z) => ja.has(z.id)),
+        sl.filter((z) => !nein.has(z.id)),
       );
       return c.json({ kontakte });
     })

@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
@@ -91,7 +91,7 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
     )
     .limit(1);
   if (einzel) return true;
-  // Kontakte eines Programms: die SL mit Status Ja bei einem Programm, das die Person sieht
+  // Kontakte eines Programms: die SL ohne Abmeldung (Status Nein) bei einem Programm, das die Person sieht
   const [kontakt] = await db
     .select({ id: programm.id })
     .from(programm)
@@ -105,18 +105,25 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
       ),
     )
     .innerJoin(
+      user,
+      and(eq(user.id, rolle.userId), aktivesKonto(person.abteilungId)),
+    )
+    .leftJoin(
       leitungAnmeldung,
       and(
         eq(leitungAnmeldung.programmId, programm.id),
         eq(leitungAnmeldung.userId, zielId),
-        eq(leitungAnmeldung.status, "ja"),
       ),
     )
-    .innerJoin(
-      user,
-      and(eq(user.id, rolle.userId), aktivesKonto(person.abteilungId)),
+    .where(
+      and(
+        programmSichtbar(person),
+        or(
+          isNull(leitungAnmeldung.status),
+          ne(leitungAnmeldung.status, "nein"),
+        ),
+      ),
     )
-    .where(programmSichtbar(person))
     .limit(1);
   return kontakt !== undefined;
 }

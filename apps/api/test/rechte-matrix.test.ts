@@ -587,12 +587,11 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Ziel ist eine SL der Stufe A ohne Chat und Programm: Es bleibt der Weg über die Kontakte der Stufe (Admin, Leitende und SL der Stufe, Eltern mit aktivem Kind darin)
+  // Ziel ist eine SL der Stufe A ohne Chat und ohne Abmeldung: Es bleiben die Kontakte der Stufe (Admin, Leitende und SL der Stufe, Eltern mit aktivem Kind darin) und die Kontakte der Programme der Stufe A (slB: Eine SL sieht jedes Programm, und «offen» bleibt Kontakt)
   "GET /api/v1/personen/:id/bild": {
     url: () => `/api/v1/personen/${bildZielId}/bild`,
     erwartet: {
       ...alle(200),
-      slB: 404,
       leitendeB: 404,
       elternB: 404,
       mussPasswortAendern: 403,
