@@ -27,6 +27,13 @@ const aendernSchema = z.strictObject({
   name: name.optional(),
   kuerzel: kuerzel.optional(),
 });
+// Die SL in der Reihenfolge der Kontakte; wer fehlt, rückt hinter die genannten
+const reihenfolgeSchema = z.strictObject({
+  ids: z
+    .array(z.uuid())
+    .max(100)
+    .refine((ids) => new Set(ids).size === ids.length),
+});
 const NAME_VERGEBEN = {
   code: "STUFENNAME_VERGEBEN",
   message: "Es gibt schon eine Stufe mit diesem Namen.",
@@ -105,6 +112,54 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             throw fehler;
           }
         }
+        return c.body(null, 204);
+      },
+    )
+    .put(
+      "/:id/stufenleitung",
+      eingabe("param", pfad()),
+      eingabe("json", reihenfolgeSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        const { ids } = c.req.valid("json");
+        const [ziel] = await db
+          .select({ id: stufe.id })
+          .from(stufe)
+          .where(
+            and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)),
+          );
+        if (!ziel) throw new HTTPException(404);
+        if (!person.admin) throw new HTTPException(403);
+        await db.transaction(async (tx) => {
+          const sl = await tx
+            .select({ userId: rolle.userId })
+            .from(rolle)
+            .where(and(eq(rolle.stufeId, id), eq(rolle.typ, "stufenleitung")));
+          const vorhanden = new Set(sl.map((z) => z.userId));
+          // Nur SL dieser Stufe lassen sich einreihen
+          if (!ids.every((userId) => vorhanden.has(userId))) {
+            throw new HTTPException(400);
+          }
+          await tx
+            .update(rolle)
+            .set({ prioritaet: null })
+            .where(and(eq(rolle.stufeId, id), eq(rolle.typ, "stufenleitung")));
+          for (const [i, userId] of ids.entries()) {
+            await tx
+              .update(rolle)
+              .set({ prioritaet: i + 1 })
+              .where(and(eq(rolle.stufeId, id), eq(rolle.userId, userId)));
+          }
+          await tx.insert(auditLog).values({
+            abteilungId: person.abteilungId,
+            akteurId: person.id,
+            aktion: "sl_reihenfolge_geaendert",
+            zielTyp: "stufe",
+            zielId: id,
+            details: { anzahl: ids.length },
+          });
+        });
         return c.body(null, 204);
       },
     )

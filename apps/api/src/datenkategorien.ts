@@ -238,7 +238,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   rate_limit: { technik: ["id", "key", "count", "last_request"] },
-  rolle: { rollen: ["user_id", "stufe_id", "typ", "erstellt_am"] },
+  rolle: {
+    rollen: ["user_id", "stufe_id", "typ", "prioritaet", "erstellt_am"],
+  },
   session: {
     technik: [
       "id",

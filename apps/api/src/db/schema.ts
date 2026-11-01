@@ -208,10 +208,13 @@ export const rolle = pgTable(
       .notNull()
       .references(() => stufe.id, { onDelete: "restrict" }),
     typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
+    // Reihenfolge der SL einer Stufe in den Kontakten: 1 = erster Ansprechpartner; null = nicht eingereiht, steht hinter den anderen
+    prioritaet: integer("prioritaet"),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.stufeId] }),
+    check("rolle_prioritaet_check", sql`${t.prioritaet} >= 1`),
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check("rolle_typ_check", sql`${t.typ} in ('leitung', 'stufenleitung')`),
   ],
