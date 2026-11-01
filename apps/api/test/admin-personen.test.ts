@@ -257,7 +257,7 @@ describe("POST /api/v1/admin/personen", () => {
 });
 
 describe("GET /api/v1/admin/personen", () => {
-  test("liefert Personen mit Rollen, Stufen und Kinder der eigenen Abteilung, ohne E-Mail und Telefon", async () => {
+  test("liefert Personen mit Rollen, Stufen und Kinder der eigenen Abteilung, ohne E-Mail", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }],
       elternteilVon: [welt.kindAId],
@@ -273,6 +273,7 @@ describe("GET /api/v1/admin/personen", () => {
     expect(Object.keys(person).sort()).toEqual([
       "admin",
       "benutzername",
+      "bildUrl",
       "ceviName",
       "deaktiviert",
       "elternteilVon",
@@ -282,6 +283,7 @@ describe("GET /api/v1/admin/personen", () => {
       "rollen",
       "startpasswort",
       "startpasswortGueltigBis",
+      "telefon",
       "zweiterFaktor",
     ]);
     expect(person).toMatchObject({
@@ -299,12 +301,7 @@ describe("GET /api/v1/admin/personen", () => {
       [welt.kindAId, welt.kindBId].sort(),
     );
     const text = JSON.stringify(koerper);
-    for (const feld of [
-      '"email"',
-      '"telefon"',
-      '"banReason"',
-      '"fehlversuche"',
-    ]) {
+    for (const feld of ['"email"', '"banReason"', '"fehlversuche"']) {
       expect(text).not.toContain(feld);
     }
   });
@@ -331,6 +328,73 @@ describe("GET /api/v1/admin/personen", () => {
         )
       ).status,
     ).toBe(400);
+  });
+});
+
+describe("Telefon", () => {
+  const sl = () => [{ stufeId: welt.stufeAId, typ: "stufenleitung" }];
+  const telefonInListe = async (id: string) =>
+    (
+      (await (await anfrage(admin, "GET")).json()) as {
+        personen: { id: string; telefon: string | null }[];
+      }
+    ).personen.find((p) => p.id === id)!.telefon;
+
+  test("wird beim Anlegen einer SL gespeichert, getrimmt, in der Liste genannt, geändert und entfernt", async () => {
+    const angelegt = await legePersonAn({
+      rollen: sl(),
+      telefon: " +41 79 123 45 67 ",
+    });
+    expect((await userZeile(angelegt.id)).telefon).toBe("+41 79 123 45 67");
+    expect(await telefonInListe(angelegt.id)).toBe("+41 79 123 45 67");
+    const patch = (telefon: string | null) =>
+      anfrage(admin, "PATCH", `/${angelegt.id}`, { telefon });
+    expect((await patch("044 123 45 67")).status).toBe(204);
+    expect(await telefonInListe(angelegt.id)).toBe("044 123 45 67");
+    expect((await patch("")).status).toBe(204);
+    expect(await telefonInListe(angelegt.id)).toBeNull();
+  });
+
+  test("ohne SL-Rolle ist eine Nummer ein 400, Entfernen geht; mit der Rolle im selben PATCH geht es", async () => {
+    const eltern = await legePersonAn();
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/${eltern.id}`, {
+          telefon: "044 123 45 67",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await anfrage(
+          admin,
+          "POST",
+          "",
+          anlegenBody({ telefon: "044 123 45 67" }),
+        )
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/${eltern.id}`, {
+          rollen: sl(),
+          telefon: "044 123 45 67",
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (await anfrage(admin, "PATCH", `/${eltern.id}`, { telefon: "abc" }))
+        .status,
+    ).toBe(400);
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/${eltern.id}`, {
+          rollen: [],
+          telefon: null,
+        })
+      ).status,
+    ).toBe(204);
+    expect(await telefonInListe(eltern.id)).toBeNull();
   });
 });
 

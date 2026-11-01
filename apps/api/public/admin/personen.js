@@ -167,6 +167,14 @@ function anlegen(daten, ctx, neu) {
     label: "Cevi-Name (optional)",
     maxlength: 50,
   });
+  const telefon = feld({
+    label: "Telefon (optional)",
+    typ: "tel",
+    hilfe:
+      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+    maxlength: 30,
+    autocomplete: "off",
+  });
   const benutzername = feld({
     label: "Benutzername",
     hilfe:
@@ -187,6 +195,7 @@ function anlegen(daten, ctx, neu) {
       vorname.wurzel,
       nachname.wurzel,
       ceviName.wurzel,
+      telefon.wurzel,
       benutzername.wurzel,
       admin.wurzel,
       rollen.wurzel,
@@ -198,6 +207,7 @@ function anlegen(daten, ctx, neu) {
         vorname: vorname.eingabe.value.trim(),
         nachname: nachname.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
+        telefon: telefon.eingabe.value,
         benutzername: benutzername.eingabe.value.trim(),
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
@@ -361,6 +371,15 @@ function bearbeiten(person, daten, ctx, neu, tr) {
     wert: person.ceviName ?? "",
     maxlength: 50,
   });
+  const telefon = feld({
+    label: "Telefon (optional)",
+    typ: "tel",
+    hilfe:
+      "Nur für Stufenleitungen. Eltern der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
+    wert: person.telefon ?? "",
+    maxlength: 30,
+    autocomplete: "off",
+  });
   const admin = ankreuzen({
     label: "Admin-Rechte",
     gewaehlt: person.admin,
@@ -383,6 +402,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
       el("h3", {}, "Angaben"),
       name.wurzel,
       ceviName.wurzel,
+      telefon.wurzel,
       el(
         "div",
         { class: "feld" },
@@ -420,6 +440,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
       await anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
+        telefon: telefon.eingabe.value,
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),
@@ -532,7 +553,7 @@ function zeile(person, daten, ctx, neu) {
       el(
         "div",
         { class: "wer" },
-        avatar(person.name, { hell: !eigenes }),
+        avatar(person.name, { hell: !eigenes, bildUrl: person.bildUrl }),
         el(
           "div",
           {},

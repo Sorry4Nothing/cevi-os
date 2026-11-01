@@ -380,6 +380,29 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
     expect((await holen(elternA, "kein-uuid")).status).toBe(400);
   });
 
+  test("Admin sieht das Bild jeder Person der eigenen Abteilung, die Admin einer anderen Abteilung keines", async () => {
+    const [admin, eltern, demoAdmin] = await Promise.all([
+      person("admin"),
+      person("elternA"),
+      person("demoAdmin"),
+    ]);
+    await hochladen(eltern, await jpeg());
+    expect((await holen(admin, eltern.id)).status).toBe(200);
+    expect((await holen(demoAdmin, eltern.id)).status).toBe(404);
+    // Die Liste der Verwaltung trägt den Pfad zum Bild, ohne Bild null
+    const liste = async () =>
+      (
+        (await (
+          await app.request("/api/v1/admin/personen", {
+            headers: admin.headers,
+          })
+        ).json()) as { personen: { id: string; bildUrl: string | null }[] }
+      ).personen.find((p) => p.id === eltern.id)!.bildUrl;
+    expect(await liste()).toMatch(pfadVon(eltern.id));
+    await loeschen(eltern);
+    expect(await liste()).toBeNull();
+  });
+
   test("Eltern sehen das Bild eines anderen Elternteils erst, wenn es im Gruppenchat schreibt", async () => {
     const [a, a2, b] = await Promise.all([
       person("elternA"),
