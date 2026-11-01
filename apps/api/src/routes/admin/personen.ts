@@ -222,6 +222,7 @@ export function erstellePersonenRouten({
               userId: rolle.userId,
               stufeId: rolle.stufeId,
               typ: rolle.typ,
+              prioritaet: rolle.prioritaet,
             })
             .from(rolle)
             .innerJoin(
@@ -283,7 +284,11 @@ export function erstellePersonenRouten({
               : null,
           rollen: rollenZeilen
             .filter((zeile) => zeile.userId === p.id)
-            .map(({ stufeId, typ }) => ({ stufeId, typ })),
+            .map(({ stufeId, typ, prioritaet }) => ({
+              stufeId,
+              typ,
+              prioritaet,
+            })),
           elternteilVon: elternZeilen
             .filter((zeile) => zeile.userId === p.id)
             .map((zeile) => zeile.kindId),

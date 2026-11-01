@@ -1,5 +1,6 @@
 import {
   and,
+  asc,
   eq,
   exists,
   gte,
@@ -233,7 +234,7 @@ export async function chatFuerPerson(
   return eigener;
 }
 
-// Die SL der Stufen, wie sie die Mitgliedschaft zählt: nur aktive Konten. Sie lesen jeden Einzelchat ihrer Stufe mit
+// Die SL der Stufen, wie sie die Mitgliedschaft zählt: nur aktive Konten. Sie lesen jeden Einzelchat ihrer Stufe mit. Reihenfolge: Priorität der Stufe (ohne zuletzt), dann Name
 export function stufenleitungDerStufen(
   db: Db,
   abteilungId: string,
@@ -251,7 +252,7 @@ export function stufenleitungDerStufen(
     .where(
       and(inArray(rolle.stufeId, stufeIds), eq(rolle.typ, "stufenleitung")),
     )
-    .orderBy(user.name, user.id);
+    .orderBy(asc(rolle.prioritaet), user.name, user.id);
 }
 
 // Nachrichten in den Chats der Person, Eltern ab Beitritt (einschliesslich)

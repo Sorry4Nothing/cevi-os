@@ -627,6 +627,20 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Reihenfolge der SL einer Stufe (#287): nur Admins; Wirkung und Fehler in test/admin-stufen.test.ts
+  "PUT /api/v1/admin/stufen/:id/stufenleitung": {
+    url: () => `/api/v1/admin/stufen/${patchStufeId}/stufenleitung`,
+    body: () => ({ ids: [] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "DELETE /api/v1/admin/stufen/:id": {
     // Jede Anfrage löscht ihr Ziel; die Antworten für Eltern und SL (403) lassen es stehen
     urlJeAnfrage: async () => `/api/v1/admin/stufen/${await wegwerfStufeId()}`,

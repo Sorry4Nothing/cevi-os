@@ -15,6 +15,7 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
+import { stufenleitungDerStufen } from "../src/rechte.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -435,5 +436,91 @@ describe("GET /api/v1/stufen", () => {
       `Zz ${z}`,
     ]);
     expect(stufen.every((s) => !("reihenfolge" in s))).toBe(true);
+  });
+});
+
+describe("PUT /api/v1/admin/stufen/:id/stufenleitung", () => {
+  // Zwei SL und eine Leitung in einer frischen Stufe
+  async function stufeMitSl() {
+    const id = await legeStufeAn();
+    const [a, b, leitung] = await Promise.all(
+      (["slA", "slA", "leitendeA"] as const).map((p) => legePersonaAn(welt, p)),
+    );
+    await db.insert(schema.rolle).values([
+      { userId: a.id!, stufeId: id, typ: "stufenleitung" },
+      { userId: b.id!, stufeId: id, typ: "stufenleitung" },
+      { userId: leitung.id!, stufeId: id, typ: "leitung" },
+    ]);
+    return { id, a: a.id!, b: b.id!, leitung: leitung.id! };
+  }
+  const prioritaeten = async (stufeId: string) =>
+    Object.fromEntries(
+      (
+        await db
+          .select()
+          .from(schema.rolle)
+          .where(eq(schema.rolle.stufeId, stufeId))
+      ).map((r) => [r.userId, r.prioritaet]),
+    );
+  const reihenfolge = async (stufeId: string) =>
+    (await stufenleitungDerStufen(db, welt.testabteilungId, [stufeId])).map(
+      (z) => z.id,
+    );
+
+  test("setzt die Reihenfolge; die Kontakte kommen so, wer fehlt, steht hinten", async () => {
+    const s = await stufeMitSl();
+    const put = (ids: string[]) =>
+      anfrage(admin, "PUT", `${BASIS}/${s.id}/stufenleitung`, { ids });
+    expect((await put([s.b, s.a])).status).toBe(204);
+    expect(await prioritaeten(s.id)).toMatchObject({ [s.b]: 1, [s.a]: 2 });
+    expect(await reihenfolge(s.id)).toEqual([s.b, s.a]);
+    expect((await put([s.a])).status).toBe(204);
+    expect(await prioritaeten(s.id)).toMatchObject({ [s.a]: 1, [s.b]: null });
+    expect(await reihenfolge(s.id)).toEqual([s.a, s.b]);
+    const eintraege = await db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.zielId, s.id));
+    expect(eintraege.map((e) => e.aktion)).toEqual([
+      "sl_reihenfolge_geaendert",
+      "sl_reihenfolge_geaendert",
+    ]);
+  });
+
+  test("Leitung, Fremde und Doppelte: 400, nichts ändert sich", async () => {
+    const s = await stufeMitSl();
+    const fremd = (await legePersonaAn(welt, "slB")).id!;
+    for (const ids of [
+      [s.a, s.leitung],
+      [s.a, fremd],
+      [s.a, s.a],
+      [randomUUID()],
+    ]) {
+      const r = await anfrage(admin, "PUT", `${BASIS}/${s.id}/stufenleitung`, {
+        ids,
+      });
+      expect(r.status).toBe(400);
+    }
+    expect(await prioritaeten(s.id)).toMatchObject({
+      [s.a]: null,
+      [s.b]: null,
+    });
+  });
+
+  test("unbekannte Stufe und Demo-Abteilung 404, SL 403", async () => {
+    const s = await stufeMitSl();
+    const pfad = (id: string) => `${BASIS}/${id}/stufenleitung`;
+    expect(
+      (await anfrage(admin, "PUT", pfad(randomUUID()), { ids: [] })).status,
+    ).toBe(404);
+    const demo = await legePersonaAn(welt, "demoAdmin");
+    expect(
+      (await anfrage(demo, "PUT", pfad(s.id), { ids: [s.a] })).status,
+    ).toBe(404);
+    const sl = await legePersonaAn(welt, "slA");
+    expect((await anfrage(sl, "PUT", pfad(s.id), { ids: [s.a] })).status).toBe(
+      403,
+    );
+    expect(await prioritaeten(s.id)).toMatchObject({ [s.a]: null });
   });
 });
