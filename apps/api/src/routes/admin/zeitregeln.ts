@@ -10,8 +10,10 @@ import type { Person } from "../../rechte.js";
 // Wochentag ISO: 1 Montag bis 7 Sonntag; Uhrzeit HH:mm in Schweizer Zeit
 const wochentag = z.number().int().min(1).max(7);
 const uhrzeit = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/);
-// Der ganze Push-Titel; {Programm} und {Datum} ersetzt der Server
+// Der Push-Titel; {Programm} und {Datum} ersetzt der Server (ebenso in der Beschreibung)
 const text = z.string().trim().min(1).max(150);
+// Der Text unter dem Titel; leer heisst: kein Text
+const beschreibung = z.string().trim().min(1).max(300).nullable();
 
 // Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
 const anlegenSchema = z.strictObject({
@@ -19,6 +21,7 @@ const anlegenSchema = z.strictObject({
   wochentag,
   uhrzeit,
   text,
+  beschreibung: beschreibung.optional(),
   aktiv: z.boolean(),
 });
 const aendernSchema = z.strictObject({
@@ -26,6 +29,7 @@ const aendernSchema = z.strictObject({
   wochentag: wochentag.optional(),
   uhrzeit: uhrzeit.optional(),
   text: text.optional(),
+  beschreibung: beschreibung.optional(),
   aktiv: z.boolean().optional(),
 });
 const pfad = () => z.strictObject({ id: z.uuid() });
@@ -69,6 +73,7 @@ export function erstelleZeitregelRouten({ db }: { db: Db }) {
           wochentag: zeitregel.wochentag,
           uhrzeit: zeitregel.uhrzeit,
           text: zeitregel.text,
+          beschreibung: zeitregel.beschreibung,
           aktiv: zeitregel.aktiv,
         })
         .from(zeitregel)
@@ -134,7 +139,10 @@ export function erstelleZeitregelRouten({ db }: { db: Db }) {
               details: {
                 ...felder,
                 text: undefined,
-                textGeaendert: felder.text !== undefined,
+                beschreibung: undefined,
+                textGeaendert:
+                  felder.text !== undefined ||
+                  felder.beschreibung !== undefined,
               },
             });
           });

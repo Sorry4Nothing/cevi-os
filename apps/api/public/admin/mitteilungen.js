@@ -21,10 +21,17 @@ function zeichne(bereich, ctx, stufen) {
   const titel = feld({
     label: "Titel",
     hilfe:
-      "Das ist der ganze Text der Mitteilung. Schreibe keine Namen hinein: Der Text läuft über Apple und Google.",
+      "Die fette Zeile der Mitteilung. Schreibe keine Namen hinein: Der Text läuft über Apple und Google.",
     maxlength: 100,
     required: true,
     autocomplete: "off",
+  });
+  const beschreibung = feld({
+    label: "Beschreibung (optional)",
+    hilfe: "Steht unter dem Titel. Auch hier keine Namen schreiben.",
+    mehrzeilig: true,
+    rows: 3,
+    maxlength: 300,
   });
   const alle = ankreuzen({
     label: "Alle aktiven Konten der Abteilung",
@@ -67,6 +74,7 @@ function zeichne(bereich, ctx, stufen) {
       "Die Mitteilung geht als Push an die Geräte der gewählten Gruppe. Bei einer Stufe erreicht sie die gewählten Rollen: die Stufenleitung, die Leitenden und die Eltern aktiver Kinder. Sind alle Rollen gewählt, bekommst du sie auch. Wer «Mitteilungen» in der App ausgeschaltet hat, bekommt sie nicht.",
     ),
     titel.wurzel,
+    beschreibung.wurzel,
     gruppe("Empfänger", [alle.wurzel, ...boxen.map((b) => b.wurzel)], {
       scrollen: true,
     }),
@@ -109,6 +117,7 @@ function zeichne(bereich, ctx, stufen) {
       titel.eingabe.focus();
       return;
     }
+    const beschreibungText = beschreibung.eingabe.value.trim();
     const gewaehlt = boxen.filter((b) => b.eingabe.checked);
     if (!alle.eingabe.checked && gewaehlt.length === 0) {
       zeigeFehler("Wähle «Alle» oder mindestens eine Stufe.");
@@ -123,6 +132,7 @@ function zeichne(bereich, ctx, stufen) {
     const alleRollen = gewaehlteRollen.length === rollen.length;
     const body = {
       titel: text,
+      ...(beschreibungText && { beschreibung: beschreibungText }),
       ...(alle.eingabe.checked
         ? { empfaenger: "alle" }
         : {
@@ -144,12 +154,13 @@ function zeichne(bereich, ctx, stufen) {
           : `${gewaehlt.length} Stufen`) + wer;
     bestaetigen({
       titel: "Mitteilung senden",
-      beschreibung: `«${text}» geht als Push an ${wohin}. Das lässt sich nicht zurückholen.`,
+      beschreibung: `«${text}»${beschreibungText ? ` mit der Beschreibung «${beschreibungText}»` : ""} geht als Push an ${wohin}. Das lässt sich nicht zurückholen.`,
       ok: "Senden",
       gefaehrlich: false,
       aktion: () => anfrage("POST", "/api/v1/admin/mitteilungen", body),
       danach: (ergebnis) => {
         titel.eingabe.value = "";
+        beschreibung.eingabe.value = "";
         alle.eingabe.checked = false;
         for (const b of boxen) b.eingabe.checked = false;
         sperre();

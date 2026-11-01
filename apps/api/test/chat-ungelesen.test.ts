@@ -225,9 +225,10 @@ describe("Chat-Push bei neuer Nachricht", () => {
       expect.arrayContaining([
         fcmNachricht(
           tSl,
-          "Neue Nachricht im Chat Stufe A",
+          "Neue Nachricht",
           { typ: "chat", id: welt.gruppenchatAId },
           "chat",
+          "Chat Stufe A",
         ),
       ]),
     );
@@ -254,7 +255,9 @@ describe("Chat-Push bei neuer Nachricht", () => {
     expect(texte(fcmAttrappe.nachrichten)).toEqual([tEltern, tAndereSl].sort());
     expect(
       fcmAttrappe.nachrichten.every(
-        (n) => n.notification?.title === "Neue Nachricht im Einzelchat Stufe A",
+        (n) =>
+          n.notification?.title === "Neue Nachricht" &&
+          n.notification.body === "Einzelchat Stufe A",
       ),
     ).toBe(true);
     expect(texte(fcmAttrappe.nachrichten)).not.toContain(tSl);

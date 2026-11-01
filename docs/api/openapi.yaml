@@ -1712,7 +1712,7 @@ paths:
 
         Setzt der Aufruf die Antwort neu oder ändert er sie, geht ein Push an die Leitenden der Stufen des Programms
         (Rolle Leitung oder SL, aktives Konto, `pushAnmeldungen` an), ausser an die Person, die selbst aufruft:
-        «Neue Anmeldung für {Programm} am {Datum}» bei «ja», «Neue Abmeldung für …» bei «nein», ohne Namen. Bleibt der
+        Titel «Neue Anmeldung» bei «ja», «Neue Abmeldung» bei «nein», Text «{Programm} am {Datum}», ohne Namen. Bleibt der
         Wert gleich, geht kein Push hinaus. Ein Fehler beim Push lässt den Aufruf nicht scheitern.
 
         Reihenfolge der Prüfung: Eingabe (400); Programm nicht sichtbar oder Kind nicht in der eigenen Abteilung
@@ -1944,7 +1944,7 @@ paths:
 
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
-        Push: Die anderen Mitglieder des Chats mit eingeschaltetem Chat-Push (`pushChat`) bekommen einen Push mit Titel «Neue Nachricht im Chat <Stufe>» (im Einzelchat «Neue Nachricht im Einzelchat <Stufe>») und `data: { typ: "chat", id: <Chat-ID> }`, nie mit Nachrichtentext oder Namen. Kein Push geht an den Absender und an Konten, die nicht (mehr) Mitglied oder deaktiviert sind. Ein Fehler beim Pushen ändert das Ergebnis nicht.
+        Push: Die anderen Mitglieder des Chats mit eingeschaltetem Chat-Push (`pushChat`) bekommen einen Push mit Titel «Neue Nachricht» und Text «Chat <Stufe>» (im Einzelchat «Einzelchat <Stufe>») und `data: { typ: "chat", id: <Chat-ID> }`, nie mit Nachrichtentext oder Namen. Kein Push geht an den Absender und an Konten, die nicht (mehr) Mitglied oder deaktiviert sind. Ein Fehler beim Pushen ändert das Ergebnis nicht.
 
         Statuscodes: 201 Nachricht angelegt; 400 ungültige Eingabe (Text leer nach dem Trimmen, länger als 2000 Zeichen, enthält NUL, unbekannte Felder, `programmId` nicht zulässig); 401; 403 Passwortwechsel offen; 404 kein Mitglied oder Chat unbekannt; 426; 429 Limit überschritten.
       parameters:
@@ -2434,7 +2434,7 @@ paths:
       operationId: sendeAdminMitteilung
       summary: Mitteilung als Push senden
       description: |
-        Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt nur den Titel, keinen Textkörper. Der Titel darf keine Namen enthalten: Er läuft über Apple und Google.
+        Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt den Titel und, wenn angegeben, die Beschreibung als Text. Beide dürfen keine Namen enthalten: Sie laufen über Apple und Google.
 
         Empfänger `alle`: alle aktiven Konten der Abteilung. Empfänger `stufen`: die Eltern aktiver Kinder und die Leitenden der gewählten Stufen. Voraussetzung ist in beiden Fällen ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`). Die absendende Person bekommt den Push auch, sofern ihre Option an ist.
 
@@ -4713,8 +4713,15 @@ components:
           minLength: 1
           maxLength: 150
           description: |
-            Der ganze Push-Titel. Leerraum am Rand wird entfernt. Der Server ersetzt `{Programm}` durch den Titel und `{Datum}` durch den Tag des Programms (z. B. «Sa 31.10.»). Keine Namen: Der Text läuft über Apple und Google.
+            Der Push-Titel. Leerraum am Rand wird entfernt. Der Server ersetzt `{Programm}` durch den Titel und `{Datum}` durch den Tag des Programms (z. B. «Sa 31.10.»). Keine Namen: Der Text läuft über Apple und Google.
           example: "{Programm} am {Datum}: bitte anmelden oder abmelden"
+        beschreibung:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 300
+          description: Optionaler Text unter dem Titel, mit denselben Platzhaltern. Ohne Angabe oder `null` hat der Push keinen Text. Keine Namen.
         aktiv:
           type: boolean
     AdminZeitregelAendern:
@@ -4738,6 +4745,13 @@ components:
           type: string
           minLength: 1
           maxLength: 150
+        beschreibung:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 300
+          description: "`null` entfernt die Beschreibung."
         aktiv:
           type: boolean
     AdminZeitregel:
@@ -4748,6 +4762,7 @@ components:
         - wochentag
         - uhrzeit
         - text
+        - beschreibung
         - aktiv
       properties:
         id:
@@ -4768,6 +4783,10 @@ components:
           example: "08:00"
         text:
           type: string
+        beschreibung:
+          type:
+            - string
+            - "null"
         aktiv:
           type: boolean
     AdminZeitregelListe:
@@ -4798,7 +4817,12 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: Der ganze Text des Push. Leerraum am Rand wird entfernt. Keine Namen.
+          description: Der Titel des Push. Leerraum am Rand wird entfernt. Keine Namen.
+        beschreibung:
+          type: string
+          minLength: 1
+          maxLength: 300
+          description: Optionaler Text unter dem Titel. Leerraum am Rand wird entfernt. Keine Namen.
         empfaenger:
           type: string
           enum:

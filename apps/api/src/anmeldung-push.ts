@@ -17,7 +17,7 @@ export function kurzDatum(tag: string) {
 }
 
 // Nach dem Speichern der Teilnahme aufrufen; wirft nie: Ein Fehler hier darf die Anmeldung nicht scheitern lassen
-// Der Titel nennt Programm und Datum, nie das Kind: Der Push steht je nach Handy auf dem gesperrten Bildschirm
+// Der Text nennt Programm und Datum, nie das Kind: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export async function pushAnmeldung(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   {
@@ -70,7 +70,8 @@ export async function pushAnmeldung(
       {
         typ: "programm",
         id: programmId,
-        titel: `Neue ${status === "ja" ? "Anmeldung" : "Abmeldung"} für ${zeile.titel} am ${kurzDatum(programmTag(zeile))}`,
+        titel: status === "ja" ? "Neue Anmeldung" : "Neue Abmeldung",
+        text: `${zeile.titel} am ${kurzDatum(programmTag(zeile))}`,
       },
     );
   } catch (fehler) {

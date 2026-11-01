@@ -126,9 +126,10 @@ describe("Anmelde-Push bei PUT /programme/:id/teilnahmen/:kindId", () => {
       expect.arrayContaining([
         fcmNachricht(
           tSl,
-          "Neue Anmeldung für Waldtag am Sa 30.10.",
+          "Neue Anmeldung",
           { typ: "programm", id: p.id },
           "programme",
+          "Waldtag am Sa 30.10.",
         ),
       ]),
     );
@@ -143,9 +144,9 @@ describe("Anmelde-Push bei PUT /programme/:id/teilnahmen/:kindId", () => {
     await melde(eltern, p.id, "nein");
     await melde(eltern, p.id, "ja");
 
-    expect(fcmAttrappe.nachrichten.map((n) => n.notification?.title)).toEqual([
-      "Neue Abmeldung für Waldtag am Sa 30.10.",
-      "Neue Anmeldung für Waldtag am Sa 30.10.",
+    expect(fcmAttrappe.nachrichten.map((n) => n.notification)).toEqual([
+      { title: "Neue Abmeldung", body: "Waldtag am Sa 30.10." },
+      { title: "Neue Anmeldung", body: "Waldtag am Sa 30.10." },
     ]);
   });
 
