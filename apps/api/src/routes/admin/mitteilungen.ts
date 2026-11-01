@@ -21,10 +21,11 @@ const MITTEILUNGEN_PRO_STUNDE = 10;
 // Eltern sind die Teilnehmenden: Kinder haben kein Konto
 const ROLLEN = ["stufenleitung", "leitung", "eltern"] as const;
 
-// Der Text ist der ganze Push-Titel (kein Textkörper), darum kurz
+// Titel und Beschreibung sind der ganze Push, darum kurz
 const sendenSchema = z
   .strictObject({
     titel: z.string().trim().min(1).max(100),
+    beschreibung: z.string().trim().min(1).max(300).optional(),
     empfaenger: z.enum(["alle", "stufen"]),
     stufeIds: z.array(z.uuid()).min(1).max(50).optional(),
     rollen: z.array(z.enum(ROLLEN)).min(1).max(ROLLEN.length).optional(),
@@ -46,6 +47,7 @@ export function erstelleMitteilungenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       if (!fcm) return c.json(PUSH_NICHT_EINGERICHTET, 503);
       const {
         titel,
+        beschreibung,
         empfaenger,
         stufeIds: roh,
         rollen: rollenRoh,
@@ -163,6 +165,7 @@ export function erstelleMitteilungenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           typ: "mitteilung",
           id: "",
           titel,
+          text: beschreibung,
         });
       }
       return c.json({ empfaenger: ids.length });

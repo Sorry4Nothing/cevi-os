@@ -56,12 +56,21 @@ function dialog({ regel, daten, ctx, neu }) {
       "Die Erinnerung geht zum letzten passenden Zeitpunkt vor Programmbeginn.",
   });
   const text = feld({
-    label: "Text der Erinnerung",
+    label: "Titel der Erinnerung",
     wert: regel?.text ?? "",
     maxlength: 150,
     required: true,
     hilfe:
-      "Der ganze Text des Pushs. {Programm} und {Datum} setzt der Server ein, zum Beispiel «Waldtag am Sa 31.10.: Bitte melde dein Kind an oder ab». Keine Namen schreiben: Der Text läuft über Apple und Google.",
+      "Die fette Zeile des Pushs. {Programm} und {Datum} setzt der Server ein, zum Beispiel «Waldtag am Sa 31.10.: Bitte melde dein Kind an oder ab». Keine Namen schreiben: Der Text läuft über Apple und Google.",
+  });
+  const beschreibung = feld({
+    label: "Beschreibung (optional)",
+    wert: regel?.beschreibung ?? "",
+    mehrzeilig: true,
+    rows: 3,
+    maxlength: 300,
+    hilfe:
+      "Steht unter dem Titel. {Programm} und {Datum} setzt der Server auch hier ein. Keine Namen schreiben.",
   });
   const aktiv = ankreuzen({
     label: "Regel ist eingeschaltet",
@@ -76,6 +85,7 @@ function dialog({ regel, daten, ctx, neu }) {
       wochentag.wurzel,
       uhrzeit.wurzel,
       text.wurzel,
+      beschreibung.wurzel,
       aktiv.wurzel,
     ],
     ok: regel ? "Speichern" : "Anlegen",
@@ -85,6 +95,7 @@ function dialog({ regel, daten, ctx, neu }) {
         wochentag: Number(wochentag.eingabe.value),
         uhrzeit: uhrzeit.eingabe.value,
         text: text.eingabe.value.trim(),
+        beschreibung: beschreibung.eingabe.value.trim() || null,
         aktiv: aktiv.eingabe.checked,
       };
       return regel
@@ -129,7 +140,7 @@ function zeichne(bereich, ctx, daten, neu) {
   const tagName = new Map(WOCHENTAGE);
   const { wurzel } = tabelle({
     beschriftung: "Erinnerungen",
-    spalten: ["Text", "Stufe", "Zeitpunkt", "Status", "Aktionen"],
+    spalten: ["Titel", "Stufe", "Zeitpunkt", "Status", "Aktionen"],
     zeilen: daten.regeln.map((regel) =>
       el(
         "tr",

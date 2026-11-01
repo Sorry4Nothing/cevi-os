@@ -172,7 +172,8 @@ describe("Inhalt", () => {
     await sendePush({ db, fcm }, [max], {
       typ: "chat",
       id: "chat-1",
-      titel: "Neue Nachricht im Chat Jungschi",
+      titel: "Neue Nachricht",
+      text: "Chat Jungschi",
     });
     await sendePush({ db, fcm }, [max], {
       typ: "programm",
@@ -182,9 +183,10 @@ describe("Inhalt", () => {
     expect(aufrufe.flat()).toStrictEqual([
       fcmNachricht(
         chat!,
-        "Neue Nachricht im Chat Jungschi",
+        "Neue Nachricht",
         { typ: "chat", id: "chat-1" },
         "chat",
+        "Chat Jungschi",
       ),
       fcmNachricht(
         chat!,
@@ -203,8 +205,7 @@ describe("Inhalt", () => {
     await legeTokens(1);
     await sendePush({ db, fcm }, [max], {
       ...PUSH,
-      // @ts-expect-error Push hat kein Textfeld
-      text: "Geheimer Nachrichtentext",
+      // @ts-expect-error Push hat kein Feld «daten»
       daten: { kind: "Kindername" },
     });
     const [nachricht] = aufrufe[0]!;
@@ -217,7 +218,7 @@ describe("Inhalt", () => {
     ]);
     expect(nachricht!.notification).toEqual({ title: "Neue Nachricht" });
     expect(nachricht!.data).toEqual({ typ: "chat", id: "chat-1" });
-    expect(JSON.stringify(aufrufe)).not.toMatch(/Geheimer|Kindername/);
+    expect(JSON.stringify(aufrufe)).not.toMatch(/Kindername/);
   });
 });
 

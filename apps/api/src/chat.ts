@@ -18,7 +18,7 @@ export async function legeGruppenchatAn(
 }
 
 // Nach dem Speichern der Nachricht aufrufen; wirft nie: Ein Fehler hier darf das Senden nicht wiederholen lassen
-// Der Titel nennt nur die Stufe, nie Text, Absender oder Kind: Der Push steht je nach Handy auf dem gesperrten Bildschirm
+// Der Text nennt nur die Stufe, nie Nachrichtentext, Absender oder Kind: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export async function pushNeueNachricht(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   {
@@ -28,7 +28,7 @@ export async function pushNeueNachricht(
   }: { chatId: string; abteilungId: string; autorId: string },
 ): Promise<void> {
   let empfaenger: string[];
-  let titel: string;
+  let text: string;
   try {
     const mitglieder = chatMitglieder(db, abteilungId);
     const [zeilen, [kopf]] = await Promise.all([
@@ -51,7 +51,7 @@ export async function pushNeueNachricht(
     ]);
     if (!kopf || zeilen.length === 0) return;
     empfaenger = zeilen.map(({ id }) => id);
-    titel = `Neue Nachricht im ${kopf.typ === "direkt" ? "Einzelchat" : "Chat"} ${kopf.name}`;
+    text = `${kopf.typ === "direkt" ? "Einzelchat" : "Chat"} ${kopf.name}`;
   } catch (fehler) {
     log(c, { ereignis: "push", code: (fehler as { code?: unknown }).code });
     return;
@@ -59,6 +59,7 @@ export async function pushNeueNachricht(
   await sendePush({ db, fcm, c }, empfaenger, {
     typ: "chat",
     id: chatId,
-    titel,
+    titel: "Neue Nachricht",
+    text,
   });
 }
