@@ -466,6 +466,41 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
       pfadVon(sl.id),
     );
   });
+
+  test("Leitende der Stufe sehen das Bild ihrer Kolleginnen und der SL; die Anmeldungen tragen bildUrl", async () => {
+    const [leitende, kollege, sl, eltern, fremdeSl, fremdeLeitende] =
+      await Promise.all([
+        person("leitendeA"),
+        person("leitendeA"),
+        person("slA"),
+        person("elternA"),
+        person("slB"),
+        person("leitendeB"),
+      ]);
+    await hochladen(leitende, await jpeg());
+    for (const k of [kollege, sl]) {
+      expect((await holen(k, leitende.id)).status).toBe(200);
+    }
+    for (const k of [eltern, fremdeSl, fremdeLeitende]) {
+      expect((await holen(k, leitende.id)).status).toBe(404);
+    }
+    const programm = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "leitende",
+      stufen: [welt.stufeAId],
+    });
+    const bildUrlVon = async (betrachter: PersonaKonto) => {
+      const { leitende: liste } = (await (
+        await app.request(`/api/v1/programme/${programm.id}/teilnahmen`, {
+          headers: betrachter.headers,
+        })
+      ).json()) as { leitende: { id: string; bildUrl: string | null }[] };
+      return liste.find((l) => l.id === leitende.id)?.bildUrl;
+    };
+    expect(await bildUrlVon(sl)).toMatch(pfadVon(leitende.id));
+    await loeschen(leitende);
+    expect(await bildUrlVon(sl)).toBeNull();
+  });
 });
 
 describe("bildUrl in Nachrichten und Kontakten", () => {

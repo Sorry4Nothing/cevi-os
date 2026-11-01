@@ -50,20 +50,21 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
       .limit(1);
     return !!ziel;
   }
-  // Kontakte der Stufe: SL für Leitende, SL und Eltern mit aktivem Kind in der Stufe
-  const slStufen = (
-    await db
-      .select({ stufeId: rolle.stufeId })
-      .from(rolle)
-      .innerJoin(
-        user,
-        and(eq(user.id, rolle.userId), aktivesKonto(person.abteilungId)),
-      )
-      .where(and(eq(rolle.userId, zielId), eq(rolle.typ, "stufenleitung")))
-  ).map((r) => r.stufeId);
+  // Die Stufe der Person: Leitende und SL sehen alle Leitenden ihrer Stufe (wie in den Anmeldungen), Eltern mit aktivem Kind nur die SL
+  const zielRollen = await db
+    .select({ stufeId: rolle.stufeId, typ: rolle.typ })
+    .from(rolle)
+    .innerJoin(
+      user,
+      and(eq(user.id, rolle.userId), aktivesKonto(person.abteilungId)),
+    )
+    .where(eq(rolle.userId, zielId));
+  const slStufen = zielRollen
+    .filter((r) => r.typ === "stufenleitung")
+    .map((r) => r.stufeId);
   if (
-    slStufen.length > 0 &&
-    (slStufen.some((s) => hatRolle(person, s, "leitung")) ||
+    zielRollen.some((r) => hatRolle(person, r.stufeId, "leitung")) ||
+    (slStufen.length > 0 &&
       (await stufenMitKind(db, person, slStufen)).size > 0)
   ) {
     return true;
