@@ -2,7 +2,7 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import { bildUrl } from "./bild.js";
 import type { Db } from "./db/client.js";
 import { kind, kindEltern, profilbild, user } from "./db/schema.js";
-import type { Person } from "./rechte.js";
+import { hatRolle, type Person } from "./rechte.js";
 
 // Die Stufen unter den gefragten, in denen die Person ein aktives Kind hat
 export async function stufenMitKind(
@@ -26,10 +26,10 @@ export async function stufenMitKind(
   return new Set(zeilen.map((z) => z.stufeId));
 }
 
-// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat. Leitende, Admins und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
+// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat oder dort Leitung oder SL ist. Admins ohne Rolle in der Stufe und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
 export async function kontakteMitTelefon(
   db: Db,
-  person: Pick<Person, "id" | "abteilungId">,
+  person: Person,
   sl: {
     stufeId: string;
     id: string;
@@ -54,7 +54,7 @@ export async function kontakteMitTelefon(
     ...new Set(sl.map((z) => z.stufeId)),
   ]);
   const sichtbar = [...stufenJeSl].filter(([, e]) =>
-    [...e.stufen].some((s) => meine.has(s)),
+    [...e.stufen].some((s) => meine.has(s) || hatRolle(person, s, "leitung")),
   );
   const nummern = new Map<string, string | null>();
   if (sichtbar.length > 0) {

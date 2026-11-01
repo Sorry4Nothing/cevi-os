@@ -875,8 +875,8 @@ paths:
         **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
         `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
         entfernt die Nummer. Eine Nummer speichern darf nur, wer SL einer Stufe ist (sonst 403); entfernen darf sie
-        jede Person, auch eine, die die Rolle verloren hat. Die Nummer sehen danach nur Eltern mit einem aktiven Kind
-        in der Stufe der SL, siehe `GET /api/v1/programme/{id}/kontakte` und `GET /api/v1/stufen/{id}/kontakte`; die
+        jede Person, auch eine, die die Rolle verloren hat. Die Nummer sehen danach Eltern mit einem aktiven Kind
+        in der Stufe der SL sowie Leitende und SL dieser Stufe, siehe `GET /api/v1/programme/{id}/kontakte` und `GET /api/v1/stufen/{id}/kontakte`; die
         App weist vor dem Speichern darauf hin.
 
         **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); die Nummer nur
@@ -1153,8 +1153,8 @@ paths:
         - Stufen
       description: |
         Liefert alle SL der Stufe mit aktivem Konto, sortiert nach `name`, dann `id`; sie sind die Kontaktpersonen
-        im Gruppenchat. `telefon` ist nur für Eltern mit einem aktiven Kind in der Stufe gefüllt, sonst `null`
-        (auch für Admins, Leitende und SL).
+        im Gruppenchat. `telefon` ist für Eltern mit einem aktiven Kind in der Stufe sowie für Leitende und SL der
+        Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe).
 
         Die Antwort trägt `Cache-Control: no-store`.
 
@@ -1555,9 +1555,9 @@ paths:
         geantwortet hat, fehlt sofort. Ist keine SL angemeldet, ist `kontakte` leer; die App zeigt dann
         «Stufenleitung», und der Einzelchat mit der SL der Stufe geht trotzdem.
 
-        **Telefonnummer.** `telefon` ist nur für Eltern mit einem aktiven Kind in einer Stufe dieser SL gefüllt,
-        sonst `null`. Das gilt auch für Admins, Leitende und SL, auch für die der eigenen Stufe. Sortiert nach `name`,
-        dann `id`.
+        **Telefonnummer.** `telefon` ist für Eltern mit einem aktiven Kind in einer Stufe dieser SL sowie für
+        Leitende und SL dieser Stufe gefüllt, sonst `null` (auch für Admins ohne Rolle in der Stufe). Sortiert nach
+        `name`, dann `id`.
 
         Die Antwort trägt `Cache-Control: no-store`.
 

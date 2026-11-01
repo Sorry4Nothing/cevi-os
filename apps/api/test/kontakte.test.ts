@@ -168,10 +168,10 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
       expect(r.cacheControl).toBe("no-store");
       return r;
     };
-    // Die Namen sehen alle, die das Programm sehen; die Nummer nur Eltern mit aktivem Kind in der Stufe der SL
+    // Die Namen sehen alle, die das Programm sehen; die Nummer Eltern mit aktivem Kind sowie Leitung und SL in der Stufe der SL
     const a = await sicht("elternA");
     const b = await sicht("elternB");
-    // Leitende A und zugleich Elternteil B: die Nummer nur als Elternteil
+    // Leitende A und zugleich Elternteil B: beide Nummern
     const gemischt = await sicht("leitendeAElternB");
     expect(a.kontakte.map((k) => k.name)).toEqual(["SL A", "SL B"]);
     expect(nummernNachName(a.kontakte)).toEqual({
@@ -183,23 +183,18 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
       "SL B": NUMMER_B,
     });
     expect(nummernNachName(gemischt.kontakte)).toEqual({
-      "SL A": null,
+      "SL A": NUMMER_A,
       "SL B": NUMMER_B,
     });
-    for (const rolle of [
-      "admin",
-      "slA",
-      "slB",
-      "leitendeA",
-      "leitendeB",
+    for (const [rolle, erwartet] of [
+      ["slA", { "SL A": NUMMER_A, "SL B": null }],
+      ["leitendeA", { "SL A": NUMMER_A, "SL B": null }],
+      ["slB", { "SL A": null, "SL B": NUMMER_B }],
+      ["leitendeB", { "SL A": null, "SL B": NUMMER_B }],
+      // Admin ohne Rolle in den Stufen: Namen, keine Nummer
+      ["admin", { "SL A": null, "SL B": null }],
     ] as const) {
-      const r = await sicht(rolle);
-      expect(nummernNachName(r.kontakte)).toEqual({
-        "SL A": null,
-        "SL B": null,
-      });
-      expect(r.text).not.toContain("79 111");
-      expect(r.text).not.toContain("79 444");
+      expect(nummernNachName((await sicht(rolle)).kontakte)).toEqual(erwartet);
     }
   });
 
@@ -286,7 +281,7 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
 });
 
 describe("GET /api/v1/stufen/:id/kontakte", () => {
-  test("liefert die aktiven SL der Stufe; die Nummer nur den Eltern der Stufe", async () => {
+  test("liefert die aktiven SL der Stufe; die Nummer den Eltern, der Leitung und der SL der Stufe", async () => {
     // Weitere SL der Stufe aus anderen Tests tragen keine Nummer; ohne Rolle oder deaktiviert fehlen sie
     const ohneNummer = await legePersonaAn(welt, "slA");
     const eltern = await stufeKontakte(welt.stufeAId, konten.elternA);
@@ -312,20 +307,21 @@ describe("GET /api/v1/stufen/:id/kontakte", () => {
     );
     expect(eltern.kontakte.map((k) => k.id)).not.toContain(idVon("slB"));
 
-    // Wer die Stufe nur leitet oder verwaltet, sieht die Namen, aber keine Nummer
-    for (const rolle of [
-      "admin",
-      "leitendeA",
-      "slA",
-      "leitendeAElternB",
-    ] as const) {
+    // Leitung und SL der Stufe sehen die Nummer wie die Eltern
+    for (const rolle of ["leitendeA", "slA", "leitendeAElternB"] as const) {
       const r = await stufeKontakte(welt.stufeAId, konten[rolle]);
       expect(r.status).toBe(200);
       expect(r.cacheControl).toBe("no-store");
-      expect(r.kontakte.length).toBeGreaterThan(0);
-      expect(r.kontakte.every((k) => k.telefon === null)).toBe(true);
-      expect(r.text).not.toContain("79 111");
+      expect(r.kontakte.find((k) => k.id === idVon("slA"))?.telefon).toBe(
+        NUMMER_A,
+      );
     }
+    // Wer die Stufe nur verwaltet, sieht die Namen, aber keine Nummer
+    const admin = await stufeKontakte(welt.stufeAId, konten.admin);
+    expect(admin.status).toBe(200);
+    expect(admin.kontakte.length).toBeGreaterThan(0);
+    expect(admin.kontakte.every((k) => k.telefon === null)).toBe(true);
+    expect(admin.text).not.toContain("79 111");
   });
 
   test("eine deaktivierte SL fehlt", async () => {
