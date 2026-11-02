@@ -28,7 +28,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 
 ### Caddy
 
-- Webserver vor der API, der einzige Dienst mit veröffentlichten Ports (80 und 443).
+- Webserver vor der API, der einzige Dienst auf dem Server mit veröffentlichten Ports (80 und 443). Er läuft als gemeinsamer Edge-Caddy in einem eigenen Stack und erreicht die API über das Docker-Netz `edge-cevi-os` (siehe `docs/betrieb.md`, «Edge-Caddy»).
 - HTTPS mit automatisch erneuerten Zertifikaten und HSTS.
 - Leitet die Anfragen an die API weiter.
 
