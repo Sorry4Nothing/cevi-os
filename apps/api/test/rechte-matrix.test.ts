@@ -93,6 +93,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/dom.js": { erwartet: alle(200) },
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
+  "GET /admin/kalender.js": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
