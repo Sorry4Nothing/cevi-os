@@ -207,6 +207,21 @@ paths:
             image/svg+xml:
               schema:
                 type: string
+  /admin/kalender.js:
+    get:
+      operationId: getAdminKalenderSkript
+      summary: Skript der Verwaltung – Bereich Kalender
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kinder.js:
     get:
       operationId: getAdminKinderSkript
