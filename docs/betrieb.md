@@ -10,7 +10,7 @@ Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Edge-Caddy, D
 - Der Dienst `api` hat in `deploy/docker-compose.prod.yml` höchstens 1 GB Arbeitsspeicher (`mem_limit`) und 256 Prozesse und Threads (`pids_limit`), damit viele gleichzeitige Bild-Uploads (bis 16 Mio. Pixel, beim Dekodieren rund 64 MB je Bild) nur die API treffen und nicht Postgres; der Wert muss zum Server passen, und meldet `docker inspect` für den Container `OOMKilled`, ist er zu klein.
 - Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind. Docker öffnet veröffentlichte Ports an der Host-Firewall vorbei; darum veröffentlicht nur der Edge-Caddy Ports (siehe «Edge-Caddy»).
 - Das Repo liegt auf dem Server als Checkout des ausgerollten Tags. Befehle in dieser Doku laufen im Wurzelordner dieses Checkouts, jene im Abschnitt «Backups» im Ordner `deploy/`.
-- Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Google-Service-Accounts unter `deploy/secrets/` (Ordner 700, Datei 400).
+- Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Firebase-Dienstkontos unter `deploy/secrets/` (Ordner 700, Datei 400). Die geheime iCal-Adresse des Outlook-Kalenders steht nur in der Datenbank (Spalte `abteilung.google_kalender_id`, Name aus der Zeit vor Outlook).
 
 ## Konten
 
@@ -57,7 +57,7 @@ Erste Einrichtung auf dem Server:
 
 1. Das Repo klonen und den Release-Tag auschecken: `git fetch --tags && git checkout vX.Y.Z`
 2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`; `BETTER_AUTH_SECRET` aus `openssl rand -base64 32`, `BETTER_AUTH_URL` ist die öffentliche Adresse der API mit `https://`; mit `http://` startet die API in Produktion nicht), dann `chmod 600 deploy/.env`. Die verantwortliche Stelle, ihre E-Mail-Adresse (Seiten `/datenschutz`, `/konto-loeschen` und `/support`, #63) und die Basis-Adresse der Webseite sind öffentlich und stehen als Vorgabe in `apps/api/src/konfiguration.ts`; sie brauchen keinen Eintrag in `deploy/.env`. Alle 30 Minuten ruft die API unter der Basis-Adresse `/cevistufe-<stufe>` ab (Stufenname kleingeschrieben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern) und liest Treffpunkt, Schluss und Mitnehmen; passwortgeschützte oder unlesbare Seiten überspringt sie. Ändern sich die Werte, setzt man `VERANTWORTLICHE_STELLE`, `KONTAKT_EMAIL` oder `ECKDATEN_BASIS_URL` in `deploy/.env` und in `docker-compose.prod.yml`
-3. Den Schlüssel des Google-Service-Accounts (#26) nach `deploy/secrets/google-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Ebenso den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json`
+3. Den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Die iCal-Adresse des Outlook-Kalenders danach in die Datenbank eintragen: `update abteilung set google_kalender_id = '<https-Adresse>' where id = '<abteilungs-id>'`; webcal:// wird zu https:// umgeschrieben. Die Adresse nie in Issues, Chats oder Logs
 4. Den Edge-Caddy einrichten (siehe «Edge-Caddy», #68); ohne ihn bricht `deploy/deploy.sh` ab
 5. Nach dem ersten Tag das API-Image auf GHCR öffentlich schalten (#70), sonst findet der Server es nicht
 
@@ -115,7 +115,7 @@ Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät ein
 ### Nicht im Backup
 
 - Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
-- Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/google-service-account.json`, `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
+- Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
 
 Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
 
@@ -183,9 +183,9 @@ Bei Alarm:
 Alarmtest, einmal nach der Einrichtung und vor dem Pilotbetrieb — während des Tests synchronisiert rund 40 Minuten keine Abteilung:
 
 1. Mit der Abfrage oben prüfen, dass jede Abteilung mit `kalender` ein `sync_alter` von wenigen Minuten zeigt.
-2. Den Schlüssel unlesbar machen: `sudo chmod 000 deploy/secrets/google-service-account.json`. Die API läuft weiter, aber jeder Sync-Lauf scheitert. Nicht die Datei verschieben (per Bind eingebunden bliebe sie im Container sichtbar) und nicht `api` oder ein Netz stoppen (der Alarm käme aus einem anderen Grund).
+2. Die Adresse in der Datenbank ungültig machen: `update abteilung set google_kalender_id = 'https://ungueltig.invalid/' where id = '<abteilungs-id>'`; die alte Adresse vorher an einem sicheren Ort notieren. Die API läuft weiter, aber jeder Sync-Lauf scheitert. Nicht `api` oder ein Netz stoppen (der Alarm käme aus einem anderen Grund).
 3. 30 Minuten nach dem letzten erfolgreichen Sync antwortet `/health` mit 503, und der Uptime-Dienst gibt Alarm.
-4. Zurücksetzen: `sudo chmod 400 deploy/secrets/google-service-account.json`, der Besitzer bleibt `1000`. Der nächste Sync-Lauf folgt innert 5 Minuten, danach meldet der Uptime-Dienst die Erholung.
+4. Zurücksetzen: die alte Adresse wieder eintragen. Der nächste Sync-Lauf folgt innert 5 Minuten, danach meldet der Uptime-Dienst die Erholung.
 
 ## Logs
 
@@ -250,7 +250,7 @@ Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durc
 3. **Geheimnisse wechseln,** jedes einzeln:
    - Auth-Geheimnis: in `BETTER_AUTH_SECRET` einen neuen Zufallswert setzen und die API neu starten. Alte Cookies gelten dann nicht mehr, und die gespeicherten TOTP-Geheimnisse und Ersatzcodes lassen sich nicht mehr entschlüsseln: Kein Admin besteht den zweiten Faktor, bis er neu eingerichtet ist (Schritt 4). Den alten Wert vollständig entfernen, auch nicht als ältere Version in `BETTER_AUTH_SECRETS` behalten: Wer ihn kennt, könnte damit weiterhin Codes berechnen.
    - Passwörter der Datenbankrollen (#69).
-   - Google-Service-Account: einen neuen Schlüssel erzeugen, ihn überall einsetzen, wo der alte lag, die API neu starten und erst dann den alten Schlüssel löschen (#26, #27, #69).
+   - Outlook-Kalenderadresse: in Outlook die Freigabe neu veröffentlichen (neue Adresse, die alte erlischt), die neue Adresse in die Datenbank eintragen.
    - Schlüssel des Firebase-Dienstkontos für FCM (#154): einen neuen Schlüssel erzeugen, ihn nach `deploy/secrets/fcm-service-account.json` legen, die API neu starten und erst dann den alten Schlüssel löschen.
    - restic- und S3-Schlüssel (#71).
 4. **Gekapertes Konto sperren, dann zweite Faktoren neu einrichten.** Nach Schritt 3 besteht kein Admin den zweiten Faktor. Die CLI (`docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/zweiter-faktor-zuruecksetzen.ts --benutzername <name>`, in `deploy/`) setzt den Faktor genau eines vertrauenswürdigen Admins zurück; diese Person meldet sich an und richtet ihren Faktor neu ein. Dann deaktiviert sie das gekaperte Konto oder gibt ihm ein neues Startpasswort (#18); nie den Faktor eines Kontos zurücksetzen, solange sein altes Passwort noch gilt, sonst richtet die fremde Person den neuen Faktor selbst ein. Danach setzt sie die Faktoren der übrigen Admins zurück (#23), und diese richten ihre neu ein. Bleibt kein vertrauenswürdiger Admin übrig, legt die CLI (#20) einen neuen an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --abteilung "<Name>"`; immer `exec`, nie `run`, sonst steht das Startpasswort 14 Tage im journald (siehe «Logs»).

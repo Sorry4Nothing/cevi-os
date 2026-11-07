@@ -40,7 +40,7 @@ Das gilt für die API. Die iOS- und die Android-App liegen in eigenen Repos und 
 Das Repo ist öffentlich, und Cevi OS verwaltet Daten von Kindern. Darum kommt nichts davon ins Repo, in Issues, in PRs oder auf Screenshots:
 
 - echte Namen
-- die ID des Google-Kalenders und eine geheime iCal-Adresse
+- die geheime iCal-Adresse des Kalenders
 - CSV-Dateien und andere Exporte
 - Demo-Zugangsdaten
 - Server-Zugänge (IP-Adressen, SSH)

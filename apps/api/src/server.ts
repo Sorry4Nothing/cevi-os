@@ -45,7 +45,6 @@ const auth = erstelleAuth(
 const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
-    schluesselDatei: konfiguration.GOOGLE_APPLICATION_CREDENTIALS,
   });
 const eckdatenLauf = () =>
   synchronisiereEckdaten({

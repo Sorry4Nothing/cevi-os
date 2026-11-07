@@ -26,7 +26,6 @@ services:
       APP_MIN_VERSION: ${APP_MIN_VERSION:?fehlt in deploy/.env}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?fehlt in deploy/.env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?fehlt in deploy/.env}
-      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/google-service-account.json
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
       PORT: "3000"
     # Für den Cache von tsx
@@ -34,16 +33,10 @@ services:
       - /tmp
     volumes:
       - type: bind
-        source: ./secrets/google-service-account.json
-        target: /run/secrets/google-service-account.json
-        read_only: true
-        # Sonst legt Docker für eine fehlende Datei ein leeres Verzeichnis an
-        bind:
-          create_host_path: false
-      - type: bind
         source: ./secrets/fcm-service-account.json
         target: /run/secrets/fcm-service-account.json
         read_only: true
+        # Sonst legt Docker für eine fehlende Datei ein leeres Verzeichnis an
         bind:
           create_host_path: false
     # intern zur Datenbank; edge für den Edge-Caddy; default für den Weg nach aussen (Pwned Passwords, Google und FCM)

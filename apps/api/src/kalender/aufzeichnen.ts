@@ -1,29 +1,18 @@
 import { writeFile } from "node:fs/promises";
-import { holeSeiten, holeToken } from "./google.js";
+import { holeKalender } from "./abruf.js";
 
-// Zeichnet die rohen Seiten eines Laufs aus dem Testkalender auf; anonymisiert wird von Hand, und der E-Mail-Test in test/kalender/aufzeichnungen.test.ts wacht darüber
+// Zeichnet den iCal-Text des Testkalenders auf; anonymisiert wird von Hand, und der E-Mail-Test in test/kalender/aufzeichnungen.test.ts wacht darüber
 const pfad = process.argv[2];
-const schluesselDatei = process.env.GOOGLE_APPLICATION_CREDENTIALS;
-const kalenderId = process.env.TESTKALENDER_ID;
+const adresse = process.env.TESTKALENDER_URL;
 
-if (!pfad || !schluesselDatei || !kalenderId) {
-  const fehlend = [
-    !schluesselDatei && "GOOGLE_APPLICATION_CREDENTIALS",
-    !kalenderId && "TESTKALENDER_ID",
-  ].filter((name) => name !== false);
+if (!pfad || !adresse) {
   console.error(
-    fehlend.length > 0
-      ? `Fehlende Umgebungsvariablen: ${fehlend.join(", ")}`
+    !adresse
+      ? "Fehlende Umgebungsvariable: TESTKALENDER_URL"
       : "Aufruf: npm run kalender:aufzeichnen -w apps/api -- <zieldatei>",
   );
   process.exit(1);
 }
 
-const jetzt = new Date();
-const seiten = await holeSeiten(
-  await holeToken(schluesselDatei, jetzt),
-  kalenderId,
-  jetzt,
-);
-await writeFile(pfad, `${JSON.stringify(seiten, null, 2)}\n`);
-console.log(`${seiten.length} Seite(n) geschrieben: ${pfad}`);
+await writeFile(pfad, await holeKalender(adresse));
+console.log(`Kalender geschrieben: ${pfad}`);

@@ -142,9 +142,6 @@ export function erstelleSystemRouten({
           umgebung: {
             https: (process.env.BETTER_AUTH_URL ?? "").startsWith("https://"),
             produktion: process.env.NODE_ENV === "production",
-            kalenderSchluessel: Boolean(
-              process.env.GOOGLE_APPLICATION_CREDENTIALS,
-            ),
           },
         });
         schleife.reset();
