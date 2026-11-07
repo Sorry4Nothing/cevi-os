@@ -49,7 +49,7 @@ function kalenderKachel(k) {
       titel: "Kalender-Sync",
       wert: "Nicht eingerichtet",
       text: true,
-      hinweis: "Kein Google-Kalender verbunden.",
+      hinweis: "Keine Kalenderadresse hinterlegt.",
     });
   }
   if (k.fehler) {
