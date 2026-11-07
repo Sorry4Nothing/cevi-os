@@ -1,6 +1,6 @@
 # Cevi OS
 
-App für eine Cevi-Abteilung: Programme aus dem Google-Kalender, Ja/Nein-Anmeldung und Chat zwischen Eltern und Stufenleitung (iOS und Android).
+App für eine Cevi-Abteilung: Programme aus dem Outlook-Kalender, Ja/Nein-Anmeldung und Chat zwischen Eltern und Stufenleitung (iOS und Android).
 
 Dieses Repo ist das Backend. Die Apps entstehen nativ in eigenen Repos: [cevi-os-ios](https://github.com/Sorry4Nothing/cevi-os-ios) mit SwiftUI und [cevi-os-android](https://github.com/Sorry4Nothing/cevi-os-android) mit Jetpack Compose. Push-Nachrichten laufen über Firebase Cloud Messaging (FCM). Admins verwalten Personen, Kinder, Stufen und Mitteilungen im Browser unter `/admin`; diese Verwaltung gehört zum Backend.
 

@@ -1,6 +1,6 @@
 # Architektur
 
-Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und Datenbank. Die Programme kommen aus dem Google-Kalender der Abteilung, die Pushes laufen über Firebase Cloud Messaging (FCM). Dieses Dokument beschreibt den Aufbau von Version 1.
+Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und Datenbank. Die Programme kommen aus dem Outlook-Kalender der Abteilung, die Pushes laufen über Firebase Cloud Messaging (FCM). Dieses Dokument beschreibt den Aufbau von Version 1.
 
 ## Teile
 
@@ -28,16 +28,15 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 
 ### Caddy
 
-- Webserver vor der API, der einzige Dienst mit veröffentlichten Ports (80 und 443).
+- Webserver vor der API, der einzige Dienst auf dem Server mit veröffentlichten Ports (80 und 443). Er läuft als gemeinsamer Edge-Caddy in einem eigenen Stack und erreicht die API über das Docker-Netz `edge-cevi-os` (siehe `docs/betrieb.md`, «Edge-Caddy»).
 - HTTPS mit automatisch erneuerten Zertifikaten und HSTS.
 - Leitet die Anfragen an die API weiter.
 
-### Google-Kalender
+### Outlook-Kalender
 
 - Der Kalender der Abteilung bleibt die Quelle der Programme.
-- Die API liest ihn alle 5 Minuten mit einem Service-Account und dem Scope `calendar.events.readonly`.
-- Die ID des Kalenders steht nur in der Datenbank.
-- Nur lesen kann der Service-Account, weil der Kalender für ihn nur mit der Freigabe «Alle Termindetails sehen» geteilt ist. Der Scope allein verhindert das Schreiben nicht: Wer den Schlüssel hat, wählt den Scope selbst (Bedrohung 13 im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md)).
+- Die API liest ihn alle 5 Minuten über die veröffentlichte iCal-Adresse (`.ics`), ohne Konto und ohne Token.
+- Die Adresse steht nur in der Datenbank. Wer sie kennt, liest den Kalender, ändern kann er ihn über sie nicht (Bedrohung 13 im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md)).
 
 ### Push über FCM
 
@@ -62,7 +61,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | API             | PostgreSQL                          | internes Netz, eigene Rolle  | Daten lesen und schreiben                                                                                     |
 | Migrationen     | PostgreSQL                          | Besitzerrolle der Datenbank  | Tabellen anlegen und umbauen                                                                                  |
 | Backup (restic) | S3-Speicher in der Schweiz          | HTTPS                        | Verschlüsselte Backups ablegen, täglich und vor jedem Deploy                                                  |
-| API             | Google Calendar API                 | HTTPS, Service-Account       | Termine lesen, alle 5 Minuten                                                                                 |
+| API             | Outlook-Kalender (iCal)             | HTTPS, geheime Adresse       | Termine lesen, alle 5 Minuten                                                                                 |
 | API             | Pwned Passwords (Have I Been Pwned) | HTTPS                        | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
 | App             | Firebase (FCM)                      | HTTPS                        | Push-Token holen                                                                                              |
 | API             | FCM                                 | HTTPS, firebase-admin        | Pushes senden                                                                                                 |

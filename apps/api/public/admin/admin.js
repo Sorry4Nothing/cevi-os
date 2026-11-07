@@ -1,6 +1,7 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
 import * as importieren from "./import.js";
+import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
 import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
@@ -40,6 +41,13 @@ const BEREICHE = [
     mitteilungen,
     "glocke",
     "Push-Mitteilung an Eltern und Leitende senden.",
+  ],
+  [
+    "kalender",
+    "Kalender",
+    kalender,
+    "kalender",
+    "Anstehende Programme und ihre Stufen.",
   ],
   [
     "zeitregeln",

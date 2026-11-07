@@ -5,45 +5,43 @@ import {
   KalenderFehler,
 } from "../../src/kalender/fehler.js";
 
-const MIT_ZEIT = {
-  start: { dateTime: "2027-09-04T14:00:00+02:00" },
-  end: { dateTime: "2027-09-04T16:00:00+02:00" },
-};
+const JETZT = new Date("2027-09-01T00:00:00Z");
+const MIT_ZEIT = ["DTSTART:20270904T120000Z", "DTEND:20270904T140000Z"];
 
-function eineSeite(termin: Record<string, unknown>) {
-  return gleicheAb([{ items: [{ id: "termin0000000001", ...termin }] }]);
-}
+const vevent = (uid: string, zeilen: string[]) =>
+  ["BEGIN:VEVENT", `UID:${uid}`, ...zeilen, "END:VEVENT"].join("\r\n");
+const kalender = (...termine: string[]) =>
+  ["BEGIN:VCALENDAR", "VERSION:2.0", ...termine, "END:VCALENDAR", ""].join(
+    "\r\n",
+  );
+const eineSeite = (zeilen: string[]) =>
+  gleicheAb(kalender(vevent("termin0000000001", zeilen)), JETZT);
 
 describe("Abbildung einzelner Termine", () => {
-  test.each<[string, Record<string, unknown>]>([
+  test.each<[string, string[]]>([
+    ["class «private»", ["SUMMARY:Intern", "CLASS:PRIVATE", ...MIT_ZEIT]],
     [
-      "visibility «private»",
-      { summary: "Intern", visibility: "private", ...MIT_ZEIT },
-    ],
-    [
-      "visibility «confidential»",
-      { summary: "Intern", visibility: "confidential", ...MIT_ZEIT },
+      "class «confidential»",
+      ["SUMMARY:Intern", "CLASS:CONFIDENTIAL", ...MIT_ZEIT],
     ],
     ["ohne Titel", MIT_ZEIT],
-    ["mit leerem Titel", { summary: "   ", ...MIT_ZEIT }],
-  ])("übergeht einen Termin %s", (_, termin) => {
-    expect(eineSeite(termin)).toEqual({ programme: [], absagen: [] });
+    ["mit leerem Titel", ["SUMMARY:   ", ...MIT_ZEIT]],
+  ])("übergeht einen Termin %s", (_, zeilen) => {
+    expect(eineSeite(zeilen)).toEqual({ programme: [], absagen: [] });
   });
 
   test("«tentative» und fehlender Status werden zu aktiven Programmen", () => {
-    const { programme } = gleicheAb([
-      {
-        items: [
-          {
-            id: "a0000000000000001",
-            summary: "Vielleicht",
-            status: "tentative",
-            ...MIT_ZEIT,
-          },
-          { id: "b0000000000000001", summary: "Ohne Status", ...MIT_ZEIT },
-        ],
-      },
-    ]);
+    const { programme } = gleicheAb(
+      kalender(
+        vevent("a0000000000000001", [
+          "SUMMARY:Vielleicht",
+          "STATUS:TENTATIVE",
+          ...MIT_ZEIT,
+        ]),
+        vevent("b0000000000000001", ["SUMMARY:Ohne Status", ...MIT_ZEIT]),
+      ),
+      JETZT,
+    );
     expect(programme.map((p) => p.titel)).toEqual([
       "Vielleicht",
       "Ohne Status",
@@ -51,33 +49,32 @@ describe("Abbildung einzelner Termine", () => {
   });
 
   test("eine Absage zählt auch ohne Titel, denn sie wird vor der Titelregel geprüft", () => {
-    expect(eineSeite({ status: "cancelled" })).toEqual({
+    expect(eineSeite(["STATUS:CANCELLED", ...MIT_ZEIT])).toEqual({
       programme: [],
       absagen: ["termin0000000001"],
     });
   });
 
-  test("nur «cancelled» gilt als Absage", () => {
-    const { absagen } = eineSeite({
-      summary: "Bleibt",
-      status: "tentative",
+  test("nur «CANCELLED» gilt als Absage", () => {
+    const { absagen } = eineSeite([
+      "SUMMARY:Bleibt",
+      "STATUS:TENTATIVE",
       ...MIT_ZEIT,
-    });
+    ]);
     expect(absagen).toEqual([]);
   });
 
-  test("Titel wird getrimmt, Serie, Ort und Beschreibung kommen mit", () => {
-    const { programme } = eineSeite({
-      summary: "  Waldtag  ",
-      location: "Waldhütte",
-      description: "<b>Wurst &amp; Brot</b>",
-      recurringEventId: "serie00000000001_R20270904T120000",
+  test("Titel wird getrimmt, Ort und Beschreibung kommen mit, ein Einzeltermin hat keine Serie", () => {
+    const { programme } = eineSeite([
+      "SUMMARY:  Waldtag  ",
+      "LOCATION:Waldhütte",
+      "DESCRIPTION:Wurst & Brot",
       ...MIT_ZEIT,
-    });
+    ]);
     expect(programme).toEqual([
       {
         googleEventId: "termin0000000001",
-        googleSerie: "serie00000000001_R20270904T120000",
+        googleSerie: null,
         titel: "Waldtag",
         ganztaegig: false,
         beginn: new Date("2027-09-04T12:00:00Z"),
@@ -91,94 +88,186 @@ describe("Abbildung einzelner Termine", () => {
   });
 
   test("ein ganztägiger Termin trägt Tage, keine Zeitpunkte", () => {
-    const { programme } = eineSeite({
-      summary: "Sommerlager",
-      start: { date: "2027-07-30" },
-      end: { date: "2027-08-03" },
-    });
+    const { programme } = eineSeite([
+      "SUMMARY:Sommerlager",
+      "DTSTART;VALUE=DATE:20270930",
+      "DTEND;VALUE=DATE:20271004",
+    ]);
     expect(programme[0]).toMatchObject({
       ganztaegig: true,
-      tagVon: "2027-07-30",
-      tagBis: "2027-08-02",
+      tagVon: "2027-09-30",
+      tagBis: "2027-10-03",
       beginn: null,
       ende: null,
     });
   });
 
   test.each([
-    ["2027-08-01", "2027-07-31"],
-    ["2027-03-01", "2027-02-28"],
-    ["2028-03-01", "2028-02-29"],
-    ["2027-01-01", "2026-12-31"],
-  ])(
-    "Googles exklusives Enddatum %s wird zum letzten Tag %s",
-    (ende, tagBis) => {
-      const { programme } = eineSeite({
-        summary: "Lager",
-        start: { date: "2026-12-30" },
-        end: { date: ende },
-      });
-      expect(programme[0].tagBis).toBe(tagBis);
-    },
-  );
+    ["20270902", "2027-09-01"],
+    ["20271001", "2027-09-30"],
+    ["20271101", "2027-10-31"],
+    ["20280101", "2027-12-31"],
+  ])("das exklusive Enddatum %s wird zum letzten Tag %s", (ende, tagBis) => {
+    const { programme } = eineSeite([
+      "SUMMARY:Lager",
+      "DTSTART;VALUE=DATE:20270901",
+      `DTEND;VALUE=DATE:${ende}`,
+    ]);
+    expect(programme[0].tagBis).toBe(tagBis);
+  });
 
-  test.each<[string, Record<string, unknown>]>([
+  test("Termine ausserhalb des Fensters (gestern bis rund 400 Tage voraus) fallen weg", () => {
+    const { programme } = gleicheAb(
+      kalender(
+        vevent("alt0000000000001", [
+          "SUMMARY:Alt",
+          "DTSTART:20270801T120000Z",
+          "DTEND:20270801T140000Z",
+        ]),
+        vevent("fern000000000001", [
+          "SUMMARY:Fern",
+          "DTSTART:20290101T120000Z",
+          "DTEND:20290101T140000Z",
+        ]),
+        vevent("laeuft0000000001", [
+          "SUMMARY:Läuft noch",
+          "DTSTART:20270831T120000Z",
+          "DTEND:20270901T120000Z",
+        ]),
+      ),
+      JETZT,
+    );
+    expect(programme.map((p) => p.titel)).toEqual(["Läuft noch"]);
+  });
+
+  test.each<[string, string[]]>([
     [
       "Datum und Zeitpunkt gemischt",
-      {
-        start: { date: "2027-09-04" },
-        end: { dateTime: "2027-09-04T16:00:00+02:00" },
-      },
+      [
+        "SUMMARY:Kaputt",
+        "DTSTART;VALUE=DATE:20270904",
+        "DTEND:20270904T140000Z",
+      ],
     ],
-    ["ohne Ende", { start: { dateTime: "2027-09-04T14:00:00+02:00" } }],
-    ["ohne Start und Ende", {}],
+    [
+      "ein Zeitpunkt ohne Zeitzone",
+      ["SUMMARY:Kaputt", "DTSTART:20270904T120000", "DTEND:20270904T140000"],
+    ],
   ])(
-    "%s: Die Abteilung scheitert mit «Antwort von Google ungültig»",
-    (_, zeiten) => {
-      expect(() => eineSeite({ summary: "Kaputt", ...zeiten })).toThrow(
+    "%s: Die Abteilung scheitert mit «Antwort des Kalenders ungültig»",
+    (_, zeilen) => {
+      expect(() => eineSeite(zeilen)).toThrow(
         new KalenderFehler(ANTWORT_UNGUELTIG),
       );
     },
   );
 
-  test.each<[string, unknown]>([
-    ["keine Liste von Seiten", [42]],
-    [
-      "ein Zeitpunkt ohne Offset",
-      [
-        {
-          items: [
-            {
-              id: "a0000000000000001",
-              summary: "Ohne Offset",
-              start: { dateTime: "2027-09-04T14:00:00" },
-              end: { dateTime: "2027-09-04T16:00:00" },
-            },
-          ],
-        },
-      ],
-    ],
-    [
-      "ein ungültiges Datum",
-      [
-        {
-          items: [
-            {
-              id: "a0000000000000001",
-              summary: "Kein Datum",
-              start: { date: "30.07.2027" },
-              end: { date: "2027-08-03" },
-            },
-          ],
-        },
-      ],
-    ],
-  ])("ungültige Seite (%s): «Antwort von Google ungültig»", (_, seiten) => {
-    expect(() => gleicheAb(seiten as unknown[])).toThrow(ANTWORT_UNGUELTIG);
+  test.each<[string, string]>([
+    ["kein Kalender", "hallo"],
+    ["kein VCALENDAR", "BEGIN:VEVENT\r\nEND:VEVENT\r\n"],
+    ["ein leerer Text", ""],
+  ])("ungültiger Text (%s): «Antwort des Kalenders ungültig»", (_, text) => {
+    expect(() => gleicheAb(text, JETZT)).toThrow(
+      new KalenderFehler(ANTWORT_UNGUELTIG),
+    );
   });
 
-  test("fehlende items zählen als leere Seite", () => {
-    expect(gleicheAb([{}])).toEqual({ programme: [], absagen: [] });
+  test("ein Kalender ohne Termine ist leer", () => {
+    expect(gleicheAb(kalender(), JETZT)).toEqual({
+      programme: [],
+      absagen: [],
+    });
+  });
+});
+
+describe("Serien", () => {
+  const serie = (zeilen: string[], ausnahmen: string[] = []) =>
+    gleicheAb(
+      kalender(
+        vevent("serie00000000001", [
+          "SUMMARY:Gruppenstunde",
+          "DTSTART:20270904T120000Z",
+          "DTEND:20270904T140000Z",
+          ...zeilen,
+        ]),
+        ...ausnahmen,
+      ),
+      JETZT,
+    );
+
+  test("jede Instanz ist ein Programm mit eigener ID aus Serie und ursprünglichem Beginn", () => {
+    const { programme } = serie(["RRULE:FREQ=WEEKLY;COUNT=3"]);
+    expect(
+      programme.map((p) => [p.googleEventId, p.googleSerie, p.beginn]),
+    ).toEqual([
+      [
+        "serie00000000001_20270904T120000Z",
+        "serie00000000001",
+        new Date("2027-09-04T12:00:00Z"),
+      ],
+      [
+        "serie00000000001_20270911T120000Z",
+        "serie00000000001",
+        new Date("2027-09-11T12:00:00Z"),
+      ],
+      [
+        "serie00000000001_20270918T120000Z",
+        "serie00000000001",
+        new Date("2027-09-18T12:00:00Z"),
+      ],
+    ]);
+  });
+
+  test("EXDATE nimmt eine Instanz heraus", () => {
+    const { programme } = serie([
+      "RRULE:FREQ=WEEKLY;COUNT=3",
+      "EXDATE:20270911T120000Z",
+    ]);
+    expect(programme.map((p) => p.beginn?.toISOString())).toEqual([
+      "2027-09-04T12:00:00.000Z",
+      "2027-09-18T12:00:00.000Z",
+    ]);
+  });
+
+  test("eine verschobene Instanz behält ihre ID und trägt die neue Zeit", () => {
+    const { programme } = serie(
+      ["RRULE:FREQ=WEEKLY;COUNT=2"],
+      [
+        vevent("serie00000000001", [
+          "RECURRENCE-ID:20270911T120000Z",
+          "SUMMARY:Gruppenstunde",
+          "DTSTART:20270911T130000Z",
+          "DTEND:20270911T150000Z",
+        ]),
+      ],
+    );
+    expect(programme[1]).toMatchObject({
+      googleEventId: "serie00000000001_20270911T120000Z",
+      beginn: new Date("2027-09-11T13:00:00Z"),
+    });
+  });
+
+  test("eine abgesagte Instanz kommt als Absage mit der Instanz-ID", () => {
+    const { programme, absagen } = serie(
+      ["RRULE:FREQ=WEEKLY;COUNT=2"],
+      [
+        vevent("serie00000000001", [
+          "RECURRENCE-ID:20270911T120000Z",
+          "STATUS:CANCELLED",
+          "SUMMARY:Gruppenstunde",
+          "DTSTART:20270911T120000Z",
+          "DTEND:20270911T140000Z",
+        ]),
+      ],
+    );
+    expect(absagen).toEqual(["serie00000000001_20270911T120000Z"]);
+    expect(programme).toHaveLength(1);
+  });
+
+  test("eine endlose Serie bricht am Fensterende ab", () => {
+    const { programme } = serie(["RRULE:FREQ=DAILY"]);
+    expect(programme.length).toBeGreaterThan(300);
+    expect(programme.length).toBeLessThan(500);
   });
 });
 

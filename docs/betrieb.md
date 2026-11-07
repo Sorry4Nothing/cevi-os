@@ -1,16 +1,16 @@
 # Betrieb
 
-Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Deploy, Release, Release-Checkliste, Backups, Überwachung, Logs, der zweite Faktor und der Ablauf bei einer Datenpanne. Ausgerollt wird nur von `main`.
+Abläufe für den Betrieb von Cevi OS; hier stehen Server, Konten, Edge-Caddy, Deploy, Release, Release-Checkliste, Backups, Überwachung, Logs, der zweite Faktor und der Ablauf bei einer Datenpanne. Ausgerollt wird nur von `main`.
 
 ## Server
 
 - Ein VPS; Anbieter, Region und Domain sind noch offen (#68). Im Gespräch ist Oracle Cloud «Always Free» (ARM, Ampere); ob die Region in der Schweiz liegt, ist ungeprüft, und die Home-Region lässt sich nach der Anmeldung nicht ändern.
 - Das API-Image ist nur für arm64 gebaut (`image.yml` läuft auf `ubuntu-24.04-arm`). Die Images von postgres, caddy und restic gibt es auch für arm64. Auf einem amd64-Server startet das API-Image nicht.
 - Auf dem Server laufen Linux mit systemd-journald, die Docker Engine mit dem Compose-Plugin und git.
-- Der Dienst `api` hat in `deploy/docker-compose.prod.yml` höchstens 1 GB Arbeitsspeicher (`mem_limit`) und 256 Prozesse und Threads (`pids_limit`), damit viele gleichzeitige Bild-Uploads (bis 16 Mio. Pixel, beim Dekodieren rund 64 MB je Bild) nur die API treffen und nicht Postgres und Caddy; der Wert muss zum Server passen, und meldet `docker inspect` für den Container `OOMKilled`, ist er zu klein.
-- Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind.
+- Der Dienst `api` hat in `deploy/docker-compose.prod.yml` höchstens 1 GB Arbeitsspeicher (`mem_limit`) und 256 Prozesse und Threads (`pids_limit`), damit viele gleichzeitige Bild-Uploads (bis 16 Mio. Pixel, beim Dekodieren rund 64 MB je Bild) nur die API treffen und nicht Postgres; der Wert muss zum Server passen, und meldet `docker inspect` für den Container `OOMKilled`, ist er zu klein.
+- Härtung (#68): SSH nur mit Schlüssel und nur für zwei Personen, Firewall, automatische Sicherheitsupdates. Nach der Einrichtung bestätigt ein Portscan von aussen, dass nur SSH, 80 und 443 offen sind. Docker öffnet veröffentlichte Ports an der Host-Firewall vorbei; darum veröffentlicht nur der Edge-Caddy Ports (siehe «Edge-Caddy»).
 - Das Repo liegt auf dem Server als Checkout des ausgerollten Tags. Befehle in dieser Doku laufen im Wurzelordner dieses Checkouts, jene im Abschnitt «Backups» im Ordner `deploy/`.
-- Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Google-Service-Accounts unter `deploy/secrets/` (Ordner 700, Datei 400).
+- Nur auf dem Server, nie im Repo: `deploy/.env` (Rechte 600, Vorlage `deploy/.env.example`) und der Schlüssel des Firebase-Dienstkontos unter `deploy/secrets/` (Ordner 700, Datei 400). Die geheime iCal-Adresse des Outlook-Kalenders steht nur in der Datenbank (Spalte `abteilung.google_kalender_id`, Name aus der Zeit vor Outlook).
 
 ## Konten
 
@@ -20,19 +20,48 @@ Der Betrieb braucht diese Konten: Apple Developer Program, Google Play Console, 
 - Wo der Dienst es erlaubt, hat eine zweite Person Zugriff.
 - Die Wiederherstellungscodes liegen in einem Passwort-Tresor, den auch die Abteilungsleitung öffnen kann.
 
+## Edge-Caddy
+
+Die Ports 80 und 443 kann nur ein Prozess belegen, der Server hat aber mehrere Stacks mit je einer Domain. Darum belegt sie ein eigener, kleiner Stack, der Edge-Caddy; dieser Stack hat keinen eigenen Caddy und veröffentlicht keine Ports. Der Edge-Caddy liegt in einem eigenen Ordner ausserhalb des Checkouts, denn der Checkout wechselt mit jedem Release den Stand: `docker-compose.yml` (Compose-Projekt `edge`, ein gehärteter Caddy mit den Ports 80 und 443), `Caddyfile` mit der einen Zeile `import /etc/caddy/sites/*.caddy` und der Ordner `sites/` mit einer Datei je Stack.
+
+Je Stack ein eigenes Docker-Netz, damit sich die Stacks nicht untereinander erreichen; der Edge-Caddy hängt an allen. Für Cevi OS heisst es `edge-cevi-os`, und die API hat darin den eindeutigen Alias `cevi-os-api` (`deploy/docker-compose.prod.yml`), weil der Dienstname `api` bei mehreren Stacks gleich hiesse. In `<Edge-Ordner>/docker-compose.yml` stehen für Cevi OS zwei Stellen:
+
+```yaml
+services:
+  caddy:
+    networks:
+      - edge-cevi-os
+
+networks:
+  # Der Stack cevi-os nimmt es als externes Netz (deploy/docker-compose.prod.yml)
+  edge-cevi-os:
+    name: edge-cevi-os
+```
+
+Die Seite der API ist [`deploy/edge/cevi-os.caddy`](../deploy/edge/cevi-os.caddy). Sie kommt als `<Edge-Ordner>/sites/cevi-os.caddy` auf den Server, mit der echten Domain statt `api.example.org`; Header und HSTS bleiben, `reverse_proxy` zeigt auf `cevi-os-api:3000`. Die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst.
+
+Eine Seite ändern oder hinzufügen, ohne Unterbruch: Datei nach `<Edge-Ordner>/sites/` kopieren, dann im Edge-Ordner `docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile` und `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`. Ist die neue Datei fehlerhaft, melden beide Befehle den Fehler und der Caddy läuft mit der alten Konfiguration weiter. Ändert sich `deploy/edge/cevi-os.caddy` in einem Release, die Änderung von Hand übernehmen (die Domain bleibt). Prüfen mit `curl -sI https://<Domain>/health`: Die Antwort zeigt `strict-transport-security`, aber keine Zeile `server`. `deploy.sh` aktualisiert das Image des Edge-Caddys nicht: gelegentlich im Edge-Ordner `docker compose pull && docker compose up -d`.
+
+Umzug vom bisherigen eigenen Caddy dieses Stacks (#300): Die Domain ist dabei für einige Minuten nicht erreichbar, am besten in einer ruhigen Stunde. Der Stand mit dem Edge-Caddy darf erst ausgerollt werden, wenn der Edge-Ordner steht; ein Release-Deploy ohne das Netz `edge-cevi-os` bricht ab.
+
+1. Den Edge-Ordner anlegen, mit `sites/cevi-os.caddy` (die Domain aus dem bisherigen `deploy/Caddyfile`) und dem Netz `edge-cevi-os` in `docker-compose.yml`. Vorher `docker compose config` im Edge-Ordner.
+2. Den bisherigen Caddy stoppen: in `deploy/` `docker compose -f docker-compose.prod.yml stop caddy`, noch mit dem alten Stand des Checkouts.
+3. Im Edge-Ordner `docker compose up -d`. Das legt das Netz an, und der Edge-Caddy holt die Zertifikate neu bei Let's Encrypt; die Abfragen sind im Gratis-Rahmen.
+4. Das Release mit diesem Stand ausrollen (`deploy/deploy.sh vX.Y.Z`, von Hand oder aus GitHub): Die API hängt danach am Netz `edge-cevi-os`.
+5. Aufräumen: `docker rm cevi-os-caddy-1`, `docker volume rm cevi-os_caddy_data cevi-os_caddy_config` und `deploy/Caddyfile` löschen.
+6. Prüfen: die Domain über HTTPS, `docker compose ps` in `deploy/` und im Edge-Ordner, `docker network ls` zeigt `edge-cevi-os`, Portscan von aussen.
+
 ## Deploy
 
 Erste Einrichtung auf dem Server:
 
 1. Das Repo klonen und den Release-Tag auschecken: `git fetch --tags && git checkout vX.Y.Z`
 2. `deploy/.env.example` nach `deploy/.env` kopieren und die Werte setzen (Passwörter hexadezimal, etwa aus `openssl rand -hex 32`; `BETTER_AUTH_SECRET` aus `openssl rand -base64 32`, `BETTER_AUTH_URL` ist die öffentliche Adresse der API mit `https://`; mit `http://` startet die API in Produktion nicht), dann `chmod 600 deploy/.env`. Die verantwortliche Stelle, ihre E-Mail-Adresse (Seiten `/datenschutz`, `/konto-loeschen` und `/support`, #63) und die Basis-Adresse der Webseite sind öffentlich und stehen als Vorgabe in `apps/api/src/konfiguration.ts`; sie brauchen keinen Eintrag in `deploy/.env`. Alle 30 Minuten ruft die API unter der Basis-Adresse `/cevistufe-<stufe>` ab (Stufenname kleingeschrieben, Umlaute ausgeschrieben, nur Buchstaben und Ziffern) und liest Treffpunkt, Schluss und Mitnehmen; passwortgeschützte oder unlesbare Seiten überspringt sie. Ändern sich die Werte, setzt man `VERANTWORTLICHE_STELLE`, `KONTAKT_EMAIL` oder `ECKDATEN_BASIS_URL` in `deploy/.env` und in `docker-compose.prod.yml`
-3. Den Schlüssel des Google-Service-Accounts (#26) nach `deploy/secrets/google-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Ebenso den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json`
-4. `deploy/Caddyfile.example` nach `deploy/Caddyfile` kopieren und die Domain eintragen (#68)
+3. Den Schlüssel des Firebase-Dienstkontos für die Pushes (#154) nach `deploy/secrets/fcm-service-account.json` legen: Ordner 700, Datei 400, Besitzer `1000:1000` (die UID der API im Container). Die iCal-Adresse des Outlook-Kalenders danach in die Datenbank eintragen: `update abteilung set google_kalender_id = '<https-Adresse>' where id = '<abteilungs-id>'`; webcal:// wird zu https:// umgeschrieben. Die Adresse nie in Issues, Chats oder Logs
+4. Den Edge-Caddy einrichten (siehe «Edge-Caddy», #68); ohne ihn bricht `deploy/deploy.sh` ab
 5. Nach dem ersten Tag das API-Image auf GHCR öffentlich schalten (#70), sonst findet der Server es nicht
 
-Jedes Release rollt `deploy/deploy.sh vX.Y.Z` aus, nach `git fetch --tags && git checkout vX.Y.Z`. Das Skript aktualisiert die Images von postgres und caddy, sichert die Datenbank (siehe «Backups»), setzt die Passwörter der Datenbankrollen aus `deploy/.env`, führt die Migrationen mit der Besitzerrolle aus — nur vorwärts, nie zurück —, startet alle Dienste mit dem Tag neu und stoppt jeden Dienst ausser caddy, der einen Port veröffentlicht.
-
-`deploy/Caddyfile` liegt nur auf dem Server und folgt der Vorlage nicht von selbst. Ändert sich `deploy/Caddyfile.example` in einem Release, die Änderung von Hand nach `deploy/Caddyfile` übernehmen (die Domain bleibt) und in `deploy/` Caddy neu starten: `docker compose -f docker-compose.prod.yml restart caddy`. Mit #220 kamen HSTS und die Sicherheits-Kopfzeilen dazu; ein Server, der vorher eingerichtet wurde, braucht diesen Schritt. Prüfen mit `curl -sI https://<Domain>/health`: Die Antwort zeigt `strict-transport-security`, aber keine Zeile `server`.
+Jedes Release rollt `deploy/deploy.sh vX.Y.Z` aus, nach `git fetch --tags && git checkout vX.Y.Z`. Das Skript bricht ab, wenn das Docker-Netz `edge-cevi-os` fehlt, aktualisiert das Image von postgres, sichert die Datenbank (siehe «Backups»), setzt die Passwörter der Datenbankrollen aus `deploy/.env`, führt die Migrationen mit der Besitzerrolle aus — nur vorwärts, nie zurück —, startet alle Dienste mit dem Tag neu und stoppt jeden Dienst, der einen Port veröffentlicht.
 
 ### Deploy aus GitHub
 
@@ -86,7 +115,7 @@ Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät ein
 ### Nicht im Backup
 
 - Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
-- Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/google-service-account.json`, `deploy/secrets/fcm-service-account.json` und die Zertifikate von Caddy. Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
+- Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
 
 Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
 
@@ -154,13 +183,13 @@ Bei Alarm:
 Alarmtest, einmal nach der Einrichtung und vor dem Pilotbetrieb — während des Tests synchronisiert rund 40 Minuten keine Abteilung:
 
 1. Mit der Abfrage oben prüfen, dass jede Abteilung mit `kalender` ein `sync_alter` von wenigen Minuten zeigt.
-2. Den Schlüssel unlesbar machen: `sudo chmod 000 deploy/secrets/google-service-account.json`. Die API läuft weiter, aber jeder Sync-Lauf scheitert. Nicht die Datei verschieben (per Bind eingebunden bliebe sie im Container sichtbar) und nicht `api` oder ein Netz stoppen (der Alarm käme aus einem anderen Grund).
+2. Die Adresse in der Datenbank ungültig machen: `update abteilung set google_kalender_id = 'https://ungueltig.invalid/' where id = '<abteilungs-id>'`; die alte Adresse vorher an einem sicheren Ort notieren. Die API läuft weiter, aber jeder Sync-Lauf scheitert. Nicht `api` oder ein Netz stoppen (der Alarm käme aus einem anderen Grund).
 3. 30 Minuten nach dem letzten erfolgreichen Sync antwortet `/health` mit 503, und der Uptime-Dienst gibt Alarm.
-4. Zurücksetzen: `sudo chmod 400 deploy/secrets/google-service-account.json`, der Besitzer bleibt `1000`. Der nächste Sync-Lauf folgt innert 5 Minuten, danach meldet der Uptime-Dienst die Erholung.
+4. Zurücksetzen: die alte Adresse wieder eintragen. Der nächste Sync-Lauf folgt innert 5 Minuten, danach meldet der Uptime-Dienst die Erholung.
 
 ## Logs
 
-Alle Dienste aus `deploy/docker-compose.prod.yml` loggen über den journald-Treiber von Docker. journald löscht nach Alter statt nach Grösse: Server-Logs und Container-Logs, auch die von Caddy, bleiben so 14 Tage.
+Alle Dienste aus `deploy/docker-compose.prod.yml` loggen über den journald-Treiber von Docker. journald löscht nach Alter statt nach Grösse: Server-Logs und Container-Logs, auch die des Edge-Caddys, bleiben so 14 Tage.
 
 Lesen:
 
@@ -170,7 +199,7 @@ Lesen:
 Was in den Logs steht:
 
 - API: eine JSON-Zeile pro Anfrage mit `requestId`, Routen-Muster und Status, ohne Namen, Inhalte oder IP-Adressen. Bei 401 und 403 einer angemeldeten Anfrage steht zusätzlich `nutzerId` darin, die ID des Kontos (siehe «Abgewiesene Anfragen prüfen»). Der Healthcheck des Containers ruft `/health` alle 30 Sekunden auf; erfolgreiche Aufrufe stehen weder im Log noch in den Zahlen der Übersicht, Fehler schon. Beim Start und danach alle 24 Stunden löscht die API abgelaufene Sitzungen samt ihren Push-Tokens und schreibt eine Zeile mit `"ereignis":"sitzungen"` und der Anzahl (`geloescht`), bei einem Fehler nur dessen Code. Das Löschen nach Alter begrenzt das Log.
-- Caddy: IP-Adressen. Caddy schreibt auf stderr und damit nach journald; keine Log-Datei, kein Volume.
+- Edge-Caddy: IP-Adressen. Er schreibt auf stderr und damit nach journald; keine Log-Datei, kein Volume. Lesen im Edge-Ordner mit `docker compose logs caddy`.
 - PostgreSQL: Fehlerzeilen können Werte aus Abfragen zitieren, etwa `DETAIL: Key (…)=(…)` oder `STATEMENT: …`.
 
 Die Ausgabe von `docker compose run` landet im Log des Dienstes und bleibt 14 Tage; die Ausgabe von `docker compose exec` landet in keinem Log.
@@ -221,7 +250,7 @@ Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durc
 3. **Geheimnisse wechseln,** jedes einzeln:
    - Auth-Geheimnis: in `BETTER_AUTH_SECRET` einen neuen Zufallswert setzen und die API neu starten. Alte Cookies gelten dann nicht mehr, und die gespeicherten TOTP-Geheimnisse und Ersatzcodes lassen sich nicht mehr entschlüsseln: Kein Admin besteht den zweiten Faktor, bis er neu eingerichtet ist (Schritt 4). Den alten Wert vollständig entfernen, auch nicht als ältere Version in `BETTER_AUTH_SECRETS` behalten: Wer ihn kennt, könnte damit weiterhin Codes berechnen.
    - Passwörter der Datenbankrollen (#69).
-   - Google-Service-Account: einen neuen Schlüssel erzeugen, ihn überall einsetzen, wo der alte lag, die API neu starten und erst dann den alten Schlüssel löschen (#26, #27, #69).
+   - Outlook-Kalenderadresse: in Outlook die Freigabe neu veröffentlichen (neue Adresse, die alte erlischt), die neue Adresse in die Datenbank eintragen.
    - Schlüssel des Firebase-Dienstkontos für FCM (#154): einen neuen Schlüssel erzeugen, ihn nach `deploy/secrets/fcm-service-account.json` legen, die API neu starten und erst dann den alten Schlüssel löschen.
    - restic- und S3-Schlüssel (#71).
 4. **Gekapertes Konto sperren, dann zweite Faktoren neu einrichten.** Nach Schritt 3 besteht kein Admin den zweiten Faktor. Die CLI (`docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/zweiter-faktor-zuruecksetzen.ts --benutzername <name>`, in `deploy/`) setzt den Faktor genau eines vertrauenswürdigen Admins zurück; diese Person meldet sich an und richtet ihren Faktor neu ein. Dann deaktiviert sie das gekaperte Konto oder gibt ihm ein neues Startpasswort (#18); nie den Faktor eines Kontos zurücksetzen, solange sein altes Passwort noch gilt, sonst richtet die fremde Person den neuen Faktor selbst ein. Danach setzt sie die Faktoren der übrigen Admins zurück (#23), und diese richten ihre neu ein. Bleibt kein vertrauenswürdiger Admin übrig, legt die CLI (#20) einen neuen an, in `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/admin-anlegen.ts --benutzername <name> --name "<Vorname Nachname>" --abteilung "<Name>"`; immer `exec`, nie `run`, sonst steht das Startpasswort 14 Tage im journald (siehe «Logs»).

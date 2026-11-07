@@ -76,6 +76,10 @@ const ICONS = {
   papierkorb: ["M4 7h16", "M9 7V4h6v3", "M6 7l1 13h10l1-13"],
   haken: ["m5 12.5 4.5 4.5L19 7.5"],
   uhr: [["circle", { cx: 12, cy: 12, r: 9 }], "M12 7v5l3 2"],
+  kalender: [
+    ["rect", { x: 3.5, y: 5, width: 17, height: 15, rx: 2 }],
+    "M3.5 10h17M8 3v4M16 3v4",
+  ],
   stern: [
     "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z",
   ],

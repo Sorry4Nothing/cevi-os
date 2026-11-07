@@ -207,6 +207,21 @@ paths:
             image/svg+xml:
               schema:
                 type: string
+  /admin/kalender.js:
+    get:
+      operationId: getAdminKalenderSkript
+      summary: Skript der Verwaltung – Bereich Kalender
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kinder.js:
     get:
       operationId: getAdminKinderSkript
@@ -5015,16 +5030,13 @@ components:
         umgebung:
           type: object
           additionalProperties: false
-          required: [https, produktion, kalenderSchluessel]
+          required: [https, produktion]
           properties:
             https:
               type: boolean
               description: "`BETTER_AUTH_URL` beginnt mit https."
             produktion:
               type: boolean
-            kalenderSchluessel:
-              type: boolean
-              description: Eine Schlüsseldatei für Google ist konfiguriert (nur ob, nicht welche).
     AdminSystemPunkt:
       type: object
       additionalProperties: false

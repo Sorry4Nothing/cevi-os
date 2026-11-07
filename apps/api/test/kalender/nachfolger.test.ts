@@ -1,9 +1,5 @@
 import { expect, test } from "vitest";
-import {
-  findeNachfolger,
-  programmTag,
-  serienstamm,
-} from "../../src/kalender/nachfolger.js";
+import { findeNachfolger, programmTag } from "../../src/kalender/nachfolger.js";
 
 // Sommerzeit: 14:00 Schweizer Zeit = 12:00Z
 const samstag = (tag: string, stunde = "12") =>
@@ -36,24 +32,17 @@ const neu = (
 
 const keine = new Set<string>();
 
-test("gleicher Serienstamm am gleichen Tag: Übernahme", () => {
+test("gleicher Serie am gleichen Tag: Übernahme", () => {
   expect(
     findeNachfolger(
       [fehlt("p1", "09", "Gruppenstunde", "a1")],
-      [neu("e1", "09", "Gruppenstunde um halb zwei", "a1_R20271009T113000")],
+      [neu("e1", "09", "Gruppenstunde um halb zwei", "a1")],
       keine,
     ),
   ).toEqual({
     uebernahmen: [{ programmId: "p1", googleEventId: "e1" }],
     pruefen: [],
   });
-});
-
-test("serienstamm kürzt ab dem ersten «_R», auch wenn es zweimal vorkommt", () => {
-  expect(serienstamm("a1_R20271009T113000")).toBe("a1");
-  expect(serienstamm("a1_R20271009T113000_R20271016T113000")).toBe("a1");
-  expect(serienstamm("a1")).toBe("a1");
-  expect(serienstamm(null)).toBeNull();
 });
 
 test("gleicher Titel am gleichen Tag ohne Serie: Übernahme", () => {
@@ -66,11 +55,11 @@ test("gleicher Titel am gleichen Tag ohne Serie: Übernahme", () => {
   ).toEqual([{ programmId: "p1", googleEventId: "e1" }]);
 });
 
-test("gleicher Serienstamm an einem anderen Tag: Prüfen", () => {
+test("gleicher Serie an einem anderen Tag: Prüfen", () => {
   expect(
     findeNachfolger(
       [fehlt("p1", "13", "Werkstatt", "b1")],
-      [neu("e1", "14", "Werkstatt", "b1_R20271014T160000")],
+      [neu("e1", "14", "Werkstatt", "b1")],
       keine,
     ),
   ).toEqual({ uebernahmen: [], pruefen: ["p1"] });
@@ -96,13 +85,13 @@ test("zwei passende Kandidaten: Prüfen", () => {
   ).toEqual({ uebernahmen: [], pruefen: ["p1"] });
 });
 
-test("ein Treffer über den Serienstamm schlägt einen Treffer über den Titel", () => {
+test("ein Treffer über den Serie schlägt einen Treffer über den Titel", () => {
   expect(
     findeNachfolger(
       [fehlt("p1", "09", "Gruppenstunde", "a1")],
       [
         neu("titel", "09", "Gruppenstunde"),
-        neu("stamm", "09", "Anders benannt", "a1_R1"),
+        neu("stamm", "09", "Anders benannt", "a1"),
       ],
       keine,
     ).uebernahmen,
@@ -121,11 +110,11 @@ test("zwei fehlende Programme wählen denselben Kandidaten: beide Prüfen, auch 
   expect(
     findeNachfolger(
       [fehlt("p1", "09", "Waldtag"), fehlt("p2", "09", "Waldtag", "a1")],
-      [neu("e1", "09", "Waldtag", "a1_R1"), neu("e2", "09", "Waldtag")],
+      [neu("e1", "09", "Waldtag", "a1"), neu("e2", "09", "Waldtag")],
       keine,
     ),
   ).toEqual({
-    // p2 trifft über den Stamm genau e1, aber p1 trifft über den Titel e1 und e2: e1 ist nicht eindeutig
+    // p2 trifft über die Serie genau e1, aber p1 trifft über den Titel e1 und e2: e1 ist nicht eindeutig
     uebernahmen: [],
     pruefen: ["p1", "p2"],
   });

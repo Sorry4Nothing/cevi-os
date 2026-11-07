@@ -105,7 +105,6 @@ describe("GET /api/v1/admin/system", () => {
   test("enthält keine Umgebungswerte, Hosts, Adressen oder Schlüssel", async () => {
     vi.stubEnv("DATABASE_URL", "postgres://geheim:geheim@db.example.org/x");
     vi.stubEnv("BETTER_AUTH_SECRET", "geheimes-geheimnis-geheimes-geheimnis");
-    vi.stubEnv("GOOGLE_APPLICATION_CREDENTIALS", "/pfad/zum/schluessel.json");
     vi.stubEnv("COMMIT_SHA", "kein Hash; <script>");
     try {
       const antwort = await hole(admin, "/api/v1/admin/system");
@@ -113,7 +112,6 @@ describe("GET /api/v1/admin/system", () => {
       for (const verboten of [
         "geheim",
         "db.example.org",
-        "schluessel.json",
         "postgres://",
         "kein Hash",
         "localhost",
@@ -123,8 +121,6 @@ describe("GET /api/v1/admin/system", () => {
         expect(text).not.toContain(verboten);
       }
       const daten = JSON.parse(text);
-      // Nur ob, nicht welche
-      expect(daten.umgebung.kalenderSchluessel).toBe(true);
       expect(daten.prozess.commit).toBeNull();
     } finally {
       vi.unstubAllEnvs();

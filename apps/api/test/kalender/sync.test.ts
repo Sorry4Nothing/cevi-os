@@ -1,12 +1,9 @@
-import { generateKeyPairSync, randomUUID } from "node:crypto";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import postgres from "postgres";
 import {
   afterAll,
   afterEach,
-  beforeAll,
   beforeEach,
   expect,
   test,
@@ -17,9 +14,8 @@ import { synchronisiere } from "../../src/kalender/sync.js";
 import { API_URL } from "../hilfen/datenbank.js";
 
 const JETZT = new Date();
-const TOKEN = "zugangstoken-geheim-1";
 const BESCHREIBUNG =
-  "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: Formular (https://example.org/anmeldung)";
+  "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: https://example.org/anmeldung";
 
 // Erwartete Programme nach dem ersten Lauf, sortiert nach Titel und Beginn (Zeitpunkte, wie Postgres sie als Text liefert: UTC)
 const ERWARTET_LAUF_1 = [
@@ -117,43 +113,25 @@ const ERWARTET_LAUF_1 = [
 const sql = postgres(API_URL, { connection: { TimeZone: "UTC" } });
 afterAll(() => sql.end());
 
-const lies = async (datei: string) =>
-  JSON.parse(
-    await readFile(
-      new URL(`./aufzeichnungen/${datei}`, import.meta.url),
-      "utf8",
-    ),
-  ) as unknown[];
-const lauf1 = await lies("erster-lauf.json");
-const lauf2 = await lies("zweiter-lauf.json");
-const vorher = await lies("serie-vorher.json");
-const geteilt = await lies("serie-geteilt.json");
-
-let schluesselDatei: string;
-beforeAll(async () => {
-  const paar = generateKeyPairSync("rsa", {
-    modulusLength: 2048,
-    publicKeyEncoding: { type: "spki", format: "pem" },
-    privateKeyEncoding: { type: "pkcs8", format: "pem" },
-  });
-  schluesselDatei = join(await mkdtemp(join(tmpdir(), "kalender-")), "s.json");
-  await writeFile(
-    schluesselDatei,
-    JSON.stringify({
-      client_email: "sync@example.org",
-      private_key: paar.privateKey,
-    }),
+const lies = (datei: string) =>
+  readFile(new URL(`./aufzeichnungen/${datei}`, import.meta.url), "utf8");
+const kalender = (...termine: string[]) =>
+  ["BEGIN:VCALENDAR", "VERSION:2.0", ...termine, "END:VCALENDAR", ""].join(
+    "\r\n",
   );
-});
+const lauf1 = await lies("erster-lauf.ics");
+const lauf2 = await lies("zweiter-lauf.ics");
+const vorher = await lies("serie-vorher.ics");
+const geteilt = await lies("serie-geteilt.ics");
 
-// Eigene Abteilung samt Stufe pro Test; die Kalender-ID trägt nur sie, und afterEach räumt sie weg
+// Eigene Abteilung samt Stufe pro Test; die Kalenderadresse trägt nur sie, und afterEach räumt sie weg
 let abteilungId: string;
 let stufeId: string;
 let kalenderId: string;
 let ausgabe: MockInstance<typeof console.log>;
 
 beforeEach(async () => {
-  kalenderId = `${randomUUID()}@example.org`;
+  kalenderId = `https://kalender.example.org/${randomUUID()}/calendar.ics`;
   const [abteilung] = await sql`
     insert into abteilung (name, google_kalender_id)
     values ('Sync-Testabteilung', ${kalenderId}) returning id`;
@@ -171,24 +149,15 @@ afterEach(async () => {
   await sql`update abteilung set google_kalender_id = null where id = ${abteilungId}`;
 });
 
-// Bedient Token- und Kalenderanfragen; jede fremde URL wirft, und die Seiten kommen der Reihe nach aus der Warteschlange
-function stubGoogle(seiten: (unknown | Response)[]) {
-  const warteschlange = [...seiten];
+// Bedient nur die Adresse der Abteilung; jede fremde URL wirft, und die Texte kommen der Reihe nach aus der Warteschlange
+function stubKalender(texte: (string | Response)[]) {
+  const warteschlange = [...texte];
   const stub = vi.fn(async (eingabe: unknown) => {
-    const url = new URL(String(eingabe));
-    if (url.href === "https://oauth2.googleapis.com/token") {
-      return Response.json({ access_token: TOKEN });
-    }
-    if (
-      url.origin === "https://www.googleapis.com" &&
-      url.pathname ===
-        `/calendar/v3/calendars/${encodeURIComponent(kalenderId)}/events`
-    ) {
-      const seite = warteschlange.shift();
-      if (seite === undefined) throw new Error("keine Seite mehr im Test");
-      return seite instanceof Response ? seite : Response.json(seite);
-    }
-    throw new Error("unerwartete URL im Test");
+    if (String(eingabe) !== kalenderId)
+      throw new Error("unerwartete URL im Test");
+    const text = warteschlange.shift();
+    if (text === undefined) throw new Error("kein Kalender mehr im Test");
+    return text instanceof Response ? text : new Response(text);
   });
   vi.stubGlobal("fetch", stub);
   return stub;
@@ -206,11 +175,10 @@ const eigeneAbteilung = async () =>
   )[0];
 
 test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und ohne Stufe in der Datenbank (fail-closed), Private und Titellose nicht", async () => {
-  stubGoogle(lauf1);
+  stubKalender([lauf1]);
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      schluesselDatei,
       jetzt: JETZT,
     }),
   ).toBe("fertig");
@@ -250,11 +218,10 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
 });
 
 test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und die Zuordnung bleibt", async () => {
-  stubGoogle([...lauf1, ...lauf2]);
+  stubKalender([lauf1, lauf2]);
   const starte = () =>
     synchronisiere({
       datenbankUrl: API_URL,
-      schluesselDatei,
       jetzt: JETZT,
     });
   expect(await starte()).toBe("fertig");
@@ -319,34 +286,21 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
   expect(ausgabe).not.toHaveBeenCalled();
 });
 
-test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzige Anfrage an Google", async () => {
-  let gibToken!: (antwort: Response) => void;
-  const haengt = new Promise<Response>((loese) => (gibToken = loese));
-  const seiten = [...lauf1];
-  const stub = vi.fn(async (eingabe: unknown) => {
-    const url = new URL(String(eingabe));
-    if (url.href === "https://oauth2.googleapis.com/token") return haengt;
-    return Response.json(seiten.shift());
-  });
+test("zwei gleichzeitige Läufe: Der zweite meldet «gesperrt», ohne eine einzige Anfrage an den Kalender", async () => {
+  let gibKalender!: (antwort: Response) => void;
+  const haengt = new Promise<Response>((loese) => (gibKalender = loese));
+  const stub = vi.fn(async () => haengt);
   vi.stubGlobal("fetch", stub);
 
-  const laufA = synchronisiere({
-    datenbankUrl: API_URL,
-    schluesselDatei,
-    jetzt: JETZT,
-  });
-  // Lauf A hält die Sperre und hängt in der Token-Anfrage
+  const laufA = synchronisiere({ datenbankUrl: API_URL, jetzt: JETZT });
+  // Lauf A hält die Sperre und hängt in der Kalenderanfrage
   await vi.waitFor(() => expect(stub).toHaveBeenCalledTimes(1));
-  expect(
-    await synchronisiere({
-      datenbankUrl: API_URL,
-      schluesselDatei,
-      jetzt: JETZT,
-    }),
-  ).toBe("gesperrt");
+  expect(await synchronisiere({ datenbankUrl: API_URL, jetzt: JETZT })).toBe(
+    "gesperrt",
+  );
   expect(stub).toHaveBeenCalledTimes(1);
 
-  gibToken(Response.json({ access_token: TOKEN }));
+  gibKalender(new Response(lauf1));
   expect(await laufA).toBe("fertig");
   expect((await eigeneAbteilung()).sync_fehler).toBeNull();
   // «gesperrt» bleibt still
@@ -357,31 +311,29 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   const vorhin = new Date(JETZT.getTime() - 5 * 60 * 1000);
   await sql`update abteilung set sync_ok_am = ${vorhin} where id = ${abteilungId}`;
 
-  stubGoogle([new Response("kaputt", { status: 500 })]);
+  stubKalender([new Response("kaputt", { status: 500 })]);
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      schluesselDatei,
       jetzt: JETZT,
     }),
   ).toBe("fertig");
   let abteilung = await eigeneAbteilung();
-  expect(abteilung.sync_fehler).toBe("Google antwortet mit HTTP 500");
+  expect(abteilung.sync_fehler).toBe("Kalender antwortet mit HTTP 500");
   expect((abteilung.sync_ok_am as Date).getTime()).toBe(vorhin.getTime());
   expect(ausgabe).toHaveBeenCalledTimes(1);
   expect(JSON.parse(ausgabe.mock.calls[0][0] as string)).toEqual({
     zeit: expect.any(String),
     ereignis: "kalender",
     abteilungId,
-    fehler: "Google antwortet mit HTTP 500",
+    fehler: "Kalender antwortet mit HTTP 500",
   });
 
   // Die Sperre ist wieder frei: Der nächste Lauf arbeitet und räumt den Fehler weg
-  stubGoogle(lauf1);
+  stubKalender([lauf1]);
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      schluesselDatei,
       jetzt: JETZT,
     }),
   ).toBe("fertig");
@@ -392,26 +344,22 @@ test("HTTP 500: Die Abteilung trägt den festen Fehlertext, sync_ok_am bleibt st
   ).toBeLessThan(60_000);
 });
 
-test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel, Kalender-ID oder Token", async () => {
+test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel oder Kalenderadresse", async () => {
   const vorhin = new Date(JETZT.getTime() - 5 * 60 * 1000);
   await sql`update abteilung set sync_ok_am = ${vorhin} where id = ${abteilungId}`;
   // NUL lehnt Postgres mit 22021 ab; der geplante Titel darf nirgends auftauchen
-  stubGoogle([
-    {
-      items: [
-        {
-          id: "nul0000000000001",
-          summary: "Max Muster\u0000",
-          start: { dateTime: "2027-09-04T14:00:00+02:00" },
-          end: { dateTime: "2027-09-04T16:00:00+02:00" },
-        },
-      ],
-    },
+  stubKalender([
+    kalender(
+      termin("nul0000000000001", {
+        summary: "Max Muster\u0000",
+        von: "20270904T120000Z",
+        bis: "20270904T140000Z",
+      }),
+    ),
   ]);
   expect(
     await synchronisiere({
       datenbankUrl: API_URL,
-      schluesselDatei,
       jetzt: JETZT,
     }),
   ).toBe("fertig");
@@ -421,7 +369,11 @@ test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel,
   expect((abteilung.sync_ok_am as Date).getTime()).toBe(vorhin.getTime());
   expect(ausgabe).toHaveBeenCalledTimes(1);
   const zeile = ausgabe.mock.calls[0][0] as string;
-  for (const verboten of ["max muster", kalenderId, TOKEN.toLowerCase()]) {
+  for (const verboten of [
+    "max muster",
+    kalenderId,
+    new URL(kalenderId).pathname,
+  ]) {
     expect(zeile.toLowerCase()).not.toContain(verboten);
   }
   expect(JSON.parse(zeile)).toEqual({
@@ -433,49 +385,29 @@ test("ein Fehler aus der Datenbank: «Unerwarteter Fehler» mit Code, nie Titel,
   });
 });
 
-test("ohne Schlüsseldatei trägt jede Abteilung mit Kalender den Schlüsselfehler, und kein fetch läuft", async () => {
+test("eine Adresse ohne https trägt den Adressfehler, und kein fetch läuft", async () => {
   const stub = vi.fn(async () => {
     throw new Error("unerwartete Anfrage im Test");
   });
   vi.stubGlobal("fetch", stub);
-  expect(
-    await synchronisiere({
-      datenbankUrl: API_URL,
-      schluesselDatei: undefined,
-      jetzt: JETZT,
-    }),
-  ).toBe("fertig");
-  const abteilung = await eigeneAbteilung();
-  expect(abteilung.sync_fehler).toBe(
-    "Schlüssel für Google fehlt oder ist ungültig",
+  await sql`update abteilung set google_kalender_id = 'http://kalender.example.org/geheim.ics' where id = ${abteilungId}`;
+  expect(await synchronisiere({ datenbankUrl: API_URL, jetzt: JETZT })).toBe(
+    "fertig",
   );
+  const abteilung = await eigeneAbteilung();
+  expect(abteilung.sync_fehler).toBe("Kalenderadresse ungültig");
   expect(abteilung.sync_ok_am).toBeNull();
   expect(stub).not.toHaveBeenCalled();
   expect(ausgabe).toHaveBeenCalledTimes(1);
-});
-
-test("mit zwei Seiten kommen die Termine beider Seiten an", async () => {
-  stubGoogle(await lies("zwei-seiten.json"));
-  expect(
-    await synchronisiere({
-      datenbankUrl: API_URL,
-      schluesselDatei,
-      jetzt: JETZT,
-    }),
-  ).toBe("fertig");
-  const zeilen = await programme();
-  expect(zeilen.map((z) => z.titel)).toEqual([
-    "Termin der ersten Seite",
-    "Termin der zweiten Seite",
-  ]);
+  expect(ausgabe.mock.calls[0][0]).not.toContain("geheim");
 });
 
 // Serien «ab diesem Termin»: Ein fester Zeitpunkt vor dem ersten Termin der Aufzeichnungen, damit die Tests nicht ablaufen
 const JETZT_SERIE = new Date("2027-09-30T10:00:00Z");
 const A = "gruppenstunde002";
-const A2 = `${A}_R20271009T113000`;
+const A2 = "gruppenstunde003";
 const B = "atelier0000000b1";
-const B2 = `${B}_R20271014T160000`;
+const B2 = "atelier0000000b2";
 
 // «vorher» ist der Beginn nach dem ersten Lauf (null: neuer Termin); der Rest gilt nach dem Lauf mit «serie-geteilt.json».
 // A wird übernommen (andere Zeit, gleiche Zeile), B hat keinen Nachfolger am gleichen Tag und geht zu «Prüfen»
@@ -484,56 +416,56 @@ const ERWARTET_GETEILT = [
     titel: "Gruppenstunde",
     vorher: "2027-10-02 12:00:00+00",
     beginn: "2027-10-02 12:00:00+00",
-    event: `${A}_20271002T120000Z`,
+    event: `${A}_20271002T140000`,
     status: "aktiv",
   },
   {
     titel: "Gruppenstunde",
     vorher: "2027-10-09 12:00:00+00",
     beginn: "2027-10-09 11:30:00+00",
-    event: `${A2}_20271009T113000Z`,
+    event: `${A2}_20271009T133000`,
     status: "aktiv",
   },
   {
     titel: "Gruppenstunde",
     vorher: "2027-10-16 12:00:00+00",
     beginn: "2027-10-16 11:30:00+00",
-    event: `${A2}_20271016T113000Z`,
+    event: `${A2}_20271016T133000`,
     status: "aktiv",
   },
   {
     titel: "Werkstatt",
     vorher: "2027-10-06 16:00:00+00",
     beginn: "2027-10-06 16:00:00+00",
-    event: `${B}_20271006T160000Z`,
+    event: `${B}_20271006T180000`,
     status: "aktiv",
   },
   {
     titel: "Werkstatt",
     vorher: "2027-10-13 16:00:00+00",
     beginn: "2027-10-13 16:00:00+00",
-    event: `${B}_20271013T160000Z`,
+    event: `${B}_20271013T180000`,
     status: "pruefen",
   },
   {
     titel: "Werkstatt",
     vorher: "2027-10-20 16:00:00+00",
     beginn: "2027-10-20 16:00:00+00",
-    event: `${B}_20271020T160000Z`,
+    event: `${B}_20271020T180000`,
     status: "pruefen",
   },
   {
     titel: "Werkstatt",
     vorher: null,
     beginn: "2027-10-14 16:00:00+00",
-    event: `${B2}_20271014T160000Z`,
+    event: `${B2}_20271014T180000`,
     status: "aktiv",
   },
   {
     titel: "Werkstatt",
     vorher: null,
     beginn: "2027-10-21 16:00:00+00",
-    event: `${B2}_20271021T160000Z`,
+    event: `${B2}_20271021T180000`,
     status: "aktiv",
   },
 ];
@@ -546,7 +478,7 @@ const MIT_ZUORDNUNG = [
 ];
 
 const starteSerie = (jetzt = JETZT_SERIE) =>
-  synchronisiere({ datenbankUrl: API_URL, schluesselDatei, jetzt });
+  synchronisiere({ datenbankUrl: API_URL, jetzt });
 const schluessel = (z: Record<string, unknown>) => `${z.titel}|${z.beginn}`;
 const finde = async (titel: string, beginn: string) => {
   const zeile = (await programme()).find(
@@ -580,7 +512,7 @@ async function ersterSerienLauf() {
 }
 
 test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen intern dazu", async () => {
-  stubGoogle([...vorher, ...geteilt]);
+  stubKalender([vorher, geteilt]);
   const { ids, personId } = await ersterSerienLauf();
   expect(ids.size).toBe(6);
   expect(await starteSerie()).toBe("fertig");
@@ -615,7 +547,7 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohn
 });
 
 test("ein zweiter Lauf mit derselben geteilten Serie ändert nichts", async () => {
-  stubGoogle([...vorher, ...geteilt, ...geteilt]);
+  stubKalender([vorher, geteilt, geteilt]);
   await ersterSerienLauf();
   expect(await starteSerie()).toBe("fertig");
   const davor = await programme();
@@ -624,18 +556,18 @@ test("ein zweiter Lauf mit derselben geteilten Serie ändert nichts", async () =
 });
 
 test("begonnene Programme bleiben unberührt: Der 09.10. von A behält Zeit und Event-ID, der 16.10. wird übernommen", async () => {
-  stubGoogle([...vorher, ...geteilt]);
+  stubKalender([vorher, geteilt]);
   const { ids } = await ersterSerienLauf();
   expect(await starteSerie(new Date("2027-10-09T13:00:00Z"))).toBe("fertig");
 
   expect(await finde("Gruppenstunde", "2027-10-09 12:00:00+00")).toMatchObject({
     id: ids.get("Gruppenstunde|2027-10-09 12:00:00+00"),
-    google_event_id: `${A}_20271009T120000Z`,
+    google_event_id: `${A}_20271009T140000`,
     status: "aktiv",
   });
   expect(await finde("Gruppenstunde", "2027-10-16 11:30:00+00")).toMatchObject({
     id: ids.get("Gruppenstunde|2027-10-16 12:00:00+00"),
-    google_event_id: `${A2}_20271016T113000Z`,
+    google_event_id: `${A2}_20271016T133000`,
   });
   // Der neue Termin vom 09.10. ist nur ein neues, internes Programm
   expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
@@ -644,7 +576,7 @@ test("begonnene Programme bleiben unberührt: Der 09.10. von A behält Zeit und 
 });
 
 test("ein abgesagtes Programm, das im Abruf fehlt, bleibt abgesagt", async () => {
-  stubGoogle([...vorher, ...geteilt]);
+  stubKalender([vorher, geteilt]);
   const { ids } = await ersterSerienLauf();
   await sql`update programm set status = 'abgesagt' where id = ${ids.get("Werkstatt|2027-10-13 16:00:00+00")!}`;
   expect(await starteSerie()).toBe("fertig");
@@ -657,13 +589,12 @@ test("ein abgesagtes Programm, das im Abruf fehlt, bleibt abgesagt", async () =>
 });
 
 test("ein Programm in «Prüfen» wird übernommen, sobald sein Nachfolger im Abruf auftaucht", async () => {
-  const ohneA2 = structuredClone(geteilt) as {
-    items: { recurringEventId?: string }[];
-  }[];
-  ohneA2[0].items = ohneA2[0].items.filter(
-    (e) => !e.recurringEventId?.startsWith(A2),
+  const ohneA2 = geteilt.replace(
+    new RegExp(`BEGIN:VEVENT\\r?\\nUID:${A2}[\\s\\S]*?END:VEVENT\\r?\\n`),
+    "",
   );
-  stubGoogle([...vorher, ...ohneA2, ...geteilt]);
+  expect(ohneA2).not.toContain(A2);
+  stubKalender([vorher, ohneA2, geteilt]);
   const { ids } = await ersterSerienLauf();
   expect(await starteSerie()).toBe("fertig");
   expect(await finde("Gruppenstunde", "2027-10-09 12:00:00+00")).toMatchObject({
@@ -674,28 +605,38 @@ test("ein Programm in «Prüfen» wird übernommen, sobald sein Nachfolger im Ab
   expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
     id: ids.get("Gruppenstunde|2027-10-09 12:00:00+00"),
     status: "aktiv",
-    google_event_id: `${A2}_20271009T113000Z`,
+    google_event_id: `${A2}_20271009T133000`,
   });
 });
 
 test("ein bekannter Termin, der privat wird, geht zu «Prüfen»", async () => {
-  const privat = structuredClone(vorher) as {
-    items: { id: string; visibility?: string }[];
-  }[];
-  privat[0].items.find((e) => e.id === `${B}_20271013T160000Z`)!.visibility =
-    "private";
-  stubGoogle([...vorher, ...privat]);
+  // Die Instanz vom 13.10. wird von einer Ausnahme überschrieben, die privat ist
+  const privat = vorher.replace(
+    "END:VCALENDAR",
+    [
+      "BEGIN:VEVENT",
+      `UID:${B}`,
+      "RECURRENCE-ID;TZID=W. Europe Standard Time:20271013T180000",
+      "DTSTART;TZID=W. Europe Standard Time:20271013T180000",
+      "DTEND;TZID=W. Europe Standard Time:20271013T193000",
+      "SUMMARY:Werkstatt",
+      "CLASS:PRIVATE",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n"),
+  );
+  stubKalender([vorher, privat]);
   await ersterSerienLauf();
   expect(await starteSerie()).toBe("fertig");
   for (const z of await programme()) {
     expect(z.status).toBe(
-      z.google_event_id === `${B}_20271013T160000Z` ? "pruefen" : "aktiv",
+      z.google_event_id === `${B}_20271013T180000` ? "pruefen" : "aktiv",
     );
   }
 });
 
 test("ein leerer Abruf schickt jedes kommende Programm zu «Prüfen»", async () => {
-  stubGoogle([...vorher, {}]);
+  stubKalender([vorher, kalender()]);
   await ersterSerienLauf();
   expect(await starteSerie()).toBe("fertig");
   const zeilen = await programme();
@@ -704,35 +645,23 @@ test("ein leerer Abruf schickt jedes kommende Programm zu «Prüfen»", async ()
 });
 
 test("ein gescheiterter Lauf (HTTP 500) ändert keinen Status", async () => {
-  stubGoogle([...vorher, new Response("kaputt", { status: 500 })]);
+  stubKalender([vorher, new Response("kaputt", { status: 500 })]);
   await ersterSerienLauf();
   const davor = await programme();
   expect(await starteSerie()).toBe("fertig");
   expect(await programme()).toEqual(davor);
   expect((await eigeneAbteilung()).sync_fehler).toBe(
-    "Google antwortet mit HTTP 500",
+    "Kalender antwortet mit HTTP 500",
   );
 });
 
-const TERMIN = {
-  start: { dateTime: "2027-09-25T14:00:00+02:00" },
-  end: { dateTime: "2027-09-25T16:00:00+02:00" },
-};
-
-// Google als Attrappe; jede fremde URL wirft. Die Seite des Kalenders gilt für jeden Lauf
-function stubNetz(seite: unknown) {
+// Der Kalender als Attrappe; jede fremde URL wirft. Der Text gilt für jeden Lauf
+function stubNetz(text: string) {
   vi.stubGlobal("fetch", async (eingabe: unknown) => {
-    const url = new URL(String(eingabe));
-    if (url.href === "https://oauth2.googleapis.com/token") {
-      return Response.json({ access_token: "zugangstoken" });
+    if (String(eingabe) !== kalenderId) {
+      throw new Error(`unerwartete URL im Test: ${String(eingabe)}`);
     }
-    if (
-      url.pathname ===
-      `/calendar/v3/calendars/${encodeURIComponent(kalenderId)}/events`
-    ) {
-      return Response.json(seite);
-    }
-    throw new Error(`unerwartete URL im Test: ${url.href}`);
+    return new Response(text);
   });
 }
 
@@ -765,18 +694,38 @@ async function programm(
   return zeile.id as string;
 }
 
-const termin = (id: string, extra: Record<string, unknown> = {}) => ({
-  id,
-  summary: "Waldtag",
-  location: "Waldhütte",
-  ...TERMIN,
-  ...extra,
-});
+// Ein Termin am Sa 25.9.2027, 14 bis 16 Uhr Sommerzeit; «von» und «bis» sind UTC-Zeitpunkte oder, mit «ganztaegig», Tage
+const termin = (
+  id: string,
+  extra: {
+    summary?: string;
+    location?: string;
+    description?: string;
+    von?: string;
+    bis?: string;
+    ganztaegig?: boolean;
+    status?: string;
+  } = {},
+) => {
+  const { summary = "Waldtag", location = "Waldhütte", ganztaegig } = extra;
+  const { von = "20270925T120000Z", bis = "20270925T140000Z" } = extra;
+  const art = ganztaegig ? ";VALUE=DATE" : "";
+  return [
+    "BEGIN:VEVENT",
+    `UID:${id}`,
+    `DTSTART${art}:${von}`,
+    `DTEND${art}:${bis}`,
+    `SUMMARY:${summary}`,
+    `LOCATION:${location}`,
+    ...(extra.description ? [`DESCRIPTION:${extra.description}`] : []),
+    ...(extra.status ? [`STATUS:${extra.status}`] : []),
+    "END:VEVENT",
+  ].join("\r\n");
+};
 
 const lauf = () =>
   synchronisiere({
     datenbankUrl: API_URL,
-    schluesselDatei,
     jetzt: JETZT,
   });
 
@@ -792,7 +741,7 @@ async function stufenFuerZuordnung() {
 }
 
 const mitTitel = (titel: string, id = "auto000000000001") =>
-  stubNetz({ items: [termin(id, { summary: titel })] });
+  stubNetz(kalender(termin(id, { summary: titel })));
 
 const zugeordnet = async (id = "auto000000000001") => {
   const [p] = await sql`

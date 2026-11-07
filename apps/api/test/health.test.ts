@@ -1,5 +1,5 @@
 import { testClient } from "hono/testing";
-import postgres, { type ReservedSql } from "postgres";
+import postgres, { type ReservedSql, type Sql } from "postgres";
 import {
   afterAll,
   afterEach,
@@ -65,7 +65,8 @@ function health(verbindung: ReservedSql) {
   return testClient(
     erstelleApp({
       appMinVersion: "1.2.0",
-      sql: verbindung,
+      // postgres 4: ReservedSql erbt nicht mehr von Sql; die App nutzt nur Abfragen
+      sql: verbindung as unknown as Sql,
       db,
       auth,
       seiten: ladeSeiten(),
