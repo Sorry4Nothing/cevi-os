@@ -518,7 +518,7 @@ function kalenderKachel(k) {
       titel: "Kalender-Sync",
       wert: "–",
       zustand: "Nicht eingerichtet",
-      hinweis: "Kein Google-Kalender verbunden.",
+      hinweis: "Keine Kalenderadresse hinterlegt.",
     });
   }
   const wert = k.letzterErfolgAm ? vor(k.letzterErfolgAm) : "noch nie";
@@ -650,7 +650,6 @@ function systemPanels(s) {
       werte([
         ["HTTPS", ja(s.umgebung.https)],
         ["Produktion", ja(s.umgebung.produktion)],
-        ["Google-Schlüssel konfiguriert", ja(s.umgebung.kalenderSchluessel)],
       ]),
     ),
   ];

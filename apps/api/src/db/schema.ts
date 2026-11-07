@@ -29,7 +29,7 @@ const zeitpunkt = (name: string) => timestamp(name, { withTimezone: true });
 export const abteilung = pgTable("abteilung", {
   id: id(),
   name: text("name").notNull(),
-  // Steht nur in der Datenbank, nie im Repo
+  // Die geheime iCal-Adresse (https) des Outlook-Kalenders; der Name stammt aus der Zeit vor Outlook. Steht nur in der Datenbank, nie im Repo
   googleKalenderId: text("google_kalender_id"),
   syncOkAm: zeitpunkt("sync_ok_am"),
   syncFehler: text("sync_fehler"),
@@ -266,10 +266,10 @@ export const programm = pgTable(
     beginn: zeitpunkt("beginn"),
     ende: zeitpunkt("ende"),
     tagVon: date("tag_von"),
-    // Googles Enddatum ist exklusiv; hier steht der letzte Programmtag
+    // iCal-Enddatum ist exklusiv; hier steht der letzte Programmtag
     tagBis: date("tag_bis"),
     googleOrt: text("google_ort"),
-    // Aus dem HTML der Google-Beschreibung; gilt als intern, Eltern sehen sie nie
+    // Aus der Beschreibung des Kalendertermins; gilt als intern, Eltern sehen sie nie
     googleBeschreibung: text("google_beschreibung"),
     status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
       .notNull()

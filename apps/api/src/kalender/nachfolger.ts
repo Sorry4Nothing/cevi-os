@@ -10,10 +10,6 @@ type Termin = Zeit & {
   titel: string;
 };
 
-// Googles IDs sind base32hex (0-9a-v), «_R» kann also nur vom Suffix einer abgespaltenen Serie stammen
-export const serienstamm = (serie: string | null) =>
-  serie?.replace(/_R.*$/, "") || null;
-
 const TAG = new Intl.DateTimeFormat("en-CA", {
   timeZone: "Europe/Zurich",
   year: "numeric",
@@ -36,9 +32,9 @@ export function findeNachfolger(
   const gruppen = fehlende.map((fehlt) => {
     const tag = programmTag(fehlt);
     const amTag = neue.filter((t) => programmTag(t) === tag);
-    const stamm = serienstamm(fehlt.googleSerie);
+    const stamm = fehlt.googleSerie;
     const ausSerie = amTag.filter(
-      (t) => stamm !== null && serienstamm(t.googleSerie) === stamm,
+      (t) => stamm !== null && t.googleSerie === stamm,
     );
     return ausSerie.length > 0
       ? ausSerie
