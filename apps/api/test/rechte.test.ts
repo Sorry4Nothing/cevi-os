@@ -228,10 +228,16 @@ describe("darfZuordnen", () => {
       true,
     ],
     [
-      "SL A fügt die eigene Stufe hinzu",
+      "SL A macht ein Programm für alle Stufen nicht zu einem der eigenen Stufe",
       slA,
       { vorher: [], nachher: ["a"], sichtbarkeitAendert: false },
-      true,
+      false,
+    ],
+    [
+      "SL A macht kein Programm zu einem für alle Stufen",
+      slA,
+      { vorher: ["a"], nachher: [], sichtbarkeitAendert: false },
+      false,
     ],
     [
       "SL A fügt die eigene Stufe einem Programm der Stufe B hinzu",
@@ -264,10 +270,10 @@ describe("darfZuordnen", () => {
       true,
     ],
     [
-      "SL A ordnet ein freies Programm zu und ändert die Sichtbarkeit",
+      "SL A blendet ein Programm für alle Stufen nicht aus",
       slA,
-      { vorher: [], nachher: ["a"], sichtbarkeitAendert: true },
-      true,
+      { vorher: [], nachher: [], sichtbarkeitAendert: true },
+      false,
     ],
     [
       "SL A ändert die Sichtbarkeit nicht, wenn auch Stufe B beteiligt ist",

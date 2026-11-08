@@ -17,12 +17,12 @@ const ZONE = "Europe/Zurich";
 const TAGE_VORAUS = 365;
 
 const SICHTBARKEIT = [
-  ["intern", "Intern"],
+  ["intern", "Für niemanden"],
   ["leitende", "Leitende"],
   ["eltern", "Eltern"],
 ];
 const SICHTBARKEIT_HILFE =
-  "Intern sehen nur Verwaltung und Stufenleitung, «Leitende» auch die Leitenden der zugeordneten Stufen, «Eltern» zusätzlich deren Eltern. Ohne Stufe bleibt ein Programm intern.";
+  "«Für niemanden» blendet das Programm in der App aus; hier in der Verwaltung bleibt es sichtbar. «Leitende» sehen auch die Leitenden, «Eltern» zusätzlich die Eltern. Ohne Stufe gilt das Programm für alle Stufen.";
 
 const tagFormat = new Intl.DateTimeFormat("de-CH", {
   weekday: "short",
@@ -76,7 +76,7 @@ export function zeige(bereich, ctx) {
       const [programme, stufen] = await Promise.all([
         anfrage(
           "GET",
-          `/api/v1/programme?von=${von}&bis=${plusTage(von, TAGE_VORAUS)}`,
+          `/api/v1/programme?von=${von}&bis=${plusTage(von, TAGE_VORAUS)}&alle=1`,
         ),
         anfrage("GET", "/api/v1/stufen"),
       ]);
@@ -118,7 +118,7 @@ function dialog({ programm, daten, ctx, neu }) {
         .map((s) => s.stufe.id);
       return anfrage("PUT", `/api/v1/programme/${programm.id}/zuordnung`, {
         stufen: ids,
-        sichtbarkeit: ids.length === 0 ? "intern" : sichtbarkeit.eingabe.value,
+        sichtbarkeit: sichtbarkeit.eingabe.value,
       });
     },
     danach: () => {
@@ -148,7 +148,7 @@ function zeile(programm, daten, ctx, neu) {
         "ul",
         { class: "chips" },
         programm.stufen.length === 0
-          ? chip("Keine Stufe", "warn")
+          ? chip("Alle Stufen", "stufe")
           : programm.stufen.map((s) => chip(s.name, "stufe")),
       ),
     ),
@@ -206,7 +206,7 @@ function zeichne(bereich, ctx, daten, neu) {
     beschriftung: "Zuordnung",
     eintraege: [
       { text: "Alle", n: daten.programme.length, wert: "alle" },
-      { text: "Ohne Stufe", n: ohneStufe.length, wert: "ohne" },
+      { text: "Alle Stufen", n: ohneStufe.length, wert: "ohne" },
     ],
     beiAenderung: aktualisiere,
   });

@@ -78,8 +78,8 @@ const ERWARTET_LAUF_1 = [
     titel: "Leitertreffen",
     google_serie: null,
     ganztaegig: false,
-    beginn: "2027-09-08 17:30:00+00",
-    ende: "2027-09-08 19:00:00+00",
+    beginn: "2027-09-18 17:30:00+00",
+    ende: "2027-09-18 19:00:00+00",
     tag_von: null,
     tag_bis: null,
     google_ort: null,
@@ -174,7 +174,7 @@ const eigeneAbteilung = async () =>
     await sql`select sync_ok_am, sync_fehler from abteilung where id = ${abteilungId}`
   )[0];
 
-test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und ohne Stufe in der Datenbank (fail-closed), Private und Titellose nicht", async () => {
+test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar, aktiv und ohne Stufe (= alle Stufen) in der Datenbank, Private und Titellose nicht", async () => {
   stubKalender([lauf1]);
   expect(
     await synchronisiere({
@@ -200,10 +200,10 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen intern, aktiv und oh
   for (const zeile of zeilen) {
     expect(zeile).toMatchObject({
       status: "aktiv",
-      sichtbarkeit: "intern",
+      sichtbarkeit: "eltern",
     });
   }
-  // Fail-closed, Bedrohung 8: keine Zuordnung zu einer Stufe, bis SL oder Admin sie setzen
+  // Ohne Treffer im Titel keine Zuordnung: Der Termin gilt für alle Stufen
   expect(
     await sql`select ps.* from programm_stufe ps join programm p on p.id = ps.programm_id where p.abteilung_id = ${abteilungId}`,
   ).toEqual([]);
@@ -271,11 +271,11 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
     status: "abgesagt",
   });
 
-  // Neuer Termin: wieder fail-closed
+  // Neuer Termin: für Eltern sichtbar, ohne Stufe
   expect(zeilen.find((z) => z.titel === "Elternabend")).toMatchObject({
-    beginn: "2027-09-17 17:30:00+00",
+    beginn: "2027-10-02 17:30:00+00",
     status: "aktiv",
-    sichtbarkeit: "intern",
+    sichtbarkeit: "eltern",
   });
 
   // Die Absage eines nie übernommenen (privaten) Termins trifft nichts
@@ -435,37 +435,37 @@ const ERWARTET_GETEILT = [
   },
   {
     titel: "Werkstatt",
-    vorher: "2027-10-06 16:00:00+00",
-    beginn: "2027-10-06 16:00:00+00",
-    event: `${B}_20271006T180000`,
+    vorher: "2027-10-02 16:00:00+00",
+    beginn: "2027-10-02 16:00:00+00",
+    event: `${B}_20271002T180000`,
     status: "aktiv",
   },
   {
     titel: "Werkstatt",
-    vorher: "2027-10-13 16:00:00+00",
-    beginn: "2027-10-13 16:00:00+00",
-    event: `${B}_20271013T180000`,
+    vorher: "2027-10-09 16:00:00+00",
+    beginn: "2027-10-09 16:00:00+00",
+    event: `${B}_20271009T180000`,
     status: "pruefen",
   },
   {
     titel: "Werkstatt",
-    vorher: "2027-10-20 16:00:00+00",
-    beginn: "2027-10-20 16:00:00+00",
-    event: `${B}_20271020T180000`,
+    vorher: "2027-10-16 16:00:00+00",
+    beginn: "2027-10-16 16:00:00+00",
+    event: `${B}_20271016T180000`,
     status: "pruefen",
   },
   {
     titel: "Werkstatt",
     vorher: null,
-    beginn: "2027-10-14 16:00:00+00",
-    event: `${B2}_20271014T180000`,
+    beginn: "2027-10-23 16:00:00+00",
+    event: `${B2}_20271023T180000`,
     status: "aktiv",
   },
   {
     titel: "Werkstatt",
     vorher: null,
-    beginn: "2027-10-21 16:00:00+00",
-    event: `${B2}_20271021T180000`,
+    beginn: "2027-10-30 16:00:00+00",
+    event: `${B2}_20271030T180000`,
     status: "aktiv",
   },
 ];
@@ -473,8 +473,8 @@ const ERWARTET_GETEILT = [
 const MIT_ZUORDNUNG = [
   "Gruppenstunde|2027-10-09 12:00:00+00",
   "Gruppenstunde|2027-10-16 12:00:00+00",
-  "Werkstatt|2027-10-13 16:00:00+00",
-  "Werkstatt|2027-10-20 16:00:00+00",
+  "Werkstatt|2027-10-09 16:00:00+00",
+  "Werkstatt|2027-10-16 16:00:00+00",
 ];
 
 const starteSerie = (jetzt = JETZT_SERIE) =>
@@ -511,7 +511,7 @@ async function ersterSerienLauf() {
   return { ids, personId: person.id as string };
 }
 
-test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen intern dazu", async () => {
+test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen für Eltern dazu", async () => {
   stubKalender([vorher, geteilt]);
   const { ids, personId } = await ersterSerienLauf();
   expect(ids.size).toBe(6);
@@ -526,9 +526,9 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohn
       status: erwartet.status,
     });
     if (erwartet.vorher === null) {
-      // Neuer Termin: wieder fail-closed
+      // Neuer Termin: für Eltern sichtbar, ohne Stufe
       expect([...ids.values()]).not.toContain(zeile.id);
-      expect(zeile).toMatchObject({ sichtbarkeit: "intern" });
+      expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
       expect((await anhang(zeile.id as string)).stufen).toEqual([]);
       continue;
     }
@@ -569,21 +569,21 @@ test("begonnene Programme bleiben unberührt: Der 09.10. von A behält Zeit und 
     id: ids.get("Gruppenstunde|2027-10-16 12:00:00+00"),
     google_event_id: `${A2}_20271016T133000`,
   });
-  // Der neue Termin vom 09.10. ist nur ein neues, internes Programm
+  // Der neue Termin vom 09.10. ist nur ein neues Programm ohne Stufe
   expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
-    sichtbarkeit: "intern",
+    sichtbarkeit: "eltern",
   });
 });
 
 test("ein abgesagtes Programm, das im Abruf fehlt, bleibt abgesagt", async () => {
   stubKalender([vorher, geteilt]);
   const { ids } = await ersterSerienLauf();
-  await sql`update programm set status = 'abgesagt' where id = ${ids.get("Werkstatt|2027-10-13 16:00:00+00")!}`;
+  await sql`update programm set status = 'abgesagt' where id = ${ids.get("Werkstatt|2027-10-09 16:00:00+00")!}`;
   expect(await starteSerie()).toBe("fertig");
-  expect(await finde("Werkstatt", "2027-10-13 16:00:00+00")).toMatchObject({
+  expect(await finde("Werkstatt", "2027-10-09 16:00:00+00")).toMatchObject({
     status: "abgesagt",
   });
-  expect(await finde("Werkstatt", "2027-10-20 16:00:00+00")).toMatchObject({
+  expect(await finde("Werkstatt", "2027-10-16 16:00:00+00")).toMatchObject({
     status: "pruefen",
   });
 });
@@ -616,8 +616,8 @@ test("ein bekannter Termin, der privat wird, geht zu «Prüfen»", async () => {
     [
       "BEGIN:VEVENT",
       `UID:${B}`,
-      "RECURRENCE-ID;TZID=W. Europe Standard Time:20271013T180000",
-      "DTSTART;TZID=W. Europe Standard Time:20271013T180000",
+      "RECURRENCE-ID;TZID=W. Europe Standard Time:20271009T180000",
+      "DTSTART;TZID=W. Europe Standard Time:20271009T180000",
       "DTEND;TZID=W. Europe Standard Time:20271013T193000",
       "SUMMARY:Werkstatt",
       "CLASS:PRIVATE",
@@ -630,7 +630,7 @@ test("ein bekannter Termin, der privat wird, geht zu «Prüfen»", async () => {
   expect(await starteSerie()).toBe("fertig");
   for (const z of await programme()) {
     expect(z.status).toBe(
-      z.google_event_id === `${B}_20271013T180000` ? "pruefen" : "aktiv",
+      z.google_event_id === `${B}_20271009T180000` ? "pruefen" : "aktiv",
     );
   }
 });
@@ -773,7 +773,7 @@ test("«Stufen» im Titel: alle Stufen der Abteilung, für Eltern sichtbar, Audi
       akteur_id: "system",
       aktion: "programm_zugeordnet",
       ziel_typ: "programm",
-      details: { stufen: z.stufen, sichtbarkeit: "eltern" },
+      details: { stufen: z.stufen },
     },
   ]);
 });
@@ -798,12 +798,12 @@ test("zwei Stufennamen im Titel: beide Stufen", async () => {
   });
 });
 
-test("kein Treffer: Der Termin bleibt intern und ohne Stufe, ohne Audit-Eintrag", async () => {
+test("kein Treffer: Der Termin bleibt für Eltern sichtbar und ohne Stufe (= alle Stufen), ohne Audit-Eintrag", async () => {
   await stufenFuerZuordnung();
   mitTitel("Waldtag mit Stufenleitung und Biberburg");
   await lauf();
   const z = await zugeordnet();
-  expect(z).toMatchObject({ sichtbarkeit: "intern", stufen: [] });
+  expect(z).toMatchObject({ sichtbarkeit: "eltern", stufen: [] });
   expect(await auditEintraege(z.id)).toEqual([]);
 });
 
@@ -834,14 +834,14 @@ test("eine Zuordnung von Hand, die alles wieder entfernt, bleibt unzugeordnet", 
   mitTitel("Waldtag");
   await lauf();
   const { id } = await zugeordnet();
-  // Eine Person hat zugeordnet und wieder entfernt: Stand «intern ohne Stufe», aber mit ihrem Eintrag
+  // Eine Person hat zugeordnet und wieder entfernt: Stand «ohne Stufe», aber mit ihrem Eintrag
   await sql`insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, details)
             values (${abteilungId}, ${randomUUID()}, 'programm_zugeordnet', 'programm', ${id}, '{}')`;
 
   mitTitel("Waldtag Biber");
   await lauf();
   expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "intern",
+    sichtbarkeit: "eltern",
     stufen: [],
   });
 });
@@ -866,7 +866,7 @@ test("Titeländerung: Die Automatik folgt dem neuen Titel, bis keine Stufe mehr 
   mitTitel("Waldtag");
   await lauf();
   expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "intern",
+    sichtbarkeit: "eltern",
     stufen: [],
   });
 
@@ -876,7 +876,7 @@ test("Titeländerung: Die Automatik folgt dem neuen Titel, bis keine Stufe mehr 
     "system",
     "system",
   ]);
-  expect(eintraege[2].details).toEqual({ stufen: [], sichtbarkeit: "intern" });
+  expect(eintraege[2].details).toEqual({ stufen: [] });
 });
 
 test("ein Zustand, den weder Standard noch Automatik gesetzt haben, bleibt auch ohne Audit-Eintrag", async () => {

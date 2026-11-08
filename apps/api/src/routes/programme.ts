@@ -1,4 +1,14 @@
-import { and, asc, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  eq,
+  exists,
+  inArray,
+  isNull,
+  ne,
+  or,
+  sql,
+} from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -11,6 +21,7 @@ import {
   programm,
   programmEckdaten,
   programmStufe,
+  programmStufeWirksam,
   profilbild,
   rolle,
   stufe,
@@ -39,7 +50,12 @@ import {
 type Antwort = "ja" | "nein" | "offen";
 
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
-const fensterSchema = z.strictObject({ von: tag, bis: tag });
+// «alle=1» holt auch ausgeblendete (intern) Programme, nur für Admins; für alle anderen gilt es nicht
+const fensterSchema = z.strictObject({
+  von: tag,
+  bis: tag,
+  alle: z.literal("1").optional(),
+});
 const pfadSchema = z.strictObject({ id: z.uuid() });
 const leitungSchema = z.strictObject({ status: z.enum(["ja", "nein"]) });
 const teilnahmePfad = z.strictObject({ id: z.uuid(), kindId: z.uuid() });
@@ -104,7 +120,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     if (programmIds.length === 0) return nachProgramm;
     const zeilen = await db
       .select({
-        programmId: programmStufe.programmId,
+        programmId: programmStufeWirksam.programmId,
         id: kind.id,
         vorname: kind.vorname,
         status: teilnahme.status,
@@ -115,17 +131,17 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
       )
       .innerJoin(
-        programmStufe,
+        programmStufeWirksam,
         and(
-          eq(programmStufe.stufeId, kind.stufeId),
-          inArray(programmStufe.programmId, programmIds),
+          eq(programmStufeWirksam.stufeId, kind.stufeId),
+          inArray(programmStufeWirksam.programmId, programmIds),
         ),
       )
       .leftJoin(
         teilnahme,
         and(
           eq(teilnahme.kindId, kind.id),
-          eq(teilnahme.programmId, programmStufe.programmId),
+          eq(teilnahme.programmId, programmStufeWirksam.programmId),
         ),
       )
       .where(
@@ -143,13 +159,17 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", eingabe("query", fensterSchema), async (c) => {
       const person = c.get("person");
-      const { von, bis } = c.req.valid("query");
+      const { von, bis, alle } = c.req.valid("query");
       const programme = await db
         .select(programmFelder(person))
         .from(programm)
         .where(
           and(
             programmSichtbar(person),
+            // «intern» heisst in der App für niemanden sichtbar; die Verwaltung holt sie mit alle=1 zum Einblenden
+            person.admin && alle
+              ? undefined
+              : ne(programm.sichtbarkeit, "intern"),
             // Inklusive Schweizer Kalendertage: Ein Lager zählt an jedem seiner Tage
             sql`coalesce(programm.tag_bis, (programm.ende at time zone 'Europe/Zurich')::date) >= ${von}`,
             sql`coalesce(programm.tag_von, (programm.beginn at time zone 'Europe/Zurich')::date) <= ${bis}`,
@@ -180,12 +200,14 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       if (!zeile) throw new HTTPException(404);
       // Nur wer sich anmelden dürfte, bekommt den Schlüssel; undefined fällt aus dem JSON, für alle anderen fehlt er
       let eigeneAnmeldung: "ja" | "nein" | "offen" | undefined;
-      if (
-        darfLeitungAnmelden(
-          person,
-          zeile.stufen.map((s) => s.id),
-        )
-      ) {
+      // Wirksame Stufen: Ohne Zuordnung gilt das Programm für alle (zeile.stufen nennt nur die eingetragenen)
+      const wirksameStufen = (
+        await db
+          .select({ stufeId: programmStufeWirksam.stufeId })
+          .from(programmStufeWirksam)
+          .where(eq(programmStufeWirksam.programmId, id))
+      ).map((r) => r.stufeId);
+      if (darfLeitungAnmelden(person, wirksameStufen)) {
         const [anmeldung] = await db
           .select({ status: leitungAnmeldung.status })
           .from(leitungAnmeldung)
@@ -206,11 +228,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           schlussZeit: programmEckdaten.schlussZeit,
           mitnehmen: programmEckdaten.mitnehmen,
         })
-        .from(programmStufe)
+        .from(programmStufeWirksam)
         .innerJoin(
           stufe,
           and(
-            eq(stufe.id, programmStufe.stufeId),
+            eq(stufe.id, programmStufeWirksam.stufeId),
             eq(stufe.abteilungId, person.abteilungId),
           ),
         )
@@ -224,7 +246,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             ),
           ),
         )
-        .where(eq(programmStufe.programmId, id))
+        .where(eq(programmStufeWirksam.programmId, id))
         .orderBy(stufe.name, stufe.id)
         .limit(1);
       return c.json({
@@ -248,15 +270,15 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       if (!zeile) throw new HTTPException(404);
       const stufen = await db
         .select({ id: stufe.id })
-        .from(programmStufe)
+        .from(programmStufeWirksam)
         .innerJoin(
           stufe,
           and(
-            eq(stufe.id, programmStufe.stufeId),
+            eq(stufe.id, programmStufeWirksam.stufeId),
             eq(stufe.abteilungId, person.abteilungId),
           ),
         )
-        .where(eq(programmStufe.programmId, id));
+        .where(eq(programmStufeWirksam.programmId, id));
       // Ganze Liste: Admins und die Leitung der Stufe (SL eingeschlossen); sonst nur die eigenen Kinder
       const leitungStufen = stufen
         .map((s) => s.id)
@@ -273,10 +295,10 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         })
         .from(kind)
         .innerJoin(
-          programmStufe,
+          programmStufeWirksam,
           and(
-            eq(programmStufe.stufeId, kind.stufeId),
-            eq(programmStufe.programmId, id),
+            eq(programmStufeWirksam.stufeId, kind.stufeId),
+            eq(programmStufeWirksam.programmId, id),
           ),
         )
         .leftJoin(
@@ -362,9 +384,9 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         .where(and(eq(programm.id, id), programmSichtbar(person)));
       if (!zeile) throw new HTTPException(404);
       const stufen = await db
-        .select({ stufeId: programmStufe.stufeId })
-        .from(programmStufe)
-        .where(eq(programmStufe.programmId, id));
+        .select({ stufeId: programmStufeWirksam.stufeId })
+        .from(programmStufeWirksam)
+        .where(eq(programmStufeWirksam.programmId, id));
       const sl =
         stufen.length === 0
           ? []
@@ -418,7 +440,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             begonnen: sql<boolean>`${programmBeginn} <= now()`,
             stufen: sql<
               string[]
-            >`coalesce((select array_agg(programm_stufe.stufe_id) from programm_stufe where programm_stufe.programm_id = programm.id), '{}')`,
+            >`coalesce((select array_agg(programm_stufe_wirksam.stufe_id) from programm_stufe_wirksam where programm_stufe_wirksam.programm_id = programm.id), '{}')`,
           })
           .from(programm)
           .where(and(eq(programm.id, id), programmSichtbar(person)));
@@ -481,11 +503,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           !!eigenes;
         const [zugeordnet] = await db
           .select({ eins: sql`1` })
-          .from(programmStufe)
+          .from(programmStufeWirksam)
           .where(
             and(
-              eq(programmStufe.programmId, id),
-              eq(programmStufe.stufeId, ziel.stufeId),
+              eq(programmStufeWirksam.programmId, id),
+              eq(programmStufeWirksam.stufeId, ziel.stufeId),
             ),
           );
         if (!zustaendig || !zugeordnet || ziel.inaktivSeit) {
@@ -574,10 +596,6 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 ),
               );
             if (eigene.length !== stufen.length) throw new HTTPException(400);
-          }
-          // Ohne Stufe sähe ohnehin niemand ausser Admins und SL das Programm: Es bleibt «intern»
-          if (stufen.length === 0 && sichtbarkeit !== "intern") {
-            throw new HTTPException(400);
           }
           const nachherMenge = new Set(stufen);
           const vorherMenge = new Set(vorher);

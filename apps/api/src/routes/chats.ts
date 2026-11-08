@@ -25,7 +25,7 @@ import {
   chatStatus,
   nachricht,
   programm,
-  programmStufe,
+  programmStufeWirksam,
   profilbild,
   rolle,
   stufe,
@@ -76,11 +76,11 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       exists(
         db
           .select({ eins: sql`1` })
-          .from(programmStufe)
+          .from(programmStufeWirksam)
           .where(
             and(
-              eq(programmStufe.programmId, programm.id),
-              eq(programmStufe.stufeId, stufeId),
+              eq(programmStufeWirksam.programmId, programm.id),
+              eq(programmStufeWirksam.stufeId, stufeId),
             ),
           ),
       ),

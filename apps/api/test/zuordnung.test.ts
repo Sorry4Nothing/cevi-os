@@ -121,8 +121,8 @@ async function stand(programmId: string) {
 }
 
 describe("PUT /api/v1/programme/:id/zuordnung", () => {
-  test("slA ordnet ein freies Programm der eigenen Stufe zu und öffnet es für Eltern", async () => {
-    const p = await frisch("intern", []);
+  test("slA öffnet ein Programm der eigenen Stufe für Eltern", async () => {
+    const p = await frisch("intern", [welt.stufeAId]);
     const res = await put(konten.slA, p.id, {
       stufen: [welt.stufeAId],
       sichtbarkeit: "eltern",
@@ -137,7 +137,7 @@ describe("PUT /api/v1/programme/:id/zuordnung", () => {
           zielTyp: "programm",
           akteurId: konten.slA.id,
           abteilungId: welt.testabteilungId,
-          details: { stufen: [welt.stufeAId], sichtbarkeit: "eltern" },
+          details: { sichtbarkeit: "eltern" },
         },
       ],
     });
@@ -258,23 +258,32 @@ describe("PUT /api/v1/programme/:id/zuordnung", () => {
     });
   });
 
-  test("ohne Stufe bleibt nur «intern»", async () => {
+  test("ohne Stufe gilt das Programm für alle Stufen; «intern» blendet es für alle aus", async () => {
     const p = await frisch("intern", []);
     const eltern = await put(konten.admin, p.id, {
       stufen: [],
       sichtbarkeit: "eltern",
     });
-    expect(eltern.status).toBe(400);
+    expect(eltern.status).toBe(204);
+    expect((await stand(p.id)).sichtbarkeit).toBe("eltern");
     const intern = await put(konten.admin, p.id, {
       stufen: [],
       sichtbarkeit: "intern",
     });
     expect(intern.status).toBe(204);
-    expect(await stand(p.id)).toEqual({
-      sichtbarkeit: "intern",
+    const nachher = await stand(p.id);
+    expect(nachher.sichtbarkeit).toBe("intern");
+    expect(nachher.stufen).toEqual([]);
+  });
+
+  test("slA ändert ein Programm für alle Stufen nicht: 403", async () => {
+    const p = await frisch("eltern", []);
+    const res = await put(konten.slA, p.id, {
       stufen: [],
-      log: [],
+      sichtbarkeit: "intern",
     });
+    expect(res.status).toBe(403);
+    expect((await stand(p.id)).sichtbarkeit).toBe("eltern");
   });
 
   test("Leitende und Eltern: 403 auch ohne Änderung", async () => {
