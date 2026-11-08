@@ -1,7 +1,7 @@
 import { and, eq, inArray, ne } from "drizzle-orm";
 import type { Context } from "hono";
 import type { Db } from "./db/client.js";
-import { programm, programmStufe, rolle, user } from "./db/schema.js";
+import { programm, programmStufeWirksam, rolle, user } from "./db/schema.js";
 import { programmTag } from "./kalender/nachfolger.js";
 import { log } from "./log.js";
 import { type Fcm, sendePush } from "./push.js";
@@ -54,9 +54,9 @@ export async function pushAnmeldung(
           inArray(
             rolle.stufeId,
             db
-              .select({ id: programmStufe.stufeId })
-              .from(programmStufe)
-              .where(eq(programmStufe.programmId, programmId)),
+              .select({ id: programmStufeWirksam.stufeId })
+              .from(programmStufeWirksam)
+              .where(eq(programmStufeWirksam.programmId, programmId)),
           ),
           aktivesKonto(abteilungId),
           eq(user.pushAnmeldungen, true),

@@ -12,7 +12,8 @@ type StufeRef = { id: string; name: string; kuerzel: string };
 // Annahmen der Regel (im PR zur Prüfung durch die Abteilung festgehalten):
 // - Das eigene Wort «Stufen» im Titel (Gross- und Kleinschreibung egal) meint alle Stufen der Abteilung.
 // - Sonst gilt jede Stufe, deren Name oder Kürzel als ganzes Wort im Titel steht; mehrere Treffer ergeben mehrere Stufen.
-// - Zugeordnet ist ein Termin für Eltern sichtbar; ohne Treffer bleibt er unzugeordnet und intern (fail-closed).
+// - Jeder Termin ist für Eltern sichtbar; ohne Treffer bleibt er ohne Stufe und gilt damit für alle Stufen.
+// - Ausgeblendet (intern) ist er nur, wenn eine Person ihn von Hand so gesetzt hat.
 // Ganzes Wort heisst: Vor und nach dem Namen steht kein Buchstabe und keine Ziffer.
 const wortRegex = (wort: string) =>
   new RegExp(
@@ -91,12 +92,12 @@ export async function ordneAutomatischZu(
     const vorher = zuordnungen
       .filter((z) => z.programmId === p.id)
       .map((z) => z.stufeId);
-    const istStandard = vorher.length === 0 && p.sichtbarkeit === "intern";
+    const istStandard = vorher.length === 0 && p.sichtbarkeit === "eltern";
     // Weder Standard noch von der Automatik gesetzt: Jemand hat es ausserhalb der API geändert, das gilt als von Hand
     if (!istStandard && !vomSystem.has(p.id)) continue;
 
     const nachher = stufenFuerTitel(p.titel, stufen);
-    const sichtbarkeit = nachher.length > 0 ? "eltern" : "intern";
+    const sichtbarkeit = "eltern";
     const stufenAendern = !gleich(vorher, nachher);
     const sichtbarkeitAendern = sichtbarkeit !== p.sichtbarkeit;
     if (!stufenAendern && !sichtbarkeitAendern) continue;

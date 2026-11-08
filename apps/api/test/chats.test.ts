@@ -431,10 +431,6 @@ describe("Bezug auf ein Programm", () => {
         sichtbarkeit: "eltern",
         stufen: [welt.stufeBId],
       }),
-      ohneStufe: await legeProgrammAn(db, {
-        abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
-      }),
       fremdeAbteilung: await legeProgrammAn(db, {
         abteilungId: welt.demoAbteilungId,
         sichtbarkeit: "eltern",
@@ -454,6 +450,19 @@ describe("Bezug auf ein Programm", () => {
       await lies(eltern, welt.gruppenchatAId)
     ).json()) as { nachrichten: Nachricht[] };
     expect(nachrichten).toEqual([]);
+  });
+
+  test("ein Programm ohne Stufe gilt für alle Stufen und ist als Bezug erlaubt", async () => {
+    const eltern = await person("elternA");
+    const p = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
+    });
+    const antwort = await sende(eltern, welt.gruppenchatAId, {
+      text: "Hallo",
+      programmId: p.id,
+    });
+    expect(antwort.status).toBe(201);
   });
 });
 

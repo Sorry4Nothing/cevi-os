@@ -1466,7 +1466,7 @@ paths:
 
         Wer aufrufen darf: jede angemeldete Person. Sichtbar ist ein Programm so:
         - Administratorinnen und Administratoren sowie Stufenleitungen (SL) sehen jedes Programm der Abteilung,
-          auch «intern» und ohne Stufenzuordnung.
+          auch ohne Stufenzuordnung; «intern» (für niemanden sichtbar) nur mit `alle=1` und nur für Administratorinnen und Administratoren.
         - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die einer ihrer Stufen zugeordnet sind.
         - Eltern sehen Programme mit Sichtbarkeit «eltern», die einer Stufe zugeordnet sind, in der ein aktives
           eigenes Kind ist.
@@ -1497,6 +1497,14 @@ paths:
             type: string
             format: date
             example: 2027-03-31
+        - name: alle
+          in: query
+          required: false
+          description: Mit `1` liefert die Liste auch ausgeblendete Programme (Sichtbarkeit «intern»). Wirkt nur für Administratorinnen und Administratoren.
+          schema:
+            type: string
+            enum:
+              - "1"
       responses:
         "200":
           description: Sichtbare Programme im Fenster, möglicherweise leer.
@@ -1631,11 +1639,11 @@ paths:
         - Leitende und Eltern nie, auch nicht bei einem Aufruf ohne Änderung (403).
 
         Regeln für den Body: `stufen` enthält nur Stufen der eigenen Abteilung (fremde oder unbekannte IDs sind
-        400, nicht 404; eine SL bekommt dafür 403, weil die Rechteprüfung zuerst läuft). Ohne Stufen ist nur die
-        Sichtbarkeit «intern» erlaubt, sonst 400.
+        400, nicht 404; eine SL bekommt dafür 403, weil die Rechteprüfung zuerst läuft). Ohne Stufen gilt das
+        Programm für alle Stufen. Eine SL darf Programme ohne Stufe nicht ändern (403).
 
         Reihenfolge der Prüfung: Eingabeform (400), Sichtbarkeit des Programms (404), Recht (403), Stufen der
-        Abteilung und Regel «ohne Stufe nur intern» (400).
+        Abteilung (400).
         Statuscodes: 204 gespeichert, kein Body; 400 ungültige Eingabe; 401 keine gültige Sitzung; 403 kein Recht
         zur Zuordnung oder Konto muss zuerst das Passwort ändern; 404 Programm unbekannt oder nicht sichtbar;
         426 App-Version zu alt; 429 zu viele Anfragen.
@@ -3951,7 +3959,7 @@ components:
             - intern
             - leitende
             - eltern
-          description: Wer das Programm ausser Admin und SL sieht; «intern» nur Admin und SL, «leitende» zusätzlich die Leitenden der zugeordneten Stufen, «eltern» zusätzlich deren Eltern.
+          description: Wer das Programm sieht. «intern» niemand in der App (Admins holen es mit `alle=1`), «leitende» Admin, SL und die Leitenden der zugeordneten Stufen, «eltern» zusätzlich deren Eltern. Ohne Stufe gilt das Programm für alle Stufen.
         ganztaegig:
           type: boolean
         beginn:
@@ -4083,7 +4091,7 @@ components:
           type: array
           maxItems: 50
           uniqueItems: true
-          description: Vollständiger neuer Stand der zugeordneten Stufen (nur Stufen der eigenen Abteilung, keine Doppelten). Leer ist nur mit Sichtbarkeit «intern» erlaubt.
+          description: Vollständiger neuer Stand der zugeordneten Stufen (nur Stufen der eigenen Abteilung, keine Doppelten). Leer heisst, das Programm gilt für alle Stufen.
           items:
             type: string
             format: uuid

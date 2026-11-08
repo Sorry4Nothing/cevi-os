@@ -13,7 +13,7 @@ import {
   chat,
   leitungAnmeldung,
   programm,
-  programmStufe,
+  programmStufeWirksam,
   profilbild,
   rolle,
   user,
@@ -95,11 +95,14 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   const [kontakt] = await db
     .select({ id: programm.id })
     .from(programm)
-    .innerJoin(programmStufe, eq(programmStufe.programmId, programm.id))
+    .innerJoin(
+      programmStufeWirksam,
+      eq(programmStufeWirksam.programmId, programm.id),
+    )
     .innerJoin(
       rolle,
       and(
-        eq(rolle.stufeId, programmStufe.stufeId),
+        eq(rolle.stufeId, programmStufeWirksam.stufeId),
         eq(rolle.userId, zielId),
         eq(rolle.typ, "stufenleitung"),
       ),

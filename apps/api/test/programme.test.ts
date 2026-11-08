@@ -111,6 +111,8 @@ const MIT_ALLEN = Object.fromEntries(
   NAMEN.filter((n) => n !== "demo").map((n) => [n, true]),
 ) as Partial<Record<Name, boolean>>;
 
+// Ohne Stufe («leitende», «eltern», «intern») gilt ein Programm für alle Stufen.
+// Die Liste lässt «intern» für alle weg (nur der Detailaufruf von Admins findet es); die Verwaltung holt sie mit alle=1.
 // true: mit Google-Beschreibung (Leitungssicht), false: ohne; fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
   Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
@@ -122,26 +124,32 @@ const SICHT: Record<
   slA: MIT_ALLEN,
   slB: MIT_ALLEN,
   leitendeA: {
+    leitende: true,
+    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
   },
   leitendeB: {
+    leitende: true,
+    eltern: true,
     "leitende-B": true,
     "leitende-AB": true,
     "eltern-B": true,
     "eltern-AB": true,
   },
   leitendeAElternB: {
+    leitende: true,
+    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
     "eltern-B": false,
   },
-  elternA: { "eltern-A": false, "eltern-AB": false },
-  elternB: { "eltern-B": false, "eltern-AB": false },
+  elternA: { eltern: false, "eltern-A": false, "eltern-AB": false },
+  elternB: { eltern: false, "eltern-B": false, "eltern-AB": false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };
@@ -177,7 +185,9 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
       programme: { id: string; googleBeschreibung: string | null }[];
     };
     expect(zeilen.map((z) => z.id)).toEqual(
-      NAMEN.filter((n) => n in sicht).map((n) => programme[n].id),
+      NAMEN.filter((n) => n in sicht && !n.startsWith("intern")).map(
+        (n) => programme[n].id,
+      ),
     );
     for (const zeile of zeilen) {
       const name = NAMEN.find((n) => programme[n].id === zeile.id) as Name;
@@ -344,6 +354,7 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     const lager = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       titel: "Lager",
+      sichtbarkeit: "eltern",
       tagVon: "2027-07-30",
       tagBis: "2027-08-02",
     });
@@ -356,11 +367,37 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     const nacht = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       titel: "Nachtübung",
+      sichtbarkeit: "eltern",
       beginn: new Date("2027-10-30T22:30:00Z"),
       ende: new Date("2027-10-30T23:30:00Z"),
     });
     expect(await liste("2027-10-31", "2027-10-31")).toContain(nacht.id);
     expect(await liste("2027-10-30", "2027-10-30")).not.toContain(nacht.id);
+  });
+
+  test("«intern» ist in der Liste für alle ausgeblendet; nur Admins holen es mit alle=1", async () => {
+    const intern = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      sichtbarkeit: "intern",
+      titel: "Versteckt",
+      beginn: new Date("2027-06-12T08:00:00Z"),
+    });
+    const ids = async (persona: Persona, zusatz = "") => {
+      const res = await app.request(
+        `/api/v1/programme?von=2027-06-01&bis=2027-06-30${zusatz}`,
+        { headers: konten[persona].headers },
+      );
+      expect(res.status).toBe(200);
+      const { programme: zeilen } = (await res.json()) as {
+        programme: { id: string }[];
+      };
+      return zeilen.map((z) => z.id);
+    };
+    expect(await ids("admin")).not.toContain(intern.id);
+    expect(await ids("admin", "&alle=1")).toContain(intern.id);
+    // alle=1 gilt nur für Admins
+    expect(await ids("slA", "&alle=1")).not.toContain(intern.id);
+    expect(await ids("elternA", "&alle=1")).not.toContain(intern.id);
   });
 
   test("von nach bis: leere Liste", async () => {
@@ -370,14 +407,17 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
   test("Reihenfolge nach Beginn; ganztägige ab Mitternacht Schweizer Zeit", async () => {
     const spaet = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
       beginn: new Date("2027-05-10T08:00:00Z"),
     });
     const ganztaegig = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
       tagVon: "2027-05-10",
     });
     const frueh = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
+      sichtbarkeit: "eltern",
       beginn: new Date("2027-05-09T07:00:00Z"),
     });
     expect(await liste("2027-05-01", "2027-05-31")).toEqual([

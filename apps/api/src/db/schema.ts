@@ -9,6 +9,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  pgView,
   primaryKey,
   text,
   timestamp,
@@ -274,12 +275,12 @@ export const programm = pgTable(
     status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
       .notNull()
       .default("aktiv"),
-    // Fail-closed: Neues bleibt intern, bis SL oder Admin zuordnen
+    // «intern» blendet das Programm in der App für alle aus; neue Programme sind für Eltern sichtbar
     sichtbarkeit: text("sichtbarkeit", {
       enum: ["intern", "leitende", "eltern"],
     })
       .notNull()
-      .default("intern"),
+      .default("eltern"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(
@@ -333,6 +334,13 @@ export const programmStufe = pgTable(
   },
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
+
+// Wirksame Stufen eines Programms: die zugeordneten, bei keiner Zuordnung alle Stufen der Abteilung (auch später angelegte).
+// Alle lesenden Abfragen nehmen diese Sicht; geschrieben wird nur programm_stufe. Die Sicht legt die Migration an
+export const programmStufeWirksam = pgView("programm_stufe_wirksam", {
+  programmId: uuid("programm_id").notNull(),
+  stufeId: uuid("stufe_id").notNull(),
+}).existing();
 
 // Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
 export const teilnahme = pgTable(
