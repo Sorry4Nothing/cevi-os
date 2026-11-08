@@ -21,7 +21,7 @@ import {
   kind,
   kindEltern,
   nachricht,
-  programmStufe,
+  programmStufeWirksam,
   rolle,
   stufe,
   user,
@@ -308,15 +308,15 @@ export function programmLeitungssicht(person: Person): SQL {
   const eigeneAbteilung = sql`programm.abteilung_id = ${person.abteilungId}`;
   if (adminOderSl(person)) return eigeneAbteilung;
   // inArray mit leerer Liste wird zu «false»: Ohne Rolle bleibt alles verborgen
-  return sql`(${eigeneAbteilung} and programm.sichtbarkeit in ('leitende', 'eltern') and exists (select 1 from programm_stufe where programm_stufe.programm_id = programm.id and ${inArray(
-    programmStufe.stufeId,
+  return sql`(${eigeneAbteilung} and programm.sichtbarkeit in ('leitende', 'eltern') and exists (select 1 from programm_stufe_wirksam where programm_stufe_wirksam.programm_id = programm.id and ${inArray(
+    programmStufeWirksam.stufeId,
     person.rollen.map((r) => r.stufeId),
   )}))`;
 }
 
 // Fail-closed über das Kind: Es zählt nur aktiv und in der eigenen Abteilung
 function programmElternsicht(person: Person): SQL {
-  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from programm_stufe inner join kind on kind.stufe_id = programm_stufe.stufe_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_stufe.programm_id = programm.id))`;
+  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from programm_stufe_wirksam inner join kind on kind.stufe_id = programm_stufe_wirksam.stufe_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_stufe_wirksam.programm_id = programm.id))`;
 }
 
 // Sichtbar ist ein Programm mit Leitungs- oder Elternsicht; beide schränken auf die Abteilung aus der Sitzung ein
@@ -337,7 +337,7 @@ export function darfLeitungAnmelden(
   return stufeIds.some((stufeId) => hatRolle(person, stufeId, "leitung"));
 }
 
-// Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen; Leitende und Eltern nie, auch kein No-op
+// Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen (also nie von oder zu «alle Stufen»); Leitende und Eltern nie, auch kein No-op
 export function darfZuordnen(
   person: Person,
   {
@@ -352,6 +352,8 @@ export function darfZuordnen(
 ) {
   if (person.admin) return true;
   if (!person.rollen.some((r) => r.typ === "stufenleitung")) return false;
+  // Ohne Stufe gilt das Programm für alle Stufen: Wer es dazu macht oder daraus ändert, entscheidet über fremde Stufen mit
+  if (vorher.length === 0 || nachher.length === 0) return false;
   const vorherMenge = new Set(vorher);
   const nachherMenge = new Set(nachher);
   // Jede hinzugefügte oder entfernte Stufe; ändert die Sichtbarkeit, jede beteiligte

@@ -5,7 +5,7 @@ import {
   kind,
   kindEltern,
   programm,
-  programmStufe,
+  programmStufeWirksam,
   teilnahme,
   user,
   zeitregel,
@@ -64,10 +64,10 @@ export async function sendeFaelligeErinnerungen(
   if (regeln.length === 0) return;
   const stufenZeilen = await db
     .select()
-    .from(programmStufe)
+    .from(programmStufeWirksam)
     .where(
       inArray(
-        programmStufe.programmId,
+        programmStufeWirksam.programmId,
         programme.map((p) => p.id),
       ),
     );

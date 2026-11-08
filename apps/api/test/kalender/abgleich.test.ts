@@ -1,5 +1,9 @@
 import { describe, expect, test } from "vitest";
-import { gleicheAb, htmlZuText } from "../../src/kalender/abgleich.js";
+import {
+  gleicheAb,
+  htmlZuText,
+  liegtAmSamstag,
+} from "../../src/kalender/abgleich.js";
 import {
   ANTWORT_UNGUELTIG,
   KalenderFehler,
@@ -103,41 +107,62 @@ describe("Abbildung einzelner Termine", () => {
   });
 
   test.each([
-    ["20270902", "2027-09-01"],
+    ["20270905", "2027-09-04"],
     ["20271001", "2027-09-30"],
     ["20271101", "2027-10-31"],
     ["20280101", "2027-12-31"],
   ])("das exklusive Enddatum %s wird zum letzten Tag %s", (ende, tagBis) => {
     const { programme } = eineSeite([
       "SUMMARY:Lager",
-      "DTSTART;VALUE=DATE:20270901",
+      "DTSTART;VALUE=DATE:20270904",
       `DTEND;VALUE=DATE:${ende}`,
     ]);
     expect(programme[0].tagBis).toBe(tagBis);
   });
 
   test("Termine ausserhalb des Fensters (gestern bis rund 400 Tage voraus) fallen weg", () => {
+    // Sonntag: Der Samstag davor ist «gestern» und läuft noch
+    const sonntag = new Date("2027-09-05T00:00:00Z");
     const { programme } = gleicheAb(
       kalender(
         vevent("alt0000000000001", [
           "SUMMARY:Alt",
-          "DTSTART:20270801T120000Z",
-          "DTEND:20270801T140000Z",
+          "DTSTART:20270731T120000Z",
+          "DTEND:20270731T140000Z",
         ]),
         vevent("fern000000000001", [
           "SUMMARY:Fern",
-          "DTSTART:20290101T120000Z",
-          "DTEND:20290101T140000Z",
+          "DTSTART:20290106T120000Z",
+          "DTEND:20290106T140000Z",
         ]),
         vevent("laeuft0000000001", [
           "SUMMARY:Läuft noch",
-          "DTSTART:20270831T120000Z",
-          "DTEND:20270901T120000Z",
+          "DTSTART:20270904T120000Z",
+          "DTEND:20270905T120000Z",
         ]),
+      ),
+      sonntag,
+    );
+    expect(programme.map((p) => p.titel)).toEqual(["Läuft noch"]);
+  });
+
+  test("nur Termine, die auf einen Samstag fallen, werden übernommen", () => {
+    const tag = (uid: string, titel: string, von: string, bis: string) =>
+      vevent(uid, [
+        `SUMMARY:${titel}`,
+        `DTSTART:${von}T120000Z`,
+        `DTEND:${bis}T140000Z`,
+      ]);
+    const { programme } = gleicheAb(
+      kalender(
+        tag("freitag000000001", "Freitag", "20270903", "20270903"),
+        tag("samstag00000001", "Samstag", "20270904", "20270904"),
+        tag("sonntag00000001", "Sonntag", "20270905", "20270905"),
+        tag("lager0000000001", "Lager", "20270903", "20270905"),
       ),
       JETZT,
     );
-    expect(programme.map((p) => p.titel)).toEqual(["Läuft noch"]);
+    expect(programme.map((p) => p.titel)).toEqual(["Samstag", "Lager"]);
   });
 
   test.each<[string, string[]]>([
@@ -265,9 +290,93 @@ describe("Serien", () => {
   });
 
   test("eine endlose Serie bricht am Fensterende ab", () => {
+    // Täglich wiederholt, aber nur die Samstage zählen: rund 57 in 400 Tagen
     const { programme } = serie(["RRULE:FREQ=DAILY"]);
-    expect(programme.length).toBeGreaterThan(300);
-    expect(programme.length).toBeLessThan(500);
+    expect(programme.length).toBeGreaterThan(50);
+    expect(programme.length).toBeLessThan(65);
+  });
+});
+
+describe("liegtAmSamstag", () => {
+  const tage = (von: string, bis: string) =>
+    liegtAmSamstag(
+      true,
+      new Date(`${von}T00:00:00Z`),
+      new Date(`${bis}T00:00:00Z`),
+    );
+
+  test.each<[string, string, string, boolean]>([
+    ["Freitag", "2027-09-03", "2027-09-04", false],
+    ["Samstag", "2027-09-04", "2027-09-05", true],
+    ["Sonntag", "2027-09-05", "2027-09-06", false],
+    ["Freitag bis Montag", "2027-09-03", "2027-09-07", true],
+    ["Montag bis Freitag", "2027-09-06", "2027-09-11", false],
+    ["Sonntag bis Samstag (eine Woche)", "2027-09-05", "2027-09-12", true],
+    ["drei Wochen", "2027-09-06", "2027-09-27", true],
+  ])("ganztägig: %s", (_, von, bis, erwartet) => {
+    expect(tage(von, bis)).toBe(erwartet);
+  });
+
+  // Schweizer Zeit: im September UTC+2, im Dezember UTC+1
+  test.each<[string, string, string, boolean]>([
+    [
+      "Sommerzeit: Freitag 00:00",
+      "2027-09-02T22:00:00Z",
+      "2027-09-02T23:00:00Z",
+      false,
+    ],
+    [
+      "Sommerzeit: Samstag 00:00",
+      "2027-09-03T22:00:00Z",
+      "2027-09-03T23:00:00Z",
+      true,
+    ],
+    [
+      "Sommerzeit: endet um Mitternacht auf den Samstag",
+      "2027-09-03T20:00:00Z",
+      "2027-09-03T22:00:00Z",
+      false,
+    ],
+    [
+      "Sommerzeit: endet um Mitternacht auf den Sonntag",
+      "2027-09-04T12:00:00Z",
+      "2027-09-04T22:00:00Z",
+      true,
+    ],
+    [
+      "Sommerzeit: beginnt um Mitternacht auf den Sonntag",
+      "2027-09-04T22:00:00Z",
+      "2027-09-05T10:00:00Z",
+      false,
+    ],
+    [
+      "Winterzeit: Samstag 00:00",
+      "2027-12-03T23:00:00Z",
+      "2027-12-04T01:00:00Z",
+      true,
+    ],
+    [
+      "Winterzeit: endet um Mitternacht auf den Samstag",
+      "2027-12-03T21:00:00Z",
+      "2027-12-03T23:00:00Z",
+      false,
+    ],
+    [
+      "Freitag Abend bis Sonntag Morgen",
+      "2027-09-03T18:00:00Z",
+      "2027-09-05T06:00:00Z",
+      true,
+    ],
+    ["zwei Wochen", "2027-09-06T10:00:00Z", "2027-09-20T10:00:00Z", true],
+  ])("mit Zeit: %s", (_, von, bis, erwartet) => {
+    expect(liegtAmSamstag(false, new Date(von), new Date(bis))).toBe(erwartet);
+  });
+
+  test("ein Termin ohne Dauer zählt am Tag seines Beginns", () => {
+    const samstag = new Date("2027-09-04T10:00:00Z");
+    expect(liegtAmSamstag(false, samstag, samstag)).toBe(true);
+    const freitag = new Date("2027-09-03T10:00:00Z");
+    expect(liegtAmSamstag(false, freitag, freitag)).toBe(false);
   });
 });
 

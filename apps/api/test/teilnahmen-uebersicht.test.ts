@@ -289,12 +289,14 @@ describe("GET /api/v1/programme/:id/teilnahmen: Inhalt", () => {
     ).toBe(true);
   });
 
-  test("Admin: ein Programm ohne Stufe liefert leere Listen", async () => {
+  test("Admin: ein Programm ohne Stufe liefert die Übersicht aller Stufen", async () => {
     const p = await frisch([], "intern");
+    const alle = await frisch([welt.stufeAId, welt.stufeBId], "intern");
     const { status, body } = await uebersicht(konten.admin, p.id);
+    const { body: erwartet } = await uebersicht(konten.admin, alle.id);
     expect(status).toBe(200);
-    expect(body.kinder).toEqual([]);
-    expect(body.leitende).toEqual([]);
+    expect(body.kinder.length).toBeGreaterThan(0);
+    expect(body).toEqual(erwartet);
   });
 
   test("ein Kind, das die Stufe wechselt, verschwindet aus der alten Übersicht", async () => {

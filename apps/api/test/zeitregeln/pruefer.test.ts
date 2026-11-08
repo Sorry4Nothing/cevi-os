@@ -380,6 +380,18 @@ describe("Erinnerungen", () => {
     expect(w.empfaenger()).toEqual(["a", "b", "b"]);
   });
 
+  test("ein Programm ohne Stufe erinnert die Eltern aller Stufen", async () => {
+    const w = await neueWelt();
+    const a = await w.elternteil("a");
+    const b = await w.elternteil("b");
+    await w.kindVon([a], w.stufeA.id);
+    await w.kindVon([b], w.stufeB.id);
+    await w.programm({ stufen: [] });
+    await w.regel({ stufeId: null });
+    await lauf(AUSLOESUNG);
+    expect(w.empfaenger()).toEqual(["a", "b"]);
+  });
+
   test("keine Erinnerung für interne, nur für Leitende sichtbare, abgesagte oder begonnene Programme, ausgeschaltete Regeln und fremde Abteilungen", async () => {
     const w = await neueWelt();
     const eltern = await w.elternteil("offen");
@@ -395,7 +407,6 @@ describe("Erinnerungen", () => {
       .set({ status: "abgesagt" })
       .where(eq(schema.programm.id, abgesagt.id));
     await w.programm({ beginn: new Date("2026-10-28T06:00:00Z") });
-    await w.programm({ stufen: [] });
     const fremd = await neueWelt();
     await fremd.programm();
     // Eine Regel der fremden Abteilung trifft die Programme dieser Abteilung nicht

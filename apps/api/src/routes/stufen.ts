@@ -9,7 +9,7 @@ import {
   kind,
   leitungAnmeldung,
   programm,
-  programmStufe,
+  programmStufeWirksam,
   rolle,
   stufe,
   stufenlogo,
@@ -86,10 +86,10 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
       })
       .from(programm)
       .innerJoin(
-        programmStufe,
+        programmStufeWirksam,
         and(
-          eq(programmStufe.programmId, programm.id),
-          eq(programmStufe.stufeId, stufeId),
+          eq(programmStufeWirksam.programmId, programm.id),
+          eq(programmStufeWirksam.stufeId, stufeId),
         ),
       )
       .where(
@@ -147,10 +147,10 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
             })
             .from(programm)
             .innerJoin(
-              programmStufe,
+              programmStufeWirksam,
               and(
-                eq(programmStufe.programmId, programm.id),
-                eq(programmStufe.stufeId, id),
+                eq(programmStufeWirksam.programmId, programm.id),
+                eq(programmStufeWirksam.stufeId, id),
               ),
             )
             .where(
