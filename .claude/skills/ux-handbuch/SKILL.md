@@ -309,7 +309,7 @@ Werte ausserhalb der Skala (13, 17, 22) sind ein Warnsignal.
 - Modulare Verhältnisse für redaktionelle Seiten: 1,125 (dichte UI), 1,2, 1,25 (allgemein), 1,333 (Marketing).
 - Pro Screen meist 4–6 Grössen insgesamt; 2–3 reichen, um Struktur zu zeigen.
 - Auf kleinen Bildschirmen Überschriften stärker verkleinern als Fliesstext.
-- Auf Mobile die Plattform-Skalen verwenden (3.4 Android, 4.4 iOS).
+- Auf Mobile die Plattform-Skalen verwenden (3.2 Android, 4.4 iOS).
 
 **Fliesstext:** Web 16 px (Bereich 15–20; Verwaltungstabellen 13–14); iOS Body 17 pt; Android bodyLarge 16 sp. Nichts Lesbares unter 11–12.
 
@@ -505,7 +505,7 @@ Werte ausserhalb der Skala (13, 17, 22) sind ein Warnsignal.
 | **INP** | ≤ 200 ms | > 500 ms | Reaktion auf jede Interaktion |
 | **CLS** | ≤ 0,1 | > 0,25 | nichts springt |
 
-Seit März 2024 unverändert (INP ersetzte FID).
+Seit März 2024 unverändert (INP ersetzte FID). Für eingeloggte Verwaltung zählt SEO wenig – die Schwellen gelten trotzdem als UX-Ziel.
 - **LCP:** Server-Rendering/Streaming, Bilder in passender Grösse (`srcset`, AVIF/WebP), wichtigstes Bild `fetchpriority="high"` und nicht lazy; Schriften mit preload und `font-display: swap`.
 - **INP:** lange Tasks aufteilen, Arbeit aus Event-Handlern auslagern, sofort visuelles Feedback, grosse Listen virtualisieren, wenig Third-Party-Skripte.
 - **CLS:** Bildgrössen/`aspect-ratio` setzen, Platz für Nachgeladenes reservieren, nichts oberhalb einschieben, Fallback-Schrift-Metriken angleichen.
@@ -541,7 +541,7 @@ Seit März 2024 unverändert (INP ersetzte FID).
 - Nach Aufgaben strukturieren, nicht nach Datenbank. Mit Card Sorting/Tree Testing prüfen.
 - **Sichtbare Navigation schlägt versteckte** [F, NN/g]: versteckte Navigation wurde am Desktop nur in 27 % der Fälle genutzt (sichtbar 48 %), senkte die Auffindbarkeit von Inhalten um über 20 % und machte Aufgaben spürbar langsamer. → Verwaltung: sichtbare Seitenleiste; Hamburger nur für Sekundäres, beschriftet «Menü».
 - Aktuelle Position sichtbar (aktiver Menüpunkt, Titel, Breadcrumbs ab 3 Ebenen).
-- **URL ist UI:** Filter, Sortierung, Tab, Seite, geöffneter Datensatz in der URL → teilbar, Zurück funktioniert, Neuladen verliert nichts.
+- **URL ist UI:** Filter, Sortierung, Tab, Seite, geöffneter Datensatz in der URL → teilbar, Zurück funktioniert, Neuladen verliert nichts. Keine Zustandsänderung ohne History-Eintrag, wo Nutzende «zurück» erwarten.
 - Keine ungefragten neuen Tabs. Befehlspalette (`Ctrl/Cmd + K`) für Geübte.
 
 ## 2.6 Verwaltung / Admin-Oberflächen
@@ -556,7 +556,7 @@ Seit März 2024 unverändert (INP ersetzte FID).
 **Aktionen:**
 - Häufigste Zeilenaktion direkt, Rest im «…»-Menü.
 - **Massenaktionen:** Checkbox pro Zeile + «Alle auswählen», Aktionsleiste mit Anzahl («3 ausgewählt»).
-- Inline-Bearbeitung nur für einfache Felder; sonst Detailseite oder Seitenpanel.
+- Inline-Bearbeitung nur für einfache Felder; sonst Detailseite oder Seitenpanel (Kontext der Liste bleibt sichtbar).
 - **Rückgängig** statt Bestätigung, wo möglich. Echte Löschung: Dialog nennt das Objekt («‹Sommerlager 2027› endgültig löschen?»); bei sehr Folgenschwerem Namen eintippen lassen.
 - Speichern: klare Rückmeldung, «Zuletzt gespeichert um 14:32», Warnung bei ungespeicherten Änderungen.
 - Gleichzeitige Bearbeitung erkennen und verständlich lösen (6.8).
@@ -647,7 +647,7 @@ Expressive ergänzt **betonte Varianten** (z. B. `displayLargeEmphasized`) mit g
 - Zustand pro Tab erhalten (eigener Back-Stack, Scrollposition); erneutes Tippen auf aktiven Tab → nach oben/zum Anfang.
 - **Predictive Back** (für targetSdk 36+ standardmässig aktiv): `onBackPressed()` wird nicht mehr aufgerufen (Opt-out `android:enableOnBackInvokedCallback="false"` nur als Übergang). Zurück nur über `BackHandler`/`PredictiveBackHandler`/`OnBackPressedDispatcher`. Reihenfolge: Sheet/Dialog/Suche schliessen → eine Ebene hoch → Start-Tab → App verlassen.
 - Top App Bar: Titel = wo bin ich; Zurück-Pfeil auf Unterseiten; max. 2–3 Aktionen, Rest im Überlaufmenü.
-- FAB nur für *die* Hauptaktion eines Screens.
+- FAB nur für *die* Hauptaktion eines Screens (z. B. «Neuer Anlass»), nicht für Navigation.
 - Overlays: nie gestapelt, immer explizites Schliessen, System-Zurück schliesst sie (NN/g: versehentliches Wegwischen verliert Fortschritt).
 
 ## 3.4 Edge-to-Edge, Insets, adaptive Layouts
@@ -667,7 +667,7 @@ Expressive ergänzt **betonte Varianten** (z. B. `displayLargeEmphasized`) mit g
 
 ## 3.6 Barrierefreiheit (TalkBack)
 
-- Icon-only: `contentDescription` beschreibt die Aktion («Anlass löschen»); dekorativ `null`.
+- Icon-only: `contentDescription` beschreibt die Aktion («Anlass löschen», nicht «Mülleimer»); dekorativ `null`.
 - Zeilen zusammenfassen: `Modifier.semantics(mergeDescendants = true)` bzw. `clearAndSetSemantics` mit eigenem Text.
 - Zustände: `selected`, `toggleableState`, `stateDescription`, `Role`; Überschriften `heading()`; Live-Änderungen `liveRegion`; eigene Gesten als `customActions`.
 - Prüfen: Accessibility Scanner, Compose UI Check, echter TalkBack-Durchlauf, hoher Kontrast.
@@ -712,17 +712,17 @@ Expressive ergänzt **betonte Varianten** (z. B. `displayLargeEmphasized`) mit g
 - **iOS 27 Glas-Regler** (Einstellungen): Nutzende stellen von «ultra klar» bis «voll getönt». Systemkomponenten und `.glassEffect()` reagieren automatisch, ohne Code-Änderung. → UI in **beiden Extremen** sowie mit «Transparenz reduzieren» und «Kontrast erhöhen» testen; Lesbarkeit nie vom Glas abhängig machen.
 - Varianten: `Glass.regular` (Standard); `Glass.clear` nur über reichen Medien (Fotos/Video), bei hellem Inhalt mit ca. 35 % dunkler Abdunkelungsschicht.
 - Systemkomponenten verwenden; eigene Glas-Elemente sparsam mit `.glassEffect()` in `GlassEffectContainer`.
-- **Keine eigenen opaken Leistenhintergründe**, keine eingefärbten Leisten. Statt fester Hintergründe hinter Controls: Scroll-Edge-Effekt und `backgroundExtensionEffect()`.
+- **Keine eigenen opaken Leistenhintergründe**, keine eingefärbten Leisten. Statt fester Hintergründe hinter Controls: Scroll-Edge-Effekt und `backgroundExtensionEffect()`. Markenfarbe über `tint` und Inhalte ausdrücken.
 - **Farbe auf Glas:** Glas hat keine eigene Farbe. Tönung sparsam, nur für Betonung (z. B. die Primäraktion); nicht mehrere Controls in einer Leiste tönen; den Hintergrund des Controls färben, nicht das Symbol.
 - NN/g kritisierte Liquid Glass in iOS 26 (Okt. 2025): geringe Lesbarkeit über unruhigem Inhalt, konkurrierende schwebende Controls, ablenkende Animationen, kleinere Trefferflächen, Zurück-Button ohne Label. → Bei eigenen Screens genau diese Punkte prüfen.
 
 ## 4.3 Navigation und Struktur
 
-- **Tab Bar** (`TabView`) für Hauptbereiche, ca. 3–5 Tabs; nur Navigation, nie Aktionen; immer sichtbar (ausser unter Modalen); Ein-Wort-Labels; gefüllte SF Symbols; Badges nur für Wichtiges; «Mehr»-Überlauf vermeiden.
+- **Tab Bar** (`TabView`) für Hauptbereiche, ca. 3–5 Tabs; nur Navigation, nie Aktionen (kein «+»-Tab, der ein Formular öffnet); immer sichtbar (ausser unter Modalen); Ein-Wort-Labels; gefüllte SF Symbols; Badges nur für Wichtiges; «Mehr»-Überlauf vermeiden.
 - Seit iOS 26 schwebende Kapsel; **Such-Tab** mit `Tab(role: .search)` am Ende; Minimieren beim Scrollen mit `.tabBarMinimizeBehavior(.onScrollDown)`, optional Bottom Accessory. **Neu in iOS 27:** `Tab(role: .prominent)` für einen hervorgehobenen Tab am Ende.
 - Zustand und Stapel pro Tab erhalten; erneutes Tippen → Wurzel/nach oben.
 - `NavigationStack`: grosser Titel auf Hauptseiten, Inline auf Unterseiten; Titel in normaler Schreibung, kurz (< 15 Zeichen in Toolbars).
-- **Wischen vom linken Rand = Zurück** darf nie brechen. Standard-Zurück- und Schliessen-Symbole verwenden.
+- **Wischen vom linken Rand = Zurück** darf nie brechen (keine eigenen Gesten am linken Rand). Standard-Zurück- und Schliessen-Symbole verwenden.
 - **Toolbars:** max. 3 Gruppen; Navigation getrennt von Fertig/Schliessen/Sichern; randlose SF Symbols statt Text bevorzugen; **eine** Primäraktion rechts mit `.buttonStyle(.glassProminent)` bzw. `ToolbarItem(placement: .confirmationAction)`. iOS 27: `.visibilityPriority(.high)`, `ToolbarOverflowMenu`, `.toolbarMinimizeBehavior(.onScrollDown, for: .navigationBar)`.
 - **Sheets** für abgeschlossene Teilaufgaben: Abbrechen links, Sichern/Fertig rechts; bei ungespeicherten Änderungen `.interactiveDismissDisabled()` + Rückfrage; Detents (`.medium`, `.large`).
 - **Alert** nur für Kritisches; **Confirmation Dialog** für Auswahl mit zerstörerischer Option (`role: .destructive`); iOS 27 erlaubt Item-Bindings für beide.
@@ -750,7 +750,7 @@ Standard 17 pt, Minimum 11 pt. Body reicht von 14 pt (xSmall) bis 23 pt (xxxLarg
 - **Dynamic Type ist Pflicht:** Textstile statt fixer Grössen; eigene Schriften mit `Font.custom(_:size:relativeTo:)`. Layout ab Accessibility-Grössen von horizontal auf vertikal (`ViewThatFits`, `dynamicTypeSize`), umbrechen statt abschneiden.
 - **SF Pro** nutzt dynamische optische Grössen (Text/Display fliessend) – keine manuelle Laufweite. **Display-Schrift (z. B. Archivo) nur für Titel**, mit `relativeTo: .largeTitle/.title` an Dynamic Type gekoppelt.
 - **SF Symbols** (Version 8 mit 7000+ Symbolen): Rendering-Modi monochrom, hierarchisch, Palette, mehrfarbig; variable Werte; Gewicht und Grösse folgen der Schrift.
-- **Layout:** Safe Areas und Layout Guides, Size Classes (nie Idiom/Orientierung), gleiche Funktionalität in allen Grössen; Systemränder statt fixer Werte; `List`/`Form` mit Systemstilen (`.insetGrouped`).
+- **Layout:** Safe Areas und Layout Guides (Dynamic Island, Home-Indikator), Size Classes (nie Idiom/Orientierung), gleiche Funktionalität in allen Grössen; Systemränder statt fixer Werte; `List`/`Form` mit Systemstilen (`.insetGrouped`). Kleinstes (SE) und grösstes iPhone testen.
 - Trefferflächen ≥ 44 × 44 pt (`.contentShape(Rectangle())`, `.frame(minWidth: 44, minHeight: 44)`).
 - **Farben:** semantische Systemfarben (`label`, `secondaryLabel`, `tertiaryLabel`, `systemBackground`, `secondarySystemBackground`, `systemGroupedBackground` …) nicht zweckentfremden (z. B. `separator` nicht als Textfarbe). Eigene Farben im Asset-Katalog mit **4 Varianten:** Hell, Dunkel, Hell + erhöhter Kontrast, Dunkel + erhöhter Kontrast. Im Dark Mode gibt es Basis- und erhöhte Hintergründe (Sheets/Popover automatisch erhöht) – Systemhintergründe verwenden.
 - **Ecken:** konzentrisch zum Container (1.7), kontinuierliche Ecken.
@@ -848,7 +848,7 @@ Pro Komponente: Anatomie (nummerierte Teile) · Varianten und Grössen · **Zust
 
 ## 6.2 Mitteilungen (Push)
 
-- **Berechtigung im Kontext** fragen, nie beim ersten Start; eigene Vorab-Erklärung; bei «Nein» Systemdialog nicht auslösen (iOS fragt nur einmal).
+- **Berechtigung im Kontext** fragen, nie beim ersten Start; eigene Vorab-Erklärung; bei «Nein» Systemdialog nicht auslösen (iOS fragt nur einmal). Ablehnung respektieren und später einen Weg zu den Einstellungen anbieten.
 - **Kategorien/Kanäle**, je einzeln abschaltbar und in den App-Einstellungen gespiegelt (Push/E-Mail/keine), z. B.: Programmänderungen & Absagen (hoch) · Erinnerungen · Nachrichten von Leitenden · Verwaltung/Abrechnung · News (tief).
 - **Jede Mitteilung:** relevant für *diese* Person, rechtzeitig, mit Handlung. Weniges bündeln (Wochenübersicht), Updates zum selben Objekt ersetzen statt stapeln, nicht doppelt per E-Mail senden, wenn in der App gelesen. Zu viele Mitteilungen sind der Hauptgrund fürs Abschalten.
 - **Ruhezeiten:** Unwichtiges nicht zwischen ca. 21:00 und 07:00 (bei Kindern strenger); Zustellung je Empfänger-Zeitzone.
@@ -1012,6 +1012,8 @@ Nie eine höhere Stufe auf Kosten einer tieferen.
 ### Offene Annahmen → so testen wir sie
 ```
 
+Befunde nach Schweregrad absteigend sortieren. Jeder Vorschlag muss konkret umsetzbar sein.
+
 ---
 
 # Teil 9 – Kontext Cevi OS (projektspezifisch)
@@ -1163,6 +1165,6 @@ Jeder Agent und jede Person geht diese Punkte durch, bevor eine UI-Änderung als
 **Barrierefreiheit:** W3C WCAG 2.2, What's New, WCAG 3 Working Drafts · W3C COGA «Making Content Usable» · ARIA Authoring Practices · eCH-0059 · EBGB Leitfaden Leichte Sprache (2026) · APCA/ARC Bronze Simple Mode · Adrian Roselli – WCAG 3 Contrast (2026)
 **Web:** web.dev Core Web Vitals, prefers-reduced-motion, View Transitions · web-platform-dx Baseline (oklch, color-mix, relative color)
 **Android:** developer.android.com – Material 3 in Compose; Compose Material3 Release Notes; Window Size Classes; Android 16/17 Behavior Changes; Resizability in Android 17; Haptics Principles; Play Target-SDK Requirements · m3.material.io · androidx Token-Quellen (Color, Shape, Motion)
-**iOS:** Apple HIG (Design Principles 2026, Typography, Color, Dark Mode, Materials, Layout, Tab Bars, Toolbars, Motion, Playing Haptics, Notifications) · WWDC26 «What's new in SwiftUI» & «Principles of great design» · WWDC23 «Animate with springs» · TN3187 (UIScene)
+**iOS:** Apple HIG (Design Principles 2026, Typography, Color, Dark Mode, Materials, Layout, Tab Bars, Toolbars, Motion, Playing Haptics, Notifications) · WWDC26 «What's new in SwiftUI» & «Principles of great design» · WWDC23 «Animate with springs» · TN3187 (UIScene) · Apple Developer News (iOS-27-SDK-Pflicht ab April 2027)
 **Kanon:** ISO 9241-11/-110/-210 · Shneiderman, Designing the User Interface · Norman, The Design of Everyday Things · Tognazzini, First Principles of Interaction Design · Krug, Don't Make Me Think · GOV.UK Design Principles · Microsoft Inclusive Design · Vercel Web Interface Guidelines · Hoober, How Do Users Really Hold Mobile Devices (2013) · Kano-Modell · Cooper, About Face
 **Abläufe/Recht:** FIDO/passkeycentral.org Design Guidelines · Microsoft HAX Toolkit · Google PAIR Guidebook · Ink & Switch Local-first · RFC 5545 · TWINT/Worldline Docs · Bundeskanzlei Leitfaden geschlechtergerechte Sprache (2023) · revDSG (fedlex), EDÖB · ICO Age Appropriate Design Code · deceptive.design · DSA Art. 25
