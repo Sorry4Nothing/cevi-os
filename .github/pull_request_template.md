@@ -15,3 +15,5 @@ Checkliste Barrierefreiheit: [docs/barrierefreiheit.md](https://github.com/Sorry
 ## Barrierefreiheit
 
 <!-- Was ändert sich für die Bedienung mit Screenreader und grosser Schrift? Ohne UI-Änderung: «Keine UI-Änderung». -->
+
+- [ ] Qualitätstor UX-Handbuch durchgegangen (`.claude/skills/ux-handbuch/SKILL.md`, Teil 11); nicht Erfülltes oben unter «Evidence» genannt. Ohne UI-Änderung: streichen.
