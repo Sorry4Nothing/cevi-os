@@ -123,8 +123,6 @@ async function lauf(db: Db, jetzt: Date) {
                 ende: roh`excluded.ende`,
                 tagVon: roh`excluded.tag_von`,
                 tagBis: roh`excluded.tag_bis`,
-                googleOrt: roh`excluded.google_ort`,
-                googleBeschreibung: roh`excluded.google_beschreibung`,
                 // Wieder im Kalender heisst wieder aktiv, auch nach einer Absage
                 status: "aktiv",
               },

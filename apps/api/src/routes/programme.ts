@@ -39,7 +39,6 @@ import {
   darfZuordnen,
   hatRolle,
   programmBeginn,
-  programmLeitungssicht,
   programmSichtbar,
   stufenleitungDerStufen,
   type Person,
@@ -72,7 +71,7 @@ const zuordnungSchema = z.strictObject({
 });
 
 // Ein Satz Felder für Liste und Detail; nie abteilung_id, google_event_id oder google_serie
-function programmFelder(person: Person) {
+function programmFelder() {
   return {
     id: programm.id,
     titel: programm.titel,
@@ -83,15 +82,10 @@ function programmFelder(person: Person) {
     ende: programm.ende,
     tagVon: programm.tagVon,
     tagBis: programm.tagBis,
-    googleOrt: programm.googleOrt,
     // Mit Namen für die App; nur Stufen der eigenen Abteilung, falls je eine fremde verknüpft wäre
     stufen: sql<
       { id: string; name: string }[]
     >`coalesce((select jsonb_agg(jsonb_build_object('id', stufe.id, 'name', stufe.name) order by stufe.id) from programm_stufe join stufe on stufe.id = programm_stufe.stufe_id and stufe.abteilung_id = programm.abteilung_id where programm_stufe.programm_id = programm.id), '[]'::jsonb)`,
-    // Die Google-Beschreibung gilt als intern: nur mit Leitungssicht, sonst null
-    googleBeschreibung: sql<
-      string | null
-    >`case when ${programmLeitungssicht(person)} then programm.google_beschreibung end`,
   };
 }
 
@@ -161,7 +155,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       const person = c.get("person");
       const { von, bis, alle } = c.req.valid("query");
       const programme = await db
-        .select(programmFelder(person))
+        .select(programmFelder())
         .from(programm)
         .where(
           and(
@@ -194,7 +188,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       const person = c.get("person");
       const { id } = c.req.valid("param");
       const [zeile] = await db
-        .select(programmFelder(person))
+        .select(programmFelder())
         .from(programm)
         .where(and(eq(programm.id, id), programmSichtbar(person)));
       if (!zeile) throw new HTTPException(404);
