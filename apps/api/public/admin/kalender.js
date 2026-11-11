@@ -133,13 +133,7 @@ function zeile(programm, daten, ctx, neu) {
   return el(
     "tr",
     { class: abgesagt ? "inaktiv" : undefined },
-    el(
-      "th",
-      { scope: "row" },
-      el("span", { class: "name" }, programm.titel),
-      programm.googleOrt &&
-        el("span", { class: "meta klein" }, programm.googleOrt),
-    ),
+    el("th", { scope: "row" }, el("span", { class: "name" }, programm.titel)),
     el("td", {}, zeitraum(programm)),
     el(
       "td",
