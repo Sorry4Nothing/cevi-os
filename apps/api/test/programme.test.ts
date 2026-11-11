@@ -113,7 +113,7 @@ const MIT_ALLEN = Object.fromEntries(
 
 // Ohne Stufe («leitende», «eltern», «intern») gilt ein Programm für alle Stufen.
 // Die Liste lässt «intern» für alle weg (nur der Detailaufruf von Admins findet es); die Verwaltung holt sie mit alle=1.
-// true: mit Google-Beschreibung (Leitungssicht), false: ohne; fehlt der Eintrag, ist das Programm unsichtbar (404)
+// Fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
   Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
   Partial<Record<Name, boolean>>
@@ -182,54 +182,18 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
     const sicht = SICHT[persona];
     expect(liste.status).toBe(200);
     const { programme: zeilen } = (await liste.json()) as {
-      programme: { id: string; googleBeschreibung: string | null }[];
+      programme: { id: string }[];
     };
     expect(zeilen.map((z) => z.id)).toEqual(
       NAMEN.filter((n) => n in sicht && !n.startsWith("intern")).map(
         (n) => programme[n].id,
       ),
     );
-    for (const zeile of zeilen) {
-      const name = NAMEN.find((n) => programme[n].id === zeile.id) as Name;
-      expect(zeile.googleBeschreibung, name).toBe(
-        sicht[name] ? programme[name].marke : null,
-      );
-    }
     for (const name of NAMEN) {
       const res = await app.request(`/api/v1/programme/${programme[name].id}`, {
         headers,
       });
-      const beschreibung = sicht[name];
-      if (beschreibung === undefined) {
-        expect(res.status, name).toBe(404);
-        continue;
-      }
-      expect(res.status, name).toBe(200);
-      const koerper = (await res.json()) as {
-        googleBeschreibung: string | null;
-      };
-      expect(koerper.googleBeschreibung, name).toBe(
-        beschreibung ? programme[name].marke : null,
-      );
-    }
-  });
-
-  test("keine Marke einer Google-Beschreibung erreicht Eltern", async () => {
-    const { headers } = konten.elternA;
-    const antworten = [
-      await app.request(`/api/v1/programme?${FENSTER}`, { headers }),
-      await app.request(`/api/v1/programme/${programme["eltern-A"].id}`, {
-        headers,
-      }),
-      await app.request(`/api/v1/programme/${programme["eltern-AB"].id}`, {
-        headers,
-      }),
-    ];
-    for (const antwort of antworten) {
-      const text = JSON.stringify(await antwort.json());
-      for (const { marke } of Object.values(programme)) {
-        expect(text).not.toContain(marke);
-      }
+      expect(res.status, name).toBe(name in sicht ? 200 : 404);
     }
   });
 
@@ -251,9 +215,7 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "ende",
         "tagVon",
         "tagBis",
-        "googleOrt",
         "stufen",
-        "googleBeschreibung",
         "teilnahmeOffen",
         "kinder",
         "treffpunkt",
@@ -262,9 +224,6 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "mitnehmen",
       ].sort(),
     );
-    expect(koerper.googleBeschreibung).toBeNull();
-    // Der Google-Ort bleibt sichtbar
-    expect(koerper.googleOrt).toBe("Google-Ort");
     expect(koerper.stufen).toEqual([{ id: welt.stufeAId, name: "Stufe A" }]);
   });
 

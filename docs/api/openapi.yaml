@@ -1472,9 +1472,6 @@ paths:
           eigenes Kind ist.
         - Wer beides ist, sieht die Vereinigung.
 
-        `googleBeschreibung` ist nur mit Leitungssicht gefüllt (Admin/SL: alle Programme der Abteilung; Leitende:
-        Programme ihrer Stufen mit Sichtbarkeit «leitende» oder «eltern»), sonst `null`.
-
         Statuscodes: 200 Erfolg; 400 `von` oder `bis` fehlt, ist kein gültiges Datum `JJJJ-MM-TT`, beginnt mit Jahr
         0000 oder es gibt unbekannte Query-Parameter; 401 keine gültige Sitzung (auch deaktiviertes Konto);
         403 das Konto muss zuerst das Passwort ändern (gilt für alle Routen ausser `GET /api/v1/ich`);
@@ -3936,9 +3933,7 @@ components:
         - ende
         - tagVon
         - tagBis
-        - googleOrt
         - stufen
-        - googleBeschreibung
         - kinder
       properties:
         id:
@@ -3986,21 +3981,11 @@ components:
             - "null"
           format: date
           description: Letzter Programmtag, inklusive (Schweizer Kalendertag). `null` bei Programmen mit Uhrzeit.
-        googleOrt:
-          type:
-            - string
-            - "null"
-          description: Ort aus dem Google-Kalender.
         stufen:
           type: array
           description: Zugeordnete Stufen der eigenen Abteilung, aufsteigend nach `id` sortiert. Leer, wenn keine zugeordnet ist.
           items:
             $ref: "#/components/schemas/ProgrammStufeRef"
-        googleBeschreibung:
-          type:
-            - string
-            - "null"
-          description: Beschreibung aus Google; gilt als intern. Nur mit Leitungssicht gefüllt, sonst `null`.
         kinder:
           type: array
           description: Eigene aktive Kinder der Person in zugeordneten Stufen, sortiert nach Vorname, dann `id`. Leer für alle ohne eigene Kinder dort, auch für Admins und Leitende.

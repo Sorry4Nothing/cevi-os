@@ -10,8 +10,6 @@ export type ProgrammAusKalender = {
   ende: Date | null;
   tagVon: string | null;
   tagBis: string | null;
-  googleOrt: string | null;
-  googleBeschreibung: string | null;
 };
 
 const TAG_MS = 24 * 60 * 60 * 1000;
@@ -120,8 +118,6 @@ function abbilden(ics: string, jetzt: Date) {
       ende: ganztaegig ? null : schluss,
       tagVon: ganztaegig ? start.toString() : null,
       tagBis,
-      googleOrt: termin.location || null,
-      googleBeschreibung: termin.description?.trim() || null,
     });
   }
 
