@@ -269,9 +269,6 @@ export const programm = pgTable(
     tagVon: date("tag_von"),
     // iCal-Enddatum ist exklusiv; hier steht der letzte Programmtag
     tagBis: date("tag_bis"),
-    googleOrt: text("google_ort"),
-    // Aus der Beschreibung des Kalendertermins; gilt als intern, Eltern sehen sie nie
-    googleBeschreibung: text("google_beschreibung"),
     status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
       .notNull()
       .default("aktiv"),

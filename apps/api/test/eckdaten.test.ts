@@ -147,7 +147,6 @@ const webProgramme = (stufeId: string) =>
       ende: schema.programm.ende,
       ganztaegig: schema.programm.ganztaegig,
       tagVon: schema.programm.tagVon,
-      ort: schema.programm.googleOrt,
       sichtbarkeit: schema.programm.sichtbarkeit,
     })
     .from(schema.programm)
@@ -172,7 +171,6 @@ test("ohne Kalender legt der Abruf das Programm an: Zeiten in Zürich, für Elte
       ende: new Date("2027-04-10T15:00:00Z"),
       ganztaegig: false,
       tagVon: null,
-      ort: "Beispielhaus 1, Musterdorf",
       sichtbarkeit: "eltern",
     },
   ]);

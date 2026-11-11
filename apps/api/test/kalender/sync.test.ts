@@ -14,9 +14,6 @@ import { synchronisiere } from "../../src/kalender/sync.js";
 import { API_URL } from "../hilfen/datenbank.js";
 
 const JETZT = new Date();
-const BESCHREIBUNG =
-  "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: https://example.org/anmeldung";
-
 // Erwartete Programme nach dem ersten Lauf, sortiert nach Titel und Beginn (Zeitpunkte, wie Postgres sie als Text liefert: UTC)
 const ERWARTET_LAUF_1 = [
   {
@@ -27,8 +24,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-09-04 14:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: "Kirchgemeindehaus",
-    google_beschreibung: null,
   },
   {
     titel: "Gruppenstunde",
@@ -38,8 +33,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-09-11 14:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: "Kirchgemeindehaus",
-    google_beschreibung: null,
   },
   {
     titel: "Gruppenstunde",
@@ -49,8 +42,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-09-18 14:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: "Kirchgemeindehaus",
-    google_beschreibung: null,
   },
   {
     titel: "Herbstlager",
@@ -60,8 +51,6 @@ const ERWARTET_LAUF_1 = [
     ende: null,
     tag_von: "2027-10-29",
     tag_bis: "2027-10-31",
-    google_ort: null,
-    google_beschreibung: null,
   },
   {
     titel: "Herbstweekend",
@@ -71,8 +60,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-10-31 15:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: null,
-    google_beschreibung: null,
   },
   {
     titel: "Leitertreffen",
@@ -82,8 +69,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-09-18 19:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: null,
-    google_beschreibung: null,
   },
   {
     titel: "Sommerlager",
@@ -93,8 +78,6 @@ const ERWARTET_LAUF_1 = [
     ende: null,
     tag_von: "2027-07-30",
     tag_bis: "2027-08-02",
-    google_ort: null,
-    google_beschreibung: null,
   },
   {
     titel: "Waldtag",
@@ -104,8 +87,6 @@ const ERWARTET_LAUF_1 = [
     ende: "2027-09-25 15:00:00+00",
     tag_von: null,
     tag_bis: null,
-    google_ort: "Waldhütte",
-    google_beschreibung: BESCHREIBUNG,
   },
 ];
 
@@ -166,7 +147,7 @@ function stubKalender(texte: (string | Response)[]) {
 const programme = () => sql`
   select google_event_id, google_serie, titel, ganztaegig,
          beginn::text as beginn, ende::text as ende, tag_von::text as tag_von, tag_bis::text as tag_bis,
-         google_ort, google_beschreibung, status, sichtbarkeit, id
+         status, sichtbarkeit, id
   from programm where abteilung_id = ${abteilungId} order by titel, beginn`;
 
 const eigeneAbteilung = async () =>
@@ -193,7 +174,6 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar
       ende: z.ende,
       tag_von: z.tag_von,
       tag_bis: z.tag_bis,
-      google_ort: z.google_ort,
       google_beschreibung: z.google_beschreibung,
     })),
   ).toEqual(ERWARTET_LAUF_1);
@@ -235,13 +215,12 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
   expect(await starte()).toBe("fertig");
   const zeilen = await programme();
 
-  // Geändert (Titel, Zeit, Ort): aktualisiert, Zuordnung unberührt
+  // Geändert (Titel, Zeit): aktualisiert, Zuordnung unberührt
   const feuer = zeilen.find((z) => z.google_event_id === "0aldtag000000001");
   expect(feuer).toMatchObject({
     titel: "Waldtag mit Feuer",
     beginn: "2027-09-25 12:00:00+00",
     ende: "2027-09-25 15:30:00+00",
-    google_ort: "Bahnhof",
     status: "aktiv",
     sichtbarkeit: "eltern",
   });
@@ -258,7 +237,6 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
   expect(abgesagteInstanz).toMatchObject({
     titel: "Gruppenstunde",
     status: "abgesagt",
-    google_ort: "Kirchgemeindehaus",
   });
   for (const beginn of ["2027-09-04 12:00:00+00", "2027-09-18 12:00:00+00"]) {
     expect(
@@ -670,13 +648,11 @@ async function programm(
   event: string,
   {
     titel = "Waldtag",
-    ort = "Waldhütte",
     sichtbarkeit = "eltern",
     stufen = [stufeId],
     status = "aktiv",
   }: {
     titel?: string;
-    ort?: string | null;
     sichtbarkeit?: string;
     stufen?: string[];
     status?: string;
@@ -684,9 +660,9 @@ async function programm(
 ) {
   const [zeile] = await sql`
     insert into programm (abteilung_id, google_event_id, titel, ganztaegig, beginn, ende,
-                          google_ort, sichtbarkeit, status)
+                          sichtbarkeit, status)
     values (${abteilungId}, ${event}, ${titel}, false, '2027-09-25T12:00:00Z',
-            '2027-09-25T14:00:00Z', ${ort}, ${sichtbarkeit}, ${status})
+            '2027-09-25T14:00:00Z', ${sichtbarkeit}, ${status})
     returning id`;
   for (const stufeId of stufen) {
     await sql`insert into programm_stufe (programm_id, stufe_id) values (${zeile.id}, ${stufeId})`;

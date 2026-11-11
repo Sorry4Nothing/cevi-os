@@ -101,10 +101,6 @@ async function legeProgrammAn(tx: Tx, eine: StufeZeile, e: Eckdaten) {
     ende: zeit(e.schlussZeit),
     tagVon: mitZeit ? null : e.tag,
     tagBis: mitZeit ? null : e.tag,
-    // Der Treffpunkt ohne die Zeit davor, sonst der Schluss
-    googleOrt:
-      e.treffpunkt?.replace(/^\d{1,2}[:.]\d{2}(\s*Uhr)?\s*/, "").trim() ||
-      e.schlussOrt,
   };
   const [eins] = await tx
     .insert(programm)
