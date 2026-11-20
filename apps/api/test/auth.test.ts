@@ -960,7 +960,7 @@ describe("haveIBeenPwned", () => {
     expect((await antwort.json()).message).toBe(meldung);
   });
 
-  test("createUser mit einem Passwort aus einem Datenleck liefert 400, legt die Person aber ohne Konto an; ein zweiter Versuch scheitert an der E-Mail-Adresse", async () => {
+  test("createUser mit einem Passwort aus einem Datenleck liefert 400 und legt nichts an; ein zweiter Versuch mit der gleichen E-Mail-Adresse klappt", async () => {
     const email = `${randomUUID()}@example.org`;
     const anlegen = (password: string) =>
       auth.api.createUser({
@@ -975,12 +975,12 @@ describe("haveIBeenPwned", () => {
       statusCode: 400,
       body: { code: "PASSWORD_COMPROMISED" },
     });
-    expect(db.user).toEqual([expect.objectContaining({ email })]);
+    // Seit better-auth 1.7.19 bleibt keine Person ohne Konto zurück
+    expect(db.user).toEqual([]);
     expect(db.account).toEqual([]);
-    await expect(anlegen(PASSWORT)).rejects.toMatchObject({
-      statusCode: 400,
-      body: { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" },
-    });
+    await anlegen(PASSWORT);
+    expect(db.user).toEqual([expect.objectContaining({ email })]);
+    expect(db.account).toHaveLength(1);
   });
 });
 
