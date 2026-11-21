@@ -1,5 +1,6 @@
 import sharp from "sharp";
 import type { BildKodierer } from "./bild.js";
+import type { MedienKodierer } from "./medien.js";
 
 // Ohne Zwischenspeicher: Es kommen wenige, einmalige Bilder, und der Speicher soll nach der Anfrage frei sein
 sharp.cache(false);
@@ -26,3 +27,26 @@ export const kodiereStufenlogo: BildKodierer = async (daten) =>
     .resize(LOGO_SEITE, LOGO_SEITE, { fit: "inside", withoutEnlargement: true })
     .webp({ quality: 85 })
     .toBuffer();
+
+const MEDIEN_SEITE = 2048;
+
+// Medienbild: Seitenverhältnis und Transparenz bleiben, längste Seite höchstens 2048 px, ohne EXIF, ICC und Ortsdaten; immer WebP (kleiner als JPEG und PNG, mit Transparenz, in allen aktuellen Browsern und Apps lesbar). Breite und Höhe stammen vom Ergebnis, nach der Drehung
+export const kodiereMedienbild: MedienKodierer = async (daten) => {
+  const { data, info } = await sharp(daten, {
+    limitInputPixels: MAX_PIXEL,
+    failOn: "error",
+  })
+    .rotate()
+    .resize(MEDIEN_SEITE, MEDIEN_SEITE, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .webp({ quality: 82 })
+    .toBuffer({ resolveWithObject: true });
+  return {
+    inhalt: data,
+    typ: "image/webp",
+    breite: info.width,
+    hoehe: info.height,
+  };
+};
