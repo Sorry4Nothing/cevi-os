@@ -239,6 +239,13 @@
       "when": 1793546900000,
       "tag": "0033_tags",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1793548100000,
+      "tag": "0036_bearbeiter",
+      "breakpoints": true
     }
   ]
 }

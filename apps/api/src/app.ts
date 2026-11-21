@@ -12,6 +12,7 @@ import { log } from "./log.js";
 import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
+import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
 import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
@@ -186,6 +187,7 @@ export function erstelleApp({
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
+      .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/mitteilungen",

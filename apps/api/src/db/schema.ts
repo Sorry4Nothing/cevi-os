@@ -272,6 +272,36 @@ export const personTag = pgTable(
   ],
 );
 
+// Bearbeitungsrechte (#334): Sonderrechte pro Objekt für genau eine Person oder einen Tag. objekt_id leer = alle Objekte des Typs (Rolle «Redaktion»); das Recht steht hier, nie am Tag selbst.
+// Dass Person und Tag zur Abteilung gehören, prüfen die Routen und jede Abfrage in bearbeiten.ts. Fällt eine Person oder ein Tag weg, fällt das Recht mit
+export const bearbeiter = pgTable(
+  "bearbeiter",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    objektTyp: text("objekt_typ", { enum: ["seite"] }).notNull(),
+    objektId: uuid("objekt_id"),
+    userId: uuid("user_id").references(() => user.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").references(() => tag.id, { onDelete: "cascade" }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("bearbeiter_eindeutig")
+      .on(t.abteilungId, t.objektTyp, t.objektId, t.userId, t.tagId)
+      .nullsNotDistinct(),
+    index("bearbeiter_user_id_idx").on(t.userId),
+    index("bearbeiter_tag_id_idx").on(t.tagId),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check("bearbeiter_objekt_typ_check", sql`${t.objektTyp} in ('seite')`),
+    check(
+      "bearbeiter_person_oder_tag_check",
+      sql`(${t.userId} is null) <> (${t.tagId} is null)`,
+    ),
+  ],
+);
+
 export const kind = pgTable("kind", {
   id: id(),
   abteilungId: uuid("abteilung_id")
