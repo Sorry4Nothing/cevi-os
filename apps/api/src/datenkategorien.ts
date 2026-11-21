@@ -48,8 +48,9 @@ export const KATEGORIEN = {
     google: ["Personal info: Name"],
   },
   rollen: {
-    titel: "Rollen und Stufen",
-    zweck: "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf.",
+    titel: "Rollen, Stufen und Tags",
+    zweck:
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -281,6 +282,10 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     abteilung: ["id", "abteilung_id", "name", "kuerzel"],
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
+  tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
+  person_tag: {
+    rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+  },
   anwesenheit_kind: {
     anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],
   },

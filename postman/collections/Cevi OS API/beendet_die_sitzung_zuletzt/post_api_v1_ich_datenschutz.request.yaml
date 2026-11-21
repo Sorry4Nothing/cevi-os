@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/ich/datenschutz"
-order: 27000
+order: 33000
 method: POST
 url: "{{baseUrl}}/api/v1/ich/datenschutz"
 headers:

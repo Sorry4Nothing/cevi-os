@@ -3303,6 +3303,244 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/tags:
+    get:
+      operationId: listeAdminTags
+      summary: Tags der Abteilung
+      description: |
+        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Tags der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminTagAn
+      summary: Tag anlegen
+      description: |
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTagAnlegen"
+      responses:
+        "201":
+          description: Tag angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/tags/{id}:
+    get:
+      operationId: holeAdminTag
+      summary: Tag mit Verwendung
+      description: |
+        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
+
+        Reihenfolge der Prüfungen: Pfad (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminTagId"
+      responses:
+        "200":
+          description: Der Tag und seine Verwendung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminTag
+      summary: Tag umbenennen
+      description: |
+        Nur Admins, nur Tags der eigenen Abteilung. Ändert Name und Kürzel; der Typ lässt sich nicht ändern (400). Ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, nie die Werte).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `TAGNAME_VERGEBEN`, wenn der neue Name schon vergeben ist.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminTagId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTagAendern"
+      responses:
+        "204":
+          description: Geändert (auch bei einem No-op).
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminTag
+      summary: Tag löschen
+      description: |
+        Nur Admins, nur Tags der eigenen Abteilung. Löscht den Tag, solange ihn keine Person trägt. Sonst antwortet der Server mit 409 und dem Code `TAG_BELEGT`; `verwendung.personen` nennt, wie viele Personen ihn tragen (`null`, wenn die Zuordnung gleichzeitig entstand). Das Löschen steht im Audit-Log (nur der Typ).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist oder zu einer anderen Abteilung gehört. 409 `TAG_BELEGT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminTagId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Tag ist noch Personen zugewiesen (`TAG_BELEGT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminTagBelegt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/tags/{id}/personen/{userId}:
+    put:
+      operationId: weiseAdminTagZu
+      summary: Tag einer Person zuweisen
+      description: |
+        Nur Admins. Weist der Person den Tag zu oder ändert eine bestehende Zuordnung. Ein Schlüssel ohne Wert lässt das Feld, wie es ist (bei einer neuen Zuordnung: leer); `null` leert es. Eine Person trägt einen Tag höchstens einmal. Die Zuordnung steht im Audit-Log (Person und Priorität, nie die Rolle). Tags verleihen für sich keine Rechte: Wer Admin ist, steht in `admins.ts`, nicht in den Tags.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403), dann Person in der eigenen Abteilung (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn Tag oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminTagId"
+        - $ref: "#/components/parameters/AdminTagPersonId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminTagZuweisen"
+      responses:
+        "204":
+          description: Zugewiesen oder geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: entzieheAdminTag
+      summary: Tag einer Person entziehen
+      description: |
+        Nur Admins, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht trägt.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminTagId"
+        - $ref: "#/components/parameters/AdminTagPersonId"
+      responses:
+        "204":
+          description: Entzogen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
 components:
   schemas:
     Fehler:
@@ -5026,6 +5264,163 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/AdminZeitregel"
+    AdminTagTyp:
+      type: string
+      enum:
+        - stufe
+        - funktion
+        - team
+        - lager
+    AdminTagAnlegen:
+      type: object
+      required:
+        - typ
+        - name
+      additionalProperties: false
+      properties:
+        typ:
+          $ref: "#/components/schemas/AdminTagTyp"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Leerraum am Rand wird entfernt. In der Abteilung eindeutig, ohne Gross-/Kleinschreibung, über alle Typen.
+        kuerzel:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: Optional; leer, wenn es fehlt.
+    AdminTagAendern:
+      type: object
+      additionalProperties: false
+      description: Alle Felder sind optional. Der Typ ist nicht änderbar.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        kuerzel:
+          type: string
+          minLength: 1
+          maxLength: 20
+    AdminTagZuweisen:
+      type: object
+      additionalProperties: false
+      description: Ohne Schlüssel bleibt das Feld, wie es ist; `null` leert es.
+      properties:
+        rolle:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 50
+          description: Freier Text, zum Beispiel «Stufenleitung». Leerraum am Rand wird entfernt.
+        prioritaet:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 1000
+          description: Reihenfolge innerhalb des Tags; 1 zuerst.
+    AdminTagListe:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - typ
+              - name
+              - kuerzel
+              - anzahlPersonen
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                $ref: "#/components/schemas/AdminTagTyp"
+              name:
+                type: string
+              kuerzel:
+                type: string
+              anzahlPersonen:
+                type: integer
+                minimum: 0
+    AdminTag:
+      type: object
+      required:
+        - id
+        - typ
+        - name
+        - kuerzel
+        - verwendung
+        - personen
+      properties:
+        id:
+          type: string
+          format: uuid
+        typ:
+          $ref: "#/components/schemas/AdminTagTyp"
+        name:
+          type: string
+        kuerzel:
+          type: string
+        verwendung:
+          type: object
+          required:
+            - personen
+          properties:
+            personen:
+              type: integer
+              minimum: 0
+        personen:
+          type: array
+          description: Die Personen, die den Tag tragen, nach Priorität (ohne Priorität zuletzt).
+          items:
+            type: object
+            required:
+              - userId
+              - rolle
+              - prioritaet
+            properties:
+              userId:
+                type: string
+                format: uuid
+              rolle:
+                type:
+                  - string
+                  - "null"
+              prioritaet:
+                type:
+                  - integer
+                  - "null"
+    AdminTagBelegt:
+      type: object
+      required:
+        - code
+        - message
+        - verwendung
+      properties:
+        code:
+          type: string
+          examples:
+            - TAG_BELEGT
+        message:
+          type: string
+        verwendung:
+          type: object
+          required:
+            - personen
+          properties:
+            personen:
+              type:
+                - integer
+                - "null"
+              description: Zahl der Personen, die den Tag tragen; `null`, wenn die Zuordnung gleichzeitig entstand.
     AdminAngelegt:
       type: object
       required:
@@ -5810,6 +6205,22 @@ components:
       in: path
       required: true
       description: ID der Erinnerungsregel (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminTagId:
+      name: id
+      in: path
+      required: true
+      description: ID des Tags (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminTagPersonId:
+      name: userId
+      in: path
+      required: true
+      description: ID der Person (UUID), in der Abteilung des Admins.
       schema:
         type: string
         format: uuid

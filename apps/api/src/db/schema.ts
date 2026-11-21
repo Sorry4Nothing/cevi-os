@@ -221,6 +221,57 @@ export const rolle = pgTable(
   ],
 );
 
+// Tags (#331): Gruppenzugehörigkeit einer Person. Die ID ist eine uuid wie bei stufe, damit die Stufen später ihre ID als Tag-ID übernehmen (#332)
+export const tag = pgTable(
+  "tag",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    typ: text("typ", {
+      enum: ["stufe", "funktion", "team", "lager"],
+    }).notNull(),
+    name: text("name").notNull(),
+    kuerzel: text("kuerzel").notNull(),
+  },
+  (t) => [
+    // Über alle Typen und ohne Gross-/Kleinschreibung, wie stufe_name_pro_abteilung
+    uniqueIndex("tag_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check(
+      "tag_typ_check",
+      sql`${t.typ} in ('stufe', 'funktion', 'team', 'lager')`,
+    ),
+  ],
+);
+
+// Dass Person und Tag zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank. Löschen lässt sich ein Tag nur ohne Zuordnung (RESTRICT)
+export const personTag = pgTable(
+  "person_tag",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => tag.id, { onDelete: "restrict" }),
+    // Freier Text, zum Beispiel «Stufenleitung»; null = keine Rolle
+    rolle: text("rolle"),
+    // Reihenfolge innerhalb des Tags: 1 = zuerst; null = nicht eingereiht
+    prioritaet: integer("prioritaet"),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.userId, t.tagId] }),
+    index("person_tag_tag_id_idx").on(t.tagId),
+    check("person_tag_prioritaet_check", sql`${t.prioritaet} >= 1`),
+  ],
+);
+
 export const kind = pgTable("kind", {
   id: id(),
   abteilungId: uuid("abteilung_id")

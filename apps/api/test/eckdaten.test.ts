@@ -212,6 +212,11 @@ test("ohne Zeit ganztägig; mit Kalender in der Abteilung entsteht nichts", asyn
     { ganztaegig: true, beginn: null, ende: null, tagVon: "2027-04-10" },
   ]);
   expect(await webProgramme(kalenderStufe.id)).toEqual([]);
+  // Die ungültige Adresse bliebe sonst in der Datenbank und stört jeden Kalender-Sync
+  await db
+    .update(schema.abteilung)
+    .set({ googleKalenderId: null })
+    .where(eq(schema.abteilung.id, mitKalender.id));
 });
 
 test("ein neuer Lauf ersetzt den alten Tag der Stufe", async () => {
