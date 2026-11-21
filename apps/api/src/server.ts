@@ -2,7 +2,11 @@ import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
-import { kodiereProfilbild, kodiereStufenlogo } from "./bild-sharp.js";
+import {
+  kodiereMedienbild,
+  kodiereProfilbild,
+  kodiereStufenlogo,
+} from "./bild-sharp.js";
 import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
@@ -14,6 +18,7 @@ import {
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { log } from "./log.js";
+import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
 import { ladeSeiten } from "./seiten.js";
 import {
   loescheAbgelaufeneSitzungen,
@@ -36,6 +41,24 @@ const fcm = konfiguration.FCM_SCHLUESSEL_DATEI
   ? erstelleFcm(konfiguration.FCM_SCHLUESSEL_DATEI)
   : undefined;
 if (!fcm) log(undefined, { ereignis: "push", code: "ohne-schluessel" });
+// Ohne die fünf Variablen startet die API ohne Medien; die Konfiguration prüft, dass alle oder keine gesetzt sind
+const medienspeicher =
+  konfiguration.MEDIEN_S3_ENDPOINT &&
+  konfiguration.MEDIEN_S3_REGION &&
+  konfiguration.MEDIEN_S3_BUCKET &&
+  konfiguration.MEDIEN_S3_ZUGANGSSCHLUESSEL &&
+  konfiguration.MEDIEN_S3_GEHEIMSCHLUESSEL
+    ? erstelleMedienspeicher({
+        endpunkt: konfiguration.MEDIEN_S3_ENDPOINT,
+        region: konfiguration.MEDIEN_S3_REGION,
+        bucket: konfiguration.MEDIEN_S3_BUCKET,
+        zugangsschluessel: konfiguration.MEDIEN_S3_ZUGANGSSCHLUESSEL,
+        geheimschluessel: konfiguration.MEDIEN_S3_GEHEIMSCHLUESSEL,
+        pfadstil: konfiguration.MEDIEN_S3_PFADSTIL === "true",
+      })
+    : undefined;
+if (!medienspeicher)
+  log(undefined, { ereignis: "medien", code: "ohne-speicher" });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
 const auth = erstelleAuth(
@@ -59,6 +82,8 @@ const app = erstelleApp({
   fcm,
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
+  kodiereMedienbild,
+  medienspeicher,
   seiten,
   syncs: {
     kalender: kalenderLauf,

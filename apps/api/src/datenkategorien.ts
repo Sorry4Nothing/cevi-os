@@ -121,6 +121,15 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  medien: {
+    titel: "Medien",
+    zweck:
+      "Bilder und PDFs der Abteilung bereitstellen, zum Beispiel für die Webseite. Nur die Leitung lädt sie hoch. Wer ein Medium sehen darf, legt die Leitung beim Hochladen fest.",
+    frist:
+      "Bis die Leitung das Medium löscht. Mit dem Konto verschwindet nur die Angabe, wer es hochgeladen hat.",
+    apple: ["User Content: Photos or Videos"],
+    google: ["Photos and videos: Photos"],
+  },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
     titel: "Ungenutzt",
@@ -193,6 +202,22 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   kind_eltern: { kinder: ["kind_id", "user_id", "erstellt_am"] },
   leitung_anmeldung: {
     anmeldungen: ["programm_id", "user_id", "status"],
+  },
+  medium: {
+    medien: [
+      "id",
+      "abteilung_id",
+      "mime_typ",
+      "groesse",
+      "breite",
+      "hoehe",
+      "alt_text",
+      "dekorativ",
+      "sichtbarkeit",
+      "speicher_schluessel",
+      "hochgeladen_von",
+      "erstellt_am",
+    ],
   },
   nachricht: {
     chat: ["id", "chat_id", "autor_id", "text", "programm_id", "erstellt_am"],

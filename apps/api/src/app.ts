@@ -9,6 +9,8 @@ import type { BildKodierer } from "./bild.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { log } from "./log.js";
+import type { MedienKodierer } from "./medien.js";
+import type { Medienspeicher } from "./medien-speicher.js";
 import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
@@ -20,6 +22,10 @@ import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
+import {
+  erstelleMedienRouten,
+  erstelleOeffentlicheMedienRoute,
+} from "./routes/medien.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -66,6 +72,8 @@ export function erstelleApp({
   fcm,
   kodiereBild,
   kodiereLogo,
+  kodiereMedienbild,
+  medienspeicher,
   seiten,
   syncs,
 }: {
@@ -77,6 +85,9 @@ export function erstelleApp({
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
   kodiereBild?: BildKodierer;
   kodiereLogo?: BildKodierer;
+  // Medien (#335): ohne Speicher oder Kodierer antworten die Routen mit 501
+  kodiereMedienbild?: MedienKodierer;
+  medienspeicher?: Medienspeicher;
   // Die Abrufe im Hintergrund, von Hand anzustossen; ohne sie antwortet die Verwaltung mit 501
   syncs?: {
     eckdaten?: () => Promise<"fertig" | "gesperrt">;
@@ -140,11 +151,12 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, und der Import mit 256 KB
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB
       .use((c, next) =>
-        c.req.method === "PUT" &&
-        (c.req.path === "/api/v1/ich/bild" ||
-          /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))
+        (c.req.method === "PUT" &&
+          (c.req.path === "/api/v1/ich/bild" ||
+            /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))) ||
+        (c.req.method === "POST" && c.req.path === "/api/v1/admin/medien")
           ? next()
           : c.req.method === "POST" &&
               /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
@@ -172,11 +184,24 @@ export function erstelleApp({
         }
         await next();
       })
+      // Öffentliche Medien (#335) brauchen keine Sitzung, darum vor ihr; alle anderen Medien gehen weiter zur Sitzung
+      .route(
+        "/",
+        erstelleOeffentlicheMedienRoute({ db, speicher: medienspeicher }),
+      )
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
+      .route(
+        "/api/v1",
+        erstelleMedienRouten({
+          db,
+          speicher: medienspeicher,
+          kodiereMedienbild,
+        }),
+      )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
