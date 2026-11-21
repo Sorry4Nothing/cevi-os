@@ -232,6 +232,13 @@
       "when": 1793546800000,
       "tag": "0032_programm_ohne_ort_beschreibung",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1793547400000,
+      "tag": "0034_medium",
+      "breakpoints": true
     }
   ]
 }

@@ -138,3 +138,48 @@ test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL haben feste Vorgaben, die die Umg
     "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_STELLE",
   );
 });
+
+describe("MEDIEN_S3_* (#335)", () => {
+  // Erfundene Werte, nie ein echter Anbieter oder Schlüssel
+  const MEDIEN = {
+    MEDIEN_S3_ENDPOINT: "https://s3.example.org",
+    MEDIEN_S3_REGION: "region-1",
+    MEDIEN_S3_BUCKET: "bucket-beispiel",
+    MEDIEN_S3_ZUGANGSSCHLUESSEL: "zugang-geheim-1",
+    MEDIEN_S3_GEHEIMSCHLUESSEL: "geheim-geheim-2",
+  };
+
+  test("ohne alle fünf ist der Medienspeicher aus, auch mit leeren Zeilen aus deploy/.env", () => {
+    expect(ladeKonfiguration(GUELTIG).MEDIEN_S3_BUCKET).toBeUndefined();
+    const leer = Object.fromEntries(Object.keys(MEDIEN).map((n) => [n, ""]));
+    expect(ladeKonfiguration({ ...GUELTIG, ...leer }).MEDIEN_S3_BUCKET).toBe(
+      undefined,
+    );
+  });
+
+  test("mit allen fünf werden sie durchgereicht", () => {
+    expect(ladeKonfiguration({ ...GUELTIG, ...MEDIEN })).toMatchObject(MEDIEN);
+  });
+
+  test("mit einigen nennt die Meldung die fehlenden Namen und nie einen Wert", () => {
+    const text = meldung({
+      ...GUELTIG,
+      MEDIEN_S3_ENDPOINT: MEDIEN.MEDIEN_S3_ENDPOINT,
+      MEDIEN_S3_ZUGANGSSCHLUESSEL: MEDIEN.MEDIEN_S3_ZUGANGSSCHLUESSEL,
+    });
+    expect(text).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: MEDIEN_S3_REGION, MEDIEN_S3_BUCKET, MEDIEN_S3_GEHEIMSCHLUESSEL",
+    );
+    expect(text).not.toContain("geheim");
+  });
+
+  test("der Endpunkt braucht https", () => {
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...MEDIEN,
+        MEDIEN_S3_ENDPOINT: "http://s3.example.org",
+      }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: MEDIEN_S3_ENDPOINT");
+  });
+});
