@@ -249,7 +249,10 @@ describe("Sichtbarkeit je Persona", () => {
 
 describe("Hilfen", () => {
   test("ladeTagIds: nur Tags der eigenen Abteilung", async () => {
-    expect([...personen.slA!.tagIds].sort()).toEqual([tags.t1, tags.t2].sort());
+    // Die Stufe ist seit 0035 ein Tag: Wer in Stufe A leitet, trägt ihn
+    expect([...personen.slA!.tagIds].sort()).toEqual(
+      [tags.t1, tags.t2, welt.stufeAId].sort(),
+    );
     expect(personen.demoEltern!.tagIds).toEqual([tags.demo]);
     expect(personen.elternB!.tagIds).toEqual([]);
   });
