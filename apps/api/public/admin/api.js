@@ -1,12 +1,14 @@
 // Alle Aufrufe gegen die eigene Herkunft. Die Sitzung liegt nur im Cookie des Browsers (httpOnly); die Seite speichert nichts davon.
 
 export class ApiFehler extends Error {
-  constructor(status, code, meldung, warten) {
+  constructor(status, code, meldung, warten, verwendung) {
     super(code ?? String(status));
     this.status = status;
     this.code = code;
     this.meldung = meldung;
     this.warten = warten;
+    // Bei 409 TAG_BELEGT: wie viele Personen den Tag tragen
+    this.verwendung = verwendung;
   }
 
   // Status 0: Die Anfrage kam gar nicht beim Server an
@@ -55,6 +57,7 @@ export async function anfrage(methode, pfad, body) {
       daten?.code,
       daten?.message,
       antwort.headers.get("X-Retry-After"),
+      daten?.verwendung,
     );
   }
   return daten;
