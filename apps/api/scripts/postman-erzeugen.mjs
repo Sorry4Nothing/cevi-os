@@ -113,7 +113,7 @@ const ordner = new Map();
 const json = new Map(); // Ordnername -> [Reihenfolge, Anfrage] für die Datei zum Importieren
 let nr = 0;
 for (const z of matrix.zeilen) {
-  if (z.bild) continue; // Binärer Body; die Zeile prüft nur die Matrix im Test
+  if (z.bild || z.ohnePostman) continue; // Binärer Body oder Medienspeicher nötig; die Zeile prüft nur die Matrix im Test
   const pfad = z.schluessel.split(" ")[1];
   const name = z.sitzungEnde ? "Beendet die Sitzung (zuletzt)" : bereich(pfad);
   if (!ordner.has(name)) {

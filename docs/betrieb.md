@@ -117,6 +117,8 @@ Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät ein
 - Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
 - Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
 
+- Die Dateien der Medien (Bilder und PDFs, #335): Sie liegen im Bucket des Medienspeichers, nicht in der Datenbank. Der Dump enthält nur die Tabelle `medium` (Metadaten), siehe «Medienspeicher» unten.
+
 Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
 
 ### Schlüssel
@@ -143,6 +145,18 @@ Jeder Schlüssel kann das Archiv auch löschen. Der Schutz dagegen liegt beim An
    - `docker compose -f docker-compose.prod.yml run --rm backup key add --user abteilungsleitung`
 5. Cron-Eintrag im Konto, das auch `deploy.sh` ausführt; 03:15 gibt es an beiden Tagen der Zeitumstellung genau einmal:
    `15 3 * * * <Pfad zum Repo>/deploy/backup.sh 2>&1 | logger -t cevi-os-backup`
+
+### Medienspeicher
+
+Bilder und PDFs (`medium`, #335) liegen in einem eigenen S3-Bucket, den `MEDIEN_S3_*` in `deploy/.env` benennen; ohne die Variablen startet die API ohne Medien, und deren Routen antworten 501. `deploy/backup.sh` sichert nur die Datenbank: Der Dump enthält die Zeilen von `medium`, nicht die Dateien. Folgen:
+
+- **Verlust oder Löschen des Buckets:** Die Dateien sind ohne eine Kopie des Anbieters weg. Die Zeilen bleiben, ihr Abruf antwortet dann 500 (Datei fehlt), und die Dateien müssen neu hochgeladen werden.
+- **Wiederherstellung der Datenbank auf einen älteren Stand:** Dateien, die nach dem Backup hochgeladen wurden, bleiben als Waisen im Bucket (keine Zeile, keine Route liefert sie aus). Dateien, die nach dem Backup gelöscht wurden, fehlen, obwohl die Zeile zurückkommt.
+- **Waisen im Normalbetrieb:** Scheitert der Speicher nach dem Löschen einer Zeile, bleibt die Datei im Bucket; das Log nennt es mit `"code":"WAISE"`. Waisen sind unsichtbar und nur Platz; ein Aufräumlauf gehört nicht zum Umfang von #335.
+- **Schutz:** Der Server-Zugangsschlüssel muss Dateien löschen können (die Route «Medium löschen»). Der Schutz vor versehentlichem oder böswilligem Löschen liegt darum beim Anbieter, wie beim Backup-Bucket: Versionierung oder Object Lock, mit einer Regel, die alte Versionen nach einer festen Frist entfernt. Ob der gewählte Anbieter das bietet, ist offen und vor dem Einsatz zu klären.
+- **Zugang:** Eigener Bucket und eigener Schlüssel, der nur diesen Bucket lesen, schreiben und löschen darf; nie der Schlüssel des Backups. Der Bucket hat keinen öffentlichen Zugriff: Auch öffentliche Medien liefert die API aus.
+
+Einrichtung: Bucket und Schlüssel beim Anbieter anlegen, die fünf Werte `MEDIEN_S3_*` in `deploy/.env` füllen (Vorlage: `deploy/.env.example`, `MEDIEN_S3_PFADSTIL=true` nur, wenn der Anbieter den Bucket im Pfad verlangt), mit `./deploy.sh <Tag>` ausrollen. Anbieter und Bucket-Name stehen noch nicht fest.
 
 ### Prüfung einmal pro Quartal
 
