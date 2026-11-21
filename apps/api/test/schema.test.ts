@@ -195,7 +195,8 @@ test("rolle.typ nimmt nur leitung und stufenleitung an", async () => {
     const { stufe, person } = await grunddaten(tx);
     await scheitert(
       tx,
-      { code: "23514", constraint_name: "rolle_typ_check" },
+      // Seit 0035 ist «rolle» eine Sicht mit CHECK OPTION: Postgres meldet 44000 statt des Check-Fehlers der alten Tabelle
+      { code: "44000" },
       (sp) =>
         sp`insert into rolle (user_id, stufe_id, typ) values (${person}, ${stufe}, 'admin')`,
     );

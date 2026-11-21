@@ -162,25 +162,14 @@ export const twoFactor = pgTable(
   ],
 );
 
-// Löschbar nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT, die API-Rolle hat DELETE seit Migration 0023
-export const stufe = pgTable(
-  "stufe",
-  {
-    id: id(),
-    abteilungId: uuid("abteilung_id")
-      .notNull()
-      .references(() => abteilung.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    kuerzel: text("kuerzel").notNull(),
-  },
-  (t) => [
-    // Ohne Gross-/Kleinschreibung: «Biber» und «biber» sind dieselbe Stufe
-    uniqueIndex("stufe_name_pro_abteilung").on(
-      t.abteilungId,
-      sql`lower(${t.name})`,
-    ),
-  ],
-);
+// Kompatibilitätsschicht (#332): «stufe» und «rolle» sind seit Migration 0035 beschreibbare Sichten auf tag (Typ «stufe») und person_tag (Rolle «leitung» oder «stufenleitung»); die Daten liegen dort. Die Fremdschlüssel zeigen auf tag.id. Löschbar ist eine Stufe nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT.
+// Als pgTable beschrieben, weil Drizzle auf einer pgView nicht schreibt; Migrationen entstehen von Hand. Der Abbau der Schicht ersetzt beide durch tag und personTag
+export const stufe = pgTable("stufe", {
+  id: id(),
+  abteilungId: uuid("abteilung_id").notNull(),
+  name: text("name").notNull(),
+  kuerzel: text("kuerzel").notNull(),
+});
 
 // Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo
 export const stufenlogo = pgTable(
@@ -188,7 +177,7 @@ export const stufenlogo = pgTable(
   {
     stufeId: uuid("stufe_id")
       .primaryKey()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     inhalt: bytea("inhalt").notNull(),
     geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
   },
@@ -198,30 +187,17 @@ export const stufenlogo = pgTable(
   ],
 );
 
-// Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank
-export const rolle = pgTable(
-  "rolle",
-  {
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    stufeId: uuid("stufe_id")
-      .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
-    typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
-    // Reihenfolge der SL einer Stufe in den Kontakten: 1 = erster Ansprechpartner; null = nicht eingereiht, steht hinter den anderen
-    prioritaet: integer("prioritaet"),
-    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.userId, t.stufeId] }),
-    check("rolle_prioritaet_check", sql`${t.prioritaet} >= 1`),
-    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
-    check("rolle_typ_check", sql`${t.typ} in ('leitung', 'stufenleitung')`),
-  ],
-);
+// Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank. Sicht auf person_tag, siehe stufe
+export const rolle = pgTable("rolle", {
+  userId: uuid("user_id").notNull(),
+  stufeId: uuid("stufe_id").notNull(),
+  typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
+  // Reihenfolge der SL einer Stufe in den Kontakten: 1 = erster Ansprechpartner; null = nicht eingereiht, steht hinter den anderen
+  prioritaet: integer("prioritaet"),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+});
 
-// Tags (#331): Gruppenzugehörigkeit einer Person. Die ID ist eine uuid wie bei stufe, damit die Stufen später ihre ID als Tag-ID übernehmen (#332)
+// Tags (#331): Gruppenzugehörigkeit einer Person. Eine Stufe ist ein Tag vom Typ «stufe» mit ihrer bisherigen ID (#332)
 export const tag = pgTable(
   "tag",
   {
@@ -313,7 +289,7 @@ export const kind = pgTable("kind", {
   ceviName: text("cevi_name"),
   stufeId: uuid("stufe_id")
     .notNull()
-    .references(() => stufe.id, { onDelete: "restrict" }),
+    .references(() => tag.id, { onDelete: "restrict" }),
   stufeSeit: zeitpunkt("stufe_seit").notNull().defaultNow(),
   // Ohne Datum ist das Kind aktiv
   inaktivSeit: zeitpunkt("inaktiv_seit"),
@@ -388,7 +364,7 @@ export const programmEckdaten = pgTable(
   {
     stufeId: uuid("stufe_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     tag: date("tag").notNull(),
     treffpunkt: text("treffpunkt"),
     schlussOrt: text("schluss_ort"),
@@ -408,7 +384,7 @@ export const programmStufe = pgTable(
       .references(() => programm.id, { onDelete: "cascade" }),
     stufeId: uuid("stufe_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
   },
   (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
 );
@@ -510,7 +486,7 @@ export const chat = pgTable(
     typ: text("typ", { enum: ["stufe", "direkt"] }).notNull(),
     stufeId: uuid("stufe_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     // Nur bei typ direkt: das Elternteil des Einzelchats
     elternUserId: uuid("eltern_user_id").references(() => user.id, {
       onDelete: "cascade",
@@ -607,7 +583,7 @@ export const zeitregel = pgTable(
       .notNull()
       .references(() => abteilung.id, { onDelete: "restrict" }),
     // RESTRICT wie jede Stufen-Referenz; die Löschroute der Stufe löscht die Regeln vorher
-    stufeId: uuid("stufe_id").references(() => stufe.id, {
+    stufeId: uuid("stufe_id").references(() => tag.id, {
       onDelete: "restrict",
     }),
     wochentag: integer("wochentag").notNull(),
