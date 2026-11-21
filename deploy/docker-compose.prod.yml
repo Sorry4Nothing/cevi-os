@@ -27,6 +27,13 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?fehlt in deploy/.env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?fehlt in deploy/.env}
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
+      # Medienspeicher (#335): ohne Wert, damit docker compose sie aus deploy/.env übernimmt; fehlen alle, startet die API ohne Medien
+      MEDIEN_S3_ENDPOINT:
+      MEDIEN_S3_REGION:
+      MEDIEN_S3_BUCKET:
+      MEDIEN_S3_ZUGANGSSCHLUESSEL:
+      MEDIEN_S3_GEHEIMSCHLUESSEL:
+      MEDIEN_S3_PFADSTIL:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:

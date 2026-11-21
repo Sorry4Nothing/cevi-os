@@ -14,7 +14,12 @@ import {
   type MockInstance,
 } from "vitest";
 import { erstelleApp } from "../src/app.js";
-import { kodiereProfilbild, kodiereStufenlogo } from "../src/bild-sharp.js";
+import {
+  kodiereMedienbild,
+  kodiereProfilbild,
+  kodiereStufenlogo,
+} from "../src/bild-sharp.js";
+import type { Medienspeicher } from "../src/medien-speicher.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { ladeSeiten } from "../src/seiten.js";
@@ -40,6 +45,20 @@ bereiteAuthTestsVor();
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
+// Eine Attrappe statt S3: Kein Test der Matrix soll ins Netz gehen
+const medienObjekte = new Map<string, Uint8Array>();
+const medienspeicher: Medienspeicher = {
+  ablegen: async (inhalt) => {
+    const schluessel = randomUUID();
+    medienObjekte.set(schluessel, inhalt);
+    return schluessel;
+  },
+  holen: async (schluessel) =>
+    medienObjekte.get(schluessel) ?? new Uint8Array(),
+  loeschen: async (schluessel) => {
+    medienObjekte.delete(schluessel);
+  },
+};
 const app = erstelleApp({
   appMinVersion: "1.2.0",
   sql,
@@ -47,6 +66,8 @@ const app = erstelleApp({
   auth,
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
+  kodiereMedienbild,
+  medienspeicher,
   // Eine Attrappe statt firebase-admin: Ohne Push-Dienst antwortet die Mitteilung mit 503, und kein Test der Matrix soll ins Netz gehen
   fcm: {
     sendEach: async (nachrichten) => ({
@@ -65,6 +86,8 @@ interface Zeile {
   body?: (konto: PersonaKonto) => Record<string, unknown>;
   // Statt body: Der Body ist das Bild selbst (Profilbild-Upload)
   bild?: true;
+  // Die Collection lässt die Zeile aus: Sie braucht den Medienspeicher, den die lokale API der Collection nicht hat
+  ohnePostman?: true;
   // Für Zeilen, die die Sitzungen der geteilten Personas beenden würden
   frischePersonas?: true;
   // Pflicht für jede Route mit Pfad-Parameter: ein Objekt der Testabteilung
@@ -461,6 +484,55 @@ const MATRIX: Record<string, Zeile> = {
       mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  // Medienspeicher (#335): Hochladen, Liste und Löschen nur Admins; ein Medium mit Sichtbarkeit «angemeldet» liest jede Person der Abteilung mit Sitzung, fremde Abteilungen sehen es nicht. Öffentliche Medien (ohne Sitzung, auch für gesperrte Konten) und Typ, Grösse, Alt-Text und Ausfall des Speichers prüft test/medien.test.ts. Der Upload ist binär und fehlt darum in der Postman-Collection
+  "POST /api/v1/admin/medien": {
+    url: () => "/api/v1/admin/medien?sichtbarkeit=angemeldet&altText=Matrix",
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/medien": {
+    ohnePostman: true,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/admin/medien/:id": {
+    ohnePostman: true,
+    urlJeAnfrage: async () => `/api/v1/admin/medien/${await wegwerfMediumId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/medien/:id": {
+    ohnePostman: true,
+    url: () => `/api/v1/medien/${mediumId}`,
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
     },
   },
   // Stufenlogo (#212): Hochladen und Löschen nur Admins; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
@@ -998,6 +1070,7 @@ let patchTagId: string;
 let tagPersonId: string;
 let tagZaehler = 0;
 let bildZielId: string;
+let mediumId: string;
 let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
@@ -1022,6 +1095,25 @@ async function wegwerfPersonId(zweiterFaktor = false) {
 }
 
 // Wegwerf-Stufe der Testabteilung ohne Kinder und Leitung: Die Löschroute darf sie wegnehmen
+async function wegwerfMediumId() {
+  const schluessel = randomUUID();
+  medienObjekte.set(schluessel, testBild);
+  const [zeile] = await welt.db
+    .insert(schema.medium)
+    .values({
+      abteilungId: welt.testabteilungId,
+      mimeTyp: "image/jpeg",
+      groesse: testBild.length,
+      breite: 64,
+      hoehe: 64,
+      altText: "Matrix",
+      sichtbarkeit: "angemeldet",
+      speicherSchluessel: schluessel,
+    })
+    .returning({ id: schema.medium.id });
+  return zeile.id;
+}
+
 async function wegwerfStufeId() {
   const [zeile] = await welt.db
     .insert(schema.stufe)
@@ -1153,6 +1245,7 @@ beforeAll(async () => {
     })
     .returning({ id: schema.stufe.id });
   patchStufeId = patchStufe.id;
+  mediumId = await wegwerfMediumId();
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -1320,6 +1413,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       patchTagId,
       tagPersonId,
       bildZielId,
+      mediumId,
       elternAUserId: standard.elternA.id!,
     };
     const ersetze = (text: string) =>
@@ -1339,6 +1433,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       pfad: ersetze(zeile.url?.(welt) ?? schluessel.split(" ")[1]),
       body: zeile.body && ersetze(JSON.stringify(zeile.body(platzhalter))),
       bild: zeile.bild === true,
+      ohnePostman: zeile.ohnePostman === true,
       zielJeAnfrage: zeile.urlJeAnfrage !== undefined,
       sitzungEnde: zeile.frischePersonas === true,
       bodyJePersona: false,

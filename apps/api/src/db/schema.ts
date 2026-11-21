@@ -644,3 +644,45 @@ export const profilbild = pgTable(
     check("profilbild_inhalt_klein", sql`octet_length(${t.inhalt}) <= 262144`),
   ],
 );
+
+// Ein Bild oder PDF im Medienspeicher (#335); der Inhalt liegt im S3 unter speicherSchluessel, nie in der Datenbank. Bilder sind verkleinert und ohne Metadaten (WebP), PDFs unverändert. Die Sichtbarkeit kennt vorerst nur «oeffentlich» und «angemeldet»; die Tag-Menge folgt mit #333. Die Zeile bleibt, wenn das Konto geht
+export const medium = pgTable(
+  "medium",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    mimeTyp: text("mime_typ").notNull(),
+    groesse: integer("groesse").notNull(),
+    // Nur bei Bildern
+    breite: integer("breite"),
+    hoehe: integer("hoehe"),
+    // Bild: genau eines von altText und dekorativ; PDF: freiwillige Beschreibung, nie dekorativ
+    altText: text("alt_text"),
+    dekorativ: boolean("dekorativ").notNull().default(false),
+    sichtbarkeit: text("sichtbarkeit", {
+      enum: ["oeffentlich", "angemeldet"],
+    }).notNull(),
+    // Zufällig, ohne Dateinamen der Nutzer
+    speicherSchluessel: text("speicher_schluessel").notNull().unique(),
+    hochgeladenVon: uuid("hochgeladen_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    index("medium_abteilung").on(t.abteilungId, t.erstelltAm),
+    check(
+      "medium_sichtbarkeit_check",
+      sql`${t.sichtbarkeit} in ('oeffentlich', 'angemeldet')`,
+    ),
+    check(
+      "medium_inhalt_check",
+      sql`${t.groesse} > 0 and (
+        (${t.mimeTyp} = 'application/pdf' and not ${t.dekorativ} and ${t.breite} is null and ${t.hoehe} is null)
+        or (${t.mimeTyp} in ('image/jpeg', 'image/png', 'image/webp') and ${t.breite} > 0 and ${t.hoehe} > 0 and ${t.dekorativ} = (${t.altText} is null))
+      )`,
+    ),
+  ],
+);
