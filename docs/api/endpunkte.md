@@ -25,6 +25,7 @@ Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 n
 | `GET /admin/personen.js`                      | Skript der Verwaltung – Bereich Personen              | **200** alle      |
 | `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                | **200** alle      |
 | `GET /admin/system.js`                        | Skript der Verwaltung – Bereich System                | **200** alle      |
+| `GET /admin/tags.js`                          | Skript der Verwaltung – Bereich Tags                  | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht             | **200** alle      |
 | `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen          | **200** alle      |
 | `GET /admin/csv.js`                           | Skript der Verwaltung – CSV-Leser                     | **200** alle      |

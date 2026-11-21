@@ -297,6 +297,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/tags.js:
+    get:
+      operationId: getAdminTagsSkript
+      summary: Skript der Verwaltung – Bereich Tags
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/uebersicht.js:
     get:
       operationId: getAdminUebersichtSkript

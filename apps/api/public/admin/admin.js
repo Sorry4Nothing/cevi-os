@@ -7,6 +7,7 @@ import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
+import * as tags from "./tags.js";
 import * as uebersicht from "./uebersicht.js";
 import * as zeitregeln from "./zeitregeln.js";
 
@@ -27,6 +28,13 @@ const BEREICHE = [
     "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
   ],
   ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
+  [
+    "tags",
+    "Tags und Gruppen",
+    tags,
+    "tag",
+    "Tags anlegen und Personen zuweisen.",
+  ],
   ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
   [
     "import",
