@@ -237,6 +237,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   rate_limit: { technik: ["id", "key", "count", "last_request"] },
+  // Seit Migration 0035 (#332) sind «rolle» und «stufe» Sichten auf person_tag und tag; die Daten stehen dort, die Einträge bleiben für die Spalten, die die Sichten den Routen zeigen
   rolle: {
     rollen: ["user_id", "stufe_id", "typ", "prioritaet", "erstellt_am"],
   },
@@ -257,6 +258,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     abteilung: ["id", "abteilung_id", "name", "kuerzel"],
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
+  // Tags vom Typ «stufe» sind die Stufen der Abteilung (Kategorie «abteilung», kein Personenbezug); alle anderen Tags gehören zu «rollen»
   tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
   person_tag: {
     rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],

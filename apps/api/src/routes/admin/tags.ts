@@ -2,6 +2,7 @@ import { and, asc, count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { legeGruppenchatAn } from "../../chat.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, personTag, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -96,6 +97,13 @@ export function erstelleTagRouten({ db }: { db: Db }) {
               abteilungId: person.abteilungId,
             })
             .returning({ id: tag.id });
+          // Ein Tag vom Typ «stufe» ist eine Stufe (#332) und braucht wie jede Stufe ihren Gruppenchat
+          if (felder.typ === "stufe") {
+            await legeGruppenchatAn(tx, {
+              abteilungId: person.abteilungId,
+              stufeId: zeile.id,
+            });
+          }
           // Nur der Typ, nie der Name
           await tx.insert(auditLog).values({
             abteilungId: person.abteilungId,

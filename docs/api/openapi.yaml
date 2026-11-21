@@ -3117,7 +3117,7 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name).
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
       tags:
