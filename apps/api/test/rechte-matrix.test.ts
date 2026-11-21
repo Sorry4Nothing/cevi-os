@@ -816,6 +816,94 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Tags (#331): nur Admins; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
+  "GET /api/v1/admin/tags": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/tags": {
+    // Jeder Aufruf braucht einen eigenen Namen: In einer Abteilung ist er eindeutig
+    body: () => ({ typ: "team", name: `Matrix Tag ${++tagZaehler}` }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/tags/:id": {
+    url: () => `/api/v1/admin/tags/${patchTagId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/admin/tags/:id": {
+    url: () => `/api/v1/admin/tags/${patchTagId}`,
+    body: () => ({ name: `Matrix Tag ${++tagZaehler}` }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/tags/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () => `/api/v1/admin/tags/${await wegwerfTagId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/admin/tags/:id/personen/:userId": {
+    url: () => `/api/v1/admin/tags/${patchTagId}/personen/${tagPersonId}`,
+    body: () => ({ rolle: "Matrix", prioritaet: 1 }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/tags/:id/personen/:userId": {
+    // Jede Anfrage entzieht ihre Zuordnung
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/tags/${await wegwerfTagId(tagPersonId)}/personen/${tagPersonId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -905,6 +993,9 @@ let patchStufeId: string;
 let stufenZaehler = 0;
 let patchKindId: string;
 let patchRegelId: string;
+let patchTagId: string;
+let tagPersonId: string;
+let tagZaehler = 0;
 let bildZielId: string;
 let testBild: Buffer;
 
@@ -970,6 +1061,23 @@ async function wegwerfRegelId() {
   return zeile.id;
 }
 
+// Wegwerf-Tag der Testabteilung, auf Wunsch einer Person zugewiesen
+async function wegwerfTagId(userId?: string) {
+  const [zeile] = await welt.db
+    .insert(schema.tag)
+    .values({
+      abteilungId: welt.testabteilungId,
+      typ: "team",
+      name: `Wegwerf Tag ${randomUUID()}`,
+      kuerzel: "W",
+    })
+    .returning({ id: schema.tag.id });
+  if (userId) {
+    await welt.db.insert(schema.personTag).values({ userId, tagId: zeile.id });
+  }
+  return zeile.id;
+}
+
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
   return Object.fromEntries(
@@ -1016,6 +1124,8 @@ beforeAll(async () => {
     ]);
   patchKindId = await wegwerfKindId();
   patchRegelId = await wegwerfRegelId();
+  patchTagId = await wegwerfTagId();
+  tagPersonId = await wegwerfPersonId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })
@@ -1206,6 +1316,8 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       patchStufeId,
       patchKindId,
       patchRegelId,
+      patchTagId,
+      tagPersonId,
       bildZielId,
       elternAUserId: standard.elternA.id!,
     };
@@ -1233,9 +1345,12 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       n,
     }));
     for (const z of zeilen.filter((z) => z.zielJeAnfrage)) {
-      z.pfad = (await MATRIX[z.schluessel].urlJeAnfrage!()).replace(
-        uuid,
-        `{{ziel_${z.n}}}`,
+      // Die erste UUID ist das Ziel; weitere (die Person der Tag-Zuordnung) stehen als feste ID in der Umgebung
+      z.pfad = ersetze(
+        (await MATRIX[z.schluessel].urlJeAnfrage!()).replace(
+          uuid,
+          `{{ziel_${z.n}}}`,
+        ),
       );
     }
 

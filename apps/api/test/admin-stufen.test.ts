@@ -307,7 +307,14 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
 });
 
 describe("DELETE /api/v1/admin/stufen/:id", () => {
-  const zaehleChats = async () => (await db.select().from(schema.chat)).length;
+  // Nur die eigene Abteilung: Andere Testdateien legen gleichzeitig Stufen und Chats an
+  const zaehleChats = async () =>
+    (
+      await db
+        .select()
+        .from(schema.chat)
+        .where(eq(schema.chat.abteilungId, welt.testabteilungId))
+    ).length;
 
   test("löscht die leere Stufe samt Gruppenchat und schreibt das Audit-Log", async () => {
     const id = await legeStufeAn();

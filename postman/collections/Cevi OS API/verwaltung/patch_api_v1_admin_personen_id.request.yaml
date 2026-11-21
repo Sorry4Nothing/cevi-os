@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/admin/personen/:id"
-order: 40000
+order: 49000
 method: PATCH
 url: "{{baseUrl}}/api/v1/admin/personen/{{patchZielId}}"
 headers:
