@@ -1161,6 +1161,65 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/medien/{id}:
+    get:
+      operationId: mediumLesen
+      summary: Bild oder PDF aus dem Medienspeicher lesen
+      tags:
+        - Medien
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      description: |
+        Liefert die Datei eines Mediums. Der Server liest sie aus dem Medienspeicher und gibt sie selbst aus; es gibt
+        keine Adresse des Speichers und keinen öffentlichen Bucket.
+
+        **Sichtbarkeit.** Ein Medium mit Sichtbarkeit `oeffentlich` ist ohne Anmeldung abrufbar (auch ohne Sitzung, für
+        gesperrte Konten und andere Abteilungen). Ein Medium mit Sichtbarkeit `angemeldet` liefert der Server nur mit
+        Sitzung und nur der Abteilung des Mediums; für andere Abteilungen und unbekannte IDs ist die Antwort 404, nie 403.
+        Die Sichtbarkeit nach Tags folgt mit #333.
+
+        **Kopfzeilen.** `Content-Type` ist `image/webp` oder `application/pdf`; `X-Content-Type-Options: nosniff` und
+        `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer. Ein PDF trägt
+        `Content-Disposition: attachment` (es öffnet sich nie in der Seite), ein Bild `inline`. `Cache-Control` ist
+        `public, max-age=300` für öffentliche und `private, no-store` für angemeldete Medien.
+
+        **Rollen.** Öffentlich: alle. Angemeldet: alle Personen der Abteilung, ausser bei offenem Pflichtwechsel des
+        Passworts (403). Statuscodes: 200, 400, 401, 403, 404, 426, 500 (Medienspeicher nicht erreichbar, ohne Details),
+        501 (ohne eingerichteten Medienspeicher).
+      security:
+        - sitzung: []
+        - {}
+      responses:
+        "200":
+          description: Die Datei.
+          content:
+            image/webp:
+              schema:
+                type: string
+                format: binary
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "500":
+          description: Der Medienspeicher hat versagt; ohne Details (code `INTERNER_FEHLER`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
   /api/v1/stufen/{id}/kontakte:
     get:
       operationId: stufeKontakteLesen
@@ -2756,6 +2815,164 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/medien:
+    get:
+      operationId: listeAdminMedien
+      summary: Medien der Abteilung auflisten
+      description: |
+        Nur Admins. Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Medien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedienListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: legeAdminMediumAn
+      summary: Bild oder PDF hochladen
+      description: |
+        Nur Admins (mit zweitem Faktor). Lädt ein Bild oder ein PDF in den Medienspeicher der eigenen Abteilung.
+
+        **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG, WebP und PDF; der Typ
+        ergibt sich aus den ersten Bytes (`%PDF-` für PDF), nie aus Dateiendung, `Content-Type` oder Query. SVG, GIF und
+        alles andere sind 415. Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
+        Pixel haben, ein PDF höchstens 20 MiB. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
+
+        **Alt-Text.** Ein Bild braucht entweder `altText` (1 bis 500 Zeichen) oder `dekorativ=true`, nie beides und nie
+        keines (400, code `ALT_TEXT`). Bei einem PDF ist `altText` eine freiwillige Beschreibung, `dekorativ=true` ist 400.
+
+        **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 2048 Pixel je Seite
+        (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als WebP ohne
+        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten. Ein PDF bleibt unverändert.
+
+        **Begrenzung.** Pro Person höchstens 10 Uploads in 10 Minuten (429); auch abgelehnte zählen.
+
+        Statuscodes: 201, 400, 401, 403, 413, 415 (code `MEDIEN_FORMAT`), 426, 429, 500 (Medienspeicher nicht erreichbar;
+        es bleibt weder eine Zeile noch ein Objekt zurück), 501 (ohne eingerichteten Medienspeicher).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: sichtbarkeit
+          in: query
+          required: true
+          description: Wer das Medium sehen darf. Vorerst nur `oeffentlich` (jeder, ohne Anmeldung) und `angemeldet` (die Abteilung); Tags folgen mit #333.
+          schema:
+            type: string
+            enum:
+              - oeffentlich
+              - angemeldet
+        - name: altText
+          in: query
+          required: false
+          description: Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Bei Bildern Pflicht, ausser bei `dekorativ=true`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: dekorativ
+          in: query
+          required: false
+          description: Nur bei Bildern, ausdrückliche Markierung «dekorativ»; dann ohne `altText`.
+          schema:
+            type: string
+            enum:
+              - "true"
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "413":
+          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+        "415":
+          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "500":
+          description: Der Medienspeicher oder die Datenbank hat versagt; ohne Details (code `INTERNER_FEHLER`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/admin/medien/{id}:
+    delete:
+      operationId: loescheAdminMedium
+      summary: Medium löschen
+      description: |
+        Nur Admins, nur Medien der eigenen Abteilung. Löscht erst die Zeile, dann die Datei im Medienspeicher. Scheitert
+        der Speicher danach, bleibt die Antwort 204: Die Datei ist nicht mehr abrufbar, und der Server meldet die Waise im Log
+        (code `WAISE`). Das Audit-Log hält Hochladen und Löschen fest, ohne Inhalt.
+
+        Statuscodes: 204, 400, 401, 403, 404 (unbekannt oder andere Abteilung), 426, 501.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
   /api/v1/admin/kinder:
     get:
       operationId: listeAdminKinder
@@ -5994,6 +6211,69 @@ components:
           items:
             type: string
             format: uuid
+    Medium:
+      type: object
+      required:
+        - id
+        - mimeTyp
+        - groesse
+        - breite
+        - hoehe
+        - altText
+        - dekorativ
+        - sichtbarkeit
+        - url
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        mimeTyp:
+          type: string
+          description: Bilder sind immer `image/webp`, PDFs `application/pdf`.
+          enum:
+            - image/webp
+            - application/pdf
+        groesse:
+          type: integer
+          description: Bytes der gespeicherten Datei, nach dem Verkleinern.
+        breite:
+          type:
+            - integer
+            - "null"
+          description: Pixel, nur bei Bildern.
+        hoehe:
+          type:
+            - integer
+            - "null"
+          description: Pixel, nur bei Bildern.
+        altText:
+          type:
+            - string
+            - "null"
+          description: "`null` bei dekorativen Bildern und bei PDFs ohne Beschreibung."
+        dekorativ:
+          type: boolean
+        sichtbarkeit:
+          type: string
+          enum:
+            - oeffentlich
+            - angemeldet
+        url:
+          type: string
+          description: Pfad zur Datei (`GET /api/v1/medien/{id}`).
+        erstelltAm:
+          type: string
+          format: date-time
+    MedienListe:
+      type: object
+      required:
+        - medien
+      properties:
+        medien:
+          type: array
+          items:
+            $ref: "#/components/schemas/Medium"
   parameters:
     AppVersion:
       name: X-App-Version
@@ -6067,6 +6347,14 @@ components:
       in: path
       required: true
       description: ID der Stufe (UUID).
+      schema:
+        type: string
+        format: uuid
+    MediumId:
+      name: id
+      in: path
+      required: true
+      description: ID des Mediums (UUID).
       schema:
         type: string
         format: uuid
