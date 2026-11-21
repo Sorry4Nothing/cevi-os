@@ -2272,6 +2272,16 @@ button.tab[aria-selected="true"] {
   pointer-events: none;
 }
 
+/* Tags und Gruppen */
+
+.tag-liste {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
 /* Reihenfolge der Stufenleitung */
 
 .stufe-sl h3 {

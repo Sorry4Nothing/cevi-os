@@ -57,6 +57,10 @@ const ICONS = {
     "M8.5 14.5c1 1.3 2.1 2 3.5 2s2.5-.7 3.5-2",
     "M9 9.5h.01M15 9.5h.01",
   ],
+  tag: [
+    "M3 12.5V4h8.5L21 13.5 13.5 21z",
+    ["circle", { cx: 7.5, cy: 8.5, r: 1 }],
+  ],
   system: ["M3 12h4l2.5-6 5 12 2.5-6h4"],
   uebersicht: [
     ["rect", { x: 3, y: 3, width: 8, height: 10, rx: 2 }],
