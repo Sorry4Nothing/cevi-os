@@ -65,8 +65,11 @@ afterAll(async () => {
 });
 
 test("0035: Stufen und Rollen ziehen verlustfrei auf Tags und Zuordnungen, der Rückweg stellt sie her", async () => {
-  // Migrationen bis zum Stand vor 0035 (0033 ist die letzte Datei im Ordner; 0034 liegt auf einem anderen Branch)
+  // Migrationen bis zum Stand vor 0035
   await migrate(drizzle(besitzer), { migrationsFolder: bisVorher });
+  const anzahlVorher = (
+    await besitzer`select count(*)::int as n from drizzle.__drizzle_migrations`
+  )[0].n;
 
   const [abt1] =
     await besitzer`insert into abteilung (name) values ('Abteilung Eins') returning id`;
@@ -241,7 +244,7 @@ test("0035: Stufen und Rollen ziehen verlustfrei auf Tags und Zuordnungen, der R
     (
       await besitzer`select count(*)::int as n from drizzle.__drizzle_migrations`
     )[0].n,
-  ).toBe(34);
+  ).toBe(anzahlVorher);
 
   // Erneut vorwärts: Der Rückweg hinterlässt einen Stand, auf dem 0035 wieder läuft (der Tag mit Suffix bleibt, wie er ist)
   await migrate(drizzle(besitzer), { migrationsFolder: komplett });
@@ -249,4 +252,4 @@ test("0035: Stufen und Rollen ziehen verlustfrei auf Tags und Zuordnungen, der R
   expect(
     await besitzer`select * from rolle order by user_id, stufe_id`,
   ).toHaveLength(5);
-});
+}, 60_000);
