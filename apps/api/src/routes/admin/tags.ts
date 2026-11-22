@@ -7,6 +7,8 @@ import type { Db } from "../../db/client.js";
 import { auditLog, personTag, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { legeSeiteFuerTagAn } from "../../website/automatik.js";
+import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 const typ = z.enum(["stufe", "funktion", "team", "lager"]);
 const name = z.string().trim().min(1).max(100);
@@ -106,6 +108,14 @@ export function erstelleTagRouten({ db }: { db: Db }) {
               stufeId: zeile.id,
             });
           }
+          // Zu einer Stufe oder einem Team entsteht eine Seite als Entwurf (#352); scheitert sie, entsteht auch der Tag nicht
+          const seiten = await legeSeiteFuerTagAn(tx, {
+            abteilungId: person.abteilungId,
+            autorId: person.id,
+            tagId: zeile.id,
+            typ: felder.typ,
+            name: felder.name,
+          });
           // Nur der Typ, nie der Name
           await tx.insert(auditLog).values({
             abteilungId: person.abteilungId,
@@ -115,8 +125,15 @@ export function erstelleTagRouten({ db }: { db: Db }) {
             zielId: zeile.id,
             details: { typ: felder.typ },
           });
-          return zeile;
+          return { ...zeile, seiten };
         });
+        for (const seiteId of neu.seiten) {
+          meldeWebsiteEreignis({
+            art: "seite_geaendert",
+            abteilungId: person.abteilungId,
+            seiteId,
+          });
+        }
         return c.json({ id: neu.id }, 201);
       } catch (fehler) {
         if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);

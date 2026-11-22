@@ -1243,6 +1243,32 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Vorlagen der Website (#352): Zugang wie bei den Seiten, Anlegen nur Abteilungsleitung und Redaktion; die Wirkung steht in test/redaktion-vorlagen.test.ts
+  "GET /api/v1/redaktion/vorlagen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/aus-vorlage": {
+    body: () => ({
+      vorlage: "textseite",
+      titel: "Matrix Vorlage",
+      sichtbarkeit: { art: "angemeldet" },
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
   "GET /api/v1/redaktion/ich": {
     // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)

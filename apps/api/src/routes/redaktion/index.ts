@@ -7,6 +7,7 @@ import { erstelleRedaktionIchRouten } from "./ich.js";
 import { erstelleRedaktionMedienRouten } from "./medien.js";
 import { erstelleSeitenRouten } from "./seiten.js";
 import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
+import { erstelleVorlagenRouten } from "./vorlagen.js";
 import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
 
 // Namensraum für Personen mit Bearbeitungsrecht, nicht nur für Admins. Jede Folgeroute hängt sich hier mit einer Zeile ein.
@@ -26,5 +27,6 @@ export function erstelleRedaktionRouten({
     .route("/seiten", erstelleSeitenInhaltRouten({ db }))
     .route("/medien", erstelleRedaktionMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
+    .route("/", erstelleVorlagenRouten({ db }))
     .route("/weiterleitungen", erstelleWeiterleitungsRouten({ db }));
 }

@@ -20,13 +20,23 @@ function sonderrecht(
   return sql`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = ${objektTyp} and (${bearbeiter.objektId} is null or ${bearbeiter.objektId} = ${objektId}) and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id})))`;
 }
 
-// stufeId: die Stufe, zu der das Objekt gehört (Stufenseite); ohne sie gibt es kein Stufenrecht
+// Verantwortliche eines Teams (#352, Annahme: Rolle «verantwortlich» am Tag, Wert offen). Nur Tags vom Typ «team»: Bei einer Stufe entscheidet die Stufenleitung, ein Freitext am Stufen-Tag verleiht nichts
+function teamVerantwortung(
+  person: Pick<Person, "id" | "abteilungId">,
+  tagId: AnyColumn | SQL,
+): SQL {
+  return sql`exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and ${personTag.tagId} = ${tagId} and lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team' and ${tag.abteilungId} = ${person.abteilungId})`;
+}
+export const TEAM_ROLLE = "verantwortlich";
+
+// stufeId: die Stufe, zu der das Objekt gehört (Stufenseite); ohne sie gibt es kein Stufenrecht.
+// tagId: die Gruppe, zu der das Objekt gehört (Seite eines Teams); ohne sie gibt es kein Teamrecht
 export async function darfBearbeiten(
   db: Pick<Db, "select">,
   person: Person,
   objektTyp: ObjektTyp,
   objektId: string,
-  { stufeId }: { stufeId?: string } = {},
+  { stufeId, tagId }: { stufeId?: string; tagId?: string } = {},
 ) {
   if (person.admin) return true;
   if (stufeId !== undefined && hatRolle(person, stufeId, "stufenleitung")) {
@@ -35,7 +45,11 @@ export async function darfBearbeiten(
   // Eine Zeile aus der eigenen Abteilung trägt das exists; select ohne from kennt Drizzle nicht
   const [zeile] = await db
     .select({
-      ok: sql<boolean>`${sonderrecht(person, objektTyp, sql`${objektId}::uuid`)}`,
+      ok: sql<boolean>`(${sonderrecht(person, objektTyp, sql`${objektId}::uuid`)}${
+        tagId === undefined
+          ? sql``
+          : sql` or ${teamVerantwortung(person, sql`${tagId}::uuid`)}`
+      })`,
     })
     .from(abteilung)
     .where(eq(abteilung.id, person.abteilungId));
@@ -46,7 +60,12 @@ export async function darfBearbeiten(
 export function bearbeitbar(
   person: Person,
   objektTyp: ObjektTyp,
-  spalten: { id: AnyColumn; abteilungId: AnyColumn; stufeId?: AnyColumn },
+  spalten: {
+    id: AnyColumn;
+    abteilungId: AnyColumn;
+    stufeId?: AnyColumn;
+    tagId?: AnyColumn;
+  },
 ): SQL {
   const eigeneAbteilung = sql`${spalten.abteilungId} = ${person.abteilungId}`;
   if (person.admin) return eigeneAbteilung;
@@ -59,6 +78,10 @@ export function bearbeitbar(
       : sql``;
   return and(
     eigeneAbteilung,
-    sql`(${stufenrecht}${sonderrecht(person, objektTyp, spalten.id)})`,
+    sql`(${stufenrecht}${sonderrecht(person, objektTyp, spalten.id)}${
+      spalten.tagId
+        ? sql` or ${teamVerantwortung(person, spalten.tagId)}`
+        : sql``
+    })`,
   ) as SQL;
 }
