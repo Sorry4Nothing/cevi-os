@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/diensttausch"
-order: 210000
+order: 215000
 method: POST
-url: "{{baseUrl}}{{pfad_L52}}"
+url: "{{baseUrl}}{{pfad_L57}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "schichtId": "0d17249d-8a28-4303-8af9-618f3883d07b"
+      "schichtId": "46835d6c-e351-47c0-8c4a-d36950976c8a"
     }

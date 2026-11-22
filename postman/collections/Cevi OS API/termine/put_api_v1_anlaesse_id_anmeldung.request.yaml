@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/anlaesse/:id/anmeldung"
-order: 413000
+order: 418000
 method: PUT
 url: "{{baseUrl}}{{pfad_T18}}"
 headers:
@@ -18,7 +18,7 @@ body:
   type: json
   content: |-
     {
-      "kindId": "01a20348-dd92-7e1b-8817-efdc8e23ca1c",
+      "kindId": "01a20372-6759-7bcf-9c53-78665563e87d",
       "antworten": {
         "bemerkung": "Freue mich"
       }

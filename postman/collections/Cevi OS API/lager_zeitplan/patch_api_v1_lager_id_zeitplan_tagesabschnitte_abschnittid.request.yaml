@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/zeitplan/tagesabschnitte/:abschnittId"
-order: 386000
+order: 391000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L229}}"
+url: "{{baseUrl}}{{pfad_L234}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
