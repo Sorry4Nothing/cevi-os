@@ -1,0 +1,438 @@
+import { anfrage, fehlertext } from "./api.js";
+import { el, knopf, neueId, seitenblatt } from "./dom.js";
+import { band, beschaeftigt, bei, fenster, kuerze } from "./website-dialoge.js";
+import { sk } from "./lader.js";
+import { nochmals, zustandsDaten, zustandsKarte } from "./zustaende.js";
+
+// Sichtbarkeit einer Seite oder eines Bausteins (Boards E5): Seitenblatt mit den Wahlkarten «Öffentlich», «Nur angemeldet» und
+// «Bestimmte Gruppen», den Gruppen als Pillen und (nur bei einer Seite) der Liste «Wer darf bearbeiten».
+// Die Gruppen kommen aus ladeTags() (einmal je Editor geladen); bis sie da sind, stehen Skeleton-Pillen.
+
+const ARTEN = [
+  ["oeffentlich", "Öffentlich", "Alle sehen es, auch ohne Konto."],
+  ["angemeldet", "Nur angemeldet", "Alle mit einem Konto der Abteilung."],
+  ["tags", "Bestimmte Gruppen", "Nur Personen in den gewählten Gruppen."],
+];
+
+// opt: { typ: "seite" | "baustein", titel, untertitel, start, erbtText?, ladeTags, tagNamen, speichere(wert) → Promise, rechte? }
+// start: { art, tagIds? } oder «erbt» (nur bei einem Baustein); wert() in speichere hat dieselbe Form
+export function sichtbarkeitBlatt(opt) {
+  const { start, erbtText, ladeTags, tagNamen } = opt;
+  let art = start === "erbt" ? "erbt" : start.art;
+  const gewaehlt = new Set(
+    start !== "erbt" && start.art === "tags" ? start.tagIds : [],
+  );
+  const gruppeId = neueId("gruppen");
+  const artName = neueId("art");
+
+  const karte = (wert, name, text) => {
+    const eingabe = el("input", {
+      type: "radio",
+      name: artName,
+      value: wert,
+      onchange: () => {
+        art = wert;
+        zeichneGruppen();
+      },
+    });
+    eingabe.checked = art === wert;
+    return el(
+      "label",
+      { class: "wahlkarte" },
+      eingabe,
+      el("div", {}, el("strong", {}, name), el("span", {}, text)),
+    );
+  };
+  const arten = el(
+    "fieldset",
+    { class: "ws-wahl" },
+    el("legend", { class: "legende" }, opt.frage),
+    erbtText !== undefined && karte("erbt", "Wie die Seite", erbtText),
+    ARTEN.map(([w, n, t]) => karte(w, n, t)),
+  );
+
+  const gruppen = el("div", { class: "feld", hidden: true });
+  const warnung = el("div", { class: "ws-warnplatz" });
+  let tags = null;
+  let ladefehler = null;
+  let laedt = true;
+
+  function zeichneGruppen() {
+    gruppen.hidden = art !== "tags";
+    warnung.replaceChildren();
+    if (art !== "tags") return;
+    const legende = el("span", { class: "legende", id: gruppeId }, "Gruppen");
+    if (laedt) {
+      gruppen.replaceChildren(
+        legende,
+        el(
+          "div",
+          { "aria-busy": "true" },
+          el(
+            "div",
+            { class: "pillen" },
+            [96, 64, 80, 136, 112].map((b) => sk("r", b)),
+          ),
+          el("p", { class: "nur-leser", role: "status" }, "Lädt …"),
+        ),
+      );
+      return;
+    }
+    if (ladefehler) {
+      const d = zustandsDaten(ladefehler);
+      const k = zustandsKarte(
+        {
+          titel: "Die Gruppen konnten nicht geladen werden.",
+          text: "Prüfe die Verbindung und versuche es nochmals.",
+          ueber: d.ueber,
+        },
+        [nochmals(laden, "")],
+        "h3",
+      );
+      gruppen.replaceChildren(legende, k.wurzel);
+      return;
+    }
+    const pillen = tags.map((t) => {
+      const an = gewaehlt.has(t.id);
+      return el(
+        "button",
+        {
+          type: "button",
+          class: "pille",
+          "aria-pressed": String(an),
+          onclick: (e) => {
+            if (gewaehlt.has(t.id)) gewaehlt.delete(t.id);
+            else gewaehlt.add(t.id);
+            e.currentTarget.setAttribute(
+              "aria-pressed",
+              String(gewaehlt.has(t.id)),
+            );
+            pruefeWarnung();
+          },
+        },
+        t.name,
+      );
+    });
+    gruppen.replaceChildren(
+      legende,
+      pillen.length > 0
+        ? el(
+            "div",
+            { class: "pillen", role: "group", "aria-labelledby": gruppeId },
+            pillen,
+          )
+        : el("p", { class: "hilfe" }, "Es gibt noch keine Gruppen."),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Sichtbar, wenn die Person mindestens eine der gewählten Gruppen hat.",
+      ),
+    );
+    pruefeWarnung();
+  }
+
+  function pruefeWarnung() {
+    warnung.replaceChildren();
+    if (art === "tags" && gewaehlt.size === 0) {
+      warnung.append(
+        band(
+          "warn",
+          `Ohne Gruppe sieht niemand ${opt.typ === "seite" ? "diese Seite" : "diesen Baustein"}. Wähle mindestens eine Gruppe.`,
+        ),
+      );
+    }
+  }
+
+  function laden() {
+    laedt = true;
+    ladefehler = null;
+    zeichneGruppen();
+    ladeTags().then(
+      (t) => {
+        tags = t;
+        laedt = false;
+        // Gruppen, die es nicht mehr gibt, fallen weg
+        for (const id of [...gewaehlt]) {
+          if (!t.some((x) => x.id === id)) gewaehlt.delete(id);
+        }
+        zeichneGruppen();
+      },
+      (f) => {
+        laedt = false;
+        ladefehler = f;
+        zeichneGruppen();
+      },
+    );
+  }
+
+  const fehlerPlatz = el("div", { class: "ws-fehlerplatz" });
+  const speichern = knopf("Speichern", { art: "haupt" });
+  const abbrechen = knopf("Abbrechen", { onclick: () => blatt.close() });
+  bei(speichern, async () => {
+    fehlerPlatz.replaceChildren();
+    if (art === "tags" && gewaehlt.size === 0) {
+      pruefeWarnung();
+      gruppen.querySelector(".pille")?.focus();
+      return;
+    }
+    const wert =
+      art === "erbt"
+        ? "erbt"
+        : art === "tags"
+          ? {
+              art,
+              tagIds: tags.filter((t) => gewaehlt.has(t.id)).map((t) => t.id),
+            }
+          : { art };
+    beschaeftigt(speichern, true);
+    abbrechen.disabled = true;
+    try {
+      await opt.speichere(wert);
+      blatt.close();
+    } catch (f) {
+      const b = band("fehler", fehlertext(f));
+      b.tabIndex = -1;
+      fehlerPlatz.replaceChildren(b);
+      b.focus();
+      beschaeftigt(speichern, false);
+      abbrechen.disabled = false;
+    }
+  });
+
+  const rechteBox = opt.rechte ? rechteBereich(opt.rechte, tagNamen) : null;
+  const blatt = seitenblatt({
+    titel: opt.titel,
+    untertitel: opt.untertitel,
+    inhalt: [
+      el(
+        "div",
+        { class: "ws-blattinhalt" },
+        arten,
+        gruppen,
+        warnung,
+        rechteBox,
+        fehlerPlatz,
+      ),
+    ],
+    fusszeile: [abbrechen, speichern],
+    schliessen: opt.beimSchliessen,
+  });
+  zeichneGruppen();
+  laden();
+  return blatt;
+}
+
+// «Wer darf bearbeiten»: Die Standardrechte stehen fest (Regeln des Servers), Sonderrechte vergibt nur die Abteilungsleitung
+// r: { seite, istAdmin, melde }
+function rechteBereich(r, tagNamen) {
+  const { seite, istAdmin, melde } = r;
+  const standard = [
+    "Abteilungsleitung",
+    "Webmaster mit dem Recht «Seiten bearbeiten»",
+    seite.tagId
+      ? `Stufenleitung von ${tagNamen.get(seite.tagId) ?? "der zugehörigen Gruppe"}`
+      : null,
+  ].filter(Boolean);
+  const liste = el(
+    "ul",
+    { class: "liste-zeilen", "aria-label": "Wer die Seite bearbeiten darf" },
+    standard.map((s) =>
+      el(
+        "li",
+        {},
+        el("span", { class: "ws-wer" }, s),
+        el("span", { class: "chip" }, "Standard"),
+      ),
+    ),
+  );
+  const wurzel = el(
+    "section",
+    { class: "ws-teil" },
+    el("h3", {}, "Wer darf bearbeiten"),
+    liste,
+  );
+  if (!istAdmin) {
+    wurzel.append(
+      band(
+        "info",
+        "Sonderrechte vergibt nur die Abteilungsleitung. Frag sie, wenn jemand dazukommen soll.",
+      ),
+    );
+    return wurzel;
+  }
+  const meldung = el("p", { class: "hilfe", role: "status", tabindex: "-1" });
+  const platz = el("div", {});
+  wurzel.append(platz, meldung);
+  let personen = new Map();
+  const bezeichnung = (b) =>
+    b.tagId
+      ? `Gruppe «${tagNamen.get(b.tagId) ?? "unbekannt"}»`
+      : `${personen.get(b.userId) ?? "Person"}`;
+
+  function zeichneSonder(daten) {
+    for (const alt of liste.querySelectorAll("li[data-sonder]")) alt.remove();
+    for (const b of daten.bearbeiter.filter(
+      (e) => e.objektTyp === "seite" && e.objektId === seite.id,
+    )) {
+      const name = bezeichnung(b);
+      const li = el(
+        "li",
+        { "data-sonder": "" },
+        el("span", { class: "ws-wer" }, name),
+        el("span", { class: "chip" }, "Sonderrecht"),
+        knopf("Entfernen", {
+          klein: true,
+          kontext: name,
+          onclick: async () => {
+            try {
+              await anfrage("DELETE", `/api/v1/admin/bearbeiter/${b.id}`);
+              li.remove();
+              meldung.setAttribute("role", "status");
+              meldung.textContent = `Das Recht von ${name} ist entzogen.`;
+            } catch (f) {
+              meldung.setAttribute("role", "alert");
+              meldung.textContent = fehlertext(f);
+            }
+            meldung.focus();
+          },
+        }),
+      );
+      liste.append(li);
+    }
+  }
+
+  async function ladeSonder() {
+    platz.replaceChildren(
+      el(
+        "div",
+        { "aria-busy": "true" },
+        sk("t", 260),
+        el("p", { class: "nur-leser", role: "status" }, "Lädt …"),
+      ),
+    );
+    try {
+      const [b, p] = await Promise.all([
+        anfrage("GET", "/api/v1/admin/bearbeiter"),
+        anfrage("GET", "/api/v1/admin/personen"),
+      ]);
+      personen = new Map(p.personen.map((x) => [x.id, x.name]));
+      zeichneSonder(b);
+      platz.replaceChildren(
+        knopf("Hinzufügen", {
+          klein: true,
+          onclick: () => hinzufuegen(p.personen, ladeSonder),
+        }),
+      );
+    } catch (f) {
+      platz.replaceChildren(
+        band("fehler", fehlertext(f)),
+        knopf("Nochmals versuchen", {
+          klein: true,
+          symbol: "aktualisieren",
+          onclick: ladeSonder,
+        }),
+      );
+    }
+  }
+
+  // Gruppe oder Person wählen und das Recht erteilen
+  function hinzufuegen(personenListe, nachher) {
+    const tagListe = [...tagNamen];
+    let art = tagListe.length > 0 ? "tagId" : "userId";
+    const name = neueId("recht");
+    const optionen = (werte, leer) => [
+      el("option", { value: "" }, leer),
+      ...werte.map(([id, text]) => el("option", { value: id }, text)),
+    ];
+    const gruppeSel = el(
+      "select",
+      { class: "ws-select", id: neueId("sel") },
+      optionen(tagListe, "Gruppe wählen"),
+    );
+    const personSel = el(
+      "select",
+      { class: "ws-select", id: neueId("sel") },
+      optionen(
+        personenListe.filter((p) => !p.deaktiviert).map((p) => [p.id, p.name]),
+        "Person wählen",
+      ),
+    );
+    const feldGruppe = el(
+      "div",
+      { class: "feld" },
+      el("label", { for: gruppeSel.id }, "Gruppe"),
+      gruppeSel,
+    );
+    const feldPerson = el(
+      "div",
+      { class: "feld" },
+      el("label", { for: personSel.id }, "Person"),
+      personSel,
+    );
+    const umschalten = () => {
+      feldGruppe.hidden = art !== "tagId";
+      feldPerson.hidden = art !== "userId";
+    };
+    umschalten();
+    const radio = (w, text) => {
+      const id = neueId("art");
+      const e = el("input", {
+        type: "radio",
+        id,
+        name,
+        value: w,
+        onchange: () => {
+          art = w;
+          umschalten();
+        },
+      });
+      e.checked = art === w;
+      return [e, el("label", { for: id }, text)];
+    };
+    const ok = knopf("Recht erteilen", { art: "haupt" });
+    const abbr = knopf("Abbrechen", { onclick: () => f.schliesse() });
+    bei(ok, async () => {
+      const wert = (art === "tagId" ? gruppeSel : personSel).value;
+      if (!wert) {
+        f.fehler("Wähle eine Gruppe oder eine Person.");
+        return;
+      }
+      f.fehler(null);
+      beschaeftigt(ok, true);
+      try {
+        await anfrage("POST", "/api/v1/admin/bearbeiter", {
+          objektTyp: "seite",
+          objektId: seite.id,
+          [art]: wert,
+        });
+        f.schliesse();
+        nachher();
+        melde("Das Recht ist erteilt.");
+      } catch (fehler) {
+        f.fehler(fehlertext(fehler));
+        beschaeftigt(ok, false);
+      }
+    });
+    const f = fenster({
+      titel: "Recht erteilen",
+      beschreibung: `«${kuerze(seite.titel, 60)}». Eine Gruppe gibt das Recht allen Personen, die sie tragen.`,
+      inhalt: [
+        el(
+          "fieldset",
+          {},
+          el("legend", { class: "legende" }, "Recht erteilen an"),
+          el("div", { class: "seg" }, [
+            ...radio("tagId", "Gruppe"),
+            ...radio("userId", "Person"),
+          ]),
+        ),
+        feldGruppe,
+        feldPerson,
+      ],
+      fuss: [abbr, ok],
+    });
+  }
+
+  ladeSonder();
+  return wurzel;
+}

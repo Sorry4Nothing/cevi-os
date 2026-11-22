@@ -89,6 +89,16 @@ export function zustandsDaten(f) {
       art: "warn",
     };
   }
+  // Eine Ansicht kann dem Fehler einen eigenen Titel mitgeben («Die Gruppen konnten nicht geladen werden.», A3 bis A7)
+  if (f?.zustandTitel) {
+    return {
+      ueber: status ? `Fehler ${status}` : "Fehler",
+      titel: f.zustandTitel,
+      text: "Prüfe die Verbindung und versuche es nochmals.",
+      symbol: "warnung",
+      art: "fehler",
+    };
+  }
   return {
     ueber: status ? `Fehler ${status}` : "Fehler",
     titel: "Da ist etwas schiefgelaufen.",

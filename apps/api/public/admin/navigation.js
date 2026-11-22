@@ -5,7 +5,7 @@
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
 //   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung) oder ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»). Die Anzeige folgt nur dem Server; jede Route prüft selbst.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
-// Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#website/seiten/<id>).
+// Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
 export const BEREICHE = [
   {
@@ -31,13 +31,14 @@ export const BEREICHE = [
         schluessel: "personen",
         name: "Personen",
         modul: "./personen.js",
-        untertitel: "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
+        untertitel: "Konten, Rollen und Tags der Abteilung.",
       },
       {
         schluessel: "gruppen",
         name: "Gruppen und Tags",
         modul: "./tags.js",
-        untertitel: "Tags anlegen und Personen zuweisen.",
+        untertitel:
+          "Wer zu welcher Gruppe gehört, steuert, wer was sieht und bearbeiten darf.",
       },
       {
         schluessel: "kinder",
@@ -72,12 +73,27 @@ export const BEREICHE = [
     schluessel: "website",
     name: "Website",
     symbol: "website",
+    start: "seiten",
     unter: [
       {
-        schluessel: "website",
-        name: "Website",
-        modul: "./website.js",
-        untertitel: "Seiten und Medien der Website der Abteilung.",
+        schluessel: "seiten",
+        name: "Seiten",
+        modul: "./website-seiten.js",
+        untertitel: "Die Seiten der Website, ihr Status und wer sie sieht.",
+        zugang: "website",
+      },
+      {
+        schluessel: "medien",
+        name: "Medien",
+        modul: "./website-medien.js",
+        untertitel: "Bilder der Website mit ihrem Alt-Text.",
+        zugang: "website",
+      },
+      {
+        schluessel: "stufenfakten",
+        name: "Stufenfelder",
+        modul: "./website-stufenfakten.js",
+        untertitel: "Treffpunkt, Zeit und Mitnehmen der Stufen.",
         zugang: "website",
       },
     ],
@@ -168,12 +184,15 @@ export const BEREICHE = [
       {
         schluessel: "lager",
         name: "Lager",
-        untertitel: "Die Lager der Abteilung.",
+        modul: "./lager.js",
+        untertitel: "Lager anlegen, betreuen und abschliessen.",
       },
       {
         schluessel: "vorlagen",
         name: "Vorlagen",
-        untertitel: "Vorlagen für neue Lager.",
+        modul: "./lager-vorlagen.js",
+        untertitel:
+          "Aufgaben und Packlisten, die neue Lager übernehmen können.",
       },
     ],
   },
