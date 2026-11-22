@@ -15,12 +15,13 @@ export function erstelleRedaktionIchRouten({ db }: { db: Db }) {
     const redigieren = await hatRedaktionszugang(db, person);
     return c.json({
       redigieren,
-      // «plattform»: wer den Wartungsmodus der Website schalten darf (#424)
-      bereiche: !redigieren
-        ? []
-        : (await hatPlattformRecht(db, person, "wartungsmodus.website"))
-          ? ["website", "plattform"]
-          : ["website"],
+      // «plattform»: wer den Wartungsmodus der Website schalten darf (#424), auch ohne Redaktionszugang
+      bereiche: [
+        ...(redigieren ? ["website"] : []),
+        ...((await hatPlattformRecht(db, person, "wartungsmodus.website"))
+          ? ["plattform"]
+          : []),
+      ],
       // Seiten anlegen und löschen, Medien löschen: Abteilungsleitung und Redaktion
       verwalten: redigieren && (await darfSeitenVerwalten(db, person)),
     });

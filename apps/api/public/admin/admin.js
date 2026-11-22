@@ -468,9 +468,9 @@ async function pruefeKonto(nachAnmeldung = true) {
     redaktion = { redigieren: true, bereiche: ["website"], verwalten: true };
     zeigeVerwaltung();
   } else {
-    // Alle anderen: nur der Bereich «Website», und nur mit Bearbeitungsrecht. Es werden keine Admin-Daten geladen
+    // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
     redaktion = await anfrage("GET", "/api/v1/redaktion/ich");
-    if (!redaktion.redigieren) {
+    if (redaktion.bereiche.length === 0) {
       zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
         "403 · Kein Zugang",
         "sperre",

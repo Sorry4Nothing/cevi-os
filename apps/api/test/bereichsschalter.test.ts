@@ -418,6 +418,19 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect((await schreibe(slA, "website")).status).not.toBe(503);
   });
 
+  test("das Panel nennt «plattform» nur Personen mit dem Recht, auch ohne Redaktionszugang", async () => {
+    const bereiche = async (konto: PersonaKonto) =>
+      (
+        (await (
+          await anfrage(konto, "GET", "/api/v1/redaktion/ich")
+        ).json()) as { bereiche: string[] }
+      ).bereiche;
+    expect(await bereiche(webmasterMitRecht)).toEqual(["plattform"]);
+    expect(await bereiche(entwickler)).toEqual(["plattform"]);
+    expect(await bereiche(webmaster)).toEqual([]);
+    expect(await bereiche(slA)).toEqual(["website"]);
+  });
+
   test("Entwickler darf jeden Bereich", async () => {
     for (const bereich of Object.keys(SCHREIBEN)) {
       expect((await schalte(entwickler, bereich)).status, bereich).toBe(200);
@@ -466,6 +479,16 @@ describe("Wartungsmodus: wer schalten darf", () => {
 
   test("jede Schaltung steht im Audit-Log, ohne den Hinweistext", async () => {
     await schalte(admin, "chat", { hinweis: "Geheimer Text" });
+    // Die Zeile (und ihre ID) gibt es nur bis zum Aufheben; das Log zeigt auf sie
+    const [schalter] = await db
+      .select({ id: schema.bereichsschalter.id })
+      .from(schema.bereichsschalter)
+      .where(
+        and(
+          eq(schema.bereichsschalter.abteilungId, welt.testabteilungId),
+          eq(schema.bereichsschalter.bereich, "chat"),
+        ),
+      );
     await schalte(admin, "chat", { hinweis: "Anderer Text" });
     await hebeAuf(admin, "chat");
     const zeilen = await db
@@ -475,6 +498,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
         and(
           eq(schema.auditLog.akteurId, admin.id!),
           eq(schema.auditLog.zielTyp, "bereichsschalter"),
+          eq(schema.auditLog.zielId, schalter.id),
         ),
       )
       .orderBy(schema.auditLog.erstelltAm);
