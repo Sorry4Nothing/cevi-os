@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { Person } from "../../rechte.js";
+import { erstelleAdminVorschlaegeRouten } from "./admin-vorschlaege.js";
 import { erstelleAlleRouten } from "./alle.js";
 import { erstelleAdminAnlaesseRouten } from "./admin-anlaesse.js";
 import { erstelleAdminAnmeldungenRouten } from "./admin-anmeldungen.js";
@@ -32,5 +33,6 @@ export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleWarnungenRouten({ db }))
     .route("/", erstelleKalenderLinkRouten({ db }))
     .route("/", erstelleKategorieZuordnungenRouten({ db }))
-    .route("/", erstelleVorschlaegeRouten({ db, fcm }));
+    .route("/", erstelleVorschlaegeRouten({ db, fcm }))
+    .route("/", erstelleAdminVorschlaegeRouten({ db, fcm }));
 }
