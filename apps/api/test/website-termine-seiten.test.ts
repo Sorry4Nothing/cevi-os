@@ -31,7 +31,7 @@ describe("Seiten für Termine und Anlässe", () => {
   test.each(seiten)(
     "%s: Gerüst, Skript, Stil, Hinweis ohne Skript",
     (datei, inhalt) => {
-      expect(inhalt).toContain('<main id="inhalt" tabindex="-1" class="tm">');
+      expect(inhalt).toContain('<div class="tm">');
       expect(inhalt).toContain('<div id="tm-app" data-seite="');
       expect(inhalt).toContain(
         `<link rel="stylesheet" href="${STIL_TERMINE}">`,

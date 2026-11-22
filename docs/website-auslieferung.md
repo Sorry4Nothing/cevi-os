@@ -23,6 +23,8 @@ Erzeugt werden:
 | `website/website.css`       | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))             |
 | `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354, #529): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`             |
 | `anmelden/index.html`       | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
+| `termine/…`, `anlass/…`     | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript       |
+| `website/*.css`             | ausser `website.css` die Stile dieser Seiten (`termine.css`); wie die Skripte aus `apps/api/public/website/`                           |
 | `weiterleitungen.caddy`     | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden           |
 | `<alte-adresse>/index.html` | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                      |
 | `<adresse>/index.html`      | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
@@ -70,6 +72,23 @@ Entwürfe erscheinen nie in den erzeugten Dateien. Der Editor zeigt sie über `G
 - **Stufenfelder** (`stufenfakten`, #355): Treffzeit, Treffpunkt, Schluss und «mitnehmen» der nächsten Daten kommen aus `programm_eckdaten`. Der Abgleich holt sie mit einer Abfrage für alle Seiten (`ladeStufenfakten`); das Nachladen geschützter Bausteine nutzt einen Zwischenspeicher je Seite im Prozess (5 Minuten). Speichert die Stufenleitung Eckdaten, meldet die Route `seite_geaendert` für die Stufenseite, und der Abgleich erzeugt sie neu; sonst genügt der Lauf alle 10 Minuten (Datumswechsel).
 - **Termin-Liste** (`terminliste`): Das Schema des Bausteins gibt es (3 bis 10 Termine, optional ein Tag), der Renderer zeigt ihn aber **noch nicht**: Er liefert `null`, bis der Auftrag Termine die Daten einhängt. Wer den Baustein auf eine Seite legt, sieht ihn in der Vorschau und auf der Seite nicht. Das ist dokumentiert, nicht gebaut.
 
+## Termine und Anlässe
+
+Vier erzeugte Dateien (`src/website/termine-seiten.ts`, Design W3, W5 bis W8) zeigen Daten, die von der Sitzung der Person abhängen. Sie enthalten selbst nichts davon: Der Browser holt es mit den Routen der API (`credentials: same-origin`, nie `X-App-Version`), das Skript baut die Ansicht ohne `innerHTML`.
+
+| Adresse                     | Datei                            | Skript         | Routen                                                                  |
+| --------------------------- | -------------------------------- | -------------- | ----------------------------------------------------------------------- |
+| `/termine`                  | `termine/index.html`             | `termine.js`   | `GET /termine/alle`, `GET /termine/mein`, `GET/POST /ich/kalender-link` |
+| `/termine/vorschlagen`      | `termine/vorschlagen/index.html` | `vorschlag.js` | `GET /termin-vorschlaege/optionen`, `POST /termin-vorschlaege`          |
+| `/anlass?id=<ID>`           | `anlass/index.html`              | `anlass.js`    | `GET /anlaesse/{id}`                                                    |
+| `/anlass/anmeldung?id=<ID>` | `anlass/anmeldung/index.html`    | `anmeldung.js` | `GET /anlaesse/{id}`, `PUT` und `DELETE /anlaesse/{id}/anmeldung`       |
+
+- **Gemeinsames:** `tm.js` (Ansichten als Beschreibung statt HTML, Zeit in Zürich, Rückfrage-Dialog), `termine.css` (nur unter `.tm`, mit eigenen Tokens in Tag und Nacht). Die Ansichten sind reine Funktionen und mit `test/website-termine-skripte.test.ts` ohne Browser getestet.
+- **Ohne Sitzung** zeigen die Seiten «Melde dich an» mit einem Link auf `/anmelden?weiter=…`; `weiter` erlaubt dafür neben Adressen als einzige Anfrage `?id=` mit einer UUID (`weiter.js`). Ohne Skript steht ein Hinweis.
+- **Datenbanklast:** Ein Aufruf je Reiter und Zeitraum (höchstens 100 Termine, «Weitere Termine laden» holt die nächste Seite), danach aus dem Zwischenspeicher der Seite; der Filter nach Gruppe läuft im Browser, der Wechsel der Ansicht Liste/Monat holt nur einen anderen Zeitraum. Der Kalender-Link liest seinen Status einmal beim ersten Öffnen des Reiters. Es gibt kein Polling.
+- **Kalender-Link:** Der Server liefert den ganzen Link nur direkt nach dem Erzeugen. Ein bestehender Link erscheint darum verkürzt (`…` und die letzten vier Zeichen) und lässt sich erst nach «Link neu erzeugen» kopieren.
+- Die Seiten sind `noindex` und nicht in der Sitemap.
+
 ## Wartungsmodus und Informationssperre
 
 - **Wartungsmodus** des Bereichs `website`: Alle schreibenden Anfragen der Website-Verwaltung antworten 503 `IN_WARTUNG` (kein Speichern, kein Veröffentlichen); die erzeugten Dateien bleiben stehen, und der Abgleich läuft weiter.
@@ -91,7 +110,7 @@ Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach e
 ## Sicherheit der Ausgabe
 
 - Der Pfad jeder Datei entsteht aus geprüften Adressen (`a-z`, `0-9`, `-`, höchstens 60 Zeichen je Stück, höchstens 5 Ebenen) und läuft durch `istAusgabePfad`: nur Kleinbuchstaben, Ziffern, `-` und Endungen, nie ein Punkt am Anfang, nie `..`, nie ein Schrägstrich am Anfang oder ein Laufwerk. Zusätzlich muss das Ziel unter dem Ausgabeverzeichnis liegen.
-- Reservierte Adressen auf der obersten Ebene (`api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`) erzeugen nie eine Datei.
+- Reservierte Adressen auf der obersten Ebene (`api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`, `termine`, `anlass`) erzeugen nie eine Datei.
 - Geschrieben wird in eine Datei mit Namen `.tmp-<Zufall>` im selben Ordner und dann umbenannt (atomar). Wer die Website liest, sieht nie eine halbe Datei. Eine nach einem Absturz liegen gebliebene `.tmp-…`-Datei ist harmlos und taucht in keiner Liste auf; der Host sollte Dateien mit Punkt am Anfang nie ausliefern (siehe Vorschlag).
 - Der Dienst `api` läuft mit `read_only: true`. Er braucht für das Ausgabeverzeichnis ein beschreibbares Volume oder einen Bind-Mount; Ort und Hoster sind offen.
 

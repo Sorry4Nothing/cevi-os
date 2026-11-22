@@ -1,5 +1,5 @@
 /* Stile der Seiten Termine, Termin vorschlagen, Anlass und Anlass-Anmeldung (#530), nach dem Design «Cevi Web».
-   Alle Regeln gelten nur unter «.tm» (dem <main> dieser Seiten) und bringen ihre Farben selbst mit (Tokens des Design-Systems, Tag und Nacht per prefers-color-scheme): Sie hängen nicht an den Variablen der Hülle.
+   Alle Regeln gelten nur unter «.tm» (dem Block in der Spalte der Seite) und bringen ihre Farben selbst mit (Tokens des Design-Systems, Tag und Nacht per prefers-color-scheme): Sie hängen nicht an den Variablen der Hülle.
    Keine Schriften, Bilder oder Skripte von aussen. Zielgrösse mindestens 44 px, sichtbarer Fokus, Reduced-Motion beachtet. */
 .tm {
   --surface: #f2f5f8;
@@ -40,9 +40,7 @@
   color: var(--on-surface);
   font-size: 1.125rem;
   line-height: 1.6;
-  max-width: 1216px;
-  margin: 0 auto;
-  padding: 0 48px 64px;
+  padding-bottom: 64px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -80,7 +78,7 @@
 @media (max-width: 720px) {
   .tm {
     font-size: 1.0625rem;
-    padding: 0 20px 48px;
+    padding-bottom: 48px;
   }
 }
 

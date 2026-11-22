@@ -63,12 +63,13 @@ function seite(s: Definition, k: Kontext): string {
     robots: "noindex",
     skript: `/website/${s.skript}.js`,
     stile: [STIL_TERMINE],
-    hauptAttr: ' class="tm"',
-    inhalt: `${kopf}
+    inhalt: `<div class="tm">
+${kopf}
 <div id="tm-app" data-seite="${s.seite}">
 <noscript><div class="band wa" role="status"><div class="text"><strong>Diese Seite braucht JavaScript.</strong>Schalte es in deinem Browser ein, um die Seite zu nutzen.</div></div></noscript>
 </div>
-<p class="nur-leser" id="tm-status" role="status" aria-live="polite"></p>`,
+<p class="nur-leser" id="tm-status" role="status" aria-live="polite"></p>
+</div>`,
   });
 }
 
