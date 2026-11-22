@@ -1556,8 +1556,8 @@ describe("Fristverschiebung", () => {
       "aufgabe_geaendert",
     );
     expect(z1).toHaveLength(vorher.verantwortliche + 1);
-    // Die neue Zeile ist die letzte; sie öffnet die Aufgabe mit der nächsten Frist
-    expect(z1.at(-1)).toMatchObject({ objektTyp: "aufgabe", objektId: a1.id });
+    // Die neue Zeile öffnet die Aufgabe mit der nächsten Frist (a1); die frühere, vom Ändern der Unterstützung, gehört zu a2
+    expect(z1.map((z) => z.objektId)).toContain(a1.id);
     expect(
       await benachrichtigungen(l, zweite, "aufgabe_geaendert"),
     ).toHaveLength(vorher.zweite + 1);
