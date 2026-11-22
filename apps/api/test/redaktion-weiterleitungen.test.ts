@@ -29,6 +29,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 bereiteAuthTestsVor();
 
@@ -49,7 +50,7 @@ const BASIS = "/api/v1/redaktion/weiterleitungen";
 let welt: Welt;
 let admin: PersonaKonto;
 let slA: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let eltern: PersonaKonto;
 let demoAdmin: PersonaKonto;
 
@@ -98,25 +99,21 @@ const fehlercode = async (antwort: Response) =>
 
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
-  [admin, slA, redaktion, eltern, demoAdmin] = await Promise.all([
+  [admin, slA, webmaster, eltern, demoAdmin] = await Promise.all([
     legePersonaAn(welt, "admin"),
     legePersonaAn(welt, "slA"),
     legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "elternA"),
     legePersonaAn(welt, "demoAdmin"),
   ]);
-  // Redaktion = Recht auf alle Seiten (Objekt leer)
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  // Webmaster = Plattformrolle mit allen Rechten ausser dem Wartungsmodus
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
 });
 
 describe("Rechte", () => {
-  test("Abteilungsleitung und Redaktion legen an, listen, ändern und löschen", async () => {
+  test("Abteilungsleitung und Webmaster legen an, listen, ändern und löschen", async () => {
     const a = pfad("alt");
-    const id = await lege(redaktion, a, pfad("neu"));
+    const id = await lege(webmaster, a, pfad("neu"));
     const liste = (await (await anfrage(admin, "GET", BASIS)).json()) as {
       weiterleitungen: { id: string; alterPfad: string; status: number }[];
     };
@@ -125,7 +122,7 @@ describe("Rechte", () => {
       status: 301,
     });
     expect(
-      (await anfrage(redaktion, "PATCH", `${BASIS}/${id}`, { status: 302 }))
+      (await anfrage(webmaster, "PATCH", `${BASIS}/${id}`, { status: 302 }))
         .status,
     ).toBe(204);
     expect((await anfrage(admin, "DELETE", `${BASIS}/${id}`)).status).toBe(204);

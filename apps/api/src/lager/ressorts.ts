@@ -80,7 +80,7 @@ export const reihenfolgeSetzen = z.strictObject({
 });
 
 // Nur https, ohne Zugangsdaten in der Adresse. Der Server ruft die Adresse nie ab (SR-26); gespeichert wird die normalisierte Form (kleingeschriebenes Schema und Host)
-const httpsAdresse = z
+export const httpsAdresse = z
   .string()
   .trim()
   .max(2000)

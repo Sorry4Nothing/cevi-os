@@ -10,7 +10,7 @@ import * as stufenfakten from "./website-stufenfakten.js";
 // Jedes Modul exportiert zeige(bereich, ctx). «bereich» ist sein eigener Container; zeige zeichnet hinein und räumt nichts ausserhalb auf.
 // ctx = {
 //   ich,                 // das Konto (better-auth), nur lesen
-//   redaktion,           // { redigieren, bereiche, verwalten } von GET /api/v1/redaktion/ich: nur die Anzeige, jede Route prüft selbst
+//   zugang,              // { redigieren, bereiche, verwalten, rechte, darf(recht) } von GET /api/v1/redaktion/ich: nur die Anzeige, jede Route prüft selbst
 //   pfad,                // Rest der Adresse nach dem Modul, z. B. ["<id>"] bei #website/seiten/<id>; leer ohne Rest
 //   melde(text, art),    // Rückmeldung in der Live-Region; art «ok» (Standard) oder «fehler»
 //   lade(laden, zeichnen), // wie in den übrigen Bereichen, bezogen auf den Container des Moduls

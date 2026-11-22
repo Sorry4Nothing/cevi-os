@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
+import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import {
   sichtbarkeitSchema,
@@ -13,10 +14,6 @@ import {
   VorlagenFehler,
 } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
-import {
-  darfSeitenVerwalten,
-  hatRedaktionszugang,
-} from "../../website/seiten.js";
 import { VORLAGEN_SCHLUESSEL, vorlagenInfos } from "../../website/vorlagen.js";
 
 // Eigene Route statt zusätzlicher Felder an POST /seiten: Die Adresse fehlt hier (sie kommt aus dem Titel), die Antwort nennt sie
@@ -49,19 +46,19 @@ export function erstelleVorlagenRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/vorlagen", async (c) => {
       // Name und Beschreibung, nie die Dokumente
-      if (!(await hatRedaktionszugang(db, c.get("person")))) {
+      if (!(await hatPlattformRecht(db, c.get("person"), "vorlagen.nutzen"))) {
         throw new HTTPException(403);
       }
       return c.json({ vorlagen: vorlagenInfos() });
     })
     .post("/seiten/aus-vorlage", eingabe("json", erzeugenSchema), async (c) => {
       const person = c.get("person");
-      if (!(await hatRedaktionszugang(db, person))) {
-        throw new HTTPException(403);
-      }
       const felder = c.req.valid("json");
-      // Wie POST /seiten: Anlegen nur für Abteilungsleitung und Redaktion
-      if (!(await darfSeitenVerwalten(db, person))) {
+      // Eine Vorlage nutzen und wie POST /seiten anlegen dürfen
+      if (
+        !(await hatPlattformRecht(db, person, "vorlagen.nutzen")) ||
+        !(await hatPlattformRecht(db, person, "seiten.anlegen_loeschen"))
+      ) {
         throw new HTTPException(403);
       }
       if (

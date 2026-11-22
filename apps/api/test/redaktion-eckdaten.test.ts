@@ -41,6 +41,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 import { legeProgrammAn } from "./hilfen/programme.js";
 import { antwortVerletzungen } from "./hilfen/vertrag.js";
 
@@ -70,7 +71,7 @@ let admin: PersonaKonto;
 let adminOhneFaktor: PersonaKonto;
 let slA: PersonaKonto;
 let slB: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let eltern: PersonaKonto;
 let demoAdmin: PersonaKonto;
 let ohneLogin: PersonaKonto;
@@ -151,7 +152,7 @@ const faktenDok = (titel: string) => ({
 
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
-  [admin, adminOhneFaktor, slA, slB, redaktion, eltern, demoAdmin, ohneLogin] =
+  [admin, adminOhneFaktor, slA, slB, webmaster, eltern, demoAdmin, ohneLogin] =
     await Promise.all([
       legePersonaAn(welt, "admin"),
       legePersonaAn(welt, "adminOhneZweitenFaktor"),
@@ -162,12 +163,8 @@ beforeAll(async () => {
       legePersonaAn(welt, "demoAdmin"),
       legePersonaAn(welt, "ohneLogin"),
     ]);
-  // Redaktion = Recht auf alle Seiten (Objekt leer)
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  // Webmaster = Plattformrolle mit allen Rechten ausser dem Wartungsmodus
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
   const [z] = await db
     .insert(schema.seite)
     .values({
@@ -182,11 +179,11 @@ beforeAll(async () => {
 });
 
 describe("Rechte", () => {
-  test("Stufenleitung der Stufe schreibt, liest und löscht ohne zweiten Faktor; Abteilungsleitung und Redaktion (mit zweitem Faktor) auch", async () => {
+  test("Stufenleitung der Stufe schreibt, liest und löscht ohne zweiten Faktor; Abteilungsleitung und Webmaster (mit zweitem Faktor) auch", async () => {
     for (const [konto, n] of [
       [slA, 3],
       [admin, 4],
-      [redaktion, 5],
+      [webmaster, 5],
     ] as const) {
       const tag = tagIn(n);
       expect(
