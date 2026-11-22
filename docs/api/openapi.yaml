@@ -6136,6 +6136,44 @@ paths:
 
         Jede Operation läuft in einer eigenen Transaktion, der Reihe nach, und bekommt ein eigenes Ergebnis in derselben Reihenfolge: `ok` (mit IDs und Versionen der geschriebenen Zeilen, keine Inhalte), `konflikt` (die Zeile hat inzwischen eine andere Version, mit `aktuell` in der Ansicht der Rolle und den abweichenden Feldern) oder `abgelehnt` (mit Code: `OPERATION_UNBEKANNT`, `UNGUELTIGE_EINGABE`, `KEINE_BERECHTIGUNG`, `NICHT_GEFUNDEN`, `KONFLIKT`). Eine Ablehnung oder ein Konflikt bricht die anderen Operationen nicht ab und nimmt nur die Schreibvorgänge dieser Operation zurück. Das Recht jeder Operation gilt gegen die Rolle der Person im Lager, nie gegen Angaben der Nutzlast.
 
+        Operationen: Die Liste unten nennt jeden `typ` mit dem Recht, das die Rolle braucht, und den Feldern der `nutzlast`; `?` kennzeichnet ein optionales Feld. Die Nutzlast ist strikt (ein unbekanntes Feld lehnt die Operation mit `UNGUELTIGE_EINGABE` ab), und Felder und Grenzen sind dieselben wie im Body der Route des Moduls; wo die Route die ID im Pfad trägt, steht `id` (oder die ID des Elternobjekts) in der Nutzlast. `version` ist die Version, die die App zuletzt gesehen hat. Das Ergebnis `ok` nennt `id` und, wo es eine Zeile gibt, `version`. Eine Prüfung, die die Route mit 400 und einem Code beantwortet, lehnt die Operation mit demselben Code ab (unter «Zusätzliche Ablehnungen»); `VERSION_KONFLIKT` ist immer ein `konflikt`. Eine Operation führt dieselbe Logik aus wie die Route des Moduls; nur den Push an andere Personen kennt die Warteschlange noch nicht (die Zeilen der Glocke entstehen).
+
+        <!-- operationen:anfang -->
+
+        - `aufgabe_link.aendern` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`, `titel?`, `url?`.
+        - `aufgabe_link.anlegen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `titel`, `url`.
+        - `aufgabe_link.loeschen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`.
+        - `aufgabe.aendern` (Recht `aufgaben.bearbeiten`): `id`, `version`, `titel?`, `ressortId?`, `teil?`, `verantwortlichPersonId?`, `unterstuetzungPersonIds?`, `status?`, `notiz?`, `frist?`, `fristMeilensteinId?`, `fristVersatzTage?`, `stern?`, `laufend?`, `spaeterAb?`, `wiederholung?`, `reihenfolge?`.
+        - `aufgabe.anlegen` (Recht `aufgaben.bearbeiten`): `titel`, `ressortId?`, `teil?`, `verantwortlichPersonId?`, `unterstuetzungPersonIds?`, `status?`, `notiz?`, `frist?`, `fristMeilensteinId?`, `fristVersatzTage?`, `stern?`, `laufend?`, `spaeterAb?`, `wiederholung?`, `reihenfolge?`.
+        - `aufgabe.loeschen` (Recht `aufgaben.bearbeiten`): `id`, `version`.
+        - `aufgabe.status` (Recht `aufgaben.eigene`): `id`, `version`, `status`.
+        - `aufgabe.stichworte` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `version`, `stichworte`.
+        - `beschluss.aendern` (Recht `protokolle.bearbeiten`): `id`, `version`, `text?`, `protokollId?`, `hoeckId?`. Zusätzliche Ablehnungen: `HOECK_UNBEKANNT`, `PROTOKOLL_UNBEKANNT`, `HOECK_PASST_NICHT`.
+        - `beschluss.anlegen` (Recht `protokolle.bearbeiten`): `text`, `protokollId?`, `hoeckId?`. Zusätzliche Ablehnungen: `HOECK_UNBEKANNT`, `PROTOKOLL_UNBEKANNT`, `HOECK_PASST_NICHT`.
+        - `beschluss.loeschen` (Recht `protokolle.bearbeiten`): `id`, `version`.
+        - `checkpunkt.abhaken` (Recht `aufgaben.eigene`): `aufgabeId`, `id`, `version`, `erledigt`.
+        - `checkpunkt.aendern` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`, `text?`, `erledigt?`.
+        - `checkpunkt.anlegen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `text`, `reihenfolge?`.
+        - `checkpunkt.loeschen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`.
+        - `checkpunkt.reihenfolge` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `eintraege`.
+        - `hoeck.aendern` (Recht `hoecks.bearbeiten`): `id`, `version`, `titel?`, `art?`, `datum?`, `zeit?`, `ort?`, `gaeste?`.
+        - `hoeck.anlegen` (Recht `hoecks.bearbeiten`): `titel`, `art`, `datum`, `zeit?`, `ort?`, `gaeste?`.
+        - `hoeck.anwesend` (Recht `hoecks.bearbeiten`): `hoeckId`, `personId`, `anwesend`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`.
+        - `hoeck.loeschen` (Recht `hoecks.bearbeiten`): `id`, `version`. Zusätzliche Ablehnungen: `HOECK_HAT_TRAKTANDEN`.
+        - `pinnwand.aendern` (Recht `pinnwand.bearbeiten`): `id`, `version`, `titel?`, `text?`, `wichtig?`, `angeheftet?`, `sichtbarAb?`, `sichtbarBis?`, `empfaenger?`, `dateiIds?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `DATEI_UNBEKANNT`, `ZEITFENSTER_UNGUELTIG`.
+        - `pinnwand.anlegen` (Recht `pinnwand.bearbeiten`): `titel`, `text?`, `wichtig?`, `angeheftet?`, `sichtbarAb?`, `sichtbarBis?`, `empfaenger?`, `dateiIds?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `DATEI_UNBEKANNT`, `ZEITFENSTER_UNGUELTIG`.
+        - `pinnwand.loeschen` (Recht `pinnwand.bearbeiten`): `id`, `version`.
+        - `ressort_notiz.aendern` (Recht `ressorts.bearbeiten`): `ressortId`, `id`, `version`, `text`.
+        - `ressort_notiz.anlegen` (Recht `ressorts.bearbeiten`): `ressortId`, `text`.
+        - `ressort_notiz.loeschen` (Recht `ressorts.bearbeiten`): `ressortId`, `id`, `version`.
+        - `ressort.reihenfolge` (Recht `ressorts.bearbeiten`): `eintraege`.
+        - `traktandum.aendern` (Recht `hoecks.bearbeiten`): `id`, `version`, `titel?`, `hoeckId?`, `text?`, `entscheid?`, `links?`, `verantwortlichePersonIds?`, `aufgabeId?`, `status?`, `reihenfolge?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `HOECK_UNBEKANNT`, `AUFGABE_UNBEKANNT`.
+        - `traktandum.anlegen` (Recht `hoecks.bearbeiten`): `titel`, `hoeckId?`, `text?`, `entscheid?`, `links?`, `verantwortlichePersonIds?`, `aufgabeId?`, `status?`, `reihenfolge?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `HOECK_UNBEKANNT`, `AUFGABE_UNBEKANNT`.
+        - `traktandum.loeschen` (Recht `hoecks.bearbeiten`): `id`, `version`.
+        - `traktandum.reihenfolge` (Recht `hoecks.bearbeiten`): `hoeckId`, `eintraege`.
+
+        <!-- operationen:ende -->
+
         Idempotenz: Ein `ok` wird je Lager, Person und `clientOpId` 30 Tage gespeichert. Eine Wiederholung derselben `clientOpId` liefert dieses Ergebnis, auch wenn sich Rechte seither geändert haben, und schreibt nichts noch einmal; gleichzeitige Wiederholungen schreiben einmal. `konflikt` und `abgelehnt` werden nicht gespeichert: Sie haben nichts geschrieben und kommen bei einer Wiederholung zum selben Ergebnis. Bei einem Konflikt holt die App den Stand (in `aktuell`) und schickt die Änderung mit einer neuen `clientOpId` und der aktuellen `version` noch einmal.
 
         Statuscodes: 200 mit den Ergebnissen (auch wenn einzelne Operationen abgelehnt wurden). 400 bei ungültiger Anfrage (keine oder mehr als 100 Operationen, `clientOpId` keine UUID, unbekannte Felder). 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 `LAGER_GESCHLOSSEN`, wenn das Lager abgeschlossen oder archiviert ist: Die ganze Anfrage wird abgelehnt. 413 über 256 KB. 429 bei zu vielen Anfragen. 500 bei einem Fehler des Servers: Die App schickt dieselbe Anfrage noch einmal; erledigte Operationen kommen aus dem Speicher.
@@ -11474,6 +11512,58 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: nimmLagerAufgabeAusErwaehnungZurueck
+      summary: «Als Aufgabe» zurücknehmen
+      description: |
+        Nimmt «Als Aufgabe» zurück: Die Aufgabe, die aus der eigenen Erwähnung entstanden ist, wird endgültig gelöscht, die Erwähnung ist wieder offen (`aufgabeId` leer). Nur solange die Aufgabe unverändert ist: Version 1 und weder Unterstützung noch Checkpunkte, Links, Stichworte oder ein Traktandum, das auf sie zeigt. Sonst 409 `AUFGABE_VERAENDERT`, und nichts geht verloren; die Aufgabe löscht die Person dann bei den Aufgaben. Hat die Erwähnung keine Aufgabe (mehr), tut der Aufruf nichts (204).
+
+        Recht wie beim Anlegen: `aufgaben.bearbeiten` oder `aufgaben.eigene` (Standard: Lagerleitung, Leitung und Team; nicht Lesen). Eine fremde Erwähnung ist 404.
+
+        Datenbanklast: Erwähnung samt Titel laden (zwei bis drei Abfragen), eine Transaktion unter der Sperre des Lagers: Erwähnung und Aufgabe lesen, eine Abfrage auf die abhängigen Tabellen, Aufgabe löschen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Erwähnung (404), Zustand der Aufgabe (409 `AUFGABE_VERAENDERT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `AUFGABE_VERAENDERT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Zurückgenommen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Aufgabe wurde schon bearbeitet (`AUFGABE_VERAENDERT`) oder das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/pinnwand:
     get:
@@ -12592,6 +12682,61 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: nimmLagerEingangTraktandumZurueck
+      summary: «Als Traktandum» zurücknehmen
+      description: |
+        Braucht `eingang.antworten`, `eingang.lesen` und `hoecks.bearbeiten` wie das Anlegen. Löscht das Traktandum, das aus der Meldung entstanden ist, endgültig und setzt `traktandumId` der Meldung auf leer, in einer Transaktion. `version` ist die zuletzt gesehene Version der Meldung; weicht sie ab, 409 `VERSION_KONFLIKT`. Nur solange das Traktandum unverändert ist: Version 1, keine Verantwortlichen, keine Aufgabe. Sonst 409 `TRAKTANDUM_VERAENDERT`, und nichts geht verloren; das Traktandum löscht die Person dann bei den Traktanden. Hat die Meldung kein Traktandum (mehr), tut der Aufruf nichts (204).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Meldung (404), Zustand des Traktandums (409 `TRAKTANDUM_VERAENDERT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft. 409 `VERSION_KONFLIKT`, `TRAKTANDUM_VERAENDERT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Meldung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Zurückgenommen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Meldung wurde inzwischen geändert (`VERSION_KONFLIKT`), das Traktandum wurde schon bearbeitet (`TRAKTANDUM_VERAENDERT`) oder das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":

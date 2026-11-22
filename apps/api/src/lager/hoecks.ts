@@ -25,6 +25,7 @@ import {
   user,
 } from "../db/schema.js";
 import { leseUmfang as aufgabenUmfang } from "./aufgaben.js";
+import { lehneAb, registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { httpsAdresse, sperreLager } from "./ressorts.js";
 import { registriereSuchquelle } from "./suche.js";
@@ -875,3 +876,141 @@ async function ladeRessortRunde(
       : null,
   }));
 }
+
+const FEHLER_TEXT = {
+  KEIN_MITGLIED: "Die Personen müssen Mitglieder dieses Lagers sein.",
+  HOECK_UNBEKANNT: "Den Höck gibt es in diesem Lager nicht.",
+  AUFGABE_UNBEKANNT: "Die Aufgabe gibt es in diesem Lager nicht.",
+} as const;
+// Antwort der Route (400) und Ablehnung der Operation mit demselben Code und Text
+export const pruefungAntwort = (fehler: NonNullable<Pruefung>) => ({
+  code: fehler.fehler,
+  message: FEHLER_TEXT[fehler.fehler],
+});
+const abgelehnt = (fehler: NonNullable<Pruefung>) => {
+  const { code, message } = pruefungAntwort(fehler);
+  return lehneAb(code, message);
+};
+
+// Operationen der Warteschlange (#367, #521): dieselben Schreibwege wie die Routen, mit demselben Recht (hoecks.bearbeiten). Eine Prüfung, die die Route mit 400 beantwortet, lehnt die Operation mit demselben Code ab
+const HOECK_RECHT = "hoecks.bearbeiten";
+const uuid = z.uuid();
+const akteur = ({
+  zugriff,
+  person,
+}: {
+  zugriff: LagerZugriff;
+  person: { id: string };
+}) => ({ lagerId: zugriff.lager.id, personId: person.id });
+const mindestens = (anzahl: number) => (b: object) =>
+  Object.keys(b).length > anzahl;
+registriereOperation({
+  typ: "hoeck.anlegen",
+  recht: HOECK_RECHT,
+  schema: hoeckAnlegen,
+  fuehreAus: async (kontext, n) => {
+    const neu = await legeHoeckAn(kontext.tx, akteur(kontext), n);
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "hoeck.aendern",
+  recht: HOECK_RECHT,
+  schema: z
+    .strictObject({ id: uuid, ...hoeckAendern.shape })
+    .refine(mindestens(2)),
+  fuehreAus: async (kontext, { id: hoeckId, ...n }) => {
+    const neu = await aendereHoeck(kontext.tx, akteur(kontext), hoeckId, n);
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "hoeck.loeschen",
+  recht: HOECK_RECHT,
+  fehler: ["HOECK_HAT_TRAKTANDEN"],
+  schema: z.strictObject({ id: uuid, version }),
+  fuehreAus: async (kontext, n) => {
+    const fehler = await loescheHoeck(
+      kontext.tx,
+      akteur(kontext),
+      n.id,
+      n.version,
+    );
+    if (fehler) {
+      throw lehneAb(
+        fehler.fehler,
+        "Der Höck hat noch Traktanden. Schiebe sie auf den nächsten Höck oder lösche sie zuerst.",
+      );
+    }
+    return { id: n.id };
+  },
+});
+// Der Haken je Person; beides ist idempotent
+registriereOperation({
+  typ: "hoeck.anwesend",
+  recht: HOECK_RECHT,
+  fehler: ["KEIN_MITGLIED"],
+  schema: z.strictObject({
+    hoeckId: uuid,
+    personId: uuid,
+    anwesend: z.boolean(),
+  }),
+  fuehreAus: async ({ tx, zugriff }, n) => {
+    const fehler = await setzeHoeckAnwesenheit(
+      tx,
+      { lagerId: zugriff.lager.id },
+      n.hoeckId,
+      n.personId,
+      n.anwesend,
+    );
+    if (fehler) throw abgelehnt(fehler);
+    return { id: n.hoeckId };
+  },
+});
+const schreibeTraktandum = (e: SchreibErgebnis) => {
+  if ("fehler" in e) throw abgelehnt(e);
+  return { id: e.id, version: e.version };
+};
+const FEHLER_TRAKTANDUM = [
+  "KEIN_MITGLIED",
+  "HOECK_UNBEKANNT",
+  "AUFGABE_UNBEKANNT",
+];
+registriereOperation({
+  typ: "traktandum.anlegen",
+  recht: HOECK_RECHT,
+  fehler: FEHLER_TRAKTANDUM,
+  schema: traktandumAnlegen,
+  fuehreAus: async (kontext, n) =>
+    schreibeTraktandum(await legeTraktandumAn(kontext.tx, akteur(kontext), n)),
+});
+registriereOperation({
+  typ: "traktandum.aendern",
+  recht: HOECK_RECHT,
+  fehler: FEHLER_TRAKTANDUM,
+  schema: z
+    .strictObject({ id: uuid, ...traktandumAendern.shape })
+    .refine(mindestens(2)),
+  fuehreAus: async (kontext, { id: traktandumId, ...n }) =>
+    schreibeTraktandum(
+      await aendereTraktandum(kontext.tx, akteur(kontext), traktandumId, n),
+    ),
+});
+registriereOperation({
+  typ: "traktandum.loeschen",
+  recht: HOECK_RECHT,
+  schema: z.strictObject({ id: uuid, version }),
+  fuehreAus: async (kontext, n) => {
+    await loescheTraktandum(kontext.tx, akteur(kontext), n.id, n.version);
+    return { id: n.id };
+  },
+});
+registriereOperation({
+  typ: "traktandum.reihenfolge",
+  recht: HOECK_RECHT,
+  schema: traktandumReihenfolge,
+  fuehreAus: async (kontext, n) => {
+    await ordneTraktanden(kontext.tx, akteur(kontext), n.hoeckId, n.eintraege);
+    return {};
+  },
+});

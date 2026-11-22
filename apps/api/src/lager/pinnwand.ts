@@ -1,4 +1,5 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -11,7 +12,8 @@ import {
 } from "../db/schema.js";
 import { dateiAnsicht, ladeSichtbareDatei } from "./datei.js";
 import { registriereDateiVerweis } from "./datei-verweise.js";
-import { benachrichtige } from "./benachrichtigung.js";
+import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { lehneAb, registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { ladeRollenRechte } from "./rechte.js";
 import { ladeReaktionen, ladeUmfragen } from "./umfragen.js";
@@ -209,7 +211,7 @@ export const fensterGueltig = (ab?: Date | null, bis?: Date | null) =>
 
 // Personen als Empfänger müssen Mitglieder dieses Lagers sein, Dateien im Lager liegen und für die Person sichtbar sein (sie bindet nichts ein, was sie nicht sieht); bereits eingebundene Dateien bleiben unberührt
 export async function pruefeBeitragWerte(
-  db: Db,
+  db: Pick<Db, "select" | "selectDistinct">,
   zugriff: LagerZugriff,
   w: {
     personen?: string[];
@@ -470,3 +472,177 @@ export async function ladeEmpfaenger(tx: Tx, beitragId: string) {
     personen: zeilen.flatMap((z) => (z.personId ? [z.personId] : [])),
   } satisfies EmpfaengerEingabe;
 }
+
+const FEHLER_TEXT = {
+  KEIN_MITGLIED: "Empfänger müssen Mitglieder dieses Lagers sein.",
+  DATEI_UNBEKANNT:
+    "Eine Datei gibt es in diesem Lager nicht oder du darfst sie nicht einbinden.",
+  ZEITFENSTER_UNGUELTIG: "«Sichtbar bis» muss nach «sichtbar ab» liegen.",
+} as const;
+// Antwort der Route (400) und Ablehnung der Operation mit demselben Code und Text
+export const fehlerAntwort = (f: NonNullable<Pruefung>) => ({
+  code: f.fehler,
+  message: FEHLER_TEXT[f.fehler],
+});
+
+type Person = { id: string };
+export type BeitragErgebnis =
+  | NonNullable<Pruefung>
+  | { id: string; version: number; zustellung?: Zustellung };
+
+// Legt einen Beitrag an: Prüfungen, Zeile, Empfänger, Dateien und die Benachrichtigung bei «wichtig» in der Transaktion des Aufrufers. Den Push nach dem Commit (zustellung.senden) schickt der Aufrufer
+export async function legeBeitragAn(
+  tx: Tx,
+  zugriff: LagerZugriff,
+  person: Person,
+  felder: z.output<typeof beitragAnlegen>,
+): Promise<BeitragErgebnis> {
+  const k = { lagerId: zugriff.lager.id, personId: person.id };
+  if (!fensterGueltig(felder.sichtbarAb, felder.sichtbarBis)) {
+    return { fehler: "ZEITFENSTER_UNGUELTIG" };
+  }
+  const fehler = await pruefeBeitragWerte(tx, zugriff, {
+    personen: felder.empfaenger?.personen,
+    dateiIds: felder.dateiIds,
+  });
+  if (fehler) return fehler;
+  const empfaenger = felder.empfaenger ?? { rollen: [], personen: [] };
+  const neu = await legeZeileAn(tx, pinnwandBeitrag, k, {
+    titel: felder.titel,
+    text: felder.text,
+    wichtig: felder.wichtig,
+    angeheftet: felder.angeheftet,
+    sichtbarAb: felder.sichtbarAb ?? null,
+    sichtbarBis: felder.sichtbarBis ?? null,
+  });
+  await setzeEmpfaenger(tx, k.lagerId, neu.id, empfaenger);
+  await setzeDateien(tx, k, neu.id, felder.dateiIds ?? []);
+  const zustellung =
+    neu.wichtig && istJetztSichtbar(neu.sichtbarAb, neu.sichtbarBis)
+      ? await benachrichtigeUeberBeitrag(
+          tx,
+          k.lagerId,
+          neu.id,
+          empfaenger,
+          person.id,
+        )
+      : undefined;
+  return { id: neu.id, version: neu.version, zustellung };
+}
+
+export async function aendereBeitrag(
+  tx: Tx,
+  zugriff: LagerZugriff,
+  person: Person,
+  beitragId: string,
+  eingabe: z.output<typeof beitragAendern>,
+): Promise<BeitragErgebnis> {
+  const { version, empfaenger, dateiIds, ...werte } = eingabe;
+  const k = { lagerId: zugriff.lager.id, personId: person.id };
+  const alt = await ladeBeitragZeile(tx, k.lagerId, beitragId);
+  if (!alt) throw new HTTPException(404);
+  const ab = werte.sichtbarAb === undefined ? alt.sichtbarAb : werte.sichtbarAb;
+  const bis =
+    werte.sichtbarBis === undefined ? alt.sichtbarBis : werte.sichtbarBis;
+  if (!fensterGueltig(ab, bis)) return { fehler: "ZEITFENSTER_UNGUELTIG" };
+  let schon: Set<string> | undefined;
+  if (dateiIds) {
+    const bestehend = await tx
+      .select({ id: pinnwandDatei.dateiId })
+      .from(pinnwandDatei)
+      .where(and(eq(pinnwandDatei.beitragId, beitragId)));
+    schon = new Set(bestehend.map((z) => z.id));
+  }
+  const fehler = await pruefeBeitragWerte(tx, zugriff, {
+    personen: empfaenger?.personen,
+    dateiIds,
+    schonEingebunden: schon,
+  });
+  if (fehler) return fehler;
+  // Zuerst der Beitrag: Er prüft die Version (409) und sperrt das Lager, bevor Empfänger und Dateien sich ändern. Eine Änderung nur an Empfängern oder Dateien zählt die Version trotzdem hoch
+  const neu = await aendereZeile(tx, pinnwandBeitrag, k, {
+    id: beitragId,
+    version,
+    werte,
+    ansicht: beitragAnsicht,
+  });
+  if (empfaenger) await setzeEmpfaenger(tx, k.lagerId, beitragId, empfaenger);
+  if (dateiIds) await setzeDateien(tx, k, beitragId, dateiIds);
+  // Push, wenn der Beitrag jetzt wichtig und sichtbar ist und es vorher nicht war (keine Wiederholung bei jeder Änderung)
+  const zustellung =
+    !alt.wichtig &&
+    neu.wichtig &&
+    istJetztSichtbar(neu.sichtbarAb, neu.sichtbarBis)
+      ? await benachrichtigeUeberBeitrag(
+          tx,
+          k.lagerId,
+          beitragId,
+          empfaenger ?? (await ladeEmpfaenger(tx, beitragId)),
+          person.id,
+        )
+      : undefined;
+  return { id: beitragId, version: neu.version, zustellung };
+}
+
+// Endgültig, über den Sync-Kern (#427)
+export async function loescheBeitrag(
+  tx: Tx,
+  k: SchreibKontext,
+  id: string,
+  version: number,
+) {
+  if (!(await ladeBeitragZeile(tx, k.lagerId, id))) {
+    throw new HTTPException(404);
+  }
+  await loescheZeile(tx, pinnwandBeitrag, k, {
+    id,
+    version,
+    ansicht: beitragAnsicht,
+  });
+}
+
+// Operationen der Warteschlange (#367, #521): dieselben Schreibwege wie die Routen, mit demselben Recht. Den Push einer wichtigen Mitteilung kennt die Warteschlange noch nicht (lager/operationen.ts hat dafür keinen Haken); die Zeilen der Glocke entstehen
+const FEHLER_BEITRAG = [
+  "KEIN_MITGLIED",
+  "DATEI_UNBEKANNT",
+  "ZEITFENSTER_UNGUELTIG",
+];
+const schreibeBeitrag = (e: BeitragErgebnis) => {
+  if ("fehler" in e) {
+    const { code, message } = fehlerAntwort(e);
+    throw lehneAb(code, message);
+  }
+  return { id: e.id, version: e.version };
+};
+registriereOperation({
+  typ: "pinnwand.anlegen",
+  recht: "pinnwand.bearbeiten",
+  fehler: FEHLER_BEITRAG,
+  schema: beitragAnlegen,
+  fuehreAus: async ({ tx, zugriff, person }, n) =>
+    schreibeBeitrag(await legeBeitragAn(tx, zugriff, person, n)),
+});
+registriereOperation({
+  typ: "pinnwand.aendern",
+  recht: "pinnwand.bearbeiten",
+  fehler: FEHLER_BEITRAG,
+  schema: z
+    .strictObject({ id: z.uuid(), ...beitragAendern.shape })
+    .refine((b) => Object.keys(b).length > 2),
+  fuehreAus: async ({ tx, zugriff, person }, { id, ...n }) =>
+    schreibeBeitrag(await aendereBeitrag(tx, zugriff, person, id, n)),
+});
+registriereOperation({
+  typ: "pinnwand.loeschen",
+  recht: "pinnwand.bearbeiten",
+  schema: z.strictObject({ id: z.uuid(), version: z.number().int().min(1) }),
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    await loescheBeitrag(
+      tx,
+      { lagerId: zugriff.lager.id, personId: person.id },
+      n.id,
+      n.version,
+    );
+    return { id: n.id };
+  },
+});

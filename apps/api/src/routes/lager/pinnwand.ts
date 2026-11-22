@@ -1,47 +1,27 @@
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
-import { pinnwandBeitrag, pinnwandDatei } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Fcm } from "../../push.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import {
+  aendereBeitrag,
   beitragAendern,
   beitragAnlegen,
-  beitragAnsicht,
-  benachrichtigeUeberBeitrag,
-  fensterGueltig,
-  istJetztSichtbar,
+  fehlerAntwort,
   kannAlleSehen,
   ladeBeitraege,
-  ladeBeitragZeile,
-  ladeEmpfaenger,
+  legeBeitragAn,
   listeAbfrage,
-  pruefeBeitragWerte,
-  setzeDateien,
-  setzeEmpfaenger,
+  loescheBeitrag,
   versionAbfrage,
-  type Pruefung,
 } from "../../lager/pinnwand.js";
-import { aendereZeile, legeZeileAn, loescheZeile } from "../../lager/sync.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const beitragPfad = z.strictObject({ id: z.uuid(), beitragId: z.uuid() });
 
-const FEHLER_TEXT = {
-  KEIN_MITGLIED: "Empfänger müssen Mitglieder dieses Lagers sein.",
-  DATEI_UNBEKANNT:
-    "Eine Datei gibt es in diesem Lager nicht oder du darfst sie nicht einbinden.",
-  ZEITFENSTER_UNGUELTIG: "«Sichtbar bis» muss nach «sichtbar ab» liegen.",
-} as const;
-const fehlerAntwort = (f: NonNullable<Pruefung>) => ({
-  code: f.fehler,
-  message: FEHLER_TEXT[f.fehler],
-});
-
-// Pinnwand eines Lagers (#381), Beschreibung in lager/pinnwand.ts. Lesen braucht pinnwand.lesen, jede Änderung pinnwand.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed; Löschen ist endgültig (#427)
+// Pinnwand eines Lagers (#381), Beschreibung in lager/pinnwand.ts. Lesen braucht pinnwand.lesen, jede Änderung pinnwand.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed; Löschen ist endgültig (#427). Die Schreibwege (legeBeitragAn, aendereBeitrag, loescheBeitrag) liegen in lager/pinnwand.ts: Die Operationen der Warteschlange (#521) rufen dieselben auf
 export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   const lesen = lagerZugriff(db, { recht: "pinnwand.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "pinnwand.bearbeiten" });
@@ -77,47 +57,14 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         const zugriff = c.get("lager");
         const person = c.get("person");
         const felder = c.req.valid("json");
-        const k = { lagerId: zugriff.lager.id, personId: person.id };
-        if (!fensterGueltig(felder.sichtbarAb, felder.sichtbarBis)) {
-          return c.json(
-            fehlerAntwort({ fehler: "ZEITFENSTER_UNGUELTIG" }),
-            400,
-          );
-        }
-        const fehler = await pruefeBeitragWerte(db, zugriff, {
-          personen: felder.empfaenger?.personen,
-          dateiIds: felder.dateiIds,
-        });
-        if (fehler) return c.json(fehlerAntwort(fehler), 400);
-
-        const empfaenger = felder.empfaenger ?? { rollen: [], personen: [] };
-        const { beitrag, zustellung } = await db.transaction(async (tx) => {
-          const neu = await legeZeileAn(tx, pinnwandBeitrag, k, {
-            titel: felder.titel,
-            text: felder.text,
-            wichtig: felder.wichtig,
-            angeheftet: felder.angeheftet,
-            sichtbarAb: felder.sichtbarAb ?? null,
-            sichtbarBis: felder.sichtbarBis ?? null,
-          });
-          await setzeEmpfaenger(tx, k.lagerId, neu.id, empfaenger);
-          await setzeDateien(tx, k, neu.id, felder.dateiIds ?? []);
-          const zustellung =
-            neu.wichtig && istJetztSichtbar(neu.sichtbarAb, neu.sichtbarBis)
-              ? await benachrichtigeUeberBeitrag(
-                  tx,
-                  k.lagerId,
-                  neu.id,
-                  empfaenger,
-                  person.id,
-                )
-              : undefined;
-          return { beitrag: neu, zustellung };
-        });
+        const ergebnis = await db.transaction((tx) =>
+          legeBeitragAn(tx, zugriff, person, felder),
+        );
+        if ("fehler" in ergebnis) return c.json(fehlerAntwort(ergebnis), 400);
         // Nach dem Commit: Ein Fehler beim Push lässt den Beitrag stehen
-        await zustellung?.senden({ db, fcm, c });
+        await ergebnis.zustellung?.senden({ db, fcm, c });
         const { beitraege } = await ladeBeitraege(db, zugriff, {
-          id: beitrag.id,
+          id: ergebnis.id,
           limit: 1,
           alle: true,
         });
@@ -146,65 +93,18 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       eingabe("json", beitragAendern),
       async (c) => {
         const zugriff = c.get("lager");
-        const person = c.get("person");
         const { beitragId } = c.req.valid("param");
-        const { version, empfaenger, dateiIds, ...werte } = c.req.valid("json");
-        const k = { lagerId: zugriff.lager.id, personId: person.id };
-        const alt = await ladeBeitragZeile(db, k.lagerId, beitragId);
-        if (!alt) throw new HTTPException(404);
-        const ab =
-          werte.sichtbarAb === undefined ? alt.sichtbarAb : werte.sichtbarAb;
-        const bis =
-          werte.sichtbarBis === undefined ? alt.sichtbarBis : werte.sichtbarBis;
-        if (!fensterGueltig(ab, bis)) {
-          return c.json(
-            fehlerAntwort({ fehler: "ZEITFENSTER_UNGUELTIG" }),
-            400,
-          );
-        }
-        let schon: Set<string> | undefined;
-        if (dateiIds) {
-          const bestehend = await db
-            .select({ id: pinnwandDatei.dateiId })
-            .from(pinnwandDatei)
-            .where(and(eq(pinnwandDatei.beitragId, beitragId)));
-          schon = new Set(bestehend.map((z) => z.id));
-        }
-        const fehler = await pruefeBeitragWerte(db, zugriff, {
-          personen: empfaenger?.personen,
-          dateiIds,
-          schonEingebunden: schon,
-        });
-        if (fehler) return c.json(fehlerAntwort(fehler), 400);
-
-        const zustellung = await db.transaction(async (tx) => {
-          // Zuerst der Beitrag: Er prüft die Version (409) und sperrt das Lager, bevor Empfänger und Dateien sich ändern. Eine Änderung nur an Empfängern oder Dateien zählt die Version trotzdem hoch
-          const neu = await aendereZeile(tx, pinnwandBeitrag, k, {
-            id: beitragId,
-            version,
-            werte,
-            ansicht: beitragAnsicht,
-          });
-          if (empfaenger)
-            await setzeEmpfaenger(tx, k.lagerId, beitragId, empfaenger);
-          if (dateiIds) await setzeDateien(tx, k, beitragId, dateiIds);
-          // Push, wenn der Beitrag jetzt wichtig und sichtbar ist und es vorher nicht war (keine Wiederholung bei jeder Änderung)
-          if (
-            !alt.wichtig &&
-            neu.wichtig &&
-            istJetztSichtbar(neu.sichtbarAb, neu.sichtbarBis)
-          ) {
-            return benachrichtigeUeberBeitrag(
-              tx,
-              k.lagerId,
-              beitragId,
-              empfaenger ?? (await ladeEmpfaenger(tx, beitragId)),
-              person.id,
-            );
-          }
-          return undefined;
-        });
-        await zustellung?.senden({ db, fcm, c });
+        const ergebnis = await db.transaction((tx) =>
+          aendereBeitrag(
+            tx,
+            zugriff,
+            c.get("person"),
+            beitragId,
+            c.req.valid("json"),
+          ),
+        );
+        if ("fehler" in ergebnis) return c.json(fehlerAntwort(ergebnis), 400);
+        await ergebnis.zustellung?.senden({ db, fcm, c });
         const { beitraege } = await ladeBeitraege(db, zugriff, {
           id: beitragId,
           limit: 1,
@@ -219,21 +119,16 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       eingabe("param", beitragPfad),
       eingabe("query", versionAbfrage),
       async (c) => {
-        const k = {
-          lagerId: c.get("lager").lager.id,
-          personId: c.get("person").id,
-        };
-        const { beitragId } = c.req.valid("param");
-        if (!(await ladeBeitragZeile(db, k.lagerId, beitragId))) {
-          throw new HTTPException(404);
-        }
-        // Endgültig, über den Sync-Kern (#427)
         await db.transaction((tx) =>
-          loescheZeile(tx, pinnwandBeitrag, k, {
-            id: beitragId,
-            version: c.req.valid("query").version,
-            ansicht: beitragAnsicht,
-          }),
+          loescheBeitrag(
+            tx,
+            {
+              lagerId: c.get("lager").lager.id,
+              personId: c.get("person").id,
+            },
+            c.req.valid("param").beitragId,
+            c.req.valid("query").version,
+          ),
         );
         return c.body(null, 204);
       },
