@@ -47,6 +47,8 @@ export const lager = pgTable(
     uebung: boolean("uebung").notNull().default(false),
     // Hex-Farbe «#rrggbb», kleingeschrieben
     farbe: text("farbe"),
+    // Bis wann das Team die eigene Anwesenheit direkt einträgt (#390); danach nur noch per Anfrage. Leer: keine Frist. Setzt die Lagerleitung über PUT /lager/{id}/anwesenheit/frist
+    anwesenheitFrist: timestamp("anwesenheit_frist", { withTimezone: true }),
     // Dass das Medium zur Abteilung gehört und ein Bild ist, prüft die Route
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
@@ -471,6 +473,75 @@ export const lagerDatei = pgTable(
     check(
       "lager_datei_typ_groesse_check",
       sql`(${t.typ} is null or char_length(${t.typ}) <= 100) and (${t.groesse} is null or ${t.groesse} >= 0)`,
+    ),
+  ],
+);
+
+// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) und Teilnehmende (#384) ohne Fremdschlüssel, bis diese Tabellen im Schema stehen. Geschrieben wird nur über lager/sync.ts
+export const anwesenheit = pgTable(
+  "anwesenheit",
+  {
+    ...lagerSpalten(),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    teilnehmerId: uuid("teilnehmer_id"),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    wert: text("wert", { enum: ["A", "F", "O"] }).notNull(),
+  },
+  (t) => [
+    // Ein Feld gibt es je Person und Abschnitt einmal; eine gelöschte Zeile blockiert es nicht
+    uniqueIndex("anwesenheit_person_uq")
+      .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("anwesenheit_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    // Die Matrix eines Zeitraums (ein Abruf je Lager und Lagertage), nach ID seitenweise
+    index("anwesenheit_tag_idx").on(t.lagerId, t.lagertagId, t.id),
+    check("anwesenheit_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
+    check(
+      "anwesenheit_anwesende_check",
+      sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Anfrage des Teams, ein eingetragenes Feld zu ändern, oder ein Feld nach der Frist zu setzen (#390). Die Lagerleitung nimmt sie an (die Anwesenheit ändert sich) oder lehnt sie ab. Eine offene Anfrage je Person und Feld
+export const anwesenheitAnfrage = pgTable(
+  "anwesenheit_anfrage",
+  {
+    ...lagerSpalten(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    wert: text("wert", { enum: ["A", "F", "O"] }).notNull(),
+    notiz: text("notiz"),
+    status: text("status", { enum: ["offen", "angenommen", "abgelehnt"] })
+      .notNull()
+      .default("offen"),
+    entschiedenVon: uuid("entschieden_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("anwesenheit_anfrage_offen_uq")
+      .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
+    index("anwesenheit_anfrage_liste_idx").on(t.lagerId, t.status, t.id),
+    index("anwesenheit_anfrage_person_idx").on(t.lagerId, t.personId, t.id),
+    check("anwesenheit_anfrage_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
+    check(
+      "anwesenheit_anfrage_status_check",
+      sql`${t.status} in ('offen', 'angenommen', 'abgelehnt') and (${t.status} = 'offen') = (${t.entschiedenAm} is null)`,
+    ),
+    check(
+      "anwesenheit_anfrage_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
     ),
   ],
 );
