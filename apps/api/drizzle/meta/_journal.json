@@ -346,9 +346,16 @@
       "breakpoints": true
     },
     {
+      "idx": 85,
+      "version": "7",
+      "when": 1793552500000,
+      "tag": "0085_lager_anwesenheit",
+      "breakpoints": true
+    },
+    {
       "idx": 100,
       "version": "7",
-      "when": 1793552000000,
+      "when": 1793553000000,
       "tag": "0100_plattformrollen",
       "breakpoints": true
     },
