@@ -1,5 +1,6 @@
 import ICAL from "ical.js";
 import { ANTWORT_UNGUELTIG, KalenderFehler } from "./fehler.js";
+import { kategorienVon } from "./kategorien.js";
 
 export type ProgrammAusKalender = {
   googleEventId: string;
@@ -10,8 +11,14 @@ export type ProgrammAusKalender = {
   ende: Date | null;
   tagVon: string | null;
   tagBis: string | null;
+  // Rohe Namen aus CATEGORIES (kategorien.ts); die Tags dazu berechnet tags-zuordnen.ts
+  kategorien: string[];
+  // LOCATION, getrimmt; leer wird null
+  ort: string | null;
 };
 
+// Ein Ort länger als das ist kein Ort; die Spalte ist Fremdtext
+const MAX_ORT = 200;
 const TAG_MS = 24 * 60 * 60 * 1000;
 // Schutz vor Serien, die nie enden und ewig zurückliegen; ein Lauf zählt nur Termine im Fenster, rund 400 Tage voraus
 const MAX_SCHRITTE = 100_000;
@@ -66,6 +73,11 @@ export function liegtAmSamstag(
   return false;
 }
 
+function ortVon(termin: ICAL.Event) {
+  const ort = termin.location?.trim();
+  return ort ? ort.slice(0, MAX_ORT) : null;
+}
+
 function abbilden(ics: string, jetzt: Date) {
   const wurzel = new ICAL.Component(ICAL.parse(ics));
   if (wurzel.name !== "vcalendar") throw new KalenderFehler(ANTWORT_UNGUELTIG);
@@ -118,6 +130,8 @@ function abbilden(ics: string, jetzt: Date) {
       ende: ganztaegig ? null : schluss,
       tagVon: ganztaegig ? start.toString() : null,
       tagBis,
+      kategorien: kategorienVon(termin),
+      ort: ortVon(termin),
     });
   }
 

@@ -85,6 +85,8 @@ describe("Abbildung einzelner Termine", () => {
         ende: new Date("2027-09-04T14:00:00Z"),
         tagVon: null,
         tagBis: null,
+        kategorien: [],
+        ort: "Waldhütte",
       },
     ]);
   });
