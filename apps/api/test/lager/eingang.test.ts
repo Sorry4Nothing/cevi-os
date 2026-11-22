@@ -1086,3 +1086,105 @@ describe("Abgeschlossenes Lager, Feed und Last", () => {
     expect(gross.n).toBe(klein.n);
   });
 });
+
+describe("Als Traktandum zurücknehmen (#521)", () => {
+  let lagerId: string;
+  beforeAll(async () => {
+    lagerId = await neuesLager("aktiv", "Zurücknahmelager");
+  });
+  const leitung = () => konten.lagerleitung;
+  async function mitTraktandum() {
+    const text = `neu-${randomUUID()}`;
+    expect((await sende("team", lagerId, { anonym: true, text })).status).toBe(
+      201,
+    );
+    const e = (
+      await lies("lagerleitung", lagerId, "?limit=100")
+    ).body.eintraege.find((z: { text: string }) => z.text === text);
+    const t = await anfrage(
+      leitung(),
+      "POST",
+      `${L(lagerId)}/eingang/${e.id}/traktandum`,
+      { version: e.version, titel: "Zeit am See" },
+    );
+    expect(t.status).toBe(201);
+    return {
+      pfad: `${L(lagerId)}/eingang/${e.id}/traktandum`,
+      eingangId: e.id as string,
+      traktandumId: t.body.traktandumId as string,
+      version: t.body.version as number,
+    };
+  }
+  const traktandumZeilen = (id: string) =>
+    db.select().from(schema.traktandum).where(eq(schema.traktandum.id, id));
+
+  test("entfernt das unveränderte Traktandum, die Meldung hat wieder keines; ohne Traktandum tut der Aufruf nichts", async () => {
+    const t = await mitTraktandum();
+    const r = await anfrage(
+      leitung(),
+      "DELETE",
+      `${t.pfad}?version=${t.version}`,
+    );
+    expect(r.status).toBe(204);
+    expect(await traktandumZeilen(t.traktandumId)).toEqual([]);
+    const danach = await anfrage(
+      leitung(),
+      "GET",
+      `${L(lagerId)}/eingang/${t.eingangId}`,
+    );
+    expect(danach.body).toMatchObject({
+      traktandumId: null,
+      version: t.version + 1,
+    });
+    // Wieder ohne Traktandum: nichts zu tun, auch mit einer alten Version
+    expect(
+      (await anfrage(leitung(), "DELETE", `${t.pfad}?version=1`)).status,
+    ).toBe(204);
+  });
+
+  test("veraltete Version: 409 VERSION_KONFLIKT, ein verändertes Traktandum: 409 TRAKTANDUM_VERAENDERT, nichts geht verloren", async () => {
+    const t = await mitTraktandum();
+    const alt = await anfrage(
+      leitung(),
+      "DELETE",
+      `${t.pfad}?version=${t.version + 5}`,
+    );
+    expect(alt.status).toBe(409);
+    expect(alt.body.code).toBe("VERSION_KONFLIKT");
+    expect(await traktandumZeilen(t.traktandumId)).toHaveLength(1);
+
+    await db
+      .update(schema.traktandum)
+      .set({ version: 2 })
+      .where(eq(schema.traktandum.id, t.traktandumId));
+    const r = await anfrage(
+      leitung(),
+      "DELETE",
+      `${t.pfad}?version=${t.version}`,
+    );
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe("TRAKTANDUM_VERAENDERT");
+    expect(await traktandumZeilen(t.traktandumId)).toHaveLength(1);
+    const e = await anfrage(
+      leitung(),
+      "GET",
+      `${L(lagerId)}/eingang/${t.eingangId}`,
+    );
+    expect(e.body).toMatchObject({
+      traktandumId: t.traktandumId,
+      version: t.version,
+    });
+  });
+
+  test("Recht wie beim Anlegen: Team 403, ungültige Version 400", async () => {
+    const t = await mitTraktandum();
+    expect(
+      (await anfrage(konten.team, "DELETE", `${t.pfad}?version=${t.version}`))
+        .status,
+    ).toBe(403);
+    expect(
+      (await anfrage(leitung(), "DELETE", `${t.pfad}?version=0`)).status,
+    ).toBe(400);
+    expect((await anfrage(leitung(), "DELETE", t.pfad)).status).toBe(400);
+  });
+});

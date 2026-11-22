@@ -48,7 +48,7 @@ function ohneVertrauliches(
 
 // Die Datei-Verknüpfungen eines Info-Abschnitts: lesbar, wenn der Abschnitt lesbar ist
 async function sichtbareAbschnittDateien(
-  db: Db,
+  db: Pick<Db, "select" | "selectDistinct">,
   zugriff: LagerZugriff,
   ids: string[],
   spalte: typeof infoAbschnittDatei.id | typeof infoAbschnittDatei.dateiId,

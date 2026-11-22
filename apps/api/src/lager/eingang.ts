@@ -9,9 +9,11 @@ import {
   eingang,
   ressort,
   traktandum,
+  traktandumVerantwortlich,
   user,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { loescheTraktandum } from "./hoecks.js";
 import { registriereSuchquelle } from "./suche.js";
 import { LagerAntwortFehler, type Tx } from "./sync.js";
 
@@ -366,4 +368,42 @@ export async function aendereEingang(
     });
   }
   return { zeile, zustellung };
+}
+
+// Nimmt «Als Traktandum» zurück (#521): Das Traktandum, das die Lagerleitung aus der Meldung angelegt hat, wird endgültig gelöscht, die Meldung ist wieder ohne Traktandum (Version +1, 409 VERSION_KONFLIKT wie jede Änderung). Nur solange das Traktandum unverändert ist: Version 1, keine Verantwortlichen, keine Aufgabe; sonst 409 TRAKTANDUM_VERAENDERT, und nichts geht verloren. Hat die Meldung kein Traktandum (mehr), tut der Aufruf nichts
+export async function nimmTraktandumZurueck(
+  tx: Tx,
+  k: { lagerId: string; personId: string },
+  eingangId: string,
+  version: number,
+) {
+  const meldung = await ladeEingangZeile(tx, k.lagerId, eingangId);
+  if (!meldung) throw new HTTPException(404);
+  if (!meldung.traktandumId) return;
+  const [t] = await tx
+    .select()
+    .from(traktandum)
+    .where(
+      and(
+        eq(traktandum.id, meldung.traktandumId),
+        eq(traktandum.lagerId, k.lagerId),
+      ),
+    );
+  if (t) {
+    const [v] = await tx
+      .select({ id: traktandumVerantwortlich.personId })
+      .from(traktandumVerantwortlich)
+      .where(eq(traktandumVerantwortlich.traktandumId, t.id))
+      .limit(1);
+    if (t.version !== 1 || v || t.aufgabeId) {
+      throw new LagerAntwortFehler(409, {
+        code: "TRAKTANDUM_VERAENDERT",
+        message:
+          "Das Traktandum wurde schon bearbeitet. Lösche es bei den Traktanden, wenn du es nicht mehr brauchst.",
+      });
+    }
+  }
+  // Zuerst die Meldung (Versionsprüfung, Traktandum leer), dann das Traktandum
+  await aendereEingang(tx, k, eingangId, { version, traktandumId: null });
+  if (t) await loescheTraktandum(tx, k, t.id, t.version);
 }

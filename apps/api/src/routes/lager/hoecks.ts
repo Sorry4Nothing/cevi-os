@@ -26,6 +26,7 @@ import {
   loescheHoeck,
   loescheTraktandum,
   ordneTraktanden,
+  pruefungAntwort,
   setzeHoeckAnwesenheit,
   traktandenUebernehmen,
   traktandumAendern,
@@ -33,7 +34,6 @@ import {
   traktandumReihenfolge,
   uebernehmeTraktanden,
   versionAbfrage,
-  type Pruefung,
 } from "../../lager/hoecks.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 
@@ -45,16 +45,6 @@ const anwesenderPfad = z.strictObject({
   personId: z.uuid(),
 });
 const traktandumPfad = z.strictObject({ id: z.uuid(), traktandumId: z.uuid() });
-
-const FEHLER_TEXT = {
-  KEIN_MITGLIED: "Die Personen müssen Mitglieder dieses Lagers sein.",
-  HOECK_UNBEKANNT: "Den Höck gibt es in diesem Lager nicht.",
-  AUFGABE_UNBEKANNT: "Die Aufgabe gibt es in diesem Lager nicht.",
-} as const;
-const pruefungAntwort = (fehler: NonNullable<Pruefung>) => ({
-  code: fehler.fehler,
-  message: FEHLER_TEXT[fehler.fehler],
-});
 
 // Höcks, Traktanden, Anwesenheit, Höck-Modus, Entscheide und die Kalenderdatei eines Lagers (#378). Lesen: hoecks.lesen_alle oder hoecks.bearbeiten (alles), sonst hoecks.team_lesen (nur Team-Höcks, nur Datum, Zeit, Titel und Ort; ein Höck der Lagerleitung ist dann 404). Schreiben braucht hoecks.bearbeiten. Jede Schreibroute geht durch lager/sync.ts (Version prüfen, 409 VERSION_KONFLIKT, Folgenummer, Feed); Löschen allein über loescheZeile
 export function erstelleHoeckRouten({ db }: { db: Db }) {
