@@ -20,9 +20,9 @@ body:
     {
       "eintraege": [
         {
-          "teilnehmerId": "48dd86a8-e2fe-4435-a39f-7213bbde4a32",
-          "lagertagId": "01a202fd-6e27-7307-ad7b-944b7bdf9378",
-          "tagesabschnittId": "01a202fd-6e2d-7009-a9de-3d0ac567fd88",
+          "teilnehmerId": "980a6482-f59e-4074-85e2-79e6c3e51852",
+          "lagertagId": "01a20306-88f5-7f22-ada0-c090654e44a0",
+          "tagesabschnittId": "01a20306-890d-76b4-beb6-75b1c0155ed7",
           "wert": "A"
         }
       ]

@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/pinnwand/:beitragId/umfrage/stimme"
-order: 362000
+order: 363000
 method: PUT
-url: "{{baseUrl}}{{pfad_L205}}"
+url: "{{baseUrl}}{{pfad_L206}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -19,6 +19,6 @@ body:
   content: |-
     {
       "optionIds": [
-        "8c239d78-840e-47f3-a584-19cd410a1359"
+        "caded377-e0df-4cc8-a7c5-041f6662e8d6"
       ]
     }
