@@ -7,6 +7,7 @@ import {
   AUFGABE_STATUS,
   type AufgabeStatus,
   aufgabe,
+  aufgabeStichwort,
   aufgabeUnterstuetzung,
   lagerMitglied,
   ressort,
@@ -16,6 +17,7 @@ import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
 import { registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
+import { legeFolgeAufgabeAn } from "./wiederholung.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
@@ -37,7 +39,7 @@ registriereLagerTabelle({
 // Eine Aufgabe zählt nur, solange sie nicht gelöscht ist. Eine einzige Stelle, damit die endgültige Löschung (#427) die Bedingung hier entfernt statt in jeder Abfrage
 export const aufgabeAktiv = isNull(aufgabe.geloeschtAm);
 // Das Ressort einer Aufgabe: dasselbe Lager, nicht gelöscht (gleiches Ziel wie aufgabeAktiv)
-const ressortJoin = and(
+export const ressortJoin = and(
   eq(ressort.id, aufgabe.ressortId),
   eq(ressort.lagerId, aufgabe.lagerId),
   isNull(ressort.geloeschtAm),
@@ -129,6 +131,8 @@ export const aufgabenAbfrage = z.strictObject({
   status: status.optional(),
   ueberfaellig: flag.optional(),
   stern: flag.optional(),
+  // Aufgaben mit diesem Stichwort (#373), ohne Rücksicht auf Gross- und Kleinschreibung
+  stichwort: z.string().trim().min(1).max(40).optional(),
   fristVon: datum.optional(),
   fristBis: datum.optional(),
 });
@@ -140,7 +144,7 @@ export type AufgabenFilter = Omit<
 // Wirksame Verantwortliche: die gesetzte Person, sonst die Leitung des Ressorts
 const wirksam = sql`coalesce(${aufgabe.verantwortlichPersonId}, ${ressort.leitungPersonId})`;
 // Die Person ist Verantwortliche oder unterstützt die Aufgabe. Je eine Abfrage mit dem Index über (Lager, Person) auf der Unterstützung
-const beteiligt = (personId: string) =>
+export const beteiligt = (personId: string) =>
   sql`(${wirksam} = ${personId} or exists (select 1 from ${aufgabeUnterstuetzung} u where u.aufgabe_id = ${aufgabe.id} and u.person_id = ${personId}))`;
 // Heute in der Schweiz: die Frist ist ein Datum ohne Uhrzeit
 const heute = sql`(now() at time zone 'Europe/Zurich')::date`;
@@ -226,6 +230,9 @@ export async function ladeAufgaben(
         p.ressortId ? eq(aufgabe.ressortId, p.ressortId) : undefined,
         p.status ? eq(aufgabe.status, p.status) : undefined,
         p.stern === undefined ? undefined : eq(aufgabe.stern, p.stern),
+        p.stichwort
+          ? sql`exists (select 1 from ${aufgabeStichwort} s where s.aufgabe_id = ${aufgabe.id} and lower(s.stichwort) = lower(${p.stichwort}))`
+          : undefined,
         p.ueberfaellig === undefined
           ? undefined
           : p.ueberfaellig
@@ -506,6 +513,33 @@ export type SchreibErgebnis =
   | { fehler: NonNullable<Pruefung>["fehler"] }
   | { id: string; version: number; zustellung: Zustellung };
 
+// Wechselt eine Aufgabe mit Wiederholung auf «erledigt», legt der Server die nächste an (lager/wiederholung.ts, #373; genau einmal je Aufgabe) und benachrichtigt wie bei jeder neuen Aufgabe. neu ist die Zeile nach dem Schreiben. Ohne Wiederholung oder Wechsel bleibt die Zustellung, wie sie ist
+async function mitFolgeAufgabe(
+  tx: Tx,
+  k: Akteur,
+  alt: AufgabeZeile,
+  neu: AufgabeZeile,
+  zustellung: Zustellung,
+): Promise<Zustellung> {
+  if (alt.status === "erledigt" || neu.status !== "erledigt") return zustellung;
+  const folgeId = await legeFolgeAufgabeAn(tx, k, neu);
+  if (!folgeId) return zustellung;
+  const folge = await benachrichtigeAufgabe(tx, {
+    lagerId: k.lagerId,
+    aufgabeId: folgeId,
+    ausgeloestVon: k.personId,
+    nachher: await ladeBeteiligte(tx, k.lagerId, folgeId),
+    geaendert: false,
+  });
+  return {
+    empfaengerIds: [...zustellung.empfaengerIds, ...folge.empfaengerIds],
+    senden: async (ctx) => {
+      await zustellung.senden(ctx);
+      await folge.senden(ctx);
+    },
+  };
+}
+
 export async function legeAufgabeAn(
   tx: Tx,
   k: Akteur,
@@ -575,17 +609,18 @@ export async function aendereAufgabe(
   if (unterstuetzungPersonIds) {
     await setzeUnterstuetzung(tx, k.lagerId, id, unterstuetzungPersonIds);
   }
+  const zustellung = await benachrichtigeAufgabe(tx, {
+    lagerId: k.lagerId,
+    aufgabeId: id,
+    ausgeloestVon: k.personId,
+    vorher,
+    nachher: await ladeBeteiligte(tx, k.lagerId, id),
+    geaendert: true,
+  });
   return {
     id,
     version: neu.version,
-    zustellung: await benachrichtigeAufgabe(tx, {
-      lagerId: k.lagerId,
-      aufgabeId: id,
-      ausgeloestVon: k.personId,
-      vorher,
-      nachher: await ladeBeteiligte(tx, k.lagerId, id),
-      geaendert: true,
-    }),
+    zustellung: await mitFolgeAufgabe(tx, k, alt, neu, zustellung),
   };
 }
 
@@ -612,17 +647,18 @@ export async function setzeAufgabeStatus(
     werte: { status: neuerStatus, ...statusWerte(alt.status, neuerStatus) },
     ansicht: aufgabeAnsicht,
   });
+  const zustellung = await benachrichtigeAufgabe(tx, {
+    lagerId: k.lagerId,
+    aufgabeId: id,
+    ausgeloestVon: k.personId,
+    vorher,
+    nachher: vorher,
+    geaendert: true,
+  });
   return {
     id,
     version: neu.version,
-    zustellung: await benachrichtigeAufgabe(tx, {
-      lagerId: k.lagerId,
-      aufgabeId: id,
-      ausgeloestVon: k.personId,
-      vorher,
-      nachher: vorher,
-      geaendert: true,
-    }),
+    zustellung: await mitFolgeAufgabe(tx, k, alt, neu, zustellung),
   };
 }
 

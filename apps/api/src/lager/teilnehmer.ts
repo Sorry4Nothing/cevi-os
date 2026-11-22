@@ -9,13 +9,14 @@ for (const tabelle of [teilnehmer, abzaehlen]) {
   registriereLagerTabelle({ tabelle, recht: "teilnehmer.lesen" });
 }
 
-// Wer nur lesen darf (Team, Leitung, Lesen), sieht Vorname, Nachname und Stufe, sonst nichts. Wer bearbeiten darf, sieht zusätzlich den Cevi-Namen (Anzeigename für Aushänge). Keine Gesundheitsdaten, kein Telefon, keine Adresse: Es gibt dafür kein Feld
+// Wer nur lesen darf (Team, Leitung, Lesen), sieht Vorname, Nachname, Stufe und ob die Person abgewählt («nicht dabei», #387) ist, sonst nichts. Wer bearbeiten darf, sieht zusätzlich den Cevi-Namen (Anzeigename für Aushänge). Keine Gesundheitsdaten, kein Telefon, keine Adresse: Es gibt dafür kein Feld
 export const teilnehmerKurz = (r: typeof teilnehmer.$inferSelect) => ({
   id: r.id,
   version: r.version,
   vorname: r.vorname,
   nachname: r.nachname,
   stufe: r.stufe,
+  abgewaehlt: r.abgewaehlt,
 });
 export const teilnehmerVoll = (r: typeof teilnehmer.$inferSelect) => ({
   ...teilnehmerKurz(r),
