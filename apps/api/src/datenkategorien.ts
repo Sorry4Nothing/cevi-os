@@ -155,6 +155,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerAnwesenheit: {
+    titel: "Anwesenheit im Lager",
+    zweck:
+      "Planen, wer an welchem Tag und zu welcher Tageszeit im Lager ist, zum Beispiel für den Schichtplan und die Einkaufsmenge. Die Lagerleitung trägt für alle ein, das Team seine eigene Anwesenheit; eine Änderung eines eingetragenen Feldes stellt das Team als Anfrage an die Lagerleitung, die sie annimmt oder ablehnt. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
+    frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
@@ -359,6 +367,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "uebung",
       "farbe",
+      "anwesenheit_frist",
       "logo_medium_id",
       "seq",
       "seq_min",
@@ -429,6 +438,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   einkauf_artikelstamm: { lager: ["lager_id", "name_norm", "warengruppe"] },
   einkauf_vorschlag: {
     lager: ["lager_id", "name_norm", "name", "haeufigkeit"],
+  },
+  // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
+  anwesenheit: {
+    lagerAnwesenheit: [
+      ...LAGER_BASIS_SPALTEN,
+      "person_id",
+      "teilnehmer_id",
+      "lagertag_id",
+      "tagesabschnitt_id",
+      "wert",
+    ],
+  },
+  anwesenheit_anfrage: {
+    lagerAnwesenheit: [
+      ...LAGER_BASIS_SPALTEN,
+      "person_id",
+      "lagertag_id",
+      "tagesabschnitt_id",
+      "wert",
+      "notiz",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [
