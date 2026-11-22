@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleAdressbuchRouten } from "./adressbuch.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
@@ -49,6 +50,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleAufgabenDetailsRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
+    .route("/", erstelleAdressbuchRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAufgabenSchnellRouten({ db }))
     .route("/", erstelleHoeckRouten({ db }))

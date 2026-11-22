@@ -1579,6 +1579,32 @@ export const dokument = pgTable(
   ],
 );
 
+// Adressbuch des Lagers (#397): externe Kontakte (Bäckerei, Platzwart, Behörde) mit Name, Funktion, Gruppe, Telefon, E-Mail und Notiz. Personendaten Dritter, nur für die Lagerleitung (adressbuch.lesen und adressbuch.bearbeiten). «behalten» («Fürs nächste Lager behalten») nimmt den Kontakt aus der Aufräumfrist: Alle anderen löscht der tägliche Lauf (lager/adressbuch.ts) 180 Tage nach dem Lagerende; die Frist folgt dem Lagerende (lager.bis) und steht darum nicht als Spalte. Geschrieben wird nur über lager/sync.ts
+export const adressbuchKontakt = pgTable(
+  "adressbuch_kontakt",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    funktion: text("funktion"),
+    gruppe: text("gruppe"),
+    telefon: text("telefon"),
+    email: text("email"),
+    notiz: text("notiz"),
+    behalten: boolean("behalten").notNull().default(false),
+  },
+  (t) => [
+    index("adressbuch_kontakt_liste_idx").on(
+      t.lagerId,
+      sql`lower(${t.name})`,
+      t.id,
+    ),
+    check(
+      "adressbuch_kontakt_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.funktion} is null or char_length(${t.funktion}) between 1 and 100) and (${t.gruppe} is null or char_length(${t.gruppe}) between 1 and 100) and (${t.telefon} is null or ${t.telefon} ~ '^\+?[0-9][0-9 ()/.-]{4,28}[0-9]$') and (${t.email} is null or (char_length(${t.email}) <= 254 and ${t.email} ~ '^[^@[:space:]]+@[^@[:space:]]+$')) and (${t.notiz} is null or char_length(${t.notiz}) <= 2000)`,
+    ),
+  ],
+);
+
 // Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
 export const fahrt = pgTable(
   "fahrt",
