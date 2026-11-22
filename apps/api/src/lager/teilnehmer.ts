@@ -2,12 +2,22 @@ import { sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { abzaehlen, teilnehmer } from "../db/schema.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Teilnehmende und Abzählen des Lagers (#384). Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit teilnehmer.lesen, kein Zeilenfilter; der Feed nennt nur IDs).
 for (const tabelle of [teilnehmer, abzaehlen]) {
   registriereLagerTabelle({ tabelle, recht: "teilnehmer.lesen" });
 }
+
+// Suche (#399): Vor- und Nachname, wie ihn jede Rolle mit teilnehmer.lesen in der Liste sieht. Der Cevi-Name sieht nur, wer bearbeiten darf: Er ist nicht durchsuchbar (sonst liesse er sich über die Suche erraten)
+registriereSuchquelle({
+  typ: "teilnehmer",
+  recht: "teilnehmer.lesen",
+  tabelle: teilnehmer,
+  spalten: [teilnehmer.vorname, teilnehmer.nachname],
+  titel: sql`${teilnehmer.vorname} || ' ' || ${teilnehmer.nachname}`,
+});
 
 // Wer nur lesen darf (Team, Leitung, Lesen), sieht Vorname, Nachname, Stufe und ob die Person abgewählt («nicht dabei», #387) ist, sonst nichts. Wer bearbeiten darf, sieht zusätzlich den Cevi-Namen (Anzeigename für Aushänge). Keine Gesundheitsdaten, kein Telefon, keine Adresse: Es gibt dafür kein Feld
 export const teilnehmerKurz = (r: typeof teilnehmer.$inferSelect) => ({

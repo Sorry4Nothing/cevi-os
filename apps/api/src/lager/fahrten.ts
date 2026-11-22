@@ -21,6 +21,7 @@ import {
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import type { Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Fahrten des Lagers (#386): Ansichten, Eingabeschemas, Abfragen und die Prüfungen, die in der Schreib-Transaktion laufen. Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit einteilung.lesen; der Zeilenfilter lässt dem Team nur die eigene Fahrt).
@@ -30,6 +31,16 @@ import { registriereLagerTabelle } from "./tabellen.js";
 // Eine Person sitzt je Richtung in höchstens einer Fahrt (als Fahrer oder Mitfahrende); ein Teilnehmender ebenso (Mitfahrende). Die Datenbank hält es für Mitfahrende und für Fahrer je für sich (Teilindizes), die Route prüft unter der Lagersperre auch die Kombination (Fahrer und Mitfahrende).
 //
 // Überbelegung ist nur eine Warnung: Mehr Mitfahrende als Plätze lässt der Server zu und meldet «ueberbelegt» (wie im bisherigen Tool); die Lagerleitung entscheidet.
+// Suche (#399): Name, Orte und Treffpunkt der Fahrt; das Team findet nur die eigene (wie die Liste). Fahrer und Mitfahrende sind nicht durchsuchbar
+registriereSuchquelle({
+  typ: "fahrt",
+  recht: "einteilung.lesen",
+  tabelle: fahrt,
+  spalten: [fahrt.name, fahrt.von, fahrt.nach, fahrt.treffpunkt],
+  titel: sql`coalesce(${fahrt.name}, nullif(concat_ws(' - ', ${fahrt.von}, ${fahrt.nach}), ''), 'Fahrt')`,
+  filter: (zugriff) =>
+    siehtAlleFahrten(zugriff) ? undefined : eigeneFahrt(zugriff.personId, true),
+});
 registriereLagerTabelle({
   tabelle: fahrt,
   recht: "einteilung.lesen",

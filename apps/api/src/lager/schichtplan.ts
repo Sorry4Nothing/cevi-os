@@ -22,6 +22,7 @@ import {
   loescheZeilen,
   type Tx,
 } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 import { pruefeTageUndAbschnitte } from "./zeitplan.js";
 
@@ -30,6 +31,14 @@ import { pruefeTageUndAbschnitte } from "./zeitplan.js";
 for (const tabelle of [dienst, schicht]) {
   registriereLagerTabelle({ tabelle, recht: "einteilung.lesen" });
 }
+// Suche (#399): Name und Beschreibung des Dienstes (kein Zeilenfilter, wie in der Liste)
+registriereSuchquelle({
+  typ: "dienst",
+  recht: "einteilung.lesen",
+  tabelle: dienst,
+  spalten: [dienst.name, dienst.beschreibung],
+  titel: sql`${dienst.name}`,
+});
 
 // Höchstens so viele Dienste je Lager und Personen je Dienst und Tag (SR-71)
 export const MAX_DIENSTE = 100;

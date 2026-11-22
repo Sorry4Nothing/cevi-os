@@ -5,6 +5,7 @@ import { adressbuchKontakt } from "../db/schema.js";
 import type { Fcm } from "../push.js";
 import { telefonSchema } from "../telefon.js";
 import { benachrichtige } from "./benachrichtigung.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Adressbuch des Lagers (#397): externe Kontakte, nur für die Lagerleitung. Lesen braucht adressbuch.lesen, jede Änderung adressbuch.bearbeiten; im Standard hat beides nur die Lagerleitung (rechte-katalog.ts), die Rechte lassen sich je Lager einstellen. Es sind Personendaten Dritter: Der Zugriff steht im Audit-Log (nur Anzahl und Ziel, nie die Inhalte).
@@ -16,6 +17,19 @@ export const AUFRAEUMEN_TAGE = 180;
 export const ERINNERUNG_TAGE = 14;
 // Eine Zeile im «Papierkorb» (weiches Löschen über den Sync-Kern) hält Personendaten; der Lauf entfernt sie nach der Frist des Papierkorbs (A11, 30 Tage)
 export const GELOESCHT_AUFBEWAHRUNG_TAGE = 30;
+
+// Suche (#399): nur Name, Funktion und Gruppe (wie der Filter «q» der Liste), nie Telefon, E-Mail oder Notiz. Wer sucht und Treffer aus dem Adressbuch bekommt, hinterlässt wie beim Lesen der Liste einen Eintrag im Audit-Log (nur Anzahl)
+registriereSuchquelle({
+  typ: "adressbuch",
+  recht: "adressbuch.lesen",
+  tabelle: adressbuchKontakt,
+  spalten: [
+    adressbuchKontakt.name,
+    adressbuchKontakt.funktion,
+    adressbuchKontakt.gruppe,
+  ],
+  titel: sql`${adressbuchKontakt.name}`,
+});
 
 // Anmeldung beim ersten Import dieser Datei: Der Feed nennt die Zeilen nur mit dem Leserecht, nie mit Inhalt
 registriereLagerTabelle({

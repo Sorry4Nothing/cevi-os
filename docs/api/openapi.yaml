@@ -16798,6 +16798,85 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/suche:
+    get:
+      operationId: sucheImLager
+      summary: Im Lager suchen
+      description: |
+        Volltextsuche über die Texte des Lagers, mit höchstens 50 Treffern, nach Treffgüte geordnet. Jedes Mitglied darf suchen. **Die Suche findet nur, was die suchende Person auch in den Listen sieht**: Jedes Modul meldet seine Quelle mit dem Leserecht und dem Zeilenfilter seiner Liste (Team nur eigene Aufgaben, Team-Höcks, eigenes Zimmer und eigene Fahrt, Dokumente mit `team_sichtbar`; kein Adressbuch, Eingang oder Protokoll der Lagerleitung ohne das Recht; Zeilen «nur Lagerleitung» nur mit `vertrauliches.lesen`). Gelöschte Zeilen und Zeilen anderer Lager zählen nie. Der Ausschnitt (`auszug`) stammt aus der lesbaren Zeile.
+
+        Was durchsucht wird: Titel, Namen und Texte, die in Cevi OS liegen (Aufgaben samt Checkliste und Stichworten, Ressorts, Höcks, Traktanden, Protokoll-Titel, Beschlüsse, Pinnwand, Eingang, Teilnehmende nur mit Vor- und Nachname, Zimmer, Fahrten, Gruppen, Dienste, Einkauf, Packliste, Notfall nur Funktion und Name, Infos, Dokumente nur Titel und Stichworte, Adressbuch nur Name, Funktion und Gruppe, Meilensteine). Der Inhalt von Dateien im SharePoint ist nie durchsuchbar, ebenso wenig Telefonnummern, E-Mail-Adressen, Cevi-Namen, Notizen von Zimmern und Gesundheitsdaten. Die Suche versteht Wortstämme («Zelte» findet «Zelt»), Wortanfänge («Quark» findet «Quarkstrudel») und kleine Tippfehler; mehrere Wörter müssen alle vorkommen.
+
+        Audit-Log: Treffer aus dem Adressbuch schreiben wie das Lesen der Liste `lager_adressbuch_gelesen` mit der Person, dem Lager und der Anzahl dieser Treffer, nie mit dem Suchtext.
+
+        Datenbanklast: zusätzlich zu den zwei Abfragen der Policy eine Transaktion mit einer Abfrage für alle offenen Quellen (UNION ALL über GIN-Indizes, höchstens 50 Zeilen je Quelle), nie eine Abfrage je Treffer; bei Treffern aus dem Adressbuch ein Eintrag im Audit-Log. Je Konto höchstens 30 Suchen je Minute (429).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 200 bei Erfolg (auch ohne Treffer). 400 bei ungültiger ID, ungültigem oder unbekanntem Parameter, unbekanntem `typ` oder Steuerzeichen im Suchtext. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 429 bei zu vielen Suchen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: true
+          description: Suchtext, 2 bis 100 Zeichen, höchstens 8 Wörter zählen (nur Buchstaben und Ziffern).
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+        - name: typ
+          in: query
+          required: false
+          description: Nur Treffer dieses Typs. Ein Typ ohne Quelle ist 400.
+          schema:
+            type: string
+            enum:
+              - adressbuch
+              - aufgabe
+              - beschluss
+              - dienst
+              - dokument
+              - eingang
+              - einkauf
+              - fahrt
+              - gruppe
+              - hoeck
+              - info
+              - meilenstein
+              - notfall
+              - packliste
+              - pinnwand
+              - protokoll
+              - ressort
+              - teilnehmer
+              - traktandum
+              - zimmer
+      responses:
+        "200":
+          description: Die Treffer, auch eine leere Liste.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerSucheAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -28262,6 +28341,39 @@ components:
           type: boolean
     # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerSucheAntwort:
+      description: "Treffer der Suche, die beste zuerst, höchstens 50."
+      type: object
+      additionalProperties: false
+      required:
+        - treffer
+      properties:
+        treffer:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/LagerSucheTreffer"
+    LagerSucheTreffer:
+      description: "Ein Treffer: der Typ und die ID des Objekts (die App öffnet es über die Route des Moduls), sein Titel und ein kurzer Ausschnitt um den Fund. Eine Aufgabe, die über ihre Checkliste oder ein Stichwort trifft, erscheint einmal mit ihrem Titel."
+      type: object
+      additionalProperties: false
+      required:
+        - typ
+        - id
+        - titel
+        - auszug
+      properties:
+        typ:
+          type: string
+          description: "Art des Objekts, siehe Parameter `typ`."
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        auszug:
+          description: "Höchstens rund 140 Zeichen aus dem Text um den Fund; null, wenn der Fund der Titel selbst ist."
+          type: [string, "null"]
     # lager-schemas: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

@@ -31,6 +31,7 @@ import {
   type SchreibKontext,
   type Tx,
 } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Pinnwand des Lagers (#381): Beiträge mit Wichtig, Anheften, Zeitfenster, Empfängern und Dateien (Verknüpfungen aus #370, kein Upload). Der Server filtert die Sichtbarkeit:
@@ -61,6 +62,16 @@ function lesbar(zugriff: LagerZugriff, alle = false) {
   if (kannAlleSehen(zugriff)) return alle ? undefined : IM_FENSTER;
   return and(IM_FENSTER, empfaengerPasst(zugriff));
 }
+
+// Suche (#399): Titel und Text, mit der Sicht der Liste (Zeitfenster und Empfänger; wer bearbeiten darf, findet auch Beiträge ausserhalb des Fensters)
+registriereSuchquelle({
+  typ: "pinnwand",
+  recht: "pinnwand.lesen",
+  tabelle: pinnwandBeitrag,
+  spalten: [pinnwandBeitrag.titel, pinnwandBeitrag.text],
+  titel: sql`${pinnwandBeitrag.titel}`,
+  filter: (zugriff) => lesbar(zugriff, true),
+});
 
 // Für den Eingang (#383) und alle, die einen Beitrag von Dritten aufrufen lassen: darf die Person ihn lesen?
 export async function beitragLesbar(db: Db, zugriff: LagerZugriff, id: string) {

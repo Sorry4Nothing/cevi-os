@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { zimmer, zimmerZuordnung } from "../db/schema.js";
 import { darf, type LagerZugriff } from "./policy.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Zimmer und Zelte des Lagers (#385). Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit einteilung.lesen; das Team sieht nur sein eigenes Zimmer und die Zuordnungen darin; der Feed nennt nur IDs).
@@ -24,6 +25,21 @@ const meineZimmer = (db: Db, lagerId: string, personId: string) =>
       ),
     );
 
+// Suche (#399): der Name des Zimmers oder Zelts; das Team findet nur die eigenen (wie die Liste). Die Notiz ist nicht durchsuchbar: Das Team sieht sie nicht
+registriereSuchquelle({
+  typ: "zimmer",
+  recht: "einteilung.lesen",
+  tabelle: zimmer,
+  spalten: [zimmer.name],
+  titel: sql`${zimmer.name}`,
+  filter: (zugriff, db) =>
+    nurEigenes(zugriff)
+      ? inArray(
+          zimmer.id,
+          meineZimmer(db, zugriff.lager.id, zugriff.personId),
+        )
+      : undefined,
+});
 registriereLagerTabelle({
   tabelle: zimmer,
   recht: "einteilung.lesen",

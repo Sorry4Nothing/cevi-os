@@ -15,6 +15,7 @@ import { hoeckAnsicht, hoeckUmfang, ladeHoeckZeile } from "./hoecks.js";
 import type { LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Protokolle und Beschlüsse im Lager (#379). Das Protokoll liegt als Datei im SharePoint der Abteilung; Cevi OS speichert nur Art, Titel, Datum, den Verweis auf die Datei (lager_datei, #370: dort Anzeigename und Link) und optional den Höck. Kein Protokolltext, keine Abschnitte, keine Revisionen des Inhalts; Öffnen und Herunterladen gehen über den Link direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Die Beschlüsse sind eine kurze Liste in Cevi OS (Text, optional Protokoll und Höck).
@@ -80,6 +81,23 @@ registriereLagerTabelle({
   tabelle: beschluss,
   recht: "protokolle.lesen",
   sichtbar: sichtbareBeschluesse,
+});
+// Suche (#399): nur der Titel des Protokolls (der Inhalt der Datei im SharePoint ist nie durchsuchbar) und der Text eines Beschlusses; derselbe Höck-Filter wie die Liste
+registriereSuchquelle({
+  typ: "protokoll",
+  recht: "protokolle.lesen",
+  tabelle: protokoll,
+  spalten: [protokoll.titel],
+  titel: sql`${protokoll.titel}`,
+  filter: (zugriff) => (alleHoecks(zugriff) ? undefined : protokollSicht),
+});
+registriereSuchquelle({
+  typ: "beschluss",
+  recht: "protokolle.lesen",
+  tabelle: beschluss,
+  spalten: [beschluss.text],
+  titel: sql`left(${beschluss.text}, 80)`,
+  filter: (zugriff) => (alleHoecks(zugriff) ? undefined : beschlussSicht),
 });
 // Verweisregister (#370): Die Datei eines Protokolls sieht, wer das Protokoll sieht (nicht gelöschte Protokolle; eines im Papierkorb hält die Datei trotzdem, siehe datei-verweise.ts)
 registriereDateiVerweis({

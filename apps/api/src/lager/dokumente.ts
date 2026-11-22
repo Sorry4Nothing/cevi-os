@@ -21,6 +21,7 @@ import {
   verweiseAnderer,
 } from "./datei-verweise.js";
 import { darf, type LagerZugriff } from "./policy.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Dokumente im Lager (#396): Titel, Verweis auf eine Datei im SharePoint (lager_datei, #370), Stichworte und die Freigabe für das Team. Es gibt keinen Speicher für Inhalte: Öffnen und Herunterladen gehen über den Link direkt zum Ablageort. Die Sicht «Dokumente» ist eine Sammelabfrage (ladeDokumente): die Dokumente und, soweit andere Module ihre Dateien im Verweisregister angemeldet haben (registriereDateiVerweis), deren Dateien.
@@ -54,6 +55,16 @@ registriereLagerTabelle({
   tabelle: dokument,
   recht: "dokumente.team_lesen",
   sichtbar: sichtbareDokumente,
+});
+// Suche (#399): nur Titel und Stichworte des Verweises, nie der Inhalt der Datei im SharePoint; das Team findet nur Dokumente mit team_sichtbar (wie die Liste)
+registriereSuchquelle({
+  typ: "dokument",
+  recht: ["dokumente.lesen_alle", "dokumente.team_lesen"],
+  tabelle: dokument,
+  spalten: [dokument.titel, sql`lager_suche_liste(${dokument.stichworte})`],
+  titel: sql`${dokument.titel}`,
+  filter: (zugriff) =>
+    alle(zugriff) ? undefined : eq(dokument.teamSichtbar, true),
 });
 registriereDateiVerweis({
   tabelle: dokument,

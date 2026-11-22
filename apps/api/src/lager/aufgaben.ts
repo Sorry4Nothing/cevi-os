@@ -7,6 +7,7 @@ import {
   AUFGABE_STATUS,
   type AufgabeStatus,
   aufgabe,
+  aufgabeCheckpunkt,
   aufgabeStichwort,
   aufgabeUnterstuetzung,
   lagerMitglied,
@@ -20,6 +21,7 @@ import { darf, type LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { legeFolgeAufgabeAn } from "./wiederholung.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Aufgaben des Lagers (#372): Ansichten, Eingabeschemas, Abfragen und die Prüfungen, die in der Schreib-Transaktion laufen. Die Tabelle ist beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet. Der Feed zeigt sie jedem, der Aufgaben lesen darf; der Zeilenfilter lässt dem Team nur die eigenen (aufgabeSichtbar).
@@ -171,6 +173,49 @@ export function leseUmfang(
   }
   return darf(zugriff, "aufgaben.eigene") ? ("eigene" as const) : undefined;
 }
+
+// Suche (#399): dieselbe Sicht wie die Liste, nur die Quellen unterscheiden sich. Wer nicht alle Aufgaben liest, findet nur die eigenen (aufgabeSuchfilter, auch für Checkliste und Stichworte in aufgaben-details.ts)
+export const aufgabeSuchfilter = (zugriff: LagerZugriff) =>
+  leseUmfang(zugriff) === "alle" ? undefined : beteiligt(zugriff.personId);
+const AUFGABE_LESERECHTE = [
+  "aufgaben.lesen_alle",
+  "aufgaben.bearbeiten",
+  "aufgaben.eigene",
+] as const;
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabe,
+  spalten: [aufgabe.titel, aufgabe.teil, aufgabe.notiz],
+  titel: sql`${aufgabe.titel}`,
+  von: sql`${aufgabe} left join ${ressort} on ${ressortJoin}`,
+  filter: aufgabeSuchfilter,
+});
+// Checkpunkte und Stichworte finden die Aufgabe (Typ «aufgabe», Titel der Aufgabe), mit demselben Zeilenfilter. Hier und nicht in aufgaben-details.ts, weil jene Datei von dieser abhängt (Importschleife über wiederholung.ts)
+const mitAufgabe = (kind: typeof aufgabeCheckpunkt | typeof aufgabeStichwort) =>
+  sql`${kind} join ${aufgabe} on ${aufgabe.lagerId} = ${kind.lagerId} and ${aufgabe.id} = ${kind.aufgabeId} left join ${ressort} on ${ressortJoin}`;
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabeCheckpunkt,
+  spalten: [aufgabeCheckpunkt.text],
+  titel: sql`${aufgabe.titel}`,
+  von: mitAufgabe(aufgabeCheckpunkt),
+  id: sql`${aufgabe.id}`,
+  aktiv: sql`${aufgabeCheckpunkt.geloeschtAm} is null and ${aufgabe.geloeschtAm} is null`,
+  filter: aufgabeSuchfilter,
+});
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabeStichwort,
+  spalten: [aufgabeStichwort.stichwort],
+  titel: sql`${aufgabe.titel}`,
+  von: mitAufgabe(aufgabeStichwort),
+  id: sql`${aufgabe.id}`,
+  aktiv: sql`${aufgabe.geloeschtAm} is null`,
+  filter: aufgabeSuchfilter,
+});
 
 // Zeilenfilter des Feeds: Wer nicht alle Aufgaben lesen darf, sieht nur die eigenen. Beurteilt auch gelöschte Zeilen (der Feed meldet «geloescht»)
 async function aufgabeSichtbar(db: Db, zugriff: LagerZugriff, ids: string[]) {

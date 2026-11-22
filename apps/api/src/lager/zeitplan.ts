@@ -17,11 +17,20 @@ import {
   setzeZeilen,
   type Tx,
 } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Zeitplan des Lagers (#374): Meilensteine, Lagertage und Tagesabschnitte. Alle drei Tabellen schreiben über den Sync-Kern (Version, Feed) und sind für jeden lesbar, der zeitplan.lesen hat. Ändern darf nur, wer zeitplan.bearbeiten hat (Standard: Lagerleitung).
 // Das Datum eines Meilensteins ändert nur die Verschiebung (lager/fristen.ts, mit Vorschau): Ein PATCH kann es nicht setzen, sonst bliebe die relative Frist der Aufgaben stehen. Tage, Abschnitte und Meilensteine sind je Lager in der Zahl begrenzt (kleine Listen, ein Abruf, keine Seiten).
 registriereLagerTabelle({ tabelle: meilenstein, recht: "zeitplan.lesen" });
+// Suche (#399): der Titel eines Meilensteins
+registriereSuchquelle({
+  typ: "meilenstein",
+  recht: "zeitplan.lesen",
+  tabelle: meilenstein,
+  spalten: [meilenstein.titel],
+  titel: sql`${meilenstein.titel}`,
+});
 registriereLagerTabelle({ tabelle: lagertag, recht: "zeitplan.lesen" });
 registriereLagerTabelle({ tabelle: tagesabschnitt, recht: "zeitplan.lesen" });
 

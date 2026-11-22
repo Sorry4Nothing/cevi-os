@@ -27,6 +27,7 @@ import {
 import { leseUmfang as aufgabenUmfang } from "./aufgaben.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { httpsAdresse, sperreLager } from "./ressorts.js";
+import { registriereSuchquelle } from "./suche.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
@@ -84,6 +85,24 @@ registriereLagerTabelle({
   },
 });
 registriereLagerTabelle({ tabelle: traktandum, recht: hoeckAlleRechte });
+
+// Suche (#399): wie die Liste. Wer nicht alle Höcks liest, findet nur die der Art «team»; Traktanden liest nur, wer alle Höcks liest. Gäste (Namen) sind nicht durchsuchbar
+registriereSuchquelle({
+  typ: "hoeck",
+  recht: hoeckLeseRechte,
+  tabelle: hoeck,
+  spalten: [hoeck.titel, hoeck.ort],
+  titel: sql`${hoeck.titel}`,
+  filter: (zugriff) =>
+    hoeckUmfang(zugriff) === "alle" ? undefined : sql`${hoeck.art} = 'team'`,
+});
+registriereSuchquelle({
+  typ: "traktandum",
+  recht: hoeckAlleRechte,
+  tabelle: traktandum,
+  spalten: [traktandum.titel, traktandum.text, traktandum.entscheid],
+  titel: sql`${traktandum.titel}`,
+});
 
 export const hoeckAktiv = isNull(hoeck.geloeschtAm);
 export const traktandumAktiv = isNull(traktandum.geloeschtAm);

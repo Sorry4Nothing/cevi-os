@@ -7,12 +7,21 @@ import {
   MISCHEN_MIN_GRUPPEN,
   SEED_MAX,
 } from "./mischen.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Programmgruppen des Lagers (#387). Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit einteilung.lesen, kein Zeilenfilter; der Feed nennt nur IDs).
 for (const tabelle of [gruppe, gruppeZuordnung]) {
   registriereLagerTabelle({ tabelle, recht: "einteilung.lesen" });
 }
+// Suche (#399): der Name der Gruppe (kein Zeilenfilter, wie in der Liste)
+registriereSuchquelle({
+  typ: "gruppe",
+  recht: "einteilung.lesen",
+  tabelle: gruppe,
+  spalten: [gruppe.name],
+  titel: sql`${gruppe.name}`,
+});
 
 // Höchstens so viele Gruppen je Lager und so viele Einträge je Anfrage (SR-71)
 export const MAX_GRUPPEN = 50;

@@ -117,6 +117,16 @@ Entscheid vom 22.11.2026 (#226).
 - **`npm audit`:** Die CI sperrt ab «high» (`npm audit --omit=dev --audit-level=high -w apps/api`). Der Review vor dem Pilot (#65) zählte 6 mittlere Funde (glob und minimatch über firebase-admin, google-gax und rimraf). Am 22.11.2026 meldet `npm audit` (mit und ohne `--omit=dev`) 0 Funde (der Stand der Lock-Datei hat sich seither geändert). Abhängigkeiten ändert dieser Entscheid nicht. Taucht ein Fund auf, gilt: «high» und «critical» beheben vor dem Merge; «moderate» in einer Laufzeit-Abhängigkeit beheben, sobald ein Patch ohne Bruch da ist, und sonst im Issue mit Begründung stehen lassen (erreichbar nur über Dev-Werkzeuge oder vertrauenswürdige Eingaben).
 - **Images ohne Digest:** `postgres:18` und `node:26-alpine` bleiben bei Tags. `deploy/deploy.sh` holt bei jedem Release die Korrekturen hinter `postgres:18` (`compose pull postgres`); ein fester Digest würde sie sperren, und Dependabot ist für Docker nicht eingerichtet. Das API-Image trägt den Release-Tag `vX.Y.Z`, der nie neu vergeben wird (siehe «Release»). Offen: Digests samt Dependabot-Eintrag für Docker, signierte Images, und das Caddy-Image des Edge-Servers (liegt ausserhalb dieses Repos). Digests brauchen eine Prüfung gegen die Registry; sie stehen nicht ohne diese im Repo.
 
+## Datenbank-Erweiterung pg_trgm (Volltextsuche im Lager, #399)
+
+Die Suche im Lager braucht die PostgreSQL-Erweiterung `pg_trgm` (Tippfehler). Die Migration `0097_lager_suche` legt sie mit `CREATE EXTENSION IF NOT EXISTS pg_trgm` an. Voraussetzungen:
+
+- **Rolle:** Die Migration läuft mit `cevi_os_besitzer`, der Besitzerin der Datenbank (`apps/api/src/db/rollen.sql`). `pg_trgm` ist seit PostgreSQL 13 eine vertrauenswürdige Erweiterung: Wer die Datenbank besitzt (Recht `CREATE`), darf sie ohne Superuser anlegen. Es braucht keine Änderung an den Rollen. Der Test `test/lager/suche.test.ts` und die CI migrieren eine frische Datenbank mit genau dieser Rolle.
+- **Paket:** Das Image `postgres:18` bringt `pg_trgm` mit (contrib). Ein anderes oder gebündeltes Postgres (ein verwalteter Dienst, ein Paket ohne `postgresql-contrib`) muss `pg_trgm` bereitstellen, sonst bricht die Migration ab und `deploy.sh` rollt nicht aus (kein halber Stand: die Migration läuft in einer Transaktion). Prüfen vor dem Deploy: `compose exec -T postgres psql -U postgres -d cevi_os -c "select name, trusted from pg_available_extensions where name = 'pg_trgm'"`.
+- **Rückweg:** `drizzle/rueckweg/0097_lager_suche.sql` löscht die Indizes und die Funktion `lager_suche_liste`, nicht die Erweiterung.
+- **Backup und Wiederherstellung:** Der Dump enthält `CREATE EXTENSION pg_trgm`; die Wiederherstellung braucht dieselbe Voraussetzung.
+- **Last:** Die Indizes (zwei GIN-Indizes je durchsuchter Tabelle) werden beim Schreiben mitgeführt; bei den Tabellen eines Lagers (einige hundert Zeilen) ist das vernachlässigbar. Neue Zeilen sind sofort suchbar, es gibt keinen Indexlauf.
+
 ## Backups
 
 `deploy/backup.sh` sichert die Datenbank verschlüsselt mit [restic](https://restic.net) auf einen S3-Speicher in der Schweiz: täglich per Cron und vor jedem Deploy (`deploy.sh` ruft das Skript auf). restic behält 30 tägliche und 3 monatliche Stände; Älteres räumt das Skript bei jedem Lauf weg. Solange noch keine Migrationen gelaufen sind, beendet es sich ohne Backup.

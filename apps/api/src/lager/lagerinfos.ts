@@ -18,6 +18,7 @@ import { ladeDateien, LINK_MAX, pruefeLink } from "./datei.js";
 import { registriereDateiVerweis } from "./datei-verweise.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import type { Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Packliste, Notfall und Infos im Lager (#393): Ansichten, Eingabeschemas und die Abfragen, die mehrere Routen teilen. Die Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet.
@@ -87,6 +88,37 @@ registriereLagerTabelle({
   sichtbar: ohneVertrauliches(packlistePunkt),
 });
 registriereLagerTabelle({ tabelle: notfallKontakt, recht: "notfall.lesen" });
+
+// Suche (#399): Punkte der Packliste, Funktion und Name im Notfall und Texte der Infos; Zeilen «nur Lagerleitung» nur mit vertrauliches.lesen (wie die Listen). Telefonnummern sind nicht durchsuchbar
+const ohneVertraulichesSql =
+  (tabelle: typeof packlistePunkt | typeof infoAbschnitt) =>
+  (zugriff: LagerZugriff) =>
+    darf(zugriff, "vertrauliches.lesen")
+      ? undefined
+      : eq(tabelle.nurLagerleitung, false);
+registriereSuchquelle({
+  typ: "packliste",
+  recht: "packliste.lesen",
+  tabelle: packlistePunkt,
+  spalten: [packlistePunkt.text],
+  titel: sql`${packlistePunkt.text}`,
+  filter: ohneVertraulichesSql(packlistePunkt),
+});
+registriereSuchquelle({
+  typ: "notfall",
+  recht: "notfall.lesen",
+  tabelle: notfallKontakt,
+  spalten: [notfallKontakt.funktion, notfallKontakt.name],
+  titel: sql`${notfallKontakt.funktion}`,
+});
+registriereSuchquelle({
+  typ: "info",
+  recht: "infos.lesen",
+  tabelle: infoAbschnitt,
+  spalten: [infoAbschnitt.titel, infoAbschnitt.text],
+  titel: sql`${infoAbschnitt.titel}`,
+  filter: ohneVertraulichesSql(infoAbschnitt),
+});
 registriereLagerTabelle({
   tabelle: infoAbschnitt,
   recht: "infos.lesen",
