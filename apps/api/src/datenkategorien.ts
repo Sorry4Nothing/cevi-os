@@ -293,7 +293,13 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "tag_bis",
       "status",
       "sichtbarkeit",
+      "kategorien",
+      "ort",
     ],
+  },
+  programm_tag: { programme: ["programm_id", "tag_id"] },
+  kategorie_zuordnung: {
+    programme: ["id", "abteilung_id", "kategorie", "tag_id"],
   },
   programm_eckdaten: {
     programme: [

@@ -337,6 +337,13 @@ export const programm = pgTable(
     })
       .notNull()
       .default("eltern"),
+    // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
+    kategorien: text("kategorien")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // LOCATION des Termins (#432)
+    ort: text("ort"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(
@@ -709,3 +716,10 @@ export * from "./schema-website.js";
 
 // Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
 export * from "./schema-lager.js";
+
+// Termine (Epic #430, Gerüst #431): eine Datei je Bereich, alle fünf hier eingehängt, damit die Folge-Issues schema.ts nicht anfassen
+export * from "./schema-termine.js";
+export * from "./schema-ical.js";
+export * from "./schema-vorschlag.js";
+export * from "./schema-anlass.js";
+export * from "./schema-raum.js";
