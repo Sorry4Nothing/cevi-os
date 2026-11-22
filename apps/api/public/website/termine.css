@@ -687,6 +687,7 @@
 }
 .tm a.termin:hover {
   border-color: var(--outline);
+  background: var(--surface-container);
 }
 .tm .datum {
   display: flex;

@@ -1,22 +1,60 @@
-/* Bausteine der Inhaltsseiten (#560): Artikelkarten und die Adresse der Porträtkarten.
-   Die Website lädt die Datei nur auf Seiten mit einem dieser Bausteine; Farben, Radien und Schatten kommen aus den Tokens in website.css. */
+/* Bausteine der Inhaltsseiten (#560): Personen und Artikel.
+   Die Website lädt die Datei nur auf Seiten mit einem dieser Bausteine; Farben, Radien, Dauer und Kurve kommen aus den Tokens in website.css. */
 
-/* Personen: Karten und Porträt stehen in website.css (#555); hier nur die Adresse. Sie ist das einzige Ziel der Karte: Zeile mit 44 px Höhe */
+/* ===== Personen: Raster und Schrift stehen in website.css (#555); hier Rahmen des Porträts, Adresse und Zeigen ===== */
+.portraet-rahmen {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  margin-bottom: 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+}
+
+.portraet-rahmen .portraet {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  border-radius: 0;
+}
+
+/* Die Hauptzeile ist der Anzeigename; ein Strich in Rot wächst beim Zeigen unter ihm */
+.personen .titel {
+  position: relative;
+  padding-bottom: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.personen .titel::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 2rem;
+  height: 3px;
+  background: var(--primary);
+  transform-origin: left;
+}
+
 .personen .adresse {
   overflow-wrap: anywhere;
 }
 
+/* Die Adresse ist das einzige Ziel der Karte: Zeile mit 44 px Höhe */
 .personen .adresse a {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
 }
 
-/* ===== Artikel: Bild, Name und Preis gehören zusammen ===== */
+/* ===== Artikel: wie ein kleiner Laden. Kachel mit dem Bild, darunter Name und Preis in einer Zeile ===== */
 .artikel {
+  /* Die Fotos zeigen den Artikel auf hellem Grund: Die Kachel bleibt in Tag und Nacht hell, das Bild verschmilzt mit ihr (multiply) und wird nie beschnitten */
+  --artikel-grund: #eef2f6;
+  --artikel-grund-zeigen: #e2e8ef;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: clamp(2rem, 3vw, 3rem) clamp(1rem, 2vw, 2rem);
   padding: 0;
   list-style: none;
 }
@@ -24,43 +62,49 @@
 .artikel > li {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border-radius: var(--r-md);
-  background: var(--karte);
-  box-shadow: var(--schatten-karte);
+  gap: 1rem;
 }
 
-/* Die Fotos zeigen den Artikel auf Weiss, hoch, quer oder quadratisch: Der Grund bleibt in Tag und Nacht weiss, das Bild wird nie beschnitten */
 .artikel-bild {
   position: relative;
+  overflow: hidden;
   aspect-ratio: 1;
-  background: #ffffff;
+  border-radius: var(--r-md);
+  background: var(--artikel-grund);
 }
 
-/* Absolut, damit die Masse des Bildes die Kachel nicht aufziehen */
+/* Das Bild steht unbeschnitten in der Mitte und wird nie über seine eigene Grösse gezogen: Ein kleines Foto bleibt klein und scharf */
 .artikel-bild img {
   position: absolute;
-  inset: 0.75rem;
-  width: calc(100% - 1.5rem);
-  height: calc(100% - 1.5rem);
+  inset: 1.5rem;
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 3rem);
+  max-height: calc(100% - 3rem);
+  margin: auto;
   border-radius: 0;
-  object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
 .artikel-bild--leer {
   background: var(--surface-container-high);
 }
 
+.artikel > li:hover .artikel-bild {
+  background: var(--artikel-grund-zeigen);
+}
+
+/* Name links, Preis rechts auf derselben Grundlinie; der Hinweis darunter über die ganze Breite */
 .artikel-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 1rem 1.25rem 1.25rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
 }
 
 .artikel .name {
-  font-size: 1.0625rem;
+  color: var(--on-surface);
+  font-size: 1.125rem;
   line-height: 1.5rem;
   font-weight: 700;
   overflow-wrap: anywhere;
@@ -69,21 +113,62 @@
 
 .artikel .preis {
   color: var(--titel);
-  font-size: 1.375rem;
-  line-height: 1.75rem;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .artikel .hinweis {
+  grid-column: 1 / -1;
   color: var(--on-surface-variant);
   font-size: 0.9375rem;
   line-height: 1.375rem;
 }
 
-/* Erzwungene Farben: Die Karte bekommt einen Rand, damit sie sichtbar bleibt */
+/* ===== Bewegung: nur am Bildschirm und ohne «Bewegung reduzieren»; Dauer und Kurve der Grundlage ===== */
+@media screen and (prefers-reduced-motion: no-preference) {
+  .portraet-rahmen .portraet,
+  .artikel-bild img {
+    transition: scale var(--dauer-lang) var(--kurve);
+  }
+
+  .artikel-bild {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+
+  .personen .titel::after {
+    transition: scale var(--dauer) var(--kurve);
+  }
+
+  .personen > li:hover .portraet,
+  .personen > li:focus-within .portraet {
+    scale: 1.05;
+  }
+
+  .personen > li:hover .titel::after,
+  .personen > li:focus-within .titel::after {
+    scale: 2 1;
+  }
+
+  .artikel > li:hover .artikel-bild img {
+    scale: 1.06;
+  }
+}
+
+/* Erzwungene Farben: Die Kachel bekommt einen Rand, das Bild seine eigenen Farben */
 @media (forced-colors: active) {
-  .artikel > li {
+  .artikel-bild,
+  .portraet-rahmen {
     border: 1px solid CanvasText;
+  }
+
+  .artikel-bild img {
+    mix-blend-mode: normal;
+  }
+
+  .personen .titel::after {
+    background: CanvasText;
   }
 }

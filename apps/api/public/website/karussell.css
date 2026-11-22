@@ -5,6 +5,10 @@
   /* Dauer und Kurve aller Übergänge: die Bewegungs-Tokens der Website (#555) */
   --k-dauer: var(--dauer, 0.2s);
   --k-kurve: var(--kurve, cubic-bezier(0.2, 0.7, 0.2, 1));
+  /* Der Wechsel der Bilder ist bewusst langsamer als die übrigen Übergänge: so lange gleitet der Streifen (GLEIT_MS in karussell.js) und so lange treten die Bilder vor und zurück */
+  --k-wechsel: 1.1s;
+  --k-blende: 0.5s;
+  --k-weich: cubic-bezier(0.65, 0, 0.35, 1);
   --k-intervall: 6s;
 
   display: grid;
@@ -31,6 +35,11 @@
 
 .folien::-webkit-scrollbar {
   display: none;
+}
+
+/* Während das Skript den Streifen gleiten lässt, rastet er nicht ein */
+.folien[data-gleitet] {
+  scroll-snap-type: none;
 }
 
 /* Ohne Skript zeigt die Bildlaufleiste, dass es seitwärts weitergeht */
@@ -222,14 +231,20 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* Beim Wechsel treten die Bilder im Tempo des Gleitens vor und zurück */
   .karussell--aktiv .folie img,
   .karussell--aktiv .folie figcaption {
-    transition: opacity var(--k-dauer) var(--k-kurve);
+    transition: opacity var(--k-wechsel) var(--k-weich);
+  }
+
+  /* Zeigen auf ein Nachbarbild antwortet sofort */
+  .karussell--aktiv .folie:not([data-aktiv]):hover img {
+    transition-duration: var(--k-dauer);
   }
 
   /* Weiter Weg (zurück zum ersten Bild): Der Streifen blendet aus, springt und blendet ein */
   .karussell--aktiv .folien {
-    transition: opacity var(--k-dauer) var(--k-kurve);
+    transition: opacity var(--k-blende) var(--k-weich);
   }
 
   .folien[data-blende] {
@@ -238,8 +253,8 @@
 
   .k-teil {
     transition:
-      flex-grow var(--k-dauer) var(--k-kurve),
-      height var(--k-dauer) var(--k-kurve);
+      flex-grow var(--k-wechsel) var(--k-weich),
+      height var(--k-wechsel) var(--k-weich);
   }
 
   .k-knoepfe .i {

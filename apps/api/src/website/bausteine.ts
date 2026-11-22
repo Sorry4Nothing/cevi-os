@@ -29,7 +29,7 @@ export const MAX_KARTENTEXT = 500;
 export const MAX_HINWEIS = 200;
 // Alterschip einer Stufenkarte (#555), zum Beispiel «3./4. Klasse»
 export const MAX_ALTER = 40;
-// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer
+// Symbole der Merkmale (#555): Die Website zeichnet sie nicht mehr (Merkmale tragen grosse Schrift oder ein Foto); das Feld bleibt, damit gespeicherte Seiten gültig sind
 export const MERKMAL_SYMBOLE = [
   "gruppe",
   "zelt",
