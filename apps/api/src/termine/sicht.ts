@@ -76,3 +76,19 @@ export function meineTermine(
   if (teile.length === 0) return sql`false`;
   return sql`(programm.abteilung_id = ${person.abteilungId} and (${sql.join(teile, sql` or `)}))`;
 }
+
+// Termine von Anlässen, die allen Angemeldeten offenstehen (Annahme A2): Sichtbarkeit «angemeldet» oder «oeffentlich», auch ohne Tag der Person; der Termin braucht aber einen Tag der Abteilung. «intern» blendet ihn trotzdem aus (A5)
+export function anlassTermine(person: Pick<Person, "abteilungId">): SQL {
+  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from anlass where anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id and anlass.sichtbarkeit in ('angemeldet', 'oeffentlich')) and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
+}
+
+// «Alle Termine» (Web): Die Abteilungsleitung sieht jeden Termin der Abteilung mit mindestens einem Tag («intern» wie überall ausgeblendet, A5); alle anderen «Mein Kalender» plus die Anlass-Termine. Ohne Tag nie.
+export function alleTermine(
+  person: Pick<Person, "abteilungId" | "admin">,
+  t: SichtTags,
+) {
+  if (person.admin) {
+    return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
+  }
+  return sql`(${meineTermine(person, t)} or ${anlassTermine(person)})`;
+}
