@@ -59,6 +59,13 @@ const schema = z.object({
     .max(200)
     .default("Abteilungsleitung Cevi Stäfa-Hombi"),
   KONTAKT_EMAIL: z.email().default("cevi-al@cevi-staefa-hombi.ch"),
+  // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
+  KONTAKT_TELEFON: freiwillig(
+    z
+      .string()
+      .trim()
+      .regex(/^\+?[0-9][0-9 ]{4,24}$/),
+  ),
 });
 
 // Mit http setzt better-auth Cookies ohne Secure, darum in Produktion nur https (#222); lokal bleibt http://localhost
