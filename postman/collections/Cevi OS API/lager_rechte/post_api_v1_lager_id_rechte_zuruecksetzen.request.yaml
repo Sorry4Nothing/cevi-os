@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/rechte/zuruecksetzen"
-order: 318000
+order: 320000
 method: POST
-url: "{{baseUrl}}{{pfad_L163}}"
+url: "{{baseUrl}}{{pfad_L165}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

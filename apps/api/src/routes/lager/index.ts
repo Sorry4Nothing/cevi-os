@@ -24,6 +24,7 @@ import { erstelleEingangRouten } from "./eingang.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleErwaehnungenRouten } from "./erwaehnungen.js";
 import { erstelleHoeckRouten } from "./hoecks.js";
+import { erstelleMitgliederRouten } from "./mitglieder.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleProtokollRouten } from "./protokolle.js";
@@ -70,6 +71,7 @@ export function erstelleLagerRouten({
     .route("/", erstelleWarteschlangeRouten({ db }))
     .route("/", erstelleEreignisRouten({ db }))
     .route("/", erstelleLagerRechteRouten({ db }))
+    .route("/", erstelleMitgliederRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
     .route("/", erstelleLagerDateiRouten({ db }))
     .route("/", erstelleRessortRouten({ db }))

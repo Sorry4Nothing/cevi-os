@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/admin/kategorie-zuordnungen"
-order: 423000
+order: 425000
 method: PUT
 url: "{{baseUrl}}/api/v1/admin/kategorie-zuordnungen"
 headers:
@@ -18,6 +18,6 @@ body:
   type: json
   content: |-
     {
-      "kategorie": "Matrix 2edd5745-ecd4-47a6-9e2c-473c858f415c",
-      "tagId": "01a203b4-0001-72d6-9921-f09da8b981db"
+      "kategorie": "Matrix 83f17ff8-89ff-42e4-bff5-235d8e5c1443",
+      "tagId": "01a2041e-1e44-722f-a509-589d07745d52"
     }

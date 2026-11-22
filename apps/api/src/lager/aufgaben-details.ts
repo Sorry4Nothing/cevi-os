@@ -731,3 +731,20 @@ registriereOperation({
     return { id: z.id, version: z.version };
   },
 });
+registriereOperation({
+  typ: "checkpunkt.reihenfolge",
+  recht: "aufgaben.bearbeiten",
+  schema: z.strictObject({
+    aufgabeId: aufgabeUuid,
+    ...checklisteReihenfolge.shape,
+  }),
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    await sortiereCheckliste(
+      tx,
+      { lagerId: zugriff.lager.id, personId: person.id },
+      n.aufgabeId,
+      n.eintraege,
+    );
+    return { id: n.aufgabeId };
+  },
+});

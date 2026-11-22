@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/gruppen/zuordnung"
-order: 252000
+order: 254000
 method: PUT
-url: "{{baseUrl}}{{pfad_L97}}"
+url: "{{baseUrl}}{{pfad_L99}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

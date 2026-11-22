@@ -210,7 +210,7 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
     const a = await lies(elternA, pfad);
     expect(a.bausteine[0]!.knoten).toEqual({
       tag: "div",
-      attr: { class: "text" },
+      attr: { class: "text lesetext" },
       kinder: [{ tag: "p", kinder: [`Für Angemeldete ${GEHEIM}`] }],
     });
   });
@@ -256,8 +256,8 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
       },
     );
     expect(html).not.toContain(GEHEIM);
-    expect(html).toContain(`<div data-geschuetzt="${ids.angemeldet}"></div>`);
-    expect(html).toContain(`<div data-geschuetzt="${ids.tag}"></div>`);
+    expect(html).toContain(`<div data-geschuetzt="${ids.angemeldet}">`);
+    expect(html).toContain(`<div data-geschuetzt="${ids.tag}">`);
   });
 
   test("Nachladen verändert nichts: Seiten und Versionen bleiben gleich", async () => {

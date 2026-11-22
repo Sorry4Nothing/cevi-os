@@ -1,0 +1,10 @@
+-- Pinnwand-Empfänger: Ressort oder Gruppe (#520). pinnwand_empfaenger bekommt ressort_id und gruppe_id; jede Zeile nennt genau eines von rolle, person_id, ressort_id und gruppe_id. Bewusst ohne Fremdschlüssel: Fällt ein Ressort oder eine Gruppe weg, bleibt die Zeile stehen und trifft niemanden. Mit ON DELETE CASCADE würde der Beitrag ohne Empfänger zurückbleiben und für alle gelten. Dass die ID zum Lager gehört, prüft die Route beim Schreiben; die Sichtprüfung liest nur Zeilen des Lagers, eine fremde ID trifft nie jemanden.
+-- Bestehende Zeilen bleiben gültig (rolle oder person_id gesetzt, die beiden neuen Spalten leer).
+-- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0107_lager_pinnwand_empfaenger_ziel.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0107_lager_pinnwand_empfaenger_ziel.sql
+--   Zeilen mit Ressort oder Gruppe werden gelöscht; ein Beitrag, der nur sie als Empfänger hatte, gilt danach für alle Mitglieder.
+ALTER TABLE "pinnwand_empfaenger" ADD COLUMN "ressort_id" uuid;--> statement-breakpoint
+ALTER TABLE "pinnwand_empfaenger" ADD COLUMN "gruppe_id" uuid;--> statement-breakpoint
+ALTER TABLE "pinnwand_empfaenger" DROP CONSTRAINT "pinnwand_empfaenger_check";--> statement-breakpoint
+ALTER TABLE "pinnwand_empfaenger" ADD CONSTRAINT "pinnwand_empfaenger_check" CHECK (((case when "pinnwand_empfaenger"."rolle" is null then 0 else 1 end) + (case when "pinnwand_empfaenger"."person_id" is null then 0 else 1 end) + (case when "pinnwand_empfaenger"."ressort_id" is null then 0 else 1 end) + (case when "pinnwand_empfaenger"."gruppe_id" is null then 0 else 1 end)) = 1 and ("pinnwand_empfaenger"."rolle" is null or "pinnwand_empfaenger"."rolle" in ('leitung', 'team', 'lesen')));--> statement-breakpoint
+CREATE UNIQUE INDEX "pinnwand_empfaenger_ressort_uq" ON "pinnwand_empfaenger" USING btree ("beitrag_id","ressort_id") WHERE "pinnwand_empfaenger"."ressort_id" is not null;--> statement-breakpoint
+CREATE UNIQUE INDEX "pinnwand_empfaenger_gruppe_uq" ON "pinnwand_empfaenger" USING btree ("beitrag_id","gruppe_id") WHERE "pinnwand_empfaenger"."gruppe_id" is not null;

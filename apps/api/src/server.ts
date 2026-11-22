@@ -177,10 +177,12 @@ if (
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
   );
-  // Die Skripte der Website (#354): alle .js-Dateien in public/website/
+  // Die Skripte der Website (#354): alle .js-Dateien in public/website/, dazu die weiteren Stylesheets (#530; website.css geht als «stylesheet» mit)
   const skripte = Object.fromEntries(
     readdirSync(new URL("../public/website/", import.meta.url))
-      .filter((n) => n.endsWith(".js"))
+      .filter(
+        (n) => n.endsWith(".js") || (n.endsWith(".css") && n !== "website.css"),
+      )
       .map((n) => [
         n,
         readFileSync(
