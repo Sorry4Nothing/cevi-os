@@ -11,6 +11,7 @@ import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
 import { sperreLager } from "./ressorts.js";
 import { aendereZeile, legeZeileAn, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
+import { pruefeTageUndAbschnitte } from "./zeitplan.js";
 
 // Anwesenheit im Lager (#390), so wie im bisherigen Tool: A anwesend, F abwesend, O offen. Die Matrix ist Person (Leitende: Konto; Teilnehmende: teilnehmer_id) mal Lagertag mal Abschnitt des Tages.
 // Speicherung: eine Zeile je Feld, aber nur für A und F. «O» ist der Normalfall und braucht keine Zeile; eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Das hält die Tabelle klein (rund 100 Personen mal 14 Tage mal 3 Abschnitte sind höchstens 4200 Zeilen je Lager, in der Regel weniger) und gibt jedem Feld seine eigene Version, damit zwei Leute nie dasselbe Dokument überschreiben (Fehler 4 des alten Tools). Eine kompaktere Speicherung (ein JSON je Person und Tag oder je Person) gäbe das auf: Versionskonflikt, Eindeutigkeit und «nur leere Felder» liessen sich nicht mehr in der Datenbank halten.
@@ -144,6 +145,15 @@ const pick = (f: Feld): Feld => ({
 export type Gesperrt = Feld & { grund: "eingetragen" | "frist" };
 type Reader = Pick<Db, "select">;
 
+// Lagertag und Abschnitt jedes Feldes sind Zeilen dieses Lagers (#374); die Fremdschlüssel halten dasselbe noch einmal fest
+const felderStimmen = (tx: Reader, lagerId: string, items: Feld[]) =>
+  pruefeTageUndAbschnitte(
+    tx,
+    lagerId,
+    items.map((i) => i.lagertagId),
+    items.map((i) => i.tagesabschnittId),
+  );
+
 const feldSchluessel = (f: Feld) => `${f.lagertagId}|${f.tagesabschnittId}`;
 const tageVon = (items: Feld[]) => [...new Set(items.map((i) => i.lagertagId))];
 
@@ -192,9 +202,12 @@ export async function setzeAlsLeitung(
   items: LeitungEintrag[],
 ): Promise<
   | { eintraege: ReturnType<typeof anwesenheitAnsicht>[] }
-  | { fehler: "KEIN_MITGLIED" }
+  | { fehler: "KEIN_MITGLIED" | "FELD_UNBEKANNT" }
 > {
   await sperreLager(tx, k.lagerId);
+  if (!(await felderStimmen(tx, k.lagerId, items))) {
+    return { fehler: "FELD_UNBEKANNT" };
+  }
   const personIds = [
     ...new Set(items.flatMap((i) => (i.personId ? [i.personId] : []))),
   ];
@@ -212,7 +225,7 @@ export async function setzeAlsLeitung(
       return { fehler: "KEIN_MITGLIED" };
     }
   }
-  // shortcut: Lagertag, Abschnitt und Teilnehmende werden nicht gegen ihre Tabellen geprüft, weil #374 und #384 sie erst anlegen; eine fremde ID bleibt in diesem Lager folgenlos, aber unsichtbar falsch. Beim Zusammenführen mit #374 und #384 hier prüfen und die Fremdschlüssel (lager_id, id) in einer Migration ergänzen
+  // shortcut: Teilnehmende werden nicht gegen ihre Tabelle geprüft, weil #384 sie erst anlegt; eine fremde ID bleibt in diesem Lager folgenlos, aber unsichtbar falsch. Beim Zusammenführen mit #384 hier prüfen und den Fremdschlüssel (lager_id, id) in einer Migration ergänzen
   const vorhanden = await ladeFelder(tx, k.lagerId, tageVon(items), personIds, [
     ...new Set(items.flatMap((i) => (i.teilnehmerId ? [i.teilnehmerId] : []))),
   ]);
@@ -258,8 +271,12 @@ export async function setzeAlsEigene(
 ): Promise<
   | { eintraege: ReturnType<typeof anwesenheitAnsicht>[] }
   | { gesperrt: Gesperrt[] }
+  | { fehler: "FELD_UNBEKANNT" }
 > {
   await sperreLager(tx, k.lagerId);
+  if (!(await felderStimmen(tx, k.lagerId, items))) {
+    return { fehler: "FELD_UNBEKANNT" };
+  }
   const vorhanden = await ladeFelder(tx, k.lagerId, tageVon(items), [
     k.personId,
   ]);
@@ -317,6 +334,7 @@ export type AnfrageFehler = {
   fehler: "KEINE_ANFRAGE_NOETIG" | "ANFRAGE_OFFEN";
   felder: Feld[];
 };
+export type FeldFehler = { fehler: "FELD_UNBEKANNT" };
 
 // Anfragen anlegen: eine Zeile je Feld, eine Benachrichtigung für alle Lagerleitungen. Eine Anfrage gibt es nur, wo das Team nicht direkt eintragen kann (Feld eingetragen oder Frist vorbei) und der Wert sich ändert; je Person und Feld höchstens eine offene
 export async function legeAnfragenAn(
@@ -329,8 +347,12 @@ export async function legeAnfragenAn(
 ): Promise<
   | { anfragen: ReturnType<typeof anfrageAnsicht>[]; zustellung: Zustellung }
   | AnfrageFehler
+  | FeldFehler
 > {
   await sperreLager(tx, k.lagerId);
+  if (!(await felderStimmen(tx, k.lagerId, items))) {
+    return { fehler: "FELD_UNBEKANNT" };
+  }
   const vorhanden = await ladeFelder(tx, k.lagerId, tageVon(items), [
     k.personId,
   ]);
