@@ -157,6 +157,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  lagerEinteilung: {
+    titel: "Zimmer und Zelte im Lager",
+    zweck:
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+    frist:
+      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
@@ -168,7 +177,7 @@ export const KATEGORIEN = {
   lagerPinnwand: {
     titel: "Pinnwand im Lager",
     zweck:
-      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann eine Umfrage hängen: Die Antworten, welche Person welche Antwort gewählt hat und optional bis wann sie offen ist. Die Namen der Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag mit einem von fünf festen Zeichen reagieren; es zählen nur die Anzahl und die eigene Reaktion.",
     frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -296,6 +305,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "details",
       "erstellt_am",
+    ],
+  },
+  // Wartungsmodus und Sperre (#424, #425): kein Personenbezug ausser der Kennung der auslösenden Person
+  bereichsschalter: {
+    protokoll: [
+      "id",
+      "abteilung_id",
+      "bereich",
+      "art",
+      "hinweis",
+      "ende",
+      "website_offline",
+      "ausgeloest_von",
+      "ausgeloest_am",
     ],
   },
   // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
@@ -637,6 +660,42 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "reihenfolge",
     ],
   },
+  // Umfragen und Reaktionen (#382): Stimmen und Reaktionen gehören einer Person (person_id); die Reaktion ist ein fester Schlüssel, kein Emoji-Zeichen
+  umfrage: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "mehrfach",
+      "schliesst_am",
+      "geschlossen",
+      "namen_fuer_team",
+    ],
+  },
+  umfrage_option: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "text",
+      "reihenfolge",
+    ],
+  },
+  umfrage_stimme: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "option_id",
+      "person_id",
+    ],
+  },
+  reaktion: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "ziel_typ",
+      "ziel_id",
+      "person_id",
+      "emoji",
+    ],
+  },
   // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
   teilnehmer: {
     lagerTeilnehmende: [
@@ -671,6 +730,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "person_id",
       "geprueft",
       "geprueft_am",
+    ],
+  },
+  // Zimmer und Zelte (#385): Name, Art, Plätze und Notiz; die Zuordnung hält nur, wer in welchem Zimmer liegt
+  zimmer: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "art",
+      "plaetze",
+      "notiz",
+      "reihenfolge",
+    ],
+  },
+  zimmer_zuordnung: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "zimmer_id",
+      "teilnehmer_id",
+      "person_id",
     ],
   },
   // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie

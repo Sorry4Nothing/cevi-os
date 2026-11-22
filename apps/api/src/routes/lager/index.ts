@@ -19,9 +19,12 @@ import { erstelleInfosRouten } from "./infos.js";
 import { erstelleNotfallRouten } from "./notfall.js";
 import { erstellePacklisteRouten } from "./packliste.js";
 import { erstellePinnwandRouten } from "./pinnwand.js";
+import { erstelleReaktionenRouten } from "./reaktionen.js";
+import { erstelleUmfragenRouten } from "./umfragen.js";
 import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
 import { erstelleGruppenRouten } from "./gruppen.js";
 import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
+import { erstelleZimmerRouten } from "./zimmer.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // Die Aufgaben-Details stehen vor den Aufgaben: «/aufgaben/duplikate» wäre dort eine Aufgaben-ID
@@ -41,8 +44,11 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
+    .route("/", erstelleUmfragenRouten({ db }))
+    .route("/", erstelleReaktionenRouten({ db }))
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }))
+    .route("/", erstelleZimmerRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
