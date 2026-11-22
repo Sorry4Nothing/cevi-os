@@ -68,9 +68,9 @@ describe("Datenkategorien und datenschutz.html", () => {
   );
 
   test("die Erklärung hat keine Kategorie, die es nicht gibt", () => {
-    const titel = [...seite.matchAll(/<h3 id="k-[^"]+">([^<]+)<\/h3>/g)].map(
-      (m) => m[1],
-    );
+    const titel = [
+      ...seite.matchAll(/<h[34] id="k-[^"]+">([^<]+)<\/h[34]>/g),
+    ].map((m) => m[1]);
     expect(titel.sort()).toEqual(
       ids
         .filter((id) => id !== "ungenutzt")

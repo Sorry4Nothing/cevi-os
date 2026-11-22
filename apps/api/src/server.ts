@@ -60,6 +60,7 @@ const konfiguration = ladeKonfiguration(process.env);
 // Einmal beim Start; eine fehlende Seite beendet den Prozess wie eine fehlende Variable
 const seiten = ladeSeiten({
   stelle: konfiguration.VERANTWORTLICHE_STELLE,
+  adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
   email: konfiguration.KONTAKT_EMAIL,
 });
 // Ohne Schlüsseldatei startet die API und sendet keine Pushes
