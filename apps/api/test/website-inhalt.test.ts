@@ -431,7 +431,7 @@ describe("Inhalte der Bausteine", () => {
       const e = k as { tag: string; attr?: object; kinder?: unknown[] };
       tags.add(e.tag);
       for (const attr of Object.keys(e.attr ?? {})) {
-        expect(attr).toMatch(/^(href|rel|class)$/);
+        expect(attr).toMatch(/^(href|rel|class|id)$/);
       }
       e.kinder?.forEach(sammle);
     };

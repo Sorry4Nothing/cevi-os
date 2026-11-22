@@ -14,7 +14,7 @@ import {
   type Daten,
 } from "../src/website/rendern.js";
 
-// Bausteine der Inhaltsseiten (#560): Eckdaten und Kennzahlen, Zeitstrahl, Personen, Artikel; dazu Anker, verborgene Seiten und der Weg vom Termin zur Seite
+// Bausteine der Inhaltsseiten (#560): Personen, Artikel, Link und Anmeldung der Eckdaten; dazu Anker, verborgene Seiten und der Weg vom Termin zur Seite
 
 const BOESE = `<x-boese a="1">`;
 const id = () => randomUUID();
@@ -58,7 +58,6 @@ describe("Schema", () => {
     expect(
       pruefe(
         b("eckdaten", {
-          darstellung: "liste",
           eintraege: [
             { bezeichnung: "Datum", wert: "Sa 6. Juni 2026" },
             {
@@ -67,13 +66,6 @@ describe("Schema", () => {
               link: "mailto:lager@example.org",
             },
           ],
-        }),
-        b("eckdaten", {
-          darstellung: "zahlen",
-          eintraege: [{ bezeichnung: "Stufen", wert: "6" }],
-        }),
-        b("zeitstrahl", {
-          eintraege: [{ zeit: "2008", titel: "Gründung", text: "Der Anfang." }],
         }),
         b("personen", {
           eintraege: [
@@ -96,29 +88,14 @@ describe("Schema", () => {
 
   test.each([
     [
-      "eckdaten ohne Einträge",
-      b("eckdaten", { darstellung: "liste", eintraege: [] }),
-    ],
-    [
-      "eckdaten mit unbekannter Darstellung",
-      b("eckdaten", {
-        darstellung: "tabelle",
-        eintraege: [{ bezeichnung: "a", wert: "b" }],
-      }),
-    ],
-    [
       "eckdaten mit javascript-Link",
       b("eckdaten", {
-        darstellung: "liste",
         eintraege: [
           { bezeichnung: "a", wert: "b", link: "javascript:alert(1)" },
         ],
       }),
     ],
-    [
-      "zeitstrahl ohne Titel",
-      b("zeitstrahl", { eintraege: [{ zeit: "2008" }] }),
-    ],
+    ["personen ohne Einträge", b("personen", { eintraege: [] })],
     [
       "personen mit ungültiger E-Mail",
       b("personen", { eintraege: [{ name: "A", email: "keine adresse" }] }),
@@ -133,6 +110,11 @@ describe("Schema", () => {
       "artikel mit Medium, das keine UUID ist",
       b("artikel", { eintraege: [{ name: "A", mediumId: "x" }] }),
     ],
+    // Personen sind ein eigener Baustein, keine Darstellung der Karten
+    [
+      "karten mit Darstellung personen",
+      b("karten", { darstellung: "personen", eintraege: [{ titel: "A" }] }),
+    ],
   ])("ungültig: %s", (_name, baustein) => {
     expect(pruefe(baustein).ok).toBe(false);
   });
@@ -146,7 +128,6 @@ describe("Schema", () => {
           eintraege: [{ name: "B", mediumId: m2 }, { name: "C" }],
         }),
         b("eckdaten", {
-          darstellung: "liste",
           eintraege: [{ bezeichnung: "Mehr", wert: "Lager", link: "/lager#x" }],
         }),
       ),
@@ -157,87 +138,44 @@ describe("Schema", () => {
 });
 
 describe("Renderer", () => {
-  test("Eckdaten als Liste mit Link, Kennzahlen als Zahlenband", () => {
-    const html = seite(
-      dok(
-        b("eckdaten", {
-          darstellung: "liste",
-          eintraege: [
-            { bezeichnung: "Datum", wert: BOESE },
-            {
-              bezeichnung: "Kontakt",
-              wert: "lager@example.org",
-              link: "mailto:lager@example.org",
-            },
-          ],
-        }),
-        b("eckdaten", {
-          darstellung: "zahlen",
-          eintraege: [{ bezeichnung: "Stufen", wert: "6" }],
-        }),
-      ),
-    );
-    expect(html).toContain(
-      '<div class="eckdaten-block"><dl class="eckdaten"><div class="eckdatum"><dt>Datum</dt><dd>&lt;x-boese a=&quot;1&quot;&gt;</dd></div>',
-    );
-    expect(html).toContain(
-      '<dd><a href="mailto:lager@example.org">lager@example.org</a></dd>',
-    );
-    expect(html).toContain(
-      '<dl class="kennzahlen"><div class="kennzahl"><dt>Stufen</dt><dd>6</dd></div></dl>',
-    );
-    expect(html).not.toContain("<x-boese");
-    // Ohne Anlass keine Schaltfläche
-    expect(html).not.toContain("eckdaten-aktion");
+  const eckdaten = b("eckdaten", {
+    eintraege: [
+      { bezeichnung: "Datum", wert: BOESE },
+      {
+        bezeichnung: "Kontakt",
+        wert: "lager@example.org",
+        link: "mailto:lager@example.org",
+      },
+    ],
   });
 
-  test("gehört die Seite zu einem Anlass, führt eine Schaltfläche zur Anmeldung", () => {
+  test("Eckdaten: der Wert kann ein Link sein; ohne Anlass keine Schaltfläche", () => {
+    const html = seite(dok(eckdaten));
+    expect(html).toContain(
+      '<dl class="fakten karte"><div class="fakt"><dt>Datum</dt><dd>&lt;x-boese a=&quot;1&quot;&gt;</dd></div><div class="fakt"><dt>Kontakt</dt><dd><a href="mailto:lager@example.org">lager@example.org</a></dd></div></dl>',
+    );
+    expect(html).not.toContain("<x-boese");
+    expect(html).not.toContain("Zur Anmeldung");
+  });
+
+  test("gehört die Seite zu einem Anlass, führt eine Schaltfläche unter den Eckdaten zur Anmeldung", () => {
     const seiteId = id();
     const anlassId = id();
-    const d = dok(
-      b("eckdaten", {
-        darstellung: "liste",
-        eintraege: [{ bezeichnung: "Datum", wert: "heute" }],
-      }),
-      b("eckdaten", {
-        darstellung: "zahlen",
-        eintraege: [{ bezeichnung: "Plätze", wert: "20" }],
-      }),
-    );
     const html = seite(
-      d,
+      dok(eckdaten),
       { ...keineDaten(), anlaesse: new Map([[seiteId, anlassId]]) },
       seiteId,
     );
     expect(html).toContain(
-      `<p class="eckdaten-aktion"><a class="btn gross" href="/anlass?id=${anlassId}">Zur Anmeldung</a></p>`,
+      `</dl><a class="btn p gross voll" href="/anlass?id=${anlassId}">Zur Anmeldung</a></div>`,
     );
-    // Nur bei den Eckdaten, nicht bei den Kennzahlen
-    expect(html.split("Zur Anmeldung").length).toBe(2);
-  });
-
-  test("Zeitstrahl: geordnete Liste, Titel eine Ebene unter der letzten Überschrift", () => {
-    const html = seite(
-      dok(
-        b("ueberschrift", { ebene: 2, text: "Geschichte" }),
-        b("zeitstrahl", {
-          eintraege: [
-            { zeit: "2008", titel: "Gründung", text: "Der Anfang." },
-            { zeit: "2013", titel: BOESE },
-          ],
-        }),
-      ),
-    );
-    expect(html).toContain(
-      '<ol class="zeitstrahl"><li><p class="zeit">2008</p><h3 class="titel">Gründung</h3><p>Der Anfang.</p></li>',
-    );
-    expect(html).not.toContain("<x-boese");
   });
 
   test("Personen: Foto ohne Alt-Text, sonst Initialen; die Adresse ist ein mailto-Link", () => {
     const foto = id();
     const html = seite(
       dok(
+        b("ueberschrift", { ebene: 2, text: "Leitung" }),
         b("personen", {
           eintraege: [
             {
@@ -246,20 +184,22 @@ describe("Renderer", () => {
               email: "flink@example.org",
               mediumId: foto,
             },
-            { name: "Beat Beispiel", mediumId: id() },
+            { name: `${BOESE} Beat Beispiel`, mediumId: id() },
           ],
         }),
       ),
       { ...keineDaten(), medien: new Map([[foto, bildDaten("Porträt")]]) },
     );
-    expect(html).toContain(
-      `<li class="kontaktperson"><img src="/api/v1/medien/${foto}" alt="" width="400" height="300" loading="lazy" decoding="async">`,
-    );
-    expect(html).toContain(
-      '<p class="name">Anna Muster v/o Flink</p><p class="funktion">Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p>',
+    expect(html).toMatch(
+      new RegExp(
+        `<ul class="personen"><li><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
+      ),
     );
     // Das zweite Bild gibt es nicht (oder es ist nicht öffentlich): Initialen
-    expect(html).toContain('<span class="ava" aria-hidden="true">BB</span>');
+    expect(html).toContain(
+      '<span class="portraet portraet--leer" aria-hidden="true">XA</span>',
+    );
+    expect(html).not.toContain("<x-boese");
   });
 
   test("Artikel: Bild, Name und Preis in einer Karte; der Alt-Text entfällt, wenn er nur den Namen wiederholt", () => {
@@ -297,9 +237,9 @@ describe("Renderer", () => {
 
   test("der Stil der Inhaltsbausteine steht nur auf Seiten mit einem solchen Baustein", () => {
     const link = '<link rel="stylesheet" href="/website/inhalt.css">';
-    expect(
-      seite(dok(b("zeitstrahl", { eintraege: [{ zeit: "1", titel: "a" }] }))),
-    ).toContain(link);
+    expect(seite(dok(b("artikel", { eintraege: [{ name: "a" }] })))).toContain(
+      link,
+    );
     expect(
       seite(dok(b("ueberschrift", { ebene: 2, text: "Ohne" }))),
     ).not.toContain(link);
@@ -308,7 +248,7 @@ describe("Renderer", () => {
       new URL("../public/website/inhalt.css", import.meta.url),
       "utf8",
     );
-    expect(css).toContain(".eckdaten");
+    expect(css).toContain(".artikel");
     expect(ladeSeiten().admin["website-vorschau.css"]).toContain(css);
   });
 

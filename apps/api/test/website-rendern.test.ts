@@ -373,7 +373,9 @@ describe("Aufbau und Barrierefreiheit", () => {
     );
     // h4 nach h1 wird h2; danach h4 nach h2 wird h3; h2 bleibt; h4 nach h2 wird h3
     expect(
-      [...html.matchAll(/<h([234])>(\w)</g)].map((m) => `${m[2]}${m[1]}`),
+      [...html.matchAll(/<h([234])(?: id="\w+")?>(\w)</g)].map(
+        (m) => `${m[2]}${m[1]}`,
+      ),
     ).toEqual(["a2", "b3", "c2", "d3"]);
   });
 

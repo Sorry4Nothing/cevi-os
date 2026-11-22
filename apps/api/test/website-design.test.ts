@@ -150,9 +150,11 @@ describe("Startseite und Stufenseite", () => {
     // Nur die erste Schaltfläche ist rot
     expect(html).toContain('href="/kontakt" class="btn p gross"');
     expect(html).toContain('href="/termine" class="btn s gross"');
-    expect(html).toContain("<h2>Stufen</h2>");
+    expect(html).toContain('<h2 id="stufen">Stufen</h2>');
     // Der Teaser steht vor dem übrigen Inhalt
-    expect(html.indexOf("teaser")).toBeLessThan(html.indexOf("<h2>Stufen"));
+    expect(html.indexOf("teaser")).toBeLessThan(
+      html.indexOf('<h2 id="stufen">Stufen'),
+    );
   });
 
   test("Startseite ohne Text und Schaltfläche: gewöhnlicher Seitentitel", () => {
@@ -200,7 +202,9 @@ describe("Startseite und Stufenseite", () => {
     );
     expect(links).toContain("Willkommen");
     expect(links).toContain("<img");
-    expect(html.indexOf("<aside")).toBeLessThan(html.indexOf("<h2>Team"));
+    expect(html.indexOf("<aside")).toBeLessThan(
+      html.indexOf('<h2 id="team">Team'),
+    );
     expect(html).toContain(
       '<div class="fakt"><dt>Zeit</dt><dd>14:00 bis 17:00 Uhr</dd></div>',
     );

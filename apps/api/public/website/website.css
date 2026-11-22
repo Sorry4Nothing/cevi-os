@@ -3269,3 +3269,11 @@ a.btn.w {
   flex-direction: column;
   gap: 1rem;
 }
+
+/* Ein Link in der Tafel (#560) trägt die Farbe der Tafel und ist unterstrichen: Rot auf Blau hätte zu wenig Kontrast */
+.fakt dd a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}

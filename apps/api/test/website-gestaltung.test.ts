@@ -125,7 +125,7 @@ describe("Abschnitte über die ganze Breite", () => {
     ]);
     // Der Lead steht im Kopf des Abschnitts, nicht bei den Karten
     expect(html).toMatch(
-      /<div class="sektion-kopf">\n<h2>Karten<\/h2>\n<div class="text lesetext"><p>Lead<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="merkmale">/,
+      /<div class="sektion-kopf">\n<h2 id="karten">Karten<\/h2>\n<div class="text lesetext"><p>Lead<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="merkmale">/,
     );
     expect(html).toMatch(
       /<div class="sektion-kopf">\n<h2>Stufen<\/h2>\n<div class="text lesetext"><p>Lead 2<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="stufenkarten">/,
