@@ -594,7 +594,7 @@ describe("Verwaltung der Rollen", () => {
       admin,
       "PATCH",
       `${BASIS}/${webmasterId}`,
-      { name: "Redaktion" },
+      { name: "Website" },
     );
     expect(umbenennen.status).toBe(409);
     expect(await umbenennen.json()).toMatchObject({ code: "ROLLE_VORGEGEBEN" });
@@ -720,7 +720,7 @@ describe("Verwaltung der Rollen", () => {
   });
 });
 
-describe("Redaktionsrouten: zweiter Faktor für erweiterte Rechte", () => {
+describe("Routen der Website-Verwaltung: zweiter Faktor für erweiterte Rechte", () => {
   const SEITEN = "/api/v1/redaktion/seiten";
   const code = async (antwort: Response) =>
     ((await antwort.json()) as { code?: string }).code;
@@ -748,18 +748,19 @@ describe("Redaktionsrouten: zweiter Faktor für erweiterte Rechte", () => {
     const mit = await neuePersonMitFaktor();
     await vergebe(mit);
     const durch = await anfrage(mit, "GET", SEITEN);
-    // Die Tür der Website-Routen öffnet #426; hier zählt nur, dass der zweite Faktor nicht mehr fehlt
-    expect(await code(durch)).not.toBe("ZWEITER_FAKTOR_FEHLT");
+    // Mit dem Faktor öffnet die Rolle Webmaster die Tür (#426)
+    expect(durch.status).toBe(200);
   });
 
   test("auch eine Zeile in bearbeiter oder eine Stufenleitung mit zusätzlichem Recht braucht den Faktor", async () => {
-    const redaktion = await neuePerson("leitendeA");
+    const mitSonderrecht = await neuePerson("leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",
-      userId: redaktion.id!,
+      objektId: randomUUID(),
+      userId: mitSonderrecht.id!,
     });
-    const antwort = await anfrage(redaktion, "GET", SEITEN);
+    const antwort = await anfrage(mitSonderrecht, "GET", SEITEN);
     expect(antwort.status).toBe(403);
     expect(await code(antwort)).toBe("ZWEITER_FAKTOR_FEHLT");
 
