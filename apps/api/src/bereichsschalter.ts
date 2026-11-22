@@ -60,6 +60,18 @@ export function erstelleSchalterZustand() {
       );
     },
     leer: () => eintraege.length === 0,
+    // Für Anfragen ohne Sitzung (öffentliche Medien): Gilt irgendwo eine Sperre dieser Bereiche? Ohne Person ist die Abteilung unbekannt, im Zweifel sperren
+    gesperrtIrgendwo: (bereiche: readonly SchalterBereich[]) =>
+      eintraege.some((e) => e.art === "sperre" && bereiche.includes(e.bereich)),
+    // Hält die Sperre die öffentliche Website vom Netz (der Abgleich erzeugt dann nichts neu)?
+    websiteOffline: (abteilungId: string) =>
+      eintraege.some(
+        (e) =>
+          e.abteilungId === abteilungId &&
+          e.art === "sperre" &&
+          e.websiteOffline &&
+          (e.bereich === "website" || e.bereich === "alles"),
+      ),
     // Alle Schalter einer Abteilung
     vonAbteilung: (abteilungId: string) =>
       eintraege.filter((e) => e.abteilungId === abteilungId),
@@ -98,6 +110,12 @@ const LESEND = new Set(["GET", "HEAD", "OPTIONS"]);
 // Die Bearbeitungsansichten der Website sind lesende Anfragen und gehören trotzdem zur Bearbeitung; nur das Panel selbst («ich») bleibt lesbar
 const BEARBEITUNG = /^\/api\/v1\/redaktion(\/|$)(?!ich$)/;
 
+// Neutral: Der Text verrät weder den Anlass noch den Hinweis des Schalters
+export const GESPERRT = {
+  code: "GESPERRT",
+  message: "Dieser Bereich ist vorübergehend nicht verfügbar.",
+} as const;
+
 export const IN_WARTUNG = {
   code: "IN_WARTUNG",
   message:
@@ -117,6 +135,10 @@ export function erstelleSchalterPruefung({
       if (zustand.leer() || PLATTFORM.test(c.req.path)) return next();
       const person = c.get("person");
       const bereich = bereichVon(c.req.path);
+      // Die Sperre gilt für jede Anfrage des Bereichs, auch für die Abteilungsleitung und für lesende; nur /api/v1/plattform (oben) bleibt offen
+      if (zustand.trifft(person.abteilungId, bereich, "sperre")) {
+        return c.json(GESPERRT, 423);
+      }
       const wartung = zustand.trifft(person.abteilungId, bereich, "wartung");
       if (
         wartung &&
@@ -136,4 +158,32 @@ export function erstelleSchalterPruefung({
       await next();
     },
   );
+}
+
+// Vor der Sitzung, für die öffentlichen Medien (`/api/v1/medien/:id`): Sie gehören zur Website und haben keine Person, darum gilt die Sperre der Website oder von «alles» in irgendeiner Abteilung
+export function erstelleSperrePruefungOhnePerson(zustand: SchalterZustand) {
+  return createMiddleware(async (c, next) => {
+    if (zustand.gesperrtIrgendwo(["website", "alles"])) {
+      return c.json(GESPERRT, 423);
+    }
+    await next();
+  });
+}
+
+// Für die Anmeldung unter «alles» (auth.ts): Gesperrt ist sie für jede Person ausser der Abteilungsleitung und dem Entwickler, die die Sperre aufheben müssen
+export function erstelleAnmeldungGesperrt({
+  db,
+  zustand,
+}: {
+  db: Db;
+  zustand: SchalterZustand;
+}) {
+  return async (nutzer: {
+    id: string;
+    abteilungId: string;
+    role?: string | null;
+  }) =>
+    zustand.trifft(nutzer.abteilungId, null, "sperre") !== undefined &&
+    nutzer.role !== "admin" &&
+    !(await istEntwickler(db, nutzer));
 }
