@@ -337,6 +337,15 @@ Bevor ein Bereich gewartet wird (zum Beispiel ein Update der Datenbank oder ein 
 - **Zustand:** Er liegt in der Tabelle `bereichsschalter` und wird beim Start in den Speicher der API geladen; ein Neustart behält ihn. Läuft die API auf mehr als einer Instanz, wirkt eine Schaltung erst nach dem Neustart der übrigen (heute läuft eine Instanz).
 - **Ohne Verwaltung:** Fällt die Verwaltung aus, lässt sich der Zustand in der Datenbank ändern (`delete from bereichsschalter where bereich = '<bereich>' and art = 'wartung'`) und die API neu starten.
 
+## Lager löschen
+
+Die Abteilungsleitung löscht ein Lager endgültig mit `DELETE /api/v1/admin/lager/{id}` (#400; zweiter Faktor, Titel des Lagers im Body als Bestätigung). Das geht nur für einen Entwurf, ein archiviertes Lager oder ein Übungslager; ein aktives oder abgeschlossenes Lager ist 409. Das Löschen ist **nicht rückgängig zu machen**: Es entfernt in einer Transaktion alle Daten des Lagers aus der Datenbank (Mitglieder, Aufgaben, Pinnwand, Eingang, Adressbuch, Rechte, Änderungsfeed, Dateiverknüpfungen). Vorher bei Bedarf den Export des Lagers ziehen (#401).
+
+- **Dateien:** Sie liegen im SharePoint; Cevi OS löscht dort nichts, nur die Verknüpfungen verschwinden. Das Logo bleibt in der Mediathek der Abteilung. Im Medienspeicher (S3) hält ein Lager sonst nichts.
+- **Backups:** Ältere Sicherungen enthalten das Lager weiter, bis restic sie nach den 30 Tagen und 3 Monaten (siehe «Backups») entfernt. Wer Daten früher loswerden muss, spielt keine Sicherung zurück, die das Lager noch enthält.
+- **Wartung:** Der Wartungsmodus des Bereichs `lager` (siehe oben) sperrt schreibende Lager-Routen inklusive der Warteschlange `POST /api/v1/lager/{id}/aenderungen`; es gibt keinen eigenen Wartungsmodus je Lager. Die Abteilungsleitung kann auch in Wartung löschen.
+- **Audit-Log:** `lager_geloescht` nennt nur die Lagerkennung und die Zahl der entfernten Dateiverknüpfungen, nie Titel oder Inhalte.
+
 ## Informationssperre
 
 Die **Informationssperre** (#425) dämmt einen Vorfall ein, bevor die Ursache geklärt ist: Ein gesperrter Bereich liefert keine Inhalte mehr. Auslösen und Aufheben dürfen nur der Entwickler und die Abteilungsleitung, mit zweitem Faktor; der Webmaster nie. In der Verwaltung unter «Plattform», Abschnitt «Informationssperre».

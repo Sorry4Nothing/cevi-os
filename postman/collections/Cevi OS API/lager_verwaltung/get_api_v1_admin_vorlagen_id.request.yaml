@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/admin/vorlagen/:id"
-order: 368000
+order: 369000
 method: GET
-url: "{{baseUrl}}{{pfad_L211}}"
+url: "{{baseUrl}}{{pfad_L212}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

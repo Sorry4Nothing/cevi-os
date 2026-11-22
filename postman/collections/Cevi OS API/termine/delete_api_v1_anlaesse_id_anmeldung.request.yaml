@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/anlaesse/:id/anmeldung"
-order: 409000
+order: 410000
 method: DELETE
 url: "{{baseUrl}}{{pfad_T15}}"
 headers:

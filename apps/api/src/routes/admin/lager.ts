@@ -13,6 +13,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { ereignisverteiler } from "../../lager/ereignisse.js";
+import { loeschbar, loescheLager } from "../../lager/loeschen.js";
 import { istGeschlossen } from "../../lager/policy.js";
 import { schreibeStandardrechte } from "../../lager/rechte.js";
 import {
@@ -58,13 +59,16 @@ const aendernSchema = z.strictObject({
   logoMediumId: z.uuid().nullable().optional(),
   status: z.enum(LAGER_STATUS).optional(),
 });
+// Die Bestätigung: der Titel des Lagers, wie er gespeichert ist
+const loeschenSchema = z.strictObject({ titel });
 const mitgliedSchema = z.strictObject({ rolle: z.enum(LAGER_ROLLEN) });
 const pfad = () => z.strictObject({ id: z.uuid() });
 const pfadPerson = () => z.strictObject({ id: z.uuid(), personId: z.uuid() });
 
 class Konflikt extends Error {
   constructor(
-    readonly code: "LAGER_GESCHLOSSEN" | "LAGERLEITUNG_FEHLT",
+    readonly code:
+      "LAGER_GESCHLOSSEN" | "LAGERLEITUNG_FEHLT" | "LAGER_NICHT_LOESCHBAR",
     message: string,
   ) {
     super(message);
@@ -276,6 +280,44 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           }
           throw fehler;
         }
+        return c.body(null, 204);
+      },
+    )
+    .delete(
+      "/:id",
+      eingabe("param", pfad()),
+      eingabe("json", loeschenSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        const { titel: bestaetigt } = c.req.valid("json");
+        try {
+          await db.transaction(async (tx) => {
+            const ziel = await ladeLager(tx, person, id, true);
+            if (!loeschbar(ziel)) {
+              throw new Konflikt(
+                "LAGER_NICHT_LOESCHBAR",
+                "Nur ein Entwurf, ein archiviertes Lager oder ein Übungslager lässt sich löschen.",
+              );
+            }
+            if (bestaetigt !== ziel.titel) throw new HTTPException(400);
+            const dateien = await loescheLager(tx, id);
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "lager_geloescht",
+              zielTyp: "lager",
+              zielId: id,
+              details: { dateien },
+            });
+          });
+        } catch (fehler) {
+          if (fehler instanceof Konflikt) {
+            return c.json(antwortKonflikt(fehler), 409);
+          }
+          throw fehler;
+        }
+        ereignisverteiler.beendeLager(id);
         return c.body(null, 204);
       },
     )
