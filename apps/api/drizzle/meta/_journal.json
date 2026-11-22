@@ -348,8 +348,15 @@
     {
       "idx": 100,
       "version": "7",
-      "when": 1793556000000,
+      "when": 1793552000000,
       "tag": "0100_plattformrollen",
+      "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1793554000000,
+      "tag": "0120_termin_kategorien",
       "breakpoints": true
     }
   ]

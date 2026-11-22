@@ -8,6 +8,7 @@ import * as personen from "./personen.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as tags from "./tags.js";
+import * as termine from "./termine.js";
 import * as uebersicht from "./uebersicht.js";
 import * as website from "./website.js";
 import * as zeitregeln from "./zeitregeln.js";
@@ -57,6 +58,13 @@ const BEREICHE = [
     kalender,
     "kalender",
     "Anstehende Programme und ihre Stufen.",
+  ],
+  [
+    "termine",
+    "Termine",
+    termine,
+    "termine",
+    "Kategorien, Vorschläge, Anlässe und Räume der Termine.",
   ],
   [
     "website",
