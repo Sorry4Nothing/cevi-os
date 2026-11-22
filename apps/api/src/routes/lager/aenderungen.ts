@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { lagerAenderung } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
+import { darfEines, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import { holeLagerTabelle, listeLagerTabellen } from "../../lager/tabellen.js";
 
 // Änderungsfeed des Lagers (#366). Er nennt nur Objekttyp, ID, Art und Version einer Änderung, nie Inhalte; die App holt den Inhalt über die Route des Moduls, wo die Rechte der Rolle gelten. Gefiltert wird in zwei Stufen: Das Leserecht der Tabelle (darf) und der Zeilenfilter der Rolle (sichtbar, lager/tabellen.ts). Eine Tabelle ohne Anmeldung kommt nie vor
@@ -29,7 +29,7 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
         return c.json({
           seq,
           objekttypen: listeLagerTabellen()
-            .filter(([, e]) => darf(zugriff, e.recht))
+            .filter(([, e]) => darfEines(zugriff, e.recht))
             .map(([name]) => name)
             .sort(),
         });
@@ -73,7 +73,7 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
       const lesbar = new Map<string, Set<string> | "alle">();
       for (const tabelle of new Set(seite.map((z) => z.tabelle))) {
         const eintrag = holeLagerTabelle(tabelle);
-        if (!eintrag || !darf(zugriff, eintrag.recht)) continue;
+        if (!eintrag || !darfEines(zugriff, eintrag.recht)) continue;
         lesbar.set(
           tabelle,
           eintrag.sichtbar

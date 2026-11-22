@@ -21,8 +21,8 @@ export type LagerSpaltenTabelle = PgTable & {
 
 export type LagerTabellenEintrag = {
   tabelle: LagerSpaltenTabelle;
-  // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs
-  recht: LagerRecht;
+  // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Eine Liste genügt mit einem der Rechte (Aufgaben: alle oder eigene)
+  recht: LagerRecht | readonly LagerRecht[];
   // Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Fehlt er, gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
   sichtbar?: (
     db: Db,
