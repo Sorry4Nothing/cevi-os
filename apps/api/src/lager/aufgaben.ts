@@ -13,6 +13,7 @@ import {
   user,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { berechneFrist, fristEingabeStimmt } from "./fristen.js";
 import { registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
@@ -56,6 +57,8 @@ export const aufgabeAnsicht = (a: AufgabeZeile) => ({
   status: a.status,
   notiz: a.notiz,
   frist: a.frist,
+  fristMeilensteinId: a.fristMeilensteinId,
+  fristVersatzTage: a.fristVersatzTage,
   stern: a.stern,
   laufend: a.laufend,
   spaeterAb: a.spaeterAb,
@@ -88,6 +91,9 @@ const felder = {
   status,
   notiz,
   frist: datum.nullable(),
+  // Relative Frist (#374): Versatz in Tagen zum Meilenstein (ohne fristMeilensteinId zum Beginn des Lagers); der Server rechnet die Frist aus. Zusammen mit frist ungültig (lager/fristen.ts)
+  fristMeilensteinId: z.uuid().nullable(),
+  fristVersatzTage: z.number().int().min(-3650).max(3650).nullable(),
   stern: z.boolean(),
   laufend: z.boolean(),
   spaeterAb: datum.nullable(),
@@ -98,14 +104,18 @@ const optional = Object.fromEntries(
   Object.entries(felder).map(([k, f]) => [k, f.optional()]),
 ) as { [K in keyof typeof felder]: z.ZodOptional<(typeof felder)[K]> };
 
-export const aufgabeAnlegen = z.strictObject({ titel, ...optional });
+export const aufgabeAnlegen = z
+  .strictObject({ titel, ...optional })
+  .refine(fristEingabeStimmt);
 export const aufgabeAendern = z
   .strictObject({ version, titel: titel.optional(), ...optional })
-  .refine((b) => Object.keys(b).length > 1);
+  .refine((b) => Object.keys(b).length > 1)
+  .refine(fristEingabeStimmt);
 // Wie die Route, für die Warteschlange (#367): zusätzlich die ID der Aufgabe
 const aendernOperation = z
   .strictObject({ id: z.uuid(), version, titel: titel.optional(), ...optional })
-  .refine((b) => Object.keys(b).length > 2);
+  .refine((b) => Object.keys(b).length > 2)
+  .refine(fristEingabeStimmt);
 export const statusSetzen = z.strictObject({ version, status });
 export const aufgabeReihenfolge = z.strictObject({
   eintraege: z
@@ -334,7 +344,8 @@ export async function istBeteiligt(
 }
 
 export type Pruefung =
-  { fehler: "KEIN_MITGLIED" | "RESSORT_UNBEKANNT" } | undefined;
+  | { fehler: "KEIN_MITGLIED" | "RESSORT_UNBEKANNT" | "MEILENSTEIN_UNBEKANNT" }
+  | undefined;
 
 // Verantwortliche und Unterstützung sind Mitglieder dieses Lagers, das Ressort gibt es in diesem Lager (Ziele aus der Anfrage sind nie ein Nachweis, SR-11). Die Fremdschlüssel halten dasselbe noch einmal fest
 export async function pruefeAufgabenWerte(
@@ -511,13 +522,25 @@ export async function legeAufgabeAn(
   k: Akteur,
   eingabe: z.output<typeof aufgabeAnlegen>,
 ): Promise<SchreibErgebnis> {
-  const { unterstuetzungPersonIds, ...werte } = eingabe;
+  const {
+    unterstuetzungPersonIds,
+    fristMeilensteinId,
+    fristVersatzTage,
+    ...rest
+  } = eingabe;
   await sperreLager(tx, k.lagerId);
   const fehler = await pruefeAufgabenWerte(tx, k.lagerId, {
-    ...werte,
+    ...rest,
     unterstuetzungPersonIds,
   });
   if (fehler) return fehler;
+  const frist = await berechneFrist(tx, k.lagerId, {
+    frist: rest.frist,
+    fristMeilensteinId,
+    fristVersatzTage,
+  });
+  if ("fehler" in frist) return frist;
+  const werte = { ...rest, ...frist.werte };
   // Ohne Angabe ans Ende
   const [ende] = await tx
     .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
@@ -553,15 +576,28 @@ export async function aendereAufgabe(
   id: string,
   eingabe: Omit<z.output<typeof aufgabeAendern>, "titel"> & { titel?: string },
 ): Promise<SchreibErgebnis> {
-  const { version, unterstuetzungPersonIds, ...werte } = eingabe;
+  const {
+    version,
+    unterstuetzungPersonIds,
+    fristMeilensteinId,
+    fristVersatzTage,
+    ...rest
+  } = eingabe;
   await sperreLager(tx, k.lagerId);
   const alt = await ladeAufgabeZeile(tx, k.lagerId, id);
   if (!alt) throw new HTTPException(404);
   const fehler = await pruefeAufgabenWerte(tx, k.lagerId, {
-    ...werte,
+    ...rest,
     unterstuetzungPersonIds,
   });
   if (fehler) return fehler;
+  const frist = await berechneFrist(tx, k.lagerId, {
+    frist: rest.frist,
+    fristMeilensteinId,
+    fristVersatzTage,
+  });
+  if ("fehler" in frist) return frist;
+  const werte = { ...rest, ...frist.werte };
   const vorher = await ladeBeteiligte(tx, k.lagerId, id);
   const neu = await aendereZeile(tx, aufgabe, k, {
     id,

@@ -7157,7 +7157,7 @@ paths:
       description: |
         Braucht das Recht `aufgaben.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
 
-        Verantwortliche und Unterstützung müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`), ein Ressort muss zum Lager gehören (400 `RESSORT_UNBEKANNT`). Ohne Verantwortliche gilt die Leitung des Ressorts; die Antwort nennt sie unter `verantwortlich` mit `automatisch: true`. Ohne `reihenfolge` kommt die Aufgabe ans Ende. Mit Status `erledigt` setzt der Server `erledigtAm`. Benachrichtigt werden die wirksame Verantwortliche und die Unterstützung (Art `aufgabe_zugeteilt`, Push ohne Aufgabentext), nie die Person, die anlegt.
+        Verantwortliche und Unterstützung müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`), ein Ressort muss zum Lager gehören (400 `RESSORT_UNBEKANNT`), ein Meilenstein der relativen Frist ebenso (400 `MEILENSTEIN_UNBEKANNT`). Mit `fristVersatzTage` rechnet der Server die Frist (Meilenstein oder Lagerbeginn plus Versatz); `frist` und `fristVersatzTage` zusammen sind 400. Eine feste `frist` löst eine bestehende relative Frist. Ohne Verantwortliche gilt die Leitung des Ressorts; die Antwort nennt sie unter `verantwortlich` mit `automatisch: true`. Ohne `reihenfolge` kommt die Aufgabe ans Ende. Mit Status `erledigt` setzt der Server `erledigtAm`. Benachrichtigt werden die wirksame Verantwortliche und die Unterstützung (Art `aufgabe_zugeteilt`, Push ohne Aufgabentext), nie die Person, die anlegt.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
@@ -7486,6 +7486,708 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/zeitplan:
+    get:
+      operationId: holeLagerZeitplan
+      summary: Zeitplan des Lagers lesen
+      description: |
+        Braucht das Recht `zeitplan.lesen` (Standard: alle Rollen). Der ganze Zeitplan in einer Abfrage: Meilensteine (nach Datum), Lagertage (nach Datum) und Tagesabschnitte (nach Reihenfolge). Die Listen sind je Lager begrenzt (höchstens 200 Meilensteine, 100 Tage, 12 Abschnitte), darum ohne Seiten. Aufgaben mit Frist liefert `GET /aufgaben?fristVon=&fristBis=`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Der Zeitplan."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplan"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/vorschlag:
+    get:
+      operationId: holeLagerZeitplanVorschlag
+      summary: Vorschlag für Lagertage und Tagesabschnitte
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Ändert nichts. Liefert die Tage von Beginn bis Ende des Lagers, die es noch nicht gibt, und die Standard-Abschnitte (Vormittag, Nachmittag, Abend, Nacht), wenn das Lager keine hat. Die Lagerleitung bestätigt (oder ändert) den Vorschlag mit `POST /zeitplan/uebernehmen`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Der Vorschlag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplanVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/uebernehmen:
+    post:
+      operationId: uebernehmeLagerZeitplan
+      summary: Lagertage und Tagesabschnitte übernehmen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Legt die genannten Tage und Abschnitte in einem Schritt an (ein Insert je Tabelle). Was es schon gibt (gleiches Datum, gleicher Name ohne Beachtung der Gross- und Kleinschreibung), wird übersprungen; die Antwort nennt nur, was neu entstand. Ein Tag ausserhalb von Beginn und Ende des Lagers ist 400 `AUSSERHALB_LAGER`; mehr als 100 Tage oder 12 Abschnitte je Lager sind 409 `LIMIT_ERREICHT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZeitplanUebernehmen"
+      responses:
+        "201":
+          description: "Die neu angelegten Tage und Abschnitte."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplanUebernommen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine:
+    post:
+      operationId: legeLagerMeilensteinAn
+      summary: Meilenstein anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Höchstens 200 Meilensteine je Lager (409 `LIMIT_ERREICHT`). Die `art` ist eine freie Bezeichnung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinAnlegen"
+      responses:
+        "201":
+          description: "Der neue Meilenstein."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilenstein"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine/{meilensteinId}:
+    patch:
+      operationId: aendereLagerMeilenstein
+      summary: Meilenstein ändern (ohne Datum)
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Ändert Titel und Art. Das Datum ändert nur `POST .../verschieben`: So ziehen die Fristen der Aufgaben mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (auch bei `datum`). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinAendern"
+      responses:
+        "200":
+          description: "Der geänderte Meilenstein."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilenstein"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerMeilenstein
+      summary: Meilenstein löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Aufgaben, deren Frist am Meilenstein hängt, behalten ihre Frist als festes Datum (der Bezug fällt weg, mit Feed-Eintrag je Aufgabe). Der Meilenstein bleibt bis zur endgültigen Löschung als gelöscht markiert.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine/{meilensteinId}/verschieben:
+    post:
+      operationId: verschiebeLagerMeilenstein
+      summary: Meilenstein verschieben (Vorschau und Bestätigung)
+      description: |
+        Braucht die Rechte `zeitplan.bearbeiten` und `aufgaben.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung), weil die Fristen von Aufgaben mitziehen. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Zwei Schritte mit demselben Aufruf. `trocken: true` ist die Vorschau: Sie liest und ändert nichts und nennt den Meilenstein (Version, altes und neues Datum) und alle Aufgaben, deren Frist am Meilenstein hängt (ID, Version, Titel, Status, alte und neue Frist). `trocken: false` bestätigt: Es braucht `version` des Meilensteins und die Aufgaben mit ihrer Version aus der Vorschau (leere Liste, wenn keine Aufgabe am Meilenstein hängt). Stimmt die Menge oder eine Version der Aufgaben nicht mehr, schreibt der Server nichts und antwortet 409 `VORSCHAU_VERALTET` mit der neuen Vorschau; ist die Version des Meilensteins veraltet, 409 `VERSION_KONFLIKT`. Erst dann wird das Datum geschrieben, danach alle Fristen in einer einzigen Anweisung (Frist = neues Datum + Versatz); jede Aufgabe bekommt ihre Version und ihren Feed-Eintrag. Die Beteiligten der nicht erledigten Aufgaben bekommen eine Benachrichtigung (Art `aufgabe_geaendert`, eine je Person, Push ohne Aufgabentext), nie die Person, die verschiebt.
+
+        Das gleiche Datum ist 400 `KEINE_AENDERUNG`, mehr als 500 betroffene Aufgaben sind 400 `ZU_VIELE_AUFGABEN`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg (Vorschau oder Verschiebung). 400 bei ungültiger Eingabe, `KEINE_AENDERUNG` oder `ZU_VIELE_AUFGABEN`. 401 ohne Anmeldung. 403 ohne eines der Rechte (`RECHT_FEHLT` bei fehlendem `aufgaben.bearbeiten`). 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `VERSION_KONFLIKT` oder `VORSCHAU_VERALTET`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinVerschieben"
+      responses:
+        "200":
+          description: "Die Vorschau (`trocken: true`) oder das Ergebnis der Verschiebung."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilensteinVerschiebung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` des Meilensteins ist veraltet (`VERSION_KONFLIKT`) oder die Aufgaben der Vorschau stimmen nicht mehr (`VORSCHAU_VERALTET`, mit der neuen Vorschau unter `vorschau`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/lagertage:
+    post:
+      operationId: legeLagerLagertagAn
+      summary: Lagertag anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Tag liegt zwischen Beginn und Ende des Lagers (400 `AUSSERHALB_LAGER`), je Datum gibt es einen (409 `TAG_VORHANDEN`), höchstens 100 je Lager (409 `LIMIT_ERREICHT`). Viele Tage auf einmal legt `POST /zeitplan/uebernehmen` an.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `TAG_VORHANDEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerLagertagAnlegen"
+      responses:
+        "201":
+          description: "Der neue Lagertag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerLagertag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Tag besteht schon (`TAG_VORHANDEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/lagertage/{lagertagId}:
+    patch:
+      operationId: aendereLagerLagertag
+      summary: Lagertag ändern
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Datum und Bezeichnung; das Datum gilt wie beim Anlegen (im Lager, je Datum einmal).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `TAG_VORHANDEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerLagertagAendern"
+      responses:
+        "200":
+          description: "Der geänderte Lagertag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerLagertag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Tag besteht schon (`TAG_VORHANDEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerLagertag
+      summary: Lagertag löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Anwesenheiten und Anfragen für diesen Tag bleiben bis zur endgültigen Löschung des Tages bestehen und gehen dann mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/tagesabschnitte:
+    post:
+      operationId: legeLagerTagesabschnittAn
+      summary: Tagesabschnitt anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Name ist je Lager einmal vergeben, ohne Beachtung der Gross- und Kleinschreibung (409 `ABSCHNITT_VORHANDEN`); höchstens 12 je Lager (409 `LIMIT_ERREICHT`). Ohne `reihenfolge` kommt der Abschnitt ans Ende. `zeit` ist der Beginn als «HH:MM», freiwillig.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `ABSCHNITT_VORHANDEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesabschnittAnlegen"
+      responses:
+        "201":
+          description: "Der neue Abschnitt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesabschnitt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Name besteht schon (`ABSCHNITT_VORHANDEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/tagesabschnitte/{abschnittId}:
+    patch:
+      operationId: aendereLagerTagesabschnitt
+      summary: Tagesabschnitt ändern
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Abschnitt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `ABSCHNITT_VORHANDEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Tagesabschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesabschnittAendern"
+      responses:
+        "200":
+          description: "Der geänderte Abschnitt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesabschnitt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Name besteht schon (`ABSCHNITT_VORHANDEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerTagesabschnitt
+      summary: Tagesabschnitt löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Anwesenheiten und Anfragen für diesen Abschnitt bleiben bis zur endgültigen Löschung bestehen und gehen dann mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Abschnitt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Tagesabschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -12194,6 +12896,8 @@ components:
         - status
         - notiz
         - frist
+        - fristMeilensteinId
+        - fristVersatzTage
         - stern
         - laufend
         - spaeterAb
@@ -12237,6 +12941,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist); ohne Angabe, aber mit `fristVersatzTage`, zählt der Beginn des Lagers."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -12358,6 +13071,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist). Verlangt `fristVersatzTage`; zusammen mit `frist` ungültig. Den Meilenstein gibt es im Lager (400 `MEILENSTEIN_UNBEKANNT`)."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -12417,6 +13139,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist). Verlangt `fristVersatzTage`; zusammen mit `frist` ungültig. Den Meilenstein gibt es im Lager (400 `MEILENSTEIN_UNBEKANNT`)."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -12473,6 +13204,391 @@ components:
                 minimum: 1
     # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerMeilenstein:
+      description: "Ein Meilenstein des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - titel
+        - datum
+        - art
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1."
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        art:
+          description: "Freie Bezeichnung der Art."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerLagertag:
+      description: "Ein Tag des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - datum
+        - label
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerTagesabschnitt:
+      description: "Ein Abschnitt des Tages, zum Beispiel Vormittag."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - zeit
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          description: "Beginn als HH:MM, freiwillig."
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerZeitplan:
+      description: "Der Zeitplan des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - meilensteine
+        - lagertage
+        - tagesabschnitte
+      properties:
+        meilensteine:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerMeilenstein"
+        lagertage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerLagertag"
+        tagesabschnitte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerTagesabschnitt"
+    LagerMeilensteinAnlegen:
+      description: "Neuer Meilenstein."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - datum
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        art:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerMeilensteinAendern:
+      description: "Titel und Art ändern; das Datum ändert nur die Verschiebung."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        art:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerLagertagAnlegen:
+      description: "Neuer Lagertag."
+      type: object
+      additionalProperties: false
+      required:
+        - datum
+      properties:
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerLagertagAendern:
+      description: "Lagertag ändern."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerTagesabschnittAnlegen:
+      description: "Neuer Tagesabschnitt."
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerTagesabschnittAendern:
+      description: "Tagesabschnitt ändern."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerZeitplanVorschlag:
+      description: "Was das Lager noch braucht; ändert nichts."
+      type: object
+      additionalProperties: false
+      required:
+        - lagertage
+        - tagesabschnitte
+      properties:
+        lagertage:
+          description: "Tage von Beginn bis Ende, die es noch nicht gibt."
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [datum, label]
+            properties:
+              datum:
+                type: string
+                format: date
+              label:
+                type: "null"
+        tagesabschnitte:
+          description: "Standard-Abschnitte, wenn das Lager keine hat."
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, zeit, reihenfolge]
+            properties:
+              name:
+                type: string
+              zeit:
+                type: "null"
+              reihenfolge:
+                type: integer
+    LagerZeitplanUebernehmen:
+      description: "Die bestätigten Tage und Abschnitte; mindestens einer."
+      type: object
+      additionalProperties: false
+      properties:
+        lagertage:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [datum]
+            properties:
+              datum:
+                type: string
+                format: date
+              label:
+                type: [string, "null"]
+                minLength: 1
+                maxLength: 100
+        tagesabschnitte:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 50
+              zeit:
+                type: [string, "null"]
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+              reihenfolge:
+                type: integer
+                minimum: 0
+                maximum: 1000
+    LagerZeitplanUebernommen:
+      description: "Neu angelegt."
+      type: object
+      additionalProperties: false
+      required:
+        - lagertage
+        - tagesabschnitte
+      properties:
+        lagertage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerLagertag"
+        tagesabschnitte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerTagesabschnitt"
+    LagerMeilensteinVerschieben:
+      description: "Vorschau (`trocken: true`) oder Bestätigung (`trocken: false`, mit den Aufgaben der Vorschau)."
+      type: object
+      additionalProperties: false
+      required:
+        - trocken
+        - datum
+        - version
+      properties:
+        trocken:
+          type: boolean
+        datum:
+          description: "Das neue Datum des Meilensteins."
+          type: string
+          format: date
+        version:
+          description: "Version des Meilensteins."
+          type: integer
+          minimum: 1
+        aufgaben:
+          description: "Pflicht bei `trocken: false`: die Aufgaben mit Version aus der Vorschau, leer, wenn keine betroffen ist."
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, version]
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+    LagerMeilensteinVerschiebung:
+      description: "Vorschau oder Ergebnis der Verschiebung."
+      type: object
+      additionalProperties: false
+      required:
+        - trocken
+        - meilenstein
+        - aufgaben
+      properties:
+        trocken:
+          type: boolean
+        meilenstein:
+          type: object
+          additionalProperties: false
+          required: [id, version, datumAlt, datumNeu]
+          properties:
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+              description: "Vorschau: die aktuelle Version; Verschiebung: die neue."
+            datumAlt:
+              type: string
+              format: date
+            datumNeu:
+              type: string
+              format: date
+        aufgaben:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, version, titel, status, fristAlt, fristNeu]
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                description: "Vorschau: die aktuelle Version; Verschiebung: die neue."
+              titel:
+                type: string
+              status:
+                $ref: "#/components/schemas/LagerAufgabeStatus"
+              fristAlt:
+                type: string
+                format: date
+              fristNeu:
+                type: string
+                format: date
     # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
