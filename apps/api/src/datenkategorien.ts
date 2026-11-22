@@ -230,6 +230,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerVorlagen: {
+    titel: "Private To-dos und Vorlagen im Lager",
+    zweck:
+      "Jede Person im Lager führt eigene To-dos, die nur sie sieht; auch die Lagerleitung und die Abteilungsleitung lesen sie nie. Die Abteilungsleitung pflegt Vorlagen für Aufgaben und Packlisten; die Lagerleitung wendet eine Vorlage in einem Lager an, und es entstehen daraus gewöhnliche Aufgaben und Punkte des Lagers.",
+    frist: `Die To-dos, bis die Person sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Vorlagen, bis die Abteilungsleitung sie löscht. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
@@ -613,6 +621,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "notiz",
       "frist",
+      "frist_meilenstein_id",
+      "frist_versatz_tage",
       "stern",
       "laufend",
       "spaeter_ab",
@@ -625,6 +635,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Zeitplan (#374): Termine und Bezeichnungen des Lagers, keine Personendaten ausser den Spalten der Basis
+  meilenstein: {
+    lager: [...LAGER_BASIS_SPALTEN, "titel", "datum", "art"],
+  },
+  lagertag: {
+    lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  tagesabschnitt: {
+    lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],
   },
   // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
   aufgabe_checkpunkt: {
@@ -835,6 +855,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   info_abschnitt_datei: {
     lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
+  },
+  todo_privat: {
+    lagerVorlagen: [
+      "id",
+      "lager_id",
+      "person_id",
+      "text",
+      "erledigt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  vorlage: {
+    lagerVorlagen: [
+      "id",
+      "abteilung_id",
+      "art",
+      "name",
+      "inhalt",
+      "erstellt_am",
+      "erstellt_von",
+      "geaendert_am",
+      "geaendert_von",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

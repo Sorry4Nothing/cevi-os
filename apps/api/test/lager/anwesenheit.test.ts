@@ -145,13 +145,32 @@ async function anfrage(
 
 const A = (id = lagerId) => `/api/v1/lager/${id}/anwesenheit`;
 const leiter = () => konten.lagerleitung;
-// Ein Lagertag mit drei Abschnitten (die Tabellen kommen mit #374; hier genügen IDs)
-const neuerTag = () => ({
-  tag: randomUUID(),
-  abschnitte: [randomUUID(), randomUUID(), randomUUID()],
-});
+// Ein Lagertag mit drei Abschnitten, wirklich im Lager angelegt (Fremdschlüssel, #374); je Aufruf ein anderes Datum
+let tagZaehler = 0;
+async function neuerTag(id = lagerId) {
+  const datum = new Date(Date.UTC(2027, 6, 10 + tagZaehler++))
+    .toISOString()
+    .slice(0, 10);
+  const [tag] = await db
+    .insert(schema.lagertag)
+    .values({ lagerId: id, datum, lagerSeq: 0 })
+    .returning({ id: schema.lagertag.id });
+  const abschnitte = await db
+    .insert(schema.tagesabschnitt)
+    .values(
+      [0, 1, 2].map((i) => ({
+        lagerId: id,
+        name: `Abschnitt ${randomUUID().slice(0, 8)}`,
+        reihenfolge: i,
+        lagerSeq: 0,
+      })),
+    )
+    .returning({ id: schema.tagesabschnitt.id });
+  return { tag: tag!.id, abschnitte: abschnitte.map((a) => a.id) };
+}
+type TagMitAbschnitten = Awaited<ReturnType<typeof neuerTag>>;
 const felder = (
-  t: ReturnType<typeof neuerTag>,
+  t: TagMitAbschnitten,
   wert: "A" | "F" | "O",
   nur = t.abschnitte,
 ) =>
@@ -274,7 +293,7 @@ describe("Rechte je Lager-Persona", () => {
   test.each(LAGER_PERSONAS)(
     "%s: für andere eintragen, Frist, Anfragen lesen",
     async (p) => {
-      const t = neuerTag();
+      const t = await neuerTag();
       const schreiben = await anfrage(konten[p], "PUT", A(), {
         eintraege: [
           {
@@ -323,7 +342,7 @@ describe("Rechte je Lager-Persona", () => {
   });
 
   test("die Abteilungsleitung ohne Mitgliedschaft liest und schreibt für andere, trägt aber nichts für sich ein", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const a = await anfrage(konten.abteilungsleitung, "PUT", `${A()}/eigene`, {
       eintraege: felder(t, "A"),
     });
@@ -343,7 +362,7 @@ describe("Rechte je Lager-Persona", () => {
 
 describe("Team: nur eigene, offene Felder", () => {
   test("trägt offene Felder ein; dieselbe Anfrage wiederholt ist folgenlos", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const a = await eigene(konten.team, felder(t, "A"));
     expect(a.status).toBe(200);
     expect(a.body.eintraege).toHaveLength(3);
@@ -365,7 +384,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("ein eingetragenes Feld ändert das Team nicht: 409 ANFRAGE_NOETIG, nichts wird geschrieben", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     await eigene(konten.team, felder(t, "A", [t.abschnitte[0]!]));
     // Ganzer Tag: Der erste Abschnitt ist gesperrt, die anderen beiden bleiben deshalb offen (alles oder nichts)
     const a = await eigene(konten.team, felder(t, "F"));
@@ -389,7 +408,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("«offen» auf ein offenes Feld schreibt nichts", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const a = await eigene(konten.team, felder(t, "O"));
     expect(a.status).toBe(200);
     expect(a.body.eintraege).toEqual([]);
@@ -399,7 +418,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("keine fremden Personen, keine unbekannten Felder, keine Doppelten, höchstens 100", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const fremd = await anfrage(konten.team, "PUT", `${A()}/eigene`, {
       eintraege: [{ ...felder(t, "A")[0], personId: konten.lesen.id }],
     });
@@ -438,7 +457,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("das Team kann nichts löschen: es gibt keine Löschroute", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     await eigene(konten.team, felder(t, "A"));
     for (const pfad of [A(), `${A()}/eigene`, `${A()}/anfragen`]) {
       for (const methode of ["DELETE", "PATCH"]) {
@@ -452,7 +471,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("zwei gleichzeitige Eintragungen derselben Felder: Eine gewinnt, die andere nur mit gleichem Wert", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const ergebnisse = await Promise.all([
       eigene(konten.team, felder(t, "A")),
       eigene(konten.team, felder(t, "F")),
@@ -464,7 +483,7 @@ describe("Team: nur eigene, offene Felder", () => {
   });
 
   test("das Team sieht in seiner Antwort nur eigene Felder", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     await alsLeitung([{ personId: konten.lesen.id, ...felder(t, "A")[0] }]);
     await eigene(konten.team, felder(t, "A", [t.abschnitte[1]!]));
     const a = await anfrage(
@@ -481,7 +500,7 @@ describe("Team: nur eigene, offene Felder", () => {
 
 describe("Lagerleitung: für alle, mit Versionen", () => {
   test("trägt für Leitende und Teilnehmende ein, überschreibt mit der Version, öffnet ein Feld wieder", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const kind = randomUUID();
     const a = await alsLeitung([
       { personId: konten.team.id, ...felder(t, "A", [t.abschnitte[0]!])[0] },
@@ -546,7 +565,7 @@ describe("Lagerleitung: für alle, mit Versionen", () => {
   });
 
   test("ein Konflikt nimmt die ganze Anfrage zurück", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const team = konten.team.id;
     await alsLeitung([
       { personId: team, ...felder(t, "A", [t.abschnitte[0]!])[0] },
@@ -562,7 +581,7 @@ describe("Lagerleitung: für alle, mit Versionen", () => {
   });
 
   test("Eingaben: genau eine von personId und teilnehmerId, Mitglied des Lagers, strikt", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const f = felder(t, "A", [t.abschnitte[0]!])[0];
     expect((await alsLeitung([{ ...f }])).status).toBe(400);
     expect(
@@ -595,7 +614,7 @@ describe("Lagerleitung: für alle, mit Versionen", () => {
   });
 
   test("Sammeloperation: ein ganzer Tag mehrerer Personen in einem Aufruf", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const a = await alsLeitung(
       [konten.team.id, konten.leitung.id, konten.lesen.id].flatMap((personId) =>
         felder(t, "A").map((f) => ({ personId, ...f })),
@@ -617,7 +636,7 @@ describe("Frist", () => {
   });
 
   test("nach der Frist trägt das Team nicht mehr direkt ein; die Lagerleitung schon", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const gestern = new Date(Date.now() - 86_400_000).toISOString();
     const gesetzt = await anfrage(leiter(), "PUT", `${A()}/frist`, {
       frist: gestern,
@@ -647,7 +666,7 @@ describe("Frist", () => {
   });
 
   test("vor der Frist geht es direkt, ohne Frist auch; die Änderung wird protokolliert", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const morgen = new Date(Date.now() + 86_400_000).toISOString();
     await anfrage(leiter(), "PUT", `${A()}/frist`, { frist: morgen });
     expect(
@@ -665,7 +684,7 @@ describe("Frist", () => {
     expect(log.length).toBeGreaterThan(0);
     expect(log.at(-1)).toMatchObject({ akteurId: konten.lagerleitung.id });
     await anfrage(leiter(), "PUT", `${A()}/frist`, { frist: null });
-    const u = neuerTag();
+    const u = await neuerTag();
     expect(
       (await eigene(konten.team, felder(u, "F", [u.abschnitte[0]!]))).status,
     ).toBe(200);
@@ -685,7 +704,7 @@ describe("Frist", () => {
   });
 
   test("Anfragen sind nach der Frist auch für offene Felder möglich", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const gestern = new Date(Date.now() - 86_400_000).toISOString();
     await anfrage(leiter(), "PUT", `${A()}/frist`, { frist: gestern });
     const a = await anfrage(konten.leitung, "POST", `${A()}/anfragen`, {
@@ -697,7 +716,7 @@ describe("Frist", () => {
 
 describe("Anfragen und Entscheid", () => {
   async function gesperrtesFeld(personKonto = konten.team) {
-    const t = neuerTag();
+    const t = await neuerTag();
     await eigene(personKonto, felder(t, "A"));
     return t;
   }
@@ -767,7 +786,7 @@ describe("Anfragen und Entscheid", () => {
   });
 
   test("keine Anfrage für ein offenes Feld, für den gleichen Wert oder doppelt", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const offen = await anfrage(konten.team, "POST", `${A()}/anfragen`, {
       eintraege: felder(t, "A", [t.abschnitte[0]!]),
     });
@@ -974,13 +993,14 @@ describe("Anfragen und Entscheid", () => {
       ).toBe(400);
     }
     // Eine Anfrage aus einem anderen Lager gibt es hier nicht
+    const tf = await neuerTag(fremdLagerId);
     const [andere] = await db
       .insert(schema.anwesenheitAnfrage)
       .values({
         lagerId: fremdLagerId,
         personId: konten.team.id!,
-        lagertagId: randomUUID(),
-        tagesabschnittId: randomUUID(),
+        lagertagId: tf.tag,
+        tagesabschnittId: tf.abschnitte[0]!,
         wert: "F",
         lagerSeq: 0,
       })
@@ -1037,7 +1057,7 @@ describe("Anfragen und Entscheid", () => {
       personId: konten.lagerleitung.id!,
       rolle: "lagerleitung",
     });
-    const t = neuerTag();
+    const t = await neuerTag(l!.id);
     for (const [i, abschnitt] of t.abschnitte.entries()) {
       await db.insert(schema.anwesenheitAnfrage).values({
         lagerId: l!.id,
@@ -1097,8 +1117,8 @@ describe("Matrix lesen und Zusammenfassung", () => {
     const personen = await Promise.all(
       [1, 2, 3, 4].map(() => wegwerfMitglied("team", l!.id)),
     );
-    const t1 = neuerTag();
-    const t2 = neuerTag();
+    const t1 = await neuerTag(l!.id);
+    const t2 = await neuerTag(l!.id);
     const kinder = [randomUUID(), randomUUID()];
     await anfrage(leiter(), "PUT", A(l!.id), {
       eintraege: [
@@ -1116,11 +1136,12 @@ describe("Matrix lesen und Zusammenfassung", () => {
       ].slice(0, 100),
     });
     // Ein Feld im fremden Lager erscheint nie
+    const tf = await neuerTag(fremdLagerId);
     await db.insert(schema.anwesenheit).values({
       lagerId: fremdLagerId,
       personId: konten.fremdeAbteilung.id!,
-      lagertagId: t1.tag,
-      tagesabschnittId: t1.abschnitte[0]!,
+      lagertagId: tf.tag,
+      tagesabschnittId: tf.abschnitte[0]!,
       wert: "A",
       lagerSeq: 0,
     });
@@ -1189,7 +1210,7 @@ describe("Matrix lesen und Zusammenfassung", () => {
   });
 
   test("Datenbanklast: die Zahl der Abfragen hängt nicht von der Zahl der Zeilen ab", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const zaehle = async (pfad: string) => {
       const vor = abfragen;
       expect((await anfrage(leiter(), "GET", pfad)).status).toBe(200);
@@ -1214,7 +1235,7 @@ describe("Matrix lesen und Zusammenfassung", () => {
 
 describe("abgeschlossenes Lager", () => {
   test("lesen geht, jede schreibende Route ist 409 LAGER_GESCHLOSSEN", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     expect((await anfrage(leiter(), "GET", A(geschlossenId))).status).toBe(200);
     expect(
       (await anfrage(konten.team, "GET", `${A(geschlossenId)}/eigene`)).status,
@@ -1265,7 +1286,7 @@ describe("abgeschlossenes Lager", () => {
 
 describe("Änderungsfeed", () => {
   test("Anwesenheit erscheint im Feed für die Lagerleitung und Leitung, nicht für das Team", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const vor = await anfrage(
       leiter(),
       "GET",
@@ -1312,8 +1333,8 @@ describe("Änderungsfeed", () => {
 
 describe("anwesenheitFuerTag (Lesefunktion für Schichtplan und Tagesseite)", () => {
   test("liefert A und F eines Tages, nie O, nie andere Tage oder Lager", async () => {
-    const t = neuerTag();
-    const u = neuerTag();
+    const t = await neuerTag();
+    const u = await neuerTag();
     const kind = randomUUID();
     await alsLeitung([
       { personId: konten.team.id, ...felder(t, "A", [t.abschnitte[0]!])[0] },
@@ -1338,11 +1359,12 @@ describe("anwesenheitFuerTag (Lesefunktion für Schichtplan und Tagesseite)", ()
       },
     ]);
     expect(o.status).toBe(200);
+    const tf = await neuerTag(fremdLagerId);
     await db.insert(schema.anwesenheit).values({
       lagerId: fremdLagerId,
       personId: konten.fremdeAbteilung.id!,
-      lagertagId: t.tag,
-      tagesabschnittId: t.abschnitte[0]!,
+      lagertagId: tf.tag,
+      tagesabschnittId: tf.abschnitte[0]!,
       wert: "A",
       lagerSeq: 0,
     });
@@ -1370,13 +1392,13 @@ describe("anwesenheitFuerTag (Lesefunktion für Schichtplan und Tagesseite)", ()
         },
       ]),
     );
-    expect(await anwesenheitFuerTag(db, fremdLagerId, t.tag)).toHaveLength(1);
+    expect(await anwesenheitFuerTag(db, fremdLagerId, tf.tag)).toHaveLength(1);
   });
 });
 
 describe("Datenbank", () => {
   test("Anwesende: genau eine der beiden Angaben; ein Feld nur einmal", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const roh = (werte: Record<string, unknown>) =>
       db.insert(schema.anwesenheit).values({
         lagerId,
@@ -1407,7 +1429,7 @@ describe("Datenbank", () => {
   });
 
   test("eine offene Anfrage je Feld; Status und Entscheidzeit gehören zusammen", async () => {
-    const t = neuerTag();
+    const t = await neuerTag();
     const roh = (werte: Record<string, unknown>) =>
       db.insert(schema.anwesenheitAnfrage).values({
         lagerId,
@@ -1442,7 +1464,7 @@ describe("Datenbank", () => {
         bis: "2027-07-24",
       })
       .returning({ id: schema.lager.id });
-    const t = neuerTag();
+    const t = await neuerTag(l!.id);
     await db.insert(schema.anwesenheit).values({
       lagerId: l!.id,
       teilnehmerId: randomUUID(),

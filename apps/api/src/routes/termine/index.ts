@@ -7,6 +7,7 @@ import { erstelleKalenderLinkRouten } from "./kalender-link.js";
 import { erstelleKategorieZuordnungenRouten } from "./kategorie-zuordnungen.js";
 import { erstelleMeinRouten } from "./mein.js";
 import { erstelleVorschlaegeRouten } from "./vorschlaege.js";
+import { erstelleWarnungenRouten } from "./warnungen.js";
 
 // Einstieg der Termine (Epic #430, Gerüst #431). app.ts hängt ihn einmal bei /api/v1 ein, hinter der Sitzung; /api/v1/admin/* erbt dort den zweiten Faktor. Die Routen tragen darum den vollen Pfad ab /api/v1: .get("/termine/mein", …) und .get("/admin/termine/warnungen", …).
 //
@@ -21,6 +22,7 @@ export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   return new Hono<TermineEnv>()
     .route("/", erstelleMeinRouten({ db, fcm }))
     .route("/", erstelleAdminAnlaesseRouten({ db }))
+    .route("/", erstelleWarnungenRouten({ db }))
     .route("/", erstelleKalenderLinkRouten({ db }))
     .route("/", erstelleKategorieZuordnungenRouten({ db }))
     .route("/", erstelleVorschlaegeRouten({ db, fcm }));
