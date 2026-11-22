@@ -13966,6 +13966,113 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/kategorie-zuordnungen:
+    get:
+      operationId: listeKategorieZuordnungen
+      summary: Zuordnungen von Outlook-Kategorien zu Tags
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Abweichungen der eigenen Abteilung, in denen eine Outlook-Kategorie einen Tag meint, der nicht genau so heisst. Sortiert nach Kategorie ohne Gross-/Kleinschreibung, höchstens 500, kein Seitenwechsel. Eine Abfrage (Zuordnung mit Name und Typ des Tags).
+
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Zuordnungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeKategorieZuordnung
+      summary: Kategorie einem Tag zuordnen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Ordnet eine Outlook-Kategorie einem Tag der Abteilung zu. Gibt es die Kategorie schon (ohne Gross-/Kleinschreibung), ersetzt die neue Zeile die bisherige samt Schreibweise. Die Zuordnung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten), nicht in der Anfrage; die Termine werden hier nicht neu zugeordnet. Prüfprotokoll `kategorie_zugeordnet` mit der Tag-ID, nie dem Namen.
+
+        Kategorie 1 bis 100 Zeichen, ohne Steuerzeichen, Leerzeichen am Rand fallen weg.
+
+        Statuscodes: 201 neu angelegt, 200 bestehende ersetzt. 400 bei ungültiger Eingabe oder mit Code `TAG_UNBEKANNT`, wenn der Tag nicht zur Abteilung gehört. 403 für alle anderen. 409 mit Code `ZUORDNUNGEN_VOLL` bei mehr als 500 Zeilen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KategorieZuordnungSetzen"
+      responses:
+        "200":
+          description: Eine bestehende Zuordnung derselben Kategorie ist ersetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "201":
+          description: Zuordnung angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt schon 500 Zuordnungen (Code `ZUORDNUNGEN_VOLL`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kategorie-zuordnungen/{id}:
+    delete:
+      operationId: loescheKategorieZuordnung
+      summary: Zuordnung entfernen
+      description: |
+        Nur die Abteilungsleitung. Entfernt die Zuordnung; die Kategorie gilt beim nächsten Kalender-Abgleich (bis 5 Minuten) wieder nur, wenn ein Tag genau so heisst. Prüfprotokoll `kategorie_entfernt` mit der Tag-ID.
+
+        Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn die Zuordnung nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Zuordnung (UUID), in der Abteilung der Person.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Entfernt.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termine/mein:
     get:
@@ -22853,6 +22960,63 @@ components:
           minimum: 1
           description: Zahl der kommenden Termine mit dieser Kategorie.
     # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    KategorieZuordnungListe:
+      type: object
+      required:
+        - zuordnungen
+      properties:
+        zuordnungen:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/KategorieZuordnung"
+    KategorieZuordnung:
+      type: object
+      required:
+        - id
+        - kategorie
+        - tagId
+        - tagName
+        - tagTyp
+      properties:
+        id:
+          type: string
+          format: uuid
+        kategorie:
+          type: string
+          description: Name der Outlook-Kategorie, wie er gespeichert ist.
+        tagId:
+          type: string
+          format: uuid
+        tagName:
+          type: string
+        tagTyp:
+          type: string
+          enum: [stufe, funktion, team, lager]
+    KategorieZuordnungSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - kategorie
+        - tagId
+      properties:
+        kategorie:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ohne Steuerzeichen; Leerzeichen am Rand fallen weg.
+        tagId:
+          type: string
+          format: uuid
+          description: Tag der eigenen Abteilung.
+    KategorieZuordnungId:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
     # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     TerminMeinListe:
       type: object
