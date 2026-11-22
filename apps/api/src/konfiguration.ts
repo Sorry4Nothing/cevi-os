@@ -4,6 +4,13 @@ import { z } from "zod";
 const freiwillig = <T extends z.ZodType>(schema: T) =>
   z.preprocess((wert) => (wert === "" ? undefined : wert), schema.optional());
 
+// Öffentliche Angaben mit fester Vorgabe; eine leere Variable (compose gibt sie so weiter) gilt als nicht gesetzt
+const mitVorgabe = (schema: z.ZodType<string>, vorgabe: string) =>
+  z.preprocess(
+    (wert) => (wert === "" ? undefined : wert),
+    schema.default(vorgabe),
+  );
+
 // Medienspeicher (#335): ohne alle fünf startet die API ohne Medien, mit einigen nicht
 const MEDIEN_PFLICHT = [
   "MEDIEN_S3_ENDPOINT",
@@ -51,14 +58,16 @@ const schema = z.object({
   WEBSITE_AUSGABE_PFAD: freiwillig(z.string().min(1)),
   WEBSITE_ABTEILUNG_ID: freiwillig(z.uuid()),
   WEBSITE_BASIS_URL: basisUrl(/^https?$/),
-  // Verantwortliche Stelle und ihre E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; beide sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
-  VERANTWORTLICHE_STELLE: z
-    .string()
-    .trim()
-    .min(1)
-    .max(200)
-    .default("Abteilungsleitung Cevi Stäfa-Hombi"),
-  KONTAKT_EMAIL: z.email().default("cevi-al@cevi-staefa-hombi.ch"),
+  // Verantwortliche Stelle, ihre Anschrift und E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; alle drei sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
+  VERANTWORTLICHE_STELLE: mitVorgabe(
+    z.string().trim().min(1).max(200),
+    "Abteilungsleitung Cevi Stäfa-Hombi",
+  ),
+  VERANTWORTLICHE_ADRESSE: mitVorgabe(
+    z.string().trim().min(1).max(200),
+    "Oetwilerstrasse 35, 8634 Hombrechtikon",
+  ),
+  KONTAKT_EMAIL: mitVorgabe(z.email(), "cevi-al@cevi-staefa-hombi.ch"),
   // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
   KONTAKT_TELEFON: freiwillig(
     z

@@ -52,7 +52,8 @@ footer {
 
 h1,
 h2,
-h3 {
+h3,
+h4 {
   color: var(--akzent);
   line-height: 1.25;
 }
@@ -69,6 +70,11 @@ h2 {
 h3 {
   margin-top: 1.5rem;
   font-size: 1.15rem;
+}
+
+h4 {
+  margin-top: 1.25rem;
+  font-size: 1.05rem;
 }
 
 a {
@@ -127,4 +133,8 @@ dd {
   padding: 0.25rem 1rem 1rem;
   border: 1px solid var(--rand);
   border-radius: 0.5rem;
+}
+
+code {
+  overflow-wrap: anywhere;
 }

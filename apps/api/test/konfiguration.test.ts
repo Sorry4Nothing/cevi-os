@@ -43,6 +43,7 @@ test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () =
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
     VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
+    VERANTWORTLICHE_ADRESSE: "Oetwilerstrasse 35, 8634 Hombrechtikon",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
   });
 });
@@ -124,24 +125,37 @@ test("FCM_SCHLUESSEL_DATEI ist freiwillig und wird durchgereicht", () => {
   );
 });
 
-test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL haben feste Vorgaben, die die Umgebung überschreibt und gültig sein muss", () => {
+test("VERANTWORTLICHE_STELLE, VERANTWORTLICHE_ADRESSE und KONTAKT_EMAIL haben feste Vorgaben, die die Umgebung überschreibt und gültig sein muss", () => {
   const leer = ladeKonfiguration(GUELTIG);
   expect(leer.VERANTWORTLICHE_STELLE).toBe(
     "Abteilungsleitung Cevi Stäfa-Hombi",
   );
+  expect(leer.VERANTWORTLICHE_ADRESSE).toBe(
+    "Oetwilerstrasse 35, 8634 Hombrechtikon",
+  );
   expect(leer.KONTAKT_EMAIL).toBe("cevi-al@cevi-staefa-hombi.ch");
+  // Compose gibt eine leere Variable als leere Zeichenkette weiter: Sie gilt als nicht gesetzt
+  expect(
+    ladeKonfiguration({ ...GUELTIG, VERANTWORTLICHE_ADRESSE: "" })
+      .VERANTWORTLICHE_ADRESSE,
+  ).toBe("Oetwilerstrasse 35, 8634 Hombrechtikon");
   const mit = ladeKonfiguration({
     ...GUELTIG,
     VERANTWORTLICHE_STELLE: "Cevi Beispiel",
+    VERANTWORTLICHE_ADRESSE: "Beispielweg 1, 8000 Beispielort",
     KONTAKT_EMAIL: "kontakt@example.org",
   });
   expect(mit.VERANTWORTLICHE_STELLE).toBe("Cevi Beispiel");
+  expect(mit.VERANTWORTLICHE_ADRESSE).toBe("Beispielweg 1, 8000 Beispielort");
   expect(mit.KONTAKT_EMAIL).toBe("kontakt@example.org");
   expect(meldung({ ...GUELTIG, KONTAKT_EMAIL: "keine-adresse" })).toBe(
     "Fehlende oder ungültige Umgebungsvariablen: KONTAKT_EMAIL",
   );
   expect(meldung({ ...GUELTIG, VERANTWORTLICHE_STELLE: "  " })).toBe(
     "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_STELLE",
+  );
+  expect(meldung({ ...GUELTIG, VERANTWORTLICHE_ADRESSE: "  " })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_ADRESSE",
   );
 });
 
