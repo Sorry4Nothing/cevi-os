@@ -19,7 +19,7 @@ import {
   legeZeileAn,
   legeZeilenAn,
   loescheZeile,
-  setzeZeilen,
+  loescheZeilen,
   type Tx,
 } from "../../lager/sync.js";
 import {
@@ -333,10 +333,8 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
                   isNull(zimmerZuordnung.geloeschtAm),
                 ),
               );
-            await setzeZeilen(tx, zimmerZuordnung, k, {
+            await loescheZeilen(tx, zimmerZuordnung, k, {
               ids: ids.map((z) => z.id),
-              werte: {},
-              loeschen: true,
             });
           });
           return c.body(null, 204);
@@ -427,10 +425,8 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
                     ),
                   ),
                 );
-              const weg = await setzeZeilen(tx, zimmerZuordnung, k, {
+              const weg = await loescheZeilen(tx, zimmerZuordnung, k, {
                 ids: treffer.map((z) => z.id),
-                werte: {},
-                loeschen: true,
               });
               return {
                 entfernt: weg.length,

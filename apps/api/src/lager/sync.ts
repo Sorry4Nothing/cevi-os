@@ -372,17 +372,38 @@ export async function legeZeilenAn<T extends LagerSpaltenTabelle>(
 }
 
 // Setzt dieselben Werte auf alle genannten Zeilen des Lagers, ohne Versionsprüfung: für Zustände, die jeder Schreiber auf denselben Wert setzt (Abzählen), nicht für Änderungen am Inhalt einer Zeile. Gelöschte und fremde Zeilen werden übergangen; Aufrufer, die das nicht wollen, prüfen vorher. Zeilen, die schon stehen, wie sie sollen, filtert der Aufrufer heraus (keine neue Version ohne Änderung). Liefert die geänderten Zeilen
-export async function setzeZeilen<T extends LagerSpaltenTabelle>(
+export const setzeZeilen = <T extends LagerSpaltenTabelle>(
   tx: Tx,
   tabelle: T,
   k: SchreibKontext,
-  p: {
-    ids: string[];
-    werte: AendereWerte<T>;
-    // Soft-Delete der Zeilen (wie loescheZeile, ohne Versionsprüfung): Der Feed meldet «geloescht»
-    loeschen?: boolean;
-  },
+  p: { ids: string[]; werte: AendereWerte<T> },
+) => schreibeZeilen(tx, tabelle, k, p.ids, p.werte, "geaendert");
+
+// Soft-Delete mehrerer Zeilen (#387), sonst wie setzeZeilen: ohne Versionsprüfung, gelöschte und fremde Zeilen werden übergangen, der Feed meldet «geloescht». Für abhängige Zeilen, die mit ihrer Hauptzeile gehen (Zuordnungen einer Gruppe); eine einzelne Zeile mit Versionsprüfung löscht loescheZeile
+export const loescheZeilen = <T extends LagerSpaltenTabelle>(
+  tx: Tx,
+  tabelle: T,
+  k: SchreibKontext,
+  p: { ids: string[] },
+) =>
+  schreibeZeilen(
+    tx,
+    tabelle,
+    k,
+    p.ids,
+    { geloeschtAm: sql`now()`, geloeschtVon: k.personId },
+    "geloescht",
+  );
+
+async function schreibeZeilen<T extends LagerSpaltenTabelle>(
+  tx: Tx,
+  tabelle: T,
+  k: SchreibKontext,
+  alleIds: string[],
+  werte: Record<string, unknown>,
+  art: SchreibArt,
 ): Promise<T["$inferSelect"][]> {
+  const p = { ids: alleIds, werte };
   if (p.ids.length === 0) return [];
   const name = pruefeAnmeldung(tabelle);
   // Sperre zuerst: Danach ändert kein anderer Schreiber die Zeilen, die gezählt werden, und die Folgenummern haben keine Lücke
@@ -414,9 +435,6 @@ export async function setzeZeilen<T extends LagerSpaltenTabelle>(
       version: sql`${tabelle.version} + 1`,
       geaendertAm: sql`now()`,
       geaendertVon: k.personId,
-      ...(p.loeschen
-        ? { geloeschtAm: sql`now()`, geloeschtVon: k.personId }
-        : {}),
       lagerSeq: sql`${erste}::bigint + array_position(array[${reihe}], ${tabelle.id}) - 1`,
     } as never)
     .where(
@@ -431,7 +449,7 @@ export async function setzeZeilen<T extends LagerSpaltenTabelle>(
     tx,
     name,
     k,
-    p.loeschen ? "geloescht" : "geaendert",
+    art,
     neu as Zeile[],
     brauchtVorher ? new Map(treffer.map((z) => [z.id, z])) : undefined,
   )) as T["$inferSelect"][];
