@@ -89,6 +89,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["App activity: Other actions"],
   },
+  terminvorschlaege: {
+    titel: "Terminvorschläge",
+    zweck:
+      "Berechtigte Personen schlagen der Abteilungsleitung einen Termin vor, mit Titel, Zeit, Ort, Beschreibung, gewünschten Kategorien und einer Bemerkung. Die Abteilungsleitung entscheidet; in Outlook trägt sie den Termin von Hand ein. Die vorschlagende Person sieht ihre Vorschläge mit dem Stand und kann einen offenen zurückziehen. Der Push an die Abteilungsleitung nennt weder Titel noch Namen.",
+    frist: `Bis die Leitung den Vorschlag löscht oder die vorschlagende Person ihn zurückzieht. Mit dem Konto verschwindet nur die Angabe, wer vorgeschlagen oder entschieden hat. ${AUF_ANFRAGE}`,
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -177,7 +185,7 @@ export const KATEGORIEN = {
   lagerPinnwand: {
     titel: "Pinnwand im Lager",
     zweck:
-      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann eine Umfrage hängen: Die Antworten, welche Person welche Antwort gewählt hat und optional bis wann sie offen ist. Die Namen der Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag mit einem von fünf festen Zeichen reagieren; es zählen nur die Anzahl und die eigene Reaktion.",
     frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -219,6 +227,14 @@ export const KATEGORIEN = {
     zweck:
       "Die Packliste und die Infos des Lagers bereitstellen. Die Lagerleitung pflegt die Vorlage der Packliste und die Info-Abschnitte (Text, Links und Verknüpfungen auf Dateien im SharePoint der Abteilung); einzelne Punkte und Abschnitte können der Lagerleitung vorbehalten sein. Jede Person hat ihre eigene Kopie der Packliste: Gespeichert sind nur ihre Abweichungen von der Vorlage (abgehakt, entfernt) und ihre eigenen Punkte, die nur sie sieht.",
     frist: `Die Vorlage und die Infos, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Die Abweichungen und eigenen Punkte einer Person, bis sie sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerVorlagen: {
+    titel: "Private To-dos und Vorlagen im Lager",
+    zweck:
+      "Jede Person im Lager führt eigene To-dos, die nur sie sieht; auch die Lagerleitung und die Abteilungsleitung lesen sie nie. Die Abteilungsleitung pflegt Vorlagen für Aufgaben und Packlisten; die Lagerleitung wendet eine Vorlage in einem Lager an, und es entstehen daraus gewöhnliche Aufgaben und Punkte des Lagers.",
+    frist: `Die To-dos, bis die Person sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Vorlagen, bis die Abteilungsleitung sie löscht. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
@@ -428,6 +444,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
   },
+  termin_vorschlag: {
+    terminvorschlaege: [
+      "id",
+      "abteilung_id",
+      "vorgeschlagen_von",
+      "titel",
+      "ganztaegig",
+      "beginn",
+      "ende",
+      "tag_von",
+      "tag_bis",
+      "ort",
+      "beschreibung",
+      "bemerkung",
+      "tag_ids",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+      "begruendung",
+      "erstellt_am",
+    ],
+  },
   programm_eckdaten: {
     programme: [
       "stufe_id",
@@ -599,6 +637,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "notiz",
       "frist",
+      "frist_meilenstein_id",
+      "frist_versatz_tage",
       "stern",
       "laufend",
       "spaeter_ab",
@@ -611,6 +651,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Zeitplan (#374): Termine und Bezeichnungen des Lagers, keine Personendaten ausser den Spalten der Basis
+  meilenstein: {
+    lager: [...LAGER_BASIS_SPALTEN, "titel", "datum", "art"],
+  },
+  lagertag: {
+    lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  tagesabschnitt: {
+    lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],
   },
   // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
   aufgabe_checkpunkt: {
@@ -674,6 +724,42 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "beitrag_id",
       "datei_id",
       "reihenfolge",
+    ],
+  },
+  // Umfragen und Reaktionen (#382): Stimmen und Reaktionen gehören einer Person (person_id); die Reaktion ist ein fester Schlüssel, kein Emoji-Zeichen
+  umfrage: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "mehrfach",
+      "schliesst_am",
+      "geschlossen",
+      "namen_fuer_team",
+    ],
+  },
+  umfrage_option: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "text",
+      "reihenfolge",
+    ],
+  },
+  umfrage_stimme: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "option_id",
+      "person_id",
+    ],
+  },
+  reaktion: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "ziel_typ",
+      "ziel_id",
+      "person_id",
+      "emoji",
     ],
   },
   // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
@@ -785,6 +871,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   info_abschnitt_datei: {
     lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
+  },
+  todo_privat: {
+    lagerVorlagen: [
+      "id",
+      "lager_id",
+      "person_id",
+      "text",
+      "erledigt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  vorlage: {
+    lagerVorlagen: [
+      "id",
+      "abteilung_id",
+      "art",
+      "name",
+      "inhalt",
+      "erstellt_am",
+      "erstellt_von",
+      "geaendert_am",
+      "geaendert_von",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

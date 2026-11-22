@@ -35,6 +35,7 @@ const FEHLER_TEXT = {
   KEIN_MITGLIED:
     "Verantwortliche und Unterstützung müssen Mitglieder dieses Lagers sein.",
   RESSORT_UNBEKANNT: "Das Ressort gibt es in diesem Lager nicht.",
+  MEILENSTEIN_UNBEKANNT: "Den Meilenstein gibt es in diesem Lager nicht.",
 } as const;
 const pruefungAntwort = (fehler: NonNullable<Pruefung>) => ({
   code: fehler.fehler,
