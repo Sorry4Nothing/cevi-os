@@ -374,6 +374,13 @@
       "breakpoints": true
     },
     {
+      "idx": 88,
+      "version": "7",
+      "when": 1793552800000,
+      "tag": "0088_lager_infos",
+      "breakpoints": true
+    },
+    {
       "idx": 100,
       "version": "7",
       "when": 1793553000000,
