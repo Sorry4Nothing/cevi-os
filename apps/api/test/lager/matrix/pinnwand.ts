@@ -90,10 +90,12 @@ export const ZEILEN: LagerMatrix = {
       return { beitragIds: [zeile!.id] };
     },
     erwartet: gleichLesen(204),
+    auchGeschlossen: true,
   },
   "PUT /api/v1/lager/:id/pinnwand/:beitragId/gesehen": {
     url: async (w, z) => `${await neuerBeitrag(w, z)}/gesehen`,
     erwartet: gleichLesen(204),
+    auchGeschlossen: true,
   },
   "PATCH /api/v1/lager/:id/pinnwand/:beitragId": {
     url: neuerBeitrag,
