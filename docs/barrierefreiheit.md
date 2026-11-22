@@ -8,6 +8,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Geänderter Bildschirm: die Punkte, die die Änderung berührt.
 - Vor dem Pilot und vor Version 1.0: alle Punkte auf jedem Bildschirm.
 - Öffentliche Seiten der Website und Editor der Verwaltung (Web statt App): Abschnitt 11, im Browser geprüft.
+- Bereich «Termine» der Verwaltung (Web statt App): Abschnitt 12, im Browser geprüft.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
@@ -140,6 +141,41 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 - [ ] **11.23** Ungespeicherte Änderungen: Beim Verlassen kommt eine Rückfrage; der Zustand «gespeichert» oder «nicht gespeichert» steht als Text da. Es gibt keinen Autospeicher, der unbemerkt Fehler erzeugt.
 - [ ] **11.24** Tabellen (Seitenliste) haben Spaltenköpfe; auf schmalen Bildschirmen scrollt die Tabelle in ihrem Rahmen, nicht die Seite.
 - [ ] **11.25** Der Editor ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar und folgt dem Dunkelmodus und den erzwungenen Farben. Bekannter Befund: In erzwungenen Farben ist der gewählte Filter nicht erkennbar (`filterGruppe` in `dom.js`); ein Issue mit dem Label `accessibility` ist noch nicht angelegt.
+
+## 12. Verwaltung: Bereich «Termine»
+
+Dieser Abschnitt gilt für die fünf Reiter des Bereichs «Termine» unter `/admin` (`apps/api/public/admin/termine*.js`): Warnliste (#433), Kategorien (#434), Vorschläge (#441), Anlässe (#445) und Räume (#446, #447). Der Bereich «Anwesenheit» (#195) ist ein eigener Bereich der Verwaltung, kein Reiter von «Termine»; er liest nur, erfasst wird in den Apps. Er hat den Punkt 12.19. Massstab ist WCAG 2.2 AA, geprüft wird im Browser am PC und am Handy wie in Abschnitt 11 (Editor); die Abschnitte 1 bis 4 und 7 gelten nicht. Ein Punkt, der auf einen Reiter nicht zutrifft, entfällt.
+
+Vorbereitung: die Demo-Abteilung mit je einem Beispiel pro Reiter (Termine ohne Tag, eine unbekannte Kategorie, offene und entschiedene Vorschläge, ein Anlass mit Feldern und Anmeldungen, ein Raum mit offener Anfrage). Screenreader am PC: NVDA mit Firefox, VoiceOver mit Safari. Zoom: Browser auf 200 Prozent und eine Breite von 320 CSS-Pixeln. Erzwungene Farben und «Bewegung reduzieren» einschalten. Keine echten Namen und Telefonnummern verwenden.
+
+### Alle Reiter
+
+- [ ] **12.1** Die Reiter lassen sich mit der Tastatur erreichen und auslösen. Der aktive Reiter trägt `aria-current="page"`, und die Adresse (`#termine/<Reiter>`) führt beim Neuladen zum selben Reiter.
+- [ ] **12.2** Jeder Reiter hat eine Überschrift (`h2`) und sagt ehrlich, was los ist: Laden, leer (als Satz), Fehler, nicht angemeldet und keine Berechtigung stehen als Text mit einem Knopf wie «Nochmals versuchen», nie als leere Fläche.
+- [ ] **12.3** Ein Zustand (Grund in der Warnliste, Stand eines Anlasses, Status eines Vorschlags oder einer Raumanfrage) steht als Wort, nie nur als Farbe oder Symbol.
+- [ ] **12.4** Tabellen haben Spaltenköpfe. Der Name eines Termins, Vorschlags oder Anlasses in der Zeile ist ein Link, der sagt, wohin er führt. Auf schmalen Bildschirmen scrollt die Tabelle in ihrem Rahmen, nicht die Seite.
+- [ ] **12.5** «Weitere laden» hängt Einträge an, ohne den Fokus zu verlieren, und meldet das Ergebnis in einer Live-Region («höflich»), ohne eine laufende Ansage abzubrechen.
+- [ ] **12.6** Dialoge (Ablehnen mit Begründung, Tag zuordnen, Anlass anlegen, Raum anlegen, ändern und löschen, jede Bestätigung) setzen den Fokus hinein, halten ihn darin und geben ihn beim Schliessen an den Auslöser zurück. Ist der Auslöser nach dem Neuzeichnen weg, liegt der Fokus auf der Überschrift oder dem Hinweis, nie im Leeren. Esc schliesst, wo nichts verloren geht.
+- [ ] **12.7** Formulare haben sichtbare Beschriftungen, Pflichtfelder sind als solche benannt, Zähler für Zeichen sind Text. Ein Fehler vom Server (400, 403, 404, 409, 429, offline) steht als Text beim Feld oder in einer Meldung, die der Screenreader ansagt; der Fokus liegt danach auf der Meldung oder dem ersten fehlerhaften Feld, und die Eingaben bleiben.
+- [ ] **12.8** Aktionen mit Folgen (Freigeben, Ablehnen, «Als in Outlook eingetragen markieren», Raumanfrage annehmen oder ablehnen, Anlass oder Raum löschen) fragen nach und nennen im Dialog, was geschieht. Bei einem Konflikt (409) zeigt die Seite den aktuellen Stand und setzt den Fokus auf den Hinweis.
+- [ ] **12.9** Filter (Status der Vorschläge, Angemeldet, Abgemeldet und Alle bei den Anmeldungen) zeigen die Auswahl nicht nur über Farbe und behalten den Fokus auf dem Knopf, wenn die Liste sich ändert; das Ergebnis wird angesagt.
+- [ ] **12.10** Zeiten stehen als Text mit Wochentag und Datum in Schweizer Zeit; ein mehrtägiger Termin nennt Anfang und Ende. Felder für Datum und Zeit haben eine Beschriftung und nennen das Format.
+- [ ] **12.11** Der Bereich ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar, ohne Scrollen in zwei Richtungen, mit erzwungenen Farben lesbar (der gewählte Filter ist erkennbar: siehe den bekannten Befund bei 11.25) und mit Kontrast von mindestens 4.5:1 für Text und 3:1 für Bedienelemente. Touch-Ziele sind mindestens 44 × 44 Pixel gross.
+- [ ] **12.12** Die Texte sind kurz, Deutsch in Schweizer Schreibweise (ss, «»), und Knöpfe sind Verben.
+
+### Je Reiter
+
+- [ ] **12.13** Warnliste: Der Zähler im Kopf nennt «Mindestens N», wenn es weitere Termine gibt. Der Hinweis, dass eine Zuordnung erst beim nächsten Abgleich wirkt (bis zu 5 Minuten), steht als Text. Die Tabelle der unbekannten Kategorien verweist auf den Reiter «Kategorien».
+- [ ] **12.14** Kategorien: Entfernen fragt zurück; «Tag zuordnen» aus der Warnliste öffnet den Dialog mit der Kategorie (Adresse `#termine/kategorien/<Kategorie>`) und setzt den Fokus hinein; schlägt der Abruf der Warnliste fehl, fehlt der Abschnitt «Kategorien ohne Tag», ohne den Reiter zu stören.
+- [ ] **12.15** Vorschläge: Die Aktionen hängen am Stand (offen: Freigeben und Ablehnen; freigegeben: Kopieren und Eintragen; sonst keine); beim eigenen Vorschlag gibt es keinen Knopf, nur den Hinweis. «Kategorien kopieren» meldet das Ergebnis als Text. Die Begründung beim Ablehnen ist Pflicht und nennt die Grenze von 500 Zeichen.
+- [ ] **12.16** Anlässe: Die Reihenfolge der Zusatzfelder ändert man mit den Knöpfen «Nach oben», «Nach unten» und «Entfernen», nie nur durch Ziehen (WCAG 2.5.7); nach dem Verschieben liegt der Fokus auf dem Knopf, und die neue Position wird angesagt. Der Hinweis zu Gesundheitsdaten steht immer als Text, ebenso «Änderungen sind noch nicht gespeichert.».
+- [ ] **12.17** Anmeldungen und Export: Die Summen stehen als Zahl im Filterknopf. Der Export ist ein Link mit `download`, nennt Dateityp und Personendaten und weist auf das führende Hochkomma bei Formelzeichen hin; er löst keinen Abruf im Speicher aus.
+- [ ] **12.18** Räume: Das Team wird erst beim Öffnen eines Dialogs geladen; der Abschnitt «Offene Anfragen» nennt Raum, Zeit und Zweck als Text, und Annehmen und Ablehnen sind getrennte Knöpfe mit Rückfrage.
+- [ ] **12.19** Anwesenheit (Bereich «Anwesenheit», #195): Die Tabelle je Stufe hat Spaltenköpfe, die Reiter «Kinder» und «Leitende» tragen `aria-current="page"`, die Auswahl der Anzahl (5, 10, 20) und der Stufe ist per Tastatur bedienbar und zeigt den Zustand nicht nur über Farbe, eine Zelle ohne Eintrag ist als Text lesbar (nicht nur «–» als Zeichen), und beim Wechsel bleibt der Fokus auf dem gewählten Element.
+
+### Stand der Prüfung
+
+Aus den PRs der Issues, ohne neue Messung für dieses Dokument: Jeder Reiter wurde im Browser (Chromium, Playwright) mit der echten `termine.js` und `admin.css` und erfundenen Antworten geprüft, mit Demo-Namen, bei 390 Pixeln Breite und, wo der PR es vermerkt, 1280 Pixeln: Warnliste (#433: Liste, Nachladen, leer), Vorschläge (#441: Tastaturablauf von Liste bis Eintragen, 409, Netzausfall, erzwungene Farben), Anlässe (#445: Verschieben und Entfernen per Tastatur, Validierung, Export, 403, 401, 500, offline) und Räume (#446, #447); der Bereich «Anwesenheit» ist hier nicht Teil dieser Angabe. Nicht geprüft: ein echter Server mit zweitem Faktor, Screenreader (NVDA, VoiceOver, TalkBack) und 200 Prozent Zoom von Hand. Die Punkte oben sind das Mass für diese Prüfung und noch von Hand abzuhaken; ein Hellmodus existiert nicht (die Verwaltung kennt nur das dunkle Thema).
 
 ## Im PR angeben
 
