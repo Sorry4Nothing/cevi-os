@@ -22,6 +22,11 @@ export const ARTEN = {
     push: "lager_anwesenheit",
     titel: "Deine Anwesenheits-Anfrage wurde entschieden",
   },
+  // Erinnerung der Lagerleitung vor dem Aufräumen des Adressbuchs (#397); der Push nutzt den Kanal der Mitteilungen, die App öffnet das Ziel über objektTyp «adressbuch» (objektId ist das Lager)
+  adressbuch_aufraeumen: {
+    push: "lager_pinnwand",
+    titel: "Das Adressbuch wird bald aufgeräumt",
+  },
 } as const satisfies Record<string, { push: LagerPushTyp; titel: string }>;
 
 export type BenachrichtigungsArt = keyof typeof ARTEN;

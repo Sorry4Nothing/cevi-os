@@ -1097,7 +1097,7 @@ describe("Infos", () => {
       .update(schema.lagerDatei)
       .set({ erstelltAm: new Date(Date.now() - 3 * 24 * 3600_000) })
       .where(inArray(schema.lagerDatei.id, [d.id, lose.id]));
-    await raeumeDateienOhneVerweisAuf(db);
+    await raeumeDateienOhneVerweisAuf(db, undefined, lager);
     const uebrig = await db
       .select({ id: schema.lagerDatei.id })
       .from(schema.lagerDatei)

@@ -732,6 +732,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/anwesenheit.js:
+    get:
+      operationId: getAdminAnwesenheitSkript
+      summary: Skript der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anwesenheit.css:
+    get:
+      operationId: getAdminAnwesenheitStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/import.js:
     get:
       operationId: getAdminImportSkript
@@ -1862,9 +1892,9 @@ paths:
   /api/v1/plattform/schalter:
     get:
       operationId: listePlattformSchalter
-      summary: Aktive Schalter der Abteilung (Wartungsmodus)
+      summary: Aktive Schalter der Abteilung (Wartungsmodus und Informationssperre)
       description: |
-        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website. Wer nichts davon darf, bekommt 403.
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website; die Sperre sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
 
         Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
 
@@ -1890,13 +1920,15 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
     put:
       operationId: setzePlattformSchalter
-      summary: Wartungsmodus für einen Bereich einschalten oder ändern
+      summary: Wartungsmodus oder Informationssperre für einen Bereich setzen oder ändern
       description: |
-        Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
+        **Informationssperre (`art: sperre`, #425):** Jede Anfrage des Bereichs antwortet mit 423 `GESPERRT` und einem neutralen Text (nie der Hinweis), lesend und schreibend, auch für die Abteilungsleitung und für Anfragen ohne Sitzung (öffentliche Medien bei `website` und `alles`). Nur `/api/v1/plattform`, `/api/auth` und `/health` bleiben offen. Bei `alles` melden sich nur Abteilungsleitung und Entwickler noch an; für alle anderen antwortet die Anmeldung wie bei jedem Anmeldefehler mit dem einheitlichen 401 `ANMELDUNG_FEHLGESCHLAGEN` (nach dem Passwort geprüft, es entsteht keine Sitzung), damit niemand am Status erkennt, dass eine Sperre gilt. Die Sperre geht der Wartung vor und endet nie von selbst. Auf Wunsch: `sitzungenBeenden` beendet alle Sitzungen der Abteilung ausser der eigenen, `websiteOffline` (nur `website` und `alles`) leert die Ausgabe der öffentlichen Website und schreibt eine neutrale Hinweisseite; der Abgleich erzeugt in dieser Zeit nichts neu. Bei der Auslösung geht ein Push (`typ: plattform`) an die anderen Entwickler der Abteilung, ohne den Hinweis. Nur Entwickler und Abteilungsleitung setzen und heben die Sperre auf, nie der Webmaster. Die Antwort nennt `sitzungenBeendet` (Zahl) und `websiteVomNetz` (ob es geklappt hat; die Sperre gilt auch, wenn nicht).
 
-        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext).
+        **Wartungsmodus (`art: wartung`, #424):** Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
 
-        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400), Recht auf genau diesen Bereich (403).
+        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
+
+        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400, auch `sitzungenBeenden` oder `websiteOffline` bei der Wartung), Recht auf genau diese Art und diesen Bereich (403).
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -1915,7 +1947,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlattformSchalter"
+                $ref: "#/components/schemas/PlattformSchalterGesetzt"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -1928,9 +1960,9 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
     delete:
       operationId: hebePlattformSchalterAuf
-      summary: Wartungsmodus für einen Bereich aufheben
+      summary: Wartungsmodus oder Informationssperre für einen Bereich aufheben
       description: |
-        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`).
+        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`). Hielt die Sperre die öffentliche Website vom Netz und keine andere Sperre tut es, löscht der Server die Hinweisseite und löst den Abgleich aus, der die Website neu schreibt. Beendete Sitzungen kommen nicht zurück.
 
         Statuscodes: 204 bei Erfolg. 400, 401, 403, 404 (der Schalter ist nicht gesetzt), 426.
       tags:
@@ -5249,7 +5281,7 @@ paths:
       operationId: setzeLagerRechte
       summary: Rechte der Rollen ändern
       description: |
-        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). **Achtung bei `adressbuch.lesen` und `adressbuch.bearbeiten`: Das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz von Personen ohne Konto). Wer eines der Rechte bekommt, sieht oder ändert alle Kontakte des Lagers; im Standard hat nur die Lagerleitung sie. Gib sie nur Personen, die diese Daten wirklich brauchen.** Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
       tags:
@@ -15431,6 +15463,296 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/adressbuch:
+    get:
+      operationId: holeLagerAdressbuch
+      summary: Adressbuch des Lagers auflisten
+      description: |
+        Braucht `adressbuch.lesen` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Leitung, Team und Lesen bekommen im Standard 403. Die Rechte lassen sich je Lager einstellen: **Achtung, das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz); wer es lesen darf, sieht alle Kontakte.** Die Warnung steht auch bei `PUT /lager/{id}/rechte`.
+
+        Die Kontakte stehen alphabetisch nach Name (ohne Beachtung der Gross- und Kleinschreibung, dann nach ID). `q` sucht ohne Beachtung der Gross- und Kleinschreibung in Name, Funktion und Gruppe. Jeder Kontakt nennt `aufraeumenAb`: den Tag, ab dem der tägliche Lauf ihn endgültig löscht (Lagerende plus 180 Tage), oder null, wenn er mit `behalten` markiert ist.
+
+        Audit-Log: Jeder Aufruf schreibt `lager_adressbuch_gelesen` mit der Person, dem Lager und der Anzahl gelieferter Kontakte, nie mit Inhalten.
+
+        Datenbanklast: eine Abfrage für die Seite (Index auf Lager und Name) und ein Eintrag im Audit-Log; Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `adressbuch.lesen`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Suchtext für Name, Funktion und Gruppe (1 bis 100 Zeichen).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Kontakte je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Kontakte.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerKontaktAn
+      summary: Kontakt im Adressbuch anlegen
+      description: |
+        Braucht `adressbuch.bearbeiten` (Standard: nur die Lagerleitung). Schreibt über den Sync-Kern: Die Zeile bekommt Version 1, eine Folgenummer und einen Eintrag im Änderungsfeed (nur ID und Art, nie Inhalte).
+
+        Nur `name` ist Pflicht. Texte werden gekürzt (Leerraum am Rand), leere Angaben gelten als null; Steuerzeichen sind nicht erlaubt (in der Notiz nur Zeilenumbrüche). Ohne `behalten` löscht der Lauf den Kontakt 180 Tage nach dem Lagerende endgültig, 14 Tage vorher erinnert Cevi OS die Lagerleitung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAdressbuchAnlegen"
+      responses:
+        "201":
+          description: Der neue Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/adressbuch/{kontaktId}:
+    get:
+      operationId: holeLagerKontakt
+      summary: Kontakt im Adressbuch lesen
+      description: |
+        Braucht `adressbuch.lesen`. Ein Kontakt eines anderen Lagers oder ein gelöschter Kontakt gibt es nicht (404). Der Aufruf schreibt `lager_adressbuch_gelesen` ins Audit-Log (Person, Kontakt-ID, Anzahl 1, nie Inhalte).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne `adressbuch.lesen`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerKontakt
+      summary: Kontakt im Adressbuch ändern
+      description: |
+        Braucht `adressbuch.bearbeiten`. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern).
+
+        Nur die genannten Felder ändern sich; `null` oder ein leerer Text entfernt eine optionale Angabe. `behalten: true` nimmt den Kontakt aus der Aufräumfrist (`aufraeumenAb` ist dann null); `behalten: false` stellt die Frist wieder her: Ist das Lagerende schon mehr als 180 Tage her, löscht der nächste Lauf den Kontakt.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAdressbuchAendern"
+      responses:
+        "200":
+          description: Der geänderte Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerKontakt
+      summary: Kontakt im Adressbuch löschen
+      description: |
+        Braucht `adressbuch.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Kontakt verschwindet sofort aus Liste und Einzelabruf; die Zeile liegt noch 30 Tage im Papierkorb und wird dann vom täglichen Lauf endgültig entfernt (auch mit `behalten`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Kontakt gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -15941,6 +16263,76 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /ical/{datei}:
+    get:
+      operationId: getIcalFeed
+      summary: Persönlicher Kalender-Feed (ICS) abonnieren
+      tags:
+        - Termine
+      security: []
+      parameters:
+        - name: datei
+          in: path
+          required: true
+          description: |
+            `<Token>.ics`: der geheime Token des persönlichen Kalenderlinks (43 Zeichen, `A-Z a-z 0-9 - _`) und die Endung `.ics`. Den Token erzeugt `POST /api/v1/ich/kalender-link`.
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{43}\.ics$
+        - name: If-None-Match
+          in: header
+          required: false
+          description: ETag der letzten Antwort; bei Übereinstimmung antwortet der Server mit 304 ohne Inhalt.
+          schema:
+            type: string
+      description: |
+        **Sonderfall: ausserhalb von `/api/v1` und ohne Sitzung.** Der geheime Token im Pfad ersetzt die Anmeldung. Für Kalender-Apps (Handy, Outlook), nicht für die Apps von Cevi OS: Kein `X-App-Version`, kein Cookie. Ein mitgeschicktes Cookie wird ignoriert, die Antwort setzt nie eines.
+
+        Liefert `text/calendar` (RFC 5545): ein `VEVENT` je Termin aus «Mein Kalender» (`GET /api/v1/termine/mein`), mit denselben Sichtregeln und derselben Sichtfunktion, also nur, was die Person dort auch sähe. Fenster: gestern bis 400 Tage voraus (Schweizer Kalendertage). Je Termin `UID` (`<Termin-ID>@cevi-os`, stabil), `DTSTAMP`, `SUMMARY` (Titel), `LOCATION` (falls vorhanden) und `STATUS` (`CONFIRMED`, `CANCELLED` bei abgesagten, `TENTATIVE` bei Terminen, die zu prüfen sind). Zeiten in UTC (`Z`); ganztägige Termine als `DTSTART;VALUE=DATE` mit exklusivem `DTEND`. Zeilen sind bei 75 Oktetten gefaltet. Nie Beschreibung, Tags, Namen von Kindern, Anmeldungen oder Chat-Inhalt.
+
+        **Kein Token in Logs.** Das Anfrage-Log und die Metriken führen das Routenmuster `/ical/:datei`, nie den Pfad; Fehlerantworten nennen ihn nicht.
+
+        **404** gilt einheitlich für unbekannte, widerrufene und formal falsche Token, für falsche Endungen und für deaktivierte oder gesperrte Konten; die Antwort verrät nicht, ob ein Token je existierte.
+
+        **Ratenbegrenzung.** Je IP-Adresse höchstens 300 Abrufe in 10 Minuten, je Token-Anfang (8 Zeichen) höchstens 30; Fehlversuche zählen mit (429, `Retry-After`). Eine API-Instanz zählt für sich.
+
+        **Zwischenspeicher.** `Cache-Control: private, no-store`. Der fertige Text liegt 5 Minuten im Speicher der API (gleich dem Takt des Kalender-Abgleichs); `ETag` und `If-None-Match` ergeben 304 ohne Abfrage der Termine. Die Token-Prüfung läuft bei jedem Abruf, ein Widerruf wirkt also sofort. Änderungen an Terminen oder Tags erscheinen im Feed nach höchstens 5 Minuten.
+
+        Statuscodes: 200, 304, 404, 429.
+      responses:
+        "200":
+          description: Kalender im Format iCalendar.
+          headers:
+            ETag:
+              description: Starker ETag des Inhalts (ohne `DTSTAMP`).
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "304":
+          description: Unverändert (`If-None-Match` passt); kein Inhalt.
+          headers:
+            ETag:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "429":
+          description: Zu viele Anfragen (code ZU_VIELE_ANFRAGEN); `Retry-After` nennt die Sekunden.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termin-vorschlaege/optionen:
     get:
@@ -20215,6 +20607,7 @@ components:
         - `eingang_antwort`: `lager_eingang`
         - `diensttausch`: `lager_einteilung`
         - `anwesenheit_anfrage`: `lager_anwesenheit`
+        - `adressbuch_aufraeumen`: `lager_pinnwand` (Erinnerung der Lagerleitung 14 Tage vor dem Aufräumen des Adressbuchs; das Ziel ist das Lager, `objektTyp` ist `adressbuch`)
       enum:
         - aufgabe_zugeteilt
         - aufgabe_geaendert
@@ -20224,6 +20617,7 @@ components:
         - eingang_antwort
         - diensttausch
         - anwesenheit_anfrage
+        - adressbuch_aufraeumen
     LagerPushTyp:
       type: string
       description: |
@@ -26062,6 +26456,133 @@ components:
         teamSichtbar:
           type: boolean
     # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerAdressbuchKontakt:
+      description: "Ein externer Kontakt des Lagers (Personendaten Dritter, nur mit `adressbuch.lesen`)."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - funktion
+        - gruppe
+        - telefon
+        - email
+        - notiz
+        - behalten
+        - aufraeumenAb
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          description: "«Fürs nächste Lager behalten»: nimmt den Kontakt aus der Aufräumfrist."
+          type: boolean
+        aufraeumenAb:
+          description: "Tag, ab dem der tägliche Lauf den Kontakt endgültig löscht (Lagerende plus 180 Tage); null bei `behalten`."
+          type: [string, "null"]
+          format: date
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerAdressbuchSeite:
+      description: "Eine Seite des Adressbuchs."
+      type: object
+      additionalProperties: false
+      required:
+        - kontakte
+        - naechster
+      properties:
+        kontakte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt."
+          type: [string, "null"]
+          format: uuid
+    LagerAdressbuchAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          description: "Ziffern und die üblichen Trennzeichen, 6 bis 30 Zeichen."
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          description: "Zeilenumbrüche erlaubt, sonst keine Steuerzeichen."
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          description: "Vorgabe false."
+          type: boolean
+    LagerAdressbuchAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          type: boolean
     # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -27400,6 +27921,7 @@ components:
         - bereich
         - hinweis
         - ende
+        - websiteOffline
         - ausgeloestVon
         - ausgeloestAm
       properties:
@@ -27407,6 +27929,10 @@ components:
           type: string
           enum:
             - wartung
+            - sperre
+        websiteOffline:
+          type: boolean
+          description: Nur bei der Sperre; die öffentliche Website ist vom Netz.
         bereich:
           $ref: "#/components/schemas/PlattformBereich"
         hinweis:
@@ -27434,12 +27960,46 @@ components:
         - programme
         - verwaltung
         - alles
+    PlattformSchalterGesetzt:
+      description: Der gesetzte Schalter; bei der Sperre kommen `sitzungenBeendet` und `websiteVomNetz` dazu.
+      allOf:
+        - $ref: "#/components/schemas/PlattformSchalter"
+        - type: object
+          properties:
+            sitzungenBeendet:
+              type: integer
+              nullable: true
+              description: Wie viele Sitzungen der Abteilung beendet wurden; leer, wenn nicht verlangt.
+            websiteVomNetz:
+              type: boolean
+              description: Ob die öffentliche Website vom Netz genommen wurde. Falsch bei einem Fehler der Ausgabe; die Sperre gilt trotzdem.
+    Gesperrt:
+      type: object
+      description: Antwort 423 in einem Bereich unter Informationssperre; neutral, nie mit dem Hinweis des Schalters.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - GESPERRT
+        message:
+          type: string
     PlattformSchalterListe:
       type: object
       required:
         - schalter
         - bereiche
+        - darfSperre
+        - websiteVorhanden
       properties:
+        darfSperre:
+          type: boolean
+          description: Ob die Person die Informationssperre sehen, auslösen und aufheben darf (Entwickler und Abteilungsleitung).
+        websiteVorhanden:
+          type: boolean
+          description: Ob es eine öffentliche Website gibt, die sich vom Netz nehmen lässt.
         schalter:
           type: array
           items:
@@ -27456,10 +28016,17 @@ components:
         - art
         - bereich
       properties:
+        sitzungenBeenden:
+          type: boolean
+          description: Nur bei `sperre`. Beendet alle Sitzungen der Abteilung ausser der eigenen.
+        websiteOffline:
+          type: boolean
+          description: Nur bei `sperre` und den Bereichen `website` und `alles`. Nimmt die öffentliche Website vom Netz.
         art:
           type: string
           enum:
             - wartung
+            - sperre
         bereich:
           $ref: "#/components/schemas/PlattformBereich"
         hinweis:
@@ -27981,11 +28548,11 @@ components:
       name: art
       in: query
       required: true
-      description: Heute nur `wartung`.
       schema:
         type: string
         enum:
           - wartung
+          - sperre
     SchalterBereich:
       name: bereich
       in: query

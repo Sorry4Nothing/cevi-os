@@ -7,7 +7,13 @@ import { log } from "./log.js";
 
 // Der Text steht unter dem Titel. Er trägt nie Chat-Inhalt oder Namen von Kindern: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export type Push = {
-  typ: "chat" | "programm" | "mitteilung" | LagerPushTyp | TerminePushTyp;
+  typ:
+    | "chat"
+    | "programm"
+    | "mitteilung"
+    | "plattform"
+    | LagerPushTyp
+    | TerminePushTyp;
   id: string;
   titel: string;
   text?: string;
@@ -54,6 +60,8 @@ export const PUSH_KANAL: Record<Push["typ"], string> = {
   programm: "programme",
   // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
   mitteilung: "mitteilungen",
+  // Informationssperre (#425) an die Entwickler: data.id ist die ID des Schalters; der Text nennt nur den Bereich
+  plattform: "mitteilungen",
   lager_aufgabe: "lager_aufgaben",
   lager_erwaehnung: "lager_mitteilungen",
   lager_pinnwand: "lager_mitteilungen",
