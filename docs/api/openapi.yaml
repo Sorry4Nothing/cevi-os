@@ -8672,7 +8672,7 @@ paths:
       description: |
         Braucht das Recht `teilnehmer.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
 
-        Eine gemeinsame Liste für alle, die abzählen: je Eintrag der Haken (`geprueft`, `geprueftAm`). `da` und `gesamt` zählen über den ganzen Filter («x von y da»), nicht nur über die Seite. Zwei Abfragen je Seite (Seite, Summen). Teilnehmende zeigen Vorname, Nachname und Stufe, Mitglieder Name und Cevi-Name.
+        Eine gemeinsame Liste für alle, die abzählen: je Eintrag der Haken (`geprueft`, `geprueftAm`). `da` und `gesamt` zählen über den ganzen Filter («x von y da»), nicht nur über die Seite. Zwei Abfragen je Seite (Seite, Summen). Teilnehmende zeigen Vorname, Nachname und Stufe, Mitglieder Name und Cevi-Name. Wer «nicht dabei» ist (abgewählt, #387), steht nicht in der Liste und zählt nicht mit.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
@@ -8722,6 +8722,13 @@ paths:
             type: string
             minLength: 1
             maxLength: 50
+        - name: gruppe
+          in: query
+          required: false
+          description: "Nur die Mitglieder dieser Gruppe (#387): bei `art=teilnehmer` die Teilnehmenden, bei `art=team` die Leitenden und Mitglieder der Gruppe. Eine unbekannte Gruppe ergibt eine leere Liste."
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Eine Seite der Abzählliste.
@@ -8853,6 +8860,391 @@ paths:
   # lager-pfade: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/gruppen:
+    get:
+      operationId: holeLagerGruppen
+      summary: Programmgruppen lesen
+      description: |
+        Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Alle Gruppen des Lagers (höchstens 50, darum ohne Seitenwechsel), sortiert nach `reihenfolge`, Name und ID, je Gruppe die Leitenden und Mitglieder (Konten, `rolle` `leitung` oder `mitglied`) und die Teilnehmenden. Zwei Abfragen für die ganze Antwort: eine mit GROUP BY je Gruppe, eine für die Zähler `ohneGruppe` (Teilnehmende ohne Gruppe) und `abgewaehlt` (Teilnehmende, die «nicht dabei» sind). Abgewählte Teilnehmende, gelöschte Zeilen, deaktivierte Konten und Konten ohne Mitgliedschaft im Lager erscheinen nicht. Teilnehmende zeigen Vorname, Nachname und Stufe; wer zusätzlich `teilnehmer.bearbeiten` hat, sieht den Cevi-Namen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Gruppen mit ihren Leuten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerGruppeAn
+      summary: Gruppe anlegen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern (Version, Folgenummer, Änderungsfeed).
+
+        Ein Lager hat höchstens 50 Gruppen (sonst 400 `ZU_VIELE_GRUPPEN`). Ohne `reihenfolge` folgt die Gruppe auf die bestehenden.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `ZU_VIELE_GRUPPEN`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerGruppeAnlegen"
+      responses:
+        "201":
+          description: Die neue Gruppe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/gruppen/mischen:
+    post:
+      operationId: mischeLagerGruppen
+      summary: Gemischt einteilen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Auch die Vorschau braucht es und ist in einem abgeschlossenen Lager 409.
+
+        Die Teilnehmenden werden nach Stufe sortiert (ohne Beachtung der Gross- und Kleinschreibung, Teilnehmende ohne Stufe zuletzt), innerhalb der Stufe zufällig gemischt und reihum auf `anzahl` Gruppen (2 bis 20) verteilt. Der Zähler läuft über alle Stufen weiter: Die Gruppen unterscheiden sich um höchstens eins in der Grösse, und jede Stufe verteilt sich um höchstens eins ungleich. Abgewählte Teilnehmende («nicht dabei») und gelöschte nehmen nicht teil.
+
+        Verteilt wird auf die ersten `anzahl` bestehenden Gruppen (nach `reihenfolge`, Name und ID); fehlen Gruppen, legt das Übernehmen neue mit dem Namen «Gruppe n» an (in der Vorschau `gruppeId` `null`). Das Übernehmen überschreibt die bisherige Einteilung der Teilnehmenden in allen Gruppen; wer schon in der richtigen Gruppe steht, bleibt unberührt (keine neue Version). Leitende und Mitglieder (Konten) bleiben, Gruppen jenseits von `anzahl` bleiben ohne Teilnehmende bestehen.
+
+        `seed` (0 bis 4294967295) macht die Verteilung wiederholbar: gleiche Teilnehmende und gleicher `seed` geben dieselbe Einteilung, auch unabhängig von der Reihenfolge der Daten. Ohne `seed` zieht der Server einen und nennt ihn in der Antwort; wer die Vorschau übernehmen will, schickt ihn zurück. Mit `uebernehmen` `false` wird nichts geschrieben (eine Lese-Abfrage für die Teilnehmenden, eine für die Gruppen). Mit `true` läuft alles in einer Transaktion unter der Lagersperre mit gebündelten Statements (ein Insert für neue Gruppen, ein Soft-Delete und ein Insert für die Zuordnungen); der Stand unter der Sperre zählt, nicht der der Vorschau. Je Konto und Lager höchstens 10 Läufe je Minute (429).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. 429 bei zu vielen Läufen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerGruppenMischen"
+      responses:
+        "200":
+          description: Der Vorschlag (`vorschau` `true`) oder die übernommene Einteilung (`vorschau` `false`, mit `geaendert`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppenMischenErgebnis"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/gruppen/zuordnung:
+    put:
+      operationId: ordneLagerGruppeZu
+      summary: Teilnehmende und Mitglieder einer Gruppe zuordnen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Setzt bis zu 200 Teilnehmende (`teilnehmerIds`) und Mitglieder des Lagers (`personIds`, mit `rolle` `leitung` oder `mitglied`) in die Gruppe `gruppeId`. Eine Person und ein Teilnehmender stehen höchstens in einer Gruppe: Wer schon in einer anderen steht, wird verschoben. `gruppeId` `null` nimmt die Genannten aus ihrer Gruppe. Das Ergebnis ist ein Zustand ohne `version`: Was schon stimmt, bleibt unberührt (keine neue Version, kein Feed-Eintrag). Eine Transaktion, gebündelte Statements. Eine unbekannte, gelöschte oder fremde ID macht die ganze Anfrage zu 404 und ändert nichts; ein abgewählter Teilnehmender ist 409 `ABGEWAEHLT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg (`geaendert`: Zahl der geänderten Zuordnungen). 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Gruppe, Eintrag, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `ABGEWAEHLT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerGruppeZuordnen"
+      responses:
+        "200":
+          description: Zahl der geänderten Zuordnungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppenGeaendert"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder ein Teilnehmender ist abgewählt (`ABGEWAEHLT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/gruppen/abgewaehlt:
+    put:
+      operationId: waehleLagerTeilnehmendeAb
+      summary: Teilnehmende abwählen oder wieder zuwählen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Setzt `abgewaehlt` («nicht dabei») für bis zu 200 Teilnehmende. Abgewählte erscheinen weder in den Gruppen noch beim Mischen noch in der Abzählliste; sie bleiben in der Liste der Teilnehmenden (mit `abgewaehlt` `true`) und lassen sich mit `false` wieder zuwählen. Das Abwählen nimmt sie aus ihrer Gruppe; beim Zuwählen sind sie in keiner Gruppe. Endgültig löscht nur die Lagerleitung über `DELETE /api/v1/lager/{id}/teilnehmer/{teilnehmerId}`. Ein Zustand ohne `version`: Was schon stimmt, bleibt unberührt. Eine Transaktion, gebündelte Statements; eine unbekannte, gelöschte oder fremde ID macht die ganze Anfrage zu 404 und ändert nichts.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg (`geaendert`: Zahl der geänderten Teilnehmenden). 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Eintrag, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTeilnehmendeAbwaehlen"
+      responses:
+        "200":
+          description: Zahl der geänderten Teilnehmenden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppenGeaendert"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/gruppen/{gruppeId}:
+    patch:
+      operationId: aendereLagerGruppe
+      summary: Gruppe ändern
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        `version` und mindestens ein weiteres Feld (`name`, `reihenfolge`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Gruppe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: gruppeId
+          in: path
+          required: true
+          description: ID der Gruppe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerGruppeAendern"
+      responses:
+        "200":
+          description: Die geänderte Gruppe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerGruppe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerGruppe
+      summary: Gruppe löschen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen: Die Zeile bleibt, der Feed meldet «geloescht». Die Zuordnungen der Gruppe gehen mit ihr (Leitende, Mitglieder und Teilnehmende sind danach in keiner Gruppe), in derselben Transaktion.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Gruppe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: gruppeId
+          in: path
+          required: true
+          description: ID der Gruppe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gruppe gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -10841,6 +11233,312 @@ paths:
   # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/dokumente:
+    get:
+      operationId: holeLagerDokumente
+      summary: Dokumente des Lagers auflisten (Sammelabfrage)
+      description: |
+        Braucht `dokumente.lesen_alle` (alle Dokumente) oder `dokumente.team_lesen` (nur Dokumente mit `teamSichtbar`); Standard: Lagerleitung, Leitung und Lesen sehen alle, das Team nur die freigegebenen. Die Rechte lassen sich je Lager einstellen. Wer beide hat, sieht alle.
+
+        Die Sicht «Dokumente»: die Dokumente des Lagers, neueste zuerst (sortiert nach ID, absteigend), dazu, soweit andere Module ihre Dateien im Verweisregister des Servers angemeldet haben (Pinnwand, Infos, Protokolle und weitere, sobald sie bestehen), deren Dateien mit `quelle` = Name der Tabelle des Moduls. Von den Dateien anderer Module erscheinen nur die, die ein Datensatz einbindet, den die Person lesen darf; ein Dokument, das eine Datei einbindet, ersetzt dort ihren Eintrag. Heute sind keine anderen Module angemeldet: Die Liste enthält dann nur Dokumente.
+
+        Suche und Filter: `q` sucht ohne Beachtung der Gross- und Kleinschreibung im Titel und in den Stichworten (bei Dateien anderer Module im Anzeigenamen), nie im Inhalt der Datei. `stichwort` filtert nach einem oder mehreren Stichworten (kommagetrennt, höchstens 5; das Dokument muss alle tragen; Dateien anderer Module haben keine Stichworte und entfallen dann). `typ` filtert nach Art (`pdf`, `word`, `excel`, `bild`), nach Ablageort (`sharepoint`, Host `*.sharepoint.com`) oder `link` (alles andere). Die Art folgt dem MIME-Typ oder der Endung des Anzeigenamens; der Server ruft den Link nie ab. Stichworte sind klein geschrieben gespeichert. Die Markierung «neu» setzt die App aus `erstelltAm` und dem eigenen letzten Besuch; der Server speichert sie nicht.
+
+        Datenbanklast: eine gebündelte Abfrage je Seite für die Dokumente samt Dateien (Join), dazu nur wenn andere Module Dateien angemeldet haben und kein Stichwort gefiltert wird: eine für deren Dateien und eine je angemeldetem Modul für die Sichtbarkeit. Seitenwechsel über `nach` und `limit`. Eine Seite kann kürzer sein als `limit`, auch leer, und trotzdem ein `naechster` haben, wenn Dateien anderer Module für die Person unsichtbar sind; die App fragt dann weiter, bis `naechster` leer ist.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne eines der beiden Leserechte. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Suchtext für Titel und Stichworte (1 bis 100 Zeichen).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: stichwort
+          in: query
+          required: false
+          description: Ein oder mehrere Stichworte, kommagetrennt, höchstens 5.
+          schema:
+            type: string
+            maxLength: 300
+        - name: typ
+          in: query
+          required: false
+          description: Art oder Ablageort.
+          schema:
+            type: string
+            enum: [pdf, word, excel, bild, sharepoint, link]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Dokumente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokumentSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerDokumentAn
+      summary: Dokument anlegen
+      description: |
+        Braucht das Recht `dokumente.bearbeiten` (Standard: Lagerleitung und Leitung). Schreibt über den Sync-Kern: Die Zeile bekommt Version 1, eine Folgenummer und einen Eintrag im Änderungsfeed.
+
+        Das Dokument verweist auf eine Verknüpfung aus `POST /lager/{id}/dateien` (dort läuft die Link-Prüfung; der Server speichert nie einen Inhalt und ruft den Link nie ab). Die Datei muss zu diesem Lager gehören und für die Person sichtbar sein (sie hat sie in den letzten 24 Stunden selbst hinzugefügt oder sie hängt an einem Datensatz, den die Person lesen darf); sonst 400 `DATEI_UNBEKANNT`. Stichworte werden klein geschrieben und ohne Doppelte gespeichert (höchstens 20, je 1 bis 40 Zeichen, ohne Komma). Ohne Angabe ist das Dokument nicht für das Team freigegeben.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `DATEI_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDokumentAnlegen"
+      responses:
+        "201":
+          description: Das neue Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/dokumente/{dokumentId}:
+    get:
+      operationId: holeLagerDokument
+      summary: Dokument lesen
+      description: |
+        Braucht `dokumente.lesen_alle` oder `dokumente.team_lesen`. Wer nur `dokumente.team_lesen` hat, sieht nur Dokumente mit `teamSichtbar`; ein anderes Dokument gibt es für diese Person nicht (404).
+
+        Öffnen und Herunterladen gehen über `datei.link` direkt zum Ablageort; der Ablageort regelt, wer die Datei öffnen darf. Ist die Verknüpfung gelöscht, ist `datei` null.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Dokument (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne eines der beiden Leserechte. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung, ohne Mitgliedschaft oder für das Team ohne Freigabe.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerDokument
+      summary: Dokument ändern
+      description: |
+        Braucht das Recht `dokumente.bearbeiten`. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern).
+
+        Nur die genannten Felder ändern sich; `stichworte` ersetzt die Liste ganz. Mit `dateiId` zeigt das Dokument auf eine andere Verknüpfung (Prüfung wie beim Anlegen); die bisherige Verknüpfung entfällt nach 24 Stunden, wenn kein Datensatz sie einbindet. Wer ein Dokument nicht sehen darf (Leserechte), bekommt 404.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Dokument (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `DATEI_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDokumentAendern"
+      responses:
+        "200":
+          description: Das geänderte Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerDokument
+      summary: Dokument löschen
+      description: |
+        Braucht das Recht `dokumente.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Die Datei am Ablageort bleibt immer; die Verknüpfung in Cevi OS bleibt mit dem Dokument im Papierkorb. Das endgültige Löschen folgt mit dem Papierkorb.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Dokument (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Dokument gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16173,6 +16871,7 @@ components:
         - vorname
         - nachname
         - stufe
+        - abgewaehlt
       properties:
         id:
           type: string
@@ -16193,6 +16892,9 @@ components:
           type: [string, "null"]
           minLength: 1
           maxLength: 50
+        abgewaehlt:
+          description: "«Nicht dabei» (#387): Abgewählte erscheinen weder in den Gruppen noch beim Mischen noch in der Abzählliste."
+          type: boolean
     LagerTeilnehmerVoll:
       description: "Eine teilnehmende Person mit Cevi-Name (Anzeigename auf Aushängen, sonst gilt der Vorname)."
       type: object
@@ -16204,6 +16906,7 @@ components:
         - nachname
         - stufe
         - ceviName
+        - abgewaehlt
       properties:
         id:
           type: string
@@ -16224,6 +16927,9 @@ components:
           type: [string, "null"]
           minLength: 1
           maxLength: 50
+        abgewaehlt:
+          description: "«Nicht dabei» (#387): Abgewählte erscheinen weder in den Gruppen noch beim Mischen noch in der Abzählliste."
+          type: boolean
         ceviName:
           type: [string, "null"]
           minLength: 1
@@ -16514,6 +17220,299 @@ components:
     # lager-schemas: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerGruppe:
+      description: "Eine Programmgruppe des Lagers (ohne ihre Leute; die liefert `GET /gruppen`)."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerGruppeAnlegen:
+      description: "Neue Gruppe. Nur diese Felder; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reihenfolge:
+          description: "Ohne Angabe folgt die Gruppe auf die bestehenden."
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerGruppeAendern:
+      description: "Gruppe ändern: `version` und mindestens ein weiteres Feld."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerGruppePerson:
+      description: "Ein Mitglied des Lagers (Konto) in einer Gruppe."
+      type: object
+      additionalProperties: false
+      required:
+        - personId
+        - name
+        - ceviName
+        - rolle
+      properties:
+        personId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ceviName:
+          type: [string, "null"]
+        rolle:
+          type: string
+          enum:
+            - leitung
+            - mitglied
+    LagerGruppeTeilnehmer:
+      description: "Ein Teilnehmender in einer Gruppe: Vorname, Nachname und Stufe; mit `teilnehmer.bearbeiten` auch der Cevi-Name."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - vorname
+        - nachname
+        - stufe
+      properties:
+        id:
+          type: string
+          format: uuid
+        vorname:
+          type: string
+        nachname:
+          type: string
+        stufe:
+          type: [string, "null"]
+        ceviName:
+          type: [string, "null"]
+    LagerGruppeMitLeuten:
+      description: "Eine Gruppe mit ihren Konten und Teilnehmenden."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - reihenfolge
+        - personen
+        - teilnehmer
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reihenfolge:
+          type: integer
+          minimum: 0
+        personen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerGruppePerson"
+        teilnehmer:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerGruppeTeilnehmer"
+    LagerGruppenListe:
+      description: "Alle Gruppen des Lagers mit zwei Zählern."
+      type: object
+      additionalProperties: false
+      required:
+        - gruppen
+        - ohneGruppe
+        - abgewaehlt
+      properties:
+        gruppen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerGruppeMitLeuten"
+        ohneGruppe:
+          description: "Teilnehmende, die dabei sind und in keiner Gruppe stehen."
+          type: integer
+          minimum: 0
+        abgewaehlt:
+          description: "Teilnehmende, die «nicht dabei» sind."
+          type: integer
+          minimum: 0
+    LagerGruppeZuordnen:
+      description: "Zuordnen. Mindestens eine ID, insgesamt höchstens 200, keine doppelt. `gruppeId` `null` nimmt die Genannten aus ihrer Gruppe. `rolle` gilt nur für `personIds`."
+      type: object
+      additionalProperties: false
+      required:
+        - gruppeId
+      properties:
+        gruppeId:
+          type: [string, "null"]
+          format: uuid
+        teilnehmerIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        personIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        rolle:
+          type: string
+          enum:
+            - leitung
+            - mitglied
+          default: mitglied
+    LagerTeilnehmendeAbwaehlen:
+      description: "Abwählen (`abgewaehlt` `true`) oder wieder zuwählen (`false`): 1 bis 200 IDs, keine doppelt."
+      type: object
+      additionalProperties: false
+      required:
+        - abgewaehlt
+        - teilnehmerIds
+      properties:
+        abgewaehlt:
+          type: boolean
+        teilnehmerIds:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+    LagerGruppenGeaendert:
+      type: object
+      additionalProperties: false
+      required:
+        - geaendert
+      properties:
+        geaendert:
+          type: integer
+          minimum: 0
+    LagerGruppenMischen:
+      description: "Mischen: `anzahl` 2 bis 20; `uebernehmen` `false` liefert nur den Vorschlag; `seed` macht die Verteilung wiederholbar."
+      type: object
+      additionalProperties: false
+      required:
+        - anzahl
+        - uebernehmen
+      properties:
+        anzahl:
+          type: integer
+          minimum: 2
+          maximum: 20
+        uebernehmen:
+          type: boolean
+        seed:
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+    LagerGruppenMischenGruppe:
+      type: object
+      additionalProperties: false
+      required:
+        - nummer
+        - gruppeId
+        - name
+        - anzahl
+        - teilnehmer
+      properties:
+        nummer:
+          type: integer
+          minimum: 1
+        gruppeId:
+          description: "Die bestehende Gruppe; `null` in der Vorschau für eine Gruppe, die erst beim Übernehmen entsteht."
+          type: [string, "null"]
+          format: uuid
+        name:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+        teilnehmer:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - vorname
+              - nachname
+              - stufe
+            properties:
+              id:
+                type: string
+                format: uuid
+              vorname:
+                type: string
+              nachname:
+                type: string
+              stufe:
+                type: [string, "null"]
+    LagerGruppenMischenErgebnis:
+      description: "Die vorgeschlagene (`vorschau` `true`) oder übernommene (`false`, mit `geaendert`) Einteilung."
+      type: object
+      additionalProperties: false
+      required:
+        - vorschau
+        - seed
+        - gruppen
+      properties:
+        vorschau:
+          type: boolean
+        seed:
+          description: "Der verwendete Startwert; mit ihm gibt dieselbe Eingabe dieselbe Einteilung."
+          type: integer
+          minimum: 0
+          maximum: 4294967295
+        gruppen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerGruppenMischenGruppe"
+        geaendert:
+          description: "Nur beim Übernehmen: Zahl der neu gesetzten Zuordnungen (wer schon richtig stand, zählt nicht)."
+          type: integer
+          minimum: 0
     # lager-schemas: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -17601,6 +18600,130 @@ components:
     # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDokument:
+      description: "Ein Eintrag der Sammelabfrage: ein Dokument oder die Datei eines anderen Moduls. Kein Inhalt; der Server ruft den Link nie ab."
+      type: object
+      additionalProperties: false
+      required:
+        - quelle
+        - id
+        - version
+        - titel
+        - stichworte
+        - teamSichtbar
+        - datei
+        - art
+        - sharepoint
+        - erstelltAm
+      properties:
+        quelle:
+          description: "`dokument` oder der Name der Tabelle des Moduls, das die Datei einbindet. Bei einer Datei eines anderen Moduls ist `id` die ID der Datei, `version` und `teamSichtbar` sind null und die Stichworte leer."
+          type: string
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: [integer, "null"]
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        stichworte:
+          description: "Klein geschrieben, ohne Doppelte, höchstens 20."
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          description: "Ob das Team das Dokument sieht."
+          type: [boolean, "null"]
+        datei:
+          description: "Die Verknüpfung auf die Datei; null, wenn sie gelöscht ist."
+          oneOf:
+            - $ref: "#/components/schemas/LagerDatei"
+            - type: "null"
+        art:
+          description: "Art der Datei nach MIME-Typ oder Endung; `link` für alles andere. Null, wenn die Datei gelöscht ist."
+          type: [string, "null"]
+          enum: [pdf, word, excel, bild, link, null]
+        sharepoint:
+          description: "Ob der Link auf einem SharePoint-Host (`*.sharepoint.com`) liegt. Null, wenn die Datei gelöscht ist."
+          type: [boolean, "null"]
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerDokumentSeite:
+      description: "Eine Seite der Sammelabfrage."
+      type: object
+      additionalProperties: false
+      required:
+        - dokumente
+        - naechster
+      properties:
+        dokumente:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDokument"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt. Die Seite kann leer sein und trotzdem einen Cursor haben."
+          type: [string, "null"]
+          format: uuid
+    LagerDokumentAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - dateiId
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        dateiId:
+          description: "ID einer Verknüpfung aus `POST /lager/{id}/dateien`."
+          type: string
+          format: uuid
+        stichworte:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          description: "Vorgabe false."
+          type: boolean
+    LagerDokumentAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        dateiId:
+          type: string
+          format: uuid
+        stichworte:
+          description: "Ersetzt die Liste."
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          type: boolean
     # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
