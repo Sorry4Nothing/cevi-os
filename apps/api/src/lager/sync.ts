@@ -75,10 +75,16 @@ export type SchreibEreignis = {
 };
 export type SchreibHaken = (tx: Tx, ereignis: SchreibEreignis) => Promise<void>;
 const haken: SchreibHaken[] = [];
+// Die Zeile vor dem Schreiben kostet eine Abfrage; sie wird nur geladen, wenn ein Haken sie braucht
+let brauchtVorher = false;
 
-// Haken für L0e (#368): Papierkorb, Revisionen und Verlauf hängen sich hier ein. Er läuft in der Transaktion des Schreibvorgangs, nach dem Eintrag im Feed; wirft er, wird nichts geschrieben
-export function registriereSchreibHaken(h: SchreibHaken) {
+// Haken für L0e (#368) und die Ereignisse offener Ansichten (#367): Papierkorb, Revisionen und Verlauf hängen sich hier ein. Er läuft in der Transaktion des Schreibvorgangs, nach dem Eintrag im Feed; wirft er, wird nichts geschrieben. Wer «vorher» nicht liest, setzt ohneVorher und spart die Abfrage
+export function registriereSchreibHaken(
+  h: SchreibHaken,
+  optionen?: { ohneVorher?: true },
+) {
   haken.push(h);
+  if (!optionen?.ohneVorher) brauchtVorher = true;
 }
 
 async function naechsteFolgenummer(tx: Tx, lagerId: string) {
@@ -210,8 +216,9 @@ export async function aendereZeile<T extends LagerSpaltenTabelle>(
 ): Promise<T["$inferSelect"]> {
   const name = pruefeAnmeldung(tabelle);
   const seq = await naechsteFolgenummer(tx, k.lagerId);
-  const vorher =
-    haken.length > 0 ? await ladeZeile(tx, tabelle, k, p.id) : undefined;
+  const vorher = brauchtVorher
+    ? await ladeZeile(tx, tabelle, k, p.id)
+    : undefined;
   const [neu] = await tx
     .update(tabelle)
     .set({
@@ -246,8 +253,9 @@ export async function loescheZeile<T extends LagerSpaltenTabelle>(
 ): Promise<T["$inferSelect"]> {
   const name = pruefeAnmeldung(tabelle);
   const seq = await naechsteFolgenummer(tx, k.lagerId);
-  const vorher =
-    haken.length > 0 ? await ladeZeile(tx, tabelle, k, p.id) : undefined;
+  const vorher = brauchtVorher
+    ? await ladeZeile(tx, tabelle, k, p.id)
+    : undefined;
   const [neu] = await tx
     .update(tabelle)
     .set({

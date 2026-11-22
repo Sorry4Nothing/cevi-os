@@ -290,6 +290,13 @@
       "breakpoints": true
     },
     {
+      "idx": 44,
+      "version": "7",
+      "when": 1793549400000,
+      "tag": "0044_eckdaten_nur_gepflegt",
+      "breakpoints": true
+    },
+    {
       "idx": 60,
       "version": "7",
       "when": 1793550000000,
@@ -311,10 +318,24 @@
       "breakpoints": true
     },
     {
+      "idx": 63,
+      "version": "7",
+      "when": 1793550300000,
+      "tag": "0063_lager_warteschlange",
+      "breakpoints": true
+    },
+    {
       "idx": 65,
       "version": "7",
       "when": 1793550500000,
       "tag": "0065_lager_benachrichtigungen",
+      "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1793550600000,
+      "tag": "0066_lager_dateien",
       "breakpoints": true
     },
     {

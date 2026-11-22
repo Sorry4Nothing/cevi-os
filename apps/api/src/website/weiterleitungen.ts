@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { tag, weiterleitung } from "../db/schema.js";
-import { stufenSlug } from "../kalender/eckdaten.js";
 import { istAusgabePfad } from "./ausgabe.js";
 import { CSP, esc, STYLESHEET_PFAD } from "./rendern.js";
 import { RESERVIERTE_ADRESSEN } from "./seiten.js";
@@ -194,4 +193,14 @@ export async function baueWeiterleitungen(
     }
   }
   return dateien;
+}
+
+// Aus dem Stufennamen der Verwaltung: klein, Umlaute ausgeschrieben, nur [a-z0-9]. Alles andere fällt weg, damit der Name nie den Pfad verlässt (alte Adresse /cevistufe-<name>)
+export function stufenSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/[^a-z0-9]/g, "");
 }
