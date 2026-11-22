@@ -198,6 +198,15 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerEingang: {
+    titel: "Eingang im Lager",
+    zweck:
+      "Mitglieder des Lagers schicken der Lagerleitung eine Idee, einen Wunsch, eine Frage oder Feedback, auf Wunsch anonym. Gespeichert sind die Art, der Text, der Tag der Meldung, der Status, die Antwort der Lagerleitung mit ihrem Tag und, wenn die Lagerleitung sie zuordnet, das Ressort und das Traktandum. Bei einer nicht anonymen Meldung steht auch das Konto der Person dabei: Die Lagerleitung sieht den Namen, und die Person bekommt die Antwort als Push, der nur den Lagertitel nennt. Bei einer anonymen Meldung speichert Cevi OS keine Person, keine IP-Adresse und keine Uhrzeit, nur den Tag, und schreibt weder ein Audit-Log noch einen Eintrag im Änderungsfeed. Die Person bekommt beim Senden einen Rückfragecode, mit dem sie Status und Antwort abruft; gespeichert ist nur ein Prüfwert dieses Codes. Die Antwort steht ausserdem an der Meldung, die die Lagerleitung liest. Die Meldungen sieht nur die Lagerleitung und wer von ihr das Recht dazu bekommt.",
+    frist:
+      "Bis die Lagerleitung die Meldung löscht oder das Lager gelöscht wird; eine nicht anonyme Meldung entfällt auch mit dem Konto. Auf Anfrage löscht die Leitung Daten. Eine anonyme Meldung kennt keine Person und lässt sich darum nur über den Rückfragecode oder durch die Lagerleitung finden.",
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   lagerDokumente: {
     titel: "Dokumente im Lager",
     zweck:
@@ -213,6 +222,22 @@ export const KATEGORIEN = {
     frist: `Bis die Leitung das Protokoll oder den Beschluss löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
+  },
+  lagerAdressbuch: {
+    titel: "Adressbuch im Lager",
+    zweck:
+      "Externe Kontakte des Lagers an einem Ort haben, zum Beispiel Bäckerei, Platzwart oder Behörde. Die Lagerleitung erfasst Name, Funktion, Gruppe, Telefonnummer, E-Mail-Adresse und eine Notiz. Es sind Daten Dritter, die selbst kein Konto haben: Nur die Lagerleitung liest und ändert sie (die Rechte lassen sich je Lager einstellen), und jedes Lesen steht im Protokoll, ohne die Inhalte. Wer einen Kontakt für das nächste Lager behalten will, markiert ihn.",
+    frist: `180 Tage nach dem Ende des Lagers löscht Cevi OS jeden Kontakt endgültig, ausser er ist mit «Fürs nächste Lager behalten» markiert; 14 Tage vorher erinnert Cevi OS die Lagerleitung. Markierte Kontakte bleiben, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Ein gelöschter Kontakt verschwindet nach 30 Tagen endgültig. Mit dem Konto verschwindet nur die Angabe, wer den Kontakt erfasst hat. ${AUF_ANFRAGE}`,
+    apple: [
+      "Contact Info: Name",
+      "Contact Info: Phone Number",
+      "Contact Info: Email Address",
+    ],
+    google: [
+      "Personal info: Name",
+      "Personal info: Phone number",
+      "Personal info: Email address",
+    ],
   },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
@@ -614,6 +639,19 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "team_sichtbar",
     ],
   },
+  // Adressbuch (#397): Personendaten Dritter, nur Lagerleitung; Aufräumfrist 180 Tage nach dem Lagerende, ausser «behalten»
+  adressbuch_kontakt: {
+    lagerAdressbuch: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "funktion",
+      "gruppe",
+      "telefon",
+      "email",
+      "notiz",
+      "behalten",
+    ],
+  },
   // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
   ressort: {
     lager: [
@@ -835,6 +873,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "person_id",
       "emoji",
+    ],
+  },
+  // Eingang (#383): bei einer anonymen Meldung (anonym) ist person_id leer, dafür steht ein Prüfwert des Rückfragecodes; nur der Tag, keine Uhrzeit, keine zeitgeordnete ID. Die Tabelle hat keine LAGER_BASIS_SPALTEN (kein Feed, keine Revision)
+  eingang: {
+    lagerEingang: [
+      "id",
+      "lager_id",
+      "version",
+      "art",
+      "text",
+      "anonym",
+      "person_id",
+      "rueckfragecode_hash",
+      "erstellt_tag",
+      "status",
+      "antwort",
+      "beantwortet_tag",
+      "ressort_id",
+      "traktandum_id",
     ],
   },
   // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt

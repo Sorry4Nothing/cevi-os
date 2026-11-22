@@ -140,6 +140,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.js": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
   "GET /admin/website.js": { erwartet: alle(200) },
   "GET /admin/website.css": { erwartet: alle(200) },
@@ -160,8 +162,6 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/termine-warnliste.css": { erwartet: alle(200) },
   "GET /admin/termine-kategorien.js": { erwartet: alle(200) },
   "GET /admin/termine-kategorien.css": { erwartet: alle(200) },
-  "GET /admin/anwesenheit.js": { erwartet: alle(200) },
-  "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/termine-vorschlaege.js": { erwartet: alle(200) },
   "GET /admin/termine-vorschlaege.css": { erwartet: alle(200) },
   "GET /admin/termine-anlaesse.js": { erwartet: alle(200) },
@@ -1946,6 +1946,7 @@ const MIDDLEWARE = new Set([
   "ALL /api/*",
   "ALL /api/v1/*",
   "ALL /api/v1/admin/*",
+  "ALL /api/v1/medien/*",
   "ALL /api/v1/redaktion/*",
 ]);
 

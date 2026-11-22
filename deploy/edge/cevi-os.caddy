@@ -7,6 +7,15 @@ api.example.org {
 		Referrer-Policy no-referrer
 		-Server
 	}
+	# Zugriffslog ohne den geheimen Token des Kalender-Feeds (/ical/<Token>.ics, #438); Vorschlag, nicht gegen einen laufenden Caddy geprüft (docs/betrieb.md, «Logs»)
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp ^/ical/[^?]* /ical/<verborgen>
+			}
+		}
+	}
 	# Der Alias steht im Netz edge-cevi-os (deploy/docker-compose.prod.yml)
 	reverse_proxy cevi-os-api:3000
 }

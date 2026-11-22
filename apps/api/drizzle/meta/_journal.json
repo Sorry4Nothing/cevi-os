@@ -395,6 +395,13 @@
       "breakpoints": true
     },
     {
+      "idx": 78,
+      "version": "7",
+      "when": 1793551800000,
+      "tag": "0078_lager_eingang",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
@@ -455,6 +462,13 @@
       "version": "7",
       "when": 1793552900000,
       "tag": "0090_lager_dokumente",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1793552950000,
+      "tag": "0091_lager_adressbuch",
       "breakpoints": true
     },
     {
