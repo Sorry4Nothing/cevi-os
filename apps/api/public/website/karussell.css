@@ -2,9 +2,9 @@
    Ohne Skript ist der Streifen ein Bereich zum Scrollen und Wischen. karussell.js setzt «karussell--aktiv» und ergänzt Lineal, Stand und Knöpfe; ihr Platz ist schon reserviert. */
 
 .karussell {
-  /* Dauer und Kurve aller Übergänge des Karussells */
-  --k-dauer: 0.28s;
-  --k-kurve: cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Dauer und Kurve aller Übergänge: die Bewegungs-Tokens der Website (#555) */
+  --k-dauer: var(--dauer, 0.2s);
+  --k-kurve: var(--kurve, cubic-bezier(0.2, 0.7, 0.2, 1));
   --k-intervall: 6s;
 
   display: grid;
@@ -193,12 +193,6 @@
 
 .k-pause:hover {
   background: var(--surface-container);
-}
-
-/* Die Symbole sind gefüllt, nicht gezeichnet: zwei Balken und ein Dreieck */
-.k-pause .i {
-  fill: currentcolor;
-  stroke-width: 1.2;
 }
 
 /* Vor und Zurück: ein Paar in Cevi-Blau, in der Mitte geteilt */

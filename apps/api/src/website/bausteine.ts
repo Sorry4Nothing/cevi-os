@@ -27,6 +27,19 @@ export const MAX_KARUSSELL_BILDER = 8;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
 export const MAX_HINWEIS = 200;
+// Alterschip einer Stufenkarte (#555), zum Beispiel «3./4. Klasse»
+export const MAX_ALTER = 40;
+// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer
+export const MERKMAL_SYMBOLE = [
+  "gruppe",
+  "zelt",
+  "kalender",
+  "stern",
+  "herz",
+  "ort",
+  "sonne",
+] as const;
+export const MAX_ECKDATEN = 12;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -177,13 +190,26 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein(
     "karten",
     z.strictObject({
-      darstellung: z.enum(["karten", "liste"]),
+      // «merkmale» (#555): Zeilen mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Etikett im Bild (Alter, Preis), ein Link auf die ganze Karte;
+      // «personen»: Porträt, Name und Funktion; «zeitstrahl»: Jahr (Titel) und Ereignis (Text) in ihrer Reihenfolge; «zahlen»: grosse Zahl (Titel) mit Beschriftung (Text)
+      darstellung: z.enum([
+        "karten",
+        "liste",
+        "merkmale",
+        "stufen",
+        "personen",
+        "zeitstrahl",
+        "zahlen",
+      ]),
       eintraege: z
         .array(
           z.strictObject({
             titel: kurztext(MAX_KURZTEXT),
             text: kurztext(MAX_KARTENTEXT).optional(),
             link: link("https", "seite").optional(),
+            symbol: z.enum(MERKMAL_SYMBOLE).optional(),
+            bild: mediumId.optional(),
+            alter: kurztext(MAX_ALTER).optional(),
           }),
         )
         .min(1)
@@ -244,6 +270,31 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
           ziel: linkAlle,
         })
         .optional(),
+    }),
+  ),
+  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Stufenfelder; für Lager und Anlässe
+  baustein(
+    "eckdaten",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            bezeichnung: kurztext(MAX_BESCHRIFTUNG),
+            wert: kurztext(MAX_UNTERSCHRIFT),
+          }),
+        )
+        .min(1)
+        .max(MAX_ECKDATEN),
+    }),
+  ),
+  // Aufruf zum Handeln (#555): ein farbiges Band mit Titel, kurzem Text und einer Schaltfläche («Ich will in den Cevi!»)
+  baustein(
+    "aufruf",
+    z.strictObject({
+      titel: kurztext(MAX_KURZTEXT),
+      text: kurztext(MAX_KARTENTEXT).optional(),
+      beschriftung: kurztext(MAX_BESCHRIFTUNG),
+      ziel: linkAlle,
     }),
   ),
   // Kontaktkarte (#549, Design W1): Telefon und E-Mail der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen

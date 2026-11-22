@@ -4,15 +4,16 @@
 // Keine Bibliothek, kein innerHTML, keine Abrufe: Die Bilder stehen schon im Markup.
 (function () {
   var SVG = "http://www.w3.org/2000/svg";
-  // Wie --k-dauer in karussell.css
-  var BLENDE_MS = 280;
+  // Wie --dauer in website.css
+  var BLENDE_MS = 200;
   var reduziert = window.matchMedia("(prefers-reduced-motion: reduce)");
-  // Pfeile mit Schaft wie im Symbolsatz der Website; Pause und Start sind gefüllte Formen
-  var PFADE = {
-    zurueck: "M19 12H5M11 6l-6 6 6 6",
-    weiter: "M5 12h14M13 6l6 6-6 6",
-    pause: "M7.5 6h3v12h-3zM13.5 6h3v12h-3z",
-    start: "M8.5 5.5v13l10.5-6.5z",
+  // Wie der Symbolsatz der Website (symbole.ts): Linie und gefülltes Dreieck für die Richtung («pfeil», für Zurück gespiegelt), gefüllte Formen für Pause und Start
+  var LINIEN = { zurueck: "M21 12H9", weiter: "M3 12h12" };
+  var FORMEN = {
+    zurueck: "M10 6 2.5 12l7.5 6z",
+    weiter: "M14 6l7.5 6-7.5 6z",
+    pause: "M7 5h3.5v14H7zM13.5 5H17v14h-3.5z",
+    start: "M7.5 4.5v15L20 12z",
   };
 
   function element(tag, klasse, text) {
@@ -22,21 +23,27 @@
     return e;
   }
 
-  function symbol(pfad) {
+  function symbol(name) {
     var s = document.createElementNS(SVG, "svg");
     s.setAttribute("class", "i");
     s.setAttribute("viewBox", "0 0 24 24");
     s.setAttribute("aria-hidden", "true");
-    var p = document.createElementNS(SVG, "path");
-    p.setAttribute("d", pfad);
-    s.appendChild(p);
+    if (LINIEN[name]) {
+      s.appendChild(document.createElementNS(SVG, "path")).setAttribute(
+        "d",
+        LINIEN[name],
+      );
+    }
+    var form = s.appendChild(document.createElementNS(SVG, "path"));
+    form.setAttribute("class", "f");
+    form.setAttribute("d", FORMEN[name]);
     return s;
   }
 
-  function knopf(klasse, pfad, name) {
+  function knopf(klasse, zeichen, name) {
     var k = element("button", klasse);
     k.type = "button";
-    k.appendChild(symbol(pfad));
+    k.appendChild(symbol(zeichen));
     if (name) k.setAttribute("aria-label", name);
     return k;
   }
@@ -85,10 +92,10 @@
     var ansage = element("span", "nur-sr");
     stand.replaceChildren(zahl, ansage);
 
-    var pause = knopf("k-pause", PFADE.pause);
+    var pause = knopf("k-pause", "pause");
     var pauseText = pause.appendChild(element("span", null, "Pause"));
-    var zurueck = knopf("k-zurueck", PFADE.zurueck, "Vorheriges Bild");
-    var weiter = knopf("k-weiter", PFADE.weiter, "Nächstes Bild");
+    var zurueck = knopf("k-zurueck", "zurueck", "Vorheriges Bild");
+    var weiter = knopf("k-weiter", "weiter", "Nächstes Bild");
     var pfeile = element("div", "k-pfeile");
     pfeile.appendChild(zurueck);
     pfeile.appendChild(weiter);
@@ -127,7 +134,7 @@
       pauseText.textContent = angehalten ? "Start" : "Pause";
       pause
         .querySelector("path")
-        .setAttribute("d", angehalten ? PFADE.start : PFADE.pause);
+        .setAttribute("d", angehalten ? FORMEN.start : FORMEN.pause);
     }
 
     function markiere(i) {
