@@ -144,7 +144,12 @@ function plane(seiten, seite, elternId, index) {
   return { aenderungen, position: pos + 1, anzahl: reihe.length };
 }
 
-const koerper = ({ id: _id, ...rest }) => rest;
+// Der PATCH-Körper ohne die Kennung (sie steht im Pfad)
+const koerper = (eintrag) => {
+  const rest = { ...eintrag };
+  delete rest.id;
+  return rest;
+};
 const patch = (id, body) => anfrage("PATCH", `${API}/seiten/${id}`, body);
 
 // Optionsknöpfe (Radio) im Stil der Stufenrollen bei den Personen
