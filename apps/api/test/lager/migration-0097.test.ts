@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0096 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0095 migrieren (was davon im Journal steht), dann 0096 durch den echten Migrator, dann der Rückweg
+// 0097 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0095 migrieren (was davon im Journal steht), dann 0097 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig389_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
-  ordnerBauen(bisVorher, 95);
+  ordnerBauen(bisVorher, 96);
   ordnerBauen(komplett, 96);
 });
 
@@ -68,7 +68,7 @@ const tabellen = async () =>
     await besitzer`select table_name from information_schema.tables where table_schema = 'public' and table_name = 'diensttausch'`
   ).map((z) => z.table_name);
 
-test("0096 legt diensttausch an, die API-Rolle darf sie nutzen, die Regeln der Tabelle gelten, der Rückweg räumt auf", async () => {
+test("0097 legt diensttausch an, die API-Rolle darf sie nutzen, die Regeln der Tabelle gelten, der Rückweg räumt auf", async () => {
   await migrate(drizzle(besitzer), { migrationsFolder: bisVorher });
   const vorher = await anzahlMigrationen();
   expect(await tabellen()).toEqual([]);
@@ -161,11 +161,11 @@ test("0096 legt diensttausch an, die API-Rolle darf sie nutzen, die Regeln der T
   await api`delete from lager where id = ${lager.id}`;
   expect(await api`select * from diensttausch`).toHaveLength(0);
 
-  // Rückweg: Tabelle weg, Journal ohne 0096, Stand von vorher
+  // Rückweg: Tabelle weg, Journal ohne 0097, Stand von vorher
   await besitzer.unsafe(
     readFileSync(
       new URL(
-        "../../drizzle/rueckweg/0096_lager_diensttausch.sql",
+        "../../drizzle/rueckweg/0097_lager_diensttausch.sql",
         import.meta.url,
       ),
       "utf8",
@@ -174,7 +174,7 @@ test("0096 legt diensttausch an, die API-Rolle darf sie nutzen, die Regeln der T
   expect(await tabellen()).toEqual([]);
   expect(await anzahlMigrationen()).toBe(vorher);
 
-  // Erneut vorwärts: Der Rückweg hinterlässt einen Stand, auf dem 0096 wieder läuft
+  // Erneut vorwärts: Der Rückweg hinterlässt einen Stand, auf dem 0097 wieder läuft
   await migrate(drizzle(besitzer), { migrationsFolder: komplett });
   expect(await tabellen()).toEqual(["diensttausch"]);
 }, 60_000);

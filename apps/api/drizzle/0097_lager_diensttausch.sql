@@ -1,5 +1,5 @@
 -- Diensttausch im Lager (#389): diensttausch (Anfrage eines Mitglieds, eine eigene Schicht zu tauschen oder abzugeben; die Lagerleitung entscheidet, erst dann werden die Schichten umgebucht). Die Migration legt nur an, bestehende Tabellen bleiben unberührt.
--- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0096_lager_diensttausch.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0096_lager_diensttausch.sql
+-- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0097_lager_diensttausch.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0097_lager_diensttausch.sql
 --   Es gehen alle Tauschanfragen verloren; bereits umgebuchte Schichten bleiben, wie sie sind. Einträge der Tabelle im Änderungsfeed (lager_aenderung) bleiben stehen und laufen mit dem Aufräumen nach 30 Tagen aus.
 CREATE TABLE "diensttausch" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
