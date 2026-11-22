@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/diensttausch"
-order: 213000
+order: 215000
 method: POST
 url: "{{baseUrl}}{{pfad_L57}}"
 headers:
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "schichtId": "568a2ff4-bd3a-4377-a99d-a18d631dd40c"
+      "schichtId": "46dc212f-fb45-4f03-9cdc-dcd27258c967"
     }

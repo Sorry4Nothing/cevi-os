@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/termin-vorschlaege/:id"
-order: 432000
+order: 439000
 method: DELETE
-url: "{{baseUrl}}{{pfad_T34}}"
+url: "{{baseUrl}}{{pfad_T39}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

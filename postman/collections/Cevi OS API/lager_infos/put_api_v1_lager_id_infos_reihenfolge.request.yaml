@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/infos/reihenfolge"
-order: 274000
+order: 276000
 method: PUT
 url: "{{baseUrl}}{{pfad_L119}}"
 headers:
@@ -20,7 +20,7 @@ body:
     {
       "eintraege": [
         {
-          "id": "0de775f5-1a85-43c6-89e7-001738edd61e",
+          "id": "d2dc44f2-d742-4389-8007-a36be50a1cd5",
           "version": 1
         }
       ]

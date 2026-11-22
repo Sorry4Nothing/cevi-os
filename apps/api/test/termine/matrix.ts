@@ -28,9 +28,10 @@ export const TERMINE_MODULE = [
   "admin-anlaesse",
   "anlaesse",
   "admin-anmeldungen",
-  // TG1 #446, TG2 #447 (warten auf das OK des Nutzers)
+  // TG1 #446, TG2 #447 (Anfragen, Entscheid)
   "raeume",
   "admin-raeume",
+  "raum-anfragen",
 ] as const;
 export type TermineModul = (typeof TERMINE_MODULE)[number];
 

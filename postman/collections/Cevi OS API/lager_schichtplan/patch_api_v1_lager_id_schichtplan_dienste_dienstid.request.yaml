@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/schichtplan/dienste/:dienstId"
-order: 338000
+order: 340000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L183}}"
 headers:
@@ -19,5 +19,5 @@ body:
   content: |-
     {
       "version": 1,
-      "name": "Umbenannt 90d815cb"
+      "name": "Umbenannt c4437c94"
     }
