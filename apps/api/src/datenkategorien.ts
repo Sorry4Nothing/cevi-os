@@ -355,6 +355,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "entwurf_zaehler",
       "erstellt_am",
       "geaendert_am",
+      "ausgabe_hash",
+      "ausgabe_am",
     ],
   },
   seite_version: {

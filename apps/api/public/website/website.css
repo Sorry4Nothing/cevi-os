@@ -1,0 +1,183 @@
+/* Platzhalter-Stil der öffentlichen Website (#351). Bewusst schlicht und austauschbar: Das Design kommt später und ersetzt diese Datei.
+   Farben wie in seite.css (Text und Akzent mit mindestens 4,5:1 auf der Fläche); sichtbarer Fokus, Layout in rem (200 Prozent Zoom), keine Schriften, Bilder oder Skripte von aussen. */
+:root {
+  color-scheme: light dark;
+  --flaeche: #ffffff;
+  --text: #1a1a24;
+  --text-leise: #4a4a58;
+  --rand: #c9c9d4;
+  --akzent: #323394;
+  --auf-akzent: #ffffff;
+  --hinweis: #f1f1f8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --flaeche: #161620;
+    --text: #ededeb;
+    --text-leise: #ababa6;
+    --rand: #2c2c44;
+    --akzent: #a9abf2;
+    --auf-akzent: #161620;
+    --hinweis: #1e1f38;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--flaeche);
+  color: var(--text);
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+a {
+  color: var(--akzent);
+}
+
+:focus-visible {
+  outline: 3px solid var(--akzent);
+  outline-offset: 2px;
+}
+
+.sprunglink {
+  position: absolute;
+  left: 0.5rem;
+  top: -4rem;
+  padding: 0.5rem 1rem;
+  background: var(--akzent);
+  color: var(--auf-akzent);
+}
+
+.sprunglink:focus {
+  top: 0.5rem;
+}
+
+header,
+main,
+footer {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+header {
+  border-bottom: 1px solid var(--rand);
+}
+
+header .name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+nav ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+nav ul ul {
+  padding-left: 1.25rem;
+}
+
+nav a {
+  display: inline-block;
+  padding: 0.25rem 0;
+}
+
+nav a[aria-current="page"] {
+  font-weight: 700;
+}
+
+main:focus {
+  outline: none;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.25;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+figure {
+  margin: 1rem 0;
+}
+
+figcaption,
+.info,
+.funktion {
+  color: var(--text-leise);
+}
+
+.galerie,
+.karten,
+.liste,
+.team,
+.kontakt {
+  padding: 0;
+  list-style: none;
+}
+
+.galerie {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 1rem;
+}
+
+.karten li {
+  margin: 0 0 1rem;
+  padding: 1rem;
+  border: 1px solid var(--rand);
+  background: var(--hinweis);
+}
+
+.titel {
+  margin: 0;
+  font-weight: 700;
+}
+
+.name {
+  font-weight: 700;
+}
+
+.knopf {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: var(--akzent);
+  color: var(--auf-akzent);
+  text-decoration: none;
+}
+
+.abstand {
+  height: 2rem;
+}
+
+.fakten dt {
+  font-weight: 700;
+}
+
+.fakten dd {
+  margin: 0 0 0.5rem;
+}
+
+footer {
+  border-top: 1px solid var(--rand);
+  color: var(--text-leise);
+}

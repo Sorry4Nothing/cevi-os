@@ -13,6 +13,22 @@ const MEDIEN_PFLICHT = [
   "MEDIEN_S3_GEHEIMSCHLUESSEL",
 ] as const;
 
+// Statische Auslieferung der Website (#351): ohne alle drei läuft die Erzeugung nicht, mit einigen startet die API nicht
+const WEBSITE_PFLICHT = [
+  "WEBSITE_AUSGABE_PFAD",
+  "WEBSITE_ABTEILUNG_ID",
+  "WEBSITE_BASIS_URL",
+] as const;
+const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
+  MEDIEN_PFLICHT,
+  WEBSITE_PFLICHT,
+];
+// Nur die Herkunft, ohne Pfad und Schrägstrich am Ende: Daraus entstehen canonical und Sitemap
+const basisUrl = (protokoll: RegExp) =>
+  freiwillig(
+    z.url({ protocol: protokoll }).transform((u) => new URL(u).origin),
+  );
+
 // Pflicht und ohne Rückfall; die übrigen Variablen der Umgebung bleiben unbeachtet
 const schema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
@@ -35,6 +51,10 @@ const schema = z.object({
   MEDIEN_S3_GEHEIMSCHLUESSEL: freiwillig(z.string().min(1)),
   // «true», wenn der Anbieter den Bucket im Pfad statt im Hostnamen verlangt
   MEDIEN_S3_PFADSTIL: freiwillig(z.enum(["true", "false"])),
+  // Verzeichnis für die erzeugten Dateien der Website (eigenes Verzeichnis: der Abgleich löscht dort Seitendateien, die nicht mehr gebraucht werden), die Abteilung, deren Seiten erscheinen, und die Adresse der Website. Domain und Hosting stehen noch nicht fest
+  WEBSITE_AUSGABE_PFAD: freiwillig(z.string().min(1)),
+  WEBSITE_ABTEILUNG_ID: freiwillig(z.uuid()),
+  WEBSITE_BASIS_URL: basisUrl(/^https?$/),
   // Verantwortliche Stelle und ihre E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; beide sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
   VERANTWORTLICHE_STELLE: z
     .string()
@@ -48,6 +68,7 @@ const schema = z.object({
 // Mit http setzt better-auth Cookies ohne Secure, darum in Produktion nur https (#222); lokal bleibt http://localhost
 const produktion = schema.extend({
   BETTER_AUTH_URL: z.url({ protocol: /^https$/ }),
+  WEBSITE_BASIS_URL: basisUrl(/^https$/),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {
@@ -59,15 +80,15 @@ export function ladeKonfiguration(env: Record<string, string | undefined>) {
     ergebnis.success ? [] : ergebnis.error.issues.map((f) => String(f.path[0])),
   );
   if (ergebnis.success) {
-    const gesetzt = MEDIEN_PFLICHT.filter(
-      (n) => ergebnis.data[n] !== undefined,
-    );
-    if (gesetzt.length === 0 || gesetzt.length === MEDIEN_PFLICHT.length) {
-      return ergebnis.data;
+    for (const gruppe of GRUPPEN) {
+      const gesetzt = gruppe.filter((n) => ergebnis.data[n] !== undefined);
+      if (gesetzt.length !== 0 && gesetzt.length !== gruppe.length) {
+        for (const n of gruppe) {
+          if (ergebnis.data[n] === undefined) namen.add(n);
+        }
+      }
     }
-    for (const n of MEDIEN_PFLICHT) {
-      if (ergebnis.data[n] === undefined) namen.add(n);
-    }
+    if (namen.size === 0) return ergebnis.data;
   }
   throw new Error(
     `Fehlende oder ungültige Umgebungsvariablen: ${[...namen].join(", ")}`,
