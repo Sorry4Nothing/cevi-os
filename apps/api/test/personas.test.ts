@@ -63,7 +63,11 @@ const ERWARTET: Record<Persona, object | null> = {
     kinder: ["Kind B in Stufe B"],
   },
   elternA: { ...TEST, kinder: ["Kind A in Stufe A"] },
-  elternB: { ...TEST, kinder: ["Kind B in Stufe B"] },
+  elternB: {
+    ...TEST,
+    kinder: ["Kind B in Stufe B"],
+    two_factor_enabled: true,
+  },
   mussPasswortAendern: {
     ...TEST,
     kinder: ["Kind A in Stufe A"],

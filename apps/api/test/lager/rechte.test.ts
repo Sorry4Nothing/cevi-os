@@ -35,6 +35,7 @@ import { API_URL } from "../hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "../hilfen/personas.js";
@@ -68,7 +69,8 @@ beforeAll(async () => {
       legePersonaAn(welt, "admin"),
       legePersonaAn(welt, "demoAdmin"),
       legePersonaAn(welt, "elternA"),
-      legePersonaAn(welt, "slA"),
+      // Die Lagerleitung braucht den zweiten Faktor (#423)
+      legePersonaMitFaktorAn(welt, "slA"),
       legePersonaAn(welt, "slB"),
       legePersonaAn(welt, "leitendeA"),
       legePersonaAn(welt, "leitendeB"),
@@ -170,7 +172,7 @@ const beispiel = new Hono<LagerEnv>()
       leitung: person(leitung),
       team: person(team),
       lesen: person(lesen),
-      lagerleitung: person(lagerleitung),
+      lagerleitung: { ...person(lagerleitung), zweiterFaktor: true },
     };
     c.set("person", konten[c.req.header("x-person") ?? ""]);
     await next();

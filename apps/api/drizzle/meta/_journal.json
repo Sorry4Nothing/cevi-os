@@ -360,6 +360,13 @@
       "breakpoints": true
     },
     {
+      "idx": 100,
+      "version": "7",
+      "when": 1793553000000,
+      "tag": "0100_plattformrollen",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,

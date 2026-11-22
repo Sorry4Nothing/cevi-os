@@ -36,6 +36,7 @@ import { API_URL } from "../hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  schalteZweitenFaktorEin,
   type PersonaKonto,
   type Welt,
 } from "../hilfen/personas.js";
@@ -80,6 +81,8 @@ beforeAll(async () => {
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "leitendeA"),
   ]);
+  // Auch als Lagerleitung (Rolle in einem Test) kommt sie durch: Die Lagerleitung braucht den zweiten Faktor (#423)
+  sl = await schalteZweitenFaktorEin(welt, sl);
 });
 
 // Jede Anfrage schreibt sonst eine Log-Zeile in die Testausgabe

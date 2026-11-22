@@ -258,6 +258,12 @@ Admins melden sich zusätzlich mit einem Code aus einer Authenticator-App oder e
 
 Jede Zurücksetzung schreibt eine Zeile ins Audit-Log; bei der CLI steht «cli» als Akteur.
 
+## Plattformrollen
+
+Der **Entwickler** hat jedes Recht der Plattform und lässt sich nur mit der CLI vergeben und entziehen, nie über die Verwaltung oder eine Route (#423). In `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/entwickler.ts vergeben --benutzername <name>`, zum Entziehen `entziehen` statt `vergeben`. Lokal: `npm run entwickler:vergeben -w apps/api -- --benutzername <name>` und `npm run entwickler:entziehen -w apps/api -- --benutzername <name>`. Die CLI braucht nur `DATABASE_URL`; jede Änderung steht im Audit-Log mit «cli» als Akteur. Der Entwickler braucht den zweiten Faktor: Ohne ihn antwortet die API mit 403 `ZWEITER_FAKTOR_FEHLT`.
+
+Die **Abteilungsleitung** hat die Rechte fest. Weitere Rollen (zuerst der Webmaster, den jede Abteilung als Vorgabe hat) legt die Abteilungsleitung an und stellt ihre Rechte ein (`/api/v1/admin/plattform/rollen`). Jedes dieser Rechte ist «erweitert» und braucht den zweiten Faktor; einfach ist nur die Arbeit der Stufenleitung an der eigenen Stufenseite. Auch die Lager-Rolle `lagerleitung` braucht ihn. Die Rolle einer Person ändert sich mit der nächsten Anfrage, ohne neue Anmeldung.
+
 ## Datenpanne
 
 Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durch ein gekapertes Konto, ein geleaktes Geheimnis oder eine kopierte Datenbank. Es handeln Rollen, keine bestimmten Personen: Wer den Server betreibt, führt die Befehle aus; der Vorstand entscheidet und meldet.
