@@ -84,7 +84,7 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
-  // Fassung für den dunklen Grund (#555): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo in der Nacht auf einem hellen Feld
+  // Fassung für den dunklen Modus (#558): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo im dunklen Modus auf einem hellen Feld
   dunkel?: { id: string; breite: number | null; hoehe: number | null };
 };
 

@@ -22,8 +22,6 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "circle", attr: { cx: "12", cy: "8", r: "4" } },
     { tag: "path", attr: { d: "M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2" } },
   ],
-  // Zeigt ein Untermenü an (#558): das Dreieck allein, Spitze nach unten
-  dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   menue: [{ tag: "path", attr: { d: "M3 6h18M3 12h18M3 18h18" } }],
   schliessen: [{ tag: "path", attr: { d: "M5 5l14 14M19 5 5 19" } }],
   nochmals: [
@@ -100,6 +98,8 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "path", attr: { d: "M12 21.5 6 13.5a7.5 7.5 0 1 1 12 0z" } },
     { tag: "circle", attr: { cx: "12", cy: "9", r: "2.5" } },
   ],
+  // Kleines Dreieck nach unten: zeigt ein Untermenü an (Kopf, #558)
+  dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   pfeil: [
     { tag: "path", attr: { d: "M3 12h12" } },
     { tag: "path", attr: { class: "f", d: "M14 6l7.5 6-7.5 6z" } },
