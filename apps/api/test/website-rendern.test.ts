@@ -217,11 +217,17 @@ describe("XSS: jede Zeichenkette erscheint maskiert", () => {
         }),
       ),
     );
-    expect(html).toContain('<a href="/stufen/woelfe#info">Intern</a>');
     expect(html).toContain(
-      '<a href="https://example.org/x" rel="noopener noreferrer">Extern</a>',
+      '<a href="/stufen/woelfe#info" class="verweis">Intern</a>',
     );
-    expect(html).toContain('<a href="mailto:a@example.org">Mail</a>');
+    expect(html).toContain(
+      '<a href="https://example.org/x" rel="noopener noreferrer" class="verweis">Extern<span class="nur-sr"> (externe Seite)</span></a>',
+    );
+    // Nur der fremde Link trägt den Zusatz für Screenreader
+    expect(zaehle(html, "(externe Seite)")).toBe(1);
+    expect(html).toContain(
+      '<a href="mailto:a@example.org" class="verweis">Mail</a>',
+    );
   });
 });
 

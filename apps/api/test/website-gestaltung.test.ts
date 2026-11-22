@@ -96,8 +96,9 @@ describe("Abschnitte über die ganze Breite", () => {
     );
     expect(abschnitte(html)).toEqual([
       "sektion--flaeche sektion--text sektion--einstieg",
-      "sektion--flaeche sektion--folge sektion--text",
-      "sektion--toenung sektion--breit",
+      // Merkmale: ein Band in der Markenfarbe; danach beginnt die Fläche neu
+      "sektion--marke sektion--breit",
+      "sektion--flaeche sektion--breit",
       "sektion--aufruf",
       "sektion--flaeche sektion--terminliste",
       "sektion--flaeche sektion--folge sektion--text",
@@ -105,7 +106,7 @@ describe("Abschnitte über die ganze Breite", () => {
     ]);
   });
 
-  test("Merkmale stehen als Zeilen neben dem Titel, Bildkarten unter dem Titel über die ganze Breite; ein kurzer Text davor gehört zum Titel", () => {
+  test("Merkmale und Bildkarten stehen unter dem Titel über die ganze Breite; ein kurzer Text davor gehört zum Titel", () => {
     const html = seite(
       dok(
         "T",
@@ -121,8 +122,8 @@ describe("Abschnitte über die ganze Breite", () => {
       ),
     );
     expect(abschnitte(html)).toEqual([
-      "sektion--flaeche sektion--text",
-      "sektion--toenung sektion--breit",
+      "sektion--marke sektion--breit",
+      "sektion--flaeche sektion--breit",
     ]);
     // Der Lead steht im Kopf des Abschnitts, nicht bei den Karten
     expect(html).toMatch(
@@ -183,7 +184,8 @@ describe("Abschnitte über die ganze Breite", () => {
 });
 
 describe("Merkmale (Baustein «Karten»)", () => {
-  test("Symbol, Titel und Text ohne Link; der Link der Eingabe erscheint nie", () => {
+  test("Titel und Text ohne Link und ohne Symbol; der Link der Eingabe erscheint nie; ein Foto ist freiwillig", () => {
+    const foto = id();
     const html = seite(
       dok(
         "T",
@@ -197,19 +199,34 @@ describe("Merkmale (Baustein «Karten»)", () => {
               symbol: "zelt",
               link: "/lager",
             },
-            { titel: "Ohne Symbol" },
+            { titel: "Mit Foto", bild: foto },
           ],
         }),
       ),
+      { ...keineDaten(), medien: new Map([[foto, bild("Zelte im Wald")]]) },
     );
+    // Ein gespeichertes Symbol bleibt gültig, wird aber nicht gezeichnet
     expect(html).toContain(
-      '<ul class="merkmale"><li><span class="merkmal-symbol"><svg class="i"',
+      '<ul class="merkmale"><li><h3 class="titel">Lager</h3><p>Zweimal im Jahr.</p></li>',
     );
-    expect(html).toContain(
-      '<h3 class="titel">Lager</h3><p>Zweimal im Jahr.</p>',
+    expect(html).toMatch(
+      new RegExp(
+        `<li><img src="/api/v1/medien/${foto}" alt="Zelte im Wald"[^>]*><h3 class="titel">Mit Foto</h3></li>`,
+      ),
     );
-    expect(html).toContain('<li><h3 class="titel">Ohne Symbol</h3></li>');
+    expect(html).not.toContain("merkmal-symbol");
     expect(html).not.toContain('href="/lager"');
+    expect(
+      sammleVerweise(
+        dok(
+          "T",
+          b("karten", {
+            darstellung: "merkmale",
+            eintraege: [{ titel: "A", bild: foto }],
+          }),
+        ),
+      ).medien,
+    ).toEqual([foto]);
   });
 
   test("Schema: nur bekannte Symbole", () => {

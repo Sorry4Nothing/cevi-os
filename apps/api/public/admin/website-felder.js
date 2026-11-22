@@ -488,33 +488,6 @@ function galerieForm(k, b, reg, karussell = false) {
   });
 }
 
-// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer der Website
-const MERKMAL_SYMBOLE = [
-  ["gruppe", "Gruppe"],
-  ["zelt", "Zelt"],
-  ["kalender", "Kalender"],
-  ["stern", "Stern"],
-  ["herz", "Herz"],
-  ["ort", "Ort"],
-  ["sonne", "Sonne"],
-];
-
-// Auswahl für ein Feld eines Eintrags (Symbol); leer = kein Wert
-function teilWahl(k, b, reg, eintrag, schluessel, label, pfad, optionen) {
-  const f = waehler({
-    label,
-    optionen: [["", "Keines"], ...optionen],
-    wert: eintrag[schluessel] ?? "",
-  });
-  f.eingabe.addEventListener("change", () => {
-    if (f.eingabe.value === "") delete eintrag[schluessel];
-    else eintrag[schluessel] = f.eingabe.value;
-    k.aendere(b);
-  });
-  anmelden(reg, pfad, f);
-  return f.wurzel;
-}
-
 function kartenForm(k, b, reg) {
   const art = b.daten.darstellung;
   const darstellung = wahl(k, b, reg, "darstellung", "Darstellung", [
@@ -533,7 +506,7 @@ function kartenForm(k, b, reg) {
   });
   const hilfe = {
     merkmale:
-      "Zeilen mit Symbol, Titel und kurzem Text, ohne Link. Gut für «Das erwartet dich».",
+      "Wenige Stichworte mit kurzem Text in einem blauen Band, ohne Link, auf Wunsch je mit Foto. Gut für «Das erwartet dich».",
     stufen:
       "Karten mit Foto, einem Etikett im Bild und einem Link auf die ganze Karte. Gut für Stufen (Etikett: Alter) und für Artikel (Etikett: Preis).",
     personen:
@@ -546,7 +519,7 @@ function kartenForm(k, b, reg) {
   const titelName =
     { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", personen: "Name" }[art] ??
     "Titel";
-  const mitBild = art === "stufen" || art === "personen";
+  const mitBild = ["stufen", "personen", "merkmale"].includes(art);
   const ohneLink = ["merkmale", "personen", "zeitstrahl", "zahlen"].includes(
     art,
   );
@@ -593,20 +566,6 @@ function kartenForm(k, b, reg) {
                 schluessel: "bild",
                 optional: true,
               }),
-            ]
-          : []),
-        ...(art === "merkmale"
-          ? [
-              teilWahl(
-                k,
-                b,
-                reg,
-                eintrag,
-                "symbol",
-                "Symbol (optional)",
-                `${pfad}.symbol`,
-                MERKMAL_SYMBOLE,
-              ),
             ]
           : []),
         teilEingabe(

@@ -143,6 +143,12 @@ function href(ziel: string): Record<string, string> | null {
     : { href: ziel };
 }
 
+const EXTERN_HINWEIS: HtmlKnoten = el(
+  "span",
+  { class: "nur-sr" },
+  " (externe Seite)",
+);
+
 function verlinke(
   ziel: string | undefined,
   innen: HtmlKnoten[],
@@ -150,7 +156,9 @@ function verlinke(
 ): HtmlKnoten[] {
   const h = ziel === undefined ? null : href(ziel);
   if (h === null) return innen;
-  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen)];
+  // Ein Link auf eine fremde Seite sagt das auch Screenreadern; das sichtbare Zeichen zeichnet der Stil (a[rel~="noopener"])
+  const extern = h.rel === undefined ? [] : [EXTERN_HINWEIS];
+  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
 function textBlock(b: TextBlock): HtmlKnoten {
@@ -355,7 +363,7 @@ function rendereBaustein(
       );
     }
     // «karten»: einfache Karte mit Titel, Text und Link; «liste»: eine Zeile je Eintrag mit Link am Titel;
-    // «merkmale» (#555): Kachel ohne Link mit Symbol, Titel und Text; «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
+    // «merkmale» (#555): ohne Link, grosser Titel und Text, optional ein Foto, in einem blauen Band (siehe rendereAbschnitte); «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
     case "karten": {
       const ebene = Math.min(3, letzte.ebene + 1);
       const eintraege = b.daten.eintraege;
@@ -363,17 +371,30 @@ function rendereBaustein(
         return el(
           "ul",
           { class: "merkmale" },
-          ...eintraege.map((e) =>
-            el(
+          ...eintraege.map((e) => {
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            return el(
               "li",
               undefined,
-              ...(e.symbol
-                ? [el("span", { class: "merkmal-symbol" }, symbol(e.symbol))]
+              ...(e.bild && m?.mimeTyp.startsWith("image/")
+                ? [
+                    el("img", {
+                      src: medienUrl(e.bild),
+                      alt: m.altText ?? "",
+                      ...(m.breite &&
+                        m.hoehe && {
+                          width: String(m.breite),
+                          height: String(m.hoehe),
+                        }),
+                      loading: "lazy",
+                      decoding: "async",
+                    }),
+                  ]
                 : []),
               el(`h${ebene}`, { class: "titel" }, e.titel),
               ...(e.text ? [el("p", undefined, e.text)] : []),
-            ),
-          ),
+            );
+          }),
         );
       }
       if (b.daten.darstellung === "personen") {
@@ -500,7 +521,7 @@ function rendereBaustein(
       const knopf =
         b.daten.darstellung === "schaltflaeche"
           ? `btn ${letzte.schalter++ === 0 ? "p" : "s"} gross`
-          : undefined;
+          : "verweis";
       return el(
         "p",
         { class: "knopf" },
@@ -542,7 +563,7 @@ function rendereBaustein(
       return el(
         "p",
         undefined,
-        ...verlinke(b.daten.url, [b.daten.beschriftung]),
+        ...verlinke(b.daten.url, [b.daten.beschriftung], "verweis"),
       );
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
@@ -1018,14 +1039,26 @@ ${alsHtml(g.eintraege)}
           : g.eintraege;
       const mitKopf = !g.eigen && typ === "ueberschrift";
       const rest = liste.slice(1);
-      const breit = !g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b));
+      // Merkmale stehen in einem Band in der Markenfarbe über die ganze Breite; danach beginnt die Fläche neu
+      const marke =
+        !g.eigen &&
+        liste.some(
+          (e) =>
+            sichtbar(e) &&
+            e.b.typ === "karten" &&
+            e.b.daten.darstellung === "merkmale",
+        );
+      const breit =
+        marke || (!g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b)));
       const folge = !breit && vor.zeilen;
-      const ton = folge
-        ? vor.ton
-        : vor.ton === "flaeche"
-          ? "toenung"
-          : "flaeche";
-      vor = { ton, zeilen: !breit };
+      const ton = marke
+        ? "marke"
+        : folge
+          ? vor.ton
+          : vor.ton === "flaeche"
+            ? "toenung"
+            : "flaeche";
+      vor = marke ? { ton: "toenung", zeilen: false } : { ton, zeilen: !breit };
       const klassen = `sektion sektion--${ton}${folge ? " sektion--folge" : ""}`;
       if (g.eigen) {
         return `<section class="${klassen} sektion--${typ}">
