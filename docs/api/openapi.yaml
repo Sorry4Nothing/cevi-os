@@ -17243,6 +17243,134 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/heute:
+    get:
+      operationId: holeLagerHeute
+      summary: Heute im Lager
+      description: |
+        Der Tag im Lager auf einen Blick: die Tagesseite, das Wetter, die Anwesenheit, die Schichten und die Höcks des heutigen Tages (Datum in Zürcher Zeit). Eine reine Ansicht über die Daten der Module, ohne eigene Tabelle; sie gibt nur zurück, was die Rolle dort lesen darf. Jeder Teil folgt dem Leserecht seiner Quelle: `tagesseite` braucht `tagesseiten.lesen`, `wetter` braucht `wetter.lesen`, `anwesenheit` braucht `anwesenheit.lesen_alle` und enthält nur die Zusammenfassung (Zahlen je Abschnitt und Wert, keine Namen), `schichten` braucht `einteilung.lesen`, `hoecks` braucht eines der Höck-Rechte (wer nur Team-Höcks lesen darf, bekommt von diesen nur Datum, Zeit, Titel und Ort). Fehlt das Recht, ist der Teil `null`; ein Teil mit Recht, aber ohne Daten ist leer (`[]`, leere Zeilen). Gibt es heute keinen Lagertag, sind `lagertag` und `tagesseite` `null`; Wetter und Höcks des Datums kommen trotzdem. Notfall-Kontakte gehören nicht dazu (eigene Route des Notfalls).
+
+        Ohne jeden lesbaren Teil antwortet die Route mit 403.
+
+        Datenbanklast: ein Abruf löst höchstens 9 Abfragen aus, unabhängig von der Datenmenge: den Lagertag (1), parallel dazu die Tagesseite mit Wetter (höchstens 5), das Wetter allein (1, nur ohne Tagesseite), die Zusammenfassung der Anwesenheit (1), den Schichtplan (1) und die Höcks des Tages (1, höchstens 50). Dazu kommen die vier Abfragen der Rechteprüfung. Das Wetter geht über den Zwischenspeicher des Lagers (höchstens ein Abruf je 6 Stunden).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne lesbaren Teil. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht je Teil (403 nur, wenn kein Teil lesbar ist).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Heute im Lager."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerHeute"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/meine-woche:
+    get:
+      operationId: holeLagerMeineWoche
+      summary: Meine Woche im Lager
+      description: |
+        Die sieben Tage ab heute (Zürcher Zeit, `von` bis `bis` einschliesslich) aus Sicht der angemeldeten Person: `aufgaben` sind die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt) mit Frist bis `bis`, also auch Überfälliges, höchstens 100; `schichten` sind die eigenen Schichten der Woche; `hoecks` sind die Höcks der Woche (wer nur Team-Höcks lesen darf, bekommt von diesen nur Datum, Zeit, Titel und Ort). Das Team sieht damit nur Eigenes. Jeder Teil folgt dem Leserecht seiner Quelle: `aufgaben` braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben, `schichten` braucht `einteilung.lesen`, `hoecks` braucht eines der Höck-Rechte. Fehlt das Recht, ist der Teil `null`. Ohne jeden lesbaren Teil antwortet die Route mit 403.
+
+        Datenbanklast: ein Abruf löst höchstens 4 Abfragen aus, unabhängig von der Datenmenge: die Aufgaben (höchstens 2), den Schichtplan (1) und die Höcks (1), parallel. Dazu kommen die vier Abfragen der Rechteprüfung.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne lesbaren Teil. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht je Teil (403 nur, wenn kein Teil lesbar ist).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Meine Woche im Lager."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeineWoche"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/start:
+    get:
+      operationId: holeLagerStart
+      summary: Start der Lagerleitung
+      description: |
+        Der Start der Lagerleitung: `countdown` (Tage bis zum Beginn und zum Ende des Lagers, gerechnet ab heute in Zürcher Zeit, negativ, sobald das Datum vorbei ist), `fortschritt` (erledigte, gesamte und überfällige Aufgaben; Meilensteine gesamt, vergangen und der nächste), `ueberfaellig` (offene Aufgaben mit Frist vor heute, höchstens 100) und `eigene` (eigene offene Aufgaben, höchstens 100). Nur die Lagerleitung (auch die Abteilungsleitung) und die Leitung dürfen die Route lesen; Team und Lesen bekommen 403. Wer nicht alle Aufgaben lesen darf (`aufgaben.lesen_alle` oder `aufgaben.bearbeiten`), sieht in den Zahlen und in `ueberfaellig` nur die eigenen Aufgaben; ohne `aufgaben.eigene` sind `fortschritt.aufgaben`, `ueberfaellig` und `eigene` `null`. Die Meilensteine brauchen `zeitplan.lesen`, sonst ist `fortschritt.meilensteine` `null`.
+
+        Datenbanklast: ein Abruf löst höchstens 6 Abfragen aus, unabhängig von der Datenmenge: die Zahlen der Aufgaben (1), die überfälligen (höchstens 2) und die eigenen Aufgaben (höchstens 2) und den Zeitplan (1), parallel. Dazu kommen die vier Abfragen der Rechteprüfung.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Team und Lesen. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Rolle (403), danach die Rechte je Teil.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Start der Lagerleitung."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerStart"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/dokumente:
     get:
@@ -29662,6 +29790,319 @@ components:
             format: uuid
     # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerHeute:
+      description: "Der heutige Tag im Lager. Jeder Teil ist `null`, wenn die Rolle ihn nicht lesen darf."
+      type: object
+      additionalProperties: false
+      required:
+        - datum
+        - lagertag
+        - tagesseite
+        - wetter
+        - anwesenheit
+        - schichten
+        - hoecks
+      properties:
+        datum:
+          description: "Heute in Zürcher Zeit."
+          type: string
+          format: date
+        lagertag:
+          description: "Der Lagertag von heute; `null`, wenn es keinen gibt."
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+                - datum
+                - label
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                datum:
+                  type: string
+                  format: date
+                label:
+                  type: [string, "null"]
+            - type: "null"
+        tagesseite:
+          description: "Braucht `tagesseiten.lesen`. `null` auch, wenn es keinen Lagertag von heute gibt."
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - seite
+                - bloecke
+                - aufgaben
+              properties:
+                seite:
+                  oneOf:
+                    - $ref: "#/components/schemas/LagerTagesseiteMitTageschef"
+                    - type: "null"
+                bloecke:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/LagerTagesseiteBlock"
+                aufgaben:
+                  description: "Die Aufgaben mit Frist heute."
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/LagerAufgabe"
+            - type: "null"
+        wetter:
+          description: "Braucht `wetter.lesen`."
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - tag
+                - stand
+              properties:
+                tag:
+                  oneOf:
+                    - $ref: "#/components/schemas/LagerWetterTag"
+                    - type: "null"
+                stand:
+                  type: [string, "null"]
+                  format: date-time
+            - type: "null"
+        anwesenheit:
+          description: "Braucht `anwesenheit.lesen_alle`. Nur die Zusammenfassung des heutigen Lagertags, ohne Namen."
+          oneOf:
+            - $ref: "#/components/schemas/LagerAnwesenheitZusammenfassung"
+            - type: "null"
+        schichten:
+          description: "Braucht `einteilung.lesen`. Alle Dienste und die Schichten des heutigen Lagertags."
+          oneOf:
+            - type: object
+              additionalProperties: false
+              required:
+                - dienste
+                - schichten
+              properties:
+                dienste:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/LagerDienst"
+                schichten:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/LagerSchicht"
+            - type: "null"
+        hoecks:
+          description: "Braucht ein Höck-Recht. Die Höcks von heute (höchstens 50); wer nur Team-Höcks lesen darf, bekommt `LagerHoeckTeam`."
+          oneOf:
+            - type: array
+              items:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerHoeckListeneintrag"
+                  - $ref: "#/components/schemas/LagerHoeckTeam"
+            - type: "null"
+    LagerMeineWoche:
+      description: "Die sieben Tage ab heute aus Sicht der angemeldeten Person. Jeder Teil ist `null`, wenn die Rolle ihn nicht lesen darf."
+      type: object
+      additionalProperties: false
+      required:
+        - von
+        - bis
+        - aufgaben
+        - schichten
+        - hoecks
+      properties:
+        von:
+          description: "Heute in Zürcher Zeit."
+          type: string
+          format: date
+        bis:
+          description: "Sechs Tage nach `von`, einschliesslich."
+          type: string
+          format: date
+        aufgaben:
+          description: "Eigene nicht erledigte Aufgaben mit Frist bis `bis` (auch überfällige), höchstens 100. Braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben."
+          oneOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/LagerAufgabe"
+            - type: "null"
+        schichten:
+          description: "Eigene Schichten der Woche. Braucht `einteilung.lesen`."
+          oneOf:
+            - type: array
+              items:
+                type: object
+                additionalProperties: false
+                required:
+                  - id
+                  - version
+                  - dienstId
+                  - lagertagId
+                  - datum
+                  - tagesabschnittId
+                  - personId
+                  - teilnehmerId
+                  - name
+                  - ceviName
+                  - stufe
+                  - dienst
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  version:
+                    type: integer
+                    minimum: 1
+                  dienstId:
+                    type: string
+                    format: uuid
+                  lagertagId:
+                    type: string
+                    format: uuid
+                  datum:
+                    type: string
+                    format: date
+                  tagesabschnittId:
+                    type: string
+                    format: uuid
+                  personId:
+                    type: [string, "null"]
+                    format: uuid
+                  teilnehmerId:
+                    type: [string, "null"]
+                    format: uuid
+                  name:
+                    type: string
+                  ceviName:
+                    type: [string, "null"]
+                  stufe:
+                    type: [string, "null"]
+                  dienst:
+                    oneOf:
+                      - type: object
+                        additionalProperties: false
+                        required:
+                          - id
+                          - name
+                          - nacht
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          name:
+                            type: string
+                          nacht:
+                            type: boolean
+                      - type: "null"
+            - type: "null"
+        hoecks:
+          description: "Höcks der Woche (höchstens 50). Braucht ein Höck-Recht; wer nur Team-Höcks lesen darf, bekommt `LagerHoeckTeam`."
+          oneOf:
+            - type: array
+              items:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerHoeckListeneintrag"
+                  - $ref: "#/components/schemas/LagerHoeckTeam"
+            - type: "null"
+    LagerStart:
+      description: "Der Start der Lagerleitung: Countdown, Fortschritt, überfällige und eigene Aufgaben."
+      type: object
+      additionalProperties: false
+      required:
+        - heute
+        - countdown
+        - fortschritt
+        - ueberfaellig
+        - eigene
+      properties:
+        heute:
+          description: "Heute in Zürcher Zeit."
+          type: string
+          format: date
+        countdown:
+          type: object
+          additionalProperties: false
+          required:
+            - von
+            - bis
+            - tageBisBeginn
+            - tageBisEnde
+          properties:
+            von:
+              type: string
+              format: date
+            bis:
+              type: string
+              format: date
+            tageBisBeginn:
+              description: "Tage von heute bis `von`; negativ, sobald das Lager begonnen hat."
+              type: integer
+            tageBisEnde:
+              description: "Tage von heute bis `bis`; negativ, sobald das Lager vorbei ist."
+              type: integer
+        fortschritt:
+          type: object
+          additionalProperties: false
+          required:
+            - aufgaben
+            - meilensteine
+          properties:
+            aufgaben:
+              description: "Zahlen der Aufgaben; ohne das Recht auf alle Aufgaben nur die eigenen, ohne Leserecht `null`."
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - gesamt
+                    - erledigt
+                    - ueberfaellig
+                  properties:
+                    gesamt:
+                      type: integer
+                      minimum: 0
+                    erledigt:
+                      type: integer
+                      minimum: 0
+                    ueberfaellig:
+                      description: "Nicht erledigt und Frist vor heute."
+                      type: integer
+                      minimum: 0
+                - type: "null"
+            meilensteine:
+              description: "Braucht `zeitplan.lesen`."
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - gesamt
+                    - vergangen
+                    - naechster
+                  properties:
+                    gesamt:
+                      type: integer
+                      minimum: 0
+                    vergangen:
+                      description: "Meilensteine mit Datum vor heute."
+                      type: integer
+                      minimum: 0
+                    naechster:
+                      oneOf:
+                        - $ref: "#/components/schemas/LagerMeilenstein"
+                        - type: "null"
+                - type: "null"
+        ueberfaellig:
+          description: "Offene Aufgaben mit Frist vor heute (höchstens 100); ohne das Recht auf alle Aufgaben nur die eigenen. `null` ohne Leserecht auf Aufgaben."
+          oneOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/LagerAufgabe"
+            - type: "null"
+        eigene:
+          description: "Eigene offene Aufgaben (höchstens 100). `null` ohne Leserecht auf Aufgaben."
+          oneOf:
+            - type: array
+              items:
+                $ref: "#/components/schemas/LagerAufgabe"
+            - type: "null"
     # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerDokument:
       description: "Ein Eintrag der Sammelabfrage: ein Dokument oder die Datei eines anderen Moduls. Kein Inhalt; der Server ruft den Link nie ab."

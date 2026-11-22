@@ -254,6 +254,8 @@ export async function ladeAufgaben(
     nach?: string;
     limit?: number;
     eigeneVon?: string;
+    // Nur nicht erledigte Aufgaben (Aggregate #395)
+    offen?: true;
   },
 ): Promise<{ aufgaben: AufgabeAntwort[]; naechster: string | null }> {
   const limit = p.limit ?? 100;
@@ -281,6 +283,7 @@ export async function ladeAufgaben(
         aufgabeAktiv,
         p.id ? eq(aufgabe.id, p.id) : undefined,
         p.eigeneVon ? beteiligt(p.eigeneVon) : undefined,
+        p.offen ? sql`${aufgabe.status} <> 'erledigt'` : undefined,
         p.personId ? beteiligt(p.personId) : undefined,
         p.ressortId ? eq(aufgabe.ressortId, p.ressortId) : undefined,
         p.status ? eq(aufgabe.status, p.status) : undefined,
