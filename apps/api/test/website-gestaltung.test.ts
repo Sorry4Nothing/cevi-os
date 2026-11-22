@@ -397,7 +397,9 @@ describe("Umschalter Hell und Dunkel (theme.js)", () => {
       document: {
         documentElement: wurzel,
         addEventListener: (_: string, f: () => void) => (bereit = f),
-        querySelector: () => gruppe,
+        // Das Skript sucht alle Gruppen und alle Knöpfe im Dokument (Band und Menü, #558)
+        querySelectorAll: (auswahl: string) =>
+          auswahl.includes("button") ? knoepfe : [gruppe],
       },
       window: {
         localStorage: {

@@ -2598,10 +2598,10 @@ a.btn.w {
     animation: auf var(--dauer-lang) var(--kurve) 0.2s both;
   }
 
-  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen */
+  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen.
+     Nur kurze Stücke (Titel, Karten, Zeilen): Ein langer Text bliebe sonst beim Lesen halb durchsichtig */
   @supports (animation-timeline: view()) {
     .sektion-kopf,
-    .sektion-rumpf > :not(ul),
     .stufenkarten > li,
     .merkmale > li,
     .karten > li,
