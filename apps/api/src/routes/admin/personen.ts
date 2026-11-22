@@ -21,6 +21,7 @@ import {
   auditLog,
   kind,
   kindEltern,
+  personTag,
   profilbild,
   rolle,
   stufe,
@@ -424,12 +425,19 @@ export function erstellePersonenRouten({
                   );
               }
               if (aenderung.rollen.length > 0) {
+                // Direkt in person_tag: Über die Sicht «rolle» scheitert der Upsert (500), wenn die Person am Stufen-Tag schon eine freie Rolle trägt
                 await tx
-                  .insert(rolle)
-                  .values(aenderung.rollen.map((r) => ({ userId: id, ...r })))
+                  .insert(personTag)
+                  .values(
+                    aenderung.rollen.map((r) => ({
+                      userId: id,
+                      tagId: r.stufeId,
+                      rolle: r.typ,
+                    })),
+                  )
                   .onConflictDoUpdate({
-                    target: [rolle.userId, rolle.stufeId],
-                    set: { typ: sql`excluded.typ` },
+                    target: [personTag.userId, personTag.tagId],
+                    set: { rolle: sql`excluded.rolle` },
                   });
               }
             }

@@ -17,4 +17,4 @@ headers:
 body:
   type: json
   content: |-
-    {{body_71}}
+    {{body_75}}

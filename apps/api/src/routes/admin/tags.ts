@@ -29,6 +29,8 @@ const zuweisenSchema = z.strictObject({
   rolle: rolle.nullable().optional(),
   prioritaet: prioritaet.nullable().optional(),
 });
+// Diese Rollenwerte an einem Stufen-Tag sind echte Stufenrollen mit Rechten (Sicht «rolle»); sie setzt nur PATCH /admin/personen/:id, mit Audit-Log und Push (#344)
+const STUFENROLLEN = ["leitung", "stufenleitung"];
 const pfad = () => z.strictObject({ id: z.uuid() });
 const pfadPerson = () => z.strictObject({ id: z.uuid(), userId: z.uuid() });
 
@@ -223,7 +225,14 @@ export function erstelleTagRouten({ db }: { db: Db }) {
         const person = c.get("person");
         const { id, userId } = c.req.valid("param");
         const felder = c.req.valid("json");
-        await ladeTag(person, id);
+        const { typ: tagTyp } = await ladeTag(person, id);
+        if (
+          tagTyp === "stufe" &&
+          felder.rolle &&
+          STUFENROLLEN.includes(felder.rolle)
+        ) {
+          throw new HTTPException(400);
+        }
         // Eine Person einer anderen Abteilung ist für diese Route unbekannt
         const [ziel] = await db
           .select({ id: user.id })
