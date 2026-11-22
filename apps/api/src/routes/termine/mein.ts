@@ -17,6 +17,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import type { Fcm } from "../../push.js";
 import { darfLeitungAnmelden, type Person } from "../../rechte.js";
+import { ladeAnlassInfos } from "../../termine/anlass-sicht.js";
 import {
   alleSichtTags,
   alleTermine,
@@ -27,7 +28,7 @@ import {
 import type { TermineEnv } from "./index.js";
 
 // «Mein Kalender» für die Apps (#435): die Termine, die für die Person sichtbar sind (termine/sicht.ts), mit Zeitraum, Cursor und Detail.
-// Abfragen je Aufruf: Liste höchstens 3 (Tags der Person, Seite mit Tags, Kinder der Seite), Detail höchstens 5 (dazu Eckdaten und eigene Anmeldung). Nie je Zeile.
+// Abfragen je Aufruf: Liste höchstens 4 (Tags der Person, Seite mit Tags, Kinder der Seite, Anlässe der Seite), Detail höchstens 6 (dazu Eckdaten und eigene Anmeldung). Nie je Zeile.
 
 const MAX_TAGE = 400;
 const tag_ = z.iso.date().refine((wert) => !wert.startsWith("0000"));
@@ -121,7 +122,7 @@ export async function eigeneKinder(
   return nachTermin;
 }
 
-// Die Seite der Termine für «Mein Kalender» und «Alle» (#436); beide teilen Zeitraum, Cursor und Felder. Abfragen: Tags der Person, Seite mit Tags, Kinder der Seite
+// Die Seite der Termine für «Mein Kalender» und «Alle» (#436); beide teilen Zeitraum, Cursor und Felder. Abfragen: Tags der Person, Seite mit Tags, Kinder der Seite, Anlässe der Seite
 export async function ladeTerminListe(
   db: Db,
   person: Person,
@@ -168,11 +169,11 @@ export async function ladeTerminListe(
     .limit(limit + 1);
   const weitere = zeilen.length > limit;
   const seite = zeilen.slice(0, limit);
-  const kinder = await eigeneKinder(
-    db,
-    person,
-    seite.map((z) => z.id),
-  );
+  const ids = seite.map((z) => z.id);
+  const [kinder, anlaesse] = await Promise.all([
+    eigeneKinder(db, person, ids),
+    ladeAnlassInfos(db, person, ids),
+  ]);
   const letzte = seite.at(-1);
   return {
     termine: seite.map(({ meine, ...t }) => ({
@@ -181,7 +182,7 @@ export async function ladeTerminListe(
       sortMs: undefined,
       // Das Feld «meine» gibt es nur in «Alle»; undefined fällt aus dem JSON
       meine: art === "alle" ? meine : undefined,
-      anlass: null,
+      anlass: anlaesse.get(t.id) ?? null,
       kinder: kinder.get(t.id) ?? [],
     })),
     weitere,
@@ -241,7 +242,11 @@ export function erstelleMeinRouten({ db }: { db: Db; fcm?: Fcm }) {
         if (!zeile) throw new HTTPException(404);
         const { tag: terminTag, ...felder } = zeile;
         const tagIds = felder.tags.map((t) => t.id);
-        const kinder = (await eigeneKinder(db, person, [id])).get(id) ?? [];
+        const [kinderKarte, anlaesse] = await Promise.all([
+          eigeneKinder(db, person, [id]),
+          ladeAnlassInfos(db, person, [id]),
+        ]);
+        const kinder = kinderKarte.get(id) ?? [];
         // Eckdaten der Stufenseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Name
         const [eckdaten] = await db
           .select({
@@ -281,7 +286,7 @@ export function erstelleMeinRouten({ db }: { db: Db; fcm?: Fcm }) {
           schlussOrt: eckdaten?.schlussOrt ?? null,
           schlussZeit: eckdaten?.schlussZeit ?? null,
           mitnehmen: eckdaten?.mitnehmen ?? null,
-          anlass: null,
+          anlass: anlaesse.get(id) ?? null,
           kinder,
           eigeneAnmeldung,
         });

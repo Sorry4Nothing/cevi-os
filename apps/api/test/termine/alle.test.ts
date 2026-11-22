@@ -327,7 +327,7 @@ describe("Alle Termine: wer welche Termine sieht", () => {
   });
 
   describe("Abfragen je Aufruf", () => {
-    test("höchstens 3 wie «Mein Kalender», nie je Zeile", async () => {
+    test("höchstens 4 wie «Mein Kalender», nie je Zeile", async () => {
       const abfragen: string[] = [];
       const zaehlend = drizzle(sql, {
         schema,
@@ -335,7 +335,7 @@ describe("Alle Termine: wer welche Termine sieht", () => {
       }) as unknown as Db;
       const zaehlApp = erstelleApp({ ...optionen, db: zaehlend });
       const betrifft = (q: string) =>
-        /programm|person_tag|"kind"|leitung_anmeldung/.test(q);
+        /programm|person_tag|"kind"|leitung_anmeldung|anlass/.test(q);
       for (let i = 0; i < 5; i++) {
         await termin({
           titel: `Zusatz ${i}`,
@@ -355,10 +355,82 @@ describe("Alle Termine: wer welche Termine sieht", () => {
       const mein = await zaehle("leitungAElternB", "mein");
       for (const persona of ["leitungAElternB", "abteilungsleitung"] as const) {
         const n = await zaehle(persona, "alle");
-        expect(n).toBeLessThanOrEqual(3);
+        expect(n).toBeLessThanOrEqual(4);
         expect(n).toBeLessThanOrEqual(mein);
       }
     });
+  });
+});
+
+describe("Alle Termine: Anlässe", () => {
+  const FEN = "von=2027-04-05&bis=2027-04-05";
+  beforeAll(async () => {
+    const b = welt.stufeBId;
+    const spezen: [
+      string,
+      string[],
+      "intern" | "leitende" | "eltern",
+      string,
+      string[],
+    ][] = [
+      ["Anlass angemeldet", [b], "eltern", "angemeldet", []],
+      ["Anlass öffentlich", [b], "leitende", "oeffentlich", []],
+      ["Anlass Tags", [b], "eltern", "tags", [b]],
+      ["Anlass ohne Tag", [], "eltern", "angemeldet", []],
+      ["Anlass intern", [b], "intern", "angemeldet", []],
+    ];
+    for (const [
+      i,
+      [name, tags, programmSicht, sicht, sichtTags],
+    ] of spezen.entries()) {
+      const id = await termin({
+        titel: name,
+        tags,
+        sichtbarkeit: programmSicht,
+        beginn: new Date(Date.UTC(2027, 3, 5, 8 + i)),
+      });
+      await db.insert(schema.anlass).values({
+        abteilungId: welt.testabteilungId,
+        programmId: id,
+        art: "anlass",
+        anmeldungFuer: "kind",
+        sichtbarkeit: sicht as "angemeldet",
+        sichtbarkeitTags: sichtTags,
+      });
+    }
+  });
+
+  test("Anlässe für Angemeldete und für alle stehen in «Alle», auch ohne eigenen Tag, nie ohne Tag am Termin und nie «intern»", async () => {
+    const s = await liste("elternA", FEN);
+    expect(titel(s)).toEqual(["Anlass angemeldet", "Anlass öffentlich"]);
+    expect(s.termine.every((t) => t.meine === false)).toBe(true);
+    expect(s.termine.every((t) => t.tags.length === 0)).toBe(true);
+    expect(s.termine.every((t) => t.anlass !== null)).toBe(true);
+    // «Mein Kalender» bleibt leer
+    expect((await liste("elternA", FEN, "mein")).termine).toEqual([]);
+  });
+
+  test("wer den Tag hat, sieht auch den Anlass mit Tags; meine ist wahr", async () => {
+    const s = await liste("elternB", FEN);
+    expect(titel(s)).toEqual([
+      "Anlass angemeldet",
+      "Anlass öffentlich",
+      "Anlass Tags",
+    ]);
+    // «Anlass öffentlich» hat Sichtbarkeit «leitende»: Eltern sehen ihn nur über den Anlass, nicht in «Mein Kalender»
+    expect(s.termine.map((t) => t.meine)).toEqual([true, false, true]);
+  });
+
+  test("die Abteilungsleitung sieht jeden mit Tag, ausser «intern»", async () => {
+    expect(titel(await liste("abteilungsleitung", FEN))).toEqual([
+      "Anlass angemeldet",
+      "Anlass öffentlich",
+      "Anlass Tags",
+    ]);
+  });
+
+  test("fremde Abteilungen sehen nichts davon", async () => {
+    expect(titel(await liste("fremdeEltern", FEN))).toEqual([]);
   });
 });
 

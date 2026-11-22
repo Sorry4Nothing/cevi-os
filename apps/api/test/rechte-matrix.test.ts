@@ -135,6 +135,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /admin/system.js": { erwartet: alle(200) },
+  "GET /admin/plattform.js": { erwartet: alle(200) },
   "GET /admin/tags.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
@@ -1438,6 +1439,36 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Der Admin schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
+  "GET /api/v1/plattform/schalter": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/plattform/schalter": {
+    body: () => ({ art: "wartung", bereich: "chat" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/plattform/schalter": {
+    url: () => "/api/v1/plattform/schalter?art=wartung&bereich=chat",
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
   "GET /api/v1/redaktion/ich": {
     // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
@@ -2194,7 +2225,10 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
                   schluessel.split(" ")[1],
               ),
               body:
-                zeile.body && ersetzeLager(JSON.stringify(zeile.body("aktiv"))),
+                zeile.body &&
+                ersetzeLager(
+                  JSON.stringify(await zeile.body("aktiv", lagerWelt)),
+                ),
               erwartet: zeile.erwartet,
             })),
           ),

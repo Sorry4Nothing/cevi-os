@@ -2,3 +2,30 @@
 .tm-warnliste-titel {
   margin: 0 0 0.5rem;
 }
+
+.tm-warnliste-text {
+  max-width: 48rem;
+}
+
+.tm-warnliste-zaehler {
+  margin: 0.75rem 0 0;
+  font-weight: 700;
+}
+
+.tm-warnliste-unter {
+  margin: 1.5rem 0 0.5rem;
+}
+
+.tm-warnliste-meldung:not(:empty) {
+  margin: 0.5rem 0 0;
+}
+
+.tm-warnliste-mehr {
+  margin-top: 0.75rem;
+}
+
+/* Rohe Kategorienamen sind frei gewählt und dürfen umbrechen */
+.tm-warnliste-roh .chip {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

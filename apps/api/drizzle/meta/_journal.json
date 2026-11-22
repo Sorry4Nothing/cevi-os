@@ -346,7 +346,7 @@
       "breakpoints": true
     },
     {
-"idx": 68,
+      "idx": 68,
       "version": "7",
       "when": 1793550800000,
       "tag": "0068_lager_aufgaben",
@@ -360,6 +360,20 @@
       "breakpoints": true
     },
     {
+      "idx": 70,
+      "version": "7",
+      "when": 1793551000000,
+      "tag": "0070_lager_zeitplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793551100000,
+      "tag": "0071_lager_todos_vorlagen",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,
@@ -367,10 +381,31 @@
       "breakpoints": true
     },
     {
+      "idx": 77,
+      "version": "7",
+      "when": 1793551700000,
+      "tag": "0077_lager_umfragen",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
       "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793552000000,
+      "tag": "0080_lager_zimmer",
+      "breakpoints": true
+    },
+    {
+      "idx": 82,
+      "version": "7",
+      "when": 1793552200000,
+      "tag": "0082_lager_fahrten",
       "breakpoints": true
     },
     {
@@ -409,10 +444,24 @@
       "breakpoints": true
     },
     {
+      "idx": 95,
+      "version": "7",
+      "when": 1793552990000,
+      "tag": "0095_lager_anwesenheit_zeitplan",
+      "breakpoints": true
+    },
+    {
       "idx": 100,
       "version": "7",
       "when": 1793553000000,
       "tag": "0100_plattformrollen",
+      "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793553200000,
+      "tag": "0102_bereichsschalter",
       "breakpoints": true
     },
     {
@@ -430,10 +479,24 @@
       "breakpoints": true
     },
     {
+      "idx": 122,
+      "version": "7",
+      "when": 1793554200000,
+      "tag": "0122_termin_vorschlag",
+      "breakpoints": true
+    },
+    {
       "idx": 123,
       "version": "7",
       "when": 1793554300000,
       "tag": "0123_anlass",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793554400000,
+      "tag": "0124_anlass_anmeldung",
       "breakpoints": true
     }
   ]

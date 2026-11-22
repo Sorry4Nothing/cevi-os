@@ -1,7 +1,7 @@
 import type { TerminePushTyp } from "../push.js";
 
 // Register der Pushes der Termine (Epic #430, Gerüst #431). Jedes Folge-Issue nutzt hier nur seinen Eintrag und ergänzt nichts in push.ts:
-// - termin_vorschlag: neuer Vorschlag an die Abteilungsleitung (TD1, #439)
+// - termin_vorschlag: neuer Vorschlag an die Abteilungsleitung (TD1, #439); der Text ist fest (termine/vorschlag-push.ts), nie der Titel des Vorschlags
 // - termin_entscheid: Entscheid an die vorschlagende Person (TD2, #440)
 // - raum_anfrage: neue Raumanfrage an das Team des Raums (TG2, #447)
 // - raum_entscheid: Entscheid an die anfragende Person (TG2)
