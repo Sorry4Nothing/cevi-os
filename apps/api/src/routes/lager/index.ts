@@ -5,6 +5,7 @@ import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleAdressbuchRouten } from "./adressbuch.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
+import { erstelleAushaengeRouten } from "./aushaenge.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleAufgabenDetailsRouten } from "./aufgaben-details.js";
 import { erstelleAufgabenSchnellRouten } from "./aufgaben-schnell.js";
@@ -67,6 +68,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
     .route("/", erstelleSchichtplanRouten({ db }))
+    .route("/", erstelleAushaengeRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))
