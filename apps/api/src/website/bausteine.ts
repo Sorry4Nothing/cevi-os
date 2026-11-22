@@ -27,6 +27,18 @@ export const MAX_KARUSSELL_BILDER = 8;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
 export const MAX_HINWEIS = 200;
+// Alterschip einer Stufenkarte (#555), zum Beispiel «3./4. Klasse»
+export const MAX_ALTER = 40;
+// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer
+export const MERKMAL_SYMBOLE = [
+  "gruppe",
+  "zelt",
+  "kalender",
+  "stern",
+  "herz",
+  "ort",
+  "sonne",
+] as const;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -177,13 +189,17 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein(
     "karten",
     z.strictObject({
-      darstellung: z.enum(["karten", "liste"]),
+      // «merkmale» (#555): Kacheln mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Alterschip, ein Link auf die ganze Karte
+      darstellung: z.enum(["karten", "liste", "merkmale", "stufen"]),
       eintraege: z
         .array(
           z.strictObject({
             titel: kurztext(MAX_KURZTEXT),
             text: kurztext(MAX_KARTENTEXT).optional(),
             link: link("https", "seite").optional(),
+            symbol: z.enum(MERKMAL_SYMBOLE).optional(),
+            bild: mediumId.optional(),
+            alter: kurztext(MAX_ALTER).optional(),
           }),
         )
         .min(1)
@@ -244,6 +260,16 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
           ziel: linkAlle,
         })
         .optional(),
+    }),
+  ),
+  // Aufruf zum Handeln (#555): ein farbiges Band mit Titel, kurzem Text und einer Schaltfläche («Ich will in den Cevi!»)
+  baustein(
+    "aufruf",
+    z.strictObject({
+      titel: kurztext(MAX_KURZTEXT),
+      text: kurztext(MAX_KARTENTEXT).optional(),
+      beschriftung: kurztext(MAX_BESCHRIFTUNG),
+      ziel: linkAlle,
     }),
   ),
   // Kontaktkarte (#549, Design W1): Telefon und E-Mail der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen

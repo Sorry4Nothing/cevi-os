@@ -97,9 +97,13 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         if (b.daten.tagId) tags.add(b.daten.tagId);
         break;
       case "karten":
-        b.daten.eintraege.forEach((e) => ziel(e.link));
+        b.daten.eintraege.forEach((e) => {
+          ziel(e.link);
+          if (e.bild) medien.add(e.bild);
+        });
         break;
       case "schaltflaeche":
+      case "aufruf":
         ziel(b.daten.ziel);
         break;
       case "hinweis":
