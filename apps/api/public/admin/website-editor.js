@@ -65,6 +65,8 @@ const FELDNAMEN = {
   beschriftung: "Die Beschriftung",
   ziel: "Das Ziel",
   link: "Der Link",
+  typ: "Der Dateityp",
+  groesse: "Die Grösse",
   url: "Die Adresse",
   art: "Die Art",
   personId: "Die Person",
@@ -486,6 +488,24 @@ function kartenForm(k, b, reg) {
   ];
 }
 
+// Die Grösse der Datei: Der Server speichert Bytes, das Feld nimmt Kilobyte
+function groesseFeld(k, b, reg) {
+  const f = feld({
+    label: "Grösse in Kilobyte (optional)",
+    wert: b.daten.groesse === undefined ? "" : String(b.daten.groesse / 1000),
+    inputmode: "decimal",
+    autocomplete: "off",
+  });
+  f.eingabe.addEventListener("input", () => {
+    const zahl = Number(f.eingabe.value.trim().replace(",", "."));
+    if (f.eingabe.value.trim() === "") delete b.daten.groesse;
+    else b.daten.groesse = Number.isFinite(zahl) ? Math.round(zahl * 1000) : -1;
+    k.aendere(b);
+  });
+  anmelden(reg, "daten.groesse", f);
+  return f.wurzel;
+}
+
 function tagWahl(k, b, reg, schluessel, label, optional) {
   const aktuell = b.daten[schluessel] ?? "";
   const a = waehler({
@@ -722,49 +742,46 @@ const TYPEN = {
       ...(d.beschriftung?.trim() ? [] : [["daten.beschriftung", "fehlt."]]),
       ...(d.ziel?.trim() ? [] : [["daten.ziel", "fehlt."]]),
     ],
-    form: (k, b, reg) => {
-      const datei = k.dateien.has(b.id);
-      return [
-        wahl(k, b, reg, "darstellung", "Darstellung", [
-          ["schaltflaeche", "Schaltfläche"],
-          ["link", "Link im Text"],
-        ]),
-        eingabe(
-          k,
-          b,
-          reg,
-          "beschriftung",
-          datei ? "Titel der Datei" : "Beschriftung",
-          {
-            maxlength: 60,
-          },
-        ),
-        eingabe(k, b, reg, "ziel", datei ? "Link zur Datei" : "Ziel", {
-          maxlength: 2000,
-          spellcheck: "false",
-          autocapitalize: "off",
-          hilfe: datei
-            ? "Der Freigabelink der Datei im SharePoint der Abteilung. Er beginnt mit https."
-            : LINK_HILFE,
-        }),
-      ];
-    },
+    form: (k, b, reg) => [
+      wahl(k, b, reg, "darstellung", "Darstellung", [
+        ["schaltflaeche", "Schaltfläche"],
+        ["link", "Link im Text"],
+      ]),
+      eingabe(k, b, reg, "beschriftung", "Beschriftung", { maxlength: 60 }),
+      eingabe(k, b, reg, "ziel", "Ziel", {
+        maxlength: 2000,
+        spellcheck: "false",
+        autocapitalize: "off",
+        hilfe: LINK_HILFE,
+      }),
+    ],
   },
-  // Bestehende Dateien aus der Medienbibliothek: Die Datei wird zum Link auf SharePoint (#428); bis dahin bleibt die Beschriftung bearbeitbar
+  // Eine Datei liegt im SharePoint der Abteilung und wird nur verknüpft (#428): Titel und Link, Typ und Grösse sind freiwillige Angaben
   datei: {
     name: "Datei",
-    kurz: (d) => d.beschriftung ?? "",
-    pruefe: () => [],
+    kurz: (d) => d.titel ?? "",
+    pruefe: (d) => [
+      ...(d.titel?.trim() ? [] : [["daten.titel", "fehlt."]]),
+      ...(d.link?.trim() ? [] : [["daten.link", "fehlt."]]),
+      ...(d.groesse === undefined || d.groesse >= 0
+        ? []
+        : [["daten.groesse", "ist eine Zahl ab 0."]]),
+    ],
     form: (k, b, reg) => [
-      el(
-        "p",
-        { class: "hilfe" },
-        "Diese Datei liegt in der Medienbibliothek. Neue Dateien legst du als «Datei (Link)» an: ein Link auf die Datei im SharePoint.",
-      ),
-      eingabe(k, b, reg, "beschriftung", "Beschriftung (optional)", {
-        maxlength: 100,
-        optional: true,
+      eingabe(k, b, reg, "titel", "Titel der Datei", { maxlength: 100 }),
+      eingabe(k, b, reg, "link", "Link zur Datei", {
+        maxlength: 2048,
+        spellcheck: "false",
+        autocapitalize: "off",
+        hilfe:
+          "Der Freigabelink der Datei im SharePoint der Abteilung. Er beginnt mit https.",
       }),
+      eingabe(k, b, reg, "typ", "Dateityp (optional)", {
+        maxlength: 20,
+        optional: true,
+        hilfe: "Zum Beispiel PDF oder Word.",
+      }),
+      groesseFeld(k, b, reg),
     ],
   },
   kontaktperson: {
@@ -862,7 +879,7 @@ const TYPEN = {
   },
 };
 
-// Was «Baustein hinzufügen» anbietet. «Datei (Link)» legt bis #428 einen Link an: Das Schema kennt für die Datei noch kein Linkfeld
+// Was «Baustein hinzufügen» anbietet
 const KATALOG = [
   {
     typ: "ueberschrift",
@@ -901,11 +918,10 @@ const KATALOG = [
     neu: () => ({ darstellung: "schaltflaeche", beschriftung: "", ziel: "" }),
   },
   {
-    typ: "schaltflaeche",
-    name: "Datei (Link)",
+    typ: "datei",
+    name: "Datei",
     beschreibung: "Ein Link auf eine Datei im SharePoint der Abteilung.",
-    datei: true,
-    neu: () => ({ darstellung: "link", beschriftung: "", ziel: "" }),
+    neu: () => ({ titel: "", link: "" }),
   },
   {
     typ: "kontaktperson",
@@ -985,8 +1001,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     personNamen: new Map(),
     medien: new Map(),
     medienLaden: null,
-    // Bausteine, die als «Datei (Link)» entstanden sind (nur für die Beschriftung des Formulars)
-    dateien: new Set(),
     dok: gepuffert ? gepuffert.dok : (entwurf.dokument ?? leer()),
     zaehler: gepuffert ? gepuffert.zaehler : entwurf.zaehler,
     dirty: Boolean(gepuffert),
@@ -1597,7 +1611,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
       return;
     }
     const neu = { ...kopie(b), id: neueUuid() };
-    if (k.dateien.has(b.id)) k.dateien.add(neu.id);
     k.dok.bausteine.splice(i + 1, 0, neu);
     k.aendere();
     zeichneListe({ id: neu.id, was: "bearbeiten" });
@@ -1626,7 +1639,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
       daten: eintrag.neu(),
       sichtbarkeit: "erbt",
     };
-    if (eintrag.datei) k.dateien.add(b.id);
     k.dok.bausteine.splice(position, 0, b);
     k.offen.add(b.id);
     k.aendere();
