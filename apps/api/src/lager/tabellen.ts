@@ -30,8 +30,8 @@ export type LagerTabellenEintrag = {
   tabelle: LagerSpaltenTabelle;
 } & (
   | {
-      // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Ohne «sichtbar» gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist
-      recht: LagerRecht;
+      // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Eine Liste genügt mit einem der Rechte (Aufgaben: alle oder eigene). Ohne «sichtbar» gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist
+      recht: LagerRecht | readonly LagerRecht[];
       sichtbar?: Sichtbar;
     }
   | {

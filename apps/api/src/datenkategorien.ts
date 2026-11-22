@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -438,6 +438,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   einkauf_artikelstamm: { lager: ["lager_id", "name_norm", "warengruppe"] },
   einkauf_vorschlag: {
     lager: ["lager_id", "name_norm", "name", "haeufigkeit"],
+  },
+  // Aufgaben (#372): Verantwortliche und Unterstützung als Personen-IDs; erledigt_am setzt der Server mit dem Status
+  aufgabe: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "ressort_id",
+      "teil",
+      "verantwortlich_person_id",
+      "status",
+      "notiz",
+      "frist",
+      "stern",
+      "laufend",
+      "spaeter_ab",
+      "wiederholung",
+      "reihenfolge",
+      "quelle",
+      "erledigt_am",
+      "frist_erinnert_am",
+    ],
+  },
+  aufgabe_unterstuetzung: {
+    lager: ["lager_id", "aufgabe_id", "person_id"],
   },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
