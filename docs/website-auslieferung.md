@@ -18,9 +18,10 @@ Erzeugt werden:
 | `<adresse>/index.html`      | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/` |
 | `sitemap.xml`               | nur öffentliche Seiten mit Datei                                                                                                       |
 | `robots.txt`                | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
-| `404.html`                  | Fehlerseite mit der Navigation                                                                                                         |
-| `website/website.css`       | Platzhalter-Stil aus `apps/api/public/website/website.css`; das Design ersetzt diese Datei                                             |
-| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`                            |
+| `404.html`                  | Fehlerseite mit den Hauptpunkten (Design W4)                                                                                           |
+| `500.html`, `wartung.html`  | Seiten für Serverfehler und Wartung (Design W4); der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                |
+| `website/website.css`       | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))             |
+| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354, #529): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`             |
 | `anmelden/index.html`       | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
 | `weiterleitungen.caddy`     | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden           |
 | `<alte-adresse>/index.html` | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                      |
@@ -30,7 +31,7 @@ Erzeugt werden:
 
 - Seiten ohne veröffentlichte Version: keine Datei, kein Eintrag in Navigation und Sitemap.
 - Seiten, die nicht `oeffentlich` sind: keine Seitendatei mit Inhalt. Mit veröffentlichter Version gibt es nur eine Hülle (Titel «Geschützte Seite», Hinweis, Link zur Anmeldung, `noindex`); kein Titel, kein Inhalt, nie in Navigation oder Sitemap. Die Adresse einer solchen Seite ist damit für Besucher erkennbar (Annahme A6 des Plans).
-- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein leerer Platzhalter `<div data-geschuetzt="<ID>"></div>`, ohne Typ und Inhalt. Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
+- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein Platzhalter `<div data-geschuetzt="<ID>">` mit dem Hinweis «Nur angemeldet sichtbar» und dem Link «Anmelden», ohne Typ und Inhalt (Design W10). Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
 - Medien, die nicht `oeffentlich` sind oder zu einer anderen Abteilung gehören: Der Baustein entfällt.
 - Telefon, E-Mail und Foto von Personen: Kontaktperson und Leitungsteam zeigen nur den Cevi-Namen und die Funktion (die Rolle an der Gruppe). Personen ohne Cevi-Namen, deaktivierte und gesperrte Konten erscheinen nicht. Das gilt, bis der Nutzer anders entscheidet.
 - Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Skript, kein Tracking. Ein Meta-CSP (`default-src 'none'; style-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts. Nur Seiten mit Platzhalter, die Hülle und die Anmeldeseite laden ein Skript und erlauben deshalb zusätzlich `script-src 'self'; connect-src 'self'`; es gibt nie ein Inline-Skript.
@@ -40,7 +41,7 @@ Bilder und Dateien sind Verweise auf `/api/v1/medien/<ID>` (öffentliche Medien,
 ## Geschützte Bausteine und Anmeldung
 
 - **Nachladen:** `GET /api/v1/website/inhalt?pfad=/a/b` (hinter der Sitzung) liefert für die Seite die Bausteine, die die Person laut Sichtbarkeit sehen darf, als JSON-Knoten (`{ tag, attr?, kinder? }` und Texte), nie als HTML. Ohne Sitzung 401; unbekannte Seite, andere Abteilung und fehlendes Recht antworten gleich mit 404. `Cache-Control: private, no-store`.
-- **Skript:** `website/geschuetzt.js` (ES-Modul, eigene Datei) ersetzt die Platzhalter durch DOM-Knoten (`website/knoten.js`: feste Liste von Elementen und Attributen, Text nur als Textknoten, nie `innerHTML`). Zustände: Laden (Skeleton, `aria-busy`, Live-Region), nicht angemeldet, Fehler mit «Nochmals versuchen», offline. Bei einer Hülle ersetzt es nach der Anmeldung den ganzen Inhalt der Seite.
+- **Skript:** `website/geschuetzt.js` (ES-Modul, eigene Datei) ersetzt die Platzhalter durch DOM-Knoten (`website/knoten.js`: feste Liste von Elementen und Attributen, Text nur als Textknoten, nie `innerHTML`). Zustände nach dem Design W10: Laden (Skeleton nach 200 ms, `aria-busy`, Live-Region, nach 4 Sekunden «Das dauert länger als sonst.», nach 15 Sekunden Abbruch mit Fehler), nicht angemeldet (der Hinweis des Platzhalters kommt zurück), Fehler mit «Nochmals versuchen», kein Zugriff. Bei einer Hülle ersetzt es nach der Anmeldung den ganzen Inhalt der Seite.
 - **Anmeldung:** `/anmelden` ist eine erzeugte Datei (kein Datenbankzugriff beim Abruf) mit dem Skript `website/anmelden.js`. Es ruft dieselben Aufrufe wie die Verwaltung unter `/api/auth` (Rate-Limit und Sperre nach Fehlversuchen gelten dort) und führt danach auf `weiter`. `weiter` ist eine Allowlist (`website/weiter.js`): nur `/` oder Adressstücke aus `a-z`, `0-9` und `-`, nie eine reservierte Adresse; alles andere führt auf `/`.
 - **Gleiche Herkunft:** Die API prüft bei `POST` den `Origin` (`BETTER_AUTH_URL` und `BETTER_AUTH_TRUSTED_ORIGINS`). Die Website muss unter derselben Domain wie die API laufen; eine Testadresse mit anderer Domain braucht einen Eintrag in `BETTER_AUTH_TRUSTED_ORIGINS` (und dann ein Cookie für diese Domain, also einen Proxy auf dieselbe Herkunft).
 
@@ -134,6 +135,19 @@ www.example.org {
 		handle @nichtGefunden {
 			root * /srv/website
 			rewrite * /404.html
+			file_server
+		}
+		# Wartung der API (503) und andere Fehler der Website: eigene Seiten, die Stilvorlage lädt als gewöhnliche Datei
+		@wartung expression {err.status_code} == 503
+		handle @wartung {
+			root * /srv/website
+			rewrite * /wartung.html
+			file_server
+		}
+		@fehler expression {err.status_code} >= 500
+		handle @fehler {
+			root * /srv/website
+			rewrite * /500.html
 			file_server
 		}
 	}
