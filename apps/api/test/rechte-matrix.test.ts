@@ -1942,6 +1942,7 @@ const MIDDLEWARE = new Set([
   "ALL /api/*",
   "ALL /api/v1/*",
   "ALL /api/v1/admin/*",
+  "ALL /api/v1/medien/*",
   "ALL /api/v1/redaktion/*",
 ]);
 

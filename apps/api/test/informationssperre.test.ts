@@ -367,15 +367,16 @@ describe("Informationssperre: wer schalten darf", () => {
   });
 
   test("Audit-Log mit Art, Bereich und den Wünschen, ohne den Hinweis", async () => {
-    await sperre(admin, "lager", {
+    // Ohne `sitzungenBeenden`: Es endete die Sitzungen der Personen, die die späteren Tests brauchen
+    await sperre(admin, "website", {
       hinweis: "Geheimer Anlass",
-      sitzungenBeenden: true,
+      websiteOffline: true,
     });
     const [schalter] = await db
       .select({ id: schema.bereichsschalter.id })
       .from(schema.bereichsschalter)
       .where(eq(schema.bereichsschalter.abteilungId, welt.testabteilungId));
-    await hebeAuf(admin, "lager");
+    await hebeAuf(admin, "website");
     const zeilen = await db
       .select()
       .from(schema.auditLog)
@@ -389,10 +390,10 @@ describe("Informationssperre: wer schalten darf", () => {
       akteurId: admin.id,
       details: {
         art: "sperre",
-        bereich: "lager",
+        bereich: "website",
         ende: null,
-        sitzungenBeenden: true,
-        websiteOffline: false,
+        sitzungenBeenden: false,
+        websiteOffline: true,
       },
     });
     expect(JSON.stringify(zeilen)).not.toContain("Anlass");
@@ -578,6 +579,10 @@ describe("Informationssperre: Push an die Entwickler", () => {
       .select({ id: schema.session.id })
       .from(schema.session)
       .where(eq(schema.session.userId, konto.id!));
+    // Ein Token je Sitzung: das aus einem früheren Test weg
+    await db
+      .delete(schema.pushToken)
+      .where(eq(schema.pushToken.sessionId, sitzung.id));
     const token = `token-${randomUUID()}`;
     await db.insert(schema.pushToken).values({
       sessionId: sitzung.id,
