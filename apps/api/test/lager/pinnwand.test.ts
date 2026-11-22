@@ -839,7 +839,7 @@ describe("Dateien", () => {
       .update(schema.lagerDatei)
       .set({ erstelltAm: new Date(Date.now() - 48 * 3_600_000) })
       .where(and(eq(schema.lagerDatei.lagerId, lagerId)));
-    await raeumeDateienOhneVerweisAuf(db);
+    await raeumeDateienOhneVerweisAuf(db, undefined, lagerId);
     const rest = await db
       .select({ id: schema.lagerDatei.id })
       .from(schema.lagerDatei)
