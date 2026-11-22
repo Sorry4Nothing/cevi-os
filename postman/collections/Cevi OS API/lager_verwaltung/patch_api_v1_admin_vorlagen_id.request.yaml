@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/admin/vorlagen/:id"
-order: 370000
+order: 375000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L213}}"
+url: "{{baseUrl}}{{pfad_L218}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "name": "Matrix 96485996-0bf9-40ac-a37a-3f3fe694090a"
+      "name": "Matrix 3f0e0e5f-8aef-4d9a-b5e3-6fbd1905e799"
     }

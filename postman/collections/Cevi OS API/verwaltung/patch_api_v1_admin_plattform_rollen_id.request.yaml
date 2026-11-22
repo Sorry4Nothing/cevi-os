@@ -2,7 +2,7 @@ $kind: http-request
 name: "PATCH /api/v1/admin/plattform/rollen/:id"
 order: 118000
 method: PATCH
-url: "{{baseUrl}}/api/v1/admin/plattform/rollen/01a20306-8655-7b01-8a2b-69bc6c2dcbb3"
+url: "{{baseUrl}}/api/v1/admin/plattform/rollen/01a20347-be4b-72b9-9a11-c3d9172a8b37"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

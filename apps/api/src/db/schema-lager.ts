@@ -2045,3 +2045,21 @@ export const wetterCache = pgTable(
     ),
   ],
 );
+
+// Eigene Check-Punkte des Lagers (#377): Was die Lagerleitung zusätzlich zu den Prüfern des Lager-Checks (lager/check.ts) abhaken will, zum Beispiel «Versicherung geklärt». erledigt setzt, wer zeitplan.bearbeiten hat. Ein Punkt ist nur ein Titel und ein Haken, keine Person, kein Inhalt. Geschrieben wird nur über lager/sync.ts
+export const lagerCheckPunkt = pgTable(
+  "lager_check_punkt",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    erledigt: boolean("erledigt").notNull().default(false),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    index("lager_check_punkt_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    check(
+      "lager_check_punkt_check",
+      sql`char_length(${t.titel}) between 1 and 200 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);

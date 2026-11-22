@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/ich/kalender-link"
-order: 412000
+order: 417000
 method: GET
 url: "{{baseUrl}}/api/v1/ich/kalender-link"
 headers:

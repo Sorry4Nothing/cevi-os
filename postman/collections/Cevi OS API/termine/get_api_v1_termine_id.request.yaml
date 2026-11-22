@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/termine/:id"
-order: 419000
+order: 424000
 method: GET
 url: "{{baseUrl}}{{pfad_T24}}"
 headers:
