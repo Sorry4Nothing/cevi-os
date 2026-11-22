@@ -1,5 +1,6 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
+import * as anwesenheit from "./anwesenheit.js";
 import * as importieren from "./import.js";
 import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
@@ -45,6 +46,13 @@ const BEREICHE = [
     importieren,
     "ablage",
     "Kinder und Leitende aus einem Export der Cevi-Datenbank anlegen.",
+  ],
+  [
+    "anwesenheit",
+    "Anwesenheit",
+    anwesenheit,
+    "haken",
+    "Wer in den letzten Anlässen der Stufe da war.",
   ],
   [
     "mitteilungen",
