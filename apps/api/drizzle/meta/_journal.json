@@ -323,6 +323,13 @@
       "when": 1793550600000,
       "tag": "0066_lager_dateien",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793550700000,
+      "tag": "0067_lager_ressorts",
+      "breakpoints": true
     }
   ]
 }

@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -383,6 +383,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "typ",
       "groesse",
     ],
+  },
+  // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
+  ressort: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "kuerzel",
+      "name",
+      "leitung_person_id",
+      "stv_person_id",
+      "notiz",
+      "parent_id",
+      "reihenfolge",
+    ],
+  },
+  ressort_link: {
+    lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "titel", "url"],
+  },
+  ressort_notiz: {
+    lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [
