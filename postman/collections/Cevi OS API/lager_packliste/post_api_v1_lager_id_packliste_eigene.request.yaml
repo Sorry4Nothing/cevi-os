@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/packliste/eigene"
-order: 300000
+order: 298000
 method: POST
 url: "{{baseUrl}}{{pfad_L143}}"
 headers:
@@ -19,5 +19,5 @@ body:
   content: |-
     {
       "abschnitt": "Matrix",
-      "text": "f62f01e7-0c5b-45ec-8626-d6dc90b04ff8"
+      "text": "339e1a5e-66b6-4eff-b0cc-d437968a13f5"
     }
