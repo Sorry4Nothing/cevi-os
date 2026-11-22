@@ -19551,7 +19551,198 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/raeume:
+    get:
+      operationId: listeRaeume
+      summary: Aktive Räume der Abteilung
+      description: |
+        Jede angemeldete Person der Abteilung sieht die aktiven Räume der eigenen Abteilung (Annahme, vom Nutzer zu bestätigen), nach Name ohne Gross-/Kleinschreibung, in Seiten. Eine Abfrage je Seite, das zuständige Team kommt im selben Join. Inaktive Räume und Räume anderer Abteilungen kommen nie vor. `nach` ist die `naechste` der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 bei offenem Passwortwechsel.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Eine Seite der Räume.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/raeume:
+    get:
+      operationId: listeAdminRaeume
+      summary: Alle Räume der Abteilung verwalten
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert alle Räume der eigenen Abteilung, auch die inaktiven, nach Name ohne Gross-/Kleinschreibung, in Seiten. Eine Abfrage je Seite. `nach` ist die `naechste` der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      responses:
+        "200":
+          description: Eine Seite der Räume.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeRaumAn
+      summary: Raum anlegen
+      description: |
+        Nur die Abteilungsleitung. Legt einen Raum der eigenen Abteilung an. Pflicht ist nur der Name (1 bis 100 Zeichen, je Abteilung eindeutig ohne Gross-/Kleinschreibung). Ort (bis 200), Beschreibung (bis 1000), Kapazität (1 bis 1000) und das zuständige Team (ein Tag der Abteilung) sind freiwillig; der Raum ist ohne Angabe aktiv.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, mit Code `TEAM_UNBEKANNT`, wenn das Team nicht zur Abteilung gehört. 403 für alle anderen. 409 mit Code `RAUM_VORHANDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaumAnlegen"
+      responses:
+        "201":
+          description: Raum angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          $ref: "#/components/responses/RaumKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/raeume/{id}:
+    patch:
+      operationId: aendereRaum
+      summary: Raum ändern oder deaktivieren
+      description: |
+        Nur die Abteilungsleitung. Ohne Schlüssel bleibt der Wert; `null` leert Ort, Beschreibung, Kapazität und Team. `aktiv: false` blendet den Raum für die Mitglieder aus, ohne ihn zu löschen.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TEAM_UNBEKANNT`. 403 für alle anderen. 404, wenn der Raum nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `RAUM_VORHANDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RaumId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaumAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RaumKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheRaum
+      summary: Raum endgültig löschen
+      description: |
+        Nur die Abteilungsleitung. Löscht den Raum endgültig. Offene Raumanfragen (kommen mit dem Folge-Issue) sperren das Löschen: Dann den Raum deaktivieren.
+
+        Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn der Raum nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANFRAGEN_OFFEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RaumId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RaumKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/website/inhalt:
     get:
       operationId: leseWebsiteInhalt
@@ -31714,6 +31905,149 @@ components:
             - "null"
           description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    Raum:
+      type: object
+      required:
+        - id
+        - name
+        - ort
+        - beschreibung
+        - kapazitaet
+        - aktiv
+        - team
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        ort:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        beschreibung:
+          type:
+            - string
+            - "null"
+          maxLength: 1000
+        kapazitaet:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 1000
+        aktiv:
+          type: boolean
+        team:
+          description: Das zuständige Team (Tag); `null`, wenn keines gesetzt ist oder der Tag gelöscht wurde.
+          oneOf:
+            - type: "null"
+            - type: object
+              required:
+                - id
+                - name
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+    RaumListe:
+      type: object
+      required:
+        - raeume
+        - weitere
+        - naechste
+      properties:
+        raeume:
+          type: array
+          items:
+            $ref: "#/components/schemas/Raum"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
+    RaumAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        ort:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        beschreibung:
+          type:
+            - string
+            - "null"
+          maxLength: 1000
+        kapazitaet:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 1000
+        teamId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Ein Tag der Abteilung.
+        aktiv:
+          type: boolean
+          default: true
+    RaumAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 0
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        ort:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        beschreibung:
+          type:
+            - string
+            - "null"
+          maxLength: 1000
+        kapazitaet:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 1000
+        teamId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        aktiv:
+          type: boolean
+    RaumAngelegt:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
       type: object
@@ -32709,6 +33043,14 @@ components:
       schema:
         type: string
         format: uuid
+    RaumId:
+      name: id
+      in: path
+      required: true
+      description: ID des Raums (UUID), in der Abteilung der Person.
+      schema:
+        type: string
+        format: uuid
     TerminVorschlagId:
       name: id
       in: path
@@ -32879,6 +33221,13 @@ components:
     AnlassAnmeldung409:
       description: |
         Konflikt: `ANMELDUNG_GESCHLOSSEN` (die Anmeldung ist nicht offen: nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RaumKonflikt409:
+      description: |
+        Konflikt: `RAUM_VORHANDEN` (es gibt schon einen Raum mit diesem Namen) oder `ANFRAGEN_OFFEN` (es gibt noch offene Raumanfragen).
       content:
         application/json:
           schema:

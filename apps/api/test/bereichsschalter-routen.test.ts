@@ -136,7 +136,7 @@ describe("Bereichszuordnung aller Routen", () => {
     expect([...new Set(ohne)].sort()).toEqual([...OHNE_BEREICH].sort());
   });
 
-  test("Kalender, Termine, Anlässe und Vorschläge sind «programme», Lager-Einstellungen «lager»", () => {
+  test("Kalender, Termine, Anlässe, Vorschläge und Räume sind «programme», Lager-Einstellungen «lager»", () => {
     for (const pfad of [
       "/api/v1/anlaesse/x",
       "/api/v1/termin-vorschlaege",
@@ -145,6 +145,8 @@ describe("Bereichszuordnung aller Routen", () => {
       "/api/v1/admin/anlaesse",
       "/api/v1/admin/termin-vorschlaege",
       "/api/v1/admin/kategorie-zuordnungen",
+      "/api/v1/raeume",
+      "/api/v1/admin/raeume",
     ]) {
       expect(bereichVon(pfad), pfad).toBe("programme");
     }
@@ -175,6 +177,8 @@ describe("Sperre «alles» erfasst jede Route", () => {
     ["programme", "GET", "/api/v1/ich/kalender-link"],
     ["programme", "GET", "/api/v1/stufen/x/anwesenheit"],
     ["programme", "GET", "/api/v1/admin/anlaesse"],
+    ["programme", "GET", "/api/v1/raeume"],
+    ["programme", "GET", "/api/v1/admin/raeume"],
     ["lager", "GET", "/api/v1/ich/lager-benachrichtigungen"],
   ] as const)("%s-Sperre trifft %s %s", async (bereich, methode, pfad) => {
     setze(welt.testabteilungId, bereich);
