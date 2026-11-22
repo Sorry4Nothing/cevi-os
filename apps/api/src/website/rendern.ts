@@ -175,6 +175,65 @@ const SYMBOLE: Record<string, HtmlKnoten[]> = {
     },
     { tag: "path", attr: { d: "M8 20h8M12 16v4" } },
   ],
+  // Symbole der Merkmalskacheln und Kontaktflächen (#555)
+  gruppe: [
+    { tag: "circle", attr: { cx: "9", cy: "8", r: "3" } },
+    { tag: "path", attr: { d: "M3 20c.5-3.4 3-5.5 6-5.5s5.5 2.1 6 5.5" } },
+    { tag: "circle", attr: { cx: "17.5", cy: "9", r: "2.5" } },
+    { tag: "path", attr: { d: "M16.5 14.6c2.6.2 4.2 2 4.5 4.9" } },
+  ],
+  zelt: [
+    { tag: "path", attr: { d: "M2 20h20M12 4 4 20M12 4l8 16" } },
+    { tag: "path", attr: { d: "M9.5 20 12 14l2.5 6" } },
+  ],
+  kalender: [
+    {
+      tag: "rect",
+      attr: { x: "4", y: "5", width: "16", height: "15", rx: "2" },
+    },
+    { tag: "path", attr: { d: "M4 10h16M8 3v4M16 3v4" } },
+  ],
+  stern: [
+    {
+      tag: "path",
+      attr: {
+        d: "M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8L12 3.5z",
+      },
+    },
+  ],
+  herz: [
+    {
+      tag: "path",
+      attr: {
+        d: "M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z",
+      },
+    },
+  ],
+  ort: [
+    {
+      tag: "path",
+      attr: {
+        d: "M12 21s6.5-5.8 6.5-11a6.5 6.5 0 0 0-13 0C5.5 15.2 12 21 12 21z",
+      },
+    },
+    { tag: "circle", attr: { cx: "12", cy: "10", r: "2.3" } },
+  ],
+  telefon: [
+    {
+      tag: "path",
+      attr: {
+        d: "M6.6 3.5 9 3l1.8 4.3-1.9 1.4a11 11 0 0 0 5.4 5.4l1.4-1.9 4.4 1.8-.5 2.4a2.6 2.6 0 0 1-2.6 2.1A14 14 0 0 1 4.5 6.1a2.6 2.6 0 0 1 2.1-2.6z",
+      },
+    },
+  ],
+  mail: [
+    {
+      tag: "rect",
+      attr: { x: "3", y: "5", width: "18", height: "14", rx: "2" },
+    },
+    { tag: "path", attr: { d: "M3.5 7 12 13l8.5-6" } },
+  ],
+  pfeil: [{ tag: "path", attr: { d: "M5 12h14M13 6l6 6-6 6" } }],
   "auge-zu": [
     {
       tag: "path",
@@ -291,6 +350,57 @@ function mitglieder(liste: Mitglied[]): HtmlKnoten[] {
   );
 }
 
+// Bildkarte einer Stufe (#555): Foto mit Alterschip, darunter Titel und Kurztext. Der Link steckt im Titel und deckt per CSS die ganze Karte ab, so gibt es genau einen Link je Karte mit kurzem Namen.
+// Ohne Foto trägt die Karte eine Fläche in der Farbe der Stufe
+function stufenkarte(
+  e: Extract<Baustein, { typ: "karten" }>["daten"]["eintraege"][number],
+  ebene: number,
+  daten: Daten,
+): HtmlKnoten {
+  const m = e.bild ? daten.medien.get(e.bild) : undefined;
+  const foto = e.bild && m?.mimeTyp.startsWith("image/") ? m : undefined;
+  const titel = verlinke(e.link, [e.titel]);
+  return el(
+    "li",
+    { class: e.link ? "stufe stufe--link" : "stufe" },
+    el(
+      "div",
+      { class: foto ? "stufe-bild" : "stufe-bild stufe-bild--leer" },
+      ...(foto && e.bild
+        ? [
+            el("img", {
+              src: medienUrl(e.bild),
+              alt: foto.altText ?? "",
+              ...(foto.breite &&
+                foto.hoehe && {
+                  width: String(foto.breite),
+                  height: String(foto.hoehe),
+                }),
+              loading: "lazy",
+              decoding: "async",
+            }),
+          ]
+        : []),
+      ...(e.alter ? [el("span", { class: "alterschip" }, e.alter)] : []),
+    ),
+    el(
+      "div",
+      { class: "stufe-text" },
+      el(`h${ebene}`, { class: "titel" }, ...titel),
+      ...(e.text ? [el("p", undefined, e.text)] : []),
+      ...(e.link
+        ? [
+            el(
+              "span",
+              { class: "stufe-pfeil", "aria-hidden": "true" },
+              symbol("pfeil"),
+            ),
+          ]
+        : []),
+    ),
+  );
+}
+
 // letzte.ebene: Ebene der letzten Überschrift der Seite (1 = der Seitentitel); eine neue springt höchstens eine Ebene tiefer.
 // letzte.schalter: Zahl der Schaltflächen bisher; nur die erste ist rot (eine Hauptaktion je Seite)
 function rendereBaustein(
@@ -354,14 +464,40 @@ function rendereBaustein(
         ),
       );
     }
-    // Darstellung «karten» ist die Stufenkarte des Designs (W1): Name, Text und «» Mehr zu …»; «liste» bleibt eine Zeile je Eintrag mit Link am Titel
+    // «karten»: einfache Karte mit Titel, Text und Link; «liste»: eine Zeile je Eintrag mit Link am Titel;
+    // «merkmale» (#555): Kachel ohne Link mit Symbol, Titel und Text; «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
     case "karten": {
       const ebene = Math.min(3, letzte.ebene + 1);
+      const eintraege = b.daten.eintraege;
+      if (b.daten.darstellung === "merkmale") {
+        return el(
+          "ul",
+          { class: "merkmale" },
+          ...eintraege.map((e) =>
+            el(
+              "li",
+              undefined,
+              ...(e.symbol
+                ? [el("span", { class: "merkmal-symbol" }, symbol(e.symbol))]
+                : []),
+              el(`h${ebene}`, { class: "titel" }, e.titel),
+              ...(e.text ? [el("p", undefined, e.text)] : []),
+            ),
+          ),
+        );
+      }
+      if (b.daten.darstellung === "stufen") {
+        return el(
+          "ul",
+          { class: "stufenkarten" },
+          ...eintraege.map((e) => stufenkarte(e, ebene, daten)),
+        );
+      }
       return b.daten.darstellung === "karten"
         ? el(
             "ul",
             { class: "karten" },
-            ...b.daten.eintraege.map((e) =>
+            ...eintraege.map((e) =>
               el(
                 "li",
                 undefined,
@@ -378,7 +514,7 @@ function rendereBaustein(
         : el(
             "ul",
             { class: "liste" },
-            ...b.daten.eintraege.map((e) =>
+            ...eintraege.map((e) =>
               el(
                 "li",
                 undefined,
@@ -387,6 +523,26 @@ function rendereBaustein(
               ),
             ),
           );
+    }
+    // Aufruf zum Handeln (#555): farbiges Band, Titel und Text links, die weisse Schaltfläche rechts (auf dem roten Band wäre eine rote unsichtbar)
+    case "aufruf": {
+      const ebene = Math.min(2, letzte.ebene + 1);
+      letzte.ebene = ebene;
+      return el(
+        "div",
+        { class: "aufruf" },
+        el(
+          "div",
+          { class: "aufruf-text" },
+          el(`h${ebene}`, undefined, b.daten.titel),
+          ...(b.daten.text ? [el("p", undefined, b.daten.text)] : []),
+        ),
+        ...verlinke(
+          b.daten.ziel,
+          [b.daten.beschriftung, symbol("pfeil")],
+          "btn w gross",
+        ),
+      );
     }
     case "schaltflaeche": {
       const knopf =
@@ -463,35 +619,44 @@ function rendereBaustein(
     case "hinweis":
       return el(
         "div",
-        { class: "band", role: "status" },
+        { class: "band hinweisband", role: "status" },
         symbol("info"),
         el(
           "div",
           { class: "text" },
           el("strong", undefined, b.daten.text),
           ...(b.daten.link
-            ? verlinke(b.daten.link.ziel, [b.daten.link.beschriftung])
+            ? verlinke(
+                b.daten.link.ziel,
+                [b.daten.link.beschriftung, symbol("pfeil")],
+                "hinweis-link",
+              )
             : []),
         ),
       );
+    // Kontaktkarte (#555): links die Frage und die Ansprechperson, rechts Telefon und E-Mail als grosse Flächen
     case "kontaktkarte": {
       const p = b.daten.personId
         ? daten.personen.get(b.daten.personId)
         : undefined;
       const k = daten.kontakt;
       const wege = [
-        k?.telefon ? telefonLink(k.telefon) : null,
-        k?.email ? kontaktLink(`mailto:${k.email}`, k.email) : null,
+        k?.telefon
+          ? wegFlaeche(telefonZiel(k.telefon), "telefon", "Telefon", k.telefon)
+          : null,
+        k?.email
+          ? wegFlaeche(`mailto:${k.email}`, "mail", "E-Mail", k.email)
+          : null,
       ].filter((w) => w !== null);
       if (!p && wege.length === 0) return null;
       const ebene = Math.min(2, letzte.ebene + 1);
       letzte.ebene = ebene;
       return el(
         "section",
-        { class: "karte kontaktband" },
+        { class: "kontaktkarte" },
         el(
           "div",
-          undefined,
+          { class: "kontakt-text" },
           el(
             `h${ebene}`,
             undefined,
@@ -526,14 +691,39 @@ const kontaktLink = (ziel: string, text: string): HtmlKnoten =>
   verlinke(ziel, [text])[0]!;
 
 // «043 543 96 82» wird zu tel:+41435439682 (Schweizer Nummern; mit «+» oder «00» am Anfang bleibt die Landesvorwahl)
-function telefonLink(nummer: string): HtmlKnoten {
+function telefonZiel(nummer: string): string {
   const ziffern = nummer.replace(/[^\d+]/g, "");
   const intl = ziffern.startsWith("+")
     ? ziffern
     : ziffern.startsWith("00")
       ? `+${ziffern.slice(2)}`
       : `+41${ziffern.replace(/^0/, "")}`;
-  return kontaktLink(`tel:${intl}`, nummer);
+  return `tel:${intl}`;
+}
+
+const telefonLink = (nummer: string): HtmlKnoten =>
+  kontaktLink(telefonZiel(nummer), nummer);
+
+// Grosse Aktionsfläche der Kontaktkarte: Symbol, Art und Wert in einem Link; null, wenn die Adresse keine erlaubte Art hat
+function wegFlaeche(
+  ziel: string,
+  symbolName: string,
+  art: string,
+  wert: string,
+): HtmlKnoten | null {
+  const h = href(ziel);
+  if (h === null) return null;
+  return el(
+    "a",
+    { ...h, class: "weg" },
+    symbol(symbolName),
+    el(
+      "span",
+      { class: "weg-text" },
+      el("span", { class: "weg-art" }, art),
+      el("span", { class: "weg-wert" }, wert),
+    ),
+  );
 }
 
 const datumsformat = (o: Intl.DateTimeFormatOptions) =>
@@ -580,7 +770,7 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     ),
     el(
       "span",
-      undefined,
+      { class: "termin-text" },
       el("span", { class: "titel" }, t.titel),
       el("span", { class: "meta" }, meta),
       ...(t.stufen.length > 0
@@ -595,6 +785,13 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     ),
   ];
   if (t.anlassId === null) return el("div", { class: "termin" }, ...innen);
+  innen.push(
+    el(
+      "span",
+      { class: "termin-pfeil", "aria-hidden": "true" },
+      symbol("pfeil"),
+    ),
+  );
   const beschreibung = [
     TAG_LANG.format(mittag(t.von)),
     t.titel,
@@ -621,8 +818,8 @@ function terminAbschnitt(liste: TerminEintrag[], ebene: number): HtmlKnoten {
     el(
       "div",
       { class: "abschnitt-kopf" },
-      el(`h${ebene}`, undefined, "Nächste Termine"),
-      el("a", { class: "mehr", href: TERMINE_PFAD }, "Alle Termine"),
+      el(`h${ebene}`, undefined, "Das steht an"),
+      el("a", { class: "btn s", href: TERMINE_PFAD }, "Alle Termine"),
     ),
     liste.length === 0
       ? el(
@@ -759,27 +956,31 @@ export function rendereGeschuetzte(
   return ergebnis;
 }
 
-// Bilder im sichtbaren Bereich der Startseite laden sofort und mit Vorrang (kein loading="lazy")
-function eifrig(k: HtmlKnoten): HtmlKnoten {
+// Bilder im sichtbaren Bereich der Seite laden sofort; das Titelbild mit Vorrang (kein loading="lazy")
+function eifrig(k: HtmlKnoten, vorrang = true): HtmlKnoten {
   if (typeof k === "string") return k;
   if (k.tag === "img") {
     const attr: Record<string, string | true> = {
       ...k.attr,
-      fetchpriority: "high",
+      ...(vorrang && { fetchpriority: "high" }),
+      decoding: "async",
     };
     delete attr.loading;
     return { ...k, attr };
   }
-  return { ...k, kinder: k.kinder?.map(eifrig) };
+  // Die verborgenen Bilder eines Karussells laden erst, wenn sie an der Reihe sind
+  if (k.attr?.class === "karussell") return k;
+  return { ...k, kinder: k.kinder?.map((x) => eifrig(x, vorrang)) };
 }
 
-// Startseite: Foto, Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1). Fehlt davon alles, bleibt es beim gewöhnlichen Titel.
-// Stehen zwei Bilder am Anfang, ist das erste das Titelbild über die ganze Breite (es steht ausserhalb der Spalte) und das zweite das Foto im Teaser
+// Startseite: Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1): ein blaues Feld, das das Titelbild von unten überlappt.
+// Fehlt davon alles, bleibt es beim gewöhnlichen Titel
 function rendereTeaser(
   titel: string,
   abteilung: string,
   eintraege: Eintrag[],
-): { html: string; titelbild?: string; rest: Eintrag[] } | null {
+  mitBild: boolean,
+): { html: string; rest: Eintrag[] } | null {
   let i = 0;
   const nimm = (typ: string) => {
     const e = eintraege[i];
@@ -789,44 +990,121 @@ function rendereTeaser(
     }
     return null;
   };
-  const zweiBilder =
-    eintraege[0]?.b.typ === "bild" &&
-    sichtbar(eintraege[0]) &&
-    eintraege[1]?.b.typ === "bild" &&
-    sichtbar(eintraege[1]);
-  const titelbild = zweiBilder ? nimm("bild") : null;
-  const foto = nimm("bild");
   const text = nimm("text");
   const knoepfe: HtmlKnoten[] = [];
   for (let k = nimm("schaltflaeche"); k; k = nimm("schaltflaeche")) {
     if (typeof k !== "string") knoepfe.push(...(k.kinder ?? []));
   }
-  if (!titelbild && !foto && !text && knoepfe.length === 0) return null;
-  const html = `<section class="teaser${foto ? "" : " teaser--allein"}" aria-labelledby="h1">
-${foto ? serialisiere(eifrig(foto)) : ""}
-<div class="box">
+  if (!text && knoepfe.length === 0) return null;
+  const html = `<section class="teaser${mitBild ? " teaser--ueber-bild" : ""}" aria-labelledby="h1">
+<div class="wrap"><div class="box">
+<div class="teaser-kopf">
 <p class="kicker">${esc(abteilung)}</p>
 <h1 id="h1">${esc(titel)}</h1>
+</div>
+<div class="teaser-text">
 ${text ? serialisiere(text) : ""}${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}
 </div>
+</div></div>
 </section>`;
-  return {
-    html,
-    ...(titelbild &&
-      typeof titelbild !== "string" && {
-        titelbild: serialisiere(
-          eifrig({ ...titelbild, attr: { class: "titelbild" } }),
-        ),
-      }),
-    rest: eintraege.slice(i),
-  };
+  return { html, rest: eintraege.slice(i) };
+}
+
+// ===== Abschnitte (#555): jeder Abschnitt hat einen Hintergrund über die ganze Breite, sein Inhalt steht in der fliessenden Spalte =====
+
+// Diese Bausteine bringen ihre Überschrift und ihr Aussehen selbst mit und bilden je einen eigenen Abschnitt
+const EIGENER_ABSCHNITT = new Set<Baustein["typ"]>([
+  "hinweis",
+  "aufruf",
+  "kontaktkarte",
+  "terminliste",
+]);
+// Nach einer Überschrift mit solchen Bausteinen steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Text rechts
+const BREITE_BAUSTEINE = new Set<Baustein["typ"]>([
+  "karten",
+  "galerie",
+  "karussell",
+]);
+// Abschnitte ab dieser Nummer liegen unterhalb des ersten Bildschirms: ihre Bilder laden erst beim Scrollen
+const EIFRIGE_ABSCHNITTE = 3;
+
+type Gruppe = { eintraege: Eintrag[]; eigen: boolean };
+
+function gruppiere(eintraege: Eintrag[]): Gruppe[] {
+  const gruppen: Gruppe[] = [];
+  let offen: Gruppe | null = null;
+  for (const e of eintraege) {
+    if (e.knoten === null) continue;
+    if (sichtbar(e) && EIGENER_ABSCHNITT.has(e.b.typ)) {
+      gruppen.push({ eintraege: [e], eigen: true });
+      offen = null;
+    } else if (
+      offen === null ||
+      (e.b.typ === "ueberschrift" && e.b.daten.ebene === 2)
+    ) {
+      offen = { eintraege: [e], eigen: false };
+      gruppen.push(offen);
+    } else {
+      offen.eintraege.push(e);
+    }
+  }
+  return gruppen;
+}
+
+function rendereAbschnitte(eintraege: Eintrag[]): string {
+  let wechsel = 0;
+  return gruppiere(eintraege)
+    .map((g, i) => {
+      const erster = g.eintraege[0]!;
+      const typ = erster.b.typ;
+      if (g.eigen && (typ === "hinweis" || typ === "aufruf")) {
+        return `<section class="sektion sektion--${typ}">
+<div class="wrap">
+${alsHtml(g.eintraege)}
+</div>
+</section>`;
+      }
+      const ton = wechsel++ % 2 === 0 ? "flaeche" : "toenung";
+      const liste =
+        i < EIFRIGE_ABSCHNITTE
+          ? g.eintraege.map((e) => ({
+              ...e,
+              knoten: e.knoten && eifrig(e.knoten, false),
+            }))
+          : g.eintraege;
+      if (g.eigen) {
+        return `<section class="sektion sektion--${ton} sektion--${typ}">
+<div class="wrap">
+${alsHtml(liste)}
+</div>
+</section>`;
+      }
+      const mitKopf = typ === "ueberschrift";
+      const rest = liste.slice(1);
+      const breit = rest.some(
+        (e) => sichtbar(e) && BREITE_BAUSTEINE.has(e.b.typ),
+      );
+      // Ein kurzer Text unter dem Titel gehört zum Titel
+      const lead =
+        mitKopf && breit && rest[0]?.b.typ === "text" && sichtbar(rest[0]);
+      const kopf = mitKopf ? liste.slice(0, lead ? 2 : 1) : [];
+      const rumpf = mitKopf ? liste.slice(lead ? 2 : 1) : liste;
+      return `<section class="sektion sektion--${ton} sektion--${breit ? "breit" : "text"}">
+<div class="wrap">
+${kopf.length > 0 ? `<div class="sektion-kopf">\n${alsHtml(kopf)}\n</div>\n` : ""}<div class="sektion-rumpf">
+${ordneZweispaltig(rumpf)}
+</div>
+</div>
+</section>`;
+    })
+    .join("\n");
 }
 
 // ===== Rahmen: Kopf mit Menü, Fusszeile =====
 
 // Der Kopf (Marke, Navigation, Umschalter, Menü am Handy) steht in kopf.ts (#558)
 
-// Fuss nach dem Design (W1): Name und Adresse, Telefon und E-Mail, Impressum und Datenschutz, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
+// Fuss (#555): Spalten für Name und Adresse, die Seiten der Website, Kontakt und Rechtliches, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
 const fuss = (k: Kontext) => {
   const c = k.daten.kontakt ?? {};
   const wege = [
@@ -837,15 +1115,19 @@ const fuss = (k: Kontext) => {
     c.impressum ? `<a href="${esc(c.impressum)}">Impressum</a>` : "",
     `<a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a>`,
   ].filter((w) => w !== "");
+  const spalte = (titel: string, links: string[]) =>
+    links.length === 0
+      ? ""
+      : `
+<nav class="fuss-spalte" aria-label="${esc(titel)}"><h2>${esc(titel)}</h2><ul>${links.map((l) => `<li>${l}</li>`).join("")}</ul></nav>`;
   return `<footer class="fuss">
 <div class="wrap"><div class="fuss-in">
-<div><strong>${esc(k.abteilung)}</strong>${c.adresse ? `<p>${esc(c.adresse)}</p>` : ""}</div>${
-    wege.length > 0
-      ? `
-<div>${wege.map((w) => `<p>${w}</p>`).join("")}</div>`
-      : ""
-  }
-<div>${recht.map((w) => `<p>${w}</p>`).join("")}</div>
+<div class="fuss-name"><strong>${esc(k.abteilung)}</strong>${c.adresse ? `<p>${esc(c.adresse)}</p>` : ""}</div>${spalte(
+    "Seiten",
+    k.navigation
+      .slice(0, 6)
+      .map((p) => `<a href="${esc(p.pfad)}">${esc(p.titel)}</a>`),
+  )}${spalte("Kontakt", wege)}${spalte("Rechtliches", recht)}
 </div>
 <p class="klein leise">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p></div>
 </footer>`;
@@ -881,12 +1163,12 @@ export function rahmen(
     stile = [],
     hauptAttr = "",
     nurMarke = false,
-    titelbild = "",
+    vollbreit = false,
   }: {
     titel: string;
     aktuell: string | null;
     canonical?: string;
-    // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»)
+    // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»), ausser bei «vollbreit»
     inhalt: string;
     robots?: string;
     skript?: string;
@@ -898,8 +1180,8 @@ export function rahmen(
     hauptAttr?: string;
     // Wartung und Serverfehler: nur das Logo, keine Menüs
     nurMarke?: boolean;
-    // Fertiges Markup eines Bildes über die ganze Breite, vor der Spalte der Seite (Startseite)
-    titelbild?: string;
+    // Der Inhalt bringt seine Abschnitte über die ganze Breite selbst mit (Seiten des Baums): kein Rahmen darum
+    vollbreit?: boolean;
   },
 ) {
   // Das Menü ist nur eine Verbesserung (Pfeiltasten, Esc); die Seite funktioniert ohne
@@ -935,10 +1217,8 @@ ${THEMA_SKRIPT_TAG}
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
 ${kopf(k, aktuell, nurMarke)}
-<main id="inhalt" tabindex="-1"${hauptAttr}>${titelbild ? `\n${titelbild}` : ""}
-<div class="wrap">
-${inhalt}
-</div>
+<main id="inhalt" tabindex="-1"${hauptAttr}>
+${vollbreit ? inhalt : `<div class="wrap">\n${inhalt}\n</div>`}
 </main>
 ${fuss(k)}
 </body>
@@ -948,18 +1228,37 @@ ${fuss(k)}
 
 export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const eintraege = rendereEintraege(s.dokument, s.id, k.daten, s.pfad);
+  // Das erste Bild der Seite ist ihr Titelbild und geht bis zum Fensterrand
+  const erstes = eintraege[0];
+  const titelbild =
+    erstes &&
+    erstes.b.typ === "bild" &&
+    sichtbar(erstes) &&
+    typeof erstes.knoten === "object"
+      ? serialisiere(
+          eifrig({ ...erstes.knoten!, attr: { class: "titelbild" } }),
+        )
+      : null;
+  const uebrige = titelbild ? eintraege.slice(1) : eintraege;
   const teaser =
     s.pfad === "/"
-      ? rendereTeaser(s.dokument.titel, k.abteilung, eintraege)
+      ? rendereTeaser(
+          s.dokument.titel,
+          k.abteilung,
+          uebrige,
+          titelbild !== null,
+        )
       : null;
-  const inhalt = teaser
-    ? `${teaser.html}\n<div class="inhalt">\n${ordneZweispaltig(teaser.rest)}\n</div>`
-    : `<div class="seitenkopf"><h1>${esc(s.dokument.titel)}</h1></div>\n<div class="inhalt">\n${ordneZweispaltig(eintraege)}\n</div>`;
+  const kopf = teaser
+    ? `<div class="hero">${titelbild ?? ""}\n${teaser.html}</div>`
+    : `${titelbild ?? ""}\n<div class="seitenband"><div class="wrap"><h1>${esc(s.dokument.titel)}</h1></div></div>`;
+  const inhalt = `${kopf}\n${rendereAbschnitte(teaser ? teaser.rest : uebrige)}`;
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
     canonical: k.basisUrl + s.pfad,
     inhalt,
+    vollbreit: true,
     ...(eintraege.some(
       (e) =>
         sichtbar(e) &&
@@ -968,7 +1267,6 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     ) && {
       zusatzSkripte: [SKRIPT_KARUSSELL],
     }),
-    ...(teaser?.titelbild && { titelbild: teaser.titelbild }),
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...(!s.dokument.bausteine.every(istOeffentlich) && {
       skript: SKRIPT_GESCHUETZT,
