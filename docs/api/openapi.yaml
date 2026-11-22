@@ -4014,6 +4014,72 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/aenderungen:
+    get:
+      operationId: holeLagerAenderungen
+      summary: Änderungsfeed des Lagers
+      description: |
+        Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp, ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
+
+        Filter: Es erscheinen nur Objekttypen, deren Leserecht die Rolle hat, und davon nur die Zeilen, die der Zeilenfilter der Rolle zulässt (auch für gelöschte). Eine Seite, deren Einträge alle herausfallen, kommt leer zurück, `bis` rückt trotzdem vor.
+
+        Ablauf der App: Ohne `seit` liefert die Route die aktuelle Folgenummer `seq` und die lesbaren Objekttypen; die App lädt die Listen der Module und fragt dann mit `seit=seq`. Danach fragt sie mit `seit=<bis>` weiter, solange `weitere` wahr ist, und speichert das letzte `bis`. Jeder Schreibvorgang im Lager hat eine eigene Folgenummer; sie steigt ohne Lücke. Es gibt einen Eintrag je Schreibvorgang: Dieselbe Zeile kann mehrfach vorkommen, der letzte Eintrag gilt.
+
+        Einträge entfallen nach 30 Tagen. Ist `seit` älter als der Feed oder grösser als die aktuelle Folgenummer (zum Beispiel nach dem Zurückspielen des Lagers), antwortet die Route mit 410 `FEED_NEU_LADEN`, und die App lädt die Listen neu.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage (auch bei unbekanntem Parameter). 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 410 bei zu altem oder unbekanntem Stand. Die Route ist auch in einem abgeschlossenen Lager lesbar.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: seit
+          in: query
+          required: false
+          description: Folgenummer, ab der der Feed liefert (ausschliesslich). Ohne Angabe liefert die Route den Stand.
+          schema:
+            type: integer
+            minimum: 0
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 500
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite des Feeds oder, ohne `seit`, der Stand.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerFeedSeite"
+                  - $ref: "#/components/schemas/LagerFeedStand"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "410":
+          description: Der Stand ist zu alt für den Feed (`FEED_NEU_LADEN`). Die App lädt die Listen neu und fragt mit `seit=seq` weiter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFeedNeuLaden"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -6899,6 +6965,110 @@ components:
           type: string
     # lager-schemas: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerFeedEintrag:
+      type: object
+      description: Eine Änderung. Nur Verweis auf die Zeile, kein Inhalt.
+      required:
+        - seq
+        - objekttyp
+        - id
+        - art
+        - version
+        - zeitpunkt
+      properties:
+        seq:
+          type: integer
+          description: Folgenummer des Schreibvorgangs im Lager.
+        objekttyp:
+          type: string
+          description: Name der Tabelle des Moduls (zum Beispiel `aufgabe`).
+        id:
+          type: string
+          format: uuid
+        art:
+          type: string
+          enum:
+            - neu
+            - geaendert
+            - geloescht
+        version:
+          type: integer
+          description: Version der Zeile nach der Änderung.
+        zeitpunkt:
+          type: string
+          format: date-time
+    LagerFeedSeite:
+      type: object
+      required:
+        - eintraege
+        - bis
+        - weitere
+      properties:
+        eintraege:
+          type: array
+          description: Nach `seq` aufsteigend, gefiltert nach Leserecht und Zeilenfilter der Rolle.
+          items:
+            $ref: "#/components/schemas/LagerFeedEintrag"
+        bis:
+          type: integer
+          description: Die App fragt mit `seit=<bis>` weiter. Auf der letzten Seite die Folgenummer des Lagers zu Beginn der Anfrage.
+        weitere:
+          type: boolean
+          description: Wahr, wenn es noch Einträge nach `bis` gibt.
+    LagerFeedStand:
+      type: object
+      description: Antwort ohne `seit`.
+      required:
+        - seq
+        - objekttypen
+      properties:
+        seq:
+          type: integer
+          description: Aktuelle Folgenummer des Lagers.
+        objekttypen:
+          type: array
+          description: Die Objekttypen, die die Rolle lesen darf.
+          items:
+            type: string
+    LagerFeedNeuLaden:
+      type: object
+      description: Fehler mit Statuscode 410. Gleiche Form wie `Fehler`, dazu die aktuelle Folgenummer.
+      required:
+        - code
+        - message
+        - seq
+      properties:
+        code:
+          type: string
+          enum:
+            - FEED_NEU_LADEN
+        message:
+          type: string
+        seq:
+          type: integer
+    LagerVersionKonflikt:
+      type: object
+      description: |
+        Fehler mit Statuscode 409 für jede Lager-Route, die eine Zeile ändert oder löscht. Die Anfrage trug nicht die aktuelle `version`. `aktuell` ist der Stand der Zeile in der Form, die die Rolle auch beim Lesen bekommt (nie mehr). `abweichend` nennt die Felder der Anfrage, die jetzt anders stehen (ohne Felder, die die Rolle nicht sieht); ist die Liste leer, kann die App die Anfrage mit der neuen Version wiederholen.
+      required:
+        - code
+        - message
+        - aktuell
+        - abweichend
+      properties:
+        code:
+          type: string
+          enum:
+            - VERSION_KONFLIKT
+        message:
+          type: string
+        aktuell:
+          type: object
+          additionalProperties: true
+        abweichend:
+          type: array
+          items:
+            type: string
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -7096,6 +7266,13 @@ components:
         Unter HTTPS trägt es den Präfix `__Secure-`, ohne HTTPS heisst es `better-auth.two_factor`; der Name endet
         immer auf `two_factor`.
   responses:
+    LagerVersionKonflikt409:
+      description: |
+        Die Anfrage trug nicht die aktuelle `version` der Zeile (`VERSION_KONFLIKT`). Der Body enthält den aktuellen Stand und die abweichenden Felder.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LagerVersionKonflikt"
     LagerKonflikt409:
       description: |
         Das Lager ist abgeschlossen oder archiviert und lässt sich nicht ändern (`LAGER_GESCHLOSSEN`), oder ein aktives Lager würde seine letzte Lagerleitung verlieren (`LAGERLEITUNG_FEHLT`).

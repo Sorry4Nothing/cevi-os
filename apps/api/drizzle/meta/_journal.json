@@ -267,6 +267,13 @@
       "when": 1793550000000,
       "tag": "0060_lager",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1793550200000,
+      "tag": "0062_lager_sync",
+      "breakpoints": true
     }
   ]
 }
