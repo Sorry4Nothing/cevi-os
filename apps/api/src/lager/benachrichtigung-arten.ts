@@ -13,7 +13,14 @@ export const ARTEN = {
     push: "lager_eingang",
     titel: "Antwort auf deine Nachricht",
   },
-  diensttausch: { push: "lager_einteilung", titel: "Diensttausch" },
+  diensttausch_anfrage: {
+    push: "lager_einteilung",
+    titel: "Neue Diensttausch-Anfrage",
+  },
+  diensttausch_entscheid: {
+    push: "lager_einteilung",
+    titel: "Diensttausch entschieden",
+  },
   anwesenheit_anfrage: {
     push: "lager_anwesenheit",
     titel: "Neue Anwesenheits-Anfrage",

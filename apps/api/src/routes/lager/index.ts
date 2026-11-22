@@ -30,6 +30,7 @@ import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
 import { erstelleFahrtenRouten } from "./fahrten.js";
+import { erstelleDiensttauschRouten } from "./diensttausch.js";
 import { erstelleSchichtplanRouten } from "./schichtplan.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
@@ -61,6 +62,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
     .route("/", erstelleSchichtplanRouten({ db }))
+    .route("/", erstelleDiensttauschRouten({ db, fcm }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))
