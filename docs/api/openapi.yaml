@@ -5508,10 +5508,351 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: sendeLagerWarteschlange
+      summary: Offline gesammelte Änderungen des Lagers senden
+      description: |
+        Nimmt die Änderungen an, die die App offline gesammelt hat, gebündelt und idempotent. Jede Operation hat eine `clientOpId` (UUID, von der App einmal erzeugt und bei jeder Wiederholung beibehalten), einen `typ` (zum Beispiel `aufgabe.aendern`; die Module des Lagers melden ihre Operationen an) und eine `nutzlast`. Höchstens 100 Operationen je Anfrage, höchstens 256 KB, höchstens 20 Anfragen je Konto und Minute.
+
+        Jede Operation läuft in einer eigenen Transaktion, der Reihe nach, und bekommt ein eigenes Ergebnis in derselben Reihenfolge: `ok` (mit IDs und Versionen der geschriebenen Zeilen, keine Inhalte), `konflikt` (die Zeile hat inzwischen eine andere Version, mit `aktuell` in der Ansicht der Rolle und den abweichenden Feldern) oder `abgelehnt` (mit Code: `OPERATION_UNBEKANNT`, `UNGUELTIGE_EINGABE`, `KEINE_BERECHTIGUNG`, `NICHT_GEFUNDEN`, `KONFLIKT`). Eine Ablehnung oder ein Konflikt bricht die anderen Operationen nicht ab und nimmt nur die Schreibvorgänge dieser Operation zurück. Das Recht jeder Operation gilt gegen die Rolle der Person im Lager, nie gegen Angaben der Nutzlast.
+
+        Idempotenz: Ein `ok` wird je Lager, Person und `clientOpId` 30 Tage gespeichert. Eine Wiederholung derselben `clientOpId` liefert dieses Ergebnis, auch wenn sich Rechte seither geändert haben, und schreibt nichts noch einmal; gleichzeitige Wiederholungen schreiben einmal. `konflikt` und `abgelehnt` werden nicht gespeichert: Sie haben nichts geschrieben und kommen bei einer Wiederholung zum selben Ergebnis. Bei einem Konflikt holt die App den Stand (in `aktuell`) und schickt die Änderung mit einer neuen `clientOpId` und der aktuellen `version` noch einmal.
+
+        Statuscodes: 200 mit den Ergebnissen (auch wenn einzelne Operationen abgelehnt wurden). 400 bei ungültiger Anfrage (keine oder mehr als 100 Operationen, `clientOpId` keine UUID, unbekannte Felder). 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 `LAGER_GESCHLOSSEN`, wenn das Lager abgeschlossen oder archiviert ist: Die ganze Anfrage wird abgelehnt. 413 über 256 KB. 429 bei zu vielen Anfragen. 500 bei einem Fehler des Servers: Die App schickt dieselbe Anfrage noch einmal; erledigte Operationen kommen aus dem Speicher.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerWarteschlangeAnfrage"
+      responses:
+        "200":
+          description: Ein Ergebnis je Operation, in der Reihenfolge der Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWarteschlangeAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen oder archiviert (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Die Anfrage ist grösser als 256 KB (`ZU_GROSS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/ereignisse:
+    get:
+      operationId: oeffneLagerEreignisse
+      summary: Ereignisse des Lagers (Server-Sent Events)
+      description: |
+        Offener Event-Stream (`text/event-stream`), über den eine offene Ansicht erfährt, dass es im Lager Neues gibt, statt in einem Takt zu fragen. Die Meldung nennt nur die Folgenummer und die Objekttypen, die die Rolle lesen darf; nie IDs, Namen oder Inhalte. Den Inhalt holt die App danach über den Änderungsfeed (`GET /api/v1/lager/{id}/aenderungen?seit=`), wo auch der Zeilenfilter der Rolle gilt.
+
+        Nachrichten (`event`, `id` ist die Folgenummer, `data` ist JSON, siehe `LagerEreignis`):
+        - `bereit`: erste Nachricht; `{ "bis": N }` ist der Stand des Lagers.
+        - `aenderung`: `{ "bis": N, "objekttypen": ["aufgabe", ...] }`. Schreibvorgänge in kurzer Zeit ergeben eine Meldung. Hat nichts Lesbares geändert, kommt keine. Beim Verbinden mit `Last-Event-ID` (oder `seit`), das kleiner ist als der Stand, kommt sie sofort mit allen lesbaren Objekttypen.
+        - `neu-laden`: `{ "bis": N }`; die Folgenummer der App liegt in der Zukunft (Lager zurückgespielt), die App lädt neu.
+        - `ende`: `{ "grund": "neu-verbinden" }`; der Server beendet die Verbindung, weil sich Rolle oder Rechte geändert haben oder eine Obergrenze der Verbindungen erreicht ist. Die App verbindet neu und bekommt dabei ihre aktuellen Rechte (oder 401 und 404, wenn sie keinen Zugang mehr hat).
+        - Kommentarzeile `: herzschlag` alle 25 Sekunden, ohne Datenbankzugriff.
+
+        Wiederverbinden: Die App merkt sich die letzte `id` und sendet sie als `Last-Event-ID` (Browser tun das selbst; wer keinen Kopf setzen kann, nimmt `seit`). Danach fragt sie den Feed ab dieser Folgenummer ab. Die Verbindung gilt für die Sitzung, die sie geöffnet hat: Endet die Sitzung, wird das Konto gesperrt oder ändert sich die Rolle im Lager, endet die Verbindung spätestens nach fünf Minuten, bei Änderungen in der Verwaltung (Mitglieder, Rechte) sofort.
+
+        Obergrenzen: höchstens 3 gleichzeitige Verbindungen je Konto (eine vierte beendet die älteste), 100 je Lager und 200 je Instanz; darüber antwortet die Route mit 429 `ZU_VIELE_VERBINDUNGEN` und `Retry-After: 30`. Ein Client, der Nachrichten nicht abholt, verliert die Verbindung.
+
+        Die Route ist lesend und darum auch in einem abgeschlossenen Lager offen. Proxys dürfen die Antwort nicht puffern (siehe docs/betrieb.md). Statuscodes: 200 (Stream). 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 429 bei erreichter Obergrenze.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Folgenummer der letzten Meldung, die die App erhalten hat.
+          schema:
+            type: integer
+            minimum: 0
+        - name: seit
+          in: query
+          required: false
+          description: Wie `Last-Event-ID`, für Clients, die keinen Kopf setzen können. Der Kopf geht vor.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Ein Event-Stream. Die Verbindung bleibt offen, bis eine Seite sie beendet.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Nachrichten im Format von Server-Sent Events; `data` ist ein `LagerEreignis`.
+              example: |
+                retry: 5000
+                id: 42
+                event: bereit
+                data: {"bis":42}
+
+                id: 43
+                event: aenderung
+                data: {"bis":43,"objekttypen":["aufgabe"]}
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          description: Obergrenze der Verbindungen erreicht (`ZU_VIELE_VERBINDUNGEN`), Kopf `Retry-After` mit 30 Sekunden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/dateien:
+    post:
+      operationId: legeLagerDateiAn
+      summary: Datei als Verknüpfung hinzufügen
+      description: |
+        Speichert die Verknüpfung auf eine Datei, die im SharePoint (Microsoft 365) der Abteilung liegt. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ (MIME) und Grösse (Bytes), nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Offline-Kopien legt nur die App an, nur wenn die Person die Option in den Einstellungen der App einschaltet; im Web gibt es keine.
+
+        Der Link wird streng geprüft: nur `https:`, keine protokoll-relative Adresse, kein `javascript:` oder `data:`, keine Zugangsdaten und kein Port in der Adresse, ein Host mit Punkt und kein IP-Literal, höchstens 2048 Zeichen, ohne Leer-, Steuer- und Formatzeichen. Hat die Abteilung erlaubte Hosts festgelegt (`/api/v1/admin/lager-dateien/hosts`), muss der Host einer davon sein oder eine Subdomain davon. Der Link wird in der Schreibweise der URL-Norm gespeichert (Schema und Host klein).
+
+        Wer den Eintrag sieht: die Person, die ihn hinzugefügt hat, 24 Stunden lang, und wer einen Datensatz lesen darf, der ihn einbindet (Pinnwand, Dokumente, Protokolle, Infos). Ein Eintrag, den innerhalb von 24 bis 48 Stunden kein Datensatz einbindet, wird aufgeräumt. Recht: Pinnwand, Dokumente, Protokolle oder Infos bearbeiten (eines genügt). Rate-Limit: 30 Einträge je Konto in 10 Minuten (429). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe: `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT` für den Link, sonst ohne Details. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiAnlegen"
+      responses:
+        "201":
+          description: Die Verknüpfung (Version 1).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          description: Ungültige Eingabe. Beim Link `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT`, sonst `UNGUELTIGE_EINGABE` ohne Details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/dateien/{dateiId}:
+    get:
+      operationId: holeLagerDatei
+      summary: Verknüpfung lesen
+      description: |
+        Liefert Link, Anzeigename, Typ und Grösse einer Verknüpfung. Sichtbar ist der Eintrag für die Person, die ihn in den letzten 24 Stunden hinzugefügt hat, und für jede Person, die einen Datensatz lesen darf, der ihn einbindet; für alle anderen gibt es ihn nicht (404). Der Server liefert nie den Inhalt der Datei: Öffnen und Herunterladen gehen über den Link direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Eine Liste gibt es nicht; die Routen der Module, die Dateien einbinden, liefern die Einträge ihrer Datensätze.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager oder der Eintrag unbekannt ist, zu einer anderen Abteilung oder einem anderen Lager gehört, gelöscht oder für die Person nicht sichtbar ist, oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Verknüpfung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerDatei
+      summary: Verknüpfung löschen
+      description: |
+        Entfernt nur die Verknüpfung in Cevi OS (Soft-Delete über den Sync-Kern, der Änderungsfeed meldet `geloescht`), nie die Datei am Ablageort. Die Anfrage nennt die zuletzt gesehene `version`; stimmt sie nicht, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Gleiches Recht wie beim Anlegen. Reihenfolge der Prüfungen: Pfad (400), Lager (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eintrag (404), Version (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder fehlender Version. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn Lager oder Eintrag für die Person nicht existieren. 409 bei `LAGER_GESCHLOSSEN` und `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Verknüpfung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Verknüpfung gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Version stimmt nicht (`VERSION_KONFLIKT`, mit aktuellem Stand und abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerKonflikt"
+                  - $ref: "#/components/schemas/LagerVersionKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager-dateien/hosts:
+    get:
+      operationId: holeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links lesen
+      description: |
+        Nur Admins. Liefert die Hosts, auf denen die Links der Dateien im Lager liegen dürfen, oder `null` ohne Einschränkung (Vorgabe).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die erlaubten Hosts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDateiHosts"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links festlegen
+      description: |
+        Nur Admins. Legt fest, auf welchen Hosts die Links liegen dürfen, zum Beispiel `meineabteilung.sharepoint.com`: der Host selbst oder eine Subdomain davon. `null` hebt die Einschränkung auf (Vorgabe). Höchstens 20 Hosts, ohne Schema, Pfad und Port; Gross- und Kleinschreibung egal, doppelte Einträge fallen weg. Gilt für neue Links; bestehende bleiben. Audit-Log: `lager_datei_hosts_geaendert` (nur die Anzahl).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiHosts"
+      responses:
+        "204":
+          description: Hosts gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/ressorts:
     get:
@@ -9740,6 +10081,99 @@ components:
                 type: boolean
     # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerEreignis:
+      type: object
+      description: Die Daten einer Nachricht des Event-Streams. Nie IDs, Namen oder Inhalte.
+      required:
+        - bis
+      properties:
+        bis:
+          type: integer
+          minimum: 0
+          description: Folgenummer, bis zu der es Neues gibt.
+        objekttypen:
+          type: array
+          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`).
+          items:
+            type: string
+        grund:
+          type: string
+          description: Nur bei `ende`.
+          enum:
+            - neu-verbinden
+    LagerWarteschlangeAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - operationen
+      properties:
+        operationen:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - clientOpId
+              - typ
+              - nutzlast
+            properties:
+              clientOpId:
+                type: string
+                format: uuid
+                description: Von der App einmal je Operation erzeugt und bei jeder Wiederholung beibehalten.
+              typ:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Name der Operation, zum Beispiel `aufgabe.aendern`.
+              nutzlast:
+                type: object
+                description: Die Felder der Operation; unbekannte Felder lehnt die Operation ab.
+                additionalProperties: true
+    LagerWarteschlangeAntwort:
+      type: object
+      required:
+        - ergebnisse
+      properties:
+        ergebnisse:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerOperationsErgebnis"
+    LagerOperationsErgebnis:
+      type: object
+      required:
+        - clientOpId
+        - status
+      properties:
+        clientOpId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - ok
+            - konflikt
+            - abgelehnt
+        ergebnis:
+          type: object
+          description: Nur bei `ok`, enthält IDs und Versionen der geschriebenen Zeilen, keine Inhalte.
+          additionalProperties: true
+        code:
+          type: string
+          description: Nur bei `konflikt` (`VERSION_KONFLIKT`) und `abgelehnt`.
+        message:
+          type: string
+        aktuell:
+          type: object
+          description: Nur bei `konflikt`, der aktuelle Stand der Zeile in der Ansicht der Rolle.
+          additionalProperties: true
+        abweichend:
+          type: array
+          description: Nur bei `konflikt`, die Felder der Operation, die jetzt anders stehen.
+          items:
+            type: string
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerBenachrichtigungsArt:
@@ -9887,6 +10321,85 @@ components:
               aktiv:
                 type: boolean
     # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDatei:
+      type: object
+      additionalProperties: false
+      description: Verknüpfung auf eine Datei im SharePoint der Abteilung. Kein Inhalt; der Server ruft den Link nie ab.
+      required:
+        - id
+        - version
+        - anzeigename
+        - link
+        - typ
+        - groesse
+        - hinzugefuegtVon
+        - hinzugefuegtAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        anzeigename:
+          type: string
+        link:
+          type: string
+          format: uri
+          description: https-Adresse am Ablageort; der Ablageort regelt, wer die Datei öffnen darf. Die App legt die Offline-Kopie an, nur wenn die Person die Option in den Einstellungen der App einschaltet.
+        typ:
+          type: [string, "null"]
+          description: MIME-Typ, falls bekannt.
+        groesse:
+          type: [integer, "null"]
+          description: Bytes, falls bekannt.
+        hinzugefuegtVon:
+          type: [string, "null"]
+          format: uuid
+          description: ID des Kontos, das den Eintrag hinzugefügt hat; null, wenn das Konto gelöscht ist.
+        hinzugefuegtAm:
+          type: string
+          format: date-time
+    LagerDateiAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - anzeigename
+        - link
+      properties:
+        anzeigename:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Ohne Steuerzeichen; Leerraum an den Enden fällt weg.
+        link:
+          type: string
+          maxLength: 2048
+          description: https-Adresse, streng geprüft (siehe die Route).
+        typ:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+$"
+          description: MIME-Typ, wird klein gespeichert.
+        groesse:
+          type: integer
+          minimum: 0
+          description: Bytes.
+    LagerDateiHosts:
+      type: object
+      additionalProperties: false
+      required:
+        - hosts
+      properties:
+        hosts:
+          type: [array, "null"]
+          minItems: 1
+          maxItems: 20
+          description: Erlaubte Hosts; null = keine Einschränkung.
+          items:
+            type: string
+            maxLength: 253
+            example: meineabteilung.sharepoint.com
     # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerRessortPerson:
       description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
