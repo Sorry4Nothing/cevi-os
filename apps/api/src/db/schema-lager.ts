@@ -935,6 +935,9 @@ export const einkaufVorschlag = pgTable(
     check(
       "einkauf_vorschlag_check",
       sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and ${t.haeufigkeit} >= 1`,
+    ),
+  ],
+);
 
 // Dokument im Lager (#396): ein Titel, ein Verweis auf eine Datei im SharePoint (lager_datei, #370), Stichworte und die Freigabe für das Team. Cevi OS speichert nur den Link, nie den Inhalt. Stichworte als text[] (klein geschrieben, ohne Doppelte, höchstens 20): Sie stehen in derselben Zeile wie das Dokument und kosten in der Liste keine zweite Abfrage; der GIN-Index trägt den Filter «Stichwort». Der Fremdschlüssel auf lager_datei ist RESTRICT und trägt das Lager mit: Der Aufräumlauf (lager/datei-verweise.ts) entfernt nie eine Datei, die ein Dokument einbindet, und ein Dokument zeigt nie auf eine Datei eines anderen Lagers. Geschrieben wird nur über lager/sync.ts
 export const dokument = pgTable(
