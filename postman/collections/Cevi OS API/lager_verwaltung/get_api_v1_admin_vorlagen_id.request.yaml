@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/vorlagen/:id"
-order: 369000
+order: 367000
 method: GET
 url: "{{baseUrl}}{{pfad_L212}}"
 headers:

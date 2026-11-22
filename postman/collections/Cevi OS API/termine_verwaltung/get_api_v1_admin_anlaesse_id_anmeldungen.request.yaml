@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/anlaesse/:id/anmeldungen"
-order: 401000
+order: 399000
 method: GET
 url: "{{baseUrl}}{{pfad_T6}}"
 headers:

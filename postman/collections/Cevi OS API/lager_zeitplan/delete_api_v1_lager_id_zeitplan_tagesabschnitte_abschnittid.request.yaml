@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/zeitplan/tagesabschnitte/:abschnittId"
-order: 387000
+order: 385000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L230}}"
 headers:

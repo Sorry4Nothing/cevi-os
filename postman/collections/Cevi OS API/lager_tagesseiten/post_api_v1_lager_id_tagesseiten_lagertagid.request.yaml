@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/tagesseiten/:lagertagId"
-order: 342000
+order: 340000
 method: POST
 url: "{{baseUrl}}{{pfad_L185}}"
 headers:

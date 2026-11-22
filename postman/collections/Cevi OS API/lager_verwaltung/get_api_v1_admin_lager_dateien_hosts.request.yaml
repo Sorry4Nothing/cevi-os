@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/lager-dateien/hosts"
-order: 206000
+order: 204000
 method: GET
 url: "{{baseUrl}}{{pfad_L48}}"
 headers:

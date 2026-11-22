@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/pinnwand/:beitragId/umfrage"
-order: 361000
+order: 359000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L204}}"
 headers:

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/wetter/ort"
-order: 374000
+order: 372000
 method: PUT
 url: "{{baseUrl}}{{pfad_L217}}"
 headers:

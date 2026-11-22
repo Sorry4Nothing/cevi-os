@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/admin/kategorie-zuordnungen/:id"
-order: 421000
+order: 419000
 method: DELETE
 url: "{{baseUrl}}{{pfad_T26}}"
 headers:

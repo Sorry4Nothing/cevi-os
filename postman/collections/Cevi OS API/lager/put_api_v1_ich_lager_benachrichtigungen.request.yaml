@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/ich/lager-benachrichtigungen"
-order: 202000
+order: 200000
 method: PUT
 url: "{{baseUrl}}/api/v1/ich/lager-benachrichtigungen"
 headers:

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/pinnwand/:beitragId"
-order: 300000
+order: 298000
 method: GET
 url: "{{baseUrl}}{{pfad_L143}}"
 headers:

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zeitplan/meilensteine"
-order: 378000
+order: 376000
 method: POST
 url: "{{baseUrl}}{{pfad_L221}}"
 headers:

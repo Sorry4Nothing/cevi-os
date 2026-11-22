@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/notfall/karte"
-order: 286000
+order: 284000
 method: PUT
 url: "{{baseUrl}}{{pfad_L129}}"
 headers:

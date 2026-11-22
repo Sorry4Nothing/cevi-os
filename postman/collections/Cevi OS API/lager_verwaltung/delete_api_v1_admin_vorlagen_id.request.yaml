@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/admin/vorlagen/:id"
-order: 371000
+order: 369000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L214}}"
 headers:

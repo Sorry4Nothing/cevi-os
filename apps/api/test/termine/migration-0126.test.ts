@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0126 und ihr Rückweg gegen eine eigene Datenbank mit Daten: erst bis 0124 migrieren, füllen, dann 0126 durch den echten Migrator, dann der Rückweg
+// 0126 und ihr Rückweg gegen eine eigene Datenbank mit Daten: erst bis 0125 migrieren, füllen, dann 0126 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig449_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -45,7 +45,7 @@ function ordnerBauen(ziel: string, bis: number) {
 beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
-  ordnerBauen(bisVorher, 124);
+  ordnerBauen(bisVorher, 125);
   ordnerBauen(komplett, 126);
 });
 

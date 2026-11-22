@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/rechte"
-order: 314000
+order: 312000
 method: PUT
 url: "{{baseUrl}}{{pfad_L157}}"
 headers:

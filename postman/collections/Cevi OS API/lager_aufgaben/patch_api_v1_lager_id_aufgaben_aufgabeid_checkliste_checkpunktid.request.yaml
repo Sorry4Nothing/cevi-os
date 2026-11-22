@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/aufgaben/:aufgabeId/checkliste/:checkpunktId"
-order: 181000
+order: 179000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L23}}"
 headers:
