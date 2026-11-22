@@ -10,7 +10,7 @@ describe("Admin-Panel: Termine, Reiter Räume", () => {
 
   test("Modul und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/termine-raeume.css"');
-    expect(lies("termine.js")).toContain('"./termine-raeume.js"');
+    expect(lies("navigation.js")).toContain('"./termine-raeume.js"');
   });
 
   test("lesen, anlegen, ändern und löschen nur über die Raum-Routen (und die Tags für das Team), entscheiden nur über die Anfrage-Routen", () => {

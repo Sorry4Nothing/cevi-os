@@ -8,9 +8,9 @@ const lies = (datei: string) =>
 describe("Admin-Panel: Anwesenheit", () => {
   test("Modul, Stilvorlage und Bereich sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/anwesenheit.css"');
-    const admin = lies("admin.js");
-    expect(admin).toContain('"./anwesenheit.js"');
-    expect(admin).toContain('"anwesenheit"');
+    const navigation = lies("navigation.js");
+    expect(navigation).toContain('"./anwesenheit.js"');
+    expect(navigation).toContain('schluessel: "anwesenheit"');
   });
 
   test("das Modul ruft nur die lesende Route der Stufen auf", () => {

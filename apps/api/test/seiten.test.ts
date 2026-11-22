@@ -125,10 +125,12 @@ describe("Verwaltung unter /admin", () => {
     expect(html).not.toMatch(/<style/i);
   });
 
-  test("die Verwaltung ist immer dunkel, ohne Umschalten nach Systemeinstellung", () => {
-    expect(admin["index.html"]).toContain('name="color-scheme" content="dark"');
-    expect(admin["admin.css"]).toContain("color-scheme: dark;");
-    expect(admin["admin.css"]).not.toContain("prefers-color-scheme");
+  test("die Verwaltung folgt Tag und Nacht des Geräts, ohne Umschalter", () => {
+    expect(admin["index.html"]).toContain(
+      'name="color-scheme" content="light dark"',
+    );
+    expect(admin["admin.css"]).toContain("color-scheme: light dark;");
+    expect(admin["admin.css"]).toContain("prefers-color-scheme: dark");
   });
 
   test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(

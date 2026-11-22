@@ -312,10 +312,115 @@ paths:
             text/javascript:
               schema:
                 type: string
-  /admin/termine.js:
+  /admin/geruest.css:
     get:
-      operationId: getAdminTermineSkript
-      summary: Skript der Verwaltung – Bereich Termine (Rahmen und Reiter)
+      operationId: getAdminGeruestStilvorlage
+      summary: Stilvorlage der Verwaltung – Gerüst (Kopf, Leisten, Zustände)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/komponenten.css:
+    get:
+      operationId: getAdminKomponentenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bausteine (Skeleton, Schalter, Pillen)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/navigation.js:
+    get:
+      operationId: getAdminNavigationSkript
+      summary: Skript der Verwaltung – Navigation (Bereiche und Unterseiten)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rahmen.js:
+    get:
+      operationId: getAdminRahmenSkript
+      summary: Skript der Verwaltung – Rahmen (Kopf, Leisten, Rückmeldungen)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lader.js:
+    get:
+      operationId: getAdminLaderSkript
+      summary: Skript der Verwaltung – Laden mit Skeleton
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zustaende.js:
+    get:
+      operationId: getAdminZustaendeSkript
+      summary: Skript der Verwaltung – Zustandsseiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/platzhalter.js:
+    get:
+      operationId: getAdminPlatzhalterSkript
+      summary: Skript der Verwaltung – Seite im Aufbau
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/komponenten.js:
+    get:
+      operationId: getAdminKomponentenSkript
+      summary: Skript der Verwaltung – Komponenten (Skeleton-Galerie und Zustandstafel)
       tags:
         - Allgemein
       security: []

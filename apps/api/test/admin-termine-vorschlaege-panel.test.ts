@@ -12,7 +12,7 @@ describe("Admin-Panel: Termine, Reiter Vorschläge", () => {
     expect(lies("index.html")).toContain(
       'href="/admin/termine-vorschlaege.css"',
     );
-    expect(lies("termine.js")).toContain('"./termine-vorschlaege.js"');
+    expect(lies("navigation.js")).toContain('"./termine-vorschlaege.js"');
   });
 
   test("lesen über GET, schreiben nur über entscheid und eingetragen", () => {
