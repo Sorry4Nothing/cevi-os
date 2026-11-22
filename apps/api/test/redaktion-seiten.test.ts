@@ -25,6 +25,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -138,7 +139,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "demoEltern"),
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "slB"),
-    legePersonaAn(welt, "leitendeA"),
+    legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
@@ -206,7 +207,7 @@ describe("Baum", () => {
   });
 
   test("ein Recht auf genau eine Seite öffnet den Zugang nur für diese Seite", async () => {
-    const person = await legePersonaAn(welt, "leitendeA");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",
@@ -235,7 +236,7 @@ describe("Baum", () => {
 
   test("ein Tag mit Recht auf Seiten öffnet den Zugang für alle, die ihn tragen", async () => {
     const tagId = await wegwerfTag(welt.testabteilungId, "team");
-    const person = await legePersonaAn(welt, "leitendeB");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeB");
     expect((await anfrage(person, "GET", BASIS)).status).toBe(403);
     await db.insert(schema.personTag).values({ userId: person.id!, tagId });
     // Der Tag allein verleiht nichts (#331)

@@ -710,3 +710,6 @@ export * from "./schema-website.js";
 
 // Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
 export * from "./schema-lager.js";
+
+// Plattformrollen (#423)
+export * from "./schema-plattform.js";

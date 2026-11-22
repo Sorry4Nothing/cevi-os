@@ -16,6 +16,7 @@ import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
+import { erstellePlattformRollenRouten } from "./routes/admin/plattform-rollen.js";
 import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
@@ -239,6 +240,10 @@ export function erstelleApp({
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
+      .route(
+        "/api/v1/admin/plattform/rollen",
+        erstellePlattformRollenRouten({ db }),
+      )
       .route(
         "/api/v1/redaktion",
         erstelleRedaktionRouten({ db, medien: medienHandler }),

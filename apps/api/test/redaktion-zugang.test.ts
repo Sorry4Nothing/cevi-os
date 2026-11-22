@@ -24,6 +24,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -139,7 +140,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "slB"),
     // Eine Leitende ohne Stufenleitung, der der Admin das Recht auf alle Seiten gibt
-    legePersonaAn(welt, "leitendeA"),
+    legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);

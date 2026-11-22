@@ -30,6 +30,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -127,7 +128,7 @@ const seitenZu = (tagId: string) =>
   db.select().from(schema.seite).where(eq(schema.seite.tagId, tagId));
 
 // Eine Person der Testabteilung, die als Leitende startet und nur trägt, was der Test ihr gibt
-const leitende = () => legePersonaAn(welt, "leitendeA");
+const leitende = () => legePersonaMitFaktorAn(welt, "leitendeA");
 
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
@@ -137,7 +138,7 @@ beforeAll(async () => {
       legePersonaAn(welt, "demoAdmin"),
       legePersonaAn(welt, "slA"),
       legePersonaAn(welt, "slB"),
-      legePersonaAn(welt, "leitendeA"),
+      legePersonaMitFaktorAn(welt, "leitendeA"),
       legePersonaAn(welt, "leitendeB"),
       legePersonaAn(welt, "elternA"),
     ]);

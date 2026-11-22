@@ -38,6 +38,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -157,7 +158,7 @@ beforeAll(async () => {
       legePersonaAn(welt, "adminOhneZweitenFaktor"),
       legePersonaAn(welt, "slA"),
       legePersonaAn(welt, "slB"),
-      legePersonaAn(welt, "leitendeA"),
+      legePersonaMitFaktorAn(welt, "leitendeA"),
       legePersonaAn(welt, "elternA"),
       legePersonaAn(welt, "demoAdmin"),
       legePersonaAn(welt, "ohneLogin"),
@@ -182,7 +183,7 @@ beforeAll(async () => {
 });
 
 describe("Rechte", () => {
-  test("Stufenleitung der Stufe schreibt, liest und löscht ohne zweiten Faktor; Abteilungsleitung und Redaktion auch", async () => {
+  test("Stufenleitung der Stufe schreibt, liest und löscht ohne zweiten Faktor; Abteilungsleitung und Redaktion (mit zweitem Faktor) auch", async () => {
     for (const [konto, n] of [
       [slA, 3],
       [admin, 4],
