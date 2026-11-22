@@ -1239,6 +1239,10 @@ describe("Matrix lesen und Zusammenfassung", () => {
       expect((await anfrage(leiter(), "GET", pfad)).status).toBe(200);
       return abfragen - vor;
     };
+    // Mit einem Eintrag: Die Namen der Seite kosten eine Abfrage, eine leere Seite spart sie
+    await alsLeitung([
+      { personId: konten.team.id, ...felder(t, "A", [t.abschnitte[0]!])[0] },
+    ]);
     const wenige = await zaehle(`${A()}?lagertagIds=${t.tag}`);
     const kinder60 = await neueKinder(60);
     await alsLeitung(
@@ -1249,11 +1253,75 @@ describe("Matrix lesen und Zusammenfassung", () => {
     );
     const viele = await zaehle(`${A()}?lagertagIds=${t.tag}`);
     expect(viele).toBe(wenige);
-    // Sitzung, Konto, Lager mit Mitgliedschaft, Rechte der Rolle und die eine Abfrage der Matrix
-    expect(wenige).toBeLessThanOrEqual(5);
+    // Sitzung, Konto, Lager mit Mitgliedschaft, Rechte der Rolle, die Matrix und die Namen der Seite
+    expect(wenige).toBeLessThanOrEqual(6);
     // Die Zusammenfassung ist eine Abfrage mehr als die Policy, egal wie viele Zeilen
     expect(await zaehle(`${A()}/zusammenfassung`)).toBeLessThanOrEqual(5);
     expect(await zaehle(`${A()}/anfragen`)).toBeLessThanOrEqual(5);
+  });
+});
+
+describe("Namen in der Matrix (#520)", () => {
+  test("namen löst die IDs der Seite auf, Teilnehmende nur mit teilnehmer.lesen", async () => {
+    const [l] = await db
+      .insert(schema.lager)
+      .values({
+        abteilungId: welt.testabteilungId,
+        titel: "Namenlager",
+        von: "2027-07-10",
+        bis: "2027-07-24",
+      })
+      .returning({ id: schema.lager.id });
+    const id = l!.id;
+    for (const [persona, rolle] of [
+      ["lagerleitung", "lagerleitung"],
+      ["leitung", "leitung"],
+      ["lesen", "lesen"],
+    ] as const) {
+      await db
+        .insert(schema.lagerMitglied)
+        .values({ lagerId: id, personId: konten[persona].id!, rolle });
+    }
+    const t = await neuerTag(id);
+    const kind = await neuesKind(id);
+    await alsLeitung(
+      [
+        {
+          personId: konten.leitung.id,
+          ...felder(t, "A", [t.abschnitte[0]!])[0],
+        },
+        { teilnehmerId: kind, ...felder(t, "F", [t.abschnitte[0]!])[0] },
+      ],
+      id,
+    );
+    const matrix = await anfrage(konten.lesen, "GET", A(id));
+    expect(matrix.status).toBe(200);
+    expect(Object.keys(matrix.body.namen).sort()).toEqual(
+      [konten.leitung.id, kind].sort(),
+    );
+    expect(matrix.body.namen[kind]).toBe("Kind0");
+    expect(matrix.body.namen[konten.leitung.id!]).toBeTruthy();
+    // Eintrag ohne Namen gibt es nicht: Jede ID der Seite steht in namen
+    for (const e of matrix.body.eintraege) {
+      expect(matrix.body.namen[e.personId ?? e.teilnehmerId]).toBeTruthy();
+    }
+    // Ohne teilnehmer.lesen fehlt der Name des Kindes, die Einträge bleiben
+    await db.insert(schema.lagerRolleRecht).values({
+      lagerId: id,
+      rolle: "lesen",
+      recht: "teilnehmer.lesen",
+      erlaubt: false,
+    });
+    const ohne = await anfrage(konten.lesen, "GET", A(id));
+    expect(Object.keys(ohne.body.namen)).toEqual([konten.leitung.id]);
+    expect(ohne.body.eintraege).toHaveLength(2);
+    // Eine leere Seite hat keine Namen
+    const leer = await anfrage(
+      konten.lagerleitung,
+      "GET",
+      `${A(id)}?lagertagIds=${randomUUID()}`,
+    );
+    expect(leer.body.namen).toEqual({});
   });
 });
 

@@ -556,6 +556,34 @@
       "breakpoints": true
     },
     {
+      "idx": 105,
+      "version": "7",
+      "when": 1793553500000,
+      "tag": "0105_lager_ressort_ruhig",
+      "breakpoints": true
+    },
+    {
+      "idx": 106,
+      "version": "7",
+      "when": 1793553600000,
+      "tag": "0106_lager_traktandum_dauer",
+      "breakpoints": true
+    },
+    {
+      "idx": 107,
+      "version": "7",
+      "when": 1793553700000,
+      "tag": "0107_lager_pinnwand_empfaenger_ziel",
+      "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1793553800000,
+      "tag": "0108_lager_pinnwand_gesehen",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,

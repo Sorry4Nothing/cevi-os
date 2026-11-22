@@ -15,11 +15,13 @@ const RESERVIERT = new Set([
   "ical",
 ]);
 
-const MUSTER = /^\/(?:[a-z0-9-]{1,60}(?:\/[a-z0-9-]{1,60}){0,4})?$/;
+// Dazu als einzige Anfrage «?id=» mit einer UUID: Die Seiten eines Anlasses brauchen sie (#530)
+const MUSTER =
+  /^\/(?:[a-z0-9-]{1,60}(?:\/[a-z0-9-]{1,60}){0,4})?(?:\?id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/;
 
 export function sicheresZiel(wert) {
   if (typeof wert !== "string" || wert.length > 400 || !MUSTER.test(wert)) {
     return "/";
   }
-  return RESERVIERT.has(wert.split("/")[1]) ? "/" : wert;
+  return RESERVIERT.has(wert.slice(1).split(/[/?]/)[0]) ? "/" : wert;
 }

@@ -24,7 +24,7 @@ export type LagerPersona = (typeof LAGER_PERSONAS)[number];
 
 export const KONTO_FUER: Record<LagerPersona, Persona> = {
   abteilungsleitung: "admin",
-  // Mit zweitem Faktor: Die Lagerleitung braucht ihn (#423); dieses Konto hat sonst nichts mit dem Lager zu tun
+  // Mit zweitem Faktor: Die Lagerleitung braucht ihn nur für die Rechte der Rollen (#523); dieses Konto hat sonst nichts mit dem Lager zu tun
   lagerleitung: "elternB",
   leitung: "slB",
   team: "leitendeA",
@@ -222,7 +222,9 @@ export function regelverstoesse(matrix: LagerMatrix): string[] {
   for (const [schluessel, zeile] of Object.entries(matrix)) {
     const [methode, pfad] = schluessel.split(" ");
     const verwaltung = pfad.startsWith("/api/v1/admin/");
-    const lager = pfad.startsWith("/api/v1/lager/");
+    // Die Sammelroute der Neuigkeiten gilt wie «GET /lager» für jedes Konto (#520): ohne Mitgliedschaft ist die Liste leer, nicht 404
+    const lager =
+      pfad.startsWith("/api/v1/lager/") && pfad !== "/api/v1/lager/neuigkeiten";
     if (pfad.includes(":")) {
       if (!zeile.url) fehler.push(`${schluessel}: Pfad-Parameter ohne url`);
     }
