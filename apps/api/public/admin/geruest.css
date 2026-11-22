@@ -138,7 +138,7 @@
 }
 
 /* Zähler: rote Pille mit weisser Zahl (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1) */
-.zaehler {
+.pille-zaehler {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -282,7 +282,7 @@
     text-decoration-thickness: 3px;
   }
 
-  .zaehler {
+  .pille-zaehler {
     border: 1px solid CanvasText;
   }
 }

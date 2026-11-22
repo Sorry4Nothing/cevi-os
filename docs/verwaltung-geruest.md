@@ -180,7 +180,7 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
 | Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                              | `fortschritt`, `schritte`               |
 | Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
-| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `zaehler`                               |
+| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
 
 Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; keine Meldung verschwindet von selbst.
 
