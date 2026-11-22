@@ -76,9 +76,7 @@ export function erstelleAufgabenSchnellRouten({ db }: { db: Db }) {
                 name: ressort.name,
               })
               .from(ressort)
-              .where(
-                and(eq(ressort.lagerId, lager.id), isNull(ressort.geloeschtAm)),
-              )
+              .where(and(eq(ressort.lagerId, lager.id)))
               .orderBy(asc(ressort.reihenfolge), asc(ressort.id))
           : [],
       ]);

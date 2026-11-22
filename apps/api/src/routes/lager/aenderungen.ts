@@ -73,22 +73,21 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
       const weitere = zeilen.length > limit;
       const seite = weitere ? zeilen.slice(0, limit) : zeilen;
 
-      // Pro Tabelle einmal fragen, welche IDs die Person lesen darf
+      // Pro Tabelle einmal fragen, welche IDs die Person lesen darf. Gelöschte Zeilen gibt es nicht mehr (#427): Der Zeilenfilter kann sie nicht beurteilen und bekommt sie nicht; ihr Eintrag «geloescht» (nur Tabelle, ID, Version) geht an jeden mit dem Leserecht der Tabelle, damit die App die Zeile entfernt. Preis: Wer die Tabelle lesen darf, erfährt, dass eine Zeile verschwand, die er nie sah; eine unbekannte ID verrät nichts
       const lesbar = new Map<string, Set<string> | "alle">();
       for (const tabelle of new Set(seite.map((z) => z.tabelle))) {
         const eintrag = holeLagerTabelle(tabelle);
         if (!eintrag) continue;
         if (!darfTabelleLesen(zugriff, eintrag.recht)) continue;
+        const ids = seite
+          .filter((z) => z.tabelle === tabelle && z.art !== "geloescht")
+          .map((z) => z.zeileId);
         lesbar.set(
           tabelle,
           eintrag.sichtbar
-            ? await eintrag.sichtbar(
-                db,
-                zugriff,
-                seite
-                  .filter((z) => z.tabelle === tabelle)
-                  .map((z) => z.zeileId),
-              )
+            ? ids.length > 0
+              ? await eintrag.sichtbar(db, zugriff, ids)
+              : new Set<string>()
             : "alle",
         );
       }
@@ -97,7 +96,10 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
         eintraege: seite
           .filter((z) => {
             const ids = lesbar.get(z.tabelle);
-            return ids === "alle" || ids?.has(z.zeileId) === true;
+            if (ids === undefined) return false;
+            return (
+              z.art === "geloescht" || ids === "alle" || ids.has(z.zeileId)
+            );
           })
           .map((z) => ({
             seq: z.seq,

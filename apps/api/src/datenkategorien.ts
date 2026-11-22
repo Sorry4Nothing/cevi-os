@@ -168,7 +168,7 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht. Wer im Team eine eigene Schicht tauschen oder abgeben möchte, stellt eine Anfrage an die Lagerleitung (mit freiwilliger Bemerkung und, wenn gewünscht, einer Wunschperson); die Lagerleitung klärt die Zustimmung selbst und nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel. Aus diesen Angaben erzeugt Cevi OS auf Abruf Aushänge als PDF (Zimmerliste, Türschilder, Gruppenlisten, Fahrtenliste, Schichtplan, Organigramm); die Datei geht nur an die abrufende Person und wird nicht gespeichert.",
     frist:
       "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
@@ -210,7 +210,7 @@ export const KATEGORIEN = {
   lagerDokumente: {
     titel: "Dokumente im Lager",
     zweck:
-      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
+      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Wer Dokumente bearbeiten darf (im Standard Lagerleitung und Leitung), gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
     frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -247,11 +247,19 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerErwaehnungen: {
+    titel: "Erwähnungen im Lager",
+    zweck:
+      "Wer in einem Inhalt des Lagers (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) erwähnt wird, soll es merken: Cevi OS benachrichtigt die Person, und sie kann die Erwähnung als erledigt markieren oder daraus eine Aufgabe machen. Die Erwähnung speichert nur, wer in welchem Inhalt erwähnt wurde, nie den Text; sie sieht nur die erwähnte Person.",
+    frist: `Bis die Marke aus dem Inhalt entfällt (ausser es ist daraus eine Aufgabe entstanden), die Person das Lager verlässt oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerAnwesenheit: {
     titel: "Anwesenheit im Lager",
     zweck:
       "Planen, wer an welchem Tag und zu welcher Tageszeit im Lager ist, zum Beispiel für den Schichtplan und die Einkaufsmenge. Die Lagerleitung trägt für alle ein, das Team seine eigene Anwesenheit; eine Änderung eines eingetragenen Feldes stellt das Team als Anfrage an die Lagerleitung, die sie annimmt oder ablehnt. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
-    frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Einträge der Teilnehmenden (nur Kennung und Wert, kein Name) bleiben auch nach dem Löschen der Teilnehmenden, sechs Monate nach dem Ende des Lagers, bis das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
@@ -279,6 +287,22 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTagesseiten: {
+    titel: "Tagesseiten im Lager",
+    zweck:
+      "Pro Lagertag eine Seite führen: wer Tageschef ist, eine Notiz, Hinweise und Ideen des Tages und Verknüpfungen auf Programmbilder im SharePoint der Abteilung. Die Leitung des Lagers pflegt die Seite; die Aufgaben mit Frist an diesem Tag zeigt die Seite aus den Aufgaben des Lagers, und das Wetter des Tages kommt aus dem Wetter des Lagers.",
+    frist: `Bis die Leitung den Block löscht oder das Lager gelöscht wird. Wird ein Tageschef aus dem Lager entfernt oder sein Konto gelöscht, verschwindet die Angabe auf der Seite. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerWetter: {
+    titel: "Wetter im Lager",
+    zweck:
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerHoeck: {
     titel: "Höcks und Traktanden im Lager",
     zweck:
@@ -299,7 +323,7 @@ export const KATEGORIEN = {
   anlass: {
     titel: "Anlässe und Anmeldungen",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt. Die Abteilungsleitung sieht die Anmeldungen mit Name und Telefon aus dem Konto und kann sie als CSV-Datei laden; der Server speichert die Datei nicht und hält im Protokoll nur fest, wann der Export lief und wie viele Anmeldungen er enthielt.",
     frist:
       "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis ein Webmaster sie löscht.",
     apple: ["Contact Info: Name", "User Content: Other User Content"],
@@ -329,8 +353,6 @@ export const LAGER_BASIS_SPALTEN = [
   "erstellt_von",
   "geaendert_am",
   "geaendert_von",
-  "geloescht_am",
-  "geloescht_von",
   "lager_seq",
 ];
 
@@ -599,6 +621,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
+    lagerWetter: ["breite", "laenge"],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -720,6 +743,36 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   lagertag: {
     lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  // Tagesseiten (#391): Tageschef als Personen-ID, Notiz und Blöcke; das Programmbild ist ein Verweis auf lager_datei
+  tagesseite: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tageschef_person_id",
+      "notiz",
+    ],
+  },
+  tagesseite_block: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "seite_id",
+      "art",
+      "text",
+      "datei_id",
+      "reihenfolge",
+    ],
+  },
+  // Zwischenspeicher des Wetters (#391): Ort und Tageswerte der Vorhersage, keine Personendaten
+  wetter_cache: {
+    lagerWetter: [
+      "lager_id",
+      "breite",
+      "laenge",
+      "abgerufen_am",
+      "versuch_am",
+      "tage",
+    ],
   },
   tagesabschnitt: {
     lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],
@@ -971,6 +1024,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "teilnehmer_id",
     ],
   },
+  // Diensttausch (#389): wer welche eigene Schicht mit wem tauschen oder abgeben will, mit freiwilliger Notiz, Stand und wer wann entschied; die Schichten nur als ID
+  diensttausch: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "von_person_id",
+      "schicht_id",
+      "mit_person_id",
+      "mit_schicht_id",
+      "notiz",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+    ],
+  },
   // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender
   fahrt: {
     lagerFahrten: [
@@ -1090,6 +1157,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "objekt_typ",
       "objekt_id",
       "gelesen_am",
+      "erstellt_am",
+    ],
+  },
+  erwaehnung: {
+    lagerErwaehnungen: [
+      "id",
+      "lager_id",
+      "quelle_typ",
+      "quelle_id",
+      "person_id",
+      "erledigt_am",
+      "aufgabe_id",
       "erstellt_am",
     ],
   },

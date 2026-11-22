@@ -59,8 +59,6 @@ const tabelleSql = (name: string) => `
     erstellt_von uuid,
     geaendert_am timestamptz not null default now(),
     geaendert_von uuid,
-    geloescht_am timestamptz,
-    geloescht_von uuid,
     lager_seq bigint not null default 0,
     datei_id uuid references public.lager_datei(id) on delete restrict
   )`;
@@ -125,18 +123,13 @@ const neueDatei = async (person = "leitung", id = lagerId) => {
   );
   return { id: zeile.id, version: zeile.version };
 };
-const binde = (
-  tabelle: typeof beitrag | typeof intern,
-  dateiId: string,
-  geloescht = false,
-) =>
+const binde = (tabelle: typeof beitrag | typeof intern, dateiId: string) =>
   db
     .insert(tabelle as typeof beitrag)
     .values({
       lagerId,
       lagerSeq: 0,
       datei: dateiId,
-      geloeschtAm: geloescht ? new Date() : null,
     })
     .returning({ id: beitrag.id });
 
@@ -545,7 +538,8 @@ describe("Lesen: sichtbar nur über einen lesbaren Datensatz", () => {
 
   test("ein gelöschter Datensatz gibt den Eintrag nicht mehr frei", async () => {
     const datei = await neueDatei("leitung");
-    await binde(beitrag, datei.id, true);
+    const [zeile] = await binde(beitrag, datei.id);
+    await db.delete(beitrag).where(eq(beitrag.id, zeile!.id));
     expect(
       (await rufe("team", "GET", `/${lagerId}/dateien/${datei.id}`)).status,
     ).toBe(404);
@@ -604,7 +598,7 @@ describe("Änderungsfeed", () => {
 });
 
 describe("Löschen entfernt nur die Verknüpfung", () => {
-  test("Version nötig, Konflikt 409, danach 204 und 404; die Zeile bleibt als gelöscht", async () => {
+  test("Version nötig, Konflikt 409, danach 204 und 404; die Zeile ist weg", async () => {
     const datei = await neueDatei("leitung");
     const url = `/${lagerId}/dateien/${datei.id}`;
     expect((await rufe("leitung", "DELETE", url)).status).toBe(400);
@@ -629,12 +623,31 @@ describe("Löschen entfernt nur die Verknüpfung", () => {
     expect((await rufe("leitung", "DELETE", `${url}?version=2`)).status).toBe(
       404,
     );
-    const [zeile] = await db
-      .select()
-      .from(schema.lagerDatei)
-      .where(eq(schema.lagerDatei.id, datei.id));
-    expect(zeile?.geloeschtAm).toBeInstanceOf(Date);
-    expect(zeile?.geloeschtVon).toBe(personen.leitung!.id);
+    // Endgültig: Die Zeile ist weg
+    expect(
+      await db
+        .select()
+        .from(schema.lagerDatei)
+        .where(eq(schema.lagerDatei.id, datei.id)),
+    ).toHaveLength(0);
+  });
+
+  test("eine Datei, die ein Datensatz einbindet, lässt sich nicht löschen: 409 IN_VERWENDUNG, die Zeile bleibt", async () => {
+    const datei = await neueDatei("leitung");
+    await binde(beitrag, datei.id);
+    const a = await rufe(
+      "leitung",
+      "DELETE",
+      `/${lagerId}/dateien/${datei.id}?version=1`,
+    );
+    expect(a.status).toBe(409);
+    expect(((await a.json()) as { code: string }).code).toBe("IN_VERWENDUNG");
+    expect(
+      await db
+        .select()
+        .from(schema.lagerDatei)
+        .where(eq(schema.lagerDatei.id, datei.id)),
+    ).toHaveLength(1);
   });
 
   test("ein Eintrag, den die Person nicht sieht, lässt sich nicht löschen (404 vor 403)", async () => {
@@ -764,28 +777,20 @@ describe("Aufräumlauf", () => {
   const gibt = async (id: string) =>
     (await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, id))) === 1;
 
-  test("entfernt alte Einträge ohne Verweis, lässt verwiesene, junge und gelöschte stehen", async () => {
+  test("entfernt alte Einträge ohne Verweis, lässt verwiesene und junge stehen", async () => {
     await raeumeDateienOhneVerweisAuf(db, undefined, lagerId);
     const ohne = await neueDatei();
     const jung = await neueDatei();
     const mitBeitrag = await neueDatei();
     const mitIntern = await neueDatei();
-    const imPapierkorb = await neueDatei();
-    const geloescht = await neueDatei();
     await binde(beitrag, mitBeitrag.id);
     await binde(intern, mitIntern.id);
-    await binde(beitrag, imPapierkorb.id, true);
-    await rufe(
-      "leitung",
-      "DELETE",
-      `/${lagerId}/dateien/${geloescht.id}?version=1`,
-    );
-    for (const d of [ohne, mitBeitrag, mitIntern, imPapierkorb, geloescht]) {
+    for (const d of [ohne, mitBeitrag, mitIntern]) {
       await alt(d.id);
     }
     expect(await raeumeDateienOhneVerweisAuf(db, undefined, lagerId)).toBe(1);
     expect(await gibt(ohne.id)).toBe(false);
-    for (const d of [jung, mitBeitrag, mitIntern, imPapierkorb, geloescht]) {
+    for (const d of [jung, mitBeitrag, mitIntern]) {
       expect(await gibt(d.id)).toBe(true);
     }
     // Zweiter Lauf: nichts mehr zu tun

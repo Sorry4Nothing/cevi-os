@@ -41,16 +41,20 @@ import {
 import { legeProgrammAn } from "./hilfen/programme.js";
 import {
   antwortenJePersona,
+  KONTO_FUER as LAGER_KONTO_FUER,
   LAGER_MATRIX,
   LAGER_ZUSTAENDE,
   legeLagerWeltAn,
+  type LagerPersona,
   type LagerWelt,
 } from "./lager/matrix.js";
 import {
   antwortenJePersona as antwortenTermine,
+  KONTO_FUER as TERMINE_KONTO_FUER,
   legeTermineKontextAn,
   TERMINE_MATRIX,
   type TermineKontext,
+  type TerminePersona,
 } from "./termine/matrix.js";
 
 bereiteAuthTestsVor();
@@ -2206,7 +2210,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       JSON.stringify({ personas: PERSONAS, zeilen }, null, 1),
     );
 
-    // Die Lager-Zeilen mit Platzhaltern für die zwei Lager der Testabteilung; die Umgebungen je Lager-Persona (KONTO_FUER) sind die der Personas. Die Collection erzeugt L7h (#407) neu
+    // Lager und Termine für die Postman-Collection (L7h #407). Routen mit Pfad-Parameter legen ihr Ziel je Persona neu an (Pfad in der Umgebung unter pfad_L<n> und pfad_T<n>), damit ein Lauf das Ziel des nächsten nicht verbraucht. Die Umgebung einer Persona kennt nur die Zeilen, für die die Matrix ihr eine Rolle gibt (Lager: die aktive Spalte)
     const lagerIds = {
       lagerAktivId: lagerWelt.aktivId,
       lagerAbgeschlossenId: lagerWelt.abgeschlossenId,
@@ -2216,35 +2220,58 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
         (t, [name, id]) => t.replaceAll(id, `{{${name}}}`),
         text,
       );
+    // Nacheinander: Zeilen legen Zeilen mit festen Werten an (zum Beispiel einen Lagertag), die sich bei gleichzeitigem Aufbau stören
+    const lagerZeilen = [];
+    for (const [n, [schluessel, zeile]] of Object.entries(
+      LAGER_MATRIX,
+    ).entries()) {
+      lagerZeilen.push({
+        schluessel,
+        methode: schluessel.split(" ")[0],
+        pfad: ersetzeLager(
+          (await zeile.url?.(lagerWelt, "aktiv")) ?? schluessel.split(" ")[1],
+        ),
+        zielJeAnfrage: zeile.url !== undefined,
+        body:
+          zeile.body &&
+          ersetzeLager(JSON.stringify(await zeile.body("aktiv", lagerWelt))),
+        erwartet: zeile.erwartet,
+        n,
+      });
+    }
+    const termineZeilen = await Promise.all(
+      Object.entries(TERMINE_MATRIX).map(async ([schluessel, zeile], n) => ({
+        schluessel,
+        methode: schluessel.split(" ")[0],
+        pfad: (await zeile.url?.(termineKontext)) ?? schluessel.split(" ")[1],
+        zielJeAnfrage: zeile.url !== undefined,
+        body: zeile.body && JSON.stringify(zeile.body(termineKontext)),
+        oeffentlich: zeile.oeffentlich === true,
+        erwartet: zeile.erwartet,
+        n,
+      })),
+    );
     await writeFile(
       new URL("lager-matrix.json", ordner),
-      JSON.stringify(
-        {
-          ids: lagerIds,
-          zeilen: await Promise.all(
-            Object.entries(LAGER_MATRIX).map(async ([schluessel, zeile]) => ({
-              schluessel,
-              methode: schluessel.split(" ")[0],
-              pfad: ersetzeLager(
-                (await zeile.url?.(lagerWelt, "aktiv")) ??
-                  schluessel.split(" ")[1],
-              ),
-              body:
-                zeile.body &&
-                ersetzeLager(
-                  JSON.stringify(await zeile.body("aktiv", lagerWelt)),
-                ),
-              erwartet: zeile.erwartet,
-            })),
-          ),
-        },
-        null,
-        1,
-      ),
+      JSON.stringify({ ids: lagerIds, zeilen: lagerZeilen }, null, 1),
     );
+    await writeFile(
+      new URL("termine-matrix.json", ordner),
+      JSON.stringify({ zeilen: termineZeilen }, null, 1),
+    );
+    const lagerPersonaVon = (persona: Persona) =>
+      (Object.keys(LAGER_KONTO_FUER) as LagerPersona[]).find(
+        (l) => LAGER_KONTO_FUER[l] === persona,
+      );
+    const terminePersonaVon = (persona: Persona) =>
+      (Object.keys(TERMINE_KONTO_FUER) as TerminePersona[]).find(
+        (p) => TERMINE_KONTO_FUER[p] === persona,
+      );
 
     for (const persona of PERSONAS) {
       const konto = standard[persona];
+      const lagerPersona = lagerPersonaVon(persona);
+      const terminePersona = terminePersonaVon(persona);
       const werte: Record<string, string> = {
         baseUrl: "http://localhost:3000",
         persona,
@@ -2254,12 +2281,39 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
         benutzername: konto.benutzername ?? "gibt.es.nicht",
         passwort: konto.passwort ?? PASSWORT,
         ...ids,
-        erwartet: JSON.stringify(
-          Object.fromEntries(
+        ...lagerIds,
+        erwartet: JSON.stringify({
+          ...Object.fromEntries(
             zeilen.map((z) => [z.schluessel, z.erwartet[persona]]),
           ),
-        ),
+          ...(lagerPersona &&
+            Object.fromEntries(
+              lagerZeilen.map((z) => [
+                z.schluessel,
+                z.erwartet.aktiv[lagerPersona],
+              ]),
+            )),
+          ...(terminePersona &&
+            Object.fromEntries(
+              termineZeilen.map((z) => [
+                z.schluessel,
+                z.erwartet[terminePersona],
+              ]),
+            )),
+        }),
       };
+      for (const z of lagerZeilen.filter(
+        (z) => z.zielJeAnfrage && lagerPersona,
+      ))
+        werte[`pfad_L${z.n}`] = await LAGER_MATRIX[z.schluessel].url!(
+          lagerWelt,
+          "aktiv",
+        );
+      for (const z of termineZeilen.filter(
+        (z) => z.zielJeAnfrage && terminePersona,
+      ))
+        werte[`pfad_T${z.n}`] =
+          await TERMINE_MATRIX[z.schluessel].url!(termineKontext);
       for (const z of zeilen.filter((z) => z.bodyJePersona))
         werte[`body_${z.n}`] = bodyJePersona(z, persona);
       for (const z of zeilen.filter((z) => z.zielJeAnfrage)) {

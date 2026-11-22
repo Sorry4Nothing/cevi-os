@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { pgSchema, text } from "drizzle-orm/pg-core";
+import { pgSchema, text, uuid } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import postgres from "postgres";
@@ -16,6 +16,7 @@ import {
   LagerAntwortFehler,
   legeZeileAn,
   loescheZeile,
+  loescheZeilen,
   registriereSchreibHaken,
   type SchreibEreignis,
 } from "../../src/lager/sync.js";
@@ -49,6 +50,25 @@ const offen = testSchema.table("offen", {
 const ohneAnmeldung = testSchema.table("ohne_anmeldung", {
   ...lagerSpalten(),
 });
+// Abhängige Zeilen eines Objekts: «teil» geht mit (CASCADE), «verweis» verliert den Verweis (SET NULL), «fest» hält das Objekt (RESTRICT)
+const teil = testSchema.table("teil", {
+  ...lagerSpalten(),
+  objektId: uuid("objekt_id")
+    .notNull()
+    .references(() => objekt.id, { onDelete: "cascade" }),
+});
+const verweis = testSchema.table("verweis", {
+  ...lagerSpalten(),
+  objektId: uuid("objekt_id").references(() => objekt.id, {
+    onDelete: "set null",
+  }),
+});
+const fest = testSchema.table("fest", {
+  ...lagerSpalten(),
+  objektId: uuid("objekt_id")
+    .notNull()
+    .references(() => objekt.id, { onDelete: "restrict" }),
+});
 
 const tabelleSql = (name: string, extra: string) => `
   create table ${SCHEMA}.${name} (
@@ -59,8 +79,6 @@ const tabelleSql = (name: string, extra: string) => `
     erstellt_von uuid,
     geaendert_am timestamptz not null default now(),
     geaendert_von uuid,
-    geloescht_am timestamptz,
-    geloescht_von uuid,
     lager_seq bigint not null
     ${extra}
   )`;
@@ -228,6 +246,22 @@ beforeAll(async () => {
   );
   await besitzer.unsafe(tabelleSql("offen", ", titel text not null"));
   await besitzer.unsafe(tabelleSql("ohne_anmeldung", ""));
+  for (const [name, extra] of [
+    [
+      "teil",
+      ", objekt_id uuid not null references lager_sync_test.objekt(id) on delete cascade",
+    ],
+    [
+      "verweis",
+      ", objekt_id uuid references lager_sync_test.objekt(id) on delete set null",
+    ],
+    [
+      "fest",
+      ", objekt_id uuid not null references lager_sync_test.objekt(id) on delete restrict",
+    ],
+  ] as const) {
+    await besitzer.unsafe(tabelleSql(name, extra));
+  }
   await besitzer.unsafe(
     `grant usage on schema ${SCHEMA} to cevi_os_api; grant select, insert, update, delete on all tables in schema ${SCHEMA} to cevi_os_api`,
   );
@@ -249,6 +283,9 @@ beforeAll(async () => {
     },
   });
   registriereLagerTabelle({ tabelle: offen, recht: "pinnwand.lesen" });
+  for (const t of [teil, verweis, fest]) {
+    registriereLagerTabelle({ tabelle: t, recht: "aufgaben.lesen_alle" });
+  }
 
   [abteilungId, fremdeAbteilungId] = (
     await db
@@ -480,7 +517,7 @@ describe("Schreib-Hilfen: Version und Folgenummer", () => {
     expect(bleibt).toMatchObject({ titel: "Anderswo", version: 1 });
   });
 
-  test("Löschen: Soft-Delete mit Version +1 und Eintrag «geloescht»; danach 404", async () => {
+  test("Löschen: die Zeile ist weg, der Feed meldet «geloescht» mit Version +1; danach 404", async () => {
     const z = await anlegen("lagerleitung", "Weg");
     const antwort = await rufe(
       "lagerleitung",
@@ -489,12 +526,9 @@ describe("Schreib-Hilfen: Version und Folgenummer", () => {
       { version: 1 },
     );
     expect(antwort.status).toBe(204);
-    const [zeile] = await db.select().from(objekt).where(eq(objekt.id, z.id));
-    expect(zeile).toMatchObject({
-      version: 2,
-      geloeschtVon: personen.lagerleitung!.id,
-    });
-    expect(zeile!.geloeschtAm).toBeInstanceOf(Date);
+    expect(
+      await db.select().from(objekt).where(eq(objekt.id, z.id)),
+    ).toHaveLength(0);
     expect((await eintraege()).at(-1)).toMatchObject({
       zeileId: z.id,
       art: "geloescht",
@@ -518,6 +552,7 @@ describe("Schreib-Hilfen: Version und Folgenummer", () => {
       version: 1,
       titel: "Bleibt jetzt",
     });
+    const vorher = (await eintraege()).length;
     const a = await rufe(
       "lagerleitung",
       "DELETE",
@@ -529,7 +564,118 @@ describe("Schreib-Hilfen: Version und Folgenummer", () => {
       "VERSION_KONFLIKT",
     );
     const [zeile] = await db.select().from(objekt).where(eq(objekt.id, z.id));
-    expect(zeile!.geloeschtAm).toBeNull();
+    expect(zeile).toMatchObject({ id: z.id, version: 2 });
+    // Der Feed hat kein «geloescht» und die Folgenummer keinen Sprung
+    expect((await eintraege()).slice(vorher)).toEqual([]);
+  });
+
+  const lege = (
+    tabelle: typeof teil | typeof verweis | typeof fest,
+    objektId: string,
+  ) =>
+    db.transaction((tx) =>
+      legeZeileAn(
+        tx,
+        tabelle,
+        { lagerId, personId: personen.lagerleitung!.id },
+        { objektId },
+      ),
+    );
+
+  test("Löschen nimmt die abhängigen Zeilen mit (CASCADE) und leert Verweise (SET NULL); der Feed meldet beides", async () => {
+    const z = await anlegen("lagerleitung", "Mit Kindern");
+    const [t1, t2] = [await lege(teil, z.id), await lege(teil, z.id)];
+    const v = await lege(verweis, z.id);
+    const anderes = await anlegen("lagerleitung", "Anderes");
+    const fremdesTeil = await lege(teil, anderes.id);
+    const vorher = (await lagerSeq()).seq;
+    const antwort = await rufe(
+      "lagerleitung",
+      "DELETE",
+      `/${lagerId}/objekte/${z.id}`,
+      { version: 1 },
+    );
+    expect(antwort.status).toBe(204);
+    expect(
+      await db
+        .select()
+        .from(teil)
+        .where(inArray(teil.id, [t1!.id, t2!.id])),
+    ).toHaveLength(0);
+    // Das Teil eines anderen Objekts bleibt
+    expect(
+      await db.select().from(teil).where(eq(teil.id, fremdesTeil!.id)),
+    ).toHaveLength(1);
+    const [rest] = await db.select().from(verweis).where(eq(verweis.id, v!.id));
+    expect(rest).toMatchObject({ objektId: null, version: 2 });
+    const neu = (await eintraege()).filter((e) => e.seq > vorher);
+    expect(neu.map((e) => [e.tabelle, e.zeileId, e.art]).sort()).toEqual(
+      [
+        ["teil", t1!.id, "geloescht"],
+        ["teil", t2!.id, "geloescht"],
+        ["verweis", v!.id, "geaendert"],
+        ["objekt", z.id, "geloescht"],
+      ].sort(),
+    );
+    // Folgenummern ohne Lücke
+    expect(neu.map((e) => e.seq).sort((a, b) => a - b)).toEqual(
+      Array.from({ length: neu.length }, (_, i) => vorher + 1 + i),
+    );
+  });
+
+  test("hängt eine Zeile mit RESTRICT daran: 409 IN_VERWENDUNG, nichts wird gelöscht", async () => {
+    const z = await anlegen("lagerleitung", "Gehalten");
+    const t = await lege(teil, z.id);
+    await lege(fest, z.id);
+    const vorher = (await lagerSeq()).seq;
+    const antwort = await rufe(
+      "lagerleitung",
+      "DELETE",
+      `/${lagerId}/objekte/${z.id}`,
+      { version: 1 },
+    );
+    expect(antwort.status).toBe(409);
+    expect(((await antwort.json()) as { code: string }).code).toBe(
+      "IN_VERWENDUNG",
+    );
+    expect(
+      await db.select().from(objekt).where(eq(objekt.id, z.id)),
+    ).toHaveLength(1);
+    expect(await db.select().from(teil).where(eq(teil.id, t!.id))).toHaveLength(
+      1,
+    );
+    expect((await lagerSeq()).seq).toBe(vorher);
+  });
+
+  test("loescheZeilen löscht mehrere Zeilen mit eigener Folgenummer und übergeht unbekannte", async () => {
+    const a = await anlegen("lagerleitung", "A");
+    const b = await anlegen("lagerleitung", "B");
+    const vorher = (await lagerSeq()).seq;
+    const k = { lagerId, personId: personen.lagerleitung!.id };
+    const weg = await db.transaction((tx) =>
+      loescheZeilen(tx, objekt, k, { ids: [a.id, b.id, randomUUID()] }),
+    );
+    expect(weg.map((z) => z.id).sort()).toEqual([a.id, b.id].sort());
+    expect(
+      await db
+        .select()
+        .from(objekt)
+        .where(inArray(objekt.id, [a.id, b.id])),
+    ).toHaveLength(0);
+    const neu = (await eintraege()).filter((e) => e.seq > vorher);
+    expect(neu.map((e) => [e.zeileId, e.art, e.version]).sort()).toEqual(
+      [
+        [a.id, "geloescht", 2],
+        [b.id, "geloescht", 2],
+      ].sort(),
+    );
+    expect((await lagerSeq()).seq).toBe(vorher + 2);
+    // Ein zweiter Aufruf findet nichts mehr
+    expect(
+      await db.transaction((tx) =>
+        loescheZeilen(tx, objekt, k, { ids: [a.id] }),
+      ),
+    ).toEqual([]);
   });
 
   test("eine Tabelle ohne Anmeldung wird nicht beschrieben", async () => {
@@ -773,18 +919,10 @@ describe("Feed", () => {
     const stand = async (person: string) =>
       (await feed(person, "")).body as { seq: number; objekttypen: string[] };
     const seq = (await lagerSeq()).seq;
-    expect(await stand("lagerleitung")).toEqual({
-      seq,
-      objekttypen: ["objekt", "offen"],
-    });
-    expect(await stand("leitung")).toEqual({
-      seq,
-      objekttypen: ["objekt", "offen"],
-    });
-    expect(await stand("lesen")).toEqual({
-      seq,
-      objekttypen: ["objekt", "offen"],
-    });
+    const alle = ["fest", "objekt", "offen", "teil", "verweis"];
+    expect(await stand("lagerleitung")).toEqual({ seq, objekttypen: alle });
+    expect(await stand("leitung")).toEqual({ seq, objekttypen: alle });
+    expect(await stand("lesen")).toEqual({ seq, objekttypen: alle });
     // Das Team liest nicht alle Aufgaben
     expect(await stand("team")).toEqual({ seq, objekttypen: ["offen"] });
   });
@@ -805,14 +943,15 @@ describe("Feed", () => {
 describe("Feed: Rechte und Mandanten", () => {
   let intern: string;
   let normal: string;
+  let geloeschtId: string;
   let startSeq: number;
   beforeAll(async () => {
     startSeq = (await lagerSeq()).seq;
     intern = (await anlegen("lagerleitung", "intern: Budget")).id;
     normal = (await anlegen("lagerleitung", "Aufgabe für alle")).id;
-    // Gelöscht, aber nicht lesbar: auch der Löscheintrag bleibt verborgen
-    const geloescht = (await anlegen("lagerleitung", "intern: weg")).id;
-    await rufe("lagerleitung", "DELETE", `/${lagerId}/objekte/${geloescht}`, {
+    // Gelöscht und nicht lesbar: die Zeile fehlt, nur der Eintrag «geloescht» bleibt
+    geloeschtId = (await anlegen("lagerleitung", "intern: weg")).id;
+    await rufe("lagerleitung", "DELETE", `/${lagerId}/objekte/${geloeschtId}`, {
       version: 1,
     });
     const offene = await rufe("lagerleitung", "POST", `/${lagerId}/offen`);
@@ -832,15 +971,18 @@ describe("Feed: Rechte und Mandanten", () => {
     expect(typen(body).sort()).toEqual(["objekt", "offen"]);
   });
 
-  test("Leitung sieht den Typ, aber nicht die Zeilen, die der Zeilenfilter ausschliesst (auch nicht gelöschte)", async () => {
+  test("Leitung sieht den Typ, aber nicht die Zeilen, die der Zeilenfilter ausschliesst; die Löschung einer solchen Zeile kommt als «geloescht» mit der ID", async () => {
     const { body } = await feed("leitung", `?seit=${startSeq}`);
     expect(ids(body)).toContain(normal);
     expect(ids(body)).not.toContain(intern);
     const objekte = (body as Feed).eintraege.filter(
       (e) => e.objekttyp === "objekt",
     );
-    // Ein «neu» der normalen Zeile; die zwei internen Zeilen fehlen samt ihrem Löscheintrag
-    expect(objekte.map((e) => e.art)).toEqual(["neu"]);
+    // Ein «neu» der normalen Zeile und die Löschung der internen Zeile: Sie lässt sich nicht mehr filtern, der Eintrag nennt nur die ID (#427)
+    expect(objekte.map((e) => [e.art, e.id])).toEqual([
+      ["neu", normal],
+      ["geloescht", geloeschtId],
+    ]);
     expect(typen(body).sort()).toEqual(["objekt", "offen"]);
   });
 

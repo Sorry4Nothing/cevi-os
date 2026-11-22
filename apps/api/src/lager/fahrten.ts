@@ -21,6 +21,7 @@ import {
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import type { Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Fahrten des Lagers (#386): Ansichten, Eingabeschemas, Abfragen und die Prüfungen, die in der Schreib-Transaktion laufen. Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit einteilung.lesen; der Zeilenfilter lässt dem Team nur die eigene Fahrt).
@@ -30,6 +31,16 @@ import { registriereLagerTabelle } from "./tabellen.js";
 // Eine Person sitzt je Richtung in höchstens einer Fahrt (als Fahrer oder Mitfahrende); ein Teilnehmender ebenso (Mitfahrende). Die Datenbank hält es für Mitfahrende und für Fahrer je für sich (Teilindizes), die Route prüft unter der Lagersperre auch die Kombination (Fahrer und Mitfahrende).
 //
 // Überbelegung ist nur eine Warnung: Mehr Mitfahrende als Plätze lässt der Server zu und meldet «ueberbelegt» (wie im bisherigen Tool); die Lagerleitung entscheidet.
+// Suche (#399): Name, Orte und Treffpunkt der Fahrt; das Team findet nur die eigene (wie die Liste). Fahrer und Mitfahrende sind nicht durchsuchbar
+registriereSuchquelle({
+  typ: "fahrt",
+  recht: "einteilung.lesen",
+  tabelle: fahrt,
+  spalten: [fahrt.name, fahrt.von, fahrt.nach, fahrt.treffpunkt],
+  titel: sql`coalesce(${fahrt.name}, nullif(concat_ws(' - ', ${fahrt.von}, ${fahrt.nach}), ''), 'Fahrt')`,
+  filter: (zugriff) =>
+    siehtAlleFahrten(zugriff) ? undefined : eigeneFahrt(zugriff.personId, true),
+});
 registriereLagerTabelle({
   tabelle: fahrt,
   recht: "einteilung.lesen",
@@ -48,12 +59,12 @@ export type MitfahrerZeile = typeof fahrtMitfahrer.$inferSelect;
 export const siehtAlleFahrten = (zugriff: Parameters<typeof darf>[0]) =>
   zugriff.rolle !== "team" || darf(zugriff, "einteilung.bearbeiten");
 
-// Die eigene Fahrt: als Fahrer oder als Mitfahrende (auch eine Mitfahrt im Papierkorb zählt für den Feed, damit das Entfernen die Person erreicht; die Liste prüft zusätzlich geloescht_am)
+// Die eigene Fahrt: als Fahrer oder als Mitfahrende (der Feed meldet das Entfernen einer Mitfahrt als «geloescht» an jede Rolle mit Leserecht, damit es die Person erreicht)
 const eigeneFahrt = (personId: string, nurAktiv: boolean) =>
   or(
     eq(fahrt.fahrerPersonId, personId),
     nurAktiv
-      ? sql`exists (select 1 from fahrt_mitfahrer x where x.fahrt_id = ${fahrt.id} and x.lager_id = ${fahrt.lagerId} and x.person_id = ${personId} and x.geloescht_am is null)`
+      ? sql`exists (select 1 from fahrt_mitfahrer x where x.fahrt_id = ${fahrt.id} and x.lager_id = ${fahrt.lagerId} and x.person_id = ${personId})`
       : sql`exists (select 1 from fahrt_mitfahrer x where x.fahrt_id = ${fahrt.id} and x.lager_id = ${fahrt.lagerId} and x.person_id = ${personId})`,
   );
 
@@ -300,7 +311,6 @@ export async function ladeFahrten(
       and(
         eq(fahrtMitfahrer.fahrtId, fahrt.id),
         eq(fahrtMitfahrer.lagerId, fahrt.lagerId),
-        isNull(fahrtMitfahrer.geloeschtAm),
       ),
     )
     .leftJoin(mitfahrerUser, eq(mitfahrerUser.id, fahrtMitfahrer.personId))
@@ -308,7 +318,6 @@ export async function ladeFahrten(
     .where(
       and(
         eq(fahrt.lagerId, zugriff.lager.id),
-        isNull(fahrt.geloeschtAm),
         p.id ? eq(fahrt.id, p.id) : undefined,
         p.richtung ? eq(fahrt.richtung, p.richtung) : undefined,
         p.nach ? sql`${fahrt.id} > ${p.nach}` : undefined,
@@ -355,10 +364,10 @@ export async function ladeOhneFahrt(
     with ohne as (
       select 'teilnehmer'::text as art, t.id::text as id, t.vorname || ' ' || t.nachname as name, t.stufe as stufe, t.nachname || ' ' || t.vorname as sortname
       from teilnehmer t
-      where t.lager_id = ${lagerId} and t.geloescht_am is null
+      where t.lager_id = ${lagerId}
         and not exists (
           select 1 from fahrt_mitfahrer m
-          where m.lager_id = t.lager_id and m.teilnehmer_id = t.id and m.richtung = ${p.richtung} and m.geloescht_am is null
+          where m.lager_id = t.lager_id and m.teilnehmer_id = t.id and m.richtung = ${p.richtung}
         )
       union all
       select 'person'::text, lm.person_id::text, u.name, null::text, u.name
@@ -368,11 +377,11 @@ export async function ladeOhneFahrt(
         and u.deaktiviert_am is null and coalesce(u.banned, false) = false
         and not exists (
           select 1 from fahrt_mitfahrer m
-          where m.lager_id = lm.lager_id and m.person_id = lm.person_id and m.richtung = ${p.richtung} and m.geloescht_am is null
+          where m.lager_id = lm.lager_id and m.person_id = lm.person_id and m.richtung = ${p.richtung}
         )
         and not exists (
           select 1 from fahrt f
-          where f.lager_id = lm.lager_id and f.fahrer_person_id = lm.person_id and f.richtung = ${p.richtung} and f.geloescht_am is null
+          where f.lager_id = lm.lager_id and f.fahrer_person_id = lm.person_id and f.richtung = ${p.richtung}
         )
     )
     select o.art, o.id, o.name, o.stufe, (select count(*)::int from ohne) as gesamt
@@ -430,14 +439,14 @@ export async function bestehendeFahrt(
     "personId" in wer
       ? await tx.execute<{ id: string }>(sql`
           select f.id from fahrt f
-          where f.lager_id = ${lagerId} and f.richtung = ${richtung} and f.geloescht_am is null and f.fahrer_person_id = ${wer.personId}
+          where f.lager_id = ${lagerId} and f.richtung = ${richtung} and f.fahrer_person_id = ${wer.personId}
           union all
           select m.fahrt_id from fahrt_mitfahrer m
-          where m.lager_id = ${lagerId} and m.richtung = ${richtung} and m.geloescht_am is null and m.person_id = ${wer.personId}
+          where m.lager_id = ${lagerId} and m.richtung = ${richtung} and m.person_id = ${wer.personId}
           limit 1`)
       : await tx.execute<{ id: string }>(sql`
           select m.fahrt_id as id from fahrt_mitfahrer m
-          where m.lager_id = ${lagerId} and m.richtung = ${richtung} and m.geloescht_am is null and m.teilnehmer_id = ${wer.teilnehmerId}
+          where m.lager_id = ${lagerId} and m.richtung = ${richtung} and m.teilnehmer_id = ${wer.teilnehmerId}
           limit 1`);
   return gefunden[0]?.id;
 }

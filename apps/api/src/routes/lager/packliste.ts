@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -54,7 +54,6 @@ export function erstellePacklisteRouten({ db }: { db: Db }) {
         and(
           eq(packlistePunkt.id, id),
           eq(packlistePunkt.lagerId, lagerId),
-          isNull(packlistePunkt.geloeschtAm),
           vertraulich ? undefined : eq(packlistePunkt.nurLagerleitung, false),
         ),
       );
@@ -82,7 +81,6 @@ export function erstellePacklisteRouten({ db }: { db: Db }) {
           .where(
             and(
               eq(packlistePunkt.lagerId, lagerId),
-              isNull(packlistePunkt.geloeschtAm),
               vertraulich
                 ? undefined
                 : eq(packlistePunkt.nurLagerleitung, false),
@@ -126,12 +124,7 @@ export function erstellePacklisteRouten({ db }: { db: Db }) {
               ende: sql<number>`coalesce(max(${packlistePunkt.reihenfolge}) + 1, 0)`,
             })
             .from(packlistePunkt)
-            .where(
-              and(
-                eq(packlistePunkt.lagerId, lagerId),
-                isNull(packlistePunkt.geloeschtAm),
-              ),
-            );
+            .where(and(eq(packlistePunkt.lagerId, lagerId)));
           if (stand!.n >= PUNKTE_MAX) return undefined;
           return legeZeileAn(
             tx,

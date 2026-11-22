@@ -591,6 +591,13 @@ describe("Anlegen, Ändern, Löschen", () => {
         .status,
     ).toBe(404);
     expect(await namen(leiter(), `?q=${k.name}`)).toEqual([]);
+    // Endgültig: Die Zeile ist aus der Tabelle verschwunden
+    expect(
+      await db
+        .select()
+        .from(schema.adressbuchKontakt)
+        .where(eq(schema.adressbuchKontakt.id, k.id)),
+    ).toHaveLength(0);
   });
 });
 
@@ -705,35 +712,17 @@ describe("Aufräumlauf mit Testuhr", () => {
     ).toBe(1);
   });
 
-  test("auch im abgeschlossenen Lager und mit weichgelöschten Kontakten; andere Lager bleiben unberührt", async () => {
+  test("auch im abgeschlossenen Lager; andere Lager bleiben unberührt", async () => {
     const id = await legeLager(BIS, "abgeschlossen");
     const anderes = await legeLager(BIS);
     const a = await lege(id, { name: "A" });
-    const b = await lege(id, { name: "B", geloeschtAm: GRENZE });
+    const b = await lege(id, { name: "B", behalten: true });
     const fremd = await lege(anderes, { name: "Fremd" });
-    expect(await loescheAlteKontakte(db, GRENZE, [id])).toBe(2);
+    expect(await loescheAlteKontakte(db, GRENZE, [id])).toBe(1);
     expect(await vorhanden(a)).toBe(false);
-    expect(await vorhanden(b)).toBe(false);
+    expect(await vorhanden(b)).toBe(true);
     expect(await vorhanden(fremd)).toBe(true);
     await loescheAlteKontakte(db, GRENZE, [anderes]);
-  });
-
-  test("Papierkorb: ein gelöschter Kontakt geht nach 30 Tagen, auch mit «behalten» und lange vor der Frist", async () => {
-    const id = await legeLager(BIS);
-    const jetzt = plusTage(BIS, 10);
-    const frisch = await lege(id, {
-      name: "Frisch",
-      behalten: true,
-      geloeschtAm: new Date(jetzt.getTime() - 29 * TAG),
-    });
-    const alt = await lege(id, {
-      name: "Alt",
-      behalten: true,
-      geloeschtAm: new Date(jetzt.getTime() - 31 * TAG),
-    });
-    expect(await loescheAlteKontakte(db, jetzt, [id])).toBe(1);
-    expect(await vorhanden(frisch)).toBe(true);
-    expect(await vorhanden(alt)).toBe(false);
   });
 
   test("Audit-Eintrag mit der Anzahl und ohne Inhalte; Feed meldet «geloescht» und zählt die Folgenummer lückenlos", async () => {

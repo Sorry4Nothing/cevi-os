@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -8,12 +8,31 @@ import {
   ressortNotiz,
 } from "../db/schema.js";
 import type { Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Ressorts des Lagers (#371): Ansichten, Eingabeschemas und die Prüfungen, die in der Schreib-Transaktion laufen. Die Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit ressorts.lesen); einen Zeilenfilter gibt es nicht, jede Rolle mit dem Recht liest alle Ressorts.
 for (const tabelle of [ressort, ressortLink, ressortNotiz]) {
   registriereLagerTabelle({ tabelle, recht: "ressorts.lesen" });
 }
+
+// Suche (#399): Kürzel, Name und Notiz des Ressorts; der Text einer Ressort-Notiz findet das Ressort. Links werden nicht durchsucht
+registriereSuchquelle({
+  typ: "ressort",
+  recht: "ressorts.lesen",
+  tabelle: ressort,
+  spalten: [ressort.name, ressort.kuerzel, ressort.notiz],
+  titel: sql`${ressort.name}`,
+});
+registriereSuchquelle({
+  typ: "ressort",
+  recht: "ressorts.lesen",
+  tabelle: ressortNotiz,
+  spalten: [ressortNotiz.text],
+  titel: sql`${ressort.name}`,
+  von: sql`${ressortNotiz} join ${ressort} on ${ressort.lagerId} = ${ressortNotiz.lagerId} and ${ressort.id} = ${ressortNotiz.ressortId}`,
+  id: sql`${ressort.id}`,
+});
 
 // Ansichten für die Antwort und die Konfliktantwort des Sync-Kerns: nur die Spalten der Route, nie die ganze Zeile. Personen nur als ID, die Namen löst die Route beim Lesen auf
 export const ressortAnsicht = (r: typeof ressort.$inferSelect) => ({
@@ -156,7 +175,7 @@ export async function pruefeRessortWerte(
     const [r] = await tx.execute<{ vorhanden: boolean; zyklus: boolean }>(sql`
       with recursive oben as (
         select id, parent_id from ressort
-          where id = ${werte.parentId} and lager_id = ${lagerId} and geloescht_am is null
+          where id = ${werte.parentId} and lager_id = ${lagerId}
         union
         select r.id, r.parent_id from ressort r join oben o on r.id = o.parent_id
           where r.lager_id = ${lagerId}
@@ -178,12 +197,6 @@ export async function ladeRessortZeile(
   const [zeile] = await tx
     .select()
     .from(ressort)
-    .where(
-      and(
-        eq(ressort.id, id),
-        eq(ressort.lagerId, lagerId),
-        isNull(ressort.geloeschtAm),
-      ),
-    );
+    .where(and(eq(ressort.id, id), eq(ressort.lagerId, lagerId)));
   return zeile;
 }

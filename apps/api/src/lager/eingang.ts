@@ -12,12 +12,23 @@ import {
   user,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { registriereSuchquelle } from "./suche.js";
 import { LagerAntwortFehler, type Tx } from "./sync.js";
 
 // Eingang des Lagers (#383): Ideen, Wünsche, Fragen und Feedback an die Lagerleitung, auf Wunsch anonym. Entscheid des Nutzers (22.11.2026): Anonym heisst echt anonym. Bei einer anonymen Meldung steht nirgends eine Person: keine Konto-ID, keine IP-Adresse, kein Audit, kein genauer Zeitpunkt (nur der Tag), keine ID, die nach Zeit ordnet, kein Eintrag im Änderungsfeed oder im Verlauf (db/schema-lager.ts begründet es). Die Tabelle ist darum nicht im Sync-Kern angemeldet.
 //
 // Wie die meldende Person die Antwort liest: Beim Senden einer anonymen Meldung erzeugt der Server einen Rückfragecode (100 Bit) und gibt ihn einmal zurück; gespeichert ist nur sein Hash. Mit dem Code fragt die Person Status und Antwort ab (POST .../eingang/status). Die Antwort steht ausserdem an der Meldung selbst, für alle mit eingang.lesen. Es gibt keinen Push an eine anonyme Person (der Server kennt sie nicht). Eine nicht anonyme Meldung behält den Absender (person_id): Die Person liest sie unter .../eingang/eigene, und die Antwort löst einen Push aus.
 // Rate-Limit: nur grobe Zähler im Arbeitsspeicher je Lager (anonym) beziehungsweise je Konto (nicht anonym), nie eine Person neben einer anonymen Meldung.
+
+// Suche (#399): Text und Antwort, nur für wen die ganze Liste lesen darf (eingang.lesen). Die Zeile trägt keine Person, und die Suche gibt nur Typ, ID und Text heraus, nie einen Absender. Wer nur senden darf, findet auch die eigenen Meldungen nicht
+registriereSuchquelle({
+  typ: "eingang",
+  recht: "eingang.lesen",
+  tabelle: eingang,
+  spalten: [eingang.text, eingang.antwort],
+  titel: sql`left(${eingang.text}, 80)`,
+  aktiv: sql`true`,
+});
 
 export const EINGANG_TEXT_MAX = 5000;
 // Anonym: höchstens so viele Meldungen und Code-Abfragen je Lager und Stunde; nicht anonym je Konto
@@ -280,11 +291,7 @@ export async function pruefeEingangZiele(
       .select({ id: ressort.id })
       .from(ressort)
       .where(
-        and(
-          eq(ressort.id, werte.ressortId),
-          eq(ressort.lagerId, lagerId),
-          sql`${ressort.geloeschtAm} is null`,
-        ),
+        and(eq(ressort.id, werte.ressortId), eq(ressort.lagerId, lagerId)),
       );
     if (!r) return "RESSORT_UNBEKANNT";
   }
@@ -296,7 +303,6 @@ export async function pruefeEingangZiele(
         and(
           eq(traktandum.id, werte.traktandumId),
           eq(traktandum.lagerId, lagerId),
-          sql`${traktandum.geloeschtAm} is null`,
         ),
       );
     if (!t) return "TRAKTANDUM_UNBEKANNT";

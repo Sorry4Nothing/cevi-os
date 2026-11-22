@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -34,7 +34,7 @@ const listeAbfrage = z.strictObject({
   stufe: z.string().trim().min(1).max(50).optional(),
 });
 
-// Teilnehmende eines Lagers (#384). Lesen braucht teilnehmer.lesen und zeigt Vorname, Nachname und Stufe; wer teilnehmer.bearbeiten hat, sieht zusätzlich den Cevi-Namen. Erfassen, ändern, löschen und Importieren braucht teilnehmer.bearbeiten (Standard: nur die Lagerleitung). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Feed; Löschen ist ein Soft-Delete, nach dem Lager löscht ein täglicher Lauf die Zeilen endgültig (lager/teilnehmer.ts). Keine Gesundheitsdaten: unbekannte Felder lehnen die strikten Schemas ab
+// Teilnehmende eines Lagers (#384). Lesen braucht teilnehmer.lesen und zeigt Vorname, Nachname und Stufe; wer teilnehmer.bearbeiten hat, sieht zusätzlich den Cevi-Namen. Erfassen, ändern, löschen und Importieren braucht teilnehmer.bearbeiten (Standard: nur die Lagerleitung). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Feed; Löschen ist endgültig (#427), nach dem Lager löscht ein täglicher Lauf die Zeilen endgültig (lager/teilnehmer.ts). Keine Gesundheitsdaten: unbekannte Felder lehnen die strikten Schemas ab
 export function erstelleTeilnehmerRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "teilnehmer.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "teilnehmer.bearbeiten" });
@@ -68,7 +68,6 @@ export function erstelleTeilnehmerRouten({ db }: { db: Db }) {
       .where(
         and(
           eq(teilnehmer.lagerId, lagerId),
-          isNull(teilnehmer.geloeschtAm),
           p.id ? eq(teilnehmer.id, p.id) : undefined,
           p.stufe
             ? sql`lower(${teilnehmer.stufe}) = lower(${p.stufe})`
@@ -99,9 +98,7 @@ export function erstelleTeilnehmerRouten({ db }: { db: Db }) {
         stufe: teilnehmer.stufe,
       })
       .from(teilnehmer)
-      .where(
-        and(eq(teilnehmer.lagerId, lagerId), isNull(teilnehmer.geloeschtAm)),
-      );
+      .where(and(eq(teilnehmer.lagerId, lagerId)));
 
   // Liest den Text und trennt die Zeilen, die schon im Lager stehen, von den neuen
   async function plane(tx: Pick<Db, "select">, lagerId: string, text: string) {

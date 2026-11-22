@@ -1,0 +1,23 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/ressorts"
+order: 319000
+method: POST
+url: "{{baseUrl}}{{pfad_L162}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "kuerzel": "Md1e7c4eb",
+      "name": "Neu"
+    }

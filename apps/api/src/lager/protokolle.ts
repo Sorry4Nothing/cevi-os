@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, lt, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -15,6 +15,7 @@ import { hoeckAnsicht, hoeckUmfang, ladeHoeckZeile } from "./hoecks.js";
 import type { LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Protokolle und Beschlüsse im Lager (#379). Das Protokoll liegt als Datei im SharePoint der Abteilung; Cevi OS speichert nur Art, Titel, Datum, den Verweis auf die Datei (lager_datei, #370: dort Anzeigename und Link) und optional den Höck. Kein Protokolltext, keine Abschnitte, keine Revisionen des Inhalts; Öffnen und Herunterladen gehen über den Link direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Die Beschlüsse sind eine kurze Liste in Cevi OS (Text, optional Protokoll und Höck).
@@ -22,7 +23,7 @@ import { registriereLagerTabelle } from "./tabellen.js";
 // Rechte (lager/rechte-katalog.ts): protokolle.lesen (Lesen), protokolle.bearbeiten (Schreiben). Zusätzliche Regel: Ein Protokoll oder Beschluss, der zu einem Höck der Art «lagerleitung» gehört, sehen nur Rollen, die alle Höcks lesen (hoecks.lesen_alle oder hoecks.bearbeiten); sonst ist er unbekannt (404). Das gilt unabhängig davon, ob jemand protokolle.lesen eingestellt bekommen hat: Das Team liest nie Protokolle der Lagerleitung.
 // hoeck.protokoll_id (#378) zeigt auf das Sitzungsprotokoll des Höcks. Der Server pflegt sie: Ein Protokoll der Art «sitzung» mit Höck setzt sie, wenn der Höck noch keines hat; Löschen, Umhängen oder Ändern der Art nimmt sie zurück (ohne Ersatz).
 
-// Sichtbarkeit nach Höck (die Rolle liest nicht alle Höcks): Ein Höck der Lagerleitung verbirgt. Auch ein gelöschter Höck verbirgt weiter (kein Filter auf geloescht_am)
+// Sichtbarkeit nach Höck (die Rolle liest nicht alle Höcks): Ein Höck der Lagerleitung verbirgt. Ein Höck mit Protokollen oder Beschlüssen lässt sich nicht löschen (409 IN_VERWENDUNG), die Verbergung geht also nie verloren
 const hoeckOffen = (lagerId: unknown, hoeckId: unknown) =>
   sql`(${hoeckId} is null or exists (select 1 from "hoeck" h where h."lager_id" = ${lagerId} and h."id" = ${hoeckId} and h."art" = 'team'))`;
 const protokollSicht = hoeckOffen(protokoll.lagerId, protokoll.hoeckId);
@@ -31,7 +32,7 @@ const beschlussSicht = sql`(${hoeckOffen(beschluss.lagerId, beschluss.hoeckId)} 
 
 const alleHoecks = (zugriff: LagerZugriff) => hoeckUmfang(zugriff) === "alle";
 
-// Welche der IDs sieht die Person (Zeilenfilter des Feeds): mit allen Höcks alle, sonst die ohne Höck der Lagerleitung. Der Feed fragt auch gelöschte Zeilen, darum kein Filter auf geloescht_am
+// Welche der IDs sieht die Person (Zeilenfilter des Feeds): mit allen Höcks alle, sonst die ohne Höck der Lagerleitung. Gelöschte Zeilen gibt es nicht mehr; der Feed fragt den Filter nur für lebende
 async function sichtbareProtokolle(
   db: Db,
   zugriff: LagerZugriff,
@@ -81,7 +82,24 @@ registriereLagerTabelle({
   recht: "protokolle.lesen",
   sichtbar: sichtbareBeschluesse,
 });
-// Verweisregister (#370): Die Datei eines Protokolls sieht, wer das Protokoll sieht (nicht gelöschte Protokolle; eines im Papierkorb hält die Datei trotzdem, siehe datei-verweise.ts)
+// Suche (#399): nur der Titel des Protokolls (der Inhalt der Datei im SharePoint ist nie durchsuchbar) und der Text eines Beschlusses; derselbe Höck-Filter wie die Liste
+registriereSuchquelle({
+  typ: "protokoll",
+  recht: "protokolle.lesen",
+  tabelle: protokoll,
+  spalten: [protokoll.titel],
+  titel: sql`${protokoll.titel}`,
+  filter: (zugriff) => (alleHoecks(zugriff) ? undefined : protokollSicht),
+});
+registriereSuchquelle({
+  typ: "beschluss",
+  recht: "protokolle.lesen",
+  tabelle: beschluss,
+  spalten: [beschluss.text],
+  titel: sql`left(${beschluss.text}, 80)`,
+  filter: (zugriff) => (alleHoecks(zugriff) ? undefined : beschlussSicht),
+});
+// Verweisregister (#370): Die Datei eines Protokolls sieht, wer das Protokoll sieht (Protokolle, die es gibt; gelöscht ist endgültig)
 registriereDateiVerweis({
   tabelle: protokoll,
   spalte: protokoll.dateiId,
@@ -94,7 +112,6 @@ registriereDateiVerweis({
         and(
           inArray(protokoll.dateiId, dateiIds),
           eq(protokoll.lagerId, zugriff.lager.id),
-          isNull(protokoll.geloeschtAm),
           alleHoecks(zugriff) ? undefined : protokollSicht,
         ),
       );
@@ -220,14 +237,10 @@ export async function ladeProtokolle(
   const zeilen = await db
     .select({ zeile: protokoll, datei: lagerDatei })
     .from(protokoll)
-    .leftJoin(
-      lagerDatei,
-      and(eq(lagerDatei.id, protokoll.dateiId), isNull(lagerDatei.geloeschtAm)),
-    )
+    .leftJoin(lagerDatei, and(eq(lagerDatei.id, protokoll.dateiId)))
     .where(
       and(
         eq(protokoll.lagerId, zugriff.lager.id),
-        isNull(protokoll.geloeschtAm),
         p.id ? eq(protokoll.id, p.id) : undefined,
         p.hoeckId ? eq(protokoll.hoeckId, p.hoeckId) : undefined,
         p.art ? eq(protokoll.art, p.art) : undefined,
@@ -275,7 +288,6 @@ export async function ladeBeschluesse(
     .where(
       and(
         eq(beschluss.lagerId, zugriff.lager.id),
-        isNull(beschluss.geloeschtAm),
         p.id ? eq(beschluss.id, p.id) : undefined,
         p.hoeckId ? eq(beschluss.hoeckId, p.hoeckId) : undefined,
         p.protokollId ? eq(beschluss.protokollId, p.protokollId) : undefined,
@@ -320,7 +332,6 @@ async function protokollDa(tx: Tx, zugriff: LagerZugriff, id: string) {
       and(
         eq(protokoll.id, id),
         eq(protokoll.lagerId, zugriff.lager.id),
-        isNull(protokoll.geloeschtAm),
         alleHoecks(zugriff) ? undefined : protokollSicht,
       ),
     );
@@ -331,13 +342,7 @@ async function ladeBeschlussZeile(tx: Tx, lagerId: string, id: string) {
   const [zeile] = await tx
     .select()
     .from(beschluss)
-    .where(
-      and(
-        eq(beschluss.id, id),
-        eq(beschluss.lagerId, lagerId),
-        isNull(beschluss.geloeschtAm),
-      ),
-    );
+    .where(and(eq(beschluss.id, id), eq(beschluss.lagerId, lagerId)));
   return zeile;
 }
 
@@ -424,7 +429,7 @@ export async function aendereProtokoll(
   return undefined;
 }
 
-// Löschen ist ein Soft-Delete (endgültig mit #427). Beschlüsse bleiben stehen und zeigen weiter auf das gelöschte Protokoll
+// Löschen ist endgültig (#427). Beschlüsse bleiben stehen, ihr Verweis auf das gelöschte Protokoll wird leer (SET NULL, der Feed meldet sie als geändert)
 export async function loescheProtokoll(
   tx: Tx,
   zugriff: LagerZugriff,

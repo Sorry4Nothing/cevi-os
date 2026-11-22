@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import {
   AUFGABE_STATUS,
   type AufgabeStatus,
   aufgabe,
+  aufgabeCheckpunkt,
   aufgabeStichwort,
   aufgabeUnterstuetzung,
   lagerMitglied,
@@ -20,6 +21,7 @@ import { darf, type LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { legeFolgeAufgabeAn } from "./wiederholung.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Aufgaben des Lagers (#372): Ansichten, Eingabeschemas, Abfragen und die Prüfungen, die in der Schreib-Transaktion laufen. Die Tabelle ist beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet. Der Feed zeigt sie jedem, der Aufgaben lesen darf; der Zeilenfilter lässt dem Team nur die eigenen (aufgabeSichtbar).
@@ -37,13 +39,10 @@ registriereLagerTabelle({
   sichtbar: aufgabeSichtbar,
 });
 
-// Eine Aufgabe zählt nur, solange sie nicht gelöscht ist. Eine einzige Stelle, damit die endgültige Löschung (#427) die Bedingung hier entfernt statt in jeder Abfrage
-export const aufgabeAktiv = isNull(aufgabe.geloeschtAm);
-// Das Ressort einer Aufgabe: dasselbe Lager, nicht gelöscht (gleiches Ziel wie aufgabeAktiv)
+// Das Ressort einer Aufgabe: dasselbe Lager
 export const ressortJoin = and(
   eq(ressort.id, aufgabe.ressortId),
   eq(ressort.lagerId, aufgabe.lagerId),
-  isNull(ressort.geloeschtAm),
 );
 
 export type AufgabeZeile = typeof aufgabe.$inferSelect;
@@ -172,7 +171,48 @@ export function leseUmfang(
   return darf(zugriff, "aufgaben.eigene") ? ("eigene" as const) : undefined;
 }
 
-// Zeilenfilter des Feeds: Wer nicht alle Aufgaben lesen darf, sieht nur die eigenen. Beurteilt auch gelöschte Zeilen (der Feed meldet «geloescht»)
+// Suche (#399): dieselbe Sicht wie die Liste, nur die Quellen unterscheiden sich. Wer nicht alle Aufgaben liest, findet nur die eigenen (aufgabeSuchfilter, auch für Checkliste und Stichworte in aufgaben-details.ts)
+export const aufgabeSuchfilter = (zugriff: LagerZugriff) =>
+  leseUmfang(zugriff) === "alle" ? undefined : beteiligt(zugriff.personId);
+const AUFGABE_LESERECHTE = [
+  "aufgaben.lesen_alle",
+  "aufgaben.bearbeiten",
+  "aufgaben.eigene",
+] as const;
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabe,
+  spalten: [aufgabe.titel, aufgabe.teil, aufgabe.notiz],
+  titel: sql`${aufgabe.titel}`,
+  von: sql`${aufgabe} left join ${ressort} on ${ressortJoin}`,
+  filter: aufgabeSuchfilter,
+});
+// Checkpunkte und Stichworte finden die Aufgabe (Typ «aufgabe», Titel der Aufgabe), mit demselben Zeilenfilter. Hier und nicht in aufgaben-details.ts, weil jene Datei von dieser abhängt (Importschleife über wiederholung.ts)
+const mitAufgabe = (kind: typeof aufgabeCheckpunkt | typeof aufgabeStichwort) =>
+  sql`${kind} join ${aufgabe} on ${aufgabe.lagerId} = ${kind.lagerId} and ${aufgabe.id} = ${kind.aufgabeId} left join ${ressort} on ${ressortJoin}`;
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabeCheckpunkt,
+  spalten: [aufgabeCheckpunkt.text],
+  titel: sql`${aufgabe.titel}`,
+  von: mitAufgabe(aufgabeCheckpunkt),
+  id: sql`${aufgabe.id}`,
+  filter: aufgabeSuchfilter,
+});
+registriereSuchquelle({
+  typ: "aufgabe",
+  recht: AUFGABE_LESERECHTE,
+  tabelle: aufgabeStichwort,
+  spalten: [aufgabeStichwort.stichwort],
+  titel: sql`${aufgabe.titel}`,
+  von: mitAufgabe(aufgabeStichwort),
+  id: sql`${aufgabe.id}`,
+  filter: aufgabeSuchfilter,
+});
+
+// Zeilenfilter des Feeds: Wer nicht alle Aufgaben lesen darf, sieht nur die eigenen.
 async function aufgabeSichtbar(db: Db, zugriff: LagerZugriff, ids: string[]) {
   if (leseUmfang(zugriff) === "alle") return new Set(ids);
   const personId = zugriff.personId;
@@ -209,6 +249,8 @@ export async function ladeAufgaben(
     nach?: string;
     limit?: number;
     eigeneVon?: string;
+    // Nur nicht erledigte Aufgaben (Aggregate #395)
+    offen?: true;
   },
 ): Promise<{ aufgaben: AufgabeAntwort[]; naechster: string | null }> {
   const limit = p.limit ?? 100;
@@ -233,9 +275,9 @@ export async function ladeAufgaben(
     .where(
       and(
         eq(aufgabe.lagerId, lagerId),
-        aufgabeAktiv,
         p.id ? eq(aufgabe.id, p.id) : undefined,
         p.eigeneVon ? beteiligt(p.eigeneVon) : undefined,
+        p.offen ? sql`${aufgabe.status} <> 'erledigt'` : undefined,
         p.personId ? beteiligt(p.personId) : undefined,
         p.ressortId ? eq(aufgabe.ressortId, p.ressortId) : undefined,
         p.status ? eq(aufgabe.status, p.status) : undefined,
@@ -324,7 +366,7 @@ export async function ladeAufgabeZeile(
   const [zeile] = await tx
     .select()
     .from(aufgabe)
-    .where(and(eq(aufgabe.id, id), eq(aufgabe.lagerId, lagerId), aufgabeAktiv));
+    .where(and(eq(aufgabe.id, id), eq(aufgabe.lagerId, lagerId)));
   return zeile;
 }
 
@@ -343,7 +385,6 @@ export async function istBeteiligt(
       and(
         eq(aufgabe.id, id),
         eq(aufgabe.lagerId, lagerId),
-        aufgabeAktiv,
         beteiligt(personId),
       ),
     );
@@ -387,11 +428,7 @@ export async function pruefeAufgabenWerte(
       .select({ id: ressort.id })
       .from(ressort)
       .where(
-        and(
-          eq(ressort.id, werte.ressortId),
-          eq(ressort.lagerId, lagerId),
-          isNull(ressort.geloeschtAm),
-        ),
+        and(eq(ressort.id, werte.ressortId), eq(ressort.lagerId, lagerId)),
       );
     if (!r) return { fehler: "RESSORT_UNBEKANNT" };
   }
@@ -551,10 +588,11 @@ async function mitFolgeAufgabe(
   };
 }
 
+// quelle setzt nur der Server (zum Beispiel «erwaehnung:<id>», #380), nie die Route
 export async function legeAufgabeAn(
   tx: Tx,
   k: Akteur,
-  eingabe: z.output<typeof aufgabeAnlegen>,
+  eingabe: z.output<typeof aufgabeAnlegen> & { quelle?: string },
 ): Promise<SchreibErgebnis> {
   const {
     unterstuetzungPersonIds,
@@ -579,7 +617,7 @@ export async function legeAufgabeAn(
   const [ende] = await tx
     .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
     .from(aufgabe)
-    .where(and(eq(aufgabe.lagerId, k.lagerId), aufgabeAktiv));
+    .where(and(eq(aufgabe.lagerId, k.lagerId)));
   const neu = await legeZeileAn(tx, aufgabe, k, {
     ...werte,
     reihenfolge: werte.reihenfolge ?? ende!.n,

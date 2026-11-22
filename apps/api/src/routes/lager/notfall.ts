@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -46,11 +46,7 @@ export function erstelleNotfallRouten({ db }: { db: Db }) {
       .select()
       .from(notfallKontakt)
       .where(
-        and(
-          eq(notfallKontakt.id, id),
-          eq(notfallKontakt.lagerId, lagerId),
-          isNull(notfallKontakt.geloeschtAm),
-        ),
+        and(eq(notfallKontakt.id, id), eq(notfallKontakt.lagerId, lagerId)),
       );
     if (!zeile) throw new HTTPException(404);
     return zeile;
@@ -121,12 +117,7 @@ export function erstelleNotfallRouten({ db }: { db: Db }) {
               n: sql<number>`coalesce(max(${notfallKontakt.reihenfolge}) + 1, 0)`,
             })
             .from(notfallKontakt)
-            .where(
-              and(
-                eq(notfallKontakt.lagerId, lagerId),
-                isNull(notfallKontakt.geloeschtAm),
-              ),
-            );
+            .where(and(eq(notfallKontakt.lagerId, lagerId)));
           return legeZeileAn(
             tx,
             notfallKontakt,

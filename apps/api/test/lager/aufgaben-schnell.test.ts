@@ -149,17 +149,6 @@ beforeAll(async () => {
   ressortIds.essenA = await legeRessort(lagerId, "ESA", "Essen");
   ressortIds.essenB = await legeRessort(lagerId, "ESB", "Essen");
   ressortIds.anderes = await legeRessort(andereLagerId, "ANDERES", "Fremdes");
-  const [gel] = await db
-    .insert(schema.ressort)
-    .values({
-      lagerId,
-      kuerzel: "GELOESCHT",
-      name: "Gelöscht",
-      lagerSeq: 0,
-      geloeschtAm: new Date(),
-    })
-    .returning({ id: schema.ressort.id });
-  ressortIds.geloescht = gel!.id;
 });
 
 // Die Bodys prüfen die Tests Feld für Feld; ein Typ je Route brächte hier nichts
@@ -298,7 +287,7 @@ describe("Vorschlag", () => {
     );
   });
 
-  test("nur Mitglieder dieses Lagers, nur aktive Konten, nur Ressorts dieses Lagers, keine gelöschten", async () => {
+  test("nur Mitglieder dieses Lagers, nur aktive Konten, nur Ressorts dieses Lagers; ein Ressort, das es nicht gibt, ist unbekannt", async () => {
     const a = await schnell(
       "A @Ottilie\nB @Walburga\nC #Fremdes\nD #Gelöscht\nE #GELOESCHT",
     );

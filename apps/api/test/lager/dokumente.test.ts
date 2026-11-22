@@ -610,7 +610,6 @@ describe("Anlegen und Ändern", () => {
       zufaellig: randomUUID(),
       fremdesLager: await datei({}, andereLagerId),
       fremdeAbteilung: await datei({}, fremdLagerId),
-      geloescht: await datei({ geloeschtAm: new Date() }),
       // Von der Lagerleitung hinzugefügt, die Leitung kennt sie nicht
       vonAnderen: await datei(),
       // Älter als 24 Stunden und von niemandem eingebunden: unsichtbar auch für die, die sie hinzugefügt hat
@@ -705,7 +704,7 @@ describe("Anlegen und Ändern", () => {
 });
 
 describe("Löschen", () => {
-  test("Soft-Delete: weg aus Liste und Einzelabruf, Zeile und Verknüpfung bleiben, Feed meldet «geloescht»", async () => {
+  test("löschen ist endgültig: weg aus Liste, Einzelabruf und Tabelle, die Verknüpfung bleibt, Feed meldet «geloescht»", async () => {
     const vor = (await anfrage(leiter(), "GET", `${L()}/aenderungen`)).body.seq;
     const d = await neu({ titel: marke() });
     const a = await anfrage(
@@ -718,12 +717,9 @@ describe("Löschen", () => {
     expect(
       (await anfrage(leiter(), "GET", `${L()}/dokumente/${d.id}`)).status,
     ).toBe(404);
-    const [zeile] = await db
-      .select()
-      .from(schema.dokument)
-      .where(eq(schema.dokument.id, d.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
-    expect(zeile!.geloeschtVon).toBe(leiter().id);
+    expect(await db.$count(schema.dokument, eq(schema.dokument.id, d.id))).toBe(
+      0,
+    );
     // Die Datei am Ablageort und ihre Verknüpfung bleiben
     expect(
       await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, d.datei!.id)),
@@ -761,7 +757,7 @@ describe("Löschen", () => {
     }
   });
 
-  test("der Aufräumlauf entfernt nie die Datei eines Dokuments, auch nicht im Papierkorb; verwaiste Dateien schon", async () => {
+  test("der Aufräumlauf entfernt nie die Datei eines Dokuments; die Datei eines gelöschten Dokuments und verwaiste Dateien schon", async () => {
     const alt = new Date(Date.now() - 72 * 3600_000);
     const d = await neu();
     const im = await neu();
@@ -777,7 +773,8 @@ describe("Löschen", () => {
     const da = async (id: string) =>
       await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, id));
     expect(await da(d.datei!.id)).toBe(1);
-    expect(await da(im.datei!.id)).toBe(1);
+    // Das Dokument ist endgültig weg, die Datei hat keinen Verweis mehr
+    expect(await da(im.datei!.id)).toBe(0);
     expect(await da(verwaist)).toBe(0);
     // Der Fremdschlüssel (RESTRICT) hält auch gegen ein direktes Löschen
     await expect(
@@ -969,8 +966,6 @@ describe("Sammelabfrage mit Dateien anderer Module", () => {
       erstellt_von uuid,
       geaendert_am timestamptz not null default now(),
       geaendert_von uuid,
-      geloescht_am timestamptz,
-      geloescht_von uuid,
       lager_seq bigint not null default 0,
       datei_id uuid references public.lager_datei(id) on delete restrict
     )`;
@@ -978,13 +973,11 @@ describe("Sammelabfrage mit Dateien anderer Module", () => {
     tabelle: typeof beitrag | typeof intern,
     dateiId: string,
     id = lagerId,
-    geloescht = false,
   ) =>
     db.insert(tabelle as typeof beitrag).values({
       lagerId: id,
       lagerSeq: 0,
       datei: dateiId,
-      geloeschtAm: geloescht ? new Date() : null,
     });
 
   beforeAll(async () => {
@@ -1011,17 +1004,15 @@ describe("Sammelabfrage mit Dateien anderer Module", () => {
     entferneDateiVerweis(intern.datei);
   });
 
-  test("listet die Dateien anderer Module mit Quelle, nach Recht der Rolle, ohne gelöschte und fremde", async () => {
+  test("listet die Dateien anderer Module mit Quelle, nach Recht der Rolle, ohne fremde", async () => {
     const m = marke();
     const offen = await datei({ anzeigename: `${m}-offen.pdf` });
     const geheim = await datei({ anzeigename: `${m}-geheim.xlsx` });
     const frei = await datei({ anzeigename: `${m}-frei.pdf` });
-    const beitragGeloescht = await datei({ anzeigename: `${m}-weg.pdf` });
     const fremd = await datei({ anzeigename: `${m}-fremd.pdf` }, andereLagerId);
     const ohneVerweis = await datei({ anzeigename: `${m}-lose.pdf` });
     await binde(beitrag, offen);
     await binde(intern, geheim);
-    await binde(beitrag, beitragGeloescht, lagerId, true);
     await binde(beitrag, fremd, andereLagerId);
     // frei: von beiden eingebunden (es zählt der lesbare Verweis)
     await binde(beitrag, frei);

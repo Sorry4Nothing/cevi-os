@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/bearbeiter"
-order: 87000
+order: 114000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/bearbeiter"
 headers:
@@ -17,7 +17,4 @@ headers:
 body:
   type: json
   content: |-
-    {
-      "objektTyp": "seite",
-      "userId": "{{tagPersonId}}"
-    }
+    {{body_119}}

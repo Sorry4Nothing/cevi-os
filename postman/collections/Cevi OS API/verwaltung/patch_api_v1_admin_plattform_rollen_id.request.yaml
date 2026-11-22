@@ -1,0 +1,24 @@
+$kind: http-request
+name: "PATCH /api/v1/admin/plattform/rollen/:id"
+order: 118000
+method: PATCH
+url: "{{baseUrl}}/api/v1/admin/plattform/rollen/01a202fd-6d5f-7ca6-91e7-71a48d42033a"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "rechte": [
+        "vorlagen.nutzen"
+      ]
+    }

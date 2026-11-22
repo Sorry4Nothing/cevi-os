@@ -57,17 +57,15 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
     // Gehört die Person oder der Teilnehmende zur Gruppe: ein Teilnehmer in einer Gruppe, die es nicht gibt, ergibt eine leere Liste
     const inGruppe = (spalte: "teilnehmer_id" | "person_id", id: unknown) =>
       gruppe
-        ? sql`exists (select 1 from gruppe_zuordnung z where z.lager_id = ${lagerId} and z.gruppe_id = ${gruppe} and z.${sql.raw(spalte)} = ${id} and z.geloescht_am is null)`
+        ? sql`exists (select 1 from gruppe_zuordnung z where z.lager_id = ${lagerId} and z.gruppe_id = ${gruppe} and z.${sql.raw(spalte)} = ${id})`
         : undefined;
     if (art === "teilnehmer") {
       const gleich = and(
         eq(abzaehlen.lagerId, teilnehmer.lagerId),
         eq(abzaehlen.teilnehmerId, teilnehmer.id),
-        isNull(abzaehlen.geloeschtAm),
       );
       const filter = and(
         eq(teilnehmer.lagerId, lagerId),
-        isNull(teilnehmer.geloeschtAm),
         // Wer nicht dabei ist, wird nicht abgezählt (#387)
         eq(teilnehmer.abgewaehlt, false),
         stufe ? sql`lower(${teilnehmer.stufe}) = lower(${stufe})` : undefined,
@@ -120,7 +118,6 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
     const gleich = and(
       eq(abzaehlen.lagerId, lagerMitglied.lagerId),
       eq(abzaehlen.personId, lagerMitglied.personId),
-      isNull(abzaehlen.geloeschtAm),
     );
     const filter = and(
       eq(lagerMitglied.lagerId, lagerId),
@@ -207,7 +204,6 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
                   .where(
                     and(
                       eq(teilnehmer.lagerId, lagerId),
-                      isNull(teilnehmer.geloeschtAm),
                       inArray(teilnehmer.id, teilnehmerIds),
                     ),
                   ),
@@ -230,7 +226,6 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
               .where(
                 and(
                   eq(abzaehlen.lagerId, lagerId),
-                  isNull(abzaehlen.geloeschtAm),
                   or(
                     teilnehmerIds.length > 0
                       ? inArray(abzaehlen.teilnehmerId, teilnehmerIds)
@@ -296,11 +291,7 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
             .select({ id: abzaehlen.id })
             .from(abzaehlen)
             .where(
-              and(
-                eq(abzaehlen.lagerId, lagerId),
-                isNull(abzaehlen.geloeschtAm),
-                eq(abzaehlen.geprueft, true),
-              ),
+              and(eq(abzaehlen.lagerId, lagerId), eq(abzaehlen.geprueft, true)),
             );
           const zeilen = await setzeZeilen(tx, abzaehlen, k, {
             ids: gesetzt.map((z) => z.id),

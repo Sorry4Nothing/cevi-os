@@ -53,6 +53,9 @@ export const lager = pgTable(
     anwesenheitFrist: timestamp("anwesenheit_frist", { withTimezone: true }),
     // Link zur Lageradresse in einer Karten-App (#393), nur gespeichert: Der Server ruft keinen Kartendienst ab. Setzt die Lagerleitung über PUT /lager/{id}/notfall/karte
     kartenLink: text("karten_link"),
+    // Ort für das Wetter (#391): Breite und Länge in Grad. Nur sie gehen an den Wetterdienst (lager/wetter.ts), auf zwei Stellen gerundet. Setzt die Lagerleitung über PUT /lager/{id}/wetter/ort; beide leer: kein Wetter
+    breite: doublePrecision("breite"),
+    laenge: doublePrecision("laenge"),
     // Dass das Medium zur Abteilung gehört und ein Bild ist, prüft die Route
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
@@ -80,6 +83,10 @@ export const lager = pgTable(
     check(
       "lager_karten_link_check",
       sql`${t.kartenLink} is null or (${t.kartenLink} ~ '^https://[^[:space:]]+$' and strpos(${t.kartenLink}, chr(92)) = 0 and char_length(${t.kartenLink}) <= 2048)`,
+    ),
+    check(
+      "lager_ort_check",
+      sql`(${t.breite} is null) = (${t.laenge} is null) and (${t.breite} is null or (${t.breite} between -90 and 90 and ${t.laenge} between -180 and 180))`,
     ),
     check(
       "lager_farbe_check",
@@ -145,11 +152,6 @@ export function lagerSpalten() {
       .notNull()
       .defaultNow(),
     geaendertVon: uuid("geaendert_von").references(() => user.id, {
-      onDelete: "set null",
-    }),
-    // Soft-Delete: Die Zeile bleibt (Papierkorb, #368), der Feed meldet «geloescht»
-    geloeschtAm: timestamp("geloescht_am", { withTimezone: true }),
-    geloeschtVon: uuid("geloescht_von").references(() => user.id, {
       onDelete: "set null",
     }),
     // Folgenummer des Lagers bei der letzten Änderung dieser Zeile
@@ -300,9 +302,7 @@ export const ressort = pgTable(
     }),
     index("ressort_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
     index("ressort_parent_idx").on(t.lagerId, t.parentId),
-    uniqueIndex("ressort_kuerzel_uq")
-      .on(t.lagerId, sql`lower(${t.kuerzel})`)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("ressort_kuerzel_uq").on(t.lagerId, sql`lower(${t.kuerzel})`),
     check("ressort_eltern_check", sql`${t.parentId} is distinct from ${t.id}`),
     check(
       "ressort_text_check",
@@ -424,9 +424,7 @@ export const aufgabe = pgTable(
     // Der Erinnerungslauf (lager/fristen.ts) fragt über alle Lager nach Fristen der nächsten Tage: eine Abfrage über diesen Index
     index("aufgabe_erinnerung_idx")
       .on(t.frist)
-      .where(
-        sql`${t.frist} is not null and ${t.status} <> 'erledigt' and ${t.geloeschtAm} is null`,
-      ),
+      .where(sql`${t.frist} is not null and ${t.status} <> 'erledigt'`),
     index("aufgabe_frist_meilenstein_idx")
       .on(t.lagerId, t.fristMeilensteinId)
       .where(sql`${t.fristMeilensteinId} is not null`),
@@ -483,9 +481,7 @@ export const lagertag = pgTable(
   },
   (t) => [
     unique("lagertag_lager_id_id_uq").on(t.lagerId, t.id),
-    uniqueIndex("lagertag_datum_uq")
-      .on(t.lagerId, t.datum)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("lagertag_datum_uq").on(t.lagerId, t.datum),
     check(
       "lagertag_label_check",
       sql`${t.label} is null or char_length(${t.label}) between 1 and 100`,
@@ -504,9 +500,7 @@ export const tagesabschnitt = pgTable(
   },
   (t) => [
     unique("tagesabschnitt_lager_id_id_uq").on(t.lagerId, t.id),
-    uniqueIndex("tagesabschnitt_name_uq")
-      .on(t.lagerId, sql`lower(${t.name})`)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("tagesabschnitt_name_uq").on(t.lagerId, sql`lower(${t.name})`),
     index("tagesabschnitt_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
     check(
       "tagesabschnitt_check",
@@ -815,10 +809,10 @@ export const anwesenheit = pgTable(
     // Ein Feld gibt es je Person und Abschnitt einmal; eine gelöschte Zeile blockiert es nicht
     uniqueIndex("anwesenheit_person_uq")
       .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     uniqueIndex("anwesenheit_teilnehmer_uq")
       .on(t.lagerId, t.teilnehmerId, t.lagertagId, t.tagesabschnittId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     // Die Matrix eines Zeitraums (ein Abruf je Lager und Lagertage), nach ID seitenweise
     index("anwesenheit_tag_idx").on(t.lagerId, t.lagertagId, t.id),
     check("anwesenheit_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
@@ -862,7 +856,7 @@ export const anwesenheitAnfrage = pgTable(
     }).onDelete("cascade"),
     uniqueIndex("anwesenheit_anfrage_offen_uq")
       .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
-      .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
+      .where(sql`${t.status} = 'offen'`),
     index("anwesenheit_anfrage_liste_idx").on(t.lagerId, t.status, t.id),
     index("anwesenheit_anfrage_person_idx").on(t.lagerId, t.personId, t.id),
     check("anwesenheit_anfrage_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
@@ -982,9 +976,7 @@ export const pinnwandDatei = pgTable(
     }).onDelete("cascade"),
     index("pinnwand_datei_beitrag_idx").on(t.beitragId),
     index("pinnwand_datei_datei_idx").on(t.dateiId),
-    uniqueIndex("pinnwand_datei_uq")
-      .on(t.beitragId, t.dateiId)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("pinnwand_datei_uq").on(t.beitragId, t.dateiId),
     check("pinnwand_datei_check", sql`${t.reihenfolge} >= 0`),
   ],
 );
@@ -1008,9 +1000,7 @@ export const umfrage = pgTable(
       columns: [t.lagerId, t.beitragId],
       foreignColumns: [pinnwandBeitrag.lagerId, pinnwandBeitrag.id],
     }).onDelete("cascade"),
-    uniqueIndex("umfrage_beitrag_uq")
-      .on(t.beitragId)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("umfrage_beitrag_uq").on(t.beitragId),
   ],
 );
 
@@ -1038,7 +1028,7 @@ export const umfrageOption = pgTable(
   ],
 );
 
-// Eine Stimme: eine Zeile je Person und Option, damit sich Stimmen nie überschreiben. Gehört der Person (person_id); die Route setzt nur die eigene. Zurückgezogen = Soft-Delete (die Einmaligkeit gilt für aktive Zeilen)
+// Eine Stimme: eine Zeile je Person und Option, damit sich Stimmen nie überschreiben. Gehört der Person (person_id); die Route setzt nur die eigene. Zurückgezogen = gelöscht (endgültig, #427)
 export const umfrageStimme = pgTable(
   "umfrage_stimme",
   {
@@ -1060,9 +1050,7 @@ export const umfrageStimme = pgTable(
       columns: [t.lagerId, t.optionId],
       foreignColumns: [umfrageOption.lagerId, umfrageOption.id],
     }).onDelete("cascade"),
-    uniqueIndex("umfrage_stimme_uq")
-      .on(t.optionId, t.personId)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("umfrage_stimme_uq").on(t.optionId, t.personId),
     index("umfrage_stimme_umfrage_idx").on(t.umfrageId),
   ],
 );
@@ -1082,9 +1070,7 @@ export const reaktion = pgTable(
     }).notNull(),
   },
   (t) => [
-    uniqueIndex("reaktion_uq")
-      .on(t.zielTyp, t.zielId, t.personId)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("reaktion_uq").on(t.zielTyp, t.zielId, t.personId),
     index("reaktion_ziel_idx").on(t.zielTyp, t.zielId),
     check(
       "reaktion_check",
@@ -1178,10 +1164,10 @@ export const abzaehlen = pgTable(
     }).onDelete("cascade"),
     uniqueIndex("abzaehlen_teilnehmer_uq")
       .on(t.lagerId, t.teilnehmerId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     uniqueIndex("abzaehlen_person_uq")
       .on(t.lagerId, t.personId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     check(
       "abzaehlen_ziel_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.geprueft} = (${t.geprueftAm} is not null)`,
@@ -1236,10 +1222,10 @@ export const gruppeZuordnung = pgTable(
     index("gruppe_zuordnung_gruppe_idx").on(t.gruppeId),
     uniqueIndex("gruppe_zuordnung_teilnehmer_uq")
       .on(t.lagerId, t.teilnehmerId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     uniqueIndex("gruppe_zuordnung_person_uq")
       .on(t.lagerId, t.personId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     check(
       "gruppe_zuordnung_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.rolle} in ('leitung', 'mitglied') and (${t.teilnehmerId} is null or ${t.rolle} = 'mitglied')`,
@@ -1295,10 +1281,10 @@ export const zimmerZuordnung = pgTable(
     index("zimmer_zuordnung_zimmer_idx").on(t.zimmerId),
     uniqueIndex("zimmer_zuordnung_teilnehmer_uq")
       .on(t.lagerId, t.teilnehmerId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     uniqueIndex("zimmer_zuordnung_person_uq")
       .on(t.lagerId, t.personId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     check(
       "zimmer_zuordnung_ziel_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null)`,
@@ -1460,9 +1446,7 @@ export const infoAbschnittDatei = pgTable(
     }).onDelete("cascade"),
     index("info_abschnitt_datei_liste_idx").on(t.lagerId, t.abschnittId, t.id),
     index("info_abschnitt_datei_datei_idx").on(t.dateiId),
-    uniqueIndex("info_abschnitt_datei_uq")
-      .on(t.abschnittId, t.dateiId)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("info_abschnitt_datei_uq").on(t.abschnittId, t.dateiId),
   ],
 );
 
@@ -1500,9 +1484,7 @@ export const einkaufArtikel = pgTable(
       columns: [t.lagerId, t.einkaeuferPersonId],
       foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
     }).onDelete("set null"),
-    index("einkauf_artikel_liste_idx")
-      .on(t.lagerId, t.id)
-      .where(sql`${t.geloeschtAm} is null`),
+    index("einkauf_artikel_liste_idx").on(t.lagerId, t.id),
     check(
       "einkauf_artikel_check",
       sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and (${t.menge} is null or ${t.menge} > 0) and (${t.einheit} is null or char_length(${t.einheit}) between 1 and 20) and ${t.warengruppe} in (${warengruppeListe})`,
@@ -1644,7 +1626,7 @@ export const protokoll = pgTable(
   ],
 );
 
-// Beschlüsse im Lager (#379): ein kurzer Text mit optionalem Verweis auf das Protokoll und den Höck, für die Entscheide-Sammlung. Sie bleiben in Cevi OS (anders als das Protokoll selbst). Die Fremdschlüssel auf protokoll und hoeck sind NO ACTION aus demselben Grund wie bei protokoll. Geschrieben wird nur über lager/sync.ts
+// Beschlüsse im Lager (#379): ein kurzer Text mit optionalem Verweis auf das Protokoll und den Höck, für die Entscheide-Sammlung. Sie bleiben in Cevi OS (anders als das Protokoll selbst). Löschen ist endgültig (#427): Fällt das Protokoll weg, bleibt der Beschluss ohne diesen Verweis (ON DELETE SET NULL auf die eine Spalte; der Sync-Kern meldet die geänderte Zeile im Feed). Der Höck bleibt NO ACTION (wie bei protokoll): Ein Höck mit Protokollen oder Beschlüssen lässt sich nicht löschen (409 IN_VERWENDUNG), weil beide über den Höck für das Team verborgen sein können und sonst sichtbar würden. Geschrieben wird nur über lager/sync.ts
 export const beschluss = pgTable(
   "beschluss",
   {
@@ -1658,7 +1640,7 @@ export const beschluss = pgTable(
       name: "beschluss_protokoll_fk",
       columns: [t.lagerId, t.protokollId],
       foreignColumns: [protokoll.lagerId, protokoll.id],
-    }).onDelete("no action"),
+    }).onDelete("set null"),
     foreignKey({
       name: "beschluss_hoeck_fk",
       columns: [t.lagerId, t.hoeckId],
@@ -1672,6 +1654,60 @@ export const beschluss = pgTable(
       .on(t.lagerId, t.hoeckId)
       .where(sql`${t.hoeckId} is not null`),
     check("beschluss_check", sql`char_length(${t.text}) between 1 and 1000`),
+  ],
+);
+
+// Erwähnungen im Lager (#380): eine Zeile je erwähnter Person und Inhalt. Der Inhalt (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) trägt die Marke «@{person:<id>}»; lager/erwaehnungen.ts gleicht sie ab. quelle_id ohne Fremdschlüssel (vier Tabellen); die Liste filtert gelöschte Inhalte. Die Zeile hat keinen Text: Die App liest den Inhalt über seine Route. erledigt_am setzt die erwähnte Person. aufgabe_id: die Aufgabe, die «Als Aufgabe» angelegt hat (höchstens eine je Erwähnung); fällt sie endgültig weg, bleibt die Erwähnung ohne sie. Fällt das Mitglied weg, gehen seine Erwähnungen mit. In der Migration ON DELETE SET NULL (aufgabe_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Kein Sync-Kern: Die Zeilen der Person sind keine geteilten Daten
+export const ERWAEHNUNG_QUELLE = [
+  "aufgabe",
+  "traktandum",
+  "pinnwand",
+  "beschluss",
+] as const;
+export type ErwaehnungQuelle = (typeof ERWAEHNUNG_QUELLE)[number];
+
+export const erwaehnung = pgTable(
+  "erwaehnung",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    quelleTyp: text("quelle_typ", { enum: ERWAEHNUNG_QUELLE }).notNull(),
+    quelleId: uuid("quelle_id").notNull(),
+    personId: uuid("person_id").notNull(),
+    erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
+    aufgabeId: uuid("aufgabe_id"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("erwaehnung_quelle_person_uq").on(
+      t.lagerId,
+      t.quelleTyp,
+      t.quelleId,
+      t.personId,
+    ),
+    foreignKey({
+      name: "erwaehnung_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "erwaehnung_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("set null"),
+    // Die Liste der Person: neueste zuerst, Cursor über die ID
+    index("erwaehnung_person_idx").on(t.lagerId, t.personId, t.id),
+    index("erwaehnung_quelle_idx").on(t.quelleId),
+    check(
+      "erwaehnung_quelle_check",
+      sql`${t.quelleTyp} in ('aufgabe', 'traktandum', 'pinnwand', 'beschluss')`,
+    ),
   ],
 );
 
@@ -1708,7 +1744,7 @@ export const fahrt = pgTable(
     // Eine Person fährt je Richtung höchstens eine Fahrt (als Fahrer; als Mitfahrende prüft die Route gegen fahrt_mitfahrer)
     uniqueIndex("fahrt_fahrer_uq")
       .on(t.lagerId, t.richtung, t.fahrerPersonId)
-      .where(sql`${t.fahrerPersonId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.fahrerPersonId} is not null`),
     // Die Liste: nach ID (UUIDv7 = Reihenfolge des Anlegens), Seitenwechsel über die ID
     index("fahrt_liste_idx").on(t.lagerId, t.id),
     check(
@@ -1762,10 +1798,10 @@ export const fahrtMitfahrer = pgTable(
     }).onDelete("cascade"),
     uniqueIndex("fahrt_mitfahrer_person_uq")
       .on(t.lagerId, t.richtung, t.personId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     uniqueIndex("fahrt_mitfahrer_teilnehmer_uq")
       .on(t.lagerId, t.richtung, t.teilnehmerId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     index("fahrt_mitfahrer_fahrt_idx").on(t.lagerId, t.fahrtId),
     check(
       "fahrt_mitfahrer_check",
@@ -1799,9 +1835,11 @@ export const dienst = pgTable(
       columns: [t.lagerId, t.tagesabschnittId],
       foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
     }).onDelete("cascade"),
-    uniqueIndex("dienst_name_uq")
-      .on(t.lagerId, t.tagesabschnittId, sql`lower(${t.name})`)
-      .where(sql`${t.geloeschtAm} is null`),
+    uniqueIndex("dienst_name_uq").on(
+      t.lagerId,
+      t.tagesabschnittId,
+      sql`lower(${t.name})`,
+    ),
     index("dienst_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
     check(
       "dienst_check",
@@ -1844,14 +1882,161 @@ export const schicht = pgTable(
     }).onDelete("cascade"),
     uniqueIndex("schicht_person_uq")
       .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.personId)
-      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.personId} is not null`),
     uniqueIndex("schicht_teilnehmer_uq")
       .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.teilnehmerId)
-      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+      .where(sql`${t.teilnehmerId} is not null`),
     index("schicht_dienst_idx").on(t.lagerId, t.dienstId, t.lagertagId),
     check(
       "schicht_check",
       sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Anfrage eines Mitglieds, eine eigene Schicht zu tauschen oder abzugeben (#389). schicht_id ist die eigene Schicht. Mit mit_schicht_id (Schicht einer anderen Person) tauschen beide, mit nur mit_person_id übernimmt diese Person die Schicht, ohne beides wählt die Lagerleitung beim Entscheid die Person. Ob die Wunschperson einverstanden ist, klärt die Lagerleitung; Cevi OS fragt sie nicht. Erst der Entscheid «angenommen» bucht die Schichten um (lager/diensttausch.ts). Beim Zurückziehen und Entscheiden setzt entschieden_am den Zeitpunkt, entschieden_von die Person (beim Zurückziehen die anfragende). schicht_id und mit_schicht_id haben keinen Fremdschlüssel mit Lager (schicht hat keinen Schlüssel dafür): Der Code lädt Schichten immer mit lager_id. Geschrieben wird nur über lager/sync.ts
+export const diensttausch = pgTable(
+  "diensttausch",
+  {
+    ...lagerSpalten(),
+    vonPersonId: uuid("von_person_id").notNull(),
+    schichtId: uuid("schicht_id")
+      .notNull()
+      .references(() => schicht.id, { onDelete: "cascade" }),
+    mitPersonId: uuid("mit_person_id"),
+    mitSchichtId: uuid("mit_schicht_id").references(() => schicht.id, {
+      onDelete: "cascade",
+    }),
+    notiz: text("notiz"),
+    status: text("status", {
+      enum: ["offen", "angenommen", "abgelehnt", "zurueckgezogen"],
+    })
+      .notNull()
+      .default("offen"),
+    entschiedenVon: uuid("entschieden_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({
+      name: "diensttausch_von_fk",
+      columns: [t.lagerId, t.vonPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "diensttausch_mit_fk",
+      columns: [t.lagerId, t.mitPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    uniqueIndex("diensttausch_offen_uq")
+      .on(t.lagerId, t.schichtId)
+      .where(sql`${t.status} = 'offen'`),
+    index("diensttausch_liste_idx").on(t.lagerId, t.status, t.id),
+    index("diensttausch_person_idx").on(t.lagerId, t.vonPersonId, t.id),
+    check(
+      "diensttausch_status_check",
+      sql`${t.status} in ('offen', 'angenommen', 'abgelehnt', 'zurueckgezogen') and (${t.status} = 'offen') = (${t.entschiedenAm} is null)`,
+    ),
+    check(
+      "diensttausch_wunsch_check",
+      sql`(${t.mitSchichtId} is null or ${t.mitPersonId} is not null) and ${t.mitPersonId} is distinct from ${t.vonPersonId} and ${t.mitSchichtId} is distinct from ${t.schichtId}`,
+    ),
+    check(
+      "diensttausch_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
+    ),
+  ],
+);
+
+// Tagesseite (#391): eine Seite je Lagertag mit Tageschef und Notiz. Die Seite entsteht beim ersten Schreiben (Seite oder Block); je Lagertag höchstens eine nicht gelöschte. Der Tageschef ist Mitglied des Lagers; verlässt er es, wird die Angabe leer (in der Migration ON DELETE SET NULL (tageschef_person_id): Postgres 15 setzt nur die eine Spalte, drizzle kennt die Spaltenliste nicht). To-dos der Tagesseite sind keine Zeilen hier, sie zeigen die Aufgaben mit Frist an diesem Tag (#372)
+export const tagesseite = pgTable(
+  "tagesseite",
+  {
+    ...lagerSpalten(),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tageschefPersonId: uuid("tageschef_person_id"),
+    notiz: text("notiz"),
+  },
+  (t) => [
+    unique("tagesseite_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "tagesseite_lagertag_fk",
+      columns: [t.lagerId, t.lagertagId],
+      foreignColumns: [lagertag.lagerId, lagertag.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "tagesseite_tageschef_fk",
+      columns: [t.lagerId, t.tageschefPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    uniqueIndex("tagesseite_lagertag_uq").on(t.lagertagId),
+    index("tagesseite_lagertag_idx").on(t.lagerId, t.lagertagId),
+    check(
+      "tagesseite_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) <= 5000`,
+    ),
+  ],
+);
+
+// Block einer Tagesseite (#391), eine Zeile je Block: «wichtig» (Hinweis des Tages), «idee» und «programmbild» (Verknüpfung auf eine Datei im SharePoint über lager_datei, der Text ist die Beschriftung). Zu besprechen wird ein Traktandum (#378), nicht ein Block
+export const TAGESSEITE_BLOCK_ARTEN = [
+  "wichtig",
+  "idee",
+  "programmbild",
+] as const;
+export const tagesseiteBlock = pgTable(
+  "tagesseite_block",
+  {
+    ...lagerSpalten(),
+    seiteId: uuid("seite_id").notNull(),
+    art: text("art", { enum: TAGESSEITE_BLOCK_ARTEN }).notNull(),
+    text: text("text").notNull(),
+    // Nur beim Programmbild; ON DELETE RESTRICT wie bei den anderen Modulen: Der Aufräumlauf entfernt nie einen Eintrag, den ein Block einbindet
+    dateiId: uuid("datei_id").references(() => lagerDatei.id, {
+      onDelete: "restrict",
+    }),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    foreignKey({
+      name: "tagesseite_block_seite_fk",
+      columns: [t.lagerId, t.seiteId],
+      foreignColumns: [tagesseite.lagerId, tagesseite.id],
+    }).onDelete("cascade"),
+    index("tagesseite_block_liste_idx").on(
+      t.lagerId,
+      t.seiteId,
+      t.reihenfolge,
+      t.id,
+    ),
+    index("tagesseite_block_datei_idx").on(t.dateiId),
+    check(
+      "tagesseite_block_check",
+      sql`${t.art} in ('wichtig', 'idee', 'programmbild') and char_length(${t.text}) between 1 and 1000 and (${t.art} = 'programmbild') = (${t.dateiId} is not null) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Zwischenspeicher des Wetters (#391), eine Zeile je Lager, ohne Feed und Version: Der Server holt die Vorhersage für den Ort des Lagers höchstens alle paar Stunden (lager/wetter.ts) und gibt sie allen Mitgliedern aus. «tage» sind die Tageswerte des Dienstes (Datum, Wettercode, Temperatur, Regen, Böen), keine Personendaten. breite und laenge sind der Ort, für den die Zeile gilt: Ändert die Lagerleitung den Ort, ist sie veraltet. abgerufen_am: letzter gelungener Abruf; versuch_am: letzter Versuch (auch misslungen), damit ein Ausfall des Dienstes nicht bei jeder Anfrage einen Abruf auslöst
+export const wetterCache = pgTable(
+  "wetter_cache",
+  {
+    lagerId: uuid("lager_id")
+      .primaryKey()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    breite: doublePrecision("breite").notNull(),
+    laenge: doublePrecision("laenge").notNull(),
+    abgerufenAm: timestamp("abgerufen_am", { withTimezone: true }),
+    versuchAm: timestamp("versuch_am", { withTimezone: true }).notNull(),
+    tage: jsonb("tage")
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+  },
+  (t) => [
+    check(
+      "wetter_cache_check",
+      sql`jsonb_typeof(${t.tage}) = 'array' and jsonb_array_length(${t.tage}) <= 30`,
     ),
   ],
 );

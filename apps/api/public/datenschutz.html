@@ -500,7 +500,10 @@
             Nachtwache): Name, Beschreibung, Abschnitt des Tages, nötige
             Personenzahl und ob es eine Nachtwache ist. Für jede Schicht: welche
             teilnehmende Person oder welches Mitglied des Lagers an welchem
-            Lagertag in welchem Dienst steht. Keine weiteren Angaben zur Person.
+            Lagertag in welchem Dienst steht. Für jede Tauschanfrage: welche
+            eigene Schicht, mit welcher Wunschperson oder Wunschschicht, eine
+            freiwillige Bemerkung, wer sie stellte, ihr Stand und wer wann
+            entschied. Keine weiteren Angaben zur Person.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -514,7 +517,16 @@
             Hand oder mit einem Vorschlag, der nach der eingetragenen
             Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle
             Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem
-            Tag in welchem Dienst steht.
+            Tag in welchem Dienst steht. Wer im Team eine eigene Schicht
+            tauschen oder abgeben möchte, stellt eine Anfrage an die
+            Lagerleitung (mit freiwilliger Bemerkung und, wenn gewünscht, einer
+            Wunschperson); die Lagerleitung klärt die Zustimmung selbst und
+            nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die
+            Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt
+            nur den Lagertitel. Aus diesen Angaben erzeugt Cevi OS auf Abruf
+            Aushänge als PDF (Zimmerliste, Türschilder, Gruppenlisten,
+            Fahrtenliste, Schichtplan, Organigramm); die Datei geht nur an die
+            abrufende Person und wird nicht gespeichert.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -616,7 +628,10 @@
           <dt>Aufbewahrung</dt>
           <dd>
             Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder
-            das Konto gelöscht wird. Auf Anfrage löscht die Leitung Daten.
+            das Konto gelöscht wird. Die Einträge der Teilnehmenden (nur Kennung
+            und Wert, kein Name) bleiben auch nach dem Löschen der
+            Teilnehmenden, sechs Monate nach dem Ende des Lagers, bis das Lager
+            gelöscht wird. Auf Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
       </section>
@@ -750,6 +765,64 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-lager-tagesseiten">
+        <h3 id="k-lager-tagesseiten">Tagesseiten im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Je Lagertag: der Tageschef (ein Mitglied des Lagers), eine Notiz und
+            die Blöcke mit Text, Art (Hinweis, Idee oder Programmbild),
+            Reihenfolge und bei einem Programmbild die Verknüpfung auf die
+            Datei. Bei einer Änderung steht, welches Konto sie vornahm.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Pro Lagertag eine Seite führen: wer Tageschef ist, eine Notiz,
+            Hinweise und Ideen des Tages und Verknüpfungen auf Programmbilder im
+            SharePoint der Abteilung. Die Leitung des Lagers pflegt die Seite;
+            die Aufgaben mit Frist an diesem Tag zeigt die Seite aus den
+            Aufgaben des Lagers, und das Wetter des Tages kommt aus dem Wetter
+            des Lagers.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung den Block löscht oder das Lager gelöscht wird. Wird
+            ein Tageschef aus dem Lager entfernt oder sein Konto gelöscht,
+            verschwindet die Angabe auf der Seite. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-wetter">
+        <h3 id="k-lager-wetter">Wetter im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Der Ort des Lagers als Breite und Länge, und je Lager die zuletzt
+            abgerufene Vorhersage (Tageswerte für Wettercode, Temperatur, Regen
+            und Böen) mit dem Zeitpunkt des Abrufs.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind,
+            Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des
+            Lagers als Breite und Länge fest. Der Server holt die Vorhersage
+            dafür beim Wetterdienst Open-Meteo und speichert sie je Lager
+            zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den
+            Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen
+            gerundet, keine Namen und keine Angaben zu Personen.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht
+            wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf
+            ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
+            Daten.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-lager-eingang">
         <h3 id="k-lager-eingang">Eingang im Lager</h3>
         <dl>
@@ -802,10 +875,11 @@
           <dd>
             Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen
             Titel, Stichworte und verweist auf eine Datei im SharePoint der
-            Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein
-            Dokument für das Team frei; ohne Freigabe sieht das Team es nicht.
-            Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft
-            nur über Titel und Stichworte.
+            Abteilung (siehe «Dateien im Lager»). Wer Dokumente bearbeiten darf
+            (im Standard Lagerleitung und Leitung), gibt ein Dokument für das
+            Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert
+            nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und
+            Stichworte.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -943,6 +1017,34 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-lager-erwaehnungen">
+        <h3 id="k-lager-erwaehnungen">Erwähnungen im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Erwähnung: wer erwähnt wurde, in welchem Lager und in
+            welchem Inhalt (Art und Ziel), ob die Person sie erledigt hat, die
+            Aufgabe, die sie daraus gemacht hat, und wann sie entstand. Den Text
+            des Inhalts speichert die Erwähnung nicht.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Wer in einem Inhalt des Lagers (Aufgabe, Traktandum,
+            Pinnwand-Beitrag, Beschluss) erwähnt wird, soll es merken: Cevi OS
+            benachrichtigt die Person, und sie kann die Erwähnung als erledigt
+            markieren oder daraus eine Aufgabe machen. Die Erwähnung speichert
+            nur, wer in welchem Inhalt erwähnt wurde, nie den Text; sie sieht
+            nur die erwähnte Person.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Marke aus dem Inhalt entfällt (ausser es ist daraus eine
+            Aufgabe entstanden), die Person das Lager verlässt oder das Lager
+            gelöscht wird. Auf Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-medien">
         <h3 id="k-medien">Medien</h3>
         <dl>
@@ -1026,7 +1128,11 @@
             sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name
             und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt
             sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen,
-            wer angemeldet hat und ob die Anmeldung gilt.
+            wer angemeldet hat und ob die Anmeldung gilt. Die Abteilungsleitung
+            sieht die Anmeldungen mit Name und Telefon aus dem Konto und kann
+            sie als CSV-Datei laden; der Server speichert die Datei nicht und
+            hält im Protokoll nur fest, wann der Export lief und wie viele
+            Anmeldungen er enthielt.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -1124,6 +1230,13 @@
           daraus die Programme und schickt nichts über Personen dorthin.
         </li>
         <li>
+          Für das Wetter im Lager holt der Server die Vorhersage beim Dienst
+          Open-Meteo. Der Dienst erfährt nur die Breite und Länge des Lagerorts
+          auf zwei Stellen gerundet und die IP-Adresse des Servers, nie Namen,
+          Konten oder Angaben zu Personen. Ein Abruf erfolgt höchstens alle paar
+          Stunden je Lager.
+        </li>
+        <li>
           Pushes laufen über Firebase Cloud Messaging von Google und, auf dem
           iPhone, weiter über den Push-Dienst von Apple. Beide Dienste stehen in
           den USA. Sie erfahren das Push-Token deines Geräts, den Zeitpunkt und
@@ -1145,18 +1258,32 @@
 
       <h2 id="aufbewahrung">Wie lange Daten bleiben</h2>
       <p>
-        Cevi OS löscht Nachrichten, Anmeldungen, Kinder und Konten nicht
-        automatisch. Sie bleiben, bis eine Person sie löscht oder das Konto
-        gelöscht wird. Auf Anfrage löscht die Leitung Daten. In der App kannst
-        du dein Konto nicht selbst löschen. Wird ein Konto gelöscht, gehen die
-        Nachrichten der Person mit; bei Eltern gehen auch der Einzelchat und die
-        Zuordnung zu den Kindern mit. Die Kinder und ihre Anmeldungen bleiben,
-        bis die Leitung sie löscht. Wie du eine Löschung verlangst, steht unter
+        Cevi OS löscht Nachrichten, Anmeldungen zu Programmen, Kinder und Konten
+        nicht automatisch. Sie bleiben, bis eine Person sie löscht oder das
+        Konto gelöscht wird. Auf Anfrage löscht die Leitung Daten. In der App
+        kannst du dein Konto nicht selbst löschen. Wird ein Konto gelöscht,
+        gehen die Nachrichten der Person mit; bei Eltern gehen auch der
+        Einzelchat und die Zuordnung zu den Kindern mit. Die Kinder und ihre
+        Anmeldungen bleiben, bis die Leitung sie löscht. Wie du eine Löschung
+        verlangst, steht unter
         <a href="/konto-loeschen">Konto löschen</a>.
       </p>
-      <p>Zeitliche Regeln gibt es nur für diese Daten:</p>
+      <p>
+        Im Lager ist Löschen endgültig. Was die Leitung im Lager löscht, ist
+        sofort aus der Datenbank entfernt; es gibt keinen Papierkorb und keine
+        Wiederherstellung. Teile, die an einer gelöschten Zeile hängen, gehen
+        mit (zum Beispiel die Schichten eines Dienstes). Geräte mit einer
+        Offline-Kopie erfahren die Löschung bei der nächsten Verbindung; dafür
+        bleibt 30 Tage lang ein Vermerk ohne Inhalt auf dem Server (Art des
+        Eintrags und Kennung).
+      </p>
+      <p>Zeitliche Regeln gibt es für diese Daten:</p>
       <ul>
         <li>Logs des Servers und des Webservers: 14 Tage.</li>
+        <li>
+          Vermerke über gelöschte Einträge im Lager (nur Art und Kennung): 30
+          Tage.
+        </li>
         <li>
           Einträge der Begrenzung von Anfragen mit IP-Adresse: frühestens 15
           Minuten nach der letzten Anfrage.
@@ -1166,6 +1293,21 @@
           erst aus den Backups, wenn die Stände ablaufen; das dauert rund drei
           Monate. Der Schutz vor dem Löschen beim Speicheranbieter kann das um
           bis zu 30 Tage verlängern.
+        </li>
+        <li>
+          Widerrufene persönliche Kalenderlinks: 30 Tage nach dem Widerruf.
+        </li>
+        <li>Anmeldungen zu Anlässen: 180 Tage nach dem Ende des Anlasses.</li>
+        <li>
+          Lager: Teilnehmende samt Einteilung und Abzählen sechs Monate nach dem
+          Ende des Lagers; Kontakte im Adressbuch 180 Tage nach dem Ende des
+          Lagers (ausser sie sind zum Behalten markiert); gelesene
+          Benachrichtigungen 90 Tage; das Verzeichnis der Änderungen und die
+          Ergebnisse gesammelter Änderungen 30 Tage.
+        </li>
+        <li>
+          Wetter, Aushänge und Suche speichern nichts über Personen; ein Aushang
+          als PDF wird bei jedem Abruf neu erzeugt.
         </li>
       </ul>
 

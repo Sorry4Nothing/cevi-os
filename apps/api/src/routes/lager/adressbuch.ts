@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -159,11 +159,7 @@ async function kontaktDa(db: Db, lagerId: string, id: string) {
     .select({ id: adressbuchKontakt.id })
     .from(adressbuchKontakt)
     .where(
-      and(
-        eq(adressbuchKontakt.id, id),
-        eq(adressbuchKontakt.lagerId, lagerId),
-        isNull(adressbuchKontakt.geloeschtAm),
-      ),
+      and(eq(adressbuchKontakt.id, id), eq(adressbuchKontakt.lagerId, lagerId)),
     );
   if (!zeile) throw new HTTPException(404);
 }
