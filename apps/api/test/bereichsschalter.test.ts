@@ -418,16 +418,16 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect((await schreibe(slA, "website")).status).not.toBe(503);
   });
 
-  test("das Panel nennt «plattform» nur Personen mit dem Recht, auch ohne Redaktionszugang", async () => {
+  test("das Panel nennt «plattform» nur Personen mit dem Recht; «website» öffnen die Rechte der Website (Rolle Webmaster, Entwickler)", async () => {
     const bereiche = async (konto: PersonaKonto) =>
       (
         (await (
           await anfrage(konto, "GET", "/api/v1/redaktion/ich")
         ).json()) as { bereiche: string[] }
       ).bereiche;
-    expect(await bereiche(webmasterMitRecht)).toEqual(["plattform"]);
-    expect(await bereiche(entwickler)).toEqual(["plattform"]);
-    expect(await bereiche(webmaster)).toEqual([]);
+    expect(await bereiche(webmasterMitRecht)).toEqual(["website", "plattform"]);
+    expect(await bereiche(entwickler)).toEqual(["website", "plattform"]);
+    expect(await bereiche(webmaster)).toEqual(["website"]);
     expect(await bereiche(slA)).toEqual(["website"]);
   });
 

@@ -5,9 +5,9 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { auditLog, weiterleitung } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
-import { darfSeitenVerwalten } from "../../website/seiten.js";
 import {
   alterPfadSchema,
   MAX_WEITERLEITUNGEN,
@@ -105,7 +105,7 @@ export function erstelleWeiterleitungsRouten({ db }: { db: Db }) {
         ),
       );
     if (!zeile) throw new HTTPException(404);
-    if (!(await darfSeitenVerwalten(tx, person))) {
+    if (!(await hatPlattformRecht(tx, person, "weiterleitungen.verwalten"))) {
       throw new HTTPException(403);
     }
     return zeile;
@@ -114,9 +114,9 @@ export function erstelleWeiterleitungsRouten({ db }: { db: Db }) {
   const meldeAenderung = (abteilungId: string) =>
     meldeWebsiteEreignis({ art: "weiterleitung_geaendert", abteilungId });
 
-  // Nur Abteilungsleitung und Redaktion (wie Seiten anlegen); die Alternative, jeder mit Zugang zu den Seiten, würde einer Stufenleitung erlauben, fremde Adressen umzuleiten
+  // Nur mit dem Recht «Weiterleitungen verwalten»; die Alternative, jeder mit Zugang zu den Seiten, würde einer Stufenleitung erlauben, fremde Adressen umzuleiten
   const pruefeRecht = async (person: Person) => {
-    if (!(await darfSeitenVerwalten(db, person))) {
+    if (!(await hatPlattformRecht(db, person, "weiterleitungen.verwalten"))) {
       throw new HTTPException(403);
     }
   };

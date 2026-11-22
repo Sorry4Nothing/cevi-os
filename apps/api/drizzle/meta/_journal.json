@@ -374,6 +374,13 @@
       "breakpoints": true
     },
     {
+      "idx": 73,
+      "version": "7",
+      "when": 1793551300000,
+      "tag": "0073_lager_hoecks",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,
@@ -402,10 +409,24 @@
       "breakpoints": true
     },
     {
+      "idx": 82,
+      "version": "7",
+      "when": 1793552200000,
+      "tag": "0082_lager_fahrten",
+      "breakpoints": true
+    },
+    {
       "idx": 83,
       "version": "7",
       "when": 1793552300000,
       "tag": "0083_lager_gruppen",
+      "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "7",
+      "when": 1793552400000,
+      "tag": "0084_lager_schichtplan",
       "breakpoints": true
     },
     {
@@ -448,6 +469,13 @@
       "version": "7",
       "when": 1793553000000,
       "tag": "0100_plattformrollen",
+      "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793553100000,
+      "tag": "0101_bearbeiter_ohne_alle_seiten",
       "breakpoints": true
     },
     {

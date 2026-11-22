@@ -1,0 +1,66 @@
+/* Bereich «Anwesenheit» (#195). Klassen mit dem Vorsatz «an-» */
+.an-wahl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  margin: 0 0 16px;
+}
+
+.an-gruppe .meta {
+  margin: 0 0 6px;
+}
+
+.an-kacheln {
+  margin: 16px 0 8px;
+}
+
+/* Die Tabelle hat viele Spalten: Der Name bleibt beim waagrechten Scrollen stehen */
+.an-tabelle table {
+  min-width: 0;
+}
+
+.an-tabelle thead th:first-child,
+.an-tabelle tbody th {
+  position: sticky;
+  left: 0;
+  min-width: 10rem;
+  background: var(--surface);
+}
+
+.an-tabelle thead th:not(:first-child) {
+  vertical-align: bottom;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  min-width: 7.5rem;
+}
+
+.an-tabelle thead th.zahl {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.an-titel {
+  display: block;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.an-zusatz {
+  font-weight: 400;
+  display: block;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.an-tabelle .an-naechster {
+  border-left: 1px solid var(--rand);
+}
+
+@media (max-width: 40rem) {
+  .an-tabelle thead th:first-child,
+  .an-tabelle tbody th {
+    min-width: 6.5rem;
+    padding-inline: 10px;
+  }
+}

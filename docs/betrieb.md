@@ -110,6 +110,13 @@ Sie läuft von Hand vor jedem Store-Release einer App: einmal auf Android und ei
 
 Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät einmal, jedes Mal mit einer neu angelegten Person, denn das Startpasswort gilt nur für die erste Anmeldung. Aktivieren und Deaktivieren laufen einmal vor und einmal nach beiden Durchgängen.
 
+## Abhängigkeiten und Images (SR-62, SR-63)
+
+Entscheid vom 22.11.2026 (#226).
+
+- **`npm audit`:** Die CI sperrt ab «high» (`npm audit --omit=dev --audit-level=high -w apps/api`). Der Review vor dem Pilot (#65) zählte 6 mittlere Funde (glob und minimatch über firebase-admin, google-gax und rimraf). Am 22.11.2026 meldet `npm audit` (mit und ohne `--omit=dev`) 0 Funde (der Stand der Lock-Datei hat sich seither geändert). Abhängigkeiten ändert dieser Entscheid nicht. Taucht ein Fund auf, gilt: «high» und «critical» beheben vor dem Merge; «moderate» in einer Laufzeit-Abhängigkeit beheben, sobald ein Patch ohne Bruch da ist, und sonst im Issue mit Begründung stehen lassen (erreichbar nur über Dev-Werkzeuge oder vertrauenswürdige Eingaben).
+- **Images ohne Digest:** `postgres:18` und `node:26-alpine` bleiben bei Tags. `deploy/deploy.sh` holt bei jedem Release die Korrekturen hinter `postgres:18` (`compose pull postgres`); ein fester Digest würde sie sperren, und Dependabot ist für Docker nicht eingerichtet. Das API-Image trägt den Release-Tag `vX.Y.Z`, der nie neu vergeben wird (siehe «Release»). Offen: Digests samt Dependabot-Eintrag für Docker, signierte Images, und das Caddy-Image des Edge-Servers (liegt ausserhalb dieses Repos). Digests brauchen eine Prüfung gegen die Registry; sie stehen nicht ohne diese im Repo.
+
 ## Backups
 
 `deploy/backup.sh` sichert die Datenbank verschlüsselt mit [restic](https://restic.net) auf einen S3-Speicher in der Schweiz: täglich per Cron und vor jedem Deploy (`deploy.sh` ruft das Skript auf). restic behält 30 tägliche und 3 monatliche Stände; Älteres räumt das Skript bei jedem Lauf weg. Solange noch keine Migrationen gelaufen sind, beendet es sich ohne Backup.

@@ -94,7 +94,7 @@ const dok = (titel: string, ...bausteine: unknown[]) => ({
 const angemeldet = { sichtbarkeit: { art: "angemeldet" } };
 const nurTag = () => ({ sichtbarkeit: { art: "tags", tagIds: [tagId] } });
 
-// Eine veröffentlichte Seite direkt in der Datenbank (die Routen der Redaktion testet #350)
+// Eine veröffentlichte Seite direkt in der Datenbank (die Routen der Website-Verwaltung testet #350)
 async function seite(
   adresse: string,
   sichtbarkeit: "oeffentlich" | "angemeldet" | "tags",
