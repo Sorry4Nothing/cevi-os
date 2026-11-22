@@ -367,6 +367,13 @@
       "breakpoints": true
     },
     {
+      "idx": 82,
+      "version": "7",
+      "when": 1793552200000,
+      "tag": "0082_lager_fahrten",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,

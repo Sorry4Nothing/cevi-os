@@ -148,6 +148,14 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  lagerFahrten: {
+    titel: "Fahrten im Lager",
+    zweck:
+      "Die Lagerleitung teilt die Hin- und Rückfahrt ein: Auto oder ÖV-Gruppe, mit Fahrer, Plätzen, Datum, Zeit, Treffpunkt und den Mitfahrenden (Leitende und Teilnehmende). Dazu kann sie einen Link auf den Fahrplan und einen Kartenpunkt als Ziel der Fahrt hinterlegen (Bezeichnung mit Adresse, Koordinaten oder Link), den die App in der Karten-App öffnet. Der Server speichert beides nur und ruft weder den Fahrplan noch einen Kartendienst ab. Das Team sieht nur die eigene Fahrt.",
+    frist: `Bis die Lagerleitung die Fahrt oder die Mitfahrt löscht oder das Lager gelöscht wird; die Mitfahrt eines Teilnehmenden entfällt mit dem Teilnehmenden, sechs Monate nach dem Ende des Lagers. ${AUF_ANFRAGE}`,
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
@@ -585,6 +593,37 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "person_id",
       "geprueft",
       "geprueft_am",
+    ],
+  },
+  // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender
+  fahrt: {
+    lagerFahrten: [
+      ...LAGER_BASIS_SPALTEN,
+      "richtung",
+      "art",
+      "name",
+      "fahrer_person_id",
+      "plaetze",
+      "datum",
+      "zeit",
+      "von",
+      "nach",
+      "treffpunkt",
+      "link",
+      "ziel_bezeichnung",
+      "ziel_adresse",
+      "ziel_lat",
+      "ziel_lon",
+      "ziel_link",
+    ],
+  },
+  fahrt_mitfahrer: {
+    lagerFahrten: [
+      ...LAGER_BASIS_SPALTEN,
+      "fahrt_id",
+      "richtung",
+      "person_id",
+      "teilnehmer_id",
     ],
   },
   // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie

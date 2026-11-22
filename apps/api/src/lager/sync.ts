@@ -376,7 +376,12 @@ export async function setzeZeilen<T extends LagerSpaltenTabelle>(
   tx: Tx,
   tabelle: T,
   k: SchreibKontext,
-  p: { ids: string[]; werte: AendereWerte<T> },
+  p: {
+    ids: string[];
+    werte: AendereWerte<T>;
+    // Statt zu ändern als gelöscht markieren (Soft-Delete wie loescheZeile, Feed «geloescht»): für die Zeilen, die mit ihrem Eltern-Eintrag wegfallen (Mitfahrende einer Fahrt)
+    loeschen?: true;
+  },
 ): Promise<T["$inferSelect"][]> {
   if (p.ids.length === 0) return [];
   const name = pruefeAnmeldung(tabelle);
@@ -406,6 +411,9 @@ export async function setzeZeilen<T extends LagerSpaltenTabelle>(
     .update(tabelle)
     .set({
       ...p.werte,
+      ...(p.loeschen
+        ? { geloeschtAm: sql`now()`, geloeschtVon: k.personId }
+        : {}),
       version: sql`${tabelle.version} + 1`,
       geaendertAm: sql`now()`,
       geaendertVon: k.personId,
@@ -423,7 +431,7 @@ export async function setzeZeilen<T extends LagerSpaltenTabelle>(
     tx,
     name,
     k,
-    "geaendert",
+    p.loeschen ? "geloescht" : "geaendert",
     neu as Zeile[],
     brauchtVorher ? new Map(treffer.map((z) => [z.id, z])) : undefined,
   )) as T["$inferSelect"][];
