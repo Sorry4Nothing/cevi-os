@@ -256,8 +256,8 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
       },
     );
     expect(html).not.toContain(GEHEIM);
-    expect(html).toContain(`<div data-geschuetzt="${ids.angemeldet}"></div>`);
-    expect(html).toContain(`<div data-geschuetzt="${ids.tag}"></div>`);
+    expect(html).toContain(`<div data-geschuetzt="${ids.angemeldet}">`);
+    expect(html).toContain(`<div data-geschuetzt="${ids.tag}">`);
   });
 
   test("Nachladen verändert nichts: Seiten und Versionen bleiben gleich", async () => {

@@ -25,6 +25,8 @@ import {
   rendereAnmeldung,
   rendereFehlerseite,
   rendereHuelle,
+  rendereServerfehler,
+  rendereWartung,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -54,6 +56,9 @@ const MAX_FUNKTIONEN = 3;
 const SITEMAP = "sitemap.xml";
 const ROBOTS = "robots.txt";
 const FEHLERSEITE = "404.html";
+// Der Host liefert sie bei einem Fehler der Website (500) und in der Wartung (503), siehe docs/website-auslieferung.md
+const SERVERFEHLER = "500.html";
+const WARTUNG = "wartung.html";
 const STYLESHEET = "website/website.css";
 // Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
 const ANMELDUNG = "anmelden/index.html";
@@ -500,6 +505,8 @@ export async function erzeugeWebsite(
     ],
     [ROBOTS, rendereRobots(basisUrl)],
     [FEHLERSEITE, rendereFehlerseite(kontext)],
+    [SERVERFEHLER, rendereServerfehler(kontext)],
+    [WARTUNG, rendereWartung(kontext)],
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...Object.entries(opt.skripte ?? {}).map(

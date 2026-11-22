@@ -271,7 +271,14 @@ describe("Geschützte Bausteine", () => {
       expect(html).not.toContain(medium);
       expect(html).not.toContain(person);
       for (const baustein of d.bausteine) {
-        expect(html).toContain(`<div data-geschuetzt="${baustein.id}"></div>`);
+        // Nur die ID und der Hinweis mit dem Link zur Anmeldung, nie Typ oder Inhalt
+        expect(html).toContain(
+          `<div data-geschuetzt="${baustein.id}"><div class="schutzblock">`,
+        );
+      }
+      expect(zaehle(html, 'href="/anmelden?weiter=%2Fseite"')).toBe(5);
+      for (const baustein of d.bausteine) {
+        expect(html).toContain(baustein.id);
       }
       expect(zaehle(html, "data-geschuetzt")).toBe(5);
     },
@@ -321,9 +328,17 @@ describe("Aufbau und Barrierefreiheit", () => {
       '<a class="sprunglink" href="#inhalt">Zum Inhalt</a>',
     );
     expect(html).toContain('<main id="inhalt" tabindex="-1">');
-    expect(html).toContain('<nav aria-label="Hauptnavigation">');
+    expect(html).toContain(
+      '<nav class="hauptnav" aria-label="Hauptnavigation">',
+    );
     expect(html).toContain('<a href="/stufen" aria-current="page">Stufen</a>');
-    expect(html).toContain('<a href="/stufen/biber">Biber</a>');
+    // Die Unterseiten stehen in der Unterleiste und im Menü am Handy
+    expect(html).toContain(
+      '<nav class="unterleiste" aria-label="Unterseiten von Stufen">',
+    );
+    expect(zaehle(html, '<a href="/stufen/biber">Biber</a>')).toBe(2);
+    expect(html).toContain('<details class="menue-mobil">');
+    expect(html).toContain('<a href="/anmelden">');
     expect(html).toContain(
       '<link rel="canonical" href="https://www.example.org/stufen">',
     );
@@ -444,10 +459,10 @@ describe("Aufbau und Barrierefreiheit", () => {
       ),
     );
     expect(html).toContain(
-      `<p><a href="${link}" rel="noopener noreferrer">Anmeldung</a> <span class="info">(PDF, 3.0 MB)</span></p>`,
+      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Anmeldung</a> <span class="info">(PDF, 3.0 MB)</span></p>`,
     );
     expect(html).toContain(
-      `<p><a href="${link}" rel="noopener noreferrer">Nur Link</a></p>`,
+      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Nur Link</a></p>`,
     );
     expect(html).toContain(`>Mit Typ</a> <span class="info">(Excel)</span>`);
     expect(html).toContain(`>Mit Grösse</a> <span class="info">(1 KB)</span>`);
@@ -529,9 +544,11 @@ describe("Aufbau und Barrierefreiheit", () => {
       daten,
     );
     expect(html).toContain(
-      '<li><span class="name">Wolke</span> <span class="funktion">Stufenleitung</span></li>',
+      '<li class="person"><span class="ava" aria-hidden="true">W</span><div><span class="name">Wolke</span><span class="funktion">Stufenleitung</span></div></li>',
     );
-    expect(html).toContain('<li><span class="name">Funke</span></li>');
+    expect(html).toContain(
+      '<li class="person"><span class="ava" aria-hidden="true">F</span><div><span class="name">Funke</span></div></li>',
+    );
     expect(html).not.toMatch(/tel:|mailto:|<img/);
   });
 
@@ -540,7 +557,7 @@ describe("Aufbau und Barrierefreiheit", () => {
       dok("T", b("terminliste", { anzahl: 3 }), b("stufenfakten", {})),
     );
     expect(html).toContain(
-      '<main id="inhalt" tabindex="-1">\n<h1>T</h1>\n\n</main>',
+      '<div class="seitenkopf"><h1>T</h1></div>\n<div class="inhalt">\n\n</div>',
     );
   });
 });
