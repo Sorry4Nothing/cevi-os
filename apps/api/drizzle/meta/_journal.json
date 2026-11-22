@@ -423,6 +423,13 @@
       "breakpoints": true
     },
     {
+      "idx": 84,
+      "version": "7",
+      "when": 1793552400000,
+      "tag": "0084_lager_schichtplan",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
@@ -455,6 +462,13 @@
       "version": "7",
       "when": 1793552900000,
       "tag": "0090_lager_dokumente",
+      "breakpoints": true
+    },
+    {
+      "idx": 91,
+      "version": "7",
+      "when": 1793552950000,
+      "tag": "0091_lager_adressbuch",
       "breakpoints": true
     },
     {

@@ -252,7 +252,7 @@ function umschalten(person, ctx, neu, fertig) {
     titel: deaktivieren ? "Person deaktivieren" : "Person aktivieren",
     beschreibung: deaktivieren
       ? `«${person.name}» kann sich nicht mehr anmelden und wird überall abgemeldet.`
-      : `«${person.name}» kann sich wieder anmelden.`,
+      : `«${person.name}» kann sich wieder anmelden. Dafür gibt es ein neues Startpasswort, das alte gilt nicht mehr.`,
     ok: deaktivieren ? "Deaktivieren" : "Aktivieren",
     gefaehrlich: deaktivieren,
     aktion: () =>
@@ -260,7 +260,7 @@ function umschalten(person, ctx, neu, fertig) {
         "POST",
         `/api/v1/admin/personen/${person.id}/${deaktivieren ? "deaktivieren" : "aktivieren"}`,
       ),
-    danach: () => {
+    danach: (antwort) => {
       zustand.fokus = person.id;
       neu();
       ctx.melde(
@@ -268,6 +268,13 @@ function umschalten(person, ctx, neu, fertig) {
           ? `«${person.name}» ist deaktiviert.`
           : `«${person.name}» ist aktiviert.`,
       );
+      if (!deaktivieren) {
+        geheimnisDialog({
+          titel: "Startpasswort",
+          beschreibung: `Gib das Startpasswort für «${person.name}» sicher weiter. Es gilt 7 Tage und bleibt in der Liste sichtbar, bis die Person es ersetzt hat.`,
+          wert: antwort.startpasswort,
+        });
+      }
       fertig();
     },
   });
@@ -495,7 +502,7 @@ function bearbeiten(person, daten, ctx, neu, tr) {
           person.deaktiviert
             ? kontoAktion(
                 "Person aktivieren",
-                "Sie kann sich wieder anmelden.",
+                "Sie kann sich wieder anmelden, mit einem neuen Startpasswort.",
                 knopf("Aktivieren", {
                   klein: true,
                   symbol: "haken",

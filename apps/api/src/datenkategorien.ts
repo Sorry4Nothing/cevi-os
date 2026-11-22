@@ -168,9 +168,9 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht.",
     frist:
-      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -205,6 +205,22 @@ export const KATEGORIEN = {
     frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
+  },
+  lagerAdressbuch: {
+    titel: "Adressbuch im Lager",
+    zweck:
+      "Externe Kontakte des Lagers an einem Ort haben, zum Beispiel Bäckerei, Platzwart oder Behörde. Die Lagerleitung erfasst Name, Funktion, Gruppe, Telefonnummer, E-Mail-Adresse und eine Notiz. Es sind Daten Dritter, die selbst kein Konto haben: Nur die Lagerleitung liest und ändert sie (die Rechte lassen sich je Lager einstellen), und jedes Lesen steht im Protokoll, ohne die Inhalte. Wer einen Kontakt für das nächste Lager behalten will, markiert ihn.",
+    frist: `180 Tage nach dem Ende des Lagers löscht Cevi OS jeden Kontakt endgültig, ausser er ist mit «Fürs nächste Lager behalten» markiert; 14 Tage vorher erinnert Cevi OS die Lagerleitung. Markierte Kontakte bleiben, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Ein gelöschter Kontakt verschwindet nach 30 Tagen endgültig. Mit dem Konto verschwindet nur die Angabe, wer den Kontakt erfasst hat. ${AUF_ANFRAGE}`,
+    apple: [
+      "Contact Info: Name",
+      "Contact Info: Phone Number",
+      "Contact Info: Email Address",
+    ],
+    google: [
+      "Personal info: Name",
+      "Personal info: Phone number",
+      "Personal info: Email address",
+    ],
   },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
@@ -623,6 +639,19 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "team_sichtbar",
     ],
   },
+  // Adressbuch (#397): Personendaten Dritter, nur Lagerleitung; Aufräumfrist 180 Tage nach dem Lagerende, ausser «behalten»
+  adressbuch_kontakt: {
+    lagerAdressbuch: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "funktion",
+      "gruppe",
+      "telefon",
+      "email",
+      "notiz",
+      "behalten",
+    ],
+  },
   // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
   ressort: {
     lager: [
@@ -910,6 +939,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zimmer_id",
       "teilnehmer_id",
       "person_id",
+    ],
+  },
+  // Dienste und Schichtplan (#388): Name, Beschreibung, nötige Personenzahl und Nachtwache je Dienst; die Schicht nennt Person oder Teilnehmende nur als ID, mit Tag, Abschnitt und Dienst
+  dienst: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "beschreibung",
+      "mindestbesetzung",
+      "nacht",
+      "tagesabschnitt_id",
+      "reihenfolge",
+    ],
+  },
+  schicht: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tagesabschnitt_id",
+      "dienst_id",
+      "person_id",
+      "teilnehmer_id",
     ],
   },
   // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender

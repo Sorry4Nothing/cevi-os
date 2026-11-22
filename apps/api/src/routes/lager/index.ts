@@ -6,6 +6,7 @@ import {
 } from "../../lager/wetter-openmeteo.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleAdressbuchRouten } from "./adressbuch.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
@@ -36,6 +37,7 @@ import { erstelleZimmerRouten } from "./zimmer.js";
 import { erstelleFahrtenRouten } from "./fahrten.js";
 import { erstelleTagesseitenRouten } from "./tagesseiten.js";
 import { erstelleWetterRouten } from "./wetter.js";
+import { erstelleSchichtplanRouten } from "./schichtplan.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
@@ -62,6 +64,7 @@ export function erstelleLagerRouten({
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleAufgabenDetailsRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
+    .route("/", erstelleAdressbuchRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAufgabenSchnellRouten({ db }))
     .route("/", erstelleHoeckRouten({ db }))
@@ -74,6 +77,7 @@ export function erstelleLagerRouten({
     .route("/", erstelleZimmerRouten({ db }))
     .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
+    .route("/", erstelleSchichtplanRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))

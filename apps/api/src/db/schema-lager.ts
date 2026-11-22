@@ -1521,6 +1521,32 @@ export const dokument = pgTable(
   ],
 );
 
+// Adressbuch des Lagers (#397): externe Kontakte (Bäckerei, Platzwart, Behörde) mit Name, Funktion, Gruppe, Telefon, E-Mail und Notiz. Personendaten Dritter, nur für die Lagerleitung (adressbuch.lesen und adressbuch.bearbeiten). «behalten» («Fürs nächste Lager behalten») nimmt den Kontakt aus der Aufräumfrist: Alle anderen löscht der tägliche Lauf (lager/adressbuch.ts) 180 Tage nach dem Lagerende; die Frist folgt dem Lagerende (lager.bis) und steht darum nicht als Spalte. Geschrieben wird nur über lager/sync.ts
+export const adressbuchKontakt = pgTable(
+  "adressbuch_kontakt",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    funktion: text("funktion"),
+    gruppe: text("gruppe"),
+    telefon: text("telefon"),
+    email: text("email"),
+    notiz: text("notiz"),
+    behalten: boolean("behalten").notNull().default(false),
+  },
+  (t) => [
+    index("adressbuch_kontakt_liste_idx").on(
+      t.lagerId,
+      sql`lower(${t.name})`,
+      t.id,
+    ),
+    check(
+      "adressbuch_kontakt_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.funktion} is null or char_length(${t.funktion}) between 1 and 100) and (${t.gruppe} is null or char_length(${t.gruppe}) between 1 and 100) and (${t.telefon} is null or ${t.telefon} ~ '^\+?[0-9][0-9 ()/.-]{4,28}[0-9]$') and (${t.email} is null or (char_length(${t.email}) <= 254 and ${t.email} ~ '^[^@[:space:]]+@[^@[:space:]]+$')) and (${t.notiz} is null or char_length(${t.notiz}) <= 2000)`,
+    ),
+  ],
+);
+
 // Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
 export const fahrt = pgTable(
   "fahrt",
@@ -1616,6 +1642,88 @@ export const fahrtMitfahrer = pgTable(
     check(
       "fahrt_mitfahrer_check",
       sql`${t.richtung} in ('hin', 'rueck') and num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Dienste des Lagers (#388), zum Beispiel «Frühstück», «Abwasch» oder «Nachtwache»: Jeder gehört zu einem Tagesabschnitt und gilt an jedem Lagertag. mindestbesetzung ist die Zahl der Personen, die der Dienst je Tag braucht (mehr einzuteilen ist erlaubt). nacht kennzeichnet Nachtwachen, die der Vorschlag nicht an zwei Tagen hintereinander an dieselbe Person gibt. Der Abschnitt lässt sich nach dem Anlegen nicht ändern, weil die Schichten ihn mitführen. Geschrieben wird nur über lager/sync.ts
+export const dienst = pgTable(
+  "dienst",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    beschreibung: text("beschreibung"),
+    mindestbesetzung: integer("mindestbesetzung").notNull().default(1),
+    nacht: boolean("nacht").notNull().default(false),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    unique("dienst_lager_id_id_uq").on(t.lagerId, t.id),
+    // Ziel des Fremdschlüssels von schicht: Eine Schicht kann nie einen anderen Abschnitt als ihr Dienst haben
+    unique("dienst_lager_id_id_abschnitt_uq").on(
+      t.lagerId,
+      t.id,
+      t.tagesabschnittId,
+    ),
+    foreignKey({
+      name: "dienst_abschnitt_fk",
+      columns: [t.lagerId, t.tagesabschnittId],
+      foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
+    }).onDelete("cascade"),
+    uniqueIndex("dienst_name_uq")
+      .on(t.lagerId, t.tagesabschnittId, sql`lower(${t.name})`)
+      .where(sql`${t.geloeschtAm} is null`),
+    index("dienst_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    check(
+      "dienst_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.beschreibung} is null or char_length(${t.beschreibung}) between 1 and 500) and ${t.mindestbesetzung} between 1 and 20 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Eine eingeteilte Person (Mitglied des Lagers) oder ein eingeteilter Teilnehmender an einem Lagertag in einem Dienst (#388). tagesabschnitt_id ist der Abschnitt des Dienstes (der zusammengesetzte Fremdschlüssel hält sie gleich); eine Person ist je Lagertag und Abschnitt höchstens in einem Dienst (Teilindex ohne gelöschte Zeilen). Die Zeilen gehen mit dem Dienst, dem Lagertag, dem Teilnehmenden und der Mitgliedschaft
+export const schicht = pgTable(
+  "schicht",
+  {
+    ...lagerSpalten(),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    dienstId: uuid("dienst_id").notNull(),
+    personId: uuid("person_id"),
+    teilnehmerId: uuid("teilnehmer_id"),
+  },
+  (t) => [
+    foreignKey({
+      name: "schicht_lagertag_fk",
+      columns: [t.lagerId, t.lagertagId],
+      foreignColumns: [lagertag.lagerId, lagertag.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_dienst_fk",
+      columns: [t.lagerId, t.dienstId, t.tagesabschnittId],
+      foreignColumns: [dienst.lagerId, dienst.id, dienst.tagesabschnittId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    uniqueIndex("schicht_person_uq")
+      .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("schicht_teilnehmer_uq")
+      .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    index("schicht_dienst_idx").on(t.lagerId, t.dienstId, t.lagertagId),
+    check(
+      "schicht_check",
+      sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
     ),
   ],
 );

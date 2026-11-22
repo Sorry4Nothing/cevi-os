@@ -109,6 +109,10 @@ export async function anfrage(methode, pfad, body) {
 const CODES = {
   ANMELDUNG_FEHLGESCHLAGEN:
     "Anmeldung nicht möglich. Prüfe Benutzername und Passwort oder versuche es später nochmals.",
+  GESPERRT:
+    "Dieser Bereich ist durch eine Informationssperre gesperrt. Unter «Plattform» hebst du die Sperre auf.",
+  IN_WARTUNG:
+    "Dieser Bereich ist in Wartung. Ansehen geht, Ändern ist vorübergehend nicht möglich.",
   BILD_FORMAT: "Bitte ein Bild als JPEG, PNG oder WebP wählen.",
   PUSH_NICHT_EINGERICHTET:
     "Der Push-Dienst ist auf diesem Server nicht eingerichtet. Es wurde nichts gesendet.",
