@@ -84,6 +84,11 @@ const ICONS = {
     ["rect", { x: 3.5, y: 5, width: 17, height: 15, rx: 2 }],
     "M3.5 10h17M8 3v4M16 3v4",
   ],
+  termine: [
+    ["rect", { x: 3.5, y: 5, width: 17, height: 15, rx: 2 }],
+    "M3.5 10h17M8 3v4M16 3v4",
+    "m9 15 2 2 4-4",
+  ],
   stern: [
     "M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9z",
   ],
@@ -702,6 +707,7 @@ function pruefePflichtfelder(formular) {
 
 // Liefert den Dialog-Inhalt in der Reihenfolge: Titel, Beschreibung, Felder, Fehler, Knöpfe
 // senden() darf werfen; die Meldung erscheint im Dialog, er bleibt offen
+// pruefe() (optional) prüft Felder, die keine Pflichtfelder im Sinn von «required» sind; sie zeigt die Meldungen beim Feld, setzt den Fokus selbst und liefert true, wenn etwas fehlt
 export function dialogFormular({
   titel,
   beschreibung,
@@ -710,6 +716,7 @@ export function dialogFormular({
   gefaehrlich = false,
   senden,
   danach,
+  pruefe,
   fehlertext = standardFehlertext,
 }) {
   const zurueck = ausloeser();
@@ -747,7 +754,7 @@ export function dialogFormular({
   formular.addEventListener("submit", async (ereignis) => {
     ereignis.preventDefault();
     fehler.hidden = true;
-    if (pruefePflichtfelder(formular)) return;
+    if (pruefePflichtfelder(formular) || pruefe?.()) return;
     abbrechen.disabled = bestaetigen.disabled = true;
     try {
       const ergebnis = await senden();

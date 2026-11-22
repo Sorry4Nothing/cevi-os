@@ -34,6 +34,7 @@ import { API_URL, BESITZER_URL } from "../hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "../hilfen/personas.js";
@@ -176,7 +177,9 @@ beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
   [lagerleitung, team, lesen, ohneMitgliedschaft, fremd] = await Promise.all(
     (["slA", "leitendeA", "leitendeB", "elternA", "demoEltern"] as const).map(
-      (p) => legePersonaAn(welt, p),
+      (p) =>
+        // Die Lagerleitung braucht den zweiten Faktor (#423)
+        p === "slA" ? legePersonaMitFaktorAn(welt, p) : legePersonaAn(welt, p),
     ),
   );
   ohneLogin = await legePersonaAn(welt, "ohneLogin");

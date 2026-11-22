@@ -17,7 +17,7 @@ import { erstelleApp } from "../src/app.js";
 import { kodiereMedienbild } from "../src/bild-sharp.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { MEDIEN_BILD_MAX_BYTES, MEDIEN_PDF_MAX_BYTES } from "../src/medien.js";
+import { MEDIEN_BILD_MAX_BYTES } from "../src/medien.js";
 import type { Medienspeicher } from "../src/medien-speicher.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
@@ -242,53 +242,40 @@ describe("Upload von Bildern", () => {
   });
 });
 
-describe("Upload von PDFs", () => {
-  test("ein PDF bleibt unverändert, ohne Alt-Text, auch mit dem Content-Type eines Bildes", async () => {
-    const { speicher, objekte } = attrappe();
-    const quelle = pdf(1000);
-    const res = await hochladen({
-      app: neueApp(speicher),
-      body: quelle,
-      query: "sichtbarkeit=angemeldet",
-      typ: "image/jpeg",
-    });
-    expect(res.status).toBe(201);
-    const medium = (await res.json()) as { id: string };
-    expect(medium).toMatchObject({
-      mimeTyp: "application/pdf",
-      groesse: quelle.length,
-      breite: null,
-      hoehe: null,
-      altText: null,
-      dekorativ: false,
-    });
-    const [zeile] = await db
-      .select()
-      .from(schema.medium)
-      .where(eq(schema.medium.id, medium.id));
-    expect(Buffer.from(objekte.get(zeile.speicherSchluessel)!.inhalt)).toEqual(
-      quelle,
-    );
-  });
-
-  test("ein PDF kann nicht dekorativ sein", async () => {
-    const { speicher } = attrappe();
-    const res = await hochladen({
-      app: neueApp(speicher),
-      body: pdf(),
-      query: "sichtbarkeit=angemeldet&dekorativ=true",
-    });
-    expect(res.status).toBe(400);
-  });
-
-  test("ein PDF über 20 MB wird mit 413 abgelehnt, mit und ohne Content-Length", async () => {
+describe("Upload von PDFs (entfällt, #428)", () => {
+  test("ein PDF wird mit 415 abgelehnt, auch mit Alt-Text und dem Content-Type eines Bildes", async () => {
     const { speicher, objekte } = attrappe();
     const app = neueApp(speicher);
-    const gross = pdf(MEDIEN_PDF_MAX_BYTES);
-    expect(
-      (await hochladen({ app, body: gross, query: "sichtbarkeit=angemeldet" }))
-        .status,
-    ).toBe(413);
+    const vorher = (await zeilen()).length;
+    for (const query of [
+      "sichtbarkeit=angemeldet",
+      "sichtbarkeit=oeffentlich&altText=Beschreibung",
+      "sichtbarkeit=angemeldet&dekorativ=true",
+    ]) {
+      const res = await hochladen({
+        app,
+        body: pdf(1000),
+        query,
+        typ: "image/jpeg",
+      });
+      expect(res.status, query).toBe(415);
+      expect(await res.json()).toMatchObject({ code: "MEDIEN_FORMAT" });
+    }
+    expect(objekte.size).toBe(0);
+    expect((await zeilen()).length).toBe(vorher);
+  });
+
+  test("ein grosses PDF ist 413 mit JSON-Fehler, mit und ohne Content-Length", async () => {
+    const { speicher, objekte } = attrappe();
+    const app = neueApp(speicher);
+    const gross = pdf(MEDIEN_BILD_MAX_BYTES);
+    const ohne = await hochladen({
+      app,
+      body: gross,
+      query: "sichtbarkeit=angemeldet",
+    });
+    expect(ohne.status).toBe(413);
+    expect(await ohne.json()).toMatchObject({ code: "ZU_GROSS" });
     const mitLaenge = await app.request(
       "/api/v1/admin/medien?sichtbarkeit=angemeldet",
       {
@@ -345,7 +332,7 @@ describe("Typ-Täuschung", () => {
     const { speicher } = attrappe();
     const res = await hochladen({
       app: neueApp(speicher),
-      body: pdf(),
+      body: await jpeg(),
       query: "sichtbarkeit=angemeldet&dateiname=a.jpg&typ=image/jpeg",
     });
     expect(res.status).toBe(400);
@@ -355,7 +342,9 @@ describe("Typ-Täuschung", () => {
     const { speicher } = attrappe();
     const app = neueApp(speicher);
     for (const query of ["altText=Text", "sichtbarkeit=alle&altText=Text"]) {
-      expect((await hochladen({ app, body: pdf(), query })).status).toBe(400);
+      expect((await hochladen({ app, body: await jpeg(), query })).status).toBe(
+        400,
+      );
     }
   });
 });
@@ -424,28 +413,35 @@ describe("Rechte", () => {
     expect((await lesen(app, "kein-uuid", "admin")).status).toBe(400);
   });
 
-  test("ein PDF wird als Download in einer Sandbox ausgeliefert", async () => {
+  test("ein altes PDF-Medium (vor #428) wird nicht mehr ausgeliefert, bleibt aber in der Liste und löschbar", async () => {
     const { speicher } = attrappe();
     const app = neueApp(speicher);
-    const id = (
-      (await (
-        await hochladen({
-          app,
-          body: pdf(),
-          query: "sichtbarkeit=oeffentlich",
+    const [alt] = await db
+      .insert(schema.medium)
+      .values({
+        abteilungId: welt.testabteilungId,
+        mimeTyp: "application/pdf",
+        groesse: 10,
+        sichtbarkeit: "oeffentlich",
+        speicherSchluessel: randomUUID(),
+      })
+      .returning({ id: schema.medium.id });
+    // Weder ohne Sitzung (öffentlich) noch mit Sitzung
+    expect((await lesen(app, alt.id)).status).toBe(404);
+    expect((await lesen(app, alt.id, "admin")).status).toBe(404);
+    const admin = (await legePersonaAn(welt, "admin")).headers;
+    const liste = (await (
+      await app.request("/api/v1/admin/medien", { headers: admin })
+    ).json()) as { medien: { id: string }[] };
+    expect(liste.medien.map((m) => m.id)).toContain(alt.id);
+    expect(
+      (
+        await app.request(`/api/v1/admin/medien/${alt.id}`, {
+          method: "DELETE",
+          headers: admin,
         })
-      ).json()) as { id: string }
-    ).id;
-    const res = await lesen(app, id);
-    expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toBe("application/pdf");
-    expect(res.headers.get("content-disposition")).toBe(
-      'attachment; filename="dokument.pdf"',
-    );
-    expect(res.headers.get("content-security-policy")).toBe(
-      "sandbox; frame-ancestors 'none'",
-    );
-    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+      ).status,
+    ).toBe(204);
   });
 
   test("Liste und Löschen bleiben in der Abteilung des Admins", async () => {
@@ -455,7 +451,11 @@ describe("Rechte", () => {
     const demoAdmin = (await legePersonaAn(welt, "demoAdmin")).headers;
     const id = (
       (await (
-        await hochladen({ app, body: pdf(), query: "sichtbarkeit=angemeldet" })
+        await hochladen({
+          app,
+          body: await jpeg(),
+          query: "sichtbarkeit=angemeldet&altText=Blau",
+        })
       ).json()) as {
         id: string;
       }
@@ -504,7 +504,7 @@ describe("Ausfall des Speichers", () => {
     const { speicher, fehler } = attrappe();
     fehler.ablegen = true;
     const vorher = (await zeilen()).length;
-    const res = await hochladen({ app: neueApp(speicher), body: pdf() });
+    const res = await hochladen({ app: neueApp(speicher), body: await jpeg() });
     expect(res.status).toBe(500);
     const text = await res.text();
     expect(text).not.toContain("geheimer-bucket");
@@ -520,8 +520,13 @@ describe("Ausfall des Speichers", () => {
     const aufruf = vi.spyOn(speicher, "ablegen");
     const app = neueApp(speicher);
     expect(
-      (await hochladen({ app, body: pdf(), query: "sichtbarkeit=angemeldet" }))
-        .status,
+      (
+        await hochladen({
+          app,
+          body: await jpeg(),
+          query: "sichtbarkeit=angemeldet&altText=Blau",
+        })
+      ).status,
     ).toBe(201);
     const [schluessel] = [...objekte.keys()];
     aufruf.mockImplementationOnce(async (inhalt, typ) => {
@@ -530,8 +535,8 @@ describe("Ausfall des Speichers", () => {
     });
     const res = await hochladen({
       app,
-      body: pdf(),
-      query: "sichtbarkeit=angemeldet",
+      body: await jpeg(),
+      query: "sichtbarkeit=angemeldet&altText=Blau",
     });
     expect(res.status).toBe(500);
     // Das Aufräumen löschte den Schlüssel, den auch die erste Zeile nutzt: Die Attrappe kennt keine Zählung; entscheidend ist der Aufruf
@@ -541,7 +546,11 @@ describe("Ausfall des Speichers", () => {
   test("Upload: scheitert auch das Aufräumen, bleibt es bei 500 und das Log nennt die Waise", async () => {
     const { speicher, objekte, fehler } = attrappe();
     const app = neueApp(speicher);
-    await hochladen({ app, body: pdf(), query: "sichtbarkeit=angemeldet" });
+    await hochladen({
+      app,
+      body: await jpeg(),
+      query: "sichtbarkeit=angemeldet&altText=Blau",
+    });
     const [schluessel] = [...objekte.keys()];
     vi.spyOn(speicher, "ablegen").mockImplementationOnce(async () => {
       fehler.loeschen = true;
@@ -549,8 +558,8 @@ describe("Ausfall des Speichers", () => {
     });
     const res = await hochladen({
       app,
-      body: pdf(),
-      query: "sichtbarkeit=angemeldet",
+      body: await jpeg(),
+      query: "sichtbarkeit=angemeldet&altText=Blau",
     });
     expect(res.status).toBe(500);
     expect(JSON.stringify(ausgabe.mock.calls)).toContain("WAISE");
@@ -561,7 +570,11 @@ describe("Ausfall des Speichers", () => {
     const app = neueApp(speicher);
     const id = (
       (await (
-        await hochladen({ app, body: pdf(), query: "sichtbarkeit=oeffentlich" })
+        await hochladen({
+          app,
+          body: await jpeg(),
+          query: "sichtbarkeit=oeffentlich&altText=Blau",
+        })
       ).json()) as { id: string }
     ).id;
     fehler.holen = true;
@@ -577,7 +590,11 @@ describe("Ausfall des Speichers", () => {
     const app = neueApp(speicher);
     const id = (
       (await (
-        await hochladen({ app, body: pdf(), query: "sichtbarkeit=angemeldet" })
+        await hochladen({
+          app,
+          body: await jpeg(),
+          query: "sichtbarkeit=angemeldet&altText=Blau",
+        })
       ).json()) as { id: string }
     ).id;
     fehler.loeschen = true;
@@ -592,7 +609,7 @@ describe("Ausfall des Speichers", () => {
 
   test("ohne Speicher antworten die Routen mit 501", async () => {
     const app = neueApp();
-    expect((await hochladen({ app, body: pdf() })).status).toBe(501);
+    expect((await hochladen({ app, body: await jpeg() })).status).toBe(501);
     expect((await lesen(app, randomUUID(), "admin")).status).toBe(501);
   });
 });
@@ -610,6 +627,69 @@ describe("Begrenzung", () => {
       );
     }
     expect(status).toEqual([...Array(10).fill(415), 429]);
+  });
+
+  test("die Liste blättert mit limit und offset und sucht im Alt-Text, ohne Platzhalter der Nutzer", async () => {
+    const app = neueApp(attrappe().speicher);
+    const headers = (await legePersonaAn(welt, "admin")).headers;
+    const texte = [
+      "Seitenwechsel 100% Sonne",
+      "Seitenwechsel 1000 Sonne",
+      "Seitenwechsel a_b",
+      "Seitenwechsel axb",
+    ];
+    for (const [i, altText] of texte.entries()) {
+      await db.insert(schema.medium).values({
+        abteilungId: welt.testabteilungId,
+        mimeTyp: "image/webp",
+        groesse: 10,
+        breite: 1,
+        hoehe: 1,
+        altText,
+        sichtbarkeit: "angemeldet",
+        speicherSchluessel: randomUUID(),
+        erstelltAm: new Date(Date.UTC(2031, 0, 1, 0, 0, i)),
+      });
+    }
+    type Liste = { medien: { altText: string }[]; weitere: boolean };
+    const hole = async (query: string, pfad = "/api/v1/admin/medien") =>
+      (await (
+        await app.request(`${pfad}?${query}`, { headers })
+      ).json()) as Liste;
+    // Neueste zuerst: die jüngsten zwei, dann die nächsten zwei, dann nichts mehr
+    const eins = await hole("suche=Seitenwechsel&limit=2");
+    expect(eins.medien.map((m) => m.altText)).toEqual([texte[3], texte[2]]);
+    expect(eins.weitere).toBe(true);
+    const zwei = await hole("suche=Seitenwechsel&limit=2&offset=2");
+    expect(zwei.medien.map((m) => m.altText)).toEqual([texte[1], texte[0]]);
+    expect(zwei.weitere).toBe(false);
+    expect((await hole("suche=Seitenwechsel&limit=2&offset=4")).medien).toEqual(
+      [],
+    );
+    // % und _ sind Text, keine Platzhalter; Gross- und Kleinschreibung gilt nicht
+    const prozent = await hole("suche=100%25");
+    expect(prozent.medien.map((m) => m.altText)).toEqual([texte[0]]);
+    const strich = await hole("suche=a_b");
+    expect(strich.medien.map((m) => m.altText)).toEqual([texte[2]]);
+    const gross = await hole(
+      "suche=SEITENWECHSEL%20A",
+      "/api/v1/redaktion/medien",
+    );
+    expect(gross.medien).toHaveLength(2);
+    // Ungültige Angaben sind 400
+    for (const query of [
+      "limit=0",
+      "limit=101",
+      "offset=-1",
+      "suche=",
+      "x=1",
+    ]) {
+      expect(
+        (await app.request(`/api/v1/admin/medien?${query}`, { headers }))
+          .status,
+        query,
+      ).toBe(400);
+    }
   });
 
   test("die Grenze von 64 KB gilt weiter für andere POST-Routen", async () => {

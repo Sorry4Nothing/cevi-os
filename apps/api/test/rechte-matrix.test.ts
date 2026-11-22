@@ -46,6 +46,12 @@ import {
   legeLagerWeltAn,
   type LagerWelt,
 } from "./lager/matrix.js";
+import {
+  antwortenJePersona as antwortenTermine,
+  legeTermineKontextAn,
+  TERMINE_MATRIX,
+  type TermineKontext,
+} from "./termine/matrix.js";
 
 bereiteAuthTestsVor();
 
@@ -144,6 +150,19 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  "GET /admin/termine.js": { erwartet: alle(200) },
+  "GET /admin/termine.css": { erwartet: alle(200) },
+  "GET /admin/termine-warnliste.js": { erwartet: alle(200) },
+  "GET /admin/termine-warnliste.css": { erwartet: alle(200) },
+  "GET /admin/termine-kategorien.js": { erwartet: alle(200) },
+  "GET /admin/termine-kategorien.css": { erwartet: alle(200) },
+  "GET /admin/termine-vorschlaege.js": { erwartet: alle(200) },
+  "GET /admin/termine-vorschlaege.css": { erwartet: alle(200) },
+  "GET /admin/termine-anlaesse.js": { erwartet: alle(200) },
+  "GET /admin/termine-anlaesse.css": { erwartet: alle(200) },
+  "GET /admin/termine-raeume.js": { erwartet: alle(200) },
+  "GET /admin/termine-raeume.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -179,6 +198,8 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(400),
       admin: 401,
       demoAdmin: 401,
+      // Hat den zweiten Faktor, weil die Lager-Matrix das Konto als Lagerleitung nimmt (#423)
+      elternB: 401,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -189,6 +210,8 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(400),
       admin: 401,
       demoAdmin: 401,
+      // Hat den zweiten Faktor, weil die Lager-Matrix das Konto als Lagerleitung nimmt (#423)
+      elternB: 401,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1021,6 +1044,91 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Plattformrollen (#423): nur die Abteilungsleitung mit zweitem Faktor; fremde Abteilung 404, vor dem 403. Die Wirkung steht in test/plattformrollen.test.ts
+  "GET /api/v1/admin/plattform/rollen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/plattform/rollen": {
+    // Ein Name je Anfrage: Namen sind je Abteilung eindeutig
+    body: () => ({
+      name: `Matrix ${randomUUID()}`,
+      rechte: ["medien.verwalten"],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/plattform/rollen/:id": {
+    url: () => `/api/v1/admin/plattform/rollen/${plattformRolleId}`,
+    body: () => ({ rechte: ["vorlagen.nutzen"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/plattform/rollen/:id": {
+    // Jede Anfrage löscht ihre Rolle
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/plattform/rollen/${await wegwerfPlattformRolleId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/admin/plattform/rollen/:id/personen/:userId": {
+    url: () =>
+      `/api/v1/admin/plattform/rollen/${plattformRolleId}/personen/${tagPersonId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/plattform/rollen/:id/personen/:userId": {
+    // Jede Anfrage entzieht ihre Vergabe
+    urlJeAnfrage: async () => {
+      const rolleId = await wegwerfPlattformRolleId();
+      await welt.db
+        .insert(schema.personPlattformRolle)
+        .values({ userId: tagPersonId, rolleId });
+      return `/api/v1/admin/plattform/rollen/${rolleId}/personen/${tagPersonId}`;
+    },
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Redaktion, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
   "GET /api/v1/redaktion/seiten": {
     erwartet: {
@@ -1490,6 +1598,7 @@ const MATRIX: Record<string, Zeile> = {
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let lagerWelt: LagerWelt;
+let termineKontext: TermineKontext;
 let programmId: string;
 let anwesenheitProgrammId: string;
 let anwesenheitLeitungId: string;
@@ -1509,6 +1618,7 @@ let bildZielId: string;
 let mediumId: string;
 let seiteId: string;
 let weiterleitungId: string;
+let plattformRolleId: string;
 let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
@@ -1623,6 +1733,21 @@ async function wegwerfBearbeiterId() {
   return zeile.id;
 }
 
+// Wegwerf-Plattformrolle der Testabteilung (#423) mit einem Recht
+async function wegwerfPlattformRolleId() {
+  const [zeile] = await welt.db
+    .insert(schema.plattformRolle)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Wegwerf ${randomUUID()}`,
+    })
+    .returning({ id: schema.plattformRolle.id });
+  await welt.db
+    .insert(schema.plattformRolleRecht)
+    .values({ rolleId: zeile.id, recht: "medien.verwalten" });
+  return zeile.id;
+}
+
 // Wegwerf-Seite der Testabteilung, oberste Ebene
 async function wegwerfSeiteId() {
   const [zeile] = await welt.db
@@ -1678,6 +1803,8 @@ beforeAll(async () => {
   standard = await personasAnlegen();
   // Lager der Lager-Matrix (test/lager/matrix/*.ts), einmal je Welt
   lagerWelt = await legeLagerWeltAn(welt, standard);
+  // Objekte der Termine-Matrix (test/termine/matrix/*.ts), einmal je Welt
+  termineKontext = await legeTermineKontextAn(welt, standard);
   anwesenheitLeitungId = standard.slA.id as string;
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
@@ -1714,6 +1841,7 @@ beforeAll(async () => {
   patchRegelId = await wegwerfRegelId();
   patchTagId = await wegwerfTagId();
   tagPersonId = await wegwerfPersonId();
+  plattformRolleId = await wegwerfPlattformRolleId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })
@@ -1776,7 +1904,13 @@ const schluesselVon = (instanz: Instanz) =>
   new Set(instanz.routes.map((r) => `${r.method} ${r.path}`));
 const ohneZeile = (instanz: Instanz) =>
   [...schluesselVon(instanz)]
-    .filter((s) => !(s in MATRIX) && !(s in LAGER_MATRIX) && !MIDDLEWARE.has(s))
+    .filter(
+      (s) =>
+        !(s in MATRIX) &&
+        !(s in LAGER_MATRIX) &&
+        !(s in TERMINE_MATRIX) &&
+        !MIDDLEWARE.has(s),
+    )
     .sort();
 
 describe("Vollständigkeit", () => {
@@ -1785,8 +1919,15 @@ describe("Vollständigkeit", () => {
     expect(ohneZeile(app)).toEqual([]);
     expect(Object.keys(MATRIX).filter((s) => !routen.has(s))).toEqual([]);
     expect(Object.keys(LAGER_MATRIX).filter((s) => !routen.has(s))).toEqual([]);
-    // Eine Route steht in genau einer der beiden Matrizen
+    expect(Object.keys(TERMINE_MATRIX).filter((s) => !routen.has(s))).toEqual(
+      [],
+    );
+    // Eine Route steht in genau einer der Matrizen
     expect(Object.keys(LAGER_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
+    expect(Object.keys(TERMINE_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
+    expect(
+      Object.keys(TERMINE_MATRIX).filter((s) => s in LAGER_MATRIX),
+    ).toEqual([]);
     expect([...MIDDLEWARE].filter((s) => !routen.has(s))).toEqual([]);
   });
 
@@ -1883,6 +2024,21 @@ describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", ()
       ),
     ).toEqual(zeile.erwartet[zustand]);
   });
+});
+
+// Rolle mal Anmeldung für jede Route der Termine-Module (test/termine/matrix/*.ts); die Regeln über alle Zeilen prüft test/termine/matrix-regeln.test.ts. Bewusst eine Schleife: Ohne Zeilen ergibt sie keinen Test, statt an einem leeren test.each zu scheitern
+describe("Termine-Matrix: jede Route mal jede Persona", () => {
+  // H�lt die Suite auch ohne Zeilen g�ltig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
+  test("der Kontext der Termine steht", () => {
+    expect(termineKontext.welt).toBe(welt);
+  });
+  for (const [schluessel, zeile] of Object.entries(TERMINE_MATRIX)) {
+    test(schluessel, async () => {
+      expect(
+        await antwortenTermine(app, schluessel, zeile, termineKontext),
+      ).toEqual(zeile.erwartet);
+    });
+  }
 });
 
 describe("jeder übrige better-auth-Pfad liefert 404 aus der App", () => {

@@ -118,7 +118,7 @@ Die Schritte vom Anmelden des Admins bis «Kontakt» laufen auf jedem Gerät ein
 
 - Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
 - Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
-- Die Dateien der Medien (Bilder und PDFs, #335): Sie liegen im Bucket des Medienspeichers, nicht in der Datenbank. Der Dump enthält nur die Tabelle `medium` (Metadaten), siehe «Medienspeicher» unten.
+- Die Dateien der Medien (nur Bilder, #335): Sie liegen im Bucket des Medienspeichers, nicht in der Datenbank. Der Dump enthält nur die Tabelle `medium` (Metadaten), siehe «Medienspeicher» unten.
 
 Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
 
@@ -149,12 +149,13 @@ Jeder Schlüssel kann das Archiv auch löschen. Der Schutz dagegen liegt beim An
 
 ### Medienspeicher
 
-Bilder und PDFs (`medium`, #335) liegen in einem eigenen S3-Bucket, den `MEDIEN_S3_*` in `deploy/.env` benennen; ohne die Variablen startet die API ohne Medien, und deren Routen antworten 501. `deploy/backup.sh` sichert nur die Datenbank: Der Dump enthält die Zeilen von `medium`, nicht die Dateien. Folgen:
+Bilder (`medium`, #335) liegen in einem eigenen S3-Bucket, den `MEDIEN_S3_*` in `deploy/.env` benennen; ohne die Variablen startet die API ohne Medien, und deren Routen antworten 501. `deploy/backup.sh` sichert nur die Datenbank: Der Dump enthält die Zeilen von `medium`, nicht die Dateien. Folgen:
 
 - **Verlust oder Löschen des Buckets:** Die Dateien sind ohne eine Kopie des Anbieters weg. Die Zeilen bleiben, ihr Abruf antwortet dann 500 (Datei fehlt), und die Dateien müssen neu hochgeladen werden.
 - **Wiederherstellung der Datenbank auf einen älteren Stand:** Dateien, die nach dem Backup hochgeladen wurden, bleiben als Waisen im Bucket (keine Zeile, keine Route liefert sie aus). Dateien, die nach dem Backup gelöscht wurden, fehlen, obwohl die Zeile zurückkommt.
 - **Waisen im Normalbetrieb:** Scheitert der Speicher nach dem Löschen einer Zeile, bleibt die Datei im Bucket; das Log nennt es mit `"code":"WAISE"`. Waisen sind unsichtbar und nur Platz; ein Aufräumlauf gehört nicht zum Umfang von #335.
 - **Schutz:** Der Server-Zugangsschlüssel muss Dateien löschen können (die Route «Medium löschen»). Der Schutz vor versehentlichem oder böswilligem Löschen liegt darum beim Anbieter, wie beim Backup-Bucket: Versionierung oder Object Lock, mit einer Regel, die alte Versionen nach einer festen Frist entfernt. Ob der gewählte Anbieter das bietet, ist offen und vor dem Einsatz zu klären.
+- **Nur Bilder (#428):** Der Medienspeicher nimmt JPEG, PNG und WebP an; ein PDF-Upload ist 415. Dateien zum Herunterladen liegen im SharePoint der Abteilung und stehen auf der Website als Link (Baustein «Datei»); sie belegen keinen Platz im Bucket und fehlen im Backup, wie alles im SharePoint. PDF-Medien aus der Zeit vor #428 liefert keine Route mehr aus; sie bleiben in der Medienliste und lassen sich dort löschen (das entfernt auch die Datei im Bucket). Bausteine «Datei» aus dem alten Schema (mit `mediumId`) sind ungültig und müssen mit einem Link neu angelegt werden: Das Veröffentlichen antwortet 422, eine schon veröffentlichte Seite behält ihr letztes HTML.
 - **Zugang:** Eigener Bucket und eigener Schlüssel, der nur diesen Bucket lesen, schreiben und löschen darf; nie der Schlüssel des Backups. Der Bucket hat keinen öffentlichen Zugriff: Auch öffentliche Medien liefert die API aus.
 
 Einrichtung: Bucket und Schlüssel beim Anbieter anlegen, die fünf Werte `MEDIEN_S3_*` in `deploy/.env` füllen (Vorlage: `deploy/.env.example`, `MEDIEN_S3_PFADSTIL=true` nur, wenn der Anbieter den Bucket im Pfad verlangt), mit `./deploy.sh <Tag>` ausrollen. Anbieter und Bucket-Name stehen noch nicht fest.
@@ -256,6 +257,12 @@ Admins melden sich zusätzlich mit einem Code aus einer Authenticator-App oder e
 - **Das Auth-Geheimnis ändert sich:** better-auth verschlüsselt die TOTP-Geheimnisse und die Ersatzcodes mit `BETTER_AUTH_SECRET`. Nach einem Wechsel lassen sie sich nicht mehr entschlüsseln: Wer den Server betreibt, setzt den Faktor jedes Admins mit der CLI zurück, danach meldet sich jeder an und richtet ihn neu ein.
 
 Jede Zurücksetzung schreibt eine Zeile ins Audit-Log; bei der CLI steht «cli» als Akteur.
+
+## Plattformrollen
+
+Der **Entwickler** hat jedes Recht der Plattform und lässt sich nur mit der CLI vergeben und entziehen, nie über die Verwaltung oder eine Route (#423). In `deploy/`: `docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/entwickler.ts vergeben --benutzername <name>`, zum Entziehen `entziehen` statt `vergeben`. Lokal: `npm run entwickler:vergeben -w apps/api -- --benutzername <name>` und `npm run entwickler:entziehen -w apps/api -- --benutzername <name>`. Die CLI braucht nur `DATABASE_URL`; jede Änderung steht im Audit-Log mit «cli» als Akteur. Der Entwickler braucht den zweiten Faktor: Ohne ihn antwortet die API mit 403 `ZWEITER_FAKTOR_FEHLT`.
+
+Die **Abteilungsleitung** hat die Rechte fest. Weitere Rollen (zuerst der Webmaster, den jede Abteilung als Vorgabe hat) legt die Abteilungsleitung an und stellt ihre Rechte ein (`/api/v1/admin/plattform/rollen`). Jedes dieser Rechte ist «erweitert» und braucht den zweiten Faktor; einfach ist nur die Arbeit der Stufenleitung an der eigenen Stufenseite. Auch die Lager-Rolle `lagerleitung` braucht ihn. Die Rolle einer Person ändert sich mit der nächsten Anfrage, ohne neue Anmeldung.
 
 ## Datenpanne
 

@@ -78,7 +78,6 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
     }
     switch (b.typ) {
       case "bild":
-      case "datei":
         medien.add(b.daten.mediumId);
         break;
       case "galerie":

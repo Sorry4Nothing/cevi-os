@@ -26,6 +26,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -197,7 +198,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "demoEltern"),
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "slB"),
-    legePersonaAn(welt, "leitendeA"),
+    legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
@@ -475,7 +476,7 @@ describe("Verweisprüfung", () => {
     );
   });
 
-  test("ein PDF ist kein Bild, aber eine Datei", async () => {
+  test("ein altes PDF-Medium ist kein Bild; eine Datei verweist auf keinen Mediumseintrag mehr (#428)", async () => {
     const id = await neueSeite();
     const pdf = await neuesMedium("angemeldet", "pdf");
     const antwort = await speichere(
@@ -486,10 +487,24 @@ describe("Verweisprüfung", () => {
       422,
     );
     expect(await code(antwort)).toBe("MEDIUM_FORMAT");
+    // Das alte Schema der Datei (Verweis auf ein Medium) ist ungültig
     await speichere(
       admin,
       id,
       dokument(baustein("datei", { mediumId: pdf })),
+      0,
+      400,
+    );
+    // Eine Datei ist ein Link: ohne Medium, ohne Verweisprüfung, auch auf einer öffentlichen Seite
+    await speichere(
+      admin,
+      id,
+      dokument(
+        baustein("datei", {
+          titel: "Packliste",
+          link: "https://cevi.sharepoint.com/sites/lager/packliste.pdf",
+        }),
+      ),
       0,
     );
   });
@@ -941,7 +956,7 @@ describe("Rechte", () => {
     const id = await neueSeite();
     const andere = await neueSeite();
     await speichere(redaktion, id, dokument(), 0);
-    const person = await legePersonaAn(welt, "leitendeA");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",
@@ -963,7 +978,7 @@ describe("Rechte", () => {
 
   test("ein Recht ohne Auswirkung auf fremde Abteilungen: Zeile mit fremder Seiten-ID gibt kein Recht", async () => {
     const demoSeite = await neueSeite("angemeldet", null, welt.demoAbteilungId);
-    const person = await legePersonaAn(welt, "leitendeA");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",

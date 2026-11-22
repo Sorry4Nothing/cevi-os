@@ -180,7 +180,8 @@ beforeAll(async () => {
       id: zeile!.id,
       abteilungId: abteilung,
       admin,
-      zweiterFaktor: false,
+      // Die Lagerleitung braucht den zweiten Faktor (#423); dieser Test prüft die Rechte der Dateien, nicht ihn
+      zweiterFaktor: true,
       rollen: [],
     };
   };
