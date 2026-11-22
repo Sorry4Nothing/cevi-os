@@ -3496,11 +3496,11 @@ paths:
       operationId: weiseAdminTagZu
       summary: Tag einer Person zuweisen
       description: |
-        Nur Admins. Weist der Person den Tag zu oder ändert eine bestehende Zuordnung. Ein Schlüssel ohne Wert lässt das Feld, wie es ist (bei einer neuen Zuordnung: leer); `null` leert es. Eine Person trägt einen Tag höchstens einmal. Die Zuordnung steht im Audit-Log (Person und Priorität, nie die Rolle). Tags verleihen für sich keine Rechte: Wer Admin ist, steht in `admins.ts`, nicht in den Tags.
+        Nur Admins. Weist der Person den Tag zu oder ändert eine bestehende Zuordnung. Ein Schlüssel ohne Wert lässt das Feld, wie es ist (bei einer neuen Zuordnung: leer); `null` leert es. Eine Person trägt einen Tag höchstens einmal. Die Zuordnung steht im Audit-Log (Person und Priorität, nie die Rolle). Tags verleihen für sich keine Rechte: Wer Admin ist, steht in `admins.ts`, nicht in den Tags. Darum setzt diese Route an Tags vom Typ `stufe` die Rollenwerte `leitung` und `stufenleitung` nicht: Sie sind Stufenrollen mit Rechten und gehen nur über `PATCH /api/v1/admin/personen/{id}` (mit Audit-Log und Push). Freie Rollen an Stufen-Tags und alle Rollen an Tags anderer Typen bleiben möglich; bestehende Zuordnungen bleiben unberührt.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403), dann Person in der eigenen Abteilung (404).
+        Reihenfolge der Prüfungen: Pfad und Body (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufenrolle an einem Stufen-Tag (400), dann Person in der eigenen Abteilung (404).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn Tag oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder bei `leitung` und `stufenleitung` an einem Stufen-Tag. 403 für Nicht-Admins. 404, wenn Tag oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
       tags:
         - Verwaltung
       parameters:

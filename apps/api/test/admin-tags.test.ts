@@ -474,6 +474,119 @@ describe("PUT und DELETE /api/v1/admin/tags/:id/personen/:userId", () => {
     );
   });
 
+  describe("Stufenrollen (#344)", () => {
+    const neuePerson = async () => {
+      const [p] = await db
+        .insert(schema.user)
+        .values({
+          name: "Stufenrolle Person",
+          email: `${crypto.randomUUID()}@example.org`,
+          username: `stufenrolle.${crypto.randomUUID().slice(0, 8)}`,
+          abteilungId: welt.testabteilungId,
+          mussPasswortAendern: false,
+        })
+        .returning({ id: schema.user.id });
+      return p.id;
+    };
+
+    test.each(["leitung", "stufenleitung", "  stufenleitung "])(
+      "an einem Stufen-Tag ist die Rolle «%s» 400 und legt nichts an; die Antwort zeigt keine Details",
+      async (rolle) => {
+        const antwort = await anfrage(
+          admin,
+          "PUT",
+          url(welt.stufeAId, eltern.id),
+          { rolle },
+        );
+        expect(antwort.status).toBe(400);
+        expect(await antwort.json()).toEqual({
+          code: "UNGUELTIGE_EINGABE",
+          message: "Ungültige Eingabe",
+        });
+        expect(await zuordnung(welt.stufeAId, eltern.id!)).toBeUndefined();
+      },
+    );
+
+    test("eine bestehende Stufenrolle bleibt bei einer abgelehnten Änderung unberührt", async () => {
+      const userId = await neuePerson();
+      const patch = await anfrage(
+        admin,
+        "PATCH",
+        `/api/v1/admin/personen/${userId}`,
+        { rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }] },
+      );
+      expect(patch.status).toBe(204);
+      expect(
+        (
+          await anfrage(admin, "PUT", url(welt.stufeAId, userId), {
+            rolle: "stufenleitung",
+          })
+        ).status,
+      ).toBe(400);
+      expect(await zuordnung(welt.stufeAId, userId)).toMatchObject({
+        rolle: "leitung",
+      });
+    });
+
+    test("die Stufenrolle setzt PATCH /admin/personen/:id und schreibt «rolle_geaendert»", async () => {
+      const userId = await neuePerson();
+      const patch = await anfrage(
+        admin,
+        "PATCH",
+        `/api/v1/admin/personen/${userId}`,
+        { rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }] },
+      );
+      expect(patch.status).toBe(204);
+      expect(await zuordnung(welt.stufeAId, userId)).toMatchObject({
+        rolle: "stufenleitung",
+      });
+      expect(
+        (await auditZeilen(userId)).filter(
+          (z) => z.aktion === "rolle_geaendert",
+        ),
+      ).toEqual([
+        expect.objectContaining({
+          akteurId: admin.id,
+          zielTyp: "person",
+          details: {
+            rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
+          },
+        }),
+      ]);
+    });
+
+    test("eine freie Rolle an einem Stufen-Tag bleibt möglich", async () => {
+      const userId = await neuePerson();
+      expect(
+        (
+          await anfrage(admin, "PUT", url(welt.stufeAId, userId), {
+            rolle: "Material",
+          })
+        ).status,
+      ).toBe(204);
+      expect(await zuordnung(welt.stufeAId, userId)).toMatchObject({
+        rolle: "Material",
+      });
+    });
+
+    test.each(["team", "funktion", "lager"])(
+      "an einem Tag vom Typ %s ist die Rolle «leitung» möglich",
+      async (typ) => {
+        const id = await legeTagAn(admin, { typ });
+        expect(
+          (
+            await anfrage(admin, "PUT", url(id, eltern.id), {
+              rolle: "leitung",
+            })
+          ).status,
+        ).toBe(204);
+        expect(await zuordnung(id, eltern.id!)).toMatchObject({
+          rolle: "leitung",
+        });
+      },
+    );
+  });
+
   test("entzieht den Tag und schreibt das Audit-Log; ein zweiter Entzug ist 404", async () => {
     const id = await legeTagAn();
     await anfrage(admin, "PUT", url(id, eltern.id), {});
