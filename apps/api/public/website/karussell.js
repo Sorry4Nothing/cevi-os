@@ -4,8 +4,10 @@
 // Keine Bibliothek, kein innerHTML, keine Abrufe: Die Bilder stehen schon im Markup.
 (function () {
   var SVG = "http://www.w3.org/2000/svg";
-  // Wie --dauer in website.css
-  var BLENDE_MS = 200;
+  // Der Wechsel ist ruhig: Der Streifen gleitet so lange zum nächsten Bild (weich an- und auslaufend); wie --k-wechsel in karussell.css
+  var GLEIT_MS = 1100;
+  // Ausblenden vor dem Sprung zurück zum ersten Bild; wie --k-blende in karussell.css
+  var BLENDE_MS = 500;
   var reduziert = window.matchMedia("(prefers-reduced-motion: reduce)");
   // Wie der Symbolsatz der Website (symbole.ts): Linie und gefülltes Dreieck für die Richtung («pfeil», für Zurück gespiegelt), gefüllte Formen für Pause und Start
   var LINIEN = { zurueck: "M21 12H9", weiter: "M3 12h12" };
@@ -76,6 +78,7 @@
     var imBild = false;
     var scrollTimer = null;
     var blendeTimer = null;
+    var gleiten = 0;
 
     var teile = element("div", "k-teile");
     teile.setAttribute("aria-hidden", "true");
@@ -152,27 +155,56 @@
       i = (i + folien.length) % folien.length;
       // Ein weiter Weg (vom letzten Bild zurück zum ersten) würde am Auge vorbeirasen: ausblenden, springen, einblenden
       var weit =
-        Math.abs(ziel(i) - liste.scrollLeft) > liste.clientWidth * 1.5 &&
-        !reduziert.matches;
+        Math.abs(ziel(i) - ziel(Math.max(aktuell, 0))) >
+          liste.clientWidth * 1.5 && !reduziert.matches;
       markiere(i);
       window.clearTimeout(blendeTimer);
-      if (!weit) {
-        liste.removeAttribute("data-blende");
-        liste.scrollTo({
-          left: ziel(i),
-          behavior: reduziert.matches ? "auto" : "smooth",
-        });
+      // Ein neuer Wechsel mitten im Gleiten läuft vom Ort weiter: nicht einrasten lassen, sonst springt der Streifen zurück
+      window.cancelAnimationFrame(gleiten);
+      gleiten = 0;
+      if (weit) {
+        liste.removeAttribute("data-gleitet");
+        liste.setAttribute("data-blende", "");
+        blendeTimer = window.setTimeout(function () {
+          liste.scrollLeft = ziel(aktuell);
+          liste.removeAttribute("data-blende");
+        }, BLENDE_MS);
         return;
       }
-      liste.setAttribute("data-blende", "");
-      blendeTimer = window.setTimeout(function () {
-        liste.scrollTo({ left: ziel(aktuell), behavior: "auto" });
-        liste.removeAttribute("data-blende");
-      }, BLENDE_MS);
+      liste.removeAttribute("data-blende");
+      if (reduziert.matches) {
+        liste.removeAttribute("data-gleitet");
+        liste.scrollLeft = ziel(i);
+      } else gleite(ziel(i));
+    }
+
+    function halteGleiten() {
+      window.cancelAnimationFrame(gleiten);
+      gleiten = 0;
+      liste.removeAttribute("data-gleitet");
+    }
+
+    // Eigenes Gleiten statt scrollTo({behavior: "smooth"}): Dessen Dauer bestimmt der Browser, und sie ist zu kurz. Solange es läuft, rastet der Streifen nicht ein (data-gleitet)
+    function gleite(nach) {
+      var von = liste.scrollLeft;
+      var beginn = null;
+      liste.setAttribute("data-gleitet", "");
+      function schritt(jetzt) {
+        if (beginn === null) beginn = jetzt;
+        var t = Math.min(1, (jetzt - beginn) / GLEIT_MS);
+        // Weich anlaufen und auslaufen (kubisch)
+        var weich = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        liste.scrollLeft = von + (nach - von) * weich;
+        if (t < 1) gleiten = window.requestAnimationFrame(schritt);
+        else halteGleiten();
+      }
+      gleiten = window.requestAnimationFrame(schritt);
     }
 
     // Nach Wischen oder Scrollen: das Bild, dessen Ziel der Stelle am nächsten liegt. Teilen sich mehrere Bilder das Ende, bleibt das gewählte
     function liesStelle() {
+      // Solange das Skript selbst bewegt, gilt das gewählte Bild
+      if (gleiten || liste.hasAttribute("data-blende")) return;
       var x = liste.scrollLeft;
       var naechstes = 0;
       folien.forEach(function (_, n) {
@@ -191,6 +223,10 @@
       },
       { passive: true },
     );
+    // Wer selbst wischt, scrollt oder den Streifen anfasst, übernimmt: Das Gleiten hört sofort auf
+    ["pointerdown", "wheel", "touchstart"].forEach(function (art) {
+      liste.addEventListener(art, halteGleiten, { passive: true });
+    });
     // Der aktuelle Abschnitt des Lineals ist gefüllt: Zeit für das nächste Bild
     teile.addEventListener("animationend", function () {
       if (laeuft()) zeige(aktuell + 1);
