@@ -353,6 +353,13 @@
       "breakpoints": true
     },
     {
+      "idx": 69,
+      "version": "7",
+      "when": 1793550900000,
+      "tag": "0069_lager_aufgaben_details",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,

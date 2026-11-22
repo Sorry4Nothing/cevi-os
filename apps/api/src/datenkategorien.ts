@@ -518,6 +518,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
   },
+  // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
+  aufgabe_checkpunkt: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "aufgabe_id",
+      "text",
+      "erledigt",
+      "person_id",
+      "reihenfolge",
+    ],
+  },
+  aufgabe_link: {
+    lager: [...LAGER_BASIS_SPALTEN, "aufgabe_id", "titel", "url"],
+  },
+  aufgabe_stichwort: {
+    lager: ["lager_id", "aufgabe_id", "stichwort"],
+  },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
     lagerAnwesenheit: [
