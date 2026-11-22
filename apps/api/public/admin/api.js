@@ -1,7 +1,7 @@
 // Alle Aufrufe gegen die eigene Herkunft. Die Sitzung liegt nur im Cookie des Browsers (httpOnly); die Seite speichert nichts davon.
 
 export class ApiFehler extends Error {
-  constructor(status, code, meldung, warten, verwendung, seiten) {
+  constructor(status, code, meldung, warten, verwendung, seiten, daten) {
     super(code ?? String(status));
     this.status = status;
     this.code = code;
@@ -11,6 +11,8 @@ export class ApiFehler extends Error {
     this.verwendung = verwendung;
     // Bei 409 MEDIUM_VERWENDET: in wie vielen Seiten das Medium steht
     this.seiten = seiten;
+    // Der ganze Body der Fehlerantwort (409 KONFLIKT des Editors: aktueller Zähler und Dokument; 400 und 422: die Fehler mit Pfad)
+    this.daten = daten;
   }
 
   // Status 0: Die Anfrage kam gar nicht beim Server an
@@ -34,6 +36,7 @@ function fehlerAus(status, daten, warten, pfad) {
     warten,
     daten?.verwendung,
     daten?.seiten,
+    daten,
   );
 }
 
