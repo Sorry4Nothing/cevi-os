@@ -12,12 +12,9 @@ import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
-import {
-  starteEckdatenSync,
-  synchronisiereEckdaten,
-} from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
+import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -34,6 +31,7 @@ import {
   starteWebsiteAbgleich,
   synchronisiereWebsite,
 } from "./website/abgleich.js";
+import { ladeStufenfakten } from "./website/stufenfakten.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
 import {
   pruefeZeitregeln,
@@ -80,11 +78,6 @@ const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
   });
-const eckdatenLauf = () =>
-  synchronisiereEckdaten({
-    datenbankUrl: konfiguration.DATABASE_URL,
-    basisUrl: konfiguration.ECKDATEN_BASIS_URL,
-  });
 const app = erstelleApp({
   appMinVersion: konfiguration.APP_MIN_VERSION,
   sql,
@@ -98,18 +91,20 @@ const app = erstelleApp({
   seiten,
   syncs: {
     kalender: kalenderLauf,
-    eckdaten: eckdatenLauf,
   },
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
-starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
 starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
   "lager_benachrichtigungen",
+);
+starteSitzungenAufraeumen(
+  () => raeumeDateienOhneVerweisAuf(db),
+  "lager_dateien",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
@@ -146,6 +141,7 @@ if (
         basisUrl,
         stylesheet,
         skripte,
+        datenquellen: [ladeStufenfakten],
         merker,
       }),
     abteilungId,

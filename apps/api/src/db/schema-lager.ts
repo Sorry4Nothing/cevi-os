@@ -4,12 +4,16 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
   timestamp,
+  unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 // Zyklus mit schema.ts (das diese Datei weiterreicht), harmlos: Die Verweise stehen nur in Funktionen, die erst beim Aufbau der Fremdschlüssel laufen
@@ -87,7 +91,7 @@ export const lagerMitglied = pgTable(
     rolle: text("rolle", {
       enum: ["lagerleitung", "leitung", "team", "lesen"],
     }).notNull(),
-    // Ohne Fremdschlüssel bis zu den Ressorts (L1a); die API nimmt es bis dahin nicht an
+    // Das Ressort der Person (#371); die API setzt es noch nicht (offen). Der Fremdschlüssel nimmt das Lager mit, damit es kein Ressort eines anderen Lagers sein kann
     ressortId: uuid("ressort_id"),
     erstelltAm: timestamp("erstellt_am", { withTimezone: true })
       .notNull()
@@ -96,6 +100,12 @@ export const lagerMitglied = pgTable(
   (t) => [
     primaryKey({ columns: [t.lagerId, t.personId] }),
     index("lager_mitglied_person_id_idx").on(t.personId),
+    // In der Migration ON DELETE SET NULL (ressort_id): Postgres 15 setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "lager_mitglied_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("set null"),
     check(
       "lager_mitglied_rolle_check",
       sql`${t.rolle} in ('lagerleitung', 'leitung', 'team', 'lesen')`,
@@ -229,4 +239,139 @@ export const lagerBenachrichtigungEinstellung = pgTable(
     aktiv: boolean("aktiv").notNull(),
   },
   (t) => [primaryKey({ columns: [t.personId, t.art] })],
+);
+
+// Ergebnisse der Warteschlange für Offline-Änderungen (#367): eine Zeile je Operation, die eine Person mit ihrer clientOpId geschickt hat. Eine Wiederholung derselben clientOpId liefert das gespeicherte Ergebnis, statt noch einmal zu schreiben. Das Ergebnis trägt IDs und Versionen; bei einem Konflikt auch den Stand der Zeile in der Ansicht der Person. Der Eintrag entfällt nach 30 Tagen (lager/aufraeumen.ts)
+export const lagerClientOp = pgTable(
+  "lager_client_op",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientOpId: uuid("client_op_id").notNull(),
+    ergebnis: jsonb("ergebnis"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.personId, t.clientOpId] }),
+    index("lager_client_op_erstellt_am_idx").on(t.erstelltAm),
+  ],
+);
+
+// Ressorts des Lagers (#371): Leitung und Stellvertretung sind Personen-IDs (Mitglieder des Lagers, die Route prüft es), nie Anzeigenamen; die API löst die Namen beim Lesen auf. parent_id baut den Baum (Unterressorts, ohne Zyklus, die Route prüft es). Geschrieben wird nur über lager/sync.ts. Das Kürzel ist je Lager eindeutig, solange das Ressort nicht gelöscht ist
+export const ressort = pgTable(
+  "ressort",
+  {
+    ...lagerSpalten(),
+    kuerzel: text("kuerzel").notNull(),
+    name: text("name").notNull(),
+    leitungPersonId: uuid("leitung_person_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    stvPersonId: uuid("stv_person_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    notiz: text("notiz"),
+    parentId: uuid("parent_id"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel mit Lager: ein Ressort, ein Unterressort, ein Link oder eine Notiz kann nie ein Ressort eines anderen Lagers meinen
+    unique("ressort_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "ressort_parent_fk",
+      columns: [t.lagerId, t.parentId],
+      foreignColumns: [t.lagerId, t.id],
+    }),
+    index("ressort_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    index("ressort_parent_idx").on(t.lagerId, t.parentId),
+    uniqueIndex("ressort_kuerzel_uq")
+      .on(t.lagerId, sql`lower(${t.kuerzel})`)
+      .where(sql`${t.geloeschtAm} is null`),
+    check("ressort_eltern_check", sql`${t.parentId} is distinct from ${t.id}`),
+    check(
+      "ressort_text_check",
+      sql`char_length(${t.kuerzel}) between 1 and 20 and char_length(${t.name}) between 1 and 100 and (${t.notiz} is null or char_length(${t.notiz}) <= 5000) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Ein Link eines Ressorts (#371): nur https, der Server ruft ihn nie ab (SR-26)
+export const ressortLink = pgTable(
+  "ressort_link",
+  {
+    ...lagerSpalten(),
+    ressortId: uuid("ressort_id").notNull(),
+    titel: text("titel").notNull(),
+    url: text("url").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "ressort_link_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("cascade"),
+    index("ressort_link_liste_idx").on(t.lagerId, t.ressortId, t.id),
+    check(
+      "ressort_link_check",
+      sql`char_length(${t.titel}) between 1 and 200 and char_length(${t.url}) <= 2000 and ${t.url} ~ '^https://[^[:space:]]+$'`,
+    ),
+  ],
+);
+
+// Eine Notiz eines Ressorts (#371); wer sie geschrieben hat, steht in erstellt_von
+export const ressortNotiz = pgTable(
+  "ressort_notiz",
+  {
+    ...lagerSpalten(),
+    ressortId: uuid("ressort_id").notNull(),
+    text: text("text").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "ressort_notiz_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("cascade"),
+    index("ressort_notiz_liste_idx").on(t.lagerId, t.ressortId, t.id),
+    check(
+      "ressort_notiz_check",
+      sql`char_length(${t.text}) between 1 and 10000`,
+    ),
+  ],
+);
+
+// Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
+export const lagerDatei = pgTable(
+  "lager_datei",
+  {
+    ...lagerSpalten(),
+    anzeigename: text("anzeigename").notNull(),
+    link: text("link").notNull(),
+    // MIME-Typ, falls bekannt
+    typ: text("typ"),
+    // Bytes, falls bekannt
+    groesse: bigint("groesse", { mode: "number" }),
+  },
+  (t) => [
+    index("lager_datei_lager_idx").on(t.lagerId),
+    index("lager_datei_erstellt_idx").on(t.erstelltAm),
+    check(
+      "lager_datei_anzeigename_check",
+      sql`char_length(${t.anzeigename}) between 1 and 200`,
+    ),
+    check(
+      "lager_datei_link_check",
+      sql`${t.link} ~ '^https://[^[:space:]]+$' and strpos(${t.link}, chr(92)) = 0 and char_length(${t.link}) <= 2048`,
+    ),
+    check(
+      "lager_datei_typ_groesse_check",
+      sql`(${t.typ} is null or char_length(${t.typ}) <= 100) and (${t.groesse} is null or ${t.groesse} >= 0)`,
+    ),
+  ],
 );

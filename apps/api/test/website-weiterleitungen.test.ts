@@ -23,6 +23,7 @@ import {
   pruefeKette,
   rendereCaddy,
   rendereWeiterleitungsseite,
+  stufenSlug,
   zielPfadSchema,
 } from "../src/website/weiterleitungen.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -380,4 +381,10 @@ describe("Altes Adressmuster /cevistufe-<name>", () => {
     await lauf();
     expect(await gibtEs("weiterleitungen.caddy")).toBe(false);
   });
+});
+
+test("Stufenname wird klein, Umlaute ausgeschrieben, Rest entfernt", () => {
+  expect(stufenSlug("Fröschli")).toBe("froeschli");
+  expect(stufenSlug(" Pi-La Mi ")).toBe("pilami");
+  expect(stufenSlug("../admin")).toBe("admin");
 });

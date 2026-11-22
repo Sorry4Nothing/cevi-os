@@ -2,6 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { auditLog, lager, lagerRolleRecht } from "../db/schema.js";
+import { ereignisverteiler } from "./ereignisse.js";
 import {
   istGeschlossen,
   LAGER_RECHTE,
@@ -123,7 +124,7 @@ export async function aendereRechte(
   lagerId: string,
   eintraege: readonly RechtEintrag[],
 ): Promise<"ok" | "unbekannt" | "geschlossen"> {
-  return db.transaction(async (tx) => {
+  const ergebnis = await db.transaction(async (tx) => {
     const [ziel] = await tx
       .select({ status: lager.status })
       .from(lager)
@@ -160,6 +161,9 @@ export async function aendereRechte(
         })),
       );
     }
-    return "ok";
+    return "ok" as const;
   });
+  // Offene Ansichten des Lagers verbinden neu und bekommen ihre neuen lesbaren Typen (#367)
+  if (ergebnis === "ok") ereignisverteiler.beendeLager(lagerId);
+  return ergebnis;
 }
