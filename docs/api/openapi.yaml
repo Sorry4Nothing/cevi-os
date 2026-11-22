@@ -978,6 +978,66 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/liste-hilfen.js:
+    get:
+      operationId: getAdminListenHilfenSkript
+      summary: Skript der Verwaltung – Hilfen für Listen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/personen-blatt.js:
+    get:
+      operationId: getAdminPersonenBlattSkript
+      summary: Skript der Verwaltung – Seitenblatt einer Person
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/tags-detail.js:
+    get:
+      operationId: getAdminTagsDetailSkript
+      summary: Skript der Verwaltung – Gruppe und ihre Dialoge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/personen.css:
+    get:
+      operationId: getAdminPersonenStilvorlage
+      summary: Stilvorlage der Verwaltung – Personen, Gruppen und Tags
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/import.js:
     get:
       operationId: getAdminImportSkript
