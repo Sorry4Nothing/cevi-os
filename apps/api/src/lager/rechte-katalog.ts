@@ -17,6 +17,10 @@ export const LAGER_STATUS = [
 ] as const;
 export type LagerStatus = (typeof LAGER_STATUS)[number];
 
+// Abgeschlossen oder archiviert: schreibgeschützt
+export const istGeschlossen = (status: LagerStatus) =>
+  status === "abgeschlossen" || status === "archiviert";
+
 type Standard = Exclude<LagerRolle, "lagerleitung">;
 type Eintrag = { bedeutung: string; standard: readonly Standard[] };
 
@@ -137,7 +141,7 @@ export const LAGER_RECHTE = Object.keys(RECHTE_KATALOG) as LagerRecht[];
 
 // Die Standardmatrix im Code; ein unbekanntes Recht gilt als verboten (fail-closed, auch zur Laufzeit, falls ein Aufrufer an den Typen vorbei kommt)
 export function standardErlaubt(rolle: LagerRolle, recht: LagerRecht) {
-  if (rolle === "lagerleitung") return recht in RECHTE_KATALOG;
+  if (rolle === "lagerleitung") return Object.hasOwn(RECHTE_KATALOG, recht);
   const eintrag = RECHTE_KATALOG[recht] as Eintrag | undefined;
   return (
     (eintrag?.standard as readonly LagerRolle[] | undefined)?.includes(rolle) ??

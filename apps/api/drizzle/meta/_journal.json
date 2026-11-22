@@ -269,10 +269,24 @@
       "breakpoints": true
     },
     {
+      "idx": 41,
+      "version": "7",
+      "when": 1793549100000,
+      "tag": "0041_website_ausgabe",
+      "breakpoints": true
+    },
+    {
       "idx": 60,
       "version": "7",
       "when": 1793550000000,
       "tag": "0060_lager",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1793550100000,
+      "tag": "0061_lager_rechte",
       "breakpoints": true
     },
     {

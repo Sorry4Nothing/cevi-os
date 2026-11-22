@@ -134,6 +134,16 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
+  "GET /admin/website.js": { erwartet: alle(200) },
+  "GET /admin/website.css": { erwartet: alle(200) },
+  "GET /admin/website-seiten.js": { erwartet: alle(200) },
+  "GET /admin/website-seiten.css": { erwartet: alle(200) },
+  "GET /admin/website-editor.js": { erwartet: alle(200) },
+  "GET /admin/website-editor.css": { erwartet: alle(200) },
+  "GET /admin/website-medien.js": { erwartet: alle(200) },
+  "GET /admin/website-medien.css": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -1084,6 +1094,195 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
+  "GET /api/v1/redaktion/seiten/:id/entwurf": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/redaktion/seiten/:id/entwurf": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
+    // Der Zähler 0 gilt nur für den ersten Schreiber: Die Stufenleitung A hat das Recht, aber einen veralteten Stand (409)
+    body: () => ({
+      zaehler: 0,
+      dokument: {
+        v: 1,
+        titel: "Matrix",
+        bausteine: [
+          {
+            id: randomUUID(),
+            typ: "ueberschrift",
+            daten: { ebene: 2, text: "Matrix" },
+          },
+        ],
+      },
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/veroeffentlichen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/veroeffentlichen`,
+    // Der Admin veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/seiten/:id/versionen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/seiten/:id/versionen/:nr": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen/1`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/versionen/:nr/zurueckholen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen/1/zurueckholen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/zurueckziehen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/zurueckziehen`,
+    // Der Admin zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  "GET /api/v1/redaktion/ich": {
+    // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
+    erwartet: {
+      ...alle(200),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/medien": {
+    ohnePostman: true,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/medien": {
+    url: () =>
+      "/api/v1/redaktion/medien?sichtbarkeit=angemeldet&altText=Matrix",
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    url: () => `/api/v1/redaktion/medien/${mediumId}`,
+    body: () => ({ altText: "Matrix neu" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    urlJeAnfrage: async () =>
+      `/api/v1/redaktion/medien/${await wegwerfMediumId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/tags": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/personen": {
+    // Der Tag gehört zur Testabteilung: Die Demo-Abteilung kennt ihn nicht
+    url: (w) => `/api/v1/redaktion/personen?tag=${w.stufeAId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   "PUT /api/v1/push-token": {

@@ -96,6 +96,26 @@ export const lagerMitglied = pgTable(
   ],
 );
 
+// Einstellbare Rechte je Lager (#365): eine Zeile je Rolle und Recht, beim Anlegen des Lagers mit den Standardwerten des Katalogs geschrieben. Fehlt eine Zeile, gilt der Standard; ein unbekanntes Recht gilt als verboten (lager/policy.ts). Die Lagerleitung hat keine Zeilen: Sie hat immer alles und lässt sich nicht aussperren (der CHECK hält es auch ohne die Routen)
+export const lagerRolleRecht = pgTable(
+  "lager_rolle_recht",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    rolle: text("rolle", { enum: ["leitung", "team", "lesen"] }).notNull(),
+    recht: text("recht").notNull(),
+    erlaubt: boolean("erlaubt").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.rolle, t.recht] }),
+    check(
+      "lager_rolle_recht_rolle_check",
+      sql`${t.rolle} in ('leitung', 'team', 'lesen')`,
+    ),
+  ],
+);
+
 // Benachrichtigungen des Lagers (#369): eine Zeile je Person, Art und Objekt, nur für die Glocke und den Deep Link. Kein Text und kein Inhalt: Die App liest das Objekt über seine eigene Route, die ihre Rechte prüft. Zeilen anderer Personen sind nie lesbar (Routen filtern auf person_id)
 export const lagerBenachrichtigung = pgTable(
   "lager_benachrichtigung",

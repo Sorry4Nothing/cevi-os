@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
@@ -25,6 +26,11 @@ import {
   loescheAbgelaufeneSitzungen,
   starteSitzungenAufraeumen,
 } from "./sitzungen-aufraeumen.js";
+import {
+  starteWebsiteAbgleich,
+  synchronisiereWebsite,
+} from "./website/abgleich.js";
+import { dateisystemAusgabe } from "./website/ausgabe.js";
 import {
   pruefeZeitregeln,
   starteZeitregelPruefer,
@@ -100,6 +106,35 @@ starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
   "lager_benachrichtigungen",
 );
+// Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
+if (
+  konfiguration.WEBSITE_AUSGABE_PFAD &&
+  konfiguration.WEBSITE_ABTEILUNG_ID &&
+  konfiguration.WEBSITE_BASIS_URL
+) {
+  const ausgabe = dateisystemAusgabe(konfiguration.WEBSITE_AUSGABE_PFAD);
+  const stylesheet = readFileSync(
+    new URL("../public/website/website.css", import.meta.url),
+    "utf8",
+  );
+  const merker = new Map<string, string>();
+  const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
+  const basisUrl = konfiguration.WEBSITE_BASIS_URL;
+  starteWebsiteAbgleich(
+    () =>
+      synchronisiereWebsite({
+        datenbankUrl: konfiguration.DATABASE_URL,
+        ausgabe,
+        abteilungId,
+        basisUrl,
+        stylesheet,
+        merker,
+      }),
+    abteilungId,
+  );
+} else {
+  log(undefined, { ereignis: "website_ausgabe", art: "aus" });
+}
 // Ohne Schlüssel gäbe es nichts zu senden, und eine Erinnerung gälte trotzdem als gesendet
 if (fcm) {
   starteZeitregelPruefer(() =>

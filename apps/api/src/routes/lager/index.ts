@@ -4,11 +4,13 @@ import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerKernRouten } from "./lager.js";
+import { erstelleLagerRechteRouten } from "./rechte.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
 export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
   return new Hono<LagerEnv>()
     .route("/", erstelleLagerKernRouten({ db }))
+    .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }));
 }

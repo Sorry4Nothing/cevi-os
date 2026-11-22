@@ -18,14 +18,24 @@ import {
 } from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
+import { seitenMitMedium } from "../website/verweise.js";
 
-const pfadSchema = z.strictObject({ id: z.uuid() });
+export const pfadSchema = z.strictObject({ id: z.uuid() });
 // Metadaten in der Query: Der Body ist die Datei selbst. Ohne Vorgabe für die Sichtbarkeit: Wer hochlädt, entscheidet
-const hochladenSchema = z.strictObject({
+export const hochladenSchema = z.strictObject({
   sichtbarkeit: z.enum(["oeffentlich", "angemeldet"]),
   altText: z.string().trim().min(1).max(500).optional(),
   dekorativ: z.literal("true").optional(),
 });
+// Nachtragen: genau eines von beiden, ein Alt-Text oder «dekorativ»
+export const aendernSchema = z
+  .strictObject({
+    altText: z.string().trim().min(1).max(500).optional(),
+    dekorativ: z.literal(true).optional(),
+  })
+  .refine((f) => (f.altText !== undefined) !== (f.dekorativ === true));
+// Der Body ist die Datei selbst; bodyLimit hält das PDF-Maximum, das kleinere Bild-Maximum prüft der Handler nach dem Typ
+export const medienUploadLimit = bodyLimit({ maxSize: MEDIEN_PDF_MAX_BYTES });
 const FORMAT = {
   code: "MEDIEN_FORMAT",
   message: "Bitte ein Bild als JPEG, PNG oder WebP oder ein PDF senden.",
@@ -101,8 +111,12 @@ export function erstelleOeffentlicheMedienRoute({
   );
 }
 
-// Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
-export function erstelleMedienRouten({
+type Kontext = Context<{ Variables: { person: Person } }>;
+// Darf die Person dieses Medium löschen oder beschreiben? Die Handler fragen erst nach der Abteilung (404), dann hier (403)
+type Darf = (person: Person, m: Zeile) => boolean | Promise<boolean>;
+
+// Die Handler der Medien, von der Admin- und der Redaktions-Variante geteilt (#353): Beide Routen prüfen nur den Zugang selbst, alles andere liegt hier. Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
+export function erstelleMedienHandler({
   db,
   speicher,
   kodiereMedienbild,
@@ -123,6 +137,222 @@ export function erstelleMedienRouten({
     versuche.set(id, liste);
     return voll;
   };
+  // Erst die Abteilung (404 für fremde und unbekannte IDs, wie bei den übrigen Objekt-Routen), dann das Recht
+  async function ladeEigenes(person: Person, id: string, darf: Darf) {
+    const [m] = await db
+      .select()
+      .from(medium)
+      .where(
+        and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
+      );
+    if (!m) throw new HTTPException(404);
+    if (!(await darf(person, m))) throw new HTTPException(403);
+    return m;
+  }
+
+  return {
+    // Der Typ ergibt sich aus den Bytes, nie aus Header, Endung oder Query
+    async hochladen(
+      c: Kontext,
+      meta: z.infer<typeof hochladenSchema>,
+    ): Promise<Response> {
+      const person = c.get("person");
+      if (!speicher || !kodiereMedienbild) throw new HTTPException(501);
+      if (zuViele(person.id)) throw new HTTPException(429);
+      const daten = new Uint8Array(await c.req.arrayBuffer());
+      const dekorativ = meta.dekorativ === "true";
+
+      let mimeTyp: string;
+      let inhalt: Uint8Array;
+      let breite: number | null = null;
+      let hoehe: number | null = null;
+      if (istPdf(daten)) {
+        if (dekorativ) return c.json(ALT_TEXT, 400);
+        mimeTyp = "application/pdf";
+        inhalt = daten;
+      } else if (istErlaubtesBild(daten)) {
+        if (daten.length > MEDIEN_BILD_MAX_BYTES) {
+          return c.json(
+            {
+              code: "ZU_GROSS",
+              message: "Ein Bild darf höchstens 10 MB gross sein.",
+            },
+            413,
+          );
+        }
+        // Genau eines von beiden
+        if ((meta.altText !== undefined) === dekorativ) {
+          return c.json(ALT_TEXT, 400);
+        }
+        try {
+          ({
+            inhalt,
+            typ: mimeTyp,
+            breite,
+            hoehe,
+          } = await kodiereMedienbild(daten));
+        } catch {
+          // Kein lesbares Bild oder zu viele Pixel
+          return c.json(FORMAT, 415);
+        }
+      } else {
+        // Alles andere, auch SVG, GIF und HEIC
+        return c.json(FORMAT, 415);
+      }
+
+      // Erst in den Speicher, dann in die Datenbank: Scheitert der Speicher, gibt es keine Zeile, die auf nichts zeigt. Scheitert die Datenbank, räumt die Route das Objekt weg; scheitert auch das, bleibt eine Waise ohne Zeile, die keine Route ausliefert (im Log: WAISE)
+      const schluessel = await speicher.ablegen(inhalt, mimeTyp);
+      try {
+        const neu = await db.transaction(async (tx) => {
+          const [zeile] = await tx
+            .insert(medium)
+            .values({
+              abteilungId: person.abteilungId,
+              mimeTyp,
+              groesse: inhalt.length,
+              breite,
+              hoehe,
+              altText: meta.altText ?? null,
+              dekorativ,
+              sichtbarkeit: meta.sichtbarkeit,
+              speicherSchluessel: schluessel,
+              hochgeladenVon: person.id,
+            })
+            .returning();
+          // Ohne Inhalt und ohne Alt-Text
+          await tx.insert(auditLog).values({
+            abteilungId: person.abteilungId,
+            akteurId: person.id,
+            aktion: "medium_hochgeladen",
+            zielTyp: "medium",
+            zielId: zeile.id,
+            details: { mimeTyp, sichtbarkeit: meta.sichtbarkeit },
+          });
+          return zeile;
+        });
+        return c.json(antwort(neu), 201);
+      } catch (fehler) {
+        await speicher
+          .loeschen(schluessel)
+          .catch(() =>
+            log(c, { ereignis: "medien", code: "WAISE", schluessel }),
+          );
+        throw fehler;
+      }
+    },
+
+    async liste(c: Kontext) {
+      const person = c.get("person");
+      // shortcut: die jüngsten 200 ohne Seitenwechsel; Seiten, sobald die Redaktion (#334) mehr braucht
+      const zeilen = await db
+        .select()
+        .from(medium)
+        .where(eq(medium.abteilungId, person.abteilungId))
+        .orderBy(desc(medium.erstelltAm))
+        .limit(200);
+      return c.json({ medien: zeilen.map(antwort) });
+    },
+
+    // Alt-Text nachtragen oder ändern, oder ein Bild als dekorativ markieren; sonst bliebe eine fehlende Beschreibung für immer
+    async aendern(
+      c: Kontext,
+      id: string,
+      aenderung: z.infer<typeof aendernSchema>,
+      darf: Darf,
+    ) {
+      const person = c.get("person");
+      const m = await ladeEigenes(person, id, darf);
+      const dekorativ = aenderung.dekorativ === true;
+      // Ein PDF ist nie dekorativ
+      if (dekorativ && m.mimeTyp === "application/pdf") {
+        return c.json(ALT_TEXT, 400);
+      }
+      const neu = await db.transaction(async (tx) => {
+        const [zeile] = await tx
+          .update(medium)
+          .set({ altText: aenderung.altText ?? null, dekorativ })
+          .where(
+            and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
+          )
+          .returning();
+        if (!zeile) throw new HTTPException(404);
+        // Ohne den Alt-Text
+        await tx.insert(auditLog).values({
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+          aktion: "medium_beschrieben",
+          zielTyp: "medium",
+          zielId: id,
+          details: { dekorativ },
+        });
+        return zeile;
+      });
+      return c.json(antwort(neu));
+    },
+
+    // Erst die Zeile, dann das Objekt: Scheitert der Speicher danach, bleibt eine Waise ohne Zeile, die keine Route ausliefert; umgekehrt zeigte eine Zeile auf nichts
+    async loeschen(c: Kontext, id: string, darf: Darf) {
+      const person = c.get("person");
+      if (!speicher) throw new HTTPException(501);
+      await ladeEigenes(person, id, darf);
+      const ergebnis = await db.transaction(async (tx) => {
+        // Sperren, dann zählen: Ein Entwurf, der das Medium gerade speichert (FOR SHARE), kommt vorher oder die Zählung sieht ihn; so bleibt kein totes Bild (#350)
+        const gesperrt = await tx
+          .select({ id: medium.id })
+          .from(medium)
+          .where(
+            and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
+          )
+          .for("update");
+        if (gesperrt.length === 0) throw new HTTPException(404);
+        const seiten = await seitenMitMedium(tx, person.abteilungId, id);
+        if (seiten > 0) return { seiten };
+        const [m] = await tx
+          .delete(medium)
+          .where(
+            and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
+          )
+          .returning({ schluessel: medium.speicherSchluessel });
+        if (!m) throw new HTTPException(404);
+        await tx.insert(auditLog).values({
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+          aktion: "medium_geloescht",
+          zielTyp: "medium",
+          zielId: id,
+        });
+        return { schluessel: m.schluessel };
+      });
+      if ("seiten" in ergebnis) {
+        return c.json(
+          {
+            code: "MEDIUM_VERWENDET",
+            message:
+              "Das Medium steht noch in Seiten (Entwurf oder Version). Entferne es dort zuerst.",
+            seiten: ergebnis.seiten,
+          },
+          409,
+        );
+      }
+      const { schluessel } = ergebnis;
+      await speicher
+        .loeschen(schluessel)
+        .catch(() => log(c, { ereignis: "medien", code: "WAISE", schluessel }));
+      return c.body(null, 204);
+    },
+  };
+}
+export type MedienHandler = ReturnType<typeof erstelleMedienHandler>;
+
+export function erstelleMedienRouten({
+  db,
+  speicher,
+  handler,
+}: {
+  db: Db;
+  speicher?: Medienspeicher;
+  handler: MedienHandler;
+}) {
   // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher
   const nurAdmin = createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
@@ -130,154 +360,21 @@ export function erstelleMedienRouten({
       await next();
     },
   );
+  const istAdmin: Darf = (person) => person.admin;
 
   return (
     new Hono<{ Variables: { person: Person } }>()
-      // Der Body ist die Datei selbst; der Typ ergibt sich aus den Bytes, nie aus Header, Endung oder Query. bodyLimit hält das PDF-Maximum, das kleinere Bild-Maximum prüft die Route nach dem Typ
       .post(
         "/admin/medien",
         nurAdmin,
         eingabe("query", hochladenSchema),
-        bodyLimit({ maxSize: MEDIEN_PDF_MAX_BYTES }),
-        async (c) => {
-          const person = c.get("person");
-          const meta = c.req.valid("query");
-          if (!speicher || !kodiereMedienbild) throw new HTTPException(501);
-          if (zuViele(person.id)) throw new HTTPException(429);
-          const daten = new Uint8Array(await c.req.arrayBuffer());
-          const dekorativ = meta.dekorativ === "true";
-
-          let mimeTyp: string;
-          let inhalt: Uint8Array;
-          let breite: number | null = null;
-          let hoehe: number | null = null;
-          if (istPdf(daten)) {
-            if (dekorativ) return c.json(ALT_TEXT, 400);
-            mimeTyp = "application/pdf";
-            inhalt = daten;
-          } else if (istErlaubtesBild(daten)) {
-            if (daten.length > MEDIEN_BILD_MAX_BYTES) {
-              return c.json(
-                {
-                  code: "ZU_GROSS",
-                  message: "Ein Bild darf höchstens 10 MB gross sein.",
-                },
-                413,
-              );
-            }
-            // Genau eines von beiden
-            if ((meta.altText !== undefined) === dekorativ) {
-              return c.json(ALT_TEXT, 400);
-            }
-            try {
-              ({
-                inhalt,
-                typ: mimeTyp,
-                breite,
-                hoehe,
-              } = await kodiereMedienbild(daten));
-            } catch {
-              // Kein lesbares Bild oder zu viele Pixel
-              return c.json(FORMAT, 415);
-            }
-          } else {
-            // Alles andere, auch SVG, GIF und HEIC
-            return c.json(FORMAT, 415);
-          }
-
-          // Erst in den Speicher, dann in die Datenbank: Scheitert der Speicher, gibt es keine Zeile, die auf nichts zeigt. Scheitert die Datenbank, räumt die Route das Objekt weg; scheitert auch das, bleibt eine Waise ohne Zeile, die keine Route ausliefert (im Log: WAISE)
-          const schluessel = await speicher.ablegen(inhalt, mimeTyp);
-          try {
-            const neu = await db.transaction(async (tx) => {
-              const [zeile] = await tx
-                .insert(medium)
-                .values({
-                  abteilungId: person.abteilungId,
-                  mimeTyp,
-                  groesse: inhalt.length,
-                  breite,
-                  hoehe,
-                  altText: meta.altText ?? null,
-                  dekorativ,
-                  sichtbarkeit: meta.sichtbarkeit,
-                  speicherSchluessel: schluessel,
-                  hochgeladenVon: person.id,
-                })
-                .returning();
-              // Ohne Inhalt und ohne Alt-Text
-              await tx.insert(auditLog).values({
-                abteilungId: person.abteilungId,
-                akteurId: person.id,
-                aktion: "medium_hochgeladen",
-                zielTyp: "medium",
-                zielId: zeile.id,
-                details: { mimeTyp, sichtbarkeit: meta.sichtbarkeit },
-              });
-              return zeile;
-            });
-            return c.json(antwort(neu), 201);
-          } catch (fehler) {
-            await speicher
-              .loeschen(schluessel)
-              .catch(() =>
-                log(c, { ereignis: "medien", code: "WAISE", schluessel }),
-              );
-            throw fehler;
-          }
-        },
+        medienUploadLimit,
+        (c) => handler.hochladen(c, c.req.valid("query")),
       )
-      .get("/admin/medien", nurAdmin, async (c) => {
-        const person = c.get("person");
-        // shortcut: die jüngsten 200 ohne Seitenwechsel; Seiten, sobald die Redaktion (#334) mehr braucht
-        const zeilen = await db
-          .select()
-          .from(medium)
-          .where(eq(medium.abteilungId, person.abteilungId))
-          .orderBy(desc(medium.erstelltAm))
-          .limit(200);
-        return c.json({ medien: zeilen.map(antwort) });
-      })
-      // Erst die Zeile, dann das Objekt: Scheitert der Speicher danach, bleibt eine Waise ohne Zeile, die keine Route ausliefert; umgekehrt zeigte eine Zeile auf nichts
-      .delete("/admin/medien/:id", eingabe("param", pfadSchema), async (c) => {
-        const person = c.get("person");
-        const { id } = c.req.valid("param");
-        if (!speicher) throw new HTTPException(501);
-        // Erst die Abteilung (404 für fremde und unbekannte IDs, wie bei den übrigen Objekt-Routen), dann das Recht
-        const [vorhanden] = await db
-          .select({ id: medium.id })
-          .from(medium)
-          .where(
-            and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
-          );
-        if (!vorhanden) throw new HTTPException(404);
-        if (!person.admin) throw new HTTPException(403);
-        const schluessel = await db.transaction(async (tx) => {
-          const [m] = await tx
-            .delete(medium)
-            .where(
-              and(
-                eq(medium.id, id),
-                eq(medium.abteilungId, person.abteilungId),
-              ),
-            )
-            .returning({ schluessel: medium.speicherSchluessel });
-          if (!m) throw new HTTPException(404);
-          await tx.insert(auditLog).values({
-            abteilungId: person.abteilungId,
-            akteurId: person.id,
-            aktion: "medium_geloescht",
-            zielTyp: "medium",
-            zielId: id,
-          });
-          return m.schluessel;
-        });
-        await speicher
-          .loeschen(schluessel)
-          .catch(() =>
-            log(c, { ereignis: "medien", code: "WAISE", schluessel }),
-          );
-        return c.body(null, 204);
-      })
+      .get("/admin/medien", nurAdmin, (c) => handler.liste(c))
+      .delete("/admin/medien/:id", eingabe("param", pfadSchema), (c) =>
+        handler.loeschen(c, c.req.valid("param").id, istAdmin),
+      )
       // Nicht öffentliche Medien: Sitzung (die Middleware davor) und gleiche Abteilung; fremde und unbekannte IDs sind gleich 404. Öffentliche liefert schon erstelleOeffentlicheMedienRoute
       .get("/medien/:id", eingabe("param", pfadSchema), async (c) => {
         const person = c.get("person");

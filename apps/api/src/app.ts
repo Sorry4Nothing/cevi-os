@@ -23,9 +23,11 @@ import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
+import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import {
+  erstelleMedienHandler,
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
@@ -37,6 +39,7 @@ import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 import { erstelleStufenRouten } from "./routes/stufen.js";
+import { MAX_ENTWURF_BYTES } from "./website/dokument.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -111,6 +114,14 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
+  // Admin und Redaktion teilen die Handler und damit das Limit für Uploads je Person
+  const medienHandler = erstelleMedienHandler({
+    db,
+    speicher: medienspeicher,
+    kodiereMedienbild,
+  });
+  // Das Dokument einer Seite (#350)
+  const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
     new Hono<{ Variables: { nutzerId?: string } }>()
@@ -156,17 +167,24 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB und das Dokument einer Seite mit 512 KiB
       .use((c, next) =>
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
             /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))) ||
-        (c.req.method === "POST" && c.req.path === "/api/v1/admin/medien")
+        (c.req.method === "POST" &&
+          (c.req.path === "/api/v1/admin/medien" ||
+            c.req.path === "/api/v1/redaktion/medien"))
           ? next()
           : c.req.method === "POST" &&
               /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
             ? importLimit(c, next)
-            : kleinesLimit(c, next),
+            : c.req.method === "PUT" &&
+                /^\/api\/v1\/redaktion\/seiten\/[^/]+\/entwurf$/.test(
+                  c.req.path,
+                )
+              ? entwurfLimit(c, next)
+              : kleinesLimit(c, next),
       )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
@@ -204,7 +222,7 @@ export function erstelleApp({
         erstelleMedienRouten({
           db,
           speicher: medienspeicher,
-          kodiereMedienbild,
+          handler: medienHandler,
         }),
       )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
@@ -217,8 +235,12 @@ export function erstelleApp({
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
-      .route("/api/v1/redaktion", erstelleRedaktionRouten({ db }))
+      .route(
+        "/api/v1/redaktion",
+        erstelleRedaktionRouten({ db, medien: medienHandler }),
+      )
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/mitteilungen",
