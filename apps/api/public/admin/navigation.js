@@ -31,13 +31,14 @@ export const BEREICHE = [
         schluessel: "personen",
         name: "Personen",
         modul: "./personen.js",
-        untertitel: "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
+        untertitel: "Konten, Rollen und Tags der Abteilung.",
       },
       {
         schluessel: "gruppen",
         name: "Gruppen und Tags",
         modul: "./tags.js",
-        untertitel: "Tags anlegen und Personen zuweisen.",
+        untertitel:
+          "Wer zu welcher Gruppe gehört, steuert, wer was sieht und bearbeiten darf.",
       },
       {
         schluessel: "kinder",
@@ -178,12 +179,15 @@ export const BEREICHE = [
       {
         schluessel: "lager",
         name: "Lager",
-        untertitel: "Die Lager der Abteilung.",
+        modul: "./lager.js",
+        untertitel: "Lager anlegen, betreuen und abschliessen.",
       },
       {
         schluessel: "vorlagen",
         name: "Vorlagen",
-        untertitel: "Vorlagen für neue Lager.",
+        modul: "./lager-vorlagen.js",
+        untertitel:
+          "Aufgaben und Packlisten, die neue Lager übernehmen können.",
       },
     ],
   },

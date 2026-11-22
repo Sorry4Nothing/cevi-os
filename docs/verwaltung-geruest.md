@@ -19,22 +19,23 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste: So zeigt es das Design 
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
-| Datei                | Aufgabe                                                                                           |
-| -------------------- | ------------------------------------------------------------------------------------------------- |
-| `index.html`         | lädt die Stilvorlagen und `admin.js`                                                              |
-| `admin.js`           | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                  |
-| `navigation.js`      | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                       |
-| `rahmen.js`          | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                     |
-| `lader.js`           | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                   |
-| `zustaende.js`       | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`             |
-| `platzhalter.js`     | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                           |
-| `komponenten.js`     | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen       |
-| `dom.js`             | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` … |
-| `api.js`             | `anfrage`, `ApiFehler`, `fehlertext`                                                              |
-| `admin.css`          | Tokens (Tag und Nacht) und die bestehenden Bausteine                                              |
-| `geruest.css`        | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                      |
-| `komponenten.css`    | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt          |
-| `<bereich>-*.js/css` | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                   |
+| Datei                | Aufgabe                                                                                                      |
+| -------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `index.html`         | lädt die Stilvorlagen und `admin.js`                                                                         |
+| `admin.js`           | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                             |
+| `navigation.js`      | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                  |
+| `rahmen.js`          | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                |
+| `lader.js`           | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                              |
+| `zustaende.js`       | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                        |
+| `platzhalter.js`     | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                      |
+| `komponenten.js`     | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                  |
+| `dom.js`             | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …            |
+| `api.js`             | `anfrage`, `ApiFehler`, `fehlertext`                                                                         |
+| `admin.css`          | Tokens (Tag und Nacht) und die bestehenden Bausteine                                                         |
+| `geruest.css`        | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
+| `komponenten.css`    | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
+| `liste-hilfen.js`    | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
+| `<bereich>-*.js/css` | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
 
@@ -133,6 +134,8 @@ Zustände in `zustaende.js`:
 
 `zustandsDaten(f)` kennt 401, 403, 404, 429, 502/503, offline (`status 0`), `IN_WARTUNG` und `GESPERRT`.
 
+Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nennen, den ihr Board vorgibt: `ctx.lade(mitFehlertitel("Die Gruppen konnten nicht geladen werden.", laden), …)` (`liste-hilfen.js`). Der Fehler trägt dann `zustandTitel`; `zustandsDaten` zeigt ihn mit «Prüfe die Verbindung und versuche es nochmals.». Verbindung, Sitzung, Rechte und 404 behalten ihre Texte.
+
 ## Rückmeldungen
 
 `ctx.melde(text, art, aktion)` stapelt Hinweise in einer Live-Region (`#rueckmeldung`). Keine Meldung verschwindet von selbst: jede hat «Hinweis schliessen». Fehler sind `role="alert"`. Dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle; der Router tut das bei jeder Navigation.
@@ -183,6 +186,13 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
 
 Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; keine Meldung verschwindet von selbst.
+
+### Listen und Formulare (Personen, Gruppen und Tags)
+
+- Sortierbare Tabelle: `tabelle(...)`, danach `macheSortierbar(wurzel, [{ index, schluessel, name }], zustand, beiAenderung)`; der Kopf wird ein Knopf mit Sortierwort, `aria-sort` steht am `th`. `sortiere(liste, zustand, schluesselVon)` ordnet die Zeilen. «Aktionen» ist im Kopf nur für Screenreader sichtbar (`aktionenKopfVerstecken`).
+- Blättern: `seitenleiste({ beiWechsel })` mit «Einträge a bis b von n», Zurück und Weiter und «Zeilen pro Seite» (25, 50, 100); sie bleibt bis 25 Zeilen unsichtbar.
+- Fehler beim Feld: `feldFehler(feld, text)` und `entferneFehler(feld)`, dazu `pruefHinweis([{ name, … }])` für die Zusammenfassung «2 Angaben prüfen» (Knöpfe statt Links, ein Hash würde die Seite wechseln). Der Fehler eines Dialogs steht oben (`pe-dialog`).
+- Auswahlleiste (`.auswahlleiste`, `role="region"`) für Mehrfachauswahl, `.pe-wahl` für die Checkbox-Spalte.
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
 
