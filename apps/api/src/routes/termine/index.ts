@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { Person } from "../../rechte.js";
+import { erstelleAdminAnlaesseRouten } from "./admin-anlaesse.js";
 
 // Einstieg der Termine (Epic #430, Gerüst #431). app.ts hängt ihn einmal bei /api/v1 ein, hinter der Sitzung; /api/v1/admin/* erbt dort den zweiten Faktor. Die Routen tragen darum den vollen Pfad ab /api/v1: .get("/termine/mein", …) und .get("/admin/termine/warnungen", …).
 //
@@ -12,8 +13,8 @@ import type { Person } from "../../rechte.js";
 // Jede Route lädt ihr Objekt in SQL auf person.abteilungId gefiltert (fremd = 404) und prüft erst dann das Recht (403). Kein Polling, keine Abfrage je Zeile: eine gebündelte Abfrage je Liste.
 export type TermineEnv = { Variables: { person: Person } };
 
-// db und fcm reichen die Folge-Issues an ihre Module weiter; ohne Module bleiben sie hier ungenutzt
+// fcm reichen die Folge-Issues an ihre Module weiter; solange keins es braucht, bleibt es hier ungenutzt
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function erstelleTermineRouten(_deps: { db: Db; fcm?: Fcm }) {
-  return new Hono<TermineEnv>();
+export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
+  return new Hono<TermineEnv>().route("/", erstelleAdminAnlaesseRouten({ db }));
 }

@@ -351,6 +351,13 @@
       "when": 1793554000000,
       "tag": "0120_termin_kategorien",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793554300000,
+      "tag": "0123_anlass",
+      "breakpoints": true
     }
   ]
 }
