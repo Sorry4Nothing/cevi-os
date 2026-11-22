@@ -773,7 +773,7 @@ describe("Löschen", () => {
       .where(
         sqlTag`${schema.lagerDatei.id} in (${d.datei!.id}, ${im.datei!.id}, ${verwaist})`,
       );
-    await raeumeDateienOhneVerweisAuf(db);
+    await raeumeDateienOhneVerweisAuf(db, undefined, lagerId);
     const da = async (id: string) =>
       await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, id));
     expect(await da(d.datei!.id)).toBe(1);
