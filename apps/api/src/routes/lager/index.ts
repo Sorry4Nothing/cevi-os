@@ -6,7 +6,9 @@ import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleLagerKernRouten } from "./lager.js";
+import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
+import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleRessortRouten } from "./ressorts.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
@@ -15,6 +17,8 @@ export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
   return new Hono<LagerEnv>()
     .route("/", erstelleLagerKernRouten({ db }))
     .route("/", erstelleAenderungenRouten({ db }))
+    .route("/", erstelleWarteschlangeRouten({ db }))
+    .route("/", erstelleEreignisRouten({ db }))
     .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
     .route("/", erstelleLagerDateiRouten({ db }))

@@ -5539,7 +5539,139 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: sendeLagerWarteschlange
+      summary: Offline gesammelte Änderungen des Lagers senden
+      description: |
+        Nimmt die Änderungen an, die die App offline gesammelt hat, gebündelt und idempotent. Jede Operation hat eine `clientOpId` (UUID, von der App einmal erzeugt und bei jeder Wiederholung beibehalten), einen `typ` (zum Beispiel `aufgabe.aendern`; die Module des Lagers melden ihre Operationen an) und eine `nutzlast`. Höchstens 100 Operationen je Anfrage, höchstens 256 KB, höchstens 20 Anfragen je Konto und Minute.
+
+        Jede Operation läuft in einer eigenen Transaktion, der Reihe nach, und bekommt ein eigenes Ergebnis in derselben Reihenfolge: `ok` (mit IDs und Versionen der geschriebenen Zeilen, keine Inhalte), `konflikt` (die Zeile hat inzwischen eine andere Version, mit `aktuell` in der Ansicht der Rolle und den abweichenden Feldern) oder `abgelehnt` (mit Code: `OPERATION_UNBEKANNT`, `UNGUELTIGE_EINGABE`, `KEINE_BERECHTIGUNG`, `NICHT_GEFUNDEN`, `KONFLIKT`). Eine Ablehnung oder ein Konflikt bricht die anderen Operationen nicht ab und nimmt nur die Schreibvorgänge dieser Operation zurück. Das Recht jeder Operation gilt gegen die Rolle der Person im Lager, nie gegen Angaben der Nutzlast.
+
+        Idempotenz: Ein `ok` wird je Lager, Person und `clientOpId` 30 Tage gespeichert. Eine Wiederholung derselben `clientOpId` liefert dieses Ergebnis, auch wenn sich Rechte seither geändert haben, und schreibt nichts noch einmal; gleichzeitige Wiederholungen schreiben einmal. `konflikt` und `abgelehnt` werden nicht gespeichert: Sie haben nichts geschrieben und kommen bei einer Wiederholung zum selben Ergebnis. Bei einem Konflikt holt die App den Stand (in `aktuell`) und schickt die Änderung mit einer neuen `clientOpId` und der aktuellen `version` noch einmal.
+
+        Statuscodes: 200 mit den Ergebnissen (auch wenn einzelne Operationen abgelehnt wurden). 400 bei ungültiger Anfrage (keine oder mehr als 100 Operationen, `clientOpId` keine UUID, unbekannte Felder). 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 `LAGER_GESCHLOSSEN`, wenn das Lager abgeschlossen oder archiviert ist: Die ganze Anfrage wird abgelehnt. 413 über 256 KB. 429 bei zu vielen Anfragen. 500 bei einem Fehler des Servers: Die App schickt dieselbe Anfrage noch einmal; erledigte Operationen kommen aus dem Speicher.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerWarteschlangeAnfrage"
+      responses:
+        "200":
+          description: Ein Ergebnis je Operation, in der Reihenfolge der Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWarteschlangeAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen oder archiviert (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Die Anfrage ist grösser als 256 KB (`ZU_GROSS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/ereignisse:
+    get:
+      operationId: oeffneLagerEreignisse
+      summary: Ereignisse des Lagers (Server-Sent Events)
+      description: |
+        Offener Event-Stream (`text/event-stream`), über den eine offene Ansicht erfährt, dass es im Lager Neues gibt, statt in einem Takt zu fragen. Die Meldung nennt nur die Folgenummer und die Objekttypen, die die Rolle lesen darf; nie IDs, Namen oder Inhalte. Den Inhalt holt die App danach über den Änderungsfeed (`GET /api/v1/lager/{id}/aenderungen?seit=`), wo auch der Zeilenfilter der Rolle gilt.
+
+        Nachrichten (`event`, `id` ist die Folgenummer, `data` ist JSON, siehe `LagerEreignis`):
+        - `bereit`: erste Nachricht; `{ "bis": N }` ist der Stand des Lagers.
+        - `aenderung`: `{ "bis": N, "objekttypen": ["aufgabe", ...] }`. Schreibvorgänge in kurzer Zeit ergeben eine Meldung. Hat nichts Lesbares geändert, kommt keine. Beim Verbinden mit `Last-Event-ID` (oder `seit`), das kleiner ist als der Stand, kommt sie sofort mit allen lesbaren Objekttypen.
+        - `neu-laden`: `{ "bis": N }`; die Folgenummer der App liegt in der Zukunft (Lager zurückgespielt), die App lädt neu.
+        - `ende`: `{ "grund": "neu-verbinden" }`; der Server beendet die Verbindung, weil sich Rolle oder Rechte geändert haben oder eine Obergrenze der Verbindungen erreicht ist. Die App verbindet neu und bekommt dabei ihre aktuellen Rechte (oder 401 und 404, wenn sie keinen Zugang mehr hat).
+        - Kommentarzeile `: herzschlag` alle 25 Sekunden, ohne Datenbankzugriff.
+
+        Wiederverbinden: Die App merkt sich die letzte `id` und sendet sie als `Last-Event-ID` (Browser tun das selbst; wer keinen Kopf setzen kann, nimmt `seit`). Danach fragt sie den Feed ab dieser Folgenummer ab. Die Verbindung gilt für die Sitzung, die sie geöffnet hat: Endet die Sitzung, wird das Konto gesperrt oder ändert sich die Rolle im Lager, endet die Verbindung spätestens nach fünf Minuten, bei Änderungen in der Verwaltung (Mitglieder, Rechte) sofort.
+
+        Obergrenzen: höchstens 3 gleichzeitige Verbindungen je Konto (eine vierte beendet die älteste), 100 je Lager und 200 je Instanz; darüber antwortet die Route mit 429 `ZU_VIELE_VERBINDUNGEN` und `Retry-After: 30`. Ein Client, der Nachrichten nicht abholt, verliert die Verbindung.
+
+        Die Route ist lesend und darum auch in einem abgeschlossenen Lager offen. Proxys dürfen die Antwort nicht puffern (siehe docs/betrieb.md). Statuscodes: 200 (Stream). 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 429 bei erreichter Obergrenze.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Folgenummer der letzten Meldung, die die App erhalten hat.
+          schema:
+            type: integer
+            minimum: 0
+        - name: seit
+          in: query
+          required: false
+          description: Wie `Last-Event-ID`, für Clients, die keinen Kopf setzen können. Der Kopf geht vor.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Ein Event-Stream. Die Verbindung bleibt offen, bis eine Seite sie beendet.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Nachrichten im Format von Server-Sent Events; `data` ist ein `LagerEreignis`.
+              example: |
+                retry: 5000
+                id: 42
+                event: bereit
+                data: {"bis":42}
+
+                id: 43
+                event: aenderung
+                data: {"bis":43,"objekttypen":["aufgabe"]}
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          description: Obergrenze der Verbindungen erreicht (`ZU_VIELE_VERBINDUNGEN`), Kopf `Retry-After` mit 30 Sekunden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -10034,6 +10166,99 @@ components:
                 type: boolean
     # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerEreignis:
+      type: object
+      description: Die Daten einer Nachricht des Event-Streams. Nie IDs, Namen oder Inhalte.
+      required:
+        - bis
+      properties:
+        bis:
+          type: integer
+          minimum: 0
+          description: Folgenummer, bis zu der es Neues gibt.
+        objekttypen:
+          type: array
+          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`).
+          items:
+            type: string
+        grund:
+          type: string
+          description: Nur bei `ende`.
+          enum:
+            - neu-verbinden
+    LagerWarteschlangeAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - operationen
+      properties:
+        operationen:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - clientOpId
+              - typ
+              - nutzlast
+            properties:
+              clientOpId:
+                type: string
+                format: uuid
+                description: Von der App einmal je Operation erzeugt und bei jeder Wiederholung beibehalten.
+              typ:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Name der Operation, zum Beispiel `aufgabe.aendern`.
+              nutzlast:
+                type: object
+                description: Die Felder der Operation; unbekannte Felder lehnt die Operation ab.
+                additionalProperties: true
+    LagerWarteschlangeAntwort:
+      type: object
+      required:
+        - ergebnisse
+      properties:
+        ergebnisse:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerOperationsErgebnis"
+    LagerOperationsErgebnis:
+      type: object
+      required:
+        - clientOpId
+        - status
+      properties:
+        clientOpId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - ok
+            - konflikt
+            - abgelehnt
+        ergebnis:
+          type: object
+          description: Nur bei `ok`, enthält IDs und Versionen der geschriebenen Zeilen, keine Inhalte.
+          additionalProperties: true
+        code:
+          type: string
+          description: Nur bei `konflikt` (`VERSION_KONFLIKT`) und `abgelehnt`.
+        message:
+          type: string
+        aktuell:
+          type: object
+          description: Nur bei `konflikt`, der aktuelle Stand der Zeile in der Ansicht der Rolle.
+          additionalProperties: true
+        abweichend:
+          type: array
+          description: Nur bei `konflikt`, die Felder der Operation, die jetzt anders stehen.
+          items:
+            type: string
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerBenachrichtigungsArt:

@@ -371,6 +371,10 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zeitpunkt",
     ],
   },
+  // Die Warteschlange für Offline-Änderungen (#367) hält je Operation das Ergebnis: IDs und Versionen, bei einem Konflikt nicht gespeichert
+  lager_client_op: {
+    lager: ["lager_id", "person_id", "client_op_id", "ergebnis", "erstellt_am"],
+  },
   lager_mitglied: {
     lager: ["lager_id", "person_id", "rolle", "ressort_id", "erstellt_am"],
   },
