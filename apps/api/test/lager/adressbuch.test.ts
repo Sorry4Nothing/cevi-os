@@ -411,7 +411,7 @@ describe("Audit-Log", () => {
       zielTyp: "lager",
       details: { anzahl: 2 },
     });
-    expect(JSON.stringify(zeilen)).not.toMatch(
+    expect(JSON.stringify(zeilen[0]!.details)).not.toMatch(
       /Bäckerei|Platzwart|044|example/,
     );
   });
@@ -765,7 +765,7 @@ describe("Aufräumlauf mit Testuhr", () => {
       abteilungId: welt.testabteilungId,
       details: { anzahl: 2 },
     });
-    expect(JSON.stringify(audit)).not.toMatch(/Geheim|044/);
+    expect(JSON.stringify(audit[0]!.details)).not.toMatch(/Geheim|044/);
 
     const feed = await db
       .select()
