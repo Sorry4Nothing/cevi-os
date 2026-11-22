@@ -1,0 +1,773 @@
+/* Kopf der öffentlichen Website (#558): Marke, Navigation mit Untermenüs, «Anmelden», Umschalter Hell und Dunkel, Menü am Handy. Markup: src/website/kopf.ts, Verhalten: menue.js und theme.js.
+   Ein Band auf der Fläche der Seite, das beim Scrollen oben stehen bleibt. Unter 64 em übernimmt das Menü; ab 64 em steht die Navigation in einer zweiten Zeile desselben Bands,
+   und sobald Marke, Navigation und Knöpfe nebeneinander Platz haben, in derselben Zeile (die Stufe kopf--kurz, --mittel oder --lang setzt der Server nach der Länge der Titel).
+   Alles geht ohne Skript: Untermenüs, «Mehr» und das Menü sind details-Elemente. Tokens und Schrift kommen aus website.css. */
+
+html {
+  scroll-padding-top: 6rem;
+}
+
+.kopf {
+  /* Höhe der Zeile mit der Marke und Höhe der Punkte der Navigation */
+  --kopf-zeile: 4rem;
+  --nav-hoehe: 3rem;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+}
+
+.kopf-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: clamp(1rem, 2vw, 2.5rem);
+}
+
+/* ===== Marke ===== */
+.marke {
+  display: inline-flex;
+  flex: none;
+  align-items: baseline;
+  gap: 0.625rem;
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+.marke b {
+  font-size: 1.75rem;
+  line-height: 1.75rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.marke span {
+  color: var(--primary-text);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.marke--logo {
+  align-items: center;
+  min-height: var(--kopf-zeile);
+}
+
+/* Das Logo steht ohne Hintergrund im Kopf. Mit zwei Fassungen zeigt der Stil je nach Darstellung eine; gibt es nur eine, steht sie im dunklen Modus auf einem hellen Feld, damit dunkle Schrift lesbar bleibt */
+.logo {
+  display: block;
+  width: auto;
+  height: 1.875rem;
+}
+
+.logo--dunkel {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo--hell {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo--dunkel {
+    display: block;
+  }
+
+  :root:not([data-theme="light"]) .marke--logo:not(.marke--zwei) .logo {
+    box-sizing: content-box;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    background: #f2f5f8;
+  }
+}
+
+:root[data-theme="dark"] .logo--hell {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo--dunkel {
+  display: block;
+}
+
+:root[data-theme="dark"] .marke--logo:not(.marke--zwei) .logo {
+  box-sizing: content-box;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.375rem;
+  background: #f2f5f8;
+}
+
+/* ===== Rechts: «Anmelden», Umschalter, Menü ===== */
+.kopf-rechts {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: var(--kopf-zeile);
+  margin-left: auto;
+}
+
+/* «Anmelden»: ein Knopf mit Rand, nie so laut wie die Hauptaktion der Seite */
+.anmelden {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem 0 0.875rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.anmelden:hover {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.anmelden .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Der Umschalter: zwei runde Knöpfe nur mit Symbol (Hell, Dunkel); ohne Skript bleibt er verborgen (hidden) */
+.thema {
+  display: flex;
+  padding: 0.125rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+}
+
+.thema button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+}
+
+.thema button .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.thema button:hover {
+  background: var(--surface-container-high);
+}
+
+/* Gewählt: gefüllt und mit innerem Ring; Fläche und Ring sind ein Formunterschied, nicht nur eine andere Farbe */
+.thema button[aria-pressed="true"] {
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 2px var(--on-secondary);
+  color: var(--on-secondary);
+}
+
+.thema button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ===== Navigation am Computer ===== */
+.hauptnav,
+.kopf-rechts > .anmelden,
+.unterleiste {
+  display: none;
+}
+
+.hauptnav > ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin-inline: -0.75rem;
+}
+
+.hauptnav > ul > li {
+  position: relative;
+  display: flex;
+}
+
+.hauptnav a,
+.hauptnav summary {
+  color: var(--on-surface);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.hauptnav summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.hauptnav summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Die Punkte der obersten Ebene: ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links */
+.hauptnav > ul > li > a,
+.hauptnav .weitere > details > summary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: var(--nav-hoehe);
+  padding: 0 0.75rem;
+  white-space: nowrap;
+}
+
+.hauptnav > ul > li > a::before,
+.hauptnav .weitere > details > summary::before {
+  position: absolute;
+  right: 0.75rem;
+  bottom: -1px;
+  left: 0.75rem;
+  height: 3px;
+  background: var(--primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.hauptnav > ul > li > a:hover::before,
+.hauptnav > ul > li > a:focus-visible::before,
+.hauptnav > ul > li > a[aria-current]::before,
+.hauptnav .weitere > details > summary:hover::before,
+.hauptnav .weitere > details[open] > summary::before,
+.hauptnav .weitere.hier > details > summary::before {
+  transform: scaleX(1);
+}
+
+.hauptnav > ul > li > a[aria-current],
+.hauptnav .weitere.hier > details > summary {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+/* Ein Punkt mit Unterseiten: Der Link führt zur Seite, das Dreieck daneben öffnet das Untermenü */
+.hauptnav .mit-unter > a {
+  padding-right: 0.125rem;
+}
+
+.hauptnav .mit-unter > a::before {
+  right: 0.125rem;
+}
+
+.hauptnav .mit-unter > a + details > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  min-height: var(--nav-hoehe);
+  margin-right: 0.25rem;
+}
+
+.hauptnav summary .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+.hauptnav details[open] > summary .i {
+  transform: rotate(180deg);
+}
+
+.hauptnav summary:hover .i,
+.hauptnav details[open] > summary .i {
+  color: var(--primary-text);
+}
+
+@media (pointer: coarse) {
+  .hauptnav .mit-unter > a + details > summary {
+    width: 2.75rem;
+  }
+}
+
+/* Untermenü: eine Tafel, die unter dem Band schwebt. Der unsichtbare Steg darüber hält sie offen, wenn die Maus vom Punkt zur Tafel fährt */
+.hauptnav .unter {
+  position: absolute;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  min-width: 15rem;
+  max-width: min(60rem, calc(100vw - 2 * var(--rand)));
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.hauptnav .unter::before {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  left: 0;
+  height: 0.5rem;
+  content: "";
+}
+
+/* Am rechten Rand öffnet die Tafel nach links: immer bei «Mehr», sonst misst menue.js nach */
+.hauptnav .weitere .unter,
+.hauptnav [data-rechts] > .unter {
+  right: 0;
+  left: auto;
+}
+
+.hauptnav .unter a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--r-sm);
+  font-weight: 500;
+}
+
+.hauptnav .unter a:hover {
+  background: var(--surface-container);
+}
+
+.hauptnav .unter a[aria-current] {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+/* Die aktuelle Seite trägt links einen roten Strich: Form und Gewicht, nicht nur Farbe */
+.hauptnav .unter a[aria-current="page"] {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+/* Tiefere Ebenen stehen eingerückt an einer feinen Linie */
+.hauptnav .unter ul ul {
+  margin: 0 0 0.25rem 0.875rem;
+  padding-left: 0.25rem;
+  border-left: 1px solid var(--outline-variant);
+}
+
+/* Tafel mit Gruppen: Haben die Unterseiten selbst Unterseiten, steht jede als Titel über ihrer Spalte */
+.hauptnav .unter--gruppen {
+  padding: 0.75rem;
+}
+
+.hauptnav .unter--gruppen > ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.hauptnav .unter--gruppen > ul > li {
+  flex: 1 1 13rem;
+  min-width: 13rem;
+}
+
+.hauptnav .unter--gruppen > ul > li > a {
+  border-bottom: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
+  color: var(--titel);
+  font-weight: 800;
+}
+
+.hauptnav .unter--gruppen > ul > li > ul {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  border: 0;
+}
+
+/* ===== Unterleiste: die Unterseiten des gewählten Bereichs, eine leise Zeile unter dem Band; sie scrollt mit dem Inhalt weg ===== */
+.unterleiste {
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface);
+}
+
+.unterleiste ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin-left: -0.75rem;
+}
+
+.unterleiste a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  color: var(--on-surface);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.unterleiste a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.unterleiste a[aria-current] {
+  color: var(--titel);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+/* ===== Menü am Handy: ein details-Element. Die Tafel hängt unter dem Band und rollt selbst, wenn sie höher ist als das Fenster ===== */
+.menue-mobil > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem 0 0.75rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.menue-mobil summary::-webkit-details-marker {
+  display: none;
+}
+
+.menue-mobil > summary .zu,
+.menue-mobil > summary .i + .i,
+.menue-mobil[open] > summary .auf,
+.menue-mobil[open] > summary .i:first-child {
+  display: none;
+}
+
+.menue-mobil[open] > summary .zu,
+.menue-mobil[open] > summary .i + .i {
+  display: inline;
+}
+
+.menue-mobil[open] > summary {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.menue-tafel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  left: 0;
+  max-height: calc(100vh - var(--kopf-zeile));
+  max-height: calc(100dvh - var(--kopf-zeile));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.25rem var(--rand) 1.5rem;
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.menue-tafel li {
+  position: relative;
+}
+
+.menue-tafel nav > ul > li {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.menue-tafel nav a {
+  display: flex;
+  align-items: center;
+  min-height: 3.5rem;
+  color: var(--on-surface);
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+
+.menue-tafel .mit-unter > a {
+  margin-right: 3.5rem;
+}
+
+/* Das Dreieck rechts klappt die Unterseiten auf; es liegt neben dem Link, nicht darin */
+.menue-tafel nav summary {
+  position: absolute;
+  top: 0;
+  right: -0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  color: var(--on-surface);
+  cursor: pointer;
+  list-style: none;
+}
+
+.menue-tafel nav details[open] > summary .i {
+  color: var(--primary-text);
+  transform: rotate(180deg);
+}
+
+.menue-tafel nav ul ul {
+  margin: 0 0 0.75rem 0.125rem;
+  padding-left: 0.875rem;
+  border-left: 2px solid var(--outline-variant);
+}
+
+.menue-tafel nav ul ul ul {
+  margin-bottom: 0.25rem;
+}
+
+.menue-tafel nav ul ul a {
+  min-height: 2.75rem;
+  font-size: 1.0625rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.menue-tafel nav ul ul summary {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.menue-tafel nav a[aria-current] {
+  color: var(--titel);
+}
+
+.menue-tafel nav ul ul a[aria-current] {
+  font-weight: 800;
+}
+
+/* Die aktuelle Seite: ein roter Strich links, über die Linie der Ebene gelegt */
+.menue-tafel nav a[aria-current="page"]::before {
+  position: absolute;
+  top: 0.75rem;
+  left: calc(-1 * var(--rand));
+  width: 4px;
+  height: 2rem;
+  background: var(--primary);
+  content: "";
+}
+
+.menue-tafel nav ul ul a[aria-current="page"]::before {
+  top: 0.375rem;
+  left: calc(-0.875rem - 2px);
+  width: 2px;
+}
+
+.menue-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 1.25rem;
+}
+
+/* Am schmalen Handy hat der Umschalter im Band keinen Platz: Er steht dann unten im Menü */
+.kopf-rechts > .thema {
+  display: none;
+}
+
+@media (min-width: 30em) {
+  .kopf-rechts > .thema:not([hidden]) {
+    display: flex;
+  }
+
+  .menue-fuss .thema {
+    display: none;
+  }
+}
+
+/* ===== Ab 64 em: Navigation in der zweiten Zeile des Bands. Beim Scrollen bleibt nur diese Zeile oben stehen ===== */
+@media (min-width: 64em) {
+  .logo {
+    height: 2.25rem;
+  }
+
+  .menue-mobil {
+    display: none;
+  }
+
+  .kopf-rechts > .anmelden {
+    display: inline-flex;
+  }
+
+  .unterleiste {
+    display: block;
+  }
+
+  .kopf {
+    top: calc(-1 * var(--kopf-zeile));
+  }
+
+  .hauptnav {
+    display: block;
+    flex: 1 0 100%;
+    order: 3;
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .hauptnav > ul > li > a,
+  .hauptnav .weitere > details > summary {
+    font-size: 0.9375rem;
+  }
+}
+
+@media (min-width: 72em) {
+  .hauptnav > ul > li > a,
+  .hauptnav .weitere > details > summary {
+    font-size: 1rem;
+  }
+}
+
+/* ===== Eine Zeile: Marke, Navigation und Knöpfe nebeneinander, sobald die Navigation daneben Platz hat. Drei gleiche Blöcke, je Stufe ab einer anderen Breite ===== */
+@media (min-width: 80em) {
+  .kopf--kurz {
+    --kopf-zeile: 4.5rem;
+    --nav-hoehe: 4.5rem;
+    top: 0;
+  }
+
+  .kopf--kurz .hauptnav {
+    flex: 0 1 auto;
+    order: 0;
+    border-top: 0;
+  }
+}
+
+@media (min-width: 90em) {
+  .kopf--mittel {
+    --kopf-zeile: 4.5rem;
+    --nav-hoehe: 4.5rem;
+    top: 0;
+  }
+
+  .kopf--mittel .hauptnav {
+    flex: 0 1 auto;
+    order: 0;
+    border-top: 0;
+  }
+}
+
+@media (min-width: 102em) {
+  .kopf--lang {
+    --kopf-zeile: 4.5rem;
+    --nav-hoehe: 4.5rem;
+    top: 0;
+  }
+
+  .kopf--lang .hauptnav {
+    flex: 0 1 auto;
+    order: 0;
+    border-top: 0;
+  }
+}
+
+/* ===== Bewegung: kurz, eine Kurve; nur am Bildschirm und ohne «Bewegung reduzieren» ===== */
+@media (prefers-reduced-motion: no-preference) {
+  .hauptnav > ul > li > a::before,
+  .hauptnav .weitere > details > summary::before,
+  .hauptnav summary .i,
+  .menue-tafel summary .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .anmelden,
+  .thema button,
+  .menue-mobil > summary,
+  .hauptnav .unter a {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve);
+  }
+
+  /* Die Tafel fährt beim Öffnen kurz von oben ein; menue.js blendet sie beim Schliessen aus (data-geht) */
+  .hauptnav details[open] > .unter,
+  .menue-mobil[open] > .menue-tafel {
+    animation: tafel-auf var(--dauer) var(--kurve) both;
+  }
+
+  .hauptnav details[data-geht] > .unter {
+    animation: tafel-zu 0.12s ease-in both;
+  }
+
+  .menue-tafel nav details[open] > ul {
+    animation: zweig-auf var(--dauer) var(--kurve) both;
+  }
+
+  /* Sobald die Seite gescrollt ist, hebt ein Schatten das Band vom Inhalt ab (wo der Browser Scroll-Zeitleisten kann; sonst bleibt die Linie) */
+  @supports (animation-timeline: scroll()) {
+    .kopf {
+      animation: kopf-schatten linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 8rem;
+    }
+  }
+}
+
+@keyframes tafel-auf {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+@keyframes tafel-zu {
+  to {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@keyframes zweig-auf {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@keyframes kopf-schatten {
+  to {
+    box-shadow: 0 6px 24px rgb(20 20 60 / 12%);
+  }
+}
+
+/* ===== Erzwungene Farben, Druck ===== */
+@media (forced-colors: active) {
+  .hauptnav .unter,
+  .menue-tafel {
+    border: 1px solid CanvasText;
+  }
+
+  .thema button {
+    border: 1px solid ButtonText;
+  }
+
+  .thema button[aria-pressed="true"] {
+    border: 3px solid Highlight;
+  }
+
+  .hauptnav a[aria-current],
+  .unterleiste a[aria-current],
+  .menue-tafel a[aria-current] {
+    text-decoration: underline;
+  }
+}
+
+@media print {
+  .kopf {
+    position: static;
+  }
+
+  .hauptnav,
+  .kopf-rechts,
+  .unterleiste {
+    display: none;
+  }
+}

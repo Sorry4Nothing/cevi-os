@@ -1,6 +1,7 @@
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
+import { kopf, STIL_KOPF } from "./kopf.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -100,7 +101,7 @@ export type SeiteZumRendern = {
   dokument: Seitendokument;
 };
 
-const medienUrl = (id: string) => `/api/v1/medien/${id}`;
+export const medienUrl = (id: string) => `/api/v1/medien/${id}`;
 
 // Ein Knoten des Markups: Text (wird beim Ausgeben maskiert) oder ein Element. Dieselben Knoten gehen als JSON an das Skript, das geschützte Bausteine nachlädt (#354); dort entstehen daraus DOM-Knoten ohne innerHTML.
 // attr: «true» ist ein Attribut ohne Wert (download)
@@ -141,6 +142,8 @@ const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "circle", attr: { cx: "12", cy: "8", r: "3.5" } },
     { tag: "path", attr: { d: "M5 20c.8-3.8 3.6-6 7-6s6.2 2.2 7 6" } },
   ],
+  // Zeigt ein Untermenü an (#558); gefüllt wie alle Dreiecke des Satzes
+  dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   menue: [{ tag: "path", attr: { d: "M4 7h16M4 12h16M4 17h16" } }],
   schliessen: [{ tag: "path", attr: { d: "M6 6l12 12M18 6L6 18" } }],
   nochmals: [
@@ -821,134 +824,7 @@ ${text ? serialisiere(text) : ""}${knoepfe.length > 0 ? `<div class="knopfreihe"
 
 // ===== Rahmen: Kopf mit Menü, Fusszeile =====
 
-// «Cevi Stäfa» wird zu «CEVI» und «Stäfa»: Das Logo trägt das Wort Cevi schon
-const markenname = (abteilung: string) =>
-  abteilung.replace(/^cevi\s+/i, "").trim() || abteilung;
-
-const istVorfahr = (pfad: string, aktuell: string | null) =>
-  aktuell !== null && pfad !== "/" && aktuell.startsWith(`${pfad}/`);
-
-function navLink(p: NavPunkt, aktuell: string | null): string {
-  const stand =
-    p.pfad === aktuell
-      ? ' aria-current="page"'
-      : istVorfahr(p.pfad, aktuell)
-        ? ' aria-current="true"'
-        : "";
-  return `<a href="${esc(p.pfad)}"${stand}>${esc(p.titel)}</a>`;
-}
-
-// tief: auch die Unterseiten (im Menü am Handy); sonst nur die oberste Ebene
-function navigation(
-  punkte: NavPunkt[],
-  aktuell: string | null,
-  tief: boolean,
-): string {
-  if (punkte.length === 0) return "";
-  return `<ul>${punkte
-    .map(
-      (p) =>
-        `<li>${navLink(p, aktuell)}${tief ? navigation(p.kinder, aktuell, true) : ""}</li>`,
-    )
-    .join("")}</ul>`;
-}
-
-// Umschalter Hell, Dunkel, System (#550): ohne Skript bleibt er verborgen (hidden), website/theme.js zeigt ihn und merkt die Wahl im Browser
-const THEMA_WAHL: [string, string, string][] = [
-  ["system", "bildschirm", "System"],
-  ["light", "sonne", "Hell"],
-  ["dark", "mond", "Dunkel"],
-];
-const themaSchalter = () =>
-  `<div class="thema" role="group" aria-label="Darstellung" hidden>${THEMA_WAHL.map(
-    ([wert, icon, name]) =>
-      `<button type="button" data-thema="${wert}" aria-pressed="false">${serialisiere(symbol(icon))}<span>${name}</span></button>`,
-  ).join("")}</div>`;
-
-// Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke
-function markeHtml(k: Kontext): string {
-  const name = esc(markenname(k.abteilung));
-  if (!k.logo) {
-    return `<a class="marke" href="/"><b>CEVI</b><span>${name}</span></a>`;
-  }
-  const { id, altText, breite, hoehe } = k.logo;
-  const mass = breite && hoehe ? ` width="${breite}" height="${hoehe}"` : "";
-  return `<a class="marke marke--logo" href="/"><img class="logo" src="${medienUrl(id)}" alt="${esc(altText ?? "")}"${mass}><span class="nur-sr">${name}</span></a>`;
-}
-
-// Die Leiste am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
-// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 74 em ins Menü am Handy um, wo alles steht
-const MAX_HAUPTPUNKTE = 6;
-const MAX_NAV_ZEICHEN = 80;
-
-function teileNavigation(punkte: NavPunkt[]) {
-  let zeichen = 0;
-  let n = punkte.findIndex((p, i) => {
-    zeichen += p.titel.length;
-    return i >= MAX_HAUPTPUNKTE || zeichen > MAX_NAV_ZEICHEN;
-  });
-  if (n === -1) n = punkte.length;
-  n = Math.max(n, 1);
-  return { leiste: punkte.slice(0, n), mehr: punkte.slice(n) };
-}
-
-const istHier = (p: NavPunkt, aktuell: string | null): boolean =>
-  p.pfad === aktuell ||
-  istVorfahr(p.pfad, aktuell) ||
-  p.kinder.some((k) => istHier(k, aktuell));
-
-// Unterseiten ohne Skript: Sie öffnen sich bei Hover und Fokus (CSS); menue.js ergänzt Pfeiltasten und Esc
-function hauptPunkt(p: NavPunkt, aktuell: string | null): string {
-  if (p.kinder.length === 0) return `<li>${navLink(p, aktuell)}</li>`;
-  return `<li class="mit-unter">${navLink(p, aktuell)}<ul class="unter">${p.kinder
-    .map((k) => `<li>${navLink(k, aktuell)}</li>`)
-    .join("")}</ul></li>`;
-}
-
-// «Mehr» ist ein details-Element und braucht kein Skript; die Unterseiten der Punkte darin stehen eingerückt darunter
-function mehrPunkt(punkte: NavPunkt[], aktuell: string | null): string {
-  const liste = (ps: NavPunkt[]): string =>
-    `<ul>${ps
-      .map(
-        (p) =>
-          `<li>${navLink(p, aktuell)}${p.kinder.length > 0 ? liste(p.kinder) : ""}</li>`,
-      )
-      .join("")}</ul>`;
-  return `<li class="mit-unter weitere${punkte.some((p) => istHier(p, aktuell)) ? " hier" : ""}"><details><summary>Mehr</summary>${liste(punkte).replace("<ul>", '<ul class="unter">')}</details></li>`;
-}
-
-function hauptNavigation(punkte: NavPunkt[], aktuell: string | null): string {
-  if (punkte.length === 0) return "";
-  const { leiste, mehr } = teileNavigation(punkte);
-  return `<ul>${leiste.map((p) => hauptPunkt(p, aktuell)).join("")}${mehr.length > 0 ? mehrPunkt(mehr, aktuell) : ""}</ul>`;
-}
-
-function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
-  const marke = `<div class="kopf"><div class="wrap kopf-in">${markeHtml(k)}${themaSchalter()}</div></div>`;
-  if (nurMarke)
-    return `<header>
-${marke}
-</header>`;
-  // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste
-  const bereich = k.navigation.find(
-    (p) =>
-      p.kinder.length > 0 &&
-      (p.pfad === aktuell || istVorfahr(p.pfad, aktuell)),
-  );
-  return `<header>
-${marke}
-<div class="leiste"><div class="wrap leiste-in">
-<nav class="hauptnav" aria-label="Hauptnavigation">${hauptNavigation(k.navigation, aktuell)}</nav>
-<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
-<div class="rechts"><a href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a></div>
-</div></div>${
-    bereich
-      ? `
-<nav class="unterleiste" aria-label="Unterseiten von ${esc(bereich.titel)}"><div class="wrap">${navigation(bereich.kinder, aktuell, false)}</div></nav>`
-      : ""
-  }
-</header>`;
-}
+// Der Kopf (Marke, Navigation, Umschalter, Menü am Handy) steht in kopf.ts (#558)
 
 // Fuss nach dem Design (W1): Name und Adresse, Telefon und E-Mail, Impressum und Datenschutz, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
 const fuss = (k: Kontext) => {
@@ -1053,7 +929,8 @@ export function rahmen(
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
 ${THEMA_SKRIPT_TAG}
-<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skripte}${zusatz}
+<link rel="stylesheet" href="${STYLESHEET_PFAD}">
+<link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
@@ -1126,7 +1003,7 @@ export function rendereFehlerseite(k: Kontext): string {
       "Vielleicht ist der Link alt oder hat einen Tippfehler. Von hier aus kommst du weiter:",
       `<div class="knopfreihe"><a class="btn p gross" href="/">Zur Startseite</a></div>${
         k.navigation.length > 0
-          ? `\n<nav aria-label="Hauptpunkte" class="hauptpunkte">${navigation(k.navigation, null, false)}</nav>`
+          ? `\n<nav aria-label="Hauptpunkte" class="hauptpunkte"><ul>${k.navigation.map((p) => `<li><a href="${esc(p.pfad)}">${esc(p.titel)}</a></li>`).join("")}</ul></nav>`
           : ""
       }`,
       "Fehler 404",
