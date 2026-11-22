@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/anwesenheit"
-order: 168000
+order: 166000
 method: PUT
 url: "{{baseUrl}}{{pfad_L10}}"
 headers:
@@ -20,9 +20,9 @@ body:
     {
       "eintraege": [
         {
-          "teilnehmerId": "01a20372-a545-7b48-a12f-7e0ddee30958",
-          "lagertagId": "01a20372-a57b-7dc8-8aac-b1277361c182",
-          "tagesabschnittId": "01a20372-a594-7eaa-bf87-09cbd8bef458",
+          "teilnehmerId": "01a2038f-08e2-77b2-a0b4-3b20810d7258",
+          "lagertagId": "01a2038f-08f0-7850-9826-2bcf78e5fe94",
+          "tagesabschnittId": "01a2038f-08f8-747f-8933-04a61d926073",
           "wert": "A"
         }
       ]

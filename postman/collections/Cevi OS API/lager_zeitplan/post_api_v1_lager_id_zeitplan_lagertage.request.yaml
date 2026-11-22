@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zeitplan/lagertage"
-order: 387000
+order: 385000
 method: POST
 url: "{{baseUrl}}{{pfad_L230}}"
 headers:

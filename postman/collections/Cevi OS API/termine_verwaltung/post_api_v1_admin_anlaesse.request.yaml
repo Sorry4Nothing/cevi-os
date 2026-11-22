@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/anlaesse"
-order: 400000
+order: 398000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/anlaesse"
 headers:
@@ -18,7 +18,7 @@ body:
   type: json
   content: |-
     {
-      "programmId": "01a20372-98b9-774d-a60f-e6ce6f2f8edf",
+      "programmId": "01a2038f-06e3-740a-b636-2861ca7a03e0",
       "anmeldungFuer": "kind",
       "anmeldungOffen": true,
       "sichtbarkeit": {

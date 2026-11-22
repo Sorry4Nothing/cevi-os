@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/ressorts/:ressortId/notizen"
-order: 335000
+order: 333000
 method: POST
 url: "{{baseUrl}}{{pfad_L178}}"
 headers:

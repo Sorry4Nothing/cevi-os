@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/schichtplan/dienste/:dienstId"
-order: 341000
+order: 339000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L184}}"
 headers:

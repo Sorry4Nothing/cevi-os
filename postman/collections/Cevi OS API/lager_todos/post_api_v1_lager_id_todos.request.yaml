@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/todos"
-order: 362000
+order: 360000
 method: POST
 url: "{{baseUrl}}{{pfad_L205}}"
 headers:
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "text": "f2c72a66-acd9-427a-98be-7aa1136df9a8"
+      "text": "bc25fce9-43a3-4f4d-be7e-4af305f573a0"
     }

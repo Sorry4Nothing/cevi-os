@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/reaktionen/:zielTyp/:zielId"
-order: 370000
+order: 368000
 method: PUT
 url: "{{baseUrl}}{{pfad_L213}}"
 headers:

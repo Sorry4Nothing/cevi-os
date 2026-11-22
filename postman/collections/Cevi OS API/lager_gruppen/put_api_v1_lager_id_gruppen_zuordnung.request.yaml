@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/gruppen/zuordnung"
-order: 254000
+order: 252000
 method: PUT
 url: "{{baseUrl}}{{pfad_L97}}"
 headers:

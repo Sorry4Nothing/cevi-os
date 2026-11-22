@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/ressorts"
-order: 325000
+order: 323000
 method: POST
 url: "{{baseUrl}}{{pfad_L168}}"
 headers:
@@ -18,6 +18,6 @@ body:
   type: json
   content: |-
     {
-      "kuerzel": "M0fc16117",
+      "kuerzel": "Meb8e7fc4",
       "name": "Neu"
     }
