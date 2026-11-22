@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  kalenderlink: {
+    titel: "Persönlicher Kalenderlink",
+    zweck:
+      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn jederzeit erneuern oder widerrufen.",
+    frist:
+      "Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.",
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   profilbild: {
     titel: "Profilbild",
     zweck:
@@ -134,7 +143,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Checkliste, Links und Stichworte halten Teilschritte, Unterlagen und Schlagwörter der Aufgabe fest; eine wiederkehrende Aufgabe legt beim Erledigen die nächste an. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -145,6 +154,15 @@ export const KATEGORIEN = {
       "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
     frist:
       "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
+  lagerEinteilung: {
+    titel: "Zimmer und Zelte im Lager",
+    zweck:
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+    frist:
+      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -222,13 +240,16 @@ export const KATEGORIEN = {
     google: [],
   },
   anlass: {
-    titel: "Anlässe und ihre Zusatzfelder",
+    titel: "Anlässe und Anmeldungen",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
     frist:
-      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
-    apple: [],
-    google: [],
+      "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis die Redaktion sie löscht.",
+    apple: ["Contact Info: Name", "User Content: Other User Content"],
+    google: [
+      "Personal info: Name",
+      "App activity: Other user-generated content",
+    ],
   },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
@@ -297,7 +318,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
-  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
+  // Wartungsmodus und Sperre (#424, #425): kein Personenbezug ausser der Kennung der auslösenden Person
+  bereichsschalter: {
+    protokoll: [
+      "id",
+      "abteilung_id",
+      "bereich",
+      "art",
+      "hinweis",
+      "ende",
+      "website_offline",
+      "ausgeloest_von",
+      "ausgeloest_am",
+    ],
+  },
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten (die stehen in anlass_anmeldung); wer ihn angelegt hat, steht in erstellt_von
   anlass: {
     anlass: [
       "id",
@@ -312,6 +347,19 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "seite_id",
       "erstellt_von",
       "erstellt_am",
+    ],
+  },
+  // Anmeldungen (#443): wer angemeldet hat (user_id), für welches Kind (kind_id) und die Antworten auf die Zusatzfelder; Name, Cevi-Name und Stufe liest die Ansicht live aus dem Konto
+  anlass_anmeldung: {
+    anlass: [
+      "id",
+      "anlass_id",
+      "user_id",
+      "kind_id",
+      "antworten",
+      "status",
+      "erstellt_am",
+      "geaendert_am",
     ],
   },
   anlass_feld: {
@@ -399,6 +447,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "mitnehmen",
       "abgerufen_am",
       "quelle",
+    ],
+  },
+  kalender_token: {
+    kalenderlink: [
+      "id",
+      "user_id",
+      "token_hash",
+      "endung",
+      "erstellt_am",
+      "zuletzt_abgerufen_am",
+      "widerrufen_am",
     ],
   },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
@@ -561,6 +620,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
   },
+  // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
+  aufgabe_checkpunkt: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "aufgabe_id",
+      "text",
+      "erledigt",
+      "person_id",
+      "reihenfolge",
+    ],
+  },
+  aufgabe_link: {
+    lager: [...LAGER_BASIS_SPALTEN, "aufgabe_id", "titel", "url"],
+  },
+  aufgabe_stichwort: {
+    lager: ["lager_id", "aufgabe_id", "stichwort"],
+  },
   // Höcks (#378): Anwesende und Verantwortliche als Konto-IDs, Gäste als Freitext; protokoll_id verknüpft das Protokoll (#379)
   hoeck: {
     lagerHoeck: [
@@ -674,6 +750,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "person_id",
       "geprueft",
       "geprueft_am",
+    ],
+  },
+  // Zimmer und Zelte (#385): Name, Art, Plätze und Notiz; die Zuordnung hält nur, wer in welchem Zimmer liegt
+  zimmer: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "art",
+      "plaetze",
+      "notiz",
+      "reihenfolge",
+    ],
+  },
+  zimmer_zuordnung: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "zimmer_id",
+      "teilnehmer_id",
+      "person_id",
     ],
   },
   // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie
