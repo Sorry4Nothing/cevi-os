@@ -160,6 +160,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/termine-warnliste.css": { erwartet: alle(200) },
   "GET /admin/termine-kategorien.js": { erwartet: alle(200) },
   "GET /admin/termine-kategorien.css": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.js": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/termine-vorschlaege.js": { erwartet: alle(200) },
   "GET /admin/termine-vorschlaege.css": { erwartet: alle(200) },
   "GET /admin/termine-anlaesse.js": { erwartet: alle(200) },

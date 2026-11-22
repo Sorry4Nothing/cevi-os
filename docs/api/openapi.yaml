@@ -417,6 +417,36 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/anwesenheit.js:
+    get:
+      operationId: getAdminAnwesenheitSkript
+      summary: Skript der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anwesenheit.css:
+    get:
+      operationId: getAdminAnwesenheitStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/termine-vorschlaege.js:
     get:
       operationId: getAdminTermineVorschlaegeSkript
