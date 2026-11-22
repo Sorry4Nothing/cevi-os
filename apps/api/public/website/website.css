@@ -1,6 +1,15 @@
 /* Stil der öffentlichen Website nach dem Design «Cevi Web» (#529). Eine statische Datei: Die CSP der Seiten erlaubt nur style-src 'self', also kein Inline-Stil.
    Tag und Nacht folgen dem System (prefers-color-scheme); die Namen der Tokens sind die des Designs (Grundlagen G1), Farben stehen nur als var(--token).
-   Keine fremden Schriften (die Systemschrift ersetzt Archivo), keine Bilder von aussen, keine Bewegung bei «Bewegung reduzieren». Klassen und Aufbau: docs/website-design.md. */
+   Die Schrift Archivo liegt als eigene Datei daneben (SIL OFL, Lizenz in archivo-ofl.txt), nie von einem fremden Host; keine Bilder von aussen, keine Bewegung bei «Bewegung reduzieren». Klassen und Aufbau: docs/website-design.md. */
+
+/* Archivo, variabel (400 bis 900), Teilmenge «latin»: Deutsch mit «», –, … und €. Ohne die Datei gilt die Systemschrift */
+@font-face {
+  font-family: Archivo;
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url("/website/archivo-latin.woff2") format("woff2");
+}
 
 :root {
   color-scheme: light dark;
@@ -35,8 +44,10 @@
   --r-sm: 0.75rem;
   --r-md: 1rem;
   --r-full: 9999px;
+  --schatten: 0 8px 24px rgb(20 20 60 / 16%);
   --schrift:
-    system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans", sans-serif;
+    Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans",
+    sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1488,5 +1499,251 @@ a.termin:hover {
 
   .pw button[aria-pressed="true"] {
     border: 2px solid CanvasText;
+  }
+}
+
+/* ===== Darstellung nach dem Design angleichen (#549) ===== */
+
+/* Titelbild über die ganze Breite (Startseite, Design W1): steht in main, ausserhalb der Spalte */
+.titelbild {
+  margin: 0;
+  background: var(--surface-container-high);
+}
+
+.titelbild img {
+  width: 100%;
+  height: 26.25rem;
+  object-fit: cover;
+  border-radius: 0;
+}
+
+.titelbild figcaption {
+  margin: 0;
+  padding: 0.5rem 3rem;
+}
+
+.teaser {
+  margin-bottom: 2.5rem;
+}
+
+/* Navigation: eine Zeile; Untermenüs öffnen sich bei Hover und Fokus, «Mehr» ist ein details-Element */
+.hauptnav > ul {
+  flex-wrap: nowrap;
+}
+
+.leiste a,
+.leiste summary {
+  white-space: nowrap;
+}
+
+.leiste .hauptnav a,
+.leiste .hauptnav summary {
+  padding: 0 0.625rem;
+}
+
+.leiste .mit-unter {
+  position: relative;
+}
+
+.leiste .mit-unter > a::after,
+.leiste .weitere summary::after {
+  width: 0.45rem;
+  height: 0.45rem;
+  margin: -0.2rem 0 0 0.125rem;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  content: "";
+  transform: rotate(45deg);
+}
+
+.leiste .weitere summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.leiste .weitere summary::-webkit-details-marker {
+  display: none;
+}
+
+.leiste .weitere.hier summary {
+  font-weight: 700;
+  box-shadow: inset 0 -4px 0 var(--primary);
+}
+
+.leiste .unter {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 6;
+  display: none;
+  flex-direction: column;
+  min-width: 15rem;
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.leiste .weitere .unter {
+  right: 0;
+  left: auto;
+}
+
+.leiste .mit-unter:hover > .unter,
+.leiste .mit-unter:focus-within > .unter,
+.leiste .weitere details[open] > .unter {
+  display: flex;
+}
+
+/* Esc schliesst das Untermenü, auch wenn die Maus noch darüber steht (menue.js) */
+.leiste .mit-unter[data-zu] > .unter {
+  display: none;
+}
+
+.leiste .unter a {
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border-radius: var(--r-sm);
+  color: var(--on-surface);
+  font-weight: 500;
+  box-shadow: none;
+}
+
+.leiste .unter a:hover {
+  background: var(--surface-container);
+}
+
+.leiste .unter a[aria-current] {
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.leiste .unter ul {
+  flex-direction: column;
+  padding-left: 1rem;
+}
+
+.leiste .unter :focus-visible {
+  outline-color: var(--focus);
+}
+
+/* Zu schmal für eine Zeile (sechs Punkte und «Mehr» brauchen gut 1160 px): das Menü am Handy übernimmt schon ab dieser Breite */
+@media (max-width: 74em) {
+  .leiste .hauptnav {
+    display: none;
+  }
+
+  .menue-mobil {
+    display: block;
+  }
+}
+
+/* Stufenkarten (Baustein «Karten»): Name, Text und «» Mehr zu …» */
+.karten {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.karten h2.titel,
+.karten h3.titel {
+  color: var(--on-surface);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+
+/* Galerie: Kacheln gleicher Form, auch bevor ein Bild geladen ist; ohne Skript ein sauberes Raster */
+.galerie {
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+}
+
+.galerie figure {
+  margin: 0;
+}
+
+.galerie img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--surface-container-high);
+}
+
+/* In der Nacht sind Titel hell (die Regel am Anfang steht vor den Titelregeln und verliert sonst) */
+@media (prefers-color-scheme: dark) {
+  h1,
+  h2 {
+    color: var(--on-surface);
+  }
+}
+
+/* Termin ohne Anlass ist keine Verknüpfung */
+div.termin {
+  color: var(--on-surface);
+}
+
+/* Kontaktkarte: Frage und Ansprechperson links, Telefon und E-Mail rechts */
+.kontaktband {
+  margin-top: 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1.5rem;
+  align-items: center;
+  padding: 1.5rem 1.75rem;
+}
+
+.kontaktband .leise {
+  margin-top: 0.5rem;
+}
+
+.kontaktband .wege a {
+  display: inline-block;
+  padding: 0.25rem 0;
+}
+
+/* Fuss: drei Spalten */
+.fuss-in {
+  grid-template-columns: 2fr 1fr 1fr;
+}
+
+.fuss p {
+  margin: 0;
+}
+
+.fuss a {
+  display: inline-block;
+  padding: 0.125rem 0;
+}
+
+@media (max-width: 47.5em) {
+  .titelbild img {
+    height: 13.75rem;
+  }
+
+  .titelbild figcaption {
+    padding: 0.5rem 1.25rem;
+  }
+
+  .kontaktband,
+  .karten,
+  .fuss-in {
+    grid-template-columns: 1fr;
+  }
+
+  .galerie {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 64em) {
+  .titelbild figcaption {
+    padding: 0.5rem 1.5rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .leiste .unter {
+    border-color: CanvasText;
   }
 }

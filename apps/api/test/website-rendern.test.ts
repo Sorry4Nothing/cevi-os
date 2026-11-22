@@ -336,7 +336,8 @@ describe("Aufbau und Barrierefreiheit", () => {
     expect(html).toContain(
       '<nav class="unterleiste" aria-label="Unterseiten von Stufen">',
     );
-    expect(zaehle(html, '<a href="/stufen/biber">Biber</a>')).toBe(2);
+    // Dazu das Untermenü bei «Stufen» in der Leiste
+    expect(zaehle(html, '<a href="/stufen/biber">Biber</a>')).toBe(3);
     expect(html).toContain('<details class="menue-mobil">');
     expect(html).toContain('<a href="/anmelden">');
     expect(html).toContain(

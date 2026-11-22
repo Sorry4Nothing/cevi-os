@@ -38,6 +38,8 @@ services:
       VERANTWORTLICHE_STELLE:
       VERANTWORTLICHE_ADRESSE:
       KONTAKT_EMAIL:
+      # Telefon im Fuss und in der Kontaktkarte der Website (leer = nicht gesetzt)
+      KONTAKT_TELEFON:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:

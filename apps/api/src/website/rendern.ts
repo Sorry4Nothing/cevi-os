@@ -707,8 +707,9 @@ export function rendereGeschuetzte(
 function eifrig(k: HtmlKnoten): HtmlKnoten {
   if (typeof k === "string") return k;
   if (k.tag === "img") {
-    const { loading: _lazy, ...rest } = k.attr ?? {};
-    return { ...k, attr: { ...rest, fetchpriority: "high" } };
+    const attr = { ...k.attr, fetchpriority: "high" };
+    delete attr.loading;
+    return { ...k, attr };
   }
   return { ...k, kinder: k.kinder?.map(eifrig) };
 }
@@ -797,7 +798,7 @@ function navigation(
 }
 
 // Die Leiste am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
-// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 62 em ins Menü am Handy um, wo alles steht
+// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 74 em ins Menü am Handy um, wo alles steht
 const MAX_HAUPTPUNKTE = 6;
 const MAX_NAV_ZEICHEN = 80;
 

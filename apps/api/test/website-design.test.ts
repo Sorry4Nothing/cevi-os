@@ -74,7 +74,10 @@ describe("Hülle", () => {
 
   test("Menü am Handy ohne Skript: details, und es gibt kein Skript und keinen Inline-Stil", () => {
     expect(html).toContain('<details class="menue-mobil">');
-    expect(html).not.toMatch(/<script|style=|<style/i);
+    // Einziges Skript: das Menü (Verbesserung), nie inline
+    expect(html).not.toMatch(
+      /<script(?![^>]* src="\/website\/menue\.js")|style=|<style/i,
+    );
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
   });
 
@@ -309,7 +312,7 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    expect(zaehle(html, "<script")).toBe(1);
+    expect(zaehle(html, "<script")).toBe(2);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });
@@ -324,8 +327,11 @@ describe("Stilvorlage", () => {
     expect(CSS).toMatch(/--primary-text: #ff7a93/);
   });
 
-  test("nichts von aussen: keine Adresse, kein @import, keine Daten-URL", () => {
-    expect(CSS).not.toMatch(/https?:\/\/|@import|url\(/);
+  test("nichts von aussen: keine Adresse, kein @import, keine Daten-URL; url() nur für die eigene Schrift", () => {
+    expect(CSS).not.toMatch(/https?:\/\/|@import/);
+    expect([...CSS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([
+      '"/website/archivo-latin.woff2"',
+    ]);
   });
 
   test("Farben nur als Token ausserhalb der Token-Blöcke", () => {
