@@ -1,8 +1,8 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { raum, tag } from "../db/schema.js";
+import { raum, raumBuchung, tag } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -13,7 +13,7 @@ export const raeumeListeSchema = z.strictObject({
   nach: z.string().min(1).max(100).optional(),
 });
 
-// Räume (#446, Epic #430). Die Raumanfragen (#447) bauen auf diesen Funktionen auf: ladeRaum (Raum der Abteilung, fremd = undefined = 404), ladeRaeume (Liste), zaehleOffeneAnfragen (Erweiterungsstelle).
+// Räume (#446, Epic #430). Die Raumanfragen (#447, termine/raum-buchung.ts) bauen auf diesen Funktionen auf: ladeRaum (Raum der Abteilung, fremd = undefined = 404), ladeRaeume (Liste), zaehleOffeneAnfragen.
 
 // Wer Räume anlegt und pflegt (Recht «raum.verwalten», Annahme R1, vom Nutzer zu bestätigen): nur die Abteilungsleitung, also ein Admin mit zweitem Faktor (den verlangt schon der Pfad /api/v1/admin/*). Lesen darf jede Person der Abteilung. Alle Routen der Verwaltung prüfen hier und nirgends sonst; kommen Rollen dazu (#423), ändert sich nur diese Funktion.
 export const darfRaeumeVerwalten = (person: Pick<Person, "admin">) =>
@@ -44,13 +44,22 @@ export async function ladeRaum(
   return zeile;
 }
 
-// Erweiterungsstelle für #447: Wie viele offene Raumanfragen der Raum hat. Das Löschen eines Raums mit offenen Anfragen ist 409. Läuft in der Transaktion der Route, die den Raum schon gesperrt hat. Ohne Anfragen (heute) immer 0
+// Wie viele Anfragen und Buchungen den Raum noch festhalten: offene Anfragen und bestätigte Buchungen, die noch nicht vorbei sind (#447). Darüber sperrt das Löschen eines Raums (409 ANFRAGEN_OFFEN). Läuft in der Transaktion der Route, die den Raum schon gesperrt hat; eine Abfrage (Indizes raum_buchung_offen_idx und der GiST-Index der Überschneidung)
 export async function zaehleOffeneAnfragen(
   tx: Db | Tx,
   raumId: string,
 ): Promise<number> {
-  void [tx, raumId];
-  return 0;
+  const [zeile] = await tx
+    .select({ n: sql<number>`count(*)::int` })
+    .from(raumBuchung)
+    .where(
+      and(
+        eq(raumBuchung.raumId, raumId),
+        inArray(raumBuchung.status, ["angefragt", "bestaetigt"]),
+        sql`${raumBuchung.ende} > now()`,
+      ),
+    );
+  return zeile?.n ?? 0;
 }
 
 // Sortierschlüssel und zugleich Seitenmarke: Der Name ist je Abteilung ohne Gross-/Kleinschreibung eindeutig (Index raum_name_eindeutig), also ordnet lower(name) die Räume lückenlos und ohne Doppelte

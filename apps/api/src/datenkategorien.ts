@@ -97,6 +97,15 @@ export const KATEGORIEN = {
     apple: ["User Content: Other User Content"],
     google: ["App activity: Other user-generated content"],
   },
+  raumanfragen: {
+    titel: "Raumanfragen",
+    zweck:
+      "Eine Person fragt einen Raum der Abteilung für eine Zeit an, mit einem kurzen Zweck. Das Team des Raums entscheidet; bei Raum ohne Team entscheidet die Abteilungsleitung. Die anfragende Person sieht ihre Anfragen mit dem Stand. Der Push nennt weder Namen, Raum noch Zweck. Bitte schreib im Zweck keine Angaben zur Gesundheit.",
+    frist:
+      "180 Tage nach dem Ende der angefragten Zeit, mit dem Konto der anfragenden Person früher. Wird das Konto der entscheidenden Person gelöscht, verschwindet nur die Angabe, wer entschieden hat. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -544,6 +553,22 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "beschreibung",
       "bemerkung",
       "tag_ids",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+      "begruendung",
+      "erstellt_am",
+    ],
+  },
+  // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid
+  raum_buchung: {
+    raumanfragen: [
+      "id",
+      "raum_id",
+      "user_id",
+      "beginn",
+      "ende",
+      "zweck",
       "status",
       "entschieden_von",
       "entschieden_am",

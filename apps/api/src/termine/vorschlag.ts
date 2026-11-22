@@ -31,7 +31,7 @@ export async function darfVorschlagen(db: Db, person: Person) {
 
 // Steuerzeichen sind verboten, vor allem NUL: Postgres kann es nicht speichern, das wäre ein 500 statt 400. Mehrzeilige Texte erlauben Tab und Zeilenumbruch
 // eslint-disable-next-line no-control-regex
-const EINZEILIG = /^[^\u0000-\u001F\u007F]*$/;
+export const EINZEILIG = /^[^\u0000-\u001F\u007F]*$/;
 // eslint-disable-next-line no-control-regex
 export const MEHRZEILIG = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/;
 // Leer heisst «nicht gesetzt» und wird null
