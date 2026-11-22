@@ -163,6 +163,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerHoeck: {
+    titel: "Höcks und Traktanden im Lager",
+    zweck:
+      "Die Sitzungen des Lagers planen und festhalten: Datum, Zeit, Ort und Titel eines Höcks, wer beim Höck war, Gäste als Freitext, die Traktanden mit Notizen, Links, Verantwortlichen und einem kurzen Entscheid. Das Team sieht nur Höcks der Art Team, und von diesen nur Datum, Zeit, Titel und Ort. Ein Höck lässt sich als Kalenderdatei laden; sie enthält nur Titel, Ort, Datum und Zeit. Das Protokoll liegt als Verknüpfung auf eine Datei im SharePoint der Abteilung.",
+    frist: `Bis die Leitung den Höck oder das Traktandum löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
@@ -445,6 +453,38 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Höcks (#378): Anwesende und Verantwortliche als Konto-IDs, Gäste als Freitext; protokoll_id verknüpft das Protokoll (#379)
+  hoeck: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "datum",
+      "zeit",
+      "titel",
+      "ort",
+      "gaeste",
+      "protokoll_id",
+    ],
+  },
+  hoeck_anwesenheit: {
+    lagerHoeck: ["lager_id", "hoeck_id", "person_id"],
+  },
+  traktandum: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "hoeck_id",
+      "titel",
+      "text",
+      "entscheid",
+      "links",
+      "reihenfolge",
+      "aufgabe_id",
+      "status",
+    ],
+  },
+  traktandum_verantwortlich: {
+    lagerHoeck: ["lager_id", "traktandum_id", "person_id"],
   },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
