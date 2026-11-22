@@ -2227,7 +2227,10 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
                   schluessel.split(" ")[1],
               ),
               body:
-                zeile.body && ersetzeLager(JSON.stringify(zeile.body("aktiv"))),
+                zeile.body &&
+                ersetzeLager(
+                  JSON.stringify(await zeile.body("aktiv", lagerWelt)),
+                ),
               erwartet: zeile.erwartet,
             })),
           ),

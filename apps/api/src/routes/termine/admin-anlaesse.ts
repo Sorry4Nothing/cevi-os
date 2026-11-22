@@ -16,6 +16,7 @@ import {
   schluesselMitAntworten,
   zaehleAnmeldungen,
 } from "../../termine/anlass-anmeldungen.js";
+import { terminVorbei } from "../../termine/anlass-sicht.js";
 import {
   felderInBenutzung,
   felderSchema,
@@ -83,9 +84,6 @@ const TAG_UNBEKANNT = {
 // Drizzle legt den Fehler von Postgres in cause: 23505 = Index verletzt
 const pgCode = (fehler: unknown) =>
   (fehler as { cause?: { code?: string } })?.cause?.code;
-
-// Der Termin ist vorbei, wenn sein Ende (bei Ganztägigen: das Ende des letzten Tages, Schweizer Zeit) erreicht ist
-const vorbei = sql<boolean>`coalesce(${programm.ende}, (${programm.tagBis} + 1)::timestamp at time zone 'Europe/Zurich') <= now()`;
 
 // Die Spalten einer Anlass-Zeile mit den Angaben des Termins, für Liste und Detail
 const anlassSpalten = {
@@ -163,7 +161,11 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
         return c.json(TAG_UNBEKANNT, 400);
       }
       const [termin] = await db
-        .select({ id: programm.id, titel: programm.titel, vorbei })
+        .select({
+          id: programm.id,
+          titel: programm.titel,
+          vorbei: terminVorbei,
+        })
         .from(programm)
         .where(
           and(

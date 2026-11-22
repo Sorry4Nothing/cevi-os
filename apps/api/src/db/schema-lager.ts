@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -388,6 +389,9 @@ export const aufgabe = pgTable(
     quelle: text("quelle"),
     erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
     fristErinnertAm: timestamp("frist_erinnert_am", { withTimezone: true }),
+    // Relative Frist (#374): Die Frist ist das Datum des Meilensteins plus Versatz in Tagen; ohne Meilenstein ist der Beginn des Lagers die Bezugsgrösse. Beides null: absolute Frist. frist bleibt gespeichert (Listen, Filter und Erinnerung brauchen kein Rechnen); die Verschiebung eines Meilensteins schreibt sie neu
+    fristMeilensteinId: uuid("frist_meilenstein_id"),
+    fristVersatzTage: integer("frist_versatz_tage"),
   },
   (t) => [
     // Ziel des Fremdschlüssels der Unterstützung: eine Zeile dort kann nie eine Aufgabe eines anderen Lagers meinen
@@ -408,9 +412,28 @@ export const aufgabe = pgTable(
     index("aufgabe_person_idx").on(t.lagerId, t.verantwortlichPersonId),
     index("aufgabe_status_idx").on(t.lagerId, t.status),
     index("aufgabe_ressort_idx").on(t.lagerId, t.ressortId),
+    // In der Migration ohne ON DELETE (NO ACTION): Der Meilenstein verschwindet erst, wenn keine Aufgabe mehr auf ihn zeigt (lager/zeitplan.ts löst die Bezüge vorher). SET NULL liesse den Versatz stehen und die Frist stillschweigend auf den Lagerbeginn zeigen
+    foreignKey({
+      name: "aufgabe_frist_meilenstein_fk",
+      columns: [t.lagerId, t.fristMeilensteinId],
+      foreignColumns: [meilenstein.lagerId, meilenstein.id],
+    }),
     index("aufgabe_frist_idx")
       .on(t.lagerId, t.frist)
       .where(sql`${t.frist} is not null`),
+    // Der Erinnerungslauf (lager/fristen.ts) fragt über alle Lager nach Fristen der nächsten Tage: eine Abfrage über diesen Index
+    index("aufgabe_erinnerung_idx")
+      .on(t.frist)
+      .where(
+        sql`${t.frist} is not null and ${t.status} <> 'erledigt' and ${t.geloeschtAm} is null`,
+      ),
+    index("aufgabe_frist_meilenstein_idx")
+      .on(t.lagerId, t.fristMeilensteinId)
+      .where(sql`${t.fristMeilensteinId} is not null`),
+    check(
+      "aufgabe_relative_frist_check",
+      sql`(${t.fristMeilensteinId} is null or ${t.fristVersatzTage} is not null) and (${t.fristVersatzTage} is null or (${t.frist} is not null and ${t.fristVersatzTage} between -3650 and 3650))`,
+    ),
     check(
       "aufgabe_status_check",
       sql`${t.status} in ('offen', 'laeuft', 'wartet', 'erledigt', 'naechster_hoeck')`,
@@ -426,6 +449,68 @@ export const aufgabe = pgTable(
     check(
       "aufgabe_text_check",
       sql`char_length(${t.titel}) between 1 and 200 and (${t.teil} is null or char_length(${t.teil}) between 1 and 100) and (${t.notiz} is null or char_length(${t.notiz}) <= 5000) and (${t.quelle} is null or char_length(${t.quelle}) between 1 and 100) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Zeitplan des Lagers (#374): Meilensteine, Lagertage und Tagesabschnitte sind Zeilen des Sync-Kerns (Version, Feed). Die Fremdschlüssel mit Lager sind das Ziel für Aufgaben (relative Frist), Anwesenheit und die späteren Module (Schichten, Tagesseiten): Sie können nie auf eine Zeile eines anderen Lagers zeigen
+export const meilenstein = pgTable(
+  "meilenstein",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    datum: date("datum").notNull(),
+    // Freie Bezeichnung der Art (die Werte stehen nicht fest), höchstens 50 Zeichen
+    art: text("art"),
+  },
+  (t) => [
+    unique("meilenstein_lager_id_id_uq").on(t.lagerId, t.id),
+    index("meilenstein_liste_idx").on(t.lagerId, t.datum, t.id),
+    check(
+      "meilenstein_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.art} is null or char_length(${t.art}) between 1 and 50)`,
+    ),
+  ],
+);
+
+// Ein Tag des Lagers (Datum, optional eine Bezeichnung); je Datum und Lager höchstens einer, solange er nicht gelöscht ist
+export const lagertag = pgTable(
+  "lagertag",
+  {
+    ...lagerSpalten(),
+    datum: date("datum").notNull(),
+    label: text("label"),
+  },
+  (t) => [
+    unique("lagertag_lager_id_id_uq").on(t.lagerId, t.id),
+    uniqueIndex("lagertag_datum_uq")
+      .on(t.lagerId, t.datum)
+      .where(sql`${t.geloeschtAm} is null`),
+    check(
+      "lagertag_label_check",
+      sql`${t.label} is null or char_length(${t.label}) between 1 and 100`,
+    ),
+  ],
+);
+
+// Ein Abschnitt des Tages (zum Beispiel Vormittag, Nachmittag, Abend, Nacht), je Lager einstellbar. zeit ist der Beginn als «HH:MM» (freiwillig); die Reihenfolge ordnet die Abschnitte eines Tages
+export const tagesabschnitt = pgTable(
+  "tagesabschnitt",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    zeit: text("zeit"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    unique("tagesabschnitt_lager_id_id_uq").on(t.lagerId, t.id),
+    uniqueIndex("tagesabschnitt_name_uq")
+      .on(t.lagerId, sql`lower(${t.name})`)
+      .where(sql`${t.geloeschtAm} is null`),
+    index("tagesabschnitt_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    check(
+      "tagesabschnitt_check",
+      sql`char_length(${t.name}) between 1 and 50 and (${t.zeit} is null or ${t.zeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$') and ${t.reihenfolge} >= 0`,
     ),
   ],
 );
@@ -574,7 +659,7 @@ export const lagerDatei = pgTable(
   ],
 );
 
-// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) und Teilnehmende (#384) ohne Fremdschlüssel, bis diese Tabellen im Schema stehen. Geschrieben wird nur über lager/sync.ts
+// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) haben Fremdschlüssel mit Lager (Migration 0095); Teilnehmende (#384) ohne, bis diese Tabelle im Schema steht. Geschrieben wird nur über lager/sync.ts
 export const anwesenheit = pgTable(
   "anwesenheit",
   {
@@ -588,6 +673,18 @@ export const anwesenheit = pgTable(
     wert: text("wert", { enum: ["A", "F", "O"] }).notNull(),
   },
   (t) => [
+    // Lagertag und Abschnitt gehören zum selben Lager (#374); fällt einer weg, gehen die Einträge dafür mit
+    foreignKey({
+      name: "anwesenheit_lagertag_fk",
+      columns: [t.lagerId, t.lagertagId],
+      foreignColumns: [lagertag.lagerId, lagertag.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "anwesenheit_abschnitt_fk",
+      columns: [t.lagerId, t.tagesabschnittId],
+      foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
+    }).onDelete("cascade"),
+    index("anwesenheit_abschnitt_idx").on(t.lagerId, t.tagesabschnittId),
     // Ein Feld gibt es je Person und Abschnitt einmal; eine gelöschte Zeile blockiert es nicht
     uniqueIndex("anwesenheit_person_uq")
       .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
@@ -626,6 +723,16 @@ export const anwesenheitAnfrage = pgTable(
     entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
   },
   (t) => [
+    foreignKey({
+      name: "anwesenheit_anfrage_lagertag_fk",
+      columns: [t.lagerId, t.lagertagId],
+      foreignColumns: [lagertag.lagerId, lagertag.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "anwesenheit_anfrage_abschnitt_fk",
+      columns: [t.lagerId, t.tagesabschnittId],
+      foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
+    }).onDelete("cascade"),
     uniqueIndex("anwesenheit_anfrage_offen_uq")
       .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
       .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
@@ -1276,6 +1383,105 @@ export const dokument = pgTable(
     check(
       "dokument_check",
       sql`char_length(${t.titel}) between 1 and 200 and cardinality(${t.stichworte}) <= 20 and char_length(array_to_string(${t.stichworte}, ',')) <= 900`,
+    ),
+  ],
+);
+
+// Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
+export const fahrt = pgTable(
+  "fahrt",
+  {
+    ...lagerSpalten(),
+    richtung: text("richtung", { enum: ["hin", "rueck"] }).notNull(),
+    art: text("art", { enum: ["auto", "oev"] }).notNull(),
+    name: text("name"),
+    fahrerPersonId: uuid("fahrer_person_id"),
+    plaetze: integer("plaetze"),
+    datum: date("datum"),
+    zeit: text("zeit"),
+    von: text("von"),
+    nach: text("nach"),
+    treffpunkt: text("treffpunkt"),
+    link: text("link"),
+    zielBezeichnung: text("ziel_bezeichnung"),
+    zielAdresse: text("ziel_adresse"),
+    zielLat: doublePrecision("ziel_lat"),
+    zielLon: doublePrecision("ziel_lon"),
+    zielLink: text("ziel_link"),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von fahrt_mitfahrer: Eine Mitfahrt kann weder ein anderes Lager noch eine andere Richtung meinen
+    unique("fahrt_lager_id_id_richtung_uq").on(t.lagerId, t.id, t.richtung),
+    foreignKey({
+      name: "fahrt_fahrer_fk",
+      columns: [t.lagerId, t.fahrerPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    // Eine Person fährt je Richtung höchstens eine Fahrt (als Fahrer; als Mitfahrende prüft die Route gegen fahrt_mitfahrer)
+    uniqueIndex("fahrt_fahrer_uq")
+      .on(t.lagerId, t.richtung, t.fahrerPersonId)
+      .where(sql`${t.fahrerPersonId} is not null and ${t.geloeschtAm} is null`),
+    // Die Liste: nach ID (UUIDv7 = Reihenfolge des Anlegens), Seitenwechsel über die ID
+    index("fahrt_liste_idx").on(t.lagerId, t.id),
+    check(
+      "fahrt_richtung_art_check",
+      sql`${t.richtung} in ('hin', 'rueck') and ${t.art} in ('auto', 'oev')`,
+    ),
+    check(
+      "fahrt_art_check",
+      sql`(${t.art} = 'auto' and ${t.plaetze} is not null and ${t.plaetze} between 1 and 99 and ${t.link} is null) or (${t.art} = 'oev' and ${t.plaetze} is null and ${t.fahrerPersonId} is null)`,
+    ),
+    check(
+      "fahrt_text_check",
+      sql`(${t.name} is null or char_length(${t.name}) between 1 and 100) and (${t.von} is null or char_length(${t.von}) between 1 and 200) and (${t.nach} is null or char_length(${t.nach}) between 1 and 200) and (${t.treffpunkt} is null or char_length(${t.treffpunkt}) between 1 and 200) and (${t.zeit} is null or ${t.zeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')`,
+    ),
+    check(
+      "fahrt_link_check",
+      sql`(${t.link} is null or (${t.link} ~ '^https://[^[:space:]]+$' and strpos(${t.link}, chr(92)) = 0 and char_length(${t.link}) <= 2048)) and (${t.zielLink} is null or (${t.zielLink} ~ '^https://[^[:space:]]+$' and strpos(${t.zielLink}, chr(92)) = 0 and char_length(${t.zielLink}) <= 2048))`,
+    ),
+    check(
+      "fahrt_ziel_check",
+      sql`(${t.zielBezeichnung} is null or char_length(${t.zielBezeichnung}) between 1 and 100) and (${t.zielAdresse} is null or char_length(${t.zielAdresse}) between 1 and 200) and ((${t.zielLat} is null) = (${t.zielLon} is null)) and (${t.zielLat} is null or (${t.zielLat} between -90 and 90 and ${t.zielLon} between -180 and 180)) and ((${t.zielBezeichnung} is null and ${t.zielAdresse} is null and ${t.zielLat} is null and ${t.zielLink} is null) or (${t.zielBezeichnung} is not null and (${t.zielAdresse} is not null or ${t.zielLat} is not null or ${t.zielLink} is not null)))`,
+    ),
+  ],
+);
+
+// Eine Mitfahrt: eine Person des Lagers (Leitung, Team) oder ein Teilnehmender, je eine Zeile. Die Richtung steht hier noch einmal, damit die Datenbank hält, dass jemand je Richtung höchstens in einer Fahrt sitzt (Fremdschlüssel über Lager, Fahrt und Richtung). Fällt die Fahrt, die Person aus dem Lager oder der Teilnehmende weg, geht die Zeile mit. Geschrieben wird nur über lager/sync.ts
+export const fahrtMitfahrer = pgTable(
+  "fahrt_mitfahrer",
+  {
+    ...lagerSpalten(),
+    fahrtId: uuid("fahrt_id").notNull(),
+    richtung: text("richtung", { enum: ["hin", "rueck"] }).notNull(),
+    personId: uuid("person_id"),
+    teilnehmerId: uuid("teilnehmer_id"),
+  },
+  (t) => [
+    foreignKey({
+      name: "fahrt_mitfahrer_fahrt_fk",
+      columns: [t.lagerId, t.fahrtId, t.richtung],
+      foreignColumns: [fahrt.lagerId, fahrt.id, fahrt.richtung],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "fahrt_mitfahrer_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "fahrt_mitfahrer_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    uniqueIndex("fahrt_mitfahrer_person_uq")
+      .on(t.lagerId, t.richtung, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("fahrt_mitfahrer_teilnehmer_uq")
+      .on(t.lagerId, t.richtung, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    index("fahrt_mitfahrer_fahrt_idx").on(t.lagerId, t.fahrtId),
+    check(
+      "fahrt_mitfahrer_check",
+      sql`${t.richtung} in ('hin', 'rueck') and num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
     ),
   ],
 );
