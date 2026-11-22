@@ -2790,17 +2790,23 @@ paths:
       operationId: aktiviereAdminPerson
       summary: Deaktivierte Person wieder aktivieren
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Hebt die Sperre auf. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt; der Code liefert keinen 409.
+        Nur Admins, nur Personen der eigenen Abteilung. Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört.
+        Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto.
       tags:
         - Verwaltung
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/AdminPersonId"
       responses:
-        "204":
-          description: Aktiviert.
+        "200":
+          description: Aktiviert, mit neuem Startpasswort (einmalig).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStartpasswort"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -2809,6 +2815,12 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das eigene Konto lässt sich hier nicht aktivieren (`EIGENES_KONTO`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
