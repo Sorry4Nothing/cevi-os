@@ -4,36 +4,44 @@ import { describe, expect, test } from "vitest";
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
-// Reiter «Räume» (#446, #447): Er ruft nur die Routen der Räume und der Raumanfragen auf
-describe("Admin-Panel: Termine, Reiter Räume", () => {
-  const modul = lies("termine-raeume.js");
+const methoden = (modul: string) =>
+  [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]).sort();
 
-  test("Modul und Stilvorlage sind eingebunden", () => {
+// Bereich «Räume» (#446, #447, A14 bis A16): «Räume» pflegt die Räume, «Anfragen» entscheidet über offene Raumanfragen
+describe("Admin-Panel: Räume und Raumanfragen", () => {
+  const raeume = lies("termine-raeume.js");
+  const anfragen = lies("termine-anfragen.js");
+
+  test("Module und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/termine-raeume.css"');
-    expect(lies("termine.js")).toContain('"./termine-raeume.js"');
+    const navigation = lies("navigation.js");
+    expect(navigation).toContain('"./termine-raeume.js"');
+    expect(navigation).toContain('"./termine-anfragen.js"');
   });
 
-  test("lesen, anlegen, ändern und löschen nur über die Raum-Routen (und die Tags für das Team), entscheiden nur über die Anfrage-Routen", () => {
-    expect(modul).toContain('"/api/v1/admin/raeume"');
-    expect(modul).toContain('"/api/v1/raeume/anfragen"');
-    expect(
-      [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]).sort(),
-    ).toEqual([
+  test("Räume: lesen, anlegen, ändern und löschen nur über die Raum-Routen (und die Gruppen für das Team)", () => {
+    expect(raeume).toContain('"/api/v1/admin/raeume"');
+    expect(raeume).toContain('"/api/v1/admin/tags"');
+    expect(methoden(raeume)).toEqual([
       "DELETE",
-      "GET",
-      "GET",
       "GET",
       "GET",
       "GET",
       "PATCH",
       "POST",
-      "POST",
     ]);
-    expect(modul).toContain('"/api/v1/admin/tags"');
-    expect(modul).toContain("/entscheid`");
+    expect(raeume).not.toContain("/api/v1/raeume/anfragen");
+  });
+
+  test("Anfragen: lesen die offenen und entscheiden nur über die Anfrage-Routen", () => {
+    expect(anfragen).toContain('"/api/v1/raeume/anfragen"');
+    expect(anfragen).toContain("/entscheid`");
+    expect(methoden(anfragen)).toEqual(["GET", "GET", "POST", "POST"]);
   });
 
   test("kein Polling und keine Inline-Stile (strenge CSP)", () => {
-    expect(modul).not.toMatch(/setInterval|\.style\b|setAttribute\("style"/);
+    for (const modul of [raeume, anfragen]) {
+      expect(modul).not.toMatch(/setInterval|\.style\b|setAttribute\("style"/);
+    }
   });
 });

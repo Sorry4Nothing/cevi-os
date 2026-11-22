@@ -33,6 +33,8 @@ export type LagerOperation<S extends z.ZodType = z.ZodType> = {
   recht: LagerRecht;
   // Strikt: unbekannte Felder lehnt die Operation ab
   schema: S;
+  // Die Ablehnungscodes dieser Operation ausser den allgemeinen (KEINE_BERECHTIGUNG, UNGUELTIGE_EINGABE, NICHT_GEFUNDEN, KONFLIKT, VERSION_KONFLIKT); die OpenAPI-Beschreibung nennt sie
+  fehler?: readonly string[];
   fuehreAus: (
     kontext: OperationsKontext,
     nutzlast: z.output<S>,
@@ -55,6 +57,12 @@ export function registriereOperation<S extends z.ZodType>(
 }
 
 export const holeOperation = (typ: string) => register.get(typ);
+export const listeOperationen = () =>
+  [...register.values()].sort((a, b) => a.typ.localeCompare(b.typ));
+
+// Eine Prüfung, die die Route mit 400 und einem Code beantwortet, lehnt die Operation mit demselben Code ab
+export const lehneAb = (code: string, message: string) =>
+  new LagerAntwortFehler(400, { code, message });
 // Nur für Tests, die ihre eigenen Operationen anmelden
 export const entferneOperation = (typ: string) => register.delete(typ);
 

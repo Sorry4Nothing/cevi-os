@@ -1,6 +1,6 @@
 import type { lager } from "../db/schema.js";
 
-// Was eine Route vom Lager zeigt: nie die ganze Zeile, damit eine neue Spalte nicht still nach aussen geht (anlassId und uebung folgen mit ihren Issues)
+// Was eine Route vom Lager zeigt: nie die ganze Zeile, damit eine neue Spalte nicht still nach aussen geht (anlassId folgt mit seinem Issue)
 export function lagerAnsicht(zeile: typeof lager.$inferSelect) {
   return {
     id: zeile.id,
@@ -11,6 +11,7 @@ export function lagerAnsicht(zeile: typeof lager.$inferSelect) {
     ort: zeile.ort,
     adresse: zeile.adresse,
     status: zeile.status,
+    uebung: zeile.uebung,
     farbe: zeile.farbe,
     logoMediumId: zeile.logoMediumId,
   };

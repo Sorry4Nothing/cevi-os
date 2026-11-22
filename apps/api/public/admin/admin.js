@@ -1,101 +1,24 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
-import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
-import * as anwesenheit from "./anwesenheit.js";
-import * as importieren from "./import.js";
-import * as kinder from "./kinder.js";
-import * as mitteilungen from "./mitteilungen.js";
-import * as personen from "./personen.js";
-import * as plattform from "./plattform.js";
-import * as stufen from "./stufen.js";
-import * as system from "./system.js";
-import * as tags from "./tags.js";
-import * as termine from "./termine.js";
-import * as uebersicht from "./uebersicht.js";
-import * as website from "./website.js";
-import * as zeitregeln from "./zeitregeln.js";
-
-// [Schlüssel im Hash, Name, Modul, Icon, Untertitel im Seitenkopf]
-const BEREICHE = [
-  [
-    "uebersicht",
-    "Übersicht",
-    uebersicht,
-    "uebersicht",
-    "Zustand der Abteilung und der API auf einen Blick.",
-  ],
-  [
-    "personen",
-    "Personen",
-    personen,
-    "personen",
-    "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
-  ],
-  ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
-  [
-    "tags",
-    "Tags und Gruppen",
-    tags,
-    "tag",
-    "Tags anlegen und Personen zuweisen.",
-  ],
-  ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
-  [
-    "import",
-    "Import",
-    importieren,
-    "ablage",
-    "Kinder und Leitende aus einem Export der Cevi-Datenbank anlegen.",
-  ],
-  [
-    "anwesenheit",
-    "Anwesenheit",
-    anwesenheit,
-    "haken",
-    "Wer in den letzten Anlässen der Stufe da war.",
-  ],
-  [
-    "mitteilungen",
-    "Mitteilungen",
-    mitteilungen,
-    "glocke",
-    "Push-Mitteilung an Eltern und Leitende senden.",
-  ],
-  [
-    "termine",
-    "Termine",
-    termine,
-    "termine",
-    "Termine ohne Kategorie, Zuordnung der Kategorien zu Tags, Vorschläge, Anlässe und Räume.",
-  ],
-  [
-    "website",
-    "Website",
-    website,
-    "website",
-    "Seiten und Medien der Website der Abteilung.",
-  ],
-  [
-    "zeitregeln",
-    "Erinnerungen",
-    zeitregeln,
-    "uhr",
-    "Pushes an Eltern, die noch nicht geantwortet haben.",
-  ],
-  [
-    "plattform",
-    "Plattform",
-    plattform,
-    "schild",
-    "Wartungsmodus und Informationssperre für Bereiche schalten.",
-  ],
-  [
-    "system",
-    "System",
-    system,
-    "system",
-    "Zustand von API, Datenbank und Anfragen.",
-  ],
-];
+import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
+import { erstelleLader } from "./lader.js";
+import {
+  BEREICHE,
+  loese,
+  neueAdresse,
+  sichtbareBereiche as bereicheFuer,
+} from "./navigation.js";
+import {
+  erstelleLeisten,
+  erstelleRueckmeldungen,
+  logozeile,
+  seitenkopf,
+} from "./rahmen.js";
+import {
+  nochmals,
+  rahmenzustand,
+  zeichen,
+  zustandsDaten,
+} from "./zustaende.js";
 
 const app = document.getElementById("app");
 let ich = null;
@@ -106,11 +29,10 @@ const mitDarf = (daten, alle) => ({
   darf: (recht) => alle || daten.rechte.includes(recht),
 });
 const istAdmin = () => ich?.role === "admin";
-// Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website»)
-const sichtbareBereiche = () =>
-  istAdmin()
-    ? BEREICHE
-    : BEREICHE.filter(([s]) => zugang?.bereiche.includes(s));
+// Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
+const sichtbareBereiche = () => bereicheFuer({ istAdmin: istAdmin(), zugang });
+
+const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
 
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
@@ -131,108 +53,6 @@ function zeigeFehler(knoten, text) {
   knoten.textContent = text;
   knoten.hidden = false;
   knoten.focus();
-}
-
-// Chip über dem Titel; Zustand nie nur über Farbe, daher immer mit Symbol und Text
-// def: [Text, Icon, Art]; ohne Art bleibt der Chip neutral
-function zeichen([text, symbol, art]) {
-  return el(
-    "span",
-    { class: art ? `chip chip--${art} chip--allein` : "chip chip--allein" },
-    icon(symbol),
-    text,
-  );
-}
-
-const SITZUNG_ENDE = ["401 · Sitzung abgelaufen", "uhr"];
-const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
-
-// Texte und Symbol der Fehler- und Zustandsseiten nach dem Status; ohne Status (kein ApiFehler) gilt der allgemeine Fehler
-function zustandsDaten(f) {
-  const status = f instanceof ApiFehler ? f.status : undefined;
-  const text = fehlertext(f);
-  if (f?.offline) {
-    return {
-      ueber: "Keine Verbindung",
-      titel: "Keine Verbindung.",
-      text,
-      symbol: "schliessen",
-      art: "warn",
-    };
-  }
-  if (status === 502 || status === 503) {
-    return {
-      ueber: `Fehler ${status}`,
-      titel: "Die Verwaltung ist gerade nicht erreichbar.",
-      text,
-      symbol: "uhr",
-      art: "warn",
-    };
-  }
-  if (status === 403) {
-    return {
-      ueber: "Fehler 403",
-      titel: "Kein Zugriff.",
-      text,
-      symbol: "sperre",
-      art: "fehler",
-    };
-  }
-  if (status === 404) {
-    return {
-      ueber: "Fehler 404",
-      titel: "Nicht gefunden.",
-      text: "Vielleicht wurde der Eintrag inzwischen geändert oder gelöscht.",
-      symbol: "lupe",
-    };
-  }
-  if (status === 429) {
-    return {
-      ueber: "Fehler 429",
-      titel: "Zu viele Versuche.",
-      text,
-      symbol: "uhr",
-      art: "warn",
-    };
-  }
-  return {
-    ueber: status ? `Fehler ${status}` : "Fehler",
-    titel: "Da ist etwas schiefgelaufen.",
-    text,
-    symbol: "warnung",
-    art: "fehler",
-    hilfe:
-      "Passiert es immer wieder, sag es mit Uhrzeit und Bereich der Person, die den Server betreut.",
-  };
-}
-
-// Zustandskarte im Inhaltsbereich; der Fokus liegt danach auf dem Titel, die Meldung wird als Alert angesagt
-// ebene: "h2" im Bereich unter dem Seitenkopf, "h1" wenn kein Seitenkopf davorsteht
-function zustandsKarte(d, aktionen, ebene = "h2") {
-  const titel = el(ebene, { tabindex: "-1" }, d.titel);
-  const wurzel = el(
-    "section",
-    { class: "zustand", role: "alert" },
-    el(
-      "span",
-      {
-        class: d.art
-          ? `zustand-kreis zustand-kreis--${d.art}`
-          : "zustand-kreis",
-      },
-      icon(d.symbol),
-    ),
-    el(
-      "div",
-      { class: "zustand-text" },
-      el("p", { class: "ueber" }, d.ueber),
-      titel,
-      el("p", { class: "leise" }, d.text),
-    ),
-    d.hilfe && el("p", { class: "hilfe" }, d.hilfe),
-    el("div", { class: "aktionen" }, aktionen),
-  );
-  return { wurzel, titel };
 }
 
 // Karte in der Mitte: Überzeile, Titel und Text zuerst; der Fokus liegt danach auf dem Hinweis oder dem Titel
@@ -272,7 +92,7 @@ function anmeldeSeite({
   (meldung || ueberschrift).focus();
 }
 
-// kopfzeichen: Chip-Definition für zeichen(), z. B. SITZUNG_ENDE
+// kopfzeichen: Chip-Definition für zeichen(), z. B. ["429 · Zu viele Versuche", "uhr", "warn"]
 function zeigeLogin(hinweis, kopfzeichen) {
   ich = null;
   // Der Chip für «zu viele Versuche» steht von Anfang an im Kopf und erscheint erst bei einer 429
@@ -500,123 +320,87 @@ async function abmelden() {
   zeigeLogin("Du bist abgemeldet.");
 }
 
-// Rückmeldungen stehen in einer Live-Region: Leeren und kurz danach setzen, damit auch ein gleicher Text wieder angesagt wird
-function melde(text, art = "ok") {
-  const bereich = document.getElementById("rueckmeldung");
-  if (!bereich) return;
-  bereich.textContent = "";
-  bereich.className = text
-    ? `rueckmeldung hinweis hinweis--${art}`
-    : "rueckmeldung";
-  bereich.setAttribute("role", art === "fehler" ? "alert" : "status");
-  setTimeout(() => {
-    bereich.textContent = text;
-  }, 50);
+// Rückmeldung in die Live-Region (nach dem Aufbau der Verwaltung gesetzt)
+let rueckmeldungen = null;
+function melde(text, art = "ok", aktion) {
+  rueckmeldungen?.melde(text, art, aktion);
 }
 
-// Zum ersten Bereich, den die Person sieht: für Admins die Übersicht
-function zurUebersicht(klasse = "") {
-  const [schluessel, name, , symbol] = sichtbareBereiche()[0];
-  return el(
-    "a",
-    { class: `knopf ${klasse}`.trim(), href: `#${schluessel}` },
-    icon(symbol),
-    schluessel === "uebersicht" ? "Zur Übersicht" : `Zu «${name}»`,
-  );
-}
-
-// Lädt Daten in den Bereich und zeichnet sie; die zweite Funktion lädt dieselbe Ansicht nochmals, ohne den Bereich vorher zu leeren
-function erstelleLader(bereich) {
-  async function lade(laden, zeichnen) {
-    if (!bereich.firstChild) {
-      bereich.append(
-        el("p", { class: "meta", role: "status" }, "Wird geladen …"),
-      );
-    }
-    let daten;
-    try {
-      daten = await laden();
-    } catch (f) {
-      if (!bereich.isConnected) return;
-      leere(bereich);
-      const karte = zustandsKarte(zustandsDaten(f), [
-        knopf("Nochmals versuchen", {
-          art: "haupt",
-          symbol: "aktualisieren",
-          onclick: () => lade(laden, zeichnen),
-        }),
-        f.status === 404 && zurUebersicht(),
-      ]);
-      bereich.append(karte.wurzel);
-      karte.titel.focus();
-      return;
-    }
-    // Zwischen Anfrage und Antwort kann man den Bereich gewechselt haben
-    if (!bereich.isConnected) return;
-    leere(bereich);
-    zeichnen(daten, () => lade(laden, zeichnen));
-  }
-  return lade;
-}
-
-function zeigeVerwaltung() {
-  const bereiche = el(
-    "nav",
-    { class: "bereiche", "aria-label": "Bereiche" },
-    sichtbareBereiche().map(([schluessel, name, , symbol]) =>
-      el(
-        "a",
-        { class: "punkt", href: `#${schluessel}`, "data-bereich": schluessel },
-        icon(symbol),
-        el("span", {}, name),
-      ),
-    ),
-  );
-  const rueckmeldung = el("div", {
-    id: "rueckmeldung",
-    class: "rueckmeldung",
-    role: "status",
-  });
-  const dock = el(
-    "aside",
-    { class: "dock" },
-    el(
-      "div",
-      { class: "marke" },
-      el("p", { class: "ueber" }, "Cevi Stäfa-Hombrechtikon"),
-      el("strong", {}, istAdmin() ? "Verwaltung" : "Website"),
-    ),
-    bereiche,
-    el(
-      "div",
-      { class: "konto" },
-      el(
-        "div",
-        { class: "konto-zeile" },
-        avatar(ich.name),
-        el(
-          "div",
-          { class: "konto-text" },
-          el("p", { class: "kontoname" }, ich.name),
-          el(
-            "p",
-            { class: "mini leise" },
-            !istAdmin()
-              ? "Website"
-              : ich.twoFactorEnabled
-                ? "Admin · zweiter Faktor aktiv"
-                : "Admin",
-          ),
-        ),
-      ),
-      knopf("Abmelden", { klein: true, symbol: "abmelden", onclick: abmelden }),
-    ),
-  );
+// Schlichte Seite im Rahmen ohne Konto und ohne Bereichsleiste (A30: 401, 502 und 503 beim Start): Logozeile und der Zustand
+function zeigeRahmenSeite(daten, aktionen) {
+  ich = null;
+  rueckmeldungen = null;
+  const karte = rahmenzustand(daten, aktionen);
   zeichne(
     el(
       "div",
       { class: "app" },
-      dock,
+      el("header", {}, logozeile({ sichtbar: false })),
+      el(
+        "main",
+        { class: "inhalt", id: "inhalt", tabindex: "-1" },
+        el("div", { class: "rahmen" }, karte.wurzel),
+      ),
+    ),
+  );
+  karte.titel.focus();
+}
+
+// A30: Sitzung abgelaufen (401); die Eingaben bleiben im Browser, nur die Anmeldung fehlt
+function zeigeSitzungAbgelaufen() {
+  zeigeRahmenSeite(zustandsDaten(new ApiFehler(401)), [
+    knopf("Neu anmelden", { art: "haupt", onclick: () => zeigeLogin() }),
+  ]);
+}
+
+// Ist die API beim Start nicht erreichbar, hilft keine Anmeldung: eigene Seite mit «Nochmals versuchen»
+function zeigeStartFehler(f) {
+  zeigeRahmenSeite(zustandsDaten(f), [
+    nochmals(() => pruefeKonto(false).catch(zeigeStartFehler)),
+  ]);
+}
+
+// Zum ersten Bereich, den die Person sieht: für Admins die Übersicht
+function zurUebersicht(klasse = "") {
+  const erster = sichtbareBereiche()[0];
+  return el(
+    "a",
+    { class: `knopf ${klasse}`.trim(), href: `#${erster.schluessel}` },
+    icon(erster.symbol),
+    erster.schluessel === "uebersicht"
+      ? "Zur Übersicht"
+      : `Zu «${erster.name}»`,
+  );
+}
+
+const leisten = erstelleLeisten();
+// Stand der Zähler in der Unterleiste: «bereich/unterseite» -> Anzahl. Die Module melden sie, wenn sie die Zahl ohnehin geladen haben (keine eigene Abfrage).
+const zaehlerStand = new Map();
+let aktiv = null;
+let navigation = 0;
+
+function zeigeVerwaltung() {
+  const rolle = !istAdmin()
+    ? "Redaktion"
+    : ich.twoFactorEnabled
+      ? "Abteilungsleitung · zweiter Faktor aktiv"
+      : "Abteilungsleitung";
+  rueckmeldungen = erstelleRueckmeldungen();
+  zaehlerStand.clear();
+  aktiv = null;
+  zeichne(
+    el(
+      "div",
+      { class: "app" },
+      el(
+        "header",
+        { class: "kopfzeile" },
+        logozeile({
+          konto: { name: ich.name, rolle },
+          beiAbmelden: abmelden,
+        }),
+        leisten.wurzel,
+      ),
       el(
         "main",
         { class: "inhalt", id: "inhalt", tabindex: "-1" },
@@ -624,7 +408,7 @@ function zeigeVerwaltung() {
           "div",
           { class: "rahmen" },
           el("div", { id: "seitenkopf" }),
-          rueckmeldung,
+          rueckmeldungen.wurzel,
           el("div", { id: "bereich" }),
         ),
       ),
@@ -633,30 +417,22 @@ function zeigeVerwaltung() {
   navigiere();
 }
 
-function markiereBereich(schluessel) {
-  for (const link of document.querySelectorAll("nav.bereiche a")) {
-    if (link.dataset.bereich === schluessel)
-      link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  }
-}
-
-function zeigeNichtGefunden() {
-  markiereBereich();
+// A30 «Kein Zugriff»: Die Leiste bleibt, der Bereich ist für diese Rolle gesperrt
+function zeigeKeinZugriff(bereichName) {
+  aktiv = null;
+  leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
   document
     .getElementById("seitenkopf")
     .replaceWith(el("div", { id: "seitenkopf" }));
-  document.title = "Nicht gefunden – Verwaltung – Cevi OS";
+  document.title = "Kein Zugriff – Verwaltung – Cevi OS";
   melde("");
-  const karte = zustandsKarte(
+  const karte = rahmenzustand(
     {
-      ueber: "Fehler 404",
-      titel: "Diese Seite gibt es nicht.",
-      text: "Der Link ist vielleicht alt, oder der Bereich heisst inzwischen anders. Wähle links einen Bereich oder nutze den Knopf.",
-      symbol: "lupe",
+      ueber: "Fehler 403",
+      titel: "Dieser Bereich ist für die Abteilungsleitung.",
+      text: `Den Bereich «${bereichName}» darfst du nicht öffnen. Wende dich an die Abteilungsleitung.`,
     },
     [zurUebersicht("knopf--haupt")],
-    "h1",
   );
   document
     .getElementById("bereich")
@@ -664,78 +440,108 @@ function zeigeNichtGefunden() {
   karte.titel.focus();
 }
 
-function navigiere() {
+function zeigeNichtGefunden() {
+  aktiv = null;
+  leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
+  document
+    .getElementById("seitenkopf")
+    .replaceWith(el("div", { id: "seitenkopf" }));
+  document.title = "Nicht gefunden – Verwaltung – Cevi OS";
+  melde("");
+  const karte = rahmenzustand(
+    {
+      ueber: "Fehler 404",
+      titel: "Diese Seite gibt es nicht.",
+      text: "Vielleicht ist der Link alt oder hat einen Tippfehler.",
+    },
+    [zurUebersicht("knopf--haupt")],
+  );
+  document
+    .getElementById("bereich")
+    .replaceWith(el("div", { id: "bereich" }, karte.wurzel));
+  karte.titel.focus();
+}
+
+async function navigiere() {
   if (!ich || !document.getElementById("bereich")) return;
   // Der Sprunglink «Zum Inhalt» setzt #inhalt: nur den Fokus verschieben, den Bereich nicht neu laden
   if (location.hash === "#inhalt") {
     document.getElementById("inhalt").focus();
     return;
   }
-  // Der erste Teil ist der Bereich, der Rest gehört dem Modul (#website/seiten/<id>)
-  const [gesucht, ...pfad] = location.hash.slice(1).split("/");
+  // Alte Adressen (#tags, #termine/raeume …) gehören jetzt zu einer anderen Seite
+  const neu = neueAdresse(location.hash);
+  if (neu !== location.hash) window.history.replaceState(null, "", neu);
   const bereiche = sichtbareBereiche();
-  const treffer = bereiche.find(([s]) => s === gesucht);
-  // Ohne Hash gilt der erste Bereich; ein unbekannter oder nicht erlaubter Hash ist ein toter Link
-  if (gesucht && !treffer) {
-    zeigeNichtGefunden();
+  const treffer = loese(location.hash, bereiche);
+  if (!treffer) {
+    // Ein Bereich, den es gibt, den diese Rolle aber nicht sieht, ist «Kein Zugriff» (403), kein toter Link
+    const bekannt = loese(location.hash, BEREICHE);
+    if (bekannt) zeigeKeinZugriff(bekannt.bereich.name);
+    else zeigeNichtGefunden();
     return;
   }
-  const [schluessel, name, ansicht, , untertitel] = treffer ?? bereiche[0];
-  markiereBereich(schluessel);
-  const seitenkopf = kopf({
-    ueber: istAdmin() ? "Verwaltung" : "Website",
-    titel: name,
-    untertitel,
-  });
-  seitenkopf.id = "seitenkopf";
-  document.getElementById("seitenkopf").replaceWith(seitenkopf);
-  document.title = `${name} – Verwaltung – Cevi OS`;
+  const { bereich: gruppe, unter, pfad } = treffer;
+  const meine = ++navigation;
+  aktiv = { bereich: gruppe, unter };
+  leisten.zeichne({ bereiche, aktiv, zaehlerStand });
+  const kopf = seitenkopf({ titel: unter.name, untertitel: unter.untertitel });
+  document.getElementById("seitenkopf").replaceWith(kopf.wurzel);
+  document.title = `${unter.name} – Verwaltung – Cevi OS`;
   melde("");
   // Ein neuer Container je Navigation: Späte Antworten des alten landen in einem abgehängten Knoten
-  const bereich = el("div", { id: "bereich" });
-  document.getElementById("bereich").replaceWith(bereich);
-  ansicht.zeige(bereich, {
+  const container = el("div", { id: "bereich" });
+  document.getElementById("bereich").replaceWith(container);
+  kopf.h1.focus();
+  let modul;
+  try {
+    modul = await import(unter.modul ?? "./platzhalter.js");
+  } catch (f) {
+    if (meine !== navigation) return;
+    const karte = rahmenzustand(zustandsDaten(f), [
+      nochmals(() => navigiere()),
+    ]);
+    container.append(karte.wurzel);
+    karte.titel.focus();
+    return;
+  }
+  if (meine !== navigation) return;
+  modul.zeige(container, {
     ich,
     zugang,
     pfad,
+    // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
+    seite: { bereich: gruppe, unter },
     melde,
-    lade: erstelleLader(bereich),
-    // Für Bereiche mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
-    erstelleLader,
+    lade: erstelleLader(container, { zurUebersicht }),
+    // Für Module mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
+    erstelleLader: (ziel) => erstelleLader(ziel, { zurUebersicht }),
     // Hauptaktion rechts im Seitenkopf, z. B. «Person anlegen»; der Kopf wird mit jeder Navigation neu gebaut
-    kopfAktion: (...knoten) =>
-      seitenkopf.querySelector(".kopf-aktion").replaceChildren(...knoten),
+    kopfAktion: (...knoten) => kopf.aktion.replaceChildren(...knoten),
+    // Titel und Untertitel ersetzen, z. B. mit dem Namen des geöffneten Eintrags; der Fokus bleibt, wo er ist
+    titel: (text, untertitel) => {
+      kopf.h1.textContent = text;
+      if (untertitel !== undefined) kopf.unter.textContent = untertitel;
+      document.title = `${text} – Verwaltung – Cevi OS`;
+    },
+    // Zähler der Unterleiste (z. B. offene Vorschläge), wenn das Modul die Zahl ohnehin kennt
+    // bereichSchluessel: für einen anderen Bereich als den eigenen (die Übersicht kennt die Zahlen der Termine und Räume)
+    zaehler: (
+      unterSchluessel,
+      anzahl,
+      bereichSchluessel = gruppe.schluessel,
+    ) => {
+      zaehlerStand.set(`${bereichSchluessel}/${unterSchluessel}`, anzahl);
+      if (meine === navigation) {
+        leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
+      }
+    },
   });
-  seitenkopf.querySelector("h1").focus();
 }
 
 window.addEventListener("hashchange", navigiere);
 beiSitzungsende(() => {
-  if (ich) {
-    zeigeLogin(
-      "Die Sitzung ist abgelaufen. Bitte melde dich neu an.",
-      SITZUNG_ENDE,
-    );
-  }
+  if (ich) zeigeSitzungAbgelaufen();
 });
-
-// Ist die API beim Start nicht erreichbar, hilft keine Anmeldung: eigene Seite mit «Nochmals versuchen»
-function zeigeStartFehler(f) {
-  ich = null;
-  const d = zustandsDaten(f);
-  anmeldeSeite({
-    titel: d.titel,
-    text: d.text,
-    kopfzeichen: zeichen([d.ueber, d.symbol, d.art]),
-    inhalt: [
-      d.hilfe && el("p", { class: "hilfe" }, d.hilfe),
-      knopf("Nochmals versuchen", {
-        art: "haupt",
-        symbol: "aktualisieren",
-        onclick: () => pruefeKonto(false).catch(zeigeStartFehler),
-      }),
-    ],
-  });
-}
 
 pruefeKonto(false).catch(zeigeStartFehler);

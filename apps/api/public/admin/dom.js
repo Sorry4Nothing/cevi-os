@@ -756,6 +756,8 @@ export function dialogFormular({
     fehler.hidden = true;
     if (pruefePflichtfelder(formular) || pruefe?.()) return;
     abbrechen.disabled = bestaetigen.disabled = true;
+    // Der Ladekreis im Knopf (G6): «Wird gespeichert»
+    bestaetigen.setAttribute("aria-busy", "true");
     try {
       const ergebnis = await senden();
       dialog.close();
@@ -766,6 +768,7 @@ export function dialogFormular({
       fehler.focus();
     } finally {
       abbrechen.disabled = bestaetigen.disabled = false;
+      bestaetigen.removeAttribute("aria-busy");
     }
   });
   dialog.addEventListener("close", () => {

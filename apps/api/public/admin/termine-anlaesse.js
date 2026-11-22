@@ -7,56 +7,55 @@ import {
   dialogFormular,
   el,
   feld,
-  filterGruppe,
   gruppe,
   icon,
   knopf,
-  leere,
   neueId,
-  tabelle,
 } from "./dom.js";
+import {
+  datumsZelle,
+  entferneFeldFehler,
+  feldFehler,
+  heuteZuerich,
+  keineTreffer,
+  pruefHinweis,
+  stempel,
+  suchfeld,
+  trifft,
+  zaehlwort,
+  zeitraumText,
+  ersetze,
+  termineTabelle,
+} from "./kalenderhilfen.js";
+import { skeletonDetail, skeletonFormular, skeletonTabelle } from "./lader.js";
+import { leerKarte } from "./zustaende.js";
 
-// Reiter «Anlässe» (#445, Epic #430): Anlässe anlegen und verwalten, Zusatzfelder pflegen, Anmeldungen ansehen und als CSV laden. Schnittstelle: siehe termine.js.
-// Adressen: #termine/anlaesse (Liste) · #termine/anlaesse/<id> (ein Anlass).
-// Abfragen: Liste beim Öffnen 1 (und je «Weitere laden» 1); Anlass beim Öffnen 2 (Anlass, Anmeldungen), danach 1 je Statuswechsel oder «Weitere laden». «Anlass anlegen» holt beim Öffnen des Dialogs 2 (Termine, Tags), «Einstellungen ändern» 1 (Tags). Kein Polling, kein Abruf je Zeile. Die Rechte prüft der Server (nur Abteilungsleitung).
+// Bereich «Anlässe», Unterseite «Anlässe» (A17, A18, #445, Epic #430): Anlässe anlegen und verwalten, Zusatzfelder der Anmeldung pflegen. Die Anmeldungen stehen in der Unterseite «Anmeldungen» (termine-anmeldungen.js).
+// Adressen: #anlaesse/anlaesse (Liste) · #anlaesse/anlaesse/<id> (ein Anlass) · #anlaesse/anlaesse/<id>/felder (Zusatzfelder)
+// Abfragen: Liste beim Öffnen 1 (und je «Weitere laden» 1); Anlass und Zusatzfelder 1 beim Öffnen, «Speichern» der Felder 2 (Abgleich mit dem Stand auf dem Server, dann Speichern). «Anlass anlegen» holt beim Öffnen des Dialogs 2 (Termine, Gruppen), «Einstellungen ändern» 1 (Gruppen). Kein Polling, kein Abruf je Zeile. Die Rechte prüft der Server (nur Abteilungsleitung).
+// Lücken gegenüber dem Design: Die Liste hat keine Spalte «Anmeldungen» mit der Zahl (die API zählt sie nicht in der Liste; ein Abruf je Zeile wäre zu teuer), die Spalte «Seite» zeigt einen Link auf die Anlassseite statt ihres Pfads, und beim Konflikt der Zusatzfelder fehlt der Name der Person, die geändert hat.
 
 const BASIS = "/api/v1/admin/anlaesse";
-const ZONE = "Europe/Zurich";
 const MAX_FELDER = 20;
 const SEITE = 50;
 
-const fmt = (optionen, zone = ZONE) =>
-  new Intl.DateTimeFormat("de-CH", { ...optionen, timeZone: zone });
-const TAG = {
-  weekday: "short",
-  day: "2-digit",
-  month: "2-digit",
-  year: "numeric",
+const FUER = { kind: "Kinder", person: "Personen" };
+const SICHT = {
+  oeffentlich: "Öffentlich",
+  angemeldet: "Nur angemeldet",
+  tags: "Bestimmte Gruppen",
 };
-const tagFormat = fmt(TAG);
-const tagUtc = fmt(TAG, "UTC");
-const uhrFormat = fmt({ hour: "2-digit", minute: "2-digit" });
-const stempelFormat = fmt({ dateStyle: "short", timeStyle: "short" });
+const sichtText = (s) =>
+  s.art === "tags" ? `Bestimmte Gruppen (${s.tagIds.length})` : SICHT[s.art];
+const fristText = (a) => (a.frist ? `${stempel(a.frist)} Uhr` : "Keine Frist");
 
-// Ganztägige Termine haben nur Tage (tagVon bis tagBis), alle anderen Beginn und Ende als Zeitpunkt
-function zeitraum(t) {
-  if (t.ganztaegig) {
-    const von = tagUtc.format(new Date(`${t.tagVon}T12:00:00Z`));
-    if (t.tagVon === t.tagBis) return von;
-    return `${von} – ${tagUtc.format(new Date(`${t.tagBis}T12:00:00Z`))}`;
-  }
-  const beginn = new Date(t.beginn);
-  const ende = new Date(t.ende);
-  const tag = tagFormat.format(beginn);
-  const bis =
-    tagFormat.format(ende) === tag
-      ? uhrFormat.format(ende)
-      : `${tagFormat.format(ende)} ${uhrFormat.format(ende)}`;
-  return `${tag}, ${uhrFormat.format(beginn)} – ${bis} Uhr`;
-}
-
-const heuteZuerich = () =>
-  new Intl.DateTimeFormat("sv-SE", { timeZone: ZONE }).format(new Date());
+const TEXTE = {
+  TAG_UNBEKANNT:
+    "Eine gewählte Gruppe gibt es nicht mehr. Lade die Seite neu und wähle die Gruppen nochmals.",
+  FELD_GESUNDHEIT:
+    "Ein Feld fragt nach Gesundheitsdaten. Das nimmt die Anmeldung nicht auf. Gesperrt sind zum Beispiel Wörter rund um Allergien, Medikamente, Krankheiten und Behinderungen, auch in den Antworten zur Auswahl. Formuliere die Frage anders oder lass sie weg.",
+};
+const meldungVon = (f) => TEXTE[f.code] ?? fehlertext(f);
 
 function vorbei(a) {
   return a.ganztaegig
@@ -73,132 +72,191 @@ function statusChip(a) {
   return chip("Anmeldung offen", "ok");
 }
 
-const FUER = { kind: "Kinder", person: "Personen" };
-const SICHT = {
-  oeffentlich: "Öffentlich",
-  angemeldet: "Nur angemeldet",
-  tags: "Bestimmte Tags",
-};
-const sichtText = (s) =>
-  s.art === "tags" ? `Bestimmte Tags (${s.tagIds.length})` : SICHT[s.art];
-const fristText = (a) =>
-  a.frist ? `${stempelFormat.format(new Date(a.frist))} Uhr` : "Keine Frist";
-
-const TEXTE = {
-  TAG_UNBEKANNT:
-    "Ein gewählter Tag gibt es nicht mehr. Lade die Seite neu und wähle die Tags nochmals.",
-  FELD_GESUNDHEIT:
-    "Ein Feld fragt nach Gesundheitsdaten. Das nimmt die Anmeldung nicht auf. Gesperrt sind zum Beispiel Wörter rund um Allergien, Medikamente, Krankheiten und Behinderungen, auch in den Antworten zur Auswahl. Formuliere die Frage anders oder lass sie weg.",
-};
-const meldung = (f) => TEXTE[f.code] ?? fehlertext(f);
-
 export function zeige(bereich, ctx) {
-  const [id] = ctx.pfad;
-  if (id) zeigeAnlass(bereich, ctx, id);
+  const [id, unter] = ctx.pfad;
+  if (id && unter === "felder") zeigeFelder(bereich, ctx, id);
+  else if (id) zeigeAnlass(bereich, ctx, id);
   else zeigeListe(bereich, ctx);
 }
 
-/* ---------- Liste ---------- */
+/* ---------- Liste (A17) ---------- */
 
 function zeigeListe(bereich, ctx) {
-  ctx.lade(
-    () => anfrage("GET", `${BASIS}?limit=${SEITE}`),
-    (erste) => zeichneListe(bereich, ctx, erste),
-  );
-}
-
-function listenZeile(a) {
-  return el(
-    "tr",
-    {},
-    el(
-      "th",
-      { scope: "row" },
-      el(
-        "a",
-        { class: "name tm-anlaesse-link", href: `#termine/anlaesse/${a.id}` },
-        a.titel,
-      ),
-    ),
-    el("td", {}, zeitraum(a)),
-    el("td", {}, FUER[a.anmeldungFuer]),
-    el("td", {}, el("ul", { class: "chips" }, statusChip(a))),
-    el("td", {}, fristText(a)),
-    el("td", { class: "zahl" }, String(a.anzahlFelder)),
-  );
-}
-
-function zeichneListe(bereich, ctx, erste) {
-  let naechste = erste.naechste;
-  let geladen = erste.anlaesse.length;
-
+  const lade = () =>
+    ctx.lade(
+      () => anfrage("GET", `${BASIS}?limit=${SEITE}`),
+      (erste) => zeichneListe(bereich, ctx, erste, lade),
+      {
+        skeleton: () => skeletonTabelle({ spalten: 6, avatar: false }),
+        fehlerTitel: "Die Anlässe konnten nicht geladen werden.",
+      },
+    );
   ctx.kopfAktion(
-    knopf("Anlass anlegen", {
+    knopf("Neuer Anlass", {
       art: "haupt",
       symbol: "plus",
       onclick: (e) => anlegen(ctx, e.currentTarget),
     }),
   );
-  const leer = el(
-    "p",
-    { class: "leer" },
-    "Noch keine Anlässe. Lege den ersten an: Du wählst dafür einen kommenden Termin.",
-  );
-  const { wurzel: rahmen, koerper } = tabelle({
-    beschriftung: "Anlässe",
-    spalten: [
-      "Termin",
-      "Wann",
-      "Anmeldung für",
-      "Stand",
-      "Frist",
-      ["Zusatzfelder", "zahl"],
-    ],
-    zeilen: erste.anlaesse.map(listenZeile),
-  });
-  const status = el("p", { class: "klein tm-anlaesse-status", role: "status" });
-  const mehr = knopf("Weitere laden", {
-    symbol: "runter",
-    onclick: async () => {
-      mehr.disabled = true;
-      mehr.setAttribute("aria-busy", "true");
-      status.textContent = "Weitere Anlässe werden geladen …";
-      try {
-        const seite = await anfrage(
-          "GET",
-          `${BASIS}?limit=${SEITE}&nach=${encodeURIComponent(naechste)}`,
-        );
-        if (!bereich.isConnected) return;
-        koerper.append(...seite.anlaesse.map(listenZeile));
-        geladen += seite.anlaesse.length;
-        naechste = seite.naechste;
-        status.textContent = `${seite.anlaesse.length} weitere Anlässe geladen.`;
-        mehr.hidden = !seite.weitere;
-        // Der Knopf verschwindet mit der letzten Seite: Der Fokus geht an die Tabelle statt ins Leere
-        if (!seite.weitere) rahmen.focus();
-      } catch (f) {
-        status.textContent = `${fehlertext(f)} Versuche es nochmals.`;
-      } finally {
-        mehr.disabled = false;
-        mehr.removeAttribute("aria-busy");
-      }
+  return lade();
+}
+
+function zeichneListe(bereich, ctx, erste) {
+  const anlaesse = [...erste.anlaesse];
+  let weitere = erste.weitere;
+  let naechste = erste.naechste;
+  let begriff = "";
+
+  const suche = suchfeld({
+    label: "Anlass suchen",
+    beiAenderung: (wert) => {
+      begriff = wert;
+      zeichneTabelle();
     },
   });
-  rahmen.hidden = geladen === 0;
-  leer.hidden = geladen !== 0;
-  mehr.hidden = !erste.weitere;
-  bereich.append(
-    el("h2", { class: "tm-anlaesse-titel" }, "Anlässe"),
+  const liste = el("div", {});
+  const meldung = el("p", { class: "klein tm-meldung", role: "status" });
+  const mehr = knopf("Weitere laden", {
+    symbol: "runter",
+    onclick: () => ladeWeitere(),
+  });
+
+  const zeile = (a) =>
     el(
-      "p",
-      { class: "leise tm-anlaesse-text" },
-      "Ein Anlass ist ein Termin mit Anmeldung. Du legst ihn an, pflegst die Zusatzfragen und siehst, wer sich angemeldet hat. Die neuesten Anlässe stehen oben. Die Zahl der Anmeldungen siehst du im Anlass.",
-    ),
-    leer,
-    rahmen,
-    status,
-    el("div", { class: "tm-anlaesse-mehr" }, mehr),
+      "tr",
+      {},
+      el(
+        "th",
+        { scope: "row" },
+        el(
+          "a",
+          { class: "name tm-link", href: `#anlaesse/anlaesse/${a.id}` },
+          a.titel,
+        ),
+      ),
+      datumsZelle(a),
+      el(
+        "td",
+        {},
+        a.seiteId
+          ? el(
+              "a",
+              {
+                class: "tm-tabellenlink",
+                href: `#website/seiten/${a.seiteId}`,
+              },
+              "Anlassseite",
+            )
+          : el("span", { class: "leise" }, "keine"),
+      ),
+      el("td", {}, el("ul", { class: "chips" }, statusChip(a))),
+      el("td", { class: "tm-ziffern" }, fristText(a)),
+      el(
+        "td",
+        { class: "rechts" },
+        el(
+          "div",
+          { class: "aktionen" },
+          el(
+            "a",
+            {
+              class: "knopf knopf--klein",
+              href: `#anlaesse/anlaesse/${a.id}/felder`,
+              "aria-label": `Zusatzfelder (${a.anzahlFelder}): ${a.titel}`,
+            },
+            `Zusatzfelder (${a.anzahlFelder})`,
+          ),
+          el(
+            "a",
+            {
+              class: "knopf knopf--klein",
+              href: `#anlaesse/anmeldungen/${a.id}`,
+              "aria-label": `Anmeldungen: ${a.titel}`,
+            },
+            "Anmeldungen",
+          ),
+        ),
+      ),
+    );
+
+  function zeichneTabelle() {
+    mehr.hidden = !weitere;
+    if (anlaesse.length === 0) {
+      suche.wurzel.hidden = true;
+      ersetze(
+        liste,
+        leerKarte("Es gibt noch keine Anlässe mit Anmeldung.", [
+          knopf("Neuer Anlass", {
+            symbol: "plus",
+            onclick: (e) => anlegen(ctx, e.currentTarget),
+          }),
+        ]),
+      );
+      return;
+    }
+    suche.wurzel.hidden = false;
+    const treffer = anlaesse.filter(
+      (a) => !begriff || trifft(a.titel, begriff),
+    );
+    if (treffer.length === 0) {
+      ersetze(
+        liste,
+        keineTreffer(begriff, () => {
+          suche.eingabe.value = "";
+          begriff = "";
+          zeichneTabelle();
+          suche.eingabe.focus();
+        }),
+      );
+      return;
+    }
+    const t = termineTabelle({
+      beschriftung: "Anlässe, die neuesten zuerst",
+      spalten: [
+        "Titel",
+        "Datum",
+        "Seite",
+        "Anmeldung",
+        "Anmeldeschluss",
+        "Aktionen",
+      ],
+      zeilen: treffer.map(zeile),
+    });
+    // Die Liste kommt vom Server mit den neuesten Anlässen zuerst; die Spalte «Datum» sagt es
+    t.wurzel.querySelectorAll("th")[1]?.setAttribute("aria-sort", "descending");
+    ersetze(liste, t.wurzel);
+  }
+
+  async function ladeWeitere() {
+    mehr.disabled = true;
+    mehr.setAttribute("aria-busy", "true");
+    meldung.textContent = "Weitere Anlässe werden geladen …";
+    try {
+      const seite = await anfrage(
+        "GET",
+        `${BASIS}?limit=${SEITE}&nach=${encodeURIComponent(naechste)}`,
+      );
+      if (!bereich.isConnected) return;
+      anlaesse.push(...seite.anlaesse);
+      weitere = seite.weitere;
+      naechste = seite.naechste;
+      meldung.textContent = `${zaehlwort(seite.anlaesse.length, "weiterer Anlass", "weitere Anlässe")} geladen.`;
+      zeichneTabelle();
+    } catch (f) {
+      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+    } finally {
+      mehr.disabled = false;
+      mehr.removeAttribute("aria-busy");
+    }
+  }
+
+  bereich.append(
+    el("div", { class: "werkzeuge" }, suche.wurzel),
+    liste,
+    meldung,
+    el("div", { class: "tm-mehr" }, mehr),
   );
+  zeichneTabelle();
 }
 
 /* ---------- Einstellungen (Anlegen und Ändern teilen die Felder) ---------- */
@@ -247,7 +305,7 @@ function einstellungsFelder(tags, start) {
     ankreuzen({ label: t.name, gewaehlt: gewaehlt.has(t.id), wert: t.id }),
   );
   const tagGruppe = gruppe(
-    "Tags",
+    "Gruppen",
     el(
       "div",
       {},
@@ -281,7 +339,7 @@ function einstellungsFelder(tags, start) {
         sicht.eingabe.value === "tags" &&
         !tagWahl.some((w) => w.eingabe.checked)
       ) {
-        tagFehler.textContent = "Wähle mindestens einen Tag.";
+        tagFehler.textContent = "Wähle mindestens eine Gruppe.";
         tagFehler.hidden = false;
         tagWahl[0].eingabe.focus();
         return true;
@@ -325,7 +383,7 @@ async function anlegen(ctx, ausloeser) {
       anfrage("GET", "/api/v1/admin/tags"),
     ]);
   } catch (f) {
-    ctx.melde(meldung(f), "fehler");
+    ctx.melde(meldungVon(f), "fehler");
     return;
   } finally {
     ausloeser.disabled = false;
@@ -343,7 +401,7 @@ async function anlegen(ctx, ausloeser) {
     label: "Termin",
     optionen: [
       ["", "Termin wählen"],
-      ...frei.map((t) => [t.id, `${t.titel} · ${zeitraum(t)}`]),
+      ...frei.map((t) => [t.id, `${t.titel} · ${zeitraumText(t)}`]),
     ],
     wert: "",
   });
@@ -359,7 +417,7 @@ async function anlegen(ctx, ausloeser) {
     sichtbarkeit: { art: "angemeldet" },
   });
   dialogFormular({
-    titel: "Anlass anlegen",
+    titel: "Neuer Anlass",
     beschreibung:
       "Ein Anlass macht aus einem Termin einen Termin mit Anmeldung. Die Zusatzfragen ergänzt du danach.",
     felder: [
@@ -389,9 +447,9 @@ async function anlegen(ctx, ausloeser) {
         programmId: wahl.eingabe.value,
         ...rest.lies(),
       }),
-    fehlertext: meldung,
+    fehlertext: meldungVon,
     danach: (neu) => {
-      location.hash = `#termine/anlaesse/${neu.id}`;
+      window.location.hash = `#anlaesse/anlaesse/${neu.id}`;
     },
   });
 }
@@ -400,70 +458,121 @@ async function anlegen(ctx, ausloeser) {
 
 function zeigeAnlass(bereich, ctx, id) {
   const pfad = `${BASIS}/${encodeURIComponent(id)}`;
-  ctx.lade(
-    () =>
-      Promise.all([
-        anfrage("GET", pfad),
-        anfrage("GET", `${pfad}/anmeldungen?limit=${SEITE}`),
-      ]),
-    ([anlass, anmeldungen]) =>
-      zeichneAnlass(bereich, ctx, pfad, anlass, anmeldungen),
-  );
+  const lade = () =>
+    ctx.lade(
+      () => anfrage("GET", pfad),
+      (anlass) => zeichneAnlass(bereich, ctx, pfad, anlass, lade),
+      {
+        skeleton: skeletonDetail,
+        fehlerTitel: "Der Anlass konnte nicht geladen werden.",
+      },
+    );
+  return lade();
 }
 
-function zeichneAnlass(bereich, ctx, pfad, anlass, erste) {
-  const kopfBlock = el("div", { class: "tm-anlaesse-kopf" });
-  const felderBlock = el("section", { class: "tm-anlaesse-abschnitt" });
-  const anmeldungenBlock = el("section", { class: "tm-anlaesse-abschnitt" });
-  // Eine Quelle für Kopf und Beschriftungen der Antworten; der Editor führt «felder» nach dem Speichern nach
-  const zustand = { anlass, felder: anlass.felder };
-  const zeichneTabelle = anmeldungsAnsicht(
-    anmeldungenBlock,
-    pfad,
-    zustand,
-    erste,
-  );
+function zeichneAnlass(bereich, ctx, pfad, a, neu) {
+  ctx.titel(a.titel, zeitraumText(a));
 
-  function zeichneKopf() {
-    leere(kopfBlock);
-    const a = zustand.anlass;
-    kopfBlock.append(
+  async function einstellungen() {
+    let tags;
+    try {
+      tags = (await anfrage("GET", "/api/v1/admin/tags")).tags;
+    } catch (f) {
+      ctx.melde(meldungVon(f), "fehler");
+      return;
+    }
+    const rest = einstellungsFelder(tags, a);
+    dialogFormular({
+      titel: "Einstellungen ändern",
+      beschreibung: `Für «${a.titel}». Wer sich anmeldet, lässt sich nur ändern, solange es keine Anmeldungen gibt.`,
+      felder: rest.knoten,
+      ok: "Speichern",
+      pruefe: () => rest.pruefe(),
+      senden: () => anfrage("PATCH", pfad, rest.lies()),
+      fehlertext: meldungVon,
+      danach: async () => {
+        ctx.melde("Die Einstellungen sind gespeichert.");
+        await neu();
+        document.querySelector("h1")?.focus();
+      },
+    });
+  }
+
+  async function umschalten(knoten) {
+    const offen = !a.anmeldungOffen;
+    knoten.disabled = true;
+    knoten.setAttribute("aria-busy", "true");
+    try {
+      await anfrage("PATCH", pfad, { anmeldungOffen: offen });
+      ctx.melde(
+        offen ? "Die Anmeldung ist offen." : "Die Anmeldung ist geschlossen.",
+      );
+      await neu();
+      document.querySelector("h1")?.focus();
+    } catch (f) {
+      ctx.melde(meldungVon(f), "fehler");
+      knoten.disabled = false;
+      knoten.removeAttribute("aria-busy");
+    }
+  }
+
+  function loeschen() {
+    bestaetigen({
+      titel: "Anlass löschen?",
+      beschreibung: `«${a.titel}» ist danach kein Anlass mehr, der Termin bleibt. Das geht nur ohne Anmeldungen. Die Anlassseite bleibt im Bereich «Website» bestehen.`,
+      ok: "Anlass löschen",
+      aktion: () => anfrage("DELETE", pfad),
+      danach: () => {
+        ctx.melde(`«${a.titel}» ist kein Anlass mehr.`);
+        window.location.hash = "#anlaesse/anlaesse";
+      },
+    });
+  }
+
+  ctx.kopfAktion(
+    knopf("Einstellungen ändern", {
+      art: "haupt",
+      symbol: "bearbeiten",
+      onclick: () => einstellungen(),
+    }),
+  );
+  const zeilen = [
+    ["Wann", zeitraumText(a)],
+    ["Anmeldung für", FUER[a.anmeldungFuer]],
+    ["Anmeldeschluss", fristText(a)],
+    ["Sichtbar für", sichtText(a.sichtbarkeit)],
+    ["Stand", el("ul", { class: "chips tm-rechts" }, statusChip(a))],
+    a.seiteId && [
+      "Anlassseite",
       el(
         "a",
-        { class: "tm-anlaesse-zurueck", href: "#termine/anlaesse" },
+        { href: `#website/seiten/${a.seiteId}` },
+        "Im Bereich «Website» öffnen",
+      ),
+    ],
+  ].filter(Boolean);
+  bereich.append(
+    el(
+      "p",
+      {},
+      el(
+        "a",
+        { class: "knopf knopf--klein", href: "#anlaesse/anlaesse" },
         "Alle Anlässe",
       ),
-      el("h2", { class: "tm-anlaesse-titel" }, a.titel),
+    ),
+    el(
+      "section",
+      { class: "flaeche", "aria-labelledby": "an-einst" },
+      el("h2", { id: "an-einst" }, "Einstellungen"),
       el(
         "dl",
-        { class: "tm-anlaesse-daten" },
-        ...[
-          ["Wann", zeitraum(a)],
-          ["Anmeldung für", FUER[a.anmeldungFuer]],
-          ["Anmeldeschluss", fristText(a)],
-          ["Sichtbar für", sichtText(a.sichtbarkeit)],
-        ].flatMap(([k, w]) => [el("dt", {}, k), el("dd", {}, w)]),
-        el("dt", {}, "Stand"),
-        el("dd", {}, el("ul", { class: "chips" }, statusChip(a))),
-        a.seiteId && el("dt", {}, "Anlassseite"),
-        a.seiteId &&
-          el(
-            "dd",
-            {},
-            el(
-              "a",
-              { href: `#website/seiten/${a.seiteId}` },
-              "Im Bereich «Website» öffnen",
-            ),
-          ),
+        { class: "werte" },
+        zeilen.map(([n, w]) => el("div", {}, el("dt", {}, n), el("dd", {}, w))),
       ),
       el(
         "div",
-        { class: "tm-anlaesse-aktionen" },
-        knopf("Einstellungen ändern", {
-          symbol: "bearbeiten",
-          onclick: () => einstellungen(),
-        }),
+        { class: "reihe" },
         knopf(a.anmeldungOffen ? "Anmeldung schliessen" : "Anmeldung öffnen", {
           onclick: (e) => umschalten(e.currentTarget),
         }),
@@ -473,108 +582,54 @@ function zeichneAnlass(bereich, ctx, pfad, anlass, erste) {
           onclick: () => loeschen(),
         }),
       ),
-    );
-  }
-
-  // Nur den Kopf neu laden: Der Editor behält ungespeicherte Änderungen
-  async function ladeKopf() {
-    zustand.anlass = await anfrage("GET", pfad);
-    zustand.felder = zustand.anlass.felder;
-    zeichneKopf();
-    zeichneTabelle();
-  }
-
-  async function einstellungen() {
-    let tags;
-    try {
-      tags = (await anfrage("GET", "/api/v1/admin/tags")).tags;
-    } catch (f) {
-      ctx.melde(meldung(f), "fehler");
-      return;
-    }
-    const a = zustand.anlass;
-    const rest = einstellungsFelder(tags, a);
-    dialogFormular({
-      titel: "Einstellungen ändern",
-      beschreibung: `Für «${a.titel}». Wer sich anmeldet, lässt sich nur ändern, solange es keine Anmeldungen gibt.`,
-      felder: rest.knoten,
-      ok: "Speichern",
-      pruefe: () => rest.pruefe(),
-      senden: () => anfrage("PATCH", pfad, rest.lies()),
-      fehlertext: meldung,
-      danach: async () => {
-        try {
-          await ladeKopf();
-          ctx.melde("Die Einstellungen sind gespeichert.");
-          // Der Kopf wurde neu gezeichnet: Der Fokus kehrt zum Auslöser zurück
-          kopfBlock.querySelector(".tm-anlaesse-aktionen .knopf")?.focus();
-        } catch (f) {
-          ctx.melde(meldung(f), "fehler");
-        }
-      },
-    });
-  }
-
-  async function umschalten(knoten) {
-    const offen = !zustand.anlass.anmeldungOffen;
-    knoten.disabled = true;
-    knoten.setAttribute("aria-busy", "true");
-    try {
-      await anfrage("PATCH", pfad, { anmeldungOffen: offen });
-      await ladeKopf();
-      ctx.melde(
-        offen ? "Die Anmeldung ist offen." : "Die Anmeldung ist geschlossen.",
-      );
-      // Der Knopf wurde neu gezeichnet: Der Fokus bleibt bei der Aktion
-      kopfBlock
-        .querySelector(".tm-anlaesse-aktionen .knopf:nth-child(2)")
-        ?.focus();
-    } catch (f) {
-      ctx.melde(meldung(f), "fehler");
-      knoten.disabled = false;
-      knoten.removeAttribute("aria-busy");
-    }
-  }
-
-  function loeschen() {
-    const a = zustand.anlass;
-    bestaetigen({
-      titel: "Anlass löschen",
-      beschreibung: `«${a.titel}» ist danach kein Anlass mehr, der Termin bleibt. Das geht nur ohne Anmeldungen. Die Anlassseite bleibt im Bereich «Website» bestehen.`,
-      ok: "Anlass löschen",
-      aktion: () => anfrage("DELETE", pfad),
-      danach: () => {
-        leere(bereich);
-        const bestaetigung = el(
+    ),
+    el(
+      "div",
+      { class: "tm-zweispalt tm-gleich" },
+      el(
+        "section",
+        { class: "flaeche", "aria-labelledby": "an-felder" },
+        el("h2", { id: "an-felder" }, "Zusatzfelder"),
+        el(
           "p",
-          { class: "hinweis hinweis--ok", role: "status", tabindex: "-1" },
-          `«${a.titel}» ist kein Anlass mehr.`,
-        );
-        bereich.append(
-          bestaetigung,
-          el(
-            "p",
-            { class: "tm-anlaesse-text" },
-            el("a", { href: "#termine/anlaesse" }, "Zurück zu den Anlässen"),
-          ),
-        );
-        bestaetigung.focus();
-      },
-    });
-  }
-
-  zeichneKopf();
-  felderEditor(felderBlock, pfad, zustand, zeichneTabelle);
-  bereich.append(kopfBlock, felderBlock, anmeldungenBlock);
+          { class: "leise" },
+          a.felder.length === 0
+            ? "Noch keine Zusatzfragen. Die Anmeldung fragt dann nur nach der Person oder dem Kind."
+            : `${zaehlwort(a.felder.length, "Zusatzfeld", "Zusatzfelder")}: ${a.felder.map((f) => f.beschriftung).join(", ")}`,
+        ),
+        el(
+          "a",
+          { class: "knopf", href: `#anlaesse/anlaesse/${a.id}/felder` },
+          "Zusatzfelder bearbeiten",
+        ),
+      ),
+      el(
+        "section",
+        { class: "flaeche", "aria-labelledby": "an-anm" },
+        el("h2", { id: "an-anm" }, "Anmeldungen"),
+        el(
+          "p",
+          { class: "leise" },
+          "Wer sich angemeldet hat, mit Antworten und Export.",
+        ),
+        el(
+          "a",
+          { class: "knopf", href: `#anlaesse/anmeldungen/${a.id}` },
+          "Anmeldungen ansehen",
+        ),
+      ),
+    ),
+  );
 }
 
-/* ---------- Editor der Zusatzfelder ---------- */
+/* ---------- Zusatzfelder (A18) ---------- */
 
 const TYPEN = [
   ["text", "Text"],
   ["ja_nein", "Ja oder Nein"],
   ["auswahl", "Auswahl aus einer Liste"],
 ];
+const TYP_TEXT = { text: "Text", ja_nein: "Ja/Nein", auswahl: "Auswahl" };
 const UMLAUTE = { ä: "ae", ö: "oe", ü: "ue", ß: "ss" };
 
 // Schlüssel nur aus Kleinbuchstaben, Ziffern und «_» (wie der Server verlangt), eindeutig innerhalb des Anlasses
@@ -593,539 +648,516 @@ function schluesselAus(text, vergeben) {
   return s;
 }
 
-// Meldung beim Feld (als Text, nicht nur Farbe); verschwindet beim nächsten Tippen
-function feldFehler(f, text) {
-  const eingabe = f.eingabe;
-  const p = el(
-    "p",
-    { class: "feld-fehler", id: neueId("fehler"), role: "alert" },
-    text,
-  );
-  f.wurzel.append(p);
-  eingabe.setAttribute("aria-invalid", "true");
-  const vorher = eingabe.getAttribute("aria-describedby");
-  eingabe.setAttribute(
-    "aria-describedby",
-    [vorher, p.id].filter(Boolean).join(" "),
-  );
-  eingabe.addEventListener(
-    "input",
-    () => {
-      eingabe.removeAttribute("aria-invalid");
-      if (vorher) eingabe.setAttribute("aria-describedby", vorher);
-      else eingabe.removeAttribute("aria-describedby");
-      p.remove();
-    },
-    { once: true },
-  );
+// «Ja/Nein · Pflicht», «Auswahl: 128, 140 · Pflicht», «Text · optional»
+const beschreibung = (f) =>
+  `${f.typ === "auswahl" ? `Auswahl: ${f.optionen.join(", ")}` : TYP_TEXT[f.typ]} · ${f.pflicht ? "Pflicht" : "optional"}`;
+
+// Fokus auf einen Text, der selbst kein Bedienelement ist (nach dem Neuzeichnen ist der Auslöser weg)
+function fokusAuf(knoten) {
+  knoten?.setAttribute("tabindex", "-1");
+  knoten?.focus();
 }
 
-function felderEditor(block, pfad, zustand, beiSpeichern) {
-  const zeilen = [];
-  let geaendert = false;
-  const liste = el("ol", { class: "tm-anlaesse-felder" });
-  const status = el("p", {
-    class: "klein tm-anlaesse-status",
-    role: "status",
-  });
-  const fehler = el("p", {
-    class: "hinweis hinweis--fehler",
-    role: "alert",
-    hidden: true,
-    tabindex: "-1",
-  });
-  const hinzu = knopf("Feld hinzufügen", {
-    symbol: "plus",
-    onclick: () => {
-      const z = neueZeile({ typ: "text", optionen: [], pflicht: false });
-      zeilen.push(z);
-      liste.append(z.knoten);
-      aktualisiere();
-      markiere();
-      z.beschriftung.eingabe.focus();
-      sage(`Neues Feld ${zeilen.length} von ${zeilen.length} ist da.`);
-    },
-  });
-  const speichern = knopf("Felder speichern", {
-    art: "haupt",
-    symbol: "haken",
-    onclick: () => speichere(),
-  });
-  const leer = el(
-    "p",
-    { class: "leer leer--klein" },
-    "Noch keine Zusatzfragen. Die Anmeldung fragt dann nur nach der Person oder dem Kind.",
+const normal = (felder) =>
+  JSON.stringify(
+    felder.map((f) => [
+      f.schluessel,
+      f.beschriftung,
+      f.typ,
+      f.optionen,
+      f.pflicht,
+    ]),
   );
 
-  function sage(text) {
+function zeigeFelder(bereich, ctx, id) {
+  const pfad = `${BASIS}/${encodeURIComponent(id)}`;
+  const lade = () =>
+    ctx.lade(
+      () => anfrage("GET", pfad),
+      (anlass) => zeichneFelder(bereich, ctx, pfad, anlass),
+      {
+        skeleton: () => skeletonFormular({ felder: 4 }),
+        fehlerTitel: "Die Zusatzfelder konnten nicht geladen werden.",
+      },
+    );
+  return lade();
+}
+
+function zeichneFelder(bereich, ctx, pfad, anlass) {
+  ctx.titel(
+    "Zusatzfelder",
+    `${anlass.titel} · was bei der Anmeldung zusätzlich gefragt wird.`,
+  );
+  // basis: der Stand, den der Server zuletzt geliefert hat; felder: die Arbeitskopie
+  let basis = anlass.felder.map((f) => ({ ...f }));
+  let felder = basis.map((f) => ({
+    ...f,
+    optionen: [...f.optionen],
+    _id: neueId("f"),
+  }));
+  let geaendert = false;
+  let bearbeite = null;
+
+  const status = el("p", { class: "klein", role: "status" });
+  const meldungen = el("div", {});
+  const liste = el("div", {});
+  const editor = el("div", {});
+  const hinweisGesundheit = el(
+    "div",
+    { class: "hinweis hinweis--warn", role: "status" },
+    "Keine Gesundheitsdaten abfragen.",
+  );
+  const speichernKnopf = knopf("Speichern", {
+    art: "haupt",
+    symbol: "haken",
+    onclick: () => speichern(),
+  });
+  ctx.kopfAktion(speichernKnopf);
+
+  const sage = (text) => {
     status.textContent = text;
-  }
+  };
   function markiere() {
     if (geaendert) return;
     geaendert = true;
     sage("Änderungen sind noch nicht gespeichert.");
   }
-  const bezeichnung = (z, i) =>
-    z.beschriftung.eingabe.value.trim() || `Feld ${i + 1}`;
-  const optionenVon = (z) =>
-    z.optionen.eingabe.value
-      .split("\n")
-      .map((t) => t.trim())
-      .filter(Boolean);
+  const rundKnopf = (symbol, label, aktion, onclick) =>
+    el(
+      "button",
+      {
+        type: "button",
+        class: "knopf knopf--rund",
+        "aria-label": label,
+        "data-aktion": aktion,
+        onclick,
+      },
+      icon(symbol),
+    );
 
-  // Nummern, Namen der Knöpfe und gesperrte Richtungen nachführen
-  function aktualisiere() {
-    zeilen.forEach((z, i) => {
-      const name = bezeichnung(z, i);
-      z.titel.textContent = `Feld ${i + 1}`;
-      z.hoch.disabled = i === 0;
-      z.runter.disabled = i === zeilen.length - 1;
-      z.hoch.setAttribute("aria-label", `Nach oben: ${name}`);
-      z.runter.setAttribute("aria-label", `Nach unten: ${name}`);
-      z.weg.setAttribute("aria-label", `Entfernen: ${name}`);
-    });
-    leer.hidden = zeilen.length > 0;
-    hinzu.disabled = zeilen.length >= MAX_FELDER;
+  function zeichneListe() {
+    const zeilen = felder.map((f, i) =>
+      el(
+        "li",
+        { "data-id": f._id },
+        el(
+          "div",
+          { class: "text" },
+          el("span", { class: "name" }, f.beschriftung),
+          el("span", { class: "klein leise" }, beschreibung(f)),
+        ),
+        i > 0
+          ? rundKnopf("hoch", `Nach oben: ${f.beschriftung}`, "hoch", () =>
+              verschiebe(f, -1),
+            )
+          : el("span", { class: "tm-platz" }),
+        i < felder.length - 1
+          ? rundKnopf("runter", `Nach unten: ${f.beschriftung}`, "runter", () =>
+              verschiebe(f, 1),
+            )
+          : el("span", { class: "tm-platz" }),
+        knopf("Bearbeiten", {
+          klein: true,
+          symbol: "bearbeiten",
+          kontext: f.beschriftung,
+          onclick: () => oeffneEditor(f),
+        }),
+        rundKnopf("papierkorb", `Entfernen: ${f.beschriftung}`, "weg", () =>
+          entferne(f),
+        ),
+      ),
+    );
+    ersetze(
+      liste,
+      el(
+        "section",
+        { class: "flaeche", "aria-labelledby": "zf-liste" },
+        el("h2", { id: "zf-liste" }, "Zusatzfelder"),
+        felder.length === 0
+          ? el(
+              "p",
+              { class: "leise" },
+              "Noch keine Zusatzfragen. Die Anmeldung fragt dann nur nach der Person oder dem Kind.",
+            )
+          : el("ul", { class: "liste-zeilen" }, zeilen),
+        felder.length >= MAX_FELDER
+          ? el("p", { class: "hilfe" }, `Höchstens ${MAX_FELDER} Felder.`)
+          : knopf("Feld hinzufügen", {
+              symbol: "plus",
+              onclick: () => oeffneEditor(null),
+            }),
+      ),
+    );
   }
 
-  function verschiebe(z, richtung) {
-    const i = zeilen.indexOf(z);
+  function verschiebe(f, richtung) {
+    const i = felder.indexOf(f);
     const j = i + richtung;
-    if (j < 0 || j >= zeilen.length) return;
-    [zeilen[i], zeilen[j]] = [zeilen[j], zeilen[i]];
-    liste.replaceChildren(...zeilen.map((e) => e.knoten));
-    aktualisiere();
+    if (j < 0 || j >= felder.length) return;
+    [felder[i], felder[j]] = [felder[j], felder[i]];
     markiere();
-    // Beim Umhängen verliert der Knopf den Fokus; am Rand ist seine Richtung gesperrt, dann folgt die andere
-    const gleich = richtung < 0 ? z.hoch : z.runter;
-    (gleich.disabled ? (richtung < 0 ? z.runter : z.hoch) : gleich).focus();
+    zeichneListe();
+    // Der Knopf wurde neu gezeichnet; am Rand fehlt die Richtung, dann folgt die andere
+    const li = liste.querySelector(`[data-id="${f._id}"]`);
+    (
+      li.querySelector(`[data-aktion="${richtung < 0 ? "hoch" : "runter"}"]`) ??
+      li.querySelector('[data-aktion="runter"], [data-aktion="hoch"]')
+    ).focus();
     sage(
-      `«${bezeichnung(z, j)}» steht jetzt an Stelle ${j + 1} von ${zeilen.length}.`,
+      `«${f.beschriftung}» steht jetzt an Stelle ${j + 1} von ${felder.length}.`,
     );
   }
 
-  function entferne(z) {
-    const i = zeilen.indexOf(z);
-    const name = bezeichnung(z, i);
-    zeilen.splice(i, 1);
-    z.knoten.remove();
-    aktualisiere();
-    markiere();
-    // Der Fokus geht auf die Überschrift des nächsten, sonst des vorigen Feldes, sonst auf «Feld hinzufügen»
-    (zeilen[i]?.titel ?? zeilen[i - 1]?.titel ?? hinzu).focus();
-    sage(
-      `«${name}» ist entfernt, noch nicht gespeichert. ${zeilen.length === 1 ? "Es bleibt 1 Feld." : `Es bleiben ${zeilen.length} Felder.`}`,
-    );
+  function entferne(f) {
+    bestaetigen({
+      titel: "Feld entfernen?",
+      beschreibung: `«${f.beschriftung}» wird aus der Liste entfernt. Erst «Speichern» übernimmt das. Gibt es schon Antworten zu dem Feld, lässt es sich nicht entfernen.`,
+      ok: "Feld entfernen",
+      aktion: async () => {},
+      danach: () => {
+        const i = felder.indexOf(f);
+        felder.splice(i, 1);
+        markiere();
+        zeichneListe();
+        sage(`«${f.beschriftung}» ist entfernt, noch nicht gespeichert.`);
+        fokusAuf(
+          liste.querySelector(
+            `[data-id="${(felder[i] ?? felder[i - 1])?._id}"] .name`,
+          ) ?? liste.querySelector("h2"),
+        );
+      },
+    });
   }
 
-  function neueZeile(f) {
-    const z = { schluessel: f.schluessel ?? null };
-    const titelId = neueId("feld-titel");
-    z.titel = el("h4", { id: titelId, tabindex: "-1" });
-    z.beschriftung = feld({
-      label: "Frage",
-      wert: f.beschriftung ?? "",
+  // Der Editor für ein neues oder ein bestehendes Feld (f), solange es ungespeichert in der Liste steht
+  function oeffneEditor(f) {
+    bearbeite = f;
+    const titel = el(
+      "h2",
+      { tabindex: "-1" },
+      f ? "Feld bearbeiten" : "Neues Feld",
+    );
+    const name = feld({
+      label: "Feldname",
+      hilfe:
+        "Die Frage, wie Eltern oder Teilnehmende sie lesen. Höchstens 100 Zeichen.",
+      wert: f?.beschriftung ?? "",
       maxlength: 100,
     });
-    z.typ = auswahl({ label: "Antwort", optionen: TYPEN, wert: f.typ });
-    z.optionen = feld({
+    const typ = auswahl({
+      label: "Typ",
+      optionen: TYPEN,
+      wert: f?.typ ?? "text",
+    });
+    const optionen = feld({
       label: "Antworten zur Auswahl",
       mehrzeilig: true,
       rows: 4,
-      wert: f.optionen.join("\n"),
+      wert: (f?.optionen ?? []).join("\n"),
       hilfe: "Eine Antwort pro Zeile. Mindestens 2, höchstens 20.",
     });
-    z.pflicht = ankreuzen({
+    const pflicht = ankreuzen({
       label: "Pflichtfeld: Ohne Antwort geht die Anmeldung nicht",
-      gewaehlt: f.pflicht,
+      gewaehlt: f?.pflicht ?? false,
       wert: "1",
     });
-    z.hoch = knopf("Nach oben", {
-      klein: true,
-      symbol: "hoch",
-      onclick: () => verschiebe(z, -1),
-    });
-    z.runter = knopf("Nach unten", {
-      klein: true,
-      symbol: "runter",
-      onclick: () => verschiebe(z, 1),
-    });
-    z.weg = knopf("Entfernen", {
-      klein: true,
-      art: "gefahr",
-      symbol: "papierkorb",
-      onclick: () => entferne(z),
-    });
+    const meld = el("div", {});
     const zeigeOptionen = () => {
-      z.optionen.wurzel.hidden = z.typ.eingabe.value !== "auswahl";
+      optionen.wurzel.hidden = typ.eingabe.value !== "auswahl";
     };
-    z.typ.eingabe.addEventListener("change", zeigeOptionen);
+    typ.eingabe.addEventListener("change", zeigeOptionen);
     zeigeOptionen();
-    z.knoten = el(
-      "li",
-      {
-        class: "tm-anlaesse-feld",
-        role: "group",
-        "aria-labelledby": titelId,
-      },
+    const optionenVon = () =>
+      optionen.eingabe.value
+        .split("\n")
+        .map((t) => t.trim())
+        .filter(Boolean);
+
+    function uebernehmen() {
+      entferneFeldFehler(editor);
+      ersetze(meld);
+      const fehler = [];
+      const wert = name.eingabe.value.trim();
+      if (!wert) {
+        feldFehler(
+          name,
+          "Gib dem Feld einen Namen, zum Beispiel «Zelt-Wunsch».",
+        );
+        fehler.push({ name: "Feldname", eingabe: name.eingabe });
+      }
+      const o = optionenVon();
+      if (typ.eingabe.value === "auswahl") {
+        const text = o.some((t) => t.length > 100)
+          ? "Jede Antwort darf höchstens 100 Zeichen lang sein."
+          : o.length < 2
+            ? "Gib mindestens 2 Antworten an, eine pro Zeile."
+            : o.length > 20
+              ? "Gib höchstens 20 Antworten an."
+              : new Set(o).size !== o.length
+                ? "Jede Antwort darf nur einmal vorkommen."
+                : null;
+        if (text) {
+          feldFehler(optionen, text);
+          fehler.push({ name: "Antworten", eingabe: optionen.eingabe });
+        }
+      }
+      if (fehler.length > 0) {
+        const hinweis = pruefHinweis(fehler);
+        ersetze(meld, hinweis);
+        hinweis.focus();
+        return;
+      }
+      const neu = {
+        schluessel: f?.schluessel ?? null,
+        beschriftung: wert,
+        typ: typ.eingabe.value,
+        optionen: typ.eingabe.value === "auswahl" ? o : [],
+        pflicht: pflicht.eingabe.checked,
+      };
+      if (f) Object.assign(f, neu);
+      else felder.push({ ...neu, _id: neueId("f") });
+      bearbeite = null;
+      ersetze(editor);
+      markiere();
+      zeichneListe();
+      const ziel = f ?? felder.at(-1);
+      sage(`«${wert}» ist übernommen, noch nicht gespeichert.`);
+      fokusAuf(liste.querySelector(`[data-id="${ziel._id}"] .name`));
+    }
+
+    ersetze(
+      editor,
       el(
-        "div",
-        { class: "tm-anlaesse-feldkopf" },
+        "section",
+        {
+          class: "flaeche",
+          "aria-label": f ? "Feld bearbeiten" : "Neues Feld",
+        },
+        titel,
+        meld,
+        name.wurzel,
+        typ.wurzel,
+        optionen.wurzel,
+        pflicht.wurzel,
         el(
           "div",
-          {},
-          z.titel,
-          z.schluessel &&
-            el(
-              "p",
-              { class: "klein leise" },
-              `Schlüssel: ${z.schluessel}. Er bleibt, auch wenn du die Frage umformulierst.`,
-            ),
+          { class: "reihe" },
+          knopf("Feld übernehmen", { art: "blau", onclick: uebernehmen }),
+          knopf("Abbrechen", {
+            onclick: () => {
+              bearbeite = null;
+              ersetze(editor);
+              fokusAuf(
+                liste.querySelector(f ? `[data-id="${f._id}"] .name` : "h2"),
+              );
+            },
+          }),
         ),
-        el("div", { class: "aktionen" }, z.hoch, z.runter, z.weg),
       ),
-      z.beschriftung.wurzel,
-      z.typ.wurzel,
-      z.optionen.wurzel,
-      z.pflicht.wurzel,
     );
-    z.knoten.addEventListener("input", () => {
-      aktualisiere();
-      markiere();
-    });
-    z.knoten.addEventListener("change", markiere);
-    return z;
+    titel.focus();
   }
 
-  // true, wenn alles stimmt; sonst Meldungen beim Feld und Fokus auf das erste
-  function pruefe() {
-    for (const e of block.querySelectorAll(".feld-fehler")) e.remove();
-    let erstes = null;
-    const fehlt = (f, text) => {
-      feldFehler(f, text);
-      erstes ??= f.eingabe;
-    };
-    for (const z of zeilen) {
-      if (!z.beschriftung.eingabe.value.trim())
-        fehlt(z.beschriftung, "Gib eine Frage ein.");
-      if (z.typ.eingabe.value !== "auswahl") continue;
-      const o = optionenVon(z);
-      if (o.some((t) => t.length > 100))
-        fehlt(z.optionen, "Jede Antwort darf höchstens 100 Zeichen lang sein.");
-      else if (o.length < 2)
-        fehlt(z.optionen, "Gib mindestens 2 Antworten an, eine pro Zeile.");
-      else if (o.length > 20)
-        fehlt(z.optionen, "Gib höchstens 20 Antworten an.");
-      else if (new Set(o).size !== o.length)
-        fehlt(z.optionen, "Jede Antwort darf nur einmal vorkommen.");
-    }
-    erstes?.focus();
-    return erstes === null;
-  }
+  // Stand der Felder, den der Server schickt (für den Konflikt und nach dem Speichern)
+  const alsArbeitskopie = (serverFelder) =>
+    serverFelder.map((f) => ({
+      ...f,
+      optionen: [...f.optionen],
+      _id: neueId("f"),
+    }));
 
-  async function speichere() {
-    fehler.hidden = true;
-    if (!pruefe()) {
-      sage("Bitte prüfe die markierten Felder.");
-      return;
-    }
-    const vergeben = new Set(zeilen.map((z) => z.schluessel).filter(Boolean));
-    // Neue Schlüssel gelten erst nach dem Speichern: Scheitert es, darf die Frage noch umformuliert werden
-    const neu = new Map();
-    const felder = zeilen.map((z) => {
-      let schluessel = z.schluessel;
-      if (!schluessel) {
-        schluessel = schluesselAus(z.beschriftung.eingabe.value, vergeben);
-        vergeben.add(schluessel);
-        neu.set(z, schluessel);
-      }
-      const typ = z.typ.eingabe.value;
+  function koerper(liste_) {
+    const vergeben = new Set(liste_.map((f) => f.schluessel).filter(Boolean));
+    return liste_.map((f) => {
+      const schluessel =
+        f.schluessel ?? schluesselAus(f.beschriftung, vergeben);
+      vergeben.add(schluessel);
       return {
         schluessel,
-        beschriftung: z.beschriftung.eingabe.value.trim(),
-        typ,
-        optionen: typ === "auswahl" ? optionenVon(z) : [],
-        pflicht: z.pflicht.eingabe.checked,
+        beschriftung: f.beschriftung,
+        typ: f.typ,
+        optionen: f.typ === "auswahl" ? f.optionen : [],
+        pflicht: f.pflicht,
       };
     });
-    speichern.disabled = true;
-    speichern.setAttribute("aria-busy", "true");
-    sage("Wird gespeichert …");
-    try {
-      const antwort = await anfrage("PUT", `${pfad}/felder`, { felder });
-      zustand.felder = antwort.felder;
-      for (const [z, schluessel] of neu) z.schluessel = schluessel;
-      geaendert = false;
-      sage(`Gespeichert um ${uhrFormat.format(new Date())} Uhr.`);
-      beiSpeichern();
-    } catch (f) {
-      sage("");
-      fehler.textContent = belegt(f, felder) ?? meldung(f);
-      fehler.hidden = false;
-      fehler.focus();
-    } finally {
-      speichern.disabled = false;
-      speichern.removeAttribute("aria-busy");
-    }
   }
 
   // 409 FELD_IN_BENUTZUNG nennt die Schlüssel; der Text nennt die Fragen
-  function belegt(f, felder) {
+  function belegt(f, gesendet) {
     if (f.code !== "FELD_IN_BENUTZUNG") return null;
     const namen = (f.daten?.schluessel ?? [])
-      .map((s) => felder.find((x) => x.schluessel === s)?.beschriftung ?? s)
+      .map(
+        (s) =>
+          gesendet.find((x) => x.schluessel === s)?.beschriftung ??
+          basis.find((x) => x.schluessel === s)?.beschriftung ??
+          s,
+      )
       .map((n) => `«${n}»`)
       .join(", ");
     return `Zu diesen Feldern gibt es schon Antworten: ${namen}. Sie lassen sich weder entfernen noch auf einen anderen Typ umstellen. Stelle sie wieder her oder lade die Seite neu.`;
   }
 
-  for (const f of zustand.felder) zeilen.push(neueZeile(f));
-  liste.append(...zeilen.map((z) => z.knoten));
-  aktualisiere();
-  block.append(
-    el("h3", { class: "tm-anlaesse-unter" }, "Zusatzfelder der Anmeldung"),
-    el(
-      "p",
-      { class: "hinweis hinweis--warn tm-anlaesse-gesundheit" },
-      "Frage keine Gesundheitsdaten ab (zum Beispiel Allergien, Medikamente, Krankheiten). Das sieht Version 1 nicht vor.",
-    ),
-    el(
-      "p",
-      { class: "leise tm-anlaesse-text" },
-      `Diese Fragen stellt die Anmeldung zusätzlich. Höchstens ${MAX_FELDER} Felder, in der Reihenfolge der Liste. Erst «Felder speichern» übernimmt deine Änderungen.`,
-    ),
-    leer,
-    liste,
-    el("div", { class: "tm-anlaesse-aktionen" }, hinzu, speichern),
-    fehler,
-    status,
-  );
-}
-
-/* ---------- Anmeldungen und Export ---------- */
-
-const STATUS_TEXT = {
-  angemeldet: "angemeldet",
-  abgemeldet: "abgemeldet",
-  alle: "angemeldet und abgemeldet",
-};
-
-// Zeichnet Summen, Filter, Tabelle und Export; liefert eine Funktion, die Filter und Tabelle neu zeichnet (nach geänderten Feldern oder Einstellungen)
-function anmeldungsAnsicht(block, pfad, zustand, erste) {
-  let status = "angemeldet";
-  let eintraege = erste.eintraege;
-  let weitere = erste.weitere;
-  let naechste = erste.naechste;
-  let summe = erste.summe;
-
-  const meld = el("p", { class: "klein tm-anlaesse-status", role: "status" });
-  const tabellenHalter = el("div", { class: "tm-anlaesse-tabelle" });
-  const filterHalter = el("div", {});
-  const mehr = knopf("Weitere laden", {
-    symbol: "runter",
-    onclick: () => lade(false),
-  });
-  // Ein Link mit download: Der Browser lädt die Datei mit der Sitzung, nichts geht in den Speicher der Seite
-  const exportLink = el(
-    "a",
-    { class: "knopf", download: "" },
-    icon("runter"),
-    "Exportieren (CSV)",
-  );
-  const exportHinweis = el("p", { class: "klein leise tm-anlaesse-text" });
-
-  function zeichneFilter() {
-    const gruppe = filterGruppe({
-      beschriftung: "Anmeldungen nach Stand",
-      eintraege: [
-        { text: "Angemeldet", n: summe.angemeldet, wert: "angemeldet" },
-        { text: "Abgemeldet", n: summe.abgemeldet, wert: "abgemeldet" },
-        {
-          text: "Alle",
-          n: summe.angemeldet + summe.abgemeldet,
-          wert: "alle",
-        },
-      ],
-      wert: status,
-      beiAenderung: (wert) => {
-        const alt = status;
-        status = wert;
-        lade(true, alt);
-      },
+  async function schreibe(gesendet) {
+    const antwort = await anfrage("PUT", `${pfad}/felder`, {
+      felder: gesendet,
     });
-    filterHalter.replaceChildren(gruppe.wurzel);
-  }
-
-  function zeile(e) {
-    const antworten = zustand.felder.flatMap((f) => {
-      const wert = e.antworten[f.schluessel];
-      if (wert === undefined || wert === "") return [];
-      return [
-        el("dt", {}, f.beschriftung),
-        el("dd", {}, typeof wert === "boolean" ? (wert ? "Ja" : "Nein") : wert),
-      ];
-    });
-    return el(
-      "tr",
-      {},
-      el(
-        "th",
-        { scope: "row" },
-        el("span", { class: "name" }, e.person.name),
-        e.person.telefon &&
-          el(
-            "span",
-            { class: "klein leise tm-anlaesse-zusatz" },
-            e.person.telefon,
-          ),
-      ),
-      zustand.anlass.anmeldungFuer === "kind" &&
-        el(
-          "td",
-          {},
-          e.kind
-            ? [
-                el(
-                  "span",
-                  { class: "name" },
-                  `${e.kind.vorname} ${e.kind.nachname}`,
-                ),
-                e.kind.ceviName &&
-                  el(
-                    "span",
-                    { class: "klein leise tm-anlaesse-zusatz" },
-                    e.kind.ceviName,
-                  ),
-                el(
-                  "span",
-                  { class: "klein leise tm-anlaesse-zusatz" },
-                  e.kind.stufe,
-                ),
-              ]
-            : "–",
-        ),
-      el(
-        "td",
-        {},
-        el(
-          "ul",
-          { class: "chips" },
-          e.status === "angemeldet"
-            ? chip("Angemeldet", "ok")
-            : chip("Abgemeldet", undefined, false),
-        ),
-      ),
-      el(
-        "td",
-        {},
-        antworten.length > 0
-          ? el("dl", { class: "tm-anlaesse-antworten" }, ...antworten)
-          : "–",
-      ),
-      el("td", {}, stempelFormat.format(new Date(e.geaendertAm))),
+    basis = antwort.felder.map((f) => ({ ...f }));
+    felder = alsArbeitskopie(antwort.felder);
+    geaendert = false;
+    sage("");
+    ersetze(meldungen);
+    ersetze(editor);
+    bearbeite = null;
+    zeichneListe();
+    ctx.melde(
+      "Zusatzfelder gespeichert. Neue Anmeldungen fragen sie ab sofort ab.",
     );
   }
 
-  function zeichneTabelle() {
-    leere(tabellenHalter);
-    if (eintraege.length === 0) {
-      tabellenHalter.append(
-        el(
-          "p",
-          { class: "leer" },
-          status === "abgemeldet"
-            ? "Keine Abmeldungen."
-            : status === "alle"
-              ? "Noch keine Anmeldungen."
-              : "Noch niemand ist angemeldet.",
-        ),
-      );
+  function zeigeFehler(text) {
+    const hinweis = el(
+      "div",
+      { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+      `Nicht gespeichert. ${text} Deine Felder sind noch da, speichere nochmals.`,
+    );
+    ersetze(meldungen, hinweis);
+    hinweis.focus();
+  }
+
+  async function speichern() {
+    ersetze(meldungen);
+    if (bearbeite !== null || editor.firstChild) {
+      zeigeFehler("Du bearbeitest gerade ein Feld. Übernimm es oder brich ab.");
       return;
     }
-    const kind = zustand.anlass.anmeldungFuer === "kind";
-    tabellenHalter.append(
-      tabelle({
-        beschriftung: "Anmeldungen",
-        spalten: [
-          "Angemeldet von",
-          ...(kind ? ["Kind"] : []),
-          "Stand",
-          "Antworten",
-          "Geändert",
-        ],
-        zeilen: eintraege.map(zeile),
-      }).wurzel,
-    );
-  }
-
-  function zeichneAlles() {
-    zeichneFilter();
-    zeichneTabelle();
-    mehr.hidden = !weitere;
-    exportLink.setAttribute("href", `${pfad}/anmeldungen.csv?status=${status}`);
-    exportHinweis.textContent = `Die Datei enthält alle Anmeldungen mit dem Stand «${STATUS_TEXT[status]}», nicht nur die geladenen. Sie enthält Namen und Telefonnummern: Speichere sie nur, wo du sie brauchst, und lösche sie danach. Zellen, die mit = + - oder @ beginnen, bekommen in der Datei ein Hochkomma davor, auch Telefonnummern mit +41. Das schützt vor Formeln in Excel. Pro Person sind 10 Exporte in 10 Minuten möglich.`;
-  }
-
-  // neu: erste Seite des gewählten Stands; sonst die nächste Seite anhängen
-  async function lade(neu, alt) {
-    const vonFilter = filterHalter.contains(document.activeElement);
-    mehr.disabled = true;
-    mehr.setAttribute("aria-busy", "true");
-    tabellenHalter.setAttribute("aria-busy", "true");
-    meld.textContent = "Anmeldungen werden geladen …";
+    speichernKnopf.disabled = true;
+    speichernKnopf.setAttribute("aria-busy", "true");
+    const gesendet = koerper(felder);
     try {
-      const nach = neu ? "" : `&nach=${encodeURIComponent(naechste)}`;
-      const antwort = await anfrage(
-        "GET",
-        `${pfad}/anmeldungen?status=${status}&limit=${SEITE}${nach}`,
-      );
-      if (!block.isConnected) return;
-      eintraege = neu
-        ? antwort.eintraege
-        : [...eintraege, ...antwort.eintraege];
-      weitere = antwort.weitere;
-      naechste = antwort.naechste;
-      summe = antwort.summe;
-      zeichneAlles();
-      meld.textContent = neu
-        ? `${eintraege.length}${weitere ? " oder mehr" : ""} Anmeldungen mit dem Stand «${STATUS_TEXT[status]}».`
-        : `${antwort.eintraege.length} weitere Anmeldungen geladen.`;
-      // Der Filter wurde neu gebaut: Der gedrückte Knopf bekommt den Fokus zurück
-      if (vonFilter) {
-        filterHalter.querySelector('[aria-pressed="true"]')?.focus();
+      // Hat inzwischen jemand anders die Felder geändert? Dann entscheidet die Person, welche Fassung gilt.
+      const aktuell = (await anfrage("GET", pfad)).felder;
+      if (normal(aktuell) !== normal(basis)) {
+        zeigeKonflikt(gesendet, aktuell);
+        return;
       }
+      await schreibe(gesendet);
     } catch (f) {
-      meld.textContent = `${fehlertext(f)} Versuche es nochmals.`;
-      // Die Tabelle zeigt noch den alten Stand: Der Filter bleibt auch dort
-      if (neu) {
-        status = alt;
-        zeichneFilter();
-        if (vonFilter)
-          filterHalter.querySelector('[aria-pressed="true"]')?.focus();
-      }
+      zeigeFehler(belegt(f, gesendet) ?? meldungVon(f));
     } finally {
-      mehr.disabled = false;
-      mehr.removeAttribute("aria-busy");
-      tabellenHalter.removeAttribute("aria-busy");
+      speichernKnopf.disabled = false;
+      speichernKnopf.removeAttribute("aria-busy");
     }
   }
 
-  zeichneAlles();
-  block.append(
-    el("h3", { class: "tm-anlaesse-unter" }, "Anmeldungen"),
+  // Konflikt (A18): Deine Fassung neben der aktuellen; geänderte Zeilen sind markiert
+  function zeigeKonflikt(meine, aktuell) {
+    const zeile = (f) => `${f.beschriftung} · ${beschreibung(f)}`;
+    const andere = (liste_) => new Set(liste_.map(zeile));
+    const spalte = (titel, felderListe, gegen) =>
+      el(
+        "section",
+        { class: "flaeche", "aria-label": titel },
+        el("h3", {}, titel),
+        felderListe.length === 0
+          ? el("p", { class: "klein leise" }, "Keine Zusatzfelder")
+          : felderListe.map((f) => {
+              const geandert = !gegen.has(zeile(f));
+              return el(
+                "p",
+                { class: "klein" },
+                geandert &&
+                  el("span", { class: "chip chip--warn" }, "geändert"),
+                geandert && " ",
+                el(
+                  "span",
+                  { class: geandert ? "markiert" : undefined },
+                  zeile(f),
+                ),
+              );
+            }),
+      );
+    const hinweis = el(
+      "div",
+      { class: "hinweis hinweis--warn", role: "alert", tabindex: "-1" },
+      el(
+        "span",
+        {},
+        el("strong", {}, "Jemand hat die Zusatzfelder gerade geändert."),
+        " Wähle, welche Fassung gilt.",
+      ),
+    );
+    ersetze(
+      editor,
+      el(
+        "div",
+        { class: "tm-konflikt-block" },
+        hinweis,
+        el(
+          "div",
+          { class: "konflikt" },
+          spalte("Deine Fassung", meine, andere(aktuell)),
+          spalte("Aktuelle Fassung", aktuell, andere(meine)),
+        ),
+        el(
+          "div",
+          { class: "reihe" },
+          knopf("Meine behalten", {
+            onclick: async (e) => {
+              e.currentTarget.disabled = true;
+              try {
+                // Der Stand des Servers gilt jetzt als Ausgangslage; meine Fassung überschreibt ihn bewusst
+                basis = aktuell.map((f) => ({ ...f }));
+                await schreibe(meine);
+              } catch (f) {
+                zeigeFehler(belegt(f, meine) ?? meldungVon(f));
+              }
+            },
+          }),
+          knopf("Aktuelle übernehmen", {
+            art: "blau",
+            onclick: () => {
+              basis = aktuell.map((f) => ({ ...f }));
+              felder = alsArbeitskopie(aktuell);
+              geaendert = false;
+              sage("");
+              ersetze(editor);
+              zeichneListe();
+              ctx.melde(
+                "Die aktuelle Fassung der Zusatzfelder ist übernommen.",
+                "info",
+              );
+            },
+          }),
+        ),
+      ),
+    );
+    hinweis.focus();
+  }
+
+  bereich.append(
     el(
-      "p",
-      { class: "leise tm-anlaesse-text" },
-      "Name und Telefon kommen live aus dem Konto der Person, die angemeldet hat. Die zuletzt geänderten Anmeldungen stehen oben.",
+      "section",
+      { class: "flaeche", "aria-labelledby": "zf-konto" },
+      el("h2", { id: "zf-konto" }, "Kommt aus dem Konto"),
+      el(
+        "p",
+        { class: "klein leise" },
+        "Nur lesbar. Eltern ändern es in ihrem Profil.",
+      ),
+      el(
+        "ul",
+        { class: "chips" },
+        (anlass.anmeldungFuer === "kind"
+          ? ["Name", "Kind", "Stufe", "Telefon"]
+          : ["Name", "Telefon"]
+        ).map((t) => chip(t, "ok")),
+      ),
     ),
-    el("div", { class: "tm-anlaesse-leiste" }, filterHalter, exportLink),
-    exportHinweis,
-    tabellenHalter,
-    meld,
-    el("div", { class: "tm-anlaesse-mehr" }, mehr),
+    meldungen,
+    liste,
+    editor,
+    hinweisGesundheit,
+    status,
   );
-  return () => {
-    zeichneFilter();
-    zeichneTabelle();
-  };
+  zeichneListe();
 }

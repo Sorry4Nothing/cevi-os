@@ -828,3 +828,76 @@ describe("Liste, erledigt und Als Aufgabe", () => {
     expect(await zeilen(lagerId)).toEqual([]);
   });
 });
+
+describe("Als Aufgabe zurücknehmen (#521)", () => {
+  async function mitAufgabe(lagerId: string) {
+    const id = await beitrag(lagerId, `Plan ${marke("team")}`);
+    await abgleichen("leitung", lagerId, "pinnwand", id);
+    const [e] = await zeilen(lagerId);
+    const pfad = `${L(lagerId)}/erwaehnungen/${e!.id}/als-aufgabe`;
+    const a = await anfrage("team", "POST", pfad);
+    expect(a.status).toBe(201);
+    return { e: e!, pfad, aufgabeId: a.body.aufgabeId as string };
+  }
+  const aufgabeZeilen = (aufgabeId: string) =>
+    db.select().from(schema.aufgabe).where(eq(schema.aufgabe.id, aufgabeId));
+
+  test("entfernt die unveränderte Aufgabe, die Erwähnung ist wieder offen, ein zweiter Aufruf tut nichts", async () => {
+    const lagerId = await neuesLager();
+    const { e, pfad, aufgabeId } = await mitAufgabe(lagerId);
+    const weg = await anfrage("team", "DELETE", pfad);
+    expect(weg.status).toBe(204);
+    expect(await aufgabeZeilen(aufgabeId)).toEqual([]);
+    expect((await zeilen(lagerId))[0]).toMatchObject({
+      id: e.id,
+      aufgabeId: null,
+    });
+    // Die Erwähnung bleibt, auch ihre Erledigung
+    expect((await anfrage("team", "DELETE", pfad)).status).toBe(204);
+    // Danach lässt sich wieder eine Aufgabe anlegen
+    const neu = await anfrage("team", "POST", pfad);
+    expect(neu.status).toBe(201);
+    expect(neu.body.aufgabeId).not.toBe(aufgabeId);
+  });
+
+  test("eine veränderte Aufgabe oder eine mit Checkpunkt bleibt: 409 AUFGABE_VERAENDERT", async () => {
+    const lagerId = await neuesLager();
+    const a = await mitAufgabe(lagerId);
+    await db
+      .update(schema.aufgabe)
+      .set({ version: 2 })
+      .where(eq(schema.aufgabe.id, a.aufgabeId));
+    const r = await anfrage("team", "DELETE", a.pfad);
+    expect(r.status).toBe(409);
+    expect(r.body.code).toBe("AUFGABE_VERAENDERT");
+    expect(await aufgabeZeilen(a.aufgabeId)).toHaveLength(1);
+    expect((await zeilen(lagerId))[0]!.aufgabeId).toBe(a.aufgabeId);
+
+    const lager2 = await neuesLager();
+    const b = await mitAufgabe(lager2);
+    const punkt = await anfrage(
+      "lagerleitung",
+      "POST",
+      `${L(lager2)}/aufgaben/${b.aufgabeId}/checkliste`,
+      { text: "Punkt" },
+    );
+    expect(punkt.status).toBe(201);
+    const r2 = await anfrage("team", "DELETE", b.pfad);
+    expect(r2.status).toBe(409);
+    expect(r2.body.code).toBe("AUFGABE_VERAENDERT");
+    expect(await aufgabeZeilen(b.aufgabeId)).toHaveLength(1);
+  });
+
+  test("Recht wie beim Anlegen: Lesen 403, eine fremde Erwähnung 404, geschlossenes Lager 409", async () => {
+    const lagerId = await neuesLager();
+    const { pfad, aufgabeId } = await mitAufgabe(lagerId);
+    expect((await anfrage("lesen", "DELETE", pfad)).status).toBe(403);
+    expect((await anfrage("lagerleitung", "DELETE", pfad)).status).toBe(404);
+    await db
+      .update(schema.lager)
+      .set({ status: "abgeschlossen" })
+      .where(eq(schema.lager.id, lagerId));
+    expect((await anfrage("team", "DELETE", pfad)).status).toBe(409);
+    expect(await aufgabeZeilen(aufgabeId)).toHaveLength(1);
+  });
+});

@@ -1,17 +1,10 @@
-/* Reiter «Kategorien» (#434 (TA3)). Klassen mit dem Vorsatz «tm-kategorien-» */
-.tm-kategorien-titel {
-  margin: 0 0 0.5rem;
+/* Unterseite «Kategorien» (A12). Klassen mit dem Vorsatz «tm-» */
+
+/* Die Auswahl der Gruppe braucht Platz, damit der Name nicht abgeschnitten wird */
+.tm-gruppenzelle {
+  min-width: 16rem;
 }
 
-.tm-kategorien-hinweis {
-  max-width: 65ch;
-  margin: 0 0 1rem;
-}
-
-.tm-kategorien-tag {
-  font-weight: 600;
-}
-
-.tm-kategorien-unter {
-  margin: 1.5rem 0 0.5rem;
+.tm-gruppenzelle .feld {
+  margin: 0;
 }

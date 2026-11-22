@@ -69,11 +69,11 @@ describe("Gerüst der Termine: Admin-Panel", () => {
     }
   });
 
-  test("termine.js bindet jedes Modul-Skript ein, und der Bereich steht in admin.js", () => {
-    const termine = lies("../../public/admin/termine.js");
+  test("navigation.js bindet jedes Modul-Skript der Termine ein, und der Bereich «termine» steht dort", () => {
+    const navigation = lies("../../public/admin/navigation.js");
     for (const datei of dateien.filter((d) => /^termine-.*\.js$/.test(d))) {
-      expect(termine, datei).toContain(`"./${datei}"`);
+      expect(navigation, datei).toContain(`"./${datei}"`);
     }
-    expect(lies("../../public/admin/admin.js")).toContain('"termine"');
+    expect(navigation).toContain('schluessel: "termine"');
   });
 });

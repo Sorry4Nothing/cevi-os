@@ -1,19 +1,30 @@
-import { anfrage, fehlertext, hochladen } from "./api.js";
+import { ApiFehler, anfrage, fehlertext, hochladen } from "./api.js";
+import { chip, el, feld, filterGruppe, knopf, neueId, tag } from "./dom.js";
+import { sk } from "./lader.js";
 import {
-  ankreuzen,
-  chip,
-  dialogFormular,
-  el,
-  feld,
-  icon,
-  knopf,
-  neueId,
-  tag,
-} from "./dom.js";
+  anzahlText,
+  band,
+  beschaeftigt,
+  bei,
+  fenster,
+  gesperrt,
+  keinRecht,
+  kuerze,
+  loescheFeldFehler,
+  rueckfrage,
+  uhrzeit,
+  zeigeFeldFehler,
+} from "./website-dialoge.js";
+import { groesseText } from "./website-felder.js";
+import { mitSymbol, symbol } from "./website-symbole.js";
+import { zustandsKarte } from "./zustaende.js";
 
-// Medienbibliothek (#359): Raster der Bilder mit Alt-Text, Suche, Hochladen, Beschreiben und Löschen. Schnittstelle zum Bereich: siehe website.js.
-// Die Bibliothek verwaltet nur Bilder. Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» verknüpft (#428); ein altes PDF-Medium bleibt sichtbar und löschbar.
-// Datenbanklast: eine Abfrage je Seite von SEITE Bildern (Seitenwechsel beim Scrollen), eine je Suche; kein Polling. Ein neues Bild steht ohne Neuladen vorn, ein gelöschtes fällt weg. Die Vorschau lädt das Bild über /api/v1/medien/<id> (öffentliche Bilder mit Cache-Kopfzeilen) erst, wenn es in die Nähe kommt (loading="lazy").
+// Medienbibliothek (Boards E7 und E8): Raster der Bilder mit Alt-Text, Suche, Filter, Mehrfachauswahl, Hochladen, Beschreiben und Löschen.
+// Die Bibliothek verwaltet nur Bilder. Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei zum Herunterladen» verknüpft (#428);
+// ein altes PDF-Medium bleibt sichtbar und löschbar.
+// Datenbanklast: eine Abfrage je Seite von SEITE Bildern (Seitenwechsel beim Scrollen), eine je Suche; kein Polling. Ein neues Bild steht ohne Neuladen vorn,
+// ein gelöschtes fällt weg. Die Vorschau lädt das Bild über /api/v1/medien/<id> (öffentliche Bilder mit Cache-Kopfzeilen) erst, wenn es in die Nähe kommt (loading="lazy").
+// Die Filter «Bilder», «Dateien» und «Alt-Text fehlt» wirken auf die geladenen Medien: Die API zählt nicht und filtert nicht.
 
 const API = "/api/v1/redaktion/medien";
 const SEITE = 24;
@@ -21,23 +32,17 @@ const SEITE = 24;
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_ALT = 500;
 const TYP_FEHLER =
-  "Dieser Dateityp ist nicht erlaubt. Erlaubt sind JPEG, PNG und WebP.";
+  "Dieser Dateityp ist nicht erlaubt. Erlaubt sind Bilder (JPEG, PNG, WebP).";
 const ALT_HILFE = `Beschreibe, was man sieht. Der Text hilft Menschen, die das Bild nicht sehen können. Höchstens ${MAX_ALT} Zeichen.`;
 const ZIERDE = "Nur Zierde: Das Bild braucht keine Beschreibung";
-const ALT_FEHLT = "Beschreibe das Bild oder wähle «Nur Zierde».";
+const ALT_FEHLT = "Gib einen Alt-Text ein oder wähle «Nur Zierde».";
 
-const zahl = new Intl.NumberFormat("de-CH", { maximumFractionDigits: 1 });
-const groesseText = (bytes) =>
-  bytes < 1024 * 1024
-    ? `${zahl.format(Math.max(1, Math.round(bytes / 1024)))} KB`
-    : `${zahl.format(bytes / (1024 * 1024))} MB`;
 const istBild = (m) => m.mimeTyp.startsWith("image/");
-const anzahlBilder = (n) => (n === 1 ? "1 Bild" : `${n} Bilder`);
 
 // Kurzer Name für Knöpfe und Rückfragen: Ein Bild hat keinen Dateinamen, also zählt seine Beschreibung
 function kurzname(m) {
   const text = (m.altText ?? "").trim();
-  if (text) return text.length > 50 ? `${text.slice(0, 50)}…` : text;
+  if (text) return kuerze(text, 50);
   return `${istBild(m) ? "Bild" : "Datei"} vom ${tag(m.erstelltAm)}`;
 }
 
@@ -51,42 +56,8 @@ function altChip(m) {
   if (!istBild(m)) return chip("Wird nicht mehr ausgeliefert", "warn");
   if (m.dekorativ) return chip("Nur Zierde", undefined, "info");
   return m.altText
-    ? chip("Alt-Text vorhanden: ja", "ok")
-    : chip("Alt-Text vorhanden: nein", "warn");
-}
-
-// Meldung beim Feld (nicht nur im Dialog); sie verschwindet, sobald man das Feld ändert
-function feldFehler(f, text, { fokus = true } = {}) {
-  entferneFeldFehler(f);
-  const meldung = el(
-    "p",
-    { class: "feld-fehler", id: neueId("fehler"), role: "alert" },
-    text,
-  );
-  f.wurzel.append(meldung);
-  f.eingabe.setAttribute("aria-invalid", "true");
-  f.eingabe.setAttribute(
-    "aria-describedby",
-    [f.eingabe.getAttribute("aria-describedby"), meldung.id]
-      .filter(Boolean)
-      .join(" "),
-  );
-  if (fokus) f.eingabe.focus();
-}
-
-function entferneFeldFehler(f) {
-  const meldung = f.wurzel.querySelector(".feld-fehler");
-  if (!meldung) return;
-  f.eingabe.removeAttribute("aria-invalid");
-  const rest = (f.eingabe.getAttribute("aria-describedby") ?? "")
-    .split(" ")
-    .filter((id) => id && id !== meldung.id);
-  if (rest.length > 0) {
-    f.eingabe.setAttribute("aria-describedby", rest.join(" "));
-  } else {
-    f.eingabe.removeAttribute("aria-describedby");
-  }
-  meldung.remove();
+    ? chip("Alt-Text vorhanden", "ok")
+    : chip("Alt-Text fehlt", "warn");
 }
 
 // Der Typ ergibt sich aus den ersten Bytes, wie auf dem Server; die Endung sagt nichts
@@ -104,67 +75,67 @@ async function pruefeDatei(datei) {
   return "";
 }
 
-// Radioknöpfe als Segment, wie bei der Seitenliste; ohne Vorgabe, damit die Wahl bewusst fällt
-function sichtbarkeitWahl() {
-  const name = neueId("sichtbarkeit");
-  const eintraege = [
-    ["oeffentlich", "Öffentlich"],
-    ["angemeldet", "Nur angemeldet"],
-  ].map(([wert, text]) => {
-    const id = neueId("sichtbarkeit-option");
-    return {
-      eingabe: el("input", { type: "radio", id, name, value: wert }),
-      label: el("label", { for: id }, icon("haken"), text),
-    };
-  });
-  const wurzel = el(
-    "fieldset",
-    {},
-    el("legend", {}, "Wer darf das Bild sehen?"),
-    el(
-      "div",
-      { class: "seg" },
-      eintraege.flatMap((e) => [e.eingabe, e.label]),
-    ),
-    el(
-      "p",
-      { class: "hilfe" },
-      "«Öffentlich»: Das Bild darf auf öffentlichen Seiten stehen und ist ohne Anmeldung abrufbar. «Nur angemeldet»: nur für Personen mit Konto, nicht auf öffentlichen Seiten. Das lässt sich später nicht ändern.",
-    ),
-  );
-  return {
-    wurzel,
-    eingabe: eintraege[0].eingabe,
-    wert: () => eintraege.find((e) => e.eingabe.checked)?.eingabe.value ?? null,
-  };
-}
-
 export function zeige(bereich, ctx) {
   ctx.lade(
-    () => anfrage("GET", `${API}?limit=${SEITE}`),
-    (erste) => zeichne(bereich, ctx, erste),
+    async () => {
+      try {
+        return await anfrage("GET", `${API}?limit=${SEITE}`);
+      } catch (f) {
+        if (f instanceof ApiFehler && f.status === 403)
+          return { keinRecht: true };
+        throw f;
+      }
+    },
+    (erste) =>
+      erste.keinRecht
+        ? keinRecht(
+            bereich,
+            "Die Medien darfst du nicht verwalten. Wende dich an die Abteilungsleitung, wenn du Zugriff brauchst.",
+          )
+        : zeichne(bereich, ctx, erste),
+    { skeleton: skeletonMedien },
+  );
+}
+
+// Das Raster, solange es lädt: Werkzeugzeile und Karten mit Bild, Name, Chip und Grösse (G3 «Galerie / Medienraster»)
+function skeletonMedien() {
+  const karte = () =>
+    el(
+      "li",
+      { class: "medium", "aria-hidden": "true" },
+      sk("b", 320),
+      sk("t", 136),
+      sk("r", 112),
+      sk("t", 48),
+    );
+  return el(
+    "div",
+    { class: "sk-seitenliste" },
+    el("div", { class: "werkzeuge" }, sk("r", 380), sk("r", 380)),
+    el("ul", { class: "medien" }, Array.from({ length: 8 }, karte)),
   );
 }
 
 function zeichne(bereich, ctx, erste) {
-  // id -> { m, li, alt, loeschen }
+  const verwalten = ctx.zugang.darf("medien.verwalten");
+  // id -> { m, li, box, alt }
   const eintraege = new Map();
+  const gewaehlt = new Set();
   let frage = "";
+  let artFilter = "alle";
   let weitere = erste.weitere;
   // Zählt die Suchen: Die späte Antwort einer älteren Suche wird verworfen
   let lauf = 0;
   let laedt = false;
   let nachladeFehler = false;
   let timer = 0;
+  let stand = new Date();
 
-  const raster = el("ul", {
-    class: "ws-medien-raster",
-    role: "list",
-    "aria-label": "Bilder",
-  });
-  const zaehler = el("p", { class: "meta zaehler", role: "status" });
-  const leer = el("div", { class: "leer", hidden: true });
-  const meldungsplatz = el("div", { class: "ws-medien-meldung" });
+  const raster = el("ul", { class: "medien", "aria-label": "Medien" });
+  const zaehler = el("p", { class: "klein leise", role: "status" });
+  const leer = el("div", { hidden: true });
+  const meldungsplatz = el("div", {});
+  const auswahlPlatz = el("div", {});
   const mehr = knopf("Weitere Bilder laden", {
     klein: true,
     onclick: () => {
@@ -185,52 +156,131 @@ function zeichne(bereich, ctx, erste) {
       timer = setTimeout(neueSuche, 300);
     },
   });
+  const filter = filterGruppe({
+    beschriftung: "Art",
+    wert: "alle",
+    eintraege: [
+      { text: "Alle", wert: "alle" },
+      { text: "Bilder", wert: "bilder" },
+      { text: "Dateien", wert: "dateien" },
+      { text: "Alt-Text fehlt", wert: "alt" },
+    ],
+    beiAenderung: (w) => {
+      artFilter = w;
+      zeigeZustand();
+    },
+  });
   const werkzeuge = el(
     "div",
     { class: "werkzeuge" },
     el(
       "div",
       { class: "suche" },
-      el("label", { class: "nur-leser", for: suchId }, "Bilder suchen"),
-      icon("lupe"),
+      el("label", { class: "nur-leser", for: suchId }, "Medien suchen"),
+      symbol("lupe"),
       suche,
     ),
-    zaehler,
+    filter.wurzel,
   );
+
+  const passt = (m) =>
+    artFilter === "alle" ||
+    (artFilter === "bilder" && istBild(m)) ||
+    (artFilter === "dateien" && !istBild(m)) ||
+    (artFilter === "alt" &&
+      istBild(m) &&
+      !m.dekorativ &&
+      !(m.altText ?? "").trim());
 
   function zeigeZustand() {
     const n = eintraege.size;
+    let sichtbar = 0;
+    for (const e of eintraege.values()) {
+      e.li.hidden = !passt(e.m);
+      if (!e.li.hidden) sichtbar++;
+    }
+    const gefiltert = frage.trim() || artFilter !== "alle";
     werkzeuge.hidden = n === 0 && !frage.trim();
     zaehler.textContent =
       n === 0
         ? ""
-        : `${anzahlBilder(n)}${weitere ? ", weitere folgen beim Scrollen" : ""}`;
-    leer.hidden = n > 0;
+        : sichtbar === n
+          ? `${anzahlText(n, "1 Medium", "Medien")}${weitere ? ", weitere folgen beim Scrollen" : ""}`
+          : `${sichtbar} von ${anzahlText(n, "1 Medium", "Medien")}${weitere ? ", weitere folgen beim Scrollen" : ""}`;
+    leer.hidden = sichtbar > 0;
     leer.replaceChildren();
-    if (n === 0 && frage.trim()) {
-      leer.append(
-        el("p", {}, `Kein Bild passt zu «${frage.trim()}».`),
-        knopf("Suche zurücksetzen", {
+    raster.hidden = sichtbar === 0;
+    if (sichtbar === 0) {
+      const text =
+        n === 0 && !gefiltert
+          ? zustandsKarte(
+              {
+                titel: "Noch keine Bilder.",
+                text: "Lade das erste Bild hoch. Den Alt-Text gibst du dabei ein.",
+              },
+              [knopf("Hochladen", { onclick: hochladenDialog })],
+            )
+          : zustandsKarte(
+              {
+                titel: frage.trim()
+                  ? `Nichts passt zu «${kuerze(frage.trim(), 40)}».`
+                  : "Nichts passt zum Filter.",
+                text: "Prüfe die Schreibweise oder setze den Filter zurück.",
+              },
+              [
+                knopf("Filter zurücksetzen", {
+                  onclick: () => {
+                    suche.value = "";
+                    artFilter = "alle";
+                    filter.setze("alle");
+                    neueSuche();
+                    suche.focus();
+                  },
+                }),
+              ],
+            );
+      text.wurzel.setAttribute("role", "status");
+      leer.append(text.wurzel);
+    }
+    mehr.hidden = !weitere;
+    zeichneAuswahl();
+  }
+
+  function zeichneAuswahl() {
+    if (gewaehlt.size === 0) {
+      auswahlPlatz.replaceChildren();
+      return;
+    }
+    auswahlPlatz.replaceChildren(
+      el(
+        "div",
+        { class: "auswahlleiste", role: "region", "aria-label": "Auswahl" },
+        el("span", { class: "ws-auswahlzahl" }, `${gewaehlt.size} gewählt`),
+        knopf("Löschen", {
+          klein: true,
+          art: "gefahr",
+          onclick: () => loescheAuswahl(),
+        }),
+        knopf("Auswahl aufheben", {
           klein: true,
           onclick: () => {
-            suche.value = "";
-            neueSuche();
+            gewaehlt.clear();
+            for (const e of eintraege.values()) {
+              if (e.box) e.box.checked = false;
+              e.li.classList.remove("gewaehlt");
+            }
+            zeichneAuswahl();
             suche.focus();
           },
         }),
-      );
-    } else if (n === 0) {
-      leer.append(
-        el("p", {}, "Es gibt noch keine Bilder. Lade das erste hoch."),
-      );
-    }
-    mehr.hidden = !weitere;
+      ),
+    );
   }
 
   function karte(m) {
     const kontext = kurzname(m);
     const bild = istBild(m);
-    const vorschau = el("div", { class: "ws-medien-bild" });
+    const vorschau = el("div", { class: "bild" });
     if (bild) {
       vorschau.append(
         el("img", {
@@ -243,72 +293,68 @@ function zeichne(bereich, ctx, erste) {
           // Fehlt die Datei, steht ein Wort an ihrer Stelle
           onerror: (e) =>
             e.target.replaceWith(
-              el(
-                "span",
-                { class: "ws-medien-ohne" },
-                "Vorschau nicht verfügbar",
-              ),
+              el("span", { class: "ws-ohne" }, "Vorschau nicht verfügbar"),
             ),
         }),
       );
     } else {
-      vorschau.append(el("span", { class: "ws-medien-ohne" }, "PDF"));
+      vorschau.append(el("span", { class: "ws-ohne" }, "PDF"));
     }
+    const box = verwalten
+      ? el("input", {
+          type: "checkbox",
+          "aria-label": `Auswählen: ${kontext}`,
+          onchange: () => {
+            if (box.checked) gewaehlt.add(m.id);
+            else gewaehlt.delete(m.id);
+            li.classList.toggle("gewaehlt", box.checked);
+            zeichneAuswahl();
+          },
+        })
+      : null;
     const alt =
-      bild &&
-      knopf("Alt-Text ändern", {
-        klein: true,
-        symbol: "bearbeiten",
-        kontext,
-        onclick: () => aendereDialog(m),
-      });
-    const loeschen =
-      ctx.zugang.darf("medien.verwalten") &&
-      knopf("Löschen", {
-        klein: true,
-        art: "gefahr",
-        symbol: "papierkorb",
-        kontext,
-        onclick: () => loescheDialog(m),
-      });
+      bild && verwalten
+        ? knopf("Alt-Text ändern", {
+            klein: true,
+            symbol: "bearbeiten",
+            kontext,
+            onclick: () => aendereDialog(m),
+          })
+        : null;
     const li = el(
       "li",
-      { class: "ws-medien-karte", tabindex: "-1" },
+      { class: "medium", tabindex: "-1" },
+      box && el("div", { class: "wahl" }, box),
       vorschau,
+      el("p", { class: "name ws-medienname" }, titelText(m)),
       el(
-        "div",
-        { class: "ws-medien-text" },
-        el("p", { class: "ws-medien-titel" }, titelText(m)),
-        el(
-          "ul",
-          { class: "chips" },
-          altChip(m),
-          m.sichtbarkeit === "oeffentlich"
-            ? chip("Öffentlich", undefined, "website")
-            : chip("Nur angemeldet", undefined, "schild"),
-        ),
+        "ul",
+        { class: "chips" },
+        altChip(m),
+        m.sichtbarkeit === "oeffentlich"
+          ? chip("Öffentlich", undefined, "website")
+          : chip("Nur angemeldet", undefined, "schild"),
+      ),
+      el(
+        "p",
+        { class: "klein leise" },
+        [
+          groesseText(m.groesse),
+          m.breite && `${m.breite} × ${m.hoehe} Pixel`,
+          tag(m.erstelltAm),
+        ]
+          .filter(Boolean)
+          .join(" · "),
+      ),
+      !bild &&
         el(
           "p",
-          { class: "meta klein" },
-          [
-            groesseText(m.groesse),
-            m.breite && `${m.breite} × ${m.hoehe} Pixel`,
-            tag(m.erstelltAm),
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          { class: "hilfe" },
+          "Dateien zum Herunterladen verknüpfst du im Baustein «Datei zum Herunterladen» mit dem SharePoint. Dieses alte PDF kannst du nur löschen.",
         ),
-        !bild &&
-          el(
-            "p",
-            { class: "hilfe" },
-            "Dateien zum Herunterladen verknüpfst du im Baustein «Datei» mit dem SharePoint. Dieses alte PDF kannst du nur löschen.",
-          ),
-      ),
-      (alt || loeschen) &&
-        el("div", { class: "ws-medien-aktionen" }, alt, loeschen),
+      alt,
     );
-    return { m, li, alt, loeschen };
+    return { m, li, box, alt };
   }
 
   function anhaengen(m, vorn = false) {
@@ -322,9 +368,12 @@ function zeichne(bereich, ctx, erste) {
   function ersetze(daten) {
     raster.replaceChildren();
     eintraege.clear();
+    gewaehlt.clear();
     daten.medien.forEach((m) => anhaengen(m));
     weitere = daten.weitere;
     nachladeFehler = false;
+    stand = new Date();
+    meldungsplatz.replaceChildren();
     zeigeZustand();
     beobachte();
   }
@@ -336,21 +385,21 @@ function zeichne(bereich, ctx, erste) {
   };
 
   // Fehler beim Nachladen oder Suchen: sichtbar, mit «Nochmals versuchen»; das Raster bleibt, wie es ist
-  function zeigeFehler(f, nochmals) {
+  function zeigeFehler(f, nochmalsFn) {
     meldungsplatz.replaceChildren(
-      el(
-        "p",
-        { class: "hinweis hinweis--fehler", role: "alert" },
-        fehlertext(f),
+      band(
+        "warn",
+        f?.status === 0
+          ? `Keine Verbindung. Die Liste zeigt den Stand von ${uhrzeit.format(stand)}. Hochladen geht wieder, sobald du online bist.`
+          : fehlertext(f),
+        knopf("Nochmals versuchen", {
+          klein: true,
+          onclick: () => {
+            meldungsplatz.replaceChildren();
+            nochmalsFn();
+          },
+        }),
       ),
-      knopf("Nochmals versuchen", {
-        klein: true,
-        symbol: "aktualisieren",
-        onclick: () => {
-          meldungsplatz.replaceChildren();
-          nochmals();
-        },
-      }),
     );
   }
 
@@ -386,6 +435,7 @@ function zeichne(bereich, ctx, erste) {
       if (mein !== lauf) return;
       daten.medien.forEach((m) => anhaengen(m));
       weitere = daten.weitere;
+      stand = new Date();
       zeigeZustand();
     } catch (f) {
       if (mein !== lauf) return;
@@ -411,9 +461,8 @@ function zeichne(bereich, ctx, erste) {
       ? new window.IntersectionObserver(
           (e) => {
             if (!raster.isConnected) return beobachter.disconnect();
-            if (!nachladeFehler && e.some((x) => x.isIntersecting)) {
+            if (!nachladeFehler && e.some((x) => x.isIntersecting))
               ladeWeitere();
-            }
           },
           { rootMargin: "600px" },
         )
@@ -428,12 +477,8 @@ function zeichne(bereich, ctx, erste) {
   function entferne(id) {
     eintraege.get(id)?.li.remove();
     eintraege.delete(id);
-    zeigeZustand();
+    gewaehlt.delete(id);
   }
-
-  // dialogFormular setzt den Fokus beim Schliessen zuerst zurück; dieser Aufruf kommt danach und gewinnt
-  const nachDemSchliessen = (dialog, fn) =>
-    dialog.addEventListener("close", fn, { once: true });
 
   function fokusiere(id) {
     const li = eintraege.get(id)?.li;
@@ -441,14 +486,12 @@ function zeichne(bereich, ctx, erste) {
     li?.scrollIntoView({ block: "nearest" });
   }
 
+  // Alt-Text ändern (Abteilungsleitung und wer Medien verwalten darf)
   function aendereDialog(m) {
-    const zierde = ankreuzen({
-      label: ZIERDE,
-      gewaehlt: m.dekorativ,
-      wert: "dekorativ",
-    });
+    const zierde = el("input", { type: "checkbox", id: neueId("zierde") });
+    zierde.checked = m.dekorativ;
     const alt = feld({
-      label: "Alt-Text",
+      label: "Alt-Text (Pflicht)",
       mehrzeilig: true,
       wert: m.altText ?? "",
       maxlength: MAX_ALT,
@@ -456,213 +499,375 @@ function zeichne(bereich, ctx, erste) {
       "aria-required": "true",
       hilfe: ALT_HILFE,
     });
-    alt.wurzel.classList.add("ws-medien-alt");
     const schalte = () => {
-      alt.wurzel.hidden = zierde.eingabe.checked;
-      entferneFeldFehler(alt);
+      alt.wurzel.hidden = zierde.checked;
+      loescheFeldFehler(alt.wurzel);
     };
-    zierde.eingabe.addEventListener("change", schalte);
+    zierde.addEventListener("change", schalte);
     schalte();
-    alt.eingabe.addEventListener("input", () => entferneFeldFehler(alt));
+    alt.eingabe.addEventListener("input", () => loescheFeldFehler(alt.wurzel));
+    const abbrechen = knopf("Abbrechen", { onclick: () => f.schliesse() });
+    const speichern = knopf("Speichern", { art: "haupt" });
     let neu = null;
-    const dialog = dialogFormular({
-      titel: "Alt-Text ändern",
-      beschreibung: `Für «${kurzname(m)}».`,
-      felder: [alt.wurzel, zierde.wurzel],
-      ok: "Speichern",
-      pruefe: () => {
-        if (zierde.eingabe.checked || alt.eingabe.value.trim() !== "") {
-          return false;
-        }
-        feldFehler(alt, ALT_FEHLT);
-        return true;
-      },
-      senden: () =>
-        anfrage(
+    bei(speichern, async () => {
+      f.fehler(null);
+      if (!zierde.checked && alt.eingabe.value.trim() === "") {
+        zeigeFeldFehler(alt.wurzel, alt.eingabe, ALT_FEHLT);
+        alt.eingabe.focus();
+        return;
+      }
+      beschaeftigt(speichern, true);
+      abbrechen.disabled = true;
+      try {
+        neu = await anfrage(
           "PATCH",
           `${API}/${m.id}`,
-          zierde.eingabe.checked
+          zierde.checked
             ? { dekorativ: true }
             : { altText: alt.eingabe.value.trim() },
+        );
+        f.dialog.addEventListener(
+          "close",
+          () => {
+            const alte = eintraege.get(m.id);
+            if (!alte) return;
+            const k = karte(neu);
+            alte.li.replaceWith(k.li);
+            eintraege.set(m.id, k);
+            if (gewaehlt.has(m.id)) {
+              k.box.checked = true;
+              k.li.classList.add("gewaehlt");
+            }
+            ctx.melde(
+              neu.dekorativ
+                ? "Das Bild ist als Zierde markiert."
+                : "Der Alt-Text ist gespeichert.",
+              "ok",
+            );
+            zeigeZustand();
+            k.alt?.focus();
+          },
+          { once: true },
+        );
+        f.schliesse();
+      } catch (fehler) {
+        f.fehler(
+          fehler?.status === 403
+            ? "Dafür fehlt die Berechtigung. Den Alt-Text ändert, wer Medien verwalten darf."
+            : fehlertext(fehler),
+        );
+        beschaeftigt(speichern, false);
+        abbrechen.disabled = false;
+      }
+    });
+    const f = fenster({
+      titel: "Alt-Text ändern",
+      beschreibung: `Für «${kurzname(m)}».`,
+      inhalt: [
+        alt.wurzel,
+        el(
+          "div",
+          { class: "wahl" },
+          zierde,
+          el("label", { for: zierde.id }, ZIERDE),
         ),
-      danach: (aktualisiert) => {
-        neu = aktualisiert;
+      ],
+      fuss: [abbrechen, speichern],
+    });
+  }
+
+  // Löschen einer Auswahl: nacheinander, damit jede Antwort für sich zählt. Ein Bild, das noch in Seiten steht, bleibt (409).
+  function loescheAuswahl() {
+    const ms = [...gewaehlt].map((id) => eintraege.get(id)?.m).filter(Boolean);
+    if (ms.length === 0) return;
+    const einzeln = ms.length === 1;
+    rueckfrage({
+      titel: einzeln
+        ? `«${kurzname(ms[0])}» löschen?`
+        : `${ms.length} Medien löschen?`,
+      text: `${einzeln ? "Dieses Medium wird" : "Diese Medien werden"} endgültig gelöscht. Steht ${einzeln ? "es" : "eines"} noch in einer Seite (im Entwurf oder in einer früheren Version), bleibt es erhalten, und du siehst, wo du es entfernen musst. Das Löschen lässt sich nicht rückgängig machen.`,
+      ok: einzeln ? "Löschen" : `${ms.length} löschen`,
+      gefaehrlich: true,
+      aktion: async () => {
+        const weg = [];
+        const bleibt = [];
+        for (const m of ms) {
+          try {
+            await anfrage("DELETE", `${API}/${m.id}`);
+            weg.push(m);
+          } catch (f) {
+            // Bei einem Netzfehler oder 5xx hört es auf: Der Rest bleibt gewählt
+            if (f?.code === "MEDIUM_VERWENDET")
+              bleibt.push({ m, seiten: Number(f.seiten) });
+            else if (weg.length + bleibt.length === 0) throw f;
+            else {
+              bleibt.push({ m, fehler: f });
+              break;
+            }
+          }
+        }
+        return { weg, bleibt };
       },
       fehlertext: (f) =>
         f?.status === 403
-          ? "Dafür fehlt die Berechtigung. Den Alt-Text ändern die Person, die das Bild hochgeladen hat, und wer Medien verwalten darf."
+          ? "Medien löschen nur die Abteilungsleitung und wer Medien verwalten darf."
           : fehlertext(f),
-    });
-    nachDemSchliessen(dialog, () => {
-      const alte = neu && eintraege.get(m.id);
-      if (!alte) return;
-      const k = karte(neu);
-      alte.li.replaceWith(k.li);
-      eintraege.set(m.id, k);
-      ctx.melde(
-        neu.dekorativ
-          ? "Das Bild ist als Zierde markiert."
-          : "Der Alt-Text ist gespeichert.",
-      );
-      k.alt.focus();
-    });
-  }
-
-  function loescheDialog(m) {
-    let fokusId;
-    let geloescht = false;
-    const dialog = dialogFormular({
-      titel: "Bild löschen?",
-      beschreibung: `«${kurzname(m)}» wird endgültig gelöscht. Das lässt sich nicht rückgängig machen.`,
-      ok: "Bild löschen",
-      gefaehrlich: true,
-      senden: async () => {
-        try {
-          await anfrage("DELETE", `${API}/${m.id}`);
-        } catch (f) {
-          // Das Bild steht noch in Seiten: Löschen geht erst, wenn es dort entfernt ist, und der Knopf hilft nicht mehr
-          if (f?.code === "MEDIUM_VERWENDET") {
-            setTimeout(() => {
-              dialog.querySelector('button[type="submit"]').hidden = true;
-              dialog.querySelector(".dialog-knoepfe button").textContent =
-                "Schliessen";
-            }, 0);
-          }
-          throw f;
+      danach: ({ weg, bleibt }) => {
+        for (const m of weg) entferne(m.id);
+        zeigeZustand();
+        if (weg.length > 0) {
+          ctx.melde(
+            einzeln
+              ? "Das Medium ist gelöscht."
+              : `${weg.length} ${weg.length === 1 ? "Medium ist" : "Medien sind"} gelöscht.`,
+            "ok",
+          );
         }
-      },
-      danach: () => {
-        const li = eintraege.get(m.id)?.li;
-        const nachbar = li?.nextElementSibling ?? li?.previousElementSibling;
-        fokusId = [...eintraege].find(([, k]) => k.li === nachbar)?.[0];
-        entferne(m.id);
-        geloescht = true;
-      },
-      fehlertext: (f) => {
-        if (f?.code === "MEDIUM_VERWENDET") {
-          const n = Number(f.seiten);
+        for (const b of bleibt) {
           const seiten =
-            n === 1 ? "1 Seite" : `${n > 0 ? n : "mehreren"} Seiten`;
-          return `Dieses Bild steht noch in ${seiten} (im Entwurf oder in einer früheren Version). Entferne es dort zuerst, dann kannst du es löschen.`;
+            b.seiten === 1
+              ? "1 Seite"
+              : `${b.seiten > 0 ? b.seiten : "mehreren"} Seiten`;
+          ctx.melde(
+            b.fehler
+              ? `«${kurzname(b.m)}» konnte nicht gelöscht werden. ${fehlertext(b.fehler)}`
+              : `«${kurzname(b.m)}» steht noch in ${seiten} (im Entwurf oder in einer früheren Version). Entferne es dort zuerst, dann kannst du es löschen.`,
+            "fehler",
+          );
         }
-        return f?.status === 403
-          ? "Bilder löschen nur die Abteilungsleitung und wer Medien verwalten darf."
-          : fehlertext(f);
+        const erstes = bleibt[0]
+          ? eintraege.get(bleibt[0].m.id)
+          : [...eintraege.values()].find((e) => !e.li.hidden);
+        (erstes?.li ?? document.querySelector("h1"))?.focus();
       },
-    });
-    nachDemSchliessen(dialog, () => {
-      if (!geloescht) return;
-      ctx.melde("Das Bild ist gelöscht.");
-      if (fokusId && eintraege.has(fokusId)) fokusiere(fokusId);
-      else {
-        (
-          document.querySelector(".kopf-aktion button") ??
-          document.querySelector("h1")
-        )?.focus();
-      }
     });
   }
 
+  // Hochladen (E8): Datei wählen oder ablegen, Alt-Text (Pflicht), Sichtbarkeit; die Schaltfläche nennt den Grund, solange etwas fehlt
   function hochladenDialog() {
-    const datei = feld({
-      label: "Bild",
-      typ: "file",
+    let gewaehltDatei = null;
+    let steuerung = null;
+    let neues = null;
+    let stufe = -1;
+    let laeuft = false;
+    const dateiEingabe = el("input", {
+      type: "file",
       accept: "image/jpeg,image/png,image/webp",
-      hilfe:
-        "JPEG, PNG oder WebP, höchstens 10 MB. Bilder werden automatisch verkleinert.",
-    });
-    const vorschau = el("div", { class: "ws-medien-vorschau", hidden: true });
-    const wahl = sichtbarkeitWahl();
-    const zierde = ankreuzen({ label: ZIERDE, wert: "dekorativ" });
-    const alt = feld({
-      label: "Alt-Text",
-      mehrzeilig: true,
-      maxlength: MAX_ALT,
-      rows: 4,
-      "aria-required": "true",
-      hilfe: ALT_HILFE,
-    });
-    alt.wurzel.classList.add("ws-medien-alt");
-    // Balken und Prozentwort sind für Augen; Screenreader hören nur die Stufen, nicht jedes Prozent
-    const balken = el("progress", {
-      max: "100",
-      value: "0",
+      class: "nur-leser",
+      tabindex: "-1",
       "aria-hidden": "true",
     });
-    const prozent = el("p", { class: "meta", "aria-hidden": "true" });
-    const ansage = el("p", { class: "nur-leser", role: "status" });
-    const abbruch = knopf("Hochladen abbrechen", {
+    const dateiKnopf = knopf("Datei wählen", {
       klein: true,
-      onclick: () => steuerung?.abort(),
+      onclick: () => dateiEingabe.click(),
     });
-    const fortschritt = el(
+    const zoneKopf = el("p", { class: "fett" }, "Datei hierher ziehen");
+    const zone = el(
       "div",
-      { class: "ws-medien-fortschritt", hidden: true },
-      balken,
-      prozent,
-      abbruch,
+      { class: "dropzone" },
+      zoneKopf,
+      el("p", { class: "klein leise" }, "oder"),
+      dateiKnopf,
+      el(
+        "p",
+        { class: "hilfe" },
+        "Bilder (JPG, PNG, WebP), höchstens 10 MB. Bilder werden automatisch verkleinert.",
+      ),
     );
-    let gewaehlt = null;
-    let steuerung = null;
-    let stufe = -1;
-    let neues = null;
-
-    zierde.eingabe.addEventListener("change", () => {
-      alt.wurzel.hidden = zierde.eingabe.checked;
-      entferneFeldFehler(alt);
+    const gewaehlteBox = el("div", { hidden: true });
+    const meldung = el("div", {});
+    const alt = feld({
+      label: "Alt-Text (Pflicht)",
+      mehrzeilig: true,
+      maxlength: MAX_ALT,
+      rows: 3,
+      "aria-required": "true",
+      hilfe: "Beschreibe, was man sieht.",
     });
-    alt.eingabe.addEventListener("input", () => entferneFeldFehler(alt));
-    wahl.wurzel.addEventListener("change", () => entferneFeldFehler(wahl));
+    const zierde = el("input", { type: "checkbox", id: neueId("zierde") });
+    const zierdeWurzel = el(
+      "div",
+      { class: "wahl" },
+      zierde,
+      el("label", { for: zierde.id }, ZIERDE),
+    );
+    // Sichtbarkeit: Der Server verlangt sie, und sie lässt sich später nicht ändern
+    const sName = neueId("sichtbarkeit");
+    const sichtLegende = el(
+      "legend",
+      { class: "legende" },
+      "Wer darf das Bild sehen?",
+    );
+    const sEintraege = [
+      ["oeffentlich", "Öffentlich"],
+      ["angemeldet", "Nur angemeldet"],
+    ].map(([w, t]) => {
+      const id = neueId("sichtbarkeit-option");
+      return [
+        el("input", {
+          type: "radio",
+          id,
+          name: sName,
+          value: w,
+          onchange: pruefeBereit,
+        }),
+        el("label", { for: id }, symbol("haken"), t),
+      ];
+    });
+    const sichtbarkeit = el(
+      "fieldset",
+      { class: "feld ws-sichtbarkeitwahl" },
+      sichtLegende,
+      el("div", { class: "seg" }, sEintraege.flat()),
+      el(
+        "p",
+        { class: "hilfe" },
+        "«Öffentlich»: Das Bild darf auf öffentlichen Seiten stehen und ist ohne Anmeldung abrufbar. «Nur angemeldet»: nur für Personen mit Konto. Das lässt sich später nicht ändern.",
+      ),
+    );
+    const sichtWert = () =>
+      sEintraege.find(([e]) => e.checked)?.[0].value ?? null;
+    const fortschrittPlatz = el("div", { hidden: true });
+    const abbrechen = knopf("Abbrechen", { onclick: () => f.schliesse() });
+    const hochKnopf = knopf("Hochladen", { art: "haupt" });
+    const grund = el("span", { class: "mini leise" });
+    const hochSpalte = el("span", { class: "ws-fussspalte" }, hochKnopf, grund);
 
-    datei.eingabe.addEventListener("change", async () => {
-      entferneFeldFehler(datei);
-      vorschau.hidden = true;
-      vorschau.replaceChildren();
-      gewaehlt = null;
-      const d = datei.eingabe.files[0];
-      if (!d) return;
+    function pruefeBereit() {
+      if (laeuft) return;
+      const fehlt = !gewaehltDatei
+        ? "Wähle zuerst eine Datei."
+        : !zierde.checked && alt.eingabe.value.trim() === ""
+          ? "Gib zuerst einen Alt-Text ein."
+          : sichtWert() === null
+            ? "Wähle zuerst, wer das Bild sehen darf."
+            : "";
+      gesperrt(hochKnopf, Boolean(fehlt));
+      grund.textContent = fehlt;
+    }
+
+    zierde.addEventListener("change", () => {
+      alt.wurzel.hidden = zierde.checked;
+      loescheFeldFehler(alt.wurzel);
+      pruefeBereit();
+    });
+    alt.eingabe.addEventListener("input", () => {
+      loescheFeldFehler(alt.wurzel);
+      pruefeBereit();
+    });
+
+    async function waehle(d) {
+      meldung.replaceChildren();
+      gewaehlteBox.hidden = true;
+      gewaehlteBox.replaceChildren();
+      gewaehltDatei = null;
+      if (!d) return pruefeBereit();
       const problem = await pruefeDatei(d);
-      if (datei.eingabe.files[0] !== d) return;
-      if (problem) return feldFehler(datei, problem, { fokus: false });
+      const art = d.type.replace("image/", "").toUpperCase() || "Datei";
+      if (problem) {
+        // Datei zeigen und den Grund; gewählt ist sie nicht
+        gewaehlteBox.append(dateiZeile(d, art, null));
+        gewaehlteBox.hidden = false;
+        meldung.replaceChildren(band("fehler", problem));
+        zone.hidden = false;
+        pruefeBereit();
+        grund.textContent = "Wähle eine andere Datei.";
+        gesperrt(hochKnopf, true);
+        return;
+      }
       // Vorschau über eine Leinwand: Die CSP erlaubt keine blob:-Adressen. Das Lesen zeigt nebenbei, ob sich das Bild öffnen lässt.
+      let leinwand;
       try {
         const bild = await window.createImageBitmap(d);
-        if (datei.eingabe.files[0] !== d) return bild.close();
-        const leinwand = el("canvas", {
+        leinwand = el("canvas", {
           role: "img",
           "aria-label": "Vorschau des gewählten Bildes",
+          class: "ws-leinwand",
         });
-        leinwand.width = Math.round(bild.width * Math.min(1, 480 / bild.width));
-        leinwand.height = Math.round(
-          bild.height * Math.min(1, 480 / bild.width),
-        );
+        const faktor = Math.min(1, 160 / bild.width);
+        leinwand.width = Math.round(bild.width * faktor);
+        leinwand.height = Math.round(bild.height * faktor);
         leinwand
           .getContext("2d")
           .drawImage(bild, 0, 0, leinwand.width, leinwand.height);
         bild.close();
-        vorschau.append(leinwand);
-        vorschau.hidden = false;
-        gewaehlt = d;
       } catch {
-        feldFehler(
-          datei,
-          "Dieses Bild lässt sich nicht lesen. Wähle ein anderes.",
-          { fokus: false },
+        meldung.replaceChildren(
+          band(
+            "fehler",
+            "Dieses Bild lässt sich nicht lesen. Wähle ein anderes.",
+          ),
         );
+        pruefeBereit();
+        gesperrt(hochKnopf, true);
+        grund.textContent = "Wähle eine andere Datei.";
+        return;
       }
+      gewaehltDatei = d;
+      gewaehlteBox.append(dateiZeile(d, art, leinwand));
+      gewaehlteBox.hidden = false;
+      zone.hidden = true;
+      pruefeBereit();
+      alt.eingabe.focus();
+    }
+    const dateiZeile = (d, art, leinwand) =>
+      el(
+        "div",
+        { class: "medium ws-gewaehlt" },
+        el("div", { class: "bild" }, leinwand),
+        el(
+          "div",
+          {},
+          el("p", { class: "name" }, d.name),
+          el("p", { class: "klein leise" }, `${art}, ${groesseText(d.size)}`),
+          knopf("Andere Datei wählen", {
+            klein: true,
+            onclick: () => {
+              zone.hidden = false;
+              gewaehlteBox.hidden = true;
+              dateiEingabe.click();
+            },
+          }),
+        ),
+      );
+    dateiEingabe.addEventListener("change", () =>
+      waehle(dateiEingabe.files[0]),
+    );
+    // Ablegen auf die Fläche
+    const ueber = (an) => (e) => {
+      e.preventDefault();
+      zone.classList.toggle("ueberflaeche", an);
+      zoneKopf.textContent = an
+        ? "Loslassen zum Hochladen"
+        : "Datei hierher ziehen";
+    };
+    zone.addEventListener("dragenter", ueber(true));
+    zone.addEventListener("dragover", ueber(true));
+    zone.addEventListener("dragleave", ueber(false));
+    zone.addEventListener("drop", (e) => {
+      ueber(false)(e);
+      waehle(e.dataTransfer?.files?.[0]);
     });
 
     function beiFortschritt(anteil) {
       const p = Math.round(anteil * 100);
-      balken.value = p;
+      const balken = fortschrittPlatz.querySelector(".fortschritt > span");
+      const text = fortschrittPlatz.querySelector(".ws-prozent");
+      const bytes = fortschrittPlatz.querySelector(".ws-bytes");
+      const ansage = fortschrittPlatz.querySelector(".nur-leser");
+      balken.className = `ws-p${Math.min(100, Math.round(p / 5) * 5)}`;
+      fortschrittPlatz
+        .querySelector(".fortschritt")
+        .setAttribute("aria-valuenow", String(p));
+      bytes.textContent = `${groesseText(gewaehltDatei.size * anteil)} von ${groesseText(gewaehltDatei.size)}`;
       if (p >= 100) {
-        prozent.textContent = "Bild wird verarbeitet …";
-        abbruch.hidden = true;
+        text.textContent = "Bild wird verarbeitet …";
         if (stufe < 100) ansage.textContent = "Bild wird verarbeitet …";
         stufe = 100;
         return;
       }
-      prozent.textContent = `Lade hoch … ${p} %`;
+      text.textContent = `Lade hoch … ${p} %`;
+      // Screenreader hören nur die Stufen, nicht jedes Prozent
       const neueStufe = Math.floor(p / 25) * 25;
       if (neueStufe > stufe) {
         stufe = neueStufe;
@@ -671,119 +876,140 @@ function zeichne(bereich, ctx, erste) {
       }
     }
 
-    const dialog = dialogFormular({
-      titel: "Bild hochladen",
-      felder: [
-        datei.wurzel,
-        vorschau,
-        wahl.wurzel,
-        alt.wurzel,
-        zierde.wurzel,
-        fortschritt,
-        ansage,
-      ],
-      ok: "Hochladen",
-      // Reihenfolge wie im Dialog: Bild, Sichtbarkeit, Alt-Text; der Fokus geht auf das erste Feld, das fehlt
-      pruefe: () => {
-        let erstes = null;
-        const fehlt = (f, text) => {
-          if (text) feldFehler(f, text, { fokus: false });
-          erstes ??= f.eingabe;
-        };
-        if (!gewaehlt) {
-          // Ein Bild mit Problem trägt seine Meldung schon
-          fehlt(
-            datei,
-            datei.wurzel.querySelector(".feld-fehler")
-              ? ""
-              : "Wähle zuerst ein Bild.",
-          );
-        }
-        if (wahl.wert() === null) {
-          fehlt(wahl, "Wähle, wer das Bild sehen darf.");
-        }
-        if (!zierde.eingabe.checked && alt.eingabe.value.trim() === "") {
-          fehlt(alt, ALT_FEHLT);
-        }
-        erstes?.focus();
-        return erstes !== null;
-      },
-      senden: async () => {
-        const q = new URLSearchParams({ sichtbarkeit: wahl.wert() });
-        if (zierde.eingabe.checked) q.set("dekorativ", "true");
-        else q.set("altText", alt.eingabe.value.trim());
-        steuerung = new window.AbortController();
-        stufe = -1;
-        fortschritt.hidden = false;
-        abbruch.hidden = false;
-        beiFortschritt(0);
-        try {
-          return await hochladen(`${API}?${q}`, gewaehlt, {
-            beiFortschritt,
-            signal: steuerung.signal,
-          });
-        } catch (f) {
-          dialog.querySelector('button[type="submit"]').textContent =
-            "Nochmals versuchen";
-          throw f;
-        } finally {
-          fortschritt.hidden = true;
-          steuerung = null;
-        }
-      },
-      danach: (m) => {
-        neues = m;
-      },
-      fehlertext: (f) => {
-        if (f?.name === "AbortError") return "Das Hochladen wurde abgebrochen.";
-        const grund =
-          {
+    bei(hochKnopf, async () => {
+      meldung.replaceChildren();
+      f.fehler(null);
+      const q = new URLSearchParams({ sichtbarkeit: sichtWert() });
+      if (zierde.checked) q.set("dekorativ", "true");
+      else q.set("altText", alt.eingabe.value.trim());
+      steuerung = new window.AbortController();
+      stufe = -1;
+      laeuft = true;
+      beschaeftigt(hochKnopf, true);
+      grund.textContent = "";
+      fortschrittPlatz.hidden = false;
+      fortschrittPlatz.replaceChildren(
+        el(
+          "div",
+          { class: "ws-fortschritt-feld", role: "status" },
+          el("p", { class: "fett ws-prozent" }, "Lade hoch …"),
+          el(
+            "div",
+            {
+              class: "fortschritt",
+              role: "progressbar",
+              "aria-label": "Hochladen",
+              "aria-valuemin": "0",
+              "aria-valuemax": "100",
+              "aria-valuenow": "0",
+            },
+            el("span", { class: "ws-p0" }),
+          ),
+          el("p", { class: "klein leise ws-bytes" }),
+          el("p", { class: "nur-leser" }),
+          knopf("Hochladen abbrechen", {
+            klein: true,
+            onclick: () => steuerung?.abort(),
+          }),
+        ),
+      );
+      beiFortschritt(0);
+      try {
+        neues = await hochladen(`${API}?${q}`, gewaehltDatei, {
+          beiFortschritt,
+          signal: steuerung.signal,
+        });
+        const name = gewaehltDatei.name;
+        f.dialog.addEventListener("close", () => nachHochladen(neues, name), {
+          once: true,
+        });
+        f.schliesse();
+      } catch (fehler) {
+        laeuft = false;
+        fortschrittPlatz.hidden = true;
+        fortschrittPlatz.replaceChildren();
+        beschaeftigt(hochKnopf, false);
+        hochKnopf.lastChild.textContent = "Nochmals versuchen";
+        if (fehler?.name === "AbortError") {
+          f.fehler("Das Hochladen wurde abgebrochen.");
+        } else {
+          const gr = {
             ZU_GROSS: "Das Bild ist zu gross. Höchstens 10 MB.",
             MEDIEN_FORMAT: TYP_FEHLER,
-            ALT_TEXT: "Gib einen Alt-Text ein oder wähle «Nur Zierde».",
-          }[f?.code] ?? fehlertext(f);
-        return `Das Hochladen hat nicht geklappt. ${grund}`;
-      },
-    });
-    // Schliesst man den Dialog mitten im Hochladen (Escape), bricht auch die Anfrage ab
-    dialog.addEventListener("close", () => steuerung?.abort());
-    nachDemSchliessen(dialog, async () => {
-      const m = neues;
-      if (!m) return;
-      // Eine Suche, zu der das neue Bild nicht passt, versteckte es: zurück zur ganzen Liste
-      if (frage.trim()) {
-        suche.value = "";
-        frage = "";
-        const mein = ++lauf;
-        try {
-          const daten = await hole(0);
-          if (mein === lauf) ersetze(daten);
-        } catch {
-          ersetze({ medien: [], weitere: true });
+            ALT_TEXT: ALT_FEHLT,
+          }[fehler?.code];
+          f.fehler(
+            gr
+              ? `Das Hochladen hat nicht geklappt. ${gr}`
+              : fehler?.status === 0
+                ? "Das Hochladen hat nicht geklappt. Prüfe die Verbindung. Datei und Alt-Text sind noch da."
+                : `Das Hochladen hat nicht geklappt. ${fehlertext(fehler)} Datei und Alt-Text sind noch da.`,
+          );
         }
+      } finally {
+        steuerung = null;
       }
-      anhaengen(m, true);
-      zeigeZustand();
-      ctx.melde("Das Bild ist hochgeladen. Es steht jetzt ganz oben.");
-      fokusiere(m.id);
     });
+
+    const f = fenster({
+      titel: "Medien hochladen",
+      inhalt: [
+        zone,
+        dateiEingabe,
+        gewaehlteBox,
+        meldung,
+        alt.wurzel,
+        zierdeWurzel,
+        sichtbarkeit,
+        fortschrittPlatz,
+      ],
+      fuss: [abbrechen, hochSpalte],
+    });
+    // Schliesst man das Fenster mitten im Hochladen (Escape), bricht auch die Anfrage ab
+    f.dialog.addEventListener("close", () => steuerung?.abort());
+    pruefeBereit();
+  }
+
+  // Nach dem Hochladen: Eine Suche, zu der das neue Bild nicht passt, versteckte es: zurück zur ganzen Liste
+  async function nachHochladen(m, name) {
+    if (frage.trim() || artFilter !== "alle") {
+      suche.value = "";
+      frage = "";
+      artFilter = "alle";
+      filter.setze("alle");
+      const mein = ++lauf;
+      try {
+        const daten = await hole(0);
+        if (mein === lauf) ersetze(daten);
+      } catch {
+        ersetze({ medien: [], weitere: true });
+      }
+    }
+    anhaengen(m, true);
+    zeigeZustand();
+    ctx.melde(
+      `«${name}» ist hochgeladen und hat ${m.dekorativ ? "keinen Alt-Text (Zierde)" : "einen Alt-Text"}.`,
+      "ok",
+    );
+    fokusiere(m.id);
   }
 
   ctx.kopfAktion(
-    knopf("Bild hochladen", {
-      art: "haupt",
-      symbol: "plus",
-      onclick: hochladenDialog,
-    }),
+    mitSymbol(
+      knopf("Hochladen", { art: "haupt", onclick: hochladenDialog }),
+      "hochladen",
+    ),
   );
   erste.medien.forEach((m) => anhaengen(m));
   zeigeZustand();
   bereich.append(
     werkzeuge,
+    auswahlPlatz,
+    zaehler,
+    meldungsplatz,
     leer,
     raster,
-    meldungsplatz,
-    el("div", { class: "ws-medien-fuss" }, mehr),
+    el("div", { class: "ws-medienfuss" }, mehr),
   );
   beobachte();
 }

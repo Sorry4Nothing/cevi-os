@@ -1,1190 +1,297 @@
-import { anfrage, fehlertext } from "./api.js";
+import { ApiFehler, anfrage, fehlertext } from "./api.js";
+import { el, feld, knopf, neueId } from "./dom.js";
+import { sk } from "./lader.js";
+import { zeichen } from "./zustaende.js";
 import {
-  ankreuzen,
-  bestaetigen,
-  chip,
-  dialogFormular,
-  el,
-  feld,
-  gruppe,
-  icon,
-  knopf,
-  neueId,
-  seitenblatt,
-  zeit,
-} from "./dom.js";
+  ADRESSE,
+  MAX_TIEFE,
+  API,
+  baue as baueBaum,
+  koerper,
+  patch,
+  plane,
+} from "./website-baum.js";
 import {
-  bloeckeZuText,
-  textZuBloecken,
-  zaehleZeichen,
-} from "./website-richtext.js";
+  bearbeitenBlatt,
+  bildDialog,
+  katalogDialog,
+} from "./website-bausteine.js";
+import {
+  anzahlText,
+  band,
+  beschaeftigt,
+  bei,
+  fenster,
+  keinRecht,
+  kuerze,
+  sichtbarkeitText,
+  uhrzeit,
+} from "./website-dialoge.js";
+import {
+  CODE_TEXTE,
+  MAX_BAUSTEINE,
+  TYPEN,
+  VERWEIS_TEXTE,
+  feldName,
+  kurzText,
+  typName,
+} from "./website-felder.js";
+import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
+import { mitSymbol, symbol } from "./website-symbole.js";
+import {
+  veroeffentlichenDialog,
+  vergleiche,
+} from "./website-veroeffentlichen.js";
 
-// Editor einer Seite (#358): Bausteine, Vorschau, Veröffentlichen und Versionen. Schnittstelle zum Bereich: siehe website.js.
+// Editor einer Seite (Boards E2 bis E6). Schnittstelle zum Bereich: ctx aus admin.js, ctx.pfad[0] ist die Kennung der Seite.
 //
-// Das Dokument der Seite liegt als Objekt im Speicher und ist die einzige Wahrheit: Jedes Formularfeld schreibt beim Tippen dorthin,
-// die Karten werden daraus gezeichnet. Der Server prüft alles (Fehler mit Pfad); der Browser prüft nur, was fehlt.
-// Nur ein gültiges Dokument lässt sich speichern (der Entwurf ist immer gültig): Unfertiges bleibt hier, bis es fertig ist.
+// Das Dokument der Seite liegt als Objekt im Speicher und ist die einzige Wahrheit: Die Liste der Bausteine wird daraus gezeichnet,
+// «Bearbeiten» öffnet ein Seitenblatt mit einer Kopie des Bausteins, «Übernehmen» schreibt sie zurück.
+// Der Server prüft alles (Fehler mit Pfad); der Browser prüft nur, was fehlt. Nur ein gültiges Dokument lässt sich speichern.
 // Kein Autospeichern: Unfertige Bausteine lassen sich nicht speichern, ein Takt würde nur Fehler melden und die Datenbank belasten.
 // Dafür geht nichts verloren: Rückfrage beim Verlassen, Warnung beim Schliessen des Tabs, und beim Zurückkehren auf dieselbe Seite die ungespeicherte Fassung.
+// Datenbanklast beim Öffnen: Seite, Entwurf und Gruppen (und für die Abteilungsleitung die Liste der Seiten für die Elternseite). Ein Abruf der Medien nur, wenn ein Bild-Baustein da ist.
 
-const API = "/api/v1/redaktion";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const MAX_BAUSTEINE = 100;
-const MAX_TEXT_ZEICHEN = 20000;
-const MAX_KARTEN = 24;
-const MAX_GALERIE = 50;
 
 // Ungespeicherte Fassungen für den Rest des Besuchs (nur Arbeitsspeicher, nichts im Browser), je Konto und Seite: { dok, zaehler }
 const puffer = new Map();
-
-const uhrzeit = new Intl.DateTimeFormat("de-CH", { timeStyle: "short" });
 const kopie = (wert) => JSON.parse(JSON.stringify(wert));
 const neueUuid = () => globalThis.crypto.randomUUID();
-const kuerze = (text, n = 60) =>
-  text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
-const anzahlText = (n, eins, viele) => (n === 1 ? eins : `${n} ${viele}`);
-
-const ARTEN = {
-  oeffentlich: "Öffentlich",
-  angemeldet: "Nur angemeldet",
-  tags: "Bestimmte Gruppen",
-};
-const LINK_HILFE =
-  "Eine Seite dieser Website (zum Beispiel /stufen/woelfe), eine Webadresse mit https, eine E-Mail-Adresse mit mailto: oder eine Telefonnummer mit tel:.";
-
-// Namen der Felder und Texte zu den Codes der Prüfung des Servers (zod und Verweisprüfung)
-const FELDNAMEN = {
-  titel: "Der Titel",
-  text: "Der Text",
-  ebene: "Die Ebene",
-  inhalt: "Der Text",
-  mediumId: "Das Bild",
-  bilder: "Die Bilder",
-  unterschrift: "Die Bildunterschrift",
-  eintraege: "Die Einträge",
-  darstellung: "Die Darstellung",
-  beschriftung: "Die Beschriftung",
-  ziel: "Das Ziel",
-  link: "Der Link",
-  typ: "Der Dateityp",
-  groesse: "Die Grösse",
-  url: "Die Adresse",
-  art: "Die Art",
-  personId: "Die Person",
-  tagId: "Die Gruppe",
-  anzahl: "Die Anzahl",
-  sichtbarkeit: "Die Sichtbarkeit",
-  tagIds: "Die Gruppen",
-};
-const CODE_TEXTE = {
-  too_small: "fehlt oder ist zu kurz.",
-  too_big: "ist zu lang, oder es sind zu viele.",
-  invalid_type: "fehlt.",
-  invalid_value: "hat einen ungültigen Wert.",
-  invalid_format: "hat ein ungültiges Format.",
-  invalid_union: "hat einen ungültigen Wert.",
-  custom: "ist ungültig. Prüfe die Adresse und die Länge.",
-  unrecognized_keys: "enthält etwas Unbekanntes.",
-};
-const VERWEIS_TEXTE = {
-  MEDIUM_UNBEKANNT: "Das gewählte Bild gibt es nicht mehr. Wähle ein anderes.",
-  MEDIUM_FORMAT:
-    "Dieser Baustein braucht ein Bild, das gewählte Medium ist keines.",
-  MEDIUM_NICHT_OEFFENTLICH:
-    "Das Bild ist nicht öffentlich. Wähle ein öffentliches Bild oder stelle den Baustein auf «Nur angemeldet».",
-  TAG_UNBEKANNT: "Die gewählte Gruppe gibt es nicht mehr.",
-  PERSON_UNBEKANNT: "Die gewählte Person gibt es nicht mehr.",
-  SEITE_UNBEKANNT:
-    "Ein Link zeigt auf eine Seite, die es nicht gibt. Prüfe die Adresse.",
-};
-
-const feldName = (pfad) =>
-  FELDNAMEN[
-    pfad
-      .split(".")
-      .filter((s) => !/^\d+$/.test(s))
-      .at(-1)
-  ] ?? "Die Eingabe";
-
-function sichtbarkeitText(s, tagNamen) {
-  if (s.art !== "tags") return ARTEN[s.art] ?? "";
-  if (s.tagIds.length === 0) return "Bestimmte Gruppen (keine gewählt)";
-  return `Bestimmte Gruppen: ${s.tagIds
-    .map((id) => tagNamen.get(id) ?? "unbekannte Gruppe")
-    .join(", ")}`;
-}
-
-// --- Felder -----------------------------------------------------------------------------------------------------------
-
-// Fehler eines Feldes: Meldung unter dem Feld, aria-invalid und aria-describedby am Ziel; weg, sobald die Person das Feld ändert
-function zeigeFeldFehler(wurzel, ziel, text) {
-  const alt = wurzel.querySelector(".feld-fehler");
-  const meldung =
-    alt ?? el("p", { class: "feld-fehler", id: neueId("fehler") });
-  meldung.textContent = text;
-  if (!alt) wurzel.append(meldung);
-  ziel.setAttribute("aria-invalid", "true");
-  const ids = (ziel.getAttribute("aria-describedby") ?? "")
-    .split(" ")
-    .filter(Boolean);
-  if (!ids.includes(meldung.id)) ids.push(meldung.id);
-  ziel.setAttribute("aria-describedby", ids.join(" "));
-}
-
-function loescheFeldFehler(wurzel) {
-  const meldung = wurzel.querySelector(".feld-fehler");
-  if (!meldung) return;
-  const ziel = wurzel.querySelector("[aria-invalid]");
-  ziel?.removeAttribute("aria-invalid");
-  if (ziel) {
-    const ids = (ziel.getAttribute("aria-describedby") ?? "")
-      .split(" ")
-      .filter((i) => i && i !== meldung.id);
-    if (ids.length > 0) ziel.setAttribute("aria-describedby", ids.join(" "));
-    else ziel.removeAttribute("aria-describedby");
-  }
-  meldung.remove();
-}
-
-// Ein Feld an die Fehler anmelden
-function anmelden(reg, pfad, f) {
-  reg(pfad, f.wurzel, f.eingabe);
-  const weg = () => loescheFeldFehler(f.wurzel);
-  f.eingabe.addEventListener("input", weg);
-  f.eingabe.addEventListener("change", weg);
-}
-
-// Textfeld oder Zahlfeld, das beim Tippen ins Dokument schreibt
-function eingabe(k, b, reg, schluessel, label, optionen = {}) {
-  const { optional, zahl, hilfe, ...rest } = optionen;
-  const f = feld({
-    label,
-    wert: b.daten[schluessel] === undefined ? "" : String(b.daten[schluessel]),
-    hilfe,
-    autocomplete: "off",
-    ...rest,
-  });
-  f.eingabe.addEventListener("input", () => {
-    const wert = f.eingabe.value;
-    if (wert.trim() === "" && (optional || zahl)) delete b.daten[schluessel];
-    else b.daten[schluessel] = zahl ? Number(wert) : wert;
-    k.aendere(b);
-  });
-  anmelden(reg, `daten.${schluessel}`, f);
-  return f.wurzel;
-}
-
-// Wie eingabe(), für einen Eintrag einer Liste (Karte, Galeriebild)
-function teilEingabe(
-  k,
-  b,
-  reg,
-  eintrag,
-  schluessel,
-  label,
-  pfad,
-  optionen = {},
-) {
-  const { optional, hilfe, ...rest } = optionen;
-  const f = feld({
-    label,
-    wert: eintrag[schluessel] ?? "",
-    hilfe,
-    autocomplete: "off",
-    ...rest,
-  });
-  f.eingabe.addEventListener("input", () => {
-    const wert = f.eingabe.value;
-    if (optional && wert.trim() === "") delete eintrag[schluessel];
-    else eintrag[schluessel] = wert;
-    k.aendere(b);
-  });
-  anmelden(reg, pfad, f);
-  return f.wurzel;
-}
-
-// Auswahl aus einer Liste: das native Feld klappt am Rand des Fensters von selbst nach oben und funktioniert mit Tastatur und Screenreader ohne Zutun
-function waehler({ label, optionen, wert }) {
-  const id = neueId("waehler");
-  const eingabe = el(
-    "select",
-    { id, class: "ws-editor-select" },
-    optionen.map(([w, text]) => el("option", { value: w }, text)),
-  );
-  eingabe.value = wert;
-  return {
-    wurzel: el(
-      "div",
-      { class: "feld" },
-      el("label", { for: id }, label),
-      eingabe,
-    ),
-    eingabe,
-  };
-}
-
-// Auswahl aus wenigen Werten; Zahlen bleiben Zahlen
-function wahl(k, b, reg, schluessel, label, optionen) {
-  const a = waehler({
-    label,
-    optionen: optionen.map(([w, text]) => [String(w), text]),
-    wert: String(b.daten[schluessel]),
-  });
-  a.eingabe.addEventListener("change", () => {
-    const roh = a.eingabe.value;
-    b.daten[schluessel] =
-      typeof optionen[0][0] === "number" ? Number(roh) : roh;
-    k.aendere(b);
-  });
-  reg(`daten.${schluessel}`, a.wurzel, a.eingabe);
-  return a.wurzel;
-}
-
-function textForm(k, b, reg) {
-  const f = feld({
-    label: "Text",
-    mehrzeilig: true,
-    rows: 10,
-    wert: bloeckeZuText(b.daten.inhalt ?? []),
-    lang: "de-CH",
-    spellcheck: "true",
-    hilfe:
-      "Eine Zeile ist ein Absatz. Fett: **Text**. Kursiv: *Text*. Link: [Text](Adresse). Liste: Zeilen mit «- » am Anfang, nummeriert mit «1. ».",
-  });
-  const zaehler = el("p", { class: "hilfe" });
-  const zaehle = () => {
-    zaehler.textContent = `${zaehleZeichen(b.daten.inhalt ?? [])} von ${MAX_TEXT_ZEICHEN} Zeichen`;
-  };
-  f.eingabe.addEventListener("input", () => {
-    b.daten.inhalt = textZuBloecken(f.eingabe.value);
-    zaehle();
-    k.aendere(b);
-  });
-  zaehle();
-  f.wurzel.append(zaehler);
-  anmelden(reg, "daten.inhalt", f);
-  return f.wurzel;
-}
-
-function altTextInfo(m) {
-  if (!m)
-    return "Der Alt-Text dieses Bildes steht in der Medienbibliothek und erscheint mit dem Bild auf der Seite.";
-  if (m.dekorativ) return "Das Bild ist als dekorativ markiert.";
-  if (m.altText) return `Alt-Text: «${m.altText}»`;
-  return "Für dieses Bild fehlt der Alt-Text. Trage ihn unter «Medien» nach.";
-}
-
-// Ein Bild der Bibliothek: Vorschaubild, Alt-Text des Mediums und der Knopf zur Auswahl
-function bildWahl(k, b, reg, ziel, pfad) {
-  const wurzel = el("div", { class: "feld ws-editor-bild" });
-  const titelId = neueId("bild");
-  const zeichne = () => {
-    const medium = k.medien.get(ziel.mediumId);
-    const wahlKnopf = knopf(
-      ziel.mediumId ? "Anderes Bild wählen" : "Bild wählen",
-      {
-        klein: true,
-        symbol: "lupe",
-        "aria-describedby": titelId,
-        onclick: () =>
-          k.waehleBild((m) => {
-            ziel.mediumId = m.id;
-            k.medien.set(m.id, m);
-            k.aendere(b);
-            zeichne();
-            wurzel.querySelector("button")?.focus();
-          }),
-      },
-    );
-    wurzel.replaceChildren(
-      el("span", { class: "feld-titel", id: titelId }, "Bild"),
-      ziel.mediumId
-        ? el(
-            "div",
-            { class: "ws-editor-bildzeile" },
-            // Zierde: Der Alt-Text steht als Text daneben
-            el("img", {
-              class: "ws-editor-vorschaubild",
-              src: `/api/v1/medien/${ziel.mediumId}`,
-              alt: "",
-              loading: "lazy",
-            }),
-            el("p", { class: "hilfe" }, altTextInfo(medium)),
-          )
-        : el("p", { class: "hilfe" }, "Noch kein Bild gewählt."),
-      wahlKnopf,
-    );
-    reg(pfad, wurzel, wahlKnopf);
-  };
-  zeichne();
-  return wurzel;
-}
-
-// Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Nach oben», «Nach unten» und «Entfernen».
-// Jede Änderung der Liste zeichnet das Formular des Bausteins neu und setzt den Fokus auf den betroffenen Teil.
-function listenForm(
-  k,
-  b,
-  { liste, max, hinzuText, hinzu, zeile, name, pfadName, listeName },
-) {
-  const eintraege = liste();
-  const neu = (fokus) => k.formNeu(b, fokus);
-  const ul = el("ol", { class: "ws-editor-teile", "aria-label": listeName });
-  eintraege.forEach((eintrag, i) => {
-    const bez = `${name} ${i + 1}`;
-    const bewege = (delta, was) => {
-      const ziel = i + delta;
-      const [x] = eintraege.splice(i, 1);
-      eintraege.splice(ziel, 0, x);
-      k.aendere(b);
-      neu({ index: ziel, was });
-      k.ctx.melde(
-        `${bez} steht jetzt an Position ${ziel + 1} von ${eintraege.length}.`,
-      );
-    };
-    ul.append(
-      el(
-        "li",
-        { class: "ws-editor-teil" },
-        el("h4", {}, bez),
-        ...zeile(eintrag, `${pfadName}.${i}`),
-        el(
-          "div",
-          { class: "ws-editor-teilaktionen" },
-          knopf("Nach oben", {
-            klein: true,
-            kontext: bez,
-            disabled: i === 0,
-            onclick: () => bewege(-1, "hoch"),
-          }),
-          knopf("Nach unten", {
-            klein: true,
-            kontext: bez,
-            disabled: i === eintraege.length - 1,
-            onclick: () => bewege(1, "runter"),
-          }),
-          knopf("Entfernen", {
-            klein: true,
-            kontext: bez,
-            onclick: () => {
-              eintraege.splice(i, 1);
-              k.aendere(b);
-              neu({ index: Math.min(i, eintraege.length - 1), was: "neu" });
-              k.ctx.melde(`${bez} ist entfernt.`);
-            },
-          }),
-        ),
-      ),
-    );
-  });
-  const hinzuKnopf = knopf(hinzuText, {
-    klein: true,
-    symbol: "plus",
-    "data-teil": "hinzu",
-    onclick: () => {
-      if (eintraege.length >= max) {
-        k.ctx.melde(`Mehr als ${max} sind nicht möglich.`, "fehler");
-        return;
-      }
-      hinzu(eintraege, (index) => {
-        k.aendere(b);
-        neu({ index, was: "neu" });
-      });
-    },
-  });
-  return el("div", { class: "ws-editor-liste" }, ul, hinzuKnopf);
-}
-
-function galerieForm(k, b, reg) {
-  return listenForm(k, b, {
-    name: "Galeriebild",
-    listeName: "Bilder der Galerie",
-    pfadName: "daten.bilder",
-    liste: () => b.daten.bilder,
-    max: MAX_GALERIE,
-    hinzuText: "Bild hinzufügen",
-    hinzu: (liste, fertig) =>
-      k.waehleBild((m) => {
-        k.medien.set(m.id, m);
-        liste.push({ mediumId: m.id });
-        fertig(liste.length - 1);
-      }),
-    zeile: (eintrag, pfad) => [
-      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`),
-      teilEingabe(
-        k,
-        b,
-        reg,
-        eintrag,
-        "unterschrift",
-        "Bildunterschrift (optional)",
-        `${pfad}.unterschrift`,
-        {
-          optional: true,
-          maxlength: 300,
-        },
-      ),
-    ],
-  });
-}
-
-function kartenForm(k, b, reg) {
-  return [
-    wahl(k, b, reg, "darstellung", "Darstellung", [
-      ["karten", "Karten"],
-      ["liste", "Liste"],
-    ]),
-    listenForm(k, b, {
-      name: "Eintrag",
-      listeName: "Einträge",
-      pfadName: "daten.eintraege",
-      liste: () => b.daten.eintraege,
-      max: MAX_KARTEN,
-      hinzuText: "Eintrag hinzufügen",
-      hinzu: (liste, fertig) => {
-        liste.push({ titel: "" });
-        fertig(liste.length - 1);
-      },
-      zeile: (eintrag, pfad) => [
-        teilEingabe(k, b, reg, eintrag, "titel", "Titel", `${pfad}.titel`, {
-          maxlength: 100,
-        }),
-        teilEingabe(
-          k,
-          b,
-          reg,
-          eintrag,
-          "text",
-          "Text (optional)",
-          `${pfad}.text`,
-          {
-            optional: true,
-            maxlength: 500,
-            mehrzeilig: true,
-            rows: 3,
-          },
-        ),
-        teilEingabe(
-          k,
-          b,
-          reg,
-          eintrag,
-          "link",
-          "Link (optional)",
-          `${pfad}.link`,
-          {
-            optional: true,
-            maxlength: 2000,
-            spellcheck: "false",
-            hilfe:
-              "Eine Seite dieser Website (zum Beispiel /stufen/woelfe) oder eine Webadresse mit https.",
-          },
-        ),
-      ],
-    }),
-  ];
-}
-
-// Die Grösse der Datei: Der Server speichert Bytes, das Feld nimmt Kilobyte
-function groesseFeld(k, b, reg) {
-  const f = feld({
-    label: "Grösse in Kilobyte (optional)",
-    wert: b.daten.groesse === undefined ? "" : String(b.daten.groesse / 1000),
-    inputmode: "decimal",
-    autocomplete: "off",
-  });
-  f.eingabe.addEventListener("input", () => {
-    const zahl = Number(f.eingabe.value.trim().replace(",", "."));
-    if (f.eingabe.value.trim() === "") delete b.daten.groesse;
-    else b.daten.groesse = Number.isFinite(zahl) ? Math.round(zahl * 1000) : -1;
-    k.aendere(b);
-  });
-  anmelden(reg, "daten.groesse", f);
-  return f.wurzel;
-}
-
-function tagWahl(k, b, reg, schluessel, label, optional) {
-  const aktuell = b.daten[schluessel] ?? "";
-  const a = waehler({
-    label,
-    optionen: [
-      ["", optional ? "Keine Gruppe" : "Gruppe wählen"],
-      ...(aktuell && !k.tagNamen.has(aktuell)
-        ? [[aktuell, "Unbekannte Gruppe"]]
-        : []),
-      ...k.tags.map((t) => [t.id, t.name]),
-    ],
-    wert: aktuell,
-  });
-  a.eingabe.addEventListener("change", () => {
-    if (a.eingabe.value) b.daten[schluessel] = a.eingabe.value;
-    else delete b.daten[schluessel];
-    k.aendere(b);
-    loescheFeldFehler(a.wurzel);
-  });
-  reg(`daten.${schluessel}`, a.wurzel, a.eingabe);
-  return a.wurzel;
-}
-
-// Erst die Gruppe, dann die Person der Gruppe (die Liste kommt vom Server, nur für die gewählte Gruppe)
-function personWahl(k, b, reg) {
-  const wurzel = el("div", { class: "ws-editor-person" });
-  const personen = el("div");
-  const gewaehlt = el("p", { class: "hilfe" });
-  const zeigeGewaehlt = () => {
-    const name = k.personNamen.get(b.daten.personId);
-    gewaehlt.textContent = b.daten.personId
-      ? name
-        ? `Gewählt: ${name}`
-        : "Eine Person ist gewählt. Ihr Name erscheint in der Vorschau."
-      : "Noch keine Person gewählt.";
-  };
-  const gruppeWahl = waehler({
-    label: "Gruppe der Person",
-    optionen: [["", "Gruppe wählen"], ...k.tags.map((t) => [t.id, t.name])],
-    wert: "",
-  });
-  const lade = async (tagId) => {
-    personen.replaceChildren(
-      el("p", { class: "hilfe", role: "status" }, "Personen werden geladen …"),
-    );
-    try {
-      const antwort = await anfrage("GET", `${API}/personen?tag=${tagId}`);
-      for (const p of antwort.personen) k.personNamen.set(p.id, p.anzeigename);
-      const liste = waehler({
-        label: "Person",
-        optionen: [
-          [
-            "",
-            antwort.personen.length > 0
-              ? "Person wählen"
-              : "Niemand in dieser Gruppe",
-          ],
-          ...antwort.personen.map((p) => [
-            p.id,
-            p.funktion ? `${p.anzeigename} (${p.funktion})` : p.anzeigename,
-          ]),
-        ],
-        wert: antwort.personen.some((p) => p.id === b.daten.personId)
-          ? b.daten.personId
-          : "",
-      });
-      liste.eingabe.addEventListener("change", () => {
-        if (liste.eingabe.value) b.daten.personId = liste.eingabe.value;
-        else delete b.daten.personId;
-        zeigeGewaehlt();
-        k.aendere(b);
-        loescheFeldFehler(wurzel);
-      });
-      personen.replaceChildren(liste.wurzel);
-    } catch (f) {
-      personen.replaceChildren(
-        el("p", { class: "feld-fehler", role: "alert" }, fehlertext(f)),
-      );
-    }
-  };
-  gruppeWahl.eingabe.addEventListener("change", () => {
-    if (gruppeWahl.eingabe.value) lade(gruppeWahl.eingabe.value);
-    else personen.replaceChildren();
-  });
-  zeigeGewaehlt();
-  wurzel.append(gewaehlt, gruppeWahl.wurzel, personen);
-  reg("daten.personId", wurzel, gruppeWahl.eingabe);
-  return wurzel;
-}
-
-// Wer den Baustein sieht: wie die Seite oder enger
-function sichtbarkeitForm(k, b) {
-  const start = b.sichtbarkeit;
-  let art = start === "erbt" ? "erbt" : start.art;
-  const boxen = k.tags.map((t) =>
-    ankreuzen({
-      label: t.name,
-      gewaehlt:
-        start !== "erbt" && start.art === "tags" && start.tagIds.includes(t.id),
-      wert: t.id,
-    }),
-  );
-  const liste = gruppe(
-    "Gruppen",
-    boxen.length > 0
-      ? boxen.map((x) => x.wurzel)
-      : el("p", { class: "hilfe" }, "Es gibt noch keine Gruppen."),
-    { scrollen: true },
-  );
-  liste.hidden = art !== "tags";
-  const uebernimm = () => {
-    if (art === "erbt") b.sichtbarkeit = "erbt";
-    else if (art === "tags") {
-      b.sichtbarkeit = {
-        art,
-        tagIds: boxen
-          .filter((x) => x.eingabe.checked)
-          .map((x) => x.eingabe.value),
-      };
-    } else b.sichtbarkeit = { art };
-    k.aendere(b);
-    k.aktualisiereChips(b);
-  };
-  const a = waehler({
-    label: "Wer sieht diesen Baustein?",
-    optionen: [
-      [
-        "erbt",
-        `Wie die Seite (${sichtbarkeitText(k.seite.sichtbarkeit, k.tagNamen)})`,
-      ],
-      ["oeffentlich", "Öffentlich"],
-      ["angemeldet", "Nur angemeldet"],
-      ["tags", "Bestimmte Gruppen"],
-    ],
-    wert: art,
-  });
-  a.eingabe.addEventListener("change", () => {
-    art = a.eingabe.value;
-    liste.hidden = art !== "tags";
-    uebernimm();
-  });
-  for (const x of boxen) x.eingabe.addEventListener("change", uebernimm);
-  return el(
-    "fieldset",
-    { class: "ws-editor-sicht" },
-    el("legend", {}, "Sichtbarkeit"),
-    a.wurzel,
-    liste,
-  );
-}
-
-// --- Katalog und Typen ------------------------------------------------------------------------------------------------
-
-// Je Typ: Name, Kurztext der Karte, Prüfung (liefert [Pfad, Text]) und Formular. reg(pfad, wurzel, ziel) meldet ein Feld an die Fehler an
-// (Pfad wie beim Server ohne «bausteine.<n>.», zum Beispiel «daten.text»; ziel bekommt den Fokus)
-const TYPEN = {
-  ueberschrift: {
-    name: "Überschrift",
-    kurz: (d) => d.text ?? "",
-    pruefe: (d) => (d.text?.trim() ? [] : [["daten.text", "fehlt."]]),
-    form: (k, b, reg) => [
-      wahl(k, b, reg, "ebene", "Ebene", [
-        [2, "Ebene 2: Abschnitt"],
-        [3, "Ebene 3: Unterabschnitt"],
-        [4, "Ebene 4: kleine Überschrift"],
-      ]),
-      eingabe(k, b, reg, "text", "Text der Überschrift", { maxlength: 200 }),
-    ],
-  },
-  text: {
-    name: "Text",
-    // Der reine Text ohne die Zeichen der Schreibweise
-    kurz: (d) =>
-      kuerze(
-        (d.inhalt ?? [])
-          .flatMap((x) => (x.typ === "absatz" ? [x.inhalt] : x.eintraege))
-          .map((abschnitte) => abschnitte.map((a) => a.text).join(""))
-          .join(" · "),
-        80,
-      ),
-    pruefe: (d) =>
-      (d.inhalt ?? []).length === 0
-        ? [["daten.inhalt", "fehlt."]]
-        : zaehleZeichen(d.inhalt) > MAX_TEXT_ZEICHEN
-          ? [
-              [
-                "daten.inhalt",
-                `ist zu lang (höchstens ${MAX_TEXT_ZEICHEN} Zeichen).`,
-              ],
-            ]
-          : [],
-    form: (k, b, reg) => [textForm(k, b, reg)],
-  },
-  bild: {
-    name: "Bild",
-    kurz: (d, k) => k.medienName(d.mediumId),
-    pruefe: (d) => (d.mediumId ? [] : [["daten.mediumId", "fehlt."]]),
-    form: (k, b, reg) => [
-      bildWahl(k, b, reg, b.daten, "daten.mediumId"),
-      eingabe(k, b, reg, "unterschrift", "Bildunterschrift (optional)", {
-        maxlength: 300,
-        optional: true,
-      }),
-    ],
-  },
-  galerie: {
-    name: "Galerie",
-    kurz: (d) => anzahlText(d.bilder?.length ?? 0, "1 Bild", "Bilder"),
-    pruefe: (d) => [
-      ...((d.bilder ?? []).length === 0 ? [["daten.bilder", "fehlt."]] : []),
-      ...(d.bilder ?? []).flatMap((x, i) =>
-        x.mediumId ? [] : [[`daten.bilder.${i}.mediumId`, "fehlt."]],
-      ),
-    ],
-    form: (k, b, reg) => [galerieForm(k, b, reg)],
-  },
-  karten: {
-    name: "Karten oder Liste",
-    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
-    pruefe: (d) => [
-      ...((d.eintraege ?? []).length === 0
-        ? [["daten.eintraege", "fehlt."]]
-        : []),
-      ...(d.eintraege ?? []).flatMap((x, i) =>
-        x.titel?.trim() ? [] : [[`daten.eintraege.${i}.titel`, "fehlt."]],
-      ),
-    ],
-    form: kartenForm,
-  },
-  schaltflaeche: {
-    name: "Schaltfläche oder Link",
-    kurz: (d) => d.beschriftung ?? "",
-    pruefe: (d) => [
-      ...(d.beschriftung?.trim() ? [] : [["daten.beschriftung", "fehlt."]]),
-      ...(d.ziel?.trim() ? [] : [["daten.ziel", "fehlt."]]),
-    ],
-    form: (k, b, reg) => [
-      wahl(k, b, reg, "darstellung", "Darstellung", [
-        ["schaltflaeche", "Schaltfläche"],
-        ["link", "Link im Text"],
-      ]),
-      eingabe(k, b, reg, "beschriftung", "Beschriftung", { maxlength: 60 }),
-      eingabe(k, b, reg, "ziel", "Ziel", {
-        maxlength: 2000,
-        spellcheck: "false",
-        autocapitalize: "off",
-        hilfe: LINK_HILFE,
-      }),
-    ],
-  },
-  // Eine Datei liegt im SharePoint der Abteilung und wird nur verknüpft (#428): Titel und Link, Typ und Grösse sind freiwillige Angaben
-  datei: {
-    name: "Datei",
-    kurz: (d) => d.titel ?? "",
-    pruefe: (d) => [
-      ...(d.titel?.trim() ? [] : [["daten.titel", "fehlt."]]),
-      ...(d.link?.trim() ? [] : [["daten.link", "fehlt."]]),
-      ...(d.groesse === undefined || d.groesse >= 0
-        ? []
-        : [["daten.groesse", "ist eine Zahl ab 0."]]),
-    ],
-    form: (k, b, reg) => [
-      eingabe(k, b, reg, "titel", "Titel der Datei", { maxlength: 100 }),
-      eingabe(k, b, reg, "link", "Link zur Datei", {
-        maxlength: 2048,
-        spellcheck: "false",
-        autocapitalize: "off",
-        hilfe:
-          "Der Freigabelink der Datei im SharePoint der Abteilung. Er beginnt mit https.",
-      }),
-      eingabe(k, b, reg, "typ", "Dateityp (optional)", {
-        maxlength: 20,
-        optional: true,
-        hilfe: "Zum Beispiel PDF oder Word.",
-      }),
-      groesseFeld(k, b, reg),
-    ],
-  },
-  kontaktperson: {
-    name: "Kontaktperson",
-    kurz: (d, k) => k.personNamen.get(d.personId) ?? "",
-    pruefe: (d) => (d.personId ? [] : [["daten.personId", "fehlt."]]),
-    form: (k, b, reg) => [
-      personWahl(k, b, reg),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Auf der Website erscheinen Cevi-Name und Funktion.",
-      ),
-    ],
-  },
-  leitungsteam: {
-    name: "Leitungsteam",
-    kurz: (d, k) => k.tagNamen.get(d.tagId) ?? "",
-    pruefe: (d) => (d.tagId ? [] : [["daten.tagId", "fehlt."]]),
-    form: (k, b, reg) => [
-      tagWahl(k, b, reg, "tagId", "Gruppe", false),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Zeigt alle Personen der Gruppe mit Cevi-Name und Funktion.",
-      ),
-    ],
-  },
-  terminliste: {
-    name: "Termin-Liste",
-    kurz: (d, k) => k.tagNamen.get(d.tagId) ?? "alle Termine",
-    pruefe: (d) =>
-      Number.isInteger(d.anzahl) && d.anzahl >= 3 && d.anzahl <= 10
-        ? []
-        : [["daten.anzahl", "ist eine ganze Zahl von 3 bis 10."]],
-    form: (k, b, reg) => [
-      tagWahl(k, b, reg, "tagId", "Gruppe (optional)", true),
-      eingabe(k, b, reg, "anzahl", "Anzahl Termine (3 bis 10)", {
-        zahl: true,
-        inputmode: "numeric",
-      }),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Die Termine erscheinen, sobald die Terminverwaltung dafür bereit ist. Bis dahin bleibt der Platz leer.",
-      ),
-    ],
-  },
-  trenner: {
-    name: "Trenner",
-    kurz: (d) => (d.art === "linie" ? "Linie" : "Abstand"),
-    pruefe: () => [],
-    form: (k, b, reg) => [
-      wahl(k, b, reg, "art", "Art", [
-        ["abstand", "Abstand"],
-        ["linie", "Linie"],
-      ]),
-    ],
-  },
-  videolink: {
-    name: "Video-Link",
-    kurz: (d) => d.beschriftung ?? "",
-    pruefe: (d) => [
-      ...(d.beschriftung?.trim() ? [] : [["daten.beschriftung", "fehlt."]]),
-      ...(d.url?.trim() ? [] : [["daten.url", "fehlt."]]),
-    ],
-    form: (k, b, reg) => [
-      wahl(k, b, reg, "art", "Art", [
-        ["video", "Video"],
-        ["social", "Social Media"],
-      ]),
-      eingabe(k, b, reg, "beschriftung", "Beschriftung", { maxlength: 60 }),
-      eingabe(k, b, reg, "url", "Adresse", {
-        maxlength: 2000,
-        spellcheck: "false",
-        autocapitalize: "off",
-        hilfe:
-          "Die Webadresse des Videos oder Beitrags, mit https. Sie wird nur als Link gezeigt, nie eingebettet.",
-      }),
-    ],
-  },
-  stufenfakten: {
-    name: "Stufenfelder",
-    kurz: () => "",
-    pruefe: () => [],
-    form: () => [
-      el(
-        "p",
-        { class: "hilfe" },
-        "Zeigt Datum, Treffpunkt, Schluss und Mitnehmen der nächsten Aktivität der Stufe. Die Werte pflegst du unter ",
-        el("a", { href: "#website/stufenfakten" }, "Stufenfelder"),
-        ".",
-      ),
-    ],
-  },
-};
-
-// Was «Baustein hinzufügen» anbietet
-const KATALOG = [
-  {
-    typ: "ueberschrift",
-    name: "Überschrift",
-    beschreibung: "Der Titel eines Abschnitts.",
-    neu: () => ({ ebene: 2, text: "" }),
-  },
-  {
-    typ: "text",
-    name: "Text",
-    beschreibung: "Absätze und Listen, mit fett, kursiv und Links.",
-    neu: () => ({ inhalt: [] }),
-  },
-  {
-    typ: "bild",
-    name: "Bild",
-    beschreibung: "Ein Bild aus der Medienbibliothek.",
-    neu: () => ({}),
-  },
-  {
-    typ: "galerie",
-    name: "Galerie",
-    beschreibung: "Mehrere Bilder aus der Medienbibliothek.",
-    neu: () => ({ bilder: [{}] }),
-  },
-  {
-    typ: "karten",
-    name: "Karten oder Liste",
-    beschreibung: "Einträge mit Titel, Text und Link.",
-    neu: () => ({ darstellung: "karten", eintraege: [{ titel: "" }] }),
-  },
-  {
-    typ: "schaltflaeche",
-    name: "Schaltfläche oder Link",
-    beschreibung: "Ein Link zu einer Seite, einer Webadresse oder E-Mail.",
-    neu: () => ({ darstellung: "schaltflaeche", beschriftung: "", ziel: "" }),
-  },
-  {
-    typ: "datei",
-    name: "Datei",
-    beschreibung: "Ein Link auf eine Datei im SharePoint der Abteilung.",
-    neu: () => ({ titel: "", link: "" }),
-  },
-  {
-    typ: "kontaktperson",
-    name: "Kontaktperson",
-    beschreibung: "Eine Person mit Cevi-Name und Funktion.",
-    neu: () => ({ zusatz: [] }),
-  },
-  {
-    typ: "leitungsteam",
-    name: "Leitungsteam",
-    beschreibung: "Alle Personen einer Gruppe.",
-    neu: () => ({ zusatz: [] }),
-  },
-  {
-    typ: "terminliste",
-    name: "Termin-Liste",
-    beschreibung: "Die nächsten Termine, auch einer Gruppe.",
-    neu: () => ({ anzahl: 5 }),
-  },
-  {
-    typ: "trenner",
-    name: "Trenner",
-    beschreibung: "Ein Abstand oder eine Linie.",
-    neu: () => ({ art: "abstand" }),
-  },
-  {
-    typ: "videolink",
-    name: "Video-Link",
-    beschreibung:
-      "Ein Link auf ein Video oder einen Beitrag, nicht eingebettet.",
-    neu: () => ({ art: "video", beschriftung: "", url: "" }),
-  },
-  {
-    typ: "stufenfakten",
-    name: "Stufenfelder",
-    beschreibung: "Datum, Treffpunkt und Mitnehmen der Stufe.",
-    neu: () => ({}),
-  },
-];
-
-const typName = (b) => TYPEN[b.typ]?.name ?? b.typ;
-const kurzText = (k, b) => {
-  try {
-    return TYPEN[b.typ]?.kurz(b.daten, k) ?? "";
-  } catch {
-    return "";
-  }
-};
-
-// --- Der Editor -------------------------------------------------------------------------------------------------------
 
 export function zeige(bereich, ctx) {
   const id = ctx.pfad[0];
   // Die Kennung steht in der Adresse der Seite und geht in Pfade der API: nur eine echte UUID, nie «../» oder «?»
   if (!UUID.test(id) || ctx.pfad.length > 1) {
-    bereich.append(
+    const karte = el(
+      "section",
+      { class: "zustand", role: "alert" },
+      el("p", { class: "mini leise mono" }, "Fehler 404"),
+      el("h2", { tabindex: "-1" }, "Diese Seite gibt es nicht."),
       el(
         "p",
-        { class: "leer" },
-        "Diese Seite gibt es nicht. Wähle sie in der Seitenliste.",
+        { class: "leise" },
+        "Vielleicht ist der Link alt oder hat einen Tippfehler.",
+      ),
+      el(
+        "a",
+        { class: "knopf knopf--haupt", href: "#website/seiten" },
+        "Zu den Seiten",
       ),
     );
+    bereich.append(karte);
+    karte.querySelector("h2").focus();
     return;
   }
+  const verwalten = ctx.zugang.darf("seiten.anlegen_loeschen");
   ctx.lade(
     async () => {
-      const [seite, entwurf, tags] = await Promise.all([
-        anfrage("GET", `${API}/seiten/${id}`),
-        anfrage("GET", `${API}/seiten/${id}/entwurf`),
-        anfrage("GET", `${API}/tags`),
-      ]);
-      return { seite, entwurf, tags: tags.tags };
+      try {
+        const [seite, entwurf, tags, liste] = await Promise.all([
+          anfrage("GET", `${API}/seiten/${id}`),
+          anfrage("GET", `${API}/seiten/${id}/entwurf`),
+          anfrage("GET", `${API}/tags`),
+          verwalten ? anfrage("GET", `${API}/seiten`) : null,
+        ]);
+        return {
+          seite,
+          entwurf,
+          tags: tags.tags,
+          alle: liste?.seiten ?? [seite],
+        };
+      } catch (f) {
+        if (f instanceof ApiFehler && f.status === 403)
+          return { keinRecht: true };
+        throw f;
+      }
     },
-    (daten) => baue(bereich, ctx, id, daten),
+    (daten) => {
+      if (daten.keinRecht) return keinRecht(bereich);
+      baue(bereich, ctx, id, daten);
+    },
+    { skeleton: skeletonEditor },
   );
 }
 
-function baue(bereich, ctx, id, { seite, entwurf, tags }) {
+// Der Editor, solange er lädt (G3 «Editor-Bausteinliste»): Zeilen mit Griff, Text und Knopf; rechts Vorschau und Einstellungen
+function skeletonEditor() {
+  const zeile = () =>
+    el(
+      "li",
+      { class: "baustein", "aria-hidden": "true" },
+      sk("b", 24),
+      el("div", {}, sk("t", 96), sk("t", 260)),
+      sk("r", 260),
+    );
+  const fl = (...kinder) =>
+    el("section", { class: "flaeche", "aria-hidden": "true" }, ...kinder);
+  return el(
+    "div",
+    { class: "ws-editor" },
+    el(
+      "div",
+      { class: "ws-spalte" },
+      el("ul", { class: "ws-bausteine" }, [
+        zeile(),
+        zeile(),
+        zeile(),
+        zeile(),
+        zeile(),
+      ]),
+    ),
+    el(
+      "div",
+      { class: "ws-spalte" },
+      fl(
+        el("div", { class: "zeile" }, sk("t", 96), sk("r", 160)),
+        sk("b", 320),
+      ),
+      fl(sk("t", 160), sk("t", 64), sk("b", 320), sk("t", 64), sk("b", 320)),
+    ),
+  );
+}
+
+function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   const leer = () => ({ v: 1, titel: seite.titel, bausteine: [] });
   const pufferId = `${ctx.ich?.id ?? ""}:${id}`;
   const gepuffert = puffer.get(pufferId);
+  const verwalten = ctx.zugang.darf("seiten.anlegen_loeschen");
   const k = {
     ctx,
     id,
     seite,
+    alle,
     tags,
     tagNamen: new Map(tags.map((t) => [t.id, t.name])),
     personNamen: new Map(),
     medien: new Map(),
+    kannAlt: ctx.zugang.darf("medien.verwalten"),
     dok: gepuffert ? gepuffert.dok : (entwurf.dokument ?? leer()),
     zaehler: gepuffert ? gepuffert.zaehler : entwurf.zaehler,
     dirty: Boolean(gepuffert),
+    aenderungen: gepuffert ? 1 : 0,
     nr: entwurf.veroeffentlichteNr,
     unveroeffentlicht: entwurf.unveroeffentlicht,
     gespeichertAm: null,
     speichert: false,
-    offen: new Set(),
-    formen: new Map(),
-    felder: new Map(),
-    blockFehler: new Map(),
+    offline: false,
+    pruefen: new Set(),
     geloescht: null,
   };
-  if (gepuffert) ctx.melde("Deine ungespeicherten Änderungen sind wieder da.");
+  if (gepuffert)
+    ctx.melde("Deine ungespeicherten Änderungen sind wieder da.", "info");
 
-  const wurzel = el("div", { class: "ws-editor" });
+  const wurzel = el("div", { class: "ws-editor-seite" });
   bereich.append(wurzel);
 
-  k.medienName = (mediumId) => {
-    const m = k.medien.get(mediumId);
-    return m ? (m.altText ?? (m.dekorativ ? "dekorativ" : "")) : "";
-  };
-  k.aendere = (b) => {
-    if (!k.dirty) {
-      k.dirty = true;
-      zeichneStatus();
-    }
-    puffer.set(pufferId, { dok: k.dok, zaehler: k.zaehler });
-    if (b) {
-      const kurz = wurzel.querySelector(`[data-kurz="${b.id}"]`);
-      if (kurz) kurz.textContent = kurzText(k, b);
-    }
-  };
-  k.aktualisiereChips = (b) => {
-    const chips = wurzel.querySelector(`[data-chips="${b.id}"]`);
-    if (chips) chips.replaceChildren(...chipsFuer(b));
-  };
-  k.formNeu = (b, fokus) => {
-    k.formen.delete(b.id);
-    zeichneListe({ id: b.id, ...fokus });
-  };
-  k.waehleBild = (beiWahl) => bildDialog(k, beiWahl);
-  k.statusNeu = () => zeichneStatus();
-  // Nach «Zurückholen» und «Aktuelle übernehmen»: alles aus dem neuen Dokument
-  k.neuZeichnen = () => {
-    titelFeld.eingabe.value = k.dok.titel;
-    zeichneListe();
-    zeichneStatus();
-  };
-
-  // --- Kopf: Stand und Werkzeugleiste
-  const status = el("p", { class: "ws-editor-status", role: "status" });
-  const knoepfe = {};
-  const kopf = el("div", { class: "ws-editor-werkzeuge" });
-
-  // Die eine Hauptaktion wechselt mit dem Stand: erst speichern, dann veröffentlichen
-  function zeichneStatus() {
-    const teile = [];
-    if (k.speichert) teile.push("Wird gespeichert …");
-    else if (k.dirty) teile.push("Nicht gespeichert.");
-    else if (k.gespeichertAm)
-      teile.push(`Zuletzt gespeichert um ${uhrzeit.format(k.gespeichertAm)}.`);
-    teile.push(
-      k.nr === null
-        ? "Noch nicht veröffentlicht."
-        : k.unveroeffentlicht || k.dirty
-          ? "Veröffentlicht, mit Änderungen, die noch nicht veröffentlicht sind."
-          : "Veröffentlicht und aktuell.",
-    );
-    status.textContent = teile.join(" ");
-    const haupt =
-      k.dirty || k.speichert
-        ? "speichern"
-        : k.unveroeffentlicht
-          ? "veroeffentlichen"
-          : null;
-    for (const [name, knopfEl] of Object.entries(knoepfe)) {
-      knopfEl.classList.toggle("knopf--haupt", name === haupt);
-    }
-    knoepfe.speichern.classList.toggle("ws-editor-laeuft", k.speichert);
-    if (k.speichert) knoepfe.speichern.setAttribute("aria-busy", "true");
-    else knoepfe.speichern.removeAttribute("aria-busy");
-    knoepfe.zurueckziehen.hidden = k.nr === null;
-  }
-
-  // --- Fehler
-  const zusammenfassung = el("div", {
-    class: "hinweis hinweis--fehler ws-editor-fehler",
-    role: "alert",
-    tabindex: "-1",
-    hidden: true,
-  });
-  const titelFelder = new Map();
-
-  function loescheFehler() {
-    zusammenfassung.hidden = true;
-    zusammenfassung.replaceChildren();
-    for (const m of wurzel.querySelectorAll(".feld-fehler")) {
-      loescheFeldFehler(m.parentElement);
-      m.remove();
-    }
-    for (const bf of k.blockFehler.values()) {
-      bf.hidden = true;
-      bf.replaceChildren();
-    }
-    for (const c of wurzel.querySelectorAll(".ws-editor-pruefen")) c.remove();
-  }
-
-  // eintraege: [{ index (Baustein) oder null (Titel), pfad (nach «bausteine.<n>.»), text }]
-  function zeigeFehler(eintraege, einleitung) {
-    loescheFehler();
-    const punkte = eintraege
-      .map((e) => ({
-        ...e,
-        b: e.index === null ? null : k.dok.bausteine[e.index],
-      }))
-      .filter((e) => e.index === null || e.b);
-    // Die Formulare mit Fehlern öffnen, damit die Meldungen im Dokument stehen
-    for (const e of punkte) if (e.b) k.offen.add(e.b.id);
-    zeichneListe();
-    const liste = el("ul", { class: "ws-editor-fehlerliste" });
-    for (const e of punkte) {
-      const ort = e.b
-        ? `Baustein ${e.index + 1} (${typName(e.b)})`
-        : "Seitentitel";
-      const felder = e.b ? k.felder.get(e.b.id) : titelFelder;
-      const treffer = [...(felder?.keys() ?? [])]
-        .filter((p) => e.pfad === p || e.pfad.startsWith(`${p}.`))
-        .sort((a, c) => c.length - a.length)[0];
-      let ziel = null;
-      if (treffer) {
-        const f = felder.get(treffer);
-        zeigeFeldFehler(f.wurzel, f.ziel, e.text);
-        ziel = f.ziel;
-      } else if (e.b) {
-        const bf = k.blockFehler.get(e.b.id);
-        bf.hidden = false;
-        bf.append(el("p", {}, e.text));
-        ziel = bf;
-      }
-      liste.append(
+  // Titel, Zurück-Link und Zustand im Seitenkopf der Verwaltung
+  ctx.titel(seite.titel, seite.pfad);
+  const titelChip = el("span", { class: "ws-titelchip" });
+  const kopfEl = document.getElementById("seitenkopf");
+  const h1 = kopfEl?.querySelector("h1");
+  if (h1) {
+    const zeileEl = el("div", { class: "ws-titelzeile" });
+    h1.replaceWith(zeileEl);
+    zeileEl.append(h1, titelChip);
+    zeileEl.parentElement.prepend(
+      el(
+        "p",
+        { class: "ws-zurueck" },
         el(
-          "li",
-          {},
-          el(
-            "button",
-            {
-              type: "button",
-              class: "ws-editor-sprung",
-              onclick: () => {
-                ziel?.scrollIntoView({ block: "center" });
-                ziel?.focus();
-              },
-            },
-            `${ort}: ${e.text}`,
-          ),
+          "a",
+          { class: "klein", href: "#website/seiten" },
+          symbol("zurueck"),
+          " Seiten",
         ),
+      ),
+    );
+  }
+
+  const ansage = el("p", { class: "nur-leser", role: "status" });
+
+  // --- Stand: Zeichen im Kopf, Zeile unter der Liste, Knöpfe oben
+  const stand = el("p", { class: "fusszeile", role: "status" });
+  const speichernKnopf = knopf("Speichern", { klein: true });
+  const knoepfe = {};
+
+  function zeichneStatus() {
+    const [text, symbolName, art] = k.dirty
+      ? ["Nicht gespeichert", "warnung", "warn"]
+      : k.nr === null
+        ? ["Entwurf", "bearbeiten", "warn"]
+        : k.unveroeffentlicht
+          ? ["Änderungen offen", "bearbeiten", "warn"]
+          : ["Veröffentlicht", "haken", "ok"];
+    titelChip.replaceChildren(zeichen([text, symbolName, art]));
+    speichernKnopf.hidden = !(k.dirty || k.speichert);
+    beschaeftigt(speichernKnopf, k.speichert);
+    const inhalt = [];
+    if (k.speichert) {
+      inhalt.push(symbol("uhr"), "Wird gespeichert …");
+    } else if (k.dirty && k.offline) {
+      inhalt.push(
+        symbol("warnung"),
+        `${anzahlText(k.aenderungen, "1 Änderung wartet", "Änderungen warten")} auf die Verbindung`,
+      );
+    } else if (k.dirty) {
+      inhalt.push(symbol("warnung"), "Änderungen noch nicht gespeichert");
+    } else {
+      inhalt.push(
+        symbol("haken"),
+        k.gespeichertAm
+          ? `Zuletzt gespeichert um ${uhrzeit.format(k.gespeichertAm)}`
+          : "Der Entwurf ist gespeichert.",
       );
     }
-    for (const b of new Set(punkte.map((e) => e.b).filter(Boolean))) {
-      const c = chip("Bitte prüfen", "fehler");
-      c.classList.add("ws-editor-pruefen");
-      wurzel.querySelector(`[data-chips="${b.id}"]`)?.append(c);
+    stand.replaceChildren(
+      ...inhalt,
+      ...(!k.speichert && k.dirty ? [speichernKnopf] : []),
+    );
+    if (k.speichert) stand.append(speichernKnopf);
+    knoepfe.veroeffentlichen.removeAttribute("aria-disabled");
+    if (k.offline) {
+      knoepfe.veroeffentlichen.setAttribute("aria-disabled", "true");
     }
-    zusammenfassung.append(el("p", { class: "fett" }, einleitung), liste);
-    zusammenfassung.hidden = false;
-    zusammenfassung.focus();
+    hilfeVeroeffentlichen.hidden = !k.offline;
+  }
+
+  k.aenderung = () => {
+    k.aenderungen += 1;
+    if (!k.dirty) k.dirty = true;
+    puffer.set(pufferId, { dok: k.dok, zaehler: k.zaehler });
+    zeichneStatus();
+  };
+  k.statusNeu = () => zeichneStatus();
+  k.waehleBild = (beiWahl) => bildDialog(k, beiWahl);
+
+  // --- Fehler vom Server: gesammelt als Band mit Sprung ins Seitenblatt des Bausteins
+  const fehlerPlatz = el("div", { class: "ws-fehlerplatz" });
+  const konfliktPlatz = el("div", { class: "ws-fehlerplatz" });
+
+  function loescheFehler() {
+    fehlerPlatz.replaceChildren();
+    if (k.pruefen.size > 0) {
+      k.pruefen.clear();
+      zeichneListe();
+    }
   }
 
   // Prüft, was dem Browser auffällt; der Server prüft danach alles
   function pruefeAlles() {
     const fehler = [];
     if (!k.dok.titel?.trim()) {
-      fehler.push({ index: null, pfad: "titel", text: "Der Titel fehlt." });
+      fehler.push({
+        index: null,
+        pfad: "titel",
+        text: "Die Überschrift der Seite fehlt.",
+      });
     }
     k.dok.bausteine.forEach((b, index) => {
-      for (const [pfad, text] of TYPEN[b.typ]?.pruefe(b.daten) ?? []) {
+      // Der Alt-Text steht im Medium und gehört nicht zur Prüfung des Entwurfs
+      for (const [pfad, text] of TYPEN[b.typ]?.pruefe(b.daten, {
+        medien: new Map(),
+        altText: () => "x",
+      }) ?? []) {
         fehler.push({ index, pfad, text: `${feldName(pfad)} ${text}` });
       }
       if (
@@ -1218,6 +325,61 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     });
   }
 
+  // eintraege: [{ index (Baustein) oder null (Überschrift), pfad, text }]
+  function zeigeFehler(eintraege, einleitung) {
+    k.pruefen = new Set(
+      eintraege
+        .filter((e) => e.index !== null)
+        .map((e) => k.dok.bausteine[e.index]?.id)
+        .filter(Boolean),
+    );
+    zeichneListe();
+    const liste = el("ul", { class: "ws-fehlerliste" });
+    for (const e of eintraege) {
+      const b = e.index === null ? null : k.dok.bausteine[e.index];
+      if (e.index !== null && !b) continue;
+      const ort = b
+        ? `Baustein ${e.index + 1} (${typName(b)})`
+        : "Überschrift der Seite";
+      liste.append(
+        el(
+          "li",
+          {},
+          el(
+            "button",
+            {
+              type: "button",
+              class: "ws-sprung",
+              onclick: () => {
+                if (b)
+                  bearbeitenBlatt(k, b, e.index, {
+                    fehler: eintraege.filter((x) => x.index === e.index),
+                  });
+                else {
+                  ueberschrift.eingabe.scrollIntoView({ block: "center" });
+                  ueberschrift.eingabe.focus();
+                }
+              },
+            },
+            `${ort}: ${e.text}`,
+          ),
+        ),
+      );
+    }
+    const b2 = el(
+      "div",
+      { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+      el(
+        "div",
+        { class: "ws-fehlertext" },
+        el("p", { class: "fett" }, einleitung),
+        liste,
+      ),
+    );
+    fehlerPlatz.replaceChildren(b2);
+    b2.focus();
+  }
+
   // --- Speichern
   async function speichere() {
     if (k.speichert) return false;
@@ -1230,6 +392,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
       return false;
     }
     loescheFehler();
+    konfliktPlatz.replaceChildren();
+    ctx.melde("");
     k.speichert = true;
     zeichneStatus();
     try {
@@ -1239,14 +403,21 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
       });
       k.zaehler = antwort.zaehler;
       k.dirty = false;
+      k.offline = false;
+      k.aenderungen = 0;
       k.unveroeffentlicht = true;
       k.gespeichertAm = new Date();
       puffer.delete(pufferId);
       k.speichert = false;
       zeichneStatus();
+      ctx.melde(
+        "Gespeichert. Die Änderungen sind im Entwurf. Online gehen sie erst mit «Veröffentlichen».",
+        "ok",
+      );
       return true;
     } catch (f) {
       k.speichert = false;
+      k.offline = f.status === 0;
       zeichneStatus();
       if (f.status === 409 && f.code === "KONFLIKT" && f.daten) {
         return konflikt(f.daten);
@@ -1263,180 +434,251 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
           "Die Seite ist zu gross für einen Entwurf. Kürze Texte oder entferne Bausteine.",
           "fehler",
         );
+      } else if (f.status === 403) {
+        ctx.melde(
+          "Du darfst diese Seite nicht mehr bearbeiten. Deine Änderungen bleiben hier stehen, gespeichert sind sie nicht. Wende dich an die Abteilungsleitung.",
+          "fehler",
+        );
+      } else if (f.status === 0) {
+        ctx.melde(
+          "Keine Verbindung. Deine Änderungen bleiben in diesem Fenster, bis du wieder online bist.",
+          "warn",
+          {
+            text: "Nochmals speichern",
+            onclick: speichere,
+          },
+        );
       } else {
         ctx.melde(
-          `${fehlertext(f)} Deine Änderungen bleiben hier erhalten.`,
+          "Speichern hat nicht geklappt. Deine Änderungen sind noch da.",
           "fehler",
+          {
+            text: "Nochmals speichern",
+            onclick: speichere,
+          },
         );
       }
       return false;
     }
   }
   k.speichere = speichere;
+  bei(speichernKnopf, speichere);
 
-  // Zwei Sitzungen haben dieselbe Seite geändert: Nichts geht still verloren, die Person entscheidet
+  // Zwei Sitzungen haben dieselbe Seite geändert: Nichts geht still verloren, die Person entscheidet (E2 «Konflikt»)
   function konflikt(aktuell) {
     return new Promise((fertig) => {
       const fremd = aktuell.dokument ?? leer();
+      const punkte = vergleiche(k.dok, fremd);
+      const ids = new Set(
+        punkte.filter((p) => p.baustein).map((p) => p.baustein.id),
+      );
       const spalte = (titel, dok) =>
         el(
           "div",
-          { class: "ws-editor-fassung" },
+          { class: "flaeche" },
+          el("h3", {}, titel),
           el(
-            "h3",
-            {},
-            `${titel} (${anzahlText(dok.bausteine.length, "1 Baustein", "Bausteine")})`,
+            "p",
+            { class: "klein leise" },
+            `${dok.titel} · ${anzahlText(dok.bausteine.length, "1 Baustein", "Bausteine")}`,
           ),
-          el("p", { class: "hilfe" }, `Titel: ${dok.titel}`),
           el(
             "ol",
-            {},
+            { class: "ws-konfliktliste" },
             dok.bausteine.map((b) => {
-              const kurz = kurzText(k, b);
+              const text = kurzText(k, b);
               return el(
                 "li",
-                {},
-                kurz ? `${typName(b)}: ${kuerze(kurz, 40)}` : typName(b),
+                { class: ids.has(b.id) ? "markiert" : undefined },
+                `${typName(b)}${text ? `: ${kuerze(text, 40)}` : ""}`,
+                ids.has(b.id) &&
+                  el(
+                    "span",
+                    { class: "chip chip--warn ws-abstand" },
+                    "geändert",
+                  ),
               );
             }),
           ),
         );
-      entscheidung({
-        titel: "Die Seite wurde inzwischen geändert",
-        beschreibung:
-          "Jemand hat den Entwurf in einer anderen Sitzung gespeichert, nachdem du ihn geöffnet hast. Die beiden Fassungen lassen sich nicht mischen: Wähle eine.",
-        inhalt: el(
+      const behalten = knopf("Meine behalten", { klein: true });
+      const uebernehmen = knopf("Aktuelle übernehmen", { klein: true });
+      const b2 = el(
+        "div",
+        {
+          class: "hinweis hinweis--warn ws-konflikt",
+          role: "alert",
+          tabindex: "-1",
+        },
+        el("strong", {}, "Jemand hat diese Seite gerade geändert."),
+        el(
+          "p",
+          {},
+          "Wähle, welche Fassung gilt. Die beiden Fassungen lassen sich nicht mischen.",
+        ),
+        el(
           "div",
-          { class: "ws-editor-fassungen" },
+          { class: "konflikt" },
           spalte("Deine Fassung", k.dok),
           spalte("Aktuelle Fassung", fremd),
         ),
-        knoepfe: [
-          {
-            text: "Meine behalten",
-            hilfe: "Überschreibt die aktuelle Fassung mit deiner.",
-            onclick: async (schliesse) => {
-              k.zaehler = aktuell.zaehler;
-              schliesse();
-              fertig(await speichere());
-            },
-          },
-          {
-            text: "Aktuelle übernehmen",
-            hilfe: "Verwirft deine Änderungen.",
-            onclick: (schliesse) => {
-              k.dok = kopie(fremd);
-              k.zaehler = aktuell.zaehler;
-              k.dirty = false;
-              k.unveroeffentlicht = true;
-              puffer.delete(pufferId);
-              k.formen.clear();
-              k.offen.clear();
-              k.geloescht = null;
-              k.neuZeichnen();
-              ctx.melde("Die aktuelle Fassung ist übernommen.");
-              schliesse();
-              fertig(true);
-            },
-          },
-        ],
-        beiAbbruch: () => fertig(false),
+        el("div", { class: "ws-reihe" }, behalten, uebernehmen),
+      );
+      konfliktPlatz.replaceChildren(b2);
+      b2.focus();
+      bei(behalten, async () => {
+        k.zaehler = aktuell.zaehler;
+        konfliktPlatz.replaceChildren();
+        fertig(await speichere());
+      });
+      bei(uebernehmen, () => {
+        k.dok = kopie(fremd);
+        k.zaehler = aktuell.zaehler;
+        k.dirty = false;
+        k.aenderungen = 0;
+        k.unveroeffentlicht = true;
+        puffer.delete(pufferId);
+        k.geloescht = null;
+        konfliktPlatz.replaceChildren();
+        k.neuZeichnen();
+        ctx.melde("Die aktuelle Fassung ist übernommen.", "ok");
+        fertig(true);
       });
     });
   }
 
-  // --- Titel
-  const titelFeld = feld({
-    label: "Titel der Seite",
+  // Nach «Zurückholen»: alles aus dem neuen Entwurf
+  k.neuAusEntwurf = async () => {
+    const neu = await anfrage("GET", `${API}/seiten/${id}/entwurf`);
+    k.dok = neu.dokument ?? leer();
+    k.zaehler = neu.zaehler;
+    k.dirty = false;
+    k.aenderungen = 0;
+    k.unveroeffentlicht = neu.unveroeffentlicht;
+    k.nr = neu.veroeffentlichteNr;
+    puffer.delete(pufferId);
+    k.geloescht = null;
+    k.neuZeichnen();
+  };
+  k.neuZeichnen = () => {
+    ueberschrift.eingabe.value = k.dok.titel;
+    zeichneListe();
+    zeichneStatus();
+  };
+
+  // --- Überschrift der Seite (gehört zum Entwurf) und Einstellungen der Seite
+  const ueberschrift = feld({
+    label: "Überschrift auf der Seite",
     wert: k.dok.titel,
     maxlength: 120,
     autocomplete: "off",
     hilfe:
-      "Die Überschrift ganz oben auf der Seite. Der Name in der Seitenliste steht in den Einstellungen.",
+      "Die Überschrift ganz oben auf der Seite. Sie gehört zum Entwurf und gilt nach «Veröffentlichen».",
   });
-  titelFeld.eingabe.addEventListener("input", () => {
-    k.dok.titel = titelFeld.eingabe.value;
-    k.aendere();
-    loescheFeldFehler(titelFeld.wurzel);
-  });
-  titelFelder.set("titel", {
-    wurzel: titelFeld.wurzel,
-    ziel: titelFeld.eingabe,
+  ueberschrift.eingabe.addEventListener("input", () => {
+    k.dok.titel = ueberschrift.eingabe.value;
+    k.aenderung();
   });
 
   // --- Liste der Bausteine
-  const liste = el("ol", {
-    class: "ws-editor-bausteine",
-    "aria-label": "Bausteine der Seite",
-  });
-  const leerHinweis = el(
-    "p",
-    { class: "leer" },
-    "Diese Seite hat noch keine Bausteine. Füge den ersten hinzu.",
+  const liste = el("ul", { class: "ws-bausteine", "aria-label": "Bausteine" });
+  const leerKarte = el(
+    "div",
+    { class: "ws-leer" },
+    el("h2", {}, "Diese Seite hat noch keine Bausteine."),
+    el("p", { class: "leise" }, "Füge den ersten hinzu."),
   );
   const hinzuKnopf = knopf("Baustein hinzufügen", {
     symbol: "plus",
     onclick: () => katalogDialog(k),
   });
+  hinzuKnopf.classList.add("ws-gestrichelt");
 
+  // Der Platz eines gelöschten Bausteins: Die Snackbar mit «Rückgängig» bleibt, bis die Person etwas anderes tut
+  let snack = null;
   const commitGeloescht = () => {
-    if (!k.geloescht) return;
-    k.formen.delete(k.geloescht.block.id);
-    k.felder.delete(k.geloescht.block.id);
     k.geloescht = null;
+    snack?.remove();
+    snack = null;
   };
 
-  const chipsFuer = (b) =>
-    b.sichtbarkeit === "erbt"
-      ? []
-      : [
-          chip(
-            sichtbarkeitText(b.sichtbarkeit, k.tagNamen),
-            undefined,
-            "schild",
-          ),
-        ];
+  const chipsFuer = (b) => {
+    const teile = [];
+    if (b.sichtbarkeit !== "erbt") {
+      teile.push(
+        el(
+          "li",
+          { class: "chip" },
+          symbol("schild"),
+          sichtbarkeitText(b.sichtbarkeit, k.tagNamen),
+        ),
+      );
+    }
+    if (k.pruefen.has(b.id))
+      teile.push(
+        el(
+          "li",
+          { class: "chip chip--fehler" },
+          symbol("warnung"),
+          "Bitte prüfen",
+        ),
+      );
+    return teile;
+  };
 
-  // fokus: { id, was, index } nach dem Zeichnen; was: hoch | runter | bearbeiten | neu | rueckgaengig
+  // fokus: { id, was, index } nach dem Zeichnen; was: hoch | runter | bearbeiten | griff | loeschen
   function zeichneListe(fokus) {
     liste.replaceChildren();
     const n = k.dok.bausteine.length;
-    k.dok.bausteine.forEach((b, i) => {
-      if (k.geloescht?.index === i) liste.append(wegKarte());
-      liste.append(karte(b, i, n));
-    });
-    if (k.geloescht && k.geloescht.index >= n) liste.append(wegKarte());
-    leerHinweis.hidden = n > 0 || k.geloescht !== null;
+    // Eine feste Zeile für die Felder der Stufenseite: Ihre Werte pflegt man unter «Stufenfelder», nicht im Dokument
+    const stufe = k.tags.find(
+      (t) => t.id === k.seite.tagId && t.typ === "stufe",
+    );
+    if (stufe) liste.append(festeFelder(stufe));
+    k.dok.bausteine.forEach((b, i) => liste.append(karte(b, i, n)));
+    leerKarte.hidden = n > 0;
     if (fokus) setzeFokus(fokus);
   }
 
-  function setzeFokus({ id: bid, was, index }) {
+  function festeFelder(stufe) {
+    return el(
+      "li",
+      { class: "baustein fest" },
+      el(
+        "div",
+        {},
+        el(
+          "p",
+          { class: "typ" },
+          "Feste Felder der Stufenseite (liest auch die App)",
+        ),
+        el(
+          "p",
+          { class: "zus" },
+          `Datum, Treffpunkt, Schluss und Mitnehmen der Stufe ${stufe.name} pflegst du unter «Stufenfelder».`,
+        ),
+      ),
+      el(
+        "a",
+        {
+          class: "knopf knopf--klein",
+          href: `#website/stufenfakten/${stufe.id}`,
+          "aria-label": "Bearbeiten: Feste Felder",
+        },
+        symbol("bearbeiten"),
+        "Bearbeiten",
+      ),
+    );
+  }
+
+  function setzeFokus({ id: bid, was }) {
     const block = liste.querySelector(`[data-block="${bid}"]`);
     let ziel = null;
-    if (was === "rueckgaengig") {
-      ziel = liste.querySelector("[data-rueckgaengig]");
-    } else if (block && index !== undefined) {
-      // Ein Teil einer Liste (Karte, Galeriebild)
-      const teil = block.querySelectorAll(".ws-editor-teil")[index];
-      // Verschieben: derselbe Knopf, sonst der andere (am Rand der Liste ist einer gesperrt)
-      const namen = {
-        hoch: ["Nach oben", "Nach unten"],
-        runter: ["Nach unten", "Nach oben"],
-      }[was];
-      const knopfEl = (n) =>
-        teil?.querySelector(`button[aria-label^="${n}"]:not(:disabled)`);
-      ziel =
-        (namen && (knopfEl(namen[0]) ?? knopfEl(namen[1]))) ||
-        teil?.querySelector("input, textarea, select, button:not(:disabled)") ||
-        block.querySelector('[data-teil="hinzu"]');
-    } else if (block) {
+    if (was === "rueckgaengig") ziel = snack?.querySelector("button");
+    else if (block) {
       const such = (a) =>
-        block.querySelector(`[data-aktion="${a}"]:not(:disabled)`);
-      if (was === "neu") {
-        ziel = block.querySelector(
-          ".ws-editor-form input, .ws-editor-form textarea, .ws-editor-form select, .ws-editor-form button",
-        );
-      } else if (was === "hoch" || was === "runter") {
+        block.querySelector(`[data-aktion="${a}"]:not([aria-disabled="true"])`);
+      if (was === "hoch" || was === "runter") {
         ziel =
           such(was) ??
           such(was === "hoch" ? "runter" : "hoch") ??
@@ -1445,158 +687,188 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     }
     (ziel ?? hinzuKnopf).focus();
   }
+  k.zeichneListe = zeichneListe;
 
-  // Der Platz eines gelöschten Bausteins: «Rückgängig» bleibt, bis die Person etwas anderes tut
-  function wegKarte() {
-    const { block, index } = k.geloescht;
-    const name = typName(block);
-    return el(
-      "li",
-      { class: "ws-editor-weg" },
-      el("p", {}, `«${name}» ist gelöscht.`),
-      knopf("Rückgängig", {
-        symbol: "aktualisieren",
-        "data-rueckgaengig": "",
-        onclick: () => {
-          k.dok.bausteine.splice(
-            Math.min(index, k.dok.bausteine.length),
-            0,
-            block,
-          );
-          k.geloescht = null;
-          k.aendere();
-          zeichneListe({ id: block.id, was: "bearbeiten" });
-          ctx.melde(`«${name}» ist wiederhergestellt.`);
-        },
-      }),
-    );
+  const name = (b) => typName(b);
+
+  function verschiebe(i, ziel, was, text = true) {
+    commitGeloescht();
+    const [b] = k.dok.bausteine.splice(i, 1);
+    k.dok.bausteine.splice(ziel, 0, b);
+    k.aenderung();
+    zeichneListe({ id: b.id, was });
+    if (text)
+      ansage.textContent = `«${name(b)}» steht jetzt an Position ${ziel + 1} von ${k.dok.bausteine.length}.`;
   }
 
+  // Ziehen mit der Maus und mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab)
+  let aufgenommen = null;
+  function griffTaste(e, b, i) {
+    const start = aufgenommen;
+    if (!start && (e.key === " " || e.key === "Enter")) {
+      e.preventDefault();
+      aufgenommen = { id: b.id, von: i };
+      e.currentTarget.setAttribute("aria-pressed", "true");
+      ansage.textContent = `«${name(b)}» aufgenommen, Position ${i + 1} von ${k.dok.bausteine.length}. Mit den Pfeiltasten verschieben, mit der Leertaste ablegen, mit Escape abbrechen.`;
+      return;
+    }
+    if (!start || start.id !== b.id) return;
+    const jetzt = k.dok.bausteine.findIndex((x) => x.id === b.id);
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+      e.preventDefault();
+      const ziel = jetzt + (e.key === "ArrowUp" ? -1 : 1);
+      if (ziel < 0 || ziel >= k.dok.bausteine.length) return;
+      verschiebe(jetzt, ziel, "griff");
+      liste
+        .querySelector(`[data-block="${b.id}"] .griff`)
+        ?.setAttribute("aria-pressed", "true");
+    } else if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      aufgenommen = null;
+      e.currentTarget.setAttribute("aria-pressed", "false");
+      ansage.textContent = `«${name(b)}» abgelegt an Position ${jetzt + 1} von ${k.dok.bausteine.length}.`;
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      aufgenommen = null;
+      if (jetzt !== start.von) verschiebe(jetzt, start.von, "griff", false);
+      ansage.textContent = `Verschieben abgebrochen. «${name(b)}» steht wieder an Position ${start.von + 1}.`;
+    }
+  }
+
+  let gezogen = null;
+  const ablage = el(
+    "li",
+    { class: "ablage", "aria-hidden": "true" },
+    symbol("ablegen"),
+    "Hier ablegen",
+  );
+  function dragZiel(e) {
+    if (!gezogen) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    const li = e.target.closest?.("li[data-block]");
+    if (!li || li.dataset.block === gezogen.id) return;
+    const r = li.getBoundingClientRect();
+    const vor = e.clientY < r.top + r.height / 2;
+    if (vor) li.before(ablage);
+    else li.after(ablage);
+  }
+  liste.addEventListener("dragover", dragZiel);
+  liste.addEventListener("drop", (e) => {
+    if (!gezogen || !ablage.isConnected) return;
+    e.preventDefault();
+    const bloecke = [...liste.querySelectorAll("li[data-block]")].filter(
+      (li) => li.dataset.block !== gezogen.id,
+    );
+    const pos = bloecke.findIndex(
+      (li) =>
+        li.compareDocumentPosition(ablage) & Node.DOCUMENT_POSITION_PRECEDING,
+    );
+    const ziel = pos === -1 ? 0 : pos + 1;
+    const von = k.dok.bausteine.findIndex((b) => b.id === gezogen.id);
+    gezogen = null;
+    ablage.remove();
+    if (von !== -1 && von !== ziel) verschiebe(von, ziel, "griff");
+    else zeichneListe();
+  });
+
   function karte(b, i, n) {
-    const name = typName(b);
-    const bezeichnung = `${name} ${i + 1}`;
-    const offen = k.offen.has(b.id);
-    const formId = `ws-form-${b.id}`;
-    const titelId = `ws-titel-${b.id}`;
-    const bearbeiten = knopf(offen ? "Fertig" : "Bearbeiten", {
-      klein: true,
-      symbol: offen ? "haken" : "bearbeiten",
-      kontext: bezeichnung,
-      "data-aktion": "bearbeiten",
-      "aria-expanded": String(offen),
-      "aria-controls": formId,
-      onclick: () => {
-        commitGeloescht();
-        const oeffnet = !k.offen.has(b.id);
-        if (oeffnet) k.offen.add(b.id);
-        else k.offen.delete(b.id);
-        zeichneListe({ id: b.id, was: oeffnet ? "neu" : "bearbeiten" });
-      },
-    });
-    const pfeil = (richtung, text, delta) =>
+    const bezeichnung = name(b);
+    const mini = (aktion, label, symbolName, fn, versteckt) =>
       el(
         "button",
         {
           type: "button",
-          class: "knopf knopf--rund ws-editor-pfeil",
-          "aria-label": `${text}: ${bezeichnung}`,
-          title: text,
-          "data-aktion": richtung,
-          disabled: richtung === "hoch" ? i === 0 : i === n - 1,
-          onclick: () => {
-            commitGeloescht();
-            const ziel = i + delta;
-            const [x] = k.dok.bausteine.splice(i, 1);
-            k.dok.bausteine.splice(ziel, 0, x);
-            k.aendere();
-            zeichneListe({ id: b.id, was: richtung });
-            ctx.melde(
-              `«${name}» steht jetzt an Position ${ziel + 1} von ${n}.`,
-            );
-          },
+          class: "knopf knopf--rund",
+          "aria-label": `${label}: ${bezeichnung}`,
+          "data-aktion": aktion,
+          "aria-disabled": versteckt ? "true" : undefined,
+          tabindex: versteckt ? "-1" : undefined,
+          onclick: versteckt ? undefined : fn,
         },
-        icon(richtung),
+        symbol(symbolName),
       );
-    return el(
-      "li",
+    const hoch = mini(
+      "hoch",
+      "Nach oben",
+      "hoch",
+      () => verschiebe(i, i - 1, "hoch"),
+      i === 0,
+    );
+    const runter = mini(
+      "runter",
+      "Nach unten",
+      "runter",
+      () => verschiebe(i, i + 1, "runter"),
+      i === n - 1,
+    );
+    if (i === 0) hoch.classList.add("ws-unsichtbar");
+    if (i === n - 1) runter.classList.add("ws-unsichtbar");
+    const griff = el(
+      "button",
       {
-        class: "ws-editor-karte",
-        "data-block": b.id,
-        "aria-labelledby": titelId,
+        type: "button",
+        class: "knopf knopf--rund griff",
+        "data-aktion": "griff",
+        "aria-pressed": aufgenommen?.id === b.id ? "true" : "false",
+        "aria-label": `Ziehen: ${bezeichnung}. Mit Leertaste aufnehmen, mit Pfeiltasten verschieben.`,
+        onkeydown: (e) => griffTaste(e, b, i),
+        onpointerdown: (e) => {
+          if (e.pointerType === "mouse") li.draggable = true;
+        },
+        onpointerup: () => {
+          li.draggable = false;
+        },
       },
+      symbol("griff"),
+    );
+    const bearbeiten = knopf("Bearbeiten", {
+      klein: true,
+      symbol: "bearbeiten",
+      "aria-label": `Bearbeiten: ${bezeichnung}`,
+      "data-aktion": "bearbeiten",
+      onclick: () => {
+        commitGeloescht();
+        const index = k.dok.bausteine.indexOf(b);
+        bearbeitenBlatt(k, b, index);
+      },
+    });
+    const dup = mini("duplizieren", "Duplizieren", "kopieren", () =>
+      dupliziere(b, i),
+    );
+    const loeschen = mini("loeschen", "Löschen", "papierkorb", () =>
+      loesche(b, i),
+    );
+    const li = el(
+      "li",
+      { class: "baustein", "data-block": b.id, draggable: undefined },
+      griff,
       el(
         "div",
-        { class: "ws-editor-kartenkopf" },
-        el(
-          "div",
-          { class: "ws-editor-kartentitel" },
-          el(
-            "h3",
-            { id: titelId },
-            el(
-              "span",
-              { class: "ws-editor-nr", "aria-hidden": "true" },
-              String(i + 1),
-            ),
-            el("span", { class: "nur-leser" }, `Baustein ${i + 1} von ${n}: `),
-            name,
-          ),
-          el(
-            "p",
-            { class: "ws-editor-kurz", "data-kurz": b.id },
-            kurzText(k, b),
-          ),
-          el("ul", { class: "chips", "data-chips": b.id }, ...chipsFuer(b)),
-        ),
-        el(
-          "div",
-          { class: "ws-editor-aktionen" },
-          bearbeiten,
-          pfeil("hoch", "Nach oben", -1),
-          pfeil("runter", "Nach unten", 1),
-          knopf("Duplizieren", {
-            klein: true,
-            kontext: bezeichnung,
-            onclick: () => dupliziere(b, i),
-          }),
-          knopf("Löschen", {
-            klein: true,
-            kontext: bezeichnung,
-            onclick: () => loesche(b, i),
-          }),
-        ),
+        { class: "ws-bausteintext" },
+        el("p", { class: "typ" }, bezeichnung),
+        el("p", { class: "zus" }, kurzText(k, b) || "Noch ohne Inhalt"),
+        chipsFuer(b).length > 0
+          ? el("ul", { class: "chips" }, chipsFuer(b))
+          : null,
       ),
-      formFuer(b, formId, offen),
+      el("div", { class: "akt" }, hoch, runter, bearbeiten, dup, loeschen),
     );
-  }
-
-  // Das Formular eines Bausteins wird erst beim ersten Öffnen gebaut und beim Umordnen weiterverwendet (Cursor und Text bleiben)
-  function formFuer(b, formId, offen) {
-    let form = k.formen.get(b.id);
-    if (!form && !offen) {
-      return el("div", { class: "ws-editor-form", id: formId, hidden: true });
-    }
-    if (!form) {
-      const reg = (pfad, w, ziel) =>
-        k.felder.get(b.id).set(pfad, { wurzel: w, ziel });
-      k.felder.set(b.id, new Map());
-      const blockFehler = el("div", {
-        class: "hinweis hinweis--fehler",
-        tabindex: "-1",
-        hidden: true,
-      });
-      k.blockFehler.set(b.id, blockFehler);
-      form = el(
-        "div",
-        { class: "ws-editor-form formular", id: formId },
-        blockFehler,
-        ...(TYPEN[b.typ]?.form(k, b, reg) ?? []),
-        sichtbarkeitForm(k, b),
-      );
-      k.formen.set(b.id, form);
-    }
-    form.hidden = !offen;
-    return form;
+    li.addEventListener("dragstart", (e) => {
+      gezogen = { id: b.id };
+      commitGeloescht();
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", b.id);
+      window.requestAnimationFrame(() => li.classList.add("gezogen"));
+    });
+    li.addEventListener("dragend", () => {
+      gezogen = null;
+      li.draggable = false;
+      li.classList.remove("gezogen");
+      ablage.remove();
+    });
+    return li;
   }
 
   function dupliziere(b, i) {
@@ -1610,109 +882,115 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     }
     const neu = { ...kopie(b), id: neueUuid() };
     k.dok.bausteine.splice(i + 1, 0, neu);
-    k.aendere();
+    k.aenderung();
     zeichneListe({ id: neu.id, was: "bearbeiten" });
-    ctx.melde(
-      `«${typName(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`,
-    );
+    ansage.textContent = `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`;
   }
 
   function loesche(b, i) {
     commitGeloescht();
     k.dok.bausteine.splice(i, 1);
     k.geloescht = { block: b, index: i };
-    k.offen.delete(b.id);
-    k.aendere();
-    zeichneListe({ id: b.id, was: "rueckgaengig" });
-    ctx.melde(
-      `«${typName(b)}» ist gelöscht. Mit «Rückgängig» holst du ihn zurück.`,
+    k.pruefen.delete(b.id);
+    k.aenderung();
+    snack = el(
+      "div",
+      { class: "snack", role: "status" },
+      `Baustein «${name(b)}» gelöscht.`,
+      knopf("Rückgängig", {
+        onclick: () => {
+          k.dok.bausteine.splice(Math.min(i, k.dok.bausteine.length), 0, b);
+          commitGeloescht();
+          k.aenderung();
+          zeichneListe({ id: b.id, was: "loeschen" });
+          ansage.textContent = `«${name(b)}» ist wiederhergestellt.`;
+        },
+      }),
+      el(
+        "button",
+        {
+          type: "button",
+          class: "knopf knopf--rund",
+          "aria-label": "Hinweis schliessen",
+          onclick: () => {
+            commitGeloescht();
+            (liste.querySelector("button") ?? hinzuKnopf).focus();
+          },
+        },
+        symbol("schliessen"),
+      ),
     );
+    snack
+      .querySelector(".knopf:not(.knopf--rund)")
+      .classList.add("knopf--still");
+    document.body.append(snack);
+    zeichneListe();
+    snack.querySelector("button").focus();
   }
 
-  k.fuegeEin = (eintrag, position) => {
-    commitGeloescht();
-    const b = {
-      id: neueUuid(),
-      typ: eintrag.typ,
-      daten: eintrag.neu(),
-      sichtbarkeit: "erbt",
-    };
-    k.dok.bausteine.splice(position, 0, b);
-    k.offen.add(b.id);
-    k.aendere();
-    zeichneListe({ id: b.id, was: "neu" });
-    liste
-      .querySelector(`[data-block="${b.id}"]`)
-      ?.scrollIntoView({ block: "nearest" });
-    ctx.melde(
-      `«${eintrag.name}» ist hinzugefügt, an Position ${position + 1}.`,
-    );
-  };
-
-  // --- Vorschau
-  const vorschau = vorschauPanel(
-    k,
-    () => (k.dirty ? speichere() : Promise.resolve(true)),
-    () =>
-      knoepfe.vorschau?.setAttribute(
-        "aria-expanded",
-        String(!vorschau.wurzel.hidden),
-      ),
+  // --- Vorschau (rechte Spalte): der gespeicherte Entwurf oder eine Version, im Rahmen ohne Skripte
+  const vorschau = vorschauFlaeche(k, () =>
+    k.dirty ? speichere() : Promise.resolve(true),
   );
   k.zeigeVersion = (nr) => vorschau.zeige(nr);
 
-  knoepfe.speichern = knopf("Speichern", {
-    symbol: "haken",
-    onclick: speichere,
+  // --- Einstellungen der Seite
+  const einstellungen = einstellungenFlaeche(k, ueberschrift, verwalten, () => {
+    ctx.titel(k.seite.titel, k.seite.pfad);
   });
-  knoepfe.vorschau = knopf("Vorschau", {
-    symbol: "lupe",
-    "aria-expanded": "false",
-    "aria-controls": "ws-editor-vorschau",
-    onclick: () => vorschau.zeige(null),
-  });
+
+  // --- Kopf
+  knoepfe.vorschau = mitSymbol(
+    knopf("Vorschau", { onclick: () => vorschau.zeige(null, true) }),
+    "vorschau",
+  );
   knoepfe.versionen = knopf("Versionen", {
     symbol: "uhr",
-    onclick: () => versionenBlatt(k),
+    "aria-haspopup": "dialog",
+    onclick: () => veroeffentlichenDialog(k, "Versionen"),
   });
-  knoepfe.veroeffentlichen = knopf("Veröffentlichen", {
-    symbol: "website",
-    onclick: () => veroeffentlichen(k),
-  });
-  knoepfe.zurueckziehen = knopf("Zurückziehen", {
-    symbol: "sperre",
-    onclick: () => zurueckziehen(k),
-  });
-  kopf.append(...Object.values(knoepfe));
+  knoepfe.veroeffentlichen = knopf("Veröffentlichen", { art: "haupt" });
+  bei(knoepfe.veroeffentlichen, () => veroeffentlichenDialog(k));
+  const hilfeVeroeffentlichen = el(
+    "span",
+    { class: "mini leise", hidden: true },
+    "Geht wieder, sobald du online bist.",
+  );
+  ctx.kopfAktion(
+    knoepfe.vorschau,
+    knoepfe.versionen,
+    el(
+      "span",
+      { class: "ws-fussspalte" },
+      knoepfe.veroeffentlichen,
+      hilfeVeroeffentlichen,
+    ),
+  );
 
   wurzel.append(
-    el(
-      "a",
-      { class: "knopf knopf--klein", href: "#website/seiten" },
-      "Zur Seitenliste",
-    ),
+    ansage,
+    konfliktPlatz,
+    fehlerPlatz,
     el(
       "div",
-      { class: "ws-editor-titelzeile" },
-      el("h2", { tabindex: "-1" }, k.seite.titel),
-      el(
-        "p",
-        { class: "meta" },
-        `${k.seite.pfad} · ${sichtbarkeitText(k.seite.sichtbarkeit, k.tagNamen)}`,
-      ),
+      { class: "ws-editor" },
+      el("div", { class: "ws-spalte" }, liste, leerKarte, hinzuKnopf, stand),
+      el("div", { class: "ws-spalte" }, vorschau.wurzel, einstellungen),
     ),
-    status,
-    kopf,
-    zusammenfassung,
-    vorschau.wurzel,
-    titelFeld.wurzel,
-    el("h3", { class: "ws-editor-zwischentitel" }, "Bausteine"),
-    leerHinweis,
-    liste,
-    el("div", { class: "ws-editor-unten" }, hinzuKnopf),
   );
   zeichneListe();
   zeichneStatus();
+
+  // Die Alt-Texte der Bilder stehen in den Medien: Ein Abruf, nur wenn die Seite ein Bild-Baustein hat (Datenbanklast)
+  if (k.dok.bausteine.some((b) => b.typ === "bild")) {
+    anfrage("GET", `${API}/medien?limit=100`).then(
+      (a) => {
+        for (const m of a.medien) k.medien.set(m.id, m);
+        if (wurzel.isConnected) zeichneListe();
+      },
+      () => {},
+    );
+  }
 
   // Strg+S oder Cmd+S speichert, solange der Editor sichtbar ist
   const taste = (e) => {
@@ -1743,579 +1021,416 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     const a = e.target.closest?.("a[href^='#']");
     if (!a || !k.dirty) return;
     const ziel = a.getAttribute("href");
-    if (ziel === "#inhalt" || ziel === location.hash) return;
+    if (ziel === "#inhalt" || ziel === location.hash || ziel === "#") return;
     e.preventDefault();
     e.stopPropagation();
     verlassenDialog(k, pufferId, ziel);
   };
   document.addEventListener("click", beiKlick, true);
+  // Die Snackbar gehört zur Seite: Mit dem Editor geht sie
+  const wachter = new window.MutationObserver(() => {
+    if (!wurzel.isConnected) {
+      snack?.remove();
+      wachter.disconnect();
+    }
+  });
+  wachter.observe(bereich.parentElement ?? document.body, {
+    childList: true,
+    subtree: true,
+  });
 }
 
-// --- Dialoge ------------------------------------------------------------------------------------------------------------
-
-// Dialog mit eigenen Knöpfen. knoepfe: [{ text, hilfe, onclick(schliesse) }]; «Abbrechen» ist immer dabei und hat den Fokus.
-// beiAbbruch läuft, wenn der Dialog ohne Wahl schliesst (Abbrechen, Escape)
-function entscheidung({ titel, beschreibung, inhalt, knoepfe, beiAbbruch }) {
-  const zurueck = document.activeElement;
-  const titelId = neueId("titel");
-  let entschieden = false;
-  const schliesse = () => {
-    entschieden = true;
-    dialog.close();
-  };
-  const fehler = el("p", {
-    class: "hinweis hinweis--fehler",
-    role: "alert",
-    hidden: true,
-    tabindex: "-1",
-  });
-  const abbrechen = knopf("Abbrechen", { onclick: () => dialog.close() });
-  const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId, class: "ws-editor-dialog" },
-    el("h2", { id: titelId, tabindex: "-1" }, titel),
-    beschreibung && el("p", { class: "beschreibung" }, beschreibung),
-    inhalt,
-    el(
-      "div",
-      { class: "ws-editor-entscheidung" },
-      knoepfe.map((x) =>
-        el(
-          "div",
-          { class: "ws-editor-wahl" },
-          knopf(x.text, {
-            onclick: async () => {
-              fehler.hidden = true;
-              try {
-                await x.onclick(schliesse);
-              } catch (f) {
-                fehler.textContent = fehlertext(f);
-                fehler.hidden = false;
-                fehler.focus();
-              }
-            },
-          }),
-          x.hilfe && el("p", { class: "hilfe" }, x.hilfe),
-        ),
-      ),
-    ),
-    fehler,
-    el("div", { class: "dialog-knoepfe" }, abbrechen),
-  );
-  dialog.addEventListener("close", () => {
-    dialog.remove();
-    if (!entschieden) beiAbbruch?.();
-    if (zurueck?.isConnected) zurueck.focus();
-    else document.querySelector("h1")?.focus();
-  });
-  document.body.append(dialog);
-  dialog.showModal();
-  abbrechen.focus();
-}
+// --- Rückfrage beim Verlassen (E2 «Verlassen Rückfrage») ----------------------------------------------------------------
 
 function verlassenDialog(k, pufferId, ziel) {
-  entscheidung({
-    titel: "Ungespeicherte Änderungen",
-    beschreibung: "Du hast Änderungen an dieser Seite noch nicht gespeichert.",
-    knoepfe: [
-      {
-        text: "Speichern und verlassen",
-        onclick: async (schliesse) => {
-          const gespeichert = await k.speichere();
-          schliesse();
-          // Bei einem Fehler bleibt die Person auf der Seite: Die Meldung steht dort
-          if (gespeichert) location.hash = ziel;
-        },
-      },
-      {
-        text: "Verwerfen und verlassen",
-        hilfe: "Die Änderungen sind danach weg.",
-        onclick: (schliesse) => {
-          puffer.delete(pufferId);
-          k.dirty = false;
-          schliesse();
-          location.hash = ziel;
-        },
-      },
-    ],
-  });
-}
-
-// Schliesst ein Seitenblatt und führt danach aus, was gewählt wurde: Der Rückfokus des Blatts kommt zuerst, die Wahl setzt den Fokus danach
-function schliesseMit(blatt, fn) {
-  blatt.addEventListener("close", fn, { once: true });
-  blatt.close();
-}
-
-function katalogDialog(k) {
-  if (k.dok.bausteine.length >= MAX_BAUSTEINE) {
-    k.ctx.melde(
-      `Mehr als ${MAX_BAUSTEINE} Bausteine sind nicht möglich.`,
-      "fehler",
-    );
-    return;
-  }
-  const suche = feld({
-    label: "Baustein suchen",
-    type: "search",
-    autocomplete: "off",
-  });
-  const n = k.dok.bausteine.length;
-  const ort = waehler({
-    label: "Einfügen",
-    optionen:
-      n === 0
-        ? [["0", "Am Anfang"]]
-        : [
-            ["0", "Am Anfang"],
-            ...k.dok.bausteine.map((b, i) => [
-              String(i + 1),
-              i === n - 1 ? "Am Ende" : `Nach Baustein ${i + 1}: ${typName(b)}`,
-            ]),
-          ],
-    wert: String(n),
-  });
-  const ul = el("ul", { class: "ws-editor-katalog" });
-  const zaehler = el("p", { class: "meta", role: "status" });
-  const keine = el(
-    "p",
-    { class: "leer leer--klein", hidden: true },
-    "Kein Baustein passt zur Suche.",
-  );
-  const blatt = seitenblatt({
-    titel: "Baustein hinzufügen",
-    inhalt: [suche.wurzel, n > 0 ? ort.wurzel : null, zaehler, keine, ul],
-  });
-  const eintraege = KATALOG.map((e) => ({
-    li: el(
-      "li",
-      {},
-      el(
-        "button",
-        {
-          type: "button",
-          class: "ws-editor-baustein",
-          onclick: () => {
-            const pos = Number(ort.eingabe.value);
-            schliesseMit(blatt, () => k.fuegeEin(e, pos));
-          },
-        },
-        el("span", { class: "ws-editor-baustein-name" }, e.name),
-        el("span", { class: "hilfe" }, e.beschreibung),
-      ),
-    ),
-    text: `${e.name} ${e.beschreibung}`.toLowerCase(),
-  }));
-  ul.append(...eintraege.map((x) => x.li));
-  suche.eingabe.addEventListener("input", () => {
-    const frage = suche.eingabe.value.trim().toLowerCase();
-    let treffer = 0;
-    for (const x of eintraege) {
-      x.li.hidden = !x.text.includes(frage);
-      if (!x.li.hidden) treffer++;
-    }
-    keine.hidden = treffer > 0;
-    zaehler.textContent = frage
-      ? anzahlText(treffer, "1 Baustein passt", "Bausteine passen")
-      : "";
-  });
-}
-
-// Die Bilder kommen seitenweise vom Server, die Suche läuft dort (nach Alt-Text); nichts wird vorab geladen
-const MEDIEN_SEITE = 24;
-function bildDialog(k, beiWahl) {
-  const suche = feld({
-    label: "Bild suchen (nach Beschreibung)",
-    type: "search",
-    autocomplete: "off",
-  });
-  const raster = el("ul", { class: "ws-editor-medien" });
-  const zaehler = el("p", { class: "meta", role: "status" }, "Wird geladen …");
-  const fehler = el("div");
-  const weitere = knopf("Weitere Bilder laden", {
-    klein: true,
-    symbol: "plus",
-    hidden: true,
-    onclick: () => lade(false),
-  });
-  const blatt = seitenblatt({
-    titel: "Bild wählen",
+  const bleiben = knopf("Bleiben", { onclick: () => f.schliesse() });
+  const speichernUndGehen = knopf("Speichern und verlassen");
+  const verlassen = knopf("Verlassen");
+  verlassen.classList.add("knopf--gefahr");
+  const f = fenster({
+    titel: "Wirklich verlassen?",
+    rueckfrage: true,
     inhalt: [
-      suche.wurzel,
-      zaehler,
-      fehler,
-      raster,
-      weitere,
       el(
         "p",
-        { class: "hilfe" },
-        "Neue Bilder lädst du unter ",
-        el("a", { href: "#website/medien" }, "Medien"),
-        " hoch.",
+        { class: "leise" },
+        "Du hast nicht gespeicherte Änderungen. Wenn du die Seite verlässt, gehen sie verloren.",
       ),
     ],
+    fuss: [bleiben, speichernUndGehen, verlassen],
+    fokus: bleiben,
   });
-  let anzahl = 0;
-  // Eine spätere Suche macht eine laufende Antwort ungültig
-  let lauf = 0;
-  const karte = (m) =>
+  bei(speichernUndGehen, async () => {
+    beschaeftigt(speichernUndGehen, true);
+    const gespeichert = await k.speichere();
+    beschaeftigt(speichernUndGehen, false);
+    // Bei einem Fehler bleibt die Person auf der Seite: Die Meldung steht dort
+    f.schliesse();
+    if (gespeichert) location.hash = ziel;
+  });
+  bei(verlassen, () => {
+    puffer.delete(pufferId);
+    k.dirty = false;
+    f.schliesse();
+    location.hash = ziel;
+  });
+}
+
+// --- Vorschau ---------------------------------------------------------------------------------------------------------
+
+// Die Vorschau zeigt den gespeicherten Entwurf (oder eine Version) als Seite im Rahmen. Der Rahmen hat keine Skripte und liegt auf derselben Herkunft
+function vorschauFlaeche(k, speichereZuerst) {
+  const titelId = neueId("vorschau");
+  const gruppeName = neueId("breite");
+  const platz = el("div", { class: "ws-vorschauplatz" });
+  const hinweisText = el("p", { class: "klein leise" });
+  let mobil = false;
+  let version = null;
+  let zeigt = false;
+  const optionen = [
+    ["desktop", "Desktop"],
+    ["mobil", "Mobil"],
+  ].flatMap(([w, text]) => {
+    const oid = neueId("breite-option");
+    const e = el("input", {
+      type: "radio",
+      id: oid,
+      name: gruppeName,
+      value: w,
+      onchange: () => {
+        mobil = w === "mobil";
+        platz
+          .querySelector(".ws-huelle")
+          ?.classList.toggle("ws-huelle--mobil", mobil);
+        const r = platz.querySelector("iframe");
+        if (r) r.title = `Vorschau der Seite, ${mobil ? "Mobil" : "Desktop"}`;
+      },
+    });
+    e.checked = w === "desktop";
+    return [e, el("label", { for: oid }, text)];
+  });
+  const wurzel = el(
+    "section",
+    { class: "flaeche", "aria-labelledby": titelId, tabindex: "-1" },
     el(
-      "li",
-      {},
+      "div",
+      { class: "zeile" },
+      el("h2", { id: titelId }, "Vorschau"),
       el(
-        "button",
-        {
-          type: "button",
-          class: "ws-editor-medium",
-          onclick: () => schliesseMit(blatt, () => beiWahl(m)),
-        },
-        el("img", { src: m.url, alt: "", loading: "lazy" }),
+        "div",
+        { class: "seg", role: "group", "aria-label": "Vorschau-Grösse" },
+        optionen,
+      ),
+    ),
+    platz,
+    hinweisText,
+  );
+  const startZustand = () => {
+    zeigt = false;
+    hinweisText.textContent = "";
+    platz.replaceChildren(
+      el(
+        "div",
+        { class: "ws-vorschau-leer" },
         el(
-          "span",
-          {},
-          m.dekorativ ? "Dekoratives Bild" : (m.altText ?? "Ohne Beschreibung"),
+          "p",
+          { class: "leise" },
+          "Die Vorschau zeigt den gespeicherten Entwurf, so wie die Website ihn zeigt.",
+        ),
+        mitSymbol(
+          knopf("Vorschau laden", {
+            klein: true,
+            onclick: () => zeige(null, false),
+          }),
+          "vorschau",
         ),
       ),
     );
-  async function lade(neu) {
-    const mein = ++lauf;
-    fehler.replaceChildren();
-    weitere.hidden = true;
-    if (neu) {
-      anzahl = 0;
-      raster.replaceChildren();
-    }
-    zaehler.textContent = "Wird geladen …";
-    const frage = suche.eingabe.value.trim();
-    try {
-      const antwort = await anfrage(
-        "GET",
-        `${API}/medien?limit=${MEDIEN_SEITE}&offset=${anzahl}${
-          frage ? `&suche=${encodeURIComponent(frage)}` : ""
-        }`,
-      );
-      if (mein !== lauf) return;
-      // Ein altes PDF-Medium (vor #428) ist kein Bild
-      const bilder = antwort.medien.filter((m) =>
-        m.mimeTyp.startsWith("image/"),
-      );
-      anzahl += antwort.medien.length;
-      for (const m of bilder) {
-        k.medien.set(m.id, m);
-        raster.append(karte(m));
-      }
-      weitere.hidden = !antwort.weitere;
-      zaehler.textContent =
-        raster.children.length === 0
-          ? frage
-            ? "Kein Bild passt zur Suche."
-            : "Es gibt noch keine Bilder."
-          : anzahlText(raster.children.length, "1 Bild", "Bilder") +
-            (antwort.weitere ? " (weitere folgen)" : "");
-    } catch (f) {
-      if (mein !== lauf) return;
-      zaehler.textContent = "";
-      fehler.replaceChildren(
-        el("p", { class: "feld-fehler", role: "alert" }, fehlertext(f)),
-        knopf("Nochmals versuchen", {
-          klein: true,
-          symbol: "aktualisieren",
-          onclick: () => lade(neu),
-        }),
-      );
-    }
-  }
-  // Die Suche startet kurz nach der letzten Eingabe, nicht bei jedem Zeichen
-  let timer = null;
-  suche.eingabe.addEventListener("input", () => {
-    window.clearTimeout(timer);
-    timer = window.setTimeout(() => lade(true), 400);
-  });
-  lade(true);
-}
+  };
+  startZustand();
 
-// --- Vorschau, Veröffentlichen, Versionen ----------------------------------------------------------------------------------
-
-// Die Vorschau zeigt den gespeicherten Entwurf (oder eine Version) als Seite im Rahmen. Der Rahmen hat keine Skripte und liegt auf derselben Herkunft
-function vorschauPanel(k, speichereZuerst, beiAenderung) {
-  const rahmen = el("iframe", {
-    class: "ws-editor-rahmen",
-    sandbox: "allow-same-origin",
-    referrerpolicy: "no-referrer",
-    title: "Vorschau der Seite",
-  });
-  const huelle = el("div", { class: "ws-editor-huelle" }, rahmen);
-  const ueberschrift = el(
-    "h3",
-    { id: "ws-editor-vorschau-titel", tabindex: "-1" },
-    "Vorschau",
-  );
-  const art = el("p", { class: "meta" });
-  let version = null;
-  const gruppeName = neueId("breite");
-  const optionen = [
-    ["desktop", "Computer"],
-    ["mobil", "Handy"],
-  ].flatMap(([w, text]) => {
-    const oid = neueId("breite-option");
-    return [
-      el("input", {
-        type: "radio",
-        id: oid,
-        name: gruppeName,
-        value: w,
-        checked: w === "desktop",
-        onchange: () =>
-          huelle.classList.toggle("ws-editor-huelle--mobil", w === "mobil"),
-      }),
-      el("label", { for: oid }, icon("haken"), text),
-    ];
-  });
-  const panel = el(
-    "section",
-    {
-      class: "ws-editor-vorschau",
-      id: "ws-editor-vorschau",
-      "aria-labelledby": "ws-editor-vorschau-titel",
-      hidden: true,
-    },
-    el(
-      "div",
-      { class: "ws-editor-vorschaukopf" },
-      ueberschrift,
-      el(
-        "fieldset",
-        { class: "ws-editor-breite" },
-        el("legend", { class: "nur-leser" }, "Breite der Vorschau"),
-        el("div", { class: "seg" }, optionen),
-      ),
-      knopf("Aktualisieren", {
-        klein: true,
-        symbol: "aktualisieren",
-        onclick: () => zeige(version, false),
-      }),
-      knopf("Schliessen", {
-        klein: true,
-        symbol: "schliessen",
-        onclick: () => {
-          panel.hidden = true;
-          rahmen.removeAttribute("src");
-          beiAenderung();
-          document
-            .querySelector('[aria-controls="ws-editor-vorschau"]')
-            ?.focus();
-        },
-      }),
-    ),
-    art,
-    huelle,
-  );
   async function zeige(nr, fokus = true) {
     // Die Vorschau zeigt den gespeicherten Entwurf: Erst speichern, damit sie stimmt
     if (nr === null && !(await speichereZuerst())) return;
     version = nr;
-    art.textContent =
+    zeigt = true;
+    hinweisText.textContent =
       nr === null
         ? "Der gespeicherte Entwurf. Auch Bausteine nur für Angemeldete oder Gruppen sind sichtbar. Links führen in der Vorschau nirgends hin."
         : `Version ${nr}, nicht der aktuelle Entwurf. Links führen in der Vorschau nirgends hin.`;
-    huelle.setAttribute("aria-busy", "true");
-    rahmen.setAttribute(
-      "src",
-      `${API}/seiten/${k.id}/vorschau${nr === null ? "" : `?version=${nr}`}`,
+    const rahmen = el("iframe", {
+      class: "ws-rahmen",
+      sandbox: "allow-same-origin",
+      referrerpolicy: "no-referrer",
+      title: `Vorschau der Seite, ${mobil ? "Mobil" : "Desktop"}`,
+    });
+    const huelle = el(
+      "div",
+      {
+        class: mobil ? "ws-huelle ws-huelle--mobil" : "ws-huelle",
+        "aria-busy": "true",
+      },
+      rahmen,
     );
-    panel.hidden = false;
-    beiAenderung();
-    if (fokus) ueberschrift.focus();
-  }
-  rahmen.addEventListener("load", () => {
-    // Auch ein leerer Rahmen meldet «load»
-    if (!rahmen.hasAttribute("src")) return;
-    huelle.removeAttribute("aria-busy");
-    k.ctx.melde("Die Vorschau ist geladen.");
-  });
-  return { wurzel: panel, zeige };
-}
-
-async function veroeffentlichen(k) {
-  if (!k.dirty && !k.unveroeffentlicht) {
-    k.ctx.melde(
-      "Nichts zu veröffentlichen: Der Entwurf ist gleich der veröffentlichten Version.",
+    const laden = el(
+      "div",
+      { class: "ws-vorschau-laden", "aria-hidden": "true" },
+      sk("t", 160),
+      sk("t", 112),
+      sk("b", 320),
+      sk("t", 260),
     );
-    return;
-  }
-  if (k.dirty && !(await k.speichere())) return;
-  const bausteine = k.dok.bausteine;
-  const eng = bausteine.filter((b) => b.sichtbarkeit !== "erbt").length;
-  const fakten = el(
-    "dl",
-    { class: "ws-editor-fakten" },
-    el("dt", {}, "Seite"),
-    el("dd", {}, `${k.dok.titel} (${k.seite.pfad})`),
-    el("dt", {}, "Wer sieht sie"),
-    el("dd", {}, sichtbarkeitText(k.seite.sichtbarkeit, k.tagNamen)),
-    el("dt", {}, "Inhalt"),
-    el("dd", {}, anzahlText(bausteine.length, "1 Baustein", "Bausteine")),
-    eng > 0 && el("dt", {}, "Eigene Sichtbarkeit"),
-    eng > 0 && el("dd", {}, anzahlText(eng, "1 Baustein", "Bausteine")),
-  );
-  dialogFormular({
-    titel: "Seite veröffentlichen",
-    beschreibung:
-      k.nr === null
-        ? "Die Seite wird mit dem gespeicherten Entwurf sichtbar."
-        : "Der gespeicherte Entwurf ersetzt die veröffentlichte Version. Die bisherige Version bleibt in der Versionsliste.",
-    felder: [
-      fakten,
-      k.seite.sichtbarkeit.art === "oeffentlich" &&
-        el(
-          "p",
-          { class: "hilfe" },
-          "Die Seite ist öffentlich: Alle im Internet können sie lesen.",
-        ),
-    ].filter(Boolean),
-    ok: "Veröffentlichen",
-    fehlertext: (f) =>
-      f.status === 409 && f.code === "NICHTS_ZU_VEROEFFENTLICHEN"
-        ? "Nichts zu veröffentlichen: Der Entwurf ist gleich der veröffentlichten Version."
-        : f.status === 422
-          ? "Der Entwurf verweist auf etwas, das es nicht mehr gibt (zum Beispiel ein Bild). Prüfe die Bausteine und speichere nochmals."
-          : fehlertext(f),
-    senden: () => anfrage("POST", `${API}/seiten/${k.id}/veroeffentlichen`),
-    danach: ({ nr }) => {
-      k.nr = nr;
-      k.unveroeffentlicht = false;
-      k.statusNeu();
-      k.ctx.melde(`Die Seite ist veröffentlicht (Version ${nr}).`);
-    },
-  });
-}
-
-function zurueckziehen(k) {
-  bestaetigen({
-    titel: "Seite zurückziehen",
-    beschreibung: `«${k.dok.titel}» ist danach nicht mehr erreichbar. Der Entwurf und alle Versionen bleiben erhalten. Du kannst die Seite wieder veröffentlichen.`,
-    ok: "Zurückziehen",
-    aktion: () => anfrage("POST", `${API}/seiten/${k.id}/zurueckziehen`),
-    danach: () => {
-      k.nr = null;
-      k.unveroeffentlicht = true;
-      k.statusNeu();
-      k.ctx.melde("Die Seite ist zurückgezogen.");
-    },
-  });
-}
-
-// Die Versionen werden erst geladen, wenn die Liste geöffnet wird
-function versionenBlatt(k) {
-  const inhalt = el("div", {});
-  const blatt = seitenblatt({
-    titel: "Versionen",
-    untertitel: "Die jüngsten 100, neueste zuerst.",
-    inhalt,
-  });
-  const lade = async () => {
-    inhalt.replaceChildren(
-      el("p", { class: "meta", role: "status" }, "Wird geladen …"),
+    const live = el(
+      "p",
+      { class: "nur-leser", role: "status" },
+      "Vorschau lädt …",
     );
-    try {
-      const { versionen } = await anfrage(
-        "GET",
-        `${API}/seiten/${k.id}/versionen`,
-      );
-      if (versionen.length === 0) {
-        inhalt.replaceChildren(
+    platz.replaceChildren(huelle, laden, live);
+    rahmen.addEventListener("load", () => {
+      // Antwortet der Server mit einem Fehler, steht JSON im Rahmen: Dann zeigt die Fläche den Zustand statt des Textes
+      const fehlerhaft = (() => {
+        try {
+          return rahmen.contentDocument?.contentType === "application/json";
+        } catch {
+          return false;
+        }
+      })();
+      huelle.removeAttribute("aria-busy");
+      laden.remove();
+      if (fehlerhaft) {
+        platz.replaceChildren(
           el(
-            "p",
-            { class: "leer" },
-            "Es gibt noch keine Version. Veröffentliche die Seite: Dann erscheint hier ihre erste.",
+            "div",
+            { class: "zustand", role: "alert" },
+            el("h3", {}, "Die Vorschau konnte nicht laden."),
+            el(
+              "p",
+              { class: "leise" },
+              "Prüfe die Verbindung. Deine Eingaben sind noch da.",
+            ),
+            knopf("Nochmals versuchen", {
+              klein: true,
+              onclick: () => zeige(version, false),
+            }),
           ),
         );
         return;
       }
-      inhalt.replaceChildren(
-        el(
-          "ul",
-          { class: "ws-editor-versionen" },
-          versionen.map((v) =>
-            el(
-              "li",
-              {},
-              el(
-                "div",
-                {},
-                el("p", { class: "fett" }, `Version ${v.nr}`),
-                el(
-                  "p",
-                  { class: "meta" },
-                  el("time", { datetime: v.erstelltAm }, zeit(v.erstelltAm)),
-                ),
-                v.veroeffentlicht &&
-                  el("ul", { class: "chips" }, chip("Veröffentlicht", "ok")),
-              ),
-              el(
-                "div",
-                { class: "ws-editor-aktionen" },
-                knopf("Ansehen", {
-                  klein: true,
-                  kontext: `Version ${v.nr}`,
-                  onclick: () =>
-                    schliesseMit(blatt, () => k.zeigeVersion(v.nr)),
-                }),
-                knopf("Zurückholen", {
-                  klein: true,
-                  kontext: `Version ${v.nr}`,
-                  onclick: () => zurueckholen(k, v.nr, blatt),
-                }),
-              ),
-            ),
-          ),
-        ),
-      );
-    } catch (f) {
-      inhalt.replaceChildren(
-        el("p", { class: "feld-fehler", role: "alert" }, fehlertext(f)),
-        knopf("Nochmals versuchen", {
-          klein: true,
-          symbol: "aktualisieren",
-          onclick: lade,
-        }),
-      );
+      live.textContent = "Die Vorschau ist geladen.";
+    });
+    rahmen.setAttribute(
+      "src",
+      `${API}/seiten/${k.id}/vorschau${nr === null ? "" : `?version=${nr}`}`,
+    );
+    if (fokus) {
+      wurzel.scrollIntoView({ block: "nearest" });
+      wurzel.focus();
     }
-  };
-  lade();
+    void zeigt;
+  }
+  return { wurzel, zeige };
 }
 
-function zurueckholen(k, nr, blatt) {
-  bestaetigen({
-    titel: `Version ${nr} zurückholen`,
-    beschreibung: `Der Entwurf wird durch Version ${nr} ersetzt${
-      k.dirty || k.unveroeffentlicht
-        ? ". Der aktuelle Entwurf geht dabei verloren, soweit er nicht als Version veröffentlicht ist"
-        : ""
-    }. Veröffentlicht ist die zurückgeholte Fassung erst, wenn du auf «Veröffentlichen» klickst.`,
-    ok: "Zurückholen",
-    gefaehrlich: false,
-    aktion: async () => {
-      await anfrage(
-        "POST",
-        `${API}/seiten/${k.id}/versionen/${nr}/zurueckholen`,
-      );
-      const neu = await anfrage("GET", `${API}/seiten/${k.id}/entwurf`);
-      k.dok = neu.dokument;
-      k.zaehler = neu.zaehler;
-      k.dirty = false;
-      k.unveroeffentlicht = neu.unveroeffentlicht;
-      puffer.delete(`${k.ctx.ich?.id ?? ""}:${k.id}`);
-      k.formen.clear();
-      k.offen.clear();
-      k.geloescht = null;
-    },
-    danach: () => {
-      blatt.close();
-      k.neuZeichnen();
-      k.ctx.melde(
-        `Version ${nr} ist als Entwurf zurückgeholt. Veröffentlicht ist sie noch nicht.`,
-      );
-    },
+// --- Einstellungen der Seite (rechte Spalte, E2) ---------------------------------------------------------------------
+
+function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
+  const { seite } = k;
+  const titelId = neueId("einst");
+  const baum = baueBaum(k.alle);
+  const index = Math.max(
+    0,
+    baum.zeilen.find((z) => z.seite.id === seite.id)?.index ?? 0,
+  );
+  const titel = feld({
+    label: "Titel",
+    wert: seite.titel,
+    maxlength: 150,
+    required: true,
+    hilfe: "So heisst die Seite in der Liste und in der Navigation.",
   });
+  const adresse = feld({
+    label: "Adresse",
+    wert: seite.adresse,
+    maxlength: 60,
+    required: true,
+    autocomplete: "off",
+    spellcheck: "false",
+    hilfe:
+      "Nur Kleinbuchstaben, Ziffern und «-». Ändert sich die Adresse, ändert sich auch die Adresse der veröffentlichten Seite.",
+  });
+  adresse.eingabe.classList.add("mono");
+  const verboten = baum.nachfahren(seite.id);
+  verboten.add(seite.id);
+  const hoehe = baum.hoehe(seite.id);
+  let eltern = null;
+  let position = null;
+  if (verwalten) {
+    const optionen = [
+      ["", "Oberste Ebene"],
+      ...k.alle
+        .filter(
+          (s) =>
+            !verboten.has(s.id) &&
+            (baum.ebenen.get(s.id) ?? 0) + 1 + hoehe <= MAX_TIEFE,
+        )
+        .map((s) => [s.id, `${s.titel} (${s.pfad})`]),
+    ];
+    const id = neueId("eltern");
+    const select = el(
+      "select",
+      { id, class: "ws-select" },
+      optionen.map(([w, t]) => el("option", { value: w }, t)),
+    );
+    select.value = seite.elternId ?? "";
+    eltern = {
+      wurzel: el(
+        "div",
+        { class: "feld" },
+        el("label", { for: id }, "Elternseite"),
+        select,
+      ),
+      eingabe: select,
+    };
+    position = feld({
+      label: "Position",
+      typ: "number",
+      wert: String(index + 1),
+      min: 1,
+      inputmode: "numeric",
+      hilfe: "1 steht ganz oben unter der Elternseite.",
+    });
+    position.eingabe.classList.add("ws-kurzfeld");
+  }
+  const sichtText = el("span", { class: "chip" });
+  const zeichneSicht = () => {
+    sichtText.replaceChildren(
+      symbol("schild"),
+      sichtbarkeitText(seite.sichtbarkeit, k.tagNamen),
+    );
+  };
+  zeichneSicht();
+  const aendern = knopf("Ändern", {
+    klein: true,
+    "aria-label": "Sichtbarkeit der Seite ändern",
+    onclick: oeffneSicht,
+  });
+  const speichern = knopf("Einstellungen speichern", { klein: true });
+  const fehlerPlatz = el("div", {});
+  const rest = (text) => (
+    fehlerPlatz.replaceChildren(band("fehler", text)),
+    fehlerPlatz.firstChild.setAttribute("tabindex", "-1"),
+    fehlerPlatz.firstChild.focus()
+  );
+
+  function oeffneSicht() {
+    sichtbarkeitBlatt({
+      typ: "seite",
+      frage: "Wer sieht die Seite?",
+      titel: "Sichtbarkeit der Seite",
+      untertitel: `${seite.titel} · ${seite.pfad}`,
+      start: seite.sichtbarkeit,
+      tagNamen: k.tagNamen,
+      ladeTags: async () => {
+        const { tags } = await anfrage("GET", `${API}/tags`);
+        k.tags = tags;
+        k.tagNamen = new Map(tags.map((t) => [t.id, t.name]));
+        return tags;
+      },
+      speichere: async (wert) => {
+        await patch(seite.id, { sichtbarkeit: wert });
+        seite.sichtbarkeit = wert;
+        zeichneSicht();
+        k.ctx.melde("Die Sichtbarkeit der Seite ist gespeichert.", "ok");
+      },
+      rechte: {
+        seite,
+        istAdmin: k.ctx.ich.role === "admin",
+        melde: k.ctx.melde,
+      },
+    });
+  }
+
+  bei(speichern, async () => {
+    fehlerPlatz.replaceChildren();
+    const neuAdresse = adresse.eingabe.value.trim();
+    const neuTitel = titel.eingabe.value.trim();
+    if (!neuTitel) return rest("Der Titel fehlt.");
+    if (!ADRESSE.test(neuAdresse)) {
+      return rest(
+        "Die Adresse darf nur Kleinbuchstaben, Ziffern und «-» enthalten und höchstens 60 Zeichen lang sein.",
+      );
+    }
+    const aenderung = {};
+    if (neuTitel !== seite.titel) aenderung.titel = neuTitel;
+    if (neuAdresse !== seite.adresse) aenderung.adresse = neuAdresse;
+    const weitere = [];
+    if (verwalten) {
+      const neuEltern = eltern.eingabe.value || null;
+      const pos = Number(position.eingabe.value.trim());
+      if (!Number.isInteger(pos) || pos < 1)
+        return rest("Die Position ist eine ganze Zahl ab 1.");
+      const elternGeaendert = neuEltern !== seite.elternId;
+      const posGeaendert = pos !== index + 1;
+      if (elternGeaendert || posGeaendert) {
+        // Wechselt nur die Elternseite, kommt die Seite ans Ende
+        const { aenderungen } = plane(
+          k.alle,
+          seite,
+          neuEltern,
+          elternGeaendert && !posGeaendert ? Infinity : pos - 1,
+        );
+        for (const a of aenderungen) {
+          if (a.id === seite.id) Object.assign(aenderung, koerper(a));
+          else weitere.push(a);
+        }
+      }
+    }
+    if (Object.keys(aenderung).length === 0 && weitere.length === 0) {
+      k.ctx.melde("Nichts geändert.", "info");
+      return;
+    }
+    beschaeftigt(speichern, true);
+    try {
+      if (Object.keys(aenderung).length > 0) await patch(seite.id, aenderung);
+      for (const a of weitere) await patch(a.id, koerper(a));
+      const neu = await anfrage("GET", `${API}/seiten/${seite.id}`);
+      Object.assign(seite, neu);
+      adresse.eingabe.value = seite.adresse;
+      beiNeuerAdresse();
+      k.ctx.melde(`«${kuerze(seite.titel, 60)}» ist gespeichert.`, "ok");
+    } catch (f) {
+      const text =
+        f?.meldung &&
+        [
+          "ADRESSE_RESERVIERT",
+          "ADRESSE_VERGEBEN",
+          "SEITE_ZYKLUS",
+          "SEITE_ZU_TIEF",
+        ].includes(f.code)
+          ? f.meldung
+          : fehlertext(f);
+      rest(text);
+    } finally {
+      beschaeftigt(speichern, false);
+    }
+  });
+
+  return el(
+    "section",
+    { class: "flaeche ws-einstellungen", "aria-labelledby": titelId },
+    el("h2", { id: titelId }, "Seiteneinstellungen"),
+    titel.wurzel,
+    ueberschrift.wurzel,
+    adresse.wurzel,
+    eltern?.wurzel,
+    position?.wurzel,
+    el(
+      "div",
+      { class: "feld" },
+      el("span", { class: "legende" }, "Sichtbarkeit"),
+      el("div", { class: "zeile" }, sichtText, aendern),
+    ),
+    fehlerPlatz,
+    el("div", { class: "ws-reihe" }, speichern),
+  );
 }

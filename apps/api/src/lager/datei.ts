@@ -98,7 +98,7 @@ export async function pruefeDateiImLager(
 
 // Eintrag lesen: lesbar für die Person, die ihn in den letzten 24 Stunden hinzugefügt hat (so kann sie ihn einbinden), und für jeden, der einen Datensatz lesen darf, der ihn einbindet. Sonst gibt es ihn für die Person nicht (undefined, die Route antwortet 404)
 export async function ladeSichtbareDatei(
-  db: Db,
+  db: Pick<Db, "select" | "selectDistinct">,
   zugriff: LagerZugriff,
   personId: string,
   id: string,

@@ -8,58 +8,64 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 ## Seiten und Gesundheit
 
-| Route                                         | Zweck                                                                     | Status je Persona |
-| --------------------------------------------- | ------------------------------------------------------------------------- | ----------------- |
-| `GET /health`                                 | Gesundheitsprüfung                                                        | **200** alle      |
-| `GET /datenschutz`                            | Datenschutzerklärung als HTML-Seite                                       | **200** alle      |
-| `GET /konto-loeschen`                         | Hinweis zum Löschen des Kontos als HTML-Seite                             | **200** alle      |
-| `GET /support`                                | Support-Seite als HTML-Seite                                              | **200** alle      |
-| `GET /admin`                                  | Verwaltung im Browser als HTML-Seite                                      | **200** alle      |
-| `GET /admin/admin.css`                        | Stilvorlage der Verwaltung                                                | **200** alle      |
-| `GET /admin/admin.js`                         | Hauptskript der Verwaltung (Anmeldung und Navigation)                     | **200** alle      |
-| `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API                             | **200** alle      |
-| `GET /admin/dom.js`                           | Skript der Verwaltung – Bausteine der Oberfläche                          | **200** alle      |
-| `GET /admin/favicon.svg`                      | Symbol der Verwaltung im Browser-Tab                                      | **200** alle      |
-| `GET /admin/hintergrund.svg`                  | Logo als Hintergrund der Verwaltung                                       | **200** alle      |
-| `GET /admin/kinder.js`                        | Skript der Verwaltung – Bereich Kinder                                    | **200** alle      |
-| `GET /admin/mitteilungen.js`                  | Skript der Verwaltung – Bereich Mitteilungen                              | **200** alle      |
-| `GET /admin/personen.js`                      | Skript der Verwaltung – Bereich Personen                                  | **200** alle      |
-| `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                                    | **200** alle      |
-| `GET /admin/system.js`                        | Skript der Verwaltung – Bereich System                                    | **200** alle      |
-| `GET /admin/plattform.js`                     | Skript der Verwaltung – Bereich Plattform                                 | **200** alle      |
-| `GET /admin/tags.js`                          | Skript der Verwaltung – Bereich Tags                                      | **200** alle      |
-| `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht                                 | **200** alle      |
-| `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen                              | **200** alle      |
-| `GET /admin/csv.js`                           | Skript der Verwaltung – CSV-Leser                                         | **200** alle      |
-| `GET /admin/anwesenheit.js`                   | Skript der Verwaltung – Bereich Anwesenheit                               | **200** alle      |
-| `GET /admin/anwesenheit.css`                  | Stilvorlage der Verwaltung – Bereich Anwesenheit                          | **200** alle      |
-| `GET /admin/import.js`                        | Skript der Verwaltung – Bereich Import                                    | **200** alle      |
-| `GET /admin/website.js`                       | Skript der Verwaltung – Bereich Website (Rahmen und Unternavigation)      | **200** alle      |
-| `GET /admin/website.css`                      | Stilvorlage der Verwaltung – Bereich Website (Rahmen und Unternavigation) | **200** alle      |
-| `GET /admin/website-seiten.js`                | Skript der Verwaltung – Bereich Website, Seiten                           | **200** alle      |
-| `GET /admin/website-seiten.css`               | Stilvorlage der Verwaltung – Bereich Website, Seiten                      | **200** alle      |
-| `GET /admin/website-editor.js`                | Skript der Verwaltung – Bereich Website, Editor                           | **200** alle      |
-| `GET /admin/website-editor.css`               | Stilvorlage der Verwaltung – Bereich Website, Editor                      | **200** alle      |
-| `GET /admin/website-richtext.js`              | Skript der Verwaltung – Bereich Website, Rich Text                        | **200** alle      |
-| `GET /admin/website-vorschau.css`             | Stilvorlage der Website für die Vorschau in der Verwaltung                | **200** alle      |
-| `GET /admin/website-medien.js`                | Skript der Verwaltung – Bereich Website, Medien                           | **200** alle      |
-| `GET /admin/website-medien.css`               | Stilvorlage der Verwaltung – Bereich Website, Medien                      | **200** alle      |
-| `GET /admin/website-stufenfakten.js`          | Skript der Verwaltung – Bereich Website, Stufenfelder                     | **200** alle      |
-| `GET /admin/website-stufenfakten.css`         | Stilvorlage der Verwaltung – Bereich Website, Stufenfelder                | **200** alle      |
-| `GET /admin/termine.js`                       | Skript der Verwaltung – Bereich Termine (Rahmen und Reiter)               | **200** alle      |
-| `GET /admin/termine.css`                      | Stilvorlage der Verwaltung – Bereich Termine (Rahmen und Reiter)          | **200** alle      |
-| `GET /admin/termine-warnliste.js`             | Skript der Verwaltung – Bereich Termine, Reiter Warnliste                 | **200** alle      |
-| `GET /admin/termine-warnliste.css`            | Stilvorlage der Verwaltung – Bereich Termine, Reiter Warnliste            | **200** alle      |
-| `GET /admin/termine-kategorien.js`            | Skript der Verwaltung – Bereich Termine, Reiter Kategorien                | **200** alle      |
-| `GET /admin/termine-kategorien.css`           | Stilvorlage der Verwaltung – Bereich Termine, Reiter Kategorien           | **200** alle      |
-| `GET /admin/termine-vorschlaege.js`           | Skript der Verwaltung – Bereich Termine, Reiter Vorschläge                | **200** alle      |
-| `GET /admin/termine-vorschlaege.css`          | Stilvorlage der Verwaltung – Bereich Termine, Reiter Vorschläge           | **200** alle      |
-| `GET /admin/termine-anlaesse.js`              | Skript der Verwaltung – Bereich Termine, Reiter Anlässe                   | **200** alle      |
-| `GET /admin/termine-anlaesse.css`             | Stilvorlage der Verwaltung – Bereich Termine, Reiter Anlässe              | **200** alle      |
-| `GET /admin/termine-raeume.js`                | Skript der Verwaltung – Bereich Termine, Reiter Räume                     | **200** alle      |
-| `GET /admin/termine-raeume.css`               | Stilvorlage der Verwaltung – Bereich Termine, Reiter Räume                | **200** alle      |
-| `GET /.well-known/apple-app-site-association` | Apple App Site Association (noch leer)                                    | **200** alle      |
-| `GET /.well-known/assetlinks.json`            | Android Digital Asset Links (noch leer)                                   | **200** alle      |
+| Route                                         | Zweck                                                                        | Status je Persona |
+| --------------------------------------------- | ---------------------------------------------------------------------------- | ----------------- |
+| `GET /health`                                 | Gesundheitsprüfung                                                           | **200** alle      |
+| `GET /datenschutz`                            | Datenschutzerklärung als HTML-Seite                                          | **200** alle      |
+| `GET /konto-loeschen`                         | Hinweis zum Löschen des Kontos als HTML-Seite                                | **200** alle      |
+| `GET /support`                                | Support-Seite als HTML-Seite                                                 | **200** alle      |
+| `GET /admin`                                  | Verwaltung im Browser als HTML-Seite                                         | **200** alle      |
+| `GET /admin/admin.css`                        | Stilvorlage der Verwaltung                                                   | **200** alle      |
+| `GET /admin/admin.js`                         | Hauptskript der Verwaltung (Anmeldung und Navigation)                        | **200** alle      |
+| `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API                                | **200** alle      |
+| `GET /admin/dom.js`                           | Skript der Verwaltung – Bausteine der Oberfläche                             | **200** alle      |
+| `GET /admin/favicon.svg`                      | Symbol der Verwaltung im Browser-Tab                                         | **200** alle      |
+| `GET /admin/hintergrund.svg`                  | Logo als Hintergrund der Verwaltung                                          | **200** alle      |
+| `GET /admin/kinder.js`                        | Skript der Verwaltung – Bereich Kinder                                       | **200** alle      |
+| `GET /admin/mitteilungen.js`                  | Skript der Verwaltung – Bereich Mitteilungen                                 | **200** alle      |
+| `GET /admin/personen.js`                      | Skript der Verwaltung – Bereich Personen                                     | **200** alle      |
+| `GET /admin/stufen.js`                        | Skript der Verwaltung – Bereich Stufen                                       | **200** alle      |
+| `GET /admin/system.js`                        | Skript der Verwaltung – Bereich System                                       | **200** alle      |
+| `GET /admin/plattform.js`                     | Skript der Verwaltung – Bereich Plattform                                    | **200** alle      |
+| `GET /admin/tags.js`                          | Skript der Verwaltung – Bereich Tags                                         | **200** alle      |
+| `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht                                    | **200** alle      |
+| `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen                                 | **200** alle      |
+| `GET /admin/csv.js`                           | Skript der Verwaltung – CSV-Leser                                            | **200** alle      |
+| `GET /admin/anwesenheit.js`                   | Skript der Verwaltung – Bereich Anwesenheit                                  | **200** alle      |
+| `GET /admin/anwesenheit.css`                  | Stilvorlage der Verwaltung – Bereich Anwesenheit                             | **200** alle      |
+| `GET /admin/import.js`                        | Skript der Verwaltung – Bereich Import                                       | **200** alle      |
+| `GET /admin/website-baum.js`                  | Skript der Verwaltung – Bereich Website, Seitenbaum                          | **200** alle      |
+| `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten | **200** alle      |
+| `GET /admin/website-dialoge.js`               | Skript der Verwaltung – Bereich Website, Fenster und Hinweise                | **200** alle      |
+| `GET /admin/website-felder.js`                | Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine      | **200** alle      |
+| `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                        | **200** alle      |
+| `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                             | **200** alle      |
+| `GET /admin/website-veroeffentlichen.js`      | Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen       | **200** alle      |
+| `GET /admin/website.css`                      | Stilvorlage der Verwaltung – Bereich Website (gemeinsame Bausteine)          | **200** alle      |
+| `GET /admin/website-seiten.js`                | Skript der Verwaltung – Bereich Website, Seiten                              | **200** alle      |
+| `GET /admin/website-seiten.css`               | Stilvorlage der Verwaltung – Bereich Website, Seiten                         | **200** alle      |
+| `GET /admin/website-editor.js`                | Skript der Verwaltung – Bereich Website, Editor                              | **200** alle      |
+| `GET /admin/website-editor.css`               | Stilvorlage der Verwaltung – Bereich Website, Editor                         | **200** alle      |
+| `GET /admin/website-richtext.js`              | Skript der Verwaltung – Bereich Website, Rich Text                           | **200** alle      |
+| `GET /admin/website-vorschau.css`             | Stilvorlage der Website für die Vorschau in der Verwaltung                   | **200** alle      |
+| `GET /admin/website-medien.js`                | Skript der Verwaltung – Bereich Website, Medien                              | **200** alle      |
+| `GET /admin/website-medien.css`               | Stilvorlage der Verwaltung – Bereich Website, Medien                         | **200** alle      |
+| `GET /admin/website-stufenfakten.js`          | Skript der Verwaltung – Bereich Website, Stufenfelder                        | **200** alle      |
+| `GET /admin/website-stufenfakten.css`         | Stilvorlage der Verwaltung – Bereich Website, Stufenfelder                   | **200** alle      |
+| `GET /admin/termine.js`                       | Skript der Verwaltung – Bereich Termine (Rahmen und Reiter)                  | **200** alle      |
+| `GET /admin/termine.css`                      | Stilvorlage der Verwaltung – Bereich Termine (Rahmen und Reiter)             | **200** alle      |
+| `GET /admin/termine-warnliste.js`             | Skript der Verwaltung – Bereich Termine, Reiter Warnliste                    | **200** alle      |
+| `GET /admin/termine-warnliste.css`            | Stilvorlage der Verwaltung – Bereich Termine, Reiter Warnliste               | **200** alle      |
+| `GET /admin/termine-kategorien.js`            | Skript der Verwaltung – Bereich Termine, Reiter Kategorien                   | **200** alle      |
+| `GET /admin/termine-kategorien.css`           | Stilvorlage der Verwaltung – Bereich Termine, Reiter Kategorien              | **200** alle      |
+| `GET /admin/termine-vorschlaege.js`           | Skript der Verwaltung – Bereich Termine, Reiter Vorschläge                   | **200** alle      |
+| `GET /admin/termine-vorschlaege.css`          | Stilvorlage der Verwaltung – Bereich Termine, Reiter Vorschläge              | **200** alle      |
+| `GET /admin/termine-anlaesse.js`              | Skript der Verwaltung – Bereich Termine, Reiter Anlässe                      | **200** alle      |
+| `GET /admin/termine-anlaesse.css`             | Stilvorlage der Verwaltung – Bereich Termine, Reiter Anlässe                 | **200** alle      |
+| `GET /admin/termine-raeume.js`                | Skript der Verwaltung – Bereich Termine, Reiter Räume                        | **200** alle      |
+| `GET /admin/termine-raeume.css`               | Stilvorlage der Verwaltung – Bereich Termine, Reiter Räume                   | **200** alle      |
+| `GET /.well-known/apple-app-site-association` | Apple App Site Association (noch leer)                                       | **200** alle      |
+| `GET /.well-known/assetlinks.json`            | Android Digital Asset Links (noch leer)                                      | **200** alle      |
 
 ## Anmeldung (better-auth)
 
@@ -397,16 +403,17 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 ## Lager: eingang
 
-| Route                                                  | Zweck                                                           | Status je Persona                                                                                                                                                                                                                                                                                               |
-| ------------------------------------------------------ | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST /api/v1/lager/:id/eingang`                       | Idee, Wunsch, Frage oder Feedback an die Lagerleitung senden    | **201** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team |
-| `GET /api/v1/lager/:id/eingang/eigene`                 | Eigene nicht anonyme Meldungen lesen                            | **200** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
-| `POST /api/v1/lager/:id/eingang/status`                | Status und Antwort mit dem Rückfragecode lesen                  | **200** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
-| `GET /api/v1/lager/:id/eingang`                        | Eingang des Lagers auflisten                                    | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
-| `GET /api/v1/lager/:id/eingang/:eingangId`             | Eine Meldung lesen                                              | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
-| `PATCH /api/v1/lager/:id/eingang/:eingangId`           | Eine Meldung beantworten, ihren Status setzen oder sie zuordnen | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
-| `POST /api/v1/lager/:id/eingang/:eingangId/traktandum` | Aus einer Meldung ein Traktandum machen                         | **201** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
-| `DELETE /api/v1/lager/:id/eingang/:eingangId`          | Eine Meldung endgültig löschen                                  | **204** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
+| Route                                                    | Zweck                                                           | Status je Persona                                                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/lager/:id/eingang`                         | Idee, Wunsch, Frage oder Feedback an die Lagerleitung senden    | **201** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team |
+| `GET /api/v1/lager/:id/eingang/eigene`                   | Eigene nicht anonyme Meldungen lesen                            | **200** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
+| `POST /api/v1/lager/:id/eingang/status`                  | Status und Antwort mit dem Rückfragecode lesen                  | **200** abteilungsleitung, lagerleitung, leitung, team<br>**401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
+| `GET /api/v1/lager/:id/eingang`                          | Eingang des Lagers auflisten                                    | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
+| `GET /api/v1/lager/:id/eingang/:eingangId`               | Eine Meldung lesen                                              | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                     |
+| `PATCH /api/v1/lager/:id/eingang/:eingangId`             | Eine Meldung beantworten, ihren Status setzen oder sie zuordnen | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
+| `POST /api/v1/lager/:id/eingang/:eingangId/traktandum`   | Aus einer Meldung ein Traktandum machen                         | **201** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
+| `DELETE /api/v1/lager/:id/eingang/:eingangId/traktandum` | «Als Traktandum» zurücknehmen                                   | **204** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
+| `DELETE /api/v1/lager/:id/eingang/:eingangId`            | Eine Meldung endgültig löschen                                  | **204** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
 
 ## Lager: einkauf
 
@@ -428,12 +435,13 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 ## Lager: erwaehnungen
 
-| Route                                                           | Zweck                                   | Status je Persona                                                                                                                                                                                                                                                                                               |
-| --------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/lager/:id/erwaehnungen`                            | Eigene Erwähnungen auflisten            | **200** abteilungsleitung, lagerleitung, leitung, team, lesen<br>**401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                               |
-| `PUT /api/v1/lager/:id/erwaehnungen/:typ/:quelleId`             | Erwähnungen eines Inhalts abgleichen    | **200** abteilungsleitung, lagerleitung, leitung<br>**401** ohneLogin<br>**403** team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung |
-| `PATCH /api/v1/lager/:id/erwaehnungen/:erwaehnungId`            | Erwähnung als erledigt markieren        | **401** ohneLogin<br>**404** abteilungsleitung, lagerleitung, leitung, team, lesen, ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team, lesen                               |
-| `POST /api/v1/lager/:id/erwaehnungen/:erwaehnungId/als-aufgabe` | Aus einer Erwähnung eine Aufgabe machen | **401** ohneLogin<br>**403** lesen<br>**404** abteilungsleitung, lagerleitung, leitung, team, ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team           |
+| Route                                                             | Zweck                                   | Status je Persona                                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/lager/:id/erwaehnungen`                              | Eigene Erwähnungen auflisten            | **200** abteilungsleitung, lagerleitung, leitung, team, lesen<br>**401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                               |
+| `PUT /api/v1/lager/:id/erwaehnungen/:typ/:quelleId`               | Erwähnungen eines Inhalts abgleichen    | **200** abteilungsleitung, lagerleitung, leitung<br>**401** ohneLogin<br>**403** team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung |
+| `PATCH /api/v1/lager/:id/erwaehnungen/:erwaehnungId`              | Erwähnung als erledigt markieren        | **401** ohneLogin<br>**404** abteilungsleitung, lagerleitung, leitung, team, lesen, ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team, lesen                               |
+| `POST /api/v1/lager/:id/erwaehnungen/:erwaehnungId/als-aufgabe`   | Aus einer Erwähnung eine Aufgabe machen | **401** ohneLogin<br>**403** lesen<br>**404** abteilungsleitung, lagerleitung, leitung, team, ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team           |
+| `DELETE /api/v1/lager/:id/erwaehnungen/:erwaehnungId/als-aufgabe` | «Als Aufgabe» zurücknehmen              | **401** ohneLogin<br>**403** lesen<br>**404** abteilungsleitung, lagerleitung, leitung, team, ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung, leitung, team           |
 
 ## Lager: fahrten
 
