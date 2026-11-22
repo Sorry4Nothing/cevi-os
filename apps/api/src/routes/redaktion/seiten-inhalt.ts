@@ -236,12 +236,14 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
             },
           );
           // Der Stil kommt aus der Verwaltung (seiten.ts), nicht von der Website
-          // Und ohne Skripte (Thema, Karussell): Die Vorschau läuft unter der CSP der Verwaltung, der Umschalter bleibt verborgen und das Karussell eine Bilderliste
+          // Und ohne Skripte (Thema, Karussell): Die Vorschau läuft unter der CSP der Verwaltung, der Umschalter bleibt verborgen und das Karussell ein Bildstreifen ohne Knöpfe
           const html = seitenHtml
             .replace(
               `href="${STYLESHEET_PFAD}"`,
               'href="/admin/website-vorschau.css"',
             )
+            // Weitere Stile der Website (Karussell) stecken schon in der Vorschau-Stilvorlage
+            .replace(/\n<link rel="stylesheet" href="\/website\/[^"]*">/g, "")
             .replace(/\n?<script [^>]*><\/script>/g, "");
           // Nur die eigene Verwaltung darf die Vorschau einrahmen
           return c.html(html, 200, {

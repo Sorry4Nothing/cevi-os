@@ -1,6 +1,7 @@
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
+import { karussell, SKRIPT_KARUSSELL, STIL_KARUSSELL } from "./karussell.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -326,28 +327,14 @@ function rendereBaustein(
             ...bilder.map((k) => el("li", undefined, k)),
           );
     }
-    // Ohne Skript eine Liste von Bildern, mit Skript (website/karussell.js) wechseln sie sich ab. Ein einzelnes Bild bleibt ein Bild
+    // Bildstreifen (karussell.ts). Ein einzelnes Bild bleibt ein Bild
     case "karussell": {
       const bilder = b.daten.bilder
         .map((e) =>
           bild(e.mediumId, daten.medien.get(e.mediumId), e.unterschrift),
         )
         .filter((k) => k !== null);
-      if (bilder.length < 2) return bilder[0] ?? null;
-      return el(
-        "div",
-        {
-          class: "karussell",
-          role: "group",
-          "aria-roledescription": "Karussell",
-          "aria-label": "Bilder",
-        },
-        el(
-          "ul",
-          { class: "folien" },
-          ...bilder.map((k) => el("li", { class: "folie" }, k)),
-        ),
-      );
+      return bilder.length < 2 ? (bilder[0] ?? null) : karussell(bilder);
     }
     // Darstellung «karten» ist die Stufenkarte des Designs (W1): Name, Text und «» Mehr zu …»; «liste» bleibt eine Zeile je Eintrag mit Link am Titel
     case "karten": {
@@ -984,7 +971,7 @@ const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
-export const SKRIPT_KARUSSELL = "/website/karussell.js";
+export { SKRIPT_KARUSSELL };
 // Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
 export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
@@ -1081,13 +1068,16 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     aktuell: s.pfad,
     canonical: k.basisUrl + s.pfad,
     inhalt,
+    // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
     ...(eintraege.some(
       (e) =>
-        sichtbar(e) &&
-        typeof e.knoten === "object" &&
-        e.knoten?.attr?.class === "karussell",
+        e.b.typ === "karussell" &&
+        (!istOeffentlich(e.b) ||
+          (typeof e.knoten === "object" &&
+            e.knoten?.attr?.class === "karussell")),
     ) && {
       zusatzSkripte: [SKRIPT_KARUSSELL],
+      stile: [STIL_KARUSSELL],
     }),
     ...(teaser?.titelbild && { titelbild: teaser.titelbild }),
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
@@ -1194,6 +1184,9 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     robots: "noindex",
     skript: SKRIPT_GESCHUETZT,
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
+    // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell findet Stil und Skript vor
+    zusatzSkripte: [SKRIPT_KARUSSELL],
+    stile: [STIL_KARUSSELL],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

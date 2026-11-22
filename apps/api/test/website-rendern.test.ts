@@ -8,6 +8,7 @@ import {
   esc,
   keineDaten,
   rendereFehlerseite,
+  rendereHuelle,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -657,7 +658,7 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain('class="thema"');
   });
 
-  test("Karussell: Liste mit Gruppe, Alt-Texten und eigenem Skript", () => {
+  test("Karussell (#559): Bildstreifen mit Gruppe, Alt-Texten, eigenem Stil und Skript", () => {
     const { ids, daten } = medien(3);
     const html = seite(
       dok("T", b("karussell", { bilder: ids.map((m) => ({ mediumId: m })) })),
@@ -666,13 +667,50 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain(
       '<div class="karussell" role="group" aria-roledescription="Karussell" aria-label="Bilder">',
     );
+    // Der Streifen scrollt seitwärts und ist mit der Tastatur erreichbar
+    expect(html).toContain('<ul class="folien" tabindex="0">');
     expect(zaehle(html, '<li class="folie">')).toBe(3);
     expect(html).toContain('alt="Bild 2"');
+    // Platz für die Leiste des Skripts; ohne Skript steht dort die Anzahl
+    expect(html).toContain('<p class="k-stand">3 Bilder</p>');
+    expect(html).toContain(
+      '<link rel="stylesheet" href="/website/karussell.css">',
+    );
     expect(html).toContain(
       '<script src="/website/karussell.js" defer></script>',
     );
-    // Kein Inline-Skript, nur die zwei eigenen Dateien
+    // Kein Inline-Skript, nur die zwei eigenen Dateien; keine Knöpfe ohne Skript
     expect(zaehle(html, "<script")).toBe(2);
+    expect(html).not.toContain('class="k-knoepfe"');
+  });
+
+  test("Karussell (#559): unter jedem Bild die Bildunterschrift, sonst der Alt-Text (für Screenreader nur einmal)", () => {
+    const { ids, daten } = medien(3);
+    const html = seite(
+      dok(
+        "T",
+        b("karussell", {
+          bilder: ids.map((m, i) => ({
+            mediumId: m,
+            ...(i === 0 && { unterschrift: "Im <Wald>" }),
+          })),
+        }),
+      ),
+      daten,
+    );
+    expect(html).toContain("<figcaption>Im &lt;Wald&gt;</figcaption>");
+    expect(html).toContain(
+      '<figcaption aria-hidden="true">Bild 2</figcaption>',
+    );
+    expect(zaehle(html, "<figcaption")).toBe(3);
+  });
+
+  test("Seiten ohne Karussell laden weder seinen Stil noch sein Skript; die Hülle lädt beides immer", () => {
+    const ohne = seite(dok("T", b("trenner", { art: "linie" })));
+    expect(ohne).not.toContain("karussell");
+    const huelle = rendereHuelle("/x", kontext());
+    expect(huelle).toContain('href="/website/karussell.css"');
+    expect(huelle).toContain('src="/website/karussell.js" defer');
   });
 
   test("Karussell: ein Bild bleibt ein Bild, ohne Bild entfällt der Baustein", () => {
@@ -687,13 +725,13 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     const eines = seite(dok("T", bausteine), nurEines);
     expect(eines).toContain("<figure>");
     expect(eines).not.toContain('class="karussell"');
-    expect(eines).not.toContain("karussell.js");
+    expect(eines).not.toContain("karussell.");
     const keines = seite(dok("T", bausteine), keineDaten());
     expect(keines).not.toContain("<figure>");
-    expect(keines).not.toContain("karussell.js");
+    expect(keines).not.toContain("karussell.");
   });
 
-  test("Karussell nur für Angemeldete: Platzhalter, kein Bild, kein Karussell-Skript", () => {
+  test("Karussell nur für Angemeldete: Platzhalter, kein Bild; Stil und Skript stehen bereit für das Nachladen", () => {
     const { ids, daten } = medien(3);
     const html = seite(
       dok(
@@ -708,6 +746,8 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     );
     expect(html).toContain("Nur angemeldet sichtbar");
     expect(html).not.toContain("<img");
-    expect(html).not.toContain("karussell.js");
+    expect(html).not.toContain('class="karussell"');
+    expect(html).toContain('href="/website/karussell.css"');
+    expect(html).toContain('src="/website/karussell.js" defer');
   });
 });
