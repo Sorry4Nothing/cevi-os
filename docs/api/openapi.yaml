@@ -7349,6 +7349,1056 @@ paths:
   # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/packliste:
+    get:
+      operationId: holeLagerPackliste
+      summary: Packliste der Person lesen
+      description: |
+        Braucht das Recht `packliste.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Die eigene Kopie der Packliste: die Vorlage der Lagerleitung (`punkte`, jeder mit dem Zustand der Person: `offen`, `abgehakt` oder `entfernt`) und die eigenen Punkte der Person (`eigene`). Punkte mit `nurLagerleitung` kommen nur mit dem Recht `vertrauliches.lesen` (Standard: nur die Lagerleitung). Eigene Punkte und Abweichungen sieht nur die Person selbst. Zwei Abfragen für die ganze Liste, unabhängig von der Zahl der Punkte; die Liste ist begrenzt (500 Punkte der Vorlage, 100 eigene).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Packliste der Person.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPackliste"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/packliste/punkte:
+    post:
+      operationId: legeLagerPacklistePunktAn
+      summary: Punkt der Packliste anlegen
+      description: |
+        Braucht das Recht `packliste.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Legt einen Punkt der Vorlage an. Ohne `reihenfolge` kommt er ans Ende. Mit `nurLagerleitung` liest ihn nur, wer `vertrauliches.lesen` hat. Höchstens 500 Punkte je Lager (409 `LIMIT_ERREICHT`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPacklistePunktAnlegen"
+      responses:
+        "201":
+          description: Der neue Punkt, für alle noch offen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPacklistePunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Packliste hat die höchste Zahl an Punkten (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/packliste/punkte/{punktId}:
+    patch:
+      operationId: aendereLagerPacklistePunkt
+      summary: Punkt der Packliste ändern
+      description: |
+        Braucht das Recht `packliste.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich. Ein Punkt mit `nurLagerleitung` ist für Rollen ohne `vertrauliches.lesen` unbekannt (404). Die Antwort trägt keinen Zustand der Person.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Punkt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: punktId
+          in: path
+          required: true
+          description: ID des Punktes (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPacklistePunktAendern"
+      responses:
+        "200":
+          description: Der geänderte Punkt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPacklistePunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerPacklistePunkt
+      summary: Punkt der Packliste löschen
+      description: |
+        Braucht das Recht `packliste.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Soft-Delete: Der Punkt verschwindet aus allen Packlisten; die Abweichungen der Personen bleiben bis zum endgültigen Löschen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Punkt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: punktId
+          in: path
+          required: true
+          description: ID des Punktes (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Der Punkt ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/packliste/punkte/{punktId}/zustand:
+    put:
+      operationId: setzeLagerPacklisteZustand
+      summary: Punkt abhaken, entfernen oder zurücknehmen
+      description: |
+        Braucht das Recht `packliste.abhaken` (Standard: Lagerleitung, Leitung und Team; die Rechte lassen sich je Lager einstellen).
+
+        Setzt die Abweichung der eigenen Kopie: `abgehakt`, `entfernt` oder `offen` (nimmt die Abweichung zurück). Gespeichert wird nur die Abweichung, eine Zeile je Person und Punkt; derselbe Aufruf wiederholt dasselbe Ergebnis. Ohne Feed und ohne Version: Nur die Person selbst liest und schreibt sie. Ein Punkt mit `nurLagerleitung` ist für Rollen ohne `vertrauliches.lesen` unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht (Lesen im Standard). 404 bei unbekanntem Lager oder Punkt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: punktId
+          in: path
+          required: true
+          description: ID des Punktes (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPacklisteZustandSetzen"
+      responses:
+        "200":
+          description: Der neue Zustand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPacklisteZustand"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/packliste/eigene:
+    post:
+      operationId: legeLagerPacklisteEigenenPunktAn
+      summary: Eigenen Punkt anlegen
+      description: |
+        Braucht das Recht `packliste.abhaken` (Standard: Lagerleitung, Leitung und Team; die Rechte lassen sich je Lager einstellen).
+
+        Ein eigener Punkt in der eigenen Kopie; ihn sieht nur die Person selbst, auch die Lagerleitung nicht. Höchstens 100 eigene Punkte je Person und Lager (409 `LIMIT_ERREICHT`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPacklisteEigenAnlegen"
+      responses:
+        "201":
+          description: Der neue eigene Punkt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPacklisteEigen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Person hat die höchste Zahl eigener Punkte (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/packliste/eigene/{eigenId}:
+    patch:
+      operationId: aendereLagerPacklisteEigenenPunkt
+      summary: Eigenen Punkt ändern oder abhaken
+      description: |
+        Braucht das Recht `packliste.abhaken` (Standard: Lagerleitung, Leitung und Team; die Rechte lassen sich je Lager einstellen).
+
+        Nur die genannten Felder ändern sich, mindestens eines. Der Punkt einer anderen Person ist unbekannt (404). Ohne Version: Nur die Person selbst ändert ihn.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Punkt, fremder Abteilung, ohne Mitgliedschaft oder bei einem Punkt einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eigenId
+          in: path
+          required: true
+          description: ID des eigenen Punktes (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPacklisteEigenAendern"
+      responses:
+        "200":
+          description: Der geänderte Punkt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPacklisteEigen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerPacklisteEigenenPunkt
+      summary: Eigenen Punkt löschen
+      description: |
+        Braucht das Recht `packliste.abhaken` (Standard: Lagerleitung, Leitung und Team; die Rechte lassen sich je Lager einstellen).
+
+        Entfernt den eigenen Punkt endgültig; niemand sonst zeigt auf ihn. Der Punkt einer anderen Person ist unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Punkt, fremder Abteilung, ohne Mitgliedschaft oder bei einem Punkt einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eigenId
+          in: path
+          required: true
+          description: ID des eigenen Punktes (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Der Punkt ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/notfall:
+    get:
+      operationId: holeLagerNotfall
+      summary: Notfall-Fenster lesen
+      description: |
+        Braucht das Recht `notfall.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Alles für den Notfall in einer Antwort: die Lageradresse mit dem gespeicherten Kartenlink (der Server ruft keinen Kartendienst ab), die Notfall-Kontakte mit Telefon und die Info-Abschnitte mit dem Merkmal `notfall`. Die Kontakte sind die von der Lagerleitung erfassten (`quelle: eintrag`) und die Leitung und Stellvertretung des Ressorts «si» und seiner Teilbereiche (`quelle: ressort`, Nummer aus dem Konto); wer schon erfasst ist, kommt nicht doppelt. Eine Telefonnummer steht nur bei diesen Kontakten, sonst nirgends im Lager. Abschnitte mit `nurLagerleitung` kommen nur mit dem Recht `vertrauliches.lesen`. Fünf Abfragen oder weniger.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Notfall-Fenster.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerNotfall"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/notfall/karte:
+    put:
+      operationId: setzeLagerKartenLink
+      summary: Kartenlink der Lageradresse setzen
+      description: |
+        Braucht das Recht `notfall.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Speichert den Link zur Lageradresse in einer Karten-App (nur https, ohne Zugangsdaten); `null` entfernt ihn. Der Server ruft den Link nie ab. Die Änderung steht im Protokoll (`lager_notfall_karte`, ohne den Link).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerKartenLinkSetzen"
+      responses:
+        "200":
+          description: Der gespeicherte Link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerKartenLink"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/notfall/kontakte:
+    post:
+      operationId: legeLagerNotfallKontaktAn
+      summary: Notfall-Kontakt anlegen
+      description: |
+        Braucht das Recht `notfall.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Entweder ein Konto, das Mitglied des Lagers ist (`personId`, 400 `KEIN_MITGLIED` sonst; die Nummer kommt aus dem Konto, solange keine eigene `telefon` steht), oder ein Name (`name`) mit Nummer (`telefon`), nie beides. Ohne `reihenfolge` kommt der Kontakt ans Ende.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerNotfallKontaktAnlegen"
+      responses:
+        "201":
+          description: Der neue Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerNotfallKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/notfall/kontakte/{kontaktId}:
+    patch:
+      operationId: aendereLagerNotfallKontakt
+      summary: Notfall-Kontakt ändern
+      description: |
+        Braucht das Recht `notfall.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich. Ein Konto bleibt ein Konto (`name` dort 400); `telefon: null` nimmt bei einem Konto die eigene Nummer zurück, bei einem Namen ist es 400 `TELEFON_FEHLT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `TELEFON_FEHLT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerNotfallKontaktAendern"
+      responses:
+        "200":
+          description: Der geänderte Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerNotfallKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerNotfallKontakt
+      summary: Notfall-Kontakt löschen
+      description: |
+        Braucht das Recht `notfall.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Soft-Delete: Der Kontakt verschwindet aus dem Notfall-Fenster.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Der Kontakt ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/infos:
+    get:
+      operationId: holeLagerInfos
+      summary: Info-Abschnitte auflisten
+      description: |
+        Braucht das Recht `infos.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Die Abschnitte nach `reihenfolge` und ID, jeder mit Text, Links und den Dateien als Verknüpfungen (Link, Anzeigename, Typ, Grösse; nie Inhalt). Abschnitte mit `nurLagerleitung` kommen nur mit dem Recht `vertrauliches.lesen` (Standard: nur die Lagerleitung). Drei Abfragen je Seite (Abschnitte, Verknüpfungen, Einträge), Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Info-Abschnitte.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerInfoSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerInfoAn
+      summary: Info-Abschnitt anlegen
+      description: |
+        Braucht das Recht `infos.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Text, Links (https, höchstens 20) und Dateien als Verknüpfungen auf Einträge von `lager_datei` (`dateiIds`, höchstens 20; sie müssen zu diesem Lager gehören, 400 sonst). Es gibt keinen Upload. Das Merkmal `notfall` zeigt den Abschnitt im Notfall-Fenster; es zu setzen und einen solchen Abschnitt zu ändern oder zu löschen braucht zusätzlich `notfall.bearbeiten` (403 sonst). Höchstens 200 Abschnitte je Lager (409 `LIMIT_ERREICHT`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder unbekannter Datei. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerInfoAnlegen"
+      responses:
+        "201":
+          description: Der neue Abschnitt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerInfo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder das Lager hat die höchste Zahl an Abschnitten (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/infos/reihenfolge:
+    put:
+      operationId: setzeLagerInfoReihenfolge
+      summary: Reihenfolge der Info-Abschnitte ändern
+      description: |
+        Braucht das Recht `infos.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Die Stelle in der Liste `eintraege` ist die neue `reihenfolge` (0, 1, 2, ...). Jeder Eintrag nennt die zuletzt gesehene `version`; Abschnitte, deren Reihenfolge schon stimmt, bleiben unberührt. Alles oder nichts. Höchstens 200 Einträge, jede ID höchstens einmal.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Abschnitt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortReihenfolge"
+      responses:
+        "204":
+          description: Reihenfolge gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder eine `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/infos/{abschnittId}:
+    get:
+      operationId: holeLagerInfo
+      summary: Info-Abschnitt lesen
+      description: |
+        Braucht das Recht `infos.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Ein Abschnitt mit `nurLagerleitung` ist für Rollen ohne `vertrauliches.lesen` unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Abschnitt, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Abschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Abschnitt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerInfo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerInfo
+      summary: Info-Abschnitt ändern
+      description: |
+        Braucht das Recht `infos.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich. `dateiIds` ersetzt die Menge der Dateien (nicht genannte fallen weg, neue kommen dazu); die Version des Abschnitts steigt auch, wenn sich nur die Dateien ändern. Ein Abschnitt mit `nurLagerleitung` ist für Rollen ohne `vertrauliches.lesen` unbekannt (404). Das Merkmal `notfall` zeigt den Abschnitt im Notfall-Fenster; es zu setzen und einen solchen Abschnitt zu ändern oder zu löschen braucht zusätzlich `notfall.bearbeiten` (403 sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder unbekannter Datei. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Abschnitt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Abschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerInfoAendern"
+      responses:
+        "200":
+          description: Der geänderte Abschnitt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerInfo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerInfo
+      summary: Info-Abschnitt löschen
+      description: |
+        Braucht das Recht `infos.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Soft-Delete; die Verknüpfungen bleiben am gelöschten Abschnitt, die Dateien am Ablageort immer. Das Merkmal `notfall` zeigt den Abschnitt im Notfall-Fenster; es zu setzen und einen solchen Abschnitt zu ändern oder zu löschen braucht zusätzlich `notfall.bearbeiten` (403 sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Abschnitt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Abschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Der Abschnitt ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -11813,6 +12863,463 @@ components:
     # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerPacklistePunkt:
+      description: Ein Punkt der Vorlage der Lagerleitung.
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - abschnitt
+        - text
+        - nurLagerleitung
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        abschnitt:
+          type: string
+        text:
+          type: string
+        nurLagerleitung:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+        zustand:
+          type: string
+          enum: [offen, abgehakt, entfernt]
+          description: Der Zustand in der eigenen Kopie der Person; fehlt in der Antwort auf Ändern.
+    LagerPacklisteEigen:
+      description: Ein eigener Punkt einer Person; ihn sieht nur sie selbst.
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - abschnitt
+        - text
+        - abgehakt
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        abschnitt:
+          type: string
+        text:
+          type: string
+        abgehakt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerPackliste:
+      description: Die eigene Kopie der Packliste einer Person.
+      type: object
+      additionalProperties: false
+      required:
+        - punkte
+        - eigene
+      properties:
+        punkte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerPacklistePunkt"
+        eigene:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerPacklisteEigen"
+    LagerPacklistePunktAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - abschnitt
+        - text
+      properties:
+        abschnitt:
+          type: string
+          minLength: 1
+          maxLength: 100
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        nurLagerleitung:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerPacklistePunktAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        abschnitt:
+          type: string
+          minLength: 1
+          maxLength: 100
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        nurLagerleitung:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerPacklisteZustandSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - zustand
+      properties:
+        zustand:
+          type: string
+          enum: [offen, abgehakt, entfernt]
+    LagerPacklisteZustand:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - zustand
+      properties:
+        id:
+          type: string
+          format: uuid
+        zustand:
+          type: string
+          enum: [offen, abgehakt, entfernt]
+    LagerPacklisteEigenAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - abschnitt
+        - text
+      properties:
+        abschnitt:
+          type: string
+          minLength: 1
+          maxLength: 100
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerPacklisteEigenAendern:
+      description: Mindestens ein Feld.
+      type: object
+      additionalProperties: false
+      properties:
+        abschnitt:
+          type: string
+          minLength: 1
+          maxLength: 100
+        text:
+          type: string
+          minLength: 1
+          maxLength: 300
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+        abgehakt:
+          type: boolean
+    LagerNotfallKontakt:
+      description: Ein Notfall-Kontakt mit Telefon. Eine Nummer steht nur hier, sonst nirgends im Lager.
+      type: object
+      additionalProperties: false
+      required:
+        - quelle
+        - id
+        - version
+        - funktion
+        - personId
+        - name
+        - ceviName
+        - telefon
+        - reihenfolge
+      properties:
+        quelle:
+          type: string
+          enum: [eintrag, ressort]
+          description: eintrag = von der Lagerleitung erfasst, ressort = Leitung oder Stellvertretung des Ressorts «si» und seiner Teilbereiche.
+        id:
+          type: [string, "null"]
+          format: uuid
+          description: Nur bei einem erfassten Kontakt.
+        version:
+          type: [integer, "null"]
+          description: Nur bei einem erfassten Kontakt.
+        funktion:
+          type: string
+        personId:
+          type: [string, "null"]
+          format: uuid
+        name:
+          type: string
+        ceviName:
+          type: [string, "null"]
+        telefon:
+          type: [string, "null"]
+          description: Die eigene Nummer des Eintrags, sonst die Nummer aus dem Konto; null, wenn keine da ist.
+        reihenfolge:
+          type: [integer, "null"]
+    LagerNotfall:
+      type: object
+      additionalProperties: false
+      required:
+        - adresse
+        - kontakte
+        - infos
+      properties:
+        adresse:
+          type: object
+          additionalProperties: false
+          required:
+            - ort
+            - adresse
+            - kartenLink
+          properties:
+            ort:
+              type: [string, "null"]
+            adresse:
+              type: [string, "null"]
+            kartenLink:
+              type: [string, "null"]
+              format: uri
+              description: Gespeicherter Link zur Karten-App; der Server ruft ihn nie ab.
+        kontakte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerNotfallKontakt"
+        infos:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerInfo"
+    LagerKartenLinkSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - kartenLink
+      properties:
+        kartenLink:
+          type: [string, "null"]
+          maxLength: 2048
+          description: https-Adresse ohne Zugangsdaten; null entfernt den Link.
+    LagerKartenLink:
+      type: object
+      additionalProperties: false
+      required:
+        - kartenLink
+      properties:
+        kartenLink:
+          type: [string, "null"]
+          format: uri
+    LagerNotfallKontaktAnlegen:
+      description: Genau eines von personId und name.
+      type: object
+      additionalProperties: false
+      required:
+        - funktion
+      properties:
+        funktion:
+          type: string
+          minLength: 1
+          maxLength: 100
+        personId:
+          type: string
+          format: uuid
+          description: Mitglied des Lagers; die Nummer kommt aus dem Konto, solange keine eigene steht.
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Name ohne Konto; braucht telefon.
+        telefon:
+          type: string
+          description: Telefonnummer, nur Ziffern und die üblichen Trennzeichen.
+          example: "+41 79 123 45 67"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerNotfallKontaktAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        funktion:
+          type: string
+          minLength: 1
+          maxLength: 100
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        telefon:
+          type: [string, "null"]
+          description: Telefonnummer; null nimmt bei einem Konto die eigene Nummer zurück.
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerInfoLink:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - url
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          format: uri
+          maxLength: 2048
+          description: https-Adresse; der Server ruft sie nie ab.
+    LagerInfo:
+      description: Ein Info-Abschnitt mit Text, Links und Dateien als Verknüpfungen.
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - titel
+        - text
+        - links
+        - nurLagerleitung
+        - notfall
+        - reihenfolge
+        - dateien
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+        text:
+          type: [string, "null"]
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerInfoLink"
+        nurLagerleitung:
+          type: boolean
+        notfall:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+        dateien:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDatei"
+    LagerInfoSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - abschnitte
+        - naechster
+      properties:
+        abschnitte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerInfo"
+        naechster:
+          type: [string, "null"]
+          format: uuid
+          description: Cursor für die nächste Seite, null bei der letzten.
+    LagerInfoAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: [string, "null"]
+          maxLength: 20000
+        links:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/LagerInfoLink"
+        nurLagerleitung:
+          type: boolean
+        notfall:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+        dateiIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    LagerInfoAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: [string, "null"]
+          maxLength: 20000
+        links:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/LagerInfoLink"
+        nurLagerleitung:
+          type: boolean
+        notfall:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+        dateiIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
     # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
