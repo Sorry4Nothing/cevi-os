@@ -14,7 +14,14 @@ export const ARTEN = {
     titel: "Antwort auf deine Nachricht",
   },
   diensttausch: { push: "lager_einteilung", titel: "Diensttausch" },
-  anwesenheit_anfrage: { push: "lager_anwesenheit", titel: "Anwesenheit" },
+  anwesenheit_anfrage: {
+    push: "lager_anwesenheit",
+    titel: "Neue Anwesenheits-Anfrage",
+  },
+  anwesenheit_entscheid: {
+    push: "lager_anwesenheit",
+    titel: "Deine Anwesenheits-Anfrage wurde entschieden",
+  },
 } as const satisfies Record<string, { push: LagerPushTyp; titel: string }>;
 
 export type BenachrichtigungsArt = keyof typeof ARTEN;
