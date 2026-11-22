@@ -18,7 +18,7 @@ body:
   type: json
   content: |-
     {
-      "kindId": "01a202e0-89da-766f-9f86-1f334f64a3b0",
+      "kindId": "01a202fd-686b-70aa-a4d2-0a69bc2c8144",
       "antworten": {
         "bemerkung": "Freue mich"
       }
