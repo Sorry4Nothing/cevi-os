@@ -42,7 +42,9 @@ export function pruefeAntworten(
     const leer =
       wert === undefined ||
       wert === null ||
-      (feld.typ !== "ja_nein" && typeof wert === "string" && wert.trim() === "");
+      (feld.typ !== "ja_nein" &&
+        typeof wert === "string" &&
+        wert.trim() === "");
     if (leer) {
       if (feld.pflicht)
         fehler.push({ schluessel: feld.schluessel, code: "PFLICHT" });
