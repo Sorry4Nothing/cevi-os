@@ -37,6 +37,7 @@ import { erstelleRedaktionRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
+import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
@@ -236,6 +237,8 @@ export function erstelleApp({
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/lager", erstelleLagerRouten({ db, fcm }))
+      // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
+      .route("/api/v1", erstelleTermineRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))

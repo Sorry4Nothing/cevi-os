@@ -91,8 +91,8 @@ export function erstelleEreignisRouten({
 
       const lesbar = new Set(
         listeLagerTabellen()
-          // Tabellen ohne eigenes Leserecht (recht: null, lager_datei) melden nur den Typ; der Feed filtert die Zeilen
-          .filter(([, e]) => e.recht === null || darf(zugriff, e.recht))
+          // Tabellen ohne eigenes Leserecht (recht: null, lager_datei) melden keinen Typ: Ihre Einträge kommen nur mit den Datensätzen der Module, die sie einbinden, und der Feed filtert die Zeilen
+          .filter(([, e]) => e.recht !== null && darf(zugriff, e.recht))
           .map(([name]) => name),
       );
       const angemeldet = verteiler.verbinde(
