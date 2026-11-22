@@ -14474,6 +14474,291 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/diensttausch:
+    get:
+      operationId: holeLagerDiensttausch
+      summary: Tauschanfragen des Lagers auflisten
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Alle Anfragen, älteste zuerst (nach ID), mit Filter `status`. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`. Personen und Schichten stehen als ID; die Namen löst die App über die Listen der Mitglieder und den Schichtplan auf.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Nur Anfragen mit diesem Stand.
+          schema:
+            type: string
+            enum: [offen, angenommen, abgelehnt, zurueckgezogen]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die `naechster`-ID der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Anfragen je Seite (1 bis 200, Standard 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttauschSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerDiensttauschAn
+      summary: Diensttausch anfragen
+      description: |
+        Braucht das Recht `diensttausch.anfragen` (Standard: Lagerleitung, Leitung und Team) und die Mitgliedschaft im Lager (die Abteilungsleitung ist kein Mitglied: 403 `KEIN_MITGLIED`). Die Person fragt für eine eigene Schicht an; die Lagerleitung entscheidet. Ob die Wunschperson zustimmt, klärt die Lagerleitung selbst: Cevi OS fragt sie nicht. Es gibt drei Formen: `mitSchichtId` (Schicht einer anderen Person: beide tauschen), `mitPersonId` (diese Person übernimmt die Schicht) oder keins von beiden (die Lagerleitung nennt beim Entscheid die Person, die übernimmt). `mitSchichtId` und `mitPersonId` zusammen sind ungültig (400). Je Schicht höchstens eine offene Anfrage (409 `ANFRAGE_OFFEN`).
+
+        Eine fremde Schicht ist 403 `NICHT_DEINE_SCHICHT`, eine unbekannte oder gelöschte Schicht 404. Eine Wunschschicht, die der Person selbst oder Teilnehmenden gehört, und die eigene Person als Wunschperson sind 400 (`MIT_SCHICHT_UNGUELTIG`, `MIT_PERSON_UNGUELTIG`); eine Wunschperson, die kein aktives Mitglied des Lagers ist, 404.
+
+        Benachrichtigung: Alle Mitglieder der Rolle Lagerleitung bekommen eine Benachrichtigung (Art `diensttausch_anfrage`, Push `lager_einteilung`); der Push nennt weder Person noch Schicht.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht, ohne Mitgliedschaft (`KEIN_MITGLIED`) oder bei fremder Schicht (`NICHT_DEINE_SCHICHT`). 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft, unbekannter Schicht oder Person. 409 bei abgeschlossenem Lager oder `ANFRAGE_OFFEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschAnlegen"
+      responses:
+        "201":
+          description: Die neue Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder für die Schicht wartet schon eine Anfrage (`ANFRAGE_OFFEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/eigene:
+    get:
+      operationId: holeLagerDiensttauschEigene
+      summary: Eigene Tauschanfragen lesen
+      description: |
+        Braucht das Recht `diensttausch.anfragen` (Standard: Lagerleitung, Leitung und Team). Die letzten 200 Anfragen der Person der Sitzung, neueste zuerst, in einer Abfrage.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die eigenen Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttauschListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/entscheid:
+    post:
+      operationId: entscheideLagerDiensttausch
+      summary: Tauschanfrage annehmen oder ablehnen
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Entscheidet eine offene Anfrage mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Alles geschieht in einer Transaktion unter der Lagersperre: Zwei gleichzeitige Entscheide auf dieselbe Anfrage laufen nacheinander, der zweite ist 409 `BEREITS_ENTSCHIEDEN`.
+
+        Ablehnen ändert nur die Anfrage. Annehmen bucht die Schichten um: Mit Wunschschicht tauschen beide Personen (liegen beide Schichten im selben Abschnitt desselben Tages, tauschen sie den Dienst); sonst übernimmt die Wunschperson die Schicht. Hat die Anfrage keine Wunschperson, nennt der Entscheid sie in `mitPersonId` (sonst 400 `MIT_PERSON_UNGUELTIG`; bei einer Wunschperson in der Anfrage ist `mitPersonId` nur gleich dieser erlaubt). Die Regeln des Schichtplans gelten erneut: Wer neu in einem Abschnitt steht, ist dort nicht abwesend (409 `ABWESEND`) und hat dort keinen anderen Dienst (409 `DOPPELBELEGT`); die Person, die übernimmt, ist ein aktives Mitglied (409 `PERSON_NICHT_VERFUEGBAR`). Stehen die Schichten nicht mehr so wie bei der Anfrage (gelöscht, anders besetzt), ist es 409 `SCHICHT_GEAENDERT`; die Anfrage bleibt offen und lässt sich ablehnen. Bei jedem Fehler ist nichts geändert.
+
+        Benachrichtigung: Die anfragende Person und, bei Annahme, die andere Person bekommen eine Benachrichtigung (Art `diensttausch_entscheid`, Push `lager_einteilung`); der Push nennt weder Person noch Entscheid.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der entschiedenen Anfrage. 400 bei ungültiger Eingabe oder `MIT_PERSON_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT`, `BEREITS_ENTSCHIEDEN`, `SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND` oder `DOPPELBELEGT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschEntscheiden"
+      responses:
+        "200":
+          description: Die entschiedene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand), die Anfrage ist schon entschieden (`BEREITS_ENTSCHIEDEN`) oder das Umbuchen verletzt eine Regel (`SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND`, `DOPPELBELEGT`). Dann ist nichts geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/zurueckziehen:
+    post:
+      operationId: ziehLagerDiensttauschZurueck
+      summary: Tauschanfrage zurückziehen
+      description: |
+        Braucht das Recht `diensttausch.anfragen`. Nur die anfragende Person zieht ihre offene Anfrage zurück, mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Eine fremde Anfrage ist 403 `NICHT_DEINE_ANFRAGE`, eine schon entschiedene 409 `BEREITS_ENTSCHIEDEN`. Keine Benachrichtigung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der Anfrage im Stand `zurueckgezogen`. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht oder bei fremder Anfrage. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT` oder `BEREITS_ENTSCHIEDEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschZurueckziehen"
+      responses:
+        "200":
+          description: Die zurückgezogene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`) oder die Anfrage ist schon entschieden (`BEREITS_ENTSCHIEDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/anwesenheit:
     get:
@@ -22606,7 +22891,7 @@ components:
         - `erwaehnung`: `lager_erwaehnung`
         - `pinnwand_wichtig`: `lager_pinnwand`
         - `eingang_antwort`: `lager_eingang`
-        - `diensttausch`: `lager_einteilung`
+        - `diensttausch_anfrage`, `diensttausch_entscheid`: `lager_einteilung`
         - `anwesenheit_anfrage`: `lager_anwesenheit`
         - `adressbuch_aufraeumen`: `lager_pinnwand` (Erinnerung der Lagerleitung 14 Tage vor dem Aufräumen des Adressbuchs; das Ziel ist das Lager, `objektTyp` ist `adressbuch`)
       enum:
@@ -22616,7 +22901,8 @@ components:
         - frist
         - pinnwand_wichtig
         - eingang_antwort
-        - diensttausch
+        - diensttausch_anfrage
+        - diensttausch_entscheid
         - anwesenheit_anfrage
         - adressbuch_aufraeumen
     LagerPushTyp:
@@ -27768,6 +28054,139 @@ components:
           type: integer
           minimum: 0
     # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDiensttausch:
+      description: "Eine Anfrage, eine eigene Schicht zu tauschen oder abzugeben. Personen und Schichten als ID."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - vonPersonId
+        - schichtId
+        - mitPersonId
+        - mitSchichtId
+        - notiz
+        - status
+        - entschiedenVon
+        - entschiedenAm
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit Entscheid und Zurückziehen."
+          type: integer
+          minimum: 1
+        vonPersonId:
+          description: "Die anfragende Person, Inhaberin der Schicht."
+          type: string
+          format: uuid
+        schichtId:
+          description: "Die eigene Schicht der anfragenden Person."
+          type: string
+          format: uuid
+        mitPersonId:
+          description: "Wunschperson oder, nach der Annahme ohne Wunschperson, die Person, die übernommen hat; sonst `null`."
+          type: [string, "null"]
+          format: uuid
+        mitSchichtId:
+          description: "Schicht der Wunschperson, die getauscht wird; `null` bei einer Übernahme."
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        status:
+          description: "`offen`, `angenommen`, `abgelehnt` oder `zurueckgezogen`."
+          type: string
+          enum: [offen, angenommen, abgelehnt, zurueckgezogen]
+        entschiedenVon:
+          description: "Wer entschied; beim Zurückziehen die anfragende Person."
+          type: [string, "null"]
+          format: uuid
+        entschiedenAm:
+          type: [string, "null"]
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerDiensttauschListe:
+      type: object
+      additionalProperties: false
+      required:
+        - tausche
+      properties:
+        tausche:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDiensttausch"
+    LagerDiensttauschSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - tausche
+        - naechster
+      properties:
+        tausche:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDiensttausch"
+        naechster:
+          description: "ID der letzten Anfrage der Seite für `nach`, oder `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerDiensttauschAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - schichtId
+      properties:
+        schichtId:
+          description: "Die eigene Schicht."
+          type: string
+          format: uuid
+        mitSchichtId:
+          description: "Schicht einer anderen Person des Lagers, die getauscht wird. Nicht zusammen mit `mitPersonId`."
+          type: string
+          format: uuid
+        mitPersonId:
+          description: "Wunschperson, die die Schicht übernimmt. Nicht zusammen mit `mitSchichtId`."
+          type: string
+          format: uuid
+        notiz:
+          type: string
+          minLength: 1
+          maxLength: 500
+    LagerDiensttauschEntscheiden:
+      type: object
+      additionalProperties: false
+      required:
+        - entscheid
+        - version
+      properties:
+        entscheid:
+          type: string
+          enum: [angenommen, abgelehnt]
+        version:
+          description: "Die zuletzt gesehene Version der Anfrage."
+          type: integer
+          minimum: 1
+        mitPersonId:
+          description: "Die Person, die übernimmt, wenn die Anfrage keine Wunschperson nennt; nur bei `angenommen`."
+          type: string
+          format: uuid
+    LagerDiensttauschZurueckziehen:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          description: "Die zuletzt gesehene Version der Anfrage."
+          type: integer
+          minimum: 1
     # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerAnwesenheitWert:
       description: "`A` anwesend, `F` abwesend, `O` offen."

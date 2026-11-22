@@ -1917,6 +1917,61 @@ export const schicht = pgTable(
   ],
 );
 
+// Anfrage eines Mitglieds, eine eigene Schicht zu tauschen oder abzugeben (#389). schicht_id ist die eigene Schicht. Mit mit_schicht_id (Schicht einer anderen Person) tauschen beide, mit nur mit_person_id übernimmt diese Person die Schicht, ohne beides wählt die Lagerleitung beim Entscheid die Person. Ob die Wunschperson einverstanden ist, klärt die Lagerleitung; Cevi OS fragt sie nicht. Erst der Entscheid «angenommen» bucht die Schichten um (lager/diensttausch.ts). Beim Zurückziehen und Entscheiden setzt entschieden_am den Zeitpunkt, entschieden_von die Person (beim Zurückziehen die anfragende). schicht_id und mit_schicht_id haben keinen Fremdschlüssel mit Lager (schicht hat keinen Schlüssel dafür): Der Code lädt Schichten immer mit lager_id. Geschrieben wird nur über lager/sync.ts
+export const diensttausch = pgTable(
+  "diensttausch",
+  {
+    ...lagerSpalten(),
+    vonPersonId: uuid("von_person_id").notNull(),
+    schichtId: uuid("schicht_id")
+      .notNull()
+      .references(() => schicht.id, { onDelete: "cascade" }),
+    mitPersonId: uuid("mit_person_id"),
+    mitSchichtId: uuid("mit_schicht_id").references(() => schicht.id, {
+      onDelete: "cascade",
+    }),
+    notiz: text("notiz"),
+    status: text("status", {
+      enum: ["offen", "angenommen", "abgelehnt", "zurueckgezogen"],
+    })
+      .notNull()
+      .default("offen"),
+    entschiedenVon: uuid("entschieden_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({
+      name: "diensttausch_von_fk",
+      columns: [t.lagerId, t.vonPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "diensttausch_mit_fk",
+      columns: [t.lagerId, t.mitPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    uniqueIndex("diensttausch_offen_uq")
+      .on(t.lagerId, t.schichtId)
+      .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
+    index("diensttausch_liste_idx").on(t.lagerId, t.status, t.id),
+    index("diensttausch_person_idx").on(t.lagerId, t.vonPersonId, t.id),
+    check(
+      "diensttausch_status_check",
+      sql`${t.status} in ('offen', 'angenommen', 'abgelehnt', 'zurueckgezogen') and (${t.status} = 'offen') = (${t.entschiedenAm} is null)`,
+    ),
+    check(
+      "diensttausch_wunsch_check",
+      sql`(${t.mitSchichtId} is null or ${t.mitPersonId} is not null) and ${t.mitPersonId} is distinct from ${t.vonPersonId} and ${t.mitSchichtId} is distinct from ${t.schichtId}`,
+    ),
+    check(
+      "diensttausch_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
+    ),
+  ],
+);
+
 // Tagesseite (#391): eine Seite je Lagertag mit Tageschef und Notiz. Die Seite entsteht beim ersten Schreiben (Seite oder Block); je Lagertag höchstens eine nicht gelöschte. Der Tageschef ist Mitglied des Lagers; verlässt er es, wird die Angabe leer (in der Migration ON DELETE SET NULL (tageschef_person_id): Postgres 15 setzt nur die eine Spalte, drizzle kennt die Spaltenliste nicht). To-dos der Tagesseite sind keine Zeilen hier, sie zeigen die Aufgaben mit Frist an diesem Tag (#372)
 export const tagesseite = pgTable(
   "tagesseite",
