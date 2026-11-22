@@ -20981,7 +20981,7 @@ paths:
       operationId: leseRedaktionWebsiteEinstellungen
       summary: Name und Logo der Website lesen
       description: |
-        Der Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (`null` = kein Logo, der Kopf zeigt dann die Wortmarke «CEVI» mit dem Namen). Nur die Abteilungsleitung und wer `seiten.veroeffentlichen` hat. Admins brauchen den zweiten Faktor. Eine Abfrage.
+        Der Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (`null` = kein Logo, der Kopf zeigt dann die Wortmarke «CEVI» mit dem Namen). Nur die Abteilungsleitung und wer `seiten.veroeffentlichen` hat. Admins brauchen den zweiten Faktor. `nameAenderbar` ist wahr nur für die Rolle Entwickler: Nur sie ändert den Namen. Zwei Abfragen.
 
         Statuscodes: 200 bei Erfolg. 403 ohne Recht.
       tags:
@@ -21007,7 +21007,7 @@ paths:
       operationId: aendereRedaktionWebsiteEinstellungen
       summary: Name und Logo der Website ändern
       description: |
-        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. `logoMediumId` ist ein Bild der eigenen Abteilung mit der Sichtbarkeit «öffentlich» (`null` nimmt das Logo weg); sonst 422 mit `MEDIUM_UNBEKANNT` (auch bei fremden IDs), `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`. Den `name` der Abteilung ändert nur die Abteilungsleitung (sonst 403), denn er steht auch in der App. Ein Medium, das als Logo dient, lässt sich nicht löschen (409 `MEDIUM_VERWENDET`).
+        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. `logoMediumId` ist ein Bild der eigenen Abteilung mit der Sichtbarkeit «öffentlich» (`null` nimmt das Logo weg); sonst 422 mit `MEDIUM_UNBEKANNT` (auch bei fremden IDs), `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`. Den `name` der Abteilung ändert nur die Rolle Entwickler (sonst 403, auch für die Abteilungsleitung), denn er steht auch in der App. Ein Medium, das als Logo dient, lässt sich nicht löschen (409 `MEDIUM_VERWENDET`).
 
         Danach erzeugt die Auslieferung alle Seiten neu (der Kopf steht auf jeder). Audit-Log: `website_einstellungen_geaendert` mit den Namen der Felder.
 
@@ -34572,11 +34572,15 @@ components:
       required:
         - name
         - logoMediumId
+        - nameAenderbar
       properties:
         name:
           type: string
           maxLength: 100
           description: Der Name der Abteilung, im Kopf und im Fuss der Website.
+        nameAenderbar:
+          type: boolean
+          description: Wahr nur für die Rolle Entwickler; nur sie darf den Namen ändern.
         logoMediumId:
           type: [string, "null"]
           format: uuid

@@ -127,9 +127,15 @@ describe("Name und Logo der Website (#550)", () => {
   test("lesen: Name und Logo der eigenen Abteilung", async () => {
     const antwort = await anfrage(admin, "GET");
     expect(antwort.status).toBe(200);
-    const k = (await antwort.json()) as { name: string; logoMediumId: unknown };
+    const k = (await antwort.json()) as {
+      name: string;
+      logoMediumId: unknown;
+      nameAenderbar: boolean;
+    };
     expect(k.name).toBe((await stand(welt.testabteilungId)).name);
     expect(k).toHaveProperty("logoMediumId");
+    // Nur der Entwickler ändert den Namen, auch die Abteilungsleitung nicht
+    expect(k.nameAenderbar).toBe(false);
   });
 
   test("Stufenleitung: 403, ohne Login 401", async () => {
@@ -182,10 +188,25 @@ describe("Name und Logo der Website (#550)", () => {
     await anfrage(admin, "PATCH", { logoMediumId: null });
   });
 
-  test("die Abteilungsleitung ändert den Namen", async () => {
+  test("die Abteilungsleitung ändert den Namen nicht", async () => {
     const vorher = (await stand(welt.testabteilungId)).name;
+    const antwort = await anfrage(admin, "PATCH", { name: "Anders" });
+    expect(antwort.status).toBe(403);
+    expect((await stand(welt.testabteilungId)).name).toBe(vorher);
+  });
+
+  test("der Entwickler ändert den Namen", async () => {
+    const vorher = (await stand(welt.testabteilungId)).name;
+    const entwickler = await legePersonaMitFaktorAn(welt, "leitendeB");
+    await db
+      .insert(schema.plattformEntwickler)
+      .values({ userId: entwickler.id! });
     try {
-      const antwort = await anfrage(admin, "PATCH", {
+      const lesen = await anfrage(entwickler, "GET");
+      expect(
+        ((await lesen.json()) as { nameAenderbar: boolean }).nameAenderbar,
+      ).toBe(true);
+      const antwort = await anfrage(entwickler, "PATCH", {
         name: "  Cevi Beispiel  ",
       });
       expect(antwort.status).toBe(200);
@@ -193,6 +214,9 @@ describe("Name und Logo der Website (#550)", () => {
         "Cevi Beispiel",
       );
     } finally {
+      await db
+        .delete(schema.plattformEntwickler)
+        .where(eq(schema.plattformEntwickler.userId, entwickler.id!));
       await db
         .update(schema.abteilung)
         .set({ name: vorher })
