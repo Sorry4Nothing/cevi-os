@@ -15452,6 +15452,94 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/termine/alle:
+    get:
+      operationId: termineAlleListe
+      summary: «Alle Termine» – für das Web, nicht für die Apps
+      tags:
+        - Termine
+      description: |
+        Nur für das Web. Für die Apps ist die Route nicht erreichbar: Eine Anfrage mit dem Header `X-App-Version` (so melden sich die Apps) ist 404.
+        Der Client setzt den Header selbst, er hält also keinen Angreifer auf. Er sichert den Vertrag, dass die Apps nie mehr als `GET /api/v1/termine/mein` abrufen;
+        die Antwort enthält ohnehin nichts, was die Person nicht sehen dürfte.
+
+        Aufbau, Zeitraum, Seitenwechsel und Zwischenspeicher wie bei `GET /api/v1/termine/mein`; jeder Termin trägt zusätzlich `meine`: wahr, wenn er auch in «Mein Kalender» liegt.
+        Ein Termin erscheint je Person einmal.
+
+        Was die Person sieht:
+        - Abteilungsleitung (Admin): jeden Termin der eigenen Abteilung mit mindestens einem Tag, mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
+        - Alle anderen: die Termine aus «Mein Kalender» (`meine` ist wahr), mit den eigenen Tags. Dazu kommen die Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich» (`meine` falsch, wenn kein eigener Tag passt); `anlass` trägt dann den Verweis auf die Anmeldung wie in «Mein Kalender».
+        - Ein Termin ohne Tag nie, auch nicht für die Abteilungsleitung. Fremde Abteilungen nie.
+
+        Statuscodes: 200 Erfolg; 304 unverändert; 400 `von` oder `bis` fehlt oder ist kein Datum, `von` nach `bis`, mehr als 400 Tage, `limit` ausserhalb 1 bis 100, ungültiges `nach` oder unbekannte Query-Parameter;
+        401 keine gültige Sitzung; 403 das Konto muss zuerst das Passwort ändern; 404 die Anfrage trägt `X-App-Version`; 429 zu viele Anfragen.
+      parameters:
+        - name: von
+          in: query
+          required: true
+          description: Erster Tag des Zeitraums (inklusive), Schweizer Kalendertag.
+          schema:
+            type: string
+            format: date
+            example: 2027-03-01
+        - name: bis
+          in: query
+          required: true
+          description: Letzter Tag des Zeitraums (inklusive), Schweizer Kalendertag; höchstens 400 Tage nach `von`.
+          schema:
+            type: string
+            format: date
+            example: 2027-03-31
+        - name: limit
+          in: query
+          required: false
+          description: Anzahl Termine je Seite, 1 bis 100.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Der Wert `naechste` der Vorseite, unverändert.
+          schema:
+            type: string
+            maxLength: 200
+        - name: If-None-Match
+          in: header
+          required: false
+          description: Der `ETag` der letzten Antwort auf diese Anfrage.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eine Seite der Termine, möglicherweise leer.
+          headers:
+            ETag:
+              description: Stempel des Inhalts, für `If-None-Match`.
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `private, no-cache`.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminAlleListe"
+        "304":
+          description: Der Inhalt ist seit dem `ETag` unverändert; ohne Inhalt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/ich/kalender-link:
     get:
@@ -25455,6 +25543,36 @@ components:
                 - offen
               description: Eigene Anmeldung als Leitung. Der Schlüssel fehlt, wenn die Person nicht Leitung einer Stufe des Termins ist.
     # termine-schemas: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminAlleListe:
+      type: object
+      required:
+        - termine
+        - weitere
+        - naechste
+      properties:
+        termine:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminAlleEintrag"
+        weitere:
+          type: boolean
+          description: Wahr, wenn es nach dieser Seite weitere Termine im Zeitraum gibt.
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite, undurchsichtig; `null` auf der letzten Seite.
+    TerminAlleEintrag:
+      description: Ein Termin wie in «Mein Kalender», dazu `meine`. Die Abteilungsleitung bekommt in `tags` alle Tags des Termins, alle anderen nur die eigenen.
+      allOf:
+        - $ref: "#/components/schemas/TerminMeinEintrag"
+        - type: object
+          required:
+            - meine
+          properties:
+            meine:
+              type: boolean
+              description: Wahr, wenn der Termin auch in «Mein Kalender» liegt.
     # termine-schemas: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     KalenderLinkStatus:
       type: object
