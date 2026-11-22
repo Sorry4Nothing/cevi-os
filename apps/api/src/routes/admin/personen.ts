@@ -192,6 +192,36 @@ export function erstellePersonenRouten({
     if (istLetzterAdmin(admins, zielId)) throw new Konflikt("LETZTER_ADMIN");
   }
 
+  // Neues Startpasswort setzen, alle Sitzungen beenden (Push-Tokens enden mit ihnen, #42), danach Pflichtwechsel, 7 Tage und Bremse von vorn
+  async function setzeStartpasswortNeu(
+    headers: Headers,
+    person: Person,
+    id: string,
+    aktion: string,
+    weitereFelder: Partial<typeof user.$inferInsert> = {},
+  ) {
+    const startpasswort = erzeugeStartpasswort();
+    await auth.api.setUserPassword({
+      body: {
+        userId: id,
+        newPassword: normalisiereStartpasswort(startpasswort),
+      },
+      headers,
+    });
+    await auth.api.revokeUserSessions({ body: { userId: id }, headers });
+    await db.transaction(async (tx) => {
+      await tx
+        .update(user)
+        .set({
+          ...startpasswortFelder(new Date(), startpasswort),
+          ...weitereFelder,
+        })
+        .where(eq(user.id, id));
+      await protokolliere(tx, person, aktion, id);
+    });
+    return startpasswort;
+  }
+
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
@@ -502,25 +532,14 @@ export function erstellePersonenRouten({
       await ladeZiel(person, id);
       // Vor jedem Aufruf: Ein Reset auf sich selbst meldete den Admin ab, bevor das Passwort notiert ist
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
-      const startpasswort = erzeugeStartpasswort();
-      const headers = c.req.raw.headers;
-      await auth.api.setUserPassword({
-        body: {
-          userId: id,
-          newPassword: normalisiereStartpasswort(startpasswort),
-        },
-        headers,
+      return c.json({
+        startpasswort: await setzeStartpasswortNeu(
+          c.req.raw.headers,
+          person,
+          id,
+          "startpasswort_neu",
+        ),
       });
-      // Alle Sitzungen enden, die Push-Tokens mit ihnen (#42); danach Pflichtwechsel, 7 Tage und Bremse von vorn
-      await auth.api.revokeUserSessions({ body: { userId: id }, headers });
-      await db.transaction(async (tx) => {
-        await tx
-          .update(user)
-          .set(startpasswortFelder(new Date(), startpasswort))
-          .where(eq(user.id, id));
-        await protokolliere(tx, person, "startpasswort_neu", id);
-      });
-      return c.json({ startpasswort });
     })
     .post("/:id/deaktivieren", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
@@ -556,18 +575,18 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
-      await auth.api.unbanUser({
-        body: { userId: id },
-        headers: c.req.raw.headers,
-      });
-      await db.transaction(async (tx) => {
-        await tx
-          .update(user)
-          .set({ deaktiviertAm: null })
-          .where(eq(user.id, id));
-        await protokolliere(tx, person, "person_aktiviert", id);
-      });
-      return c.body(null, 204);
+      if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
+      const headers = c.req.raw.headers;
+      // Zuerst das neue Startpasswort, dann die Sperre weg: Scheitert ein Schritt, bleibt das alte Passwort ungültig und die Person gesperrt. Das alte konnte während der Sperre in falsche Hände geraten (#226)
+      const startpasswort = await setzeStartpasswortNeu(
+        headers,
+        person,
+        id,
+        "person_aktiviert",
+        { deaktiviertAm: null },
+      );
+      await auth.api.unbanUser({ body: { userId: id }, headers });
+      return c.json({ startpasswort });
     })
     .post(
       "/:id/zweiter-faktor-zuruecksetzen",
