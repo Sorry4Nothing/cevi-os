@@ -19,6 +19,7 @@ import {
   sendeFristErinnerungen,
   starteFristErinnerung,
 } from "./lager/fristen.js";
+import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -109,6 +110,11 @@ starteSitzungenAufraeumen(
 starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
+);
+// Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)
+starteSitzungenAufraeumen(
+  () => loescheAlteTeilnehmende(db),
+  "lager_teilnehmende",
 );
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));

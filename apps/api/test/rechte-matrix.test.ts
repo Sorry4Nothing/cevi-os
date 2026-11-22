@@ -146,6 +146,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-seiten.css": { erwartet: alle(200) },
   "GET /admin/website-editor.js": { erwartet: alle(200) },
   "GET /admin/website-editor.css": { erwartet: alle(200) },
+  "GET /admin/website-richtext.js": { erwartet: alle(200) },
+  "GET /admin/website-vorschau.css": { erwartet: alle(200) },
   "GET /admin/website-medien.js": { erwartet: alle(200) },
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
@@ -1298,6 +1300,19 @@ const MATRIX: Record<string, Zeile> = {
   // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
   "GET /api/v1/redaktion/seiten/:id/entwurf": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Vorschau des Entwurfs (#358): dasselbe Recht wie der Entwurf
+  "GET /api/v1/redaktion/seiten/:id/vorschau": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/vorschau`,
     erwartet: {
       ...alle(403),
       admin: 200,

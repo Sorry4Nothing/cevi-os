@@ -134,16 +134,33 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
+  },
+  lagerTeilnehmende: {
+    titel: "Teilnehmende im Lager",
+    zweck:
+      "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
+    frist:
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
   },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
       "Dateien, die im SharePoint der Abteilung liegen, im Lager auffindbar machen, zum Beispiel an einem Pinnwand-Beitrag oder einem Dokument. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ und Grösse, nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Beim Eintrag steht, welches Konto ihn hinzugefügt hat. Die Abteilungsleitung kann festlegen, auf welchen Hosts die Links liegen dürfen. Eine Offline-Kopie legt nur die App an und nur, wenn die Person die Option in den Einstellungen der App einschaltet.",
     frist: `Bis die Leitung die Verknüpfung löscht oder das Lager gelöscht wird; ein Eintrag, den kein Datensatz einbindet, entfällt nach 24 Stunden. Die Datei am Ablageort bleibt immer. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag hinzugefügt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
+  lagerPinnwand: {
+    titel: "Pinnwand im Lager",
+    zweck:
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+    frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -163,12 +180,37 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerNotfall: {
+    titel: "Notfall-Kontakte im Lager",
+    zweck:
+      "Im Notfall die richtigen Personen sofort erreichen. Die Lagerleitung erfasst die Sicherheitsverantwortlichen und weitere Anlaufstellen mit Funktion und Telefonnummer, entweder als Konto des Lagers (die Nummer kommt aus dem Konto, solange keine eigene steht) oder als Name mit Nummer. Dazu kommen Leitung und Stellvertretung des Ressorts «si» und seiner Teilbereiche mit der Nummer aus ihrem Konto. Das Team sieht diese Kontakte mit Nummer, sonst nirgends im Lager eine Telefonnummer. Dazu speichert das Lager einen Link zur Lageradresse in einer Karten-App; der Server ruft keinen Kartendienst ab.",
+    frist: `Bis die Lagerleitung den Kontakt löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Contact Info: Name", "Contact Info: Phone Number"],
+    google: ["Personal info: Name", "Personal info: Phone number"],
+  },
+  lagerInfos: {
+    titel: "Packliste und Infos im Lager",
+    zweck:
+      "Die Packliste und die Infos des Lagers bereitstellen. Die Lagerleitung pflegt die Vorlage der Packliste und die Info-Abschnitte (Text, Links und Verknüpfungen auf Dateien im SharePoint der Abteilung); einzelne Punkte und Abschnitte können der Lagerleitung vorbehalten sein. Jede Person hat ihre eigene Kopie der Packliste: Gespeichert sind nur ihre Abweichungen von der Vorlage (abgehakt, entfernt) und ihre eigenen Punkte, die nur sie sieht.",
+    frist: `Die Vorlage und die Infos, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Die Abweichungen und eigenen Punkte einer Person, bis sie sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
       "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat. Alte Adressen der Website leiten auf die neuen Seiten weiter; bei einer Weiterleitung steht, welches Konto sie angelegt hat.",
     frist:
       "Bis die Redaktion die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
+    apple: [],
+    google: [],
+  },
+  anlass: {
+    titel: "Anlässe und ihre Zusatzfelder",
+    zweck:
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
+    frist:
+      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
     apple: [],
     google: [],
   },
@@ -237,6 +279,35 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "details",
       "erstellt_am",
+    ],
+  },
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
+  anlass: {
+    anlass: [
+      "id",
+      "abteilung_id",
+      "programm_id",
+      "art",
+      "anmeldung_offen",
+      "frist",
+      "anmeldung_fuer",
+      "sichtbarkeit",
+      "sichtbarkeit_tags",
+      "seite_id",
+      "erstellt_von",
+      "erstellt_am",
+    ],
+  },
+  anlass_feld: {
+    anlass: [
+      "id",
+      "anlass_id",
+      "schluessel",
+      "beschriftung",
+      "typ",
+      "optionen",
+      "pflicht",
+      "reihenfolge",
     ],
   },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },
@@ -373,6 +444,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "seq_min",
       "erstellt_am",
     ],
+    lagerNotfall: ["karten_link"],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -421,6 +493,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   ressort_notiz: {
     lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
+  },
+  // Einkaufsliste (#392): wer einkauft, steht als Personen-ID (Mitglied des Lagers). Stamm und Vorschläge sind Daten je Artikelname, ohne Person
+  einkauf_artikel: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "name_norm",
+      "menge",
+      "einheit",
+      "warengruppe",
+      "einkaeufer_person_id",
+      "erledigt",
+    ],
+  },
+  einkauf_artikelstamm: { lager: ["lager_id", "name_norm", "warengruppe"] },
+  einkauf_vorschlag: {
+    lager: ["lager_id", "name_norm", "name", "haeufigkeit"],
   },
   // Aufgaben (#372): Verantwortliche und Unterstützung als Personen-IDs; erledigt_am setzt der Server mit dem Status
   aufgabe: {
@@ -481,6 +570,106 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "entschieden_von",
       "entschieden_am",
     ],
+  },
+  // Pinnwand (#381): Empfänger als Rolle oder Personen-ID; die Dateien sind Verweise auf lager_datei
+  pinnwand_beitrag: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "text",
+      "wichtig",
+      "angeheftet",
+      "sichtbar_ab",
+      "sichtbar_bis",
+    ],
+  },
+  pinnwand_empfaenger: {
+    lagerPinnwand: ["id", "lager_id", "beitrag_id", "rolle", "person_id"],
+  },
+  pinnwand_datei: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "datei_id",
+      "reihenfolge",
+    ],
+  },
+  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
+  teilnehmer: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "kind_id",
+      "anmeldung_id",
+      "vorname",
+      "nachname",
+      "cevi_name",
+      "stufe",
+    ],
+  },
+  // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)
+  abzaehlen: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "teilnehmer_id",
+      "person_id",
+      "geprueft",
+      "geprueft_am",
+    ],
+  },
+  // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie
+  packliste_punkt: {
+    lagerInfos: [
+      ...LAGER_BASIS_SPALTEN,
+      "abschnitt",
+      "text",
+      "nur_lagerleitung",
+      "reihenfolge",
+    ],
+  },
+  packliste_abhaken: {
+    lagerInfos: [
+      "lager_id",
+      "person_id",
+      "punkt_id",
+      "zustand",
+      "geaendert_am",
+    ],
+  },
+  packliste_eigen: {
+    lagerInfos: [
+      "id",
+      "lager_id",
+      "person_id",
+      "abschnitt",
+      "text",
+      "abgehakt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  notfall_kontakt: {
+    lagerNotfall: [
+      ...LAGER_BASIS_SPALTEN,
+      "funktion",
+      "person_id",
+      "name",
+      "telefon",
+      "reihenfolge",
+    ],
+  },
+  info_abschnitt: {
+    lagerInfos: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "text",
+      "links",
+      "nur_lagerleitung",
+      "notfall",
+      "reihenfolge",
+    ],
+  },
+  info_abschnitt_datei: {
+    lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

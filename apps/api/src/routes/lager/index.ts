@@ -8,10 +8,17 @@ import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleLagerKernRouten } from "./lager.js";
+import { erstelleEinkaufRouten } from "./einkauf.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleRessortRouten } from "./ressorts.js";
+import { erstelleInfosRouten } from "./infos.js";
+import { erstelleNotfallRouten } from "./notfall.js";
+import { erstellePacklisteRouten } from "./packliste.js";
+import { erstellePinnwandRouten } from "./pinnwand.js";
+import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
+import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
@@ -28,5 +35,12 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
+    .route("/", erstellePinnwandRouten({ db, fcm }))
+    .route("/", erstelleTeilnehmerRouten({ db }))
+    .route("/", erstelleAbzaehlenRouten({ db }))
+    .route("/", erstellePacklisteRouten({ db }))
+    .route("/", erstelleNotfallRouten({ db }))
+    .route("/", erstelleInfosRouten({ db }))
+    .route("/", erstelleEinkaufRouten({ db }))
     .route("/", erstelleZeitplanRouten({ db, fcm }));
 }
