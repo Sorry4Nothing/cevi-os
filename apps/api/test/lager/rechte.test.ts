@@ -59,22 +59,35 @@ let admin: PersonaKonto;
 let demoAdmin: PersonaKonto;
 let eltern: PersonaKonto;
 let lagerleitung: PersonaKonto;
+let lagerleitungOhne: PersonaKonto;
+let adminOhne: PersonaKonto;
 let leitung: PersonaKonto;
 let team: PersonaKonto;
 let lesen: PersonaKonto;
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
-  [admin, demoAdmin, eltern, lagerleitung, leitung, team, lesen] =
-    await Promise.all([
-      legePersonaAn(welt, "admin"),
-      legePersonaAn(welt, "demoAdmin"),
-      legePersonaAn(welt, "elternA"),
-      // Die Lagerleitung braucht den zweiten Faktor (#423)
-      legePersonaMitFaktorAn(welt, "slA"),
-      legePersonaAn(welt, "slB"),
-      legePersonaAn(welt, "leitendeA"),
-      legePersonaAn(welt, "leitendeB"),
-    ]);
+  [
+    admin,
+    demoAdmin,
+    eltern,
+    lagerleitung,
+    lagerleitungOhne,
+    adminOhne,
+    leitung,
+    team,
+    lesen,
+  ] = await Promise.all([
+    legePersonaAn(welt, "admin"),
+    legePersonaAn(welt, "demoAdmin"),
+    legePersonaAn(welt, "elternA"),
+    // Die Rechte der Rollen ändert die Lagerleitung nur mit zweitem Faktor (#423, #523); sonst braucht sie ihn nicht
+    legePersonaMitFaktorAn(welt, "slA"),
+    legePersonaAn(welt, "slA"),
+    legePersonaAn(welt, "adminOhneZweitenFaktor"),
+    legePersonaAn(welt, "slB"),
+    legePersonaAn(welt, "leitendeA"),
+    legePersonaAn(welt, "leitendeB"),
+  ]);
 });
 
 let ausgabe: MockInstance<typeof console.log>;
@@ -435,6 +448,70 @@ describe("Ändern der Rechte", () => {
     // Zurücksetzen protokolliert genau die zwei Rückänderungen
     await anfrage(lagerleitung, "POST", `${LAGER}/${id}/rechte/zuruecksetzen`);
     expect(await auditZeilen(id)).toHaveLength(4);
+  });
+});
+
+describe("Zweiter Faktor (#523)", () => {
+  const body = { rechte: [recht("lesen", "aufgaben.bearbeiten", true)] };
+
+  test("Rechte ändern und zurücksetzen ohne zweiten Faktor: 403 ZWEITER_FAKTOR_FEHLT, nichts geändert; mit zweitem Faktor erlaubt", async () => {
+    const id = await legeLager();
+    await db.insert(schema.lagerMitglied).values({
+      lagerId: id,
+      personId: lagerleitungOhne.id!,
+      rolle: "lagerleitung",
+    });
+    // Lagerleitung und Abteilungsleitung (ohne Zeile in lager_mitglied) ohne Faktor
+    for (const konto of [lagerleitungOhne, adminOhne]) {
+      for (const antwort of [
+        await anfrage(konto, "PUT", `${LAGER}/${id}/rechte`, body),
+        await anfrage(konto, "POST", `${LAGER}/${id}/rechte/zuruecksetzen`),
+      ]) {
+        expect(antwort.status).toBe(403);
+        expect((await antwort.json()).code).toBe("ZWEITER_FAKTOR_FEHLT");
+      }
+    }
+    expect(await beispielStatus("lesen", "POST", id)).toBe(403);
+    expect(
+      (await anfrage(lagerleitung, "PUT", `${LAGER}/${id}/rechte`, body))
+        .status,
+    ).toBe(204);
+    expect(await beispielStatus("lesen", "POST", id)).toBe(204);
+  });
+
+  test("Lesen der Rechte und die übrigen Lager-Routen brauchen ihn nicht: Lagerleitung und Abteilungsleitung lesen und schreiben ohne Faktor", async () => {
+    const id = await legeLager();
+    await db.insert(schema.lagerMitglied).values({
+      lagerId: id,
+      personId: lagerleitungOhne.id!,
+      rolle: "lagerleitung",
+    });
+    for (const konto of [lagerleitungOhne, adminOhne]) {
+      expect((await anfrage(konto, "GET", `${LAGER}/${id}`)).status).toBe(200);
+      expect(
+        (await anfrage(konto, "GET", `${LAGER}/${id}/rechte`)).status,
+      ).toBe(200);
+      expect(
+        (
+          await anfrage(konto, "POST", `${LAGER}/${id}/ressorts`, {
+            kuerzel: `Z${konto.id!.slice(-8)}`,
+            name: "Ohne Faktor",
+          })
+        ).status,
+      ).toBe(201);
+    }
+  });
+
+  test("die Admin-Route zum Ändern der Rechte bleibt gesperrt (403 ZWEITER_FAKTOR_FEHLT, #23)", async () => {
+    const id = await legeLager();
+    const antwort = await anfrage(
+      adminOhne,
+      "PUT",
+      `${ADMIN}/${id}/rechte`,
+      body,
+    );
+    expect(antwort.status).toBe(403);
+    expect((await antwort.json()).code).toBe("ZWEITER_FAKTOR_FEHLT");
   });
 });
 
