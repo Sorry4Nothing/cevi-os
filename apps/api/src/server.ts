@@ -48,6 +48,7 @@ import {
   synchronisiereWebsite,
 } from "./website/abgleich.js";
 import { ladeStufenfakten } from "./website/stufenfakten.js";
+import { ladeTerminlisten } from "./website/termine-liste.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
 import { erstelleWebsiteSperre, mitSperre } from "./website/sperre.js";
 import {
@@ -60,6 +61,7 @@ const konfiguration = ladeKonfiguration(process.env);
 // Einmal beim Start; eine fehlende Seite beendet den Prozess wie eine fehlende Variable
 const seiten = ladeSeiten({
   stelle: konfiguration.VERANTWORTLICHE_STELLE,
+  adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
   email: konfiguration.KONTAKT_EMAIL,
 });
 // Ohne Schlüsseldatei startet die API und sendet keine Pushes
@@ -177,19 +179,23 @@ if (
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
   );
-  // Die Skripte der Website (#354): alle .js-Dateien in public/website/, dazu die weiteren Stylesheets (#530; website.css geht als «stylesheet» mit)
+  // Die Dateien neben website.css (#354, #530): alle .js, die weiteren Stylesheets (website.css geht als «stylesheet» mit), die Schrift (Bytes) und ihre Lizenz
+  const textEndung = /\.(js|css|txt)$/;
   const skripte = Object.fromEntries(
     readdirSync(new URL("../public/website/", import.meta.url))
       .filter(
-        (n) => n.endsWith(".js") || (n.endsWith(".css") && n !== "website.css"),
+        (n) =>
+          (textEndung.test(n) || n.endsWith(".woff2")) && n !== "website.css",
       )
-      .map((n) => [
-        n,
-        readFileSync(
-          new URL(`../public/website/${n}`, import.meta.url),
-          "utf8",
-        ),
-      ]),
+      .map((n) => {
+        const datei = new URL(`../public/website/${n}`, import.meta.url);
+        return [
+          n,
+          textEndung.test(n)
+            ? readFileSync(datei, "utf8")
+            : readFileSync(datei),
+        ];
+      }),
   );
   const merker = new Map<string, string>();
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
@@ -206,7 +212,12 @@ if (
           basisUrl,
           stylesheet,
           skripte,
-          datenquellen: [ladeStufenfakten],
+          datenquellen: [ladeStufenfakten, ladeTerminlisten],
+          kontakt: {
+            adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
+            telefon: konfiguration.KONTAKT_TELEFON,
+            email: konfiguration.KONTAKT_EMAIL,
+          },
           merker,
         }),
     ),

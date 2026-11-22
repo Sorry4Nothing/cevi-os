@@ -23,6 +23,7 @@ export const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_GALERIE_BILDER = 50;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
+export const MAX_HINWEIS = 200;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -219,6 +220,27 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   ),
   // Die festen Stufenfelder; die Werte liefert #355 aus der Datenbank, der Baustein hat keine eigenen Daten
   baustein("stufenfakten", z.strictObject({})),
+  // Hinweisband (#549, Design W1): ein Satz, optional mit Link («Anmeldung offen bis 15. März»)
+  baustein(
+    "hinweis",
+    z.strictObject({
+      text: kurztext(MAX_HINWEIS),
+      link: z
+        .strictObject({
+          beschriftung: kurztext(MAX_BESCHRIFTUNG),
+          ziel: linkAlle,
+        })
+        .optional(),
+    }),
+  ),
+  // Kontaktkarte (#549, Design W1): Telefon und E-Mail der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen
+  baustein(
+    "kontaktkarte",
+    z.strictObject({
+      titel: kurztext(MAX_KURZTEXT).optional(),
+      personId: z.uuid().optional(),
+    }),
+  ),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

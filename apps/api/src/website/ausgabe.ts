@@ -14,7 +14,8 @@ import { dirname, join, resolve, sep } from "node:path";
 // Pfade sind immer relativ, mit «/» getrennt, und stammen aus geprüften Adressen (a-z, 0-9, «-»); jede Umsetzung lehnt alles andere ab.
 export interface Ausgabe {
   // Legt die Datei an oder ersetzt sie; ein Leser sieht nie eine halbe Datei
-  schreibe(pfad: string, inhalt: string): Promise<void>;
+  // Text oder Bytes (die Schrift der Website ist eine Binärdatei)
+  schreibe(pfad: string, inhalt: string | Uint8Array): Promise<void>;
   // Eine fehlende Datei ist kein Fehler
   loesche(pfad: string): Promise<void>;
   // Alle Dateien (relative Pfade), die diese Umsetzung kennt

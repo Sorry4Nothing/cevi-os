@@ -647,6 +647,27 @@ function personWahl(k, b, reg) {
   return wurzel;
 }
 
+// Der Link des Hinweisbands ist ein Teilobjekt: Felder lesen und schreiben darin, fehlen beide, entfällt der ganze Link
+function linkTeil(b) {
+  return new Proxy(
+    {},
+    {
+      get: (_, schluessel) => b.daten.link?.[schluessel],
+      set: (_, schluessel, wert) => {
+        b.daten.link = { ...b.daten.link, [schluessel]: wert };
+        return true;
+      },
+      deleteProperty: (_, schluessel) => {
+        const link = { ...b.daten.link };
+        delete link[schluessel];
+        if (Object.keys(link).length === 0) delete b.daten.link;
+        else b.daten.link = link;
+        return true;
+      },
+    },
+  );
+}
+
 // --- Typen -------------------------------------------------------------------------------------------------------------
 
 const tagText = (d, k, leer) =>
@@ -848,7 +869,7 @@ export const TYPEN = {
       el(
         "p",
         { class: "hilfe" },
-        "Die Termine erscheinen, sobald die Terminverwaltung dafür bereit ist. Bis dahin bleibt der Platz leer.",
+        "Ohne Gruppe: die kommenden Termine öffentlicher Anlässe. Mit Gruppe: die kommenden Termine der Gruppe. Die Liste ändert sich auf der Website mit dem nächsten Abgleich (spätestens nach 10 Minuten).",
       ),
     ],
   },
@@ -883,6 +904,79 @@ export const TYPEN = {
         hilfe:
           "Die Webadresse des Videos oder Beitrags, mit https. Sie wird nur als Link gezeigt, nie eingebettet.",
       }),
+    ],
+  },
+  // Hinweisband (#549): ein Satz, optional mit Link
+  hinweis: {
+    name: "Hinweisband",
+    kurz: (d) => d.text ?? "",
+    pruefe: (d) => [
+      ...(d.text?.trim() ? [] : [["daten.text", "fehlt."]]),
+      ...(d.link && !d.link.beschriftung?.trim()
+        ? [["daten.link.beschriftung", "fehlt."]]
+        : []),
+      ...(d.link && !d.link.ziel?.trim()
+        ? [["daten.link.ziel", "fehlt."]]
+        : []),
+    ],
+    form: (k, b, reg) => [
+      eingabe(k, b, reg, "text", "Satz", {
+        maxlength: 200,
+        hilfe: "Zum Beispiel: Anmeldung zum Sommerlager offen bis 15. März.",
+      }),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Der Link ist freiwillig. Lass beide Felder leer, wenn der Satz allein steht.",
+      ),
+      teilEingabe(
+        k,
+        b,
+        reg,
+        linkTeil(b),
+        "beschriftung",
+        "Beschriftung des Links (optional)",
+        "daten.link.beschriftung",
+        {
+          optional: true,
+          maxlength: 60,
+        },
+      ),
+      teilEingabe(
+        k,
+        b,
+        reg,
+        linkTeil(b),
+        "ziel",
+        "Ziel des Links (optional)",
+        "daten.link.ziel",
+        {
+          optional: true,
+          maxlength: 2000,
+          spellcheck: "false",
+          hilfe: LINK_HILFE,
+        },
+      ),
+    ],
+  },
+  // Kontaktkarte (#549): Telefon und E-Mail der Abteilung stehen in der Konfiguration des Servers
+  kontaktkarte: {
+    name: "Kontaktkarte",
+    kurz: (d, k) =>
+      k.personNamen.get(d.personId) ?? "Fragen? Melde dich bei uns.",
+    pruefe: () => [],
+    form: (k, b, reg) => [
+      eingabe(k, b, reg, "titel", "Titel (optional)", {
+        maxlength: 100,
+        optional: true,
+        hilfe: "Ohne Eingabe steht dort: Fragen? Melde dich bei uns.",
+      }),
+      personWahl(k, b, reg),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Die Person ist freiwillig; Cevi-Name und Funktion erscheinen unter dem Titel. Telefon und E-Mail der Abteilung setzt der Server ein.",
+      ),
     ],
   },
   stufenfakten: {
@@ -967,6 +1061,16 @@ export const KATALOG = [
   {
     typ: "stufenfakten",
     beschreibung: "Datum, Treffpunkt und Mitnehmen der Stufe.",
+    neu: () => ({}),
+  },
+  {
+    typ: "hinweis",
+    beschreibung: "Ein Satz mit Symbol, zum Beispiel «Anmeldung offen».",
+    neu: () => ({ text: "" }),
+  },
+  {
+    typ: "kontaktkarte",
+    beschreibung: "«Fragen? Melde dich bei uns.» mit Telefon und E-Mail.",
     neu: () => ({}),
   },
 ].map((e) => ({ ...e, name: TYPEN[e.typ].name }));

@@ -86,6 +86,9 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
       case "kontaktperson":
         personen.add(b.daten.personId);
         break;
+      case "kontaktkarte":
+        if (b.daten.personId) personen.add(b.daten.personId);
+        break;
       case "leitungsteam":
         tags.add(b.daten.tagId);
         break;
@@ -97,6 +100,9 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         break;
       case "schaltflaeche":
         ziel(b.daten.ziel);
+        break;
+      case "hinweis":
+        ziel(b.daten.link?.ziel);
         break;
       case "text":
         for (const block of b.daten.inhalt) {

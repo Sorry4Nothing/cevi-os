@@ -33,6 +33,28 @@ export type MedienDaten = {
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
 export type Fakt = { bezeichnung: string; wert: string };
+// Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
+export type TerminEintrag = {
+  id: string;
+  titel: string;
+  von: string;
+  bis: string;
+  zeitVon: string | null;
+  zeitBis: string | null;
+  ort: string | null;
+  stufen: string[];
+  anlassId: string | null;
+};
+
+// Angaben der Abteilung für Fuss und Kontaktkarte (#549): Name steht im Kontext, Adresse, Telefon und E-Mail kommen aus der Konfiguration des Servers, die Seiten aus dem Seitenbaum
+export type Kontakt = {
+  adresse?: string;
+  telefon?: string;
+  email?: string;
+  // Adressen von Seiten des Baums; fehlt «datenschutz», führt der Link auf die Erklärung der Plattform
+  impressum?: string;
+  datenschutz?: string;
+};
 
 // Daten für Bausteine, die nicht im Dokument stehen. Fehlt ein Eintrag, entfällt der Baustein.
 // #355 füllt «stufenfakten» (je Seiten-ID), der Auftrag Termine hängt später «terminliste» ein
@@ -41,12 +63,17 @@ export type Daten = {
   personen: ReadonlyMap<string, Mitglied>;
   teams: ReadonlyMap<string, { name: string; mitglieder: Mitglied[] }>;
   stufenfakten: ReadonlyMap<string, Fakt[]>;
+  // Je Baustein «terminliste» (nach der ID des Bausteins) die kommenden Termine; fehlt der Eintrag, wurde nichts geladen und der Baustein entfällt
+  termine: ReadonlyMap<string, TerminEintrag[]>;
+  // Angaben der Abteilung für Kontaktkarte und Fuss (#549)
+  kontakt?: Kontakt;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
   personen: new Map(),
   teams: new Map(),
   stufenfakten: new Map(),
+  termine: new Map(),
 });
 
 export type Kontext = {
@@ -271,19 +298,40 @@ function rendereBaustein(
             ...bilder.map((k) => el("li", undefined, k)),
           );
     }
-    case "karten":
-      return el(
-        "ul",
-        { class: b.daten.darstellung },
-        ...b.daten.eintraege.map((e) =>
-          el(
-            "li",
-            undefined,
-            el("p", { class: "titel" }, ...verlinke(e.link, [e.titel])),
-            ...(e.text ? [el("p", undefined, e.text)] : []),
-          ),
-        ),
-      );
+    // Darstellung «karten» ist die Stufenkarte des Designs (W1): Name, Text und «» Mehr zu …»; «liste» bleibt eine Zeile je Eintrag mit Link am Titel
+    case "karten": {
+      const ebene = Math.min(3, letzte.ebene + 1);
+      return b.daten.darstellung === "karten"
+        ? el(
+            "ul",
+            { class: "karten" },
+            ...b.daten.eintraege.map((e) =>
+              el(
+                "li",
+                undefined,
+                el(`h${ebene}`, { class: "titel" }, e.titel),
+                ...(e.text ? [el("p", undefined, e.text)] : []),
+                ...(e.link === undefined
+                  ? []
+                  : verlinke(e.link, [`Mehr zu ${e.titel}`], "mehr").map((a) =>
+                      el("p", undefined, a),
+                    )),
+              ),
+            ),
+          )
+        : el(
+            "ul",
+            { class: "liste" },
+            ...b.daten.eintraege.map((e) =>
+              el(
+                "li",
+                undefined,
+                el("p", { class: "titel" }, ...verlinke(e.link, [e.titel])),
+                ...(e.text ? [el("p", undefined, e.text)] : []),
+              ),
+            ),
+          );
+    }
     case "schaltflaeche": {
       const knopf =
         b.daten.darstellung === "schaltflaeche"
@@ -349,16 +397,197 @@ function rendereBaustein(
             ),
           );
     }
-    // Die Termine liefert der Auftrag Termine; bis dahin bleibt der Platz leer
-    case "terminliste":
-      return null;
+    case "terminliste": {
+      const liste = daten.termine.get(b.id);
+      if (liste === undefined) return null;
+      const ebene = Math.min(2, letzte.ebene + 1);
+      letzte.ebene = ebene;
+      return terminAbschnitt(liste.slice(0, b.daten.anzahl), ebene);
+    }
+    case "hinweis":
+      return el(
+        "div",
+        { class: "band", role: "status" },
+        symbol("info"),
+        el(
+          "div",
+          { class: "text" },
+          el("strong", undefined, b.daten.text),
+          ...(b.daten.link
+            ? verlinke(b.daten.link.ziel, [b.daten.link.beschriftung])
+            : []),
+        ),
+      );
+    case "kontaktkarte": {
+      const p = b.daten.personId
+        ? daten.personen.get(b.daten.personId)
+        : undefined;
+      const k = daten.kontakt;
+      const wege = [
+        k?.telefon ? telefonLink(k.telefon) : null,
+        k?.email ? kontaktLink(`mailto:${k.email}`, k.email) : null,
+      ].filter((w) => w !== null);
+      if (!p && wege.length === 0) return null;
+      const ebene = Math.min(2, letzte.ebene + 1);
+      letzte.ebene = ebene;
+      return el(
+        "section",
+        { class: "karte kontaktband" },
+        el(
+          "div",
+          undefined,
+          el(
+            `h${ebene}`,
+            undefined,
+            b.daten.titel ?? "Fragen? Melde dich bei uns.",
+          ),
+          ...(p
+            ? [
+                el(
+                  "p",
+                  { class: "leise" },
+                  p.funktion ? `${p.name}, ${p.funktion}` : p.name,
+                ),
+              ]
+            : []),
+        ),
+        ...(wege.length > 0
+          ? [
+              el(
+                "ul",
+                { class: "wege" },
+                ...wege.map((w) => el("li", undefined, w)),
+              ),
+            ]
+          : []),
+      );
+    }
   }
+}
+
+// Telefon und E-Mail aus der Konfiguration: als Link nur, wenn die Adresse eine erlaubte Art hat
+const kontaktLink = (ziel: string, text: string): HtmlKnoten =>
+  verlinke(ziel, [text])[0]!;
+
+// «043 543 96 82» wird zu tel:+41435439682 (Schweizer Nummern; mit «+» oder «00» am Anfang bleibt die Landesvorwahl)
+function telefonLink(nummer: string): HtmlKnoten {
+  const ziffern = nummer.replace(/[^\d+]/g, "");
+  const intl = ziffern.startsWith("+")
+    ? ziffern
+    : ziffern.startsWith("00")
+      ? `+${ziffern.slice(2)}`
+      : `+41${ziffern.replace(/^0/, "")}`;
+  return kontaktLink(`tel:${intl}`, nummer);
+}
+
+const datumsformat = (o: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat("de-CH", { ...o, timeZone: "UTC" });
+const TAG_KURZ = datumsformat({ weekday: "short" });
+const TAG_LANG = datumsformat({
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+});
+const DATUM_LANG = datumsformat({
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const MONAT_KURZ = datumsformat({ month: "short" });
+const MONAT_LANG = datumsformat({ month: "long" });
+const mittag = (tag: string) => new Date(`${tag}T12:00:00Z`);
+
+// «Feb.», aber «Mai» (die Kurzform ist dort das ganze Wort)
+function monatKurz(tag: string) {
+  const kurz = MONAT_KURZ.format(mittag(tag));
+  return kurz === MONAT_LANG.format(mittag(tag)) ? kurz : `${kurz}.`;
+}
+
+// Eine Zeile der Liste (Design W1): Datumsfeld, Titel, Zeit und Ort, Chips der Stufen. Ein Anlass führt auf seine Seite, ein Termin ohne Anlass ist keine Verknüpfung
+function terminZeile(t: TerminEintrag): HtmlKnoten {
+  const zeit = t.zeitVon
+    ? `${t.zeitVon}${t.zeitBis ? `–${t.zeitBis}` : ""}`
+    : "ganztägig";
+  const meta = [
+    t.bis === t.von ? zeit : `bis ${DATUM_LANG.format(mittag(t.bis))}`,
+    t.ort,
+  ]
+    .filter((x) => x)
+    .join(" · ");
+  const innen: HtmlKnoten[] = [
+    el(
+      "span",
+      { class: "datum", "aria-hidden": "true" },
+      el("span", { class: "tag" }, TAG_KURZ.format(mittag(t.von))),
+      el("span", { class: "nr" }, String(Number(t.von.slice(8)))),
+      el("span", { class: "mo" }, monatKurz(t.von)),
+    ),
+    el(
+      "span",
+      undefined,
+      el("span", { class: "titel" }, t.titel),
+      el("span", { class: "meta" }, meta),
+      ...(t.stufen.length > 0
+        ? [
+            el(
+              "span",
+              { class: "chips" },
+              ...t.stufen.map((n) => el("span", { class: "chip st" }, n)),
+            ),
+          ]
+        : []),
+    ),
+  ];
+  if (t.anlassId === null) return el("div", { class: "termin" }, ...innen);
+  const beschreibung = [
+    TAG_LANG.format(mittag(t.von)),
+    t.titel,
+    meta,
+    t.stufen.length > 0 ? `für ${t.stufen.join(", ")}` : "",
+  ]
+    .filter((x) => x)
+    .join(", ");
+  return el(
+    "a",
+    {
+      class: "termin",
+      href: `${ANLASS_PFAD}?id=${t.anlassId}`,
+      "aria-label": beschreibung,
+    },
+    ...innen,
+  );
+}
+
+function terminAbschnitt(liste: TerminEintrag[], ebene: number): HtmlKnoten {
+  return el(
+    "section",
+    { class: "abschnitt" },
+    el(
+      "div",
+      { class: "abschnitt-kopf" },
+      el(`h${ebene}`, undefined, "Nächste Termine"),
+      el("a", { class: "mehr", href: TERMINE_PFAD }, "Alle Termine"),
+    ),
+    liste.length === 0
+      ? el(
+          "div",
+          { class: "zustand" },
+          el("p", undefined, "Im Moment sind keine Termine eingetragen."),
+        )
+      : el(
+          "ul",
+          { class: "termine" },
+          ...liste.map((t) => el("li", undefined, terminZeile(t))),
+        ),
+  );
 }
 
 export const istOeffentlich = (b: Baustein) =>
   b.sichtbarkeit === "erbt" || b.sichtbarkeit.art === "oeffentlich";
 
 export const ANMELDEN_PFAD = "/anmelden";
+export const TERMINE_PFAD = "/termine";
+const ANLASS_PFAD = "/anlass";
 // Adresse der Anmeldeseite mit Rückweg zur Seite; «weiter» prüft das Skript noch einmal gegen eine Liste (website/weiter.js)
 const anmeldeAdresse = (pfad?: string) =>
   pfad === undefined
@@ -474,12 +703,27 @@ export function rendereGeschuetzte(
   return ergebnis;
 }
 
-// Startseite: Foto, Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1). Fehlt davon alles, bleibt es beim gewöhnlichen Titel
+// Bilder im sichtbaren Bereich der Startseite laden sofort und mit Vorrang (kein loading="lazy")
+function eifrig(k: HtmlKnoten): HtmlKnoten {
+  if (typeof k === "string") return k;
+  if (k.tag === "img") {
+    const attr: Record<string, string | true> = {
+      ...k.attr,
+      fetchpriority: "high",
+    };
+    delete attr.loading;
+    return { ...k, attr };
+  }
+  return { ...k, kinder: k.kinder?.map(eifrig) };
+}
+
+// Startseite: Foto, Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1). Fehlt davon alles, bleibt es beim gewöhnlichen Titel.
+// Stehen zwei Bilder am Anfang, ist das erste das Titelbild über die ganze Breite (es steht ausserhalb der Spalte) und das zweite das Foto im Teaser
 function rendereTeaser(
   titel: string,
   abteilung: string,
   eintraege: Eintrag[],
-): { html: string; rest: Eintrag[] } | null {
+): { html: string; titelbild?: string; rest: Eintrag[] } | null {
   let i = 0;
   const nimm = (typ: string) => {
     const e = eintraege[i];
@@ -489,22 +733,37 @@ function rendereTeaser(
     }
     return null;
   };
+  const zweiBilder =
+    eintraege[0]?.b.typ === "bild" &&
+    sichtbar(eintraege[0]) &&
+    eintraege[1]?.b.typ === "bild" &&
+    sichtbar(eintraege[1]);
+  const titelbild = zweiBilder ? nimm("bild") : null;
   const foto = nimm("bild");
   const text = nimm("text");
   const knoepfe: HtmlKnoten[] = [];
   for (let k = nimm("schaltflaeche"); k; k = nimm("schaltflaeche")) {
     if (typeof k !== "string") knoepfe.push(...(k.kinder ?? []));
   }
-  if (!foto && !text && knoepfe.length === 0) return null;
+  if (!titelbild && !foto && !text && knoepfe.length === 0) return null;
   const html = `<section class="teaser${foto ? "" : " teaser--allein"}" aria-labelledby="h1">
-${foto ? serialisiere(foto) : ""}
+${foto ? serialisiere(eifrig(foto)) : ""}
 <div class="box">
 <p class="kicker">${esc(abteilung)}</p>
 <h1 id="h1">${esc(titel)}</h1>
 ${text ? serialisiere(text) : ""}${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}
 </div>
 </section>`;
-  return { html, rest: eintraege.slice(i) };
+  return {
+    html,
+    ...(titelbild &&
+      typeof titelbild !== "string" && {
+        titelbild: serialisiere(
+          eifrig({ ...titelbild, attr: { class: "titelbild" } }),
+        ),
+      }),
+    rest: eintraege.slice(i),
+  };
 }
 
 // ===== Rahmen: Kopf mit Menü, Fusszeile =====
@@ -541,9 +800,59 @@ function navigation(
     .join("")}</ul>`;
 }
 
+// Die Leiste am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
+// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 74 em ins Menü am Handy um, wo alles steht
+const MAX_HAUPTPUNKTE = 6;
+const MAX_NAV_ZEICHEN = 80;
+
+function teileNavigation(punkte: NavPunkt[]) {
+  let zeichen = 0;
+  let n = punkte.findIndex((p, i) => {
+    zeichen += p.titel.length;
+    return i >= MAX_HAUPTPUNKTE || zeichen > MAX_NAV_ZEICHEN;
+  });
+  if (n === -1) n = punkte.length;
+  n = Math.max(n, 1);
+  return { leiste: punkte.slice(0, n), mehr: punkte.slice(n) };
+}
+
+const istHier = (p: NavPunkt, aktuell: string | null): boolean =>
+  p.pfad === aktuell ||
+  istVorfahr(p.pfad, aktuell) ||
+  p.kinder.some((k) => istHier(k, aktuell));
+
+// Unterseiten ohne Skript: Sie öffnen sich bei Hover und Fokus (CSS); menue.js ergänzt Pfeiltasten und Esc
+function hauptPunkt(p: NavPunkt, aktuell: string | null): string {
+  if (p.kinder.length === 0) return `<li>${navLink(p, aktuell)}</li>`;
+  return `<li class="mit-unter">${navLink(p, aktuell)}<ul class="unter">${p.kinder
+    .map((k) => `<li>${navLink(k, aktuell)}</li>`)
+    .join("")}</ul></li>`;
+}
+
+// «Mehr» ist ein details-Element und braucht kein Skript; die Unterseiten der Punkte darin stehen eingerückt darunter
+function mehrPunkt(punkte: NavPunkt[], aktuell: string | null): string {
+  const liste = (ps: NavPunkt[]): string =>
+    `<ul>${ps
+      .map(
+        (p) =>
+          `<li>${navLink(p, aktuell)}${p.kinder.length > 0 ? liste(p.kinder) : ""}</li>`,
+      )
+      .join("")}</ul>`;
+  return `<li class="mit-unter weitere${punkte.some((p) => istHier(p, aktuell)) ? " hier" : ""}"><details><summary>Mehr</summary>${liste(punkte).replace("<ul>", '<ul class="unter">')}</details></li>`;
+}
+
+function hauptNavigation(punkte: NavPunkt[], aktuell: string | null): string {
+  if (punkte.length === 0) return "";
+  const { leiste, mehr } = teileNavigation(punkte);
+  return `<ul>${leiste.map((p) => hauptPunkt(p, aktuell)).join("")}${mehr.length > 0 ? mehrPunkt(mehr, aktuell) : ""}</ul>`;
+}
+
 function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
   const marke = `<div class="kopf"><div class="wrap kopf-in"><a class="marke" href="/"><b>CEVI</b><span>${esc(markenname(k.abteilung))}</span></a></div></div>`;
-  if (nurMarke) return `<header>\n${marke}\n</header>`;
+  if (nurMarke)
+    return `<header>
+${marke}
+</header>`;
   // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste
   const bereich = k.navigation.find(
     (p) =>
@@ -553,30 +862,52 @@ function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
   return `<header>
 ${marke}
 <div class="leiste"><div class="wrap leiste-in">
-<nav class="hauptnav" aria-label="Hauptnavigation">${navigation(k.navigation, aktuell, false)}</nav>
+<nav class="hauptnav" aria-label="Hauptnavigation">${hauptNavigation(k.navigation, aktuell)}</nav>
 <details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
 <div class="rechts"><a href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a></div>
 </div></div>${
     bereich
-      ? `\n<nav class="unterleiste" aria-label="Unterseiten von ${esc(bereich.titel)}"><div class="wrap">${navigation(bereich.kinder, aktuell, false)}</div></nav>`
+      ? `
+<nav class="unterleiste" aria-label="Unterseiten von ${esc(bereich.titel)}"><div class="wrap">${navigation(bereich.kinder, aktuell, false)}</div></nav>`
       : ""
   }
 </header>`;
 }
 
-// Die Adresse und die Kontaktdaten der Abteilung stehen nicht in der Konfiguration; die Fusszeile nennt nur, was die Website sicher weiss
-const fuss = (k: Kontext) => `<footer class="fuss">
+// Fuss nach dem Design (W1): Name und Adresse, Telefon und E-Mail, Impressum und Datenschutz, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
+const fuss = (k: Kontext) => {
+  const c = k.daten.kontakt ?? {};
+  const wege = [
+    c.telefon ? serialisiere(telefonLink(c.telefon)) : "",
+    c.email ? serialisiere(kontaktLink(`mailto:${c.email}`, c.email)) : "",
+  ].filter((w) => w !== "");
+  const recht = [
+    c.impressum ? `<a href="${esc(c.impressum)}">Impressum</a>` : "",
+    `<a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a>`,
+  ].filter((w) => w !== "");
+  return `<footer class="fuss">
 <div class="wrap"><div class="fuss-in">
-<div><strong>${esc(k.abteilung)}</strong></div>
-<div><p><a href="/datenschutz">Datenschutz</a></p></div>
-</div></div>
+<div><strong>${esc(k.abteilung)}</strong>${c.adresse ? `<p>${esc(c.adresse)}</p>` : ""}</div>${
+    wege.length > 0
+      ? `
+<div>${wege.map((w) => `<p>${w}</p>`).join("")}</div>`
+      : ""
+  }
+<div>${recht.map((w) => `<p>${w}</p>`).join("")}</div>
+</div>
+<p class="klein leise">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p></div>
 </footer>`;
+};
 
-// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline
+// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline.
+// Das Menü (menue.js) ist eine Verbesserung: ohne Skript öffnen sich die Untermenüs bei Hover und Fokus
 export const CSP =
-  "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
+  "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
+const CSP_MENUE =
+  "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
-  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
+  "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
+export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 
@@ -592,6 +923,7 @@ export function rahmen(
     stile = [],
     hauptAttr = "",
     nurMarke = false,
+    titelbild = "",
   }: {
     titel: string;
     aktuell: string | null;
@@ -606,8 +938,18 @@ export function rahmen(
     hauptAttr?: string;
     // Wartung und Serverfehler: nur das Logo, keine Menüs
     nurMarke?: boolean;
+    // Fertiges Markup eines Bildes über die ganze Breite, vor der Spalte der Seite (Startseite)
+    titelbild?: string;
   },
 ) {
+  // Das Menü ist nur eine Verbesserung (Pfeiltasten, Esc); die Seite funktioniert ohne
+  const menue = !nurMarke && k.navigation.length > 0;
+  const skripte = [
+    ...(menue ? [SKRIPT_MENUE] : []),
+    ...(skript ? [skript] : []),
+  ]
+    .map((pfad) => `\n<script type="module" src="${pfad}"></script>`)
+    .join("");
   const stileHtml = stile
     .map(
       (s) => `
@@ -620,15 +962,15 @@ export function rahmen(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP)}">
+<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : menue ? CSP_MENUE : CSP)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
-<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skript ? `\n<script type="module" src="${skript}"></script>` : ""}
+<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skripte}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
 ${kopf(k, aktuell, nurMarke)}
-<main id="inhalt" tabindex="-1"${hauptAttr}>
+<main id="inhalt" tabindex="-1"${hauptAttr}>${titelbild ? `\n${titelbild}` : ""}
 <div class="wrap">
 ${inhalt}
 </div>
@@ -653,6 +995,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     aktuell: s.pfad,
     canonical: k.basisUrl + s.pfad,
     inhalt,
+    ...(teaser?.titelbild && { titelbild: teaser.titelbild }),
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...(!s.dokument.bausteine.every(istOeffentlich) && {
       skript: SKRIPT_GESCHUETZT,
