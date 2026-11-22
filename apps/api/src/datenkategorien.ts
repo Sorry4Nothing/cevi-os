@@ -142,9 +142,9 @@ export const KATEGORIEN = {
   medien: {
     titel: "Medien",
     zweck:
-      "Bilder und PDFs der Abteilung bereitstellen, zum Beispiel für die Webseite. Nur die Leitung lädt sie hoch. Wer ein Medium sehen darf, legt die Leitung beim Hochladen fest.",
+      "Bilder der Abteilung bereitstellen, zum Beispiel für die Website. Wer die Website bearbeiten darf, lädt sie hoch. Wer ein Medium sehen darf, legt die hochladende Person beim Hochladen fest.",
     frist:
-      "Bis die Leitung das Medium löscht. Mit dem Konto verschwindet nur die Angabe, wer es hochgeladen hat.",
+      "Bis die Leitung oder ein Webmaster das Medium löscht. Mit dem Konto verschwindet nur die Angabe, wer es hochgeladen hat.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
