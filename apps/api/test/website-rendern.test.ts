@@ -53,7 +53,6 @@ describe("Maskieren", () => {
 describe("XSS: jede Zeichenkette erscheint maskiert", () => {
   test("in allen Textfeldern der Bausteine und der Daten", () => {
     const bild = id();
-    const datei = id();
     const person = id();
     const tag = id();
     const daten: Daten = {
@@ -66,16 +65,6 @@ describe("XSS: jede Zeichenkette erscheint maskiert", () => {
             groesse: 5,
             breite: 4,
             hoehe: 3,
-            altText: BOESE,
-          },
-        ],
-        [
-          datei,
-          {
-            mimeTyp: "application/pdf",
-            groesse: 2048,
-            breite: null,
-            hoehe: null,
             altText: BOESE,
           },
         ],
@@ -124,7 +113,11 @@ describe("XSS: jede Zeichenkette erscheint maskiert", () => {
             beschriftung: BOESE,
             ziel: "https://example.org/",
           }),
-          b("datei", { mediumId: datei, beschriftung: BOESE }),
+          b("datei", {
+            titel: BOESE,
+            link: "https://cevi.sharepoint.com/x?a=1&b=2",
+            typ: "<b>&",
+          }),
           b("kontaktperson", { personId: person }),
           b("leitungsteam", { tagId: tag }),
           b("videolink", {
@@ -143,10 +136,12 @@ describe("XSS: jede Zeichenkette erscheint maskiert", () => {
     expect(html).not.toContain("<x-boese");
     expect(html).not.toMatch(/\son\w+=/);
     // Titel (h1) und Titel-Tag, Abteilung (Kopf und Titel), Navigation, Überschrift, zwei Textabschnitte, Liste, zwei Unterschriften,
-    // Alt-Text (Bild, Galerie), Karte (Titel, Text), Schaltfläche, Datei (Beschriftung), Person (Name, Funktion), Team (Name, Funktion), Video
+    // Alt-Text (Bild, Galerie), Karte (Titel, Text), Schaltfläche, Datei (Titel), Person (Name, Funktion), Team (Name, Funktion), Video
     expect(zaehle(html, MASKIERT)).toBeGreaterThanOrEqual(22);
     // Die Adresse mit «&» und «<» erscheint nur maskiert im Attribut
     expect(html).toContain('href="https://example.org/?a=1&amp;b=2"');
+    expect(html).toContain('href="https://cevi.sharepoint.com/x?a=1&amp;b=2"');
+    expect(html).toContain("(&lt;b&gt;&amp;)");
     void seiteId;
   });
 
@@ -410,7 +405,7 @@ describe("Aufbau und Barrierefreiheit", () => {
     expect(html).not.toContain("galerie");
   });
 
-  test("ein PDF als Bild erscheint nicht; eine Datei zeigt Art und Grösse", () => {
+  test("ein altes PDF-Medium als Bild erscheint nicht", () => {
     const pdf = id();
     const daten: Daten = {
       ...keineDaten(),
@@ -427,18 +422,83 @@ describe("Aufbau und Barrierefreiheit", () => {
         ],
       ]),
     };
+    const html = seite(dok("T", b("bild", { mediumId: pdf })), daten);
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("/api/v1/medien/");
+  });
+
+  test("eine Datei ist ein Link auf den Ablageort, mit Typ und Grösse, nie eingebettet (#428)", () => {
+    const link = "https://cevi.sharepoint.com/sites/lager/Anmeldung.pdf";
     const html = seite(
       dok(
         "T",
-        b("bild", { mediumId: pdf }),
-        b("datei", { mediumId: pdf, beschriftung: "Anmeldung" }),
+        b("datei", {
+          titel: "Anmeldung",
+          link,
+          typ: "PDF",
+          groesse: 3 * 1024 * 1024,
+        }),
+        b("datei", { titel: "Nur Link", link }),
+        b("datei", { titel: "Mit Typ", link, typ: "Excel" }),
+        b("datei", { titel: "Mit Grösse", link, groesse: 1 }),
       ),
-      daten,
     );
-    expect(html).not.toContain("<img");
     expect(html).toContain(
-      `<a href="/api/v1/medien/${pdf}" download>Anmeldung</a> <span class="info">(PDF, 3.0 MB)</span>`,
+      `<p><a href="${link}" rel="noopener noreferrer">Anmeldung</a> <span class="info">(PDF, 3.0 MB)</span></p>`,
     );
+    expect(html).toContain(
+      `<p><a href="${link}" rel="noopener noreferrer">Nur Link</a></p>`,
+    );
+    expect(html).toContain(`>Mit Typ</a> <span class="info">(Excel)</span>`);
+    expect(html).toContain(`>Mit Grösse</a> <span class="info">(1 KB)</span>`);
+    // Nie das Medien-Muster, nie ein Download-Attribut, nie eingebettet
+    expect(html).not.toContain("/api/v1/medien/");
+    expect(html).not.toMatch(/\sdownload[\s>]/);
+    expect(html).not.toMatch(/<(iframe|embed|object)/);
+  });
+
+  test("eine Datei mit unzulässigem Link wird nie zum Link, auch am Schema vorbei", () => {
+    const roh = (link: string) =>
+      ({
+        v: 1,
+        titel: "T",
+        bausteine: [
+          {
+            id: id(),
+            typ: "datei",
+            sichtbarkeit: "erbt",
+            daten: { titel: "Böse", link },
+          },
+        ],
+      }) as unknown as Seitendokument;
+    for (const link of [
+      "javascript:alert(1)",
+      "data:text/html,x",
+      "http://cevi.sharepoint.com/x",
+      "//cevi.sharepoint.com/x",
+      "https://u:p@cevi.sharepoint.com/x",
+      "/stufen/woelfe",
+    ]) {
+      const html = rendereSeite(
+        { id: id(), pfad: "/s", dokument: roh(link) },
+        kontext(),
+      );
+      expect(html, link).not.toContain("Böse");
+      expect(html, link).not.toContain("onmouseover");
+    }
+    // Ein Anführungszeichen in der Adresse bricht das Attribut nie auf: Die URL-Norm kodiert es
+    const html = rendereSeite(
+      {
+        id: id(),
+        pfad: "/s",
+        dokument: roh('https://cevi.sharepoint.com/"onmouseover="x'),
+      },
+      kontext(),
+    );
+    expect(html).toContain(
+      'href="https://cevi.sharepoint.com/%22onmouseover=%22x"',
+    );
+    expect(html).not.toContain('"onmouseover');
   });
 
   test("Kontaktperson und Leitungsteam zeigen nur Name und Funktion", () => {
