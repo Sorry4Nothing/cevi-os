@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, count, eq, sql } from "drizzle-orm";
+import { count, eq, sql } from "drizzle-orm";
 import { pgSchema, text } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import postgres from "postgres";
