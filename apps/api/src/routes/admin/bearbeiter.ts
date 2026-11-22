@@ -8,11 +8,11 @@ import { auditLog, bearbeiter, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
 
-// Ohne objektId gilt das Recht für alle Objekte des Typs: «Redaktion» ist objektTyp «seite» ohne objektId. Genau eines von userId und tagId
+// Ein Sonderrecht gilt für genau ein Objekt (objektId Pflicht). «Alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster (/api/v1/admin/plattform/rollen), nicht mehr eine Zeile hier (#426). Genau eines von userId und tagId
 const setzenSchema = z
   .strictObject({
     objektTyp: z.enum(OBJEKT_TYPEN),
-    objektId: z.uuid().nullable().optional(),
+    objektId: z.uuid(),
     userId: z.uuid().optional(),
     tagId: z.uuid().optional(),
   })
@@ -74,7 +74,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
             .values({
               abteilungId: person.abteilungId,
               objektTyp,
-              objektId: objektId ?? null,
+              objektId,
               userId: userId ?? null,
               tagId: tagId ?? null,
             })
@@ -87,7 +87,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
             zielId: zeile.id,
             details: {
               objektTyp,
-              objektId: objektId ?? null,
+              objektId,
               userId: userId ?? null,
               tagId: tagId ?? null,
             },

@@ -28,6 +28,7 @@ import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
+import { erstelleFahrtenRouten } from "./fahrten.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
@@ -54,6 +55,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }))
     .route("/", erstelleZimmerRouten({ db }))
+    .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))

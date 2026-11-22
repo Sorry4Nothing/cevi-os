@@ -245,7 +245,7 @@ async function verschiebe(k, z, elternId, index, text, fokus) {
 
 function einstellungen(k, z) {
   const { seite, index } = z;
-  const verwalten = k.ctx.redaktion.verwalten;
+  const verwalten = k.ctx.zugang.darf("seiten.anlegen_loeschen");
   const titel = feld({
     label: "Titel",
     wert: seite.titel,
@@ -518,7 +518,7 @@ async function rechte(k, z, summary) {
   const leer = el(
     "p",
     { class: "hilfe" },
-    "Es gibt keine zusätzlichen Rechte auf diese Seite. Die Abteilungsleitung, die Redaktion und die Stufenleitung der zugehörigen Stufe dürfen sie immer bearbeiten.",
+    "Es gibt keine zusätzlichen Rechte auf diese Seite. Die Abteilungsleitung, wer das Recht «Seiten bearbeiten» hat (Rolle Webmaster) und die Stufenleitung der zugehörigen Stufe dürfen sie immer bearbeiten.",
   );
   const zeigeLeer = () => {
     leer.hidden = zeilen.children.length > 0;
@@ -618,7 +618,7 @@ async function rechte(k, z, summary) {
 
 function zeile(k, z) {
   const { seite, ebene, geschwister, index } = z;
-  const verwalten = k.ctx.redaktion.verwalten;
+  const verwalten = k.ctx.zugang.darf("seiten.anlegen_loeschen");
   const kontext = seite.titel;
   const name = el(
     "a",
@@ -768,7 +768,10 @@ function zeichne(bereich, ctx, daten, neu) {
     neu,
     tagNamen: new Map(daten.tags.map((t) => [t.id, t.name])),
   };
-  if (ctx.redaktion.verwalten) {
+  const darfAnlegen =
+    ctx.zugang.darf("seiten.anlegen_loeschen") &&
+    ctx.zugang.darf("vorlagen.nutzen");
+  if (darfAnlegen) {
     ctx.kopfAktion(
       knopf("Neue Seite", {
         art: "haupt",
@@ -782,7 +785,7 @@ function zeichne(bereich, ctx, daten, neu) {
       el(
         "p",
         { class: "leer" },
-        ctx.redaktion.verwalten
+        darfAnlegen
           ? "Es gibt noch keine Seiten. Lege die erste an."
           : "Du kannst im Moment keine Seite bearbeiten.",
       ),

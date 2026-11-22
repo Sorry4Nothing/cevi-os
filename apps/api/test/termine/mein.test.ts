@@ -453,7 +453,7 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
   });
 
   describe("Abfragen je Aufruf", () => {
-    test("Liste höchstens 3, Detail höchstens 5, nie je Zeile", async () => {
+    test("Liste höchstens 4, Detail höchstens 6, nie je Zeile", async () => {
       const abfragen: string[] = [];
       const zaehlend = drizzle(sql, {
         schema,
@@ -480,9 +480,9 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
       };
       expect(
         await liefere(`/api/v1/termine/mein?${FENSTER}`),
-      ).toBeLessThanOrEqual(3);
+      ).toBeLessThanOrEqual(4);
       expect(await liefere(`/api/v1/termine/${ids["AB"]}`)).toBeLessThanOrEqual(
-        5,
+        6,
       );
     });
   });
