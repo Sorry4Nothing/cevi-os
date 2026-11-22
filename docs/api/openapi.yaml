@@ -48,8 +48,10 @@ paths:
       description: |
         Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
         Alle Personen (auch deaktivierte und nicht angemeldete) erhalten 200.
-        Die Seite nennt die Datenkategorien, Empfänger, Fristen und Rechte; die verantwortliche Stelle
-        und ihre E-Mail-Adresse setzt der Server aus `VERANTWORTLICHE_STELLE` und `KONTAKT_EMAIL` ein.
+        Die Seite ist die Datenschutzerklärung der Abteilung (Abschnitte 1 bis 10) und nennt in Abschnitt 11
+        die Datenkategorien, Empfänger, Fristen und Rechte von Cevi OS; die verantwortliche Stelle, ihre
+        Anschrift und ihre E-Mail-Adresse setzt der Server aus `VERANTWORTLICHE_STELLE`,
+        `VERANTWORTLICHE_ADRESSE` und `KONTAKT_EMAIL` ein.
       responses:
         "200":
           description: HTML-Seite (`text/html; charset=UTF-8`).

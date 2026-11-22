@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 
 // Wer die Seiten verantwortet und wie man sie erreicht; kommt aus der Umgebung des Servers, nie aus dem Repo
-export type Kontakt = { stelle?: string; email?: string };
+export type Kontakt = { stelle?: string; adresse?: string; email?: string };
 
 const MASKE: Record<string, string> = {
   "&": "&amp;",
@@ -13,9 +13,18 @@ const MASKE: Record<string, string> = {
 const maskiere = (text: string) => text.replace(/[&<>"']/g, (z) => MASKE[z]!);
 
 // Ohne Angabe bleibt die Seite lesbar, nennt aber keine erfundene Stelle oder Adresse
-export function setzeKontakt(html: string, { stelle, email }: Kontakt) {
+export function setzeKontakt(
+  html: string,
+  { stelle, adresse, email }: Kontakt,
+) {
   return html
     .replaceAll("{{STELLE}}", stelle ? maskiere(stelle) : "die Abteilung")
+    .replaceAll(
+      "{{ADRESSE}}",
+      adresse
+        ? maskiere(adresse)
+        : "die Anschrift der Abteilung (noch nicht eingetragen)",
+    )
     .replaceAll(
       "{{KONTAKT}}",
       email

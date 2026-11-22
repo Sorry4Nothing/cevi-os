@@ -154,6 +154,7 @@ describe("Verwaltung unter /admin", () => {
 describe("Seiten für die Stores", () => {
   const kontakt = {
     stelle: "Cevi <Beispiel> & Co",
+    adresse: "Beispielweg 1 & 2, 8000 Beispielort",
     email: "kontakt@example.org",
   };
   const seiten = ladeSeiten(kontakt);
@@ -179,8 +180,18 @@ describe("Seiten für die Stores", () => {
     expect(seiten.datenschutz).not.toContain("<Beispiel>");
   });
 
+  test("die Anschrift wird eingesetzt und maskiert", () => {
+    expect(seiten.datenschutz).toContain(
+      "Beispielweg 1 &amp; 2, 8000 Beispielort",
+    );
+  });
+
   test("ohne Angaben nennen die Seiten weder Stelle noch Adresse, sagen es aber", () => {
     expect(geladen.datenschutz).toContain("noch nicht eingetragen");
+    expect(geladen.datenschutz).toContain(
+      "die Anschrift der Abteilung (noch nicht eingetragen)",
+    );
+    expect(setzeKontakt("{{ADRESSE}}", {})).toContain("noch nicht eingetragen");
     expect(geladen.datenschutz).not.toContain("mailto:");
     expect(setzeKontakt("{{STELLE}}", {})).toBe("die Abteilung");
   });
@@ -195,13 +206,18 @@ describe("Seiten für die Stores", () => {
       expect(html).not.toMatch(
         /<script|<img|<iframe|<link|\ssrc\s*=|@import|url\(/i,
       );
-      // Einziger Verweis nach aussen: die Aufsichtsbehörde
+      // Verweise nach aussen: nur die Aufsichtsbehörde und die Standardvertragsklauseln der EU-Kommission
       const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
         (m) => m[1],
       );
-      expect(aussen.every((u) => u === "https://www.edoeb.admin.ch")).toBe(
-        true,
-      );
+      expect(
+        aussen.every((u) =>
+          [
+            "https://www.edoeb.admin.ch",
+            "https://commission.europa.eu/",
+          ].includes(u!),
+        ),
+      ).toBe(true);
       expect(html).not.toContain("ß");
     },
   );

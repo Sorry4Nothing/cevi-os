@@ -264,8 +264,12 @@ describe("Was ausgeliefert wird", () => {
     const d = await alle();
     expect(d["website/geschuetzt.js"]).toBe("// a");
     expect(d["website/knoten.js"]).toBe("// b");
-    // Jede Seite lädt theme.js (#550); das Nachladen und verbinden darf nur die Seite mit Platzhalter
-    expect(d["offen/index.html"]).not.toMatch(/geschuetzt\.js|connect-src/);
+    // Das Menü (menue.js) ist auf jeder Seite mit Navigation, theme.js (#550) auf jeder Seite; ohne Platzhalter braucht die Seite weder das Skript für geschützte Bausteine noch eine Verbindung
+    expect(d["offen/index.html"]).not.toContain("geschuetzt.js");
+    expect(d["offen/index.html"]).not.toContain("connect-src");
+    expect(d["offen/index.html"]).toContain(
+      '<script type="module" src="/website/menue.js"></script>',
+    );
     expect(d["offen/index.html"]).toContain(
       '<script src="/website/theme.js"></script>',
     );
@@ -521,7 +525,7 @@ describe("Was ausgeliefert wird", () => {
     await lauf();
     const html = await lies("index.html");
     expect(html).toContain(
-      `<img src="/api/v1/medien/${offen}" alt="Lagerfeuer" width="10" height="10" loading="lazy">`,
+      `<img src="/api/v1/medien/${offen}" alt="Lagerfeuer" width="10" height="10" fetchpriority="high">`,
     );
     expect(html.match(/<img/g)).toHaveLength(1);
     expect(html).toContain(

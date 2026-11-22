@@ -32,6 +32,7 @@ import {
   rendereSitemap,
   STARTSEITE,
   type Daten,
+  type Kontakt,
   type Kontext,
   type Logo,
   type MedienDaten,
@@ -62,16 +63,21 @@ const FEHLERSEITE = "404.html";
 const SERVERFEHLER = "500.html";
 const WARTUNG = "wartung.html";
 const STYLESHEET = "website/website.css";
+// Seiten des Baums, auf die der Fuss verweist (Adresse auf der obersten Ebene); «datenschutz» selbst gehört der Plattform
+const IMPRESSUM_ADRESSE = "impressum";
+const DATENSCHUTZ_ADRESSE = "datenschutz-website";
 // Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
 const ANMELDUNG = "anmelden/index.html";
 // Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
 const SEITENDATEI = /(^|\/)index\.html$/;
 
-// Weitere Quellen für Bausteine mit Daten (#355: Stufenfakten, später die Termine); ihre Einträge ergänzen die eingebauten
+// Weitere Quellen für Bausteine mit Daten (#355: Stufenfakten, #549: Termine); ihre Einträge ergänzen die eingebauten.
+// dokumente: die öffentlichen Seiten dieses Laufs (Seiten-ID zu Dokument), für Quellen, die wissen müssen, welche Bausteine es gibt
 export type Datenquelle = (
   db: Db,
   abteilungId: string,
   seitenIds: string[],
+  dokumente?: ReadonlyMap<string, Seitendokument>,
 ) => Promise<Partial<Daten>>;
 
 export type AbgleichOptionen = {
@@ -82,8 +88,11 @@ export type AbgleichOptionen = {
   // Inhalt von public/website/website.css
   stylesheet: string;
   // Skripte der Website (#354): Dateiname in public/website/ zu Inhalt; sie liegen unter website/<Name>
-  skripte?: Record<string, string>;
+  // Binärdateien (die Schrift) kommen als Bytes
+  skripte?: Record<string, string | Uint8Array>;
   datenquellen?: Datenquelle[];
+  // Adresse, Telefon und E-Mail der Abteilung für Fuss und Kontaktkarte (aus der Konfiguration des Servers); Impressum und Datenschutz suchen die Seiten im Baum
+  kontakt?: Pick<Kontakt, "adresse" | "telefon" | "email">;
   // Hash der zuletzt geschriebenen Gesamtdateien (Sitemap, robots.txt, ...); in Tests und beim Start leer
   merker?: Map<string, string>;
 };
@@ -94,7 +103,7 @@ export type AbgleichErgebnis = {
   fehler: number;
 };
 
-const sha256 = (text: string) =>
+const sha256 = (text: string | Uint8Array) =>
   createHash("sha256").update(text).digest("hex");
 
 type Zeile = {
@@ -436,7 +445,12 @@ export async function erzeugeWebsite(
     [...dokumente.values()].map((d) => d.dok),
   );
   for (const quelle of opt.datenquellen ?? []) {
-    const mehr = await quelle(db, abteilungId, ids);
+    const mehr = await quelle(
+      db,
+      abteilungId,
+      ids,
+      new Map([...dokumente].map(([id, d]) => [id, d.dok])),
+    );
     for (const schluessel of Object.keys(mehr) as (keyof Daten)[]) {
       (daten as Record<string, unknown>)[schluessel] = new Map([
         ...(daten[schluessel] as ReadonlyMap<string, unknown>),
@@ -451,11 +465,28 @@ export async function erzeugeWebsite(
       ([id]) => dokumente.has(id) || behalten.has(oeffentlich.get(id)!.datei),
     ),
   );
+  // Impressum und Datenschutz stehen im Fuss, nicht in der Leiste; ohne Seite «Datenschutz» führt der Fuss auf die Erklärung der Plattform, ein Impressum nennt er nur, wenn es die Seite gibt
+  const fusspfad = (adresse: string) =>
+    [...sichtbar.values()].find((z) => z.pfad === `/${adresse}`)?.pfad;
+  const impressum = fusspfad(IMPRESSUM_ADRESSE);
+  const datenschutz = fusspfad(DATENSCHUTZ_ADRESSE);
+  daten.kontakt = {
+    ...opt.kontakt,
+    ...(impressum && { impressum }),
+    ...(datenschutz && { datenschutz }),
+  };
   const kontext: Kontext = {
     abteilung: abt.name,
     logo: await ladeLogo(db, abteilungId),
     basisUrl,
-    navigation: baueNavigation(zeilen, sichtbar),
+    navigation: baueNavigation(
+      zeilen,
+      new Map(
+        [...sichtbar].filter(
+          ([, z]) => z.pfad !== impressum && z.pfad !== datenschutz,
+        ),
+      ),
+    ),
     daten,
   };
 
@@ -519,7 +550,7 @@ export async function erzeugeWebsite(
   }
 
   // Gesamtdateien: Sitemap und robots.txt nennen nur öffentliche Seiten mit Datei
-  const gesamt: [string, string][] = [
+  const gesamt: [string, string | Uint8Array][] = [
     [
       SITEMAP,
       rendereSitemap(
@@ -540,7 +571,10 @@ export async function erzeugeWebsite(
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...rendereTermineSeiten(kontext),
     ...Object.entries(opt.skripte ?? {}).map(
-      ([name, inhalt]): [string, string] => [`website/${name}`, inhalt],
+      ([name, inhalt]): [string, string | Uint8Array] => [
+        `website/${name}`,
+        inhalt,
+      ],
     ),
     ...weiterleitungen,
   ];
