@@ -512,6 +512,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   programm_tag: { programme: ["programm_id", "tag_id"] },
+  // Räume (#446): keine Personendaten; das zuständige Team ist ein Tag (team_tag_id)
+  raum: {
+    programme: [
+      "id",
+      "abteilung_id",
+      "name",
+      "ort",
+      "beschreibung",
+      "kapazitaet",
+      "team_tag_id",
+      "aktiv",
+      "erstellt_am",
+    ],
+  },
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
   },

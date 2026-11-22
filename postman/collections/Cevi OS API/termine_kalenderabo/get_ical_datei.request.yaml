@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /ical/:datei"
-order: 416000
+order: 420000
 method: GET
-url: "{{baseUrl}}{{pfad_T16}}"
+url: "{{baseUrl}}{{pfad_T20}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

@@ -589,6 +589,13 @@
       "when": 1793554400000,
       "tag": "0124_anlass_anmeldung",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1793554500000,
+      "tag": "0125_raum",
+      "breakpoints": true
     }
   ]
 }
