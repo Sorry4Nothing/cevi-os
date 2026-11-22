@@ -1142,8 +1142,7 @@ describe("Zurückziehen und Listen", () => {
       await zaehle(T(lager), leiter()),
       await zaehle(`${T(lager)}/eigene`, konten.team),
     ];
-    const wenig = await messen();
-    // 30 offene Anfragen mit je einer eigenen Schicht, in drei Statements
+    // 30 offene Anfragen mit je einer eigenen Schicht, in drei Statements; die erste vorab, weil eine leere Seite die Abfragen für Namen und Schichten spart (#520)
     const tage = await db
       .insert(schema.lagertag)
       .values(
@@ -1159,27 +1158,32 @@ describe("Zurückziehen und Listen", () => {
       .values({ lagerId: lager, name: "Last", lagerSeq: 0 })
       .returning({ id: schema.tagesabschnitt.id });
     const dienst = await neuerDienst(abschnitt!.id, lager);
-    const schichten = await db
-      .insert(schema.schicht)
-      .values(
-        tage.map((t) => ({
+    const anfragenFuer = async (teil: typeof tage) => {
+      const schichten = await db
+        .insert(schema.schicht)
+        .values(
+          teil.map((t) => ({
+            lagerId: lager,
+            lagertagId: t.id,
+            tagesabschnittId: abschnitt!.id,
+            dienstId: dienst,
+            personId: konten.team.id!,
+            lagerSeq: 0,
+          })),
+        )
+        .returning({ id: schema.schicht.id });
+      await db.insert(schema.diensttausch).values(
+        schichten.map((x) => ({
           lagerId: lager,
-          lagertagId: t.id,
-          tagesabschnittId: abschnitt!.id,
-          dienstId: dienst,
-          personId: konten.team.id!,
+          vonPersonId: konten.team.id!,
+          schichtId: x.id,
           lagerSeq: 0,
         })),
-      )
-      .returning({ id: schema.schicht.id });
-    await db.insert(schema.diensttausch).values(
-      schichten.map((x) => ({
-        lagerId: lager,
-        vonPersonId: konten.team.id!,
-        schichtId: x.id,
-        lagerSeq: 0,
-      })),
-    );
+      );
+    };
+    await anfragenFuer(tage.slice(0, 1));
+    const wenig = await messen();
+    await anfragenFuer(tage.slice(1));
     const viel = await messen();
     // Eine Abfrage mehr oder weniger je Aufruf (Sitzung) ist Rauschen; 30 Zeilen mehr dürfen keine 30 Abfragen kosten
     viel.forEach((n, i) =>
@@ -1187,5 +1191,135 @@ describe("Zurückziehen und Listen", () => {
     );
     // Die Anfrage stellen und entscheiden: feste Zahl Abfragen, unabhängig von der Zahl der offenen Anfragen
     console.info("Abfragen je Aufruf (Liste, eigene):", viel);
+  });
+});
+
+describe("Namen und Schicht-Details in den Antworten (#520)", () => {
+  const mitglieder = async () =>
+    new Map(
+      (
+        (await anfrage(leiter(), "GET", `/api/v1/lager/${lagerId}/mitglieder`))
+          .body.mitglieder as { personId: string; name: string }[]
+      ).map((m) => [m.personId, m.name]),
+    );
+
+  test("Anfrage, Listen und Entscheid nennen Anzeigenamen, Dienst, Tag und Abschnitt", async () => {
+    const namen = await mitglieder();
+    const m = await mitAnfrage(() => ({ mitPersonId: konten.leitung.id }));
+    const [dienst] = await db
+      .select()
+      .from(schema.dienst)
+      .where(eq(schema.dienst.id, m.dienst));
+    const [abschnitt] = await db
+      .select()
+      .from(schema.tagesabschnitt)
+      .where(eq(schema.tagesabschnitt.id, m.abschnitte[0]!));
+    const [tag] = await db
+      .select()
+      .from(schema.lagertag)
+      .where(eq(schema.lagertag.id, m.tag));
+    const erwartet = {
+      vonName: namen.get(konten.team.id!),
+      mitName: namen.get(konten.leitung.id!),
+      schicht: {
+        dienst: dienst!.name,
+        datum: tag!.datum,
+        tagesabschnitt: abschnitt!.name,
+      },
+      mitSchicht: null,
+    };
+    expect(erwartet.vonName).toBeTruthy();
+    // Die Antwort auf das Anlegen
+    expect(m.tausch).toMatchObject(erwartet);
+    // Die eigene Liste des Teams
+    const eigene = await anfrage(konten.team, "GET", `${T()}/eigene`);
+    expect(
+      eigene.body.tausche.find((t: { id: string }) => t.id === m.tausch.id),
+    ).toMatchObject(erwartet);
+    // Die Liste der Lagerleitung
+    const alle = await anfrage(leiter(), "GET", T());
+    expect(
+      alle.body.tausche.find((t: { id: string }) => t.id === m.tausch.id),
+    ).toMatchObject(erwartet);
+    // Der Entscheid
+    const e = await entscheide(m.tausch.id, {
+      entscheid: "abgelehnt",
+      version: m.tausch.version,
+    });
+    expect(e.status).toBe(200);
+    expect(e.body).toMatchObject(erwartet);
+  });
+
+  test("Zurückziehen nennt die Namen, ohne Wunschperson ist mitName null", async () => {
+    const m = await mitAnfrage();
+    expect(m.tausch.mitName).toBeNull();
+    expect(m.tausch.mitSchicht).toBeNull();
+    const z = await anfrage(
+      konten.team,
+      "POST",
+      `${T()}/${m.tausch.id}/zurueckziehen`,
+      { version: m.tausch.version },
+    );
+    expect(z.status).toBe(200);
+    expect(z.body.vonName).toBeTruthy();
+    expect(z.body.schicht).not.toBeNull();
+  });
+
+  test("Tausch mit einer Schicht der Wunschperson nennt auch deren Details", async () => {
+    const t = await neuerTag();
+    const dienst = await neuerDienst(t.abschnitte[0]!);
+    const meine = await neueSchicht(
+      t.tag,
+      t.abschnitte[0]!,
+      dienst,
+      konten.team.id!,
+    );
+    const dienst2 = await neuerDienst(t.abschnitte[1]!);
+    const ihre = await neueSchicht(
+      t.tag,
+      t.abschnitte[1]!,
+      dienst2,
+      konten.leitung.id!,
+    );
+    const a = await anfrage(konten.team, "POST", T(), {
+      schichtId: meine,
+      mitSchichtId: ihre,
+    });
+    expect(a.status).toBe(201);
+    expect(a.body.mitSchicht).toMatchObject({
+      tagesabschnitt: expect.any(String),
+    });
+    expect(a.body.mitSchicht.dienst).not.toBe(a.body.schicht.dienst);
+    expect(a.body.mitName).toBeTruthy();
+  });
+
+  test("die Zahl der Abfragen hängt nicht von der Zahl der Anfragen ab", async () => {
+    const messe = async () => {
+      await anfrage(leiter(), "GET", T());
+      const vorher = abfragen;
+      const r = await anfrage(leiter(), "GET", T());
+      return { n: abfragen - vorher, anzahl: r.body.tausche.length };
+    };
+    const klein = await messe();
+    for (let i = 0; i < 4; i++) {
+      const t = await neuerTag();
+      const dienst = await neuerDienst(t.abschnitte[0]!);
+      const mitglied = await wegwerfMitglied();
+      const schicht = await neueSchicht(
+        t.tag,
+        t.abschnitte[0]!,
+        dienst,
+        mitglied,
+      );
+      await db.insert(schema.diensttausch).values({
+        lagerId,
+        vonPersonId: mitglied,
+        schichtId: schicht,
+        lagerSeq: 0,
+      });
+    }
+    const gross = await messe();
+    expect(gross.anzahl).toBeGreaterThanOrEqual(klein.anzahl + 4);
+    expect(gross.n).toBe(klein.n);
   });
 });

@@ -40,7 +40,7 @@ const konto = async (name: string, abteilung: string, admin = false) => {
     id: zeile.id,
     abteilungId: abteilung,
     admin,
-    // Die Lagerleitung und die Abteilungsleitung brauchen den zweiten Faktor (#423); die Namen «…Ohne» haben ihn nicht
+    // Der zweite Faktor zählt nur für Routen mit zweiterFaktor (#523); die Namen «…Ohne» haben ihn nicht
     zweiterFaktor: name === "lagerleitung" || (admin && name !== "adminOhne"),
     rollen: [],
   };
@@ -60,6 +60,11 @@ const app = new Hono<LagerEnv>()
     c.json({ rolle: c.get("lager").rolle, mitglied: c.get("lager").mitglied }),
   )
   .get("/:id/offen", lagerZugriff(db), (c) => c.json({ ok: true }))
+  .post(
+    "/:id/mitFaktor",
+    lagerZugriff(db, { nurLagerleitung: true, zweiterFaktor: true }),
+    (c) => c.body(null, 204),
+  )
   .post(
     "/:id/schreiben",
     lagerZugriff(db, { recht: "aufgaben.bearbeiten" }),
@@ -159,37 +164,50 @@ describe("lagerZugriff: Reihenfolge der Prüfungen", () => {
     ).toBe(204);
   });
 
-  test("die Lagerleitung braucht den zweiten Faktor, Leitung, Team und Lesen nicht (#423)", async () => {
-    // Ohne Faktor: 403 ZWEITER_FAKTOR_FEHLT, auch für die Abteilungsleitung, vor dem Recht und vor dem Schreibschutz
+  test("der zweite Faktor gilt nur auf Routen mit zweiterFaktor: sonst lesen und schreiben Lagerleitung und Abteilungsleitung ohne ihn (#523)", async () => {
     for (const wer of ["lagerleitungOhne", "adminOhne"]) {
-      for (const [methode, route] of [
-        ["GET", "offen"],
-        ["GET", "lesen"],
-        ["POST", "schreiben"],
+      for (const [methode, route, status] of [
+        ["GET", "offen", 200],
+        ["GET", "lesen", 200],
+        ["POST", "schreiben", 204],
       ] as const) {
-        const antwort = await rufe(wer, methode, `/${lagerOf.aktiv}/${route}`);
-        expect(antwort.status, `${wer} ${route}`).toBe(403);
+        expect(
+          (await rufe(wer, methode, `/${lagerOf.aktiv}/${route}`)).status,
+          `${wer} ${route}`,
+        ).toBe(status);
+      }
+      // Der Schreibschutz gilt weiter
+      expect((await rufe(wer, "POST", `/${lagerOf.zu}/schreiben`)).status).toBe(
+        409,
+      );
+    }
+  });
+
+  test("Route mit zweiterFaktor: ohne Faktor 403 ZWEITER_FAKTOR_FEHLT vor dem Schreibschutz, mit Faktor erlaubt, andere Rollen bleiben 403, Nicht-Mitglieder 404", async () => {
+    for (const lager of ["aktiv", "zu"]) {
+      for (const wer of ["lagerleitungOhne", "adminOhne"]) {
+        const antwort = await rufe(wer, "POST", `/${lagerOf[lager]}/mitFaktor`);
+        expect(antwort.status, `${wer} ${lager}`).toBe(403);
         expect(await antwort.json()).toMatchObject({
           code: "ZWEITER_FAKTOR_FEHLT",
         });
       }
-      const zu = await rufe(wer, "POST", `/${lagerOf.zu}/schreiben`);
-      expect(zu.status, wer).toBe(403);
     }
-    // Mit Faktor und ohne Faktor in den übrigen Rollen: wie vorher
-    expect(
-      (await rufe("lagerleitung", "GET", `/${lagerOf.aktiv}/lesen`)).status,
-    ).toBe(200);
+    for (const wer of ["lagerleitung", "admin"]) {
+      expect(
+        (await rufe(wer, "POST", `/${lagerOf.aktiv}/mitFaktor`)).status,
+        wer,
+      ).toBe(204);
+    }
     for (const wer of ["leitung", "team", "lesen"]) {
       expect(
-        (await rufe(wer, "GET", `/${lagerOf.aktiv}/offen`)).status,
+        (await rufe(wer, "POST", `/${lagerOf.aktiv}/mitFaktor`)).status,
         wer,
-      ).toBe(200);
+      ).toBe(403);
     }
-    // Wer kein Mitglied ist, bekommt weiter 404, auch ohne Faktor
-    expect((await rufe("ohne", "GET", `/${lagerOf.aktiv}/offen`)).status).toBe(
-      404,
-    );
+    expect(
+      (await rufe("ohne", "POST", `/${lagerOf.aktiv}/mitFaktor`)).status,
+    ).toBe(404);
   });
 
   test("Nicht-Mitglied, fremde Abteilung, unbekanntes Lager: 404 vor dem Recht; ungültige ID: 400", async () => {

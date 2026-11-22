@@ -12,6 +12,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
+import { LAGER_RECHTE } from "../../src/lager/rechte-katalog.js";
 import { erstelleApp } from "../../src/app.js";
 import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
@@ -678,8 +679,10 @@ describe("Rolle bei jeder Anfrage: /api/v1/lager", () => {
       status: "archiviert",
       farbe: null,
       logoMediumId: null,
+      uebung: false,
       rolle: "team",
       schreibgeschuetzt: true,
+      rechte: expect.any(Array),
     });
     expect(text).not.toMatch(
       /passw|hash|secret|token|mail|username|cookie|abteilung/i,
@@ -729,5 +732,111 @@ describe("Datenbank", () => {
         .insert(schema.lagerMitglied)
         .values({ lagerId: id, personId: sl.id!, rolle: "lesen" }),
     ).rejects.toMatchObject({ cause: { code: "23505" } });
+  });
+});
+
+describe("Eigene Rechte, Übungslager und Neuigkeiten (#520)", () => {
+  const detail = async (konto: PersonaKonto, id: string) =>
+    (await (await anfrage(konto, "GET", `${LAGER}/${id}`)).json()) as {
+      uebung: boolean;
+      rechte: string[];
+    };
+
+  test("das Lager nennt die Rechte der eigenen Rolle, nie die anderer Rollen", async () => {
+    const id = await legeLager("aktiv", [
+      [leitende, "team"],
+      [sl, "leitung"],
+    ]);
+    const team = (await detail(leitende, id)).rechte;
+    expect(team).toEqual(
+      expect.arrayContaining(["aufgaben.eigene", "einteilung.lesen"]),
+    );
+    expect(team).not.toContain("aufgaben.bearbeiten");
+    expect(team).not.toContain("ressorts.bearbeiten");
+    const leitung = (await detail(sl, id)).rechte;
+    expect(leitung).toContain("aufgaben.bearbeiten");
+    expect(leitung).not.toContain("ressorts.bearbeiten");
+    // Die Lagerleitung und die Abteilungsleitung haben jedes Recht des Katalogs
+    expect((await detail(admin, id)).rechte).toEqual(
+      expect.arrayContaining([...LAGER_RECHTE]),
+    );
+    expect((await detail(admin, id)).rechte).toHaveLength(LAGER_RECHTE.length);
+  });
+
+  test("eine eingestellte Änderung wirkt bei der nächsten Anfrage ohne zusätzliche Abfrage der Rechte", async () => {
+    const id = await legeLager("aktiv", [[leitende, "team"]]);
+    expect((await detail(leitende, id)).rechte).toContain("einteilung.lesen");
+    await db.insert(schema.lagerRolleRecht).values({
+      lagerId: id,
+      rolle: "team",
+      recht: "einteilung.lesen",
+      erlaubt: false,
+    });
+    expect((await detail(leitende, id)).rechte).not.toContain(
+      "einteilung.lesen",
+    );
+  });
+
+  test("die Liste und das Detail nennen uebung", async () => {
+    const id = await legeLager("aktiv", [[leitende, "team"]]);
+    await db
+      .update(schema.lager)
+      .set({ uebung: true })
+      .where(eq(schema.lager.id, id));
+    expect((await detail(leitende, id)).uebung).toBe(true);
+    const liste = (await (await anfrage(leitende, "GET", LAGER)).json()) as {
+      lager: { id: string; uebung: boolean }[];
+    };
+    expect(liste.lager.find((l) => l.id === id)?.uebung).toBe(true);
+  });
+
+  test("Neuigkeiten: je Lager ein Punkt bei ungelesenen Benachrichtigungen, ohne Inhalte", async () => {
+    const mitNeuem = await legeLager("aktiv", [[leitende, "team"]]);
+    const ohneNeues = await legeLager("aktiv", [[leitende, "team"]]);
+    const fremd = await legeLager("aktiv", [[sl, "lagerleitung"]]);
+    const [b] = await db
+      .insert(schema.lagerBenachrichtigung)
+      .values({
+        lagerId: mitNeuem,
+        personId: leitende.id!,
+        art: "aufgabe_zugeteilt",
+        objektTyp: "aufgabe",
+        objektId: randomUUID(),
+      })
+      .returning({ id: schema.lagerBenachrichtigung.id });
+    // Eine ungelesene Benachrichtigung einer anderen Person zählt nicht
+    await db.insert(schema.lagerBenachrichtigung).values({
+      lagerId: ohneNeues,
+      personId: sl.id!,
+      art: "aufgabe_zugeteilt",
+      objektTyp: "aufgabe",
+      objektId: randomUUID(),
+    });
+    const lesen = async () => {
+      const antwort = await anfrage(leitende, "GET", `${LAGER}/neuigkeiten`);
+      expect(antwort.status).toBe(200);
+      return (await antwort.json()) as {
+        lager: { lagerId: string; neu: boolean }[];
+        programme: { neu: boolean };
+      };
+    };
+    const vorher = await lesen();
+    expect(vorher.lager.find((l) => l.lagerId === mitNeuem)?.neu).toBe(true);
+    expect(vorher.lager.find((l) => l.lagerId === ohneNeues)?.neu).toBe(false);
+    // Kein Lager ohne Mitgliedschaft
+    expect(vorher.lager.map((l) => l.lagerId)).not.toContain(fremd);
+    expect(Object.keys(vorher.lager[0]!).sort()).toEqual(["lagerId", "neu"]);
+    expect(typeof vorher.programme.neu).toBe("boolean");
+    await db
+      .update(schema.lagerBenachrichtigung)
+      .set({ gelesenAm: new Date() })
+      .where(eq(schema.lagerBenachrichtigung.id, b!.id));
+    expect((await lesen()).lager.find((l) => l.lagerId === mitNeuem)?.neu).toBe(
+      false,
+    );
+  });
+
+  test("Neuigkeiten: ohne Anmeldung 401", async () => {
+    expect((await app.request(`${LAGER}/neuigkeiten`)).status).toBe(401);
   });
 });

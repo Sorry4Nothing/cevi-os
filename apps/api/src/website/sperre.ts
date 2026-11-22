@@ -13,12 +13,18 @@ export const HINWEISSEITE = `<!doctype html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="robots" content="noindex" />
     <title>Vorübergehend nicht erreichbar</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 0; display: grid; min-height: 100vh; place-items: center; background: #fff; color: #1a1a1a; }
-      main { max-width: 32rem; padding: 1.5rem; }
-      h1 { font-size: 1.5rem; margin: 0 0 0.75rem; }
+      /* Die Farben des Designs «Cevi Web» (Tag und Nacht); die Seite steht allein, ohne Stilvorlage der Website */
+      :root { --flaeche: #ffffff; --text: #1a1a1a; --leise: #4d4d4d; --titel: #d50038; --leiste: #013974; }
+      @media (prefers-color-scheme: dark) { :root { --flaeche: #1c1c1a; --text: #f3f3ef; --leise: #bebeb6; --titel: #ff7a93; } }
+      body { font-family: system-ui, sans-serif; margin: 0; min-height: 100vh; display: grid; grid-template-rows: auto 1fr; background: var(--flaeche); color: var(--text); line-height: 1.6; }
+      body::before { content: ""; display: block; height: 0.75rem; background: var(--leiste); }
+      main { max-width: 36rem; padding: 3rem 1.5rem; justify-self: center; }
+      h1 { font-size: clamp(1.75rem, 6vw, 2.5rem); line-height: 1.2; margin: 0 0 1rem; color: var(--titel); }
+      p { margin: 0; font-size: 1.125rem; color: var(--leise); }
     </style>
   </head>
   <body>

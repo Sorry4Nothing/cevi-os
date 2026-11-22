@@ -18,10 +18,13 @@ Erzeugt werden:
 | `<adresse>/index.html`      | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/` |
 | `sitemap.xml`               | nur öffentliche Seiten mit Datei                                                                                                       |
 | `robots.txt`                | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
-| `404.html`                  | Fehlerseite mit der Navigation                                                                                                         |
-| `website/website.css`       | Platzhalter-Stil aus `apps/api/public/website/website.css`; das Design ersetzt diese Datei                                             |
-| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`                            |
+| `404.html`                  | Fehlerseite mit den Hauptpunkten (Design W4)                                                                                           |
+| `500.html`, `wartung.html`  | Seiten für Serverfehler und Wartung (Design W4); der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                |
+| `website/website.css`       | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))             |
+| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354, #529): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`             |
 | `anmelden/index.html`       | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
+| `termine/…`, `anlass/…`     | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript       |
+| `website/*.css`             | ausser `website.css` die Stile dieser Seiten (`termine.css`); wie die Skripte aus `apps/api/public/website/`                           |
 | `weiterleitungen.caddy`     | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden           |
 | `<alte-adresse>/index.html` | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                      |
 | `<adresse>/index.html`      | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
@@ -30,7 +33,7 @@ Erzeugt werden:
 
 - Seiten ohne veröffentlichte Version: keine Datei, kein Eintrag in Navigation und Sitemap.
 - Seiten, die nicht `oeffentlich` sind: keine Seitendatei mit Inhalt. Mit veröffentlichter Version gibt es nur eine Hülle (Titel «Geschützte Seite», Hinweis, Link zur Anmeldung, `noindex`); kein Titel, kein Inhalt, nie in Navigation oder Sitemap. Die Adresse einer solchen Seite ist damit für Besucher erkennbar (Annahme A6 des Plans).
-- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein leerer Platzhalter `<div data-geschuetzt="<ID>"></div>`, ohne Typ und Inhalt. Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
+- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein Platzhalter `<div data-geschuetzt="<ID>">` mit dem Hinweis «Nur angemeldet sichtbar» und dem Link «Anmelden», ohne Typ und Inhalt (Design W10). Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
 - Medien, die nicht `oeffentlich` sind oder zu einer anderen Abteilung gehören: Der Baustein entfällt.
 - Telefon, E-Mail und Foto von Personen: Kontaktperson und Leitungsteam zeigen nur den Cevi-Namen und die Funktion (die Rolle an der Gruppe). Personen ohne Cevi-Namen, deaktivierte und gesperrte Konten erscheinen nicht. Das gilt, bis der Nutzer anders entscheidet.
 - Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Skript, kein Tracking. Ein Meta-CSP (`default-src 'none'; style-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts. Nur Seiten mit Platzhalter, die Hülle und die Anmeldeseite laden ein Skript und erlauben deshalb zusätzlich `script-src 'self'; connect-src 'self'`; es gibt nie ein Inline-Skript.
@@ -40,7 +43,7 @@ Bilder und Dateien sind Verweise auf `/api/v1/medien/<ID>` (öffentliche Medien,
 ## Geschützte Bausteine und Anmeldung
 
 - **Nachladen:** `GET /api/v1/website/inhalt?pfad=/a/b` (hinter der Sitzung) liefert für die Seite die Bausteine, die die Person laut Sichtbarkeit sehen darf, als JSON-Knoten (`{ tag, attr?, kinder? }` und Texte), nie als HTML. Ohne Sitzung 401; unbekannte Seite, andere Abteilung und fehlendes Recht antworten gleich mit 404. `Cache-Control: private, no-store`.
-- **Skript:** `website/geschuetzt.js` (ES-Modul, eigene Datei) ersetzt die Platzhalter durch DOM-Knoten (`website/knoten.js`: feste Liste von Elementen und Attributen, Text nur als Textknoten, nie `innerHTML`). Zustände: Laden (Skeleton, `aria-busy`, Live-Region), nicht angemeldet, Fehler mit «Nochmals versuchen», offline. Bei einer Hülle ersetzt es nach der Anmeldung den ganzen Inhalt der Seite.
+- **Skript:** `website/geschuetzt.js` (ES-Modul, eigene Datei) ersetzt die Platzhalter durch DOM-Knoten (`website/knoten.js`: feste Liste von Elementen und Attributen, Text nur als Textknoten, nie `innerHTML`). Zustände nach dem Design W10: Laden (Skeleton nach 200 ms, `aria-busy`, Live-Region, nach 4 Sekunden «Das dauert länger als sonst.», nach 15 Sekunden Abbruch mit Fehler), nicht angemeldet (der Hinweis des Platzhalters kommt zurück), Fehler mit «Nochmals versuchen», kein Zugriff. Bei einer Hülle ersetzt es nach der Anmeldung den ganzen Inhalt der Seite.
 - **Anmeldung:** `/anmelden` ist eine erzeugte Datei (kein Datenbankzugriff beim Abruf) mit dem Skript `website/anmelden.js`. Es ruft dieselben Aufrufe wie die Verwaltung unter `/api/auth` (Rate-Limit und Sperre nach Fehlversuchen gelten dort) und führt danach auf `weiter`. `weiter` ist eine Allowlist (`website/weiter.js`): nur `/` oder Adressstücke aus `a-z`, `0-9` und `-`, nie eine reservierte Adresse; alles andere führt auf `/`.
 - **Gleiche Herkunft:** Die API prüft bei `POST` den `Origin` (`BETTER_AUTH_URL` und `BETTER_AUTH_TRUSTED_ORIGINS`). Die Website muss unter derselben Domain wie die API laufen; eine Testadresse mit anderer Domain braucht einen Eintrag in `BETTER_AUTH_TRUSTED_ORIGINS` (und dann ein Cookie für diese Domain, also einen Proxy auf dieselbe Herkunft).
 
@@ -69,6 +72,23 @@ Entwürfe erscheinen nie in den erzeugten Dateien. Der Editor zeigt sie über `G
 - **Stufenfelder** (`stufenfakten`, #355): Treffzeit, Treffpunkt, Schluss und «mitnehmen» der nächsten Daten kommen aus `programm_eckdaten`. Der Abgleich holt sie mit einer Abfrage für alle Seiten (`ladeStufenfakten`); das Nachladen geschützter Bausteine nutzt einen Zwischenspeicher je Seite im Prozess (5 Minuten). Speichert die Stufenleitung Eckdaten, meldet die Route `seite_geaendert` für die Stufenseite, und der Abgleich erzeugt sie neu; sonst genügt der Lauf alle 10 Minuten (Datumswechsel).
 - **Termin-Liste** (`terminliste`): Das Schema des Bausteins gibt es (3 bis 10 Termine, optional ein Tag), der Renderer zeigt ihn aber **noch nicht**: Er liefert `null`, bis der Auftrag Termine die Daten einhängt. Wer den Baustein auf eine Seite legt, sieht ihn in der Vorschau und auf der Seite nicht. Das ist dokumentiert, nicht gebaut.
 
+## Termine und Anlässe
+
+Vier erzeugte Dateien (`src/website/termine-seiten.ts`, Design W3, W5 bis W8) zeigen Daten, die von der Sitzung der Person abhängen. Sie enthalten selbst nichts davon: Der Browser holt es mit den Routen der API (`credentials: same-origin`, nie `X-App-Version`), das Skript baut die Ansicht ohne `innerHTML`.
+
+| Adresse                     | Datei                            | Skript         | Routen                                                                  |
+| --------------------------- | -------------------------------- | -------------- | ----------------------------------------------------------------------- |
+| `/termine`                  | `termine/index.html`             | `termine.js`   | `GET /termine/alle`, `GET /termine/mein`, `GET/POST /ich/kalender-link` |
+| `/termine/vorschlagen`      | `termine/vorschlagen/index.html` | `vorschlag.js` | `GET /termin-vorschlaege/optionen`, `POST /termin-vorschlaege`          |
+| `/anlass?id=<ID>`           | `anlass/index.html`              | `anlass.js`    | `GET /anlaesse/{id}`                                                    |
+| `/anlass/anmeldung?id=<ID>` | `anlass/anmeldung/index.html`    | `anmeldung.js` | `GET /anlaesse/{id}`, `PUT` und `DELETE /anlaesse/{id}/anmeldung`       |
+
+- **Gemeinsames:** `tm.js` (Ansichten als Beschreibung statt HTML, Zeit in Zürich, Rückfrage-Dialog), `termine.css` (nur unter `.tm`, mit eigenen Tokens in Tag und Nacht). Die Ansichten sind reine Funktionen und mit `test/website-termine-skripte.test.ts` ohne Browser getestet.
+- **Ohne Sitzung** zeigen die Seiten «Melde dich an» mit einem Link auf `/anmelden?weiter=…`; `weiter` erlaubt dafür neben Adressen als einzige Anfrage `?id=` mit einer UUID (`weiter.js`). Ohne Skript steht ein Hinweis.
+- **Datenbanklast:** Ein Aufruf je Reiter und Zeitraum (höchstens 100 Termine, «Weitere Termine laden» holt die nächste Seite), danach aus dem Zwischenspeicher der Seite; der Filter nach Gruppe läuft im Browser, der Wechsel der Ansicht Liste/Monat holt nur einen anderen Zeitraum. Der Kalender-Link liest seinen Status einmal beim ersten Öffnen des Reiters. Es gibt kein Polling.
+- **Kalender-Link:** Der Server liefert den ganzen Link nur direkt nach dem Erzeugen. Ein bestehender Link erscheint darum verkürzt (`…` und die letzten vier Zeichen) und lässt sich erst nach «Link neu erzeugen» kopieren.
+- Die Seiten sind `noindex` und nicht in der Sitemap.
+
 ## Wartungsmodus und Informationssperre
 
 - **Wartungsmodus** des Bereichs `website`: Alle schreibenden Anfragen der Website-Verwaltung antworten 503 `IN_WARTUNG` (kein Speichern, kein Veröffentlichen); die erzeugten Dateien bleiben stehen, und der Abgleich läuft weiter.
@@ -90,7 +110,7 @@ Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach e
 ## Sicherheit der Ausgabe
 
 - Der Pfad jeder Datei entsteht aus geprüften Adressen (`a-z`, `0-9`, `-`, höchstens 60 Zeichen je Stück, höchstens 5 Ebenen) und läuft durch `istAusgabePfad`: nur Kleinbuchstaben, Ziffern, `-` und Endungen, nie ein Punkt am Anfang, nie `..`, nie ein Schrägstrich am Anfang oder ein Laufwerk. Zusätzlich muss das Ziel unter dem Ausgabeverzeichnis liegen.
-- Reservierte Adressen auf der obersten Ebene (`api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`) erzeugen nie eine Datei.
+- Reservierte Adressen auf der obersten Ebene (`api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`, `termine`, `anlass`) erzeugen nie eine Datei.
 - Geschrieben wird in eine Datei mit Namen `.tmp-<Zufall>` im selben Ordner und dann umbenannt (atomar). Wer die Website liest, sieht nie eine halbe Datei. Eine nach einem Absturz liegen gebliebene `.tmp-…`-Datei ist harmlos und taucht in keiner Liste auf; der Host sollte Dateien mit Punkt am Anfang nie ausliefern (siehe Vorschlag).
 - Der Dienst `api` läuft mit `read_only: true`. Er braucht für das Ausgabeverzeichnis ein beschreibbares Volume oder einen Bind-Mount; Ort und Hoster sind offen.
 
@@ -134,6 +154,19 @@ www.example.org {
 		handle @nichtGefunden {
 			root * /srv/website
 			rewrite * /404.html
+			file_server
+		}
+		# Wartung der API (503) und andere Fehler der Website: eigene Seiten, die Stilvorlage lädt als gewöhnliche Datei
+		@wartung expression {err.status_code} == 503
+		handle @wartung {
+			root * /srv/website
+			rewrite * /wartung.html
+			file_server
+		}
+		@fehler expression {err.status_code} >= 500
+		handle @fehler {
+			root * /srv/website
+			rewrite * /500.html
 			file_server
 		}
 	}

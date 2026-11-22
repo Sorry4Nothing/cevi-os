@@ -12,10 +12,12 @@ import {
   tagesabschnitt,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { darf, type LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { aktiveMitglieder } from "./schichtplan.js";
 import { aendereZeile, legeZeileAn, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
+import { anzeigeNamenLager } from "./zimmer.js";
 
 // Diensttausch im Lager (#389). Ein Mitglied fragt an, eine eigene Schicht zu tauschen oder abzugeben; die Lagerleitung entscheidet. Ob die Wunschperson einverstanden ist, klärt die Lagerleitung selbst: Cevi OS fragt sie nicht. Erst der Entscheid «angenommen» bucht um, in einer Transaktion unter der Lagersperre, und prüft dabei die Regeln des Schichtplans (#388) erneut: wer neu in einem Abschnitt steht, ist dort nicht abwesend (F) und hat dort keinen anderen Dienst. Es gibt drei Formen: mit einer Schicht der Wunschperson (beide tauschen), nur mit der Wunschperson (sie übernimmt) oder ohne beides (die Lagerleitung nennt beim Entscheid die Person, die übernimmt).
 // Der Feed meldet Anfragen nur, wer entscheiden darf; das Team liest seine eigenen über GET .../diensttausch/eigene.
@@ -458,4 +460,70 @@ export async function ladeTausche(
     tausche: seite,
     naechster: zeilen.length > p.limit ? seite[p.limit - 1]!.id : null,
   };
+}
+
+// Die Antworten der Routen nennen zusätzlich Namen und Schicht-Details (#520): vonName und mitName (Anzeigename des Lagers, Regel von anzeigeNamenLager), dazu je Schicht Dienst, Tag und Abschnitt. Gebündelt für beliebig viele Anfragen: eine Abfrage für die Schichten, eine für die Namen (nur wenn eine Person vorkommt). Die Felder der Ansicht bleiben unverändert (die Feed- und Konfliktantworten des Sync-Kerns nutzen tauschAnsicht allein). Eine Schicht, die es nicht mehr gibt, hat keine Details (null)
+export async function tauschMitNamen(
+  db: Db,
+  zugriff: LagerZugriff,
+  tausche: ReturnType<typeof tauschAnsicht>[],
+) {
+  if (tausche.length === 0) return [];
+  const schichtIds = [
+    ...new Set(
+      tausche.flatMap((t) => [t.schichtId, t.mitSchichtId].filter((s) => !!s)),
+    ),
+  ] as string[];
+  const [schichten, namen] = await Promise.all([
+    db
+      .select({
+        id: schicht.id,
+        dienst: dienst.name,
+        datum: lagertag.datum,
+        tagesabschnitt: tagesabschnitt.name,
+      })
+      .from(schicht)
+      .innerJoin(
+        dienst,
+        and(
+          eq(dienst.lagerId, schicht.lagerId),
+          eq(dienst.id, schicht.dienstId),
+        ),
+      )
+      .innerJoin(
+        lagertag,
+        and(
+          eq(lagertag.lagerId, schicht.lagerId),
+          eq(lagertag.id, schicht.lagertagId),
+        ),
+      )
+      .innerJoin(
+        tagesabschnitt,
+        and(
+          eq(tagesabschnitt.lagerId, schicht.lagerId),
+          eq(tagesabschnitt.id, schicht.tagesabschnittId),
+        ),
+      )
+      .where(
+        and(
+          eq(schicht.lagerId, zugriff.lager.id),
+          inArray(schicht.id, schichtIds),
+        ),
+      ),
+    anzeigeNamenLager(
+      db,
+      zugriff.lager.id,
+      darf(zugriff, "teilnehmer.bearbeiten"),
+    ),
+  ]);
+  const je = new Map(
+    schichten.map(({ id, ...details }) => [id, details] as const),
+  );
+  return tausche.map((t) => ({
+    ...t,
+    vonName: namen.get(t.vonPersonId) ?? null,
+    mitName: t.mitPersonId ? (namen.get(t.mitPersonId) ?? null) : null,
+    schicht: je.get(t.schichtId) ?? null,
+    mitSchicht: t.mitSchichtId ? (je.get(t.mitSchichtId) ?? null) : null,
+  }));
 }

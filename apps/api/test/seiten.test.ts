@@ -62,6 +62,20 @@ test.each<[string, string, string | null]>([
   },
 );
 
+// Wurzeladresse (#531)
+test.each(["GET", "HEAD"])(
+  "%s / leitet ohne Login mit 302 auf /admin, ohne Cookie und ohne Inhalt",
+  async (methode) => {
+    const antwort = await app.request("/", { method: methode });
+    expect(antwort.status).toBe(302);
+    expect(antwort.headers.get("location")).toBe("/admin");
+    expect(antwort.headers.get("set-cookie")).toBeNull();
+    expect(antwort.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(antwort.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(await antwort.text()).toBe("");
+  },
+);
+
 // Verwaltung im Browser (#141)
 const admin = ladeSeiten().admin;
 const adminPfad = (datei: string) =>

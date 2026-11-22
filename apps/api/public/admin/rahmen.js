@@ -115,7 +115,7 @@ export function erstelleLeisten() {
                       n > 0 &&
                         el(
                           "span",
-                          { class: "zaehler" },
+                          { class: "pille-zaehler" },
                           String(n),
                           el("span", { class: "nur-leser" }, " offen"),
                         ),

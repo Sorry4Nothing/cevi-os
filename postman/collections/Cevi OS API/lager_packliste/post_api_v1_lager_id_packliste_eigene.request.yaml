@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/packliste/eigene"
-order: 298000
+order: 300000
 method: POST
-url: "{{baseUrl}}{{pfad_L143}}"
+url: "{{baseUrl}}{{pfad_L145}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -19,5 +19,5 @@ body:
   content: |-
     {
       "abschnitt": "Matrix",
-      "text": "339e1a5e-66b6-4eff-b0cc-d437968a13f5"
+      "text": "53b54e3f-d93c-4f07-8c8e-08f2fb53a718"
     }

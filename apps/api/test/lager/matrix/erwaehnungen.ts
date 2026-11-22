@@ -87,4 +87,12 @@ export const ZEILEN: LagerMatrix = {
       abgeschlossen: status({ ...nichtMitglied, lesen: 403 }, 409),
     },
   },
+  // Zurücknehmen (#521): Recht wie beim Anlegen, eine fremde Erwähnung ist 404; den Erfolg zeigt erwaehnungen.test.ts
+  "DELETE /api/v1/lager/:id/erwaehnungen/:erwaehnungId/als-aufgabe": {
+    url: (w, z) => `${lagerPfad(w, z)}/erwaehnungen/${KEINE}/als-aufgabe`,
+    erwartet: {
+      aktiv: status({ ...nichtMitglied, lesen: 403 }, 404),
+      abgeschlossen: status({ ...nichtMitglied, lesen: 403 }, 409),
+    },
+  },
 };

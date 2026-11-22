@@ -1,55 +1,97 @@
-// Anmeldung auf der Website (#354): dieselben Aufrufe wie die Verwaltung unter /api/auth (Rate-Limit und Sperre nach Fehlversuchen gelten dort), gleiche Herkunft, das Cookie setzt der Server.
+// Anmeldung auf der Website (#354, Design W9): dieselben Aufrufe wie die Verwaltung unter /api/auth (Rate-Limit und Sperre nach Fehlversuchen gelten dort), gleiche Herkunft, das Cookie setzt der Server.
 // Das Passwort geht nur als JSON im Body hin, nie in eine Adresse; es wird nach dem Absenden aus dem Feld gelöscht und nirgends gespeichert oder protokolliert.
 import { sicheresZiel } from "./weiter.js";
+import { band, el, symbol } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
-const fehler = $("fehler");
+const meldung = $("meldung");
 const anmeldung = $("anmeldung");
 const faktor = $("faktor");
 const benutzername = $("benutzername");
 const passwort = $("passwort");
 const code = $("code");
 const ersatz = $("ersatz");
+const zeigen = $("zeigen");
 
 // Nur ein Pfad dieser Website (siehe weiter.js)
 const ziel = sicheresZiel(new URLSearchParams(location.search).get("weiter"));
 
 // Gleicher Text für falsches Konto und falsches Passwort: Er verrät nicht, ob es das Konto gibt
 const TEXTE = {
-  fehlgeschlagen:
-    "Anmeldung nicht möglich. Prüfe Benutzername und Passwort oder versuche es später nochmals.",
-  zuViele:
-    "Zu viele Versuche. Bitte warte kurz und versuche es später nochmals.",
-  netz: "Keine Verbindung. Prüfe das Internet und versuche es nochmals.",
-  codeFalsch: "Der Code stimmt nicht. Prüfe ihn und versuche es nochmals.",
-  abgelaufen:
-    "Die Anmeldung ist abgelaufen. Bitte gib Benutzername und Passwort nochmals ein.",
+  fehlgeschlagen: [
+    "Benutzername oder Passwort stimmen nicht.",
+    "Prüfe beides und versuche es nochmals.",
+  ],
+  zuViele: ["Zu viele Versuche.", "Warte kurz und versuche es nochmals."],
+  netz: ["Keine Verbindung.", "Prüfe dein Internet und versuche es nochmals."],
+  codeFalsch: ["Der Code stimmt nicht.", "Prüfe ihn und versuche es nochmals."],
+  abgelaufen: ["Die Anmeldung ist abgelaufen.", "Melde dich nochmals an."],
 };
+const ART = { zuViele: "wa", abgelaufen: "", netz: "fe" };
 
-function zeigeFehler(text, felder) {
-  fehler.className = "hinweis hinweis--fehler";
-  const p = document.createElement("p");
-  const fett = document.createElement("strong");
-  fett.textContent = "Fehler: ";
-  p.append(fett, text);
-  fehler.replaceChildren(p);
-  fehler.hidden = false;
-  for (const f of [benutzername, passwort, code]) {
+const felder = [benutzername, passwort, code];
+
+function raeumeFehler() {
+  meldung.replaceChildren();
+  for (const f of felder) {
     f.removeAttribute("aria-invalid");
     f.removeAttribute("aria-describedby");
+    f.closest(".feld")?.classList.remove("fehler");
+    $(`${f.id}-f`)?.remove();
   }
-  for (const f of felder) {
-    f.setAttribute("aria-invalid", "true");
-    f.setAttribute("aria-describedby", "fehler");
-  }
-  // Der Fokus auf der Meldung liest sie vor
-  fehler.focus();
 }
 
-const verstecke = () => {
-  fehler.hidden = true;
-  fehler.replaceChildren();
-};
+// Eine Meldung oben, die der Screenreader sofort ansagt; der Fokus bleibt, wo er ist, ausser bei der Zusammenfassung (sie trägt ihn)
+function zeigeMeldung(schluessel, markiere = []) {
+  const [titel, text] = TEXTE[schluessel];
+  const b = band(
+    ART[schluessel] ?? "fe",
+    titel,
+    text,
+    ART[schluessel] === "" ? "info" : "warnung",
+  );
+  b.setAttribute("role", ART[schluessel] === "" ? "status" : "alert");
+  meldung.replaceChildren(b);
+  for (const f of markiere) f.setAttribute("aria-invalid", "true");
+}
+
+// Fehlen Angaben, steht oben eine Liste mit Links auf die Felder und je Feld ein Text (Design W9 «Validierungsfehler»)
+function zeigeFehlt(fehlende) {
+  const liste = el("ul", "");
+  for (const [feld, text] of fehlende) {
+    const link = el("a", "", text);
+    link.href = `#${feld.id}`;
+    liste.append(el("li", "", link));
+    feld.setAttribute("aria-invalid", "true");
+    feld.setAttribute("aria-describedby", `${feld.id}-f`);
+    const huelle = feld.closest(".feld");
+    huelle.classList.add("fehler");
+    const t = el("p", "fehlertext", symbol("warnung"), text);
+    t.id = `${feld.id}-f`;
+    huelle.append(t);
+  }
+  const b = el(
+    "div",
+    "band fe zusammenfassung",
+    symbol("warnung"),
+    el(
+      "div",
+      "text",
+      el(
+        "strong",
+        "",
+        fehlende.length === 1
+          ? "1 Angabe prüfen"
+          : `${fehlende.length} Angaben prüfen`,
+      ),
+      liste,
+    ),
+  );
+  b.setAttribute("role", "alert");
+  b.tabIndex = -1;
+  meldung.replaceChildren(b);
+  b.focus();
+}
 
 // Die Antwort auf einen Aufruf: Status und Code (better-auth), nie der Text der Antwort
 async function sende(pfad, body) {
@@ -76,51 +118,89 @@ async function sende(pfad, body) {
 
 const weiter = () => location.assign(ziel);
 
+// «Melde an …»: Der Knopf bleibt fokussierbar (aria-disabled statt disabled), die Felder sind schreibgeschützt
+function laeuft(form, an, text) {
+  const knopf = form.querySelector("button[type=submit]");
+  const felderDerForm = [...form.querySelectorAll("input")];
+  if (an) {
+    knopf.dataset.text = knopf.textContent;
+    knopf.setAttribute("aria-disabled", "true");
+    knopf.setAttribute("aria-busy", "true");
+    knopf.replaceChildren(el("span", "lade"), text);
+    knopf.firstChild.setAttribute("aria-hidden", "true");
+    felderDerForm.forEach((f) => (f.readOnly = true));
+  } else {
+    knopf.removeAttribute("aria-disabled");
+    knopf.removeAttribute("aria-busy");
+    knopf.replaceChildren(knopf.dataset.text);
+    felderDerForm.forEach((f) => (f.readOnly = false));
+  }
+}
+const istBeschaeftigt = (form) =>
+  form.querySelector("button[type=submit]").getAttribute("aria-busy") ===
+  "true";
+
 function zeigeFaktor() {
   anmeldung.hidden = true;
   faktor.hidden = false;
   code.focus();
 }
 
-function zeigeAnmeldung(text) {
+function zeigeAnmeldung(schluessel) {
   faktor.hidden = true;
   anmeldung.hidden = false;
-  if (text) zeigeFehler(text, [benutzername, passwort]);
+  raeumeFehler();
+  if (schluessel) zeigeMeldung(schluessel);
   benutzername.focus();
 }
 
+zeigen.addEventListener("click", () => {
+  const an = zeigen.getAttribute("aria-pressed") !== "true";
+  zeigen.setAttribute("aria-pressed", String(an));
+  zeigen.setAttribute(
+    "aria-label",
+    an ? "Passwort verbergen" : "Passwort anzeigen",
+  );
+  passwort.type = an ? "text" : "password";
+});
+
 anmeldung.addEventListener("submit", async (e) => {
   e.preventDefault();
-  verstecke();
+  if (istBeschaeftigt(anmeldung)) return;
+  raeumeFehler();
   const name = benutzername.value.trim();
   const pw = passwort.value;
-  if (!name || !pw) {
-    zeigeFehler(
-      "Bitte gib Benutzername und Passwort ein.",
-      [!name && benutzername, !pw && passwort].filter(Boolean),
-    );
+  const fehlt = [];
+  if (!name) fehlt.push([benutzername, "Gib deinen Benutzernamen ein."]);
+  if (!pw) fehlt.push([passwort, "Gib dein Passwort ein."]);
+  if (fehlt.length > 0) {
+    zeigeFehlt(fehlt);
     return;
   }
-  const senden = anmeldung.querySelector("button[type=submit]");
-  senden.disabled = true;
+  laeuft(anmeldung, true, "Melde an …");
   const r = await sende("/api/auth/sign-in/username", {
     username: name,
     password: pw,
   });
-  senden.disabled = false;
   passwort.value = "";
+  passwort.type = "password";
+  zeigen.setAttribute("aria-pressed", "false");
+  zeigen.setAttribute("aria-label", "Passwort anzeigen");
   if (r.status === 200) {
-    if (r.daten?.twoFactorRedirect) zeigeFaktor();
-    else weiter();
+    if (r.daten?.twoFactorRedirect) {
+      laeuft(anmeldung, false);
+      zeigeFaktor();
+    } else {
+      weiter();
+    }
     return;
   }
-  zeigeFehler(
-    r.status === 0
-      ? TEXTE.netz
-      : r.status === 429
-        ? TEXTE.zuViele
-        : TEXTE.fehlgeschlagen,
-    r.status === 0 || r.status === 429 ? [] : [benutzername, passwort],
+  laeuft(anmeldung, false);
+  const schluessel =
+    r.status === 0 ? "netz" : r.status === 429 ? "zuViele" : "fehlgeschlagen";
+  zeigeMeldung(
+    schluessel,
+    schluessel === "fehlgeschlagen" ? [benutzername, passwort] : [],
   );
 });
 
@@ -129,56 +209,53 @@ ersatz.addEventListener("click", () => {
   istErsatz = !istErsatz;
   $("code-label").textContent = istErsatz
     ? "Ersatzcode"
-    : "Code aus der Authenticator-App";
+    : "Code aus deiner App";
   $("code-hilfe").textContent = istErsatz
     ? "Format: xxxxx-xxxxx. Jeder Ersatzcode gilt nur einmal."
-    : "Sechs Ziffern.";
+    : "Sechs Ziffern. Einfügen geht auch.";
   ersatz.textContent = istErsatz
     ? "Code aus der App verwenden"
     : "Ersatzcode verwenden";
   code.setAttribute("inputmode", istErsatz ? "text" : "numeric");
   code.setAttribute("autocomplete", istErsatz ? "off" : "one-time-code");
   code.value = "";
-  verstecke();
+  raeumeFehler();
   code.focus();
 });
 
+$("abbrechen").addEventListener("click", () => zeigeAnmeldung());
+
 faktor.addEventListener("submit", async (e) => {
   e.preventDefault();
-  verstecke();
+  if (istBeschaeftigt(faktor)) return;
+  raeumeFehler();
   const wert = code.value.trim();
   if (!wert) {
-    zeigeFehler("Bitte gib den Code ein.", [code]);
+    zeigeFehlt([[code, "Gib den Code ein."]]);
     return;
   }
-  const senden = faktor.querySelector("button[type=submit]");
-  senden.disabled = true;
+  laeuft(faktor, true, "Prüfe …");
   const r = await sende(
     istErsatz
       ? "/api/auth/two-factor/verify-backup-code"
       : "/api/auth/two-factor/verify-totp",
     { code: wert },
   );
-  senden.disabled = false;
   code.value = "";
   if (r.status === 200) {
     weiter();
     return;
   }
+  laeuft(faktor, false);
   // Ohne gültiges Zwischen-Cookie hilft nur eine neue Anmeldung
   if (
     r.code === "INVALID_TWO_FACTOR_COOKIE" ||
     r.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE"
   ) {
-    zeigeAnmeldung(TEXTE.abgelaufen);
+    zeigeAnmeldung("abgelaufen");
     return;
   }
-  zeigeFehler(
-    r.status === 0
-      ? TEXTE.netz
-      : r.status === 429
-        ? TEXTE.zuViele
-        : TEXTE.codeFalsch,
-    r.status === 0 || r.status === 429 ? [] : [code],
-  );
+  const schluessel =
+    r.status === 0 ? "netz" : r.status === 429 ? "zuViele" : "codeFalsch";
+  zeigeMeldung(schluessel, schluessel === "codeFalsch" ? [code] : []);
 });

@@ -115,7 +115,7 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 
 - [ ] **11.1** Jede Seite hat genau ein `h1` (der Titel der Seite). Die Bausteine «Überschrift» beginnen bei Ebene 2, und eine Überschrift springt höchstens eine Ebene tiefer als die vorherige; der Renderer hebt eine zu tiefe Ebene an.
 - [ ] **11.2** Das Dokument hat die Sprache `de-CH` und einen Titel mit dem Namen der Abteilung.
-- [ ] **11.3** Ein Sprunglink «Zum Inhalt» ist der erste fokussierbare Punkt, wird beim Fokus sichtbar und führt zu `main` (`id="inhalt"`). Die Navigation ist ein `nav` mit Beschriftung, die aktuelle Seite trägt `aria-current="page"`.
+- [ ] **11.3** Ein Sprunglink «Zum Inhalt» ist der erste fokussierbare Punkt, wird beim Fokus sichtbar und führt zu `main` (`id="inhalt"`). Die Navigation ist ein `nav` mit Beschriftung, die aktuelle Seite trägt `aria-current="page"`, ihre Oberseiten `aria-current="true"`. Am Handy öffnet «Menü» ein `details`-Element (ohne Skript, mit Tastatur bedienbar); die Unterseiten des Bereichs stehen in einer eigenen Unterleiste mit Beschriftung.
 - [ ] **11.4** Der Fokus ist überall sichtbar (Umriss von mindestens 2 Pixeln, Kontrast 3:1 zum Umfeld) und wird nie verdeckt. Die Reihenfolge folgt der Leserichtung.
 - [ ] **11.5** Alles geht mit der Tastatur: Navigation, Links, Schaltflächen, Anmeldeformular. Es gibt keine Falle und keine Funktion, die nur mit der Maus geht.
 - [ ] **11.6** Kontrast: Text mindestens 4.5:1, grosser Text und Bedienelemente mindestens 3:1, hell und dunkel (`prefers-color-scheme`) und mit erzwungenen Farben. Ein Zustand zeigt sich nie nur über Farbe.
@@ -124,9 +124,20 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 - [ ] **11.9** Bei 200 Prozent Zoom und bei 320 Pixeln Breite gibt es kein Scrollen in zwei Richtungen, nichts wird abgeschnitten oder überdeckt, Texte brechen um. Mit einem Zeilenabstand von 1.5 geht kein Inhalt verloren.
 - [ ] **11.10** Touch-Ziele sind mindestens 44 × 44 Pixel gross (WCAG 2.2 verlangt 24 × 24; hier gilt dasselbe Mass wie in der App).
 - [ ] **11.11** Mit «Bewegung reduzieren» bewegt sich nichts. Es gibt keine automatische Bewegung, kein Karussell und kein Blinken.
-- [ ] **11.12** Geschützte Bausteine laden nach: Der Platzhalter meldet «Wird geladen» (`aria-busy`, Live-Region), der Fehlerzustand und der Zustand «nicht angemeldet» sind Text mit einem Link oder einer Schaltfläche (zum Beispiel «Nochmals versuchen»), und der Fokus springt nicht ohne Grund. Ohne JavaScript bleibt die Seite lesbar: Der Platzhalter ist leer, die Hülle nennt den Grund.
-- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus, Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus.
+- [ ] **11.12** Geschützte Bausteine laden nach: Der Platzhalter meldet «Wird geladen» (`aria-busy`, Live-Region), der Fehlerzustand und der Zustand «nicht angemeldet» sind Text mit einem Link oder einer Schaltfläche (zum Beispiel «Nochmals versuchen»), und der Fokus springt nicht ohne Grund. Ohne JavaScript bleibt die Seite lesbar: Der Platzhalter sagt «Nur angemeldet sichtbar» und führt mit «Anmelden» zur Anmeldung, die Hülle nennt den Grund. Das Skelett erscheint erst nach 200 ms, steht bei «Bewegung reduzieren» still, und nach 4 Sekunden meldet die Live-Region «Das dauert länger als sonst.».
+- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus (bei fehlenden Angaben als Liste mit Links auf die Felder und je Feld ein Text, das Feld trägt `aria-invalid` und `aria-describedby`), Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus.
 - [ ] **11.14** Es gibt kein Zeitlimit und keine automatische Weiterleitung: Die Hülle einer geschützten Seite nennt den Link «Anmelden», statt selbst zu wechseln.
+
+### Termine und Anlässe (#530)
+
+Gilt für `/termine`, `/termine/vorschlagen`, `/anlass` und `/anlass/anmeldung` zusätzlich zu 11.1 bis 11.11.
+
+- [ ] **11.40** Jeder Zustand ist Text mit Symbol, nie nur Farbe: Laden (`aria-busy`, «Lädt …» in einer Live-Region, Skeleton `aria-hidden`), leer, Fehler mit «Nochmals versuchen» (`role="alert"`), nicht angemeldet mit Link «Anmelden», kein Zugriff. «Abgesagt» und «Noch unklar» stehen als Wort im Etikett.
+- [ ] **11.41** Reiter «Alle» und «Mein Kalender»: `role="tab"` mit `aria-selected`, Pfeiltasten, Pos1 und Ende wechseln; ohne Sitzung ist «Mein Kalender» `aria-disabled` und der Grund steht daneben.
+- [ ] **11.42** Der Termin ist ein Link mit sprechendem Namen (Wochentag, Datum, Titel, Zeit, Ort, Gruppen). Das Monatsraster ist eine Liste von Tagen mit ausgeschriebenem Wochentag, nicht nur Zahlen; heute trägt `aria-current="date"`; am Handy zeigen Punkte die Termine und die Liste darunter nennt sie.
+- [ ] **11.43** Das Filterblatt am Handy ist ein `dialog` (Fokus hinein, Esc schliesst, Fokus zurück auf «Filter»); die Auswahl sind Schalter mit `aria-pressed`, aktive Filter stehen auch als Text.
+- [ ] **11.44** Formulare (Terminvorschlag, Anmeldung): jedes Feld hat ein `label`, Fehler stehen oben in einer Zusammenfassung (`role="alert"`, trägt den Fokus, Links auf die Felder) und beim Feld (`aria-invalid`, `aria-describedby`). Eine Auswahl aus einer Antwort ist eine `radiogroup` mit Pfeiltasten. Beim Senden sind die Felder `readonly`, der Knopf `aria-disabled` und `aria-busy`; der Entwurf bleibt bei Fehler und ohne Verbindung erhalten.
+- [ ] **11.45** Rückfragen («Neuen Link erzeugen?», «Abmelden?») sind ein `alertdialog` mit Fokus auf «Abbrechen». Eine Meldung wie «Link kopiert» verschwindet nie von selbst, sondern mit «OK».
 
 ### Editor
 
@@ -175,7 +186,7 @@ Vorbereitung: die Demo-Abteilung mit je einem Beispiel pro Reiter (Termine ohne 
 
 ### Stand der Prüfung
 
-Aus den PRs der Issues, ohne neue Messung für dieses Dokument: Jeder Reiter wurde im Browser (Chromium, Playwright) mit der echten `termine.js` und `admin.css` und erfundenen Antworten geprüft, mit Demo-Namen, bei 390 Pixeln Breite und, wo der PR es vermerkt, 1280 Pixeln: Warnliste (#433: Liste, Nachladen, leer), Vorschläge (#441: Tastaturablauf von Liste bis Eintragen, 409, Netzausfall, erzwungene Farben), Anlässe (#445: Verschieben und Entfernen per Tastatur, Validierung, Export, 403, 401, 500, offline) und Räume (#446, #447); der Bereich «Anwesenheit» ist hier nicht Teil dieser Angabe. Nicht geprüft: ein echter Server mit zweitem Faktor, Screenreader (NVDA, VoiceOver, TalkBack) und 200 Prozent Zoom von Hand. Die Punkte oben sind das Mass für diese Prüfung und noch von Hand abzuhaken; ein Hellmodus existiert nicht (die Verwaltung kennt nur das dunkle Thema).
+Aus den PRs der Issues, ohne neue Messung für dieses Dokument: Jeder Reiter wurde im Browser (Chromium, Playwright) mit der echten `termine.js` und `admin.css` und erfundenen Antworten geprüft, mit Demo-Namen, bei 390 Pixeln Breite und, wo der PR es vermerkt, 1280 Pixeln: Warnliste (#433: Liste, Nachladen, leer), Vorschläge (#441: Tastaturablauf von Liste bis Eintragen, 409, Netzausfall, erzwungene Farben), Anlässe (#445: Verschieben und Entfernen per Tastatur, Validierung, Export, 403, 401, 500, offline) und Räume (#446, #447); der Bereich «Anwesenheit» ist hier nicht Teil dieser Angabe. Nicht geprüft: ein echter Server mit zweitem Faktor, Screenreader (NVDA, VoiceOver, TalkBack) und 200 Prozent Zoom von Hand. Die Punkte oben sind das Mass für diese Prüfung und noch von Hand abzuhaken; die Verwaltung folgt seit dem Neuaufbau (#524) Tag und Nacht des Geräts, die Aussage oben bezieht sich auf die frühere Fassung.
 
 ## Im PR angeben
 
