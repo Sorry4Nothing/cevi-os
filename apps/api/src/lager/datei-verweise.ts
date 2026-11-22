@@ -18,7 +18,7 @@ export type DateiVerweis = {
   recht: LagerRecht;
   // Zeilenfilter der Rolle (zum Beispiel «Team sieht nur Beiträge für das Team»): bekommt die Einträge und liefert die, auf die ein lesbarer Datensatz zeigt. Fehlt er, gilt jeder nicht gelöschte Datensatz des Lagers als lesbar, sobald das Recht da ist
   sichtbar?: (
-    db: Db,
+    db: Pick<Db, "select" | "selectDistinct">,
     zugriff: LagerZugriff,
     dateiIds: string[],
   ) => Promise<Set<string>>;
@@ -41,7 +41,7 @@ export function entferneDateiVerweis(spalte: AnyPgColumn) {
 
 // Welche der Einträge zeigen auf einen Datensatz, den die Person lesen darf? Eine Abfrage je angemeldetem Verweis, dessen Recht die Person hat, nie je Eintrag
 export async function sichtbareDateien(
-  db: Db,
+  db: Pick<Db, "select" | "selectDistinct">,
   zugriff: LagerZugriff,
   dateiIds: string[],
 ): Promise<Set<string>> {
@@ -58,7 +58,7 @@ export async function sichtbareDateien(
 
 // Die Einträge, die ein einzelner Verweis freigibt (das Recht des Verweises ist schon geprüft)
 export async function sichtbarJeVerweis(
-  db: Db,
+  db: Pick<Db, "select" | "selectDistinct">,
   zugriff: LagerZugriff,
   v: DateiVerweis,
   dateiIds: string[],

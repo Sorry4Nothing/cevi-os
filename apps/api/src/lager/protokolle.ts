@@ -12,6 +12,7 @@ import {
 import { dateiAnsicht } from "./datei.js";
 import { registriereDateiVerweis } from "./datei-verweise.js";
 import { hoeckAnsicht, hoeckUmfang, ladeHoeckZeile } from "./hoecks.js";
+import { lehneAb, registriereOperation } from "./operationen.js";
 import type { LagerZugriff } from "./policy.js";
 import { sperreLager } from "./ressorts.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
@@ -270,7 +271,7 @@ export type BeschlussEintrag = ReturnType<typeof beschlussAnsicht> & {
 
 // Die Beschlüsse, neueste zuerst, mit Cursor, in einer Abfrage
 export async function ladeBeschluesse(
-  db: Db,
+  db: Pick<Db, "select">,
   zugriff: LagerZugriff,
   p: {
     id?: string;
@@ -539,3 +540,85 @@ export async function loescheBeschluss(
     ansicht: beschlussAnsicht,
   });
 }
+
+const FEHLER_TEXT = {
+  HOECK_UNBEKANNT: "Den Höck gibt es in diesem Lager nicht.",
+  PROTOKOLL_UNBEKANNT: "Das Protokoll gibt es in diesem Lager nicht.",
+  HOECK_PASST_NICHT: "Das Protokoll gehört zu einem anderen Höck.",
+  DATEI_UNBEKANNT: "Diese Datei gibt es in diesem Lager nicht.",
+} as const;
+// Antwort der Route (400) und Ablehnung der Operation mit demselben Code und Text
+export const fehlerAntwort = (code: keyof typeof FEHLER_TEXT) => ({
+  code,
+  message: FEHLER_TEXT[code],
+});
+
+// Der Beschluss, soweit die Person ihn sieht (ein Beschluss eines Höcks der Lagerleitung ist für Rollen ohne alle Höcks unbekannt); sonst 404, auch für einen Beschluss eines fremden Lagers
+export async function beschlussDa(
+  db: Pick<Db, "select">,
+  zugriff: LagerZugriff,
+  id: string,
+) {
+  const { eintraege } = await ladeBeschluesse(db, zugriff, { id });
+  if (!eintraege[0]) throw new HTTPException(404);
+  return eintraege[0];
+}
+
+// Operationen der Warteschlange (#367, #521): dieselben Schreibwege und Prüfungen wie die Routen, mit demselben Recht. Protokolle (Verknüpfung auf eine Datei) gehen nicht in die Warteschlange
+const FEHLER_BESCHLUSS = [
+  "HOECK_UNBEKANNT",
+  "PROTOKOLL_UNBEKANNT",
+  "HOECK_PASST_NICHT",
+];
+const beschlussVersion = async (tx: Tx, lagerId: string, id: string) => ({
+  id,
+  version: (await ladeBeschlussZeile(tx, lagerId, id))!.version,
+});
+registriereOperation({
+  typ: "beschluss.anlegen",
+  recht: "protokolle.bearbeiten",
+  fehler: FEHLER_BESCHLUSS,
+  schema: beschlussAnlegen,
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    const k = { lagerId: zugriff.lager.id, personId: person.id };
+    const e = await legeBeschlussAn(tx, zugriff, k, n);
+    if ("fehler" in e) {
+      const { code, message } = fehlerAntwort(e.fehler);
+      throw lehneAb(code, message);
+    }
+    return beschlussVersion(tx, k.lagerId, e.id);
+  },
+});
+registriereOperation({
+  typ: "beschluss.aendern",
+  recht: "protokolle.bearbeiten",
+  fehler: FEHLER_BESCHLUSS,
+  schema: z
+    .strictObject({ id: z.uuid(), ...beschlussAendern.shape })
+    .refine((b) => Object.keys(b).length > 2),
+  fuehreAus: async ({ tx, zugriff, person }, { id, ...n }) => {
+    const k = { lagerId: zugriff.lager.id, personId: person.id };
+    await beschlussDa(tx, zugriff, id);
+    const fehler = await aendereBeschluss(tx, zugriff, k, id, n);
+    if (fehler) {
+      const { code, message } = fehlerAntwort(fehler.fehler);
+      throw lehneAb(code, message);
+    }
+    return beschlussVersion(tx, k.lagerId, id);
+  },
+});
+registriereOperation({
+  typ: "beschluss.loeschen",
+  recht: "protokolle.bearbeiten",
+  schema: z.strictObject({ id: z.uuid(), version: z.number().int().min(1) }),
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    await beschlussDa(tx, zugriff, n.id);
+    await loescheBeschluss(
+      tx,
+      { lagerId: zugriff.lager.id, personId: person.id },
+      n.id,
+      n.version,
+    );
+    return { id: n.id };
+  },
+});

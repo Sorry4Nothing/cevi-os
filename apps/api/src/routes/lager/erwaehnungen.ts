@@ -10,6 +10,7 @@ import {
   erwaehnungenAbfrage,
   gleicheErwaehnungenAb,
   ladeErwaehnungen,
+  nimmAlsAufgabeZurueck,
   schreibRecht,
   SCHREIB_RECHTE,
   setzeErledigt,
@@ -43,81 +44,106 @@ export function erstelleErwaehnungenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     einesDerRechte: ["aufgaben.bearbeiten", "aufgaben.eigene"],
   });
 
-  return new Hono<LagerEnv>()
-    .get(
-      "/:id/erwaehnungen",
-      mitglied,
-      eingabe("param", lagerPfad),
-      eingabe("query", erwaehnungenAbfrage),
-      async (c) => {
-        const { eintraege, naechster } = await ladeErwaehnungen(
-          db,
-          c.get("lager"),
-          c.req.valid("query"),
-        );
-        return c.json({ erwaehnungen: eintraege, naechster });
-      },
-    )
-    .put(
-      "/:id/erwaehnungen/:typ/:quelleId",
-      abgleichen,
-      eingabe("param", quellePfad),
-      async (c) => {
-        const zugriff = c.get("lager");
-        const { typ, quelleId } = c.req.valid("param");
-        if (!darf(zugriff, schreibRecht(typ))) throw new HTTPException(403);
-        const ergebnis = await db.transaction((tx) =>
-          gleicheErwaehnungenAb(tx, zugriff, typ, quelleId),
-        );
-        if ("fehler" in ergebnis) {
-          return c.json(
-            { code: ergebnis.fehler, message: FEHLER_TEXT[ergebnis.fehler] },
-            400,
+  return (
+    new Hono<LagerEnv>()
+      .get(
+        "/:id/erwaehnungen",
+        mitglied,
+        eingabe("param", lagerPfad),
+        eingabe("query", erwaehnungenAbfrage),
+        async (c) => {
+          const { eintraege, naechster } = await ladeErwaehnungen(
+            db,
+            c.get("lager"),
+            c.req.valid("query"),
           );
-        }
-        await ergebnis.zustellung.senden({ db, fcm, c });
-        return c.json({ personIds: ergebnis.personIds, neu: ergebnis.neu });
-      },
-    )
-    .patch(
-      "/:id/erwaehnungen/:erwaehnungId",
-      mitglied,
-      eingabe("param", erwaehnungPfad),
-      eingabe("json", erledigtSetzen),
-      async (c) => {
-        const zugriff = c.get("lager");
-        const { erwaehnungId } = c.req.valid("param");
-        const { erledigt } = c.req.valid("json");
-        // Nur die eigene und nur, solange die Person den Inhalt sieht; sonst dasselbe 404
-        const [alt] = (
-          await ladeErwaehnungen(db, zugriff, { id: erwaehnungId })
-        ).eintraege;
-        if (!alt) throw new HTTPException(404);
-        await setzeErledigt(db, zugriff, erwaehnungId, erledigt);
-        return c.json({ ...alt, erledigt });
-      },
-    )
-    .post(
-      "/:id/erwaehnungen/:erwaehnungId/als-aufgabe",
-      aufgabeAnlegen,
-      eingabe("param", erwaehnungPfad),
-      async (c) => {
-        const zugriff = c.get("lager");
-        const { erwaehnungId } = c.req.valid("param");
-        const [e] = (await ladeErwaehnungen(db, zugriff, { id: erwaehnungId }))
-          .eintraege;
-        if (!e) throw new HTTPException(404);
-        const ergebnis = await db.transaction((tx) =>
-          alsAufgabe(
-            tx,
-            { lagerId: zugriff.lager.id, personId: zugriff.personId },
-            e,
-          ),
-        );
-        return c.json(
-          { aufgabeId: ergebnis.aufgabeId },
-          ergebnis.neu ? 201 : 200,
-        );
-      },
-    );
+          return c.json({ erwaehnungen: eintraege, naechster });
+        },
+      )
+      .put(
+        "/:id/erwaehnungen/:typ/:quelleId",
+        abgleichen,
+        eingabe("param", quellePfad),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const { typ, quelleId } = c.req.valid("param");
+          if (!darf(zugriff, schreibRecht(typ))) throw new HTTPException(403);
+          const ergebnis = await db.transaction((tx) =>
+            gleicheErwaehnungenAb(tx, zugriff, typ, quelleId),
+          );
+          if ("fehler" in ergebnis) {
+            return c.json(
+              { code: ergebnis.fehler, message: FEHLER_TEXT[ergebnis.fehler] },
+              400,
+            );
+          }
+          await ergebnis.zustellung.senden({ db, fcm, c });
+          return c.json({ personIds: ergebnis.personIds, neu: ergebnis.neu });
+        },
+      )
+      .patch(
+        "/:id/erwaehnungen/:erwaehnungId",
+        mitglied,
+        eingabe("param", erwaehnungPfad),
+        eingabe("json", erledigtSetzen),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const { erwaehnungId } = c.req.valid("param");
+          const { erledigt } = c.req.valid("json");
+          // Nur die eigene und nur, solange die Person den Inhalt sieht; sonst dasselbe 404
+          const [alt] = (
+            await ladeErwaehnungen(db, zugriff, { id: erwaehnungId })
+          ).eintraege;
+          if (!alt) throw new HTTPException(404);
+          await setzeErledigt(db, zugriff, erwaehnungId, erledigt);
+          return c.json({ ...alt, erledigt });
+        },
+      )
+      .post(
+        "/:id/erwaehnungen/:erwaehnungId/als-aufgabe",
+        aufgabeAnlegen,
+        eingabe("param", erwaehnungPfad),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const { erwaehnungId } = c.req.valid("param");
+          const [e] = (
+            await ladeErwaehnungen(db, zugriff, { id: erwaehnungId })
+          ).eintraege;
+          if (!e) throw new HTTPException(404);
+          const ergebnis = await db.transaction((tx) =>
+            alsAufgabe(
+              tx,
+              { lagerId: zugriff.lager.id, personId: zugriff.personId },
+              e,
+            ),
+          );
+          return c.json(
+            { aufgabeId: ergebnis.aufgabeId },
+            ergebnis.neu ? 201 : 200,
+          );
+        },
+      )
+      // Nimmt «Als Aufgabe» zurück (#521): wie das Anlegen nur für die eigene, sichtbare Erwähnung (sonst 404) und mit demselben Recht
+      .delete(
+        "/:id/erwaehnungen/:erwaehnungId/als-aufgabe",
+        aufgabeAnlegen,
+        eingabe("param", erwaehnungPfad),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const { erwaehnungId } = c.req.valid("param");
+          const [e] = (
+            await ladeErwaehnungen(db, zugriff, { id: erwaehnungId })
+          ).eintraege;
+          if (!e) throw new HTTPException(404);
+          await db.transaction((tx) =>
+            nimmAlsAufgabeZurueck(
+              tx,
+              { lagerId: zugriff.lager.id, personId: zugriff.personId },
+              e.id,
+            ),
+          );
+          return c.body(null, 204);
+        },
+      )
+  );
 }
