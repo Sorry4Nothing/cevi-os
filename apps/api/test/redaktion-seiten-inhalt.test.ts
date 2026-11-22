@@ -476,7 +476,7 @@ describe("Verweisprüfung", () => {
     );
   });
 
-  test("ein PDF ist kein Bild, aber eine Datei", async () => {
+  test("ein altes PDF-Medium ist kein Bild; eine Datei verweist auf keinen Mediumseintrag mehr (#428)", async () => {
     const id = await neueSeite();
     const pdf = await neuesMedium("angemeldet", "pdf");
     const antwort = await speichere(
@@ -487,10 +487,24 @@ describe("Verweisprüfung", () => {
       422,
     );
     expect(await code(antwort)).toBe("MEDIUM_FORMAT");
+    // Das alte Schema der Datei (Verweis auf ein Medium) ist ungültig
     await speichere(
       admin,
       id,
       dokument(baustein("datei", { mediumId: pdf })),
+      0,
+      400,
+    );
+    // Eine Datei ist ein Link: ohne Medium, ohne Verweisprüfung, auch auf einer öffentlichen Seite
+    await speichere(
+      admin,
+      id,
+      dokument(
+        baustein("datei", {
+          titel: "Packliste",
+          link: "https://cevi.sharepoint.com/sites/lager/packliste.pdf",
+        }),
+      ),
       0,
     );
   });
