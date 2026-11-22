@@ -1192,7 +1192,7 @@ paths:
         **Sichtbarkeit.** Ein Medium mit Sichtbarkeit `oeffentlich` ist ohne Anmeldung abrufbar (auch ohne Sitzung, für
         gesperrte Konten und andere Abteilungen). Ein Medium mit Sichtbarkeit `angemeldet` liefert der Server nur mit
         Sitzung und nur der Abteilung des Mediums; für andere Abteilungen und unbekannte IDs ist die Antwort 404, nie 403.
-        Die Sichtbarkeit nach Tags folgt mit #333.
+        Die Sichtbarkeit nach Tags gibt es für Medien noch nicht; das Modul dafür (#333) steht bereit, ist aber noch an kein Objekt angeschlossen.
 
         **Kopfzeilen.** `Content-Type` ist `image/webp` oder `application/pdf`; `X-Content-Type-Options: nosniff` und
         `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer. Ein PDF trägt
@@ -2884,7 +2884,7 @@ paths:
         - name: sichtbarkeit
           in: query
           required: true
-          description: Wer das Medium sehen darf. Vorerst nur `oeffentlich` (jeder, ohne Anmeldung) und `angemeldet` (die Abteilung); Tags folgen mit #333.
+          description: Wer das Medium sehen darf. Vorerst nur `oeffentlich` (jeder, ohne Anmeldung) und `angemeldet` (die Abteilung); Tags gibt es für Medien noch nicht (das Modul #333 ist noch an kein Objekt angeschlossen).
           schema:
             type: string
             enum:
