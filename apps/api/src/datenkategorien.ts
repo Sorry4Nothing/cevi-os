@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  kalenderlink: {
+    titel: "Persönlicher Kalenderlink",
+    zweck:
+      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn jederzeit erneuern oder widerrufen.",
+    frist:
+      "Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.",
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   profilbild: {
     titel: "Profilbild",
     zweck:
@@ -144,7 +153,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
     frist:
-      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -161,6 +170,14 @@ export const KATEGORIEN = {
     zweck:
       "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
     frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
+  lagerDokumente: {
+    titel: "Dokumente im Lager",
+    zweck:
+      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
+    frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -385,6 +402,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "quelle",
     ],
   },
+  kalender_token: {
+    kalenderlink: [
+      "id",
+      "user_id",
+      "token_hash",
+      "endung",
+      "erstellt_am",
+      "zuletzt_abgerufen_am",
+      "widerrufen_am",
+    ],
+  },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
   profilbild: { profilbild: ["user_id", "inhalt", "geaendert_am"] },
   push_token: {
@@ -473,6 +501,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "link",
       "typ",
       "groesse",
+    ],
+  },
+  // Dokumente (#396): Titel, Verweis auf die Datei, Stichworte, Freigabe für das Team
+  dokument: {
+    lagerDokumente: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "datei_id",
+      "stichworte",
+      "team_sichtbar",
     ],
   },
   // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
@@ -604,6 +642,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "nachname",
       "cevi_name",
       "stufe",
+      "abgewaehlt",
+    ],
+  },
+  // Programmgruppen (#387): Name und Reihenfolge; die Zuordnung nennt Teilnehmende und Mitglieder nur als ID, mit der Rolle «leitung» oder «mitglied»
+  gruppe: {
+    lagerTeilnehmende: [...LAGER_BASIS_SPALTEN, "name", "reihenfolge"],
+  },
+  gruppe_zuordnung: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "gruppe_id",
+      "teilnehmer_id",
+      "person_id",
+      "rolle",
     ],
   },
   // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)

@@ -374,6 +374,13 @@
       "breakpoints": true
     },
     {
+      "idx": 83,
+      "version": "7",
+      "when": 1793552300000,
+      "tag": "0083_lager_gruppen",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
@@ -395,6 +402,13 @@
       "breakpoints": true
     },
     {
+      "idx": 90,
+      "version": "7",
+      "when": 1793552900000,
+      "tag": "0090_lager_dokumente",
+      "breakpoints": true
+    },
+    {
       "idx": 95,
       "version": "7",
       "when": 1793552990000,
@@ -413,6 +427,13 @@
       "version": "7",
       "when": 1793554000000,
       "tag": "0120_termin_kategorien",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793554100000,
+      "tag": "0121_kalender_token",
       "breakpoints": true
     },
     {

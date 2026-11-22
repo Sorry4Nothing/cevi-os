@@ -21,6 +21,7 @@ import {
 } from "./lager/fristen.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
+import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
@@ -111,6 +112,8 @@ starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
 );
+// Widerrufene ICS-Token (#437) nach 30 Tagen entfernen
+starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 // Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
