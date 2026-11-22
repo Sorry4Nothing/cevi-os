@@ -69,7 +69,7 @@ const ZU_VIELE = {
   message: `Es sind höchstens ${MAX_GEPFLEGT} kommende Daten je Stufe möglich. Lösche zuerst ein altes.`,
 } as const;
 
-// Ohne eine Stufenseite gilt eine Zeile ohne Objekt: Dann haben nur Abteilungsleitung, Stufenleitung und die Redaktion (Zeile ohne Objekt) das Recht
+// Ohne eine Stufenseite gilt eine Zeile ohne Objekt: Dann haben nur Abteilungsleitung, Stufenleitung und das Plattformrecht «Seiten bearbeiten» das Recht
 const KEINE_SEITE = "00000000-0000-0000-0000-000000000000";
 
 const spalten = {
@@ -82,7 +82,7 @@ const spalten = {
   quelle: programmEckdaten.quelle,
 };
 
-// Die festen Felder der Stufenseite (#355): wirken sofort, ohne Veröffentlichen. Recht wie an der Stufenseite (Stufenleitung der Stufe, Redaktion, Abteilungsleitung); die Stufe der Sitzung wird zuerst geladen (fremde und unbekannte IDs sind 404)
+// Die festen Felder der Stufenseite (#355): wirken sofort, ohne Veröffentlichen. Recht wie an der Stufenseite (Stufenleitung der Stufe, Plattformrecht «Seiten bearbeiten», Abteilungsleitung); die Stufe der Sitzung wird zuerst geladen (fremde und unbekannte IDs sind 404)
 export function erstelleEckdatenRouten({ db }: { db: Db }) {
   async function ladeMitRecht(person: Person, stufeId: string) {
     const [stufe] = await db

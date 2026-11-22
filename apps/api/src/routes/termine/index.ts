@@ -3,6 +3,7 @@ import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { Person } from "../../rechte.js";
 import { erstelleAdminVorschlaegeRouten } from "./admin-vorschlaege.js";
+import { erstelleAlleRouten } from "./alle.js";
 import { erstelleAdminAnlaesseRouten } from "./admin-anlaesse.js";
 import { erstelleAnlaesseRouten } from "./anlaesse.js";
 import { erstelleKalenderLinkRouten } from "./kalender-link.js";
@@ -20,8 +21,10 @@ import { erstelleWarnungenRouten } from "./warnungen.js";
 // Jede Route lädt ihr Objekt in SQL auf person.abteilungId gefiltert (fremd = 404) und prüft erst dann das Recht (403). Kein Polling, keine Abfrage je Zeile: eine gebündelte Abfrage je Liste.
 export type TermineEnv = { Variables: { person: Person } };
 
+// «alle» steht vor «mein»: Dort fängt /termine/:id jeden Pfad ab
 export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   return new Hono<TermineEnv>()
+    .route("/", erstelleAlleRouten({ db }))
     .route("/", erstelleMeinRouten({ db, fcm }))
     .route("/", erstelleAdminAnlaesseRouten({ db }))
     .route("/", erstelleAnlaesseRouten({ db }))
