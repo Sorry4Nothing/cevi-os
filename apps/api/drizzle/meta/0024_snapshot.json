@@ -154,13 +154,9 @@
         "account_user_id_user_id_fk": {
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -212,39 +208,27 @@
         "anwesenheit_kind_programm_id_programm_id_fk": {
           "name": "anwesenheit_kind_programm_id_programm_id_fk",
           "tableFrom": "anwesenheit_kind",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "anwesenheit_kind_kind_id_kind_id_fk": {
           "name": "anwesenheit_kind_kind_id_kind_id_fk",
           "tableFrom": "anwesenheit_kind",
-          "columnsFrom": [
-            "kind_id"
-          ],
+          "columnsFrom": ["kind_id"],
           "tableTo": "kind",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "anwesenheit_kind_erfasst_von_user_id_fk": {
           "name": "anwesenheit_kind_erfasst_von_user_id_fk",
           "tableFrom": "anwesenheit_kind",
-          "columnsFrom": [
-            "erfasst_von"
-          ],
+          "columnsFrom": ["erfasst_von"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -252,10 +236,7 @@
       "compositePrimaryKeys": {
         "anwesenheit_kind_programm_id_kind_id_pk": {
           "name": "anwesenheit_kind_programm_id_kind_id_pk",
-          "columns": [
-            "programm_id",
-            "kind_id"
-          ]
+          "columns": ["programm_id", "kind_id"]
         }
       },
       "uniqueConstraints": {},
@@ -304,39 +285,27 @@
         "anwesenheit_leitung_programm_id_programm_id_fk": {
           "name": "anwesenheit_leitung_programm_id_programm_id_fk",
           "tableFrom": "anwesenheit_leitung",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "anwesenheit_leitung_user_id_user_id_fk": {
           "name": "anwesenheit_leitung_user_id_user_id_fk",
           "tableFrom": "anwesenheit_leitung",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "anwesenheit_leitung_erfasst_von_user_id_fk": {
           "name": "anwesenheit_leitung_erfasst_von_user_id_fk",
           "tableFrom": "anwesenheit_leitung",
-          "columnsFrom": [
-            "erfasst_von"
-          ],
+          "columnsFrom": ["erfasst_von"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -344,10 +313,7 @@
       "compositePrimaryKeys": {
         "anwesenheit_leitung_programm_id_user_id_pk": {
           "name": "anwesenheit_leitung_programm_id_user_id_pk",
-          "columns": [
-            "programm_id",
-            "user_id"
-          ]
+          "columns": ["programm_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -415,13 +381,9 @@
         "audit_log_abteilung_id_abteilung_id_fk": {
           "name": "audit_log_abteilung_id_abteilung_id_fk",
           "tableFrom": "audit_log",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -454,26 +416,18 @@
         "blockierung_user_id_user_id_fk": {
           "name": "blockierung_user_id_user_id_fk",
           "tableFrom": "blockierung",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "blockierung_blockiert_id_user_id_fk": {
           "name": "blockierung_blockiert_id_user_id_fk",
           "tableFrom": "blockierung",
-          "columnsFrom": [
-            "blockiert_id"
-          ],
+          "columnsFrom": ["blockiert_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -481,10 +435,7 @@
       "compositePrimaryKeys": {
         "blockierung_user_id_blockiert_id_pk": {
           "name": "blockierung_user_id_blockiert_id_pk",
-          "columns": [
-            "user_id",
-            "blockiert_id"
-          ]
+          "columns": ["user_id", "blockiert_id"]
         }
       },
       "uniqueConstraints": {},
@@ -572,39 +523,27 @@
         "chat_abteilung_id_abteilung_id_fk": {
           "name": "chat_abteilung_id_abteilung_id_fk",
           "tableFrom": "chat",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "chat_stufe_id_stufe_id_fk": {
           "name": "chat_stufe_id_stufe_id_fk",
           "tableFrom": "chat",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "chat_eltern_user_id_user_id_fk": {
           "name": "chat_eltern_user_id_user_id_fk",
           "tableFrom": "chat",
-          "columnsFrom": [
-            "eltern_user_id"
-          ],
+          "columnsFrom": ["eltern_user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -652,26 +591,18 @@
         "chat_status_chat_id_chat_id_fk": {
           "name": "chat_status_chat_id_chat_id_fk",
           "tableFrom": "chat_status",
-          "columnsFrom": [
-            "chat_id"
-          ],
+          "columnsFrom": ["chat_id"],
           "tableTo": "chat",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "chat_status_user_id_user_id_fk": {
           "name": "chat_status_user_id_user_id_fk",
           "tableFrom": "chat_status",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -679,10 +610,7 @@
       "compositePrimaryKeys": {
         "chat_status_chat_id_user_id_pk": {
           "name": "chat_status_chat_id_user_id_pk",
-          "columns": [
-            "chat_id",
-            "user_id"
-          ]
+          "columns": ["chat_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -750,26 +678,18 @@
         "kind_abteilung_id_abteilung_id_fk": {
           "name": "kind_abteilung_id_abteilung_id_fk",
           "tableFrom": "kind",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "kind_stufe_id_stufe_id_fk": {
           "name": "kind_stufe_id_stufe_id_fk",
           "tableFrom": "kind",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -809,26 +729,18 @@
         "kind_eltern_kind_id_kind_id_fk": {
           "name": "kind_eltern_kind_id_kind_id_fk",
           "tableFrom": "kind_eltern",
-          "columnsFrom": [
-            "kind_id"
-          ],
+          "columnsFrom": ["kind_id"],
           "tableTo": "kind",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "kind_eltern_user_id_user_id_fk": {
           "name": "kind_eltern_user_id_user_id_fk",
           "tableFrom": "kind_eltern",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -836,10 +748,7 @@
       "compositePrimaryKeys": {
         "kind_eltern_kind_id_user_id_pk": {
           "name": "kind_eltern_kind_id_user_id_pk",
-          "columns": [
-            "kind_id",
-            "user_id"
-          ]
+          "columns": ["kind_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -875,26 +784,18 @@
         "leitung_anmeldung_programm_id_programm_id_fk": {
           "name": "leitung_anmeldung_programm_id_programm_id_fk",
           "tableFrom": "leitung_anmeldung",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "leitung_anmeldung_user_id_user_id_fk": {
           "name": "leitung_anmeldung_user_id_user_id_fk",
           "tableFrom": "leitung_anmeldung",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -902,10 +803,7 @@
       "compositePrimaryKeys": {
         "leitung_anmeldung_programm_id_user_id_pk": {
           "name": "leitung_anmeldung_programm_id_user_id_pk",
-          "columns": [
-            "programm_id",
-            "user_id"
-          ]
+          "columns": ["programm_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -966,39 +864,27 @@
         "nachricht_chat_id_chat_id_fk": {
           "name": "nachricht_chat_id_chat_id_fk",
           "tableFrom": "nachricht",
-          "columnsFrom": [
-            "chat_id"
-          ],
+          "columnsFrom": ["chat_id"],
           "tableTo": "chat",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "nachricht_autor_id_user_id_fk": {
           "name": "nachricht_autor_id_user_id_fk",
           "tableFrom": "nachricht",
-          "columnsFrom": [
-            "autor_id"
-          ],
+          "columnsFrom": ["autor_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "nachricht_programm_id_programm_id_fk": {
           "name": "nachricht_programm_id_programm_id_fk",
           "tableFrom": "nachricht",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1038,13 +924,9 @@
         "profilbild_user_id_user_id_fk": {
           "name": "profilbild_user_id_user_id_fk",
           "tableFrom": "profilbild",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1157,13 +1039,9 @@
         "programm_abteilung_id_abteilung_id_fk": {
           "name": "programm_abteilung_id_abteilung_id_fk",
           "tableFrom": "programm",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1172,10 +1050,7 @@
       "uniqueConstraints": {
         "programm_abteilung_google_event_eindeutig": {
           "name": "programm_abteilung_google_event_eindeutig",
-          "columns": [
-            "abteilung_id",
-            "google_event_id"
-          ],
+          "columns": ["abteilung_id", "google_event_id"],
           "nullsNotDistinct": false
         }
       },
@@ -1249,13 +1124,9 @@
         "programm_eckdaten_stufe_id_stufe_id_fk": {
           "name": "programm_eckdaten_stufe_id_stufe_id_fk",
           "tableFrom": "programm_eckdaten",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1263,10 +1134,7 @@
       "compositePrimaryKeys": {
         "programm_eckdaten_stufe_id_tag_pk": {
           "name": "programm_eckdaten_stufe_id_tag_pk",
-          "columns": [
-            "stufe_id",
-            "tag"
-          ]
+          "columns": ["stufe_id", "tag"]
         }
       },
       "uniqueConstraints": {},
@@ -1296,26 +1164,18 @@
         "programm_stufe_programm_id_programm_id_fk": {
           "name": "programm_stufe_programm_id_programm_id_fk",
           "tableFrom": "programm_stufe",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "programm_stufe_stufe_id_stufe_id_fk": {
           "name": "programm_stufe_stufe_id_stufe_id_fk",
           "tableFrom": "programm_stufe",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1323,10 +1183,7 @@
       "compositePrimaryKeys": {
         "programm_stufe_programm_id_stufe_id_pk": {
           "name": "programm_stufe_programm_id_stufe_id_pk",
-          "columns": [
-            "programm_id",
-            "stufe_id"
-          ]
+          "columns": ["programm_id", "stufe_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1375,26 +1232,18 @@
         "push_token_session_id_session_id_fk": {
           "name": "push_token_session_id_session_id_fk",
           "tableFrom": "push_token",
-          "columnsFrom": [
-            "session_id"
-          ],
+          "columnsFrom": ["session_id"],
           "tableTo": "session",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "push_token_user_id_user_id_fk": {
           "name": "push_token_user_id_user_id_fk",
           "tableFrom": "push_token",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1403,9 +1252,7 @@
       "uniqueConstraints": {
         "push_token_token_unique": {
           "name": "push_token_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "nullsNotDistinct": false
         }
       },
@@ -1454,9 +1301,7 @@
       "uniqueConstraints": {
         "rate_limit_key_unique": {
           "name": "rate_limit_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "nullsNotDistinct": false
         }
       },
@@ -1499,26 +1344,18 @@
         "rolle_user_id_user_id_fk": {
           "name": "rolle_user_id_user_id_fk",
           "tableFrom": "rolle",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "rolle_stufe_id_stufe_id_fk": {
           "name": "rolle_stufe_id_stufe_id_fk",
           "tableFrom": "rolle",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1526,10 +1363,7 @@
       "compositePrimaryKeys": {
         "rolle_user_id_stufe_id_pk": {
           "name": "rolle_user_id_stufe_id_pk",
-          "columns": [
-            "user_id",
-            "stufe_id"
-          ]
+          "columns": ["user_id", "stufe_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1624,13 +1458,9 @@
         "session_user_id_user_id_fk": {
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -1639,9 +1469,7 @@
       "uniqueConstraints": {
         "session_token_unique": {
           "name": "session_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "nullsNotDistinct": false
         }
       },
@@ -1711,13 +1539,9 @@
         "stufe_abteilung_id_abteilung_id_fk": {
           "name": "stufe_abteilung_id_abteilung_id_fk",
           "tableFrom": "stufe",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1757,13 +1581,9 @@
         "stufenlogo_stufe_id_stufe_id_fk": {
           "name": "stufenlogo_stufe_id_stufe_id_fk",
           "tableFrom": "stufenlogo",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -1820,39 +1640,27 @@
         "teilnahme_programm_id_programm_id_fk": {
           "name": "teilnahme_programm_id_programm_id_fk",
           "tableFrom": "teilnahme",
-          "columnsFrom": [
-            "programm_id"
-          ],
+          "columnsFrom": ["programm_id"],
           "tableTo": "programm",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "teilnahme_kind_id_kind_id_fk": {
           "name": "teilnahme_kind_id_kind_id_fk",
           "tableFrom": "teilnahme",
-          "columnsFrom": [
-            "kind_id"
-          ],
+          "columnsFrom": ["kind_id"],
           "tableTo": "kind",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "teilnahme_geaendert_von_user_id_fk": {
           "name": "teilnahme_geaendert_von_user_id_fk",
           "tableFrom": "teilnahme",
-          "columnsFrom": [
-            "geaendert_von"
-          ],
+          "columnsFrom": ["geaendert_von"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "set null"
         }
@@ -1860,10 +1668,7 @@
       "compositePrimaryKeys": {
         "teilnahme_programm_id_kind_id_pk": {
           "name": "teilnahme_programm_id_kind_id_pk",
-          "columns": [
-            "programm_id",
-            "kind_id"
-          ]
+          "columns": ["programm_id", "kind_id"]
         }
       },
       "uniqueConstraints": {},
@@ -1962,13 +1767,9 @@
         "two_factor_user_id_user_id_fk": {
           "name": "two_factor_user_id_user_id_fk",
           "tableFrom": "two_factor",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -2149,13 +1950,9 @@
         "user_abteilung_id_abteilung_id_fk": {
           "name": "user_abteilung_id_abteilung_id_fk",
           "tableFrom": "user",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -2164,16 +1961,12 @@
       "uniqueConstraints": {
         "user_email_unique": {
           "name": "user_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         },
         "user_username_unique": {
           "name": "user_username_unique",
-          "columns": [
-            "username"
-          ],
+          "columns": ["username"],
           "nullsNotDistinct": false
         }
       },
