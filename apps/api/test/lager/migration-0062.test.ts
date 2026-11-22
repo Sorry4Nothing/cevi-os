@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0062 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0060 migrieren (mit einem bestehenden Lager), dann 0062 durch den echten Migrator, dann der Rückweg
+// 0062 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0061 migrieren (mit einem bestehenden Lager), dann 0062 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig366_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
-  ordnerBauen(bisVorher, 60);
+  ordnerBauen(bisVorher, 61);
   ordnerBauen(komplett, 62);
 });
 
