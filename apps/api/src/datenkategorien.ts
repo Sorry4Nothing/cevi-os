@@ -139,6 +139,15 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTeilnehmende: {
+    titel: "Teilnehmende im Lager",
+    zweck:
+      "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
+    frist:
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
@@ -168,6 +177,22 @@ export const KATEGORIEN = {
     zweck:
       "Planen, wer an welchem Tag und zu welcher Tageszeit im Lager ist, zum Beispiel für den Schichtplan und die Einkaufsmenge. Die Lagerleitung trägt für alle ein, das Team seine eigene Anwesenheit; eine Änderung eines eingetragenen Feldes stellt das Team als Anfrage an die Lagerleitung, die sie annimmt oder ablehnt. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
     frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerNotfall: {
+    titel: "Notfall-Kontakte im Lager",
+    zweck:
+      "Im Notfall die richtigen Personen sofort erreichen. Die Lagerleitung erfasst die Sicherheitsverantwortlichen und weitere Anlaufstellen mit Funktion und Telefonnummer, entweder als Konto des Lagers (die Nummer kommt aus dem Konto, solange keine eigene steht) oder als Name mit Nummer. Dazu kommen Leitung und Stellvertretung des Ressorts «si» und seiner Teilbereiche mit der Nummer aus ihrem Konto. Das Team sieht diese Kontakte mit Nummer, sonst nirgends im Lager eine Telefonnummer. Dazu speichert das Lager einen Link zur Lageradresse in einer Karten-App; der Server ruft keinen Kartendienst ab.",
+    frist: `Bis die Lagerleitung den Kontakt löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Contact Info: Name", "Contact Info: Phone Number"],
+    google: ["Personal info: Name", "Personal info: Phone number"],
+  },
+  lagerInfos: {
+    titel: "Packliste und Infos im Lager",
+    zweck:
+      "Die Packliste und die Infos des Lagers bereitstellen. Die Lagerleitung pflegt die Vorlage der Packliste und die Info-Abschnitte (Text, Links und Verknüpfungen auf Dateien im SharePoint der Abteilung); einzelne Punkte und Abschnitte können der Lagerleitung vorbehalten sein. Jede Person hat ihre eigene Kopie der Packliste: Gespeichert sind nur ihre Abweichungen von der Vorlage (abgehakt, entfernt) und ihre eigenen Punkte, die nur sie sieht.",
+    frist: `Die Vorlage und die Infos, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Die Abweichungen und eigenen Punkte einer Person, bis sie sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
@@ -419,6 +444,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "seq_min",
       "erstellt_am",
     ],
+    lagerNotfall: ["karten_link"],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -538,6 +564,83 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datei_id",
       "reihenfolge",
     ],
+  },
+  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
+  teilnehmer: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "kind_id",
+      "anmeldung_id",
+      "vorname",
+      "nachname",
+      "cevi_name",
+      "stufe",
+    ],
+  },
+  // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)
+  abzaehlen: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "teilnehmer_id",
+      "person_id",
+      "geprueft",
+      "geprueft_am",
+    ],
+  },
+  // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie
+  packliste_punkt: {
+    lagerInfos: [
+      ...LAGER_BASIS_SPALTEN,
+      "abschnitt",
+      "text",
+      "nur_lagerleitung",
+      "reihenfolge",
+    ],
+  },
+  packliste_abhaken: {
+    lagerInfos: [
+      "lager_id",
+      "person_id",
+      "punkt_id",
+      "zustand",
+      "geaendert_am",
+    ],
+  },
+  packliste_eigen: {
+    lagerInfos: [
+      "id",
+      "lager_id",
+      "person_id",
+      "abschnitt",
+      "text",
+      "abgehakt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  notfall_kontakt: {
+    lagerNotfall: [
+      ...LAGER_BASIS_SPALTEN,
+      "funktion",
+      "person_id",
+      "name",
+      "telefon",
+      "reihenfolge",
+    ],
+  },
+  info_abschnitt: {
+    lagerInfos: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "text",
+      "links",
+      "nur_lagerleitung",
+      "notfall",
+      "reihenfolge",
+    ],
+  },
+  info_abschnitt_datei: {
+    lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

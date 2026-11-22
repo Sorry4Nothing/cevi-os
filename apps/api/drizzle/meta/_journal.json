@@ -360,10 +360,24 @@
       "breakpoints": true
     },
     {
+      "idx": 79,
+      "version": "7",
+      "when": 1793551900000,
+      "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
       "tag": "0085_lager_anwesenheit",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793552800000,
+      "tag": "0088_lager_infos",
       "breakpoints": true
     },
     {
