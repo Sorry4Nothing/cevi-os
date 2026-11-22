@@ -740,6 +740,22 @@ Das bisherige Lager-Tool (Google Apps Script, Tabelle als Datenbank) hatte 16 Fe
 
 **OWASP:** ASVS V8 Authorization.
 
+### 28. Räume der Termine: fremde Räume und Rechteausweitung
+
+Die Abteilungsleitung pflegt Räume (#446, Epic #430), alle Mitglieder der Abteilung lesen die aktiven. Ein Raum trägt keine Personendaten (Name, Ort, Beschreibung, Plätze, zuständiges Team als Tag). Bedroht sind die Trennung der Abteilungen (ein Raum einer anderen Abteilung wird gelesen oder verändert), die Rechte (eine Person ohne Verwaltungsrecht legt Räume an oder löscht sie) und die Verfügbarkeit (eine lange Liste belastet die Datenbank).
+
+| Massnahme                                                                                                                                                                                                              | Test oder Prüfpunkt                                                                                                                          | Issue      | Stand     |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | --------- |
+| Jede Abfrage und jede Änderung filtert in SQL auf die Abteilung der Sitzung; ein Raum einer anderen Abteilung ist 404, erst danach wird das Recht geprüft (403), auch für deren Abteilungsleitung                      | `test/termine/raeume.test.ts`: «ein Raum einer anderen Abteilung ist 404», Matrix `test/termine/matrix/admin-raeume.ts` für alle 14 Personas | #446       | vorhanden |
+| Anlegen, Ändern und Löschen nur für die Abteilungsleitung (Admin mit zweitem Faktor über `/api/v1/admin/*`), die Prüfung steht an einer Stelle (`darfRaeumeVerwalten`); Stufenleitung, Leitung und Eltern bekommen 403 | `test/termine/raeume.test.ts`: «nur die Abteilungsleitung verwaltet», Matrix                                                                 | #446       | vorhanden |
+| Strikte Schemas (unbekannte Felder 400), Längen und Kapazität zusätzlich als CHECK in der Datenbank; das Team muss ein Tag der eigenen Abteilung sein (400 `TEAM_UNBEKANNT`)                                           | `test/termine/raeume.test.ts`, `test/termine/migration-0125.test.ts`                                                                         | #446       | vorhanden |
+| Die Liste hat höchstens 100 Zeilen je Seite und kostet eine Abfrage; Audit-Einträge nennen nur die Aktion und die ID, nie Namen                                                                                        | `test/termine/raeume.test.ts`: «Abfragen je Aufruf», «Audit-Eintrag ohne Namen»                                                              | #446       | vorhanden |
+| Löschen ist endgültig und gesperrt, solange offene Raumanfragen bestehen (409 `ANFRAGEN_OFFEN`); die Zählung steht in `zaehleOffeneAnfragen` und wird mit #447 gefüllt                                                 | `test/termine/raeume.test.ts`: «offene Anfragen sperren das Löschen» (mit Attrappe)                                                          | #446, #447 | teilweise |
+
+**Restrisiko:** Bis #447 die Anfragen bringt, zählt `zaehleOffeneAnfragen` immer 0. Wer #447 baut, muss die Zählung füllen, sonst löscht ein Raum seine offenen Anfragen mit (oder scheitert am Fremdschlüssel). Alle Mitglieder, auch Eltern, sehen Name, Ort, Plätze und Team der aktiven Räume (Annahme, vom Nutzer zu bestätigen).
+
+**OWASP:** ASVS V4 Access Control, V5 Validation.
+
 ## Bewusst nicht umgesetzt
 
 ### Kein Zertifikat-Pinning

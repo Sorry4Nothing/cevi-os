@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/admin/termin-vorschlaege/:id/eingetragen"
-order: 406000
+order: 410000
 method: POST
-url: "{{baseUrl}}{{pfad_T11}}"
+url: "{{baseUrl}}{{pfad_T15}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

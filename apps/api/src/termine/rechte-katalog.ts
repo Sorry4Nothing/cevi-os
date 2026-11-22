@@ -13,6 +13,8 @@ export const TERMINE_RECHTE = {
   "anlass.verwalten": { issue: "TE1", wer: "abteilungsleitung" },
   "anlass.anmelden": { issue: "TE2", wer: "angemeldet" },
   "anmeldung.ansehen": { issue: "TE3", wer: "abteilungsleitung" },
+  "raum.ansehen": { issue: "TG1", wer: "angemeldet" },
+  "raum.verwalten": { issue: "TG1", wer: "abteilungsleitung" },
 } as const satisfies Record<string, { issue: string; wer: TermineWer }>;
 
 export type TermineRecht = keyof typeof TERMINE_RECHTE;
