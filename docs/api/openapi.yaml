@@ -732,6 +732,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/anwesenheit.js:
+    get:
+      operationId: getAdminAnwesenheitSkript
+      summary: Skript der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anwesenheit.css:
+    get:
+      operationId: getAdminAnwesenheitStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Anwesenheit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/import.js:
     get:
       operationId: getAdminImportSkript
@@ -5251,7 +5281,7 @@ paths:
       operationId: setzeLagerRechte
       summary: Rechte der Rollen ändern
       description: |
-        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). **Achtung bei `adressbuch.lesen` und `adressbuch.bearbeiten`: Das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz von Personen ohne Konto). Wer eines der Rechte bekommt, sieht oder ändert alle Kontakte des Lagers; im Standard hat nur die Lagerleitung sie. Gib sie nur Personen, die diese Daten wirklich brauchen.** Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
       tags:
@@ -15433,6 +15463,296 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/adressbuch:
+    get:
+      operationId: holeLagerAdressbuch
+      summary: Adressbuch des Lagers auflisten
+      description: |
+        Braucht `adressbuch.lesen` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Leitung, Team und Lesen bekommen im Standard 403. Die Rechte lassen sich je Lager einstellen: **Achtung, das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz); wer es lesen darf, sieht alle Kontakte.** Die Warnung steht auch bei `PUT /lager/{id}/rechte`.
+
+        Die Kontakte stehen alphabetisch nach Name (ohne Beachtung der Gross- und Kleinschreibung, dann nach ID). `q` sucht ohne Beachtung der Gross- und Kleinschreibung in Name, Funktion und Gruppe. Jeder Kontakt nennt `aufraeumenAb`: den Tag, ab dem der tägliche Lauf ihn endgültig löscht (Lagerende plus 180 Tage), oder null, wenn er mit `behalten` markiert ist.
+
+        Audit-Log: Jeder Aufruf schreibt `lager_adressbuch_gelesen` mit der Person, dem Lager und der Anzahl gelieferter Kontakte, nie mit Inhalten.
+
+        Datenbanklast: eine Abfrage für die Seite (Index auf Lager und Name) und ein Eintrag im Audit-Log; Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `adressbuch.lesen`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Suchtext für Name, Funktion und Gruppe (1 bis 100 Zeichen).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Kontakte je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Kontakte.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerKontaktAn
+      summary: Kontakt im Adressbuch anlegen
+      description: |
+        Braucht `adressbuch.bearbeiten` (Standard: nur die Lagerleitung). Schreibt über den Sync-Kern: Die Zeile bekommt Version 1, eine Folgenummer und einen Eintrag im Änderungsfeed (nur ID und Art, nie Inhalte).
+
+        Nur `name` ist Pflicht. Texte werden gekürzt (Leerraum am Rand), leere Angaben gelten als null; Steuerzeichen sind nicht erlaubt (in der Notiz nur Zeilenumbrüche). Ohne `behalten` löscht der Lauf den Kontakt 180 Tage nach dem Lagerende endgültig, 14 Tage vorher erinnert Cevi OS die Lagerleitung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAdressbuchAnlegen"
+      responses:
+        "201":
+          description: Der neue Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/adressbuch/{kontaktId}:
+    get:
+      operationId: holeLagerKontakt
+      summary: Kontakt im Adressbuch lesen
+      description: |
+        Braucht `adressbuch.lesen`. Ein Kontakt eines anderen Lagers oder ein gelöschter Kontakt gibt es nicht (404). Der Aufruf schreibt `lager_adressbuch_gelesen` ins Audit-Log (Person, Kontakt-ID, Anzahl 1, nie Inhalte).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne `adressbuch.lesen`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerKontakt
+      summary: Kontakt im Adressbuch ändern
+      description: |
+        Braucht `adressbuch.bearbeiten`. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern).
+
+        Nur die genannten Felder ändern sich; `null` oder ein leerer Text entfernt eine optionale Angabe. `behalten: true` nimmt den Kontakt aus der Aufräumfrist (`aufraeumenAb` ist dann null); `behalten: false` stellt die Frist wieder her: Ist das Lagerende schon mehr als 180 Tage her, löscht der nächste Lauf den Kontakt.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAdressbuchAendern"
+      responses:
+        "200":
+          description: Der geänderte Kontakt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerKontakt
+      summary: Kontakt im Adressbuch löschen
+      description: |
+        Braucht `adressbuch.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Kontakt verschwindet sofort aus Liste und Einzelabruf; die Zeile liegt noch 30 Tage im Papierkorb und wird dann vom täglichen Lauf endgültig entfernt (auch mit `behalten`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Kontakt (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `adressbuch.bearbeiten`. 404 bei unbekanntem Lager oder Kontakt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: kontaktId
+          in: path
+          required: true
+          description: ID des Kontakts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Kontakt gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -20056,6 +20376,7 @@ components:
         - `eingang_antwort`: `lager_eingang`
         - `diensttausch`: `lager_einteilung`
         - `anwesenheit_anfrage`: `lager_anwesenheit`
+        - `adressbuch_aufraeumen`: `lager_pinnwand` (Erinnerung der Lagerleitung 14 Tage vor dem Aufräumen des Adressbuchs; das Ziel ist das Lager, `objektTyp` ist `adressbuch`)
       enum:
         - aufgabe_zugeteilt
         - aufgabe_geaendert
@@ -20065,6 +20386,7 @@ components:
         - eingang_antwort
         - diensttausch
         - anwesenheit_anfrage
+        - adressbuch_aufraeumen
     LagerPushTyp:
       type: string
       description: |
@@ -25903,6 +26225,133 @@ components:
         teamSichtbar:
           type: boolean
     # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerAdressbuchKontakt:
+      description: "Ein externer Kontakt des Lagers (Personendaten Dritter, nur mit `adressbuch.lesen`)."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - funktion
+        - gruppe
+        - telefon
+        - email
+        - notiz
+        - behalten
+        - aufraeumenAb
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          description: "«Fürs nächste Lager behalten»: nimmt den Kontakt aus der Aufräumfrist."
+          type: boolean
+        aufraeumenAb:
+          description: "Tag, ab dem der tägliche Lauf den Kontakt endgültig löscht (Lagerende plus 180 Tage); null bei `behalten`."
+          type: [string, "null"]
+          format: date
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerAdressbuchSeite:
+      description: "Eine Seite des Adressbuchs."
+      type: object
+      additionalProperties: false
+      required:
+        - kontakte
+        - naechster
+      properties:
+        kontakte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAdressbuchKontakt"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt."
+          type: [string, "null"]
+          format: uuid
+    LagerAdressbuchAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          description: "Ziffern und die üblichen Trennzeichen, 6 bis 30 Zeichen."
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          description: "Zeilenumbrüche erlaubt, sonst keine Steuerzeichen."
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          description: "Vorgabe false."
+          type: boolean
+    LagerAdressbuchAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        funktion:
+          type: [string, "null"]
+          maxLength: 100
+        gruppe:
+          type: [string, "null"]
+          maxLength: 100
+        telefon:
+          type: [string, "null"]
+        email:
+          type: [string, "null"]
+          maxLength: 254
+        notiz:
+          type: [string, "null"]
+          maxLength: 2000
+        behalten:
+          type: boolean
     # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

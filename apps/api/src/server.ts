@@ -20,6 +20,10 @@ import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import {
+  erinnereAnAufraeumen,
+  loescheAlteKontakte,
+} from "./lager/adressbuch.js";
+import {
   sendeFristErinnerungen,
   starteFristErinnerung,
 } from "./lager/fristen.js";
@@ -142,6 +146,15 @@ starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
+);
+// Adressbuch des Lagers (#397): Erinnerung an die Lagerleitung 14 Tage vorher, dann Kontakte ohne «behalten» 180 Tage nach dem Lagerende löschen
+starteSitzungenAufraeumen(
+  () => erinnereAnAufraeumen(db, fcm),
+  "lager_adressbuch_erinnerung",
+);
+starteSitzungenAufraeumen(
+  () => loescheAlteKontakte(db),
+  "lager_adressbuch_aufraeumen",
 );
 // Anmeldungen zu Anlässen 180 Tage nach dem Ende des Anlasses löschen (#443)
 starteSitzungenAufraeumen(
