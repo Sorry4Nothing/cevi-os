@@ -35,7 +35,7 @@ const BASIS = "/api/v1/admin/termin-vorschlaege";
 type Ids = { tagId: string; vorschlagId: string };
 const ids = (k: TermineKontext) => k.ids["admin-vorschlaege"] as Ids;
 
-// Der Vorschlag gehört der Stufenleitung A, nie der Abteilungsleitung (die entscheidet nicht über den eigenen)
+// Die Vorschläge gehören elternB: Die Person darf keine einreichen, so füllt die Matrix nie die Obergrenze von 10 offenen Vorschlägen, die die Zeile «POST /termin-vorschlaege» für die Konten mit Recht prüft. Nie der Abteilungsleitung (sie entscheidet nicht über den eigenen)
 const neuerVorschlag = (
   welt: Welt,
   vonId: string,
@@ -72,7 +72,7 @@ export async function VORBEREITUNG(
     .returning({ id: schema.tag.id });
   return {
     tagId: tag!.id,
-    vorschlagId: await neuerVorschlag(welt, konten.slA.id!, tag!.id),
+    vorschlagId: await neuerVorschlag(welt, konten.elternB.id!, tag!.id),
   };
 }
 
@@ -88,12 +88,12 @@ export const ZEILEN: TermineMatrix = {
   "POST /api/v1/admin/termin-vorschlaege/:id/entscheid": {
     erwartet: status({}),
     url: async (k) =>
-      `${BASIS}/${await neuerVorschlag(k.welt, k.konten.slA.id!, ids(k).tagId)}/entscheid`,
+      `${BASIS}/${await neuerVorschlag(k.welt, k.konten.elternB.id!, ids(k).tagId)}/entscheid`,
     body: () => ({ entscheid: "ablehnen", begruendung: "Passt nicht." }),
   },
   "POST /api/v1/admin/termin-vorschlaege/:id/eingetragen": {
     erwartet: status({}),
     url: async (k) =>
-      `${BASIS}/${await neuerVorschlag(k.welt, k.konten.slA.id!, ids(k).tagId, "freigegeben")}/eingetragen`,
+      `${BASIS}/${await neuerVorschlag(k.welt, k.konten.elternB.id!, ids(k).tagId, "freigegeben")}/eingetragen`,
   },
 };
