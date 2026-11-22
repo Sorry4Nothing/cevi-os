@@ -9592,6 +9592,7 @@ components:
         - sichtbarkeit
         - tagId
         - veroeffentlicht
+        - geaendertAm
       properties:
         id:
           type: string
@@ -9623,6 +9624,10 @@ components:
         veroeffentlicht:
           type: boolean
           description: Ob die Seite eine veröffentlichte Version hat.
+        geaendertAm:
+          type: string
+          format: date-time
+          description: Letzte Änderung an Struktur oder Entwurf der Seite.
     RedaktionSeitenListe:
       type: object
       required:

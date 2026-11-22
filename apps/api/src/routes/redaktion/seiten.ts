@@ -120,6 +120,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
     sichtbarkeit: sichtbarkeitAusSpalten(z),
     tagId: z.tagId,
     veroeffentlicht: z.veroeffentlichteVersionId !== null,
+    geaendertAm: z.geaendertAm.toISOString(),
   });
 
   // Alle Seiten der Abteilung als Baum im Speicher: nur Struktur, nie Inhalt. Eine Abteilung hat Dutzende, nicht Tausende
