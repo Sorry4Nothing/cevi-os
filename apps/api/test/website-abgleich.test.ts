@@ -1,0 +1,696 @@
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { eq } from "drizzle-orm";
+import postgres from "postgres";
+import {
+  afterAll,
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+  type MockInstance,
+} from "vitest";
+import { erstelleDb } from "../src/db/client.js";
+import * as schema from "../src/db/schema.js";
+import {
+  erzeugeWebsite,
+  starteWebsiteAbgleich,
+  synchronisiereWebsite,
+  type AbgleichOptionen,
+} from "../src/website/abgleich.js";
+import { dateisystemAusgabe, type Ausgabe } from "../src/website/ausgabe.js";
+import { meldeWebsiteEreignis } from "../src/website/ereignisse.js";
+import { API_URL } from "./hilfen/datenbank.js";
+
+const sql = postgres(API_URL);
+const db = erstelleDb(sql);
+afterAll(() => sql.end());
+
+const BASIS = "https://www.example.org";
+const GEHEIM = "GEHEIMER-MARKER-TEXT";
+const CSS = "body{color:#000}";
+
+let abteilungId: string;
+let wurzel: string;
+let ausgabe: Ausgabe;
+let ausgabeLog: MockInstance<typeof console.log>;
+
+beforeEach(async () => {
+  const [a] = await db
+    .insert(schema.abteilung)
+    .values({ name: "Cevi Testabteilung" })
+    .returning();
+  abteilungId = a!.id;
+  wurzel = await mkdtemp(join(tmpdir(), "cevi-abgleich-"));
+  ausgabe = dateisystemAusgabe(wurzel);
+  ausgabeLog = vi.spyOn(console, "log").mockImplementation(() => {});
+});
+afterEach(async () => {
+  ausgabeLog.mockRestore();
+  await rm(wurzel, { recursive: true, force: true });
+});
+
+const text = (t: string, extra: object = {}) => ({
+  id: randomUUID(),
+  typ: "text",
+  daten: { inhalt: [{ typ: "absatz", inhalt: [{ text: t }] }] },
+  ...extra,
+});
+const dok = (titel: string, ...bausteine: unknown[]) => ({
+  v: 1,
+  titel,
+  bausteine,
+});
+
+type Neu = {
+  adresse: string;
+  titel?: string;
+  elternId?: string | null;
+  sichtbarkeit?: "oeffentlich" | "angemeldet" | "tags";
+  inhalt?: unknown | null;
+  reihenfolge?: number;
+};
+// Legt Seite und (falls «inhalt») eine veröffentlichte Version an
+async function seite(n: Neu) {
+  const [s] = await db
+    .insert(schema.seite)
+    .values({
+      abteilungId,
+      elternId: n.elternId ?? null,
+      adresse: n.adresse,
+      titel: n.titel ?? n.adresse,
+      reihenfolge: n.reihenfolge ?? 0,
+      sichtbarkeit: n.sichtbarkeit ?? "oeffentlich",
+    })
+    .returning();
+  if (n.inhalt !== undefined && n.inhalt !== null)
+    await veroeffentliche(s!.id, n.inhalt);
+  return s!.id;
+}
+async function veroeffentliche(seiteId: string, inhalt: unknown) {
+  const [v] = await db
+    .insert(schema.seiteVersion)
+    .values({
+      seiteId,
+      nr: Math.floor(Math.random() * 1_000_000) + 1,
+      inhalt,
+    })
+    .returning();
+  await db
+    .update(schema.seite)
+    .set({ veroeffentlichteVersionId: v!.id })
+    .where(eq(schema.seite.id, seiteId));
+}
+
+const lauf = (extra: Partial<AbgleichOptionen> = {}) =>
+  erzeugeWebsite(db, {
+    ausgabe,
+    abteilungId,
+    basisUrl: BASIS,
+    stylesheet: CSS,
+    ...extra,
+  });
+const lies = (pfad: string) => readFile(join(wurzel, pfad), "utf8");
+const alle = async () =>
+  Object.fromEntries(
+    await Promise.all(
+      (await ausgabe.liste()).map(async (p) => [p, await lies(p)] as const),
+    ),
+  );
+const hash = async (id: string) =>
+  (
+    await db
+      .select({ h: schema.seite.ausgabeHash, am: schema.seite.ausgabeAm })
+      .from(schema.seite)
+      .where(eq(schema.seite.id, id))
+  )[0]!;
+
+describe("Was ausgeliefert wird", () => {
+  test("nur öffentliche, veröffentlichte Seiten; geschützte Inhalte fehlen in jeder Datei", async () => {
+    const start = await seite({
+      adresse: "start",
+      titel: "Start",
+      inhalt: dok("Willkommen", text("Hallo")),
+    });
+    const stufen = await seite({
+      adresse: "stufen",
+      titel: "Stufen",
+      inhalt: dok(
+        "Stufen",
+        text("Alle Stufen"),
+        text(GEHEIM, { sichtbarkeit: { art: "angemeldet" } }),
+        text(GEHEIM, { sichtbarkeit: { art: "tags", tagIds: [randomUUID()] } }),
+      ),
+    });
+    await seite({
+      adresse: "woelfe",
+      titel: "Wölfe",
+      elternId: stufen,
+      inhalt: dok("Wölfe", text("Treff am Samstag")),
+    });
+    // Nicht ausgeliefert: ohne Version, angemeldet, nur für Tags
+    await seite({ adresse: "entwurf", titel: GEHEIM });
+    await seite({
+      adresse: "intern",
+      titel: GEHEIM,
+      sichtbarkeit: "angemeldet",
+      inhalt: dok(GEHEIM, text(GEHEIM)),
+    });
+    await seite({
+      adresse: "gruppe",
+      titel: GEHEIM,
+      sichtbarkeit: "tags",
+      inhalt: dok(GEHEIM, text(GEHEIM)),
+    });
+
+    const e = await lauf();
+    expect(e).toEqual({ geschrieben: 7, geloescht: 0, fehler: 0 });
+
+    const dateien = await alle();
+    expect(Object.keys(dateien).sort()).toEqual([
+      "404.html",
+      "index.html",
+      "robots.txt",
+      "sitemap.xml",
+      "stufen/index.html",
+      "stufen/woelfe/index.html",
+      "website/website.css",
+    ]);
+    // Der Marker steht in keiner erzeugten Datei, Titel nicht in der Navigation, der Platzhalter nur mit ID
+    for (const inhalt of Object.values(dateien))
+      expect(inhalt).not.toContain(GEHEIM);
+    expect(dateien["stufen/index.html"]).toContain("Alle Stufen");
+    expect(
+      (dateien["stufen/index.html"]!.match(/data-geschuetzt/g) ?? []).length,
+    ).toBe(2);
+    expect(dateien["index.html"]).toContain(
+      '<link rel="canonical" href="https://www.example.org/">',
+    );
+    expect(dateien["stufen/woelfe/index.html"]).toContain(
+      '<link rel="canonical" href="https://www.example.org/stufen/woelfe">',
+    );
+    expect(dateien["website/website.css"]).toBe(CSS);
+    // Navigation: Baum nur aus öffentlichen Seiten, aktuelle Seite markiert
+    expect(dateien["stufen/woelfe/index.html"]).toContain(
+      '<li><a href="/">Start</a></li><li><a href="/stufen">Stufen</a><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
+    );
+    expect(dateien["404.html"]).toContain("Seite nicht gefunden");
+    // Sitemap nur öffentlich
+    const locs = [
+      ...dateien["sitemap.xml"]!.matchAll(/<loc>([^<]+)<\/loc>/g),
+    ].map((m) => m[1]);
+    expect(locs).toEqual([
+      `${BASIS}/`,
+      `${BASIS}/stufen`,
+      `${BASIS}/stufen/woelfe`,
+    ]);
+    expect(dateien["robots.txt"]).toBe(
+      `User-agent: *\nDisallow: /api/\nDisallow: /admin\nSitemap: ${BASIS}/sitemap.xml\n`,
+    );
+    // Hash und Zeitpunkt nur bei den Seiten mit Datei
+    expect((await hash(start)).h).toMatch(/^[0-9a-f]{64}$/);
+    expect((await hash(start)).am).toBeInstanceOf(Date);
+  });
+
+  test("Seiten anderer Abteilungen und reservierte Adressen erzeugen nie eine Datei", async () => {
+    const [fremd] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Fremde Abteilung" })
+      .returning();
+    await db.insert(schema.seite).values({
+      abteilungId: fremd!.id,
+      adresse: "fremd",
+      titel: "Fremd",
+      sichtbarkeit: "oeffentlich",
+    });
+    await seite({ adresse: "api", inhalt: dok("Api") });
+    await seite({ adresse: "website", inhalt: dok("Web") });
+    await seite({ adresse: "admin", inhalt: dok("Admin") });
+    const eltern = await seite({ adresse: "ordner", inhalt: dok("Ordner") });
+    // Unterseiten dürfen reservierte Adressen tragen
+    await seite({ adresse: "api", elternId: eltern, inhalt: dok("Unter") });
+    await lauf();
+    expect(await ausgabe.liste()).toEqual([
+      "404.html",
+      "ordner/api/index.html",
+      "ordner/index.html",
+      "robots.txt",
+      "sitemap.xml",
+      "website/website.css",
+    ]);
+  });
+
+  test("öffentliche Seite unter einer geschützten Elternseite: eigene Datei, Navigation an der Wurzel", async () => {
+    const eltern = await seite({
+      adresse: "intern",
+      sichtbarkeit: "angemeldet",
+      inhalt: dok("Intern", text(GEHEIM)),
+    });
+    await seite({
+      adresse: "offen",
+      elternId: eltern,
+      titel: "Offen",
+      inhalt: dok("Offen"),
+    });
+    await lauf();
+    const d = await alle();
+    expect(Object.keys(d)).toContain("intern/offen/index.html");
+    expect(d["intern/offen/index.html"]).toContain(
+      '<nav aria-label="Hauptnavigation"><ul><li><a href="/intern/offen" aria-current="page">Offen</a></li></ul></nav>',
+    );
+    expect(JSON.stringify(d)).not.toContain(GEHEIM);
+  });
+
+  test("Medien, Personen und Teams: nur Öffentliches, nur Cevi-Name und Funktion", async () => {
+    const medium = async (
+      sichtbarkeit: "oeffentlich" | "angemeldet",
+      alt: string,
+      abt = abteilungId,
+    ) =>
+      (
+        await db
+          .insert(schema.medium)
+          .values({
+            abteilungId: abt,
+            mimeTyp: "image/webp",
+            groesse: 10,
+            breite: 10,
+            hoehe: 10,
+            altText: alt,
+            sichtbarkeit,
+            speicherSchluessel: randomUUID(),
+          })
+          .returning()
+      )[0]!.id;
+    const offen = await medium("oeffentlich", "Lagerfeuer");
+    const zu = await medium("angemeldet", GEHEIM);
+    const [andere] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Andere" })
+      .returning();
+    const fremd = await medium("oeffentlich", GEHEIM, andere!.id);
+    const person = async (
+      name: string,
+      extra: Partial<typeof schema.user.$inferInsert> = {},
+    ) =>
+      (
+        await db
+          .insert(schema.user)
+          .values({
+            name,
+            email: `${randomUUID()}@example.org`,
+            abteilungId,
+            ...extra,
+          })
+          .returning()
+      )[0]!.id;
+    const mit = await person("Echter Name Eins", {
+      ceviName: "Wolke",
+      telefon: "+41790000000",
+    });
+    const ohne = await person("Echter Name Zwei");
+    const aus = await person("Echter Name Drei", {
+      ceviName: "Deaktiviert",
+      deaktiviertAm: new Date(),
+    });
+    const [t] = await db
+      .insert(schema.tag)
+      .values({ abteilungId, typ: "team", name: "Leitung", kuerzel: "L" })
+      .returning();
+    await db.insert(schema.personTag).values([
+      { userId: mit, tagId: t!.id, rolle: "Stufenleitung", prioritaet: 1 },
+      { userId: ohne, tagId: t!.id },
+      { userId: aus, tagId: t!.id },
+    ]);
+    await seite({
+      adresse: "start",
+      inhalt: dok(
+        "Start",
+        { id: randomUUID(), typ: "bild", daten: { mediumId: offen } },
+        { id: randomUUID(), typ: "bild", daten: { mediumId: zu } },
+        { id: randomUUID(), typ: "bild", daten: { mediumId: fremd } },
+        {
+          id: randomUUID(),
+          typ: "kontaktperson",
+          daten: { personId: mit, zusatz: ["telefon", "email"] },
+        },
+        { id: randomUUID(), typ: "kontaktperson", daten: { personId: ohne } },
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: t!.id } },
+      ),
+    });
+    await lauf();
+    const html = await lies("index.html");
+    expect(html).toContain(
+      `<img src="/api/v1/medien/${offen}" alt="Lagerfeuer" width="10" height="10" loading="lazy">`,
+    );
+    expect(html.match(/<img/g)).toHaveLength(1);
+    expect(html).toContain(
+      '<span class="name">Wolke</span> <span class="funktion">Stufenleitung</span>',
+    );
+    for (const verboten of [
+      "Echter Name",
+      "Deaktiviert",
+      GEHEIM,
+      "41790000000",
+      "tel:",
+      "mailto:",
+    ]) {
+      expect(html).not.toContain(verboten);
+    }
+    // Wolke steht einmal als Kontaktperson und einmal im Team; ohne Cevi-Namen und deaktivierte Konten erscheinen nie
+    expect(html.match(/Wolke/g)).toHaveLength(2);
+  });
+
+  test("zusätzliche Datenquellen füllen die Stufenfakten", async () => {
+    const id = await seite({
+      adresse: "start",
+      inhalt: dok("Start", {
+        id: randomUUID(),
+        typ: "stufenfakten",
+        daten: {},
+      }),
+    });
+    await lauf({
+      datenquellen: [
+        async (_db, _abt, ids) => ({
+          stufenfakten: new Map(
+            ids.map((i) => [
+              i,
+              [{ bezeichnung: "Treffpunkt", wert: "Bahnhof" }],
+            ]),
+          ),
+        }),
+      ],
+    });
+    expect(id).toBeTruthy();
+    expect(await lies("index.html")).toContain(
+      "<dt>Treffpunkt</dt><dd>Bahnhof</dd>",
+    );
+  });
+});
+
+describe("Hash, Idempotenz und Aufräumen", () => {
+  test("ein zweiter Lauf ohne Änderung schreibt nichts", async () => {
+    const id = await seite({
+      adresse: "start",
+      inhalt: dok("Start", text("a")),
+    });
+    await seite({ adresse: "unter", inhalt: dok("Unter") });
+    const merker = new Map<string, string>();
+    expect((await lauf({ merker })).geschrieben).toBe(6);
+    const vorher = await hash(id);
+    // Eigene Ausgabe, die jeden Schreibversuch zählt
+    const schreibt = vi.spyOn(ausgabe, "schreibe");
+    expect(await lauf({ merker })).toEqual({
+      geschrieben: 0,
+      geloescht: 0,
+      fehler: 0,
+    });
+    // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
+    const nachNeustart = await lauf();
+    expect(nachNeustart.geschrieben).toBe(4);
+    expect(schreibt).toHaveBeenCalledTimes(4);
+    expect(await hash(id)).toEqual(vorher);
+  });
+
+  test("eine geänderte Seite schreibt nur sich; eine fehlende Datei kommt zurück", async () => {
+    const a = await seite({
+      adresse: "start",
+      titel: "Start",
+      inhalt: dok("Start", text("alt")),
+    });
+    await seite({ adresse: "b", titel: "B", inhalt: dok("B") });
+    const merker = new Map<string, string>();
+    await lauf({ merker });
+    const vorher = await hash(a);
+    await veroeffentliche(a, dok("Start", text("neu")));
+    expect((await lauf({ merker })).geschrieben).toBe(1);
+    expect(await lies("index.html")).toContain("neu");
+    expect((await hash(a)).h).not.toBe(vorher.h);
+
+    await rm(join(wurzel, "b/index.html"));
+    expect((await lauf({ merker })).geschrieben).toBe(1);
+    expect(await lies("b/index.html")).toContain("<h1>B</h1>");
+  });
+
+  test("Zurückziehen, Sichtbarkeit und Löschen entfernen die Datei und den Hash; fremde Dateien bleiben", async () => {
+    const a = await seite({ adresse: "a", inhalt: dok("A") });
+    const b = await seite({ adresse: "b", inhalt: dok("B") });
+    const c = await seite({ adresse: "c", inhalt: dok("C") });
+    await seite({ adresse: "d", inhalt: dok("D") });
+    await writeFile(join(wurzel, "notiz.txt"), "bleibt");
+    await writeFile(join(wurzel, ".htaccess"), "bleibt");
+    await lauf();
+    expect(await ausgabe.liste()).toContain("a/index.html");
+
+    await db
+      .update(schema.seite)
+      .set({ veroeffentlichteVersionId: null })
+      .where(eq(schema.seite.id, a));
+    await db
+      .update(schema.seite)
+      .set({ sichtbarkeit: "angemeldet" })
+      .where(eq(schema.seite.id, b));
+    await db.delete(schema.seite).where(eq(schema.seite.id, c));
+    const e = await lauf();
+    expect(e.geloescht).toBe(3);
+    expect(await ausgabe.liste()).toEqual([
+      "404.html",
+      "d/index.html",
+      "notiz.txt",
+      "robots.txt",
+      "sitemap.xml",
+      "website/website.css",
+    ]);
+    expect(await lies(".htaccess")).toBe("bleibt");
+    expect((await lies("sitemap.xml")).match(/<loc>/g)).toHaveLength(1);
+    expect((await hash(a)).h).toBeNull();
+    expect((await hash(b)).h).toBeNull();
+    // Die Navigation der übrigen Seiten kennt sie nicht mehr
+    expect(await lies("d/index.html")).not.toContain('href="/a"');
+  });
+
+  test("eine geänderte Adresse verschiebt die Datei", async () => {
+    const a = await seite({ adresse: "alt", inhalt: dok("A") });
+    await lauf();
+    await db
+      .update(schema.seite)
+      .set({ adresse: "neu" })
+      .where(eq(schema.seite.id, a));
+    await lauf();
+    const liste = await ausgabe.liste();
+    expect(liste).toContain("neu/index.html");
+    expect(liste).not.toContain("alt/index.html");
+  });
+
+  test("ohne Seiten entstehen nur die Gesamtdateien, die Sitemap ist leer", async () => {
+    await lauf();
+    expect(await ausgabe.liste()).toEqual([
+      "404.html",
+      "robots.txt",
+      "sitemap.xml",
+      "website/website.css",
+    ]);
+    expect(await lies("sitemap.xml")).not.toContain("<url>");
+  });
+});
+
+describe("Fehler", () => {
+  const protokoll = () =>
+    ausgabeLog.mock.calls.map((a) => String(a[0])).join("\n");
+
+  test("ein Fehler der Ausgabe bricht den Lauf nicht ab und der Log nennt keine Inhalte", async () => {
+    const a = await seite({
+      adresse: "a",
+      titel: GEHEIM,
+      inhalt: dok(GEHEIM, text(GEHEIM)),
+    });
+    const b = await seite({ adresse: "b", inhalt: dok("B") });
+    const echt = dateisystemAusgabe(wurzel);
+    const kaputt: Ausgabe = {
+      ...echt,
+      schreibe: async (pfad, inhalt) => {
+        if (pfad === "a/index.html") {
+          throw Object.assign(new Error(`Pfad ${wurzel} Inhalt ${inhalt}`), {
+            code: "EACCES",
+          });
+        }
+        return echt.schreibe(pfad, inhalt);
+      },
+    };
+    const e = await lauf({ ausgabe: kaputt });
+    expect(e.fehler).toBe(1);
+    expect(await echt.liste()).toContain("b/index.html");
+    expect(await echt.liste()).not.toContain("a/index.html");
+    // Kein Hash für die Seite, die nicht geschrieben wurde: Der nächste Lauf versucht es wieder
+    expect((await hash(a)).h).toBeNull();
+    expect((await hash(b)).h).not.toBeNull();
+    const log = protokoll();
+    expect(log).toContain('"code":"EACCES"');
+    expect(log).toContain(a);
+    expect(log).not.toContain(GEHEIM);
+    expect(log).not.toContain(wurzel);
+    // Beim nächsten Lauf mit gesunder Ausgabe entsteht sie
+    expect((await lauf()).fehler).toBe(0);
+    expect(await echt.liste()).toContain("a/index.html");
+  });
+
+  test("ein Fehler beim Löschen bricht den Lauf nicht ab", async () => {
+    const a = await seite({ adresse: "a", inhalt: dok("A") });
+    await seite({ adresse: "b", inhalt: dok("B") });
+    await lauf();
+    await db
+      .update(schema.seite)
+      .set({ veroeffentlichteVersionId: null })
+      .where(eq(schema.seite.id, a));
+    const echt = dateisystemAusgabe(wurzel);
+    const e = await lauf({
+      ausgabe: {
+        ...echt,
+        loesche: async () => {
+          throw new Error("nein");
+        },
+      },
+    });
+    expect(e).toMatchObject({ geloescht: 0, fehler: 1 });
+    expect(await echt.liste()).toContain("a/index.html");
+  });
+
+  test("kann die Ausgabe nichts auflisten, ändert der Lauf nichts", async () => {
+    await seite({ adresse: "a", inhalt: dok("A") });
+    const echt = dateisystemAusgabe(wurzel);
+    await expect(
+      lauf({
+        ausgabe: {
+          ...echt,
+          liste: async () => {
+            throw new Error("nein");
+          },
+        },
+      }),
+    ).rejects.toThrow("nein");
+    expect(await echt.liste()).toEqual([]);
+  });
+
+  test("eine ungültige Version bleibt beim alten Stand liegen", async () => {
+    const a = await seite({ adresse: "a", inhalt: dok("A") });
+    await lauf();
+    await veroeffentliche(a, { v: 99, kaputt: true });
+    const e = await lauf();
+    expect(e.fehler).toBe(1);
+    expect(e.geloescht).toBe(0);
+    expect(await lies("a/index.html")).toContain("<h1>A</h1>");
+    expect(protokoll()).toContain('"art":"dokument"');
+  });
+
+  test("eine unbekannte Abteilung ändert nichts und löscht nichts", async () => {
+    await seite({ adresse: "a", inhalt: dok("A") });
+    await lauf();
+    const e = await lauf({ abteilungId: randomUUID() });
+    expect(e).toEqual({ geschrieben: 0, geloescht: 0, fehler: 1 });
+    expect(await ausgabe.liste()).toContain("a/index.html");
+  });
+});
+
+describe("Sperre und Auslöser", () => {
+  test("ein Lauf mit gehaltener Sperre endet sofort mit «gesperrt»", async () => {
+    const halter = postgres(API_URL, { max: 1 });
+    try {
+      await halter`select pg_advisory_lock(740030)`;
+      const r = await synchronisiereWebsite({
+        datenbankUrl: API_URL,
+        ausgabe,
+        abteilungId,
+        basisUrl: BASIS,
+        stylesheet: CSS,
+      });
+      expect(r).toBe("gesperrt");
+      expect(await ausgabe.liste()).toEqual([]);
+      await halter`select pg_advisory_unlock(740030)`;
+      await seite({ adresse: "a", inhalt: dok("A") });
+      const frei = await synchronisiereWebsite({
+        datenbankUrl: API_URL,
+        ausgabe,
+        abteilungId,
+        basisUrl: BASIS,
+        stylesheet: CSS,
+      });
+      expect(frei).toMatchObject({ fehler: 0 });
+      expect(await ausgabe.liste()).toContain("a/index.html");
+    } finally {
+      await halter.end();
+    }
+  });
+
+  test("Ereignisse der Abteilung lösen Läufe aus; Ereignisse während eines Laufs genau einen weiteren", async () => {
+    let freigeben!: () => void;
+    const aufruf = vi.fn(
+      () =>
+        new Promise<void>((fertig) => {
+          freigeben = fertig;
+        }),
+    );
+    const stopp = starteWebsiteAbgleich(aufruf, abteilungId);
+    try {
+      // Start: ein Lauf
+      expect(aufruf).toHaveBeenCalledTimes(1);
+      // Drei Ereignisse während des Laufs, eines fremder Abteilung
+      const e = {
+        art: "version_veroeffentlicht" as const,
+        abteilungId,
+        seiteId: randomUUID(),
+      };
+      meldeWebsiteEreignis(e);
+      meldeWebsiteEreignis(e);
+      meldeWebsiteEreignis({ ...e, abteilungId: randomUUID() });
+      expect(aufruf).toHaveBeenCalledTimes(1);
+      freigeben();
+      await vi.waitFor(() => expect(aufruf).toHaveBeenCalledTimes(2));
+      freigeben();
+      // Danach Ruhe, bis das nächste Ereignis kommt
+      await new Promise((r) => setTimeout(r, 50));
+      expect(aufruf).toHaveBeenCalledTimes(2);
+      meldeWebsiteEreignis(e);
+      await vi.waitFor(() => expect(aufruf).toHaveBeenCalledTimes(3));
+      freigeben();
+    } finally {
+      stopp();
+    }
+    // Abgemeldet: kein Lauf mehr
+    meldeWebsiteEreignis({
+      art: "seite_geloescht",
+      abteilungId,
+      seiteId: randomUUID(),
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(aufruf).toHaveBeenCalledTimes(3);
+  });
+
+  test("ein Fehler im Lauf erscheint nur als Code im Log und beendet den Auslöser nicht", async () => {
+    const aufruf = vi
+      .fn()
+      .mockRejectedValueOnce(
+        Object.assign(new Error(GEHEIM), { code: "ECONNRESET" }),
+      )
+      .mockResolvedValue(undefined);
+    const stopp = starteWebsiteAbgleich(aufruf, abteilungId);
+    try {
+      await vi.waitFor(() => expect(ausgabeLog).toHaveBeenCalled());
+      const zeile = String(ausgabeLog.mock.calls[0]![0]);
+      expect(zeile).toContain('"code":"ECONNRESET"');
+      expect(zeile).not.toContain(GEHEIM);
+      meldeWebsiteEreignis({
+        art: "seite_geaendert",
+        abteilungId,
+        seiteId: randomUUID(),
+      });
+      await vi.waitFor(() => expect(aufruf).toHaveBeenCalledTimes(2));
+    } finally {
+      stopp();
+    }
+  });
+});
