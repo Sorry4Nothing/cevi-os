@@ -118,7 +118,6 @@ export function zeige(bereich, ctx) {
 - Nach 4 Sekunden: «Das dauert länger.» mit «Nochmals versuchen».
 - Skeleton nur beim ersten Laden. Ruft `zeichnen` die zweite Funktion (`neuLaden`) auf, bleibt der alte Inhalt, darüber steht «Wird aktualisiert …».
 - Fehler: Zustandskarte mit «Nochmals versuchen» (bei 404 zusätzlich «Zur Übersicht»); der Fokus liegt auf dem Titel.
-- `fehlertitel` (Option von `lade`): Titel der Fehlerkarte beim allgemeinen Serverfehler, z. B. «Die Räume konnten nicht geladen werden.» (so nennen es die Boards A8 bis A19); alle anderen Fehler behalten ihren Titel.
 - `skeleton`: `"tabelle"` (Vorgabe), `"flaeche"`, `"formular"`, `"detail"`, `"liste"`, eine Funktion, die einen Knoten liefert, oder `false`. Bausteine: `sk(art, breite)`, `skeletonTabelle`, `skeletonFlaeche`, `skeletonFormular`, `skeletonDetail`, `skeletonListe`. Breiten sind Klassen (`sk-b<px>`), weil die CSP `style`-Attribute verbietet.
 - Der Skeleton hat die Form des echten Inhalts (gleiche Spaltenzahl, Höhen, Radien), pulsiert nur bei erlaubter Bewegung und ist `aria-hidden`; die Information liefert die Live-Region «Lädt …».
 
@@ -181,11 +180,15 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
 | Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                              | `fortschritt`, `schritte`               |
 | Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
-| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `zaehler`                               |
+| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
 
 Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; keine Meldung verschwindet von selbst.
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
+
+## Lokal prüfen
+
+Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/seiten.ts`). Nach jeder Änderung an einer Datei dort den Server neu starten, sonst zeigt der Browser die alte Fassung. Eigener Dev-Server und Datenbank wie in der Regel für UI-Arbeit; der zweite Faktor lässt sich in Playwright umgehen, indem `GET /api/auth/get-session` und die Daten-Routen mit `page.route` beantwortet werden (siehe die Antwortformen in `docs/api/openapi.yaml`). Prüfe jede Ansicht bei 1280, 1024 und 390 px in Tag und Nacht (`emulateMedia({ colorScheme })`), mit Tastatur und mit `reducedMotion: "reduce"`.
 
 ## Änderungen am Gerüst
 

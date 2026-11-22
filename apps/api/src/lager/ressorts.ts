@@ -1,4 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -8,7 +9,8 @@ import {
   ressortNotiz,
 } from "../db/schema.js";
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
-import type { Tx } from "./sync.js";
+import { registriereOperation } from "./operationen.js";
+import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
@@ -46,6 +48,7 @@ export const ressortAnsicht = (r: typeof ressort.$inferSelect) => ({
   notiz: r.notiz,
   parentId: r.parentId,
   reihenfolge: r.reihenfolge,
+  ruhig: r.ruhig,
 });
 export const linkAnsicht = (r: typeof ressortLink.$inferSelect) => ({
   id: r.id,
@@ -78,6 +81,7 @@ export const ressortAnlegen = z.strictObject({
   notiz: notiz.optional(),
   parentId: z.uuid().nullable().optional(),
   reihenfolge: z.number().int().min(0).max(100000).optional(),
+  ruhig: z.boolean().optional(),
 });
 export const ressortAendern = z
   .strictObject({
@@ -89,6 +93,7 @@ export const ressortAendern = z
     notiz: notiz.optional(),
     parentId: z.uuid().nullable().optional(),
     reihenfolge: z.number().int().min(0).max(100000).optional(),
+    ruhig: z.boolean().optional(),
   })
   .refine((b) => Object.keys(b).length > 1);
 export const reihenfolgeSetzen = z.strictObject({
@@ -198,3 +203,178 @@ export async function ladeRessortZeile(
     .where(and(eq(ressort.id, id), eq(ressort.lagerId, lagerId)));
   return zeile;
 }
+
+// Das Ressort im Lager gibt es nicht (mehr): 404, auch für ein Ressort eines fremden Lagers
+export async function ressortDa(
+  tx: Pick<Db, "select">,
+  lagerId: string,
+  id: string,
+) {
+  const zeile = await ladeRessortZeile(tx, lagerId, id);
+  if (!zeile) throw new HTTPException(404);
+  return zeile;
+}
+
+// Die Notiz gehört zu diesem Ressort in diesem Lager, sonst 404: Eine ID aus der Anfrage ist nie ein Nachweis (SR-11)
+async function notizDa(
+  tx: Pick<Db, "select">,
+  lagerId: string,
+  ressortId: string,
+  id: string,
+) {
+  const [zeile] = await tx
+    .select({ id: ressortNotiz.id })
+    .from(ressortNotiz)
+    .where(
+      and(
+        eq(ressortNotiz.id, id),
+        eq(ressortNotiz.lagerId, lagerId),
+        eq(ressortNotiz.ressortId, ressortId),
+      ),
+    );
+  if (!zeile) throw new HTTPException(404);
+}
+
+type Akteur = { lagerId: string; personId: string };
+
+export async function legeNotizAn(
+  tx: Tx,
+  k: Akteur,
+  ressortId: string,
+  eingabe: z.output<typeof notizAnlegen>,
+) {
+  await sperreLager(tx, k.lagerId);
+  await ressortDa(tx, k.lagerId, ressortId);
+  return legeZeileAn(tx, ressortNotiz, k, { ressortId, ...eingabe });
+}
+
+export async function aendereNotiz(
+  tx: Tx,
+  k: Akteur,
+  ressortId: string,
+  notizId: string,
+  eingabe: z.output<typeof notizAendern>,
+) {
+  const { version: erwartet, ...werte } = eingabe;
+  await sperreLager(tx, k.lagerId);
+  await notizDa(tx, k.lagerId, ressortId, notizId);
+  return aendereZeile(tx, ressortNotiz, k, {
+    id: notizId,
+    version: erwartet,
+    werte,
+    ansicht: notizAnsicht,
+  });
+}
+
+export async function loescheNotiz(
+  tx: Tx,
+  k: Akteur,
+  ressortId: string,
+  notizId: string,
+  erwartet: number,
+) {
+  await sperreLager(tx, k.lagerId);
+  await notizDa(tx, k.lagerId, ressortId, notizId);
+  await loescheZeile(tx, ressortNotiz, k, {
+    id: notizId,
+    version: erwartet,
+    ansicht: notizAnsicht,
+  });
+}
+
+// Die Stelle in der Liste ist die neue Reihenfolge; was schon stimmt, bleibt unberührt (keine neue Version, kein Feed-Eintrag). Alles oder nichts: Ein Eintrag, der nicht in diesem Lager steht, ist 404
+export async function ordneRessorts(
+  tx: Tx,
+  k: Akteur,
+  eintraege: z.output<typeof reihenfolgeSetzen>["eintraege"],
+) {
+  await sperreLager(tx, k.lagerId);
+  const vorhanden = await tx
+    .select()
+    .from(ressort)
+    .where(and(eq(ressort.lagerId, k.lagerId)));
+  const nachId = new Map(vorhanden.map((z) => [z.id, z]));
+  if (eintraege.some((e) => !nachId.has(e.id))) throw new HTTPException(404);
+  for (const [stelle, e] of eintraege.entries()) {
+    if (nachId.get(e.id)!.reihenfolge === stelle) continue;
+    await aendereZeile(tx, ressort, k, {
+      id: e.id,
+      version: e.version,
+      werte: { reihenfolge: stelle },
+      ansicht: ressortAnsicht,
+    });
+  }
+}
+
+// Operationen der Warteschlange (#367, #521): dieselben Schreibwege wie die Routen, mit demselben Recht
+const akteur = (z: {
+  zugriff: { lager: { id: string } };
+  person: { id: string };
+}) => ({ lagerId: z.zugriff.lager.id, personId: z.person.id });
+registriereOperation({
+  typ: "ressort_notiz.anlegen",
+  recht: "ressorts.bearbeiten",
+  schema: z.strictObject({ ressortId: z.uuid(), ...notizAnlegen.shape }),
+  fuehreAus: async (kontext, { ressortId, ...n }) => {
+    const neu = await legeNotizAn(kontext.tx, akteur(kontext), ressortId, n);
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "ressort_notiz.aendern",
+  recht: "ressorts.bearbeiten",
+  schema: z.strictObject({
+    ressortId: z.uuid(),
+    id: z.uuid(),
+    ...notizAendern.shape,
+  }),
+  fuehreAus: async (kontext, { ressortId, id, ...n }) => {
+    const neu = await aendereNotiz(
+      kontext.tx,
+      akteur(kontext),
+      ressortId,
+      id,
+      n,
+    );
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "ressort_notiz.loeschen",
+  recht: "ressorts.bearbeiten",
+  schema: z.strictObject({ ressortId: z.uuid(), id: z.uuid(), version }),
+  fuehreAus: async (kontext, n) => {
+    await loescheNotiz(
+      kontext.tx,
+      akteur(kontext),
+      n.ressortId,
+      n.id,
+      n.version,
+    );
+    return { id: n.id };
+  },
+});
+// Ruhig setzen (#520): nur dieses Feld, der Rest eines Ressorts braucht Netz (Leitung, Baum und Kürzel prüft die Route)
+registriereOperation({
+  typ: "ressort.ruhig",
+  recht: "ressorts.bearbeiten",
+  schema: z.strictObject({ id: z.uuid(), version, ruhig: z.boolean() }),
+  fuehreAus: async (kontext, n) => {
+    const neu = await aendereZeile(kontext.tx, ressort, akteur(kontext), {
+      id: n.id,
+      version: n.version,
+      werte: { ruhig: n.ruhig },
+      ansicht: ressortAnsicht,
+    });
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "ressort.reihenfolge",
+  recht: "ressorts.bearbeiten",
+  schema: reihenfolgeSetzen,
+  fuehreAus: async (kontext, n) => {
+    await ordneRessorts(kontext.tx, akteur(kontext), n.eintraege);
+    return {};
+  },
+});

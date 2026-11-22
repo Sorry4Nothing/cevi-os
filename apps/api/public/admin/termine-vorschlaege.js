@@ -138,7 +138,7 @@ export function zeige(bereich, ctx) {
     (daten) => zeichne(bereich, ctx, daten),
     {
       skeleton: skeletonListe,
-      fehlertitel: "Die Vorschläge konnten nicht geladen werden.",
+      fehlerTitel: "Die Vorschläge konnten nicht geladen werden.",
     },
   );
 }

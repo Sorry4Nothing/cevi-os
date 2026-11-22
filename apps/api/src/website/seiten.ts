@@ -26,6 +26,9 @@ export const RESERVIERTE_ADRESSEN: readonly string[] = [
   "anmelden",
   "medien",
   "ical",
+  // Die Seiten für Termine und Anlässe (#530)
+  "termine",
+  "anlass",
   "sitemap.xml",
   "robots.txt",
   ".well-known",

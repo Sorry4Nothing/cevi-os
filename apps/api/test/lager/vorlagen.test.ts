@@ -837,3 +837,81 @@ describe("Neues Lager aus einer Vorlage (POST /admin/lager)", () => {
     }
   });
 });
+
+describe("Vorlagen zum Anwenden auflisten (#520)", () => {
+  const url = (l: string) => `/api/v1/lager/${l}/vorlagen`;
+
+  test("die Lagerleitung bekommt Art, Name und Zahl ohne Inhalt, nur die eigene Abteilung", async () => {
+    const lager = await neuesLager();
+    const a = await neueVorlage(aufgabenInhalt(3));
+    const p = await neueVorlage(
+      { punkte: [{ abschnitt: "Kleidung", text: "Regenjacke" }] },
+      "packliste",
+    );
+    const fremd = await neueVorlage(
+      aufgabenInhalt(1),
+      "aufgaben",
+      welt.demoAbteilungId,
+    );
+    const antwort = await anfrage(konten.lagerleitung, "GET", url(lager));
+    expect(antwort.status).toBe(200);
+    const liste = antwort.body.vorlagen as {
+      id: string;
+      art: string;
+      name: string;
+      anzahl: number;
+    }[];
+    expect(liste.find((v) => v.id === a)).toMatchObject({
+      art: "aufgaben",
+      anzahl: 3,
+    });
+    expect(liste.find((v) => v.id === p)).toMatchObject({
+      art: "packliste",
+      anzahl: 1,
+    });
+    expect(liste.map((v) => v.id)).not.toContain(fremd);
+    for (const v of liste) {
+      expect(Object.keys(v).sort()).toEqual(["anzahl", "art", "id", "name"]);
+    }
+    expect(JSON.stringify(antwort.body)).not.toContain("Regenjacke");
+    // Auch im abgeschlossenen Lager lesbar
+    const zu = await neuesLager({ status: "abgeschlossen" });
+    expect((await anfrage(konten.lagerleitung, "GET", url(zu))).status).toBe(
+      200,
+    );
+    // Die Abteilungsleitung braucht kein Konto im Lager
+    expect((await anfrage(admin(), "GET", url(lager))).status).toBe(200);
+  });
+
+  test("ohne das Recht 403, Nicht-Mitglied 404, ohne Login 401; das Recht lässt sich geben", async () => {
+    const lager = await neuesLager();
+    for (const p of ["leitung", "team", "lesen"] as const) {
+      expect((await anfrage(konten[p], "GET", url(lager))).status, p).toBe(403);
+    }
+    for (const p of ["ohneMitgliedschaft", "fremdeAbteilung"] as const) {
+      expect((await anfrage(konten[p], "GET", url(lager))).status, p).toBe(404);
+    }
+    expect((await anfrage(konten.ohneLogin, "GET", url(lager))).status).toBe(
+      401,
+    );
+    await db.insert(schema.lagerRolleRecht).values({
+      lagerId: lager,
+      rolle: "leitung",
+      recht: "vorlagen.anwenden",
+      erlaubt: true,
+    });
+    expect((await anfrage(konten.leitung, "GET", url(lager))).status).toBe(200);
+  });
+
+  test("eine Abfrage für beliebig viele Vorlagen", async () => {
+    const lager = await neuesLager();
+    await anfrage(konten.lagerleitung, "GET", url(lager));
+    abfragen = 0;
+    await anfrage(konten.lagerleitung, "GET", url(lager));
+    const n = abfragen;
+    for (let i = 0; i < 6; i++) await neueVorlage(aufgabenInhalt(2));
+    abfragen = 0;
+    await anfrage(konten.lagerleitung, "GET", url(lager));
+    expect(abfragen).toBe(n);
+  });
+});

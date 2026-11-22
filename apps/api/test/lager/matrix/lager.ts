@@ -31,6 +31,10 @@ export const ZEILEN: LagerMatrix = {
     // Jedes Konto sieht seine eigenen Lager; die fremde Abteilung ihre eigenen, nie die der Testabteilung
     erwartet: gleich(status({}, 200)),
   },
+  "GET /api/v1/lager/neuigkeiten": {
+    // Wie die Liste: jedes Konto sieht den Stand seiner eigenen Lager
+    erwartet: gleich(status({}, 200)),
+  },
   "GET /api/v1/lager/:id": {
     url: (w, z) => `/api/v1/lager/${w.lagerId(z)}`,
     erwartet: gleich(

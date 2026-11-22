@@ -169,11 +169,14 @@ describe("Was ausgeliefert wird", () => {
 
     const e = await lauf();
     // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite und je eine Hülle für die zwei ganz geschützten Seiten
-    expect(e).toEqual({ geschrieben: 10, geloescht: 0, fehler: 0 });
+    expect(e).toEqual({ geschrieben: 16, geloescht: 0, fehler: 0 });
 
     const dateien = await alle();
     expect(Object.keys(dateien).sort()).toEqual([
       "404.html",
+      "500.html",
+      "anlass/anmeldung/index.html",
+      "anlass/index.html",
       "anmelden/index.html",
       "gruppe/index.html",
       "index.html",
@@ -182,6 +185,9 @@ describe("Was ausgeliefert wird", () => {
       "sitemap.xml",
       "stufen/index.html",
       "stufen/woelfe/index.html",
+      "termine/index.html",
+      "termine/vorschlagen/index.html",
+      "wartung.html",
       "website/website.css",
     ]);
     // Der Marker steht in keiner erzeugten Datei, Titel nicht in der Navigation, der Platzhalter nur mit ID
@@ -200,7 +206,7 @@ describe("Was ausgeliefert wird", () => {
     expect(dateien["website/website.css"]).toBe(CSS);
     // Navigation: Baum nur aus öffentlichen Seiten, aktuelle Seite markiert
     expect(dateien["stufen/woelfe/index.html"]).toContain(
-      '<li><a href="/">Start</a></li><li><a href="/stufen">Stufen</a><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
+      '<li><a href="/">Start</a></li><li><a href="/stufen" aria-current="true">Stufen</a><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
     );
     expect(dateien["404.html"]).toContain("Seite nicht gefunden");
     // Ganz geschützte Seiten: nur eine Hülle ohne Titel und Inhalt, mit Hinweis und Link zur Anmeldung, nie in der Sitemap
@@ -291,11 +297,17 @@ describe("Was ausgeliefert wird", () => {
     await lauf();
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "500.html",
+      "anlass/anmeldung/index.html",
+      "anlass/index.html",
       "anmelden/index.html",
       "ordner/api/index.html",
       "ordner/index.html",
       "robots.txt",
       "sitemap.xml",
+      "termine/index.html",
+      "termine/vorschlagen/index.html",
+      "wartung.html",
       "website/website.css",
     ]);
   });
@@ -316,7 +328,7 @@ describe("Was ausgeliefert wird", () => {
     const d = await alle();
     expect(Object.keys(d)).toContain("intern/offen/index.html");
     expect(d["intern/offen/index.html"]).toContain(
-      '<nav aria-label="Hauptnavigation"><ul><li><a href="/intern/offen" aria-current="page">Offen</a></li></ul></nav>',
+      '<nav class="hauptnav" aria-label="Hauptnavigation"><ul><li><a href="/intern/offen" aria-current="page">Offen</a></li></ul></nav>',
     );
     expect(JSON.stringify(d)).not.toContain(GEHEIM);
   });
@@ -405,7 +417,7 @@ describe("Was ausgeliefert wird", () => {
     );
     expect(html.match(/<img/g)).toHaveLength(1);
     expect(html).toContain(
-      '<span class="name">Wolke</span> <span class="funktion">Stufenleitung</span>',
+      '<span class="name">Wolke</span><span class="funktion">Stufenleitung</span>',
     );
     for (const verboten of [
       "Echter Name",
@@ -457,7 +469,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     await seite({ adresse: "unter", inhalt: dok("Unter") });
     const merker = new Map<string, string>();
-    expect((await lauf({ merker })).geschrieben).toBe(7);
+    expect((await lauf({ merker })).geschrieben).toBe(13);
     const vorher = await hash(id);
     // Eigene Ausgabe, die jeden Schreibversuch zählt
     const schreibt = vi.spyOn(ausgabe, "schreibe");
@@ -468,8 +480,8 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
     const nachNeustart = await lauf();
-    expect(nachNeustart.geschrieben).toBe(5);
-    expect(schreibt).toHaveBeenCalledTimes(5);
+    expect(nachNeustart.geschrieben).toBe(11);
+    expect(schreibt).toHaveBeenCalledTimes(11);
     expect(await hash(id)).toEqual(vorher);
   });
 
@@ -517,12 +529,18 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     expect(e.geloescht).toBe(2);
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "500.html",
+      "anlass/anmeldung/index.html",
+      "anlass/index.html",
       "anmelden/index.html",
       "b/index.html",
       "d/index.html",
       "notiz.txt",
       "robots.txt",
       "sitemap.xml",
+      "termine/index.html",
+      "termine/vorschlagen/index.html",
+      "wartung.html",
       "website/website.css",
     ]);
     expect(await lies(".htaccess")).toBe("bleibt");
@@ -552,9 +570,15 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     await lauf();
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "500.html",
+      "anlass/anmeldung/index.html",
+      "anlass/index.html",
       "anmelden/index.html",
       "robots.txt",
       "sitemap.xml",
+      "termine/index.html",
+      "termine/vorschlagen/index.html",
+      "wartung.html",
       "website/website.css",
     ]);
     expect(await lies("sitemap.xml")).not.toContain("<url>");

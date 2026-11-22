@@ -88,7 +88,7 @@ function zeigeListe(bereich, ctx) {
       (erste) => zeichneListe(bereich, ctx, erste, lade),
       {
         skeleton: () => skeletonTabelle({ spalten: 6, avatar: false }),
-        fehlertitel: "Die Anlässe konnten nicht geladen werden.",
+        fehlerTitel: "Die Anlässe konnten nicht geladen werden.",
       },
     );
   ctx.kopfAktion(
@@ -464,7 +464,7 @@ function zeigeAnlass(bereich, ctx, id) {
       (anlass) => zeichneAnlass(bereich, ctx, pfad, anlass, lade),
       {
         skeleton: skeletonDetail,
-        fehlertitel: "Der Anlass konnte nicht geladen werden.",
+        fehlerTitel: "Der Anlass konnte nicht geladen werden.",
       },
     );
   return lade();
@@ -677,7 +677,7 @@ function zeigeFelder(bereich, ctx, id) {
       (anlass) => zeichneFelder(bereich, ctx, pfad, anlass),
       {
         skeleton: () => skeletonFormular({ felder: 4 }),
-        fehlertitel: "Die Zusatzfelder konnten nicht geladen werden.",
+        fehlerTitel: "Die Zusatzfelder konnten nicht geladen werden.",
       },
     );
   return lade();

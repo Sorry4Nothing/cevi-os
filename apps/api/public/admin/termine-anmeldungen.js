@@ -120,7 +120,7 @@ function zeigeAuswahl(bereich, ctx) {
     },
     {
       skeleton: skeletonListe,
-      fehlertitel: "Die Anlässe konnten nicht geladen werden.",
+      fehlerTitel: "Die Anlässe konnten nicht geladen werden.",
     },
   );
 }
@@ -140,7 +140,7 @@ function zeigeAnmeldungen(bereich, ctx, id) {
     ([anlass, erste]) => zeichne(bereich, ctx, pfad, anlass, erste),
     {
       skeleton: () => skeletonTabelle({ spalten: 6, avatar: false }),
-      fehlertitel: "Die Anmeldungen konnten nicht geladen werden.",
+      fehlerTitel: "Die Anmeldungen konnten nicht geladen werden.",
     },
   );
 }

@@ -14,7 +14,7 @@ export function zeige(bereich, ctx) {
     () => anfrage("GET", BASIS),
     (daten, neu) => zeichne(bereich, ctx, daten.kalender, neu),
     {
-      fehlertitel: "Der Zustand der Verbindung konnte nicht geladen werden.",
+      fehlerTitel: "Der Zustand der Verbindung konnte nicht geladen werden.",
       skeleton: () =>
         el(
           "div",

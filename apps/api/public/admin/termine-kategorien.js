@@ -53,7 +53,7 @@ export function zeige(bereich, ctx) {
       };
     },
     (daten, neu) => zeichne(bereich, ctx, daten, neu, vorgabe),
-    { fehlertitel: "Die Kategorien konnten nicht geladen werden." },
+    { fehlerTitel: "Die Kategorien konnten nicht geladen werden." },
   );
 }
 

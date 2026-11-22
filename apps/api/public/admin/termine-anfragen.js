@@ -52,7 +52,7 @@ export function zeige(bereich, ctx) {
     (erste, neu) => zeichne(bereich, ctx, erste, neu),
     {
       skeleton: () => skeletonTabelle({ spalten: 5, avatar: false }),
-      fehlertitel: "Die Raumanfragen konnten nicht geladen werden.",
+      fehlerTitel: "Die Raumanfragen konnten nicht geladen werden.",
     },
   );
 }

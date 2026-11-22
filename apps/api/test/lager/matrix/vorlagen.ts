@@ -78,6 +78,17 @@ export const ZEILEN: LagerMatrix = {
     url: adminPfad,
     erwartet: verwaltungObjekt(204),
   },
+  // Auswahl für «anwenden» (#520): Recht vorlagen.anwenden, im abgeschlossenen Lager lesbar
+  "GET /api/v1/lager/:id/vorlagen": {
+    url: (w: LagerWelt, z: LagerZustand) =>
+      `/api/v1/lager/${w.lagerId(z)}/vorlagen`,
+    erwartet: gleich(
+      status(
+        { ...nichtMitglied, abteilungsleitung: 200, lagerleitung: 200 },
+        403,
+      ),
+    ),
+  },
   "POST /api/v1/lager/:id/vorlagen/:vorlageId/anwenden": {
     url: async (w: LagerWelt, z: LagerZustand) =>
       `/api/v1/lager/${w.lagerId(z)}/vorlagen/${await neueVorlage(w)}/anwenden?trocken=true`,

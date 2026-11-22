@@ -38,7 +38,7 @@ export function zeige(bereich, ctx) {
     (erste) => zeichne(bereich, wahl, erste, url),
     {
       skeleton: () => skeletonTabelle({ spalten: 5, avatar: false }),
-      fehlertitel: "Die Termine konnten nicht geladen werden.",
+      fehlerTitel: "Die Termine konnten nicht geladen werden.",
     },
   );
 }

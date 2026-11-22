@@ -59,7 +59,7 @@ export function zeige(bereich, ctx) {
     ctx.lade(
       () => anfrage("GET", `${BASIS}?limit=${SEITE}`),
       (erste) => zeichne(bereich, ctx, erste, lade),
-      { fehlertitel: "Die Räume konnten nicht geladen werden." },
+      { fehlerTitel: "Die Räume konnten nicht geladen werden." },
     );
   // Die Hauptaktion steht auch bei einem Ladefehler im Kopf
   ctx.kopfAktion(

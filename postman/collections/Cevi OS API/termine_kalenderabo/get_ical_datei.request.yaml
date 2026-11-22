@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /ical/:datei"
-order: 418000
+order: 420000
 method: GET
 url: "{{baseUrl}}{{pfad_T20}}"
 headers:

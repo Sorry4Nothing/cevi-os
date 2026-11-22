@@ -50,7 +50,7 @@ export function zeige(bereich, ctx) {
   ctx.lade(
     () => anfrage("GET", "/api/v1/admin/termine/warnungen"),
     (daten) => zeichne(bereich, ctx, daten),
-    { fehlertitel: "Die Termine ohne Kategorie konnten nicht geladen werden." },
+    { fehlerTitel: "Die Termine ohne Kategorie konnten nicht geladen werden." },
   );
 }
 

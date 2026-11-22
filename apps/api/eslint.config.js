@@ -26,6 +26,8 @@ export default defineConfig(
         setTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        clearTimeout: "readonly",
+        AbortController: "readonly",
         window: "readonly",
       },
     },
