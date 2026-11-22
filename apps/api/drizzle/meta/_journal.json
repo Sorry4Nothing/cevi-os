@@ -290,6 +290,13 @@
       "breakpoints": true
     },
     {
+      "idx": 44,
+      "version": "7",
+      "when": 1793549400000,
+      "tag": "0044_eckdaten_nur_gepflegt",
+      "breakpoints": true
+    },
+    {
       "idx": 60,
       "version": "7",
       "when": 1793550000000,

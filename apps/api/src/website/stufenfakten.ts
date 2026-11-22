@@ -1,11 +1,11 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { programmEckdaten, seite, tag } from "../db/schema.js";
 import type { Datenquelle } from "./abgleich.js";
 import type { Fakt } from "./rendern.js";
 
 // Die festen Felder einer Stufenseite (#355): je Stufe und Datum eine Zeile in programm_eckdaten.
-// Die Zeile des nächsten Datums ab heute (Zürich) füllt den Baustein «stufenfakten»; eine im Editor gepflegte Zeile (quelle «seite») geht der ausgelesenen (quelle «web») vor, solange sie nicht in der Vergangenheit liegt.
+// Die Zeile des nächsten Datums ab heute (Zürich) füllt den Baustein «stufenfakten».
 // Die App liest dieselbe Tabelle in routes/programme.ts und merkt nichts davon.
 
 export type Eckdatenzeile = {
@@ -61,7 +61,7 @@ export function faktenAus(z: Eckdatenzeile): Fakt[] {
   return fakten;
 }
 
-// Eine Abfrage für alle Seiten: Seiten, deren Tag eine Stufe ist, mit der Zeile des nächsten Datums ab heute; gepflegte Zeilen zuerst.
+// Eine Abfrage für alle Seiten: Seiten, deren Tag eine Stufe ist, mit der Zeile des nächsten Datums ab heute.
 // Seiten ohne Zeile bekommen keinen Eintrag: Der Baustein entfällt dann
 export const ladeStufenfakten: Datenquelle = async (
   db,
@@ -90,11 +90,7 @@ export const ladeStufenfakten: Datenquelle = async (
         sql`${programmEckdaten.tag} >= (now() at time zone 'Europe/Zurich')::date`,
       ),
     )
-    .orderBy(
-      seite.id,
-      desc(sql`${programmEckdaten.quelle} = 'seite'`),
-      asc(programmEckdaten.tag),
-    );
+    .orderBy(seite.id, asc(programmEckdaten.tag));
   for (const z of zeilen) stufenfakten.set(z.seiteId, faktenAus(z));
   return { stufenfakten };
 };

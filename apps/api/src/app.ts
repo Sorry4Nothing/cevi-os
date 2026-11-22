@@ -101,7 +101,6 @@ export function erstelleApp({
   medienspeicher?: Medienspeicher;
   // Die Abrufe im Hintergrund, von Hand anzustossen; ohne sie antwortet die Verwaltung mit 501
   syncs?: {
-    eckdaten?: () => Promise<"fertig" | "gesperrt">;
     kalender?: () => Promise<"fertig" | "gesperrt">;
   };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm

@@ -359,7 +359,7 @@ export const programm = pgTable(
   ],
 );
 
-// Von der Webseite der Stufe abgerufen (kalender/eckdaten-sync.ts) oder im Editor gepflegt (routes/redaktion/eckdaten.ts, Spalte «quelle»), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
+// Die festen Felder der Stufenseite, im Editor gepflegt (routes/redaktion/eckdaten.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
 // Der Schlüssel ist Stufe und Tag; die Route hängt sie über beides an das Programm
 export const programmEckdaten = pgTable(
   "programm_eckdaten",
@@ -376,17 +376,14 @@ export const programmEckdaten = pgTable(
     schlussZeit: text("schluss_zeit"),
     mitnehmen: text("mitnehmen"),
     abgerufenAm: zeitpunkt("abgerufen_am").notNull().defaultNow(),
-    // «web»: ausgelesen von der alten Webseite (überschreibt das Auslesen); «seite»: gepflegt im Editor (#355), das Auslesen lässt die Zeile in Ruhe
-    quelle: text("quelle", { enum: ["web", "seite"] })
+    // Nur noch «seite» (gepflegt im Editor, #355); «web» war das Auslesen der alten Webseiten, das #361 entfernt hat
+    quelle: text("quelle", { enum: ["seite"] })
       .notNull()
-      .default("web"),
+      .default("seite"),
   },
   (t) => [
     primaryKey({ columns: [t.stufeId, t.tag] }),
-    check(
-      "programm_eckdaten_quelle_check",
-      sql`${t.quelle} in ('web', 'seite')`,
-    ),
+    check("programm_eckdaten_quelle_check", sql`${t.quelle} = 'seite'`),
   ],
 );
 

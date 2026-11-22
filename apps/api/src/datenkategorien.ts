@@ -58,7 +58,7 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von der Webseite der Stufen.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt.",
     frist:
       "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert.",
     apple: [],

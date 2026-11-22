@@ -2592,11 +2592,9 @@ paths:
   /api/v1/admin/system/syncs:
     get:
       operationId: holeAdminSyncs
-      summary: Ausgaben der Abrufe im Hintergrund
+      summary: Stand des Kalender-Abgleichs
       description: |
-        Nur Admins (mit zweitem Faktor). Zeigt, was die Abrufe im Hintergrund zuletzt geliefert haben: je Stufe der Abteilung die Adresse der Stufenwebseite, den Ausgang des letzten Laufs und die gelesenen Eckdaten, dazu den Stand des Kalender-Syncs mit der Zahl der Programme.
-
-        Der Ausgang des letzten Laufs liegt im Arbeitsspeicher der API; nach einem Neustart ist er `null`, bis der nächste Lauf fertig ist. Die Antwort enthält nie HTML der Seiten oder Fehlertexte, bei einem Fehler nur dessen Code (etwa `ECONNRESET`).
+        Nur Admins (mit zweitem Faktor). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
 
         Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
@@ -2605,7 +2603,7 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
       responses:
         "200":
-          description: Stand der Abrufe.
+          description: Stand des Kalender-Abgleichs.
           content:
             application/json:
               schema:
@@ -2618,35 +2616,6 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/admin/system/syncs/eckdaten:
-    post:
-      operationId: stosseAdminEckdatenAn
-      summary: Abruf der Stufenwebseiten anstossen
-      description: |
-        Nur Admins (mit zweitem Faktor). Ruft die Eckdaten aller Stufen von der Webseite ab. Hat die Abteilung keinen Google-Kalender, legt der Abruf zum nächsten Anlass auch das Programm an (Titel «Cevi-Programm <Stufe>», für Eltern sichtbar) oder aktualisiert es. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
-
-        Statuscodes: 200 mit `ergebnis` `fertig` oder `gesperrt`. 401. 403 für Nicht-Admins. 426. 429 bei zu kurzem Abstand oder beim Limit. 501, wenn der Server keinen Abruf eingerichtet hat.
-      tags:
-        - Verwaltung
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      responses:
-        "200":
-          description: Ergebnis des Laufs.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminSyncErgebnis"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-        "501":
-          description: Der Server hat diesen Abruf nicht eingerichtet.
   /api/v1/admin/system/syncs/kalender:
     post:
       operationId: stosseAdminKalenderAn
@@ -6921,7 +6890,7 @@ paths:
       operationId: listeRedaktionEckdaten
       summary: Kommende Felder der Stufenseite
       description: |
-        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist `seite` für im Editor gepflegte Zeilen und `web` für die, die das Auslesen der alten Stufenwebseite schrieb (läuft bis zur Ablösung nebenher). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
+        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist immer `seite` (im Editor gepflegt); das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403).
 
@@ -6987,7 +6956,7 @@ paths:
       operationId: schreibeRedaktionEckdaten
       summary: Felder der Stufenseite für ein Datum pflegen
       description: |
-        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig (auch eine ausgelesene: sie gehört danach dem Editor, das Auslesen überschreibt sie nie mehr). Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
+        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig. Hat die Abteilung keinen Google-Kalender, legt das Speichern zugleich das Programm dieses Tages an oder aktualisiert es (ID `web:<Stufe>:<Tag>`, Titel «Cevi-Programm <Stufe>», für Eltern sichtbar; Beginn und Ende aus Treffzeit und Schlusszeit, ohne beide oder mit Schluss vor Beginn ganztägig); mit Kalender entsteht kein Programm. Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403), Body (400), Datum (400), Obergrenze (409).
 
@@ -7025,9 +6994,9 @@ paths:
       operationId: loescheRedaktionEckdaten
       summary: Gepflegte Felder für ein Datum löschen
       description: |
-        Löscht nur eine im Editor gepflegte Zeile (`quelle` = `seite`); eine ausgelesene gehört dem Auslesen und ist hier 404. Audit-Log: `eckdaten_geloescht` mit dem Datum.
+        Löscht die Zeile und das dazugehörige kommende Programm ohne Kalender (`web:<Stufe>:<Tag>`; Vergangenes bleibt). Audit-Log: `eckdaten_geloescht` mit dem Datum.
 
-        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde Stufe oder eine Zeile ohne gepflegte Werte.
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde Stufe oder ein Datum ohne Zeile.
       tags:
         - Redaktion
       parameters:
@@ -9239,62 +9208,8 @@ components:
     AdminSyncs:
       type: object
       additionalProperties: false
-      required: [eckdaten, kalender]
+      required: [kalender]
       properties:
-        eckdaten:
-          type: object
-          additionalProperties: false
-          required: [letzterLaufAm, stufen]
-          properties:
-            letzterLaufAm:
-              type: [string, "null"]
-              format: date-time
-            stufen:
-              type: array
-              items:
-                type: object
-                additionalProperties: false
-                required: [id, name, adresse, ausgang, fehlercode, eckdaten]
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  name:
-                    type: string
-                  adresse:
-                    type: [string, "null"]
-                  ausgang:
-                    type: [string, "null"]
-                    enum: [gelesen, keine_seite, ohne_datum, fehler, null]
-                  fehlercode:
-                    type: [string, "null"]
-                  eckdaten:
-                    type: [object, "null"]
-                    additionalProperties: false
-                    required:
-                      [
-                        tag,
-                        treffpunkt,
-                        schlussOrt,
-                        schlussZeit,
-                        mitnehmen,
-                        abgerufenAm,
-                      ]
-                    properties:
-                      tag:
-                        type: string
-                        format: date
-                      treffpunkt:
-                        type: [string, "null"]
-                      schlussOrt:
-                        type: [string, "null"]
-                      schlussZeit:
-                        type: [string, "null"]
-                      mitnehmen:
-                        type: [string, "null"]
-                      abgerufenAm:
-                        type: string
-                        format: date-time
         kalender:
           type: object
           additionalProperties: false
@@ -11429,7 +11344,7 @@ components:
           maxLength: 1000
         quelle:
           type: string
-          enum: [web, seite]
+          enum: [seite]
     RedaktionEckdatenListe:
       type: object
       required:
