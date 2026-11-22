@@ -567,6 +567,36 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/website-richtext.js:
+    get:
+      operationId: getAdminWebsiteRichtextSkript
+      summary: Skript der Verwaltung – Bereich Website, Rich Text
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-vorschau.css:
+    get:
+      operationId: getAdminWebsiteVorschauStilvorlage
+      summary: Stilvorlage der Website für die Vorschau in der Verwaltung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung. Dieselbe Stilvorlage wie die der ausgelieferten Seiten; die Vorschau des Editors lädt sie von hier.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/website-editor.js:
     get:
       operationId: getAdminWebsiteEditorSkript
@@ -4355,6 +4385,55 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/vorschau:
+    get:
+      operationId: leseRedaktionVorschau
+      summary: Vorschau des Entwurfs
+      description: |
+        Der gespeicherte Entwurf als fertige HTML-Seite, gerendert wie bei der Auslieferung (ohne Navigation und ohne Skript). Alle Bausteine erscheinen offen, auch die mit engerer Sichtbarkeit: Wer die Seite bearbeiten darf, sieht sie. Gedacht für einen Rahmen (`iframe`) der eigenen Verwaltung (`frame-ancestors 'self'`); die Antwort ist nie zwischengespeichert. Eine Seite ohne Entwurf zeigt nur den Titel. Ein gespeicherter Entwurf, der das Schema nicht mehr erfüllt, antwortet 422 `DOKUMENT_UNGUELTIG`.
+
+        Reihenfolge der Prüfungen wie beim Entwurf: Pfad (400), Seite in der eigenen Abteilung (404), Recht an dieser Seite (403).
+
+        Mit `version` zeigt die Vorschau eine frühere Version statt des Entwurfs (404, wenn es sie nicht gibt).
+
+        Statuscodes: 200, 400, 403, 404, 422.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+        - name: version
+          in: query
+          required: false
+          description: Nummer einer Version der Seite (ab 1).
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "200":
+          description: Die Seite als HTML.
+          content:
+            text/html:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "422":
+          description: Der gespeicherte Entwurf ist kein gültiges Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
