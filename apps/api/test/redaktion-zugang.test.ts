@@ -28,6 +28,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 bereiteAuthTestsVor();
 
@@ -68,7 +69,7 @@ let adminOhne: PersonaKonto;
 let demoAdmin: PersonaKonto;
 let slA: PersonaKonto;
 let slB: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let ohneRecht: PersonaKonto;
 let eltern: PersonaKonto;
 let demoEltern: PersonaKonto;
@@ -129,7 +130,7 @@ beforeAll(async () => {
     demoEltern,
     slA,
     slB,
-    redaktion,
+    webmaster,
     ohneRecht,
     eltern,
   ] = await Promise.all([
@@ -144,11 +145,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
   // Telefon, E-Mail und Cevi-Name der Stufenleitung A: Die Auswahlliste darf nur den Namen zeigen
   await db
     .update(schema.user)
@@ -159,7 +156,7 @@ beforeAll(async () => {
 describe("GET /api/v1/redaktion/ich", () => {
   test.each([
     ["Admin", () => admin, { redigieren: true, verwalten: true }],
-    ["Redaktion", () => redaktion, { redigieren: true, verwalten: true }],
+    ["Webmaster", () => webmaster, { redigieren: true, verwalten: true }],
     ["Stufenleitung", () => slA, { redigieren: true, verwalten: false }],
     [
       "Leitende ohne Recht",
@@ -196,9 +193,9 @@ describe("GET /api/v1/redaktion/ich", () => {
 });
 
 describe("Medien", () => {
-  test("Stufenleitung und Redaktion laden hoch; ein Bild ohne Alt-Text ist 400", async () => {
+  test("Stufenleitung und Webmaster laden hoch; ein Bild ohne Alt-Text ist 400", async () => {
     expect((await hochladen(slA)).status).toBe(201);
-    expect((await hochladen(redaktion)).status).toBe(201);
+    expect((await hochladen(webmaster)).status).toBe(201);
     const ohneText = await hochladen(slA, bild, "");
     expect(ohneText.status).toBe(400);
     expect(await code(ohneText)).toBe("ALT_TEXT");
@@ -229,7 +226,7 @@ describe("Medien", () => {
     expect(fremde.medien.map((m) => m.id)).not.toContain(id);
   });
 
-  test("Alt-Text nachtragen: die Person, die hochgeladen hat, die Redaktion und der Admin; im Audit-Log ohne Text", async () => {
+  test("Alt-Text nachtragen: die Person, die hochgeladen hat, die Webmaster und der Admin; im Audit-Log ohne Text", async () => {
     const id = await lege(slA);
     const eigenes = await senden(slA, "PATCH", `${MEDIEN}/${id}`, {
       altText: "Neuer Text",
@@ -240,7 +237,7 @@ describe("Medien", () => {
       altText: "Neuer Text",
       dekorativ: false,
     });
-    const reaktion = await senden(redaktion, "PATCH", `${MEDIEN}/${id}`, {
+    const reaktion = await senden(webmaster, "PATCH", `${MEDIEN}/${id}`, {
       dekorativ: true,
     });
     expect(await reaktion.json()).toMatchObject({
@@ -325,7 +322,7 @@ describe("Medien", () => {
     ).toBe(404);
   });
 
-  test("Löschen nur Abteilungsleitung und Redaktion; eine Stufenleitung nicht einmal ihr eigenes Medium", async () => {
+  test("Löschen nur Abteilungsleitung und Webmaster; eine Stufenleitung nicht einmal ihr eigenes Medium", async () => {
     const id = await lege(slA);
     expect((await senden(slA, "DELETE", `${MEDIEN}/${id}`)).status).toBe(403);
     expect((await senden(eltern, "DELETE", `${MEDIEN}/${id}`)).status).toBe(
@@ -334,7 +331,7 @@ describe("Medien", () => {
     expect((await senden(demoAdmin, "DELETE", `${MEDIEN}/${id}`)).status).toBe(
       404,
     );
-    expect((await senden(redaktion, "DELETE", `${MEDIEN}/${id}`)).status).toBe(
+    expect((await senden(webmaster, "DELETE", `${MEDIEN}/${id}`)).status).toBe(
       204,
     );
     const rest = await db
@@ -351,7 +348,7 @@ describe("Auswahllisten", () => {
   type PersonenListe = { personen: Record<string, unknown>[] };
 
   test("Tags der Abteilung: nur Id, Name und Typ", async () => {
-    for (const konto of [admin, slA, redaktion]) {
+    for (const konto of [admin, slA, webmaster]) {
       const antwort = await holen(konto, "/api/v1/redaktion/tags");
       expect(antwort.status).toBe(200);
       const { tags } = (await antwort.json()) as TagListe;
@@ -367,7 +364,7 @@ describe("Auswahllisten", () => {
 
   test("Personen mit Tag: Id, Anzeigename und Funktion, nie Telefon oder E-Mail", async () => {
     const antwort = await holen(
-      redaktion,
+      webmaster,
       `/api/v1/redaktion/personen?tag=${welt.stufeAId}`,
     );
     expect(antwort.status).toBe(200);

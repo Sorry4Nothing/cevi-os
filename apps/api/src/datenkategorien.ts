@@ -174,6 +174,14 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  lagerFahrten: {
+    titel: "Fahrten im Lager",
+    zweck:
+      "Die Lagerleitung teilt die Hin- und Rückfahrt ein: Auto oder ÖV-Gruppe, mit Fahrer, Plätzen, Datum, Zeit, Treffpunkt und den Mitfahrenden (Leitende und Teilnehmende). Dazu kann sie einen Link auf den Fahrplan und einen Kartenpunkt als Ziel der Fahrt hinterlegen (Bezeichnung mit Adresse, Koordinaten oder Link), den die App in der Karten-App öffnet. Der Server speichert beides nur und ruft weder den Fahrplan noch einen Kartendienst ab. Das Team sieht nur die eigene Fahrt.",
+    frist: `Bis die Lagerleitung die Fahrt oder die Mitfahrt löscht oder das Lager gelöscht wird; die Mitfahrt eines Teilnehmenden entfällt mit dem Teilnehmenden, sechs Monate nach dem Ende des Lagers. ${AUF_ANFRAGE}`,
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
@@ -254,12 +262,20 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerHoeck: {
+    titel: "Höcks und Traktanden im Lager",
+    zweck:
+      "Die Sitzungen des Lagers planen und festhalten: Datum, Zeit, Ort und Titel eines Höcks, wer beim Höck war, Gäste als Freitext, die Traktanden mit Notizen, Links, Verantwortlichen und einem kurzen Entscheid. Das Team sieht nur Höcks der Art Team, und von diesen nur Datum, Zeit, Titel und Ort. Ein Höck lässt sich als Kalenderdatei laden; sie enthält nur Titel, Ort, Datum und Zeit. Das Protokoll liegt als Verknüpfung auf eine Datei im SharePoint der Abteilung.",
+    frist: `Bis die Leitung den Höck oder das Traktandum löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
       "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat. Alte Adressen der Website leiten auf die neuen Seiten weiter; bei einer Weiterleitung steht, welches Konto sie angelegt hat.",
     frist:
-      "Bis die Redaktion die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
+      "Bis ein Webmaster die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
     apple: [],
     google: [],
   },
@@ -268,7 +284,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
     frist:
-      "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis die Redaktion sie löscht.",
+      "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis ein Webmaster sie löscht.",
     apple: ["Contact Info: Name", "User Content: Other User Content"],
     google: [
       "Personal info: Name",
@@ -708,6 +724,38 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   aufgabe_stichwort: {
     lager: ["lager_id", "aufgabe_id", "stichwort"],
   },
+  // Höcks (#378): Anwesende und Verantwortliche als Konto-IDs, Gäste als Freitext; protokoll_id verknüpft das Protokoll (#379)
+  hoeck: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "datum",
+      "zeit",
+      "titel",
+      "ort",
+      "gaeste",
+      "protokoll_id",
+    ],
+  },
+  hoeck_anwesenheit: {
+    lagerHoeck: ["lager_id", "hoeck_id", "person_id"],
+  },
+  traktandum: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "hoeck_id",
+      "titel",
+      "text",
+      "entscheid",
+      "links",
+      "reihenfolge",
+      "aufgabe_id",
+      "status",
+    ],
+  },
+  traktandum_verantwortlich: {
+    lagerHoeck: ["lager_id", "traktandum_id", "person_id"],
+  },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
     lagerAnwesenheit: [
@@ -844,6 +892,37 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zimmer_id",
       "teilnehmer_id",
       "person_id",
+    ],
+  },
+  // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender
+  fahrt: {
+    lagerFahrten: [
+      ...LAGER_BASIS_SPALTEN,
+      "richtung",
+      "art",
+      "name",
+      "fahrer_person_id",
+      "plaetze",
+      "datum",
+      "zeit",
+      "von",
+      "nach",
+      "treffpunkt",
+      "link",
+      "ziel_bezeichnung",
+      "ziel_adresse",
+      "ziel_lat",
+      "ziel_lon",
+      "ziel_link",
+    ],
+  },
+  fahrt_mitfahrer: {
+    lagerFahrten: [
+      ...LAGER_BASIS_SPALTEN,
+      "fahrt_id",
+      "richtung",
+      "person_id",
+      "teilnehmer_id",
     ],
   },
   // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie

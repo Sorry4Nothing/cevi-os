@@ -29,6 +29,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 bereiteAuthTestsVor();
 
@@ -55,7 +56,7 @@ let demoAdmin: PersonaKonto;
 let demoEltern: PersonaKonto;
 let slA: PersonaKonto;
 let slB: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let ohneRecht: PersonaKonto;
 let eltern: PersonaKonto;
 // Die Seiten der Testabteilung: stufen > a (Stufe A), b (Stufe B); verein
@@ -129,7 +130,7 @@ beforeAll(async () => {
     demoEltern,
     slA,
     slB,
-    redaktion,
+    webmaster,
     ohneRecht,
     eltern,
   ] = await Promise.all([
@@ -143,12 +144,8 @@ beforeAll(async () => {
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
-  // Redaktion = Recht auf alle Seiten (Objekt leer), nur vom Admin gesetzt
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  // Webmaster = Plattformrolle mit allen Rechten ausser dem Wartungsmodus
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
   stufenId = await lege(admin, { titel: "Stufen", adresse: "stufen" });
   aId = await lege(admin, {
     titel: "Stufe A",
@@ -177,8 +174,8 @@ describe("Baum", () => {
     return ((await antwort.json()) as { seiten: Eintrag[] }).seiten;
   };
 
-  test("Abteilungsleitung und Redaktion sehen alle Seiten mit vollem Pfad", async () => {
-    for (const konto of [admin, redaktion]) {
+  test("Abteilungsleitung und Webmaster sehen alle Seiten mit vollem Pfad", async () => {
+    for (const konto of [admin, webmaster]) {
       const seiten = await liste(konto);
       const ids = seiten.map((s) => s.id);
       expect(ids).toEqual(
@@ -234,7 +231,7 @@ describe("Baum", () => {
     ).toBe(403);
   });
 
-  test("ein Tag mit Recht auf Seiten öffnet den Zugang für alle, die ihn tragen", async () => {
+  test("ein Tag mit Recht auf eine Seite öffnet den Zugang für alle, die ihn tragen", async () => {
     const tagId = await wegwerfTag(welt.testabteilungId, "team");
     const person = await legePersonaMitFaktorAn(welt, "leitendeB");
     expect((await anfrage(person, "GET", BASIS)).status).toBe(403);
@@ -244,9 +241,11 @@ describe("Baum", () => {
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",
+      objektId: aId,
       tagId,
     });
-    expect((await liste(person)).length).toBeGreaterThanOrEqual(4);
+    // Ein Recht auf eine Seite zeigt genau diese Seite
+    expect((await liste(person)).map((s) => s.id)).toEqual([aId]);
   });
 
   test("ein Konto ohne zweiten Faktor: Admin 403 mit eigenem Code, andere nicht betroffen", async () => {
@@ -258,13 +257,13 @@ describe("Baum", () => {
 });
 
 describe("Anlegen", () => {
-  test("Redaktion legt an; Reihenfolge ohne Angabe ans Ende; Audit ohne Titel", async () => {
-    const eltern1 = await lege(redaktion, {
+  test("Webmaster legt an; Reihenfolge ohne Angabe ans Ende; Audit ohne Titel", async () => {
+    const eltern1 = await lege(webmaster, {
       titel: "Geheimer Titel",
       adresse: eindeutig("neu"),
     });
     for (const adresse of ["eins", "zwei", "drei"]) {
-      await lege(redaktion, { titel: adresse, adresse, elternId: eltern1 });
+      await lege(webmaster, { titel: adresse, adresse, elternId: eltern1 });
     }
     const zeilen = await db
       .select({ adresse: schema.seite.adresse, r: schema.seite.reihenfolge })
@@ -283,7 +282,7 @@ describe("Anlegen", () => {
       .where(eq(schema.auditLog.zielId, eltern1));
     expect(eintrag).toMatchObject({
       aktion: "seite_angelegt",
-      akteurId: redaktion.id,
+      akteurId: webmaster.id,
       zielTyp: "seite",
       details: { elternId: null, tagId: null, sichtbarkeit: "angemeldet" },
     });
@@ -462,7 +461,7 @@ describe("Lesen", () => {
       403,
     );
     expect((await anfrage(eltern, "GET", `${BASIS}/${aId}`)).status).toBe(403);
-    const antwort = await anfrage(redaktion, "GET", `${BASIS}/${aId}`);
+    const antwort = await anfrage(webmaster, "GET", `${BASIS}/${aId}`);
     expect(await antwort.json()).toEqual({
       id: aId,
       elternId: stufenId,
@@ -572,23 +571,23 @@ describe("Ändern und Verschieben", () => {
     expect(zeile).toMatchObject({ elternId: stufenId, tagId: welt.stufeAId });
   });
 
-  test("Redaktion verschiebt; Zyklus, Selbstbezug und Tiefe werden abgelehnt", async () => {
-    const wurzel = await lege(redaktion, {
+  test("Webmaster verschiebt; Zyklus, Selbstbezug und Tiefe werden abgelehnt", async () => {
+    const wurzel = await lege(webmaster, {
       titel: "W",
       adresse: eindeutig("w"),
     });
-    const mitte = await lege(redaktion, {
+    const mitte = await lege(webmaster, {
       titel: "M",
       adresse: "m",
       elternId: wurzel,
     });
-    const blatt = await lege(redaktion, {
+    const blatt = await lege(webmaster, {
       titel: "B",
       adresse: "b",
       elternId: mitte,
     });
     const code = async (id: string, elternId: string | null) => {
-      const antwort = await anfrage(redaktion, "PATCH", `${BASIS}/${id}`, {
+      const antwort = await anfrage(webmaster, "PATCH", `${BASIS}/${id}`, {
         elternId,
       });
       return [
@@ -600,13 +599,13 @@ describe("Ändern und Verschieben", () => {
     expect(await code(wurzel, blatt)).toEqual([400, "SEITE_ZYKLUS"]);
     expect(await code(mitte, blatt)).toEqual([400, "SEITE_ZYKLUS"]);
     // Teilbaum mit 3 Ebenen unter die dritte Ebene einer Kette von 3: 6 Ebenen
-    const k1 = await lege(redaktion, { titel: "K1", adresse: eindeutig("k") });
-    const k2 = await lege(redaktion, {
+    const k1 = await lege(webmaster, { titel: "K1", adresse: eindeutig("k") });
+    const k2 = await lege(webmaster, {
       titel: "K2",
       adresse: "k2",
       elternId: k1,
     });
-    const k3 = await lege(redaktion, {
+    const k3 = await lege(webmaster, {
       titel: "K3",
       adresse: "k3",
       elternId: k2,
@@ -623,11 +622,11 @@ describe("Ändern und Verschieben", () => {
   });
 
   test("zwei gleichzeitige Verschiebungen ergeben keinen Zyklus", async () => {
-    const x = await lege(redaktion, { titel: "X", adresse: eindeutig("x") });
-    const y = await lege(redaktion, { titel: "Y", adresse: eindeutig("y") });
+    const x = await lege(webmaster, { titel: "X", adresse: eindeutig("x") });
+    const y = await lege(webmaster, { titel: "Y", adresse: eindeutig("y") });
     const antworten = await Promise.all([
-      anfrage(redaktion, "PATCH", `${BASIS}/${x}`, { elternId: y }),
-      anfrage(redaktion, "PATCH", `${BASIS}/${y}`, { elternId: x }),
+      anfrage(webmaster, "PATCH", `${BASIS}/${x}`, { elternId: y }),
+      anfrage(webmaster, "PATCH", `${BASIS}/${y}`, { elternId: x }),
     ]);
     expect(antworten.map((a) => a.status).sort()).toEqual([204, 400]);
   });
@@ -674,7 +673,7 @@ describe("Ändern und Verschieben", () => {
     const tagId = await wegwerfTag(welt.testabteilungId, "team");
     const id = await lege(admin, { titel: "G", adresse: eindeutig("g") });
     expect(
-      (await anfrage(redaktion, "PATCH", `${BASIS}/${id}`, { tagId })).status,
+      (await anfrage(webmaster, "PATCH", `${BASIS}/${id}`, { tagId })).status,
     ).toBe(204);
     const demoTag = await wegwerfTag(welt.demoAbteilungId, "team");
     expect(
@@ -732,7 +731,7 @@ describe("Löschen", () => {
     ).toEqual([]);
     expect((await anfrage(admin, "GET", `${BASIS}/${kind}`)).status).toBe(404);
     expect(
-      (await anfrage(redaktion, "DELETE", `${BASIS}/${eltern1}`)).status,
+      (await anfrage(webmaster, "DELETE", `${BASIS}/${eltern1}`)).status,
     ).toBe(204);
     const [eintrag] = await db
       .select()
@@ -743,7 +742,7 @@ describe("Löschen", () => {
           eq(schema.auditLog.aktion, "seite_geloescht"),
         ),
       );
-    expect(eintrag).toMatchObject({ akteurId: redaktion.id, details: {} });
+    expect(eintrag).toMatchObject({ akteurId: webmaster.id, details: {} });
   });
 
   test("die Stufenleitung der Seite löscht nicht", async () => {

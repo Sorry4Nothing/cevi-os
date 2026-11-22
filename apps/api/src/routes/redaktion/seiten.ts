@@ -6,6 +6,7 @@ import { bearbeitbar, darfBearbeiten } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, bearbeiter, seite, tag } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import {
   sichtbarkeitAusSpalten,
@@ -18,8 +19,7 @@ import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
   adresseSchema,
   adressenVon,
-  darfSeitenVerwalten,
-  hatRedaktionszugang,
+  hatWebsiteZugang,
   MAX_TIEFE,
   pruefeLage,
   RESERVIERTE_ADRESSEN,
@@ -206,7 +206,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!(await hatRedaktionszugang(db, person))) {
+      if (!(await hatWebsiteZugang(db, person))) {
         throw new HTTPException(403);
       }
       // Nur Seiten, die die Person bearbeiten darf; ihre Elternseiten fehlen womöglich, elternId zeigt trotzdem auf sie
@@ -229,7 +229,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!(await hatRedaktionszugang(db, person))) {
+      if (!(await hatWebsiteZugang(db, person))) {
         throw new HTTPException(403);
       }
       const felder = c.req.valid("json");
@@ -243,7 +243,9 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
           if (elternId !== null && !knoten.has(elternId)) {
             throw new HTTPException(404);
           }
-          if (!(await darfSeitenVerwalten(tx, person))) {
+          if (
+            !(await hatPlattformRecht(tx, person, "seiten.anlegen_loeschen"))
+          ) {
             throw new HTTPException(403);
           }
           if (tagId !== null) await pruefeTag(tx, person, tagId);
@@ -317,17 +319,27 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
               felder.elternId === undefined ? alt.elternId : felder.elternId;
             const adresse = felder.adresse ?? alt.adresse;
             if (elternId !== alt.elternId) {
-              // Wohin eine Seite wandert, muss die Person selbst bearbeiten dürfen; auf die oberste Ebene setzt nur die Redaktion
+              // Wohin eine Seite wandert, muss die Person selbst bearbeiten dürfen; auf die oberste Ebene setzt nur, wer Seiten anlegen und löschen darf
               const ziel = elternId === null ? null : knoten.get(elternId);
               if (elternId !== null && !ziel) throw new HTTPException(404);
               const erlaubt = ziel
                 ? await darf(tx, person, ziel)
-                : await darfSeitenVerwalten(tx, person);
+                : await hatPlattformRecht(
+                    tx,
+                    person,
+                    "seiten.anlegen_loeschen",
+                  );
               if (!erlaubt) throw new HTTPException(403);
             }
-            // Die Gruppe einer Seite bestimmt, wer sie als Stufenleitung bearbeitet: nur die Redaktion ändert sie
+            // Die Gruppe einer Seite bestimmt, wer sie als Stufenleitung bearbeitet: nur wer Seiten anlegen und löschen darf, ändert sie
             if (felder.tagId !== undefined && felder.tagId !== alt.tagId) {
-              if (!(await darfSeitenVerwalten(tx, person))) {
+              if (
+                !(await hatPlattformRecht(
+                  tx,
+                  person,
+                  "seiten.anlegen_loeschen",
+                ))
+              ) {
                 throw new HTTPException(403);
               }
               if (felder.tagId !== null) {
@@ -381,8 +393,10 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
         await db.transaction(async (tx) => {
           await sperre(tx, person.abteilungId);
           await ladeSeite(tx, person, id);
-          // Löschen wie Anlegen nur für Abteilungsleitung und Redaktion: Eine Stufenleitung löscht die Seite ihrer Stufe nicht
-          if (!(await darfSeitenVerwalten(tx, person))) {
+          // Löschen wie Anlegen nur mit dem Recht «Seiten anlegen und löschen»: Eine Stufenleitung löscht die Seite ihrer Stufe nicht
+          if (
+            !(await hatPlattformRecht(tx, person, "seiten.anlegen_loeschen"))
+          ) {
             throw new HTTPException(403);
           }
           const [kind] = await tx

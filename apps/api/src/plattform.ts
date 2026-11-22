@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/pg-core";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
@@ -23,11 +23,14 @@ type Eintrag = {
   erweitert: boolean;
   // Hat die Vorgabe «Webmaster» das Recht? Alles ausser dem Wartungsmodus
   webmaster: boolean;
+  // Öffnet das Recht den Bereich «Website» der Verwaltung (/api/v1/redaktion)? Der Wartungsmodus nicht
+  bereich: boolean;
 };
-const e = (bedeutung: string, webmaster = true): Eintrag => ({
+const e = (bedeutung: string, webmaster = true, bereich = true): Eintrag => ({
   bedeutung,
   erweitert: true,
   webmaster,
+  bereich,
 });
 const katalog = <K extends string>(eintraege: Record<K, Eintrag>) => eintraege;
 
@@ -38,7 +41,11 @@ export const PLATTFORM_RECHTE = katalog({
   "medien.verwalten": e("Medien verwalten"),
   "weiterleitungen.verwalten": e("Weiterleitungen verwalten"),
   "vorlagen.nutzen": e("Vorlagen nutzen"),
-  "wartungsmodus.website": e("Wartungsmodus der Website schalten", false),
+  "wartungsmodus.website": e(
+    "Wartungsmodus der Website schalten",
+    false,
+    false,
+  ),
 });
 export type PlattformRecht = keyof typeof PLATTFORM_RECHTE;
 export const PLATTFORM_RECHT_NAMEN = Object.keys(
@@ -46,6 +53,10 @@ export const PLATTFORM_RECHT_NAMEN = Object.keys(
 ) as PlattformRecht[];
 export const WEBMASTER_VORGABE = PLATTFORM_RECHT_NAMEN.filter(
   (r) => PLATTFORM_RECHTE[r].webmaster,
+);
+
+export const BEREICH_RECHTE = PLATTFORM_RECHT_NAMEN.filter(
+  (r) => PLATTFORM_RECHTE[r].bereich,
 );
 
 // Ein Name aus der Datenbank oder einer Anfrage, den der Katalog kennt (Object.hasOwn: «toString» und Verwandte sind keine Rechte)
@@ -103,6 +114,14 @@ function lade(
   return gespeichert;
 }
 
+// Dieselbe Frage als SQL-Bedingung, für Abfragen, die sie ohnehin stellen (Tür der Verwaltung, Seitenlisten, Recht am Objekt): der Entwickler oder eine Rolle der Person in ihrer Abteilung, die mindestens eines der Rechte trägt. Die Abteilungsleitung entscheidet der Aufrufer vorher (person.admin).
+// Als eigener Ausdruck: Drizzle liesse in einer Auswahl mit nur einer Tabelle den Tabellennamen vor Spalten weg, die direkt im Text stehen
+export const plattformRechtSql = (
+  person: Pick<Person, "id" | "abteilungId">,
+  rechte: readonly PlattformRecht[],
+) =>
+  sql`(exists (select 1 from ${personPlattformRolle} inner join ${plattformRolle} on ${plattformRolle.id} = ${personPlattformRolle.rolleId} and ${plattformRolle.abteilungId} = ${person.abteilungId} inner join ${plattformRolleRecht} on ${plattformRolleRecht.rolleId} = ${plattformRolle.id} where ${personPlattformRolle.userId} = ${person.id} and ${inArray(plattformRolleRecht.recht, [...rechte])}) or exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id}))`;
+
 export async function istEntwickler(
   db: Pick<Db, "select">,
   person: Pick<Person, "id" | "abteilungId">,
@@ -121,7 +140,7 @@ export async function plattformRechteVon(
   return new Set([...namen].filter(istPlattformRecht));
 }
 
-// Die Prüffunktion: Hier hängen die Routen an (die Website-Routen mit #426, Wartungsmodus #424, Informationssperre #425). Die Reihenfolge bleibt wie überall: erst das Objekt laden (404), dann dieses Recht (403); der zweite Faktor kommt aus verlangePlattformRecht oder aus person.zweiterFaktor
+// Die Prüffunktion: Hier hängen die Routen an (die Routen der Website seit #426, Wartungsmodus #424, Informationssperre #425). Die Reihenfolge bleibt wie überall: erst das Objekt laden (404), dann dieses Recht (403); der zweite Faktor kommt aus verlangePlattformRecht oder aus person.zweiterFaktor
 export async function hatPlattformRecht(
   db: Pick<Db, "select">,
   person: Pick<Person, "id" | "abteilungId" | "admin">,
