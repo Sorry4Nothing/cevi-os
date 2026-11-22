@@ -38,6 +38,27 @@ paths:
                 type: string
                 enum:
                   - fehler
+  /:
+    get:
+      operationId: getWurzel
+      summary: Wurzeladresse leitet auf die Verwaltung weiter
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Ohne Anmeldung und ausserhalb der Versionsprüfung. Antwortet mit `302` und `Location: /admin`, damit man lokal
+        nur die Adresse der API öffnen muss. Kein Cookie, kein Body, kein Hinweis auf die Konfiguration.
+        Wartungsmodus und Sperre gelten nur unter `/api/v1` und halten die Weiterleitung nicht auf.
+        `HEAD /` antwortet gleich. Im Betrieb liegt vor der API der Edge-Server, der die Wurzel der Abteilung der
+        öffentlichen Website zuweist; dort kommt diese Route nicht zum Zug.
+      responses:
+        "302":
+          description: Weiterleitung auf `/admin`.
+          headers:
+            Location:
+              description: Immer `/admin`.
+              schema:
+                type: string
   /datenschutz:
     get:
       operationId: getDatenschutzSeite
@@ -4859,7 +4880,7 @@ paths:
       operationId: holeLager
       summary: Ein Lager
       description: |
-        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), zweiter Faktor der Lagerleitung (403 `ZWEITER_FAKTOR_FEHLT`; `leitung`, `team` und `lesen` brauchen ihn nicht), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
+        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Einen zweiten Faktor verlangt keine Lager-Route der App, auch nicht von der Lagerleitung: Er gilt nur im Web (Entscheid vom 22.11.2026). Ausnahmen sind `PUT /lager/{id}/rechte` und `POST /lager/{id}/rechte/zuruecksetzen` (403 `ZWEITER_FAKTOR_FEHLT` nach der Mitgliedschaft, vor dem Recht) und alles unter `/api/v1/admin`, Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
       tags:
@@ -5262,9 +5283,9 @@ paths:
       operationId: setzeLagerRechte
       summary: Rechte der Rollen ändern
       description: |
-        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). **Achtung bei `adressbuch.lesen` und `adressbuch.bearbeiten`: Das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz von Personen ohne Konto). Wer eines der Rechte bekommt, sieht oder ändert alle Kontakte des Lagers; im Standard hat nur die Lagerleitung sie. Gib sie nur Personen, die diese Daten wirklich brauchen.** Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). **Achtung bei `adressbuch.lesen` und `adressbuch.bearbeiten`: Das Adressbuch enthält Personendaten Dritter (Name, Telefon, E-Mail, Notiz von Personen ohne Konto). Wer eines der Rechte bekommt, sieht oder ändert alle Kontakte des Lagers; im Standard hat nur die Lagerleitung sie. Gib sie nur Personen, die diese Daten wirklich brauchen.** Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), zweiter Faktor der Lagerleitung (403 `ZWEITER_FAKTOR_FEHLT`), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Der zweite Faktor ist hier Pflicht, weil die Änderung am PC läuft; das Lesen der Rechte und alle anderen Lager-Routen brauchen ihn nicht.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen und für die Lagerleitung ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`). 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
       tags:
         - Lager
       parameters:
@@ -5304,9 +5325,9 @@ paths:
       operationId: setzeZurueckLagerRechte
       summary: Rechte auf den Standard zurücksetzen
       description: |
-        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), zweiter Faktor der Lagerleitung (403 `ZWEITER_FAKTOR_FEHLT`), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Der zweite Faktor ist hier Pflicht, weil die Änderung am PC läuft; das Lesen der Rechte und alle anderen Lager-Routen brauchen ihn nicht.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen und für die Lagerleitung ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`). 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
       tags:
         - Lager
       parameters:
@@ -6183,6 +6204,46 @@ paths:
         Nimmt die Änderungen an, die die App offline gesammelt hat, gebündelt und idempotent. Jede Operation hat eine `clientOpId` (UUID, von der App einmal erzeugt und bei jeder Wiederholung beibehalten), einen `typ` (zum Beispiel `aufgabe.aendern`; die Module des Lagers melden ihre Operationen an) und eine `nutzlast`. Höchstens 100 Operationen je Anfrage, höchstens 256 KB, höchstens 20 Anfragen je Konto und Minute.
 
         Jede Operation läuft in einer eigenen Transaktion, der Reihe nach, und bekommt ein eigenes Ergebnis in derselben Reihenfolge: `ok` (mit IDs und Versionen der geschriebenen Zeilen, keine Inhalte), `konflikt` (die Zeile hat inzwischen eine andere Version, mit `aktuell` in der Ansicht der Rolle und den abweichenden Feldern) oder `abgelehnt` (mit Code: `OPERATION_UNBEKANNT`, `UNGUELTIGE_EINGABE`, `KEINE_BERECHTIGUNG`, `NICHT_GEFUNDEN`, `KONFLIKT`). Eine Ablehnung oder ein Konflikt bricht die anderen Operationen nicht ab und nimmt nur die Schreibvorgänge dieser Operation zurück. Das Recht jeder Operation gilt gegen die Rolle der Person im Lager, nie gegen Angaben der Nutzlast.
+
+        Operationen: Die Liste unten nennt jeden `typ` mit dem Recht, das die Rolle braucht, und den Feldern der `nutzlast`; `?` kennzeichnet ein optionales Feld. Die Nutzlast ist strikt (ein unbekanntes Feld lehnt die Operation mit `UNGUELTIGE_EINGABE` ab), und Felder und Grenzen sind dieselben wie im Body der Route des Moduls; wo die Route die ID im Pfad trägt, steht `id` (oder die ID des Elternobjekts) in der Nutzlast. `version` ist die Version, die die App zuletzt gesehen hat. Das Ergebnis `ok` nennt `id` und, wo es eine Zeile gibt, `version`. Eine Prüfung, die die Route mit 400 und einem Code beantwortet, lehnt die Operation mit demselben Code ab (unter «Zusätzliche Ablehnungen»); `VERSION_KONFLIKT` ist immer ein `konflikt`. Eine Operation führt dieselbe Logik aus wie die Route des Moduls; nur den Push an andere Personen kennt die Warteschlange noch nicht (die Zeilen der Glocke entstehen).
+
+        <!-- operationen:anfang -->
+
+        - `aufgabe_link.aendern` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`, `titel?`, `url?`.
+        - `aufgabe_link.anlegen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `titel`, `url`.
+        - `aufgabe_link.loeschen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`.
+        - `aufgabe.aendern` (Recht `aufgaben.bearbeiten`): `id`, `version`, `titel?`, `ressortId?`, `teil?`, `verantwortlichPersonId?`, `unterstuetzungPersonIds?`, `status?`, `notiz?`, `frist?`, `fristMeilensteinId?`, `fristVersatzTage?`, `stern?`, `laufend?`, `spaeterAb?`, `wiederholung?`, `reihenfolge?`.
+        - `aufgabe.anlegen` (Recht `aufgaben.bearbeiten`): `titel`, `ressortId?`, `teil?`, `verantwortlichPersonId?`, `unterstuetzungPersonIds?`, `status?`, `notiz?`, `frist?`, `fristMeilensteinId?`, `fristVersatzTage?`, `stern?`, `laufend?`, `spaeterAb?`, `wiederholung?`, `reihenfolge?`.
+        - `aufgabe.loeschen` (Recht `aufgaben.bearbeiten`): `id`, `version`.
+        - `aufgabe.status` (Recht `aufgaben.eigene`): `id`, `version`, `status`.
+        - `aufgabe.stichworte` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `version`, `stichworte`.
+        - `beschluss.aendern` (Recht `protokolle.bearbeiten`): `id`, `version`, `text?`, `protokollId?`, `hoeckId?`. Zusätzliche Ablehnungen: `HOECK_UNBEKANNT`, `PROTOKOLL_UNBEKANNT`, `HOECK_PASST_NICHT`.
+        - `beschluss.anlegen` (Recht `protokolle.bearbeiten`): `text`, `protokollId?`, `hoeckId?`. Zusätzliche Ablehnungen: `HOECK_UNBEKANNT`, `PROTOKOLL_UNBEKANNT`, `HOECK_PASST_NICHT`.
+        - `beschluss.loeschen` (Recht `protokolle.bearbeiten`): `id`, `version`.
+        - `checkpunkt.abhaken` (Recht `aufgaben.eigene`): `aufgabeId`, `id`, `version`, `erledigt`.
+        - `checkpunkt.aendern` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`, `text?`, `erledigt?`.
+        - `checkpunkt.anlegen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `text`, `reihenfolge?`.
+        - `checkpunkt.loeschen` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `id`, `version`.
+        - `checkpunkt.reihenfolge` (Recht `aufgaben.bearbeiten`): `aufgabeId`, `eintraege`.
+        - `hoeck.aendern` (Recht `hoecks.bearbeiten`): `id`, `version`, `titel?`, `art?`, `datum?`, `zeit?`, `ort?`, `gaeste?`.
+        - `hoeck.anlegen` (Recht `hoecks.bearbeiten`): `titel`, `art`, `datum`, `zeit?`, `ort?`, `gaeste?`.
+        - `hoeck.anwesend` (Recht `hoecks.bearbeiten`): `hoeckId`, `personId`, `anwesend`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`.
+        - `hoeck.loeschen` (Recht `hoecks.bearbeiten`): `id`, `version`. Zusätzliche Ablehnungen: `HOECK_HAT_TRAKTANDEN`.
+        - `pinnwand.aendern` (Recht `pinnwand.bearbeiten`): `id`, `version`, `titel?`, `text?`, `wichtig?`, `angeheftet?`, `sichtbarAb?`, `sichtbarBis?`, `empfaenger?`, `dateiIds?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT`, `ZEITFENSTER_UNGUELTIG`.
+        - `pinnwand.anlegen` (Recht `pinnwand.bearbeiten`): `titel`, `text?`, `wichtig?`, `angeheftet?`, `sichtbarAb?`, `sichtbarBis?`, `empfaenger?`, `dateiIds?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT`, `ZEITFENSTER_UNGUELTIG`.
+        - `pinnwand.gesehen` (Recht `pinnwand.lesen`): `beitragIds`.
+        - `pinnwand.loeschen` (Recht `pinnwand.bearbeiten`): `id`, `version`.
+        - `ressort_notiz.aendern` (Recht `ressorts.bearbeiten`): `ressortId`, `id`, `version`, `text`.
+        - `ressort_notiz.anlegen` (Recht `ressorts.bearbeiten`): `ressortId`, `text`.
+        - `ressort_notiz.loeschen` (Recht `ressorts.bearbeiten`): `ressortId`, `id`, `version`.
+        - `ressort.reihenfolge` (Recht `ressorts.bearbeiten`): `eintraege`.
+        - `ressort.ruhig` (Recht `ressorts.bearbeiten`): `id`, `version`, `ruhig`.
+        - `traktandum.aendern` (Recht `hoecks.bearbeiten`): `id`, `version`, `titel?`, `hoeckId?`, `text?`, `entscheid?`, `links?`, `verantwortlichePersonIds?`, `aufgabeId?`, `status?`, `reihenfolge?`, `dauerMinuten?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `HOECK_UNBEKANNT`, `AUFGABE_UNBEKANNT`.
+        - `traktandum.anlegen` (Recht `hoecks.bearbeiten`): `titel`, `hoeckId?`, `text?`, `entscheid?`, `links?`, `verantwortlichePersonIds?`, `aufgabeId?`, `status?`, `reihenfolge?`, `dauerMinuten?`. Zusätzliche Ablehnungen: `KEIN_MITGLIED`, `HOECK_UNBEKANNT`, `AUFGABE_UNBEKANNT`.
+        - `traktandum.loeschen` (Recht `hoecks.bearbeiten`): `id`, `version`.
+        - `traktandum.reihenfolge` (Recht `hoecks.bearbeiten`): `hoeckId`, `eintraege`.
+
+        <!-- operationen:ende -->
 
         Idempotenz: Ein `ok` wird je Lager, Person und `clientOpId` 30 Tage gespeichert. Eine Wiederholung derselben `clientOpId` liefert dieses Ergebnis, auch wenn sich Rechte seither geändert haben, und schreibt nichts noch einmal; gleichzeitige Wiederholungen schreiben einmal. `konflikt` und `abgelehnt` werden nicht gespeichert: Sie haben nichts geschrieben und kommen bei einer Wiederholung zum selben Ergebnis. Bei einem Konflikt holt die App den Stand (in `aktuell`) und schickt die Änderung mit einer neuen `clientOpId` und der aktuellen `version` noch einmal.
 
@@ -11562,6 +11623,58 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: nimmLagerAufgabeAusErwaehnungZurueck
+      summary: «Als Aufgabe» zurücknehmen
+      description: |
+        Nimmt «Als Aufgabe» zurück: Die Aufgabe, die aus der eigenen Erwähnung entstanden ist, wird endgültig gelöscht, die Erwähnung ist wieder offen (`aufgabeId` leer). Nur solange die Aufgabe unverändert ist: Version 1 und weder Unterstützung noch Checkpunkte, Links, Stichworte oder ein Traktandum, das auf sie zeigt. Sonst 409 `AUFGABE_VERAENDERT`, und nichts geht verloren; die Aufgabe löscht die Person dann bei den Aufgaben. Hat die Erwähnung keine Aufgabe (mehr), tut der Aufruf nichts (204).
+
+        Recht wie beim Anlegen: `aufgaben.bearbeiten` oder `aufgaben.eigene` (Standard: Lagerleitung, Leitung und Team; nicht Lesen). Eine fremde Erwähnung ist 404.
+
+        Datenbanklast: Erwähnung samt Titel laden (zwei bis drei Abfragen), eine Transaktion unter der Sperre des Lagers: Erwähnung und Aufgabe lesen, eine Abfrage auf die abhängigen Tabellen, Aufgabe löschen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Erwähnung (404), Zustand der Aufgabe (409 `AUFGABE_VERAENDERT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `AUFGABE_VERAENDERT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Zurückgenommen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Aufgabe wurde schon bearbeitet (`AUFGABE_VERAENDERT`) oder das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/pinnwand/gesehen:
     put:
@@ -12765,6 +12878,61 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: nimmLagerEingangTraktandumZurueck
+      summary: «Als Traktandum» zurücknehmen
+      description: |
+        Braucht `eingang.antworten`, `eingang.lesen` und `hoecks.bearbeiten` wie das Anlegen. Löscht das Traktandum, das aus der Meldung entstanden ist, endgültig und setzt `traktandumId` der Meldung auf leer, in einer Transaktion. `version` ist die zuletzt gesehene Version der Meldung; weicht sie ab, 409 `VERSION_KONFLIKT`. Nur solange das Traktandum unverändert ist: Version 1, keine Verantwortlichen, keine Aufgabe. Sonst 409 `TRAKTANDUM_VERAENDERT`, und nichts geht verloren; das Traktandum löscht die Person dann bei den Traktanden. Hat die Meldung kein Traktandum (mehr), tut der Aufruf nichts (204).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Meldung (404), Zustand des Traktandums (409 `TRAKTANDUM_VERAENDERT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft. 409 `VERSION_KONFLIKT`, `TRAKTANDUM_VERAENDERT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Meldung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Zurückgenommen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Meldung wurde inzwischen geändert (`VERSION_KONFLIKT`), das Traktandum wurde schon bearbeitet (`TRAKTANDUM_VERAENDERT`) oder das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":

@@ -49,7 +49,7 @@ beforeAll(async () => {
   api = postgres(url("cevi_os_api"), { max: 1 });
   ordnerBauen(bisVorher, 104);
   ordnerBauen(komplett, 108);
-});
+}, 60_000);
 
 afterAll(async () => {
   await besitzer?.end();

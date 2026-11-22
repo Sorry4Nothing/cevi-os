@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/hoecks"
-order: 256000
+order: 258000
 method: GET
-url: "{{baseUrl}}{{pfad_L101}}"
+url: "{{baseUrl}}{{pfad_L103}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

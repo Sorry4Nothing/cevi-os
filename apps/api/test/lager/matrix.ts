@@ -24,7 +24,7 @@ export type LagerPersona = (typeof LAGER_PERSONAS)[number];
 
 export const KONTO_FUER: Record<LagerPersona, Persona> = {
   abteilungsleitung: "admin",
-  // Mit zweitem Faktor: Die Lagerleitung braucht ihn (#423); dieses Konto hat sonst nichts mit dem Lager zu tun
+  // Mit zweitem Faktor: Die Lagerleitung braucht ihn nur für die Rechte der Rollen (#523); dieses Konto hat sonst nichts mit dem Lager zu tun
   lagerleitung: "elternB",
   leitung: "slB",
   team: "leitendeA",

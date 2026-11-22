@@ -159,6 +159,7 @@ type TraktandumAntwort = {
   reihenfolge: number;
   aufgabeId: string | null;
   status: string;
+  dauerMinuten: number | null;
   verantwortliche: { id: string; name: string }[];
 };
 async function neuesTraktandum(

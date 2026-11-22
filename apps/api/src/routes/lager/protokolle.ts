@@ -7,9 +7,11 @@ import { ladeSichtbareDatei } from "../../lager/datei.js";
 import {
   aendereBeschluss,
   aendereProtokoll,
+  beschlussDa,
   beschlussAendern,
   beschlussAnlegen,
   beschluesseAbfrage,
+  fehlerAntwort,
   legeBeschlussAn,
   legeProtokollAn,
   ladeBeschluesse,
@@ -32,17 +34,6 @@ const lagerPfad = z.strictObject({ id: z.uuid() });
 const protokollPfad = z.strictObject({ id: z.uuid(), protokollId: z.uuid() });
 const beschlussPfad = z.strictObject({ id: z.uuid(), beschlussId: z.uuid() });
 
-const FEHLER_TEXT = {
-  HOECK_UNBEKANNT: "Den Höck gibt es in diesem Lager nicht.",
-  PROTOKOLL_UNBEKANNT: "Das Protokoll gibt es in diesem Lager nicht.",
-  HOECK_PASST_NICHT: "Das Protokoll gehört zu einem anderen Höck.",
-  DATEI_UNBEKANNT: "Diese Datei gibt es in diesem Lager nicht.",
-} as const;
-const fehlerAntwort = (code: keyof typeof FEHLER_TEXT) => ({
-  code,
-  message: FEHLER_TEXT[code],
-});
-
 // Protokolle (Verknüpfung auf eine Datei im SharePoint) und Beschlüsse eines Lagers (#379), Beschreibung in lager/protokolle.ts. Lesen: protokolle.lesen; Schreiben: protokolle.bearbeiten. Ein Protokoll oder Beschluss eines Höcks der Lagerleitung ist für Rollen ohne alle Höcks 404. Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427) und entfernt nie die Datei am Ablageort
 export function erstelleProtokollRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "protokolle.lesen" });
@@ -51,11 +42,6 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
   // Das Protokoll, soweit die Person es sieht; sonst 404 (auch für ein Protokoll eines fremden Lagers)
   async function protokollDa(zugriff: LagerZugriff, id: string) {
     const { eintraege } = await ladeProtokolle(db, zugriff, { id });
-    if (!eintraege[0]) throw new HTTPException(404);
-    return eintraege[0];
-  }
-  async function beschlussDa(zugriff: LagerZugriff, id: string) {
-    const { eintraege } = await ladeBeschluesse(db, zugriff, { id });
     if (!eintraege[0]) throw new HTTPException(404);
     return eintraege[0];
   }
@@ -216,7 +202,11 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
       eingabe("param", beschlussPfad),
       async (c) =>
         c.json(
-          await beschlussDa(c.get("lager"), c.req.valid("param").beschlussId),
+          await beschlussDa(
+            db,
+            c.get("lager"),
+            c.req.valid("param").beschlussId,
+          ),
         ),
     )
     .patch(
@@ -227,7 +217,7 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
       async (c) => {
         const zugriff = c.get("lager");
         const { beschlussId } = c.req.valid("param");
-        await beschlussDa(zugriff, beschlussId);
+        await beschlussDa(db, zugriff, beschlussId);
         const fehler = await db.transaction((tx) =>
           aendereBeschluss(
             tx,
@@ -249,7 +239,7 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
       async (c) => {
         const zugriff = c.get("lager");
         const { beschlussId } = c.req.valid("param");
-        await beschlussDa(zugriff, beschlussId);
+        await beschlussDa(db, zugriff, beschlussId);
         await db.transaction((tx) =>
           loescheBeschluss(
             tx,
