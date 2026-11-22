@@ -1,6 +1,6 @@
 # Auslieferung der Website
 
-Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher belasten die Datenbank nicht: Ein Host liefert die Dateien aus, die API erzeugt sie nur. Dieses Dokument beschreibt den Ablauf, die Konfiguration und einen **Vorschlag** für den Edge-Caddy. Nichts davon ist im Repo umgesetzt: `deploy/edge/cevi-os.caddy` und `deploy/docker-compose.prod.yml` bleiben unverändert, und Domain (#68) und Ort der Dateien stehen noch nicht fest.
+Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher belasten die Datenbank nicht: Ein Host liefert die Dateien aus, die API erzeugt sie nur. Dieses Dokument beschreibt den Ablauf, die Konfiguration und einen **Vorschlag** für den Edge-Caddy. Der Code der Erzeugung ist umgesetzt und läuft, sobald die drei `WEBSITE_*`-Variablen gesetzt sind. Der Betrieb ist es nicht: `deploy/edge/cevi-os.caddy` und `deploy/docker-compose.prod.yml` bleiben unverändert, und Domain (#68) und Ort der Dateien stehen noch nicht fest. In Produktion läuft die Erzeugung darum heute nicht (Log `website_ausgabe`, Art `aus`).
 
 ## Ablauf
 
@@ -8,20 +8,23 @@ Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher 
 2. Der Abgleich (`src/website/abgleich.ts`) läuft beim Start, bei jedem Ereignis der Abteilung und alle 10 Minuten. Er liest die Seiten, die veröffentlichten Versionen und die Daten für Bausteine (Medien, Personen, Leitungsteams) und erzeugt daraus mit dem Renderer (`src/website/rendern.ts`) die Dateien.
 3. Er schreibt nur, was sich geändert hat: Der SHA-256 der erzeugten Datei steht an der Seite (`seite.ausgabe_hash`, `seite.ausgabe_am`, Migration 0041). Fehlt eine Datei, schreibt er sie neu.
 4. Er löscht Seitendateien (`…/index.html`), die zu keiner öffentlichen Seite mehr gehören: zurückgezogen, gelöscht, nicht mehr öffentlich oder mit neuer Adresse. Andere Dateien im Verzeichnis lässt er in Ruhe.
-5. Ein Lauf hält eine Sperre in der Datenbank (`pg_try_advisory_lock`); läuft schon einer, endet der zweite sofort. Ereignisse während eines Laufs lösen genau einen weiteren Lauf aus. Ein Fehler beim Schreiben oder Löschen einer Datei erscheint nur im Log (Ereignis `website_ausgabe`, Seiten-ID und Fehlercode, nie Inhalt) und bricht den Lauf nicht ab; der nächste Lauf versucht es wieder.
+5. Unter einer Informationssperre mit «Öffentliche Website vom Netz nehmen» läuft der Abgleich nicht (siehe «Wartungsmodus und Informationssperre»).
+6. Ein Lauf hält eine Sperre in der Datenbank (`pg_try_advisory_lock`); läuft schon einer, endet der zweite sofort. Ereignisse während eines Laufs lösen genau einen weiteren Lauf aus. Ein Fehler beim Schreiben oder Löschen einer Datei erscheint nur im Log (Ereignis `website_ausgabe`, Seiten-ID und Fehlercode, nie Inhalt) und bricht den Lauf nicht ab; der nächste Lauf versucht es wieder.
 
 Erzeugt werden:
 
-| Datei                  | Inhalt                                                                                                                                 |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `<adresse>/index.html` | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/` |
-| `sitemap.xml`          | nur öffentliche Seiten mit Datei                                                                                                       |
-| `robots.txt`           | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
-| `404.html`             | Fehlerseite mit der Navigation                                                                                                         |
-| `website/website.css`  | Platzhalter-Stil aus `apps/api/public/website/website.css`; das Design ersetzt diese Datei                                             |
-| `website/*.js`         | die Skripte aus `apps/api/public/website/` (#354): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`                            |
-| `anmelden/index.html`  | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
-| `<adresse>/index.html` | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
+| Datei                       | Inhalt                                                                                                                                 |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `<adresse>/index.html`      | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/` |
+| `sitemap.xml`               | nur öffentliche Seiten mit Datei                                                                                                       |
+| `robots.txt`                | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
+| `404.html`                  | Fehlerseite mit der Navigation                                                                                                         |
+| `website/website.css`       | Platzhalter-Stil aus `apps/api/public/website/website.css`; das Design ersetzt diese Datei                                             |
+| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`                            |
+| `anmelden/index.html`       | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
+| `weiterleitungen.caddy`     | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden           |
+| `<alte-adresse>/index.html` | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                      |
+| `<adresse>/index.html`      | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
 
 ## Was nie im HTML steht
 
@@ -51,7 +54,38 @@ Alle drei Variablen oder keine; mit einzelnen startet die API nicht. Ohne sie l�
 | `WEBSITE_ABTEILUNG_ID` | ID der Abteilung, deren Seiten erscheinen. Eine Datenbank kann mehrere Abteilungen haben (zum Beispiel die Demo-Abteilung); eine Website hat eine.                      |
 | `WEBSITE_BASIS_URL`    | Adresse der Website, etwa `https://www.example.org`; in Produktion nur `https`. Daraus entstehen `canonical` und die Sitemap. Pfad und Schrägstrich am Ende fallen weg. |
 
-`deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die Variablen noch nicht: Sie hängen vom Ort der Dateien ab (siehe unten) und werden erst mit dieser Entscheidung ergänzt.
+Die Vorlage für die lokale Entwicklung mit Kommentar steht in `apps/api/.env.example`. `deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die Variablen noch nicht: Der Compose-Stack reicht nur die Variablen durch, die er aufzählt, und der Ort der Dateien (siehe «Offene Punkte») steht nicht fest. Mit dieser Entscheidung kommen dazu: die drei Variablen in beiden Dateien, ein beschreibbares Volume für den Dienst `api` (er läuft mit `read_only: true`) und der lesende Einbau im Edge-Caddy.
+
+## Vorschau im Editor
+
+Entwürfe erscheinen nie in den erzeugten Dateien. Der Editor zeigt sie über `GET /api/v1/redaktion/seiten/{id}/vorschau` (optional `?version=n` für eine frühere Version), in einem Rahmen der Verwaltung (#358):
+
+- Es ist derselbe Renderer wie bei der Auslieferung, aber mit allen Bausteinen offen, auch denen mit engerer Sichtbarkeit: Die Vorschau sieht nur, wer den Entwurf der Seite lesen darf (dieselben Rechte wie der Entwurf; Fremdabteilung 404, ohne Recht 403).
+- Die Antwort ist `private, no-store`, ohne Skript, und nur die eigene Verwaltung darf sie einrahmen (`frame-ancestors self`). Den Stil liefert die Verwaltung als `/admin/website-vorschau.css`; die API liefert die Website sonst nie aus.
+- Abfragen: Seite und Recht (2), bei `?version=` eine weitere, die Daten der Bausteine gebündelt (höchstens 3) und die Stufenfelder aus dem Zwischenspeicher. Es gibt keinen Abruf im Takt, nur auf Klick.
+
+## Stufenfelder und der Baustein «Termin-Liste»
+
+- **Stufenfelder** (`stufenfakten`, #355): Treffzeit, Treffpunkt, Schluss und «mitnehmen» der nächsten Daten kommen aus `programm_eckdaten`. Der Abgleich holt sie mit einer Abfrage für alle Seiten (`ladeStufenfakten`); das Nachladen geschützter Bausteine nutzt einen Zwischenspeicher je Seite im Prozess (5 Minuten). Speichert die Stufenleitung Eckdaten, meldet die Route `seite_geaendert` für die Stufenseite, und der Abgleich erzeugt sie neu; sonst genügt der Lauf alle 10 Minuten (Datumswechsel).
+- **Termin-Liste** (`terminliste`): Das Schema des Bausteins gibt es (3 bis 10 Termine, optional ein Tag), der Renderer zeigt ihn aber **noch nicht**: Er liefert `null`, bis der Auftrag Termine die Daten einhängt. Wer den Baustein auf eine Seite legt, sieht ihn in der Vorschau und auf der Seite nicht. Das ist dokumentiert, nicht gebaut.
+
+## Wartungsmodus und Informationssperre
+
+- **Wartungsmodus** des Bereichs `website`: Alle schreibenden Anfragen der Website-Verwaltung antworten 503 `IN_WARTUNG` (kein Speichern, kein Veröffentlichen); die erzeugten Dateien bleiben stehen, und der Abgleich läuft weiter.
+- **Informationssperre** des Bereichs `website` oder `alles`: Die Routen antworten 423 `GESPERRT`. Mit dem Wunsch «Öffentliche Website vom Netz nehmen» löscht der Server alle Dateien in `WEBSITE_AUSGABE_PFAD` ausser `weiterleitungen.caddy` und schreibt eine neutrale Hinweisseite (`index.html`, `404.html`); der Abgleich erzeugt in dieser Zeit nichts. Beim Aufheben löscht er die Hinweisseiten und löst den Abgleich aus. Ablauf und Rechte: `docs/betrieb.md`, «Wartungsmodus» und «Informationssperre».
+
+## Neuaufbau und Backup
+
+Der Ausgabeordner ist aus der Datenbank ableitbar und wird **nicht gesichert** (`deploy/backup.sh` sichert nur die Datenbank; die Seiten und Versionen stehen im Dump, die Dateien nicht).
+
+- **Fehlende Datei oder leerer Ordner:** nichts von Hand tun. Der Abgleich schreibt jede fehlende Datei beim nächsten Lauf neu (beim Start der API, bei jedem Ereignis, spätestens nach 10 Minuten). Wer es beschleunigen will, startet die API neu.
+- **Neuaufbau erzwingen** (etwa nach einem Fehler im Renderer): Den Inhalt von `WEBSITE_AUSGABE_PFAD` löschen (nicht das Verzeichnis selbst, wenn es ein Volume ist) und die API neu starten. Der erste Lauf schreibt alles neu. Nach einem Release mit geändertem Renderer oder Stil schreibt der erste Lauf die geänderten Dateien von selbst, denn der Hash der erzeugten Datei ändert sich.
+- **Nach einer Wiederherstellung der Datenbank:** Der Abgleich gleicht die Dateien mit dem wiederhergestellten Stand ab, schreibt Geändertes und löscht Seitendateien, die dort nicht mehr öffentlich sind.
+- **Prüfen:** Ein erfolgreicher Lauf schreibt nichts ins Log. Im Log (journald) stehen nur Fehler als Ereignis `website_ausgabe` (Art, Seiten-ID und Fehlercode, nie Pfad oder Inhalt) und beim Start `art: aus`, wenn die Erzeugung nicht läuft. Ob die Dateien aktuell sind, zeigt ein Blick in den Ordner oder die Seite im Browser.
+
+## Datenbanklast
+
+Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach einem Ereignis, alle 10 Minuten) liest in gebündelten Abfragen die Seiten der Abteilung, die veröffentlichten Versionen aller öffentlichen Seiten, die Medien, Personen und Tags der Bausteine, die Stufenfelder und die Weiterleitungen, nie eine Abfrage je Seite oder Baustein; geschrieben wird nur, wenn sich eine Datei ändert (ein `UPDATE` des Hashs je geänderter Seite). Das Nachladen geschützter Bausteine ist eine Anfrage je Seitenaufruf einer angemeldeten Person (alle Seiten der Abteilung für die Adresse, die Version, die Daten der sichtbaren Bausteine) und nutzt für die Stufenfelder einen Zwischenspeicher von 5 Minuten.
 
 ## Sicherheit der Ausgabe
 
@@ -116,11 +150,12 @@ Warum so:
 
 ## Entwicklung und Testadresse
 
-Ohne Caddy: `WEBSITE_AUSGABE_PFAD` auf ein lokales Verzeichnis setzen und es mit einem beliebigen statischen Server ausliefern, der `/api/*` an die API weitergibt (damit die Bilder laden). Die Variante «die API liefert die Dateien selbst aus» (`WEBSITE_API_AUSLIEFERN`) ist noch nicht gebaut.
+Ohne Caddy: `WEBSITE_AUSGABE_PFAD` auf ein lokales Verzeichnis setzen und es mit einem beliebigen statischen Server ausliefern, der `/api/*` an die API weitergibt (damit die Bilder laden). Die API liefert die Website nie selbst aus (eine Variable `WEBSITE_API_AUSLIEFERN` gibt es nicht). Entwürfe zeigt die Vorschau im Editor; wer die erzeugten Seiten ansehen will, braucht den statischen Server.
 
 ## Offene Punkte
 
-- Domain (#68), Ort der Dateien (Volume im Stack, Bucket oder anderer Host) und Änderung am Edge-Caddy: offen, blockieren nicht.
+- Domain (#68), Ort der Dateien (Volume im Stack, Bucket oder anderer Host) und Änderung am Edge-Caddy: offen, entscheidet der Nutzer. Sie blockieren den Code nicht, aber den Betrieb: Erst mit der Entscheidung kommen die drei `WEBSITE_*`-Variablen, das beschreibbare Volume und der lesende Einbau in `deploy/`.
 - Die Seite mit der Adresse `start` ist die Startseite: eine Annahme, bis der Nutzer die Startseite bestätigt oder anders benennt (`STARTSEITE` in `src/website/rendern.ts`).
-- Ob Telefon, E-Mail und Foto von Leitenden erscheinen dürfen, entscheidet der Nutzer (Plan, Frage 2).
-- Vorschau-Route für Entwürfe (`GET /api/v1/redaktion/seiten/{id}/vorschau`) und `WEBSITE_API_AUSLIEFERN` sind nicht Teil dieses Schnitts.
+- Ob Telefon, E-Mail und Foto von Leitenden erscheinen dürfen, entscheidet der Nutzer (Plan, Frage 2); bis dahin nur Cevi-Name und Funktion.
+- Der Baustein `terminliste` rendert nichts, bis der Auftrag Termine ihn mit Daten füllt (siehe oben).
+- Die Datei `weiterleitungen.caddy` und der Caddy-Vorschlag sind nicht gegen einen laufenden Caddy geprüft.
