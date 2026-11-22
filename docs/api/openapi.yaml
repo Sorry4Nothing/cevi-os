@@ -13105,6 +13105,191 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/termin-vorschlaege/optionen:
+    get:
+      operationId: holeTerminVorschlagOptionen
+      summary: Darf ich einen Termin vorschlagen, und mit welchen Kategorien?
+      description: |
+        Sagt, ob die Person Termine vorschlagen darf, und liefert die Tags der eigenen Abteilung, die sich als Kategorie wählen lassen. Wer nicht vorschlagen darf, bekommt `darfVorschlagen: false` und eine leere Liste. Vorschlagen dürfen (Annahme, vom Nutzer zu bestätigen): die Abteilungsleitung, Personen mit einer Rolle als Stufenleitung oder Leitung und Personen mit einem Tag vom Typ `funktion` oder `team`. Höchstens zwei Abfragen: das Recht (nur, wenn weder Admin noch Rolle genügen) und die Tags.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Recht und wählbare Kategorien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagOptionen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege/meine:
+    get:
+      operationId: listeMeineTerminVorschlaege
+      summary: Meine Terminvorschläge
+      description: |
+        Liefert die eigenen Vorschläge mit ihrem Stand, neueste zuerst. Jede Person mit Konto darf die Route aufrufen (wer nichts vorgeschlagen hat, bekommt eine leere Liste). Seiten: `limit` (1 bis 100, Standard 50) und `nach` (die `naechste`-ID der vorigen Seite); `weitere` sagt, ob es eine nächste Seite gibt. Zwei Abfragen je Seite, unabhängig von der Zahl der Vorschläge.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültigem `limit` oder `nach`. 401 ohne Anmeldung.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die `naechste`-ID der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite eigener Vorschläge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege:
+    post:
+      operationId: legeTerminVorschlagAn
+      summary: Termin vorschlagen
+      description: |
+        Reicht einen Terminvorschlag mit dem Status `offen` ein. Ganztägig braucht `tagVon` und `tagBis` (letzter Tag), sonst `beginn` und `ende` (mit Zeitzone); der Beginn darf nicht in der Vergangenheit liegen. `tagIds` sind 1 bis 20 Tags der eigenen Abteilung (Kategorien, siehe `/api/v1/termin-vorschlaege/optionen`). Grenzen: Titel 120, Ort 120, Beschreibung 2000, Bemerkung 1000 Zeichen, ohne Steuerzeichen; höchstens 10 offene Vorschläge je Person (Annahme); Rate-Limit: 20 Anfragen je Konto in 10 Minuten (429).
+
+        Danach geht ein Push `termin_vorschlag` an alle aktiven Konten der Abteilungsleitung der Abteilung (ohne die vorschlagende Person), mit festem Text ohne Titel und Namen; `data.id` ist die Vorschlags-ID. Cevi OS trägt nichts in Outlook ein. Reihenfolge der Prüfungen: Recht (403), Eingabe (400), Rate-Limit (429), Termin nicht in der Vergangenheit (400 `TERMIN_VERGANGEN`), Obergrenze (409 `VORSCHLAG_LIMIT`), Tags (400 `TAG_UNBEKANNT`).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `TERMIN_VERGANGEN` oder `TAG_UNBEKANNT` (ein Tag gibt es nicht oder gehört zu einer anderen Abteilung). 401 ohne Anmeldung. 403 ohne Recht zum Vorschlagen. 409 bei `VORSCHLAG_LIMIT`. 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TerminVorschlagAnlegen"
+      responses:
+        "201":
+          description: Der Vorschlag ist eingereicht.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Die Person hat schon 10 offene Vorschläge (code `VORSCHLAG_LIMIT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege/{id}:
+    get:
+      operationId: holeTerminVorschlag
+      summary: Ein Terminvorschlag
+      description: |
+        Liefert den Vorschlag. Die vorschlagende Person sieht ihre eigenen, die Abteilungsleitung jeden der Abteilung. Für alle anderen gibt es ihn nicht (404), auch nicht für die Abteilungsleitung einer anderen Abteilung. Zwei Abfragen (Vorschlag, Tags).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn der Vorschlag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht sehen darf.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Vorschlags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Vorschlag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: ziehTerminVorschlagZurueck
+      summary: Terminvorschlag zurückziehen
+      description: |
+        Löscht den eigenen Vorschlag, solange er `offen` ist. Ist schon entschieden, bleibt er (409 `VORSCHLAG_ENTSCHIEDEN`). Die Abteilungsleitung sieht jeden Vorschlag der Abteilung, zieht aber fremde nicht zurück (403). Für alle anderen gibt es den Vorschlag nicht (404). Das Zurückziehen steht im Protokoll der Verwaltung (ID, nie der Inhalt).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für die Abteilungsleitung bei einem fremden Vorschlag. 404 bei unbekanntem, fremder Abteilung oder nicht sichtbarem Vorschlag. 409 bei `VORSCHLAG_ENTSCHIEDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Vorschlags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Der Vorschlag ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Über den Vorschlag ist schon entschieden (code `VORSCHLAG_ENTSCHIEDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/admin/anlaesse:
@@ -20952,6 +21137,164 @@ components:
           description: Die letzten vier Zeichen des Tokens.
     # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminVorschlagTag:
+      type: object
+      required: [id, name, typ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        typ:
+          type: string
+          enum: [stufe, funktion, team, lager]
+    TerminVorschlagOptionen:
+      type: object
+      required: [darfVorschlagen, tags]
+      properties:
+        darfVorschlagen:
+          type: boolean
+        tags:
+          type: array
+          description: Alle Tags der Abteilung, die sich als Kategorie wählen lassen; leer, wenn die Person nicht vorschlagen darf.
+          items:
+            $ref: "#/components/schemas/TerminVorschlagTag"
+    TerminVorschlagAnlegen:
+      type: object
+      additionalProperties: false
+      required: [titel, ganztaegig, tagIds]
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        ganztaegig:
+          type: boolean
+        beginn:
+          type: string
+          format: date-time
+          description: Nur wenn nicht ganztägig, mit Zeitzone; nicht in der Vergangenheit.
+        ende:
+          type: string
+          format: date-time
+          description: Nur wenn nicht ganztägig, nach `beginn`.
+        tagVon:
+          type: string
+          format: date
+          description: Nur wenn ganztägig; nicht vor heute (Schweizer Zeit).
+        tagBis:
+          type: string
+          format: date
+          description: Nur wenn ganztägig, der letzte Tag, nicht vor `tagVon`.
+        ort:
+          type: [string, "null"]
+          maxLength: 120
+        beschreibung:
+          type: [string, "null"]
+          maxLength: 2000
+        bemerkung:
+          type: [string, "null"]
+          maxLength: 1000
+          description: Hinweis an die Abteilungsleitung, kein Teil des Termins.
+        tagIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    TerminVorschlagAngelegt:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [offen]
+    TerminVorschlag:
+      type: object
+      required:
+        - id
+        - status
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - ort
+        - beschreibung
+        - bemerkung
+        - tags
+        - begruendung
+        - entschiedenAm
+        - erstelltAm
+        - vorgeschlagenVon
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [offen, freigegeben, abgelehnt, in_outlook_eingetragen]
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type: [string, "null"]
+          format: date-time
+        ende:
+          type: [string, "null"]
+          format: date-time
+        tagVon:
+          type: [string, "null"]
+          format: date
+        tagBis:
+          type: [string, "null"]
+          format: date
+        ort:
+          type: [string, "null"]
+        beschreibung:
+          type: [string, "null"]
+        bemerkung:
+          type: [string, "null"]
+        tags:
+          type: array
+          description: Die gewünschten Kategorien; ein gelöschter Tag fehlt.
+          items:
+            $ref: "#/components/schemas/TerminVorschlagTag"
+        begruendung:
+          type: [string, "null"]
+          description: Begründung bei einer Ablehnung (#440).
+        entschiedenAm:
+          type: [string, "null"]
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+        vorgeschlagenVon:
+          type: [string, "null"]
+          format: uuid
+          description: Die vorschlagende Person; null, wenn ihr Konto gelöscht ist.
+    TerminVorschlagListe:
+      type: object
+      required: [vorschlaege, weitere, naechste]
+      properties:
+        vorschlaege:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminVorschlag"
+        weitere:
+          type: boolean
+        naechste:
+          type: [string, "null"]
+          format: uuid
+          description: Wert für `nach` der nächsten Seite; null auf der letzten.
     # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     AnlassSichtbarkeit:
