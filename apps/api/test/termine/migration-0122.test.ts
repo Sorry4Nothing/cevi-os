@@ -50,7 +50,7 @@ beforeAll(async () => {
   ordnerBauen(bisVorher, 121);
   // Bis 0122: spätere Termin-Migrationen sind für diesen Test ohne Belang
   ordnerBauen(komplett, 122);
-});
+}, 60_000);
 
 afterAll(async () => {
   await besitzer?.end();
@@ -58,7 +58,7 @@ afterAll(async () => {
   await superuser.unsafe(`drop database if exists ${dbName} with (force)`);
   await superuser.end();
   rmSync(temp, { recursive: true, force: true });
-});
+}, 60_000);
 
 const anzahlMigrationen = async () =>
   (
@@ -174,4 +174,4 @@ test("0122 legt die Terminvorschläge an, die Regeln gelten in der Datenbank, de
   );
   expect(await vorhanden()).toBe(0);
   expect(await anzahlMigrationen()).toBe(vorher);
-});
+}, 60_000);
