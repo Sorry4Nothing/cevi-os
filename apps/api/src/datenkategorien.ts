@@ -205,6 +205,15 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  anlass: {
+    titel: "Anlässe und ihre Zusatzfelder",
+    zweck:
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
+    frist:
+      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
+    apple: [],
+    google: [],
+  },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
     titel: "Ungenutzt",
@@ -270,6 +279,35 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "details",
       "erstellt_am",
+    ],
+  },
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
+  anlass: {
+    anlass: [
+      "id",
+      "abteilung_id",
+      "programm_id",
+      "art",
+      "anmeldung_offen",
+      "frist",
+      "anmeldung_fuer",
+      "sichtbarkeit",
+      "sichtbarkeit_tags",
+      "seite_id",
+      "erstellt_von",
+      "erstellt_am",
+    ],
+  },
+  anlass_feld: {
+    anlass: [
+      "id",
+      "anlass_id",
+      "schluessel",
+      "beschriftung",
+      "typ",
+      "optionen",
+      "pflicht",
+      "reihenfolge",
     ],
   },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },

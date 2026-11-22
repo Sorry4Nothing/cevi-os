@@ -10118,6 +10118,223 @@ paths:
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/anlaesse:
+    get:
+      operationId: listeAdminAnlaesse
+      summary: Anlässe der Abteilung
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anlässe der eigenen Abteilung, neueste zuerst, in Seiten. Eine Abfrage je Seite: Anlass, Angaben des Termins und Zahl der Zusatzfelder. `nach` ist die `naechste` der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Eine Seite der Anlässe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnlassListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminAnlassAn
+      summary: Anlass anlegen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Macht aus einem Termin der Abteilung einen Anlass mit Anmeldung. Dabei entsteht in derselben Transaktion die Anlassseite der Website als Entwurf (Vorlage `anlass`, Sichtbarkeit wie der Anlass); scheitert die Seite, entsteht kein Anlass. Danach meldet der Server der Website, dass die Seite sich geändert hat. Die Art ist immer `anlass`; den Typ «Lager» legt das Lager-Modul an.
+
+        Zusatzfelder: höchstens 20, Schlüssel `a-z0-9_` (1 bis 40 Zeichen, je Anlass eindeutig), Beschriftung 1 bis 100 Zeichen, Auswahl mit 2 bis 20 verschiedenen Optionen zu je 1 bis 100 Zeichen, bei den anderen Typen keine Optionen. Die Reihenfolge der Liste gilt. Die Anmeldung nimmt keine Gesundheitsdaten auf: Eine kleine Sperrliste von Wortstämmen (zum Beispiel Allergie, Krankheit, Medikament, Impfung) prüft Beschriftung und Optionen.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, mit Code `FELD_GESUNDHEIT` bei einem Feld nach Gesundheitsdaten oder `TAG_UNBEKANNT`, wenn ein Tag der Sichtbarkeit nicht zur Abteilung gehört. 403 für alle anderen. 404, wenn der Termin nicht zur Abteilung gehört oder nicht besteht. 409 mit Code `ANLASS_VORHANDEN` (der Termin hat schon einen Anlass) oder `TERMIN_VORBEI`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnlassAnlegen"
+      responses:
+        "201":
+          description: Anlass angelegt, mit der Anlassseite.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnlassAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/anlaesse/{id}:
+    get:
+      operationId: leseAdminAnlass
+      summary: Anlass mit Zusatzfeldern lesen
+      description: |
+        Nur die Abteilungsleitung. Eine Abfrage liefert den Anlass, die Angaben des Termins und alle Zusatzfelder in der Reihenfolge der Anmeldung.
+
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      responses:
+        "200":
+          description: Der Anlass.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnlass"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminAnlass
+      summary: Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern
+      description: |
+        Nur die Abteilungsleitung. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` lässt sich nur ändern, solange es keine Anmeldungen gibt.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnlassAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminAnlass
+      summary: Anlass löschen
+      description: |
+        Nur die Abteilungsleitung. Löscht den Anlass mit seinen Zusatzfeldern, aber nur ohne Anmeldungen. Die Anlassseite der Website bleibt.
+
+        Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/anlaesse/{id}/felder:
+    put:
+      operationId: setzeAdminAnlassFelder
+      summary: Zusatzfelder eines Anlasses ersetzen
+      description: |
+        Nur die Abteilungsleitung. Ersetzt die ganze Liste der Zusatzfelder; die Reihenfolge der Liste gilt. Regeln der Felder wie beim Anlegen. Schlüssel und Typ eines Feldes, zu dem es schon Antworten gibt, bleiben fest, und das Feld bleibt in der Liste.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `FELD_GESUNDHEIT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `FELD_IN_BENUTZUNG` und den betroffenen `schluessel`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAnlassFelderSetzen"
+      responses:
+        "200":
+          description: Die neue Liste.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnlassFelderListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16178,6 +16395,303 @@ components:
     # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AnlassSichtbarkeit:
+      description: Wer den Anlass sieht (Sichtbarkeit nach Tags wie bei Seiten). Ohne Tags in `tagIds` sieht ihn bei `tags` nur die Abteilungsleitung.
+      oneOf:
+        - type: object
+          required:
+            - art
+          additionalProperties: false
+          properties:
+            art:
+              type: string
+              enum:
+                - oeffentlich
+                - angemeldet
+        - type: object
+          required:
+            - art
+            - tagIds
+          additionalProperties: false
+          properties:
+            art:
+              type: string
+              enum:
+                - tags
+            tagIds:
+              type: array
+              maxItems: 50
+              uniqueItems: true
+              items:
+                type: string
+                format: uuid
+    AdminAnlassFeldEingabe:
+      type: object
+      required:
+        - schluessel
+        - beschriftung
+        - typ
+      additionalProperties: false
+      properties:
+        schluessel:
+          type: string
+          pattern: ^[a-z0-9_]{1,40}$
+          description: Fest, sobald es Antworten gibt. Je Anlass eindeutig.
+        beschriftung:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Keine Frage nach Gesundheitsdaten (Sperrliste).
+        typ:
+          type: string
+          enum:
+            - text
+            - ja_nein
+            - auswahl
+        optionen:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+          description: Bei `auswahl` 2 bis 20 verschiedene Optionen, sonst leer oder weggelassen.
+        pflicht:
+          type: boolean
+          default: false
+    AdminAnlassFeld:
+      type: object
+      required:
+        - schluessel
+        - beschriftung
+        - typ
+        - optionen
+        - pflicht
+        - reihenfolge
+      properties:
+        schluessel:
+          type: string
+        beschriftung:
+          type: string
+        typ:
+          type: string
+          enum:
+            - text
+            - ja_nein
+            - auswahl
+        optionen:
+          type: array
+          items:
+            type: string
+        pflicht:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 19
+    AdminAnlassFelderSetzen:
+      type: object
+      required:
+        - felder
+      additionalProperties: false
+      properties:
+        felder:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/AdminAnlassFeldEingabe"
+    AdminAnlassFelderListe:
+      type: object
+      required:
+        - felder
+      properties:
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAnlassFeld"
+    AdminAnlassAnlegen:
+      type: object
+      required:
+        - programmId
+        - anmeldungFuer
+        - anmeldungOffen
+        - sichtbarkeit
+      additionalProperties: false
+      properties:
+        programmId:
+          type: string
+          format: uuid
+          description: Ein Termin der Abteilung, der noch nicht vorbei ist und noch keinen Anlass hat.
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+        anmeldungOffen:
+          type: boolean
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Anmeldeschluss mit Zeitzone. Ohne Angabe oder mit `null` gibt es keine Frist.
+        sichtbarkeit:
+          $ref: "#/components/schemas/AnlassSichtbarkeit"
+        felder:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/AdminAnlassFeldEingabe"
+    AdminAnlassAngelegt:
+      type: object
+      required:
+        - id
+        - seiteId
+      properties:
+        id:
+          type: string
+          format: uuid
+        seiteId:
+          type: string
+          format: uuid
+          description: Die Anlassseite der Website (Entwurf).
+    AdminAnlassAendern:
+      type: object
+      additionalProperties: false
+      properties:
+        anmeldungOffen:
+          type: boolean
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+        sichtbarkeit:
+          $ref: "#/components/schemas/AnlassSichtbarkeit"
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+          description: Nur ohne Anmeldungen änderbar (sonst 409 `ANMELDUNGEN_VORHANDEN`).
+    AdminAnlassKopf:
+      type: object
+      required:
+        - id
+        - programmId
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - art
+        - anmeldungFuer
+        - anmeldungOffen
+        - frist
+        - sichtbarkeit
+        - seiteId
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        programmId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+          description: Titel des Termins.
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+        art:
+          type: string
+          enum:
+            - anlass
+            - lager
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+        anmeldungOffen:
+          type: boolean
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+        sichtbarkeit:
+          $ref: "#/components/schemas/AnlassSichtbarkeit"
+        seiteId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+    AdminAnlassListeneintrag:
+      allOf:
+        - $ref: "#/components/schemas/AdminAnlassKopf"
+        - type: object
+          required:
+            - anzahlFelder
+          properties:
+            anzahlFelder:
+              type: integer
+              minimum: 0
+              maximum: 20
+    AdminAnlassListe:
+      type: object
+      required:
+        - anlaesse
+        - weitere
+        - naechste
+      properties:
+        anlaesse:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAnlassListeneintrag"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
+    AdminAnlass:
+      allOf:
+        - $ref: "#/components/schemas/AdminAnlassKopf"
+        - type: object
+          required:
+            - felder
+          properties:
+            felder:
+              type: array
+              items:
+                $ref: "#/components/schemas/AdminAnlassFeld"
     # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16990,6 +17504,14 @@ components:
       schema:
         type: string
         format: date
+    AnlassId:
+      name: id
+      in: path
+      required: true
+      description: ID des Anlasses (UUID), in der Abteilung der Person.
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     sitzung:
       type: apiKey
@@ -17125,6 +17647,13 @@ components:
     RedaktionEckdaten409:
       description: |
         Konflikt: `ECKDATEN_ZU_VIELE` (mehr als 20 gepflegte kommende Daten je Stufe).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    AnlassKonflikt409:
+      description: |
+        Konflikt: `ANLASS_VORHANDEN` (der Termin hat schon einen Anlass), `TERMIN_VORBEI` (der Termin ist vorbei), `ANMELDUNGEN_VORHANDEN` (es gibt schon Anmeldungen) oder `FELD_IN_BENUTZUNG` (zu einem Feld gibt es Antworten; die Antwort nennt die betroffenen `schluessel`).
       content:
         application/json:
           schema:
