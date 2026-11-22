@@ -1,6 +1,6 @@
 # Bedrohungsmodell
 
-Dieses Dokument beschreibt, wovor Cevi OS die Daten von Kindern, Eltern und Leitenden schützt. Es nennt 13 Bedrohungen, je mit Massnahmen und dem Test oder Prüfpunkt, der sie belegt, dazu drei bewusste Verzichte mit Begründung und eine kurze Datenschutz-Folgenabschätzung. Es gilt für Version 1, und der Vorstand nimmt es ab.
+Dieses Dokument beschreibt, wovor Cevi OS die Daten von Kindern, Eltern und Leitenden schützt. Es nennt 14 Bedrohungen, je mit Massnahmen und dem Test oder Prüfpunkt, der sie belegt, dazu drei bewusste Verzichte mit Begründung und eine kurze Datenschutz-Folgenabschätzung. Es gilt für Version 1, und der Vorstand nimmt es ab.
 
 Die meisten Massnahmen entstehen erst in späteren Issues. Dieses Dokument ist die Liste, an der diese Issues und ihre Tests gemessen werden.
 
@@ -244,6 +244,25 @@ Mit diesem Schlüssel liest der Server den Google-Kalender. Für den Spike und d
 **Restrisiko:** Bis der Schlüssel gewechselt ist, liest wer ihn hat beide Kalender mit allen Details. Nur lesen kann er, solange beide Kalender mit «Alle Termindetails sehen» geteilt sind. Legt jemand die Schlüsseldatei in den Ordner des Repos, aber ausserhalb von `deploy/secrets/`, etwa neben die Aufzeichnungen, hält sie nur noch der Push-Schutz auf, und den kann die pushende Person übergehen.
 
 **OWASP:** ASVS V13 Configuration.
+
+### 14. Rechteausweitung über Lager-Rollen
+
+Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Leitung, Team, Lesen), getrennt von Tags und Stufenrollen. Wer eine Rolle im Lager erschleicht, behält oder über eine andere Stelle erbt, liest oder ändert Lagerdaten, die ihm nicht zustehen, oder bekommt Verwaltungsrechte der Abteilung.
+
+| Massnahme                                                                                                                                                                                                               | Test oder Prüfpunkt                                                                                                                                         | Issue | Stand     |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | --------- |
+| Die Rolle steht nie in Sitzung oder Token. Jede Lager-Route lädt sie bei der Anfrage aus `lager_mitglied`; ein Rollenwechsel oder Entfernen gilt ab der nächsten Anfrage                                                | `test/lager/policy.test.ts` und `test/lager/lager.test.ts`: Rolle ändern und Mitglied entfernen wirken ohne neue Anmeldung                                  | #364  | vorhanden |
+| Feste Reihenfolge: Lager in SQL auf die Abteilung der Sitzung gefiltert (fremd 404), Nicht-Mitglied 404, fehlendes Recht 403, geschlossenes Lager 409. Eine Mitgliedszeile aus einer anderen Abteilung gibt nichts frei | Policy-Test mit fremder Mitgliedszeile; Lager-Matrix mit Persona «fremdeAbteilung» (`test/lager/matrix/*.ts`, Regeln in `test/lager/matrix-regeln.test.ts`) | #364  | vorhanden |
+| Lager-Rollen verleihen keine Verwaltungsrechte: Lager anlegen, Stammdaten, Status und Mitglieder setzt nur die Abteilungsleitung (`/api/v1/admin/lager`, mit zweitem Faktor)                                            | Regel der Lager-Matrix: auf jeder Verwaltungs-Route antworten Lagerleitung, Leitung, Team, Lesen und Konten ohne Mitgliedschaft mit 403                     | #364  | vorhanden |
+| Tags verleihen im Lager nichts; Mitglied wird nur ein aktives Konto der Abteilung, nie über Namen oder Tags                                                                                                             | `test/lager/lager.test.ts`: unbekannte, deaktivierte und fremde Konten sind 404                                                                             | #364  | vorhanden |
+| Ein aktives Lager behält mindestens eine Lagerleitung; die Prüfung läuft unter einer Zeilensperre auf dem Lager, zwei gleichzeitige Herabstufungen lassen eine übrig                                                    | `test/lager/lager.test.ts`                                                                                                                                  | #364  | vorhanden |
+| Abgeschlossene und archivierte Lager sind schreibgeschützt (409 `LAGER_GESCHLOSSEN`); nur die Abteilungsleitung ändert den Status                                                                                       | Policy-Test und Lager-Matrix (Zustand «abgeschlossen»)                                                                                                      | #364  | vorhanden |
+| Audit-Log ohne Inhalte: `lager_angelegt`, `lager_geaendert` (Feldnamen), `lager_status`, `mitglied_gesetzt`, `mitglied_entfernt`                                                                                        | `test/lager/lager.test.ts`                                                                                                                                  | #364  | vorhanden |
+| Die Rechte je Rolle sind einstellbar und zu prüfen (Eskalation durch eine Einstellung der Lagerleitung)                                                                                                                 | folgt mit L0b                                                                                                                                               | #365  | geplant   |
+
+**Restrisiko:** Die Abteilungsleitung gilt in jedem Lager der Abteilung als Lagerleitung (Annahme, auch für Adressbuch und Eingang); wer ihr Konto übernimmt, liest alle Lager der Abteilung. Das Konto schützen der zweite Faktor und die Bedrohung 6.
+
+**OWASP:** ASVS V8 Authorization.
 
 ## Bewusst nicht umgesetzt
 

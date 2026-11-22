@@ -692,3 +692,6 @@ export const medium = pgTable(
     ),
   ],
 );
+
+// Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
+export * from "./schema-lager.js";

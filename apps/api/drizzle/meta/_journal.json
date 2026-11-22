@@ -260,6 +260,13 @@
       "when": 1793548100000,
       "tag": "0036_bearbeiter",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1793550000000,
+      "tag": "0060_lager",
+      "breakpoints": true
     }
   ]
 }

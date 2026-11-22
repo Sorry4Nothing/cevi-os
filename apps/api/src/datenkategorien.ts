@@ -131,6 +131,14 @@ export const KATEGORIEN = {
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
+  lager: {
+    titel: "Lager und Lagermitglieder",
+    zweck:
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf.",
+    frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
     titel: "Ungenutzt",
@@ -287,6 +295,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
   person_tag: {
     rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+  },
+  // Das Lager hat keinen Personenbezug ausser seiner Adresse und den Mitgliedern
+  lager: {
+    lager: [
+      "id",
+      "abteilung_id",
+      "anlass_id",
+      "titel",
+      "von",
+      "bis",
+      "vorbereitung_ab",
+      "ort",
+      "adresse",
+      "status",
+      "uebung",
+      "farbe",
+      "logo_medium_id",
+      "erstellt_am",
+    ],
+  },
+  lager_mitglied: {
+    lager: ["lager_id", "person_id", "rolle", "ressort_id", "erstellt_am"],
   },
   bearbeiter: {
     rollen: [

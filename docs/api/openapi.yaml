@@ -3659,6 +3659,400 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager:
+    get:
+      operationId: listeLager
+      summary: Meine Lager
+      description: |
+        Liefert die Lager der eigenen Abteilung, in denen die Person Mitglied ist, mit ihrer Rolle (neueste zuerst). Die Abteilungsleitung (Admin) sieht jedes Lager der Abteilung und hat darin die Rolle `lagerleitung`. Lager anderer Abteilungen und Lager ohne Mitgliedschaft erscheinen nie.
+
+        Die Rolle liest der Server bei jeder Anfrage aus der Datenbank (nie aus Sitzung oder Token): Ein Rollenwechsel oder Entfernen gilt ab der nächsten Anfrage.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Lager der Person.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}:
+    get:
+      operationId: holeLager
+      summary: Ein Lager
+      description: |
+        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Lager.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDetail"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager:
+    get:
+      operationId: listeAdminLager
+      summary: Lager der Abteilung
+      description: |
+        Nur Admins (Abteilungsleitung). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Lager der Abteilung.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - lager
+                properties:
+                  lager:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Lager"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminLagerAn
+      summary: Lager anlegen
+      description: |
+        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLagerAnlegen"
+      responses:
+        "201":
+          description: Lager angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}:
+    get:
+      operationId: holeAdminLager
+      summary: Lager mit Stammdaten
+      description: |
+        Nur Admins, nur Lager der eigenen Abteilung. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Lager.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lager"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminLager
+      summary: Lager ändern, Status setzen
+      description: |
+        Nur Admins. Ändert Stammdaten und Status. Ohne Schlüssel bleibt der Wert, `null` leert ein optionales Feld. Ein abgeschlossenes oder archiviertes Lager ist schreibgeschützt: Stammdaten lassen sich dann nicht ändern (409 `LAGER_GESCHLOSSEN`), der Status schon (so öffnet die Abteilungsleitung ein Lager wieder). Ein Lager wird nur `aktiv`, wenn es mindestens eine Lagerleitung hat (409 `LAGERLEITUNG_FEHLT`). Audit-Log: `lager_geaendert` (nur die Namen der Felder) und `lager_status` (alter und neuer Status).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (auch ein Zeitraum, der nach dem Zusammenführen nicht stimmt). 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLagerAendern"
+      responses:
+        "204":
+          description: Lager geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/mitglieder:
+    get:
+      operationId: listeAdminLagerMitglieder
+      summary: Mitglieder eines Lagers
+      description: |
+        Nur Admins, nur Lager der eigenen Abteilung. Liefert die Mitglieder mit Name, Cevi-Name und Rolle, nach Name sortiert. Nie Zugangsdaten.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Mitglieder.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - mitglieder
+                properties:
+                  mitglieder:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminLagerMitglied"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/mitglieder/{personId}:
+    put:
+      operationId: setzeAdminLagerMitglied
+      summary: Mitglied setzen oder Rolle ändern
+      description: |
+        Nur Admins. Macht ein aktives Konto der Abteilung zum Mitglied oder ändert die Rolle (`lagerleitung`, `leitung`, `team`, `lesen`); ohne Konto gibt es kein Mitglied. Ein unbekanntes, deaktiviertes oder fremdes Konto ist 404. Die Änderung gilt ab der nächsten Anfrage der Person. Ein aktives Lager behält mindestens eine Lagerleitung (409 `LAGERLEITUNG_FEHLT`); in einem abgeschlossenen oder archivierten Lager gibt es keine Änderung (409 `LAGER_GESCHLOSSEN`). Audit-Log: `mitglied_gesetzt` (Person, neue und alte Rolle).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn Lager oder Person unbekannt sind. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: personId
+          in: path
+          required: true
+          description: ID der Person (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - rolle
+              properties:
+                rolle:
+                  $ref: "#/components/schemas/LagerRolle"
+      responses:
+        "204":
+          description: Mitglied gesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: entferneAdminLagerMitglied
+      summary: Mitglied entfernen
+      description: |
+        Nur Admins. Entfernt die Person aus dem Lager; sie verliert den Zugriff bei der nächsten Anfrage. Ein aktives Lager behält mindestens eine Lagerleitung (409 `LAGERLEITUNG_FEHLT`); in einem abgeschlossenen oder archivierten Lager gibt es keine Änderung (409 `LAGER_GESCHLOSSEN`). Audit-Log: `mitglied_entfernt`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: personId
+          in: path
+          required: true
+          description: ID der Person (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Mitglied entfernt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  # lager-pfade: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
 components:
   schemas:
     Fehler:
@@ -6289,6 +6683,261 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Medium"
+    # lager-schemas: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerRolle:
+      type: string
+      description: Rolle in einem Lager. Die Abteilungsleitung (Admin) gilt in Lagern der eigenen Abteilung immer als `lagerleitung`.
+      enum:
+        - lagerleitung
+        - leitung
+        - team
+        - lesen
+    LagerStatus:
+      type: string
+      description: Zustand des Lagers. `abgeschlossen` und `archiviert` sind schreibgeschützt.
+      enum:
+        - entwurf
+        - aktiv
+        - abgeschlossen
+        - archiviert
+    Lager:
+      type: object
+      required:
+        - id
+        - titel
+        - von
+        - bis
+        - vorbereitungAb
+        - ort
+        - adresse
+        - status
+        - farbe
+        - logoMediumId
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        vorbereitungAb:
+          type:
+            - string
+            - "null"
+          format: date
+        ort:
+          type:
+            - string
+            - "null"
+        adresse:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/LagerStatus"
+        farbe:
+          type:
+            - string
+            - "null"
+          pattern: ^#[0-9a-f]{6}$
+          description: Hex-Farbe, kleingeschrieben.
+        logoMediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+    LagerListeneintrag:
+      allOf:
+        - $ref: "#/components/schemas/Lager"
+        - type: object
+          required:
+            - rolle
+          properties:
+            rolle:
+              $ref: "#/components/schemas/LagerRolle"
+    LagerListe:
+      type: object
+      required:
+        - lager
+      properties:
+        lager:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerListeneintrag"
+    LagerDetail:
+      allOf:
+        - $ref: "#/components/schemas/Lager"
+        - type: object
+          required:
+            - rolle
+            - schreibgeschuetzt
+          properties:
+            rolle:
+              $ref: "#/components/schemas/LagerRolle"
+            schreibgeschuetzt:
+              type: boolean
+              description: Wahr bei `abgeschlossen` und `archiviert`; schreibende Anfragen antworten dann mit 409 `LAGER_GESCHLOSSEN`.
+    AdminLagerAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - von
+        - bis
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+          description: Nicht vor `von`.
+        vorbereitungAb:
+          type: string
+          format: date
+          description: Nicht nach `von`.
+        ort:
+          type: string
+          minLength: 1
+          maxLength: 200
+        adresse:
+          type: string
+          minLength: 1
+          maxLength: 500
+        farbe:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+        logoMediumId:
+          type: string
+          format: uuid
+          description: Ein Bild aus den Medien der eigenen Abteilung.
+    AdminLagerAendern:
+      type: object
+      additionalProperties: false
+      description: Ohne Schlüssel bleibt der Wert. `null` leert `vorbereitungAb`, `ort`, `adresse`, `farbe` und `logoMediumId`.
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        vorbereitungAb:
+          type:
+            - string
+            - "null"
+          format: date
+        ort:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 200
+        adresse:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 500
+        farbe:
+          type:
+            - string
+            - "null"
+          pattern: ^#[0-9a-fA-F]{6}$
+        logoMediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        status:
+          $ref: "#/components/schemas/LagerStatus"
+    AdminLagerMitglied:
+      type: object
+      required:
+        - personId
+        - name
+        - ceviName
+        - rolle
+      properties:
+        personId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+        rolle:
+          $ref: "#/components/schemas/LagerRolle"
+    LagerKonflikt:
+      type: object
+      description: Fehler mit Statuscode 409. Gleiche Form wie `Fehler`, mit eigenen Codes.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - LAGER_GESCHLOSSEN
+            - LAGERLEITUNG_FEHLT
+        message:
+          type: string
+    # lager-schemas: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   parameters:
     AppVersion:
       name: X-App-Version
@@ -6447,6 +7096,13 @@ components:
         Unter HTTPS trägt es den Präfix `__Secure-`, ohne HTTPS heisst es `better-auth.two_factor`; der Name endet
         immer auf `two_factor`.
   responses:
+    LagerKonflikt409:
+      description: |
+        Das Lager ist abgeschlossen oder archiviert und lässt sich nicht ändern (`LAGER_GESCHLOSSEN`), oder ein aktives Lager würde seine letzte Lagerleitung verlieren (`LAGERLEITUNG_FEHLT`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LagerKonflikt"
     UngueltigeEingabe400:
       description: Ungültige Eingabe (code UNGUELTIGE_EINGABE), ohne Details
       content:
