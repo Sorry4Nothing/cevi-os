@@ -50,7 +50,7 @@ export const KATEGORIEN = {
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu. Bearbeitungsrechte legen fest, wer Inhalte ändern darf.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -440,6 +440,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   ressort_notiz: {
     lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
   },
+  // Aufgaben (#372): Verantwortliche und Unterstützung als Personen-IDs; erledigt_am setzt der Server mit dem Status
+  aufgabe: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "ressort_id",
+      "teil",
+      "verantwortlich_person_id",
+      "status",
+      "notiz",
+      "frist",
+      "stern",
+      "laufend",
+      "spaeter_ab",
+      "wiederholung",
+      "reihenfolge",
+      "quelle",
+      "erledigt_am",
+      "frist_erinnert_am",
+    ],
+  },
+  aufgabe_unterstuetzung: {
+    lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
     lagerAnwesenheit: [
@@ -489,6 +513,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "tag_id",
       "erstellt_am",
     ],
+  },
+  plattform_rolle: {
+    rollen: ["id", "abteilung_id", "name", "schluessel", "erstellt_am"],
+  },
+  plattform_rolle_recht: {
+    rollen: ["rolle_id", "recht"],
+  },
+  person_plattform_rolle: {
+    rollen: ["user_id", "rolle_id", "erstellt_am"],
+  },
+  plattform_entwickler: {
+    rollen: ["user_id", "erstellt_am"],
   },
   seite: {
     website: [

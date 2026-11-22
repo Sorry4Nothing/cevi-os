@@ -4,6 +4,7 @@ import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
+import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleDokumentRouten } from "./dokumente.js";
@@ -26,5 +27,6 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleLagerDateiRouten({ db }))
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
+    .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }));
 }

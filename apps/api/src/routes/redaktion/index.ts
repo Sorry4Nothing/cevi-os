@@ -1,6 +1,11 @@
 import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
-import { zweiterFaktorPflicht, type Person } from "../../rechte.js";
+import {
+  zweiterFaktorFehlt,
+  zweiterFaktorPflicht,
+  type Person,
+} from "../../rechte.js";
+import { hatErweitertesRecht } from "../../website/seiten.js";
 import type { MedienHandler } from "../medien.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
 import { erstelleEckdatenRouten } from "./eckdaten.js";
@@ -12,7 +17,7 @@ import { erstelleVorlagenRouten } from "./vorlagen.js";
 import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
 
 // Namensraum für Personen mit Bearbeitungsrecht, nicht nur für Admins. Jede Folgeroute hängt sich hier mit einer Zeile ein.
-// Eine Admin-Person braucht auch hier den zweiten Faktor (sonst umginge sie ihn über diesen Weg); alle anderen passen vorbei.
+// Eine Admin-Person braucht auch hier den zweiten Faktor (sonst umginge sie ihn über diesen Weg). Dasselbe gilt für jede Person mit einem erweiterten Recht (#423): Plattformrolle, Zeile in «bearbeiter», Team-Verantwortung. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne; alle anderen passen vorbei und behalten das 403 der Route.
 // Wer hinein darf, regelt hatRedaktionszugang (website/seiten.ts), das Recht am einzelnen Objekt bearbeiten.ts.
 export function erstelleRedaktionRouten({
   db,
@@ -23,6 +28,18 @@ export function erstelleRedaktionRouten({
 }) {
   return new Hono<{ Variables: { person: Person } }>()
     .use(zweiterFaktorPflicht)
+    .use(async (c, next) => {
+      const person = c.get("person");
+      if (!person.zweiterFaktor && (await hatErweitertesRecht(db, person))) {
+        return c.json(
+          zweiterFaktorFehlt(
+            "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+          ),
+          403,
+        );
+      }
+      await next();
+    })
     .route("/ich", erstelleRedaktionIchRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db }))
