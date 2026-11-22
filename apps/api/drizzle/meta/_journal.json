@@ -479,6 +479,13 @@
       "breakpoints": true
     },
     {
+      "idx": 96,
+      "version": "7",
+      "when": 1793552995000,
+      "tag": "0096_lager_protokolle",
+      "breakpoints": true
+    },
+    {
       "idx": 97,
       "version": "7",
       "when": 1793552997000,

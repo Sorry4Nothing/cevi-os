@@ -33,7 +33,7 @@ export async function darfVorschlagen(db: Db, person: Person) {
 // eslint-disable-next-line no-control-regex
 const EINZEILIG = /^[^\u0000-\u001F\u007F]*$/;
 // eslint-disable-next-line no-control-regex
-const MEHRZEILIG = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/;
+export const MEHRZEILIG = /^[^\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]*$/;
 // Leer heisst «nicht gesetzt» und wird null
 const leerZuNull = (v: unknown) =>
   typeof v === "string" && v.trim() === "" ? null : v;

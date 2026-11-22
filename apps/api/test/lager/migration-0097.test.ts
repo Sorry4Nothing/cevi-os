@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0097 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0095 migrieren (was davon im Journal steht), dann 0097 durch den echten Migrator, dann der Rückweg
+// 0097 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0096 migrieren (was davon im Journal steht), dann 0097 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig389_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -48,7 +48,7 @@ beforeAll(async () => {
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
   ordnerBauen(bisVorher, 96);
-  ordnerBauen(komplett, 96);
+  ordnerBauen(komplett, 97);
 });
 
 afterAll(async () => {
