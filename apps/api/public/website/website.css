@@ -45,6 +45,22 @@
   --r-md: 1rem;
   --r-full: 9999px;
   --schatten: 0 8px 24px rgb(20 20 60 / 16%);
+  /* Gestaltung (#555): Titel, Karten und die sechs Töne der Stufen */
+  --titel: #013974;
+  --karte: #ffffff;
+  --schatten-karte:
+    0 1px 2px rgb(20 20 60 / 8%), 0 8px 24px rgb(20 20 60 / 8%),
+    0 0 0 1px rgb(20 40 80 / 5%);
+  --schatten-karte-hoch:
+    0 2px 4px rgb(20 20 60 / 10%), 0 16px 36px rgb(20 20 60 / 16%),
+    0 0 0 1px rgb(20 40 80 / 8%);
+  --rand: clamp(1rem, 4vw, 4.5rem);
+  --stufe-1: #013974;
+  --stufe-2: #d50038;
+  --stufe-3: #1d6274;
+  --stufe-4: #8a5a00;
+  --stufe-5: #17703a;
+  --stufe-6: #9e1b2c;
   --schrift:
     Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans",
     sans-serif;
@@ -76,6 +92,12 @@
     --focus: #9dc0ea;
     --skeleton: #2a2a27;
     --skeleton-highlight: #363632;
+    --titel: #f3f3ef;
+    --karte: #252523;
+    --schatten-karte:
+      0 8px 24px rgb(0 0 0 / 40%), 0 0 0 1px var(--outline-variant);
+    --schatten-karte-hoch:
+      0 16px 36px rgb(0 0 0 / 55%), 0 0 0 1px var(--outline);
   }
 
   /* In der Nacht sind Titel hell: Rot als Text ist dort nur für Links und die Marke */
@@ -109,6 +131,11 @@
   --focus: #9dc0ea;
   --skeleton: #2a2a27;
   --skeleton-highlight: #363632;
+  --titel: #f3f3ef;
+  --karte: #252523;
+  --schatten-karte:
+    0 8px 24px rgb(0 0 0 / 40%), 0 0 0 1px var(--outline-variant);
+  --schatten-karte-hoch: 0 16px 36px rgb(0 0 0 / 55%), 0 0 0 1px var(--outline);
 }
 
 :where(:root[data-theme="dark"]) h1,
@@ -202,7 +229,7 @@ ol {
 }
 
 h1 {
-  color: var(--primary-text);
+  color: var(--titel);
   font-size: 3rem;
   line-height: 3.375rem;
   font-weight: 700;
@@ -210,7 +237,7 @@ h1 {
 }
 
 h2 {
-  color: var(--primary-text);
+  color: var(--titel);
   font-size: 1.875rem;
   line-height: 2.25rem;
   font-weight: 700;
@@ -311,10 +338,11 @@ figcaption,
   top: 0.5rem;
 }
 
+/* Fliessende Spalte (#555): der Rand wächst mit dem Fenster, das Maximum liegt bei 1680 px; Fliesstext bleibt über .lesetext auf 70 Zeichen */
 .wrap {
-  max-width: 76rem;
+  max-width: 105rem;
   margin: 0 auto;
-  padding: 0 3rem;
+  padding: 0 var(--rand);
 }
 
 .kopf {
@@ -498,8 +526,7 @@ figcaption,
 }
 
 .fuss {
-  margin-top: 6rem;
-  padding: 3rem 0 2.5rem;
+  padding: clamp(2.5rem, 5vw, 4rem) 0 2rem;
   background: var(--secondary);
   color: var(--on-secondary);
 }
@@ -510,24 +537,6 @@ figcaption,
 
 .fuss :focus-visible {
   outline-color: var(--on-secondary);
-}
-
-.fuss-in {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 2rem;
-}
-
-.fuss strong {
-  display: block;
-  font-size: 1.25rem;
-  line-height: 1.75rem;
-  font-weight: 800;
-}
-
-.fuss .klein {
-  margin-top: 1.5rem;
-  color: var(--on-secondary-muted);
 }
 
 /* ===== Seiten ===== */
@@ -600,75 +609,6 @@ figcaption,
   gap: 1.5rem;
 }
 
-/* Startseite: Foto und blaue Box */
-.teaser {
-  display: grid;
-  margin-top: 3rem;
-  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  margin-bottom: 1.5rem;
-}
-
-.teaser--allein {
-  grid-template-columns: 1fr;
-}
-
-.teaser figure {
-  min-height: 22.5rem;
-  background: var(--surface-container-high);
-}
-
-.teaser figure img {
-  width: 100%;
-  height: 100%;
-  min-height: 22.5rem;
-  object-fit: cover;
-  border-radius: 0;
-}
-
-.teaser .box {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.25rem;
-  padding: 2.5rem;
-  background: var(--secondary);
-  color: var(--on-secondary);
-}
-
-.teaser .box .kicker,
-.teaser .box p {
-  color: var(--on-secondary-muted);
-}
-
-.teaser .box p {
-  font-size: 1.125rem;
-  line-height: 1.75rem;
-}
-
-.teaser .box h1 {
-  color: var(--on-secondary);
-  font-size: 2.5rem;
-  line-height: 2.875rem;
-}
-
-.teaser .box a:not(.btn) {
-  color: var(--on-secondary);
-}
-
-.teaser .box :focus-visible {
-  outline-color: var(--on-secondary);
-}
-
-.teaser .btn.s {
-  border-color: var(--on-secondary-muted);
-  color: var(--on-secondary);
-}
-
-.teaser .btn.s:hover {
-  background: var(--on-secondary);
-  color: var(--secondary);
-}
-
 /* ===== Bausteine ===== */
 figure img {
   border-radius: var(--r-sm);
@@ -693,7 +633,7 @@ figcaption {
 }
 
 .karten {
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
 }
 
 .liste {
@@ -703,17 +643,6 @@ figcaption {
 .karte {
   padding: 1.5rem;
   border: 1px solid var(--outline-variant);
-  border-radius: var(--r-sm);
-  background: var(--surface-container-low);
-}
-
-.karten > li {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.5rem;
-  border: 1px solid var(--outline-variant);
-  border-top: 4px solid var(--primary);
   border-radius: var(--r-sm);
   background: var(--surface-container-low);
 }
@@ -732,8 +661,24 @@ figcaption {
   font-weight: 700;
 }
 
-a.mehr::before {
-  content: "» ";
+a.mehr {
+  font-weight: 700;
+  text-decoration: none;
+}
+
+a.mehr:hover {
+  text-decoration: underline;
+}
+
+a.mehr::after {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.5em;
+  margin-left: 0.4em;
+  border-top: 2px solid currentcolor;
+  border-right: 2px solid currentcolor;
+  content: "";
+  transform: rotate(45deg);
 }
 
 .datei {
@@ -1358,10 +1303,6 @@ a.termin:hover {
 
 /* ===== Mittel und schmal ===== */
 @media (max-width: 64em) {
-  .wrap {
-    padding: 0 1.5rem;
-  }
-
   .zweispalten {
     grid-template-columns: minmax(0, 1fr) 20rem;
     gap: 2rem;
@@ -1371,10 +1312,6 @@ a.termin:hover {
 @media (max-width: 47.5em) {
   body {
     font-size: 1.0625rem;
-  }
-
-  .wrap {
-    padding: 0 1.25rem;
   }
 
   h1 {
@@ -1426,16 +1363,6 @@ a.termin:hover {
     display: none;
   }
 
-  .fuss {
-    margin-top: 4rem;
-    padding: 2rem 0;
-  }
-
-  .fuss-in {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-  }
-
   .seitenkopf {
     padding: 2rem 0 1.5rem;
   }
@@ -1455,25 +1382,6 @@ a.termin:hover {
   .zweispalten {
     grid-template-columns: 1fr;
     gap: 2rem;
-  }
-
-  .teaser {
-    grid-template-columns: 1fr;
-    margin-top: 1.5rem;
-  }
-
-  .teaser figure,
-  .teaser figure img {
-    min-height: 12.5rem;
-  }
-
-  .teaser .box {
-    padding: 1.5rem 1.25rem;
-  }
-
-  .teaser .box h1 {
-    font-size: 1.875rem;
-    line-height: 2.25rem;
   }
 
   .karten {
@@ -1753,28 +1661,6 @@ a.termin:hover {
 
 /* ===== Darstellung nach dem Design angleichen (#549) ===== */
 
-/* Titelbild über die ganze Breite (Startseite, Design W1): steht in main, ausserhalb der Spalte */
-.titelbild {
-  margin: 0;
-  background: var(--surface-container-high);
-}
-
-.titelbild img {
-  width: 100%;
-  height: 26.25rem;
-  object-fit: cover;
-  border-radius: 0;
-}
-
-.titelbild figcaption {
-  margin: 0;
-  padding: 0.5rem 3rem;
-}
-
-.teaser {
-  margin-bottom: 2.5rem;
-}
-
 /* Navigation: eine Zeile; Untermenüs öffnen sich bei Hover und Fokus, «Mehr» ist ein details-Element */
 .hauptnav > ul {
   flex-wrap: nowrap;
@@ -1888,11 +1774,7 @@ a.termin:hover {
   }
 }
 
-/* Stufenkarten (Baustein «Karten»): Name, Text und «» Mehr zu …» */
-.karten {
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
-}
-
+/* Karten (Baustein «Karten», Darstellung «Karten») */
 .karten h2.titel,
 .karten h3.titel {
   color: var(--on-surface);
@@ -1938,65 +1820,14 @@ div.termin {
   color: var(--on-surface);
 }
 
-/* Kontaktkarte: Frage und Ansprechperson links, Telefon und E-Mail rechts */
-.kontaktband {
-  margin-top: 1.5rem;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 1.5rem;
-  align-items: center;
-  padding: 1.5rem 1.75rem;
-}
-
-.kontaktband .leise {
-  margin-top: 0.5rem;
-}
-
-.kontaktband .wege a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-}
-
-/* Fuss: drei Spalten */
-.fuss-in {
-  grid-template-columns: 2fr 1fr 1fr;
-}
-
-.fuss p {
-  margin: 0;
-}
-
-.fuss a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-}
-
 @media (max-width: 47.5em) {
-  .titelbild img {
-    height: 13.75rem;
-  }
-
-  .titelbild figcaption {
-    padding: 0.5rem 1.25rem;
-  }
-
-  .kontaktband,
-  .karten,
-  .fuss-in {
+  .karten {
     grid-template-columns: 1fr;
   }
 
   .galerie {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
-  }
-}
-
-@media (max-width: 64em) {
-  .titelbild figcaption {
-    padding: 0.5rem 1.5rem;
   }
 }
 
@@ -2012,5 +1843,725 @@ div.termin {
 
   .leiste .unter {
     border-color: CanvasText;
+  }
+}
+
+/* ===== Gestaltung der Seiten (#555): Abschnitte über die ganze Breite, Kartenarten, Fuss ===== */
+
+/* Abschnitte: durchgehender Hintergrund, Inhalt in der fliessenden Spalte. Fläche und Tönung wechseln sich ab */
+.sektion {
+  padding-block: clamp(3rem, 2rem + 4vw, 6rem);
+}
+
+.sektion--flaeche {
+  background: var(--surface-container-low);
+}
+
+.sektion--toenung {
+  background: var(--surface);
+}
+
+.sektion-rumpf {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sektion-rumpf > h3 {
+  margin-top: 1rem;
+}
+
+.sektion-kopf {
+  max-width: 56rem;
+  margin-bottom: 2rem;
+}
+
+.sektion-kopf h2,
+.seitenband h1 {
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+
+.sektion-kopf h2 {
+  font-size: clamp(1.75rem, 1.25rem + 1.6vw, 2.75rem);
+  line-height: 1.15;
+}
+
+.sektion-kopf .text {
+  margin-top: 0.75rem;
+  color: var(--on-surface-variant);
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+/* Abschnitt aus Text: Titel links, Text rechts; ohne Titel nimmt der Text die ganze Spalte */
+@media (min-width: 64.0625em) {
+  .sektion--text > .wrap {
+    display: grid;
+    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2.2fr);
+    gap: 2rem clamp(3rem, 6vw, 6rem);
+    align-items: start;
+  }
+
+  .sektion--text .sektion-kopf {
+    margin-bottom: 0;
+  }
+
+  .sektion--text .sektion-rumpf:only-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.seitenband {
+  padding-block: clamp(2rem, 1rem + 3.5vw, 4rem);
+  background: var(--surface);
+}
+
+.seitenband h1 {
+  font-size: clamp(2rem, 1.4rem + 2.4vw, 3.5rem);
+  line-height: 1.1;
+}
+
+/* Hero: das Titelbild bis zum Fensterrand, das blaue Feld überlappt es von unten */
+.titelbild {
+  margin: 0;
+  background: var(--surface-container-high);
+}
+
+.titelbild img {
+  width: 100%;
+  height: clamp(15rem, 34vw, 34rem);
+  object-fit: cover;
+  object-position: 50% 30%;
+  border-radius: 0;
+}
+
+.titelbild figcaption {
+  margin: 0;
+  padding: 0.5rem var(--rand);
+}
+
+.hero {
+  position: relative;
+}
+
+.hero .titelbild figcaption {
+  position: absolute;
+  top: 0.75rem;
+  right: var(--rand);
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--r-sm);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.teaser {
+  position: relative;
+  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);
+}
+
+.teaser--ueber-bild {
+  margin-top: clamp(-7rem, -7vw, -3rem);
+  padding-top: 0;
+}
+
+.teaser .box {
+  display: grid;
+  gap: 1.5rem clamp(2rem, 5vw, 5rem);
+  align-items: center;
+  padding: clamp(1.5rem, 1rem + 2.5vw, 3.5rem);
+  border-radius: var(--r-md);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  box-shadow: var(--schatten);
+}
+
+.teaser-kopf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.teaser-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.teaser .kicker,
+.teaser-text p {
+  color: var(--on-secondary-muted);
+}
+
+.teaser-text p {
+  font-size: 1.1875rem;
+  line-height: 1.7;
+}
+
+.teaser .box h1 {
+  color: var(--on-secondary);
+  font-size: clamp(2rem, 1.3rem + 2.8vw, 3.75rem);
+  line-height: 1.08;
+  font-weight: 800;
+}
+
+.teaser .box a:not(.btn) {
+  color: var(--on-secondary);
+}
+
+.teaser .box :focus-visible {
+  outline-color: var(--on-secondary);
+}
+
+.teaser .btn.s {
+  border-color: var(--on-secondary-muted);
+  color: var(--on-secondary);
+}
+
+.teaser .btn.s:hover {
+  background: var(--on-secondary);
+  color: var(--secondary);
+}
+
+@media (min-width: 64.0625em) {
+  .teaser .box {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Hinweisband: ein Streifen über die ganze Breite */
+.sektion--hinweis {
+  padding-block: 0;
+  background: var(--secondary-container);
+}
+
+.hinweisband {
+  align-items: center;
+  padding: 0.75rem 0;
+  border-radius: 0;
+  background: none;
+}
+
+.hinweisband .text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 1.5rem;
+}
+
+.hinweisband .text strong {
+  display: inline;
+}
+
+.hinweisband .hinweis-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-weight: 700;
+}
+
+/* Merkmale: Symbol, Titel und Text ohne Kachel und ohne Link */
+.merkmale {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: 2.5rem clamp(1.5rem, 3vw, 3rem);
+}
+
+.merkmale li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.merkmal-symbol {
+  display: inline-flex;
+  margin-bottom: 0.5rem;
+  color: var(--primary-text);
+}
+
+.merkmal-symbol .i {
+  width: 3rem;
+  height: 3rem;
+  stroke-width: 1.5;
+}
+
+.merkmale .titel {
+  color: var(--on-surface);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+}
+
+.merkmale p {
+  max-width: 34ch;
+  color: var(--on-surface-variant);
+}
+
+/* Stufenkarten: Foto oben mit Alterschip, ein Link auf die ganze Karte. Jede Stufe hat ihren Ton (--akzent); der Chip nennt das Alter, die Farbe allein sagt nichts */
+.stufenkarten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: clamp(1rem, 2vw, 1.75rem);
+}
+
+.stufe {
+  --akzent: var(--stufe-1);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+.stufe:nth-child(6n + 2) {
+  --akzent: var(--stufe-2);
+}
+
+.stufe:nth-child(6n + 3) {
+  --akzent: var(--stufe-3);
+}
+
+.stufe:nth-child(6n + 4) {
+  --akzent: var(--stufe-4);
+}
+
+.stufe:nth-child(6n + 5) {
+  --akzent: var(--stufe-5);
+}
+
+.stufe:nth-child(6n + 6) {
+  --akzent: var(--stufe-6);
+}
+
+.stufe-bild {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-bottom: 4px solid var(--akzent);
+  background: var(--surface-container-high);
+}
+
+.stufe-bild--leer {
+  background: var(--akzent);
+}
+
+.stufe-bild img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 30%;
+  border-radius: 0;
+}
+
+.alterschip {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  max-width: calc(100% - 1.5rem);
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--r-full);
+  background: var(--akzent);
+  color: var(--on-primary);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+}
+
+.stufe-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+.stufenkarten .titel {
+  color: var(--on-surface);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+}
+
+.stufe-text p {
+  color: var(--on-surface-variant);
+}
+
+.stufe .titel a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Der Link deckt die ganze Karte ab; den Fokus zeigt die Karte, nicht nur der Titel */
+.stufe .titel a::after {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  content: "";
+}
+
+.stufe .titel a:focus-visible {
+  outline: none;
+}
+
+.stufe:has(.titel a:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+.stufe-pfeil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin-top: auto;
+  margin-left: auto;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+}
+
+.stufe--link:hover {
+  box-shadow: var(--schatten-karte-hoch);
+}
+
+.stufe--link:hover .stufe-pfeil {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+@media (min-width: 64.0625em) {
+  .stufenkarten:has(> :nth-child(6):last-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .stufenkarten:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 112em) {
+  .stufenkarten:has(> :nth-child(6):last-child) {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .stufe {
+    transition:
+      transform 0.2s ease-out,
+      box-shadow 0.2s ease-out;
+  }
+
+  .stufe--link:hover {
+    transform: translateY(-4px);
+  }
+}
+
+/* Karten, Liste, Fakten und Dateien: weicher Schatten statt Rahmen */
+.karten > li,
+.liste > li,
+.fakten.karte,
+.datei.karte {
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+/* Aufruf zum Handeln: ein Band in der Hauptfarbe über die ganze Breite */
+.sektion--aufruf {
+  padding-block: clamp(2.5rem, 1.5rem + 4vw, 4.5rem);
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.aufruf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem 3rem;
+}
+
+.aufruf-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 52rem;
+}
+
+.aufruf h2 {
+  color: var(--on-primary);
+  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 3rem);
+  line-height: 1.12;
+  font-weight: 800;
+}
+
+.aufruf p {
+  font-size: 1.25rem;
+  line-height: 1.6;
+}
+
+.sektion--aufruf :focus-visible {
+  outline-color: var(--on-primary);
+}
+
+.btn.w {
+  background: var(--on-primary);
+  color: var(--primary);
+}
+
+a.btn.w {
+  color: var(--primary);
+}
+
+.btn.w:hover {
+  box-shadow: var(--schatten);
+}
+
+/* Termin-Liste: Titel links, die Liste als eine Tafel rechts; am Handy Zeile unter Zeile */
+.sektion--terminliste .abschnitt {
+  display: grid;
+  gap: 1.5rem clamp(2rem, 5vw, 5rem);
+  align-items: start;
+  margin-top: 0;
+}
+
+.sektion--terminliste .abschnitt-kopf {
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 0;
+}
+
+.sektion--terminliste .abschnitt-kopf h2 {
+  font-size: clamp(1.75rem, 1.25rem + 1.6vw, 2.75rem);
+  line-height: 1.15;
+  font-weight: 800;
+}
+
+.sektion--terminliste .termine {
+  gap: 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+.sektion--terminliste .termine > li + li {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.sektion--terminliste .termin {
+  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.sektion--terminliste a.termin:hover {
+  background: var(--surface-container);
+}
+
+.sektion--terminliste a.termin:focus-visible {
+  outline-offset: -3px;
+}
+
+.termin-pfeil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--on-surface-variant);
+}
+
+a.termin:hover .termin-pfeil {
+  color: var(--on-surface);
+}
+
+.sektion--terminliste .zustand {
+  border: 0;
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+@media (min-width: 64.0625em) {
+  .sektion--terminliste .abschnitt {
+    grid-template-columns: minmax(14rem, 1fr) minmax(0, 2.4fr);
+  }
+}
+
+/* Kontaktkarte: Frage links, Telefon und E-Mail als grosse Flächen rechts */
+.kontaktkarte {
+  display: grid;
+  gap: 1.5rem clamp(2rem, 4vw, 4rem);
+  align-items: center;
+  padding: clamp(1.5rem, 1rem + 2.5vw, 3.5rem);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+.kontakt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.kontaktkarte h2 {
+  font-size: clamp(1.5rem, 1.1rem + 1.5vw, 2.25rem);
+  line-height: 1.2;
+  font-weight: 800;
+}
+
+.wege {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: 1rem;
+}
+
+.weg {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.5rem;
+  padding: 1rem 1.5rem;
+  border-radius: var(--r-md);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  text-decoration: none;
+}
+
+.weg .i {
+  width: 2rem;
+  height: 2rem;
+}
+
+.weg-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.weg-art {
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.weg-wert {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.weg:hover {
+  background: color-mix(in srgb, var(--secondary), var(--on-secondary) 12%);
+}
+
+.weg:focus-visible {
+  outline-offset: 3px;
+}
+
+@media (min-width: 64.0625em) {
+  .kontaktkarte {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  }
+}
+
+/* Galerie: Raster mit festem Seitenverhältnis, die Fläche steht schon vor dem Bild */
+.galerie {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+.galerie img {
+  border-radius: var(--r-md);
+}
+
+/* Fuss: Name und Adresse, Seiten, Kontakt und Rechtliches in Spalten */
+.fuss-in {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 2rem clamp(2rem, 4vw, 4rem);
+}
+
+.fuss-name {
+  min-width: 0;
+}
+
+.fuss-spalte h2 {
+  margin-bottom: 0.5rem;
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+}
+
+.fuss strong {
+  display: block;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+}
+
+.fuss p {
+  margin: 0;
+}
+
+.fuss .klein {
+  margin-top: 2rem;
+  color: var(--on-secondary-muted);
+}
+
+.fuss a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.fuss a:hover {
+  text-decoration: underline;
+}
+
+@media (min-width: 64.0625em) {
+  .fuss-in {
+    grid-template-columns: 1.6fr repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 47.5em) {
+  .sektion--terminliste .termin {
+    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+    gap: 0.75rem;
+    padding: 0.875rem 1rem;
+  }
+
+  .stufenkarten,
+  .merkmale {
+    grid-template-columns: 1fr;
+  }
+
+  .teaser--ueber-bild {
+    margin-top: -2rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .stufe,
+  .kontaktkarte,
+  .weg,
+  .teaser .box,
+  .sektion--terminliste .termine,
+  .alterschip {
+    border: 1px solid CanvasText;
   }
 }
