@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, medium } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht } from "../../plattform.js";
+import { hatPlattformRecht, istEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
@@ -29,36 +29,38 @@ const FEHLER = {
     "Das Logo erscheint im Kopf jeder Seite und muss ein öffentliches Bild sein.",
 } as const;
 
-// Einstellungen der Website für die ganze Abteilung. Das Recht «Seiten veröffentlichen» genügt für das Logo; den Namen der Abteilung ändert nur die Abteilungsleitung, denn er steht auch in der App
+// Einstellungen der Website für die ganze Abteilung. Das Recht «Seiten veröffentlichen» genügt für das Logo; den Namen der Abteilung ändert nur der Entwickler (auch nicht die Abteilungsleitung), denn er steht auch in der App
 export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
   const pruefeRecht = async (person: Person) => {
     if (!(await hatPlattformRecht(db, person, "seiten.veroeffentlichen"))) {
       throw new HTTPException(403);
     }
   };
-  const lese = async (abteilungId: string) => {
+  const lese = async (person: Person) => {
     const [z] = await db
       .select({
         name: abteilung.name,
         logoMediumId: abteilung.websiteLogoMediumId,
       })
       .from(abteilung)
-      .where(eq(abteilung.id, abteilungId));
+      .where(eq(abteilung.id, person.abteilungId));
     if (!z) throw new HTTPException(404);
-    return z;
+    return { ...z, nameAenderbar: await istEntwickler(db, person) };
   };
 
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
       await pruefeRecht(person);
-      return c.json(await lese(person.abteilungId));
+      return c.json(await lese(person));
     })
     .patch("/", eingabe("json", aendernSchema), async (c) => {
       const person = c.get("person");
       await pruefeRecht(person);
       const f = c.req.valid("json");
-      if (f.name !== undefined && !person.admin) throw new HTTPException(403);
+      if (f.name !== undefined && !(await istEntwickler(db, person))) {
+        throw new HTTPException(403);
+      }
 
       const fehler = await db.transaction(async (tx) => {
         if (f.logoMediumId) {
@@ -110,6 +112,6 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
         art: "einstellungen_geaendert",
         abteilungId: person.abteilungId,
       });
-      return c.json(await lese(person.abteilungId));
+      return c.json(await lese(person));
     });
 }

@@ -38,7 +38,7 @@ export function zeige(bereich, ctx) {
 }
 
 function zeichne(bereich, ctx, stand) {
-  const istAdmin = ctx.ich?.role === "admin";
+  const darfName = stand.nameAenderbar === true;
   // logoMediumId: was gespeichert werden soll; null = kein Logo
   let logo = stand.logoMediumId;
   const meldung = el("div");
@@ -49,10 +49,10 @@ function zeichne(bereich, ctx, stand) {
     maxlength: MAX_NAME,
     autocomplete: "off",
     required: true,
-    disabled: !istAdmin,
-    hilfe: istAdmin
+    disabled: !darfName,
+    hilfe: darfName
       ? "Erscheint im Kopf und im Fuss der Website und in der App."
-      : "Erscheint im Kopf und im Fuss der Website. Den Namen ändert die Abteilungsleitung.",
+      : "Erscheint im Kopf und im Fuss der Website. Den Namen ändert nur der Entwickler.",
   });
 
   const vorschau = el("div", { class: "ws-logo" });
@@ -125,13 +125,13 @@ function zeichne(bereich, ctx, stand) {
     e.preventDefault();
     meldung.replaceChildren();
     const neuerName = name.eingabe.value.trim();
-    if (istAdmin && neuerName === "") {
+    if (darfName && neuerName === "") {
       meldung.append(band("fehler", "Der Name der Abteilung fehlt."));
       name.eingabe.focus();
       return;
     }
     const aenderung = {
-      ...(istAdmin && neuerName !== stand.name && { name: neuerName }),
+      ...(darfName && neuerName !== stand.name && { name: neuerName }),
       ...(logo !== stand.logoMediumId && { logoMediumId: logo }),
     };
     if (Object.keys(aenderung).length === 0) {
