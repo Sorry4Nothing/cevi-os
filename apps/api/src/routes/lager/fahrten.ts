@@ -28,7 +28,7 @@ import {
   aendereZeile,
   legeZeileAn,
   loescheZeile,
-  setzeZeilen,
+  loescheZeilen,
   type Tx,
 } from "../../lager/sync.js";
 
@@ -299,10 +299,8 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
                   isNull(fahrtMitfahrer.geloeschtAm),
                 ),
               );
-            await setzeZeilen(tx, fahrtMitfahrer, k, {
+            await loescheZeilen(tx, fahrtMitfahrer, k, {
               ids: mit.map((m) => m.id),
-              werte: {},
-              loeschen: true,
             });
           });
           return c.body(null, 204);
