@@ -46,6 +46,7 @@ import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
+import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -222,6 +223,8 @@ export function erstelleApp({
         await next();
       })
       .route("/", erstelleAuthRouten(auth))
+      // ICS-Feed der Termine (#438): der geheime Token im Pfad ersetzt die Sitzung, darum vor ihr und ausserhalb von /api/v1
+      .route("/", erstelleIcalRoute({ db }))
       // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
       .use("/api/v1/*", async (c, next) => {
         const herkunft = c.req.header("Origin");
