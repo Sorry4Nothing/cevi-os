@@ -27,6 +27,7 @@ import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
+import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // Die Aufgaben-Details stehen vor den Aufgaben: «/aufgaben/duplikate» wäre dort eine Aufgaben-ID
@@ -57,5 +58,6 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleInfosRouten({ db }))
     .route("/", erstelleEinkaufRouten({ db }))
     .route("/", erstelleTodoRouten({ db }))
-    .route("/", erstelleVorlagenAnwendenRouten({ db }));
+    .route("/", erstelleVorlagenAnwendenRouten({ db }))
+    .route("/", erstelleZeitplanRouten({ db, fcm }));
 }

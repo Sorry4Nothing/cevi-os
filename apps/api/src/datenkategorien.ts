@@ -621,6 +621,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "notiz",
       "frist",
+      "frist_meilenstein_id",
+      "frist_versatz_tage",
       "stern",
       "laufend",
       "spaeter_ab",
@@ -633,6 +635,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Zeitplan (#374): Termine und Bezeichnungen des Lagers, keine Personendaten ausser den Spalten der Basis
+  meilenstein: {
+    lager: [...LAGER_BASIS_SPALTEN, "titel", "datum", "art"],
+  },
+  lagertag: {
+    lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  tagesabschnitt: {
+    lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],
   },
   // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
   aufgabe_checkpunkt: {
