@@ -1,6 +1,5 @@
 import type { TermineMatrix, TermineModulDatei } from "../matrix.js";
 import { legeProgrammAn } from "../../hilfen/programme.js";
-import * as schema from "../../../src/db/schema.js";
 
 // Matrix-Zeilen von TB1 (#435): «Mein Kalender» für die Apps. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
 // Die Liste antwortet jeder angemeldeten Person mit 200 (auch leer); wer keinen Tag hat, sieht nichts, auch die Abteilungsleitung. Das Detail trägt einen Termin mit dem Tag der Stufe A: wer ihn nicht sieht, bekommt 404 (nie 403)
@@ -10,13 +9,10 @@ export const VORBEREITUNG: NonNullable<
   const termin = await legeProgrammAn(welt.db, {
     abteilungId: welt.testabteilungId,
     sichtbarkeit: "eltern",
-    // Auch die Stufenzuordnung des Kalenders: Ohne sie gälte der Termin in den Sichtbarkeitsregeln der Programme (programm_stufe_wirksam) für alle Stufen und das Profilbild von SL der Stufe A wäre in der Rechte-Matrix jeder Stufe sichtbar
+    // Der Termin trägt den Tag der Stufe A (legeProgrammAn setzt programm_tag)
     stufen: [welt.stufeAId],
     titel: "Matrix-Termin",
   });
-  await welt.db
-    .insert(schema.programmTag)
-    .values({ programmId: termin.id, tagId: welt.stufeAId });
   return { terminId: termin.id };
 };
 

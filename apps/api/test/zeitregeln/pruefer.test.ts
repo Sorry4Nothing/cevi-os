@@ -380,7 +380,7 @@ describe("Erinnerungen", () => {
     expect(w.empfaenger()).toEqual(["a", "b", "b"]);
   });
 
-  test("ein Programm ohne Stufe erinnert die Eltern aller Stufen", async () => {
+  test("ein Programm ohne Stufen-Tag erinnert niemanden (#449)", async () => {
     const w = await neueWelt();
     const a = await w.elternteil("a");
     const b = await w.elternteil("b");
@@ -389,7 +389,7 @@ describe("Erinnerungen", () => {
     await w.programm({ stufen: [] });
     await w.regel({ stufeId: null });
     await lauf(AUSLOESUNG);
-    expect(w.empfaenger()).toEqual(["a", "b"]);
+    expect(w.empfaenger()).toEqual([]);
   });
 
   test("keine Erinnerung für interne, nur für Leitende sichtbare, abgesagte oder begonnene Programme, ausgeschaltete Regeln und fremde Abteilungen", async () => {

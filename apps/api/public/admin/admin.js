@@ -2,7 +2,6 @@ import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
 import * as anwesenheit from "./anwesenheit.js";
 import * as importieren from "./import.js";
-import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
 import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
@@ -62,18 +61,11 @@ const BEREICHE = [
     "Push-Mitteilung an Eltern und Leitende senden.",
   ],
   [
-    "kalender",
-    "Kalender",
-    kalender,
-    "kalender",
-    "Anstehende Programme und ihre Stufen.",
-  ],
-  [
     "termine",
     "Termine",
     termine,
     "termine",
-    "Kategorien, Vorschläge, Anlässe und Räume der Termine.",
+    "Termine ohne Kategorie, Zuordnung der Kategorien zu Tags, Vorschläge, Anlässe und Räume.",
   ],
   [
     "website",

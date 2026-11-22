@@ -452,7 +452,7 @@ describe("Bezug auf ein Programm", () => {
     expect(nachrichten).toEqual([]);
   });
 
-  test("ein Programm ohne Stufe gilt für alle Stufen und ist als Bezug erlaubt", async () => {
+  test("ein Programm ohne Stufen-Tag gilt für keine Stufe und ist kein Bezug (#449)", async () => {
     const eltern = await person("elternA");
     const p = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
@@ -462,7 +462,7 @@ describe("Bezug auf ein Programm", () => {
       text: "Hallo",
       programmId: p.id,
     });
-    expect(antwort.status).toBe(201);
+    expect(antwort.status).toBe(400);
   });
 });
 

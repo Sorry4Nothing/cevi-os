@@ -195,9 +195,9 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
     expect(await zeilen(p.id)).toEqual([]);
   });
 
-  test("ein Programm ohne Stufe gilt für alle Stufen: SL meldet sich an, Admin ohne Rolle nicht", async () => {
+  test("ein Programm ohne Stufen-Tag gehört keiner Stufe: weder SL noch Admin können sich anmelden (#449)", async () => {
     const p = await frisch("eltern", []);
-    expect((await put(konten.slA, p.id, { status: "ja" })).status).toBe(204);
+    expect((await put(konten.slA, p.id, { status: "ja" })).status).toBe(403);
     expect((await put(konten.admin, p.id, { status: "ja" })).status).toBe(403);
   });
 

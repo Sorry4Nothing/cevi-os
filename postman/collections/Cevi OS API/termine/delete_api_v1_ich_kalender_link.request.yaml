@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/ich/kalender-link"
-order: 423000
+order: 421000
 method: DELETE
 url: "{{baseUrl}}/api/v1/ich/kalender-link"
 headers:

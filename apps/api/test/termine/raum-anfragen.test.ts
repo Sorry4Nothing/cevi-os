@@ -589,9 +589,12 @@ describe("Doppelbuchung: RAUM_BELEGT", () => {
 
   test("Concurrency: zwei gleichzeitige Bestätigungen überlappender Zeiten, genau eine gewinnt (5 Runden)", async () => {
     const raum = await neuerRaum();
+    // Eigene Personen: Die Verliererin bleibt offen und zählt sonst gegen die Obergrenze der Konten, die andere Tests teilen
+    const personA = await legePersonaAn(welt, "elternA");
+    const personB = await legePersonaAn(welt, "elternB");
     for (let runde = 0; runde < 5; runde++) {
-      const a = await fuegeEin(raum, konten.elternA.id!, zeit(20 + runde, 10));
-      const b = await fuegeEin(raum, konten.elternB.id!, zeit(20 + runde, 11));
+      const a = await fuegeEin(raum, personA.id!, zeit(20 + runde, 10));
+      const b = await fuegeEin(raum, personB.id!, zeit(20 + runde, 11));
       const antworten = await Promise.all([
         entscheide(leitungA, a),
         entscheide(leitungB, b),
@@ -616,7 +619,11 @@ describe("Doppelbuchung: RAUM_BELEGT", () => {
 
   test("Concurrency: ein gleichzeitiges Annehmen und Ablehnen derselben Anfrage ergibt einen Sieger", async () => {
     const raum = await neuerRaum();
-    const a = await fuegeEin(raum, konten.elternA.id!, zeit(30, 10));
+    const a = await fuegeEin(
+      raum,
+      (await legePersonaAn(welt, "elternA")).id!,
+      zeit(30, 10),
+    );
     const [x, y] = await Promise.all([
       entscheide(leitungA, a),
       entscheide(leitungB, a, { entscheid: "ablehnen", begruendung: "Nein." }),

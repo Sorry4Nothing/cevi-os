@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/traktanden/:traktandumId"
-order: 271000
+order: 269000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L114}}"
 headers:

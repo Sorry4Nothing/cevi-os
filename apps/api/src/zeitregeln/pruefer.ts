@@ -5,12 +5,12 @@ import {
   kind,
   kindEltern,
   programm,
-  programmStufeWirksam,
   teilnahme,
   user,
   zeitregel,
   zeitregelGesendet,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { fehlerCode } from "../kalender/fehler.js";
 import { log } from "../log.js";
 import { type Fcm, sendePush } from "../push.js";
@@ -64,10 +64,10 @@ export async function sendeFaelligeErinnerungen(
   if (regeln.length === 0) return;
   const stufenZeilen = await db
     .select()
-    .from(programmStufeWirksam)
+    .from(programmStufen)
     .where(
       inArray(
-        programmStufeWirksam.programmId,
+        programmStufen.programmId,
         programme.map((p) => p.id),
       ),
     );

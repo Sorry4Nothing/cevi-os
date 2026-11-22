@@ -13,11 +13,11 @@ import {
   chat,
   leitungAnmeldung,
   programm,
-  programmStufeWirksam,
   profilbild,
   rolle,
   user,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { eingabe } from "../eingabe.js";
 import { stufenMitKind } from "../kontakte.js";
 import {
@@ -95,14 +95,11 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   const [kontakt] = await db
     .select({ id: programm.id })
     .from(programm)
-    .innerJoin(
-      programmStufeWirksam,
-      eq(programmStufeWirksam.programmId, programm.id),
-    )
+    .innerJoin(programmStufen, eq(programmStufen.programmId, programm.id))
     .innerJoin(
       rolle,
       and(
-        eq(rolle.stufeId, programmStufeWirksam.stufeId),
+        eq(rolle.stufeId, programmStufen.stufeId),
         eq(rolle.userId, zielId),
         eq(rolle.typ, "stufenleitung"),
       ),

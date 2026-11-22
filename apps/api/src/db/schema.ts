@@ -9,7 +9,6 @@ import {
   integer,
   jsonb,
   pgTable,
-  pgView,
   primaryKey,
   text,
   timestamp,
@@ -393,26 +392,6 @@ export const programmEckdaten = pgTable(
     check("programm_eckdaten_quelle_check", sql`${t.quelle} = 'seite'`),
   ],
 );
-
-export const programmStufe = pgTable(
-  "programm_stufe",
-  {
-    programmId: uuid("programm_id")
-      .notNull()
-      .references(() => programm.id, { onDelete: "cascade" }),
-    stufeId: uuid("stufe_id")
-      .notNull()
-      .references(() => tag.id, { onDelete: "restrict" }),
-  },
-  (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
-);
-
-// Wirksame Stufen eines Programms: die zugeordneten, bei keiner Zuordnung alle Stufen der Abteilung (auch später angelegte).
-// Alle lesenden Abfragen nehmen diese Sicht; geschrieben wird nur programm_stufe. Die Sicht legt die Migration an
-export const programmStufeWirksam = pgView("programm_stufe_wirksam", {
-  programmId: uuid("programm_id").notNull(),
-  stufeId: uuid("stufe_id").notNull(),
-}).existing();
 
 // Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
 export const teilnahme = pgTable(

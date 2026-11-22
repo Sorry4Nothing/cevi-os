@@ -127,7 +127,7 @@ test("zweiter Lauf ohne Änderung schreibt programm_tag nicht an", async () => {
   expect(await markierung()).toEqual(vorher);
 });
 
-test("eine Abweichung in kategorie_zuordnung und ein umbenannter Tag wirken beim nächsten Lauf", async () => {
+test("eine Abweichung in kategorie_zuordnung wirkt beim nächsten Lauf; ein umbenannter Tag lässt Termine ohne zuordenbare Kategorie unberührt", async () => {
   stubKalender(ics, ics, ics);
   await lauf();
 
@@ -141,11 +141,13 @@ test("eine Abweichung in kategorie_zuordnung und ein umbenannter Tag wirken beim
   const vorher = await markierung();
   await lauf();
   const je = await tagsJeTermin();
-  expect(je["Eine Kategorie"]).toEqual([]);
-  expect(je["Unbekannte Kategorie"]).toEqual([]);
+  // Keine Kategorie der Termine «Eine Kategorie» und «Unbekannte Kategorie» ist mehr zuordenbar: Sie behalten ihre Zeilen (Übergangsregel #449)
+  expect(je["Eine Kategorie"]).toEqual(["Woelfe"]);
+  expect(je["Unbekannte Kategorie"]).toEqual(["Woelfe"]);
   expect(je["Maskiertes Komma"]).toEqual(["Pfadistufe"]);
-  // Die Zeile von «Maskiertes Komma» bleibt (nur Unterschiede), die Wolfsstufen-Zeilen sind weg
-  expect(vorher.length).toBeGreaterThan((await markierung()).length);
+  // «Mehrere Kategorien» hat mit Pfadistufe noch eine zuordenbare Kategorie: Sie gewinnt, der Tag Woelfe fällt weg
+  expect(je["Mehrere Kategorien"]).toEqual(["Pfadistufe"]);
+  expect((await markierung()).length).toBe(vorher.length - 1);
 
   // Die Abweichung bringt «Wolfsstufe» zum umbenannten Tag zurück
   await sql`insert into kategorie_zuordnung (abteilung_id, kategorie, tag_id) values (${abteilungId}, 'Wolfsstufe', ${tags.wolf})`;
@@ -153,7 +155,7 @@ test("eine Abweichung in kategorie_zuordnung und ein umbenannter Tag wirken beim
   expect((await tagsJeTermin())["Eine Kategorie"]).toEqual(["Woelfe"]);
 });
 
-test("entfällt die Kategorie im Kalender, entfällt der Tag; ein gelöschter Tag nimmt seine Zeilen mit", async () => {
+test("entfällt die Kategorie im Kalender, bleibt der Tag (Übergangsregel #449); ein gelöschter Tag nimmt seine Zeilen mit", async () => {
   const ohne = ics.replace(
     "SUMMARY:Eine Kategorie\nCATEGORIES:Wolfsstufe\n",
     "SUMMARY:Eine Kategorie\n",
@@ -163,7 +165,7 @@ test("entfällt die Kategorie im Kalender, entfällt der Tag; ein gelöschter Ta
   await lauf();
   expect((await tagsJeTermin())["Eine Kategorie"]).toEqual(["Wolfsstufe"]);
   await lauf();
-  expect((await tagsJeTermin())["Eine Kategorie"]).toEqual([]);
+  expect((await tagsJeTermin())["Eine Kategorie"]).toEqual(["Wolfsstufe"]);
   expect(
     (
       await sql`select kategorien from programm where abteilung_id = ${abteilungId} and titel = 'Eine Kategorie'`
@@ -179,4 +181,19 @@ test("ohne Tags in der Abteilung bleibt jeder Termin ohne Zeile in programm_tag"
   stubKalender(ics);
   await lauf();
   expect(await markierung()).toEqual([]);
+});
+
+test("ohne zuordenbare Kategorie bleiben die Tags eines Termins (auch aus der Migration 0126), mit zuordenbarer Kategorie gewinnen die Kategorien", async () => {
+  stubKalender(ics, ics);
+  await lauf();
+  const id = async (titel: string) =>
+    (
+      await sql`select id from programm where abteilung_id = ${abteilungId} and titel = ${titel}`
+    )[0].id as string;
+  // Wie nach der Migration: «Ohne Kategorie» trägt Pfadistufe, «Eine Kategorie» (Kategorie Wolfsstufe) trägt zusätzlich Pfadistufe
+  await sql`insert into programm_tag (programm_id, tag_id) values (${await id("Ohne Kategorie")}, ${tags.pfadi}), (${await id("Eine Kategorie")}, ${tags.pfadi})`;
+  await lauf();
+  const je = await tagsJeTermin();
+  expect(je["Ohne Kategorie"]).toEqual(["Pfadistufe"]);
+  expect(je["Eine Kategorie"]).toEqual(["Wolfsstufe"]);
 });

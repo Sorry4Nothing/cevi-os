@@ -8,7 +8,7 @@ import { eingabe } from "../../eingabe.js";
 import { TERMIN_BEGINN } from "../../termine/sicht.js";
 import type { TermineEnv } from "./index.js";
 
-// Warnliste «Termine ohne Kategorie» (#433, Epic #430): Welche kommenden Termine niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen. Nur die Abteilungsleitung (Admin mit zweitem Faktor, den der Pfad /api/v1/admin/* verlangt).
+// Warnliste «Termine ohne Kategorie» (#433, Epic #430): Welche kommenden Termine keinen Tag haben (keiner Gruppe zugewiesen), und welche Kategorien aus Outlook noch keinem Tag entsprechen. Nur die Abteilungsleitung (Admin mit zweitem Faktor, den der Pfad /api/v1/admin/* verlangt).
 // Abfragen je Aufruf: zwei, unabhängig von der Seitengrösse (die Seite der Termine, die Zusammenfassung der unbekannten Kategorien). Keine Abfrage je Zeile.
 
 const listeSchema = z.strictObject({

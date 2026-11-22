@@ -9,13 +9,13 @@ import {
   kind,
   leitungAnmeldung,
   programm,
-  programmStufeWirksam,
   rolle,
   stufe,
   stufenlogo,
   teilnahme,
   user,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { logoUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon, stufenMitKind } from "../kontakte.js";
@@ -86,10 +86,10 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
       })
       .from(programm)
       .innerJoin(
-        programmStufeWirksam,
+        programmStufen,
         and(
-          eq(programmStufeWirksam.programmId, programm.id),
-          eq(programmStufeWirksam.stufeId, stufeId),
+          eq(programmStufen.programmId, programm.id),
+          eq(programmStufen.stufeId, stufeId),
         ),
       )
       .where(
@@ -147,10 +147,10 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
             })
             .from(programm)
             .innerJoin(
-              programmStufeWirksam,
+              programmStufen,
               and(
-                eq(programmStufeWirksam.programmId, programm.id),
-                eq(programmStufeWirksam.stufeId, id),
+                eq(programmStufen.programmId, programm.id),
+                eq(programmStufen.stufeId, id),
               ),
             )
             .where(

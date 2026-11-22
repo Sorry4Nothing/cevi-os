@@ -111,7 +111,7 @@ const MIT_ALLEN = Object.fromEntries(
   NAMEN.filter((n) => n !== "demo").map((n) => [n, true]),
 ) as Partial<Record<Name, boolean>>;
 
-// Ohne Stufe («leitende», «eltern», «intern») gilt ein Programm für alle Stufen.
+// Ohne Stufen-Tag («leitende», «eltern», «intern») gilt ein Programm für keine Stufe: Es sehen nur Admins und SL (#449).
 // Die Liste lässt «intern» für alle weg (nur der Detailaufruf von Admins findet es); die Verwaltung holt sie mit alle=1.
 // Fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
@@ -124,32 +124,26 @@ const SICHT: Record<
   slA: MIT_ALLEN,
   slB: MIT_ALLEN,
   leitendeA: {
-    leitende: true,
-    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
   },
   leitendeB: {
-    leitende: true,
-    eltern: true,
     "leitende-B": true,
     "leitende-AB": true,
     "eltern-B": true,
     "eltern-AB": true,
   },
   leitendeAElternB: {
-    leitende: true,
-    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
     "eltern-B": false,
   },
-  elternA: { eltern: false, "eltern-A": false, "eltern-AB": false },
-  elternB: { eltern: false, "eltern-B": false, "eltern-AB": false },
+  elternA: { "eltern-A": false, "eltern-AB": false },
+  elternB: { "eltern-B": false, "eltern-AB": false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };

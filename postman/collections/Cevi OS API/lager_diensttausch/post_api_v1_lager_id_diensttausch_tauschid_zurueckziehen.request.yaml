@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/diensttausch/:tauschId/zurueckziehen"
-order: 217000
+order: 215000
 method: POST
 url: "{{baseUrl}}{{pfad_L59}}"
 headers:

@@ -176,13 +176,12 @@ const ids = async (programmId: string) =>
   (await programmKontakte(programmId, konten.admin)).kontakte.map((k) => k.id);
 
 describe("GET /api/v1/programme/:id/kontakte", () => {
-  test("ohne zugeordnete Stufe: die Kontakte aller Stufen, 200", async () => {
-    const alle = await frisch([welt.stufeAId, welt.stufeBId]);
+  test("ohne Stufen-Tag gilt das Programm für keine Stufe: keine Kontakte, 200 (#449)", async () => {
+    await frisch([welt.stufeAId, welt.stufeBId]);
     const p = await frisch([]);
     const r = await programmKontakte(p.id, konten.admin);
     expect(r.status).toBe(200);
-    expect(await ids(p.id)).toEqual(await ids(alle.id));
-    expect((await ids(p.id)).length).toBeGreaterThan(0);
+    expect(await ids(p.id)).toEqual([]);
   });
 
   test("ein Kontakt je Stufe: die erste SL nach Priorität; «offen» zählt als Zusage", async () => {

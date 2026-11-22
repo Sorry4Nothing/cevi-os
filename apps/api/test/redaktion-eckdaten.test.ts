@@ -386,10 +386,10 @@ describe("Programm aus den gepflegten Feldern (#361)", () => {
       })
       .from(schema.programm)
       .innerJoin(
-        schema.programmStufe,
-        eq(schema.programmStufe.programmId, schema.programm.id),
+        schema.programmTag,
+        eq(schema.programmTag.programmId, schema.programm.id),
       )
-      .where(eq(schema.programmStufe.stufeId, stufeId));
+      .where(eq(schema.programmTag.tagId, stufeId));
 
   test("ohne Kalender entsteht das Programm beim Speichern: Zeiten in Zürich, für Eltern sichtbar, der Stufe zugeordnet; ein zweites Speichern legt kein zweites an", async () => {
     const s = await neueStufe("Programm");

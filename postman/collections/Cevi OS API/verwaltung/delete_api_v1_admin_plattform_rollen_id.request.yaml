@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/admin/plattform/rollen/:id"
-order: 119000
+order: 117000
 method: DELETE
-url: "{{baseUrl}}/api/v1/admin/plattform/rollen/{{ziel_124}}"
+url: "{{baseUrl}}/api/v1/admin/plattform/rollen/{{ziel_122}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

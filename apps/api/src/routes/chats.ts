@@ -25,12 +25,12 @@ import {
   chatStatus,
   nachricht,
   programm,
-  programmStufeWirksam,
   profilbild,
   rolle,
   stufe,
   user,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { eingabe } from "../eingabe.js";
 import {
   chatFuerPerson,
@@ -76,11 +76,11 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       exists(
         db
           .select({ eins: sql`1` })
-          .from(programmStufeWirksam)
+          .from(programmStufen)
           .where(
             and(
-              eq(programmStufeWirksam.programmId, programm.id),
-              eq(programmStufeWirksam.stufeId, stufeId),
+              eq(programmStufen.programmId, programm.id),
+              eq(programmStufen.stufeId, stufeId),
             ),
           ),
       ),

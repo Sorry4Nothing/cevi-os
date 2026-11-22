@@ -14,14 +14,11 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
-  auditLog,
   kind,
   kindEltern,
   leitungAnmeldung,
   programm,
   programmEckdaten,
-  programmStufe,
-  programmStufeWirksam,
   profilbild,
   rolle,
   stufe,
@@ -31,12 +28,12 @@ import {
 import { bildUrl } from "../bild.js";
 import { pushAnmeldung } from "../anmeldung-push.js";
 import { eingabe } from "../eingabe.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { kontakteMitTelefon } from "../kontakte.js";
 import type { Fcm } from "../push.js";
 import {
   aktivesKonto,
   darfLeitungAnmelden,
-  darfZuordnen,
   hatRolle,
   programmBeginn,
   programmSichtbar,
@@ -61,14 +58,6 @@ const teilnahmePfad = z.strictObject({ id: z.uuid(), kindId: z.uuid() });
 const teilnahmeSchema = z.strictObject({ status: z.enum(["ja", "nein"]) });
 // Beginn in Schweizer Zeit: Ein ganztägiges Programm beginnt um Mitternacht seines ersten Tages
 const BEGINN = sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`;
-// Kleingeschrieben, weil die Route die IDs mit denen aus PostgreSQL vergleicht
-const zuordnungSchema = z.strictObject({
-  stufen: z
-    .array(z.uuid().toLowerCase())
-    .max(50)
-    .refine((stufen) => new Set(stufen).size === stufen.length),
-  sichtbarkeit: z.enum(["intern", "leitende", "eltern"]),
-});
 
 // Ein Satz Felder für Liste und Detail; nie abteilung_id, google_event_id oder google_serie
 function programmFelder() {
@@ -82,10 +71,10 @@ function programmFelder() {
     ende: programm.ende,
     tagVon: programm.tagVon,
     tagBis: programm.tagBis,
-    // Mit Namen für die App; nur Stufen der eigenen Abteilung, falls je eine fremde verknüpft wäre
+    // Mit Namen für die App: die Stufen-Tags des Programms (#449), nur aus der eigenen Abteilung
     stufen: sql<
       { id: string; name: string }[]
-    >`coalesce((select jsonb_agg(jsonb_build_object('id', stufe.id, 'name', stufe.name) order by stufe.id) from programm_stufe join stufe on stufe.id = programm_stufe.stufe_id and stufe.abteilung_id = programm.abteilung_id where programm_stufe.programm_id = programm.id), '[]'::jsonb)`,
+    >`coalesce((select jsonb_agg(jsonb_build_object('id', tag.id, 'name', tag.name) order by tag.id) from programm_tag join tag on tag.id = programm_tag.tag_id and tag.typ = 'stufe' and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id), '[]'::jsonb)`,
   };
 }
 
@@ -114,7 +103,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     if (programmIds.length === 0) return nachProgramm;
     const zeilen = await db
       .select({
-        programmId: programmStufeWirksam.programmId,
+        programmId: programmStufen.programmId,
         id: kind.id,
         vorname: kind.vorname,
         status: teilnahme.status,
@@ -125,17 +114,17 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
       )
       .innerJoin(
-        programmStufeWirksam,
+        programmStufen,
         and(
-          eq(programmStufeWirksam.stufeId, kind.stufeId),
-          inArray(programmStufeWirksam.programmId, programmIds),
+          eq(programmStufen.stufeId, kind.stufeId),
+          inArray(programmStufen.programmId, programmIds),
         ),
       )
       .leftJoin(
         teilnahme,
         and(
           eq(teilnahme.kindId, kind.id),
-          eq(teilnahme.programmId, programmStufeWirksam.programmId),
+          eq(teilnahme.programmId, programmStufen.programmId),
         ),
       )
       .where(
@@ -194,14 +183,13 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       if (!zeile) throw new HTTPException(404);
       // Nur wer sich anmelden dürfte, bekommt den Schlüssel; undefined fällt aus dem JSON, für alle anderen fehlt er
       let eigeneAnmeldung: "ja" | "nein" | "offen" | undefined;
-      // Wirksame Stufen: Ohne Zuordnung gilt das Programm für alle (zeile.stufen nennt nur die eingetragenen)
-      const wirksameStufen = (
-        await db
-          .select({ stufeId: programmStufeWirksam.stufeId })
-          .from(programmStufeWirksam)
-          .where(eq(programmStufeWirksam.programmId, id))
-      ).map((r) => r.stufeId);
-      if (darfLeitungAnmelden(person, wirksameStufen)) {
+      // Die Stufen-Tags kommen schon mit dem Programm (zeile.stufen), keine zweite Abfrage
+      if (
+        darfLeitungAnmelden(
+          person,
+          zeile.stufen.map((s) => s.id),
+        )
+      ) {
         const [anmeldung] = await db
           .select({ status: leitungAnmeldung.status })
           .from(leitungAnmeldung)
@@ -222,11 +210,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           schlussZeit: programmEckdaten.schlussZeit,
           mitnehmen: programmEckdaten.mitnehmen,
         })
-        .from(programmStufeWirksam)
+        .from(programmStufen)
         .innerJoin(
           stufe,
           and(
-            eq(stufe.id, programmStufeWirksam.stufeId),
+            eq(stufe.id, programmStufen.stufeId),
             eq(stufe.abteilungId, person.abteilungId),
           ),
         )
@@ -240,7 +228,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             ),
           ),
         )
-        .where(eq(programmStufeWirksam.programmId, id))
+        .where(eq(programmStufen.programmId, id))
         .orderBy(stufe.name, stufe.id)
         .limit(1);
       return c.json({
@@ -264,15 +252,15 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       if (!zeile) throw new HTTPException(404);
       const stufen = await db
         .select({ id: stufe.id })
-        .from(programmStufeWirksam)
+        .from(programmStufen)
         .innerJoin(
           stufe,
           and(
-            eq(stufe.id, programmStufeWirksam.stufeId),
+            eq(stufe.id, programmStufen.stufeId),
             eq(stufe.abteilungId, person.abteilungId),
           ),
         )
-        .where(eq(programmStufeWirksam.programmId, id));
+        .where(eq(programmStufen.programmId, id));
       // Ganze Liste: Admins und die Leitung der Stufe (SL eingeschlossen); sonst nur die eigenen Kinder
       const leitungStufen = stufen
         .map((s) => s.id)
@@ -289,10 +277,10 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         })
         .from(kind)
         .innerJoin(
-          programmStufeWirksam,
+          programmStufen,
           and(
-            eq(programmStufeWirksam.stufeId, kind.stufeId),
-            eq(programmStufeWirksam.programmId, id),
+            eq(programmStufen.stufeId, kind.stufeId),
+            eq(programmStufen.programmId, id),
           ),
         )
         .leftJoin(
@@ -378,9 +366,9 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         .where(and(eq(programm.id, id), programmSichtbar(person)));
       if (!zeile) throw new HTTPException(404);
       const stufen = await db
-        .select({ stufeId: programmStufeWirksam.stufeId })
-        .from(programmStufeWirksam)
-        .where(eq(programmStufeWirksam.programmId, id));
+        .select({ stufeId: programmStufen.stufeId })
+        .from(programmStufen)
+        .where(eq(programmStufen.programmId, id));
       const sl =
         stufen.length === 0
           ? []
@@ -434,7 +422,7 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             begonnen: sql<boolean>`${programmBeginn} <= now()`,
             stufen: sql<
               string[]
-            >`coalesce((select array_agg(programm_stufe_wirksam.stufe_id) from programm_stufe_wirksam where programm_stufe_wirksam.programm_id = programm.id), '{}')`,
+            >`coalesce((select array_agg(programm_tag.tag_id) from programm_tag join tag on tag.id = programm_tag.tag_id and tag.typ = 'stufe' where programm_tag.programm_id = programm.id), '{}')`,
           })
           .from(programm)
           .where(and(eq(programm.id, id), programmSichtbar(person)));
@@ -497,11 +485,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           !!eigenes;
         const [zugeordnet] = await db
           .select({ eins: sql`1` })
-          .from(programmStufeWirksam)
+          .from(programmStufen)
           .where(
             and(
-              eq(programmStufeWirksam.programmId, id),
-              eq(programmStufeWirksam.stufeId, ziel.stufeId),
+              eq(programmStufen.programmId, id),
+              eq(programmStufen.stufeId, ziel.stufeId),
             ),
           );
         if (!zustaendig || !zugeordnet || ziel.inaktivSeit) {
@@ -543,96 +531,6 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             },
           );
         }
-        return c.body(null, 204);
-      },
-    )
-    .put(
-      "/:id/zuordnung",
-      eingabe("param", pfadSchema),
-      eingabe("json", zuordnungSchema),
-      async (c) => {
-        const person = c.get("person");
-        const { id } = c.req.valid("param");
-        const { stufen, sichtbarkeit } = c.req.valid("json");
-        await db.transaction(async (tx) => {
-          // Zeilensperre: Zwei gleichzeitige Zuordnungen ergäben sonst die Vereinigung statt des letzten Stands
-          const [zeile] = await tx
-            .select({ sichtbarkeit: programm.sichtbarkeit })
-            .from(programm)
-            .where(and(eq(programm.id, id), programmSichtbar(person)))
-            .for("no key update");
-          if (!zeile) throw new HTTPException(404);
-          const vorher = (
-            await tx
-              .select({ stufeId: programmStufe.stufeId })
-              .from(programmStufe)
-              .where(eq(programmStufe.programmId, id))
-          ).map((r) => r.stufeId);
-          const sichtbarkeitAendert = sichtbarkeit !== zeile.sichtbarkeit;
-          if (
-            !darfZuordnen(person, {
-              vorher,
-              nachher: stufen,
-              sichtbarkeitAendert,
-            })
-          ) {
-            throw new HTTPException(403);
-          }
-          // Nur Stufen der eigenen Abteilung; fremde wie unbekannte IDs sind eine ungültige Eingabe, kein 404
-          if (stufen.length > 0) {
-            const eigene = await tx
-              .select({ id: stufe.id })
-              .from(stufe)
-              .where(
-                and(
-                  inArray(stufe.id, stufen),
-                  eq(stufe.abteilungId, person.abteilungId),
-                ),
-              );
-            if (eigene.length !== stufen.length) throw new HTTPException(400);
-          }
-          const nachherMenge = new Set(stufen);
-          const vorherMenge = new Set(vorher);
-          const entfernt = vorher.filter((s) => !nachherMenge.has(s));
-          const neu = stufen.filter((s) => !vorherMenge.has(s));
-          if (entfernt.length > 0) {
-            await tx
-              .delete(programmStufe)
-              .where(
-                and(
-                  eq(programmStufe.programmId, id),
-                  inArray(programmStufe.stufeId, entfernt),
-                ),
-              );
-          }
-          if (neu.length > 0) {
-            await tx
-              .insert(programmStufe)
-              .values(neu.map((stufeId) => ({ programmId: id, stufeId })));
-          }
-          if (sichtbarkeitAendert) {
-            await tx
-              .update(programm)
-              .set({ sichtbarkeit })
-              .where(eq(programm.id, id));
-          }
-          // Nur geänderte Schlüssel, ohne Personendaten; ein No-op schreibt keinen Eintrag
-          const details: Record<string, unknown> = {};
-          if (entfernt.length > 0 || neu.length > 0) {
-            details.stufen = [...stufen].sort();
-          }
-          if (sichtbarkeitAendert) details.sichtbarkeit = sichtbarkeit;
-          if (Object.keys(details).length > 0) {
-            await tx.insert(auditLog).values({
-              abteilungId: person.abteilungId,
-              akteurId: person.id,
-              aktion: "programm_zugeordnet",
-              zielTyp: "programm",
-              zielId: id,
-              details,
-            });
-          }
-        });
         return c.body(null, 204);
       },
     );

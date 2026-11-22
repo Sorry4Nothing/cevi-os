@@ -161,9 +161,18 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ]);
   });
 
-  // Abteilungsleitung (Admin): jeder Termin der Abteilung mit Tag, ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
+  // Abteilungsleitung (Admin): jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
   // Alle anderen: genau «Mein Kalender» (meine=true). Ohne Tag nie.
-  const ALLE_DER_ABTEILUNG = ["A", "B", "AB", "A leitende", "Team"];
+  const ALLE_DER_ABTEILUNG = [
+    "A",
+    "B",
+    "AB",
+    "ohne Tag",
+    "A leitende",
+    "Team",
+    // Der Tag gehört zu einer fremden Abteilung: für die Testabteilung also ohne Tag
+    "Fremder Tag",
+  ];
   const SICHT: Record<
     Exclude<TerminePersona, "passwortPflicht" | "deaktiviert" | "ohneLogin">,
     { titel: string[]; meine: string[] }
@@ -219,10 +228,26 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ).toEqual([welt.stufeAId]);
   });
 
-  test("ein Termin ohne Tag, «intern» und der fremder Abteilungen fehlen auch für die Abteilungsleitung", async () => {
+  test("ein Termin ohne Tag steht in «Alle» für die Abteilungsleitung (meine=false), nie in «Mein Kalender»; «intern» und fremde Abteilungen fehlen", async () => {
     const s = await liste("abteilungsleitung", FENSTER);
-    for (const name of ["ohne Tag", "A intern", "Demo", "Fremder Tag"]) {
+    const ohne = s.termine.find((t) => t.titel === "ohne Tag");
+    expect(ohne).toMatchObject({ meine: false, tags: [] });
+    for (const name of ["A intern", "Demo"]) {
       expect(titel(s)).not.toContain(name);
+    }
+    for (const persona of Object.keys(SICHT) as TerminePersona[]) {
+      const mein = await liste(persona, FENSTER, "mein");
+      expect(titel(mein), persona).not.toContain("ohne Tag");
+    }
+    // Wer nicht Abteilungsleitung ist, sieht ihn auch in «Alle» nicht
+    for (const persona of [
+      "stufenleitungA",
+      "elternA",
+      "fremdeAbteilungsleitung",
+    ] as const) {
+      expect(titel(await liste(persona, FENSTER)), persona).not.toContain(
+        "ohne Tag",
+      );
     }
   });
 
@@ -400,7 +425,7 @@ describe("Alle Termine: Anlässe", () => {
     }
   });
 
-  test("Anlässe für Angemeldete und für alle stehen in «Alle», auch ohne eigenen Tag, nie ohne Tag am Termin und nie «intern»", async () => {
+  test("Anlässe für Angemeldete und für alle stehen in «Alle», auch ohne eigenen Tag, nie ohne Tag am Termin (ausser für die Abteilungsleitung) und nie «intern»", async () => {
     const s = await liste("elternA", FEN);
     expect(titel(s)).toEqual(["Anlass angemeldet", "Anlass öffentlich"]);
     expect(s.termine.every((t) => t.meine === false)).toBe(true);
@@ -421,11 +446,12 @@ describe("Alle Termine: Anlässe", () => {
     expect(s.termine.map((t) => t.meine)).toEqual([true, false, true]);
   });
 
-  test("die Abteilungsleitung sieht jeden mit Tag, ausser «intern»", async () => {
+  test("die Abteilungsleitung sieht jeden, auch ohne Tag, ausser «intern»", async () => {
     expect(titel(await liste("abteilungsleitung", FEN))).toEqual([
       "Anlass angemeldet",
       "Anlass öffentlich",
       "Anlass Tags",
+      "Anlass ohne Tag",
     ]);
   });
 

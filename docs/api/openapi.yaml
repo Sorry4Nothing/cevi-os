@@ -207,21 +207,6 @@ paths:
             image/svg+xml:
               schema:
                 type: string
-  /admin/kalender.js:
-    get:
-      operationId: getAdminKalenderSkript
-      summary: Skript der Verwaltung – Bereich Kalender
-      tags:
-        - Allgemein
-      security: []
-      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
-      responses:
-        "200":
-          description: Datei (`text/javascript; charset=UTF-8`).
-          content:
-            text/javascript:
-              schema:
-                type: string
   /admin/kinder.js:
     get:
       operationId: getAdminKinderSkript
@@ -2027,9 +2012,12 @@ paths:
     get:
       operationId: programmeAuflisten
       summary: Programme eines Zeitfensters auflisten
+      deprecated: true
       tags:
         - Programme
       description: |
+        **Veraltet (#449).** Die Apps stellen auf `GET /api/v1/termine/mein` um (Liste, Zeitraum bis 400 Tage, Seitenwechsel, Tags je Termin). Diese Route bleibt, bis keine App-Version sie mehr aufruft, liefert aber nur noch, was die Tags hergeben: Ein Programm gehört zu einer Stufe, wenn es deren Stufen-Tag trägt (aus den Outlook-Kategorien, siehe `docs/kalender-kategorien.md`). Ein Programm ohne Stufen-Tag gilt nicht mehr für alle Stufen: Es sehen nur Administratorinnen, Administratoren und Stufenleitungen. Die Zuordnung per Hand (`PUT /api/v1/programme/{id}/zuordnung`) gibt es nicht mehr (404).
+
         Liefert alle für die angemeldete Person sichtbaren Programme der eigenen Abteilung, die das Fenster
         `von` bis `bis` berühren. Das Fenster zählt in Schweizer Kalendertagen und ist beidseitig inklusive:
         Ein mehrtägiges Programm (Lager) erscheint an jedem seiner Tage. Ist `von` nach `bis`, ist die Liste leer
@@ -2038,9 +2026,9 @@ paths:
 
         Wer aufrufen darf: jede angemeldete Person. Sichtbar ist ein Programm so:
         - Administratorinnen und Administratoren sowie Stufenleitungen (SL) sehen jedes Programm der Abteilung,
-          auch ohne Stufenzuordnung; «intern» (für niemanden sichtbar) nur mit `alle=1` und nur für Administratorinnen und Administratoren.
-        - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die einer ihrer Stufen zugeordnet sind.
-        - Eltern sehen Programme mit Sichtbarkeit «eltern», die einer Stufe zugeordnet sind, in der ein aktives
+          auch ohne Stufen-Tag; «intern» (für niemanden sichtbar) nur mit `alle=1` und nur für Administratorinnen und Administratoren.
+        - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die den Stufen-Tag einer ihrer Stufen tragen.
+        - Eltern sehen Programme mit Sichtbarkeit «eltern», die den Stufen-Tag einer Stufe tragen, in der ein aktives
           eigenes Kind ist.
         - Wer beides ist, sieht die Vereinigung.
 
@@ -2095,9 +2083,12 @@ paths:
     get:
       operationId: programmLesen
       summary: Ein Programm mit Teilnahmen der eigenen Kinder lesen
+      deprecated: true
       tags:
         - Programme
       description: |
+        **Veraltet (#449).** Die Apps stellen auf `GET /api/v1/termine/{id}` um (gleiche Zusatzangaben). Diese Route bleibt, bis keine App-Version sie mehr aufruft; `stufen` nennt die Stufen-Tags des Programms. Unverändert bleiben `PUT /api/v1/programme/{id}/teilnahmen/{kindId}` und `PUT /api/v1/programme/{id}/leitung` (Ja/Nein), `GET /api/v1/programme/{id}/teilnahmen` und `GET /api/v1/programme/{id}/kontakte`.
+
         Liefert die Felder des Listeneintrags (mit `kinder`) und zusätzlich `teilnahmeOffen` und
         (nur für anmeldeberechtigte Leitende) `eigeneAnmeldung`.
 
@@ -2177,57 +2168,6 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/KontakteAntwort"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/programme/{id}/zuordnung:
-    put:
-      operationId: programmZuordnen
-      summary: Stufen und Sichtbarkeit eines Programms setzen
-      tags:
-        - Programme
-      description: |
-        Ersetzt die Stufenzuordnung und die Sichtbarkeit des Programms durch den übergebenen Stand (kein
-        Hinzufügen oder Entfernen einzelner Einträge). Ein Aufruf ohne tatsächliche Änderung gibt ebenfalls 204.
-        Jede Änderung wird im Audit-Log vermerkt.
-
-        Wer aufrufen darf:
-        - Administratorinnen und Administratoren: alles.
-        - Stufenleitungen (SL): nur Änderungen, die ausschliesslich Stufen betreffen, in denen sie selbst SL sind.
-          Eine hinzugefügte oder entfernte Stufe muss eine eigene SL-Stufe sein; ändert sich die Sichtbarkeit,
-          müssen alle bisherigen und neuen Stufen eigene SL-Stufen sein.
-        - Leitende und Eltern nie, auch nicht bei einem Aufruf ohne Änderung (403).
-
-        Regeln für den Body: `stufen` enthält nur Stufen der eigenen Abteilung (fremde oder unbekannte IDs sind
-        400, nicht 404; eine SL bekommt dafür 403, weil die Rechteprüfung zuerst läuft). Ohne Stufen gilt das
-        Programm für alle Stufen. Eine SL darf Programme ohne Stufe nicht ändern (403).
-
-        Reihenfolge der Prüfung: Eingabeform (400), Sichtbarkeit des Programms (404), Recht (403), Stufen der
-        Abteilung (400).
-        Statuscodes: 204 gespeichert, kein Body; 400 ungültige Eingabe; 401 keine gültige Sitzung; 403 kein Recht
-        zur Zuordnung oder Konto muss zuerst das Passwort ändern; 404 Programm unbekannt oder nicht sichtbar;
-        426 App-Version zu alt; 429 zu viele Anfragen.
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/ProgrammIdPfad"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/ProgrammZuordnung"
-      responses:
-        "204":
-          description: Zuordnung gespeichert. Kein Body.
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -18430,7 +18370,7 @@ paths:
       tags:
         - Termine
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
 
         Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
         Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
@@ -18599,7 +18539,7 @@ paths:
 
         Sichtbar ist ein Termin, wenn er mindestens einen Tag der Person trägt:
         - Tags der Person sind ihre eigenen Tags (auch die Stufenrolle der Leitung) und, für Eltern, die Stufe jedes ihrer aktiven Kinder.
-        - Ein Termin ohne Tag ist für niemanden sichtbar, auch nicht für die Abteilungsleitung. Wer keinen Tag hat, bekommt eine leere Liste.
+        - Ein Termin ohne Tag ist keiner Gruppe zugewiesen und steht hier nie, auch nicht für die Abteilungsleitung (er erscheint nur in `GET /api/v1/termine/alle`). Wer keinen Tag hat, bekommt eine leere Liste.
         - Mit mehreren passenden Tags erscheint der Termin trotzdem einmal.
         - Die Sichtbarkeit «intern» blendet den Termin für alle aus; «leitende» sehen nur Personen mit eigenem Tag, nicht Eltern über ihre Kinder.
         - Abgesagte Termine bleiben sichtbar (`status` «abgesagt»).
@@ -18766,9 +18706,9 @@ paths:
         Ein Termin erscheint je Person einmal.
 
         Was die Person sieht:
-        - Abteilungsleitung (Admin): jeden Termin der eigenen Abteilung mit mindestens einem Tag, mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
+        - Abteilungsleitung (Admin): jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
         - Alle anderen: die Termine aus «Mein Kalender» (`meine` ist wahr), mit den eigenen Tags. Dazu kommen die Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich» (`meine` falsch, wenn kein eigener Tag passt); `anlass` trägt dann den Verweis auf die Anmeldung wie in «Mein Kalender».
-        - Ein Termin ohne Tag nie, auch nicht für die Abteilungsleitung. Fremde Abteilungen nie.
+        - Ein Termin ohne Tag nur für die Abteilungsleitung, für alle anderen nie. Fremde Abteilungen nie.
 
         Statuscodes: 200 Erfolg; 304 unverändert; 400 `von` oder `bis` fehlt oder ist kein Datum, `von` nach `bis`, mehr als 400 Tage, `limit` ausserhalb 1 bis 100, ungültiges `nach` oder unbekannte Query-Parameter;
         401 keine gültige Sitzung; 403 das Konto muss zuerst das Passwort ändern; 404 die Anfrage trägt `X-App-Version`; 429 zu viele Anfragen.
@@ -21403,7 +21343,7 @@ components:
           description: Letzter Programmtag, inklusive (Schweizer Kalendertag). `null` bei Programmen mit Uhrzeit.
         stufen:
           type: array
-          description: Zugeordnete Stufen der eigenen Abteilung, aufsteigend nach `id` sortiert. Leer, wenn keine zugeordnet ist.
+          description: Stufen-Tags des Programms in der eigenen Abteilung (aus den Outlook-Kategorien), aufsteigend nach `id` sortiert. Leer, wenn das Programm keinen Stufen-Tag trägt.
           items:
             $ref: "#/components/schemas/ProgrammStufeRef"
         kinder:
@@ -21485,27 +21425,6 @@ components:
                 - nein
                 - offen
               description: Eigene Anmeldung als Leitung. Der Schlüssel fehlt, wenn die Person nicht Leitung oder SL einer zugeordneten Stufe ist.
-    ProgrammZuordnung:
-      type: object
-      required:
-        - stufen
-        - sichtbarkeit
-      additionalProperties: false
-      properties:
-        stufen:
-          type: array
-          maxItems: 50
-          uniqueItems: true
-          description: Vollständiger neuer Stand der zugeordneten Stufen (nur Stufen der eigenen Abteilung, keine Doppelten). Leer heisst, das Programm gilt für alle Stufen.
-          items:
-            type: string
-            format: uuid
-        sichtbarkeit:
-          type: string
-          enum:
-            - intern
-            - leitende
-            - eltern
     ProgrammAntwort:
       type: object
       description: Antwort «ja» oder «nein» für eine Teilnahme oder eine Leitungsanmeldung.
