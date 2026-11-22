@@ -629,6 +629,69 @@ describe("Begrenzung", () => {
     expect(status).toEqual([...Array(10).fill(415), 429]);
   });
 
+  test("die Liste blättert mit limit und offset und sucht im Alt-Text, ohne Platzhalter der Nutzer", async () => {
+    const app = neueApp(attrappe().speicher);
+    const headers = (await legePersonaAn(welt, "admin")).headers;
+    const texte = [
+      "Seitenwechsel 100% Sonne",
+      "Seitenwechsel 1000 Sonne",
+      "Seitenwechsel a_b",
+      "Seitenwechsel axb",
+    ];
+    for (const [i, altText] of texte.entries()) {
+      await db.insert(schema.medium).values({
+        abteilungId: welt.testabteilungId,
+        mimeTyp: "image/webp",
+        groesse: 10,
+        breite: 1,
+        hoehe: 1,
+        altText,
+        sichtbarkeit: "angemeldet",
+        speicherSchluessel: randomUUID(),
+        erstelltAm: new Date(Date.UTC(2031, 0, 1, 0, 0, i)),
+      });
+    }
+    type Liste = { medien: { altText: string }[]; weitere: boolean };
+    const hole = async (query: string, pfad = "/api/v1/admin/medien") =>
+      (await (
+        await app.request(`${pfad}?${query}`, { headers })
+      ).json()) as Liste;
+    // Neueste zuerst: die jüngsten zwei, dann die nächsten zwei, dann nichts mehr
+    const eins = await hole("suche=Seitenwechsel&limit=2");
+    expect(eins.medien.map((m) => m.altText)).toEqual([texte[3], texte[2]]);
+    expect(eins.weitere).toBe(true);
+    const zwei = await hole("suche=Seitenwechsel&limit=2&offset=2");
+    expect(zwei.medien.map((m) => m.altText)).toEqual([texte[1], texte[0]]);
+    expect(zwei.weitere).toBe(false);
+    expect((await hole("suche=Seitenwechsel&limit=2&offset=4")).medien).toEqual(
+      [],
+    );
+    // % und _ sind Text, keine Platzhalter; Gross- und Kleinschreibung gilt nicht
+    const prozent = await hole("suche=100%25");
+    expect(prozent.medien.map((m) => m.altText)).toEqual([texte[0]]);
+    const strich = await hole("suche=a_b");
+    expect(strich.medien.map((m) => m.altText)).toEqual([texte[2]]);
+    const gross = await hole(
+      "suche=SEITENWECHSEL%20A",
+      "/api/v1/redaktion/medien",
+    );
+    expect(gross.medien).toHaveLength(2);
+    // Ungültige Angaben sind 400
+    for (const query of [
+      "limit=0",
+      "limit=101",
+      "offset=-1",
+      "suche=",
+      "x=1",
+    ]) {
+      expect(
+        (await app.request(`/api/v1/admin/medien?${query}`, { headers }))
+          .status,
+        query,
+      ).toBe(400);
+    }
+  });
+
   test("die Grenze von 64 KB gilt weiter für andere POST-Routen", async () => {
     const app = neueApp(attrappe().speicher);
     const res = await app.request("/api/v1/admin/medien/x", {

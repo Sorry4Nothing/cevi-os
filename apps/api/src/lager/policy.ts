@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
-import type { Person } from "../rechte.js";
+import { zweiterFaktorFehlt, type Person } from "../rechte.js";
 import { ladeRollenRechte } from "./rechte.js";
 import type { LagerTabellenEintrag } from "./tabellen.js";
 import {
@@ -18,6 +18,7 @@ import {
 // Policy-Schicht des Lagers (#364): Jede Lager-Route unter /api/v1/lager hängt lagerZugriff() vor ihren Handler und fragt darin mit darf(). Die Reihenfolge ist fest und gleich wie in rechte.ts:
 //   1. Lager laden, in SQL auf die Abteilung der Sitzung gefiltert: fremd oder unbekannt = 404
 //   2. Mitgliedschaft: Nicht-Mitglied = 404 (die Abteilungsleitung gilt als Lagerleitung)
+//   2b. Die Lagerleitung (auch die Abteilungsleitung) braucht den zweiten Faktor: sonst 403 ZWEITER_FAKTOR_FEHLT (#423); leitung, team und lesen nicht
 //   3. Recht (optionen.recht): fehlt es = 403
 //   4. Schreibschutz: Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Methoden zu = 409 LAGER_GESCHLOSSEN
 // Die Rolle kommt bei jeder Anfrage aus lager_mitglied, nie aus Token oder Sitzung: Rollenwechsel und Entfernen wirken bei der nächsten Anfrage
@@ -121,6 +122,14 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
     if (!id.success) throw new HTTPException(400);
     const zugriff = await ladeLagerZugriff(db, c.get("person"), id.data);
     if (!zugriff) throw new HTTPException(404);
+    if (zugriff.rolle === "lagerleitung" && !c.get("person").zweiterFaktor) {
+      return c.json(
+        zweiterFaktorFehlt(
+          "Für die Lagerleitung braucht es zuerst einen zweiten Faktor.",
+        ),
+        403,
+      );
+    }
     if (optionen.recht && !darf(zugriff, optionen.recht)) {
       throw new HTTPException(403);
     }
