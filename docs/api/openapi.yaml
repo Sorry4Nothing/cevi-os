@@ -5097,6 +5097,47 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminLager
+      summary: Lager endgültig löschen
+      description: |
+        Nur Admins (zweiter Faktor wie überall unter `/admin`), nur Lager der eigenen Abteilung, nur ein Entwurf, ein archiviertes Lager oder ein Übungslager (`uebung`, in jedem Status); ein aktives oder abgeschlossenes Lager ist 409 `LAGER_NICHT_LOESCHBAR`. Der Titel im Body bestätigt das Löschen. **Endgültig:** Es entfernt in einer Transaktion alle Daten des Lagers, über alle Tabellen mit Lagerbezug (Mitglieder, Rechte-Einstellungen, Aufgaben, Pinnwand, Umfragen, Eingang, Adressbuch, private To-dos, Packliste, Erwähnungen, Wetter-Zwischenspeicher, Änderungsfeed, alle Dateiverknüpfungen). Dateien liegen im SharePoint und werden nur verknüpft: Die Verknüpfungen verschwinden, die Dateien am Ablageort nicht. Das Logo bleibt in der Mediathek der Abteilung. Offene Live-Verbindungen (`/ereignisse`) des Lagers enden. Eine gelöschte Datenmenge lässt sich nicht wiederherstellen. Audit-Log: `lager_geloescht` mit der Lagerkennung und der Zahl der entfernten Datei-Verknüpfungen, nie Titel oder Inhalte (frühere Einträge zu diesem Lager bleiben stehen). Reihenfolge der Prüfungen: Pfad und Body (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Status (409), Titel (400). Der Wartungsmodus des Bereichs `lager` hält die Abteilungsleitung nicht auf.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder falschem Titel. 403 für Nicht-Admins und ohne zweiten Faktor. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_NICHT_LOESCHBAR`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLagerLoeschen"
+      responses:
+        "204":
+          description: Lager mit allen Daten gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/lager/{id}/mitglieder:
     get:
       operationId: listeAdminLagerMitglieder
@@ -22796,6 +22837,18 @@ components:
           type: string
           format: uuid
           description: Eine Vorlage der eigenen Abteilung. Ihre Aufgaben oder Packlisten-Punkte entstehen mit dem Lager, in derselben Transaktion (eine unbekannte oder fremde Vorlage ist 400). Fristen zählen ab `von`.
+    AdminLagerLoeschen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+      description: Die Bestätigung des Löschens.
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Der Titel des Lagers, genau wie gespeichert (Gross- und Kleinschreibung zählt). Ein anderer Titel ist 400.
     AdminLagerAendern:
       type: object
       additionalProperties: false
@@ -22871,6 +22924,7 @@ components:
           enum:
             - LAGER_GESCHLOSSEN
             - LAGERLEITUNG_FEHLT
+            - LAGER_NICHT_LOESCHBAR
         message:
           type: string
     # lager-schemas: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -32699,7 +32753,7 @@ components:
   responses:
     LagerKonflikt409:
       description: |
-        Das Lager ist abgeschlossen oder archiviert und lässt sich nicht ändern (`LAGER_GESCHLOSSEN`), oder ein aktives Lager würde seine letzte Lagerleitung verlieren (`LAGERLEITUNG_FEHLT`).
+        Das Lager ist abgeschlossen oder archiviert und lässt sich nicht ändern (`LAGER_GESCHLOSSEN`), oder ein aktives Lager würde seine letzte Lagerleitung verlieren (`LAGERLEITUNG_FEHLT`), oder das Lager lässt sich nicht löschen, weil es aktiv oder abgeschlossen ist (`LAGER_NICHT_LOESCHBAR`).
       content:
         application/json:
           schema:

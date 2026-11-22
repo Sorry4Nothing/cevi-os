@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/anlaesse/:id/anmeldungen.csv"
-order: 401000
+order: 402000
 method: GET
 url: "{{baseUrl}}{{pfad_T7}}"
 headers:

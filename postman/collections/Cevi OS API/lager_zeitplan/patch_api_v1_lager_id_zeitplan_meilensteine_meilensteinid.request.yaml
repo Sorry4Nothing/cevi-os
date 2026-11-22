@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/zeitplan/meilensteine/:meilensteinId"
-order: 378000
+order: 379000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L221}}"
+url: "{{baseUrl}}{{pfad_L222}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

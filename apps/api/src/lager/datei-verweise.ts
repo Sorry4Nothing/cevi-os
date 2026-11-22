@@ -77,6 +77,9 @@ export async function sichtbarJeVerweis(
 export const verweiseAnderer = (zugriff: LagerZugriff, ausser: AnyPgColumn) =>
   verweise.filter((v) => v.spalte !== ausser && darf(zugriff, v.recht));
 
+// Die Tabellen, die auf lager_datei zeigen (ON DELETE RESTRICT): Beim Löschen eines Lagers gehen sie vor den Dateien weg (lager/loeschen.ts)
+export const dateiVerweisTabellen = () => verweise.map((v) => v.tabelle);
+
 export const tabellenName = (v: DateiVerweis) => {
   const { name, schema } = getTableConfig(v.tabelle);
   return schema
