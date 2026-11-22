@@ -717,5 +717,9 @@ export * from "./schema-website.js";
 // Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
 export * from "./schema-lager.js";
 
-// Termine (#432): Zuordnung Kategorie zu Tag
+// Termine (Epic #430, Gerüst #431): eine Datei je Bereich, alle fünf hier eingehängt, damit die Folge-Issues schema.ts nicht anfassen
 export * from "./schema-termine.js";
+export * from "./schema-ical.js";
+export * from "./schema-vorschlag.js";
+export * from "./schema-anlass.js";
+export * from "./schema-raum.js";
