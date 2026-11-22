@@ -36,6 +36,10 @@ export type Pruefung =
   | { ok: false; fehler: DokumentFehler[] };
 export const MAX_FEHLER = 20;
 
+// Bytes der Anfrage beim Speichern des Entwurfs (SR-20): Das Schema begrenzt Mengen und Längen, nicht die Bytes.
+// 512 KiB sind das Achtfache der 64 KiB, die sonst für jede Anfrage gelten: 100 Bausteine zu je 5 KB Text haben Platz, mehr ist keine lesbare Seite
+export const MAX_ENTWURF_BYTES = 512 * 1024;
+
 export function pruefeDokument(eingabe: unknown): Pruefung {
   const ergebnis = seitendokumentSchema.safeParse(eingabe);
   if (ergebnis.success) return { ok: true, dokument: ergebnis.data };

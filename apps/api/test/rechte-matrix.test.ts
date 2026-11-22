@@ -1086,6 +1086,108 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
+  "GET /api/v1/redaktion/seiten/:id/entwurf": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/redaktion/seiten/:id/entwurf": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
+    // Der Zähler 0 gilt nur für den ersten Schreiber: Die Stufenleitung A hat das Recht, aber einen veralteten Stand (409)
+    body: () => ({
+      zaehler: 0,
+      dokument: {
+        v: 1,
+        titel: "Matrix",
+        bausteine: [
+          {
+            id: randomUUID(),
+            typ: "ueberschrift",
+            daten: { ebene: 2, text: "Matrix" },
+          },
+        ],
+      },
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/veroeffentlichen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/veroeffentlichen`,
+    // Der Admin veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/seiten/:id/versionen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/seiten/:id/versionen/:nr": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen/1`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/versionen/:nr/zurueckholen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/versionen/1/zurueckholen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/:id/zurueckziehen": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/zurueckziehen`,
+    // Der Admin zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 409,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({

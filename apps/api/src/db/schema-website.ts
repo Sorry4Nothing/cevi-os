@@ -58,6 +58,9 @@ export const seite = pgTable(
     entwurfZaehler: integer("entwurf_zaehler").notNull().default(0),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
     geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+    // Statische Auslieferung (#351): SHA-256 der zuletzt erzeugten HTML-Datei und der Zeitpunkt des Schreibens; leer, solange keine Datei besteht
+    ausgabeHash: text("ausgabe_hash"),
+    ausgabeAm: zeitpunkt("ausgabe_am"),
   },
   (t) => [
     unique("seite_adresse_eindeutig")
@@ -70,6 +73,10 @@ export const seite = pgTable(
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check("seite_adresse_check", sql`${t.adresse} ~ '^[a-z0-9-]{1,60}$'`),
     check("seite_titel_check", sql`char_length(${t.titel}) between 1 and 150`),
+    check(
+      "seite_ausgabe_hash_check",
+      sql`${t.ausgabeHash} is null or ${t.ausgabeHash} ~ '^[0-9a-f]{64}$'`,
+    ),
     check(
       "seite_sichtbarkeit_check",
       sql`${t.sichtbarkeit} in ('oeffentlich', 'angemeldet', 'tags')`,

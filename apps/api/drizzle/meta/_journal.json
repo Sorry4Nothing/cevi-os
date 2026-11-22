@@ -269,6 +269,13 @@
       "breakpoints": true
     },
     {
+      "idx": 41,
+      "version": "7",
+      "when": 1793549100000,
+      "tag": "0041_website_ausgabe",
+      "breakpoints": true
+    },
+    {
       "idx": 60,
       "version": "7",
       "when": 1793550000000,
