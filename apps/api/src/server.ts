@@ -18,6 +18,7 @@ import {
 } from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
+import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -110,6 +111,10 @@ starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
   "lager_benachrichtigungen",
+);
+starteSitzungenAufraeumen(
+  () => raeumeDateienOhneVerweisAuf(db),
+  "lager_dateien",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (

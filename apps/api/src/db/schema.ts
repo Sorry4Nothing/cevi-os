@@ -34,6 +34,8 @@ export const abteilung = pgTable("abteilung", {
   googleKalenderId: text("google_kalender_id"),
   syncOkAm: zeitpunkt("sync_ok_am"),
   syncFehler: text("sync_fehler"),
+  // Erlaubte Hosts für Datei-Links im Lager (#370), kleingeschrieben; NULL = keine Einschränkung
+  dateiHosts: text("datei_hosts").array(),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen

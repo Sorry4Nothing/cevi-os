@@ -5543,6 +5543,215 @@ paths:
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/dateien:
+    post:
+      operationId: legeLagerDateiAn
+      summary: Datei als Verknüpfung hinzufügen
+      description: |
+        Speichert die Verknüpfung auf eine Datei, die im SharePoint (Microsoft 365) der Abteilung liegt. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ (MIME) und Grösse (Bytes), nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Offline-Kopien legt nur die App an, nur wenn die Person die Option in den Einstellungen der App einschaltet; im Web gibt es keine.
+
+        Der Link wird streng geprüft: nur `https:`, keine protokoll-relative Adresse, kein `javascript:` oder `data:`, keine Zugangsdaten und kein Port in der Adresse, ein Host mit Punkt und kein IP-Literal, höchstens 2048 Zeichen, ohne Leer-, Steuer- und Formatzeichen. Hat die Abteilung erlaubte Hosts festgelegt (`/api/v1/admin/lager-dateien/hosts`), muss der Host einer davon sein oder eine Subdomain davon. Der Link wird in der Schreibweise der URL-Norm gespeichert (Schema und Host klein).
+
+        Wer den Eintrag sieht: die Person, die ihn hinzugefügt hat, 24 Stunden lang, und wer einen Datensatz lesen darf, der ihn einbindet (Pinnwand, Dokumente, Protokolle, Infos). Ein Eintrag, den innerhalb von 24 bis 48 Stunden kein Datensatz einbindet, wird aufgeräumt. Recht: Pinnwand, Dokumente, Protokolle oder Infos bearbeiten (eines genügt). Rate-Limit: 30 Einträge je Konto in 10 Minuten (429). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe: `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT` für den Link, sonst ohne Details. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiAnlegen"
+      responses:
+        "201":
+          description: Die Verknüpfung (Version 1).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          description: Ungültige Eingabe. Beim Link `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT`, sonst `UNGUELTIGE_EINGABE` ohne Details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/dateien/{dateiId}:
+    get:
+      operationId: holeLagerDatei
+      summary: Verknüpfung lesen
+      description: |
+        Liefert Link, Anzeigename, Typ und Grösse einer Verknüpfung. Sichtbar ist der Eintrag für die Person, die ihn in den letzten 24 Stunden hinzugefügt hat, und für jede Person, die einen Datensatz lesen darf, der ihn einbindet; für alle anderen gibt es ihn nicht (404). Der Server liefert nie den Inhalt der Datei: Öffnen und Herunterladen gehen über den Link direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Eine Liste gibt es nicht; die Routen der Module, die Dateien einbinden, liefern die Einträge ihrer Datensätze.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager oder der Eintrag unbekannt ist, zu einer anderen Abteilung oder einem anderen Lager gehört, gelöscht oder für die Person nicht sichtbar ist, oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Verknüpfung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerDatei
+      summary: Verknüpfung löschen
+      description: |
+        Entfernt nur die Verknüpfung in Cevi OS (Soft-Delete über den Sync-Kern, der Änderungsfeed meldet `geloescht`), nie die Datei am Ablageort. Die Anfrage nennt die zuletzt gesehene `version`; stimmt sie nicht, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Gleiches Recht wie beim Anlegen. Reihenfolge der Prüfungen: Pfad (400), Lager (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eintrag (404), Version (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder fehlender Version. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn Lager oder Eintrag für die Person nicht existieren. 409 bei `LAGER_GESCHLOSSEN` und `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Verknüpfung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Verknüpfung gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Version stimmt nicht (`VERSION_KONFLIKT`, mit aktuellem Stand und abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerKonflikt"
+                  - $ref: "#/components/schemas/LagerVersionKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager-dateien/hosts:
+    get:
+      operationId: holeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links lesen
+      description: |
+        Nur Admins. Liefert die Hosts, auf denen die Links der Dateien im Lager liegen dürfen, oder `null` ohne Einschränkung (Vorgabe).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die erlaubten Hosts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDateiHosts"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links festlegen
+      description: |
+        Nur Admins. Legt fest, auf welchen Hosts die Links liegen dürfen, zum Beispiel `meineabteilung.sharepoint.com`: der Host selbst oder eine Subdomain davon. `null` hebt die Einschränkung auf (Vorgabe). Höchstens 20 Hosts, ohne Schema, Pfad und Port; Gross- und Kleinschreibung egal, doppelte Einträge fallen weg. Gilt für neue Links; bestehende bleiben. Audit-Log: `lager_datei_hosts_geaendert` (nur die Anzahl).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiHosts"
+      responses:
+        "204":
+          description: Hosts gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -9020,6 +9229,85 @@ components:
               aktiv:
                 type: boolean
     # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDatei:
+      type: object
+      additionalProperties: false
+      description: Verknüpfung auf eine Datei im SharePoint der Abteilung. Kein Inhalt; der Server ruft den Link nie ab.
+      required:
+        - id
+        - version
+        - anzeigename
+        - link
+        - typ
+        - groesse
+        - hinzugefuegtVon
+        - hinzugefuegtAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        anzeigename:
+          type: string
+        link:
+          type: string
+          format: uri
+          description: https-Adresse am Ablageort; der Ablageort regelt, wer die Datei öffnen darf. Die App legt die Offline-Kopie an, nur wenn die Person die Option in den Einstellungen der App einschaltet.
+        typ:
+          type: [string, "null"]
+          description: MIME-Typ, falls bekannt.
+        groesse:
+          type: [integer, "null"]
+          description: Bytes, falls bekannt.
+        hinzugefuegtVon:
+          type: [string, "null"]
+          format: uuid
+          description: ID des Kontos, das den Eintrag hinzugefügt hat; null, wenn das Konto gelöscht ist.
+        hinzugefuegtAm:
+          type: string
+          format: date-time
+    LagerDateiAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - anzeigename
+        - link
+      properties:
+        anzeigename:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Ohne Steuerzeichen; Leerraum an den Enden fällt weg.
+        link:
+          type: string
+          maxLength: 2048
+          description: https-Adresse, streng geprüft (siehe die Route).
+        typ:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+$"
+          description: MIME-Typ, wird klein gespeichert.
+        groesse:
+          type: integer
+          minimum: 0
+          description: Bytes.
+    LagerDateiHosts:
+      type: object
+      additionalProperties: false
+      required:
+        - hosts
+      properties:
+        hosts:
+          type: [array, "null"]
+          minItems: 1
+          maxItems: 20
+          description: Erlaubte Hosts; null = keine Einschränkung.
+          items:
+            type: string
+            maxLength: 253
+            example: meineabteilung.sharepoint.com
     # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
