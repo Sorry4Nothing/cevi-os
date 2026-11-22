@@ -15,6 +15,7 @@ import { erstelleFcm } from "./fcm.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
+import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -105,6 +106,11 @@ starteSitzungenAufraeumen(
 starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
+);
+// Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)
+starteSitzungenAufraeumen(
+  () => loescheAlteTeilnehmende(db),
+  "lager_teilnehmende",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
