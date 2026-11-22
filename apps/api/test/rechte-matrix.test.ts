@@ -476,7 +476,7 @@ const MATRIX: Record<string, Zeile> = {
     url: () => `/api/v1/admin/personen/${aktivierenZielId}/aktivieren`,
     erwartet: {
       ...alle(403),
-      admin: 204,
+      admin: 200,
       adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,

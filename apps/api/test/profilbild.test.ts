@@ -293,7 +293,7 @@ describe("DELETE /api/v1/ich/bild und Löschen mit dem Konto", () => {
     expect((await admin_("deaktivieren")).status).toBe(204);
     expect(await zeilen(ziel.id)).toHaveLength(0);
     expect((await holen(leser, ziel.id)).status).toBe(404);
-    expect((await admin_("aktivieren")).status).toBe(204);
+    expect((await admin_("aktivieren")).status).toBe(200);
     expect((await holen(leser, ziel.id)).status).toBe(404);
     // bildUrl ist null: in den Kontakten der Stufe und im eigenen Profil
     const { kontakte } = (await (
