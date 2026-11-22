@@ -16,7 +16,7 @@ import { afterAll, beforeAll, expect, test } from "vitest";
 import { WEBMASTER_VORGABE } from "../src/plattform.js";
 import { SUPERUSER_URL } from "./hilfen/datenbank.js";
 
-// 0100 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0067 migrieren, zwei Abteilungen anlegen, dann 0100 durch den echten Migrator (legt je Abteilung die Vorgabe «Webmaster» an), dann der Rückweg
+// 0100 und ihr Rückweg gegen eine eigene Datenbank: erst bis zur Migration vor 0100 migrieren, zwei Abteilungen anlegen, dann 0100 durch den echten Migrator (legt je Abteilung die Vorgabe «Webmaster» an), dann der Rückweg
 const dbName = `cevi_os_mig423_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -48,7 +48,7 @@ beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
-  ordnerBauen(bisVorher, 67);
+  ordnerBauen(bisVorher, 99);
   ordnerBauen(komplett, 100);
 });
 
