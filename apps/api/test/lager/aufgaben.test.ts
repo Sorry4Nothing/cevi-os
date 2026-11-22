@@ -1490,3 +1490,218 @@ describe("Benachrichtigungen", () => {
     expect((await zeilen(v, a.id)).length).toBe(vorher);
   });
 });
+
+describe("Warteschlange für Offline-Änderungen", () => {
+  type Ergebnis = {
+    clientOpId: string;
+    status: string;
+    code?: string;
+    ergebnis?: { id: string; version: number };
+    aktuell?: { titel: string };
+    abweichend?: string[];
+  };
+  async function sende(
+    konto: PersonaKonto,
+    operationen: { typ: string; nutzlast: Record<string, unknown> }[],
+    clientOpIds = operationen.map(() => randomUUID()),
+    id = lagerId,
+  ) {
+    const a = await anfrage(konto, "POST", `${L(id)}/aenderungen`, {
+      operationen: operationen.map((o, i) => ({
+        clientOpId: clientOpIds[i],
+        ...o,
+      })),
+    });
+    expect(a.status).toBe(200);
+    return a.body.ergebnisse as Ergebnis[];
+  }
+
+  test("anlegen, ändern, Status und löschen laufen wie über die Routen", async () => {
+    const v = await mitglied();
+    const [angelegt] = await sende(leiter(), [
+      {
+        typ: "aufgabe.anlegen",
+        nutzlast: { titel: "Offline angelegt", verantwortlichPersonId: v },
+      },
+    ]);
+    expect(angelegt).toMatchObject({ status: "ok", ergebnis: { version: 1 } });
+    const id = angelegt!.ergebnis!.id;
+    const get = await anfrage(leiter(), "GET", `${L()}/aufgaben/${id}`);
+    expect(get.body).toMatchObject({
+      titel: "Offline angelegt",
+      verantwortlichPersonId: v,
+    });
+
+    const [geaendert, status] = await sende(leiter(), [
+      { typ: "aufgabe.aendern", nutzlast: { id, version: 1, stern: true } },
+      {
+        typ: "aufgabe.status",
+        nutzlast: { id, version: 2, status: "erledigt" },
+      },
+    ]);
+    expect(geaendert).toMatchObject({
+      status: "ok",
+      ergebnis: { id, version: 2 },
+    });
+    expect(status).toMatchObject({ status: "ok", ergebnis: { version: 3 } });
+    const nachher = await anfrage(leiter(), "GET", `${L()}/aufgaben/${id}`);
+    expect(nachher.body).toMatchObject({ stern: true, status: "erledigt" });
+    expect(nachher.body.erledigtAm).not.toBeNull();
+    // Die Glocke der Verantwortlichen hat den Eintrag, auch wenn die Warteschlange keinen Push sendet
+    const zeilen = await db
+      .select()
+      .from(schema.lagerBenachrichtigung)
+      .where(eq(schema.lagerBenachrichtigung.personId, v));
+    expect(zeilen.map((z) => z.art)).toContain("aufgabe_zugeteilt");
+
+    const [weg] = await sende(leiter(), [
+      { typ: "aufgabe.loeschen", nutzlast: { id, version: 3 } },
+    ]);
+    expect(weg!.status).toBe("ok");
+    expect(
+      (await anfrage(leiter(), "GET", `${L()}/aufgaben/${id}`)).status,
+    ).toBe(404);
+  });
+
+  test("eine Wiederholung mit derselben clientOpId schreibt nicht doppelt", async () => {
+    const op = randomUUID();
+    const nutzlast = { titel: "Einmalig" };
+    const erste = await sende(
+      leiter(),
+      [{ typ: "aufgabe.anlegen", nutzlast }],
+      [op],
+    );
+    const zweite = await sende(
+      leiter(),
+      [{ typ: "aufgabe.anlegen", nutzlast }],
+      [op],
+    );
+    expect(zweite).toEqual(erste);
+    const liste = await anfrage(leiter(), "GET", `${L()}/aufgaben?limit=200`);
+    expect(
+      liste.body.aufgaben.filter(
+        (a: { titel: string }) => a.titel === "Einmalig",
+      ),
+    ).toHaveLength(1);
+  });
+
+  test("eine veraltete Version ist ein Konflikt mit dem Stand und den abweichenden Feldern", async () => {
+    const a = await neu({ titel: "Eins" });
+    await anfrage(leiter(), "PATCH", `${L()}/aufgaben/${a.id}`, {
+      version: 1,
+      titel: "Zwei",
+    });
+    const [k] = await sende(leiter(), [
+      {
+        typ: "aufgabe.aendern",
+        nutzlast: { id: a.id, version: 1, titel: "Drei" },
+      },
+    ]);
+    expect(k).toMatchObject({
+      status: "konflikt",
+      code: "VERSION_KONFLIKT",
+      aktuell: { titel: "Zwei" },
+      abweichend: ["titel"],
+    });
+  });
+
+  test("die Rechte der Rolle gelten wie an den Routen", async () => {
+    const eigene = await neu({ verantwortlichPersonId: team().id });
+    const fremde = await neu();
+    const [anlegen, aendern, statusEigene, statusFremde, loeschen] =
+      await sende(team(), [
+        { typ: "aufgabe.anlegen", nutzlast: { titel: "X" } },
+        {
+          typ: "aufgabe.aendern",
+          nutzlast: { id: eigene.id, version: 1, titel: "X" },
+        },
+        {
+          typ: "aufgabe.status",
+          nutzlast: { id: eigene.id, version: 1, status: "laeuft" },
+        },
+        {
+          typ: "aufgabe.status",
+          nutzlast: { id: fremde.id, version: 1, status: "laeuft" },
+        },
+        { typ: "aufgabe.loeschen", nutzlast: { id: eigene.id, version: 1 } },
+      ]);
+    expect(anlegen).toMatchObject({
+      status: "abgelehnt",
+      code: "KEINE_BERECHTIGUNG",
+    });
+    expect(aendern!.code).toBe("KEINE_BERECHTIGUNG");
+    expect(statusEigene).toMatchObject({ status: "ok" });
+    expect(statusFremde).toMatchObject({
+      status: "abgelehnt",
+      code: "NICHT_GEFUNDEN",
+    });
+    expect(loeschen!.code).toBe("KEINE_BERECHTIGUNG");
+    // Lesen hat weder bearbeiten noch eigene
+    const [lesen] = await sende(konten.lesen, [
+      {
+        typ: "aufgabe.status",
+        nutzlast: { id: fremde.id, version: 1, status: "laeuft" },
+      },
+    ]);
+    expect(lesen!.code).toBe("KEINE_BERECHTIGUNG");
+    const get = await anfrage(leiter(), "GET", `${L()}/aufgaben/${fremde.id}`);
+    expect(get.body.status).toBe("offen");
+  });
+
+  test("ungültige Nutzlast und Nicht-Mitglieder werden abgelehnt, Fremdes bleibt unberührt", async () => {
+    const andere = await neu({}, andereLagerId);
+    const [unbekannt, fremdesLager, keinMitglied] = await sende(leiter(), [
+      {
+        typ: "aufgabe.anlegen",
+        nutzlast: { titel: "X", erledigtAm: new Date().toISOString() },
+      },
+      {
+        typ: "aufgabe.aendern",
+        nutzlast: { id: andere.id, version: 1, titel: "Fremd" },
+      },
+      {
+        typ: "aufgabe.anlegen",
+        nutzlast: {
+          titel: "X",
+          verantwortlichPersonId: konten.ohneMitgliedschaft.id,
+        },
+      },
+    ]);
+    expect(unbekannt).toMatchObject({
+      status: "abgelehnt",
+      code: "UNGUELTIGE_EINGABE",
+    });
+    expect(fremdesLager).toMatchObject({
+      status: "abgelehnt",
+      code: "NICHT_GEFUNDEN",
+    });
+    expect(keinMitglied).toMatchObject({
+      status: "abgelehnt",
+      code: "UNGUELTIGE_EINGABE",
+    });
+    const get = await anfrage(
+      leiter(),
+      "GET",
+      `${L(andereLagerId)}/aufgaben/${andere.id}`,
+    );
+    expect(get.body.titel).toBe("Aufgabe");
+  });
+
+  test("im abgeschlossenen Lager nimmt die Warteschlange nichts an", async () => {
+    const a = await anfrage(
+      leiter(),
+      "POST",
+      `${L(geschlossenId)}/aenderungen`,
+      {
+        operationen: [
+          {
+            clientOpId: randomUUID(),
+            typ: "aufgabe.anlegen",
+            nutzlast: { titel: "X" },
+          },
+        ],
+      },
+    );
+    expect(a.status).toBe(409);
+  });
+});

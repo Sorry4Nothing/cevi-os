@@ -1,9 +1,11 @@
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
   AUFGABE_STATUS,
+  type AufgabeStatus,
   aufgabe,
   aufgabeUnterstuetzung,
   lagerMitglied,
@@ -11,8 +13,10 @@ import {
   user,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
+import { registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
-import type { Tx } from "./sync.js";
+import { sperreLager } from "./ressorts.js";
+import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Aufgaben des Lagers (#372): Ansichten, Eingabeschemas, Abfragen und die Prüfungen, die in der Schreib-Transaktion laufen. Die Tabelle ist beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet. Der Feed zeigt sie jedem, der Aufgaben lesen darf; der Zeilenfilter lässt dem Team nur die eigenen (aufgabeSichtbar).
@@ -75,39 +79,33 @@ const personen = z
   .max(50)
   .refine((l) => new Set(l).size === l.length);
 
-export const aufgabeAnlegen = z.strictObject({
-  titel,
-  ressortId: z.uuid().nullable().optional(),
-  teil: teil.optional(),
-  verantwortlichPersonId: person.optional(),
-  unterstuetzungPersonIds: personen.optional(),
-  status: status.optional(),
-  notiz: notiz.optional(),
-  frist: datum.nullable().optional(),
-  stern: z.boolean().optional(),
-  laufend: z.boolean().optional(),
-  spaeterAb: datum.nullable().optional(),
-  wiederholung: z.enum(["w1", "w2", "m1"]).nullable().optional(),
-  reihenfolge: reihenfolge.optional(),
-});
+// Die Felder einer Aufgabe, die die App setzen darf; beim Ändern ist jedes optional
+const felder = {
+  ressortId: z.uuid().nullable(),
+  teil,
+  verantwortlichPersonId: person,
+  unterstuetzungPersonIds: personen,
+  status,
+  notiz,
+  frist: datum.nullable(),
+  stern: z.boolean(),
+  laufend: z.boolean(),
+  spaeterAb: datum.nullable(),
+  wiederholung: z.enum(["w1", "w2", "m1"]).nullable(),
+  reihenfolge,
+};
+const optional = Object.fromEntries(
+  Object.entries(felder).map(([k, f]) => [k, f.optional()]),
+) as { [K in keyof typeof felder]: z.ZodOptional<(typeof felder)[K]> };
+
+export const aufgabeAnlegen = z.strictObject({ titel, ...optional });
 export const aufgabeAendern = z
-  .strictObject({
-    version,
-    titel: titel.optional(),
-    ressortId: z.uuid().nullable().optional(),
-    teil: teil.optional(),
-    verantwortlichPersonId: person.optional(),
-    unterstuetzungPersonIds: personen.optional(),
-    status: status.optional(),
-    notiz: notiz.optional(),
-    frist: datum.nullable().optional(),
-    stern: z.boolean().optional(),
-    laufend: z.boolean().optional(),
-    spaeterAb: datum.nullable().optional(),
-    wiederholung: z.enum(["w1", "w2", "m1"]).nullable().optional(),
-    reihenfolge: reihenfolge.optional(),
-  })
+  .strictObject({ version, titel: titel.optional(), ...optional })
   .refine((b) => Object.keys(b).length > 1);
+// Wie die Route, für die Warteschlange (#367): zusätzlich die ID der Aufgabe
+const aendernOperation = z
+  .strictObject({ id: z.uuid(), version, titel: titel.optional(), ...optional })
+  .refine((b) => Object.keys(b).length > 2);
 export const statusSetzen = z.strictObject({ version, status });
 export const aufgabeReihenfolge = z.strictObject({
   eintraege: z
@@ -501,3 +499,210 @@ export async function benachrichtigeAufgabe(
     },
   };
 }
+
+// Die Schreibwege. Die Routen (routes/lager/aufgaben.ts) und die Operationen der Warteschlange (unten) rufen dieselben Funktionen, jede in der Transaktion des Aufrufers: Sperre des Lagers, Prüfung, Schreiben über den Sync-Kern, Benachrichtigung. Die Rolle prüft der Aufrufer vorher (Recht, bei «eigene» auch istBeteiligt); die Funktionen kennen sie nicht
+type Akteur = { lagerId: string; personId: string };
+export type SchreibErgebnis =
+  | { fehler: NonNullable<Pruefung>["fehler"] }
+  | { id: string; version: number; zustellung: Zustellung };
+
+export async function legeAufgabeAn(
+  tx: Tx,
+  k: Akteur,
+  eingabe: z.output<typeof aufgabeAnlegen>,
+): Promise<SchreibErgebnis> {
+  const { unterstuetzungPersonIds, ...werte } = eingabe;
+  await sperreLager(tx, k.lagerId);
+  const fehler = await pruefeAufgabenWerte(tx, k.lagerId, {
+    ...werte,
+    unterstuetzungPersonIds,
+  });
+  if (fehler) return fehler;
+  // Ohne Angabe ans Ende
+  const [ende] = await tx
+    .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
+    .from(aufgabe)
+    .where(and(eq(aufgabe.lagerId, k.lagerId), aufgabeAktiv));
+  const neu = await legeZeileAn(tx, aufgabe, k, {
+    ...werte,
+    reihenfolge: werte.reihenfolge ?? ende!.n,
+    ...(werte.status === "erledigt" ? { erledigtAm: new Date() } : {}),
+  });
+  await setzeUnterstuetzung(
+    tx,
+    k.lagerId,
+    neu.id,
+    unterstuetzungPersonIds ?? [],
+  );
+  return {
+    id: neu.id,
+    version: neu.version,
+    zustellung: await benachrichtigeAufgabe(tx, {
+      lagerId: k.lagerId,
+      aufgabeId: neu.id,
+      ausgeloestVon: k.personId,
+      nachher: await ladeBeteiligte(tx, k.lagerId, neu.id),
+      geaendert: false,
+    }),
+  };
+}
+
+export async function aendereAufgabe(
+  tx: Tx,
+  k: Akteur,
+  id: string,
+  eingabe: Omit<z.output<typeof aufgabeAendern>, "titel"> & { titel?: string },
+): Promise<SchreibErgebnis> {
+  const { version, unterstuetzungPersonIds, ...werte } = eingabe;
+  await sperreLager(tx, k.lagerId);
+  const alt = await ladeAufgabeZeile(tx, k.lagerId, id);
+  if (!alt) throw new HTTPException(404);
+  const fehler = await pruefeAufgabenWerte(tx, k.lagerId, {
+    ...werte,
+    unterstuetzungPersonIds,
+  });
+  if (fehler) return fehler;
+  const vorher = await ladeBeteiligte(tx, k.lagerId, id);
+  const neu = await aendereZeile(tx, aufgabe, k, {
+    id,
+    version,
+    werte: {
+      ...werte,
+      ...(werte.status ? statusWerte(alt.status, werte.status) : {}),
+    },
+    ansicht: aufgabeAnsicht,
+  });
+  if (unterstuetzungPersonIds) {
+    await setzeUnterstuetzung(tx, k.lagerId, id, unterstuetzungPersonIds);
+  }
+  return {
+    id,
+    version: neu.version,
+    zustellung: await benachrichtigeAufgabe(tx, {
+      lagerId: k.lagerId,
+      aufgabeId: id,
+      ausgeloestVon: k.personId,
+      vorher,
+      nachher: await ladeBeteiligte(tx, k.lagerId, id),
+      geaendert: true,
+    }),
+  };
+}
+
+// alle: darf jede Aufgabe (aufgaben.bearbeiten). Sonst nur eine eigene; eine fremde Aufgabe ist unbekannt (404, dieselbe wie für eine, die es nicht gibt)
+export async function setzeAufgabeStatus(
+  tx: Tx,
+  k: Akteur & { alle: boolean },
+  id: string,
+  version: number,
+  neuerStatus: AufgabeStatus,
+) {
+  await sperreLager(tx, k.lagerId);
+  const alt = await ladeAufgabeZeile(tx, k.lagerId, id);
+  if (
+    !alt ||
+    (!k.alle && !(await istBeteiligt(tx, k.lagerId, id, k.personId)))
+  ) {
+    throw new HTTPException(404);
+  }
+  const vorher = await ladeBeteiligte(tx, k.lagerId, id);
+  const neu = await aendereZeile(tx, aufgabe, k, {
+    id,
+    version,
+    werte: { status: neuerStatus, ...statusWerte(alt.status, neuerStatus) },
+    ansicht: aufgabeAnsicht,
+  });
+  return {
+    id,
+    version: neu.version,
+    zustellung: await benachrichtigeAufgabe(tx, {
+      lagerId: k.lagerId,
+      aufgabeId: id,
+      ausgeloestVon: k.personId,
+      vorher,
+      nachher: vorher,
+      geaendert: true,
+    }),
+  };
+}
+
+// Löschen geht allein über loescheZeile des Sync-Kerns (das Löschverhalten ändert #427 dort, nicht hier)
+export async function loescheAufgabe(
+  tx: Tx,
+  k: Akteur,
+  id: string,
+  version: number,
+) {
+  await sperreLager(tx, k.lagerId);
+  if (!(await ladeAufgabeZeile(tx, k.lagerId, id))) {
+    throw new HTTPException(404);
+  }
+  await loescheZeile(tx, aufgabe, k, { id, version, ansicht: aufgabeAnsicht });
+}
+
+// Operationen der Warteschlange (#367): dieselben Schreibwege wie die Routen, mit denselben Rechten. Eine Prüfung, die die Route mit 400 beantwortet, lehnt die Operation ab. Die Benachrichtigungen landen in der Glocke; den Push nach dem Commit kennt die Warteschlange noch nicht (lager/operationen.ts hat dafür keinen Haken)
+const schreibe = (e: SchreibErgebnis) => {
+  if ("fehler" in e) throw new HTTPException(400);
+  return { id: e.id, version: e.version };
+};
+registriereOperation({
+  typ: "aufgabe.anlegen",
+  recht: "aufgaben.bearbeiten",
+  schema: aufgabeAnlegen,
+  fuehreAus: async ({ tx, zugriff, person }, n) =>
+    schreibe(
+      await legeAufgabeAn(
+        tx,
+        { lagerId: zugriff.lager.id, personId: person.id },
+        n,
+      ),
+    ),
+});
+registriereOperation({
+  typ: "aufgabe.aendern",
+  recht: "aufgaben.bearbeiten",
+  schema: aendernOperation,
+  fuehreAus: async ({ tx, zugriff, person }, { id, ...n }) =>
+    schreibe(
+      await aendereAufgabe(
+        tx,
+        { lagerId: zugriff.lager.id, personId: person.id },
+        id,
+        n,
+      ),
+    ),
+});
+// Das Recht «eigene» genügt für eine eigene Aufgabe; wer aufgaben.bearbeiten hat, setzt jeden Status
+registriereOperation({
+  typ: "aufgabe.status",
+  recht: "aufgaben.eigene",
+  schema: z.strictObject({ id: z.uuid(), version, status }),
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    const e = await setzeAufgabeStatus(
+      tx,
+      {
+        lagerId: zugriff.lager.id,
+        personId: person.id,
+        alle: darf(zugriff, "aufgaben.bearbeiten"),
+      },
+      n.id,
+      n.version,
+      n.status,
+    );
+    return { id: e.id, version: e.version };
+  },
+});
+registriereOperation({
+  typ: "aufgabe.loeschen",
+  recht: "aufgaben.bearbeiten",
+  schema: z.strictObject({ id: z.uuid(), version }),
+  fuehreAus: async ({ tx, zugriff, person }, n) => {
+    await loescheAufgabe(
+      tx,
+      { lagerId: zugriff.lager.id, personId: person.id },
+      n.id,
+      n.version,
+    );
+    return { id: n.id };
+  },
+});
