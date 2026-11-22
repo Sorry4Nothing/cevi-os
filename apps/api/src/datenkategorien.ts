@@ -168,9 +168,9 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht.",
     frist:
-      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -243,6 +243,14 @@ export const KATEGORIEN = {
     zweck:
       "Jede Person im Lager führt eigene To-dos, die nur sie sieht; auch die Lagerleitung und die Abteilungsleitung lesen sie nie. Die Abteilungsleitung pflegt Vorlagen für Aufgaben und Packlisten; die Lagerleitung wendet eine Vorlage in einem Lager an, und es entstehen daraus gewöhnliche Aufgaben und Punkte des Lagers.",
     frist: `Die To-dos, bis die Person sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Vorlagen, bis die Abteilungsleitung sie löscht. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerHoeck: {
+    titel: "Höcks und Traktanden im Lager",
+    zweck:
+      "Die Sitzungen des Lagers planen und festhalten: Datum, Zeit, Ort und Titel eines Höcks, wer beim Höck war, Gäste als Freitext, die Traktanden mit Notizen, Links, Verantwortlichen und einem kurzen Entscheid. Das Team sieht nur Höcks der Art Team, und von diesen nur Datum, Zeit, Titel und Ort. Ein Höck lässt sich als Kalenderdatei laden; sie enthält nur Titel, Ort, Datum und Zeit. Das Protokoll liegt als Verknüpfung auf eine Datei im SharePoint der Abteilung.",
+    frist: `Bis die Leitung den Höck oder das Traktandum löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
@@ -687,6 +695,38 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   aufgabe_stichwort: {
     lager: ["lager_id", "aufgabe_id", "stichwort"],
   },
+  // Höcks (#378): Anwesende und Verantwortliche als Konto-IDs, Gäste als Freitext; protokoll_id verknüpft das Protokoll (#379)
+  hoeck: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "datum",
+      "zeit",
+      "titel",
+      "ort",
+      "gaeste",
+      "protokoll_id",
+    ],
+  },
+  hoeck_anwesenheit: {
+    lagerHoeck: ["lager_id", "hoeck_id", "person_id"],
+  },
+  traktandum: {
+    lagerHoeck: [
+      ...LAGER_BASIS_SPALTEN,
+      "hoeck_id",
+      "titel",
+      "text",
+      "entscheid",
+      "links",
+      "reihenfolge",
+      "aufgabe_id",
+      "status",
+    ],
+  },
+  traktandum_verantwortlich: {
+    lagerHoeck: ["lager_id", "traktandum_id", "person_id"],
+  },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
     lagerAnwesenheit: [
@@ -823,6 +863,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zimmer_id",
       "teilnehmer_id",
       "person_id",
+    ],
+  },
+  // Dienste und Schichtplan (#388): Name, Beschreibung, nötige Personenzahl und Nachtwache je Dienst; die Schicht nennt Person oder Teilnehmende nur als ID, mit Tag, Abschnitt und Dienst
+  dienst: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "beschreibung",
+      "mindestbesetzung",
+      "nacht",
+      "tagesabschnitt_id",
+      "reihenfolge",
+    ],
+  },
+  schicht: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tagesabschnitt_id",
+      "dienst_id",
+      "person_id",
+      "teilnehmer_id",
     ],
   },
   // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender

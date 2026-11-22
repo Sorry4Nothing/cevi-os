@@ -627,6 +627,133 @@ export const aufgabeStichwort = pgTable(
   ],
 );
 
+// Höcks (#378): Sitzungstermine des Lagers. «team» ist für alle Mitglieder sichtbar (nur Datum, Zeit, Titel, Ort), «lagerleitung» nur für Rollen mit hoecks.lesen_alle. Die Zeit ist «HH:MM» in der Zeit des Lagers (ohne Zeitzone, ohne Ende); ohne Zeit ist der Höck ein Tag. gaeste: Namen von Gästen als Freitext, nur für Rollen mit hoecks.lesen_alle. protokoll_id: Verknüpfung auf das Protokoll (#379), bewusst ohne Fremdschlüssel und über die API noch nicht setzbar. Anwesende stehen in hoeck_anwesenheit
+export const HOECK_ART = ["lagerleitung", "team"] as const;
+export type HoeckArt = (typeof HOECK_ART)[number];
+
+export const hoeck = pgTable(
+  "hoeck",
+  {
+    ...lagerSpalten(),
+    art: text("art", { enum: HOECK_ART }).notNull(),
+    datum: date("datum").notNull(),
+    zeit: text("zeit"),
+    titel: text("titel").notNull(),
+    ort: text("ort"),
+    gaeste: text("gaeste"),
+    protokollId: uuid("protokoll_id"),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel von Traktandum und Anwesenheit: Ein Höck eines anderen Lagers ist nie gemeint
+    unique("hoeck_lager_id_id_uq").on(t.lagerId, t.id),
+    index("hoeck_liste_idx").on(t.lagerId, t.datum, t.id),
+    check("hoeck_art_check", sql`${t.art} in ('lagerleitung', 'team')`),
+    check(
+      "hoeck_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.zeit} is null or ${t.zeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$') and (${t.ort} is null or char_length(${t.ort}) between 1 and 200) and (${t.gaeste} is null or char_length(${t.gaeste}) between 1 and 500)`,
+    ),
+  ],
+);
+
+// Wer beim Höck da war (#378): eine Zeile je Person und Höck, ohne Feed und Version (Haken im Höck-Modus). Nur Mitglieder des Lagers; entfernt die Verwaltung das Mitglied oder fällt der Höck weg, geht die Zeile mit
+export const hoeckAnwesenheit = pgTable(
+  "hoeck_anwesenheit",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    hoeckId: uuid("hoeck_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.hoeckId, t.personId] }),
+    foreignKey({
+      name: "hoeck_anwesenheit_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "hoeck_anwesenheit_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("hoeck_anwesenheit_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
+// Traktanden (#378). Ohne Höck (hoeck_id leer) ist es ein Punkt für «den nächsten Höck». «text» sind die Notizen, «entscheid» der kurze Beschluss (die Entscheide-Sammlung liest ihn); das Protokoll liegt als Verknüpfung im SharePoint (#379). links: Liste von {titel, url}, nur https, der Server ruft sie nie ab (SR-26). aufgabe_id: Aufgabe, aus der der Punkt stammt oder auf die er zeigt; fällt die Aufgabe endgültig weg, bleibt das Traktandum ohne sie. Verantwortliche stehen in traktandum_verantwortlich
+export const TRAKTANDUM_STATUS = ["offen", "besprochen"] as const;
+export type TraktandumStatus = (typeof TRAKTANDUM_STATUS)[number];
+
+export const traktandum = pgTable(
+  "traktandum",
+  {
+    ...lagerSpalten(),
+    hoeckId: uuid("hoeck_id"),
+    titel: text("titel").notNull(),
+    text: text("text"),
+    entscheid: text("entscheid"),
+    links: jsonb("links")
+      .$type<{ titel: string; url: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    aufgabeId: uuid("aufgabe_id"),
+    status: text("status", { enum: TRAKTANDUM_STATUS })
+      .notNull()
+      .default("offen"),
+  },
+  (t) => [
+    unique("traktandum_lager_id_id_uq").on(t.lagerId, t.id),
+    // Höck weg: Traktanden weg (der Höck lässt sich über die API nur ohne Traktanden löschen)
+    foreignKey({
+      name: "traktandum_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("cascade"),
+    // In der Migration ON DELETE SET NULL (aufgabe_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "traktandum_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("set null"),
+    index("traktandum_liste_idx").on(t.lagerId, t.hoeckId, t.reihenfolge, t.id),
+    index("traktandum_aufgabe_idx")
+      .on(t.lagerId, t.aufgabeId)
+      .where(sql`${t.aufgabeId} is not null`),
+    check(
+      "traktandum_status_check",
+      sql`${t.status} in ('offen', 'besprochen')`,
+    ),
+    check(
+      "traktandum_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.text} is null or char_length(${t.text}) <= 5000) and (${t.entscheid} is null or char_length(${t.entscheid}) between 1 and 1000) and ${t.reihenfolge} >= 0 and jsonb_typeof(${t.links}) = 'array' and jsonb_array_length(${t.links}) <= 10`,
+    ),
+  ],
+);
+
+// Wer ein Traktandum vorbereitet oder vorträgt (#378): eine Zeile je Person und Traktandum, ohne Feed (das Traktandum zählt die Version hoch, wenn sich die Liste ändert). Nur Mitglieder des Lagers
+export const traktandumVerantwortlich = pgTable(
+  "traktandum_verantwortlich",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    traktandumId: uuid("traktandum_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.traktandumId, t.personId] }),
+    foreignKey({
+      name: "traktandum_verantwortlich_traktandum_fk",
+      columns: [t.lagerId, t.traktandumId],
+      foreignColumns: [traktandum.lagerId, traktandum.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "traktandum_verantwortlich_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("traktandum_verantwortlich_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",
@@ -1482,6 +1609,88 @@ export const fahrtMitfahrer = pgTable(
     check(
       "fahrt_mitfahrer_check",
       sql`${t.richtung} in ('hin', 'rueck') and num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Dienste des Lagers (#388), zum Beispiel «Frühstück», «Abwasch» oder «Nachtwache»: Jeder gehört zu einem Tagesabschnitt und gilt an jedem Lagertag. mindestbesetzung ist die Zahl der Personen, die der Dienst je Tag braucht (mehr einzuteilen ist erlaubt). nacht kennzeichnet Nachtwachen, die der Vorschlag nicht an zwei Tagen hintereinander an dieselbe Person gibt. Der Abschnitt lässt sich nach dem Anlegen nicht ändern, weil die Schichten ihn mitführen. Geschrieben wird nur über lager/sync.ts
+export const dienst = pgTable(
+  "dienst",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    beschreibung: text("beschreibung"),
+    mindestbesetzung: integer("mindestbesetzung").notNull().default(1),
+    nacht: boolean("nacht").notNull().default(false),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    unique("dienst_lager_id_id_uq").on(t.lagerId, t.id),
+    // Ziel des Fremdschlüssels von schicht: Eine Schicht kann nie einen anderen Abschnitt als ihr Dienst haben
+    unique("dienst_lager_id_id_abschnitt_uq").on(
+      t.lagerId,
+      t.id,
+      t.tagesabschnittId,
+    ),
+    foreignKey({
+      name: "dienst_abschnitt_fk",
+      columns: [t.lagerId, t.tagesabschnittId],
+      foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
+    }).onDelete("cascade"),
+    uniqueIndex("dienst_name_uq")
+      .on(t.lagerId, t.tagesabschnittId, sql`lower(${t.name})`)
+      .where(sql`${t.geloeschtAm} is null`),
+    index("dienst_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    check(
+      "dienst_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.beschreibung} is null or char_length(${t.beschreibung}) between 1 and 500) and ${t.mindestbesetzung} between 1 and 20 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Eine eingeteilte Person (Mitglied des Lagers) oder ein eingeteilter Teilnehmender an einem Lagertag in einem Dienst (#388). tagesabschnitt_id ist der Abschnitt des Dienstes (der zusammengesetzte Fremdschlüssel hält sie gleich); eine Person ist je Lagertag und Abschnitt höchstens in einem Dienst (Teilindex ohne gelöschte Zeilen). Die Zeilen gehen mit dem Dienst, dem Lagertag, dem Teilnehmenden und der Mitgliedschaft
+export const schicht = pgTable(
+  "schicht",
+  {
+    ...lagerSpalten(),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    dienstId: uuid("dienst_id").notNull(),
+    personId: uuid("person_id"),
+    teilnehmerId: uuid("teilnehmer_id"),
+  },
+  (t) => [
+    foreignKey({
+      name: "schicht_lagertag_fk",
+      columns: [t.lagerId, t.lagertagId],
+      foreignColumns: [lagertag.lagerId, lagertag.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_dienst_fk",
+      columns: [t.lagerId, t.dienstId, t.tagesabschnittId],
+      foreignColumns: [dienst.lagerId, dienst.id, dienst.tagesabschnittId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "schicht_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    uniqueIndex("schicht_person_uq")
+      .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("schicht_teilnehmer_uq")
+      .on(t.lagerId, t.lagertagId, t.tagesabschnittId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    index("schicht_dienst_idx").on(t.lagerId, t.dienstId, t.lagertagId),
+    check(
+      "schicht_check",
+      sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
     ),
   ],
 );
