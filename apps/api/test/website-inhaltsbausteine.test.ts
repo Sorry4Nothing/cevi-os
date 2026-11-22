@@ -192,7 +192,7 @@ describe("Renderer", () => {
     );
     expect(html).toMatch(
       new RegExp(
-        `<ul class="personen"><li><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
+        `<ul class="personen"><li class="einblenden"><span class="portraet-rahmen"><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*></span><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
       ),
     );
     // Das zweite Bild gibt es nicht (oder es ist nicht öffentlich): Initialen
@@ -223,14 +223,14 @@ describe("Renderer", () => {
       },
     );
     expect(html).toContain(
-      `<li><div class="artikel-bild"><img src="/api/v1/medien/${gleich}" alt=""`,
+      `<li class="einblenden"><div class="artikel-bild"><img src="/api/v1/medien/${gleich}" alt=""`,
     );
     expect(html).toContain('alt="Rotes Sackmesser"');
     expect(html).toContain(
       '<div class="artikel-text"><h2 class="name">Pulli</h2><p class="preis">CHF 40.–</p></div>',
     );
     expect(html).toContain(
-      '<li><div class="artikel-bild artikel-bild--leer"></div><div class="artikel-text"><h2 class="name">Ausweis</h2><p class="preis">gratis</p></div></li>',
+      '<li class="einblenden"><div class="artikel-bild artikel-bild--leer"></div><div class="artikel-text"><h2 class="name">Ausweis</h2><p class="preis">gratis</p></div></li>',
     );
     expect(html).not.toContain("<x-boese");
   });

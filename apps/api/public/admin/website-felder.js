@@ -1052,14 +1052,22 @@ export const TYPEN = {
       el(
         "p",
         { class: "hilfe" },
-        "Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+        "Ansprechpersonen mit Foto, Anzeigename, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
       ),
       eintraegeForm(k, b, reg, {
         name: "Person",
         max: MAX_PERSONEN,
         bild: true,
         felder: [
-          ["name", "Name", { maxlength: 100 }],
+          [
+            "name",
+            "Anzeigename",
+            {
+              maxlength: 100,
+              hilfe:
+                "Steht gross unter dem Bild, zum Beispiel der Cevi-Name, sonst der Vorname.",
+            },
+          ],
           [
             "funktion",
             "Funktion (optional)",
