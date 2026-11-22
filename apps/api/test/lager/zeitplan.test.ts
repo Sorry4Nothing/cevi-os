@@ -1531,6 +1531,13 @@ describe("Fristverschiebung", () => {
       version: 1,
     });
     gesendet = [];
+    // Die Änderung der Unterstützung oben hat schon Zeilen der Art geschrieben: Gezählt wird, was die Verschiebung dazu schreibt
+    const vorher = {
+      verantwortliche: (
+        await benachrichtigungen(l, verantwortliche, "aufgabe_geaendert")
+      ).length,
+      zweite: (await benachrichtigungen(l, zweite, "aufgabe_geaendert")).length,
+    };
     const b = await verschiebe(l, m, {
       trocken: false,
       datum: "2031-04-01",
@@ -1548,13 +1555,12 @@ describe("Fristverschiebung", () => {
       verantwortliche,
       "aufgabe_geaendert",
     );
-    expect(z1).toHaveLength(1);
-    expect(z1[0]!.objektTyp).toBe("aufgabe");
-    // Sie öffnet die Aufgabe mit der nächsten Frist
-    expect(z1[0]!.objektId).toBe(a1.id);
+    expect(z1).toHaveLength(vorher.verantwortliche + 1);
+    // Die neue Zeile ist die letzte; sie öffnet die Aufgabe mit der nächsten Frist
+    expect(z1.at(-1)).toMatchObject({ objektTyp: "aufgabe", objektId: a1.id });
     expect(
       await benachrichtigungen(l, zweite, "aufgabe_geaendert"),
-    ).toHaveLength(1);
+    ).toHaveLength(vorher.zweite + 1);
     expect(await benachrichtigungen(l, nur, "aufgabe_geaendert")).toHaveLength(
       0,
     );
@@ -1689,14 +1695,17 @@ describe("Frist-Erinnerung", () => {
       { frist: "2032-03-29", verantwortlichPersonId: person },
       l,
     );
-    // 27. März 23:30 MEZ = 22:30 UTC: noch vor 07:00, nichts
-    expect(await lauf("2032-03-27T22:30:00Z")).toBe(0);
-    // 28. März, nach der Umstellung (02:00 MEZ wird 03:00 MESZ): 06:30 UTC = 08:30 MESZ
-    expect(await lauf("2032-03-28T06:30:00Z")).toBe(1);
-    // Später am selben Tag und in der Nacht danach: kein Doppel
+    // 28. März: Um 01:00 UTC springt die Uhr von 02:00 MEZ auf 03:00 MESZ. Davor und danach, bis 07:00 MESZ (05:00 UTC), tut der Lauf nichts
+    expect(await lauf("2032-03-28T00:30:00Z")).toBe(0);
+    expect(await lauf("2032-03-28T01:30:00Z")).toBe(0);
+    expect(await lauf("2032-03-28T04:59:00Z")).toBe(0);
+    expect(await lauf("2032-03-28T05:00:00Z")).toBe(1);
+    // Später am selben Zürcher Tag, auch kurz vor Mitternacht MESZ (21:59 UTC am 28.): kein Doppel
     expect(await lauf("2032-03-28T20:00:00Z")).toBe(0);
+    expect(await lauf("2032-03-28T21:59:00Z")).toBe(0);
+    // Nach Mitternacht Zürcher Zeit (00:30 MESZ am 29.) ist es noch zu früh
     expect(await lauf("2032-03-28T22:30:00Z")).toBe(0);
-    // 29. März ab 07:00 MESZ (05:00 UTC): neuer Tag, die Frist ist heute
+    // 29. März ab 07:00 MESZ: neuer Tag, die Frist ist heute
     expect(await lauf("2032-03-29T05:00:00Z")).toBe(1);
     expect(await lauf("2032-03-30T05:00:00Z")).toBe(0);
     expect(await erinnert(maerz)).not.toBeNull();
@@ -1705,9 +1714,11 @@ describe("Frist-Erinnerung", () => {
       { frist: "2032-11-01", verantwortlichPersonId: person },
       l,
     );
-    // 30. Oktober 07:30 MESZ = 05:30 UTC
+    // 30. Oktober 07:30 MESZ = 05:30 UTC, danach nichts mehr am selben Zürcher Tag
     expect(await lauf("2032-10-30T05:30:00Z")).toBe(1);
-    // 31. Oktober: Die Stunde 02:00 bis 03:00 gibt es zweimal (MESZ, dann MEZ); der Lauf tut vor 07:00 MEZ (06:00 UTC) nichts
+    expect(await lauf("2032-10-30T21:30:00Z")).toBe(0);
+    expect(await lauf("2032-10-30T22:30:00Z")).toBe(0);
+    // 31. Oktober: Um 01:00 UTC springt die Uhr von 03:00 MESZ auf 02:00 MEZ, die Stunde 02:00 gibt es zweimal. Der Lauf tut vor 07:00 MEZ (06:00 UTC) nichts
     expect(await lauf("2032-10-31T00:30:00Z")).toBe(0);
     expect(await lauf("2032-10-31T01:30:00Z")).toBe(0);
     expect(await lauf("2032-10-31T05:59:00Z")).toBe(0);
@@ -1878,12 +1889,12 @@ describe("Frist-Erinnerung", () => {
         throw new Error("Absicht");
       })) as typeof db.transaction;
     await expect(
-      sendeFristErinnerungen(kaputt, { jetzt: um("2031-12-10T05:30:00Z") }),
+      sendeFristErinnerungen(kaputt, { jetzt: um("2031-12-10T06:30:00Z") }),
     ).rejects.toThrow("Absicht");
     expect(await erinnert(id)).toBeNull();
     expect(await benachrichtigungen(l, person)).toHaveLength(0);
     // Der nächste Lauf holt es nach
-    expect(await lauf("2031-12-10T05:35:00Z")).toBe(1);
+    expect(await lauf("2031-12-10T06:35:00Z")).toBe(1);
   });
 });
 
@@ -1908,15 +1919,14 @@ describe("Anwesenheit: Lagertag und Abschnitt gehören zum Lager", () => {
     const eigenes = await tagUndAbschnitt(l);
     const anderes = await tagUndAbschnitt(await neuesLager());
     const geloescht = await tagUndAbschnitt(l, "2027-07-12");
-    expect(
-      (
-        await anfrage(
-          leiter(),
-          "DELETE",
-          `${Z(l)}/lagertage/${geloescht.tag.id}?version=1`,
-        )
-      ).status,
-    ).toBe(204);
+    for (const pfad of [
+      `lagertage/${geloescht.tag.id}`,
+      `tagesabschnitte/${geloescht.abschnitt.id}`,
+    ]) {
+      expect(
+        (await anfrage(leiter(), "DELETE", `${Z(l)}/${pfad}?version=1`)).status,
+      ).toBe(204);
+    }
     const felder = [
       { lagertagId: randomUUID(), tagesabschnittId: randomUUID() },
       {
