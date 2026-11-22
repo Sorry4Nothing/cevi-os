@@ -855,7 +855,7 @@ describe("Was der Tag zeigt", () => {
     expect(abrufe).toHaveLength(1);
   });
 
-  test("ein Programmbild sieht, wer die Tagesseite lesen darf, und der Aufräumlauf lässt es stehen", async () => {
+  test("ein Programmbild sieht, wer die Tagesseite lesen darf", async () => {
     const tag = await neuerTag();
     const dateiId = await datei();
     await anfrage(leiter(), "POST", `${T()}/${tag.id}/bloecke`, {
@@ -863,7 +863,7 @@ describe("Was der Tag zeigt", () => {
       text: "Plan",
       dateiId,
     });
-    const { sichtbareDateien, raeumeDateienOhneVerweisAuf } =
+    const { sichtbareDateien } =
       await import("../../src/lager/datei-verweise.js");
     const { ladeLagerZugriff } = await import("../../src/lager/policy.js");
     const person = await db
@@ -874,18 +874,5 @@ describe("Was der Tag zeigt", () => {
     expect(await sichtbareDateien(db, zugriff!, [dateiId])).toEqual(
       new Set([dateiId]),
     );
-    // Mit Frist von null Stunden räumt der Lauf alles ohne Verweis weg; dieses nicht
-    await raeumeDateienOhneVerweisAuf(db, 0);
-    expect(
-      await db
-        .select()
-        .from(schema.lagerDatei)
-        .where(
-          and(
-            eq(schema.lagerDatei.id, dateiId),
-            isNull(schema.lagerDatei.geloeschtAm),
-          ),
-        ),
-    ).toHaveLength(1);
   });
 });

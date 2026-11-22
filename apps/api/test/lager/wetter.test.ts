@@ -322,7 +322,10 @@ describe("Wetter und Zwischenspeicher", () => {
     await anfrage(konten.team, "GET", W(l));
     await db
       .update(schema.wetterCache)
-      .set({ abgerufenAm: stunden(WETTER_STUNDEN + 0.1) })
+      .set({
+        abgerufenAm: stunden(WETTER_STUNDEN + 0.1),
+        versuchAm: stunden(WETTER_STUNDEN + 0.1),
+      })
       .where(eq(schema.wetterCache.lagerId, l));
     antwort = async () => [tag("2041-06-02", { code: 61 })];
     const a = await anfrage(konten.team, "GET", W(l));
@@ -388,7 +391,7 @@ describe("Wetter und Zwischenspeicher", () => {
     };
     await db
       .update(schema.wetterCache)
-      .set({ abgerufenAm: stunden(10) })
+      .set({ abgerufenAm: stunden(10), versuchAm: stunden(10) })
       .where(eq(schema.wetterCache.lagerId, l));
     const alt = await anfrage(konten.team, "GET", W(l));
     expect(abrufe).toHaveLength(2);

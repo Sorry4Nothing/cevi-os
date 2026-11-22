@@ -119,8 +119,10 @@ test("0086 legt Tagesseiten und Wetter an, die Prüfungen der Datenbank halten, 
   ).rejects.toMatchObject({ code: "23505" });
   const [lager2] =
     await besitzer`insert into lager (abteilung_id, titel, von, bis) values (${abteilung.id}, 'Lager 2', '2027-07-10', '2027-07-24') returning id`;
+  const [tag2] =
+    await api`insert into lagertag (lager_id, datum, lager_seq) values (${lager.id}, '2027-07-11', 1) returning id`;
   await expect(
-    api`insert into tagesseite (lager_id, lagertag_id, lager_seq) values (${lager2.id}, ${tag.id}, 1)`,
+    api`insert into tagesseite (lager_id, lagertag_id, lager_seq) values (${lager2.id}, ${tag2.id}, 1)`,
   ).rejects.toMatchObject({ code: "23503" });
   // Der Tageschef ist Mitglied dieses Lagers; verlässt er es, bleibt die Seite ohne Tageschef
   await expect(
