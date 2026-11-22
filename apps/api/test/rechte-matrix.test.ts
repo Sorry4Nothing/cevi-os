@@ -46,6 +46,12 @@ import {
   legeLagerWeltAn,
   type LagerWelt,
 } from "./lager/matrix.js";
+import {
+  antwortenJePersona as antwortenTermine,
+  legeTermineKontextAn,
+  TERMINE_MATRIX,
+  type TermineKontext,
+} from "./termine/matrix.js";
 
 bereiteAuthTestsVor();
 
@@ -144,6 +150,19 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  "GET /admin/termine.js": { erwartet: alle(200) },
+  "GET /admin/termine.css": { erwartet: alle(200) },
+  "GET /admin/termine-warnliste.js": { erwartet: alle(200) },
+  "GET /admin/termine-warnliste.css": { erwartet: alle(200) },
+  "GET /admin/termine-kategorien.js": { erwartet: alle(200) },
+  "GET /admin/termine-kategorien.css": { erwartet: alle(200) },
+  "GET /admin/termine-vorschlaege.js": { erwartet: alle(200) },
+  "GET /admin/termine-vorschlaege.css": { erwartet: alle(200) },
+  "GET /admin/termine-anlaesse.js": { erwartet: alle(200) },
+  "GET /admin/termine-anlaesse.css": { erwartet: alle(200) },
+  "GET /admin/termine-raeume.js": { erwartet: alle(200) },
+  "GET /admin/termine-raeume.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -364,16 +383,6 @@ const MATRIX: Record<string, Zeile> = {
       admin: 200,
       adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
-  "POST /api/v1/admin/system/syncs/eckdaten": {
-    erwartet: {
-      ...alle(403),
-      admin: 501,
-      adminOhneZweitenFaktor: 403,
-      demoAdmin: 501,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1500,6 +1509,7 @@ const MATRIX: Record<string, Zeile> = {
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
 let lagerWelt: LagerWelt;
+let termineKontext: TermineKontext;
 let programmId: string;
 let anwesenheitProgrammId: string;
 let anwesenheitLeitungId: string;
@@ -1688,6 +1698,8 @@ beforeAll(async () => {
   standard = await personasAnlegen();
   // Lager der Lager-Matrix (test/lager/matrix/*.ts), einmal je Welt
   lagerWelt = await legeLagerWeltAn(welt, standard);
+  // Objekte der Termine-Matrix (test/termine/matrix/*.ts), einmal je Welt
+  termineKontext = await legeTermineKontextAn(welt, standard);
   anwesenheitLeitungId = standard.slA.id as string;
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
@@ -1786,7 +1798,13 @@ const schluesselVon = (instanz: Instanz) =>
   new Set(instanz.routes.map((r) => `${r.method} ${r.path}`));
 const ohneZeile = (instanz: Instanz) =>
   [...schluesselVon(instanz)]
-    .filter((s) => !(s in MATRIX) && !(s in LAGER_MATRIX) && !MIDDLEWARE.has(s))
+    .filter(
+      (s) =>
+        !(s in MATRIX) &&
+        !(s in LAGER_MATRIX) &&
+        !(s in TERMINE_MATRIX) &&
+        !MIDDLEWARE.has(s),
+    )
     .sort();
 
 describe("Vollständigkeit", () => {
@@ -1795,8 +1813,15 @@ describe("Vollständigkeit", () => {
     expect(ohneZeile(app)).toEqual([]);
     expect(Object.keys(MATRIX).filter((s) => !routen.has(s))).toEqual([]);
     expect(Object.keys(LAGER_MATRIX).filter((s) => !routen.has(s))).toEqual([]);
-    // Eine Route steht in genau einer der beiden Matrizen
+    expect(Object.keys(TERMINE_MATRIX).filter((s) => !routen.has(s))).toEqual(
+      [],
+    );
+    // Eine Route steht in genau einer der Matrizen
     expect(Object.keys(LAGER_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
+    expect(Object.keys(TERMINE_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
+    expect(
+      Object.keys(TERMINE_MATRIX).filter((s) => s in LAGER_MATRIX),
+    ).toEqual([]);
     expect([...MIDDLEWARE].filter((s) => !routen.has(s))).toEqual([]);
   });
 
@@ -1893,6 +1918,21 @@ describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", ()
       ),
     ).toEqual(zeile.erwartet[zustand]);
   });
+});
+
+// Rolle mal Anmeldung für jede Route der Termine-Module (test/termine/matrix/*.ts); die Regeln über alle Zeilen prüft test/termine/matrix-regeln.test.ts. Bewusst eine Schleife: Ohne Zeilen ergibt sie keinen Test, statt an einem leeren test.each zu scheitern
+describe("Termine-Matrix: jede Route mal jede Persona", () => {
+  // H�lt die Suite auch ohne Zeilen g�ltig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
+  test("der Kontext der Termine steht", () => {
+    expect(termineKontext.welt).toBe(welt);
+  });
+  for (const [schluessel, zeile] of Object.entries(TERMINE_MATRIX)) {
+    test(schluessel, async () => {
+      expect(
+        await antwortenTermine(app, schluessel, zeile, termineKontext),
+      ).toEqual(zeile.erwartet);
+    });
+  }
 });
 
 describe("jeder übrige better-auth-Pfad liefert 404 aus der App", () => {

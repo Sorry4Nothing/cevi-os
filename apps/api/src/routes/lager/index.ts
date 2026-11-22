@@ -4,6 +4,7 @@ import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
+import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
@@ -22,6 +23,7 @@ export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleEreignisRouten({ db }))
     .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
+    .route("/", erstelleLagerDateiRouten({ db }))
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }));

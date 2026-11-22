@@ -79,8 +79,8 @@ export async function pruefeVerweise(
     for (const id of klein(v.medien)) {
       const m = medien.get(id);
       if (!m) fehler.push({ pfad, code: "MEDIUM_UNBEKANNT" });
-      // Bild und Galerie brauchen ein Bild (Alt-Text oder «dekorativ» sichert die Datenbank, medium_inhalt_check); eine Datei darf beides sein
-      else if (b.typ !== "datei" && m.mimeTyp === "application/pdf") {
+      // Bild und Galerie brauchen ein Bild (Alt-Text oder «dekorativ» sichert die Datenbank, medium_inhalt_check); ein altes PDF-Medium (vor #428) gilt nicht
+      else if (!m.mimeTyp.startsWith("image/")) {
         fehler.push({ pfad, code: "MEDIUM_FORMAT" });
       } else if (oeffentlich && m.sichtbarkeit !== "oeffentlich") {
         fehler.push({ pfad, code: "MEDIUM_NICHT_OEFFENTLICH" });

@@ -346,6 +346,36 @@ export const ressortNotiz = pgTable(
   ],
 );
 
+// Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
+export const lagerDatei = pgTable(
+  "lager_datei",
+  {
+    ...lagerSpalten(),
+    anzeigename: text("anzeigename").notNull(),
+    link: text("link").notNull(),
+    // MIME-Typ, falls bekannt
+    typ: text("typ"),
+    // Bytes, falls bekannt
+    groesse: bigint("groesse", { mode: "number" }),
+  },
+  (t) => [
+    index("lager_datei_lager_idx").on(t.lagerId),
+    index("lager_datei_erstellt_idx").on(t.erstelltAm),
+    check(
+      "lager_datei_anzeigename_check",
+      sql`char_length(${t.anzeigename}) between 1 and 200`,
+    ),
+    check(
+      "lager_datei_link_check",
+      sql`${t.link} ~ '^https://[^[:space:]]+$' and strpos(${t.link}, chr(92)) = 0 and char_length(${t.link}) <= 2048`,
+    ),
+    check(
+      "lager_datei_typ_groesse_check",
+      sql`(${t.typ} is null or char_length(${t.typ}) <= 100) and (${t.groesse} is null or ${t.groesse} >= 0)`,
+    ),
+  ],
+);
+
 // Teilnehmende des Lagers (#384): nur Name und Stufe, bewusst keine Gesundheitsdaten, kein Telefon und keine Adresse (Test in lager/teilnehmer.test.ts hält die Spaltenliste fest). cevi_name ist der Anzeigename für Aushänge (Cevi-Name, sonst Vorname). kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anlass-Anmeldung: anmeldung_id ohne Fremdschlüssel, bis der Auftrag Termine die Anmeldung anlegt; beide sind über die API noch nicht setzbar. Geschrieben wird nur über lager/sync.ts. Nach dem Lager löscht ein täglicher Lauf die Zeilen (lager/teilnehmer.ts)
 export const teilnehmer = pgTable(
   "teilnehmer",

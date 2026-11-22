@@ -1,0 +1,5 @@
+/* Bereich «Termine» (Epic #430, Gerüst #431): Fläche für die Reiter. Klassen mit dem Vorsatz «tm-» */
+
+.tm-inhalt {
+  margin-top: 24px;
+}
