@@ -1,0 +1,204 @@
+/* Bereich «Lager» (#527, Boards A20 bis A24, A27, A29). Klassen mit dem Vorsatz «lg-»; Farben nur aus den Tokens in admin.css. */
+
+.lg-name {
+  color: var(--text);
+  text-decoration: none;
+}
+
+.lg-name:hover {
+  text-decoration: underline;
+}
+
+.lg-zahlen {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Sortierbarer Spaltenkopf: Knopf im th, das Wort der Richtung steht dabei (nie nur der Pfeil) */
+.lg-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.lg-sort:hover {
+  color: var(--text);
+}
+
+.lg-sortwort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-weight: 400;
+}
+
+.lg-sortwort .i {
+  width: 14px;
+  height: 14px;
+}
+
+.lg-zurueck {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--akzent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lg-zurueck:hover {
+  text-decoration: underline;
+}
+
+.lg-zurueck .i {
+  width: 18px;
+  height: 18px;
+}
+
+/* Detail: vier Flächen in zwei Spalten, unter 900 px untereinander */
+.lg-raster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lg-status {
+  display: flex;
+  margin: 0;
+}
+
+.lg-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.lg-fuss:empty {
+  display: none;
+}
+
+/* Anlegen: schmale Fläche, Felder nebeneinander, Knöpfe an den Rändern */
+.lg-schmal {
+  max-width: 760px;
+}
+
+.lg-zweispaltig {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lg-knopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.lg-wahl {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.lg-wahl .wahlkarte input {
+  flex: none;
+}
+
+/* Die Zusammenfassung der Fehler nennt die Felder als Knöpfe, die in das Feld springen */
+.lg-textknopf {
+  min-height: 24px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.lg-personen > li {
+  justify-content: space-between;
+}
+
+.lg-wahl-rechts {
+  margin-left: auto;
+}
+
+/* Rechte der Rollen: Kästchen in einer 44-px-Zelle */
+.lg-haken {
+  width: 1%;
+  text-align: center;
+}
+
+.lg-haken label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.lg-haken input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: var(--blau);
+}
+
+.lg-abweichung {
+  display: block;
+  color: var(--wa);
+  font-weight: 700;
+}
+
+.tabelle th .klein.mono {
+  display: block;
+}
+
+/* Ausdrucke: Zustand der Zeile rechts */
+.lg-fehlerzelle {
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.lg-erstellt {
+  cursor: default;
+}
+
+.lg-vorlagen {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .lg-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .lg-zweispaltig {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

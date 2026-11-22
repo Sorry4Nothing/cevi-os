@@ -163,12 +163,15 @@ export const BEREICHE = [
       {
         schluessel: "lager",
         name: "Lager",
-        untertitel: "Die Lager der Abteilung.",
+        modul: "./lager.js",
+        untertitel: "Lager anlegen, betreuen und abschliessen.",
       },
       {
         schluessel: "vorlagen",
         name: "Vorlagen",
-        untertitel: "Vorlagen für neue Lager.",
+        modul: "./lager-vorlagen.js",
+        untertitel:
+          "Aufgaben und Packlisten, die neue Lager übernehmen können.",
       },
     ],
   },
