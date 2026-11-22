@@ -31,13 +31,14 @@ export const BEREICHE = [
         schluessel: "personen",
         name: "Personen",
         modul: "./personen.js",
-        untertitel: "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
+        untertitel: "Konten, Rollen und Tags der Abteilung.",
       },
       {
         schluessel: "gruppen",
         name: "Gruppen und Tags",
         modul: "./tags.js",
-        untertitel: "Tags anlegen und Personen zuweisen.",
+        untertitel:
+          "Wer zu welcher Gruppe gehört, steuert, wer was sieht und bearbeiten darf.",
       },
       {
         schluessel: "kinder",
