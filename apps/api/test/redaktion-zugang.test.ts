@@ -286,7 +286,7 @@ describe("Medien", () => {
     ).toBe(403);
   });
 
-  test("Eingabe: genau eines von altText und dekorativ, kein PDF dekorativ, fremde Abteilung 404", async () => {
+  test("Eingabe: genau eines von altText und dekorativ, PDF-Upload 415, fremde Abteilung 404", async () => {
     const id = await lege(slB);
     for (const body of [
       {},
@@ -299,20 +299,9 @@ describe("Medien", () => {
         400,
       );
     }
-    const pdfId = await lege(slB, pdf, "");
-    const antwort = await senden(slB, "PATCH", `${MEDIEN}/${pdfId}`, {
-      dekorativ: true,
-    });
-    expect(antwort.status).toBe(400);
-    expect(await code(antwort)).toBe("ALT_TEXT");
-    // Ein PDF bekommt eine Beschreibung
-    expect(
-      (
-        await senden(slB, "PATCH", `${MEDIEN}/${pdfId}`, {
-          altText: "Programmheft",
-        })
-      ).status,
-    ).toBe(200);
+    // Seit #428 nimmt der Medienspeicher keine PDF mehr an (Dateien sind Verknüpfungen auf SharePoint)
+    const pdfAntwort = await hochladen(slB, pdf, "");
+    expect(pdfAntwort.status).toBe(415);
     for (const konto of [demoAdmin, demoEltern]) {
       expect(
         (await senden(konto, "PATCH", `${MEDIEN}/${id}`, { altText: "X" }))
