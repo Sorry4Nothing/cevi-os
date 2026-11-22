@@ -18,10 +18,11 @@ import * as stufenfakten from "./website-stufenfakten.js";
 // }
 // Jede Navigation baut den Bereich neu auf: Ein Modul hält seinen Zustand selbst (Adresse, Modulvariable), nicht im DOM.
 
-// [Schlüssel in der Adresse, Name im Tab]; «stufenfakten» steht nicht im Tab, bis #355 entscheidet, wo es hingehört
+// [Schlüssel in der Adresse, Name im Tab]
 const TABS = [
   ["seiten", "Seiten"],
   ["medien", "Medien"],
+  ["stufenfakten", "Stufenfelder"],
 ];
 
 export function zeige(bereich, ctx) {
@@ -59,7 +60,7 @@ export function zeige(bereich, ctx) {
       el(
         "p",
         { class: "leer" },
-        "Diese Ansicht gibt es nicht. Wähle oben «Seiten» oder «Medien».",
+        "Diese Ansicht gibt es nicht. Wähle oben «Seiten», «Medien» oder «Stufenfelder».",
       ),
     );
   }

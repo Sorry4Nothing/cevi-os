@@ -5761,6 +5761,139 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/stufen/{stufeId}/eckdaten:
+    get:
+      operationId: listeRedaktionEckdaten
+      summary: Kommende Felder der Stufenseite
+      description: |
+        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist `seite` für im Editor gepflegte Zeilen und `web` für die, die das Auslesen der alten Stufenwebseite schrieb (läuft bis zur Ablösung nebenher). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
+
+        Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 `stufeId` ist keine UUID. 403 ohne Recht, 404 für eine fremde oder unbekannte Stufe.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionStufeId"
+      responses:
+        "200":
+          description: Kommende Daten der Stufe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionEckdatenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/stufen/{stufeId}/eckdaten/{tag}:
+    get:
+      operationId: leseRedaktionEckdaten
+      summary: Felder der Stufenseite für ein Datum lesen
+      description: |
+        Die Zeile der Stufe für dieses Datum, gleich welcher Quelle. Recht und Prüfreihenfolge wie bei der Liste.
+
+        Statuscodes: 200 bei Erfolg. 400 ungültige ID oder ungültiges Datum. 403 ohne Recht, 404 für eine fremde Stufe oder ein Datum ohne Zeile.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionStufeId"
+        - $ref: "#/components/parameters/RedaktionEckdatenTag"
+      responses:
+        "200":
+          description: Die Zeile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionEckdaten"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: schreibeRedaktionEckdaten
+      summary: Felder der Stufenseite für ein Datum pflegen
+      description: |
+        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig (auch eine ausgelesene: sie gehört danach dem Editor, das Auslesen überschreibt sie nie mehr). Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
+
+        Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403), Body (400), Datum (400), Obergrenze (409).
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404, 409.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionStufeId"
+        - $ref: "#/components/parameters/RedaktionEckdatenTag"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionEckdatenSpeichern"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionEckdaten409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheRedaktionEckdaten
+      summary: Gepflegte Felder für ein Datum löschen
+      description: |
+        Löscht nur eine im Editor gepflegte Zeile (`quelle` = `seite`); eine ausgelesene gehört dem Auslesen und ist hier 404. Audit-Log: `eckdaten_geloescht` mit dem Datum.
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde Stufe oder eine Zeile ohne gepflegte Werte.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionStufeId"
+        - $ref: "#/components/parameters/RedaktionEckdatenTag"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
 components:
   schemas:
     Fehler:
@@ -9599,6 +9732,67 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RedaktionWeiterleitung"
+    RedaktionEckdaten:
+      type: object
+      required:
+        - tag
+        - treffZeit
+        - treffpunkt
+        - schlussZeit
+        - schlussOrt
+        - mitnehmen
+        - quelle
+      properties:
+        tag:
+          type: string
+          format: date
+        treffZeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        treffpunkt:
+          type: [string, "null"]
+          maxLength: 500
+        schlussZeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        schlussOrt:
+          type: [string, "null"]
+          maxLength: 500
+        mitnehmen:
+          type: [string, "null"]
+          maxLength: 1000
+        quelle:
+          type: string
+          enum: [web, seite]
+    RedaktionEckdatenListe:
+      type: object
+      required:
+        - eckdaten
+      properties:
+        eckdaten:
+          type: array
+          maxItems: 21
+          items:
+            $ref: "#/components/schemas/RedaktionEckdaten"
+    RedaktionEckdatenSpeichern:
+      type: object
+      additionalProperties: false
+      properties:
+        treffZeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        treffpunkt:
+          type: [string, "null"]
+          maxLength: 500
+        schlussZeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        schlussOrt:
+          type: [string, "null"]
+          maxLength: 500
+        mitnehmen:
+          type: [string, "null"]
+          maxLength: 1000
   parameters:
     AppVersion:
       name: X-App-Version
@@ -9747,6 +9941,22 @@ components:
       schema:
         type: string
         format: uuid
+    RedaktionStufeId:
+      name: stufeId
+      in: path
+      required: true
+      description: ID der Stufe (UUID), in der Abteilung der Person.
+      schema:
+        type: string
+        format: uuid
+    RedaktionEckdatenTag:
+      name: tag
+      in: path
+      required: true
+      description: Datum der Zeile, `JJJJ-MM-TT`.
+      schema:
+        type: string
+        format: date
   securitySchemes:
     sitzung:
       type: apiKey
@@ -9875,6 +10085,13 @@ components:
     RedaktionWeiterleitung409:
       description: |
         Konflikt: `WEITERLEITUNG_SCHLEIFE` (die Weiterleitung führt im Kreis), `WEITERLEITUNG_KETTE` (das Ziel ist selbst eine alte Adresse oder umgekehrt), `WEITERLEITUNG_ADRESSE_VERGEBEN` (die alte Adresse hat schon eine Weiterleitung) oder `WEITERLEITUNG_ZU_VIELE` (mehr als 1000).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionEckdaten409:
+      description: |
+        Konflikt: `ECKDATEN_ZU_VIELE` (mehr als 20 gepflegte kommende Daten je Stufe).
       content:
         application/json:
           schema:
