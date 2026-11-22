@@ -327,6 +327,156 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website.js:
+    get:
+      operationId: getAdminWebsiteSkript
+      summary: Skript der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website.css:
+    get:
+      operationId: getAdminWebsiteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-seiten.js:
+    get:
+      operationId: getAdminWebsiteSeitenSkript
+      summary: Skript der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-seiten.css:
+    get:
+      operationId: getAdminWebsiteSeitenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-editor.js:
+    get:
+      operationId: getAdminWebsiteEditorSkript
+      summary: Skript der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-editor.css:
+    get:
+      operationId: getAdminWebsiteEditorStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-medien.js:
+    get:
+      operationId: getAdminWebsiteMedienSkript
+      summary: Skript der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-medien.css:
+    get:
+      operationId: getAdminWebsiteMedienStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-stufenfakten.js:
+    get:
+      operationId: getAdminWebsiteStufenfaktenSkript
+      summary: Skript der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-stufenfakten.css:
+    get:
+      operationId: getAdminWebsiteStufenfaktenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/zeitregeln.js:
     get:
       operationId: getAdminZeitregelnSkript
@@ -4149,6 +4299,882 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager:
+    get:
+      operationId: listeLager
+      summary: Meine Lager
+      description: |
+        Liefert die Lager der eigenen Abteilung, in denen die Person Mitglied ist, mit ihrer Rolle (neueste zuerst). Die Abteilungsleitung (Admin) sieht jedes Lager der Abteilung und hat darin die Rolle `lagerleitung`. Lager anderer Abteilungen und Lager ohne Mitgliedschaft erscheinen nie.
+
+        Die Rolle liest der Server bei jeder Anfrage aus der Datenbank (nie aus Sitzung oder Token): Ein Rollenwechsel oder Entfernen gilt ab der nächsten Anfrage.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Lager der Person.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}:
+    get:
+      operationId: holeLager
+      summary: Ein Lager
+      description: |
+        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Lager.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDetail"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager:
+    get:
+      operationId: listeAdminLager
+      summary: Lager der Abteilung
+      description: |
+        Nur Admins (Abteilungsleitung). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Lager der Abteilung.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - lager
+                properties:
+                  lager:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Lager"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminLagerAn
+      summary: Lager anlegen
+      description: |
+        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLagerAnlegen"
+      responses:
+        "201":
+          description: Lager angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}:
+    get:
+      operationId: holeAdminLager
+      summary: Lager mit Stammdaten
+      description: |
+        Nur Admins, nur Lager der eigenen Abteilung. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Lager.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lager"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminLager
+      summary: Lager ändern, Status setzen
+      description: |
+        Nur Admins. Ändert Stammdaten und Status. Ohne Schlüssel bleibt der Wert, `null` leert ein optionales Feld. Ein abgeschlossenes oder archiviertes Lager ist schreibgeschützt: Stammdaten lassen sich dann nicht ändern (409 `LAGER_GESCHLOSSEN`), der Status schon (so öffnet die Abteilungsleitung ein Lager wieder). Ein Lager wird nur `aktiv`, wenn es mindestens eine Lagerleitung hat (409 `LAGERLEITUNG_FEHLT`). Audit-Log: `lager_geaendert` (nur die Namen der Felder) und `lager_status` (alter und neuer Status).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (auch ein Zeitraum, der nach dem Zusammenführen nicht stimmt). 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLagerAendern"
+      responses:
+        "204":
+          description: Lager geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/mitglieder:
+    get:
+      operationId: listeAdminLagerMitglieder
+      summary: Mitglieder eines Lagers
+      description: |
+        Nur Admins, nur Lager der eigenen Abteilung. Liefert die Mitglieder mit Name, Cevi-Name und Rolle, nach Name sortiert. Nie Zugangsdaten.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Mitglieder.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - mitglieder
+                properties:
+                  mitglieder:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AdminLagerMitglied"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/mitglieder/{personId}:
+    put:
+      operationId: setzeAdminLagerMitglied
+      summary: Mitglied setzen oder Rolle ändern
+      description: |
+        Nur Admins. Macht ein aktives Konto der Abteilung zum Mitglied oder ändert die Rolle (`lagerleitung`, `leitung`, `team`, `lesen`); ohne Konto gibt es kein Mitglied. Ein unbekanntes, deaktiviertes oder fremdes Konto ist 404. Die Änderung gilt ab der nächsten Anfrage der Person. Ein aktives Lager behält mindestens eine Lagerleitung (409 `LAGERLEITUNG_FEHLT`); in einem abgeschlossenen oder archivierten Lager gibt es keine Änderung (409 `LAGER_GESCHLOSSEN`). Audit-Log: `mitglied_gesetzt` (Person, neue und alte Rolle).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn Lager oder Person unbekannt sind. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: personId
+          in: path
+          required: true
+          description: ID der Person (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - rolle
+              properties:
+                rolle:
+                  $ref: "#/components/schemas/LagerRolle"
+      responses:
+        "204":
+          description: Mitglied gesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: entferneAdminLagerMitglied
+      summary: Mitglied entfernen
+      description: |
+        Nur Admins. Entfernt die Person aus dem Lager; sie verliert den Zugriff bei der nächsten Anfrage. Ein aktives Lager behält mindestens eine Lagerleitung (409 `LAGERLEITUNG_FEHLT`); in einem abgeschlossenen oder archivierten Lager gibt es keine Änderung (409 `LAGER_GESCHLOSSEN`). Audit-Log: `mitglied_entfernt`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: personId
+          in: path
+          required: true
+          description: ID der Person (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Mitglied entfernt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/rechte:
+    get:
+      operationId: holeLagerRechte
+      summary: Rechte der Rollen lesen
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Liefert alle Rechte des Katalogs (49) mit Bedeutung, dem Standard und dem aktuellen Wert je Rolle (`leitung`, `team`, `lesen`). Die Lagerleitung steht nicht in der Liste: Sie hat immer alles und lässt sich nicht einstellen. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Rechtekatalog mit Standard und aktuellem Wert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRechteListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeLagerRechte
+      summary: Rechte der Rollen ändern
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRechteAenderung"
+      responses:
+        "204":
+          description: Rechte gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/rechte/zuruecksetzen:
+    post:
+      operationId: setzeZurueckLagerRechte
+      summary: Rechte auf den Standard zurücksetzen
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Rechte zurückgesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/rechte:
+    get:
+      operationId: holeAdminLagerRechte
+      summary: Rechte der Rollen lesen
+      description: |
+        Nur Admins. Liefert alle Rechte des Katalogs (49) mit Bedeutung, dem Standard und dem aktuellen Wert je Rolle (`leitung`, `team`, `lesen`). Die Lagerleitung steht nicht in der Liste: Sie hat immer alles und lässt sich nicht einstellen. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Rechtekatalog mit Standard und aktuellem Wert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRechteListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLagerRechte
+      summary: Rechte der Rollen ändern
+      description: |
+        Nur Admins. Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRechteAenderung"
+      responses:
+        "204":
+          description: Rechte gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/rechte/zuruecksetzen:
+    post:
+      operationId: setzeZurueckAdminLagerRechte
+      summary: Rechte auf den Standard zurücksetzen
+      description: |
+        Nur Admins. Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Rechte zurückgesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/ich:
+    get:
+      operationId: leseRedaktionIch
+      summary: Zugang zur Redaktion und sichtbare Bereiche
+      description: |
+        Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
+
+        Statuscodes: 200. 403 für Admins ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zugang und Bereiche.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionIch"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/medien:
+    get:
+      operationId: listeRedaktionMedien
+      summary: Medien der Abteilung auflisten
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel. Gleiche Antwort wie `/api/v1/admin/medien`.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Medien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedienListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: legeRedaktionMediumAn
+      summary: Bild oder PDF hochladen
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten. Derselbe Handler wie `POST /api/v1/admin/medien` (gleiche Regeln für Typ, Grösse, Alt-Text, Verarbeitung und Begrenzung: 10 Uploads in 10 Minuten je Person, gezählt über beide Routen); nur der Zugang ist ein anderer. Die Prüfung des Zugangs kommt vor der Prüfung der Eingabe.
+
+        Statuscodes: 201, 400 (code `ALT_TEXT` bei fehlendem Alt-Text), 401, 403, 413, 415 (code `MEDIEN_FORMAT`), 426, 429, 500, 501 (ohne eingerichteten Medienspeicher).
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: sichtbarkeit
+          in: query
+          required: true
+          description: Wer das Medium sehen darf, `oeffentlich` (jeder, ohne Anmeldung) oder `angemeldet` (die Abteilung).
+          schema:
+            type: string
+            enum:
+              - oeffentlich
+              - angemeldet
+        - name: altText
+          in: query
+          required: false
+          description: Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Bei Bildern Pflicht, ausser bei `dekorativ=true`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: dekorativ
+          in: query
+          required: false
+          description: Nur bei Bildern, ausdrückliche Markierung «dekorativ»; dann ohne `altText`.
+          schema:
+            type: string
+            enum:
+              - "true"
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "413":
+          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+        "415":
+          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "500":
+          description: Der Medienspeicher oder die Datenbank hat versagt; ohne Details (code `INTERNER_FEHLER`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/medien/{id}:
+    patch:
+      operationId: aendereRedaktionMedium
+      summary: Alt-Text nachtragen oder ändern
+      description: |
+        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie. Ein PDF kann nicht dekorativ sein (400, code `ALT_TEXT`).
+
+        Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403), PDF nicht dekorativ (400). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediumAendern"
+      responses:
+        "200":
+          description: Das Medium mit dem neuen Alt-Text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: loescheRedaktionMedium
+      summary: Medium löschen
+      description: |
+        Nur Abteilungsleitung und Redaktion (Recht auf alle Seiten); eine Stufenleitung hat Zugang, darf aber nicht löschen (403). Derselbe Handler wie `DELETE /api/v1/admin/medien/{id}`: erst die Zeile, dann die Datei im Medienspeicher.
+
+        Reihenfolge der Prüfungen: Pfad (400), Medium in der eigenen Abteilung (404), Recht (403).
+
+        Steht das Medium noch im Entwurf oder in einer Version einer Seite der Abteilung (auch einer zurückgezogenen), antwortet die Route mit 409 `MEDIUM_VERWENDET` und der Zahl der Seiten in `seiten`; nichts wird gelöscht (wie beim Admin-Weg).
+
+        Statuscodes: 204, 400, 401, 403, 404, 409, 426, 501.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - seiten
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - MEDIUM_VERWENDET
+                  message:
+                    type: string
+                  seiten:
+                    type: integer
+                    minimum: 1
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/tags:
+    get:
+      operationId: listeRedaktionTags
+      summary: Tags der Abteilung für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: alle Tags der eigenen Abteilung mit Id, Name und Typ, sortiert nach Typ und Name. Ohne Kürzel, ohne Zahl der Personen und ohne Personen.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Tags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/personen:
+    get:
+      operationId: listeRedaktionPersonen
+      summary: Personen mit einem Tag für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: die aktiven Konten, die den Tag tragen. Nur Id, Anzeigename (Cevi-Name, sonst der Name des Kontos) und Funktion (die Rolle am Tag). Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos. Sortiert nach der Reihenfolge im Tag, dann nach Name.
+
+        Reihenfolge der Prüfungen: Zugang (403), Query (400), Tag in der eigenen Abteilung (404, auch für Tags anderer Abteilungen).
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: tag
+          in: query
+          required: true
+          description: Der Tag, dessen Personen gesucht sind (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionPersonenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/website/inhalt:
     get:
       operationId: leseWebsiteInhalt
@@ -6973,6 +7999,381 @@ components:
             - string
             - "null"
           format: uuid
+    # lager-schemas: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerRolle:
+      type: string
+      description: Rolle in einem Lager. Die Abteilungsleitung (Admin) gilt in Lagern der eigenen Abteilung immer als `lagerleitung`.
+      enum:
+        - lagerleitung
+        - leitung
+        - team
+        - lesen
+    LagerStatus:
+      type: string
+      description: Zustand des Lagers. `abgeschlossen` und `archiviert` sind schreibgeschützt.
+      enum:
+        - entwurf
+        - aktiv
+        - abgeschlossen
+        - archiviert
+    Lager:
+      type: object
+      required:
+        - id
+        - titel
+        - von
+        - bis
+        - vorbereitungAb
+        - ort
+        - adresse
+        - status
+        - farbe
+        - logoMediumId
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        vorbereitungAb:
+          type:
+            - string
+            - "null"
+          format: date
+        ort:
+          type:
+            - string
+            - "null"
+        adresse:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/LagerStatus"
+        farbe:
+          type:
+            - string
+            - "null"
+          pattern: ^#[0-9a-f]{6}$
+          description: Hex-Farbe, kleingeschrieben.
+        logoMediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+    LagerListeneintrag:
+      allOf:
+        - $ref: "#/components/schemas/Lager"
+        - type: object
+          required:
+            - rolle
+          properties:
+            rolle:
+              $ref: "#/components/schemas/LagerRolle"
+    LagerListe:
+      type: object
+      required:
+        - lager
+      properties:
+        lager:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerListeneintrag"
+    LagerDetail:
+      allOf:
+        - $ref: "#/components/schemas/Lager"
+        - type: object
+          required:
+            - rolle
+            - schreibgeschuetzt
+          properties:
+            rolle:
+              $ref: "#/components/schemas/LagerRolle"
+            schreibgeschuetzt:
+              type: boolean
+              description: Wahr bei `abgeschlossen` und `archiviert`; schreibende Anfragen antworten dann mit 409 `LAGER_GESCHLOSSEN`.
+    AdminLagerAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - von
+        - bis
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+          description: Nicht vor `von`.
+        vorbereitungAb:
+          type: string
+          format: date
+          description: Nicht nach `von`.
+        ort:
+          type: string
+          minLength: 1
+          maxLength: 200
+        adresse:
+          type: string
+          minLength: 1
+          maxLength: 500
+        farbe:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+        logoMediumId:
+          type: string
+          format: uuid
+          description: Ein Bild aus den Medien der eigenen Abteilung.
+    AdminLagerAendern:
+      type: object
+      additionalProperties: false
+      description: Ohne Schlüssel bleibt der Wert. `null` leert `vorbereitungAb`, `ort`, `adresse`, `farbe` und `logoMediumId`.
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        vorbereitungAb:
+          type:
+            - string
+            - "null"
+          format: date
+        ort:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 200
+        adresse:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 500
+        farbe:
+          type:
+            - string
+            - "null"
+          pattern: ^#[0-9a-fA-F]{6}$
+        logoMediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        status:
+          $ref: "#/components/schemas/LagerStatus"
+    AdminLagerMitglied:
+      type: object
+      required:
+        - personId
+        - name
+        - ceviName
+        - rolle
+      properties:
+        personId:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ceviName:
+          type:
+            - string
+            - "null"
+        rolle:
+          $ref: "#/components/schemas/LagerRolle"
+    LagerKonflikt:
+      type: object
+      description: Fehler mit Statuscode 409. Gleiche Form wie `Fehler`, mit eigenen Codes.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - LAGER_GESCHLOSSEN
+            - LAGERLEITUNG_FEHLT
+        message:
+          type: string
+    # lager-schemas: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerRecht:
+      type: string
+      description: Ein Recht des Katalogs, `<bereich>.<aktion>`. Die Lagerleitung hat jedes Recht immer.
+      enum:
+        - ressorts.lesen
+        - ressorts.bearbeiten
+        - aufgaben.lesen_alle
+        - aufgaben.bearbeiten
+        - aufgaben.eigene
+        - zeitplan.lesen
+        - zeitplan.bearbeiten
+        - vorlagen.anwenden
+        - check.lesen
+        - hoecks.lesen_alle
+        - hoecks.team_lesen
+        - hoecks.bearbeiten
+        - protokolle.lesen
+        - protokolle.bearbeiten
+        - pinnwand.lesen
+        - pinnwand.bearbeiten
+        - interaktion.schreiben
+        - eingang.senden
+        - eingang.lesen
+        - eingang.antworten
+        - teilnehmer.lesen
+        - teilnehmer.bearbeiten
+        - einteilung.lesen
+        - einteilung.bearbeiten
+        - abzaehlen.schreiben
+        - diensttausch.anfragen
+        - diensttausch.entscheiden
+        - anwesenheit.lesen_alle
+        - anwesenheit.eigene
+        - anwesenheit.bearbeiten
+        - tagesseiten.lesen
+        - tagesseiten.bearbeiten
+        - einkauf.lesen
+        - einkauf.bearbeiten
+        - packliste.lesen
+        - packliste.abhaken
+        - packliste.bearbeiten
+        - notfall.lesen
+        - notfall.bearbeiten
+        - infos.lesen
+        - infos.bearbeiten
+        - vertrauliches.lesen
+        - wetter.lesen
+        - dokumente.lesen_alle
+        - dokumente.team_lesen
+        - dokumente.bearbeiten
+        - adressbuch.lesen
+        - adressbuch.bearbeiten
+        - verlauf.lesen
+    LagerRechteListe:
+      type: object
+      required:
+        - rechte
+      properties:
+        rechte:
+          type: array
+          items:
+            type: object
+            required:
+              - recht
+              - bedeutung
+              - standard
+              - aktuell
+            properties:
+              recht:
+                $ref: "#/components/schemas/LagerRecht"
+              bedeutung:
+                type: string
+              standard:
+                $ref: "#/components/schemas/LagerRechteJeRolle"
+              aktuell:
+                $ref: "#/components/schemas/LagerRechteJeRolle"
+    LagerRechteJeRolle:
+      type: object
+      description: Erlaubt oder verboten je einstellbarer Rolle.
+      required:
+        - leitung
+        - team
+        - lesen
+      properties:
+        leitung:
+          type: boolean
+        team:
+          type: boolean
+        lesen:
+          type: boolean
+    LagerRechteAenderung:
+      type: object
+      additionalProperties: false
+      required:
+        - rechte
+      properties:
+        rechte:
+          type: array
+          minItems: 1
+          maxItems: 147
+          description: Jedes Paar aus Rolle und Recht höchstens einmal.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - rolle
+              - recht
+              - erlaubt
+            properties:
+              rolle:
+                type: string
+                description: Die Lagerleitung ist nicht einstellbar.
+                enum:
+                  - leitung
+                  - team
+                  - lesen
+              recht:
+                $ref: "#/components/schemas/LagerRecht"
+              erlaubt:
+                type: boolean
+    # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
       type: object
       required:
@@ -7100,6 +8501,94 @@ components:
         veroeffentlicht:
           type: boolean
           description: Die Seite zeigt gerade diese Version.
+    RedaktionIch:
+      type: object
+      required:
+        - redigieren
+        - bereiche
+        - verwalten
+      properties:
+        redigieren:
+          type: boolean
+          description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
+        bereiche:
+          type: array
+          description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
+          items:
+            type: string
+            enum:
+              - website
+        verwalten:
+          type: boolean
+          description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+    MediumAendern:
+      type: object
+      description: Genau eines von beiden, `altText` oder `dekorativ`.
+      additionalProperties: false
+      properties:
+        altText:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Neuer Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Hebt «dekorativ» auf.
+        dekorativ:
+          const: true
+          description: Das Bild als dekorativ markieren; entfernt den Alt-Text. Bei einem PDF 400.
+    RedaktionTag:
+      type: object
+      required:
+        - id
+        - name
+        - typ
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        typ:
+          type: string
+          enum:
+            - stufe
+            - funktion
+            - team
+            - lager
+    RedaktionTagListe:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionTag"
+    RedaktionPerson:
+      type: object
+      required:
+        - id
+        - anzeigename
+        - funktion
+      properties:
+        id:
+          type: string
+          format: uuid
+        anzeigename:
+          type: string
+          description: Der Cevi-Name, sonst der Name des Kontos.
+        funktion:
+          type:
+            - string
+            - "null"
+          description: Die Rolle der Person an diesem Tag (freier Text); `null` ohne Rolle.
+    RedaktionPersonenListe:
+      type: object
+      required:
+        - personen
+      properties:
+        personen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionPerson"
     WebsiteInhalt:
       type: object
       required:
@@ -7317,6 +8806,13 @@ components:
         Unter HTTPS trägt es den Präfix `__Secure-`, ohne HTTPS heisst es `better-auth.two_factor`; der Name endet
         immer auf `two_factor`.
   responses:
+    LagerKonflikt409:
+      description: |
+        Das Lager ist abgeschlossen oder archiviert und lässt sich nicht ändern (`LAGER_GESCHLOSSEN`), oder ein aktives Lager würde seine letzte Lagerleitung verlieren (`LAGERLEITUNG_FEHLT`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LagerKonflikt"
     UngueltigeEingabe400:
       description: Ungültige Eingabe (code UNGUELTIGE_EINGABE), ohne Details
       content:

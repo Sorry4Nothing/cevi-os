@@ -39,6 +39,13 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 import { legeProgrammAn } from "./hilfen/programme.js";
+import {
+  antwortenJePersona,
+  LAGER_MATRIX,
+  LAGER_ZUSTAENDE,
+  legeLagerWeltAn,
+  type LagerWelt,
+} from "./lager/matrix.js";
 
 bereiteAuthTestsVor();
 
@@ -127,6 +134,16 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
+  "GET /admin/website.js": { erwartet: alle(200) },
+  "GET /admin/website.css": { erwartet: alle(200) },
+  "GET /admin/website-seiten.js": { erwartet: alle(200) },
+  "GET /admin/website-seiten.css": { erwartet: alle(200) },
+  "GET /admin/website-editor.js": { erwartet: alle(200) },
+  "GET /admin/website-editor.css": { erwartet: alle(200) },
+  "GET /admin/website-medien.js": { erwartet: alle(200) },
+  "GET /admin/website-medien.css": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -1181,6 +1198,93 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  "GET /api/v1/redaktion/ich": {
+    // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
+    erwartet: {
+      ...alle(200),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/medien": {
+    ohnePostman: true,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/medien": {
+    url: () =>
+      "/api/v1/redaktion/medien?sichtbarkeit=angemeldet&altText=Matrix",
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    url: () => `/api/v1/redaktion/medien/${mediumId}`,
+    body: () => ({ altText: "Matrix neu" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    urlJeAnfrage: async () =>
+      `/api/v1/redaktion/medien/${await wegwerfMediumId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/tags": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/personen": {
+    // Der Tag gehört zur Testabteilung: Die Demo-Abteilung kennt ihn nicht
+    url: (w) => `/api/v1/redaktion/personen?tag=${w.stufeAId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Geschützte Bausteine der Website (#354): ohne Sitzung 401, mit Sitzung nichts ohne Seite (404, auch in der Demo-Abteilung); die Wirkung je Persona steht in test/website-inhalt.test.ts
   "GET /api/v1/website/inhalt": {
     url: () => "/api/v1/website/inhalt?pfad=/matrix-unbekannt",
@@ -1268,6 +1372,7 @@ const MATRIX: Record<string, Zeile> = {
 
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
+let lagerWelt: LagerWelt;
 let programmId: string;
 let anwesenheitProgrammId: string;
 let anwesenheitLeitungId: string;
@@ -1426,6 +1531,8 @@ async function personasAnlegen() {
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
   standard = await personasAnlegen();
+  // Lager der Lager-Matrix (test/lager/matrix/*.ts), einmal je Welt
+  lagerWelt = await legeLagerWeltAn(welt, standard);
   anwesenheitLeitungId = standard.slA.id as string;
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
@@ -1523,7 +1630,7 @@ const schluesselVon = (instanz: Instanz) =>
   new Set(instanz.routes.map((r) => `${r.method} ${r.path}`));
 const ohneZeile = (instanz: Instanz) =>
   [...schluesselVon(instanz)]
-    .filter((s) => !(s in MATRIX) && !MIDDLEWARE.has(s))
+    .filter((s) => !(s in MATRIX) && !(s in LAGER_MATRIX) && !MIDDLEWARE.has(s))
     .sort();
 
 describe("Vollständigkeit", () => {
@@ -1531,6 +1638,9 @@ describe("Vollständigkeit", () => {
     const routen = schluesselVon(app);
     expect(ohneZeile(app)).toEqual([]);
     expect(Object.keys(MATRIX).filter((s) => !routen.has(s))).toEqual([]);
+    expect(Object.keys(LAGER_MATRIX).filter((s) => !routen.has(s))).toEqual([]);
+    // Eine Route steht in genau einer der beiden Matrizen
+    expect(Object.keys(LAGER_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
     expect([...MIDDLEWARE].filter((s) => !routen.has(s))).toEqual([]);
   });
 
@@ -1607,6 +1717,25 @@ describe("Matrix: jede Route mal jede Persona", () => {
       ergebnis[persona] = antwort.status;
     }
     expect(ergebnis).toEqual(zeile.erwartet);
+  });
+});
+
+// Rolle mal Lager-Zustand mal Anmeldung für jede Route der Lager-Module (test/lager/matrix/*.ts); die Regeln über alle Zeilen prüft test/lager/matrix-regeln.test.ts
+describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", () => {
+  const zeilen = Object.entries(LAGER_MATRIX).flatMap(([s, zeile]) =>
+    LAGER_ZUSTAENDE.map((zustand) => [s, zustand, zeile] as const),
+  );
+  test.each(zeilen)("%s (%s)", async (schluessel, zustand, zeile) => {
+    expect(
+      await antwortenJePersona(
+        app,
+        schluessel,
+        zeile,
+        lagerWelt,
+        standard,
+        zustand,
+      ),
+    ).toEqual(zeile.erwartet[zustand]);
   });
 });
 
@@ -1721,6 +1850,40 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
     await writeFile(
       new URL("matrix.json", ordner),
       JSON.stringify({ personas: PERSONAS, zeilen }, null, 1),
+    );
+
+    // Die Lager-Zeilen mit Platzhaltern für die zwei Lager der Testabteilung; die Umgebungen je Lager-Persona (KONTO_FUER) sind die der Personas. Die Collection erzeugt L7h (#407) neu
+    const lagerIds = {
+      lagerAktivId: lagerWelt.aktivId,
+      lagerAbgeschlossenId: lagerWelt.abgeschlossenId,
+    };
+    const ersetzeLager = (text: string) =>
+      Object.entries(lagerIds).reduce(
+        (t, [name, id]) => t.replaceAll(id, `{{${name}}}`),
+        text,
+      );
+    await writeFile(
+      new URL("lager-matrix.json", ordner),
+      JSON.stringify(
+        {
+          ids: lagerIds,
+          zeilen: await Promise.all(
+            Object.entries(LAGER_MATRIX).map(async ([schluessel, zeile]) => ({
+              schluessel,
+              methode: schluessel.split(" ")[0],
+              pfad: ersetzeLager(
+                (await zeile.url?.(lagerWelt, "aktiv")) ??
+                  schluessel.split(" ")[1],
+              ),
+              body:
+                zeile.body && ersetzeLager(JSON.stringify(zeile.body("aktiv"))),
+              erwartet: zeile.erwartet,
+            })),
+          ),
+        },
+        null,
+        1,
+      ),
     );
 
     for (const persona of PERSONAS) {

@@ -22,15 +22,19 @@ import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
+import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
+import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import {
+  erstelleMedienHandler,
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
 import { erstelleRedaktionRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
+import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
@@ -111,6 +115,12 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
+  // Admin und Redaktion teilen die Handler und damit das Limit für Uploads je Person
+  const medienHandler = erstelleMedienHandler({
+    db,
+    speicher: medienspeicher,
+    kodiereMedienbild,
+  });
   // Das Dokument einer Seite (#350)
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   return (
@@ -163,7 +173,9 @@ export function erstelleApp({
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
             /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))) ||
-        (c.req.method === "POST" && c.req.path === "/api/v1/admin/medien")
+        (c.req.method === "POST" &&
+          (c.req.path === "/api/v1/admin/medien" ||
+            c.req.path === "/api/v1/redaktion/medien"))
           ? next()
           : c.req.method === "POST" &&
               /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
@@ -211,19 +223,25 @@ export function erstelleApp({
         erstelleMedienRouten({
           db,
           speicher: medienspeicher,
-          kodiereMedienbild,
+          handler: medienHandler,
         }),
       )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
+      .route("/api/v1/lager", erstelleLagerRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
-      .route("/api/v1/redaktion", erstelleRedaktionRouten({ db }))
+      .route(
+        "/api/v1/redaktion",
+        erstelleRedaktionRouten({ db, medien: medienHandler }),
+      )
       // Geschützte Bausteine der Website nachladen (#354): hinter der Sitzung
       .route("/api/v1/website", erstelleWebsiteRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))

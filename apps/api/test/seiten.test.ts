@@ -98,6 +98,7 @@ describe("Verwaltung unter /admin", () => {
         "base-uri 'none'",
         "form-action 'self'",
         "connect-src 'self'",
+        "frame-src 'self'",
       ]) {
         expect(csp).toContain(regel);
       }
