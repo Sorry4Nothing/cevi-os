@@ -34,7 +34,7 @@ import {
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
-import { erstelleRedaktionRouten } from "./routes/redaktion/index.js";
+import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
@@ -118,7 +118,7 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
-  // Admin und Redaktion teilen die Handler und damit das Limit für Uploads je Person
+  // Admin und die Verwaltung der Website teilen die Handler und damit das Limit für Uploads je Person
   const medienHandler = erstelleMedienHandler({
     db,
     speicher: medienspeicher,
@@ -256,9 +256,10 @@ export function erstelleApp({
         "/api/v1/admin/plattform/rollen",
         erstellePlattformRollenRouten({ db }),
       )
+      // Namensraum der Website-Verwaltung (Seiten, Medien, Weiterleitungen, Vorlagen). Der Pfad stammt aus der Zeit vor #426 und bleibt, damit Editor und Clients nicht brechen; was jemand darf, bestimmen die Plattformrechte (plattform.ts)
       .route(
         "/api/v1/redaktion",
-        erstelleRedaktionRouten({ db, medien: medienHandler }),
+        erstelleEditorRouten({ db, medien: medienHandler }),
       )
       // Geschützte Bausteine der Website nachladen (#354): hinter der Sitzung
       .route("/api/v1/website", erstelleWebsiteRouten({ db }))

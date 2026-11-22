@@ -263,7 +263,7 @@ function zeichne(bereich, ctx, erste) {
         onclick: () => aendereDialog(m),
       });
     const loeschen =
-      ctx.redaktion.verwalten &&
+      ctx.zugang.darf("medien.verwalten") &&
       knopf("Löschen", {
         klein: true,
         art: "gefahr",
@@ -490,7 +490,7 @@ function zeichne(bereich, ctx, erste) {
       },
       fehlertext: (f) =>
         f?.status === 403
-          ? "Dafür fehlt die Berechtigung. Den Alt-Text ändern die Person, die das Bild hochgeladen hat, und die Redaktion."
+          ? "Dafür fehlt die Berechtigung. Den Alt-Text ändern die Person, die das Bild hochgeladen hat, und wer Medien verwalten darf."
           : fehlertext(f),
     });
     nachDemSchliessen(dialog, () => {
@@ -546,7 +546,7 @@ function zeichne(bereich, ctx, erste) {
           return `Dieses Bild steht noch in ${seiten} (im Entwurf oder in einer früheren Version). Entferne es dort zuerst, dann kannst du es löschen.`;
         }
         return f?.status === 403
-          ? "Nur die Abteilungsleitung und die Redaktion dürfen Bilder löschen."
+          ? "Bilder löschen nur die Abteilungsleitung und wer Medien verwalten darf."
           : fehlertext(f);
       },
     });

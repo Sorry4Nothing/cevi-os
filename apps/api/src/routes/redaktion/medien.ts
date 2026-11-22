@@ -3,11 +3,9 @@ import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
+import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
-import {
-  darfSeitenVerwalten,
-  hatRedaktionszugang,
-} from "../../website/seiten.js";
+import { hatWebsiteZugang } from "../../website/seiten.js";
 import {
   aendernSchema,
   hochladenSchema,
@@ -17,10 +15,10 @@ import {
   type MedienHandler,
 } from "../medien.js";
 
-// Medien für Redaktion und Stufenleitung (#353): dieselben Handler wie unter /api/v1/admin/medien, nur der Zugang ist ein anderer.
+// Medien für die Verwaltung der Website und die Stufenleitung (#353): dieselben Handler wie unter /api/v1/admin/medien, nur der Zugang ist ein anderer.
 // Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Wer Zugang hat, lädt hoch und sieht die Liste.
-// Beschreiben darf, wer das Medium hochgeladen hat, und wer Seiten verwaltet; löschen nur, wer Seiten verwaltet (wie bei den Seiten)
-export function erstelleRedaktionMedienRouten({
+// Beschreiben darf, wer das Medium hochgeladen hat, und wer das Recht «Medien verwalten» hat (Plattformrolle, #426); löschen nur Letztere
+export function erstelleEditorMedienRouten({
   db,
   handler,
 }: {
@@ -30,7 +28,7 @@ export function erstelleRedaktionMedienRouten({
   // Für Hochladen und Liste, vor jeder Prüfung von Eingabe und Speicher. Die Routen mit ID laden erst das Medium (404 für fremde Abteilungen) und fragen dann das Recht
   const zugang = createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
-      if (!(await hatRedaktionszugang(db, c.get("person")))) {
+      if (!(await hatWebsiteZugang(db, c.get("person")))) {
         throw new HTTPException(403);
       }
       await next();
@@ -58,14 +56,14 @@ export function erstelleRedaktionMedienRouten({
           c.req.valid("param").id,
           c.req.valid("json"),
           async (person, m) =>
-            (await hatRedaktionszugang(db, person)) &&
+            (await hatWebsiteZugang(db, person)) &&
             (m.hochgeladenVon === person.id ||
-              (await darfSeitenVerwalten(db, person))),
+              (await hatPlattformRecht(db, person, "medien.verwalten"))),
         ),
     )
     .delete("/:id", eingabe("param", pfadSchema), (c) =>
       handler.loeschen(c, c.req.valid("param").id, (person) =>
-        darfSeitenVerwalten(db, person),
+        hatPlattformRecht(db, person, "medien.verwalten"),
       ),
     );
 }

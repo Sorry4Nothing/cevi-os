@@ -91,15 +91,18 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
   }
 
   // Wie bei der Struktur: Eine Seite einer Stufe (tagId = Stufe) bearbeitet auch deren Stufenleitung
+  // veroeffentlichen: Die Frage gilt dem Veröffentlichen und Zurückziehen (Plattformrecht «Seiten veröffentlichen» statt «Seiten bearbeiten»)
   async function ladeMitRecht(
     d: Pick<Db, "select">,
     person: Person,
     id: string,
+    veroeffentlichen = false,
   ) {
     const z = await ladeSeite(d, person, id);
     const darf = await darfBearbeiten(d, person, "seite", id, {
       stufeId: z.seite.tagId ?? undefined,
       tagId: z.seite.tagId ?? undefined,
+      veroeffentlichen,
     });
     if (!darf) throw new HTTPException(403);
     return z;
@@ -107,8 +110,13 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
 
   // Schreibende Routen: erst 404 und 403, dann die Zeile sperren und frisch lesen (READ COMMITTED sieht, was der Wartende davor schrieb).
   // Zwei gleichzeitige Veröffentlichungen laufen so nacheinander: Die zweite findet «gleich» und bekommt 409
-  async function ladeGesperrt(tx: Tx, person: Person, id: string) {
-    await ladeMitRecht(tx, person, id);
+  async function ladeGesperrt(
+    tx: Tx,
+    person: Person,
+    id: string,
+    veroeffentlichen = false,
+  ) {
+    await ladeMitRecht(tx, person, id, veroeffentlichen);
     const gesperrt = await tx
       .select({ id: seite.id })
       .from(seite)
@@ -232,7 +240,7 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
       const { id } = c.req.valid("param");
       try {
         const nr = await db.transaction(async (tx) => {
-          const { seite: z, gleich } = await ladeGesperrt(tx, person, id);
+          const { seite: z, gleich } = await ladeGesperrt(tx, person, id, true);
           if (z.entwurf === null || gleich === true) {
             throw new Abbruch(NICHTS_ZU_VEROEFFENTLICHEN, 409);
           }
@@ -296,7 +304,7 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
       const { id } = c.req.valid("param");
       try {
         await db.transaction(async (tx) => {
-          const { seite: z } = await ladeGesperrt(tx, person, id);
+          const { seite: z } = await ladeGesperrt(tx, person, id, true);
           if (z.veroeffentlichteVersionId === null) {
             throw new Abbruch(NICHT_VEROEFFENTLICHT, 409);
           }

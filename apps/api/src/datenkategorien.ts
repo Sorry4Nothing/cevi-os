@@ -168,7 +168,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat. Alte Adressen der Website leiten auf die neuen Seiten weiter; bei einer Weiterleitung steht, welches Konto sie angelegt hat.",
     frist:
-      "Bis die Redaktion die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
+      "Bis ein Webmaster die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
     apple: [],
     google: [],
   },

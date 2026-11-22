@@ -3877,7 +3877,7 @@ paths:
       operationId: listeAdminBearbeiter
       summary: Bearbeitungsrechte der Abteilung
       description: |
-        Nur Admins. Liefert alle Sonderrechte der eigenen Abteilung. Ein Recht gilt für eine Person (`userId`) oder einen Tag (`tagId`), genau eines von beiden. Ohne `objektId` gilt es für alle Objekte des Typs: Mit dem Typ `seite` ist das die Rolle «Redaktion».
+        Nur Admins. Liefert alle Sonderrechte der eigenen Abteilung. Ein Recht gilt für eine Person (`userId`) oder einen Tag (`tagId`), genau eines von beiden. Ein Recht gilt für genau ein Objekt (`objektId`). «Alle Seiten bearbeiten» ist kein Sonderrecht mehr, sondern das Plattformrecht `seiten.bearbeiten` der Rolle Webmaster (`/api/v1/admin/plattform/rollen`, #426).
 
         Wer bearbeiten darf, prüft der Server bei jeder Anfrage: Die Abteilungsleitung darf alles, die Stufenleitung die Objekte ihrer Stufe, alle anderen nur mit einem Recht aus dieser Liste (auf die Person oder auf einen Tag, den sie trägt). Ein Tag verleiht für sich nichts.
 
@@ -3905,7 +3905,7 @@ paths:
       operationId: setzeAdminBearbeiter
       summary: Bearbeitungsrecht vergeben
       description: |
-        Nur Admins. Vergibt ein Recht an eine Person oder einen Tag der eigenen Abteilung. Ohne `objektId` (oder mit `null`) gilt es für alle Objekte des Typs: `objektTyp: seite` ohne `objektId` macht die Person zur Redaktion für alle Seiten. Ein Recht gibt es höchstens einmal. Das Vergeben steht im Audit-Log (Typ, Objekt, Person oder Tag; nie Inhalte).
+        Nur Admins. Vergibt ein Recht an eine Person oder einen Tag der eigenen Abteilung. `objektId` ist Pflicht: Das Recht gilt für genau dieses Objekt. Wer alle Seiten bearbeiten soll, bekommt die Rolle Webmaster (`/api/v1/admin/plattform/rollen`). Ein Recht gibt es höchstens einmal. Das Vergeben steht im Audit-Log (Typ, Objekt, Person oder Tag; nie Inhalte).
 
         Reihenfolge der Prüfungen: Body (400), Admin-Recht (403), Person oder Tag in der eigenen Abteilung (404).
 
@@ -4189,9 +4189,9 @@ paths:
       operationId: listeRedaktionSeiten
       summary: Seiten der Website, die die Person bearbeiten darf
       description: |
-        Namensraum `/api/v1/redaktion` für Personen mit Bearbeitungsrecht, nicht nur Admins. Zugang haben die Abteilungsleitung, jede Stufenleitung und Personen mit einem Recht auf Seiten in `bearbeiter` (auf die Person oder einen Tag, den sie trägt); alle anderen bekommen 403. Admins brauchen auch hier den zweiten Faktor, ebenso jede Person mit einem erweiterten Recht (Plattformrolle, Recht in `bearbeiter`, Verantwortung für ein Team): sonst 403 mit Code `ZWEITER_FAKTOR_FEHLT`. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne zweiten Faktor.
+        Namensraum `/api/v1/redaktion` der Website-Verwaltung für Personen mit Bearbeitungsrecht, nicht nur Admins (der Pfadname stammt aus der Zeit vor #426 und bleibt; eine Rolle «Redaktion» gibt es nicht mehr). Zugang haben die Abteilungsleitung, jede Stufenleitung, Personen mit einem Plattformrecht der Website (Rolle Webmaster: Seiten, Medien, Weiterleitungen, Vorlagen), Personen mit einem Recht auf eine Seite in `bearbeiter` (auf die Person oder einen Tag, den sie trägt) und Verantwortliche eines Teams; alle anderen bekommen 403. Admins brauchen auch hier den zweiten Faktor, ebenso jede Person mit einem erweiterten Recht (Plattformrolle, Recht in `bearbeiter`, Verantwortung für ein Team): sonst 403 mit Code `ZWEITER_FAKTOR_FEHLT`. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne zweiten Faktor.
 
-        Die Liste enthält nur Seiten, die die Person bearbeiten darf: die Abteilungsleitung und die Redaktion (Recht auf alle Seiten) alle Seiten der Abteilung, eine Stufenleitung die Seiten ihrer Stufe (`tagId` = Stufe). `elternId` zeigt auch auf Seiten, die nicht in der Liste stehen. Sortiert nach `reihenfolge`, dann `adresse`; den Baum baut der Client aus `elternId`. Der Inhalt der Seiten gehört nicht zu dieser Route.
+        Die Liste enthält nur Seiten, die die Person bearbeiten darf: die Abteilungsleitung und wer das Plattformrecht `seiten.bearbeiten` hat (Rolle Webmaster) alle Seiten der Abteilung, eine Stufenleitung die Seiten ihrer Stufe (`tagId` = Stufe). `elternId` zeigt auch auf Seiten, die nicht in der Liste stehen. Sortiert nach `reihenfolge`, dann `adresse`; den Baum baut der Client aus `elternId`. Der Inhalt der Seiten gehört nicht zu dieser Route.
 
         Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
       tags:
@@ -4217,7 +4217,7 @@ paths:
       operationId: legeRedaktionSeiteAn
       summary: Seite anlegen
       description: |
-        Nur Abteilungsleitung und Redaktion. Die neue Seite hat noch keinen Inhalt und keine veröffentlichte Version. Ohne `reihenfolge` kommt sie ans Ende ihrer Geschwister. Adresse, Elternseite, Titel, Reihenfolge und Sichtbarkeit wirken sofort; nur der Inhalt ist später versioniert.
+        Nur die Abteilungsleitung und wer das Plattformrecht `seiten.anlegen_loeschen` hat (Rolle Webmaster). Die neue Seite hat noch keinen Inhalt und keine veröffentlichte Version. Ohne `reihenfolge` kommt sie ans Ende ihrer Geschwister. Adresse, Elternseite, Titel, Reihenfolge und Sichtbarkeit wirken sofort; nur der Inhalt ist später versioniert.
 
         Regeln: `adresse` besteht aus `a-z`, `0-9` und `-`, höchstens 60 Zeichen. Auf der obersten Ebene sind `api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`, `sitemap.xml`, `robots.txt` und `.well-known` reserviert. Der Baum ist höchstens 5 Ebenen tief. Die Adresse ist unter einer Elternseite eindeutig, und eine Gruppe (`tagId`) hat höchstens eine Seite. Die Tags der Sichtbarkeit müssen zur Abteilung gehören.
 
@@ -4262,7 +4262,7 @@ paths:
       description: |
         Struktur und Sichtbarkeit einer Seite, ohne Inhalt. `pfad` ist die volle Adresse über alle Elternseiten.
 
-        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404, auch für Seiten anderer Abteilungen), dann das Recht an dieser Seite (403): Abteilungsleitung, Redaktion, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite.
+        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404, auch für Seiten anderer Abteilungen), dann das Recht an dieser Seite (403): Abteilungsleitung, Plattformrecht `seiten.bearbeiten`, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 ohne Recht an dieser Seite. 404 für unbekannte Seiten.
       tags:
@@ -4295,7 +4295,7 @@ paths:
       description: |
         Ändert Titel, Adresse, Elternseite, Reihenfolge, Sichtbarkeit oder Gruppe; nur die gesendeten Felder. Die Änderung wirkt sofort, auch das Zurückziehen einer Sichtbarkeit. Den Inhalt ändert diese Route nie.
 
-        Wer die Seite bearbeiten darf (siehe `GET`), darf Titel, Adresse, Reihenfolge und Sichtbarkeit ändern. Eine andere Elternseite setzt voraus, dass die Person auch diese bearbeiten darf; auf die oberste Ebene (`elternId: null`) setzt nur die Abteilungsleitung oder die Redaktion. Die Gruppe (`tagId`) ändern ebenfalls nur Abteilungsleitung und Redaktion, weil sie festlegt, welche Stufenleitung die Seite bearbeitet. Die Regeln für Adresse, Tiefe und Tags wie beim Anlegen; zusätzlich lässt sich eine Seite nicht unter sich selbst oder eine ihrer Unterseiten legen (`SEITE_ZYKLUS`). Strukturänderungen einer Abteilung laufen nacheinander.
+        Wer die Seite bearbeiten darf (siehe `GET`), darf Titel, Adresse, Reihenfolge und Sichtbarkeit ändern. Eine andere Elternseite setzt voraus, dass die Person auch diese bearbeiten darf; auf die oberste Ebene (`elternId: null`) setzt nur die Abteilungsleitung oder wer `seiten.anlegen_loeschen` hat. Die Gruppe (`tagId`) ändern ebenfalls nur diese, weil sie festlegt, welche Stufenleitung die Seite bearbeitet. Die Regeln für Adresse, Tiefe und Tags wie beim Anlegen; zusätzlich lässt sich eine Seite nicht unter sich selbst oder eine ihrer Unterseiten legen (`SEITE_ZYKLUS`). Strukturänderungen einer Abteilung laufen nacheinander.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Seite in der eigenen Abteilung (404), Recht an der Seite (403), neue Elternseite (404, 403), Gruppe (403, 404), Tags der Sichtbarkeit (400), Adresse, Zyklus und Tiefe (400), Eindeutigkeit (409). Das Audit-Log (`seite_geaendert`) nennt nur die Namen der geänderten Felder.
 
@@ -4332,7 +4332,7 @@ paths:
       operationId: loescheRedaktionSeite
       summary: Seite löschen
       description: |
-        Nur Abteilungsleitung und Redaktion. Löscht die Seite samt Entwurf und allen Versionen. Mit Unterseiten antwortet der Server mit 409 `SEITE_HAT_UNTERSEITEN`: Sie sind zuerst zu verschieben oder zu löschen. Ein Recht auf genau diese Seite in `bearbeiter` fällt mit weg. Das Löschen steht im Audit-Log (`seite_geloescht`, ohne Inhalt).
+        Nur die Abteilungsleitung und wer `seiten.anlegen_loeschen` hat. Löscht die Seite samt Entwurf und allen Versionen. Mit Unterseiten antwortet der Server mit 409 `SEITE_HAT_UNTERSEITEN`: Sie sind zuerst zu verschieben oder zu löschen. Ein Recht auf genau diese Seite in `bearbeiter` fällt mit weg. Das Löschen steht im Audit-Log (`seite_geloescht`, ohne Inhalt).
 
         Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht zum Löschen (403), Unterseiten (409).
 
@@ -4366,7 +4366,7 @@ paths:
       description: |
         Das Dokument der Bausteine im Entwurf (Form `{ v: 1, titel, bausteine }`, siehe Bausteinkatalog) und der Zähler, den das Speichern mitschicken muss. Eine neue Seite hat `dokument: null` und Zähler 0. `unveroeffentlicht` ist wahr, wenn es einen Entwurf gibt und er von der veröffentlichten Version abweicht (auch ohne veröffentlichte Version).
 
-        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht an dieser Seite (403): Abteilungsleitung, Redaktion, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite. Dasselbe gilt für alle Routen unter `/seiten/{id}/…` dieses Abschnitts.
+        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht an dieser Seite (403): Abteilungsleitung, Plattformrecht `seiten.bearbeiten`, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite. Dasselbe gilt für alle Routen unter `/seiten/{id}/…` dieses Abschnitts.
 
         Statuscodes: 200, 400, 403, 404.
       tags:
@@ -4463,6 +4463,8 @@ paths:
 
         Meldet das Ereignis `version_veroeffentlicht` an die Auslieferung. Audit-Log: `seite_veroeffentlicht` mit der Versionsnummer, nie Inhalt.
 
+        Wer darf: die Abteilungsleitung, wer das Plattformrecht `seiten.veroeffentlichen` hat (Rolle Webmaster), die Stufenleitung der Gruppe der Seite und wer ein Recht auf genau diese Seite hat. Ein Recht `seiten.bearbeiten` allein genügt nicht.
+
         Statuscodes: 201 bei Erfolg, mit der Nummer. 400, 403, 404, 409, 422.
       tags:
         - Redaktion
@@ -4507,7 +4509,7 @@ paths:
       operationId: ziehRedaktionSeiteZurueck
       summary: Veröffentlichung zurückziehen
       description: |
-        Setzt nur die veröffentlichte Version der Seite zurück: Die Seite ist danach nicht mehr veröffentlicht. Alle Versionen und der Entwurf bleiben. Kein Body. 409 `NICHT_VEROEFFENTLICHT`, wenn nichts veröffentlicht ist.
+        Setzt nur die veröffentlichte Version der Seite zurück: Die Seite ist danach nicht mehr veröffentlicht. Alle Versionen und der Entwurf bleiben. Kein Body. Wer darf: wie beim Veröffentlichen. 409 `NICHT_VEROEFFENTLICHT`, wenn nichts veröffentlicht ist.
 
         Meldet das Ereignis `version_zurueckgezogen`. Audit-Log: `seite_zurueckgezogen`.
 
@@ -5464,7 +5466,7 @@ paths:
   /api/v1/redaktion/ich:
     get:
       operationId: leseRedaktionIch
-      summary: Zugang zur Redaktion und sichtbare Bereiche
+      summary: Zugang zur Website-Verwaltung und sichtbare Bereiche
       description: |
         Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
 
@@ -5493,7 +5495,7 @@ paths:
       operationId: listeRedaktionMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die Medien der eigenen Abteilung, neueste zuerst; seitenweise mit `limit` und `offset`, durchsuchbar im Alt-Text mit `suche`. Gleiche Antwort und gleiche Regeln wie `/api/v1/admin/medien`.
+        Für alle mit Zugang (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die Medien der eigenen Abteilung, neueste zuerst; seitenweise mit `limit` und `offset`, durchsuchbar im Alt-Text mit `suche`. Gleiche Antwort und gleiche Regeln wie `/api/v1/admin/medien`.
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -5607,7 +5609,7 @@ paths:
       description: |
         Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie.
 
-        Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
+        Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und wer das Plattformrecht `medien.verwalten` hat. Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
 
@@ -5644,7 +5646,7 @@ paths:
       operationId: loescheRedaktionMedium
       summary: Medium löschen
       description: |
-        Nur Abteilungsleitung und Redaktion (Recht auf alle Seiten); eine Stufenleitung hat Zugang, darf aber nicht löschen (403). Derselbe Handler wie `DELETE /api/v1/admin/medien/{id}`: erst die Zeile, dann die Datei im Medienspeicher.
+        Nur die Abteilungsleitung und wer `medien.verwalten` hat; eine Stufenleitung hat Zugang, darf aber nicht löschen (403). Derselbe Handler wie `DELETE /api/v1/admin/medien/{id}`: erst die Zeile, dann die Datei im Medienspeicher.
 
         Reihenfolge der Prüfungen: Pfad (400), Medium in der eigenen Abteilung (404), Recht (403).
 
@@ -5759,9 +5761,9 @@ paths:
       operationId: listeRedaktionVorlagen
       summary: Vorlagen für neue Seiten
       description: |
-        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Zugang wie bei `GET /api/v1/redaktion/seiten`.
+        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Nur mit dem Plattformrecht `vorlagen.nutzen`.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
+        Statuscodes: 200 bei Erfolg. 403 ohne dieses Recht.
       tags:
         - Redaktion
       parameters:
@@ -5786,7 +5788,7 @@ paths:
       operationId: legeRedaktionSeiteAusVorlageAn
       summary: Seite aus einer Vorlage anlegen
       description: |
-        Wie `POST /api/v1/redaktion/seiten` (nur Abteilungsleitung und Redaktion), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
+        Wie `POST /api/v1/redaktion/seiten` (nur wer `seiten.anlegen_loeschen` und `vorlagen.nutzen` hat, die Abteilungsleitung eingeschlossen), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
 
         Die Vorlage `stufenseite` braucht `tagId` (Leitungsteam und Termine hängen daran). Eine Gruppe hat höchstens eine Seite: Gibt es zu `tagId` schon eine, antwortet die Route mit 409. Die Rechte der Verantwortlichen folgen aus `tagId`: Die Stufenleitung der Stufe und die Verantwortlichen eines Teams (Rolle `verantwortlich` am Tag, Typ `team`) bearbeiten die Seite.
 
@@ -8244,7 +8246,7 @@ paths:
       operationId: listeRedaktionWeiterleitungen
       summary: Weiterleitungen alter Adressen
       description: |
-        Alle Weiterleitungen der Abteilung, nach alter Adresse sortiert (höchstens 1000, darum ohne Seitenwechsel). Nur Abteilungsleitung und Redaktion; eine Stufenleitung hat Zugang zum Namensraum, aber nicht zu dieser Route (403). Admins brauchen den zweiten Faktor.
+        Alle Weiterleitungen der Abteilung, nach alter Adresse sortiert (höchstens 1000, darum ohne Seitenwechsel). Nur die Abteilungsleitung und wer `weiterleitungen.verwalten` hat; eine Stufenleitung hat Zugang zum Namensraum, aber nicht zu dieser Route (403). Admins brauchen den zweiten Faktor.
 
         Zusätzlich zu diesen Zeilen leitet die Website die alte Adresse `/cevistufe-<name>` der Stufenseiten automatisch auf die Stufenseite, sobald sie besteht; diese Zeilen stehen nicht in der Liste.
 
@@ -8272,7 +8274,7 @@ paths:
       operationId: legeRedaktionWeiterleitungAn
       summary: Weiterleitung anlegen
       description: |
-        Nur Abteilungsleitung und Redaktion. Eine alte Adresse leitet auf einen internen Pfad der Website. Beide Pfade sind relativ: Stücke aus `a-z`, `0-9` und `-` (dahinter Endungen mit `.`), höchstens 7 Stücke und 200 Zeichen, sie beginnen mit `/`. Ein Host, ein Schema, `//`, `\`, `..`, eine Query oder ein Anker sind 400 (kein offener Redirect). Das Ziel darf `/` sein. Die alte Adresse darf nicht mit einer reservierten obersten Adresse beginnen (siehe Seite anlegen). Ohne `status` gilt 301; erlaubt sind 301 und 302.
+        Nur die Abteilungsleitung und wer `weiterleitungen.verwalten` hat. Eine alte Adresse leitet auf einen internen Pfad der Website. Beide Pfade sind relativ: Stücke aus `a-z`, `0-9` und `-` (dahinter Endungen mit `.`), höchstens 7 Stücke und 200 Zeichen, sie beginnen mit `/`. Ein Host, ein Schema, `//`, `\`, `..`, eine Query oder ein Anker sind 400 (kein offener Redirect). Das Ziel darf `/` sein. Die alte Adresse darf nicht mit einer reservierten obersten Adresse beginnen (siehe Seite anlegen). Ohne `status` gilt 301; erlaubt sind 301 und 302.
 
         Das Ziel ist nie selbst eine alte Adresse, und eine alte Adresse ist nie das Ziel einer anderen Weiterleitung: Ketten und Schleifen sind 409. Die alte Adresse ist je Abteilung eindeutig. Höchstens 1000 Weiterleitungen je Abteilung.
 
@@ -8313,7 +8315,7 @@ paths:
       operationId: aendereRedaktionWeiterleitung
       summary: Weiterleitung ändern
       description: |
-        Nur Abteilungsleitung und Redaktion. Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. Es gelten dieselben Regeln wie beim Anlegen, geprüft gegen den Stand ohne diese Zeile. Audit-Log: `weiterleitung_geaendert` mit den Namen der Felder.
+        Nur die Abteilungsleitung und wer `weiterleitungen.verwalten` hat. Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. Es gelten dieselben Regeln wie beim Anlegen, geprüft gegen den Stand ohne diese Zeile. Audit-Log: `weiterleitung_geaendert` mit den Namen der Felder.
 
         Reihenfolge der Prüfungen: Zugang (403), Body (400), Weiterleitung in der eigenen Abteilung (404), Recht (403), Kette und Eindeutigkeit (409).
 
@@ -8350,7 +8352,7 @@ paths:
       operationId: loescheRedaktionWeiterleitung
       summary: Weiterleitung löschen
       description: |
-        Nur Abteilungsleitung und Redaktion. Der nächste Abgleich entfernt die Rückfallseite und die Zeile in `weiterleitungen.caddy`. Audit-Log: `weiterleitung_geloescht`.
+        Nur die Abteilungsleitung und wer `weiterleitungen.verwalten` hat. Der nächste Abgleich entfernt die Rückfallseite und die Zeile in `weiterleitungen.caddy`. Audit-Log: `weiterleitung_geloescht`.
 
         Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde oder unbekannte ID.
       tags:
@@ -8378,7 +8380,7 @@ paths:
       operationId: listeRedaktionEckdaten
       summary: Kommende Felder der Stufenseite
       description: |
-        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist immer `seite` (im Editor gepflegt); das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
+        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist immer `seite` (im Editor gepflegt); das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361). Recht wie an der Stufenseite: Stufenleitung der Stufe, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster), Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403).
 
@@ -10393,17 +10395,16 @@ components:
       type: object
       required:
         - objektTyp
+        - objektId
       additionalProperties: false
       description: Genau eines von `userId` und `tagId`.
       properties:
         objektTyp:
           $ref: "#/components/schemas/AdminBearbeiterObjektTyp"
         objektId:
-          type:
-            - string
-            - "null"
+          type: string
           format: uuid
-          description: Das Objekt. Fehlt es oder ist es `null`, gilt das Recht für alle Objekte des Typs («Redaktion»).
+          description: Das Objekt, für das das Recht gilt (Pflicht).
         userId:
           type: string
           format: uuid
@@ -10436,11 +10437,8 @@ components:
               objektTyp:
                 $ref: "#/components/schemas/AdminBearbeiterObjektTyp"
               objektId:
-                type:
-                  - string
-                  - "null"
+                type: string
                 format: uuid
-                description: "`null` heisst: alle Objekte des Typs."
               userId:
                 type:
                   - string
@@ -13382,10 +13380,11 @@ components:
         - redigieren
         - bereiche
         - verwalten
+        - rechte
       properties:
         redigieren:
           type: boolean
-          description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
+          description: Ob die Person Zugang zur Website-Verwaltung hat (Abteilungsleitung, Stufenleitung, ein Plattformrecht der Website, ein Recht auf eine Seite in `bearbeiter` oder Verantwortung für ein Team).
         bereiche:
           type: array
           description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
@@ -13395,7 +13394,20 @@ components:
               - website
         verwalten:
           type: boolean
-          description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+          description: Ob die Person Seiten anlegen und löschen darf (Plattformrecht `seiten.anlegen_loeschen`). Bleibt für Clients, die nur dieses Feld kennen; `rechte` ist genauer. Nur für die Anzeige; jede Route prüft selbst.
+        rechte:
+          type: array
+          description: "Die Plattformrechte der Person (Abteilungsleitung und Entwickler: alle), sortiert; leer ohne Zugang. Stufenleitung, Rechte pro Seite und Team-Verantwortung stehen nicht darin, sie gelten je Seite. Nur für die Anzeige; jede Route prüft selbst."
+          items:
+            type: string
+            enum:
+              - seiten.bearbeiten
+              - seiten.veroeffentlichen
+              - seiten.anlegen_loeschen
+              - medien.verwalten
+              - weiterleitungen.verwalten
+              - vorlagen.nutzen
+              - wartungsmodus.website
     MediumAendern:
       type: object
       description: Genau eines von beiden, `altText` oder `dekorativ`.

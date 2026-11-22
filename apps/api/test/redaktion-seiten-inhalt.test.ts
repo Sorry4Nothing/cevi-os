@@ -30,6 +30,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 bereiteAuthTestsVor();
 
@@ -61,7 +62,7 @@ let demoAdmin: PersonaKonto;
 let demoEltern: PersonaKonto;
 let slA: PersonaKonto;
 let slB: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let ohneRecht: PersonaKonto;
 let eltern: PersonaKonto;
 
@@ -188,7 +189,7 @@ beforeAll(async () => {
     demoEltern,
     slA,
     slB,
-    redaktion,
+    webmaster,
     ohneRecht,
     eltern,
   ] = await Promise.all([
@@ -202,12 +203,8 @@ beforeAll(async () => {
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
-  // Redaktion = Recht auf alle Seiten
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  // Webmaster = Plattformrolle mit allen Rechten ausser dem Wartungsmodus
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
   // Die Seite der Stufe A
   stufeSeite = await neueSeite("angemeldet", welt.stufeAId);
 });
@@ -241,7 +238,7 @@ describe("Entwurf speichern", () => {
     const id = await neueSeite();
     await speichere(admin, id, dokument(ueberschrift("Erster")), 0);
     const konflikt = await speichere(
-      redaktion,
+      webmaster,
       id,
       dokument(ueberschrift("Zweiter")),
       0,
@@ -265,7 +262,7 @@ describe("Entwurf speichern", () => {
   test("zwei gleichzeitige Speicherungen mit demselben Zähler: genau eine gewinnt", async () => {
     const id = await neueSeite();
     const status = await Promise.all(
-      [admin, redaktion].map(async (k) => {
+      [admin, webmaster].map(async (k) => {
         const a = await anfrage(k, "PUT", `${BASIS}/${id}/entwurf`, {
           zaehler: 0,
           dokument: dokument(),
@@ -653,7 +650,7 @@ describe("Verweisprüfung", () => {
     );
   });
 
-  test("Medium löschen über die Redaktion: ebenfalls 409 MEDIUM_VERWENDET, danach frei", async () => {
+  test("Medium löschen über die Webmaster: ebenfalls 409 MEDIUM_VERWENDET, danach frei", async () => {
     const medium = await neuesMedium("oeffentlich");
     const id = await neueSeite();
     await speichere(
@@ -753,7 +750,7 @@ describe("Veröffentlichen, Versionen, Zurückholen, Zurückziehen", () => {
     const id = await neueSeite();
     await speichere(admin, id, dokument(), 0);
     const status = await Promise.all(
-      [admin, redaktion].map(
+      [admin, webmaster].map(
         async (k) => (await veroeffentliche(k, id)).status,
       ),
     );
@@ -952,10 +949,10 @@ describe("Rechte", () => {
     }
   });
 
-  test("Redaktion (Recht auf alle Seiten) und ein Recht auf genau eine Seite", async () => {
+  test("Webmaster (Recht auf alle Seiten) und ein Recht auf genau eine Seite", async () => {
     const id = await neueSeite();
     const andere = await neueSeite();
-    await speichere(redaktion, id, dokument(), 0);
+    await speichere(webmaster, id, dokument(), 0);
     const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,

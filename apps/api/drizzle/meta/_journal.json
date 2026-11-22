@@ -367,6 +367,13 @@
       "breakpoints": true
     },
     {
+      "idx": 101,
+      "version": "7",
+      "when": 1793553100000,
+      "tag": "0101_bearbeiter_ohne_alle_seiten",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
