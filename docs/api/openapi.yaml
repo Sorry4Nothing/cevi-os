@@ -297,6 +297,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/plattform.js:
+    get:
+      operationId: getAdminPlattformSkript
+      summary: Skript der Verwaltung – Bereich Plattform
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags.js:
     get:
       operationId: getAdminTagsSkript
@@ -1840,6 +1855,101 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/AnwesenheitGeschlossen409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/plattform/schalter:
+    get:
+      operationId: listePlattformSchalter
+      summary: Aktive Schalter der Abteilung (Wartungsmodus)
+      description: |
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website. Wer nichts davon darf, bekommt 403.
+
+        Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die aktiven Schalter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlattformSchalterListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzePlattformSchalter
+      summary: Wartungsmodus für einen Bereich einschalten oder ändern
+      description: |
+        Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
+
+        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext).
+
+        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400), Recht auf genau diesen Bereich (403).
+
+        Statuscodes: 200, 400, 401, 403, 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlattformSchalterSetzen"
+      responses:
+        "200":
+          description: Der Schalter ist gesetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlattformSchalter"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: hebePlattformSchalterAuf
+      summary: Wartungsmodus für einen Bereich aufheben
+      description: |
+        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`).
+
+        Statuscodes: 204 bei Erfolg. 400, 401, 403, 404 (der Schalter ist nicht gesetzt), 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/SchalterArt"
+        - $ref: "#/components/parameters/SchalterBereich"
+      responses:
+        "204":
+          description: Aufgehoben.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -7203,6 +7313,14 @@ paths:
           schema:
             type: string
             enum: ["true", "false"]
+        - name: stichwort
+          in: query
+          required: false
+          description: Nur Aufgaben mit diesem Stichwort (ohne Rücksicht auf Gross- und Kleinschreibung).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 40
         - name: fristVon
           in: query
           required: false
@@ -7570,6 +7688,739 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/aufgaben/duplikate:
+    get:
+      operationId: holeLagerAufgabenDuplikate
+      summary: Doppelte Aufgaben finden
+      description: |
+        Braucht `aufgaben.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung).
+
+        Zwei Aufgaben sind Duplikate, wenn ihr normalisierter Titel im selben Ressort gleich ist (Gross- und Kleinschreibung, Akzente, Satzzeichen und mehrfacher Leerraum zählen nicht; Aufgaben ohne Ressort gelten als ein Ressort). Erledigte Aufgaben zählen nicht, weil eine wiederkehrende Aufgabe beim Erledigen eine gleichnamige Folgeaufgabe bekommt.
+
+        Mit `titel`: die offenen Aufgaben desselben Ressorts (`ressortId`, ohne Angabe: ohne Ressort) mit gleichem Titel, für den Hinweis beim Anlegen (höchstens eine Gruppe). Ohne `titel`: alle Gruppen mit mindestens zwei Aufgaben, mit `ressortId` nur die dieses Ressorts. Eine Abfrage, unabhängig von der Zahl der Aufgaben. Zusammenführen: `POST .../aufgaben/{aufgabeId}/zusammenfuehren`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: titel
+          in: query
+          required: false
+          description: Titel, zu dem Duplikate gesucht werden.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - name: ressortId
+          in: query
+          required: false
+          description: "Das Ressort (mit `titel` das Ressort der neuen Aufgabe; ohne Angabe ohne Ressort)."
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gruppen doppelter Aufgaben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeDuplikate"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/details:
+    get:
+      operationId: holeLagerAufgabeDetails
+      summary: Checkliste, Links und Stichworte einer Aufgabe lesen
+      description: |
+        Braucht `aufgaben.lesen_alle` oder `aufgaben.bearbeiten`, sonst `aufgaben.eigene` (nur an einer eigenen Aufgabe; Verantwortliche oder Unterstützung). Eine fremde Aufgabe ist für das Team unbekannt (404).
+
+        Drei Abfragen, unabhängig von der Zahl der Einträge: die Checkliste mit dem Namen dessen, der abgehakt hat, die Links und die Stichworte. Eine Aufgabe hat höchstens 100 Checkpunkte, 30 Links und 30 Stichworte, darum ohne Seitenwechsel. Die Version jedes Checkpunkts und Links steht dabei (für Änderungen und Löschen); die Version der Aufgabe steht in der Aufgabe.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Aufgabe im Lager und für die Rolle lesbar (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne eines der Leserechte. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung, ohne Mitgliedschaft, und für das Team bei einer fremden Aufgabe.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Details der Aufgabe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeDetails"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/verlauf:
+    get:
+      operationId: holeLagerAufgabeVerlauf
+      summary: Verlauf einer Aufgabe lesen
+      description: |
+        Braucht `verlauf.lesen` (Standard: Lagerleitung, Leitung und Lesen) und das Leserecht an der Aufgabe (`aufgaben.lesen_alle`, `aufgaben.bearbeiten` oder, für eigene Aufgaben, `aufgaben.eigene`).
+
+        Der Verlauf besteht aus dem, was der Änderungsfeed über die Aufgabe, ihre Checkpunkte und ihre Links festhält: Art (`neu`, `geaendert`, `geloescht`), Version und Zeitpunkt, neueste zuerst, dazu wer die Aufgabe angelegt und zuletzt geändert hat. Der Feed hält Einträge 30 Tage; ältere Änderungen fehlen. Er speichert weder Inhalte noch Personen: Revisionen mit Inhalt gibt es nicht. Zwei Abfragen (Aufgabe mit den beiden Namen, Feed); Seitenwechsel über `vor` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Aufgabe im Lager und für die Rolle lesbar (404; 403, wenn die Rolle keine Aufgaben lesen darf).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne `verlauf.lesen` oder ohne Leserecht an Aufgaben. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung, ohne Mitgliedschaft, und für die Rolle mit nur «eigene» bei einer fremden Aufgabe.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: vor
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite (Folgenummer).
+          schema:
+            type: integer
+            minimum: 1
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite des Verlaufs.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeVerlauf"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/checkliste:
+    post:
+      operationId: legeLagerAufgabeCheckpunktAn
+      summary: Checkpunkt anlegen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Ein Checkpunkt ist eine eigene Zeile mit eigener Version, damit zwei Personen nicht dieselbe Liste überschreiben. Ohne `reihenfolge` kommt er ans Ende. Höchstens 100 Checkpunkte je Aufgabe (400 `ZU_VIELE_CHECKPUNKTE`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe im Lager (404).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder zu vielen Checkpunkten. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerCheckpunktAnlegen"
+      responses:
+        "201":
+          description: Der neue Checkpunkt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheckpunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/checkliste/reihenfolge:
+    put:
+      operationId: setzeLagerAufgabeChecklisteReihenfolge
+      summary: Checkliste neu ordnen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Die Stelle in der Liste ist die neue `reihenfolge`; was schon stimmt, bleibt unberührt (keine neue Version, kein Feed-Eintrag). Jeder Eintrag braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT`, nichts wird geschrieben). Nicht genannte Punkte behalten ihre Stelle.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe und Punkte im Lager (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter Aufgabe oder unbekanntem Punkt, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerCheckpunktReihenfolge"
+      responses:
+        "204":
+          description: Neu geordnet.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/checkliste/{checkpunktId}:
+    patch:
+      operationId: aendereLagerAufgabeCheckpunkt
+      summary: Checkpunkt ändern oder abhaken
+      description: |
+        Braucht `aufgaben.bearbeiten` (Text und Abhaken an jeder Aufgabe). Wer nur `aufgaben.eigene` hat (Standard: Team), darf an einer eigenen Aufgabe (Verantwortliche oder Unterstützung) abhaken und wieder öffnen, nichts sonst (`text` ergibt 403); eine fremde Aufgabe ist 404.
+
+        Beim Abhaken setzt der Server die Person, die abgehakt hat; beim Öffnen leert er sie. Ein Punkt, der schon so steht, behält seine Person. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe und Punkt im Lager und für die Rolle erreichbar (404), Recht für den Text (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne eines der Rechte oder mit `text` ohne `aufgaben.bearbeiten`. 404 bei unbekanntem Lager, unbekannter Aufgabe oder unbekanntem Punkt, fremder Abteilung, ohne Mitgliedschaft, und für das Team bei einer fremden Aufgabe. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: checkpunktId
+          in: path
+          required: true
+          description: ID des Checkpunkts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerCheckpunktAendern"
+      responses:
+        "200":
+          description: Der Checkpunkt nach der Änderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheckpunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerAufgabeCheckpunkt
+      summary: Checkpunkt löschen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Das Löschen geht allein über den Sync-Kern (`loescheZeile`); der Änderungsfeed meldet «geloescht». Braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe und Punkt im Lager (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter Aufgabe oder unbekanntem Punkt (auch bei erneutem Löschen), fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: checkpunktId
+          in: path
+          required: true
+          description: ID des Checkpunkts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Checkpunkt gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/links:
+    post:
+      operationId: legeLagerAufgabeLinkAn
+      summary: Link einer Aufgabe anlegen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Nur `https`-Adressen ohne Zugangsdaten, höchstens 2000 Zeichen; der Server ruft die Adresse nie ab (SR-26) und speichert die normalisierte Form. Höchstens 30 Links je Aufgabe (400 `ZU_VIELE_LINKS`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe im Lager (404).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder zu vielen Links. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAufgabeLinkAnlegen"
+      responses:
+        "201":
+          description: Der neue Link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeLink"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/links/{linkId}:
+    patch:
+      operationId: aendereLagerAufgabeLink
+      summary: Link einer Aufgabe ändern
+      description: |
+        Braucht `aufgaben.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst). Die Adresse gilt wie beim Anlegen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe und Link im Lager (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter Aufgabe oder unbekanntem Link, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          description: ID des Links (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAufgabeLinkAendern"
+      responses:
+        "200":
+          description: Der Link nach der Änderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeLink"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerAufgabeLink
+      summary: Link einer Aufgabe löschen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Das Löschen geht allein über den Sync-Kern (`loescheZeile`); der Änderungsfeed meldet «geloescht». Braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe und Link im Lager (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter Aufgabe oder unbekanntem Link (auch bei erneutem Löschen), fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          description: ID des Links (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Link gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/stichworte:
+    put:
+      operationId: setzeLagerAufgabeStichworte
+      summary: Stichworte einer Aufgabe setzen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Setzt die Stichworte auf genau diese Liste (höchstens 30, je 1 bis 40 Zeichen, ohne Rücksicht auf Gross- und Kleinschreibung nur einmal; sonst 400). Die Stichworte haben keine eigene Version: Die Aufgabe zählt dabei ihre Version hoch (Versionsprüfung, Feed-Eintrag) und braucht die zuletzt gesehene `version` der Aufgabe (409 `VERSION_KONFLIKT` sonst). Mit dem Filter `stichwort` der Aufgabenliste lassen sich Aufgaben danach finden.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Aufgabe im Lager (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAufgabeStichworteSetzen"
+      responses:
+        "200":
+          description: Die Details der Aufgabe nach der Änderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeDetails"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/aufgaben/{aufgabeId}/zusammenfuehren:
+    post:
+      operationId: fuehreLagerAufgabenZusammen
+      summary: Zwei Aufgaben zusammenführen
+      description: |
+        Braucht `aufgaben.bearbeiten`. Führt die Aufgabe `mitId` in die Aufgabe des Pfads zusammen und löscht `mitId` über den Sync-Kern (`loescheZeile`; solange das Löschen weich ist, behält sie ihre Details und lässt sich wiederherstellen, das endgültige Löschen kommt mit #427). Beide `version` werden geprüft (409 `VERSION_KONFLIKT`, nichts wird geschrieben).
+
+        Vereint werden: die Checkliste (die Punkte der zweiten Aufgabe kommen als Kopien ans Ende, mit ihrem Stand und der Person, die abgehakt hat; ein Punkt mit gleichem normalisiertem Text nicht doppelt), die Links (gleiche Adresse nicht doppelt), die Stichworte, die Notiz (hat nur eine eine Notiz, gilt sie; sonst stehen beide untereinander, zuerst die der Zielaufgabe) und die Frist (die frühere). Verantwortliche, Unterstützung, Status und Ressort bleiben die der Zielaufgabe. Sprengt das Ergebnis eine Obergrenze (100 Checkpunkte, 30 Links, 30 Stichworte, 5000 Zeichen Notiz), antwortet der Server mit 400 und schreibt nichts.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), beide Aufgaben im Lager (404), Obergrenzen (400), Versionen (409).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, gleicher Aufgabe (`GLEICHE_AUFGABE`) oder gesprengter Obergrenze. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Aufgabe, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: aufgabeId
+          in: path
+          required: true
+          description: ID der Aufgabe (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAufgabeZusammenfuehren"
+      responses:
+        "200":
+          description: Die Zielaufgabe nach dem Zusammenführen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -8858,6 +9709,410 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/zimmer:
+    get:
+      operationId: holeLagerZimmer
+      summary: Zimmer und Zelte des Lagers auflisten
+      description: |
+        Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Drei Abfragen, unabhängig von der Zahl der Zimmer: die Zimmer mit Belegung (GROUP BY), die Anzeigenamen des Lagers und die Zähler der Nichteingeteilten. Wer alles sehen darf (Lagerleitung, Leitung, Lesen), bekommt alle Zimmer mit `plaetze`, `belegt`, `ueberbelegt` (Warnung, keine Sperre), den Mitgliedern mit Namen und die Zähler `offen`. Das Team (ohne `einteilung.bearbeiten`) sieht nur sein eigenes Zimmer mit den Namen der Mitbewohner, ohne Plätze, Belegung und Notiz. Der Name ist der Cevi-Name, sonst der Vorname; ist er im Lager nicht eindeutig, folgen der Vorname und dann der Vorname mit dem Anfangsbuchstaben des Nachnamens.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Zimmer des Lagers; die Form hängt von der Sicht ab.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerZimmerAn
+      summary: Zimmer oder Zelt anlegen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Name, Art (`zimmer` oder `zelt`) und Plätze sind Pflicht, Notiz und Reihenfolge freiwillig.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerAnlegen"
+      responses:
+        "201":
+          description: Das neue Zimmer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmer"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/offen:
+    get:
+      operationId: holeLagerZimmerOffene
+      summary: Noch nicht eingeteilte Personen auflisten
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Die Auswahl für «Person einteilen»: wer noch in keinem Zimmer liegt. `art=teilnehmer` (Vorgabe) liefert Teilnehmende mit Vorname, Nachname, Stufe und Cevi-Name, `art=team` die Mitglieder des Lagers mit aktivem Konto der Abteilung. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: art
+          in: query
+          required: false
+          description: "`teilnehmer` (Vorgabe): die Teilnehmenden. `team`: die Mitglieder des Lagers."
+          schema:
+            type: string
+            enum:
+              - teilnehmer
+              - team
+            default: teilnehmer
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite noch nicht eingeteilter Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerOffeneSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}:
+    patch:
+      operationId: aendereLagerZimmer
+      summary: Zimmer oder Zelt ändern
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed. Die zuletzt gesehene `version` ist Pflicht (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerAendern"
+      responses:
+        "200":
+          description: Das geänderte Zimmer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmer"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerZimmer
+      summary: Zimmer oder Zelt löschen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed. Die zuletzt gesehene `version` kommt als Abfrageparameter. Die Zuordnungen gehen mit dem Zimmer (Soft-Delete, der Feed meldet jede als gelöscht).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version des Zimmers.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Das Zimmer ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}/zuordnung:
+    post:
+      operationId: teileLagerZimmerEin
+      summary: Personen ins Zimmer einteilen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Sammeloperation: höchstens 200 Teilnehmende und Mitglieder je Anfrage (`teilnehmerIds`, `personIds`, zusammen mindestens eine, ohne Doppelte). Wer schon in diesem Zimmer liegt, bleibt unberührt. Eine Person oder teilnehmende Person liegt in höchstens einem Zimmer: Liegt jemand schon in einem anderen, antwortet die Route mit 409 `SCHON_EINGETEILT` und den IDs und schreibt nichts. Mehr Personen als Plätze ist erlaubt; die Antwort meldet `belegt`, `plaetze` und `ueberbelegt` als Warnung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer oder Person (auch ein Eintrag eines anderen Lagers), fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `SCHON_EINGETEILT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerZuordnung"
+      responses:
+        "200":
+          description: Wie viele neu eingeteilt wurden und die Belegung des Zimmers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerEingeteilt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder eine Person liegt schon in einem anderen Zimmer (`SCHON_EINGETEILT`, mit `teilnehmerIds` und `personIds`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}/zuordnung/entfernen:
+    post:
+      operationId: nimmLagerZimmerPersonenHeraus
+      summary: Personen aus dem Zimmer nehmen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Sammeloperation wie das Einteilen. Wer nicht in diesem Zimmer liegt, wird übergangen (die Anfrage ist wiederholbar). Die Antwort meldet die Belegung des Zimmers.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerZuordnung"
+      responses:
+        "200":
+          description: Wie viele entfernt wurden und die Belegung des Zimmers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerEntfernt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/gruppen:
@@ -11716,6 +12971,90 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/ich/kalender-link:
+    get:
+      operationId: kalenderLinkStatus
+      summary: Status des persönlichen Kalenderlinks lesen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Zeigt, ob die Person einen aktiven Kalenderlink hat, wann sie ihn erzeugt hat, wann ihn eine Kalender-App zuletzt abgerufen hat und seine letzten vier Zeichen. Der Token selbst steht nie in dieser Antwort; es gibt ihn nur einmal beim Erzeugen.
+        `zuletztAbgerufenAm` schreibt der Feed höchstens einmal je Stunde: Der Wert kann bis zu eine Stunde hinterherhinken.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor. Jede Person sieht nur ihren eigenen Link.
+        Statuscodes: 200, 401, 403, 426.
+      responses:
+        "200":
+          description: Status des Links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KalenderLinkStatus"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: kalenderLinkErzeugen
+      summary: Persönlichen Kalenderlink erzeugen oder ersetzen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Erzeugt einen neuen geheimen Link für die Termine der Person. Hat die Person schon einen aktiven, ist dieser sofort ungültig. Kein Body.
+        Der Klartext des Tokens steht nur in dieser Antwort: Die App zeigt ihn einmal und bietet Kopieren und Teilen an. Danach kennt ihn niemand mehr; verloren heisst neu erzeugen. Er gehört in kein Log und keinen Fehlerbericht.
+
+        **Adresse.** Die API liefert den Token und den Pfad `pfad` (`/ical/<Token>.ics`), nicht die ganze Adresse. Die App setzt die Basisadresse der API davor. Den Feed unter diesem Pfad liefert ein eigener Endpunkt.
+
+        **Ratenbegrenzung.** Höchstens 10 Aufrufe von `POST` und `DELETE` zusammen je Person und 10 Minuten (429).
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor.
+        Statuscodes: 201, 401, 403, 426, 429.
+      responses:
+        "201":
+          description: Neuer Link; der Token steht nur hier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KalenderLinkNeu"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: kalenderLinkWiderrufen
+      summary: Persönlichen Kalenderlink widerrufen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Macht den aktiven Link sofort ungültig; Kalender-Apps, die ihn abonniert haben, bekommen danach 404. Ohne aktiven Link antwortet die Route ebenfalls 204 und ändert nichts. Widerrufene Zeilen entfernt ein täglicher Lauf nach 30 Tagen.
+
+        **Ratenbegrenzung.** Wie `POST`: gemeinsam 10 Aufrufe je Person und 10 Minuten (429).
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor.
+        Statuscodes: 204, 401, 403, 426, 429.
+      responses:
+        "204":
+          description: Widerrufen (oder es gab keinen aktiven Link); kein Body.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16175,7 +17514,7 @@ components:
           type: [string, "null"]
           format: date
         wiederholung:
-          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Die Folgeaufgabe erzeugt eine spätere Ausbaustufe; hier wird nur gespeichert."
+          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Wird die Aufgabe auf `erledigt` gesetzt, legt der Server die nächste an (genau einmal je Aufgabe): dieselben Angaben, Status `offen`, die Frist (und `spaeterAb`) um 7 Tage, 14 Tage oder einen Monat verschoben (bei `m1` auf das Monatsende, wenn der Monat kürzer ist), Checkliste, Links und Stichworte kopiert, alle Checkpunkte wieder offen. Die neue Aufgabe trägt `wiederholung:<ID der erledigten>` in `quelle`."
           type: [string, "null"]
           enum: [w1, w2, m1, null]
         reihenfolge:
@@ -16296,7 +17635,7 @@ components:
           type: [string, "null"]
           format: date
         wiederholung:
-          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Die Folgeaufgabe erzeugt eine spätere Ausbaustufe; hier wird nur gespeichert."
+          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Beim Erledigen der Aufgabe legt der Server die nächste an (siehe die Antwort der Aufgabe)."
           type: [string, "null"]
           enum: [w1, w2, m1, null]
         reihenfolge:
@@ -16355,7 +17694,7 @@ components:
           type: [string, "null"]
           format: date
         wiederholung:
-          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Die Folgeaufgabe erzeugt eine spätere Ausbaustufe; hier wird nur gespeichert."
+          description: "Wöchentlich (`w1`), alle zwei Wochen (`w2`) oder monatlich (`m1`). Beim Erledigen der Aufgabe legt der Server die nächste an (siehe die Antwort der Aufgabe)."
           type: [string, "null"]
           enum: [w1, w2, m1, null]
         reihenfolge:
@@ -16401,6 +17740,351 @@ components:
                 type: integer
                 minimum: 1
     # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerAufgabeDuplikate:
+      description: "Gruppen doppelter Aufgaben (gleicher normalisierter Titel im selben Ressort, nicht erledigt). Mit `titel` höchstens eine Gruppe, die auch aus einer einzelnen Aufgabe bestehen kann."
+      type: object
+      additionalProperties: false
+      required:
+        - gruppen
+      properties:
+        gruppen:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - ressortId
+              - titel
+              - aufgaben
+            properties:
+              ressortId:
+                type: [string, "null"]
+                format: uuid
+              titel:
+                description: "Titel der ersten Aufgabe der Gruppe."
+                type: string
+              aufgaben:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - id
+                    - version
+                    - titel
+                    - status
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    version:
+                      type: integer
+                      minimum: 1
+                    titel:
+                      type: string
+                    status:
+                      $ref: "#/components/schemas/LagerAufgabeStatus"
+    LagerCheckpunkt:
+      description: "Ein Punkt der Checkliste einer Aufgabe, mit eigener Version."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - aufgabeId
+        - text
+        - erledigt
+        - erledigtVonPersonId
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        aufgabeId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        erledigt:
+          type: boolean
+        erledigtVonPersonId:
+          description: "Wer den Punkt abgehakt hat; der Server setzt und leert die Person mit `erledigt`."
+          type: [string, "null"]
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerCheckpunktMitPerson:
+      description: "Ein Checkpunkt mit dem Namen dessen, der abgehakt hat."
+      allOf:
+        - $ref: "#/components/schemas/LagerCheckpunkt"
+        - type: object
+          required:
+            - erledigtVon
+          properties:
+            erledigtVon:
+              oneOf:
+                - $ref: "#/components/schemas/LagerAufgabePerson"
+                - type: "null"
+    LagerAufgabeLink:
+      description: "Ein Link einer Aufgabe. Nur `https`, der Server ruft ihn nie ab."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - aufgabeId
+        - titel
+        - url
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        aufgabeId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+    LagerAufgabeDetails:
+      description: "Checkliste, Links und Stichworte einer Aufgabe: höchstens 100 Checkpunkte, 30 Links und 30 Stichworte."
+      type: object
+      additionalProperties: false
+      required:
+        - aufgabeId
+        - checkliste
+        - links
+        - stichworte
+      properties:
+        aufgabeId:
+          type: string
+          format: uuid
+        checkliste:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/LagerCheckpunktMitPerson"
+        links:
+          type: array
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/LagerAufgabeLink"
+        stichworte:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+    LagerCheckpunktAnlegen:
+      description: "Neuer Checkpunkt; ohne `reihenfolge` ans Ende."
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerCheckpunktAendern:
+      description: "Mindestens ein Feld ausser `version`. Wer nur `aufgaben.eigene` hat, darf nur `erledigt` senden."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        erledigt:
+          type: boolean
+    LagerCheckpunktReihenfolge:
+      description: "Checkpunkte in der neuen Reihenfolge; die Stelle in der Liste ist die neue `reihenfolge`."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+    LagerAufgabeLinkAnlegen:
+      description: "Neuer Link einer Aufgabe."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - url
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          description: "Nur `https`, ohne Zugangsdaten."
+          type: string
+          format: uri
+          maxLength: 2000
+    LagerAufgabeLinkAendern:
+      description: "Mindestens ein Feld ausser `version`."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+    LagerAufgabeStichworteSetzen:
+      description: "Die Stichworte der Aufgabe, genau diese Liste. `version` ist die der Aufgabe."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - stichworte
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        stichworte:
+          type: array
+          maxItems: 30
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+    LagerAufgabeZusammenfuehren:
+      description: "Die Aufgabe `mitId` geht in die Aufgabe des Pfads über."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - mitId
+        - mitVersion
+      properties:
+        version:
+          description: "Version der Zielaufgabe (Pfad)."
+          type: integer
+          minimum: 1
+        mitId:
+          description: "Die Aufgabe, die gelöscht wird."
+          type: string
+          format: uuid
+        mitVersion:
+          description: "Version der Aufgabe `mitId`."
+          type: integer
+          minimum: 1
+    LagerAufgabeVerlauf:
+      description: "Verlauf einer Aufgabe aus dem Änderungsfeed (30 Tage), neueste zuerst, dazu Urheber und letzte Änderung."
+      type: object
+      additionalProperties: false
+      required:
+        - aufgabeId
+        - erstelltAm
+        - erstelltVon
+        - geaendertAm
+        - geaendertVon
+        - eintraege
+        - naechster
+      properties:
+        aufgabeId:
+          type: string
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+        erstelltVon:
+          oneOf:
+            - $ref: "#/components/schemas/LagerAufgabePerson"
+            - type: "null"
+        geaendertAm:
+          type: string
+          format: date-time
+        geaendertVon:
+          oneOf:
+            - $ref: "#/components/schemas/LagerAufgabePerson"
+            - type: "null"
+        eintraege:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - seq
+              - objekttyp
+              - id
+              - art
+              - version
+              - zeitpunkt
+            properties:
+              seq:
+                type: integer
+                minimum: 1
+              objekttyp:
+                type: string
+                enum: [aufgabe, aufgabe_checkpunkt, aufgabe_link]
+              id:
+                description: "ID der geänderten Zeile (die Aufgabe, ein Checkpunkt oder ein Link)."
+                type: string
+                format: uuid
+              art:
+                type: string
+                enum: [neu, geaendert, geloescht]
+              version:
+                type: integer
+                minimum: 1
+              zeitpunkt:
+                type: string
+                format: date-time
+        naechster:
+          description: "Cursor für die nächste Seite (`vor`); `null`, wenn es keine gibt."
+          type: [integer, "null"]
     # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -17218,6 +18902,279 @@ components:
           type: integer
           minimum: 0
     # lager-schemas: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerZimmer:
+      description: "Ein Zimmer oder Zelt (ohne Belegung)."
+      type: object
+      additionalProperties: false
+      required: [id, version, name, art, plaetze, notiz, reihenfolge]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerAnlegen:
+      description: "Neues Zimmer oder Zelt. Unbekannte Felder lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required: [name, art, plaetze]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerAendern:
+      description: "Änderung eines Zimmers: `version` und mindestens ein weiteres Feld."
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerMitglied:
+      description: "Wer im Zimmer liegt, mit dem Anzeigenamen (Cevi-Name, sonst Vorname; bei Gleichheit im Lager der Vorname, danach der Vorname mit dem Anfangsbuchstaben des Nachnamens)."
+      type: object
+      additionalProperties: false
+      required: [typ, id, name]
+      properties:
+        typ:
+          description: "`teilnehmer`: teilnehmende Person (`teilnehmerIds`), `person`: Mitglied des Lagers (`personIds`)."
+          type: string
+          enum: [teilnehmer, person]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    LagerZimmerVoll:
+      description: "Ein Zimmer mit Belegung. `ueberbelegt` ist eine Warnung, keine Sperre."
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          version,
+          name,
+          art,
+          plaetze,
+          notiz,
+          reihenfolge,
+          belegt,
+          ueberbelegt,
+          mitglieder,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+        notiz:
+          type: [string, "null"]
+        reihenfolge:
+          type: integer
+        belegt:
+          type: integer
+          minimum: 0
+        ueberbelegt:
+          type: boolean
+        mitglieder:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerZimmerMitglied"
+    LagerZimmerTeam:
+      description: "Das eigene Zimmer des Teams: Name, Art und die Namen der Mitbewohner (ohne Plätze, Belegung, Notiz)."
+      type: object
+      additionalProperties: false
+      required: [id, version, name, art, mitglieder]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        mitglieder:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+    LagerZimmerListe:
+      description: "Die Zimmer des Lagers. Mit voller Sicht `LagerZimmerVoll` und die Zähler `offen`; das Team bekommt nur sein eigenes Zimmer (`LagerZimmerTeam`) und kein `offen`."
+      type: object
+      additionalProperties: false
+      required: [zimmer]
+      properties:
+        zimmer:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/LagerZimmerVoll"
+              - $ref: "#/components/schemas/LagerZimmerTeam"
+        offen:
+          description: "Wer noch in keinem Zimmer liegt (nur bei voller Sicht)."
+          type: object
+          additionalProperties: false
+          required: [teilnehmer, team]
+          properties:
+            teilnehmer:
+              type: integer
+              minimum: 0
+            team:
+              type: integer
+              minimum: 0
+    LagerZimmerOffeneSeite:
+      description: "Eine Seite noch nicht eingeteilter Personen: bei `art=teilnehmer` mit Vorname, Nachname, Stufe und Cevi-Name, bei `art=team` mit Name und Cevi-Name des Kontos."
+      type: object
+      additionalProperties: false
+      required: [eintraege, naechster]
+      properties:
+        eintraege:
+          type: array
+          items:
+            type: object
+            required: [id]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              vorname:
+                type: string
+              nachname:
+                type: string
+              stufe:
+                type: [string, "null"]
+              ceviName:
+                type: [string, "null"]
+        naechster:
+          description: "Cursor für die nächste Seite, sonst null."
+          type: [string, "null"]
+          format: uuid
+    LagerZimmerZuordnung:
+      description: "Teilnehmende und Mitglieder für das Einteilen oder Entfernen: zusammen 1 bis 200 Einträge, ohne Doppelte."
+      type: object
+      additionalProperties: false
+      properties:
+        teilnehmerIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        personIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+    LagerZimmerEingeteilt:
+      description: "Ergebnis des Einteilens mit der Belegung des Zimmers (Warnung bei Überbelegung)."
+      type: object
+      additionalProperties: false
+      required: [eingeteilt, belegt, plaetze, ueberbelegt]
+      properties:
+        eingeteilt:
+          description: "Wie viele neu eingeteilt wurden (wer schon im Zimmer lag, zählt nicht)."
+          type: integer
+          minimum: 0
+        belegt:
+          type: integer
+          minimum: 0
+        plaetze:
+          type: integer
+        ueberbelegt:
+          type: boolean
+    LagerZimmerEntfernt:
+      description: "Ergebnis des Entfernens mit der Belegung des Zimmers."
+      type: object
+      additionalProperties: false
+      required: [entfernt, belegt, plaetze, ueberbelegt]
+      properties:
+        entfernt:
+          type: integer
+          minimum: 0
+        belegt:
+          type: integer
+          minimum: 0
+        plaetze:
+          type: integer
+        ueberbelegt:
+          type: boolean
     # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerGruppe:
@@ -18916,6 +20873,43 @@ components:
               description: Eigene Anmeldung als Leitung. Der Schlüssel fehlt, wenn die Person nicht Leitung einer Stufe des Termins ist.
     # termine-schemas: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    KalenderLinkStatus:
+      type: object
+      additionalProperties: false
+      required: [aktiv, erstelltAm, zuletztAbgerufenAm, endung]
+      properties:
+        aktiv:
+          type: boolean
+        erstelltAm:
+          type: [string, "null"]
+          format: date-time
+          description: Wann der aktive Link erzeugt wurde; `null` ohne aktiven Link.
+        zuletztAbgerufenAm:
+          type: [string, "null"]
+          format: date-time
+          description: Letzter Abruf des Feeds, höchstens einmal je Stunde festgehalten; `null`, solange er nie abgerufen wurde.
+        endung:
+          type: [string, "null"]
+          description: Die letzten vier Zeichen des Tokens, damit die Person ihren Link erkennt; `null` ohne aktiven Link.
+          example: aB3_
+    KalenderLinkNeu:
+      type: object
+      additionalProperties: false
+      required: [token, pfad, erstelltAm, endung]
+      properties:
+        token:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: 32 zufällige Byte als base64url. Nur in dieser Antwort; die API speichert nur den Hash.
+        pfad:
+          type: string
+          description: Pfad des Feeds, `/ical/<Token>.ics`. Die App setzt die Basisadresse der API davor.
+        erstelltAm:
+          type: string
+          format: date-time
+        endung:
+          type: string
+          description: Die letzten vier Zeichen des Tokens.
     # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -19360,14 +21354,117 @@ components:
           description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
         bereiche:
           type: array
-          description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
+          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person den Wartungsmodus der Website schalten darf (Recht `wartungsmodus.website`, Entwickler, Abteilungsleitung). Ohne Zugang leer.
           items:
             type: string
             enum:
               - website
+              - plattform
         verwalten:
           type: boolean
           description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+    PlattformSchalter:
+      type: object
+      required:
+        - art
+        - bereich
+        - hinweis
+        - ende
+        - ausgeloestVon
+        - ausgeloestAm
+      properties:
+        art:
+          type: string
+          enum:
+            - wartung
+        bereich:
+          $ref: "#/components/schemas/PlattformBereich"
+        hinweis:
+          type: string
+          nullable: true
+          description: Text für die Anzeige, höchstens 500 Zeichen.
+        ende:
+          type: string
+          format: date-time
+          nullable: true
+          description: Geplantes Ende, nur zur Anzeige.
+        ausgeloestVon:
+          type: string
+          description: Kennung der Person, die geschaltet hat.
+        ausgeloestAm:
+          type: string
+          format: date-time
+    PlattformBereich:
+      type: string
+      description: Ein Bereich von Cevi OS; `alles` trifft jeden.
+      enum:
+        - website
+        - lager
+        - chat
+        - programme
+        - verwaltung
+        - alles
+    PlattformSchalterListe:
+      type: object
+      required:
+        - schalter
+        - bereiche
+      properties:
+        schalter:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlattformSchalter"
+        bereiche:
+          type: array
+          description: Die Bereiche, die die Person schalten darf (für die Anzeige; jede Schaltung prüft selbst).
+          items:
+            $ref: "#/components/schemas/PlattformBereich"
+    PlattformSchalterSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - bereich
+      properties:
+        art:
+          type: string
+          enum:
+            - wartung
+        bereich:
+          $ref: "#/components/schemas/PlattformBereich"
+        hinweis:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Text, den die Apps und die Verwaltung zeigen.
+        ende:
+          type: string
+          format: date-time
+          nullable: true
+          description: Geplantes Ende mit Zeitzone (ISO 8601).
+    InWartung:
+      type: object
+      description: Antwort 503 in einem Bereich im Wartungsmodus.
+      required:
+        - code
+        - message
+        - hinweis
+        - ende
+      properties:
+        code:
+          type: string
+          enum:
+            - IN_WARTUNG
+        message:
+          type: string
+        hinweis:
+          type: string
+          nullable: true
+        ende:
+          type: string
+          format: date-time
+          nullable: true
     MediumAendern:
       type: object
       description: Genau eines von beiden, `altText` oder `dekorativ`.
@@ -19850,6 +21947,21 @@ components:
         type: string
         minLength: 1
         maxLength: 100
+    SchalterArt:
+      name: art
+      in: query
+      required: true
+      description: Heute nur `wartung`.
+      schema:
+        type: string
+        enum:
+          - wartung
+    SchalterBereich:
+      name: bereich
+      in: query
+      required: true
+      schema:
+        $ref: "#/components/schemas/PlattformBereich"
     AppVersion:
       name: X-App-Version
       in: header
