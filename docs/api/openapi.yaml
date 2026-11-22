@@ -12591,6 +12591,76 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /ical/{datei}:
+    get:
+      operationId: getIcalFeed
+      summary: Persönlicher Kalender-Feed (ICS) abonnieren
+      tags:
+        - Termine
+      security: []
+      parameters:
+        - name: datei
+          in: path
+          required: true
+          description: |
+            `<Token>.ics`: der geheime Token des persönlichen Kalenderlinks (43 Zeichen, `A-Z a-z 0-9 - _`) und die Endung `.ics`. Den Token erzeugt `POST /api/v1/ich/kalender-link`.
+          schema:
+            type: string
+            pattern: ^[A-Za-z0-9_-]{43}\.ics$
+        - name: If-None-Match
+          in: header
+          required: false
+          description: ETag der letzten Antwort; bei Übereinstimmung antwortet der Server mit 304 ohne Inhalt.
+          schema:
+            type: string
+      description: |
+        **Sonderfall: ausserhalb von `/api/v1` und ohne Sitzung.** Der geheime Token im Pfad ersetzt die Anmeldung. Für Kalender-Apps (Handy, Outlook), nicht für die Apps von Cevi OS: Kein `X-App-Version`, kein Cookie. Ein mitgeschicktes Cookie wird ignoriert, die Antwort setzt nie eines.
+
+        Liefert `text/calendar` (RFC 5545): ein `VEVENT` je Termin aus «Mein Kalender» (`GET /api/v1/termine/mein`), mit denselben Sichtregeln und derselben Sichtfunktion, also nur, was die Person dort auch sähe. Fenster: gestern bis 400 Tage voraus (Schweizer Kalendertage). Je Termin `UID` (`<Termin-ID>@cevi-os`, stabil), `DTSTAMP`, `SUMMARY` (Titel), `LOCATION` (falls vorhanden) und `STATUS` (`CONFIRMED`, `CANCELLED` bei abgesagten, `TENTATIVE` bei Terminen, die zu prüfen sind). Zeiten in UTC (`Z`); ganztägige Termine als `DTSTART;VALUE=DATE` mit exklusivem `DTEND`. Zeilen sind bei 75 Oktetten gefaltet. Nie Beschreibung, Tags, Namen von Kindern, Anmeldungen oder Chat-Inhalt.
+
+        **Kein Token in Logs.** Das Anfrage-Log und die Metriken führen das Routenmuster `/ical/:datei`, nie den Pfad; Fehlerantworten nennen ihn nicht.
+
+        **404** gilt einheitlich für unbekannte, widerrufene und formal falsche Token, für falsche Endungen und für deaktivierte oder gesperrte Konten; die Antwort verrät nicht, ob ein Token je existierte.
+
+        **Ratenbegrenzung.** Je IP-Adresse höchstens 300 Abrufe in 10 Minuten, je Token-Anfang (8 Zeichen) höchstens 30; Fehlversuche zählen mit (429, `Retry-After`). Eine API-Instanz zählt für sich.
+
+        **Zwischenspeicher.** `Cache-Control: private, no-store`. Der fertige Text liegt 5 Minuten im Speicher der API (gleich dem Takt des Kalender-Abgleichs); `ETag` und `If-None-Match` ergeben 304 ohne Abfrage der Termine. Die Token-Prüfung läuft bei jedem Abruf, ein Widerruf wirkt also sofort. Änderungen an Terminen oder Tags erscheinen im Feed nach höchstens 5 Minuten.
+
+        Statuscodes: 200, 304, 404, 429.
+      responses:
+        "200":
+          description: Kalender im Format iCalendar.
+          headers:
+            ETag:
+              description: Starker ETag des Inhalts (ohne `DTSTAMP`).
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "304":
+          description: Unverändert (`If-None-Match` passt); kein Inhalt.
+          headers:
+            ETag:
+              schema:
+                type: string
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "429":
+          description: Zu viele Anfragen (code ZU_VIELE_ANFRAGEN); `Retry-After` nennt die Sekunden.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
