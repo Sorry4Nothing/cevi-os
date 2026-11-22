@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import * as schema from "../../../src/db/schema.js";
 import type {
   LagerMatrix,
   LagerPersona,
@@ -86,10 +87,27 @@ const eigeneSchreiben = (erfolg: number) => ({
 
 const pfad = (w: LagerWelt, z: LagerZustand) =>
   `/api/v1/lager/${w.lagerId(z)}/anwesenheit`;
-const feld = () => ({
-  lagertagId: randomUUID(),
-  tagesabschnittId: randomUUID(),
-});
+// Ein Feld braucht einen Lagertag und einen Abschnitt dieses Lagers (Fremdschlüssel, #374): je Lager einmal direkt angelegt
+const felder = new Map<
+  string,
+  { lagertagId: string; tagesabschnittId: string }
+>();
+async function feld(w: LagerWelt, z: LagerZustand) {
+  const lagerId = w.lagerId(z);
+  const bekannt = felder.get(lagerId);
+  if (bekannt) return bekannt;
+  const [tag] = await w.db
+    .insert(schema.lagertag)
+    .values({ lagerId, datum: "2027-07-12", lagerSeq: 0 })
+    .returning({ id: schema.lagertag.id });
+  const [abschnitt] = await w.db
+    .insert(schema.tagesabschnitt)
+    .values({ lagerId, name: "Matrix", lagerSeq: 0 })
+    .returning({ id: schema.tagesabschnitt.id });
+  const neu = { lagertagId: tag!.id, tagesabschnittId: abschnitt!.id };
+  felder.set(lagerId, neu);
+  return neu;
+}
 
 export const ZEILEN: LagerMatrix = {
   "GET /api/v1/lager/:id/anwesenheit": {
@@ -99,8 +117,10 @@ export const ZEILEN: LagerMatrix = {
   "PUT /api/v1/lager/:id/anwesenheit": {
     url: (w, z) => pfad(w, z),
     // Ein Teilnehmender mit frischer ID: Die Lagerleitung schreibt (200), alle anderen scheitern am Recht
-    body: () => ({
-      eintraege: [{ teilnehmerId: randomUUID(), ...feld(), wert: "A" }],
+    body: async (z, w) => ({
+      eintraege: [
+        { teilnehmerId: randomUUID(), ...(await feld(w, z)), wert: "A" },
+      ],
     }),
     erwartet: nurBearbeiten(200),
   },
@@ -110,7 +130,9 @@ export const ZEILEN: LagerMatrix = {
   },
   "PUT /api/v1/lager/:id/anwesenheit/eigene": {
     url: (w, z) => `${pfad(w, z)}/eigene`,
-    body: () => ({ eintraege: [{ ...feld(), wert: "A" }] }),
+    body: async (z, w) => ({
+      eintraege: [{ ...(await feld(w, z)), wert: "A" }],
+    }),
     erwartet: eigeneSchreiben(200),
   },
   "GET /api/v1/lager/:id/anwesenheit/zusammenfassung": {
@@ -129,7 +151,9 @@ export const ZEILEN: LagerMatrix = {
   "POST /api/v1/lager/:id/anwesenheit/anfragen": {
     url: (w, z) => `${pfad(w, z)}/anfragen`,
     // Ein offenes Feld ohne Frist: kein Grund für eine Anfrage (409 KEINE_ANFRAGE_NOETIG)
-    body: () => ({ eintraege: [{ ...feld(), wert: "A" }] }),
+    body: async (z, w) => ({
+      eintraege: [{ ...(await feld(w, z)), wert: "A" }],
+    }),
     erwartet: eigeneSchreiben(409),
   },
   "POST /api/v1/lager/:id/anwesenheit/anfragen/entscheid": {
