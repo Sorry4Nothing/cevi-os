@@ -4,12 +4,12 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { lagerAenderung } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import {
   darfTabelleLesen,
-  holeLagerTabelle,
-  listeLagerTabellen,
-} from "../../lager/tabellen.js";
+  lagerZugriff,
+  type LagerEnv,
+} from "../../lager/policy.js";
+import { holeLagerTabelle, listeLagerTabellen } from "../../lager/tabellen.js";
 
 // Änderungsfeed des Lagers (#366). Er nennt nur Objekttyp, ID, Art und Version einer Änderung, nie Inhalte; die App holt den Inhalt über die Route des Moduls, wo die Rechte der Rolle gelten. Gefiltert wird in zwei Stufen: Das Leserecht der Tabelle (darf) und der Zeilenfilter der Rolle (sichtbar, lager/tabellen.ts). Eine Tabelle ohne Anmeldung kommt nie vor
 const abfrage = z.strictObject({

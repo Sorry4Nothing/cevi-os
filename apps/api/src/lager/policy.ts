@@ -6,6 +6,7 @@ import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 import { ladeRollenRechte } from "./rechte.js";
+import type { LagerTabellenEintrag } from "./tabellen.js";
 import {
   istGeschlossen,
   RECHTE_KATALOG,
@@ -56,6 +57,12 @@ export function darf(
   }
   return zugriff.rechte?.get(recht) ?? standardErlaubt(zugriff.rolle, recht);
 }
+
+// Darf die Rolle diese Tabelle im Feed und in den Ereignissen überhaupt sehen (Register, lager/tabellen.ts)? Eine Liste genügt mit einem der Rechte; ohne eigenes Recht (null) entscheidet allein «sichtbar»
+export const darfTabelleLesen = (
+  zugriff: Parameters<typeof darf>[0],
+  recht: LagerTabellenEintrag["recht"],
+) => recht === null || [recht].flat().some((r) => darf(zugriff, r));
 
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
 export async function ladeLagerZugriff(

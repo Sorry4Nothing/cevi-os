@@ -9,8 +9,12 @@ import {
   type Ereignisverteiler,
   type Verbindung,
 } from "../../lager/ereignisse.js";
-import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
-import { darfTabelleLesen, listeLagerTabellen } from "../../lager/tabellen.js";
+import {
+  darfTabelleLesen,
+  lagerZugriff,
+  type LagerEnv,
+} from "../../lager/policy.js";
+import { listeLagerTabellen } from "../../lager/tabellen.js";
 
 // Wie viele Meldungen ein Client unabgeholt haben darf, bevor die Verbindung endet
 const RUECKSTAU = 16;

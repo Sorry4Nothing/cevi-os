@@ -1,7 +1,7 @@
 import { getTableName } from "drizzle-orm";
 import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core";
 import type { Db } from "../db/client.js";
-import { darf, type LagerZugriff } from "./policy.js";
+import type { LagerZugriff } from "./policy.js";
 import type { LagerRecht } from "./rechte-katalog.js";
 
 // Register der Lager-Tabellen mit Feed (#366). Jedes Modul meldet seine Tabelle einmal beim Laden seiner Routen an (registriereLagerTabelle). Ohne Eintrag schreibt lager/sync.ts nicht in die Tabelle, und der Feed lieferte ihre Zeilen nie: Wer die Anmeldung vergisst, bekommt einen Fehler beim ersten Schreiben statt einer Lücke im Rechtefilter.
@@ -40,12 +40,6 @@ export type LagerTabellenEintrag = {
       sichtbar: Sichtbar;
     }
 );
-
-// Darf die Rolle diese Tabelle im Feed und in den Ereignissen überhaupt sehen? Ohne eigenes Recht (null) entscheidet allein «sichtbar»
-export const darfTabelleLesen = (
-  zugriff: Parameters<typeof darf>[0],
-  recht: LagerTabellenEintrag["recht"],
-) => recht === null || [recht].flat().some((r) => darf(zugriff, r));
 
 const register = new Map<string, LagerTabellenEintrag>();
 
