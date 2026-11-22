@@ -9169,6 +9169,412 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/pinnwand/{beitragId}/umfrage:
+    post:
+      operationId: legeLagerUmfrageAn
+      summary: Umfrage an einen Beitrag hängen
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Die Frage ist der Titel des Beitrags; `optionen` sind die Antworten (2 bis 10, ohne Doppelte, Gross- und Kleinschreibung zählt nicht) und bleiben danach unverändert. Ein Beitrag hat höchstens eine Umfrage (409 `UMFRAGE_EXISTIERT`). `mehrfach`: mehrere Antworten je Person erlaubt. `schliesstAm`: Frist, ab der die Umfrage zu ist. `namenFuerTeam`: Annahme zur offenen Frage «Wer sieht die Namen?»; Vorgabe `false`: Namen sehen nur Rollen mit `pinnwand.bearbeiten`, alle anderen nur Zahlen.
+
+        Schreibt über den Sync-Kern; der Beitrag zählt eine Version hoch, damit der Änderungsfeed die Apps auf die Umfrage hinweist. Die Umfrage steht danach in `umfrage` am Beitrag (`GET /api/v1/lager/{id}/pinnwand`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Beitrag (404), Umfrage vorhanden (409). Datenbank: eine Abfrage für den Beitrag, in einer Transaktion Sperre, Umfrage, Optionen (ein Insert) und Beitrag, dann eine Leseabfrage je Teil der Ansicht (höchstens vier).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger ID oder Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `UMFRAGE_EXISTIERT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerUmfrageAnlegen"
+      responses:
+        "201":
+          description: Die Umfrage ist angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerUmfrage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: "`LAGER_GESCHLOSSEN` (das Lager ist schreibgeschützt) oder `UMFRAGE_EXISTIERT` (der Beitrag hat schon eine Umfrage)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerUmfrage
+      summary: Umfrage schliessen, öffnen oder umstellen
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Schreibt über den Sync-Kern: Die zuletzt gesehene `version` der Umfrage ist Pflicht (409 `VERSION_KONFLIKT` sonst). Nur die genannten Felder ändern sich: `geschlossen` schliesst oder öffnet von Hand, `schliesstAm` setzt die Frist (`null` hebt sie auf), `namenFuerTeam` schaltet um, ob das Team die Namen der Stimmen sieht. Eine Umfrage ist zu, wenn `geschlossen` gilt oder die Frist erreicht ist; `geschlossen` in der Antwort fasst beides zusammen. Antworten und `mehrfach` lassen sich nicht ändern (Stimmen hängen daran).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Beitrag und Umfrage (404), Version (409).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Beitrag oder Umfrage, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerUmfrageAendern"
+      responses:
+        "200":
+          description: Die geänderte Umfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerUmfrage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerUmfrage
+      summary: Umfrage vom Beitrag entfernen
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Soft-Delete über den Sync-Kern: Die Umfrage verschwindet mit ihren Stimmen aus allen Antworten; der Beitrag bleibt und kann eine neue Umfrage bekommen. Das endgültige Löschen kommt mit #427.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400), Beitrag und Umfrage (404), Version (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder `version`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Beitrag oder Umfrage, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene `version` der Umfrage.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Die Umfrage ist entfernt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/pinnwand/{beitragId}/umfrage/stimme:
+    put:
+      operationId: setzeLagerUmfrageStimme
+      summary: Eigene Stimme setzen
+      description: |
+        Braucht die Rechte `interaktion.schreiben` (Standard: Lagerleitung, Leitung und Team) und `pinnwand.lesen`; die Person muss den Beitrag lesen dürfen, sonst gibt es ihn für sie nicht (404). Idempotent: Der Aufruf setzt die eigenen Stimmen der Person auf genau die genannten Antworten; fehlende kommen dazu, überzählige entfallen, derselbe Aufruf zweimal ändert nichts. Jede Stimme ist eine eigene Zeile der Person: Stimmen verschiedener Personen überschreiben einander nie, und eine Person ändert nur ihre eigenen. Ohne `mehrfach` ist genau eine Antwort erlaubt (400 `NUR_EINE_STIMME`); eine Antwort, die es in dieser Umfrage nicht gibt, ist 400 `OPTION_UNBEKANNT`. Eine zu gewordene Umfrage (von Hand oder durch die Frist) nimmt keine Stimmen mehr an (409 `UMFRAGE_GESCHLOSSEN`).
+
+        Die Antwort ist die Ansicht der Umfrage wie am Beitrag, mit den Zahlen und, je nach Recht, den Namen. Stimmen erscheinen nicht im Änderungsfeed; die Apps lesen sie mit der Beitragsliste.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht `interaktion.schreiben` (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Recht `pinnwand.lesen` (403), Beitrag lesbar (404), Umfrage (404 `UMFRAGE_UNBEKANNT`), geschlossen (409), Antworten (400).
+
+        Datenbank: Beitrag lesbar (eine Abfrage), in einer Transaktion Sperre, Umfrage, Optionen, eigene Stimmen, höchstens ein Insert und ein Update je geänderter Stimme; dann die Ansicht (höchstens fünf Abfragen).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Eingabe, `NUR_EINE_STIMME`, `OPTION_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung, ohne Mitgliedschaft oder wenn die Person den Beitrag nicht lesen darf, sowie `UMFRAGE_UNBEKANNT`. 409 bei `LAGER_GESCHLOSSEN` oder `UMFRAGE_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerUmfrageStimme"
+      responses:
+        "200":
+          description: Die Umfrage mit dem neuen Stand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerUmfrage"
+        "400":
+          description: "Ungültige Eingabe, oder `NUR_EINE_STIMME` (mehrere Antworten ohne `mehrfach`) oder `OPTION_UNBEKANNT` (die Antwort gehört nicht zu dieser Umfrage)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: "`LAGER_GESCHLOSSEN` (das Lager ist schreibgeschützt) oder `UMFRAGE_GESCHLOSSEN` (die Umfrage ist zu)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerUmfrageStimme
+      summary: Eigene Stimmen zurückziehen
+      description: |
+        Braucht die Rechte `interaktion.schreiben` und `pinnwand.lesen`; die Person muss den Beitrag lesen dürfen (sonst 404). Zieht alle eigenen Stimmen der Person in dieser Umfrage zurück; hat sie keine, geschieht nichts (idempotent, trotzdem 204). Fremde Stimmen bleiben. Eine zu gewordene Umfrage lässt sich nicht mehr ändern (409 `UMFRAGE_GESCHLOSSEN`).
+
+        Reihenfolge der Prüfungen: wie bei `PUT`, ohne Eingabe.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung, ohne Mitgliedschaft, nicht lesbarem Beitrag oder fehlender Umfrage. 409 bei `LAGER_GESCHLOSSEN` oder `UMFRAGE_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Die eigenen Stimmen sind zurückgezogen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: "`LAGER_GESCHLOSSEN` (das Lager ist schreibgeschützt) oder `UMFRAGE_GESCHLOSSEN` (die Umfrage ist zu)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/reaktionen/{zielTyp}/{zielId}:
+    put:
+      operationId: setzeLagerReaktion
+      summary: Eigene Reaktion setzen
+      description: |
+        Braucht das Recht `interaktion.schreiben` (Standard: Lagerleitung, Leitung und Team) und das Leserecht des Ziels (`pinnwand.lesen` für einen Beitrag). Das Ziel muss im Lager liegen und für die Person lesbar sein, sonst 404. Eine Reaktion je Person und Ziel: eine neue ersetzt die alte, derselbe Aufruf zweimal ändert nichts. Die Reaktion ist einer von fünf festen Schlüsseln (`daumen`, `herz`, `lachen`, `staunen`, `danke`), nie ein Emoji-Zeichen; die App ordnet den Schlüsseln ihre Symbole zu. Das Team setzt und löscht nur die eigene Reaktion.
+
+        Die Antwort ist der Stand des Ziels: Zähler je Schlüssel und die eigene Reaktion. Namen gibt es nicht. Die Zähler stehen auch an den Beiträgen der Pinnwand (`reaktionen`). Reaktionen erscheinen nicht im Änderungsfeed.
+
+        Reihenfolge der Prüfungen: Pfad und Ziel-Typ (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Leserecht des Ziels (403), Ziel lesbar (404). Datenbank: Ziel lesbar (eine Abfrage), in einer Transaktion Sperre, eigene Reaktion und höchstens ein Schreibvorgang; dann eine Abfrage für die Zähler.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID, unbekanntem Ziel-Typ oder Schlüssel. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder Ziel, fremder Abteilung, ohne Mitgliedschaft oder wenn die Person das Ziel nicht lesen darf. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zielTyp
+          in: path
+          required: true
+          description: "Worauf reagiert wird. Heute nur `pinnwand_beitrag`."
+          schema:
+            type: string
+            enum:
+              - pinnwand_beitrag
+        - name: zielId
+          in: path
+          required: true
+          description: ID des Ziels (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerReaktionSetzen"
+      responses:
+        "200":
+          description: Der Stand der Reaktionen am Ziel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerReaktionen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: "`LAGER_GESCHLOSSEN`: das Lager ist schreibgeschützt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerReaktion
+      summary: Eigene Reaktion zurücknehmen
+      description: |
+        Braucht das Recht `interaktion.schreiben` und das Leserecht des Ziels; das Ziel muss lesbar sein (sonst 404). Nimmt die eigene Reaktion zurück; hat die Person keine, geschieht nichts (idempotent, trotzdem 204). Fremde Reaktionen bleiben.
+
+        Reihenfolge der Prüfungen: wie bei `PUT`, ohne Eingabe.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder unbekanntem Ziel-Typ. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder Ziel, fremder Abteilung, ohne Mitgliedschaft oder wenn die Person das Ziel nicht lesen darf. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zielTyp
+          in: path
+          required: true
+          description: "Worauf reagiert wird. Heute nur `pinnwand_beitrag`."
+          schema:
+            type: string
+            enum:
+              - pinnwand_beitrag
+        - name: zielId
+          in: path
+          required: true
+          description: ID des Ziels (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Die eigene Reaktion ist zurückgenommen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: "`LAGER_GESCHLOSSEN`: das Lager ist schreibgeschützt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/teilnehmer:
@@ -18409,6 +18815,8 @@ components:
         - von
         - empfaenger
         - dateien
+        - umfrage
+        - reaktionen
       properties:
         id:
           type: string
@@ -18451,6 +18859,13 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/LagerDatei"
+        umfrage:
+          description: "Die Umfrage am Beitrag mit den Zahlen (L3b, #382); `null`, wenn es keine gibt."
+          oneOf:
+            - $ref: "#/components/schemas/LagerUmfrage"
+            - type: "null"
+        reaktionen:
+          $ref: "#/components/schemas/LagerReaktionen"
     LagerPinnwandSeite:
       description: "Eine Seite Beiträge."
       type: object
@@ -18543,6 +18958,188 @@ components:
             type: string
             format: uuid
     # lager-schemas: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerUmfrage:
+      description: "Eine Umfrage an einem Beitrag, mit den Zahlen. `personen` füllt der Server nur, wenn `namenSichtbar` gilt: für Rollen mit `pinnwand.bearbeiten` immer, für alle anderen nur, wenn `namenFuerTeam` gesetzt ist (Annahme zur offenen Frage «Wer sieht die Namen?»)."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - mehrfach
+        - schliesstAm
+        - geschlossen
+        - namenFuerTeam
+        - namenSichtbar
+        - teilnehmende
+        - optionen
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        mehrfach:
+          type: boolean
+          description: "Mehrere Antworten je Person erlaubt."
+        schliesstAm:
+          type: [string, "null"]
+          format: date-time
+          description: "Frist; ab diesem Zeitpunkt nimmt die Umfrage keine Stimmen mehr an. Leer: keine Frist."
+        geschlossen:
+          type: boolean
+          description: "Wirksam zu: von Hand geschlossen oder die Frist ist erreicht."
+        namenFuerTeam:
+          type: boolean
+          description: "Das Team (und `lesen`) sieht die Namen der Stimmen. Vorgabe `false`."
+        namenSichtbar:
+          type: boolean
+          description: "Ob die anfragende Person die Namen der Stimmen sieht."
+        teilnehmende:
+          type: integer
+          minimum: 0
+          description: "Personen, die mindestens eine Stimme abgegeben haben."
+        optionen:
+          type: array
+          description: "Die Antworten in der Reihenfolge der Eingabe."
+          items:
+            $ref: "#/components/schemas/LagerUmfrageOption"
+    LagerUmfrageOption:
+      description: "Eine Antwort einer Umfrage."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - text
+        - stimmen
+        - eigene
+        - personen
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        stimmen:
+          type: integer
+          minimum: 0
+          description: "Personen, die diese Antwort gewählt haben."
+        eigene:
+          type: boolean
+          description: "Die anfragende Person hat diese Antwort gewählt."
+        personen:
+          type: array
+          description: "Wer diese Antwort gewählt hat; leer, wenn die Person die Namen nicht sieht (`namenSichtbar` falsch)."
+          items:
+            $ref: "#/components/schemas/LagerRessortPerson"
+    LagerUmfrageAnlegen:
+      description: "Neue Umfrage. Nur diese Felder; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - optionen
+      properties:
+        optionen:
+          type: array
+          minItems: 2
+          maxItems: 10
+          description: "Die Antworten; ohne Doppelte (Gross- und Kleinschreibung zählt nicht)."
+          items:
+            type: string
+            minLength: 1
+            maxLength: 200
+        mehrfach:
+          type: boolean
+          default: false
+        schliesstAm:
+          type: [string, "null"]
+          format: date-time
+        namenFuerTeam:
+          type: boolean
+          default: false
+    LagerUmfrageAendern:
+      description: "Umfrage ändern. `version` ist Pflicht, dazu mindestens ein Feld; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        geschlossen:
+          type: boolean
+        schliesstAm:
+          type: [string, "null"]
+          format: date-time
+        namenFuerTeam:
+          type: boolean
+    LagerUmfrageStimme:
+      description: "Die eigenen Stimmen. Genau diese Antworten gelten danach für die Person."
+      type: object
+      additionalProperties: false
+      required:
+        - optionIds
+      properties:
+        optionIds:
+          type: array
+          minItems: 1
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    LagerReaktionen:
+      description: "Reaktionen an einem Ziel: Zähler und die eigene Reaktion, nie Namen."
+      type: object
+      additionalProperties: false
+      required:
+        - zaehler
+        - eigene
+      properties:
+        zaehler:
+          type: object
+          description: "Anzahl je Schlüssel; Schlüssel ohne Reaktion fehlen."
+          additionalProperties: false
+          properties:
+            daumen:
+              type: integer
+              minimum: 1
+            herz:
+              type: integer
+              minimum: 1
+            lachen:
+              type: integer
+              minimum: 1
+            staunen:
+              type: integer
+              minimum: 1
+            danke:
+              type: integer
+              minimum: 1
+        eigene:
+          description: "Die eigene Reaktion; `null`, wenn die Person nicht reagiert hat."
+          oneOf:
+            - $ref: "#/components/schemas/LagerReaktionSchluessel"
+            - type: "null"
+    LagerReaktionSchluessel:
+      description: "Fester Schlüssel einer Reaktion statt eines Emoji-Zeichens; die App ordnet ihm das Symbol zu: `daumen`, `herz`, `lachen`, `staunen`, `danke`."
+      type: string
+      enum:
+        - daumen
+        - herz
+        - lachen
+        - staunen
+        - danke
+    LagerReaktionSetzen:
+      description: "Die eigene Reaktion. Nur dieses Feld."
+      type: object
+      additionalProperties: false
+      required:
+        - emoji
+      properties:
+        emoji:
+          $ref: "#/components/schemas/LagerReaktionSchluessel"
     # lager-schemas: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerTeilnehmer:
