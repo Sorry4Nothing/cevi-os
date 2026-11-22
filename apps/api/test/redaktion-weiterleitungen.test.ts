@@ -25,6 +25,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -100,7 +101,7 @@ beforeAll(async () => {
   [admin, slA, redaktion, eltern, demoAdmin] = await Promise.all([
     legePersonaAn(welt, "admin"),
     legePersonaAn(welt, "slA"),
-    legePersonaAn(welt, "leitendeA"),
+    legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "elternA"),
     legePersonaAn(welt, "demoAdmin"),
   ]);

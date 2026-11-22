@@ -155,7 +155,13 @@ const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
     elternVon: ["B"],
   },
   elternA: { name: "Eltern A", benutzername: "eltern.a", elternVon: ["A"] },
-  elternB: { name: "Eltern B", benutzername: "eltern.b", elternVon: ["B"] },
+  // Mit zweitem Faktor, weil die Lager-Matrix dieses Konto als Lagerleitung nimmt (#423)
+  elternB: {
+    name: "Eltern B",
+    benutzername: "eltern.b",
+    elternVon: ["B"],
+    zweiterFaktor: true,
+  },
   mussPasswortAendern: {
     name: "Muss Passwort ändern",
     benutzername: "muss.wechseln",
@@ -212,6 +218,23 @@ async function zweiterFaktorEin(welt: Welt, userId: string, cookie: string) {
     returnHeaders: true,
   });
   return cookiesAus(bestaetigt);
+}
+
+// Schaltet den zweiten Faktor eines bestehenden Kontos ein (#423): Tests brauchen Personen, die ihn haben, ohne Admin zu sein. Das neue Cookie steht danach in den Kopfzeilen des Kontos
+export async function schalteZweitenFaktorEin(
+  welt: Welt,
+  konto: PersonaKonto,
+): Promise<PersonaKonto> {
+  const cookie = await zweiterFaktorEin(welt, konto.id!, konto.headers.cookie);
+  return { ...konto, headers: { ...konto.headers, cookie } };
+}
+
+// Wie legePersonaAn, mit zweitem Faktor: Wer ein erweitertes Recht hat (Redaktion, Zeile in bearbeiter, Team-Verantwortung), braucht ihn auf den Redaktionsrouten (#423)
+export async function legePersonaMitFaktorAn(
+  welt: Welt,
+  schluessel: Persona,
+): Promise<PersonaKonto> {
+  return schalteZweitenFaktorEin(welt, await legePersonaAn(welt, schluessel));
 }
 
 // Legt die Persona mit einem Aufruf an: Konto, Verknüpfungen und Anmeldung
