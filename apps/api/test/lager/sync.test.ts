@@ -271,7 +271,8 @@ beforeAll(async () => {
       id: zeile!.id,
       abteilungId: abteilung,
       admin: false,
-      zweiterFaktor: false,
+      // Die Lagerleitung braucht den zweiten Faktor (#423)
+      zweiterFaktor: name === "lagerleitung" || name === "fremd",
       rollen: [],
     };
   };

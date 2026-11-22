@@ -2,7 +2,16 @@ import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { darfBearbeiten, TEAM_ROLLE } from "../bearbeiten.js";
 import type { Db } from "../db/client.js";
-import { abteilung, bearbeiter, personTag, tag } from "../db/schema.js";
+import {
+  abteilung,
+  bearbeiter,
+  personPlattformRolle,
+  personTag,
+  plattformEntwickler,
+  plattformRolle,
+  plattformRolleRecht,
+  tag,
+} from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 // Ein Pfadstück der Adresse: a-z, 0-9 und «-» (die Datenbank prüft dasselbe mit CHECK)
@@ -89,15 +98,38 @@ export function pruefeLage(
   return oben + unten > MAX_TIEFE ? "zu_tief" : "ok";
 }
 
+// Die beiden Wege zum Zugang ohne Amt, als SQL-Bedingung: eine Zeile in «bearbeiter» für Seiten (auf die Person oder einen Tag, den sie trägt) und die Verantwortung für ein Team (#352)
+const bearbeiterZugang = (person: Person) =>
+  sql`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = 'seite' and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id})))`;
+const teamZugang = (person: Person) =>
+  sql`exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team' and ${tag.abteilungId} = ${person.abteilungId})`;
+
+// Eine Plattformrolle mit mindestens einem Recht oder die Zeile des Entwicklers (#423). Als eigener Ausdruck: Drizzle liesse in einer Auswahl mit nur einer Tabelle den Tabellennamen vor Spalten weg, die direkt im Text stehen
+const plattformZugang = (person: Person) =>
+  sql`(exists (select 1 from ${personPlattformRolle} inner join ${plattformRolle} on ${plattformRolle.id} = ${personPlattformRolle.rolleId} and ${plattformRolle.abteilungId} = ${person.abteilungId} inner join ${plattformRolleRecht} on ${plattformRolleRecht.rolleId} = ${plattformRolle.id} where ${personPlattformRolle.userId} = ${person.id}) or exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id}))`;
+
 // Zugang zum Namensraum /api/v1/redaktion: Abteilungsleitung, Stufenleitung, Verantwortliche eines Teams (#352) oder eine Zeile in «bearbeiter» für Seiten (auf die Person oder einen Tag, den sie trägt).
-// Das Recht an einer einzelnen Seite prüft darfBearbeiten; dies ist nur die Tür. #353 öffnet sie für weitere Rollen, indem es diese Funktion ändert
+// Das Recht an einer einzelnen Seite prüft darfBearbeiten; dies ist nur die Tür. #426 öffnet sie für die Rechte der Plattformrollen (plattform.ts), indem es diese Funktion ändert
 export async function hatRedaktionszugang(db: Db, person: Person) {
   if (person.admin || person.rollen.some((r) => r.typ === "stufenleitung")) {
     return true;
   }
   const [zeile] = await db
     .select({
-      ok: sql<boolean>`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = 'seite' and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id}))) or exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team' and ${tag.abteilungId} = ${person.abteilungId})`,
+      ok: sql<boolean>`${bearbeiterZugang(person)} or ${teamZugang(person)}`,
+    })
+    .from(abteilung)
+    .where(eq(abteilung.id, person.abteilungId));
+  return zeile?.ok === true;
+}
+
+// Hat die Person ein erweitertes Recht (#423)? Das sind die Abteilungsleitung, jede Plattformrolle mit einem Recht (und der Entwickler), eine Zeile in «bearbeiter» und die Verantwortung für ein Team. Einfach ist nur das Amt der Stufenleitung an der eigenen Stufenseite: Wer sonst nichts hat, braucht keinen zweiten Faktor.
+// Eine Abfrage; sie entfällt für Admins und für Personen, die den zweiten Faktor schon haben (der Aufrufer prüft das zuerst)
+export async function hatErweitertesRecht(db: Db, person: Person) {
+  if (person.admin) return true;
+  const [zeile] = await db
+    .select({
+      ok: sql<boolean>`${plattformZugang(person)} or ${bearbeiterZugang(person)} or ${teamZugang(person)}`,
     })
     .from(abteilung)
     .where(eq(abteilung.id, person.abteilungId));
