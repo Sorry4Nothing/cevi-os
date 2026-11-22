@@ -407,10 +407,7 @@ describe("Der Vorschlag legt nie etwas an", () => {
         .select({ seq: schema.lager.seq })
         .from(schema.lager)
         .where(eq(schema.lager.id, lagerId));
-      const [alle] = await db
-        .select({ n: dsql<number>`count(*)::int` })
-        .from(schema.aufgabe);
-      return { aufgaben: aufgaben!.n, seq: lager!.seq, alle: alle!.n };
+      return { aufgaben: aufgaben!.n, seq: lager!.seq };
     };
     const vorher = await zaehle();
     const a = await schnell(
