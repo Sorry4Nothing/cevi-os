@@ -8,6 +8,7 @@ import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import type { BildKodierer } from "./bild.js";
 import {
   erstelleSchalterPruefung,
+  erstelleSperrePruefungOhnePerson,
   erstelleSchalterZustand,
   type SchalterZustand,
 } from "./bereichsschalter.js";
@@ -96,6 +97,7 @@ export function erstelleApp({
   seiten,
   syncs,
   schalter = erstelleSchalterZustand(),
+  website,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -114,6 +116,12 @@ export function erstelleApp({
   };
   // Wartungsmodus und Sperre (#424, #425): der Zustand im Speicher, beim Start aus der Datenbank geladen (server.ts); ohne Angabe ist nichts geschaltet
   schalter?: SchalterZustand;
+  // Die Ausgabe der öffentlichen Website, die die Informationssperre vom Netz nimmt (#425); ausgeschrieben, ein Typ-Import aus website/sperre.ts zöge node:fs in dieses Programm
+  website?: {
+    abteilungId: string;
+    nimmVomNetz: () => Promise<void>;
+    gibFrei: () => Promise<void>;
+  };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -225,7 +233,8 @@ export function erstelleApp({
         }
         await next();
       })
-      // Öffentliche Medien (#335) brauchen keine Sitzung, darum vor ihr; alle anderen Medien gehen weiter zur Sitzung
+      // Öffentliche Medien (#335) brauchen keine Sitzung, darum vor ihr; alle anderen Medien gehen weiter zur Sitzung. Eine Sperre der Website hält auch sie zurück (#425)
+      .use("/api/v1/medien/*", erstelleSperrePruefungOhnePerson(schalter))
       .route(
         "/",
         erstelleOeffentlicheMedienRoute({ db, speicher: medienspeicher }),
@@ -237,7 +246,7 @@ export function erstelleApp({
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route(
         "/api/v1/plattform",
-        erstellePlattformRouten({ db, zustand: schalter }),
+        erstellePlattformRouten({ db, zustand: schalter, fcm, website }),
       )
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))

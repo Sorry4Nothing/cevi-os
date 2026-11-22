@@ -78,7 +78,19 @@ export function platzhalterEmail() {
   return `${crypto.randomUUID()}@benutzer.invalid`;
 }
 
-export function erstelleAuth(database: BetterAuthOptions["database"]) {
+// anmeldungGesperrt (#425): Gilt unter einer Sperre von «alles» für die Person der Abteilung; nur der Server (server.ts) übergibt sie, Kommandozeilen und Tests brauchen sie nicht
+export function erstelleAuth(
+  database: BetterAuthOptions["database"],
+  {
+    anmeldungGesperrt,
+  }: {
+    anmeldungGesperrt?: (nutzer: {
+      id: string;
+      abteilungId: string;
+      role?: string | null;
+    }) => Promise<boolean>;
+  } = {},
+) {
   return betterAuth({
     database,
     emailAndPassword: {
@@ -174,10 +186,26 @@ export function erstelleAuth(database: BetterAuthOptions["database"]) {
               const person = await ctx.context.adapter.findOne<{
                 mussPasswortAendern?: boolean;
                 startpasswortGueltigBis?: Date | string | null;
+                abteilungId: string;
+                role?: string | null;
               }>({
                 model: "user",
                 where: [{ field: "id", value: sitzung.userId }],
               });
+              // Nach dem Passwort: Unter einer Sperre von «alles» meldet sich nur die Abteilungsleitung oder der Entwickler an. Die Route der Anmeldung macht aus jedem Fehler das einheitliche 401, der Status 423 verrät also nichts
+              if (
+                person &&
+                (await anmeldungGesperrt?.({
+                  id: sitzung.userId,
+                  abteilungId: person.abteilungId,
+                  role: person.role,
+                }))
+              ) {
+                throw new APIError("LOCKED", {
+                  code: "GESPERRT",
+                  message: "Die Anmeldung ist vorübergehend nicht möglich.",
+                });
+              }
               // Im Zweifel sperren: Ohne Datum gilt 1970, und anders als <= sperrt !(… > jetzt) auch ein ungültiges Datum
               if (
                 person?.mussPasswortAendern &&

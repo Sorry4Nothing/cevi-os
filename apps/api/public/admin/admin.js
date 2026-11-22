@@ -86,7 +86,7 @@ const BEREICHE = [
     "Plattform",
     plattform,
     "schild",
-    "Wartungsmodus für Bereiche schalten.",
+    "Wartungsmodus und Informationssperre für Bereiche schalten.",
   ],
   [
     "system",

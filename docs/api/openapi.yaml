@@ -1862,9 +1862,9 @@ paths:
   /api/v1/plattform/schalter:
     get:
       operationId: listePlattformSchalter
-      summary: Aktive Schalter der Abteilung (Wartungsmodus)
+      summary: Aktive Schalter der Abteilung (Wartungsmodus und Informationssperre)
       description: |
-        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website. Wer nichts davon darf, bekommt 403.
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website; die Sperre sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
 
         Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
 
@@ -1890,13 +1890,15 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
     put:
       operationId: setzePlattformSchalter
-      summary: Wartungsmodus für einen Bereich einschalten oder ändern
+      summary: Wartungsmodus oder Informationssperre für einen Bereich setzen oder ändern
       description: |
-        Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
+        **Informationssperre (`art: sperre`, #425):** Jede Anfrage des Bereichs antwortet mit 423 `GESPERRT` und einem neutralen Text (nie der Hinweis), lesend und schreibend, auch für die Abteilungsleitung und für Anfragen ohne Sitzung (öffentliche Medien bei `website` und `alles`). Nur `/api/v1/plattform`, `/api/auth` und `/health` bleiben offen. Bei `alles` melden sich nur Abteilungsleitung und Entwickler noch an; für alle anderen antwortet die Anmeldung wie bei jedem Anmeldefehler mit dem einheitlichen 401 `ANMELDUNG_FEHLGESCHLAGEN` (nach dem Passwort geprüft, es entsteht keine Sitzung), damit niemand am Status erkennt, dass eine Sperre gilt. Die Sperre geht der Wartung vor und endet nie von selbst. Auf Wunsch: `sitzungenBeenden` beendet alle Sitzungen der Abteilung ausser der eigenen, `websiteOffline` (nur `website` und `alles`) leert die Ausgabe der öffentlichen Website und schreibt eine neutrale Hinweisseite; der Abgleich erzeugt in dieser Zeit nichts neu. Bei der Auslösung geht ein Push (`typ: plattform`) an die anderen Entwickler der Abteilung, ohne den Hinweis. Nur Entwickler und Abteilungsleitung setzen und heben die Sperre auf, nie der Webmaster. Die Antwort nennt `sitzungenBeendet` (Zahl) und `websiteVomNetz` (ob es geklappt hat; die Sperre gilt auch, wenn nicht).
 
-        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext).
+        **Wartungsmodus (`art: wartung`, #424):** Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
 
-        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400), Recht auf genau diesen Bereich (403).
+        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
+
+        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400, auch `sitzungenBeenden` oder `websiteOffline` bei der Wartung), Recht auf genau diese Art und diesen Bereich (403).
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -1915,7 +1917,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PlattformSchalter"
+                $ref: "#/components/schemas/PlattformSchalterGesetzt"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -1928,9 +1930,9 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
     delete:
       operationId: hebePlattformSchalterAuf
-      summary: Wartungsmodus für einen Bereich aufheben
+      summary: Wartungsmodus oder Informationssperre für einen Bereich aufheben
       description: |
-        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`).
+        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`). Hielt die Sperre die öffentliche Website vom Netz und keine andere Sperre tut es, löscht der Server die Hinweisseite und löst den Abgleich aus, der die Website neu schreibt. Beendete Sitzungen kommen nicht zurück.
 
         Statuscodes: 204 bei Erfolg. 400, 401, 403, 404 (der Schalter ist nicht gesetzt), 426.
       tags:
@@ -19972,6 +19974,7 @@ components:
         - bereich
         - hinweis
         - ende
+        - websiteOffline
         - ausgeloestVon
         - ausgeloestAm
       properties:
@@ -19979,6 +19982,10 @@ components:
           type: string
           enum:
             - wartung
+            - sperre
+        websiteOffline:
+          type: boolean
+          description: Nur bei der Sperre; die öffentliche Website ist vom Netz.
         bereich:
           $ref: "#/components/schemas/PlattformBereich"
         hinweis:
@@ -20006,12 +20013,46 @@ components:
         - programme
         - verwaltung
         - alles
+    PlattformSchalterGesetzt:
+      description: Der gesetzte Schalter; bei der Sperre kommen `sitzungenBeendet` und `websiteVomNetz` dazu.
+      allOf:
+        - $ref: "#/components/schemas/PlattformSchalter"
+        - type: object
+          properties:
+            sitzungenBeendet:
+              type: integer
+              nullable: true
+              description: Wie viele Sitzungen der Abteilung beendet wurden; leer, wenn nicht verlangt.
+            websiteVomNetz:
+              type: boolean
+              description: Ob die öffentliche Website vom Netz genommen wurde. Falsch bei einem Fehler der Ausgabe; die Sperre gilt trotzdem.
+    Gesperrt:
+      type: object
+      description: Antwort 423 in einem Bereich unter Informationssperre; neutral, nie mit dem Hinweis des Schalters.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - GESPERRT
+        message:
+          type: string
     PlattformSchalterListe:
       type: object
       required:
         - schalter
         - bereiche
+        - darfSperre
+        - websiteVorhanden
       properties:
+        darfSperre:
+          type: boolean
+          description: Ob die Person die Informationssperre sehen, auslösen und aufheben darf (Entwickler und Abteilungsleitung).
+        websiteVorhanden:
+          type: boolean
+          description: Ob es eine öffentliche Website gibt, die sich vom Netz nehmen lässt.
         schalter:
           type: array
           items:
@@ -20028,10 +20069,17 @@ components:
         - art
         - bereich
       properties:
+        sitzungenBeenden:
+          type: boolean
+          description: Nur bei `sperre`. Beendet alle Sitzungen der Abteilung ausser der eigenen.
+        websiteOffline:
+          type: boolean
+          description: Nur bei `sperre` und den Bereichen `website` und `alles`. Nimmt die öffentliche Website vom Netz.
         art:
           type: string
           enum:
             - wartung
+            - sperre
         bereich:
           $ref: "#/components/schemas/PlattformBereich"
         hinweis:
@@ -20553,11 +20601,11 @@ components:
       name: art
       in: query
       required: true
-      description: Heute nur `wartung`.
       schema:
         type: string
         enum:
           - wartung
+          - sperre
     SchalterBereich:
       name: bereich
       in: query
