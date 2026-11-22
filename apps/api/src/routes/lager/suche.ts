@@ -6,11 +6,7 @@ import { auditLog } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { erstelleZaehler } from "../../lager/eingang.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
-import {
-  SUCHE_TEXT_MAX,
-  sucheImLager,
-  suchTypen,
-} from "../../lager/suche.js";
+import { SUCHE_TEXT_MAX, sucheImLager, suchTypen } from "../../lager/suche.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const sucheAbfrage = z.strictObject({

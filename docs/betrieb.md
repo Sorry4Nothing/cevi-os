@@ -119,11 +119,11 @@ Entscheid vom 22.11.2026 (#226).
 
 ## Datenbank-Erweiterung pg_trgm (Volltextsuche im Lager, #399)
 
-Die Suche im Lager braucht die PostgreSQL-Erweiterung `pg_trgm` (Tippfehler). Die Migration `0097_lager_suche` legt sie mit `CREATE EXTENSION IF NOT EXISTS pg_trgm` an. Voraussetzungen:
+Die Suche im Lager braucht die PostgreSQL-Erweiterung `pg_trgm` (Tippfehler). Die Migration `0098_lager_suche` legt sie mit `CREATE EXTENSION IF NOT EXISTS pg_trgm` an. Voraussetzungen:
 
 - **Rolle:** Die Migration läuft mit `cevi_os_besitzer`, der Besitzerin der Datenbank (`apps/api/src/db/rollen.sql`). `pg_trgm` ist seit PostgreSQL 13 eine vertrauenswürdige Erweiterung: Wer die Datenbank besitzt (Recht `CREATE`), darf sie ohne Superuser anlegen. Es braucht keine Änderung an den Rollen. Der Test `test/lager/suche.test.ts` und die CI migrieren eine frische Datenbank mit genau dieser Rolle.
 - **Paket:** Das Image `postgres:18` bringt `pg_trgm` mit (contrib). Ein anderes oder gebündeltes Postgres (ein verwalteter Dienst, ein Paket ohne `postgresql-contrib`) muss `pg_trgm` bereitstellen, sonst bricht die Migration ab und `deploy.sh` rollt nicht aus (kein halber Stand: die Migration läuft in einer Transaktion). Prüfen vor dem Deploy: `compose exec -T postgres psql -U postgres -d cevi_os -c "select name, trusted from pg_available_extensions where name = 'pg_trgm'"`.
-- **Rückweg:** `drizzle/rueckweg/0097_lager_suche.sql` löscht die Indizes und die Funktion `lager_suche_liste`, nicht die Erweiterung.
+- **Rückweg:** `drizzle/rueckweg/0098_lager_suche.sql` löscht die Indizes und die Funktion `lager_suche_liste`, nicht die Erweiterung.
 - **Backup und Wiederherstellung:** Der Dump enthält `CREATE EXTENSION pg_trgm`; die Wiederherstellung braucht dieselbe Voraussetzung.
 - **Last:** Die Indizes (zwei GIN-Indizes je durchsuchter Tabelle) werden beim Schreiben mitgeführt; bei den Tabellen eines Lagers (einige hundert Zeilen) ist das vernachlässigbar. Neue Zeilen sind sofort suchbar, es gibt keinen Indexlauf.
 

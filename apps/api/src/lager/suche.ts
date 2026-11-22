@@ -8,7 +8,7 @@ import type { LagerRecht } from "./rechte-katalog.js";
 //
 // Durchsucht werden nur Titel, Namen und Texte, die in Cevi OS liegen. Der Inhalt von Dateien im SharePoint ist nie durchsuchbar (nur Titel, Name, Stichworte des Verweises). Nie durchsuchbar sind Gesundheits- und Kontaktdaten (Telefon, E-Mail, Adressen).
 //
-// Index: Der Suchtext einer Quelle (suchtext) steht wörtlich als Ausdruck in den GIN-Indizes der Migration 0097 (to_tsvector('german', …) und gin_trgm_ops). Wer die Spalten einer Quelle ändert, ändert die Indizes mit; der Test «Suche benutzt den Index» fängt jede Abweichung ab.
+// Index: Der Suchtext einer Quelle (suchtext) steht wörtlich als Ausdruck in den GIN-Indizes der Migration 0098 (to_tsvector('german', …) und gin_trgm_ops). Wer die Spalten einer Quelle ändert, ändert die Indizes mit; der Test «Suche benutzt den Index» fängt jede Abweichung ab.
 
 export const SUCHE_TREFFER_MAX = 50;
 export const SUCHE_TEXT_MAX = 100;
@@ -102,7 +102,10 @@ function auszug(text: string, titel: string, woerter: string[]) {
     .filter((p) => p >= 0)
     .sort((a, b) => a - b)[0];
   const von = Math.max(0, (pos ?? 0) - 40);
-  const stueck = text.slice(von, von + 140).replace(/\s+/g, " ").trim();
+  const stueck = text
+    .slice(von, von + 140)
+    .replace(/\s+/g, " ")
+    .trim();
   if (stueck === "" || stueck === titel.trim()) return null;
   return `${von > 0 ? "…" : ""}${stueck}${von + 140 < text.length ? "…" : ""}`;
 }

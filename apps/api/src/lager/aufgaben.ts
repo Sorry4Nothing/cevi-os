@@ -596,10 +596,11 @@ async function mitFolgeAufgabe(
   };
 }
 
+// quelle setzt nur der Server (zum Beispiel «erwaehnung:<id>», #380), nie die Route
 export async function legeAufgabeAn(
   tx: Tx,
   k: Akteur,
-  eingabe: z.output<typeof aufgabeAnlegen>,
+  eingabe: z.output<typeof aufgabeAnlegen> & { quelle?: string },
 ): Promise<SchreibErgebnis> {
   const {
     unterstuetzungPersonIds,

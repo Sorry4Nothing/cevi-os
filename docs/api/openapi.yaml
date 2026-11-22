@@ -10963,6 +10963,267 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/erwaehnungen:
+    get:
+      operationId: holeLagerErwaehnungen
+      summary: Eigene Erwähnungen auflisten
+      description: |
+        Die Erwähnungen der anfragenden Person in diesem Lager, neueste zuerst (sortiert nach ID, absteigend). Es gibt kein eigenes Recht: Jedes Mitglied liest nur die eigenen. Eine Erwähnung erscheint nur, solange der Inhalt nicht gelöscht ist und die Person ihn nach den Sichtbarkeitsregeln des Ziels (Recht und Zeilenfilter wie im Änderungsfeed) noch sehen darf; die Seite kann deshalb kürzer sein als `limit`. Die Antwort nennt den Titel des Inhalts (bei einem Beschluss die erste Zeile), nie den übrigen Text.
+
+        Protokolle liegen im SharePoint und haben keine Erwähnungen; sie sind keine Inhaltsart.
+
+        Datenbanklast: eine Abfrage für die Seite, je vorkommender Inhaltsart zwei weitere (Sichtbarkeit, Titel), also höchstens neun.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: offen
+          in: query
+          required: false
+          description: "`true`: nur Erwähnungen, die noch nicht erledigt sind."
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Zeilen je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Erwähnungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{typ}/{quelleId}:
+    put:
+      operationId: gleicheLagerErwaehnungenAb
+      summary: Erwähnungen eines Inhalts abgleichen
+      description: |
+        Die App ruft das nach dem Speichern eines Inhalts auf, der Marken `@{person:<id>}` enthält oder enthielt (`typ`: `aufgabe`, `traktandum`, `pinnwand` oder `beschluss`; bei der Aufgabe stehen Marken in Titel und Notiz, beim Traktandum in Titel, Text und Entscheid, beim Pinnwand-Beitrag in Titel und Text, beim Beschluss im Text). Der Server liest nur diese Marken und rät nie einen Namen. Ohne Body, gleicher Aufruf gleiches Ergebnis (idempotent).
+
+        - Neue Marke: legt die Erwähnung an und benachrichtigt die Person genau einmal (Art `erwaehnung`, fester Titel und Lagertitel, nie der Inhalt; wer die Art abgeschaltet hat oder selbst auslöst, bekommt nichts).
+        - Bekannte Marke: tut nichts, auch bei erneutem Speichern oder gleichzeitigem Aufruf.
+        - Entfallene Marke: die Erwähnung geht weg, ausser es ist daraus schon eine Aufgabe entstanden.
+        - Eine neue Marke gilt nur für ein aktives Mitglied dieses Lagers, das den Inhalt mit seinen eigenen Rechten sehen darf (zum Beispiel nicht das Team bei einem Traktandum eines Höcks der Lagerleitung); sonst 400 `ERWAEHNUNG_UNGUELTIG` und nichts wird geändert. Mehr als 10 verschiedene Marken in einem Inhalt: 400 `ZU_VIELE_MARKEN`.
+
+        Braucht das Recht, den Inhalt zu schreiben: `aufgaben.bearbeiten` (Aufgabe), `hoecks.bearbeiten` (Traktandum), `pinnwand.bearbeiten` (Pinnwand-Beitrag) oder `protokolle.bearbeiten` (Beschluss; Standard je: Lagerleitung und Leitung). Den Inhalt muss die Person sehen, sonst 404.
+
+        Datenbanklast: eine Transaktion unter der Sperre des Lagers: Inhalt laden, Sichtbarkeit (höchstens eine Abfrage), vorhandene Erwähnungen. Nur bei neuen Marken zusätzlich: Mitglieder (eine Abfrage für alle), Rechte je Rolle (höchstens drei) und der Zeilenfilter je erwähnter Person, dann Einfügen und Benachrichtigung (je eine Abfrage für alle).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Inhalt (404), Marken (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID, `ERWAEHNUNG_UNGUELTIG` oder `ZU_VIELE_MARKEN`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Inhalt, fremder Abteilung, ohne Mitgliedschaft oder bei einem Inhalt, den die Person nicht sieht. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: typ
+          in: path
+          required: true
+          description: Art des Inhalts.
+          schema:
+            type: string
+            enum: [aufgabe, traktandum, pinnwand, beschluss]
+        - name: quelleId
+          in: path
+          required: true
+          description: ID des Inhalts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Personen, die der Inhalt jetzt erwähnt, und wie viele davon neu sind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAbgleich"
+        "400":
+          description: |
+            Ungültige Eingabe, `ERWAEHNUNG_UNGUELTIG` (eine neue Marke meint niemanden, der Mitglied ist und den Inhalt sehen darf) oder `ZU_VIELE_MARKEN`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{erwaehnungId}:
+    patch:
+      operationId: setzeLagerErwaehnungErledigt
+      summary: Erwähnung als erledigt markieren
+      description: |
+        Setzt oder löscht «erledigt» an der eigenen Erwähnung. Es gibt kein eigenes Recht; eine fremde Erwähnung, eine, deren Inhalt gelöscht ist oder die die Person nicht mehr sehen darf, ist 404. Gleicher Aufruf gleiches Ergebnis. Keine Zeilenversion: Die Erwähnung gehört der Person allein.
+
+        Datenbanklast: Erwähnung samt Titel laden (wie die Liste, zwei bis drei Abfragen), eine Änderung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Erwähnung (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerErwaehnungErledigt"
+      responses:
+        "200":
+          description: Die Erwähnung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{erwaehnungId}/als-aufgabe:
+    post:
+      operationId: legeLagerAufgabeAusErwaehnungAn
+      summary: Aus einer Erwähnung eine Aufgabe machen
+      description: |
+        Die erwähnte Person legt aus der eigenen Erwähnung eine Aufgabe für sich an: Titel ist der Titel des Inhalts, Verantwortliche ist sie selbst, `quelle` der Aufgabe ist `erwaehnung:<id>`. Es entsteht höchstens eine Aufgabe je Erwähnung: Ein zweiter oder gleichzeitiger Aufruf liefert dieselbe Aufgabe (200 statt 201). Der Text des Inhalts wird nicht in die Aufgabe kopiert. Eine Benachrichtigung entsteht nicht (die Person ist selbst Auslöserin und Verantwortliche).
+
+        Braucht `aufgaben.bearbeiten` oder `aufgaben.eigene` (Standard: Lagerleitung, Leitung und Team; nicht Lesen). Die Aufgabe ist eine eigene der Person und für sie sichtbar, auch mit nur `aufgaben.eigene`. Eine fremde Erwähnung ist 404.
+
+        Datenbanklast: Erwähnung samt Titel laden (zwei bis drei Abfragen), eine Transaktion unter der Sperre des Lagers: Erwähnung lesen, Aufgabe anlegen (wie `POST /lager/{id}/aufgaben`), Erwähnung verknüpfen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Erwähnung (404).
+
+        Statuscodes: 201 bei neuer Aufgabe, 200 wenn es sie schon gab. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Aufgabe gab es schon.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAufgabe"
+        "201":
+          description: Die Aufgabe wurde angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAufgabe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/pinnwand:
     get:
@@ -14213,6 +14474,291 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/diensttausch:
+    get:
+      operationId: holeLagerDiensttausch
+      summary: Tauschanfragen des Lagers auflisten
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Alle Anfragen, älteste zuerst (nach ID), mit Filter `status`. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`. Personen und Schichten stehen als ID; die Namen löst die App über die Listen der Mitglieder und den Schichtplan auf.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Nur Anfragen mit diesem Stand.
+          schema:
+            type: string
+            enum: [offen, angenommen, abgelehnt, zurueckgezogen]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die `naechster`-ID der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Anfragen je Seite (1 bis 200, Standard 100).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttauschSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerDiensttauschAn
+      summary: Diensttausch anfragen
+      description: |
+        Braucht das Recht `diensttausch.anfragen` (Standard: Lagerleitung, Leitung und Team) und die Mitgliedschaft im Lager (die Abteilungsleitung ist kein Mitglied: 403 `KEIN_MITGLIED`). Die Person fragt für eine eigene Schicht an; die Lagerleitung entscheidet. Ob die Wunschperson zustimmt, klärt die Lagerleitung selbst: Cevi OS fragt sie nicht. Es gibt drei Formen: `mitSchichtId` (Schicht einer anderen Person: beide tauschen), `mitPersonId` (diese Person übernimmt die Schicht) oder keins von beiden (die Lagerleitung nennt beim Entscheid die Person, die übernimmt). `mitSchichtId` und `mitPersonId` zusammen sind ungültig (400). Je Schicht höchstens eine offene Anfrage (409 `ANFRAGE_OFFEN`).
+
+        Eine fremde Schicht ist 403 `NICHT_DEINE_SCHICHT`, eine unbekannte oder gelöschte Schicht 404. Eine Wunschschicht, die der Person selbst oder Teilnehmenden gehört, und die eigene Person als Wunschperson sind 400 (`MIT_SCHICHT_UNGUELTIG`, `MIT_PERSON_UNGUELTIG`); eine Wunschperson, die kein aktives Mitglied des Lagers ist, 404.
+
+        Benachrichtigung: Alle Mitglieder der Rolle Lagerleitung bekommen eine Benachrichtigung (Art `diensttausch_anfrage`, Push `lager_einteilung`); der Push nennt weder Person noch Schicht.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht, ohne Mitgliedschaft (`KEIN_MITGLIED`) oder bei fremder Schicht (`NICHT_DEINE_SCHICHT`). 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft, unbekannter Schicht oder Person. 409 bei abgeschlossenem Lager oder `ANFRAGE_OFFEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschAnlegen"
+      responses:
+        "201":
+          description: Die neue Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder für die Schicht wartet schon eine Anfrage (`ANFRAGE_OFFEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/eigene:
+    get:
+      operationId: holeLagerDiensttauschEigene
+      summary: Eigene Tauschanfragen lesen
+      description: |
+        Braucht das Recht `diensttausch.anfragen` (Standard: Lagerleitung, Leitung und Team). Die letzten 200 Anfragen der Person der Sitzung, neueste zuerst, in einer Abfrage.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die eigenen Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttauschListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/entscheid:
+    post:
+      operationId: entscheideLagerDiensttausch
+      summary: Tauschanfrage annehmen oder ablehnen
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Entscheidet eine offene Anfrage mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Alles geschieht in einer Transaktion unter der Lagersperre: Zwei gleichzeitige Entscheide auf dieselbe Anfrage laufen nacheinander, der zweite ist 409 `BEREITS_ENTSCHIEDEN`.
+
+        Ablehnen ändert nur die Anfrage. Annehmen bucht die Schichten um: Mit Wunschschicht tauschen beide Personen (liegen beide Schichten im selben Abschnitt desselben Tages, tauschen sie den Dienst); sonst übernimmt die Wunschperson die Schicht. Hat die Anfrage keine Wunschperson, nennt der Entscheid sie in `mitPersonId` (sonst 400 `MIT_PERSON_UNGUELTIG`; bei einer Wunschperson in der Anfrage ist `mitPersonId` nur gleich dieser erlaubt). Die Regeln des Schichtplans gelten erneut: Wer neu in einem Abschnitt steht, ist dort nicht abwesend (409 `ABWESEND`) und hat dort keinen anderen Dienst (409 `DOPPELBELEGT`); die Person, die übernimmt, ist ein aktives Mitglied (409 `PERSON_NICHT_VERFUEGBAR`). Stehen die Schichten nicht mehr so wie bei der Anfrage (gelöscht, anders besetzt), ist es 409 `SCHICHT_GEAENDERT`; die Anfrage bleibt offen und lässt sich ablehnen. Bei jedem Fehler ist nichts geändert.
+
+        Benachrichtigung: Die anfragende Person und, bei Annahme, die andere Person bekommen eine Benachrichtigung (Art `diensttausch_entscheid`, Push `lager_einteilung`); der Push nennt weder Person noch Entscheid.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der entschiedenen Anfrage. 400 bei ungültiger Eingabe oder `MIT_PERSON_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT`, `BEREITS_ENTSCHIEDEN`, `SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND` oder `DOPPELBELEGT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschEntscheiden"
+      responses:
+        "200":
+          description: Die entschiedene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand), die Anfrage ist schon entschieden (`BEREITS_ENTSCHIEDEN`) oder das Umbuchen verletzt eine Regel (`SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND`, `DOPPELBELEGT`). Dann ist nichts geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/zurueckziehen:
+    post:
+      operationId: ziehLagerDiensttauschZurueck
+      summary: Tauschanfrage zurückziehen
+      description: |
+        Braucht das Recht `diensttausch.anfragen`. Nur die anfragende Person zieht ihre offene Anfrage zurück, mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Eine fremde Anfrage ist 403 `NICHT_DEINE_ANFRAGE`, eine schon entschiedene 409 `BEREITS_ENTSCHIEDEN`. Keine Benachrichtigung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der Anfrage im Stand `zurueckgezogen`. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht oder bei fremder Anfrage. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT` oder `BEREITS_ENTSCHIEDEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschZurueckziehen"
+      responses:
+        "200":
+          description: Die zurückgezogene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`) oder die Anfrage ist schon entschieden (`BEREITS_ENTSCHIEDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/anwesenheit:
     get:
@@ -14705,6 +15251,408 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/tagesseiten:
+    get:
+      operationId: holeLagerTagesseiten
+      summary: Tage des Lagers mit dem Stand ihrer Seite
+      description: |
+        Braucht das Recht `tagesseiten.lesen` (Standard: Leitung, Lesen und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Liefert alle Lagertage des Zeitplans nach Datum, je Tag die Seite (Tageschef, Notiz) oder `null`, wenn es für den Tag noch keine Seite gibt. Eine Abfrage, ohne Seiten (höchstens 100 Tage je Lager). Die Blöcke, das Wetter und die Aufgaben eines Tages liefert `GET /tagesseiten/{lagertagId}`.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Die Tage mit dem Stand ihrer Seite."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseiteListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/tagesseiten/{lagertagId}:
+    get:
+      operationId: holeLagerTagesseite
+      summary: Tagesseite lesen
+      description: |
+        Braucht das Recht `tagesseiten.lesen` (Standard: Leitung, Lesen und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Liefert, was der Tag zeigt, in einer Antwort: die Seite (`seite`, `null` ohne Seite) mit Tageschef und die Blöcke (Hinweise, Ideen und Programmbilder mit der Verknüpfung auf die Datei im SharePoint), das Wetter des Tages (`wetter`, nur mit dem Recht `wetter.lesen`; sonst, ohne Ort und bei Ausfall des Wetterdienstes `null`) und die Aufgaben mit Frist an diesem Tag (`aufgaben`; wer nicht alle Aufgaben lesen darf, sieht nur die eigenen, wer keine lesen darf, bekommt eine leere Liste). Die To-dos des Tages sind diese Aufgaben, keine eigene Tabelle.
+
+        Datenbanklast: zwei Abfragen der Policy, eine für Tag, Seite und Tageschef, eine für die Blöcke, eine für die Programmbilder (nur mit solchen), eine auf den Zwischenspeicher des Wetters (ein Abruf beim Wetterdienst nur, wenn der Stand älter ist als 6 Stunden) und zwei für die Aufgaben.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Die Tagesseite."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerTagesseiteAn
+      summary: Tagesseite anlegen
+      description: |
+        Braucht das Recht `tagesseiten.bearbeiten` (Standard: Leitung und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Legt die Seite für den Tag an, mit Tageschef und Notiz (beides freiwillig). Der Tageschef muss Mitglied des Lagers sein (400 `KEIN_MITGLIED`). Je Tag gibt es höchstens eine Seite (409 `SEITE_VORHANDEN`). Der erste Block legt die Seite auch an; dieser Aufruf ist nur nötig, um zuerst den Tageschef zu setzen.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `SEITE_VORHANDEN`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesseiteAnlegen"
+      responses:
+        "201":
+          description: "Die neue Seite."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseiteSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder der Tag hat schon eine Seite (`SEITE_VORHANDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerTagesseite
+      summary: Tagesseite ändern
+      description: |
+        Braucht das Recht `tagesseiten.bearbeiten` (Standard: Leitung und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Ändert Tageschef und Notiz; `null` leert das Feld. Der Tageschef muss Mitglied des Lagers sein (400 `KEIN_MITGLIED`). Gibt es für den Tag noch keine Seite, ist es 404.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekannter Seite, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesseiteAendern"
+      responses:
+        "200":
+          description: "Die geänderte Seite."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseiteSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/tagesseiten/{lagertagId}/bloecke:
+    post:
+      operationId: legeLagerTagesseiteBlockAn
+      summary: Block einer Tagesseite anlegen
+      description: |
+        Braucht das Recht `tagesseiten.bearbeiten` (Standard: Leitung und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Arten: `wichtig` (Hinweis des Tages), `idee` und `programmbild`. Ein Programmbild verknüpft einen Eintrag aus `POST /lager/{id}/dateien` (SharePoint, `dateiId`), der Text ist die Beschriftung; die anderen Arten haben keine `dateiId`. Ein Eintrag aus einem anderen Lager oder ein gelöschter ist 400. Gibt es für den Tag noch keine Seite, legt der Block sie an. Ohne `reihenfolge` kommt der Block ans Ende; höchstens 100 Blöcke je Seite (409 `LIMIT_ERREICHT`). Zu besprechen sind Traktanden der Höcks, keine Blöcke.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder unbekannter Datei. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesseiteBlockAnlegen"
+      responses:
+        "201":
+          description: "Der neue Block."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseiteBlock"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Seite ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/tagesseiten/{lagertagId}/bloecke/{blockId}:
+    patch:
+      operationId: aendereLagerTagesseiteBlock
+      summary: Block einer Tagesseite ändern
+      description: |
+        Braucht das Recht `tagesseiten.bearbeiten` (Standard: Leitung und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Ändert Text und Reihenfolge. Art und Datei bleiben: Wer sie ändern will, löscht den Block und legt einen neuen an.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Block oder Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: blockId
+          in: path
+          required: true
+          description: ID des Blocks (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesseiteBlockAendern"
+      responses:
+        "200":
+          description: "Der geänderte Block."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesseiteBlock"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerTagesseiteBlock
+      summary: Block einer Tagesseite löschen
+      description: |
+        Braucht das Recht `tagesseiten.bearbeiten` (Standard: Leitung und Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Löscht den Block weich (Papierkorb); die Datei am Ablageort bleibt unberührt.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Block oder Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `tagesseiten.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags aus dem Zeitplan (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: blockId
+          in: path
+          required: true
+          description: ID des Blocks (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/einkauf:
     get:
@@ -16197,6 +17145,103 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/wetter:
+    get:
+      operationId: holeLagerWetter
+      summary: Wetter des Lagers lesen
+      description: |
+        Braucht das Recht `wetter.lesen` (Standard: alle Rollen). Liefert die Vorhersage für den Ort des Lagers (`ort`, von der Lagerleitung gesetzt) mit Wort, Temperatur, Regen, Böen und Warnungen je Tag, dazu den Zeitpunkt des Abrufs (`stand`). Die Warnungen: `gewitter`, `boeen` (ab 60 km/h), `hitze` (ab 30 Grad Höchsttemperatur) und `regen` (ab 20 mm am Tag).
+
+        Der Server holt die Vorhersage beim Wetterdienst Open-Meteo und hält sie je Lager zwischen: höchstens ein Abruf je Lager und 6 Stunden, egal wie viele Personen fragen; nach einem Fehlschlag frühestens nach 15 Minuten ein neuer Versuch. Zum Wetterdienst gehen nur Breite und Länge, auf zwei Stellen gerundet. Ohne Ort, bei Ausfall des Dienstes und wenn der Stand älter ist als 24 Stunden ist `tage` leer, es gibt keinen Fehler. Die Antwort enthält Tage von zwei Tagen zurück bis 16 Tage voraus.
+
+        Datenbanklast: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `wetter.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Das Wetter."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWetter"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/wetter/ort:
+    put:
+      operationId: setzeLagerWetterOrt
+      summary: Ort für das Wetter setzen
+      description: |
+        Nur die Lagerleitung (die Abteilungsleitung gilt als Lagerleitung); der Ort lässt sich nicht je Rolle einstellen. Speichert Breite und Länge des Lagerorts in Grad, auf zwei Stellen gerundet; beide `null` schaltet das Wetter aus. Beide Werte oder keiner (sonst 400). Die Änderung steht im Protokoll (`lager_wetter_ort`, ohne den Ort).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `nur Lagerleitung`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerWetterOrt"
+      responses:
+        "200":
+          description: "Der gespeicherte Ort."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWetterOrt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/dokumente:
@@ -16805,7 +17850,7 @@ paths:
       description: |
         Volltextsuche über die Texte des Lagers, mit höchstens 50 Treffern, nach Treffgüte geordnet. Jedes Mitglied darf suchen. **Die Suche findet nur, was die suchende Person auch in den Listen sieht**: Jedes Modul meldet seine Quelle mit dem Leserecht und dem Zeilenfilter seiner Liste (Team nur eigene Aufgaben, Team-Höcks, eigenes Zimmer und eigene Fahrt, Dokumente mit `team_sichtbar`; kein Adressbuch, Eingang oder Protokoll der Lagerleitung ohne das Recht; Zeilen «nur Lagerleitung» nur mit `vertrauliches.lesen`). Gelöschte Zeilen und Zeilen anderer Lager zählen nie. Der Ausschnitt (`auszug`) stammt aus der lesbaren Zeile.
 
-        Was durchsucht wird: Titel, Namen und Texte, die in Cevi OS liegen (Aufgaben samt Checkliste und Stichworten, Ressorts, Höcks, Traktanden, Protokoll-Titel, Beschlüsse, Pinnwand, Eingang, Teilnehmende nur mit Vor- und Nachname, Zimmer, Fahrten, Gruppen, Dienste, Einkauf, Packliste, Notfall nur Funktion und Name, Infos, Dokumente nur Titel und Stichworte, Adressbuch nur Name, Funktion und Gruppe, Meilensteine). Der Inhalt von Dateien im SharePoint ist nie durchsuchbar, ebenso wenig Telefonnummern, E-Mail-Adressen, Cevi-Namen, Notizen von Zimmern und Gesundheitsdaten. Die Suche versteht Wortstämme («Zelte» findet «Zelt»), Wortanfänge («Quark» findet «Quarkstrudel») und kleine Tippfehler; mehrere Wörter müssen alle vorkommen.
+        Was durchsucht wird: Titel, Namen und Texte, die in Cevi OS liegen (Aufgaben samt Checkliste und Stichworten, Ressorts, Höcks, Traktanden, Protokoll-Titel, Beschlüsse, Pinnwand, Eingang, Tagesseiten (Notiz und Blöcke), Teilnehmende nur mit Vor- und Nachname, Zimmer, Fahrten, Gruppen, Dienste, Einkauf, Packliste, Notfall nur Funktion und Name, Infos, Dokumente nur Titel und Stichworte, Adressbuch nur Name, Funktion und Gruppe, Meilensteine). Der Inhalt von Dateien im SharePoint ist nie durchsuchbar, ebenso wenig Telefonnummern, E-Mail-Adressen, Cevi-Namen, Notizen von Zimmern und Gesundheitsdaten. Die Suche versteht Wortstämme («Zelte» findet «Zelt»), Wortanfänge («Quark» findet «Quarkstrudel») und kleine Tippfehler; mehrere Wörter müssen alle vorkommen.
 
         Audit-Log: Treffer aus dem Adressbuch schreiben wie das Lesen der Liste `lager_adressbuch_gelesen` mit der Person, dem Lager und der Anzahl dieser Treffer, nie mit dem Suchtext.
 
@@ -16857,6 +17902,7 @@ paths:
               - pinnwand
               - protokoll
               - ressort
+              - tagesseite
               - teilnehmer
               - traktandum
               - zimmer
@@ -21925,7 +22971,7 @@ components:
         - `erwaehnung`: `lager_erwaehnung`
         - `pinnwand_wichtig`: `lager_pinnwand`
         - `eingang_antwort`: `lager_eingang`
-        - `diensttausch`: `lager_einteilung`
+        - `diensttausch_anfrage`, `diensttausch_entscheid`: `lager_einteilung`
         - `anwesenheit_anfrage`: `lager_anwesenheit`
         - `adressbuch_aufraeumen`: `lager_pinnwand` (Erinnerung der Lagerleitung 14 Tage vor dem Aufräumen des Adressbuchs; das Ziel ist das Lager, `objektTyp` ist `adressbuch`)
       enum:
@@ -21935,7 +22981,8 @@ components:
         - frist
         - pinnwand_wichtig
         - eingang_antwort
-        - diensttausch
+        - diensttausch_anfrage
+        - diensttausch_entscheid
         - anwesenheit_anfrage
         - adressbuch_aufraeumen
     LagerPushTyp:
@@ -24662,6 +25709,91 @@ components:
           type: [string, "null"]
           format: uuid
     # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerErwaehnung:
+      description: "Eine Erwähnung der anfragenden Person: wo sie steht, ob sie erledigt ist und welche Aufgabe daraus entstand. Kein Text des Inhalts, nur sein Titel."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - quelleTyp
+        - quelleId
+        - titel
+        - erledigt
+        - aufgabeId
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        quelleTyp:
+          description: "Art des Inhalts; die App öffnet ihn über die Route seines Moduls (`quelleId`)."
+          type: string
+          enum: [aufgabe, traktandum, pinnwand, beschluss]
+        quelleId:
+          type: string
+          format: uuid
+        titel:
+          description: "Titel des Inhalts, bei einem Beschluss seine erste Zeile (höchstens 200 Zeichen)."
+          type: string
+        erledigt:
+          type: boolean
+        aufgabeId:
+          description: "Die Aufgabe, die «Als Aufgabe» angelegt hat; null, solange es keine gibt."
+          type: [string, "null"]
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerErwaehnungSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - erwaehnungen
+        - naechster
+      properties:
+        erwaehnungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerErwaehnung"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); null am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerErwaehnungErledigt:
+      type: object
+      additionalProperties: false
+      required:
+        - erledigt
+      properties:
+        erledigt:
+          type: boolean
+    LagerErwaehnungAbgleich:
+      type: object
+      additionalProperties: false
+      required:
+        - personIds
+        - neu
+      properties:
+        personIds:
+          description: "Die Personen, die der Inhalt jetzt mit einer Marke erwähnt."
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+        neu:
+          description: "Wie viele davon durch diesen Aufruf neu erwähnt wurden (und benachrichtigt, soweit sie die Art nicht abgeschaltet haben)."
+          type: integer
+          minimum: 0
+    LagerErwaehnungAufgabe:
+      type: object
+      additionalProperties: false
+      required:
+        - aufgabeId
+      properties:
+        aufgabeId:
+          type: string
+          format: uuid
     # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerPinnwandEmpfaenger:
       description: "An wen ein Beitrag gerichtet ist. Ohne Empfänger gilt er für alle Mitglieder."
@@ -27002,6 +28134,139 @@ components:
           type: integer
           minimum: 0
     # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDiensttausch:
+      description: "Eine Anfrage, eine eigene Schicht zu tauschen oder abzugeben. Personen und Schichten als ID."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - vonPersonId
+        - schichtId
+        - mitPersonId
+        - mitSchichtId
+        - notiz
+        - status
+        - entschiedenVon
+        - entschiedenAm
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit Entscheid und Zurückziehen."
+          type: integer
+          minimum: 1
+        vonPersonId:
+          description: "Die anfragende Person, Inhaberin der Schicht."
+          type: string
+          format: uuid
+        schichtId:
+          description: "Die eigene Schicht der anfragenden Person."
+          type: string
+          format: uuid
+        mitPersonId:
+          description: "Wunschperson oder, nach der Annahme ohne Wunschperson, die Person, die übernommen hat; sonst `null`."
+          type: [string, "null"]
+          format: uuid
+        mitSchichtId:
+          description: "Schicht der Wunschperson, die getauscht wird; `null` bei einer Übernahme."
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        status:
+          description: "`offen`, `angenommen`, `abgelehnt` oder `zurueckgezogen`."
+          type: string
+          enum: [offen, angenommen, abgelehnt, zurueckgezogen]
+        entschiedenVon:
+          description: "Wer entschied; beim Zurückziehen die anfragende Person."
+          type: [string, "null"]
+          format: uuid
+        entschiedenAm:
+          type: [string, "null"]
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerDiensttauschListe:
+      type: object
+      additionalProperties: false
+      required:
+        - tausche
+      properties:
+        tausche:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDiensttausch"
+    LagerDiensttauschSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - tausche
+        - naechster
+      properties:
+        tausche:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDiensttausch"
+        naechster:
+          description: "ID der letzten Anfrage der Seite für `nach`, oder `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerDiensttauschAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - schichtId
+      properties:
+        schichtId:
+          description: "Die eigene Schicht."
+          type: string
+          format: uuid
+        mitSchichtId:
+          description: "Schicht einer anderen Person des Lagers, die getauscht wird. Nicht zusammen mit `mitPersonId`."
+          type: string
+          format: uuid
+        mitPersonId:
+          description: "Wunschperson, die die Schicht übernimmt. Nicht zusammen mit `mitSchichtId`."
+          type: string
+          format: uuid
+        notiz:
+          type: string
+          minLength: 1
+          maxLength: 500
+    LagerDiensttauschEntscheiden:
+      type: object
+      additionalProperties: false
+      required:
+        - entscheid
+        - version
+      properties:
+        entscheid:
+          type: string
+          enum: [angenommen, abgelehnt]
+        version:
+          description: "Die zuletzt gesehene Version der Anfrage."
+          type: integer
+          minimum: 1
+        mitPersonId:
+          description: "Die Person, die übernimmt, wenn die Anfrage keine Wunschperson nennt; nur bei `angenommen`."
+          type: string
+          format: uuid
+    LagerDiensttauschZurueckziehen:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          description: "Die zuletzt gesehene Version der Anfrage."
+          type: integer
+          minimum: 1
     # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerAnwesenheitWert:
       description: "`A` anwesend, `F` abwesend, `O` offen."
@@ -27383,6 +28648,317 @@ components:
                 type: integer
                 minimum: 0
     # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerTagesseiteSeite:
+      description: "Die Seite eines Tages: Tageschef (als ID) und Notiz."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - lagertagId
+        - tageschefPersonId
+        - notiz
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1."
+          type: integer
+          minimum: 1
+        lagertagId:
+          type: string
+          format: uuid
+        tageschefPersonId:
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+    LagerTagesseiteMitTageschef:
+      description: "Die Seite eines Tages mit dem Tageschef, dessen Name beim Lesen aufgelöst ist."
+      allOf:
+        - $ref: "#/components/schemas/LagerTagesseiteSeite"
+        - type: object
+          required:
+            - tageschef
+          properties:
+            tageschef:
+              oneOf:
+                - $ref: "#/components/schemas/LagerAufgabePerson"
+                - type: "null"
+    LagerTagesseiteListe:
+      type: object
+      additionalProperties: false
+      required:
+        - tage
+      properties:
+        tage:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - lagertagId
+              - datum
+              - label
+              - seite
+            properties:
+              lagertagId:
+                type: string
+                format: uuid
+              datum:
+                type: string
+                format: date
+              label:
+                type: [string, "null"]
+              seite:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerTagesseiteMitTageschef"
+                  - type: "null"
+    LagerTagesseiteAnlegen:
+      type: object
+      additionalProperties: false
+      properties:
+        tageschefPersonId:
+          type: [string, "null"]
+          format: uuid
+          description: "Mitglied des Lagers, sonst 400 `KEIN_MITGLIED`."
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+    LagerTagesseiteAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      minProperties: 2
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        tageschefPersonId:
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+    LagerTagesseiteBlock:
+      description: "Ein Block einer Tagesseite. Bei einem Programmbild trägt `datei` die Verknüpfung auf die Datei im SharePoint."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - seiteId
+        - art
+        - text
+        - dateiId
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        seiteId:
+          type: string
+          format: uuid
+        art:
+          type: string
+          enum: [wichtig, idee, programmbild]
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        dateiId:
+          type: [string, "null"]
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+        datei:
+          description: "Nur in `GET /tagesseiten/{lagertagId}`."
+          oneOf:
+            - $ref: "#/components/schemas/LagerDatei"
+            - type: "null"
+    LagerTagesseiteBlockAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - text
+      properties:
+        art:
+          type: string
+          enum: [wichtig, idee, programmbild]
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        dateiId:
+          description: "Pflicht beim Programmbild, sonst nicht erlaubt."
+          type: string
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerTagesseiteBlockAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      minProperties: 2
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerWetterTag:
+      description: "Das Wetter eines Tages. `code` ist der Wettercode der WMO, `zustand` das Wort dazu; die App wählt das Symbol."
+      type: object
+      additionalProperties: false
+      required:
+        - datum
+        - code
+        - tmax
+        - tmin
+        - regen
+        - boeen
+        - zustand
+        - warnungen
+      properties:
+        datum:
+          type: string
+          format: date
+        code:
+          type: [integer, "null"]
+        tmax:
+          description: "Höchsttemperatur in Grad Celsius."
+          type: [number, "null"]
+        tmin:
+          description: "Tiefsttemperatur in Grad Celsius."
+          type: [number, "null"]
+        regen:
+          description: "Regen des Tages in mm."
+          type: [number, "null"]
+        boeen:
+          description: "Stärkste Böe des Tages in km/h."
+          type: [number, "null"]
+        zustand:
+          type: [string, "null"]
+          description: "Zum Beispiel «Klar», «Regen», «Gewitter»."
+        warnungen:
+          type: array
+          items:
+            type: string
+            enum: [gewitter, boeen, hitze, regen]
+    LagerWetterOrtWerte:
+      type: object
+      additionalProperties: false
+      required:
+        - breite
+        - laenge
+      properties:
+        breite:
+          type: number
+          minimum: -90
+          maximum: 90
+        laenge:
+          type: number
+          minimum: -180
+          maximum: 180
+    LagerWetter:
+      type: object
+      additionalProperties: false
+      required:
+        - ort
+        - stand
+        - tage
+      properties:
+        ort:
+          description: "Der Ort des Lagers; null, solange die Lagerleitung keinen gesetzt hat."
+          oneOf:
+            - $ref: "#/components/schemas/LagerWetterOrtWerte"
+            - type: "null"
+        stand:
+          description: "Zeitpunkt des letzten gelungenen Abrufs; null ohne Werte."
+          type: [string, "null"]
+          format: date-time
+        tage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerWetterTag"
+    LagerWetterOrt:
+      description: "Breite und Länge in Grad; beide null schaltet das Wetter aus."
+      type: object
+      additionalProperties: false
+      required:
+        - breite
+        - laenge
+      properties:
+        breite:
+          type: [number, "null"]
+          minimum: -90
+          maximum: 90
+        laenge:
+          type: [number, "null"]
+          minimum: -180
+          maximum: 180
+    LagerTagesseite:
+      description: "Was ein Tag zeigt: Seite mit Blöcken, Wetter des Tages und die Aufgaben mit Frist an diesem Tag."
+      type: object
+      additionalProperties: false
+      required:
+        - lagertag
+        - seite
+        - bloecke
+        - wetter
+        - wetterStand
+        - aufgaben
+      properties:
+        lagertag:
+          type: object
+          additionalProperties: false
+          required:
+            - id
+            - datum
+            - label
+          properties:
+            id:
+              type: string
+              format: uuid
+            datum:
+              type: string
+              format: date
+            label:
+              type: [string, "null"]
+        seite:
+          oneOf:
+            - $ref: "#/components/schemas/LagerTagesseiteMitTageschef"
+            - type: "null"
+        bloecke:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerTagesseiteBlock"
+        wetter:
+          oneOf:
+            - $ref: "#/components/schemas/LagerWetterTag"
+            - type: "null"
+        wetterStand:
+          type: [string, "null"]
+          format: date-time
+        aufgaben:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAufgabe"
     # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerEinkaufPerson:
       description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."

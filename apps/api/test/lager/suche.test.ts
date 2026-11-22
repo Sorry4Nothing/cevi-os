@@ -107,7 +107,12 @@ async function suche(
   const text = await res.text();
   return { status: res.status, body: text ? JSON.parse(text) : null };
 }
-type Treffer = { typ: string; id: string; titel: string; auszug: string | null };
+type Treffer = {
+  typ: string;
+  id: string;
+  titel: string;
+  auszug: string | null;
+};
 const treffer = async (konto: PersonaKonto, q = M, typ?: string) => {
   const a = await suche(konto, q, typ);
   expect(a.status).toBe(200);
@@ -374,6 +379,22 @@ async function seed() {
     datum: "2027-06-15",
   });
 
+  // Tagesseite: Notiz und Block finden den Lagertag (einmal)
+  const [tag] = await db
+    .insert(schema.lagertag)
+    .values({ ...basis(), datum: "2027-07-15" })
+    .returning({ id: schema.lagertag.id });
+  const [seite] = await db
+    .insert(schema.tagesseite)
+    .values({ ...basis(), lagertagId: tag!.id, notiz: `${M} Notiz` })
+    .returning({ id: schema.tagesseite.id });
+  await db.insert(schema.tagesseiteBlock).values({
+    ...basis(),
+    seiteId: seite!.id,
+    art: "wichtig",
+    text: `${M} Block`,
+  });
+
   // Packliste, Notfall, Infos: normal und nur für die Lagerleitung (Telefon ist nicht durchsuchbar)
   await db.insert(schema.packlistePunkt).values([
     { ...basis(), abschnitt: "Kleider", text: `${M} Packliste normal` },
@@ -452,6 +473,7 @@ const LEITUNGSSICHT = [
   `protokoll|${M} Protokoll offen`,
   "ressort|Ressort Notizen",
   `ressort|${M} Ressort`,
+  "tagesseite|Tag 15.07.2027",
   `teilnehmer|${M} Teilnehmer`,
   `traktandum|${M} Traktandum`,
   `zimmer|${M} Zimmer Leitung`,
@@ -510,14 +532,16 @@ describe("Suche je Lager-Persona: nur, was die Listen zeigen", () => {
     expect((await suche(konten.fremdeAbteilung, M)).status).toBe(404);
     expect((await suche(konten.ohneLogin, M)).status).toBe(401);
     // Ein Lager der fremden Abteilung ist für die eigene Lagerleitung 404, auch mit einem Treffer dort
-    expect((await suche(konten.lagerleitung, M, undefined, fremdLagerId)).status).toBe(
-      404,
-    );
+    expect(
+      (await suche(konten.lagerleitung, M, undefined, fremdLagerId)).status,
+    ).toBe(404);
   });
 
   test("Zeilen anderer Lager, gelöschte Zeilen und gelöschte Kinder zählen nicht", async () => {
     const alle = await treffer(konten.lagerleitung);
-    expect(alle.join("\n")).not.toMatch(/anderes Lager|fremde Abteilung|gelöscht|Gelöschter/);
+    expect(alle.join("\n")).not.toMatch(
+      /anderes Lager|fremde Abteilung|gelöscht|Gelöschter/,
+    );
     // Im abgeschlossenen Lager (leer) findet die Suche nichts aus diesem Lager
     const a = await suche(konten.lagerleitung, M, undefined, geschlossenId);
     expect(a.status).toBe(200);
@@ -531,14 +555,12 @@ describe("Suche je Lager-Persona: nur, was die Listen zeigen", () => {
   });
 
   test("Mit eingestelltem Recht: das Team findet Protokolle, aber nie die eines Höcks der Lagerleitung", async () => {
-    await db
-      .insert(schema.lagerRolleRecht)
-      .values({
-        lagerId,
-        rolle: "team",
-        recht: "protokolle.lesen",
-        erlaubt: true,
-      });
+    await db.insert(schema.lagerRolleRecht).values({
+      lagerId,
+      rolle: "team",
+      recht: "protokolle.lesen",
+      erlaubt: true,
+    });
     try {
       expect(await treffer(konten.team, M, "protokoll")).toEqual([
         `protokoll|${M} Protokoll offen`,
@@ -644,9 +666,9 @@ describe("Treffer, Tippfehler und Grenzen", () => {
       ).toBeGreaterThan(0);
     }
     // Der Wortstamm: Mehrzahl und Fall
-    expect(await treffer(konten.lesen, "Quarkstrudel Gruppen", "gruppe")).toEqual(
-      [`gruppe|${M} Gruppe`],
-    );
+    expect(
+      await treffer(konten.lesen, "Quarkstrudel Gruppen", "gruppe"),
+    ).toEqual([`gruppe|${M} Gruppe`]);
     // Ein anderes Wort trifft nicht
     expect(await treffer(konten.lesen, "Himbeertorte")).toEqual([]);
   });
@@ -682,8 +704,12 @@ describe("Treffer, Tippfehler und Grenzen", () => {
 
   test("Eingabe: zu kurz, zu lang, Steuerzeichen, unbekannter Parameter, kein Wort", async () => {
     expect((await suche(konten.lagerleitung, "a")).status).toBe(400);
-    expect((await suche(konten.lagerleitung, "a".repeat(101))).status).toBe(400);
-    expect((await suche(konten.lagerleitung, "a".repeat(100))).status).toBe(200);
+    expect((await suche(konten.lagerleitung, "a".repeat(101))).status).toBe(
+      400,
+    );
+    expect((await suche(konten.lagerleitung, "a".repeat(100))).status).toBe(
+      200,
+    );
     expect((await suche(konten.lagerleitung, "ab\u0000cd")).status).toBe(400);
     const res = await app.request(`${L()}/suche?q=zelt&nach=1`, {
       headers: konten.lagerleitung.headers,
@@ -700,7 +726,13 @@ describe("Treffer, Tippfehler und Grenzen", () => {
   });
 
   test("Syntax der Datenbank-Suche wird zu Text: Anführungszeichen, Operatoren, Klammern", async () => {
-    for (const q of [`' & | ! ( ) :* <->`, `"a" or "b"`, `Quark'strudel`, "x:*y", "ab\\cd"]) {
+    for (const q of [
+      `' & | ! ( ) :* <->`,
+      `"a" or "b"`,
+      `Quark'strudel`,
+      "x:*y",
+      "ab\\cd",
+    ]) {
       const a = await suche(konten.lagerleitung, q);
       expect(a.status, q).toBe(200);
     }
@@ -771,7 +803,7 @@ describe("Audit, Datenbanklast, Index", () => {
     expect(abfragen.length).toBeLessThanOrEqual(5);
   });
 
-  test("Suche benutzt den Index: Der Ausdruck jeder Quelle ist wörtlich der Ausdruck ihrer beiden GIN-Indizes (Migration 0097)", async () => {
+  test("Suche benutzt den Index: Der Ausdruck jeder Quelle ist wörtlich der Ausdruck ihrer beiden GIN-Indizes (Migration 0098)", async () => {
     const person = {
       id: konten.lagerleitung.id!,
       abteilungId: welt.testabteilungId,
@@ -797,18 +829,27 @@ describe("Audit, Datenbanklast, Index", () => {
         .map((r) => r["QUERY PLAN"])
         .join("\n")
         .replaceAll(`${name}.`, "");
-      const abfrage = /to_tsvector\('german'::regconfig, (.+?)\) @@ /.exec(plan);
-      expect(abfrage, `${q.typ} ${name}: kein Suchausdruck im Plan`).not.toBeNull();
-      const ausdruck = abfrage![1]!;
-      expect(await indexdef(`${name}_suche_fts_idx`), `${q.typ} ${name}`).toContain(
-        `USING gin (to_tsvector('german'::regconfig, ${ausdruck}))`,
+      const abfrage = /to_tsvector\('german'::regconfig, (.+?)\) @@ /.exec(
+        plan,
       );
+      expect(
+        abfrage,
+        `${q.typ} ${name}: kein Suchausdruck im Plan`,
+      ).not.toBeNull();
+      const ausdruck = abfrage![1]!;
+      expect(
+        await indexdef(`${name}_suche_fts_idx`),
+        `${q.typ} ${name}`,
+      ).toContain(`USING gin (to_tsvector('german'::regconfig, ${ausdruck}))`);
       // Ein Ausdruck aus einem einzigen Aufruf druckt Postgres ohne zweite Klammer
       const trgm = await indexdef(`${name}_suche_trgm_idx`);
-      expect([
-        `USING gin (${ausdruck} gin_trgm_ops)`,
-        `USING gin ((${ausdruck}) gin_trgm_ops)`,
-      ].some((teil) => trgm.includes(teil)), `${q.typ} ${name}: ${trgm}`).toBe(true);
+      expect(
+        [
+          `USING gin (${ausdruck} gin_trgm_ops)`,
+          `USING gin ((${ausdruck}) gin_trgm_ops)`,
+        ].some((teil) => trgm.includes(teil)),
+        `${q.typ} ${name}: ${trgm}`,
+      ).toBe(true);
     }
   });
 });

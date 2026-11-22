@@ -1,6 +1,6 @@
 -- Volltextsuche im Lager (#399): Erweiterung pg_trgm, die Funktion lager_suche_liste und je durchsuchter Tabelle zwei GIN-Indizes auf dem Suchtext (to_tsvector('german', …) für Wortstämme und Wortanfänge, gin_trgm_ops für Tippfehler). Keine Spalten, keine Zeilen: Der Suchtext wird nicht gespeichert, nur indiziert. Der Ausdruck jeder Quelle steht in src/lager/suche.ts (Quellen der Module); der Test «Suche benutzt den Index» prüft, dass beide übereinstimmen.
 -- Voraussetzung: CREATE EXTENSION pg_trgm braucht das Recht CREATE auf der Datenbank. pg_trgm ist seit PostgreSQL 13 eine vertrauenswürdige Erweiterung (trusted): Der Besitzer der Datenbank (cevi_os_besitzer, die Migrationsrolle) darf sie ohne Superuser anlegen; das Image postgres:18 bringt sie mit (contrib). Ist sie schon da, ändert IF NOT EXISTS nichts. Siehe docs/betrieb.md.
--- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0097_lager_suche.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0097_lager_suche.sql
+-- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0098_lager_suche.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0098_lager_suche.sql
 --   Die Suche fällt aus (die Route liefert dann einen Fehler); es gehen keine Daten verloren. Die Erweiterung pg_trgm bleibt stehen (andere Teile könnten sie brauchen).
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 --> statement-breakpoint
@@ -97,3 +97,11 @@ CREATE INDEX "adressbuch_kontakt_suche_trgm_idx" ON "adressbuch_kontakt" USING g
 CREATE INDEX "meilenstein_suche_fts_idx" ON "meilenstein" USING gin (to_tsvector('german', coalesce(titel, '')));
 --> statement-breakpoint
 CREATE INDEX "meilenstein_suche_trgm_idx" ON "meilenstein" USING gin ((coalesce(titel, '')) gin_trgm_ops);
+--> statement-breakpoint
+CREATE INDEX "tagesseite_suche_fts_idx" ON "tagesseite" USING gin (to_tsvector('german', coalesce(notiz, '')));
+--> statement-breakpoint
+CREATE INDEX "tagesseite_suche_trgm_idx" ON "tagesseite" USING gin ((coalesce(notiz, '')) gin_trgm_ops);
+--> statement-breakpoint
+CREATE INDEX "tagesseite_block_suche_fts_idx" ON "tagesseite_block" USING gin (to_tsvector('german', coalesce(text, '')));
+--> statement-breakpoint
+CREATE INDEX "tagesseite_block_suche_trgm_idx" ON "tagesseite_block" USING gin ((coalesce(text, '')) gin_trgm_ops);

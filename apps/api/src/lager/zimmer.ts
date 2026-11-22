@@ -34,10 +34,7 @@ registriereSuchquelle({
   titel: sql`${zimmer.name}`,
   filter: (zugriff, db) =>
     nurEigenes(zugriff)
-      ? inArray(
-          zimmer.id,
-          meineZimmer(db, zugriff.lager.id, zugriff.personId),
-        )
+      ? inArray(zimmer.id, meineZimmer(db, zugriff.lager.id, zugriff.personId))
       : undefined,
 });
 registriereLagerTabelle({

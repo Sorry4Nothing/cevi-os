@@ -1,6 +1,6 @@
--- Rückweg zu 0097_lager_suche (#399), als Besitzer der Datenbank in einer Transaktion ausführen:
---   psql -1 -f rueckweg/0097_lager_suche.sql
--- Danach den Code auf den Stand vor 0097 zurückstellen (ohne Suche). Die Erweiterung pg_trgm bleibt stehen.
+-- Rückweg zu 0098_lager_suche (#399), als Besitzer der Datenbank in einer Transaktion ausführen:
+--   psql -1 -f rueckweg/0098_lager_suche.sql
+-- Danach den Code auf den Stand vor 0098 zurückstellen (ohne Suche). Die Erweiterung pg_trgm bleibt stehen.
 DROP INDEX "ressort_suche_trgm_idx";
 DROP INDEX "ressort_suche_fts_idx";
 DROP INDEX "ressort_notiz_suche_trgm_idx";
@@ -47,5 +47,9 @@ DROP INDEX "adressbuch_kontakt_suche_trgm_idx";
 DROP INDEX "adressbuch_kontakt_suche_fts_idx";
 DROP INDEX "meilenstein_suche_trgm_idx";
 DROP INDEX "meilenstein_suche_fts_idx";
+DROP INDEX "tagesseite_suche_trgm_idx";
+DROP INDEX "tagesseite_suche_fts_idx";
+DROP INDEX "tagesseite_block_suche_trgm_idx";
+DROP INDEX "tagesseite_block_suche_fts_idx";
 DROP FUNCTION "lager_suche_liste"(text[]);
 DELETE FROM "drizzle"."__drizzle_migrations" WHERE "id" = (SELECT max("id") FROM "drizzle"."__drizzle_migrations");
