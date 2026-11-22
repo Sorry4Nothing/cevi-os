@@ -4,6 +4,8 @@ import { rahmen, type Kontext } from "./rendern.js";
 // Die Adressen «termine» und «anlass» gehören dazu (RESERVIERTE_ADRESSEN in seiten.ts), damit keine Seite aus dem Editor sie überdeckt.
 
 export const STIL_TERMINE = "/website/termine.css";
+// Das eigene Auswahlfeld (#564): Stil zu public/website/auswahl.js
+export const STIL_AUSWAHL = "/website/auswahl.css";
 
 type Definition = {
   datei: string;
@@ -62,7 +64,7 @@ function seite(s: Definition, k: Kontext): string {
     aktuell: null,
     robots: "noindex",
     skript: `/website/${s.skript}.js`,
-    stile: [STIL_TERMINE],
+    stile: [STIL_TERMINE, STIL_AUSWAHL],
     inhalt: `<div class="tm">
 ${kopf}
 <div id="tm-app" data-seite="${s.seite}">

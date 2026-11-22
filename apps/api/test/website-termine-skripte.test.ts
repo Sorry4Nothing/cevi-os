@@ -13,6 +13,8 @@ import * as anlass from "../public/website/anlass.js";
 // @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
 import * as anmeldung from "../public/website/anmeldung.js";
 // @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
+import { sucheTreffer } from "../public/website/auswahl.js";
+// @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
 import { sicheresZiel } from "../public/website/weiter.js";
 
 const html = tm.html as (d: unknown) => string;
@@ -843,5 +845,22 @@ describe("weiter: Ziele der Seiten eines Anlasses", () => {
     `//evil.example?id=${ID}`,
   ])("%s wird zu «/»", (z) => {
     expect(sicheresZiel(z)).toBe("/");
+  });
+});
+
+describe("auswahl: Tippen springt zur Option (#564)", () => {
+  const namen = ["Alle Gruppen", "Artemis", "Exodus", "Fröschli", "Äste"];
+  test("Anfang des Namens, ohne Gross- und Kleinschreibung, ab der aktuellen Option", () => {
+    expect(sucheTreffer(namen, "ex", 0)).toBe(2);
+    expect(sucheTreffer(namen, "FR", 4)).toBe(3);
+    expect(sucheTreffer(namen, "ä", 0)).toBe(4);
+    expect(sucheTreffer(namen, "x", 0)).toBe(-1);
+  });
+  test("derselbe Buchstabe mehrmals blättert durch die Treffer", () => {
+    expect(sucheTreffer(namen, "a", 0)).toBe(1);
+    expect(sucheTreffer(namen, "aa", 1)).toBe(0);
+  });
+  test("gesperrte Optionen werden übersprungen", () => {
+    expect(sucheTreffer(namen, "a", 0, [false, true])).toBe(0);
   });
 });

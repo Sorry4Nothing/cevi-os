@@ -26,6 +26,8 @@ import {
   zustandView,
 } from "./tm.js";
 import { startLink } from "./termine-link.js";
+// Wertet die Auswahlfelder (Gruppe, Zeitraum) zum eigenen Auswahlfeld auf
+import "./auswahl.js";
 
 export const ZEITRAEUME = [
   { schluessel: "3m", name: "Nächste 3 Monate" },
@@ -442,7 +444,6 @@ export function werkzeugView(s, gruppen) {
             h("option", { value: o.wert, selected: o.wert === wert }, o.name),
           ),
         ),
-        icon("runter"),
       ),
     );
   return h(

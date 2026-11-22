@@ -74,6 +74,10 @@ describe("Seiten für Termine und Anlässe", () => {
       expect(dateien).toContain(skript);
     }
     expect(dateien).toContain("termine.css");
+    // Das eigene Auswahlfeld (#564): Stil und Skript liegen daneben
+    expect(seiten[0]![1]).toContain('href="/website/auswahl.css"');
+    expect(dateien).toContain("auswahl.css");
+    expect(dateien).toContain("auswahl.js");
     expect(existsSync(new URL("termine.css", PUBLIC))).toBe(true);
   });
 
@@ -97,7 +101,9 @@ describe("Stil und Module der Seiten", () => {
   });
   test("kein innerHTML, kein eval in den Modulen", () => {
     for (const n of readdirSync(PUBLIC).filter((n) =>
-      /^(tm|termine|termine-link|vorschlag|anlass|anmeldung)\.js$/.test(n),
+      /^(tm|termine|termine-link|vorschlag|anlass|anmeldung|auswahl)\.js$/.test(
+        n,
+      ),
     )) {
       const q = readFileSync(new URL(n, PUBLIC), "utf8").replace(
         /\/\/.*$/gm,
