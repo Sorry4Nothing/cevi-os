@@ -2,7 +2,7 @@
 
 Wer einen Termin sieht, hängt seit #449 nur noch an seinen **Tags**. Die Tags eines Termins kommen aus den **Kategorien**, die du im Outlook-Kalender setzt. Die Regel nach dem Titel («Stufen», Stufenname im Titel) und die Zuordnung von Hand im Bereich «Kalender» gibt es nicht mehr.
 
-Diese Anleitung sagt dir, welche Kategorien du in Outlook anlegen musst und wie du die Umstellung durchführst. Namen von Stufen, Teams und Funktionen stehen nicht in diesem Repo: Du findest sie im Admin-Bereich «Tags». Unten stehen deshalb Platzhalter wie `<Stufenname>`.
+Diese Anleitung sagt dir, welche Kategorien du in Outlook anlegen kannst und wie du die Umstellung durchführst. **Die Umstellung ist freiwillig und du bestimmst den Zeitpunkt.** Bis du Kategorien setzt, bleibt alles, wie es war. Namen von Stufen, Teams und Funktionen stehen nicht in diesem Repo: Du findest sie im Admin-Bereich «Tags». Unten stehen deshalb Platzhalter wie `<Stufenname>`.
 
 ## So funktioniert es
 
@@ -11,13 +11,15 @@ Diese Anleitung sagt dir, welche Kategorien du in Outlook anlegen musst und wie 
   1. Zuerst gilt eine **Abweichung** aus dem Reiter «Kategorien» (Admin → Termine → Kategorien).
   2. Gibt es keine, gilt der **Tag mit demselben Namen**. Der Vergleich ignoriert Gross- und Kleinschreibung und Leerzeichen am Rand: Die Kategorie ` biber` trifft den Tag `Biber`.
 - Eine Kategorie ohne passenden Tag ergibt keinen Tag. Sie erscheint in der Warnliste unter «Kategorien ohne Tag».
-- Die Tags eines Termins werden bei **jedem Lauf neu berechnet**. Änderst du in Outlook die Kategorien, gilt das nach höchstens 5 Minuten. Das gilt auch für Tags, die vorher von Hand oder durch die Migration gesetzt waren: Bei Terminen aus dem Kalender zählen allein die Kategorien.
+- Hat ein Termin **mindestens eine Kategorie, die einem Tag entspricht**, werden seine Tags bei jedem Lauf aus den Kategorien neu berechnet. Änderst du in Outlook die Kategorien, gilt das nach höchstens 5 Minuten. Die Kategorien gewinnen dann gegen Tags, die vorher durch die Migration gesetzt waren.
+- Hat ein Termin **keine Kategorie oder keine, die einem Tag entspricht**, bleiben seine Tags unberührt. Das gilt auch für Tags aus der Migration 0126, die die frühere Stufen-Zuordnung übernommen hat. Entfernst du alle Kategorien eines Termins, bleiben darum seine bisherigen Tags stehen.
 
 ### Wer sieht einen Termin
 
 - Eine Person sieht einen Termin, wenn sie **einen** der Tags des Termins trägt (ODER, nicht UND). Das gilt für Tags jedes Typs.
 - Eltern tragen keine Tags. Sie sehen Termine der Stufen-Tags ihrer aktiven Kinder.
-- Ein Termin **ohne Tag** sieht niemand, auch nicht die Abteilungsleitung. Er steht in der Warnliste (Admin → Termine → Warnliste), bis er eine passende Kategorie hat.
+- **Ohne Tag:** Der Termin ist keiner Gruppe zugewiesen. Er steht im Alle-Kalender (`GET /api/v1/termine/alle`, nur für die Abteilungsleitung), nicht in «Mein Kalender» und nicht im Kalender-Link. Leitende und Eltern sehen ihn nicht. Er steht in der Warnliste (Admin → Termine → Warnliste), bis er eine passende Kategorie hat.
+- **Mit Tag:** Der Termin erscheint bei allen, die den Tag tragen (Eltern über die Stufe ihrer Kinder).
 - Ein Termin mit mehreren Kategorien, zum Beispiel `<Stufenname A>` und `<Stufenname B>`, gehört zu beiden Stufen.
 - Es gibt **keine Sammelkategorie «alle Stufen»**. Gilt ein Termin für alle Stufen, setze alle Stufen-Kategorien. Die Zuordnung im Reiter «Kategorien» verbindet eine Kategorie mit genau einem Tag.
 
@@ -47,23 +49,23 @@ Das geht. Der Server liest alle Kategorien eines Termins (mehrere Zeilen oder du
 
 ## Umstellung Schritt für Schritt
 
-Die Kategorien liest der Server schon seit #432. Du kannst die Schritte 1 bis 3 deshalb **vor** dem Einspielen dieser Version erledigen.
+Die Kategorien liest der Server schon seit #432. Du kannst die Schritte zu jedem beliebigen Zeitpunkt erledigen, vor oder nach dem Einspielen dieser Version, auch nur für einzelne Stufen. Ein Termin, den du noch nicht umgestellt hast, behält seine bisherigen Tags.
 
 1. **Tags prüfen oder anlegen.** Öffne Admin → Tags. Jede Stufe hat einen Tag vom Typ «Stufe». Lege fehlende Funktions-, Team- und Lager-Tags an und notiere die genauen Namen.
 2. **Kategorien in Outlook anlegen.** Lege für jeden Tag, der Termine bekommen soll, eine Kategorie mit **demselben Namen** an. Willst du einen anderen Namen, lege die Kategorie so an, wie du sie willst, und verbinde sie in Schritt 4 im Reiter «Kategorien» mit dem Tag.
 3. **Bestehende Termine umkategorisieren.** Setze bei jedem kommenden Samstagstermin die Kategorien, die früher aus dem Titel oder von Hand kamen. Ein Termin für mehrere Stufen bekommt mehrere Kategorien. Der nächste Lauf (höchstens 5 Minuten) übernimmt sie.
 4. **Warnliste leeren.** Öffne Admin → Termine → Warnliste.
-   - «Termine ohne Tag» zeigt kommende Termine, die niemand sieht. Setze in Outlook eine Kategorie.
+   - «Termine ohne Tag» zeigt kommende Termine ohne Tag. Sie sind keiner Gruppe zugewiesen. Setze in Outlook eine Kategorie.
    - «Kategorien ohne Tag» zeigt Kategorien, die keinem Tag entsprechen. Lege den Tag an oder verbinde die Kategorie im Reiter «Kategorien» mit einem Tag.
    - Warte nach jeder Änderung bis zum nächsten Lauf und lade die Seite neu. Die Warnliste ist leer, wenn alle kommenden Termine einen Tag haben.
-5. **Gegenprobe.** Lege in Outlook einen Test-Termin an einem Samstag mit der Kategorie einer Stufe an. Nach 5 Minuten muss er in der App der Leitenden dieser Stufe erscheinen und nicht bei anderen Stufen. Erscheint er in der Warnliste, liefert der Kalender die Kategorien nicht oder der Name passt nicht.
+5. **Gegenprobe.** Lege in Outlook einen Test-Termin an einem Samstag mit der Kategorie einer Stufe an. Nach 5 Minuten muss er bei den Leitenden und Eltern dieser Stufe erscheinen und nicht bei anderen Stufen. Erscheint er in der Warnliste, liefert der Kalender die Kategorien nicht oder der Name passt nicht.
 
 ### Was beim Einspielen passiert
 
-- Die Migration 0126 schreibt die bisherige Zuordnung der Termine zu Stufen in die Tags. Ein Termin ohne eigene Zuordnung (galt für alle Stufen) bekommt alle Stufen-Tags der Abteilung.
-- Termine aus dem Kalender behalten diese Tags **nur bis zum nächsten Lauf**. Dann rechnet der Server sie aus den Kategorien neu. Ein kommender Termin ohne Kategorie ist danach für niemanden sichtbar und steht in der Warnliste. Erledige darum die Schritte 1 bis 3 vor dem Einspielen.
-- Der Abgleich rechnet nur Termine von gestern bis 400 Tage voraus neu. Ältere Termine behalten die Tags aus der Migration, damit Auswertungen wie die Anwesenheit sie weiter sehen.
+- Die Migration 0126 schreibt die bisherigen Zuordnungen der Termine zu Stufen in die Tags. Ein Termin ohne bisherige Zuordnung (galt für alle Stufen) bleibt ohne Tag.
+- **Übergangsregel:** Termine, die vor dem Einspielen eine Stufe hatten (auch eine aus dem Titel), behalten sie, bis du Kategorien setzt. Neue Termine ohne Kategorie sind keiner Gruppe zugewiesen: Es gibt keine Titelregel mehr. Sie erscheinen im Alle-Kalender und in der Warnliste, bis sie eine Kategorie bekommen.
+- Der Abgleich rechnet nur Termine von gestern bis 400 Tage voraus. Ältere Termine behalten ihre Tags, damit Auswertungen wie die Anwesenheit sie weiter sehen.
 
 ### Alte App-Versionen
 
-Die Android-App ruft noch `GET /api/v1/programme` auf. Die Route liefert weiter Termine, aber nur noch nach den Stufen-Tags. Das Zuordnen in der App (`PUT /api/v1/programme/{id}/zuordnung`) gibt es nicht mehr. Die Apps sollen auf `GET /api/v1/termine/mein` und `GET /api/v1/termine/{id}` umstellen. Die Ja/Nein-Antwort der Teilnahme bleibt.
+Die Android-App ruft noch `GET /api/v1/programme` auf. Die Route liefert weiter Termine, aber nur noch nach den Stufen-Tags: Ein Termin ohne Tag liefert sie Leitenden und Eltern nicht mehr (Admins und Stufenleitungen sehen ihn weiter). Das Zuordnen in der App (`PUT /api/v1/programme/{id}/zuordnung`) gibt es nicht mehr. Die Apps sollen auf `GET /api/v1/termine/mein` und `GET /api/v1/termine/{id}` umstellen. Die Ja/Nein-Antwort der Teilnahme bleibt.

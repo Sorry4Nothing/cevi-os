@@ -9,7 +9,7 @@ import type { Person } from "../../rechte.js";
 import type { TermineEnv } from "./index.js";
 
 // Abweichungen «Outlook-Kategorie meint diesen Tag» verwalten (#434, Epic #430; Recht «termine.kategorien_zuordnen»). Nur die Abteilungsleitung (Admin; den zweiten Faktor verlangt schon der Pfad /api/v1/admin/*).
-// Eine Änderung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten): kalender/tags-zuordnen.ts liest die Zeilen und rechnet programm_tag in jedem Lauf neu. Darum hier kein Neuzuordnen der bestehenden Termine.
+// Eine Änderung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten): kalender/tags-zuordnen.ts liest die Zeilen und rechnet programm_tag in jedem Lauf neu (für Termine mit mindestens einer zuordenbaren Kategorie). Darum hier kein Neuzuordnen der bestehenden Termine.
 const HOECHSTENS = 500;
 
 // Ohne Steuerzeichen (auch keine Zeilenumbrüche); getrimmt, wie kategorienVon die Namen liest

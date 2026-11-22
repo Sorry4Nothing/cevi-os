@@ -4,7 +4,7 @@ import { kind, kindEltern, personTag, tag } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 // Sicht der Termine (Epic #430, #435): Ein Termin gehört zu den Tags in programm_tag; die Person sieht ihn, wenn sie einen dieser Tags hat.
-// «Kein Tag» heisst «für niemanden sichtbar», auch nicht für die Abteilungsleitung (die alte Regel «ohne Stufe = alle Stufen» entfiel mit #449).
+// Ein Termin ohne Tag ist keiner Gruppe zugewiesen: nie in «Mein Kalender» und nie im ICS-Feed, in «Alle» nur für die Abteilungsleitung (die alte Regel «ohne Stufe = alle Stufen» entfiel mit #449).
 
 // Die Tags der Person, getrennt nach Herkunft: eigene Tags (person_tag, auch die Stufenrolle) und die Stufen der aktiven Kinder (Annahme A1, abgeleitet, nicht gespeichert)
 export interface SichtTags {
@@ -82,13 +82,13 @@ export function anlassTermine(person: Pick<Person, "abteilungId">): SQL {
   return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from anlass where anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id and anlass.sichtbarkeit in ('angemeldet', 'oeffentlich')) and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
 }
 
-// «Alle Termine» (Web): Die Abteilungsleitung sieht jeden Termin der Abteilung mit mindestens einem Tag («intern» wie überall ausgeblendet, A5); alle anderen «Mein Kalender» plus die Anlass-Termine. Ohne Tag nie.
+// «Alle Termine» (Web): Die Abteilungsleitung sieht jeden Termin der Abteilung, auch einen ohne Tag («intern» wie überall ausgeblendet, A5); alle anderen «Mein Kalender» plus die Anlass-Termine. Ein Termin ohne Tag ist keiner Gruppe zugewiesen (#449): Er steht nur in «Alle» für die Abteilungsleitung, nie in «Mein Kalender» und nie im ICS-Feed.
 export function alleTermine(
   person: Pick<Person, "abteilungId" | "admin">,
   t: SichtTags,
 ) {
   if (person.admin) {
-    return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
+    return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern')`;
   }
   return sql`(${meineTermine(person, t)} or ${anlassTermine(person)})`;
 }

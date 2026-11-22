@@ -1,7 +1,7 @@
 import { anfrage, fehlertext } from "./api.js";
 import { chip, el, knopf, tabelle } from "./dom.js";
 
-// Reiter «Warnliste» (#433, Epic #430): kommende Termine, die niemand sieht, und Kategorien aus Outlook, die noch keinem Tag entsprechen. Schnittstelle: siehe termine.js.
+// Reiter «Warnliste» (#433, Epic #430): kommende Termine ohne Tag und Kategorien aus Outlook, die noch keinem Tag entsprechen. Schnittstelle: siehe termine.js.
 // Eine Abfrage beim Öffnen und je «Weitere laden»; kein Polling. Die Rechte prüft der Server (nur Abteilungsleitung).
 
 const ZONE = "Europe/Zurich";
@@ -149,7 +149,7 @@ function zeichne(bereich, erste) {
     el(
       "p",
       { class: "leise tm-warnliste-text" },
-      "Hier stehen kommende Termine, die niemand sieht, weil sie keinen Tag haben. Die Tags kommen aus den Kategorien in Outlook. Abgesagte und interne Termine fehlen.",
+      "Hier stehen kommende Termine ohne Tag. Sie sind keiner Gruppe zugewiesen: Leitende und Eltern sehen sie nicht in «Mein Kalender». Die Tags kommen aus den Kategorien in Outlook. Abgesagte und interne Termine fehlen.",
     ),
     zaehler,
     el("h3", { class: "tm-warnliste-unter" }, "Termine ohne Tag"),

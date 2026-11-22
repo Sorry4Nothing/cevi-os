@@ -18370,7 +18370,7 @@ paths:
       tags:
         - Termine
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
 
         Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
         Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
@@ -18539,7 +18539,7 @@ paths:
 
         Sichtbar ist ein Termin, wenn er mindestens einen Tag der Person trägt:
         - Tags der Person sind ihre eigenen Tags (auch die Stufenrolle der Leitung) und, für Eltern, die Stufe jedes ihrer aktiven Kinder.
-        - Ein Termin ohne Tag ist für niemanden sichtbar, auch nicht für die Abteilungsleitung. Wer keinen Tag hat, bekommt eine leere Liste.
+        - Ein Termin ohne Tag ist keiner Gruppe zugewiesen und steht hier nie, auch nicht für die Abteilungsleitung (er erscheint nur in `GET /api/v1/termine/alle`). Wer keinen Tag hat, bekommt eine leere Liste.
         - Mit mehreren passenden Tags erscheint der Termin trotzdem einmal.
         - Die Sichtbarkeit «intern» blendet den Termin für alle aus; «leitende» sehen nur Personen mit eigenem Tag, nicht Eltern über ihre Kinder.
         - Abgesagte Termine bleiben sichtbar (`status` «abgesagt»).
@@ -18706,9 +18706,9 @@ paths:
         Ein Termin erscheint je Person einmal.
 
         Was die Person sieht:
-        - Abteilungsleitung (Admin): jeden Termin der eigenen Abteilung mit mindestens einem Tag, mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
+        - Abteilungsleitung (Admin): jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
         - Alle anderen: die Termine aus «Mein Kalender» (`meine` ist wahr), mit den eigenen Tags. Dazu kommen die Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich» (`meine` falsch, wenn kein eigener Tag passt); `anlass` trägt dann den Verweis auf die Anmeldung wie in «Mein Kalender».
-        - Ein Termin ohne Tag nie, auch nicht für die Abteilungsleitung. Fremde Abteilungen nie.
+        - Ein Termin ohne Tag nur für die Abteilungsleitung, für alle anderen nie. Fremde Abteilungen nie.
 
         Statuscodes: 200 Erfolg; 304 unverändert; 400 `von` oder `bis` fehlt oder ist kein Datum, `von` nach `bis`, mehr als 400 Tage, `limit` ausserhalb 1 bis 100, ungültiges `nach` oder unbekannte Query-Parameter;
         401 keine gültige Sitzung; 403 das Konto muss zuerst das Passwort ändern; 404 die Anfrage trägt `X-App-Version`; 429 zu viele Anfragen.

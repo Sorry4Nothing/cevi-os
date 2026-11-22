@@ -23,7 +23,8 @@ export function tagsFuerKategorien(
   return [...ids];
 }
 
-// Berechnet programm_tag der Programme neu und schreibt nur den Unterschied. Je Lauf und Abteilung drei Abfragen
+// Berechnet programm_tag der Programme neu und schreibt nur den Unterschied. Übergangsregel (#449): Ein Termin ohne eine einzige Kategorie, die einem Tag entspricht,
+// behält seine vorhandenen Zeilen (aus der Migration 0126 oder früher gesetzt); erst eine zuordenbare Kategorie ersetzt sie, dann gewinnen die Kategorien. Je Lauf und Abteilung drei Abfragen
 // (Tags, Abweichungen, bisherige Zeilen) und höchstens ein Löschen und ein Einfügen, unabhängig von der Zahl der Termine.
 // Eine geänderte Zuordnung oder ein umbenannter Tag wirkt so beim nächsten Lauf
 export async function ordneTagsZu(
@@ -60,18 +61,21 @@ export async function ordneTagsZu(
 
   const neu: { programmId: string; tagId: string }[] = [];
   const soll = new Set<string>();
+  const neuBerechnet = new Set<string>();
   for (const p of programme) {
-    for (const tagId of tagsFuerKategorien(
-      p.kategorien,
-      nachKategorie,
-      tagsNachName,
-    )) {
+    const ids = tagsFuerKategorien(p.kategorien, nachKategorie, tagsNachName);
+    if (ids.length === 0) continue;
+    neuBerechnet.add(p.id);
+    for (const tagId of ids) {
       soll.add(`${p.id} ${tagId}`);
       if (!vorhanden.has(`${p.id} ${tagId}`))
         neu.push({ programmId: p.id, tagId });
     }
   }
-  const weg = bisher.filter((z) => !soll.has(`${z.programmId} ${z.tagId}`));
+  const weg = bisher.filter(
+    (z) =>
+      neuBerechnet.has(z.programmId) && !soll.has(`${z.programmId} ${z.tagId}`),
+  );
 
   if (weg.length > 0) {
     await tx.delete(programmTag).where(

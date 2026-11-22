@@ -100,7 +100,7 @@ test("0126: Zuordnungen wandern verlustfrei in programm_tag, programm_stufe entf
   const ohneZuordnung = await programm(eins, "Für alle Stufen");
   const fremdes = await programm(zwei, "Fremd");
   const bereitsGetaggt = await programm(eins, "Schon mit Tag");
-  await besitzer`insert into programm_stufe (programm_id, stufe_id) values (${mitStufe}, ${biber}), (${mitBeiden}, ${biber}), (${mitBeiden}, ${wolf}), (${bereitsGetaggt}, ${biber})`;
+  await besitzer`insert into programm_stufe (programm_id, stufe_id) values (${mitStufe}, ${biber}), (${mitBeiden}, ${biber}), (${mitBeiden}, ${wolf}), (${bereitsGetaggt}, ${biber}), (${fremdes}, ${fremd})`;
   // Ein Tag, den der Abgleich schon aus einer Kategorie gesetzt hat, bleibt; die Zuordnung dazu ist kein Duplikat
   await besitzer`insert into programm_tag (programm_id, tag_id) values (${bereitsGetaggt}, ${biber}), (${bereitsGetaggt}, ${team})`;
 
@@ -111,8 +111,8 @@ test("0126: Zuordnungen wandern verlustfrei in programm_tag, programm_stufe entf
 
   expect(await tagsVon(mitStufe)).toEqual([biber]);
   expect(await tagsVon(mitBeiden)).toEqual([biber, wolf].sort());
-  // Ohne Zuordnung galt das Programm für alle Stufen der Abteilung: genau diese, keine fremde und kein Team-Tag
-  expect(await tagsVon(ohneZuordnung)).toEqual([biber, wolf].sort());
+  // Ohne Zuordnung (galt für alle Stufen) bleibt das Programm ohne Tag: Eine Outlook-Kategorie weist es später zu
+  expect(await tagsVon(ohneZuordnung)).toEqual([]);
   expect(await tagsVon(fremdes)).toEqual([fremd]);
   expect(await tagsVon(bereitsGetaggt)).toEqual([biber, team].sort());
 
@@ -135,6 +135,7 @@ test("0126: Zuordnungen wandern verlustfrei in programm_tag, programm_stufe entf
       .map((z) => z.stufe_id as string)
       .sort();
   expect(await wirksam(mitStufe)).toEqual([biber]);
+  // Ohne Zeile in programm_stufe gilt es nach dem Rückweg wieder für alle Stufen der Abteilung
   expect(await wirksam(ohneZuordnung)).toEqual([biber, wolf].sort());
   expect(await tagsVon(bereitsGetaggt)).toEqual([biber, team].sort());
 

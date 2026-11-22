@@ -1,6 +1,6 @@
 -- Rückweg zu 0126_programm_stufe_abbau (#449), als Besitzer der Datenbank in einer Transaktion ausführen:
 --   psql -1 -f rueckweg/0126_programm_stufe_abbau.sql
--- Danach den Code auf den Stand vor 0126 zurückstellen. programm_stufe wird aus den Stufen-Tags in programm_tag gefüllt (jede Stufe ausdrücklich, auch bei «alle Stufen»);
+-- Danach den Code auf den Stand vor 0126 zurückstellen. programm_stufe wird aus den Stufen-Tags in programm_tag gefüllt (ein Programm ohne Stufen-Tag bleibt ohne Zeile und gilt dann wie früher für alle Stufen);
 -- programm_tag bleibt unverändert. Zuordnungen von Hand aus der Zeit davor lassen sich nicht von den Tags unterscheiden und gehen in dieser Form über.
 CREATE TABLE "programm_stufe" (
 	"programm_id" uuid NOT NULL,

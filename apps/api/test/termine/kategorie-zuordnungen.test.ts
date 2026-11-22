@@ -256,7 +256,7 @@ describe("DELETE", () => {
 });
 
 describe("Wirkung auf programm_tag", () => {
-  test("der nächste Abgleichsschritt setzt den Tag nach der Zuordnung und nimmt ihn nach dem Entfernen wieder weg", async () => {
+  test("der nächste Abgleichsschritt setzt den Tag nach der Zuordnung und lässt ihn nach dem Entfernen stehen (Übergangsregel #449)", async () => {
     const kategorie = `Eishockey ${randomUUID().slice(0, 8)}`;
     const tagId = await neuerTag();
     const p = await legeProgrammAn(db, { abteilungId: welt.testabteilungId });
@@ -283,8 +283,9 @@ describe("Wirkung auf programm_tag", () => {
     await lauf();
     expect(await tagsDes()).toEqual([tagId]);
 
+    // Ohne zuordenbare Kategorie bleiben die Tags stehen (Übergangsregel #449)
     await senden("DELETE", `${BASIS}/${id}`);
     await lauf();
-    expect(await tagsDes()).toEqual([]);
+    expect(await tagsDes()).toEqual([tagId]);
   });
 });
