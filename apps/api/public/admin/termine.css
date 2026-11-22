@@ -1,5 +1,222 @@
-/* Bereich «Termine» (Epic #430, Gerüst #431): Fläche für die Reiter. Klassen mit dem Vorsatz «tm-» */
+/* Bereiche «Termine», «Räume» und «Anlässe» nach dem Design «Cevi Web» (A8 bis A19): gemeinsame Bausteine. Klassen mit dem Vorsatz «tm-». Farben nur aus den Tokens. */
 
-.tm-inhalt {
-  margin-top: 24px;
+.tm-ziffern {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zweite Zeile in einer Zelle (Uhrzeit, Ort, Cevi-Name) */
+.tm-zeit {
+  display: block;
+}
+
+.tm-unter {
+  margin-top: 6px;
+}
+
+/* Freie Namen aus Outlook dürfen umbrechen */
+.tm-roh,
+.tm-roh .chip {
+  overflow-wrap: anywhere;
+}
+
+.tm-roh .chip {
+  white-space: normal;
+}
+
+.tm-rechts {
+  justify-content: flex-end;
+}
+
+.tm-meldung:not(:empty) {
+  margin: 0;
+}
+
+.tm-mehr {
+  display: flex;
+}
+
+.tm-mehr:has(> [hidden]) {
+  display: none;
+}
+
+/* Link im Namen einer Zeile: Trefferfläche 44 px hoch, ohne die Zeile zu vergrössern */
+.tm-link {
+  display: inline-block;
+  padding-block: 11px;
+  margin-block: -11px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tm-link:hover {
+  color: var(--akzent);
+}
+
+/* Zweispaltig: links eine Liste, rechts das Detail; schmal untereinander */
+.tm-zweispalt {
+  display: grid;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.tm-zweispalt.tm-gleich {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.tm-zweispalt.tm-einspaltig {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (max-width: 48rem) {
+  .tm-zweispalt,
+  .tm-zweispalt.tm-gleich {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Werkzeugleiste der Kalender-Seite: Zeitraum neben der Suche */
+.tm-zeitraumfeld {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-zeitraumfeld label {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.tm-zeitraum {
+  width: auto;
+  min-width: 12rem;
+}
+
+/* Spaltenkopf zum Sortieren: ein Knopf im Kopf, 44 px hoch ohne den Kopf zu vergrössern */
+.tm-sortknopf {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: -12px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  cursor: pointer;
+}
+
+th[aria-sort] .tm-sortknopf {
+  color: var(--text);
+}
+
+.tm-sortwort {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  color: var(--leise);
+  font-weight: 600;
+}
+
+.tm-sortwort .i {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.4;
+}
+
+/* Knopf, der wie ein Link im Text aussieht (Zusammenfassung «2 Angaben prüfen») */
+.tm-linkknopf {
+  min-height: 24px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Eintrag einer Tabelle, der ein Detail öffnet (Raumanfragen): Knopf wie ein Name */
+.tm-wahl {
+  min-height: 44px;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.tm-wahl[aria-pressed="true"] {
+  text-decoration-thickness: 3px;
+}
+
+.tm-filterzeile {
+  margin-bottom: 16px;
+}
+
+/* Unbestimmter Fortschritt (Export): Der Balken läuft nur, wenn Bewegung erlaubt ist */
+.tm-unbestimmt {
+  width: 40%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-unbestimmt {
+    animation: tm-lauf 1.4s ease-in-out infinite;
+  }
+
+  @keyframes tm-lauf {
+    from {
+      margin-left: -40%;
+    }
+
+    to {
+      margin-left: 100%;
+    }
+  }
+}
+
+/* Knöpfe in einer Fläche bleiben so breit wie ihr Text */
+.flaeche > .knopf {
+  align-self: flex-start;
+}
+
+.tabelle tbody th .tm-zeit {
+  font-weight: 400;
+}
+
+/* Tabellen mit langen Namen: Die Namensspalte bricht nicht mitten im Wort */
+.tm-tabelle tbody th {
+  min-width: 12rem;
+}
+
+/* Platz für einen fehlenden Knopf, damit die übrigen in einer Linie stehen */
+.tm-platz {
+  display: inline-block;
+  width: 44px;
+  height: 44px;
+}
+
+/* Lange Namen brechen an Wortgrenzen und drücken die Spalte nicht auf Buchstabenbreite; breite Tabellen scrollen */
+.tm-tabelle .name {
+  overflow-wrap: break-word;
+}
+
+.tm-tabelle table {
+  min-width: 52rem;
+}
+
+/* Link in einer Tabellenzelle: Trefferfläche 44 px hoch, ohne die Zeile zu vergrössern */
+.tm-tabellenlink {
+  display: inline-block;
+  padding-block: 11px;
+  margin-block: -11px;
 }

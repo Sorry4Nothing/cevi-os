@@ -7,6 +7,7 @@
 import { el } from "./dom.js";
 import { zustandsDaten, zustandsKarte, nochmals } from "./zustaende.js";
 
+const ALLGEMEIN = "Da ist etwas schiefgelaufen.";
 const VERZOEGERUNG_MS = 250;
 const MINDESTDAUER_MS = 400;
 const LANGSAM_MS = 4000;
@@ -151,14 +152,18 @@ function huelle(inhalt) {
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Lädt Daten in den Bereich und zeichnet sie; die zweite Funktion, die zeichnen bekommt, lädt dieselbe Ansicht nochmals, ohne den Bereich vorher zu leeren.
-// lade(laden, zeichnen, { skeleton }) — skeleton: Name aus SKELETONS, eine Funktion, die einen Knoten liefert, oder false (kein Skeleton). Vorgabe: «tabelle».
+// lade(laden, zeichnen, { skeleton, fehlertitel }) — skeleton: Name aus SKELETONS, eine Funktion, die einen Knoten liefert, oder false (kein Skeleton). Vorgabe: «tabelle».
 // Fehler: Zustandskarte mit «Nochmals versuchen»; bei 404 zusätzlich ein Knopf «Zur Übersicht» (zurUebersicht liefert ihn).
 export function erstelleLader(bereich, { zurUebersicht } = {}) {
   let lauf = 0;
-  async function lade(laden, zeichnen, { skeleton = "tabelle" } = {}) {
+  async function lade(
+    laden,
+    zeichnen,
+    { skeleton = "tabelle", fehlertitel } = {},
+  ) {
     const meine = ++lauf;
     const erstes = !bereich.firstChild;
-    const erneut = () => lade(laden, zeichnen, { skeleton });
+    const erneut = () => lade(laden, zeichnen, { skeleton, fehlertitel });
     let sichtbarSeit = 0;
     let platzhalter = null;
     let hinweis = null;
@@ -212,8 +217,11 @@ export function erstelleLader(bereich, { zurUebersicht } = {}) {
     hinweis?.remove();
     bereich.replaceChildren();
     if (fehler) {
+      const daten = zustandsDaten(fehler);
+      // Der allgemeine Serverfehler nennt, was nicht geladen wurde («Die Räume konnten nicht geladen werden.»)
+      if (fehlertitel && daten.titel === ALLGEMEIN) daten.titel = fehlertitel;
       const karte = zustandsKarte(
-        zustandsDaten(fehler),
+        daten,
         [nochmals(erneut), fehler.status === 404 && zurUebersicht?.()].filter(
           Boolean,
         ),

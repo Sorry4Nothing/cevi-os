@@ -4,8 +4,8 @@ import { describe, expect, test } from "vitest";
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
-// Reiter «Vorschläge» (#441): Er ruft nur die Routen der Abteilungsleitung aus #440 auf und schreibt nie anders als über «entscheid» und «eingetragen»
-describe("Admin-Panel: Termine, Reiter Vorschläge", () => {
+// Unterseite «Vorschläge» (#441, A9, A10): Sie ruft nur die Routen der Abteilungsleitung auf und schreibt nie anders als über «entscheid» und «eingetragen»
+describe("Admin-Panel: Termine, Vorschläge", () => {
   const modul = lies("termine-vorschlaege.js");
 
   test("Modul und Stilvorlage sind eingebunden", () => {
@@ -17,11 +17,9 @@ describe("Admin-Panel: Termine, Reiter Vorschläge", () => {
 
   test("lesen über GET, schreiben nur über entscheid und eingetragen", () => {
     expect(modul).toContain('"/api/v1/admin/termin-vorschlaege"');
-    expect([...modul.matchAll(/anfrage\("(\w+)"/g)].map((t) => t[1])).toEqual([
-      "GET",
-      "GET",
-      "POST",
-    ]);
+    expect(
+      [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]),
+    ).toEqual(["GET", "GET", "POST"]);
     expect(modul).toContain('pfad: "entscheid"');
     expect(modul).toContain('pfad: "eingetragen"');
   });

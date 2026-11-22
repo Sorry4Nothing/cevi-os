@@ -597,6 +597,81 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/kalenderhilfen.js:
+    get:
+      operationId: getAdminKalenderhilfenSkript
+      summary: Skript der Verwaltung – Gemeinsame Bausteine der Bereiche Termine, Räume und Anlässe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-kalender.js:
+    get:
+      operationId: getAdminTermineKalenderSkript
+      summary: Skript der Verwaltung – Bereich Termine, Unterseite Kalender
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-outlook.js:
+    get:
+      operationId: getAdminTermineOutlookSkript
+      summary: Skript der Verwaltung – Bereich Termine, Unterseite Outlook
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-anfragen.js:
+    get:
+      operationId: getAdminTermineAnfragenSkript
+      summary: Skript der Verwaltung – Bereich Räume, Unterseite Anfragen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-anmeldungen.js:
+    get:
+      operationId: getAdminTermineAnmeldungenSkript
+      summary: Skript der Verwaltung – Bereich Anlässe, Unterseite Anmeldungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/uebersicht.js:
     get:
       operationId: getAdminUebersichtSkript

@@ -282,3 +282,9 @@
     border: 1px solid CanvasText;
   }
 }
+
+/* Der Zusatz «, aktueller Bereich» für Screenreader ist absolut gesetzt: Ohne diesen Bezug läge er bei einem Bereich ausserhalb der Sichtbreite ausserhalb der Leiste und verbreiterte die Seite (390 px) */
+.bereichsleiste a,
+.unterleiste a {
+  position: relative;
+}

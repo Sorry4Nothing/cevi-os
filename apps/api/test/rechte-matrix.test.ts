@@ -178,6 +178,11 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/termine-anlaesse.css": { erwartet: alle(200) },
   "GET /admin/termine-raeume.js": { erwartet: alle(200) },
   "GET /admin/termine-raeume.css": { erwartet: alle(200) },
+  "GET /admin/kalenderhilfen.js": { erwartet: alle(200) },
+  "GET /admin/termine-kalender.js": { erwartet: alle(200) },
+  "GET /admin/termine-outlook.js": { erwartet: alle(200) },
+  "GET /admin/termine-anfragen.js": { erwartet: alle(200) },
+  "GET /admin/termine-anmeldungen.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {

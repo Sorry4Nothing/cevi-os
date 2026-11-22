@@ -6,13 +6,27 @@ import {
   feld,
   filterGruppe,
   knopf,
-  tabelle,
   zeit,
 } from "./dom.js";
+import {
+  entferneFeldFehler,
+  feldFehler,
+  meldungsDialog,
+  terminAnzeige,
+  zaehlwort,
+  ersetze,
+} from "./kalenderhilfen.js";
+import { skeletonListe } from "./lader.js";
+import {
+  leerKarte,
+  nochmals,
+  zustandsDaten,
+  zustandsKarte,
+} from "./zustaende.js";
 
-// Reiter «Vorschläge» (#441, TD3, Epic #430): Die Abteilungsleitung prüft Terminvorschläge, gibt sie frei oder lehnt sie ab und meldet freigegebene als in Outlook eingetragen. Cevi OS schreibt nie nach Outlook. Schnittstelle: siehe termine.js.
-// Adressen: #termine/vorschlaege (offene) · #termine/vorschlaege/<status> (freigegeben, abgelehnt, eingetragen) · #termine/vorschlaege/<id> (Detail)
-// Datenbanklast: eine Abfrage beim Öffnen der Liste und je Statuswechsel oder «Weitere laden» (50 Zeilen), eine beim Öffnen des Details, danach eine je Aktion; kein Polling. Die Rechte prüft der Server.
+// Unterseite «Vorschläge» (A9, A10, Epic #430): Die Abteilungsleitung prüft Terminvorschläge, gibt sie frei oder lehnt sie ab und meldet freigegebene als in Outlook eingetragen. Cevi OS schreibt nie nach Outlook: Die Schnittstelle zum Schreiben gibt es nicht, darum ist «Freigeben» immer die Fassung «Verbindung nicht eingerichtet» des Designs.
+// Adressen: #termine/vorschlaege (offene) · #termine/vorschlaege/<status> (freigegeben, abgelehnt, eingetragen) · #termine/vorschlaege/<id> (ein Vorschlag, die Liste zeigt seinen Stand)
+// Datenbanklast: eine Abfrage der Liste beim Öffnen, beim Wechsel des Stands und je «Weitere laden» (50 Zeilen); eine Abfrage des Details je Auswahl und je Entscheid. Kein Polling. Die Rechte prüft der Server.
 
 const BASIS = "/api/v1/admin/termin-vorschlaege";
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -24,7 +38,7 @@ const STATI = [
     "offen",
     "Offen",
     ["offener Vorschlag", "offene Vorschläge"],
-    "Es gibt keine offenen Vorschläge. Sobald jemand einen Termin vorschlägt, erscheint er hier.",
+    "Gerade wartet kein Vorschlag auf dich.",
   ],
   [
     "freigegeben",
@@ -53,7 +67,7 @@ const adresseVon = (status) =>
 
 // Der Status steht als Wort mit Symbol, nie nur als Farbe: [Text, Art, Symbol]
 const STATUS = {
-  offen: ["Offen", undefined, "uhr"],
+  offen: ["Offen", "warn", "uhr"],
   freigegeben: ["Freigegeben", "ok"],
   abgelehnt: ["Abgelehnt", "fehler"],
   in_outlook_eingetragen: ["In Outlook eingetragen", "ok"],
@@ -63,280 +77,7 @@ function statusChip(status) {
   return el("ul", { class: "chips" }, chip(text, art, symbol));
 }
 
-const ZONE = "Europe/Zurich";
-const format = (zone) =>
-  new Intl.DateTimeFormat("de-CH", {
-    weekday: "short",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    timeZone: zone,
-  });
-const tagFormat = format(ZONE);
-const tagUtc = format("UTC");
-const uhrFormat = new Intl.DateTimeFormat("de-CH", {
-  hour: "2-digit",
-  minute: "2-digit",
-  timeZone: ZONE,
-});
-
-// Ganztägige Vorschläge haben nur Tage (tagVon bis tagBis, der letzte Tag zählt mit), alle anderen Beginn und Ende als Zeitpunkt
-function zeitraum(v) {
-  if (v.ganztaegig) {
-    const von = tagUtc.format(new Date(`${v.tagVon}T12:00:00Z`));
-    if (v.tagVon === v.tagBis) return `${von}, ganztägig`;
-    return `${von} – ${tagUtc.format(new Date(`${v.tagBis}T12:00:00Z`))}, ganztägig`;
-  }
-  const beginn = new Date(v.beginn);
-  const ende = new Date(v.ende);
-  const tag = tagFormat.format(beginn);
-  const bis =
-    tagFormat.format(ende) === tag
-      ? uhrFormat.format(ende)
-      : `${tagFormat.format(ende)} ${uhrFormat.format(ende)}`;
-  return `${tag}, ${uhrFormat.format(beginn)} – ${bis} Uhr`;
-}
-
 const GELOESCHT = "Gelöschtes Konto";
-
-// Einmalige Hinweise für die nächste Zeichnung des Details (die Aktionen laden das Detail über denselben Weg nochmals)
-let nachAktion = false;
-let vermerk = "";
-const KONFLIKT =
-  "Jemand war schneller: Der Vorschlag hat inzwischen einen anderen Stand. Hier siehst du den aktuellen Stand.";
-const KONFLIKT_MARKE = "konflikt";
-
-export function zeige(bereich, ctx) {
-  const [erst] = ctx.pfad;
-  if (erst && UUID.test(erst)) {
-    ctx.lade(
-      () => anfrage("GET", `${BASIS}/${erst.toLowerCase()}`),
-      (vorschlag, neu) => zeichneDetail(bereich, ctx, vorschlag, neu),
-    );
-    return;
-  }
-  const eintrag = erst ? STATI.find(([adresse]) => adresse === erst) : STATI[0];
-  if (!eintrag) {
-    bereich.append(
-      el(
-        "p",
-        { class: "leer" },
-        "Diese Ansicht gibt es nicht. Wähle «Offen», «Freigegeben», «Abgelehnt» oder «Eingetragen».",
-      ),
-      el(
-        "p",
-        {},
-        el(
-          "a",
-          { class: "knopf", href: "#termine/vorschlaege" },
-          "Zu den Vorschlägen",
-        ),
-      ),
-    );
-    return;
-  }
-  const status = eintrag[1];
-  ctx.lade(
-    () => ladeSeite(status),
-    (erste) => zeichneListe(bereich, status, erste),
-  );
-}
-
-function ladeSeite(status, nach) {
-  const q = new URLSearchParams({ status });
-  if (nach) q.set("nach", nach);
-  return anfrage("GET", `${BASIS}?${q}`);
-}
-
-// Liste
-
-// Der Status steht nicht in der Zeile: Der Filter nennt ihn für die ganze Liste
-function zeile(v) {
-  return el(
-    "tr",
-    {},
-    el(
-      "th",
-      { scope: "row" },
-      el(
-        "a",
-        {
-          class: "name tm-vorschlaege-link",
-          href: `#termine/vorschlaege/${v.id}`,
-        },
-        v.titel,
-      ),
-    ),
-    el("td", {}, zeitraum(v)),
-    el(
-      "td",
-      {},
-      v.vorgeschlagenVonName ?? el("span", { class: "leise" }, GELOESCHT),
-    ),
-  );
-}
-
-function zeichneListe(bereich, start, erste) {
-  let aktuell = start;
-  let lauf = 0;
-  let geladen = 0;
-  let weitere = false;
-  let naechste = null;
-  let koerper = null;
-
-  const zaehler = el("p", {
-    class: "meta tm-vorschlaege-zaehler",
-    role: "status",
-  });
-  const meldung = el("p", {
-    class: "klein tm-vorschlaege-meldung",
-    role: "status",
-  });
-  const liste = el("div", { class: "tm-vorschlaege-liste" });
-  const mehr = knopf("Weitere laden", {
-    symbol: "runter",
-    onclick: () => ladeWeitere(),
-  });
-  mehr.hidden = true;
-  const freigabeHinweis = el(
-    "p",
-    { class: "hilfe tm-vorschlaege-hinweis" },
-    "Diese Vorschläge trägst du von Hand in Outlook ein und meldest sie danach als eingetragen.",
-  );
-
-  const filter = filterGruppe({
-    beschriftung: "Status",
-    eintraege: STATI.map(([, api, name]) => ({ text: name, wert: api })),
-    wert: start,
-    beiAenderung: (status) => wechsle(status),
-  });
-
-  function setze(seite, anhaengen) {
-    const [, , , woerter, leerText] = STATI.find(([, api]) => api === aktuell);
-    if (anhaengen) {
-      koerper.append(...seite.vorschlaege.map(zeile));
-      geladen += seite.vorschlaege.length;
-    } else {
-      geladen = seite.vorschlaege.length;
-      if (geladen === 0) {
-        koerper = null;
-        liste.replaceChildren(el("p", { class: "leer" }, leerText));
-      } else {
-        const t = tabelle({
-          beschriftung: `Terminvorschläge: ${woerter[1]}`,
-          spalten: ["Vorschlag", "Wann", "Vorgeschlagen von"],
-          zeilen: seite.vorschlaege.map(zeile),
-        });
-        koerper = t.koerper;
-        liste.replaceChildren(t.wurzel);
-      }
-    }
-    weitere = seite.weitere;
-    naechste = seite.naechste;
-    zaehler.textContent =
-      geladen === 0
-        ? ""
-        : `${weitere ? "Mindestens " : ""}${geladen} ${woerter[geladen === 1 ? 0 : 1]}`;
-    mehr.hidden = !weitere;
-    freigabeHinweis.hidden = aktuell !== "freigegeben";
-  }
-
-  async function wechsle(status) {
-    const mein = ++lauf;
-    aktuell = status;
-    meldung.textContent = "";
-    // Die Adresse folgt dem Filter, ohne den Bereich neu zu bauen: Der Fokus bleibt auf dem Knopf
-    window.history.replaceState(
-      null,
-      "",
-      `#termine/vorschlaege/${adresseVon(status)}`,
-    );
-    liste.setAttribute("aria-busy", "true");
-    zaehler.textContent = "Wird geladen …";
-    try {
-      const seite = await ladeSeite(status);
-      if (mein !== lauf || !bereich.isConnected) return;
-      setze(seite, false);
-    } catch (f) {
-      if (mein !== lauf || !bereich.isConnected) return;
-      zaehler.textContent = "";
-      mehr.hidden = true;
-      liste.replaceChildren(
-        el(
-          "p",
-          { class: "hinweis hinweis--fehler", role: "alert" },
-          fehlertext(f),
-        ),
-        el(
-          "p",
-          {},
-          knopf("Nochmals versuchen", {
-            art: "haupt",
-            symbol: "aktualisieren",
-            onclick: () => wechsle(status),
-          }),
-        ),
-      );
-    } finally {
-      if (mein === lauf) liste.removeAttribute("aria-busy");
-    }
-  }
-
-  async function ladeWeitere() {
-    const mein = lauf;
-    mehr.disabled = true;
-    mehr.setAttribute("aria-busy", "true");
-    meldung.textContent = "Weitere Vorschläge werden geladen …";
-    try {
-      const seite = await ladeSeite(aktuell, naechste);
-      // Zwischen Anfrage und Antwort kann man Reiter oder Status gewechselt haben
-      if (mein !== lauf || !bereich.isConnected) return;
-      setze(seite, true);
-      meldung.textContent = `${seite.vorschlaege.length} weitere geladen.`;
-      // Der Knopf verschwindet mit der letzten Seite: Der Fokus geht an die Tabelle statt ins Leere
-      if (!weitere) liste.querySelector("[tabindex]")?.focus();
-    } catch (f) {
-      if (mein === lauf) {
-        meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
-      }
-    } finally {
-      mehr.disabled = false;
-      mehr.removeAttribute("aria-busy");
-    }
-  }
-
-  bereich.append(
-    el("h2", { class: "tm-vorschlaege-titel" }, "Vorschläge"),
-    el(
-      "p",
-      { class: "leise tm-vorschlaege-hinweis" },
-      "Leitende schlagen neue Termine vor. Du entscheidest. Cevi OS trägt nichts in Outlook ein: Freigegebene Vorschläge trägst du dort von Hand ein.",
-    ),
-    el("div", { class: "tm-vorschlaege-filter" }, filter.wurzel),
-    freigabeHinweis,
-    zaehler,
-    liste,
-    meldung,
-    el("div", { class: "tm-vorschlaege-mehr" }, mehr),
-  );
-  setze(erste, false);
-}
-
-// Detail
-
-function werteZeilen(zeilen) {
-  return el(
-    "dl",
-    { class: "tm-vorschlaege-werte" },
-    zeilen
-      .filter(Boolean)
-      .map(([name, wert]) =>
-        el("div", {}, el("dt", {}, name), el("dd", {}, wert)),
-      ),
-  );
-}
-
-const text = (inhalt) => el("span", { class: "tm-vorschlaege-text" }, inhalt);
 
 function fehlerText(f) {
   if (f.status === 403 && f.code === "EIGENER_VORSCHLAG") {
@@ -348,234 +89,491 @@ function fehlerText(f) {
   return fehlertext(f);
 }
 
-// Der Dialog gibt den Fokus erst nach dem Neuzeichnen des Details zurück, und zwar an den Auslöser, den es dann nicht mehr gibt: Der Fokus geht darum nach seinem close-Ereignis an den Hinweis oder den Titel
-const fokusiere = () =>
-  (
-    document.querySelector(".tm-vorschlaege-konflikt") ??
-    document.querySelector(".tm-vorschlaege-titel")
-  )?.focus();
+const ladeListe = (status, nach) => {
+  const q = new URLSearchParams({ status });
+  if (nach) q.set("nach", nach);
+  return anfrage("GET", `${BASIS}?${q}`);
+};
+const ladeDetail = (id) => anfrage("GET", `${BASIS}/${id.toLowerCase()}`);
 
-// Ein Dialog mit Rückfrage; bei 409 (jemand war schneller) schliesst er sich, das Detail lädt neu und zeigt den aktuellen Stand mit einem Hinweis
-function aktion({ v, ctx, neu, pfad, body, erfolg, ...dialog }) {
-  const d = dialogFormular({
-    ...dialog,
-    fehlertext: fehlerText,
-    senden: async () => {
-      try {
-        return await anfrage("POST", `${BASIS}/${v.id}/${pfad}`, body?.());
-      } catch (f) {
-        if (f.status !== 409) throw f;
-        vermerk = KONFLIKT;
-        d.addEventListener("close", fokusiere, { once: true });
-        d.close();
-        neu();
-        return KONFLIKT_MARKE;
-      }
-    },
-    danach: (ergebnis) => {
-      if (ergebnis === KONFLIKT_MARKE) return;
-      nachAktion = true;
-      d.addEventListener("close", fokusiere, { once: true });
-      ctx.melde(erfolg);
-      neu();
-    },
-  });
-}
-
-function freigeben(v, ctx, neu) {
-  aktion({
-    v,
-    ctx,
-    neu,
-    pfad: "entscheid",
-    body: () => ({ entscheid: "freigeben" }),
-    titel: "Vorschlag freigeben?",
-    beschreibung: `«${v.titel}» wird freigegeben. Die vorschlagende Person sieht den Entscheid in der App. Danach trägst du den Termin in Outlook von Hand ein.`,
-    ok: "Freigeben",
-    erfolg: "Der Vorschlag ist freigegeben. Trage ihn jetzt in Outlook ein.",
-  });
-}
-
-function ablehnen(v, ctx, neu) {
-  const grund = feld({
-    label: "Begründung",
-    hilfe: "Die vorschlagende Person sieht sie. Höchstens 500 Zeichen.",
-    mehrzeilig: true,
-    rows: 4,
-    maxlength: 500,
-    required: true,
-  });
-  aktion({
-    v,
-    ctx,
-    neu,
-    pfad: "entscheid",
-    body: () => ({
-      entscheid: "ablehnen",
-      begruendung: grund.eingabe.value.trim(),
-    }),
-    titel: "Vorschlag ablehnen?",
-    beschreibung: `«${v.titel}» wird abgelehnt. Das lässt sich nicht rückgängig machen.`,
-    felder: [grund.wurzel],
-    ok: "Ablehnen",
-    erfolg: "Der Vorschlag ist abgelehnt.",
-  });
-}
-
-function eingetragen(v, ctx, neu) {
-  aktion({
-    v,
-    ctx,
-    neu,
-    pfad: "eingetragen",
-    titel: "Als in Outlook eingetragen markieren?",
-    beschreibung: `Bestätige nur, wenn «${v.titel}» in Outlook eingetragen ist. Der Abgleich mit Outlook übernimmt ihn dann als Termin.`,
-    ok: "Als eingetragen markieren",
-    erfolg: "Der Vorschlag ist als in Outlook eingetragen markiert.",
-  });
-}
-
-function kategorienZeile(kategorien) {
-  if (kategorien.length === 0) {
-    return el(
-      "span",
-      { class: "leise" },
-      "Keine. Die Tags dieses Vorschlags gibt es nicht mehr.",
-    );
-  }
-  return el(
-    "ul",
-    { class: "chips tm-vorschlaege-kategorien" },
-    kategorien.map((k) => chip(k, undefined, false)),
-  );
-}
-
-// Der Kasten mit den Aktionen des Stands; abgelehnte und eingetragene Vorschläge haben keine
-function aktionen(v, ctx, neu) {
-  if (v.status === "offen") {
-    const eigener = v.vorgeschlagenVon === ctx.ich.id;
-    return el(
-      "section",
-      { class: "panel panel--schmal" },
-      el("h3", {}, "Entscheiden"),
-      eigener
-        ? el(
-            "p",
-            { class: "hinweis" },
-            "Über deinen eigenen Vorschlag entscheidet eine andere Person.",
-          )
-        : [
-            el(
-              "p",
-              { class: "leise" },
-              "Mit «Freigeben» trägst du den Termin danach in Outlook von Hand ein. «Ablehnen» braucht eine Begründung, die die vorschlagende Person sieht.",
-            ),
-            el(
-              "div",
-              { class: "aktionen" },
-              knopf("Freigeben", {
-                art: "haupt",
-                symbol: "haken",
-                onclick: () => freigeben(v, ctx, neu),
-              }),
-              knopf("Ablehnen", {
-                symbol: "sperre",
-                onclick: () => ablehnen(v, ctx, neu),
-              }),
-            ),
-          ],
-    );
-  }
-  if (v.status !== "freigegeben") return null;
-  const rueck = el("p", { class: "klein", role: "status" });
-  return el(
-    "section",
-    { class: "panel panel--schmal" },
-    el("h3", {}, "In Outlook von Hand eintragen"),
-    el(
-      "p",
-      { class: "leise" },
-      "Cevi OS schreibt nie nach Outlook. Lege den Termin dort an, mit den Kategorien oben. Melde danach hier, dass er eingetragen ist.",
-    ),
-    el(
-      "div",
-      { class: "aktionen" },
-      v.kategorien.length > 0 &&
-        knopf("Kategorien kopieren", {
-          symbol: "kopieren",
-          onclick: async () => {
-            try {
-              await navigator.clipboard.writeText(v.kategorien.join("; "));
-              rueck.textContent = "Kategorien kopiert.";
-            } catch {
-              rueck.textContent =
-                "Kopieren ist nicht möglich. Markiere die Kategorien von Hand.";
-            }
-          },
-        }),
-      knopf("Als in Outlook eingetragen markieren", {
-        art: "haupt",
-        symbol: "haken",
-        onclick: () => eingetragen(v, ctx, neu),
-      }),
-    ),
-    rueck,
-  );
-}
-
-function zeichneDetail(bereich, ctx, v, neu) {
-  const titel = el(
-    "h2",
-    { class: "tm-vorschlaege-titel", tabindex: "-1" },
-    v.titel,
-  );
-  const konflikt =
-    vermerk &&
-    el(
-      "p",
-      {
-        class: "hinweis hinweis--warn tm-vorschlaege-konflikt",
-        role: "alert",
-        tabindex: "-1",
-      },
-      vermerk,
-    );
-  const fokusTitel = nachAktion;
-  vermerk = "";
-  nachAktion = false;
-
-  bereich.append(
-    el(
-      "p",
-      {},
-      el(
-        "a",
-        {
-          class: "knopf knopf--klein",
-          href: `#termine/vorschlaege/${adresseVon(v.status)}`,
-        },
-        "Zur Liste der Vorschläge",
+export function zeige(bereich, ctx) {
+  const [erst] = ctx.pfad;
+  const eintrag =
+    erst && !UUID.test(erst) ? STATI.find(([a]) => a === erst) : null;
+  if (erst && !UUID.test(erst) && !eintrag) {
+    bereich.append(
+      leerKarte(
+        "Diese Ansicht gibt es nicht. Wähle «Offen», «Freigegeben», «Abgelehnt» oder «Eingetragen».",
+        [
+          el(
+            "a",
+            { class: "knopf", href: "#termine/vorschlaege" },
+            "Zu den Vorschlägen",
+          ),
+        ],
       ),
-    ),
-    el("div", { class: "tm-vorschlaege-kopf" }, titel, statusChip(v.status)),
-    konflikt,
-    werteZeilen([
-      ["Wann", zeitraum(v)],
+    );
+    return;
+  }
+  ctx.lade(
+    async () => {
+      // Mit einer ID: erst der Vorschlag, dann die Liste seines Stands. Sonst die Liste und der erste Vorschlag.
+      if (erst && UUID.test(erst)) {
+        const detail = await ladeDetail(erst);
+        return {
+          status: detail.status,
+          seite: await ladeListe(detail.status),
+          detail,
+        };
+      }
+      const status = eintrag ? eintrag[1] : "offen";
+      const seite = await ladeListe(status);
+      const erster = seite.vorschlaege[0];
+      return {
+        status,
+        seite,
+        detail: erster ? await ladeDetail(erster.id) : null,
+      };
+    },
+    (daten) => zeichne(bereich, ctx, daten),
+    {
+      skeleton: skeletonListe,
+      fehlertitel: "Die Vorschläge konnten nicht geladen werden.",
+    },
+  );
+}
+
+function zeichne(bereich, ctx, start) {
+  let status = start.status;
+  let vorschlaege = [...start.seite.vorschlaege];
+  let weitere = start.seite.weitere;
+  let naechste = start.seite.naechste;
+  let aktuell = start.detail;
+  let lauf = 0;
+
+  const filter = filterGruppe({
+    beschriftung: "Stand",
+    eintraege: STATI.map(([, api, name]) => ({ text: name, wert: api })),
+    wert: status,
+    beiAenderung: (neu) => wechsle(neu),
+  });
+  const zaehler = el("p", { class: "klein leise", role: "status" });
+  const meldung = el("p", { class: "klein tm-meldung", role: "status" });
+  const listeBox = el("div", {});
+  const detail = el("section", { class: "flaeche tm-detail" });
+  const mehr = knopf("Weitere laden", {
+    symbol: "runter",
+    onclick: () => ladeWeitere(),
+  });
+  const grid = el("div", { class: "tm-zweispalt" });
+
+  const woerter = () => STATI.find(([, api]) => api === status)[3];
+
+  function meldeZaehler() {
+    if (status !== "offen") return;
+    // Nur eine ganze Liste ergibt eine richtige Zahl für die Unterleiste
+    if (!weitere) ctx.zaehler("vorschlaege", vorschlaege.length);
+  }
+
+  function zeichneListe() {
+    zaehler.textContent =
+      vorschlaege.length === 0
+        ? ""
+        : `${weitere ? "Mindestens " : ""}${vorschlaege.length} ${woerter()[vorschlaege.length === 1 ? 0 : 1]}`;
+    mehr.hidden = !weitere;
+    // Ohne Vorschlag gibt es nichts zu zeigen: Die Fläche entfällt
+    detail.hidden = vorschlaege.length === 0;
+    grid.classList.toggle("tm-einspaltig", vorschlaege.length === 0);
+    if (vorschlaege.length === 0) {
+      ersetze(listeBox, leerKarte(STATI.find(([, api]) => api === status)[4]));
+      return;
+    }
+    ersetze(
+      listeBox,
+      el(
+        "ul",
+        { class: "tm-vorliste", "aria-label": "Vorschläge" },
+        vorschlaege.map((v) => {
+          const gewaehlt = aktuell?.id === v.id;
+          return el(
+            "li",
+            {},
+            el(
+              "a",
+              {
+                class: "tm-vor",
+                href: `#termine/vorschlaege/${v.id}`,
+                "aria-current": gewaehlt ? "true" : undefined,
+                onclick: (e) => {
+                  if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+                  e.preventDefault();
+                  waehle(v.id);
+                },
+              },
+              el("span", { class: "name" }, v.titel),
+              el(
+                "span",
+                { class: "klein leise" },
+                `${v.vorgeschlagenVonName ?? GELOESCHT} · ${terminAnzeige(v).tag}`,
+              ),
+              statusChip(v.status),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  // Der Fokus kehrt nach einem Dialog an den Titel des Details zurück, denn der Auslöser wurde neu gezeichnet
+  function zeichneDetail(v, { fokus = false, vermerk = null } = {}) {
+    const titel = el("h2", { tabindex: "-1" }, v.titel);
+    const eigener = v.vorgeschlagenVon === ctx.ich.id;
+    const rueck = el("p", { class: "klein", role: "status" });
+    const zeilen = [
+      ["Datum", terminAnzeige(v).tag],
+      [
+        "Zeit",
+        v.ganztaegig
+          ? "ganztägig"
+          : terminAnzeige(v).zeit.replace("–", " bis "),
+      ],
       v.ort && ["Ort", v.ort],
-      v.beschreibung && ["Beschreibung", text(v.beschreibung)],
-      v.bemerkung && ["Bemerkung", text(v.bemerkung)],
+      [
+        "Gruppen",
+        v.tags.length === 0
+          ? el(
+              "span",
+              { class: "leise" },
+              "Keine. Die Gruppen dieses Vorschlags gibt es nicht mehr.",
+            )
+          : el(
+              "ul",
+              { class: "chips tm-rechts" },
+              v.tags.map((t) => chip(t.name, undefined, "tag")),
+            ),
+      ],
       [
         "Vorgeschlagen von",
         v.vorgeschlagenVonName ?? el("span", { class: "leise" }, GELOESCHT),
       ],
       ["Eingereicht am", zeit(v.erstelltAm)],
-      ["Kategorien in Outlook", kategorienZeile(v.kategorien)],
+      v.kategorien?.length > 0 && [
+        "Kategorien in Outlook",
+        el(
+          "ul",
+          { class: "chips tm-rechts tm-roh" },
+          v.kategorien.map((k) => chip(k, undefined, false)),
+        ),
+      ],
       v.entschiedenAm && ["Entschieden am", zeit(v.entschiedenAm)],
-      v.status === "abgelehnt" &&
-        v.begruendung && ["Begründung", text(v.begruendung)],
-    ]),
-    aktionen(v, ctx, neu),
+    ].filter(Boolean);
+    const block = (name, text) =>
+      text &&
+      el(
+        "div",
+        { class: "tm-block" },
+        el("h3", {}, name),
+        el("p", { class: "tm-text" }, text),
+      );
+    ersetze(
+      detail,
+      el("div", { class: "zeile tm-kopfzeile" }, titel, statusChip(v.status)),
+      vermerk,
+      el(
+        "dl",
+        { class: "werte" },
+        zeilen.map(([n, w]) => el("div", {}, el("dt", {}, n), el("dd", {}, w))),
+      ),
+      block("Beschreibung", v.beschreibung),
+      block("Bemerkung", v.bemerkung),
+      v.status === "abgelehnt" && block("Begründung", v.begruendung),
+      aktionen(v, eigener, rueck),
+      rueck,
+    );
+    detail.removeAttribute("aria-busy");
+    if (fokus) titel.focus();
+  }
+
+  function aktionen(v, eigener, rueck) {
+    if (v.status === "offen") {
+      if (eigener) {
+        return el(
+          "p",
+          { class: "hinweis" },
+          "Über deinen eigenen Vorschlag entscheidet eine andere Person.",
+        );
+      }
+      return el(
+        "div",
+        { class: "reihe" },
+        knopf("Freigeben", {
+          art: "haupt",
+          symbol: "haken",
+          onclick: () => freigeben(v),
+        }),
+        knopf("Ablehnen", { symbol: "sperre", onclick: () => ablehnen(v) }),
+      );
+    }
+    if (v.status !== "freigegeben") return false;
+    return el(
+      "div",
+      { class: "tm-ausfuehren" },
+      el(
+        "p",
+        { class: "leise" },
+        "Trag den Termin in Outlook von Hand ein, mit den Kategorien oben. Melde danach hier, dass er eingetragen ist.",
+      ),
+      el(
+        "div",
+        { class: "reihe" },
+        v.kategorien?.length > 0 &&
+          knopf("Kategorien kopieren", {
+            symbol: "kopieren",
+            onclick: async () => {
+              try {
+                await navigator.clipboard.writeText(v.kategorien.join("; "));
+                rueck.textContent = "Kategorien kopiert.";
+              } catch {
+                rueck.textContent =
+                  "Kopieren ist nicht möglich. Markiere die Kategorien von Hand.";
+              }
+            },
+          }),
+        knopf("Als in Outlook eingetragen markieren", {
+          art: "haupt",
+          symbol: "haken",
+          onclick: () => eingetragen(v),
+        }),
+      ),
+    );
+  }
+
+  // Detail laden (eine Abfrage) und zeichnen; bei einem Fehler Karte mit «Nochmals versuchen» im Detail
+  async function waehle(id, optionen = {}) {
+    const mein = ++lauf;
+    detail.setAttribute("aria-busy", "true");
+    window.history.replaceState(null, "", `#termine/vorschlaege/${id}`);
+    try {
+      const v = await ladeDetail(id);
+      if (mein !== lauf || !bereich.isConnected) return;
+      aktuell = v;
+      // Die Zeile der Liste führt den Stand nach
+      const zeileV = vorschlaege.find((x) => x.id === v.id);
+      if (zeileV) zeileV.status = v.status;
+      zeichneListe();
+      meldeZaehlerNachEntscheid();
+      zeichneDetail(v, optionen);
+    } catch (f) {
+      if (mein !== lauf || !bereich.isConnected) return;
+      const karte = zustandsKarte(
+        zustandsDaten(f),
+        [nochmals(() => waehle(id, optionen))],
+        "h2",
+      );
+      ersetze(detail, karte.wurzel);
+      detail.removeAttribute("aria-busy");
+      karte.titel.focus();
+    }
+  }
+
+  // Wer im Stand «Offen» entschieden hat, zählt nicht mehr zu den offenen
+  function meldeZaehlerNachEntscheid() {
+    if (status !== "offen" || weitere) return;
+    ctx.zaehler(
+      "vorschlaege",
+      vorschlaege.filter((x) => x.status === "offen").length,
+    );
+  }
+
+  async function wechsle(neu) {
+    const mein = ++lauf;
+    const alt = status;
+    status = neu;
+    meldung.textContent = "";
+    window.history.replaceState(
+      null,
+      "",
+      `#termine/vorschlaege/${adresseVon(neu)}`,
+    );
+    listeBox.setAttribute("aria-busy", "true");
+    zaehler.textContent = "Wird geladen …";
+    try {
+      const seite = await ladeListe(neu);
+      if (mein !== lauf || !bereich.isConnected) return;
+      vorschlaege = [...seite.vorschlaege];
+      weitere = seite.weitere;
+      naechste = seite.naechste;
+      aktuell = null;
+      zeichneListe();
+      meldeZaehler();
+      listeBox.removeAttribute("aria-busy");
+      if (vorschlaege[0]) await waehle(vorschlaege[0].id);
+      else {
+        ersetze(
+          detail,
+          el("p", { class: "leise" }, "Kein Vorschlag ausgewählt."),
+        );
+      }
+    } catch (f) {
+      if (mein !== lauf || !bereich.isConnected) return;
+      // Der Filter zeigt wieder den Stand, den die Liste noch hat
+      status = alt;
+      filter.setze(alt);
+      meldung.textContent = `${fehlerText(f)} Versuche es nochmals.`;
+      zeichneListe();
+    } finally {
+      if (mein === lauf) listeBox.removeAttribute("aria-busy");
+    }
+  }
+
+  async function ladeWeitere() {
+    const mein = lauf;
+    mehr.disabled = true;
+    mehr.setAttribute("aria-busy", "true");
+    meldung.textContent = "Weitere Vorschläge werden geladen …";
+    try {
+      const seite = await ladeListe(status, naechste);
+      // Zwischen Anfrage und Antwort kann man Stand oder Seite gewechselt haben
+      if (mein !== lauf || !bereich.isConnected) return;
+      vorschlaege.push(...seite.vorschlaege);
+      weitere = seite.weitere;
+      naechste = seite.naechste;
+      meldung.textContent = `${zaehlwort(seite.vorschlaege.length, "weiterer Vorschlag", "weitere Vorschläge")} geladen.`;
+      zeichneListe();
+      meldeZaehler();
+    } catch (f) {
+      if (mein === lauf)
+        meldung.textContent = `${fehlerText(f)} Versuche es nochmals.`;
+    } finally {
+      mehr.disabled = false;
+      mehr.removeAttribute("aria-busy");
+    }
+  }
+
+  // Ein Dialog mit Rückfrage. Hat jemand anders schon entschieden (409), schliesst er sich, das Detail zeigt den aktuellen Stand und ein Dialog sagt es.
+  function entscheide({ v, pfad, body, erfolg, ...dialog }) {
+    const d = dialogFormular({
+      ...dialog,
+      fehlertext: fehlerText,
+      senden: async () => {
+        try {
+          return await anfrage("POST", `${BASIS}/${v.id}/${pfad}`, body?.());
+        } catch (f) {
+          if (f.code !== "STATUS_UNGUELTIG") throw f;
+          return "konflikt";
+        }
+      },
+      danach: async (ergebnis) => {
+        if (ergebnis === "konflikt") {
+          await waehle(v.id, { fokus: false });
+          const neu = aktuell;
+          meldungsDialog({
+            titel: "Vorschlag schon entschieden",
+            hinweis: `Dieser Vorschlag ist inzwischen «${STATUS[neu?.status]?.[0] ?? "entschieden"}»${neu?.entschiedenAm ? ` (${zeit(neu.entschiedenAm)})` : ""}.`,
+            text: "Du musst nichts mehr tun. Hier siehst du den aktuellen Stand.",
+            ok: "Zur Liste",
+            beiOk: () => listeBox.querySelector("a")?.focus(),
+          });
+          return;
+        }
+        ctx.melde(erfolg, "ok");
+        await waehle(v.id, { fokus: true });
+      },
+    });
+    return d;
+  }
+
+  function freigeben(v) {
+    const kategorien = v.kategorien ?? [];
+    const vergib =
+      kategorien.length > 0
+        ? `vergib die ${kategorien.length === 1 ? "Kategorie" : "Kategorien"} ${kategorien.map((k) => `«${k}»`).join(", ")}`
+        : "vergib die passenden Kategorien";
+    entscheide({
+      v,
+      pfad: "entscheid",
+      body: () => ({ entscheid: "freigeben" }),
+      titel: "Vorschlag freigeben?",
+      beschreibung: `«${v.titel}» wird freigegeben. Die vorschlagende Person sieht den Entscheid in der App.`,
+      felder: [
+        el(
+          "p",
+          { class: "hinweis", role: "status" },
+          `Die Verbindung zu Outlook ist noch nicht zum Schreiben eingerichtet. Trag den Termin selbst in Outlook ein und ${vergib}. Wir markieren den Vorschlag als freigegeben.`,
+        ),
+      ],
+      ok: "Freigeben",
+      erfolg: `«${v.titel}» ist freigegeben. Trag ihn jetzt in Outlook ein. ${v.vorgeschlagenVonName ?? "Die vorschlagende Person"} bekommt eine Mitteilung.`,
+    });
+  }
+
+  function ablehnen(v) {
+    const grund = feld({
+      label: "Begründung",
+      hilfe: `${v.vorgeschlagenVonName ?? "Die vorschlagende Person"} sieht sie in der App. Höchstens 500 Zeichen.`,
+      mehrzeilig: true,
+      rows: 4,
+      maxlength: 500,
+    });
+    entscheide({
+      v,
+      pfad: "entscheid",
+      body: () => ({
+        entscheid: "ablehnen",
+        begruendung: grund.eingabe.value.trim(),
+      }),
+      titel: "Vorschlag ablehnen?",
+      beschreibung: `«${v.titel}» wird abgelehnt. Das lässt sich nicht rückgängig machen.`,
+      felder: [grund.wurzel],
+      ok: "Ablehnen",
+      gefaehrlich: true,
+      pruefe: () => {
+        entferneFeldFehler(grund.wurzel);
+        if (grund.eingabe.value.trim()) return false;
+        feldFehler(
+          grund,
+          "Schreib eine Begründung, damit die Person weiss, warum.",
+        );
+        grund.eingabe.focus();
+        return true;
+      },
+      erfolg: `«${v.titel}» ist abgelehnt.`,
+    });
+  }
+
+  function eingetragen(v) {
+    entscheide({
+      v,
+      pfad: "eingetragen",
+      titel: "Als in Outlook eingetragen markieren?",
+      beschreibung: `Bestätige nur, wenn «${v.titel}» in Outlook eingetragen ist. Der Abgleich mit Outlook übernimmt ihn dann als Termin.`,
+      ok: "Als eingetragen markieren",
+      erfolg: `«${v.titel}» ist als in Outlook eingetragen markiert.`,
+    });
+  }
+
+  bereich.append(el("div", { class: "tm-filterzeile" }, filter.wurzel), grid);
+  grid.append(
+    el(
+      "div",
+      { class: "tm-links" },
+      zaehler,
+      listeBox,
+      meldung,
+      el("div", { class: "tm-mehr" }, mehr),
+    ),
+    detail,
   );
-  if (konflikt) konflikt.focus();
-  else if (fokusTitel) titel.focus();
+  zeichneListe();
+  meldeZaehler();
+  if (aktuell) zeichneDetail(aktuell);
+  else
+    ersetze(
+      detail,
+      el(
+        "p",
+        { class: "leise" },
+        vorschlaege.length === 0 ? "" : "Kein Vorschlag ausgewählt.",
+      ),
+    );
 }

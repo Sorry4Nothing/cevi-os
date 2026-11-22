@@ -118,6 +118,7 @@ export function zeige(bereich, ctx) {
 - Nach 4 Sekunden: «Das dauert länger.» mit «Nochmals versuchen».
 - Skeleton nur beim ersten Laden. Ruft `zeichnen` die zweite Funktion (`neuLaden`) auf, bleibt der alte Inhalt, darüber steht «Wird aktualisiert …».
 - Fehler: Zustandskarte mit «Nochmals versuchen» (bei 404 zusätzlich «Zur Übersicht»); der Fokus liegt auf dem Titel.
+- `fehlertitel` (Option von `lade`): Titel der Fehlerkarte beim allgemeinen Serverfehler, z. B. «Die Räume konnten nicht geladen werden.» (so nennen es die Boards A8 bis A19); alle anderen Fehler behalten ihren Titel.
 - `skeleton`: `"tabelle"` (Vorgabe), `"flaeche"`, `"formular"`, `"detail"`, `"liste"`, eine Funktion, die einen Knoten liefert, oder `false`. Bausteine: `sk(art, breite)`, `skeletonTabelle`, `skeletonFlaeche`, `skeletonFormular`, `skeletonDetail`, `skeletonListe`. Breiten sind Klassen (`sk-b<px>`), weil die CSP `style`-Attribute verbietet.
 - Der Skeleton hat die Form des echten Inhalts (gleiche Spaltenzahl, Höhen, Radien), pulsiert nur bei erlaubter Bewegung und ist `aria-hidden`; die Information liefert die Live-Region «Lädt …».
 

@@ -1,25 +1,6 @@
-/* Reiter «Räume» (#446, TG1, #447). Klassen mit dem Vorsatz «tm-raeume-» */
-.tm-raeume-titel {
-  margin: 0 0 0.5rem;
-}
+/* Unterseiten «Räume» (A14, A15) und «Anfragen» (A16). Klassen mit dem Vorsatz «tm-» */
 
-.tm-raeume-text {
-  max-width: 65ch;
-  margin: 0 0 1rem;
-}
-
-.tm-raeume-ort {
-  display: block;
-}
-
-.tm-raeume-status:not(:empty) {
-  margin: 0.5rem 0 0;
-}
-
-.tm-raeume-mehr {
-  margin-top: 0.75rem;
-}
-
-.tm-raeume-anfragen-titel {
-  margin: 2rem 0 0.5rem;
+/* «Raum löschen» steht links im Fuss des Blatts, abgesetzt von Abbrechen und Speichern */
+.tm-fuss-links {
+  margin-right: auto;
 }
