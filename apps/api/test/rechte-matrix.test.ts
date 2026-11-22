@@ -1141,6 +1141,62 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Stufenfelder der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
+  "GET /api/v1/redaktion/stufen/:stufeId/eckdaten": {
+    url: (w) => `/api/v1/redaktion/stufen/${w.stufeAId}/eckdaten`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/stufen/:stufeId/eckdaten/:tag": {
+    urlJeAnfrage: async () => {
+      const tag = await eckdatenTag();
+      return `/api/v1/redaktion/stufen/${welt.stufeAId}/eckdaten/${tag}`;
+    },
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/redaktion/stufen/:stufeId/eckdaten/:tag": {
+    url: (w) => `/api/v1/redaktion/stufen/${w.stufeAId}/eckdaten/2041-01-02`,
+    body: () => ({ treffpunkt: "Matrix", treffZeit: "14:00" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/redaktion/stufen/:stufeId/eckdaten/:tag": {
+    urlJeAnfrage: async () => {
+      const tag = await eckdatenTag();
+      return `/api/v1/redaktion/stufen/${welt.stufeAId}/eckdaten/${tag}`;
+    },
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
   "GET /api/v1/redaktion/seiten/:id/entwurf": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
@@ -1589,6 +1645,20 @@ async function wegwerfSeiteId() {
     })
     .returning({ id: schema.seite.id });
   return zeile.id;
+}
+
+// Gepflegte Zeile der Stufe A an einem frischen Tag (#355): GET und DELETE verbrauchen oder lesen sie je Anfrage
+let eckdatenZaehler = 0;
+async function eckdatenTag() {
+  const d = new Date(Date.UTC(2042, 0, 1 + eckdatenZaehler++));
+  const tag = d.toISOString().slice(0, 10);
+  await welt.db.insert(schema.programmEckdaten).values({
+    stufeId: welt.stufeAId,
+    tag,
+    treffpunkt: "Matrix",
+    quelle: "seite",
+  });
+  return tag;
 }
 
 // Wegwerf-Weiterleitung der Testabteilung (#356)

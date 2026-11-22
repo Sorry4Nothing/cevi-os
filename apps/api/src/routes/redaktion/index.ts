@@ -3,6 +3,7 @@ import type { Db } from "../../db/client.js";
 import { zweiterFaktorPflicht, type Person } from "../../rechte.js";
 import type { MedienHandler } from "../medien.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
+import { erstelleEckdatenRouten } from "./eckdaten.js";
 import { erstelleRedaktionIchRouten } from "./ich.js";
 import { erstelleRedaktionMedienRouten } from "./medien.js";
 import { erstelleSeitenRouten } from "./seiten.js";
@@ -25,6 +26,7 @@ export function erstelleRedaktionRouten({
     .route("/ich", erstelleRedaktionIchRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db }))
+    .route("/stufen", erstelleEckdatenRouten({ db }))
     .route("/medien", erstelleRedaktionMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
     .route("/", erstelleVorlagenRouten({ db }))
