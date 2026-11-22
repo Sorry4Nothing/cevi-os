@@ -9946,6 +9946,60 @@ paths:
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/termine/warnungen:
+    get:
+      operationId: listeTermineWarnungen
+      summary: Warnliste «Termine ohne Kategorie»
+      tags:
+        - Termine
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+
+        Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
+        Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
+        Ein Termin mit bekannter und unbekannter Kategorie hat einen Tag und fehlt darum in `termine`.
+
+        `unbekannteKategorien` fasst alle Kategorienamen der kommenden Termine zusammen, die weder über `kategorie_zuordnung` noch über einen Tag gleichen Namens (getrimmt, ohne Gross-/Kleinschreibung) einem Tag entsprechen, auch bei Terminen, die über eine andere Kategorie sichtbar sind. `anzahl` zählt die Termine. Sortiert nach `anzahl` absteigend, dann nach Name; höchstens 200 Einträge. Die Zusammenfassung steht in jeder Antwort, unabhängig von der Seite.
+        Eine Zuordnung wirkt erst beim nächsten Lauf des Abgleichs (alle 5 Minuten).
+
+        Sortiert nach Beginn (ganztägige ab 00:00 Schweizer Zeit ihres ersten Tages), bei Gleichstand nach `id`. `nach` ist die `naechste` der Vorseite, undurchsichtig.
+        Zwei Abfragen je Aufruf, unabhängig von der Seitengrösse: die Seite der Termine und die Zusammenfassung der Kategorien.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (`limit` ausserhalb 1 bis 100, ungültiges `nach`, unbekannter Parameter). 401 keine gültige Sitzung. 403 für alle ausser der Abteilungsleitung. 426 App-Version zu alt. 429 zu viele Anfragen.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Termine je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite, unverändert.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eine Seite der Termine ohne Tag und die unbekannten Kategorien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminWarnungen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termine/mein:
@@ -16208,6 +16262,102 @@ components:
     # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminWarnungen:
+      type: object
+      required:
+        - termine
+        - unbekannteKategorien
+        - weitere
+        - naechste
+      properties:
+        termine:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminWarnung"
+        unbekannteKategorien:
+          type: array
+          description: Kategorienamen der kommenden Termine ohne Tag; nach `anzahl` absteigend, dann nach Name, höchstens 200. In jeder Antwort gleich.
+          items:
+            $ref: "#/components/schemas/TerminUnbekannteKategorie"
+        weitere:
+          type: boolean
+          description: Wahr, wenn es nach dieser Seite weitere Termine gibt.
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite, undurchsichtig; `null` auf der letzten Seite.
+    TerminWarnung:
+      type: object
+      description: |
+        Ein kommender Termin ohne Tag. Entweder ist `ganztaegig` wahr, dann sind `tagVon` und `tagBis` gesetzt und `beginn` und `ende` `null`,
+        oder `ganztaegig` ist falsch, dann sind `beginn` und `ende` gesetzt und `tagVon` und `tagBis` `null`.
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - grund
+        - kategorien
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Beginn als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Erster Tag (Schweizer Kalendertag). `null` bei Terminen mit Uhrzeit.
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Letzter Tag (inklusive). `null` bei Terminen mit Uhrzeit.
+        grund:
+          type: string
+          enum:
+            - keine_kategorie
+            - unbekannte_kategorie
+          description: «keine_kategorie» heisst, Outlook liefert keine Kategorie. «unbekannte_kategorie» heisst, es gibt Kategorien, aber keine entspricht einem Tag.
+        kategorien:
+          type: array
+          description: Die rohen Kategorienamen aus Outlook (leer bei «keine_kategorie»).
+          items:
+            type: string
+    TerminUnbekannteKategorie:
+      type: object
+      required:
+        - name
+        - anzahl
+      properties:
+        name:
+          type: string
+          description: Kategoriename aus Outlook, getrimmt; Schreibweisen, die sich nur in Gross-/Kleinschreibung unterscheiden, sind ein Eintrag.
+        anzahl:
+          type: integer
+          minimum: 1
+          description: Zahl der kommenden Termine mit dieser Kategorie.
     # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     TerminMeinListe:
