@@ -1,8 +1,9 @@
 import { z } from "zod";
+import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import { sichtbarkeitSchema } from "../sichtbarkeit.js";
 
 // Bausteinkatalog Version 1 der Website (#349): ein strenges Schema je Typ, kein HTML.
-// Reine Schemas ohne Datenbank und ohne Route; die Verweisprüfung (Medium, Tag, Person, Seite existiert) macht #350.
+// Reine Schemas ohne Datenbank und ohne Route; die Verweisprüfung (Medium, Tag, Person, Seite existiert) macht #350. Der Baustein «datei» verweist auf einen Link, nicht auf ein Medium (#428).
 // Der Alt-Text liegt am Medium (Pflicht oder «dekorativ» schon beim Hochladen, #338); ein Baustein trägt keinen eigenen.
 
 // Obergrenzen (shortcut: Werte geschätzt, bei Bedarf anheben; sie schützen Speicher, Renderer und den Editor)
@@ -11,6 +12,7 @@ export const MAX_SEITENTITEL = 120;
 export const MAX_UEBERSCHRIFT = 200;
 export const MAX_KURZTEXT = 100;
 export const MAX_BESCHRIFTUNG = 60;
+export const MAX_DATEITYP = 20;
 export const MAX_UNTERSCHRIFT = 300;
 export const MAX_LINK_LAENGE = 2000;
 export const MAX_TEXTBLOECKE = 100;
@@ -182,12 +184,17 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       ziel: linkAlle,
     }),
   ),
-  // Name, Grösse und Typ der Datei liest der Renderer vom Medium
+  // Eine Datei liegt im SharePoint der Abteilung und wird nur verknüpft (#428): kein Medium, kein Abruf durch den Server. Typ als Wort («PDF») und Grösse in Bytes sind Angaben der Redaktion
   baustein(
     "datei",
     z.strictObject({
-      mediumId,
-      beschriftung: kurztext(MAX_KURZTEXT).optional(),
+      titel: kurztext(MAX_KURZTEXT),
+      link: z
+        .string()
+        .max(LINK_MAX)
+        .refine((s) => pruefeLink(s).ok),
+      typ: kurztext(MAX_DATEITYP).optional(),
+      groesse: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER).optional(),
     }),
   ),
   baustein("kontaktperson", z.strictObject({ personId: z.uuid(), zusatz })),
