@@ -10,6 +10,7 @@ import {
   sichtbarkeitAusSpalten,
 } from "../../sichtbarkeit.js";
 import { ladeDaten } from "../../website/abgleich.js";
+import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
 import type { Baustein } from "../../website/bausteine.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import {
@@ -105,12 +106,19 @@ export function erstelleInhaltRoute({ db }: { db: Db }) {
       const sichtbare = dokument.bausteine.filter(erlaubt);
 
       // Daten nur für die Bausteine, die geliefert werden
-      const daten = await ladeDaten(
+      const geladen = await ladeDaten(
         db,
         abteilungId,
         [{ ...dokument, bausteine: sichtbare }],
         false,
       );
+      // Stufenfelder (#355): nur wenn ein solcher Baustein dabei ist, und aus dem Zwischenspeicher (ein Abruf je Seite und fünf Minuten)
+      const fakten = sichtbare.some((b) => b.typ === "stufenfakten")
+        ? await ladeStufenfaktenGemerkt(db, abteilungId, zeile.id)
+        : undefined;
+      const daten = fakten
+        ? { ...geladen, stufenfakten: new Map([[zeile.id, fakten]]) }
+        : geladen;
       const bausteine = rendereGeschuetzte(dokument, zeile.id, daten, (b) =>
         sichtbare.includes(b),
       );

@@ -472,6 +472,7 @@ describe("Lesen", () => {
       sichtbarkeit: ANGEMELDET,
       tagId: welt.stufeAId,
       veroeffentlicht: false,
+      geaendertAm: expect.any(String),
     });
   });
 

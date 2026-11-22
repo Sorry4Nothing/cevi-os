@@ -1,1 +1,9 @@
-/* Platzhalter (#353): #355 füllt diese Datei. Klassen mit dem Vorsatz «ws-stufenfakten-» */
+/* Stufenfelder (#355). Klassen mit dem Vorsatz «ws-stufenfakten-» */
+.ws-stufenfakten-titel {
+  margin: 0 0 0.5rem;
+}
+
+.ws-stufenfakten-kopf {
+  max-width: 24rem;
+  margin: 1rem 0;
+}

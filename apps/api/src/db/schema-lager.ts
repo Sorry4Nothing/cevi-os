@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -11,6 +12,8 @@ import {
   primaryKey,
   text,
   timestamp,
+  unique,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 // Zyklus mit schema.ts (das diese Datei weiterreicht), harmlos: Die Verweise stehen nur in Funktionen, die erst beim Aufbau der Fremdschlüssel laufen
@@ -88,7 +91,7 @@ export const lagerMitglied = pgTable(
     rolle: text("rolle", {
       enum: ["lagerleitung", "leitung", "team", "lesen"],
     }).notNull(),
-    // Ohne Fremdschlüssel bis zu den Ressorts (L1a); die API nimmt es bis dahin nicht an
+    // Das Ressort der Person (#371); die API setzt es noch nicht (offen). Der Fremdschlüssel nimmt das Lager mit, damit es kein Ressort eines anderen Lagers sein kann
     ressortId: uuid("ressort_id"),
     erstelltAm: timestamp("erstellt_am", { withTimezone: true })
       .notNull()
@@ -97,6 +100,12 @@ export const lagerMitglied = pgTable(
   (t) => [
     primaryKey({ columns: [t.lagerId, t.personId] }),
     index("lager_mitglied_person_id_idx").on(t.personId),
+    // In der Migration ON DELETE SET NULL (ressort_id): Postgres 15 setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "lager_mitglied_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("set null"),
     check(
       "lager_mitglied_rolle_check",
       sql`${t.rolle} in ('lagerleitung', 'leitung', 'team', 'lesen')`,
@@ -251,5 +260,88 @@ export const lagerClientOp = pgTable(
   (t) => [
     primaryKey({ columns: [t.lagerId, t.personId, t.clientOpId] }),
     index("lager_client_op_erstellt_am_idx").on(t.erstelltAm),
+  ],
+);
+
+// Ressorts des Lagers (#371): Leitung und Stellvertretung sind Personen-IDs (Mitglieder des Lagers, die Route prüft es), nie Anzeigenamen; die API löst die Namen beim Lesen auf. parent_id baut den Baum (Unterressorts, ohne Zyklus, die Route prüft es). Geschrieben wird nur über lager/sync.ts. Das Kürzel ist je Lager eindeutig, solange das Ressort nicht gelöscht ist
+export const ressort = pgTable(
+  "ressort",
+  {
+    ...lagerSpalten(),
+    kuerzel: text("kuerzel").notNull(),
+    name: text("name").notNull(),
+    leitungPersonId: uuid("leitung_person_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    stvPersonId: uuid("stv_person_id").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    notiz: text("notiz"),
+    parentId: uuid("parent_id"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel mit Lager: ein Ressort, ein Unterressort, ein Link oder eine Notiz kann nie ein Ressort eines anderen Lagers meinen
+    unique("ressort_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "ressort_parent_fk",
+      columns: [t.lagerId, t.parentId],
+      foreignColumns: [t.lagerId, t.id],
+    }),
+    index("ressort_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    index("ressort_parent_idx").on(t.lagerId, t.parentId),
+    uniqueIndex("ressort_kuerzel_uq")
+      .on(t.lagerId, sql`lower(${t.kuerzel})`)
+      .where(sql`${t.geloeschtAm} is null`),
+    check("ressort_eltern_check", sql`${t.parentId} is distinct from ${t.id}`),
+    check(
+      "ressort_text_check",
+      sql`char_length(${t.kuerzel}) between 1 and 20 and char_length(${t.name}) between 1 and 100 and (${t.notiz} is null or char_length(${t.notiz}) <= 5000) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Ein Link eines Ressorts (#371): nur https, der Server ruft ihn nie ab (SR-26)
+export const ressortLink = pgTable(
+  "ressort_link",
+  {
+    ...lagerSpalten(),
+    ressortId: uuid("ressort_id").notNull(),
+    titel: text("titel").notNull(),
+    url: text("url").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "ressort_link_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("cascade"),
+    index("ressort_link_liste_idx").on(t.lagerId, t.ressortId, t.id),
+    check(
+      "ressort_link_check",
+      sql`char_length(${t.titel}) between 1 and 200 and char_length(${t.url}) <= 2000 and ${t.url} ~ '^https://[^[:space:]]+$'`,
+    ),
+  ],
+);
+
+// Eine Notiz eines Ressorts (#371); wer sie geschrieben hat, steht in erstellt_von
+export const ressortNotiz = pgTable(
+  "ressort_notiz",
+  {
+    ...lagerSpalten(),
+    ressortId: uuid("ressort_id").notNull(),
+    text: text("text").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "ressort_notiz_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("cascade"),
+    index("ressort_notiz_liste_idx").on(t.lagerId, t.ressortId, t.id),
+    check(
+      "ressort_notiz_check",
+      sql`char_length(${t.text}) between 1 and 10000`,
+    ),
   ],
 );
