@@ -210,7 +210,7 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
     const a = await lies(elternA, pfad);
     expect(a.bausteine[0]!.knoten).toEqual({
       tag: "div",
-      attr: { class: "text" },
+      attr: { class: "text lesetext" },
       kinder: [{ tag: "p", kinder: [`Für Angemeldete ${GEHEIM}`] }],
     });
   });

@@ -554,7 +554,7 @@ function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
 ${marke}
 <div class="leiste"><div class="wrap leiste-in">
 <nav class="hauptnav" aria-label="Hauptnavigation">${navigation(k.navigation, aktuell, false)}</nav>
-<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Menü schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
+<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
 <div class="rechts"><a href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a></div>
 </div></div>${
     bereich

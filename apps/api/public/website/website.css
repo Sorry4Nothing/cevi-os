@@ -65,6 +65,12 @@
     --skeleton: #2a2a27;
     --skeleton-highlight: #363632;
   }
+
+  /* In der Nacht sind Titel hell: Rot als Text ist dort nur für Links und die Marke */
+  h1,
+  h2 {
+    color: var(--on-surface);
+  }
 }
 
 * {
@@ -76,6 +82,9 @@
 }
 
 body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   margin: 0;
   background: var(--surface-container-low);
   color: var(--on-surface);
@@ -99,6 +108,10 @@ a:hover {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
   border-radius: 4px;
+}
+
+main {
+  flex: 1;
 }
 
 main:focus {
@@ -267,6 +280,7 @@ figcaption,
 .marke {
   display: inline-flex;
   align-items: baseline;
+  padding: 0.5rem 0;
   gap: 0.625rem;
   color: var(--on-surface);
   text-decoration: none;
@@ -373,6 +387,7 @@ figcaption,
 }
 
 .menue-mobil summary {
+  white-space: nowrap;
   cursor: pointer;
   list-style: none;
 }
@@ -537,6 +552,7 @@ figcaption,
 /* Startseite: Foto und blaue Box */
 .teaser {
   display: grid;
+  margin-top: 3rem;
   grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
   margin-bottom: 1.5rem;
 }
@@ -677,6 +693,8 @@ a.mehr::before {
 }
 
 .datei a {
+  display: inline-block;
+  padding: 0.5rem 0;
   font-weight: 700;
 }
 
@@ -1174,6 +1192,11 @@ a.termin:hover {
   max-width: 28rem;
 }
 
+#meldung:not(:empty) {
+  max-width: 28rem;
+  margin-bottom: 1.5rem;
+}
+
 .feld {
   display: flex;
   flex-direction: column;
@@ -1385,6 +1408,7 @@ a.termin:hover {
 
   .teaser {
     grid-template-columns: 1fr;
+    margin-top: 1.5rem;
   }
 
   .teaser figure,
