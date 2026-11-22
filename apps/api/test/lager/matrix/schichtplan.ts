@@ -54,40 +54,42 @@ const bearbeiten = (erfolg: number) => ({
 const lagerPfad = (w: LagerWelt, z: LagerZustand) =>
   `/api/v1/lager/${w.lagerId(z)}`;
 
-// Zeilen direkt in die Datenbank: Jede Anfrage bekommt frische Ziele (Version 1), weil Ändern und Löschen sie verbrauchen
-async function neuerAbschnitt(w: LagerWelt, z: LagerZustand) {
-  const [zeile] = await w.db
+const UNBEKANNT = "00000000-0000-4000-8000-000000000000";
+
+// Wer ändern darf, bekommt für eine unbekannte ID 404 (der Erfolg steht in schichtplan.test.ts): Die Matrix legt keine Lagertage und Abschnitte an, sie zählen gegen die Grenzen und die Daten der Zeitplan-Zeilen im selben Lager
+const unbekannteId = () => ({
+  aktiv: status(
+    {
+      ...nichtMitglied,
+      abteilungsleitung: 404,
+      lagerleitung: 404,
+      leitung: 404,
+    },
+    403,
+  ),
+  abgeschlossen: bearbeiten(200).abgeschlossen,
+});
+
+// Ein Dienst direkt in der Datenbank: Jede Anfrage bekommt einen frischen (Version 1), weil Ändern und Löschen ihn verbrauchen. Sein Abschnitt ist weich gelöscht und zählt darum nicht gegen die Grenze der Abschnitte
+async function neuerDienst(w: LagerWelt, z: LagerZustand) {
+  const [abschnitt] = await w.db
     .insert(schema.tagesabschnitt)
     .values({
       lagerId: w.lagerId(z),
       name: `Matrix ${randomUUID().slice(0, 8)}`,
+      geloeschtAm: new Date(),
       lagerSeq: 0,
     })
     .returning({ id: schema.tagesabschnitt.id });
-  return zeile!.id;
-}
-async function neuerDienst(w: LagerWelt, z: LagerZustand) {
   const [zeile] = await w.db
     .insert(schema.dienst)
     .values({
       lagerId: w.lagerId(z),
       name: "Matrix-Dienst",
-      tagesabschnittId: await neuerAbschnitt(w, z),
+      tagesabschnittId: abschnitt!.id,
       lagerSeq: 0,
     })
     .returning({ id: schema.dienst.id });
-  return zeile!.id;
-}
-let tage = 0;
-async function neuerTag(w: LagerWelt, z: LagerZustand) {
-  // Je Anfrage ein eigenes Datum: Es gibt einen Tag je Datum und Lager
-  const datum = new Date(Date.UTC(2030, 0, 1 + tage++))
-    .toISOString()
-    .slice(0, 10);
-  const [zeile] = await w.db
-    .insert(schema.lagertag)
-    .values({ lagerId: w.lagerId(z), datum, lagerSeq: 0 })
-    .returning({ id: schema.lagertag.id });
   return zeile!.id;
 }
 
@@ -98,11 +100,8 @@ export const ZEILEN: LagerMatrix = {
   },
   "POST /api/v1/lager/:id/schichtplan/dienste": {
     url: (w, z) => `${lagerPfad(w, z)}/schichtplan/dienste`,
-    body: async (z, w) => ({
-      name: "Küche",
-      tagesabschnittId: await neuerAbschnitt(w, z),
-    }),
-    erwartet: bearbeiten(201),
+    body: () => ({ name: "Küche", tagesabschnittId: UNBEKANNT }),
+    erwartet: unbekannteId(),
   },
   "PATCH /api/v1/lager/:id/schichtplan/dienste/:dienstId": {
     url: async (w, z) =>
@@ -117,12 +116,8 @@ export const ZEILEN: LagerMatrix = {
   },
   "PUT /api/v1/lager/:id/schichtplan/schichten": {
     url: (w, z) => `${lagerPfad(w, z)}/schichtplan/schichten`,
-    // Ein leerer Dienst bleibt leer: schreibt nichts, der Erfolg mit Leuten steht in schichtplan.test.ts
-    body: async (z, w) => ({
-      lagertagId: await neuerTag(w, z),
-      dienstId: await neuerDienst(w, z),
-    }),
-    erwartet: bearbeiten(200),
+    body: () => ({ lagertagId: UNBEKANNT, dienstId: UNBEKANNT }),
+    erwartet: unbekannteId(),
   },
   "POST /api/v1/lager/:id/schichtplan/vorschlag": {
     url: (w, z) => `${lagerPfad(w, z)}/schichtplan/vorschlag`,
