@@ -45,22 +45,19 @@
   --r-md: 1rem;
   --r-full: 9999px;
   --schatten: 0 8px 24px rgb(20 20 60 / 16%);
+  /* Bewegung (#555): eine Kurve, zwei Dauern */
+  --kurve: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dauer: 0.2s;
+  --dauer-lang: 0.5s;
+  /* Feld hinter einem Logo ohne Fassung für den dunklen Grund */
+  --logo-grund: transparent;
   /* Gestaltung (#555): Titel, Karten und die sechs Töne der Stufen */
   --titel: #013974;
   --karte: #ffffff;
-  --schatten-karte:
-    0 1px 2px rgb(20 20 60 / 8%), 0 8px 24px rgb(20 20 60 / 8%),
-    0 0 0 1px rgb(20 40 80 / 5%);
-  --schatten-karte-hoch:
-    0 2px 4px rgb(20 20 60 / 10%), 0 16px 36px rgb(20 20 60 / 16%),
-    0 0 0 1px rgb(20 40 80 / 8%);
   --rand: clamp(1rem, 4vw, 4.5rem);
-  --stufe-1: #013974;
-  --stufe-2: #d50038;
-  --stufe-3: #1d6274;
-  --stufe-4: #8a5a00;
-  --stufe-5: #17703a;
-  --stufe-6: #9e1b2c;
+  /* Abstand über und unter einem Abschnitt; Spalt zwischen Titelschiene und Inhalt */
+  --abstand: clamp(3rem, 2rem + 3.5vw, 5.5rem);
+  --spalt: clamp(2rem, 5vw, 6rem);
   --schrift:
     Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans",
     sans-serif;
@@ -93,11 +90,9 @@
     --skeleton: #2a2a27;
     --skeleton-highlight: #363632;
     --titel: #f3f3ef;
+    --logo-grund: #ffffff;
+    --schatten: 0 8px 24px rgb(0 0 0 / 50%);
     --karte: #252523;
-    --schatten-karte:
-      0 8px 24px rgb(0 0 0 / 40%), 0 0 0 1px var(--outline-variant);
-    --schatten-karte-hoch:
-      0 16px 36px rgb(0 0 0 / 55%), 0 0 0 1px var(--outline);
   }
 
   /* In der Nacht sind Titel hell: Rot als Text ist dort nur für Links und die Marke */
@@ -132,10 +127,9 @@
   --skeleton: #2a2a27;
   --skeleton-highlight: #363632;
   --titel: #f3f3ef;
+  --logo-grund: #ffffff;
+  --schatten: 0 8px 24px rgb(0 0 0 / 50%);
   --karte: #252523;
-  --schatten-karte:
-    0 8px 24px rgb(0 0 0 / 40%), 0 0 0 1px var(--outline-variant);
-  --schatten-karte-hoch: 0 16px 36px rgb(0 0 0 / 55%), 0 0 0 1px var(--outline);
 }
 
 :where(:root[data-theme="dark"]) h1,
@@ -317,9 +311,15 @@ figcaption,
   flex: none;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  /* Eigener Symbolsatz (#555): Linie 2 px, gerade Enden, spitze Ecken; Dreiecke und Punkte sind gefüllt (Klasse «f») */
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.i .f {
+  fill: currentcolor;
+  stroke: none;
 }
 
 /* ===== Rahmen: Sprunglink, Kopf, Leiste, Fuss ===== */
@@ -345,19 +345,31 @@ figcaption,
   padding: 0 var(--rand);
 }
 
+/* Kopf (#555): ein Band auf der Fläche der Seite, das beim Scrollen oben stehen bleibt. Marke links, Navigation daneben, rechts «Anmelden», Umschalter und am Handy das Menü.
+   Ab 96 em eine Zeile; von 60 bis 96 em steht die Navigation in einer zweiten Zeile desselben Bands; darunter übernimmt das Menü */
+html {
+  scroll-padding-top: 8rem;
+}
+
 .kopf {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-bottom: 1px solid var(--outline-variant);
   background: var(--surface-container-low);
 }
 
 .kopf-in {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 2rem;
-  min-height: 5.5rem;
+  column-gap: clamp(1rem, 2.2vw, 2.75rem);
+  min-height: 4.5rem;
 }
 
 .marke {
   display: inline-flex;
+  flex: none;
   align-items: baseline;
   padding: 0.5rem 0;
   gap: 0.625rem;
@@ -378,94 +390,231 @@ figcaption,
   font-weight: 700;
 }
 
-.leiste {
+.kopf-rechts {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
+}
+
+/* Navigation: ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links */
+.hauptnav > ul {
+  display: flex;
+  flex-wrap: nowrap;
+  margin-left: -0.75rem;
+}
+
+.hauptnav a,
+.hauptnav summary {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  color: var(--on-surface);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.hauptnav > ul > li > a,
+.hauptnav summary {
+  min-height: 4.5rem;
+}
+
+.hauptnav > ul > li > a::before,
+.hauptnav summary::before {
+  position: absolute;
+  right: 0.75rem;
+  bottom: -1px;
+  left: 0.75rem;
+  height: 3px;
+  background: var(--primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.hauptnav > ul > li > a:hover::before,
+.hauptnav > ul > li:focus-within > a::before,
+.hauptnav > ul > li > a[aria-current]::before,
+.hauptnav summary:hover::before,
+.hauptnav details[open] > summary::before,
+.hauptnav .weitere.hier summary::before {
+  transform: scaleX(1);
+}
+
+.hauptnav > ul > li > a[aria-current],
+.hauptnav .weitere.hier summary {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+.hauptnav .mit-unter {
+  position: relative;
+}
+
+/* Ein kleines gefülltes Dreieck zeigt Unterseiten an; es dreht sich, wenn das Untermenü offen ist */
+.hauptnav .mit-unter > a::after,
+.hauptnav summary::after {
+  width: 0.5rem;
+  height: 0.3125rem;
+  background: currentcolor;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  content: "";
+}
+
+.hauptnav .mit-unter:hover > a::after,
+.hauptnav .mit-unter:focus-within > a::after,
+.hauptnav details[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.hauptnav summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.hauptnav summary::-webkit-details-marker {
+  display: none;
+}
+
+/* Untermenü: eine Tafel unter dem Punkt; ohne Skript öffnet sie sich bei Hover und Fokus */
+.hauptnav .unter {
+  position: absolute;
+  top: 100%;
+  left: -0.25rem;
+  z-index: 6;
+  display: none;
+  flex-direction: column;
+  min-width: 16rem;
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-top: 0;
+  border-radius: 0 0 var(--r-md) var(--r-md);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.hauptnav .weitere .unter {
+  right: -0.25rem;
+  left: auto;
+}
+
+.hauptnav .mit-unter:hover > .unter,
+.hauptnav .mit-unter:focus-within > .unter,
+.hauptnav .weitere details[open] > .unter {
+  display: flex;
+}
+
+/* Esc schliesst das Untermenü, auch wenn die Maus noch darüber steht (menue.js) */
+.hauptnav .mit-unter[data-zu] > .unter {
+  display: none;
+}
+
+.hauptnav .unter a {
+  padding: 0 0.875rem;
+  border-radius: var(--r-sm);
+  font-weight: 500;
+}
+
+.hauptnav .unter a:hover {
+  background: var(--surface-container);
+}
+
+.hauptnav .unter a[aria-current] {
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.hauptnav .unter ul {
+  display: flex;
+  flex-direction: column;
+  padding-left: 1rem;
+}
+
+/* «Anmelden»: ein Knopf mit Rand, nie so laut wie die Hauptaktion der Seite */
+.anmelden {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem 0 0.875rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.anmelden:hover {
+  border-color: var(--secondary);
   background: var(--secondary);
   color: var(--on-secondary);
 }
 
-.leiste-in {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 3.25rem;
+.anmelden .i,
+.anmelden-mobil .i {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
-.leiste ul {
-  display: flex;
-  flex-wrap: wrap;
-}
-
-.leiste a,
-.leiste summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 3.25rem;
-  padding: 0 1rem;
-  color: var(--on-secondary);
-  font-size: 1.0625rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.leiste ul a:hover,
-.leiste summary:hover {
-  background: var(--surface-container-high);
-  color: var(--on-surface);
-}
-
-.leiste a[aria-current] {
-  font-weight: 700;
-  box-shadow: inset 0 -4px 0 var(--primary);
-}
-
-.leiste .rechts {
-  display: flex;
-  align-items: center;
-  margin-left: auto;
-}
-
-.leiste :focus-visible {
-  outline-color: var(--on-secondary);
-}
-
-/* Unterleiste: die Unterseiten des gewählten Bereichs */
+/* Unterleiste: die Unterseiten des gewählten Bereichs, eine leise Zeile unter dem Band; sie scrollt mit dem Inhalt weg */
 .unterleiste {
-  background: var(--surface-container);
   border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface);
 }
 
 .unterleiste ul {
   display: flex;
   flex-wrap: wrap;
+  margin-left: -0.75rem;
 }
 
 .unterleiste a {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-  padding: 0 1rem;
+  padding: 0 0.75rem;
   color: var(--on-surface);
-  font-size: 1rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
   text-decoration: none;
 }
 
 .unterleiste a:hover {
-  background: var(--surface-container-high);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .unterleiste a[aria-current] {
-  font-weight: 700;
-  box-shadow: inset 0 -3px 0 var(--accent);
+  color: var(--titel);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--primary);
 }
 
-/* Menü am Handy: ein details-Element, es braucht kein Skript. Am Computer steht die Leiste offen */
+/* Menü am Handy: ein details-Element, es braucht kein Skript. Die Tafel hängt unter dem Band und rollt selbst, wenn sie höher ist als das Fenster */
 .menue-mobil {
   display: none;
 }
 
 .menue-mobil summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem 0 0.75rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1rem;
+  font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
   list-style: none;
@@ -487,14 +636,27 @@ figcaption,
   display: inline;
 }
 
+.menue-mobil[open] summary {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
 .menue-mobil nav {
   position: absolute;
-  left: 0;
+  top: 100%;
   right: 0;
+  left: 0;
   z-index: 4;
-  background: var(--surface);
-  color: var(--on-surface);
+  max-height: calc(100vh - 4.5rem);
+  max-height: calc(100dvh - 4.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.5rem var(--rand) 1.5rem;
   border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  box-shadow: var(--schatten);
 }
 
 .menue-mobil nav ul {
@@ -505,24 +667,89 @@ figcaption,
 .menue-mobil nav a {
   display: flex;
   align-items: center;
-  min-height: 4rem;
-  padding: 0 1.25rem;
+  min-height: 3.5rem;
   border-bottom: 1px solid var(--outline-variant);
   color: var(--on-surface);
   font-size: 1.375rem;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   text-decoration: none;
 }
 
 .menue-mobil nav ul ul a {
-  min-height: 3rem;
-  padding-left: 2.5rem;
-  font-size: 1.125rem;
+  min-height: 2.75rem;
+  padding-left: 1.25rem;
+  border-bottom: 0;
+  font-size: 1.0625rem;
   font-weight: 500;
+  letter-spacing: 0;
+}
+
+.menue-mobil nav ul ul {
+  padding-block: 0.25rem 0.5rem;
+  border-bottom: 1px solid var(--outline-variant);
 }
 
 .menue-mobil nav a[aria-current] {
-  box-shadow: inset 4px 0 0 var(--secondary);
+  color: var(--titel);
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.menue-mobil nav ul ul a[aria-current] {
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.menue-mobil .anmelden-mobil {
+  gap: 0.625rem;
+  border-bottom: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+@media (max-width: 95.99em) and (min-width: 60em) {
+  /* Zweite Zeile im selben Band */
+  .kopf-in {
+    min-height: 4rem;
+  }
+
+  .hauptnav {
+    flex: 1 0 100%;
+    order: 3;
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .hauptnav > ul > li > a,
+  .hauptnav summary {
+    min-height: 3rem;
+  }
+}
+
+@media (max-width: 59.99em) {
+  .kopf-in {
+    min-height: 4rem;
+    column-gap: 0.5rem;
+  }
+
+  .hauptnav,
+  .anmelden,
+  .unterleiste {
+    display: none;
+  }
+
+  .menue-mobil {
+    display: block;
+  }
+
+  .kopf-rechts {
+    gap: 0.5rem;
+  }
+}
+
+@media print {
+  .kopf {
+    position: static;
+  }
 }
 
 .fuss {
@@ -672,13 +899,12 @@ a.mehr:hover {
 
 a.mehr::after {
   display: inline-block;
-  width: 0.5em;
-  height: 0.5em;
-  margin-left: 0.4em;
-  border-top: 2px solid currentcolor;
-  border-right: 2px solid currentcolor;
+  width: 0.4em;
+  height: 0.6em;
+  margin-left: 0.45em;
+  background: currentcolor;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
   content: "";
-  transform: rotate(45deg);
 }
 
 .datei {
@@ -1329,11 +1555,6 @@ a.termin:hover {
     line-height: 1.625rem;
   }
 
-  .kopf-in {
-    min-height: 4rem;
-    gap: 0.5rem;
-  }
-
   .marke {
     gap: 0.375rem;
   }
@@ -1345,22 +1566,6 @@ a.termin:hover {
 
   .marke span {
     font-size: 1rem;
-  }
-
-  .leiste-in {
-    min-height: 3rem;
-  }
-
-  .leiste .hauptnav {
-    display: none;
-  }
-
-  .menue-mobil {
-    display: block;
-  }
-
-  .unterleiste {
-    display: none;
   }
 
   .seitenkopf {
@@ -1450,8 +1655,8 @@ a.termin:hover {
   }
 }
 
-/* ===== Logo, Umschalter Hell und Dunkel, Karussell (#550) ===== */
-/* Das Logo trägt seinen eigenen weissen Grund: So ist es in Tag und Nacht lesbar */
+/* ===== Logo, Umschalter Hell und Dunkel, Karussell (#550, Gestaltung #555) ===== */
+/* Das Logo steht ohne Hintergrund im Kopf. Mit zwei Fassungen zeigt der Stil je nach Darstellung eine; gibt es nur eine, steht sie in der Nacht auf einem hellen Feld (--logo-grund) */
 .marke--logo {
   align-items: center;
   gap: 0.75rem;
@@ -1459,14 +1664,39 @@ a.termin:hover {
 
 .logo {
   width: auto;
-  height: 3rem;
-  border-radius: 0.375rem;
+  height: 2.75rem;
 }
 
-/* Der Umschalter steht rechts im Kopf; ohne Skript bleibt er verborgen (hidden) */
+.marke--logo:not(.marke--zwei) .logo {
+  border-radius: 0.375rem;
+  background: var(--logo-grund);
+}
+
+.logo--dunkel {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo--hell {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo--dunkel {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .logo--hell {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo--dunkel {
+  display: block;
+}
+
+/* Der Umschalter: zwei runde Knöpfe nur mit Symbol (Hell, Dunkel); ohne Skript bleibt er verborgen (hidden) */
 .thema {
   display: flex;
-  margin-left: auto;
   padding: 0.125rem;
   border: 1px solid var(--outline);
   border-radius: var(--r-full);
@@ -1476,16 +1706,13 @@ a.termin:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0 0.875rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
   border: 0;
   border-radius: var(--r-full);
   background: transparent;
   color: var(--on-surface);
-  font: inherit;
-  font-size: 1rem;
   cursor: pointer;
 }
 
@@ -1493,13 +1720,18 @@ a.termin:hover {
   background: var(--surface-container-high);
 }
 
-/* Gewählt: gefüllt und fett; die Füllung ist ein Formunterschied, nicht nur eine andere Farbe */
+/* Gewählt: gefüllt und mit innerem Ring; Fläche und Ring sind ein Formunterschied, nicht nur eine andere Farbe */
 .thema button[aria-pressed="true"] {
   background: var(--secondary);
+  box-shadow: inset 0 0 0 2px var(--on-secondary);
   color: var(--on-secondary);
-  font-weight: 700;
 }
 
+.thema button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Karussell: eine Bühne für ein Bild, darunter eine Zeile aus Knöpfen, einem Balken je Bild und dem Zähler */
 .karussell {
   display: flex;
   flex-direction: column;
@@ -1513,14 +1745,19 @@ a.termin:hover {
 }
 
 .folie figure {
+  position: relative;
   max-width: 100%;
 }
 
+/* Mit Skript liegen alle Bilder übereinander, nur das aktuelle ist sichtbar (visibility nimmt die anderen aus dem Lesefluss). Die Bühne schneidet ab, was sich hereinschiebt */
 .karussell--aktiv .folien {
   gap: 0;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  touch-action: pan-y;
 }
 
-/* Mit Skript liegen alle Bilder übereinander, nur das aktuelle ist sichtbar (visibility nimmt die anderen aus dem Lesefluss) */
 .karussell--aktiv .folie {
   grid-area: 1 / 1;
   visibility: hidden;
@@ -1532,26 +1769,29 @@ a.termin:hover {
   opacity: 1;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .karussell--aktiv .folie {
-    transition:
-      opacity 0.8s ease,
-      visibility 0s linear 0.8s;
-  }
-
-  .karussell--aktiv .folie[data-aktiv] {
-    transition:
-      opacity 0.8s ease,
-      visibility 0s;
-  }
-}
-
 .karussell--aktiv .folie img {
   width: 100%;
-  max-height: 32rem;
+  max-height: min(74vh, 46rem);
   aspect-ratio: 16 / 9;
   object-fit: cover;
-  border-radius: var(--r-sm);
+  object-position: 50% 35%;
+  border-radius: 0;
+}
+
+/* Die Bildunterschrift sitzt als kleine Fahne unten links im Bild, wie das Alter auf den Stufenkarten */
+.karussell--aktiv .folie figcaption {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  max-width: min(100% - 2rem, 40rem);
+  margin: 0;
+  padding: 0.5rem 1.125rem 0.5rem 1rem;
+  border-radius: 0 var(--r-sm) 0 0;
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
 }
 
 .steuerung {
@@ -1568,18 +1808,19 @@ a.termin:hover {
   gap: 0.5rem;
   min-width: 2.75rem;
   min-height: 2.75rem;
-  padding: 0 0.875rem;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-  background: var(--surface-container-low);
-  color: var(--on-surface);
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: var(--secondary);
+  color: var(--on-secondary);
   font: inherit;
   font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
 }
 
-.steuerung button:hover {
-  background: var(--surface-container);
+.steuerung .pfeil:hover {
+  background: color-mix(in srgb, var(--secondary), var(--on-secondary) 16%);
 }
 
 /* Die Beschriftung der Pfeile steht nur für Screenreader; der Pause-Knopf zeigt sie */
@@ -1593,35 +1834,72 @@ a.termin:hover {
 }
 
 .steuerung .pause {
-  margin-left: auto;
+  padding: 0 1rem 0 0.625rem;
+  border: 1px solid var(--outline);
+  background: transparent;
+  color: var(--on-surface);
 }
 
+.steuerung .pause:hover {
+  background: var(--surface-container-high);
+}
+
+.steuerung .pause .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.zaehler {
+  min-width: 3.5rem;
+  color: var(--titel);
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Ein Balken je Bild: die Fläche zum Treffen ist 44 px hoch, sichtbar ist ein Strich. Das aktuelle Bild hat den dickeren, vollen Strich (Form, nicht nur Farbe) */
 .punkte {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0;
+  flex: 1 1 10rem;
+  gap: 0.375rem;
+  min-width: 0;
+  margin-inline: 0.75rem;
 }
 
 .steuerung .punkt {
-  min-width: 2.75rem;
-  padding: 0;
-  border: 0;
+  flex: 1 1 0;
+  min-width: 1.5rem;
+  border-radius: 0;
   background: transparent;
 }
 
-.punkt .kreis {
-  width: 0.875rem;
-  height: 0.875rem;
-  border: 2px solid var(--on-surface);
-  border-radius: 50%;
+.punkt .balken {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 0.25rem;
+  overflow: hidden;
+  background: var(--outline);
 }
 
-/* Das aktuelle Bild: gefüllter Punkt und doppelte Grösse des Rands, nicht nur eine Farbe */
-.punkt[aria-current] .kreis {
+.punkt:hover .balken {
   background: var(--on-surface);
-  box-shadow:
-    0 0 0 2px var(--surface-container-low),
-    0 0 0 4px var(--on-surface);
+}
+
+.punkt[aria-current] .balken {
+  height: 0.5rem;
+  background: var(--titel);
+}
+
+/* Läuft die Zeit, füllt sich der Balken des aktuellen Bildes rot bis zum Wechsel */
+.punkt .balken::after {
+  position: absolute;
+  inset: 0;
+  background: var(--primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
 }
 
 @media (max-width: 47.5em) {
@@ -1633,146 +1911,23 @@ a.termin:hover {
     gap: 0.5rem;
   }
 
-  .kopf-in {
-    flex-wrap: wrap;
+  .karussell--aktiv .folie img {
+    aspect-ratio: 4 / 3;
   }
 
-  /* Die Punkte stehen unter den Knöpfen, damit acht Punkte umbrechen dürfen */
+  /* Die Balken stehen über den Knöpfen in voller Breite */
   .steuerung .punkte {
-    order: 1;
+    order: -1;
     flex: 1 1 100%;
-    justify-content: center;
+    margin-inline: 0;
   }
 
-  /* Am Handy nur die Symbole: drei Knöpfe zu 44 px; die Namen bleiben für Screenreader */
-  .thema button {
-    padding: 0;
-  }
-
-  .thema button span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .zaehler {
+    margin-left: auto;
   }
 }
 
 /* ===== Darstellung nach dem Design angleichen (#549) ===== */
-
-/* Navigation: eine Zeile; Untermenüs öffnen sich bei Hover und Fokus, «Mehr» ist ein details-Element */
-.hauptnav > ul {
-  flex-wrap: nowrap;
-}
-
-.leiste a,
-.leiste summary {
-  white-space: nowrap;
-}
-
-.leiste .hauptnav a,
-.leiste .hauptnav summary {
-  padding: 0 0.625rem;
-}
-
-.leiste .mit-unter {
-  position: relative;
-}
-
-.leiste .mit-unter > a::after,
-.leiste .weitere summary::after {
-  width: 0.45rem;
-  height: 0.45rem;
-  margin: -0.2rem 0 0 0.125rem;
-  border-right: 2px solid currentcolor;
-  border-bottom: 2px solid currentcolor;
-  content: "";
-  transform: rotate(45deg);
-}
-
-.leiste .weitere summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.leiste .weitere summary::-webkit-details-marker {
-  display: none;
-}
-
-.leiste .weitere.hier summary {
-  font-weight: 700;
-  box-shadow: inset 0 -4px 0 var(--primary);
-}
-
-.leiste .unter {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  z-index: 6;
-  display: none;
-  flex-direction: column;
-  min-width: 15rem;
-  padding: 0.5rem;
-  border: 1px solid var(--outline-variant);
-  border-radius: 0 0 var(--r-sm) var(--r-sm);
-  background: var(--surface-container-low);
-  box-shadow: var(--schatten);
-}
-
-.leiste .weitere .unter {
-  right: 0;
-  left: auto;
-}
-
-.leiste .mit-unter:hover > .unter,
-.leiste .mit-unter:focus-within > .unter,
-.leiste .weitere details[open] > .unter {
-  display: flex;
-}
-
-/* Esc schliesst das Untermenü, auch wenn die Maus noch darüber steht (menue.js) */
-.leiste .mit-unter[data-zu] > .unter {
-  display: none;
-}
-
-.leiste .unter a {
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  border-radius: var(--r-sm);
-  color: var(--on-surface);
-  font-weight: 500;
-  box-shadow: none;
-}
-
-.leiste .unter a:hover {
-  background: var(--surface-container);
-}
-
-.leiste .unter a[aria-current] {
-  font-weight: 700;
-  box-shadow: inset 3px 0 0 var(--accent);
-}
-
-.leiste .unter ul {
-  flex-direction: column;
-  padding-left: 1rem;
-}
-
-.leiste .unter :focus-visible {
-  outline-color: var(--focus);
-}
-
-/* Zu schmal für eine Zeile (sechs Punkte und «Mehr» brauchen gut 1160 px): das Menü am Handy übernimmt schon ab dieser Breite */
-@media (max-width: 74em) {
-  .leiste .hauptnav {
-    display: none;
-  }
-
-  .menue-mobil {
-    display: block;
-  }
-}
 
 /* Karten (Baustein «Karten», Darstellung «Karten») */
 .karten h2.titel,
@@ -1832,25 +1987,31 @@ div.termin {
 }
 
 @media (forced-colors: active) {
-  .thema button[aria-pressed="true"],
-  .steuerung .punkt[aria-current] .kreis {
+  .thema button[aria-pressed="true"] {
     border: 2px solid CanvasText;
   }
 
-  .thema button[aria-pressed="true"] {
-    text-decoration: underline;
+  .punkt .balken {
+    background: CanvasText;
   }
 
-  .leiste .unter {
-    border-color: CanvasText;
+  .hauptnav .unter,
+  .menue-mobil nav,
+  .steuerung button {
+    border: 1px solid CanvasText;
+  }
+
+  .thema button {
+    border: 1px solid ButtonText;
   }
 }
 
-/* ===== Gestaltung der Seiten (#555): Abschnitte über die ganze Breite, Kartenarten, Fuss ===== */
+/* ===== Gestaltung der Seiten (#555): Abschnitte über die ganze Breite, Titelschiene, Kartenarten, Fuss ===== */
 
-/* Abschnitte: durchgehender Hintergrund, Inhalt in der fliessenden Spalte. Fläche und Tönung wechseln sich ab */
+/* Raster der Seite: Abschnitte haben einen Hintergrund bis zum Fensterrand. Titel stehen links in einer Schiene, der Inhalt rechts daneben (Text, Merkmale, Termine, Kontakt);
+   Bildkarten, Galerie und Karussell nehmen die ganze Spalte. Am Handy steht alles untereinander */
 .sektion {
-  padding-block: clamp(3rem, 2rem + 4vw, 6rem);
+  padding-block: var(--abstand);
 }
 
 .sektion--flaeche {
@@ -1861,10 +2022,29 @@ div.termin {
   background: var(--surface);
 }
 
+/* Abschnitte aus Text stehen dichter als Abschnitte mit Bildern */
+.sektion--text {
+  --abstand: clamp(2.25rem, 1.5rem + 2.5vw, 4rem);
+}
+
+/* Folgt ein Abschnitt mit Schiene auf einen gleichen, bleibt die Fläche: Eine Linie trennt, kein neuer Ton */
+.sektion--folge {
+  padding-top: 0;
+}
+
+.sektion--folge > .wrap::before {
+  display: block;
+  grid-column: 1 / -1;
+  margin-bottom: var(--abstand);
+  border-top: 1px solid var(--outline-variant);
+  content: "";
+}
+
 .sektion-rumpf {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  min-width: 0;
 }
 
 .sektion-rumpf > h3 {
@@ -1872,38 +2052,61 @@ div.termin {
 }
 
 .sektion-kopf {
-  max-width: 56rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
 }
 
 .sektion-kopf h2,
-.seitenband h1 {
+.abschnitt-kopf h2,
+.kontaktkarte h2 {
+  font-size: clamp(1.75rem, 1.25rem + 1.8vw, 3rem);
+  line-height: 1.08;
   font-weight: 800;
-  letter-spacing: -0.015em;
-}
-
-.sektion-kopf h2 {
-  font-size: clamp(1.75rem, 1.25rem + 1.6vw, 2.75rem);
-  line-height: 1.15;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .sektion-kopf .text {
-  margin-top: 0.75rem;
+  margin-top: 1rem;
   color: var(--on-surface-variant);
   font-size: 1.25rem;
-  line-height: 1.6;
+  line-height: 1.55;
 }
 
-/* Abschnitt aus Text: Titel links, Text rechts; ohne Titel nimmt der Text die ganze Spalte */
+.sektion--breit .sektion-kopf {
+  max-width: 52rem;
+  margin-bottom: clamp(1.75rem, 3vw, 3rem);
+}
+
+/* Einstieg: der erste Text gleich unter dem Seitentitel, grösser gesetzt */
+.sektion--einstieg {
+  padding-top: clamp(1rem, 2vw, 2rem);
+}
+
+.sektion--text .sektion-kopf h2 {
+  font-size: clamp(1.625rem, 1.2rem + 1.4vw, 2.5rem);
+}
+
+.sektion--einstieg .sektion-rumpf > .lesetext:first-child,
+.sektion--einstieg .spalte > .lesetext:first-child {
+  max-width: 62ch;
+  font-size: clamp(1.1875rem, 1.05rem + 0.55vw, 1.5rem);
+  line-height: 1.55;
+}
+
 @media (min-width: 64.0625em) {
-  .sektion--text > .wrap {
+  .sektion--text > .wrap,
+  .sektion--terminliste .abschnitt,
+  .kontaktkarte {
     display: grid;
-    grid-template-columns: minmax(16rem, 1fr) minmax(0, 2.2fr);
-    gap: 2rem clamp(3rem, 6vw, 6rem);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    column-gap: var(--spalt);
     align-items: start;
   }
 
+  /* Der Titel bleibt stehen, solange sein Abschnitt durchläuft */
   .sektion--text .sektion-kopf {
+    position: sticky;
+    top: 2rem;
     margin-bottom: 0;
   }
 
@@ -1912,17 +2115,40 @@ div.termin {
   }
 }
 
+/* Seitentitel ohne Bild: gross auf der Fläche, darunter der rote Strich der Navigation */
 .seitenband {
-  padding-block: clamp(2rem, 1rem + 3.5vw, 4rem);
-  background: var(--surface);
+  padding-block: clamp(2.5rem, 1.5rem + 4vw, 5.5rem) clamp(1rem, 2vw, 2rem);
+  background: var(--surface-container-low);
+}
+
+.seitenband h1,
+.fahne h1 {
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 
 .seitenband h1 {
-  font-size: clamp(2rem, 1.4rem + 2.4vw, 3.5rem);
-  line-height: 1.1;
+  font-size: clamp(2.375rem, 1.5rem + 3.6vw, 5rem);
+  line-height: 1.02;
 }
 
-/* Hero: das Titelbild bis zum Fensterrand, das blaue Feld überlappt es von unten */
+.seitenband > .wrap > h1::after {
+  display: block;
+  width: 4.5rem;
+  height: 0.375rem;
+  margin-top: clamp(1rem, 2vw, 1.75rem);
+  background: var(--primary);
+  content: "";
+}
+
+/* Titelbild bis zum Fensterrand; die blaue Fahne mit dem Titel ragt von links hinein. Sie läuft links bis zum Fensterrand, ihr Text steht in der Spalte der Seite */
+.hero {
+  position: relative;
+  overflow-x: clip;
+  background: var(--surface-container-low);
+}
+
 .titelbild {
   margin: 0;
   background: var(--surface-container-high);
@@ -1930,19 +2156,19 @@ div.termin {
 
 .titelbild img {
   width: 100%;
-  height: clamp(15rem, 34vw, 34rem);
+  height: clamp(18rem, 44vw, 44rem);
   object-fit: cover;
-  object-position: 50% 30%;
+  object-position: 50% 32%;
   border-radius: 0;
+}
+
+.hero--seite .titelbild img {
+  height: clamp(13rem, 30vw, 30rem);
 }
 
 .titelbild figcaption {
   margin: 0;
   padding: 0.5rem var(--rand);
-}
-
-.hero {
-  position: relative;
 }
 
 .hero .titelbild figcaption {
@@ -1955,77 +2181,97 @@ div.termin {
   color: var(--on-secondary);
 }
 
-.teaser {
+.fahne {
   position: relative;
-  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 4vw, 3rem);
-}
-
-.teaser--ueber-bild {
-  margin-top: clamp(-7rem, -7vw, -3rem);
-  padding-top: 0;
-}
-
-.teaser .box {
-  display: grid;
-  gap: 1.5rem clamp(2rem, 5vw, 5rem);
-  align-items: center;
-  padding: clamp(1.5rem, 1rem + 2.5vw, 3.5rem);
-  border-radius: var(--r-md);
+  width: fit-content;
+  max-width: min(100%, 48rem);
+  padding: clamp(1.5rem, 1rem + 2vw, 3rem) clamp(1.5rem, 1rem + 2.5vw, 3.5rem)
+    clamp(1.5rem, 1rem + 2vw, 3rem) 0;
+  border-radius: 0 var(--r-md) var(--r-md) 0;
   background: var(--secondary);
   color: var(--on-secondary);
-  box-shadow: var(--schatten);
 }
 
-.teaser-kopf {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+.fahne::before {
+  position: absolute;
+  top: 0;
+  /* ein Pixel Überlappung: keine Naht bei gebrochenen Pixelwerten */
+  right: calc(100% - 1px);
+  bottom: 0;
+  width: 100vw;
+  background: inherit;
+  content: "";
 }
 
-.teaser-text {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.teaser .kicker,
-.teaser-text p {
-  color: var(--on-secondary-muted);
-}
-
-.teaser-text p {
-  font-size: 1.1875rem;
-  line-height: 1.7;
-}
-
-.teaser .box h1 {
+.fahne h1 {
   color: var(--on-secondary);
-  font-size: clamp(2rem, 1.3rem + 2.8vw, 3.75rem);
-  line-height: 1.08;
-  font-weight: 800;
+  font-size: clamp(2.5rem, 1.4rem + 4.6vw, 5.75rem);
+  line-height: 0.98;
 }
 
-.teaser .box a:not(.btn) {
-  color: var(--on-secondary);
+.hero--seite .fahne h1 {
+  font-size: clamp(2.125rem, 1.4rem + 3vw, 4.25rem);
+  line-height: 1.02;
 }
 
-.teaser .box :focus-visible {
+.fahne .knopfreihe {
+  margin-top: clamp(1.25rem, 2.5vw, 2.25rem);
+}
+
+.fahne :focus-visible {
   outline-color: var(--on-secondary);
 }
 
-.teaser .btn.s {
+.fahne .btn.s {
   border-color: var(--on-secondary-muted);
   color: var(--on-secondary);
 }
 
-.teaser .btn.s:hover {
+.fahne .btn.s:hover {
   background: var(--on-secondary);
   color: var(--secondary);
 }
 
+.teaser {
+  --ueberstand: 0rem;
+  position: relative;
+  padding-block: clamp(1.5rem, 4vw, 3rem) clamp(2rem, 4vw, 4rem);
+}
+
+.teaser--ueber-bild {
+  --ueberstand: clamp(4rem, 11vw, 11rem);
+  margin-top: calc(-1 * var(--ueberstand));
+  padding-top: 0;
+}
+
+.teaser-in {
+  display: grid;
+  gap: 2rem var(--spalt);
+}
+
+.teaser-text {
+  max-width: 62ch;
+  font-size: clamp(1.1875rem, 1.05rem + 0.55vw, 1.5rem);
+  line-height: 1.55;
+}
+
+.seitenband--ueber-bild {
+  position: relative;
+  margin-top: calc(-1 * clamp(3rem, 7vw, 7rem));
+  padding-block: 0 clamp(1rem, 2vw, 2rem);
+  background: none;
+}
+
 @media (min-width: 64.0625em) {
-  .teaser .box {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* Fahne links, der Text daneben und immer unter dem Bild */
+  .teaser-in {
+    grid-template-columns: minmax(0, max-content) minmax(20rem, 1fr);
+    align-items: start;
+  }
+
+  .teaser-text {
+    padding-top: calc(var(--ueberstand) + 2.5rem);
+    padding-bottom: 0.5rem;
   }
 }
 
@@ -2061,92 +2307,90 @@ div.termin {
   font-weight: 700;
 }
 
-/* Merkmale: Symbol, Titel und Text ohne Kachel und ohne Link */
+/* Merkmale: Zeilen aus Symbol, Titel und Text, ohne Kachel und ohne Link */
 .merkmale {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
-  gap: 2.5rem clamp(1.5rem, 3vw, 3rem);
-}
-
-.merkmale li {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+}
+
+.merkmale > li {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 13rem) minmax(0, 1fr);
+  gap: 0.25rem 1.5rem;
+  align-items: baseline;
+  padding-block: 1.5rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.merkmale > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.merkmale > li:last-child {
+  padding-bottom: 0;
 }
 
 .merkmal-symbol {
   display: inline-flex;
-  margin-bottom: 0.5rem;
+  grid-column: 1;
+  align-self: start;
   color: var(--primary-text);
 }
 
 .merkmal-symbol .i {
-  width: 3rem;
-  height: 3rem;
-  stroke-width: 1.5;
+  width: 2rem;
+  height: 2rem;
 }
 
 .merkmale .titel {
-  color: var(--on-surface);
+  grid-column: 2;
+  color: var(--titel);
   font-size: 1.375rem;
   line-height: 1.75rem;
+  font-weight: 800;
+}
+
+.merkmale > li:not(:has(.merkmal-symbol)) .titel {
+  grid-column: 1 / 3;
 }
 
 .merkmale p {
-  max-width: 34ch;
+  grid-column: 3;
+  max-width: 52ch;
   color: var(--on-surface-variant);
 }
 
-/* Stufenkarten: Foto oben mit Alterschip, ein Link auf die ganze Karte. Jede Stufe hat ihren Ton (--akzent); der Chip nennt das Alter, die Farbe allein sagt nichts */
+/* Stufenkarten: das Foto trägt die Karte, das Alter steht als kleine Fahne im Bild, darunter Titel und Kurztext. Ein Link im Titel deckt die ganze Karte ab */
 .stufenkarten {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
-  gap: clamp(1rem, 2vw, 1.75rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: clamp(2rem, 3.5vw, 3.5rem) clamp(1.25rem, 2.2vw, 2.25rem);
 }
 
 .stufe {
-  --akzent: var(--stufe-1);
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  gap: 1rem;
   border-radius: var(--r-md);
-  background: var(--karte);
-  box-shadow: var(--schatten-karte);
-}
-
-.stufe:nth-child(6n + 2) {
-  --akzent: var(--stufe-2);
-}
-
-.stufe:nth-child(6n + 3) {
-  --akzent: var(--stufe-3);
-}
-
-.stufe:nth-child(6n + 4) {
-  --akzent: var(--stufe-4);
-}
-
-.stufe:nth-child(6n + 5) {
-  --akzent: var(--stufe-5);
-}
-
-.stufe:nth-child(6n + 6) {
-  --akzent: var(--stufe-6);
 }
 
 .stufe-bild {
   position: relative;
-  aspect-ratio: 4 / 3;
-  border-bottom: 4px solid var(--akzent);
+  aspect-ratio: 3 / 2;
+  overflow: hidden;
+  border-radius: var(--r-md);
   background: var(--surface-container-high);
 }
 
 .stufe-bild--leer {
-  background: var(--akzent);
+  background: var(--secondary);
 }
 
 .stufe-bild img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -2156,34 +2400,35 @@ div.termin {
 
 .alterschip {
   position: absolute;
-  bottom: 0.75rem;
-  left: 0.75rem;
+  bottom: 0;
+  left: 0;
   max-width: calc(100% - 1.5rem);
-  padding: 0.25rem 0.875rem;
-  border-radius: var(--r-full);
-  background: var(--akzent);
-  color: var(--on-primary);
+  padding: 0.375rem 1rem 0.375rem 0.875rem;
+  border-radius: 0 var(--r-sm) 0 0;
+  background: var(--secondary);
+  color: var(--on-secondary);
   font-size: 0.9375rem;
   line-height: 1.375rem;
   font-weight: 700;
 }
 
 .stufe-text {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.25rem 1.5rem 1.5rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 1rem;
+  align-items: start;
 }
 
 .stufenkarten .titel {
-  color: var(--on-surface);
-  font-size: 1.375rem;
-  line-height: 1.75rem;
+  color: var(--titel);
+  font-size: clamp(1.375rem, 1.2rem + 0.6vw, 1.75rem);
+  line-height: 1.15;
   font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
 .stufe-text p {
+  grid-column: 1;
   color: var(--on-surface-variant);
 }
 
@@ -2192,7 +2437,6 @@ div.termin {
   text-decoration: none;
 }
 
-/* Der Link deckt die ganze Karte ab; den Fokus zeigt die Karte, nicht nur der Titel */
 .stufe .titel a::after {
   position: absolute;
   inset: 0;
@@ -2200,80 +2444,157 @@ div.termin {
   content: "";
 }
 
+/* Den Fokus zeigt die ganze Karte, nicht nur der Titel */
 .stufe .titel a:focus-visible {
   outline: none;
 }
 
 .stufe:has(.titel a:focus-visible) {
   outline: 3px solid var(--focus);
-  outline-offset: 3px;
+  outline-offset: 6px;
 }
 
 .stufe-pfeil {
   display: inline-flex;
+  grid-row: 1;
+  grid-column: 2;
   align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  height: 2rem;
+  color: var(--primary-text);
+}
+
+.stufe--link:hover .titel a {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+@media (min-width: 64.0625em) {
+  .stufenkarten:has(> :nth-child(5)) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Karten (Darstellung «Karten»): ruhige Kachel mit feinem Rand; der Link «Mehr zu …» deckt die ganze Kachel ab */
+.karten {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  gap: clamp(1rem, 2vw, 1.5rem);
+}
+
+.karten > li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+}
+
+.karten h2.titel,
+.karten h3.titel {
+  color: var(--titel);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+}
+
+.karten > li > p {
+  color: var(--on-surface-variant);
+}
+
+.karten > li > p:has(a.mehr) {
   margin-top: auto;
-  margin-left: auto;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-  color: var(--on-surface);
+  padding-top: 0.75rem;
 }
 
-.stufe--link:hover {
-  box-shadow: var(--schatten-karte-hoch);
+.karten a.mehr::before {
+  position: absolute;
+  inset: 0;
+  content: "";
 }
 
-.stufe--link:hover .stufe-pfeil {
-  border-color: var(--secondary);
+.karten a.mehr:focus-visible {
+  outline: none;
+}
+
+.karten > li:has(a.mehr:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.karten > li:has(a.mehr:hover) {
+  border-color: var(--outline);
+}
+
+/* Liste: Zeilen mit Linie statt Kästen */
+.liste {
+  gap: 0;
+}
+
+.liste > li {
+  padding: 1.25rem 0;
+  border: 0;
+  border-top: 1px solid var(--outline-variant);
+  border-radius: 0;
+  background: none;
+}
+
+.liste > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.liste .titel a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 800;
+}
+
+.liste p + p {
+  color: var(--on-surface-variant);
+}
+
+/* Das Wichtigste einer Stufe: eine blaue Tafel neben dem Text */
+@media (min-width: 47.5625em) {
+  .zweispalten {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, 27rem);
+    gap: 2rem var(--spalt);
+  }
+}
+
+.fakten.karte {
+  padding: clamp(1.5rem, 1rem + 1.5vw, 2.5rem);
+  border: 0;
+  border-radius: var(--r-md);
   background: var(--secondary);
   color: var(--on-secondary);
 }
 
-@media (min-width: 64.0625em) {
-  .stufenkarten:has(> :nth-child(6):last-child) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .stufenkarten:has(> :nth-child(4):last-child) {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
+.fakten.karte .fakt {
+  border-top-color: color-mix(in srgb, var(--on-secondary) 24%, transparent);
 }
 
-@media (min-width: 112em) {
-  .stufenkarten:has(> :nth-child(6):last-child) {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
+.fakten.karte dt {
+  color: var(--on-secondary-muted);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .stufe {
-    transition:
-      transform 0.2s ease-out,
-      box-shadow 0.2s ease-out;
-  }
-
-  .stufe--link:hover {
-    transform: translateY(-4px);
-  }
+.fakten.karte dd {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
 }
 
-/* Karten, Liste, Fakten und Dateien: weicher Schatten statt Rahmen */
-.karten > li,
-.liste > li,
-.fakten.karte,
 .datei.karte {
-  border: 0;
   border-radius: var(--r-md);
   background: var(--karte);
-  box-shadow: var(--schatten-karte);
 }
 
 /* Aufruf zum Handeln: ein Band in der Hauptfarbe über die ganze Breite */
 .sektion--aufruf {
-  padding-block: clamp(2.5rem, 1.5rem + 4vw, 4.5rem);
+  padding-block: clamp(2.5rem, 1.5rem + 4.5vw, 5.5rem);
   background: var(--primary);
   color: var(--on-primary);
 }
@@ -2281,9 +2602,9 @@ div.termin {
 .aufruf {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: end;
   justify-content: space-between;
-  gap: 1.5rem 3rem;
+  gap: 1.75rem 3rem;
 }
 
 .aufruf-text {
@@ -2295,14 +2616,16 @@ div.termin {
 
 .aufruf h2 {
   color: var(--on-primary);
-  font-size: clamp(1.75rem, 1.2rem + 2.2vw, 3rem);
-  line-height: 1.12;
+  font-size: clamp(2rem, 1.3rem + 3vw, 4.25rem);
+  line-height: 1;
   font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
 }
 
 .aufruf p {
-  font-size: 1.25rem;
-  line-height: 1.6;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.5;
 }
 
 .sektion--aufruf :focus-visible {
@@ -2319,35 +2642,23 @@ a.btn.w {
 }
 
 .btn.w:hover {
-  box-shadow: var(--schatten);
+  background: color-mix(in srgb, var(--on-primary) 90%, var(--primary));
 }
 
-/* Termin-Liste: Titel links, die Liste als eine Tafel rechts; am Handy Zeile unter Zeile */
+/* Termin-Liste: Titel in der Schiene, rechts Zeile unter Zeile mit dem Datumsfeld vorn */
 .sektion--terminliste .abschnitt {
-  display: grid;
-  gap: 1.5rem clamp(2rem, 5vw, 5rem);
-  align-items: start;
   margin-top: 0;
 }
 
 .sektion--terminliste .abschnitt-kopf {
   flex-direction: column;
   align-items: flex-start;
-  margin-bottom: 0;
-}
-
-.sektion--terminliste .abschnitt-kopf h2 {
-  font-size: clamp(1.75rem, 1.25rem + 1.6vw, 2.75rem);
-  line-height: 1.15;
-  font-weight: 800;
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 
 .sektion--terminliste .termine {
   gap: 0;
-  overflow: hidden;
-  border-radius: var(--r-md);
-  background: var(--karte);
-  box-shadow: var(--schatten-karte);
 }
 
 .sektion--terminliste .termine > li + li {
@@ -2355,20 +2666,33 @@ a.btn.w {
 }
 
 .sektion--terminliste .termin {
-  grid-template-columns: 4.5rem minmax(0, 1fr) auto;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  gap: clamp(1rem, 2vw, 1.75rem);
   align-items: center;
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 0;
   border: 0;
   border-radius: 0;
   background: none;
 }
 
-.sektion--terminliste a.termin:hover {
-  background: var(--surface-container);
+.sektion--terminliste .termine > li:first-child .termin {
+  padding-top: 0;
+}
+
+.sektion--terminliste .termin .titel {
+  font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.5rem);
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.sektion--terminliste a.termin:hover .titel {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .sektion--terminliste a.termin:focus-visible {
-  outline-offset: -3px;
+  outline-offset: 4px;
 }
 
 .termin-pfeil {
@@ -2377,109 +2701,92 @@ a.btn.w {
   justify-content: center;
   width: 2.75rem;
   height: 2.75rem;
-  color: var(--on-surface-variant);
-}
-
-a.termin:hover .termin-pfeil {
-  color: var(--on-surface);
-}
-
-.sektion--terminliste .zustand {
-  border: 0;
-  background: var(--karte);
-  box-shadow: var(--schatten-karte);
+  color: var(--primary-text);
 }
 
 @media (min-width: 64.0625em) {
-  .sektion--terminliste .abschnitt {
-    grid-template-columns: minmax(14rem, 1fr) minmax(0, 2.4fr);
+  .sektion--terminliste .abschnitt-kopf {
+    margin-bottom: 0;
   }
 }
 
-/* Kontaktkarte: Frage links, Telefon und E-Mail als grosse Flächen rechts */
-.kontaktkarte {
-  display: grid;
-  gap: 1.5rem clamp(2rem, 4vw, 4rem);
-  align-items: center;
-  padding: clamp(1.5rem, 1rem + 2.5vw, 3.5rem);
-  border-radius: var(--r-md);
-  background: var(--karte);
-  box-shadow: var(--schatten-karte);
-}
-
+/* Kontakt: die Frage in der Schiene, rechts Telefon und E-Mail als grosse Zeilen */
 .kontakt-text {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-}
-
-.kontaktkarte h2 {
-  font-size: clamp(1.5rem, 1.1rem + 1.5vw, 2.25rem);
-  line-height: 1.2;
-  font-weight: 800;
+  gap: 0.75rem;
+  margin-bottom: 1.75rem;
 }
 
 .wege {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
-  gap: 1rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.wege > li + li {
+  border-top: 1px solid var(--outline-variant);
 }
 
 .weg {
   display: flex;
-  align-items: center;
-  gap: 1rem;
-  min-height: 4.5rem;
-  padding: 1rem 1.5rem;
-  border-radius: var(--r-md);
-  background: var(--secondary);
-  color: var(--on-secondary);
+  flex-direction: column;
+  min-height: 2.75rem;
+  padding: 1.25rem 0;
+  color: var(--titel);
   text-decoration: none;
 }
 
-.weg .i {
-  width: 2rem;
-  height: 2rem;
-}
-
-.weg-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
+.wege > li:first-child .weg {
+  padding-top: 0;
 }
 
 .weg-art {
-  color: var(--on-secondary-muted);
+  color: var(--on-surface-variant);
   font-size: 0.9375rem;
-  line-height: 1.25rem;
+  line-height: 1.375rem;
   font-weight: 700;
 }
 
 .weg-wert {
-  font-size: 1.25rem;
-  line-height: 1.5rem;
+  font-size: clamp(1.25rem, 1rem + 1.5vw, 2.25rem);
+  line-height: 1.15;
   font-weight: 800;
+  letter-spacing: -0.01em;
   overflow-wrap: anywhere;
 }
 
-.weg:hover {
-  background: color-mix(in srgb, var(--secondary), var(--on-secondary) 12%);
+.weg:hover .weg-wert {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .weg:focus-visible {
-  outline-offset: 3px;
+  outline-offset: 4px;
+}
+
+/* Was nach der Kontaktkarte folgt (zum Beispiel ein Satz mit Links), steht darunter in der Spalte des Inhalts */
+.sektion--kontaktkarte .wrap > * + * {
+  margin-top: 2rem;
+  color: var(--on-surface-variant);
 }
 
 @media (min-width: 64.0625em) {
-  .kontaktkarte {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  .kontakt-text {
+    margin-bottom: 0;
+  }
+
+  .sektion--kontaktkarte .wrap > * + * {
+    margin-left: calc((100% - var(--spalt)) / 3 + var(--spalt));
   }
 }
 
 /* Galerie: Raster mit festem Seitenverhältnis, die Fläche steht schon vor dem Bild */
-.galerie {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
-  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+@media (min-width: 47.5625em) {
+  .galerie {
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  }
 }
 
 .galerie img {
@@ -2490,7 +2797,7 @@ a.termin:hover .termin-pfeil {
 .fuss-in {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: 2rem clamp(2rem, 4vw, 4rem);
+  gap: 2rem var(--spalt);
 }
 
 .fuss-name {
@@ -2507,9 +2814,11 @@ a.termin:hover .termin-pfeil {
 
 .fuss strong {
   display: block;
-  font-size: 1.375rem;
-  line-height: 1.75rem;
+  margin-bottom: 0.5rem;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
+  line-height: 1.1;
   font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .fuss p {
@@ -2517,7 +2826,9 @@ a.termin:hover .termin-pfeil {
 }
 
 .fuss .klein {
-  margin-top: 2rem;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--on-secondary) 24%, transparent);
   color: var(--on-secondary-muted);
 }
 
@@ -2539,29 +2850,415 @@ a.termin:hover .termin-pfeil {
 }
 
 @media (max-width: 47.5em) {
-  .sektion--terminliste .termin {
-    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
-    gap: 0.75rem;
-    padding: 0.875rem 1rem;
+  .merkmale > li {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+    gap: 0.25rem 1rem;
+    padding-block: 1.25rem;
   }
 
-  .stufenkarten,
-  .merkmale {
+  .merkmale p {
+    grid-column: 2;
+  }
+
+  .merkmale > li:not(:has(.merkmal-symbol)) .titel,
+  .merkmale > li:not(:has(.merkmal-symbol)) p {
+    grid-column: 1 / -1;
+  }
+
+  .stufenkarten {
     grid-template-columns: 1fr;
   }
 
-  .teaser--ueber-bild {
-    margin-top: -2rem;
+  .sektion--terminliste .termin {
+    grid-template-columns: 3.75rem minmax(0, 1fr) auto;
+    gap: 0.875rem;
+    padding: 1rem 0;
+  }
+
+  .termin-pfeil {
+    width: 1.5rem;
+  }
+
+  .fahne {
+    padding-right: 1.5rem;
   }
 }
 
 @media (forced-colors: active) {
-  .stufe,
-  .kontaktkarte,
-  .weg,
-  .teaser .box,
-  .sektion--terminliste .termine,
-  .alterschip {
+  .fahne,
+  .fakten.karte,
+  .alterschip,
+  .datum {
     border: 1px solid CanvasText;
+  }
+}
+
+/* Personen: Porträt, Name und Funktion; ohne Bild die Anfangsbuchstaben */
+.personen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 11rem), 1fr));
+  gap: clamp(1.5rem, 3vw, 2.5rem) clamp(1rem, 2vw, 2rem);
+}
+
+.personen > li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.portraet {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  margin-bottom: 0.75rem;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+
+.portraet--leer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-size: 2.5rem;
+  font-weight: 800;
+}
+
+.personen .titel {
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 800;
+}
+
+.personen p {
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+/* Zeitstrahl: das Jahr gross vorn, das Ereignis daneben; eine Linie mit Marken verbindet die Jahre */
+.zeitstrahl {
+  display: flex;
+  flex-direction: column;
+}
+
+.zeitstrahl > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: 0.25rem 2.5rem;
+  align-items: baseline;
+  padding-bottom: 2rem;
+}
+
+.zeitstrahl > li:last-child {
+  padding-bottom: 0;
+}
+
+.zeitstrahl > li::before {
+  position: absolute;
+  top: 0.5rem;
+  bottom: -0.5rem;
+  left: calc(6.5rem + 1.25rem - 1px);
+  width: 2px;
+  background: var(--outline-variant);
+  content: "";
+}
+
+.zeitstrahl > li:last-child::before {
+  display: none;
+}
+
+.zeitstrahl > li::after {
+  position: absolute;
+  top: 0.5rem;
+  left: calc(6.5rem + 1.25rem - 0.375rem);
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--primary);
+  content: "";
+}
+
+.zeitstrahl .jahr {
+  color: var(--titel);
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.zeitstrahl p + p {
+  max-width: 52ch;
+}
+
+/* Zahlen: wenige grosse Zahlen nebeneinander, darunter, was sie zählen */
+.zahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 1.5rem clamp(1.5rem, 3vw, 3rem);
+}
+
+.zahlen > li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 0.25rem solid var(--titel);
+}
+
+.zahl {
+  color: var(--titel);
+  font-size: clamp(3rem, 2rem + 4vw, 5.5rem);
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.zahlen span {
+  color: var(--on-surface-variant);
+  font-weight: 600;
+}
+
+@media (max-width: 47.5em) {
+  .zeitstrahl > li {
+    grid-template-columns: 4.5rem minmax(0, 1fr);
+    gap: 0.25rem 2rem;
+  }
+
+  .zeitstrahl > li::before {
+    left: calc(4.5rem + 1rem - 1px);
+  }
+
+  .zeitstrahl > li::after {
+    left: calc(4.5rem + 1rem - 0.375rem);
+  }
+
+  .personen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===== Bewegung (#555) =====
+   Eine Kurve und zwei Dauern für alles (--kurve, --dauer, --dauer-lang). Jede Bewegung steht hier und gilt nur am Bildschirm und ohne «Bewegung reduzieren».
+   Der Ruhezustand ist immer der sichtbare: Läuft eine Animation nicht (alter Browser, Druck, kein Skript), steht der Inhalt einfach da */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @keyframes auf {
+    from {
+      opacity: 0;
+      translate: 0 1.5rem;
+    }
+  }
+
+  @keyframes von-links {
+    from {
+      opacity: 0;
+      translate: -3rem 0;
+    }
+  }
+
+  @keyframes bild-ein {
+    from {
+      scale: 1.06;
+    }
+  }
+
+  @keyframes klapp {
+    from {
+      opacity: 0;
+      translate: 0 -0.5rem;
+    }
+  }
+
+  @keyframes folie-vor {
+    from {
+      translate: 5rem 0;
+    }
+  }
+
+  @keyframes folie-zurueck {
+    from {
+      translate: -5rem 0;
+    }
+  }
+
+  @keyframes lauf {
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  /* Beim Laden: das Titelbild setzt sich, die Fahne kommt von links, der Text folgt */
+  .titelbild {
+    overflow: hidden;
+  }
+
+  .hero .titelbild img {
+    animation: bild-ein 1.2s var(--kurve) both;
+  }
+
+  .fahne {
+    animation: von-links var(--dauer-lang) var(--kurve) 0.1s both;
+  }
+
+  .teaser-text,
+  .seitenband:not(.seitenband--ueber-bild) h1 {
+    animation: auf var(--dauer-lang) var(--kurve) 0.2s both;
+  }
+
+  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen */
+  @supports (animation-timeline: view()) {
+    .sektion-kopf,
+    .sektion-rumpf > :not(ul),
+    .stufenkarten > li,
+    .merkmale > li,
+    .karten > li,
+    .liste > li,
+    .personen > li,
+    .zeitstrahl > li,
+    .zahlen > li,
+    .galerie > li,
+    .sektion--terminliste .termine > li,
+    .abschnitt-kopf,
+    .aufruf > *,
+    .kontakt-text,
+    .wege > li,
+    .fuss-in > * {
+      animation: auf linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 16%;
+    }
+
+    /* Dieselbe Bewegung für Bausteine aus anderen Dateien: Klasse «einblenden» */
+    .einblenden {
+      animation: auf linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 16%;
+    }
+
+    /* Der Einstieg steht beim Laden schon im Fenster */
+    .sektion--einstieg .sektion-rumpf > * {
+      animation: auf var(--dauer-lang) var(--kurve) 0.3s both;
+      animation-timeline: auto;
+    }
+  }
+
+  /* Knöpfe und Flächen antworten auf Zeigen und Drücken */
+  .btn,
+  .anmelden,
+  .thema button,
+  .menue-mobil summary,
+  .steuerung button,
+  .hauptnav .unter a,
+  .karten > li {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve),
+      scale var(--dauer) var(--kurve),
+      translate var(--dauer) var(--kurve);
+  }
+
+  .btn:active,
+  .anmelden:active,
+  .steuerung button:active {
+    scale: 0.96;
+  }
+
+  .karten > li:has(a.mehr:hover) {
+    translate: 0 -0.25rem;
+  }
+
+  .stufe-bild img {
+    transition: scale var(--dauer-lang) var(--kurve);
+  }
+
+  .stufe--link:hover .stufe-bild img {
+    scale: 1.05;
+  }
+
+  .stufe-pfeil,
+  .termin-pfeil,
+  .btn .i,
+  .hinweis-link .i {
+    transition: translate var(--dauer) var(--kurve);
+  }
+
+  .stufe--link:hover .stufe-pfeil,
+  a.termin:hover .termin-pfeil,
+  .btn:hover .i,
+  .hinweis-link:hover .i {
+    translate: 0.3125rem 0;
+  }
+
+  /* Navigation: der Strich wächst, das Dreieck dreht, die Tafel klappt auf */
+  .hauptnav > ul > li > a::before,
+  .hauptnav summary::before,
+  .hauptnav .mit-unter > a::after,
+  .hauptnav summary::after {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .hauptnav .unter,
+  .menue-mobil[open] nav {
+    animation: klapp var(--dauer) var(--kurve);
+  }
+
+  /* Karussell: das neue Bild schiebt sich aus der Richtung des Wechsels herein, das alte blendet aus; der Balken läuft mit der Zeit */
+  .karussell--aktiv .folie {
+    transition:
+      opacity var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .karussell--aktiv .folie[data-aktiv] {
+    transition:
+      opacity var(--dauer-lang) var(--kurve),
+      visibility 0s;
+  }
+
+  .karussell[data-richtung="vor"] .folie[data-aktiv] {
+    animation: folie-vor var(--dauer-lang) var(--kurve);
+  }
+
+  .karussell[data-richtung="zurueck"] .folie[data-aktiv] {
+    animation: folie-zurueck var(--dauer-lang) var(--kurve);
+  }
+
+  .punkt .balken {
+    transition: height var(--dauer) var(--kurve);
+  }
+
+  .karussell[data-laeuft] .punkt[aria-current] .balken::after {
+    animation: lauf 6s linear both;
+  }
+
+  /* Hell und Dunkel blenden ineinander über (theme.js startet den Wechsel als View Transition) */
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: var(--dauer-lang);
+    animation-timing-function: var(--kurve);
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* Das Band wirft einen Schatten, sobald die Seite darunter wegscrollt (kein Skript; ohne die Fähigkeit bleibt die Linie) */
+  @supports (animation-timeline: scroll()) {
+    @keyframes kopf-schatten {
+      to {
+        box-shadow: var(--schatten);
+      }
+    }
+
+    .kopf {
+      animation: kopf-schatten linear both;
+      animation-timeline: scroll(root);
+      animation-range: 0 6rem;
+    }
   }
 }
