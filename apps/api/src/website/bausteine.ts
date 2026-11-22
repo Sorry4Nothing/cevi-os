@@ -21,6 +21,9 @@ export const MAX_LISTENEINTRAEGE = 50;
 export const MAX_ABSCHNITT_ZEICHEN = 2000;
 export const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_GALERIE_BILDER = 50;
+// Karussell (#550): wenige Bilder wechseln sich ab; mehr wären kein Karussell mehr, sondern eine Galerie
+export const MIN_KARUSSELL_BILDER = 3;
+export const MAX_KARUSSELL_BILDER = 8;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
 export const MIN_TERMINE = 3;
@@ -158,6 +161,16 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
     "galerie",
     z.strictObject({
       bilder: z.array(bildEintrag).min(1).max(MAX_GALERIE_BILDER),
+    }),
+  ),
+  // Wechselnde Bilder (#550); der Alt-Text liegt am Medium, ein dekoratives Bild ist hier nicht erlaubt (Verweisprüfung)
+  baustein(
+    "karussell",
+    z.strictObject({
+      bilder: z
+        .array(bildEintrag)
+        .min(MIN_KARUSSELL_BILDER)
+        .max(MAX_KARUSSELL_BILDER),
     }),
   ),
   baustein(

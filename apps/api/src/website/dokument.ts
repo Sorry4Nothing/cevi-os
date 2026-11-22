@@ -81,6 +81,7 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         medien.add(b.daten.mediumId);
         break;
       case "galerie":
+      case "karussell":
         b.daten.bilder.forEach((bild) => medien.add(bild.mediumId));
         break;
       case "kontaktperson":

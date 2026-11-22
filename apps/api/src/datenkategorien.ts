@@ -375,6 +375,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "sync_ok_am",
       "sync_fehler",
       "datei_hosts",
+      "website_logo_medium_id",
     ],
   },
   account: {

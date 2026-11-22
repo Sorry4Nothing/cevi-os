@@ -96,6 +96,13 @@ export const BEREICHE = [
         untertitel: "Treffpunkt, Zeit und Mitnehmen der Stufen.",
         zugang: "website",
       },
+      {
+        schluessel: "einstellungen",
+        name: "Einstellungen",
+        modul: "./website-einstellungen.js",
+        untertitel: "Name und Logo im Kopf der Website.",
+        zugang: "website",
+      },
     ],
   },
   {

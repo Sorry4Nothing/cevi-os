@@ -49,8 +49,17 @@ export const keineDaten = (): Daten => ({
   stufenfakten: new Map(),
 });
 
+// Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
+export type Logo = {
+  id: string;
+  altText: string | null;
+  breite: number | null;
+  hoehe: number | null;
+};
+
 export type Kontext = {
   abteilung: string;
+  logo?: Logo;
   basisUrl: string;
   navigation: NavPunkt[];
   daten: Daten;
@@ -114,6 +123,25 @@ const SYMBOLE: Record<string, HtmlKnoten[]> = {
       attr: { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" },
     },
     { tag: "circle", attr: { cx: "12", cy: "12", r: "3" } },
+  ],
+  sonne: [
+    { tag: "circle", attr: { cx: "12", cy: "12", r: "4" } },
+    {
+      tag: "path",
+      attr: {
+        d: "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
+      },
+    },
+  ],
+  mond: [
+    { tag: "path", attr: { d: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" } },
+  ],
+  bildschirm: [
+    {
+      tag: "rect",
+      attr: { x: "3", y: "4", width: "18", height: "12", rx: "2" },
+    },
+    { tag: "path", attr: { d: "M8 20h8M12 16v4" } },
   ],
   "auge-zu": [
     {
@@ -270,6 +298,29 @@ function rendereBaustein(
             { class: "galerie" },
             ...bilder.map((k) => el("li", undefined, k)),
           );
+    }
+    // Ohne Skript eine Liste von Bildern, mit Skript (website/karussell.js) wechseln sie sich ab. Ein einzelnes Bild bleibt ein Bild
+    case "karussell": {
+      const bilder = b.daten.bilder
+        .map((e) =>
+          bild(e.mediumId, daten.medien.get(e.mediumId), e.unterschrift),
+        )
+        .filter((k) => k !== null);
+      if (bilder.length < 2) return bilder[0] ?? null;
+      return el(
+        "div",
+        {
+          class: "karussell",
+          role: "group",
+          "aria-roledescription": "Karussell",
+          "aria-label": "Bilder",
+        },
+        el(
+          "ul",
+          { class: "folien" },
+          ...bilder.map((k) => el("li", { class: "folie" }, k)),
+        ),
+      );
     }
     case "karten":
       return el(
@@ -541,8 +592,31 @@ function navigation(
     .join("")}</ul>`;
 }
 
+// Umschalter Hell, Dunkel, System (#550): ohne Skript bleibt er verborgen (hidden), website/theme.js zeigt ihn und merkt die Wahl im Browser
+const THEMA_WAHL: [string, string, string][] = [
+  ["system", "bildschirm", "System"],
+  ["light", "sonne", "Hell"],
+  ["dark", "mond", "Dunkel"],
+];
+const themaSchalter = () =>
+  `<div class="thema" role="group" aria-label="Darstellung" hidden>${THEMA_WAHL.map(
+    ([wert, icon, name]) =>
+      `<button type="button" data-thema="${wert}" aria-pressed="false">${serialisiere(symbol(icon))}<span>${name}</span></button>`,
+  ).join("")}</div>`;
+
+// Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke
+function markeHtml(k: Kontext): string {
+  const name = esc(markenname(k.abteilung));
+  if (!k.logo) {
+    return `<a class="marke" href="/"><b>CEVI</b><span>${name}</span></a>`;
+  }
+  const { id, altText, breite, hoehe } = k.logo;
+  const mass = breite && hoehe ? ` width="${breite}" height="${hoehe}"` : "";
+  return `<a class="marke marke--logo" href="/"><img class="logo" src="${medienUrl(id)}" alt="${esc(altText ?? "")}"${mass}><span class="nur-sr">${name}</span></a>`;
+}
+
 function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
-  const marke = `<div class="kopf"><div class="wrap kopf-in"><a class="marke" href="/"><b>CEVI</b><span>${esc(markenname(k.abteilung))}</span></a></div></div>`;
+  const marke = `<div class="kopf"><div class="wrap kopf-in">${markeHtml(k)}${themaSchalter()}</div></div>`;
   if (nurMarke) return `<header>\n${marke}\n</header>`;
   // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste
   const bereich = k.navigation.find(
@@ -575,8 +649,15 @@ const fuss = (k: Kontext) => `<footer class="fuss">
 // Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline
 export const CSP =
   "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
+// Jede Seite lädt theme.js (#550), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
+const CSP_SEITE =
+  "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
+export const SKRIPT_THEMA = "/website/theme.js";
+export const SKRIPT_KARUSSELL = "/website/karussell.js";
+// Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
+export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 
@@ -589,6 +670,7 @@ export function rahmen(
     inhalt,
     robots,
     skript,
+    skripte = [],
     stile = [],
     hauptAttr = "",
     nurMarke = false,
@@ -600,6 +682,8 @@ export function rahmen(
     inhalt: string;
     robots?: string;
     skript?: string;
+    // Weitere Skripte der eigenen Herkunft ohne Abrufe (zum Beispiel das Karussell), mit defer
+    skripte?: string[];
     // Weitere Stylesheets der Website (Pfade unter /website/), nach dem Grundstil
     stile?: string[];
     // Fertig maskierte Attribute für <main> (nur Konstanten und esc())
@@ -620,10 +704,11 @@ export function rahmen(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP)}">
+<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP_SEITE)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
-<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skript ? `\n<script type="module" src="${skript}"></script>` : ""}
+${THEMA_SKRIPT_TAG}
+<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skript ? `\n<script type="module" src="${skript}"></script>` : ""}${skripte.map((s) => `\n<script src="${esc(s)}" defer></script>`).join("")}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
@@ -653,6 +738,14 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     aktuell: s.pfad,
     canonical: k.basisUrl + s.pfad,
     inhalt,
+    ...(eintraege.some(
+      (e) =>
+        sichtbar(e) &&
+        typeof e.knoten === "object" &&
+        e.knoten?.attr?.class === "karussell",
+    ) && {
+      skripte: [SKRIPT_KARUSSELL],
+    }),
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...(!s.dokument.bausteine.every(istOeffentlich) && {
       skript: SKRIPT_GESCHUETZT,

@@ -1062,6 +1062,21 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/website-einstellungen.js:
+    get:
+      operationId: getAdminWebsiteEinstellungenSkript
+      summary: Skript der Verwaltung – Bereich Website, Einstellungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/zeitregeln.js:
     get:
       operationId: getAdminZeitregelnSkript
@@ -3840,7 +3855,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
+          description: Das Medium steht noch in Seiten oder ist das Logo der Website (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
           content:
             application/json:
               schema:
@@ -5009,7 +5024,7 @@ paths:
 
         Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
 
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild, Galerie und Karussell brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `MEDIUM_ALT_FEHLT`: im Baustein Karussell (3 bis 8 Bilder) ist ein dekoratives Bild ohne Alt-Text nicht erlaubt. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
 
         Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
 
@@ -6319,7 +6334,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
+          description: Das Medium steht noch in Seiten oder ist das Logo der Website (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
           content:
             application/json:
               schema:
@@ -20959,6 +20974,75 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/website:
+    get:
+      operationId: leseRedaktionWebsiteEinstellungen
+      summary: Name und Logo der Website lesen
+      description: |
+        Der Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (`null` = kein Logo, der Kopf zeigt dann die Wortmarke «CEVI» mit dem Namen). Nur die Abteilungsleitung und wer `seiten.veroeffentlichen` hat. Admins brauchen den zweiten Faktor. Eine Abfrage.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Recht.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Name und Logo.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionWebsiteEinstellungen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereRedaktionWebsiteEinstellungen
+      summary: Name und Logo der Website ändern
+      description: |
+        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. `logoMediumId` ist ein Bild der eigenen Abteilung mit der Sichtbarkeit «öffentlich» (`null` nimmt das Logo weg); sonst 422 mit `MEDIUM_UNBEKANNT` (auch bei fremden IDs), `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`. Den `name` der Abteilung ändert nur die Abteilungsleitung (sonst 403), denn er steht auch in der App. Ein Medium, das als Logo dient, lässt sich nicht löschen (409 `MEDIUM_VERWENDET`).
+
+        Danach erzeugt die Auslieferung alle Seiten neu (der Kopf steht auf jeder). Audit-Log: `website_einstellungen_geaendert` mit den Namen der Felder.
+
+        Statuscodes: 200 mit dem neuen Stand. 400 bei ungültiger Eingabe. 403 ohne Recht. 422 bei einem unzulässigen Logo.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionWebsiteEinstellungenAendern"
+      responses:
+        "200":
+          description: Der neue Stand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionWebsiteEinstellungen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "422":
+          description: Das Logo ist unzulässig (`MEDIUM_UNBEKANNT`, `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/weiterleitungen:
     get:
       operationId: listeRedaktionWeiterleitungen
@@ -33927,6 +34011,7 @@ components:
             - MEDIUM_UNBEKANNT
             - MEDIUM_FORMAT
             - MEDIUM_NICHT_OEFFENTLICH
+            - MEDIUM_ALT_FEHLT
             - TAG_UNBEKANNT
             - PERSON_UNBEKANNT
             - SEITE_UNBEKANNT
@@ -34479,6 +34564,34 @@ components:
               type: array
               items:
                 $ref: "#/components/schemas/WebsiteKnoten"
+    RedaktionWebsiteEinstellungen:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - logoMediumId
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Der Name der Abteilung, im Kopf und im Fuss der Website.
+        logoMediumId:
+          type: [string, "null"]
+          format: uuid
+          description: Das Logo im Kopf der Website; ein öffentliches Bild der Abteilung.
+    RedaktionWebsiteEinstellungenAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Nur die Abteilungsleitung.
+        logoMediumId:
+          type: [string, "null"]
+          format: uuid
     RedaktionWeiterleitungAnlegen:
       type: object
       additionalProperties: false

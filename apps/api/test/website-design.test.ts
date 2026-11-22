@@ -21,6 +21,7 @@ const CSS = readFileSync(
   "utf8",
 );
 
+const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
   id: id(),
@@ -74,7 +75,9 @@ describe("Hülle", () => {
 
   test("Menü am Handy ohne Skript: details, und es gibt kein Skript und keinen Inline-Stil", () => {
     expect(html).toContain('<details class="menue-mobil">');
-    expect(html).not.toMatch(/<script|style=|<style/i);
+    expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(
+      /<script|style=|<style/i,
+    );
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
   });
 
@@ -270,7 +273,7 @@ describe("Fehler- und Wartungsseiten (W4)", () => {
     expect(html).toContain('href="">');
     expect(html).toContain("Nochmals versuchen");
     expect(html).toContain("Fehler 500");
-    expect(html).not.toMatch(/<script|<button/);
+    expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(/<script/);
     expect(html).not.toContain('class="leiste"');
     expect(html).toContain('<meta name="robots" content="noindex">');
   });
@@ -309,7 +312,8 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    expect(zaehle(html, "<script")).toBe(1);
+    // theme.js und anmelden.js, beide eigene Dateien
+    expect(zaehle(html, "<script")).toBe(2);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });
@@ -330,7 +334,7 @@ describe("Stilvorlage", () => {
 
   test("Farben nur als Token ausserhalb der Token-Blöcke", () => {
     const ausserhalb = CSS.replace(/\/\*[\s\S]*?\*\//g, "").replace(
-      /:root\s*\{[^}]*\}/g,
+      /:root[^{]*\{[^}]*\}/g,
       "",
     );
     // Erlaubt: Systemfarben der erzwungenen Farben (CanvasText) und transparent

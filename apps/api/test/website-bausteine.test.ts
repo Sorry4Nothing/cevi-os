@@ -5,12 +5,14 @@ import {
   MAX_BAUSTEINE_PRO_SEITE,
   MAX_GALERIE_BILDER,
   MAX_KARTEN,
+  MAX_KARUSSELL_BILDER,
   MAX_LINK_LAENGE,
   MAX_LISTENEINTRAEGE,
   MAX_SEITENTITEL,
   MAX_TERMINE,
   MAX_TEXTBLOECKE,
   MAX_TEXT_ZEICHEN,
+  MIN_KARUSSELL_BILDER,
   MIN_TERMINE,
 } from "../src/website/bausteine.js";
 import {
@@ -48,6 +50,9 @@ const BEISPIELE: Record<string, unknown> = {
   text: { inhalt: [absatz("Hallo")] },
   bild: { mediumId: id(), unterschrift: "Waldspiel" },
   galerie: { bilder: [{ mediumId: id() }, { mediumId: id() }] },
+  karussell: {
+    bilder: [{ mediumId: id() }, { mediumId: id() }, { mediumId: id() }],
+  },
   karten: {
     darstellung: "karten",
     eintraege: [
@@ -499,6 +504,60 @@ describe("Bild, Galerie, Datei (Verweis auf ein Medium)", () => {
     expect(
       fehler(dok(b("galerie", { bilder: [{ mediumId: id(), alt: "x" }] }))),
     ).not.toBeNull();
+  });
+});
+
+describe("Karussell (#550)", () => {
+  const karussell = (n: number) => ({
+    bilder: Array.from({ length: n }, () => ({
+      mediumId: id(),
+      unterschrift: "Lagerfeuer",
+    })),
+  });
+  test("3 bis 8 Bilder, mit Unterschrift möglich", () => {
+    expect(
+      pruefeDokument(dok(b("karussell", karussell(MIN_KARUSSELL_BILDER)))).ok,
+    ).toBe(true);
+    expect(
+      pruefeDokument(dok(b("karussell", karussell(MAX_KARUSSELL_BILDER)))).ok,
+    ).toBe(true);
+  });
+  test("zu wenige, zu viele, Fremdfeld, keine UUID", () => {
+    expect(
+      fehler(dok(b("karussell", karussell(MIN_KARUSSELL_BILDER - 1)))),
+    ).not.toBeNull();
+    expect(
+      fehler(dok(b("karussell", karussell(MAX_KARUSSELL_BILDER + 1)))),
+    ).not.toBeNull();
+    expect(
+      fehler(
+        dok(
+          b("karussell", {
+            bilder: [
+              { mediumId: id(), alt: "x" },
+              { mediumId: id() },
+              { mediumId: id() },
+            ],
+          }),
+        ),
+      ),
+    ).not.toBeNull();
+    expect(
+      fehler(
+        dok(
+          b("karussell", {
+            bilder: [{ mediumId: "x" }, { mediumId: id() }, { mediumId: id() }],
+          }),
+        ),
+      ),
+    ).not.toBeNull();
+  });
+  test("die Medien zählen als Verweise", () => {
+    const k = karussell(3);
+    const verweise = sammleVerweise(gueltig(b("karussell", k)));
+    expect(verweise.medien.sort()).toEqual(
+      k.bilder.map((x) => x.mediumId).sort(),
+    );
   });
 });
 

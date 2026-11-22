@@ -18,6 +18,8 @@ const API = "/api/v1/redaktion";
 const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_KARTEN = 24;
 export const MAX_GALERIE = 50;
+export const MIN_KARUSSELL = 3;
+export const MAX_KARUSSELL = 8;
 export const MAX_BAUSTEINE = 100;
 
 const kuerze = (text, n = 60) =>
@@ -66,6 +68,8 @@ export const VERWEIS_TEXTE = {
     "Dieser Baustein braucht ein Bild, das gewählte Medium ist keines.",
   MEDIUM_NICHT_OEFFENTLICH:
     "Das Bild ist nicht öffentlich. Wähle ein öffentliches Bild oder stelle den Baustein auf «Nur angemeldet».",
+  MEDIUM_ALT_FEHLT:
+    "Im Karussell braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
   TAG_UNBEKANNT: "Die gewählte Gruppe gibt es nicht mehr.",
   PERSON_UNBEKANNT: "Die gewählte Person gibt es nicht mehr.",
   SEITE_UNBEKANNT:
@@ -424,13 +428,14 @@ function listenForm(
   return el("div", { class: "ws-liste" }, ul, hinzuKnopf);
 }
 
-function galerieForm(k, b, reg) {
+// Galerie und Karussell: eine Liste von Bildern; im Karussell zeigt jede Zeile auch den Alt-Text (Pflicht)
+function galerieForm(k, b, reg, karussell = false) {
   return listenForm(k, b, {
-    name: "Galeriebild",
-    listeName: "Bilder der Galerie",
+    name: karussell ? "Karussellbild" : "Galeriebild",
+    listeName: karussell ? "Bilder des Karussells" : "Bilder der Galerie",
     pfadName: "daten.bilder",
     liste: () => b.daten.bilder,
-    max: MAX_GALERIE,
+    max: karussell ? MAX_KARUSSELL : MAX_GALERIE,
     hinzuText: "Bild hinzufügen",
     hinzu: (liste, fertig) =>
       k.waehleBild((m) => {
@@ -439,7 +444,7 @@ function galerieForm(k, b, reg) {
         fertig(liste.length - 1);
       }),
     zeile: (eintrag, pfad) => [
-      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`),
+      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, { alt: karussell }),
       teilEingabe(
         k,
         b,
@@ -728,6 +733,23 @@ export const TYPEN = {
     ],
     form: (k, b, reg) => [galerieForm(k, b, reg)],
   },
+  karussell: {
+    name: "Karussell",
+    kurz: (d) => anzahlText(d.bilder?.length ?? 0, "1 Bild", "Bilder"),
+    pruefe: (d, k) => [
+      ...((d.bilder ?? []).length < MIN_KARUSSELL
+        ? [["daten.bilder", `braucht mindestens ${MIN_KARUSSELL} Bilder.`]]
+        : []),
+      ...(d.bilder ?? []).flatMap((x, i) =>
+        !x.mediumId
+          ? [[`daten.bilder.${i}.mediumId`, "fehlt."]]
+          : k?.medien.get(x.mediumId)?.dekorativ
+            ? [[`daten.bilder.${i}.mediumId`, "hat keinen Alt-Text."]]
+            : [],
+      ),
+    ],
+    form: (k, b, reg) => [galerieForm(k, b, reg, true)],
+  },
   karten: {
     name: "Karten oder Liste",
     kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
@@ -922,6 +944,11 @@ export const KATALOG = [
     typ: "galerie",
     beschreibung: "Mehrere Bilder, je mit Alt-Text.",
     neu: () => ({ bilder: [{}] }),
+  },
+  {
+    typ: "karussell",
+    beschreibung: "3 bis 8 Bilder, die sich langsam abwechseln.",
+    neu: () => ({ bilder: [{}, {}, {}] }),
   },
   {
     typ: "karten",

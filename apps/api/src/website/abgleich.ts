@@ -33,6 +33,7 @@ import {
   STARTSEITE,
   type Daten,
   type Kontext,
+  type Logo,
   type MedienDaten,
   type Mitglied,
   type NavPunkt,
@@ -114,6 +115,31 @@ const sichtbarePerson = and(
   roh`${user.banned} is not true`,
   isNotNull(user.ceviName),
 );
+
+// Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke)
+export async function ladeLogo(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<Logo | undefined> {
+  const [z] = await db
+    .select({
+      id: medium.id,
+      altText: medium.altText,
+      breite: medium.breite,
+      hoehe: medium.hoehe,
+    })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteLogoMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z;
+}
 
 // nurOeffentlich: false beim Nachladen für eine angemeldete Person (#354): Dann gehören auch Medien dazu, die nur für Angemeldete sichtbar sind (Entscheid A8)
 export async function ladeDaten(
@@ -427,6 +453,7 @@ export async function erzeugeWebsite(
   );
   const kontext: Kontext = {
     abteilung: abt.name,
+    logo: await ladeLogo(db, abteilungId),
     basisUrl,
     navigation: baueNavigation(zeilen, sichtbar),
     daten,

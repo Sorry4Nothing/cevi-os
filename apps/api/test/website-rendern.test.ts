@@ -344,9 +344,15 @@ describe("Aufbau und Barrierefreiheit", () => {
     );
   });
 
-  test("kein Skript, keine fremde Quelle, Meta-CSP", () => {
+  test("kein Skript ausser theme.js, keine fremde Quelle, Meta-CSP", () => {
     const html = seite(dok("T", b("trenner", { art: "linie" })));
-    expect(html).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
+    // Das einzige Skript jeder Seite ist die eigene Datei für Hell und Dunkel (#550), nie inline
+    expect(html).toContain('<script src="/website/theme.js"></script>');
+    expect(
+      html.replace('<script src="/website/theme.js"></script>', ""),
+    ).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
+    expect(html).toContain("script-src &#39;self&#39;");
+    expect(html).not.toContain("connect-src");
     expect(html).not.toMatch(
       /(?:src|href)="(?:https?:)?\/\/(?!www\.example\.org)/,
     );
@@ -591,5 +597,116 @@ describe("Fehlerseite, Sitemap, robots.txt", () => {
     expect(rendereRobots("https://www.example.org")).toBe(
       "User-agent: *\nDisallow: /api/\nDisallow: /admin\nSitemap: https://www.example.org/sitemap.xml\n",
     );
+  });
+});
+
+describe("Logo, Umschalter und Karussell (#550)", () => {
+  const medien = (n: number) => {
+    const ids = Array.from({ length: n }, () => id());
+    const daten: Daten = {
+      ...keineDaten(),
+      medien: new Map(
+        ids.map((m, i) => [
+          m,
+          {
+            mimeTyp: "image/webp",
+            groesse: 5,
+            breite: 16,
+            hoehe: 9,
+            altText: `Bild ${i + 1}`,
+          },
+        ]),
+      ),
+    };
+    return { ids, daten };
+  };
+
+  test("ohne Logo steht die Wortmarke, mit Logo das Bild mit Alt-Text und der Name", () => {
+    const d = dok("T", b("trenner", { art: "linie" }));
+    const ohne = rendereSeite({ id: id(), pfad: "/x", dokument: d }, kontext());
+    expect(ohne).toContain('<a class="marke" href="/"><b>CEVI</b>');
+    const logo = id();
+    const mit = rendereSeite(
+      { id: id(), pfad: "/x", dokument: d },
+      kontext(keineDaten(), {
+        logo: { id: logo, altText: "Cevi", breite: 715, hoehe: 178 },
+      }),
+    );
+    expect(mit).toContain(
+      `<a class="marke marke--logo" href="/"><img class="logo" src="/api/v1/medien/${logo}" alt="Cevi" width="715" height="178"><span class="nur-sr">Test</span></a>`,
+    );
+    expect(mit).not.toContain("<b>CEVI</b>");
+  });
+
+  test("Umschalter: drei Knöpfe mit aria-pressed, ohne Skript verborgen", () => {
+    const html = seite(dok("T", b("trenner", { art: "linie" })));
+    expect(html).toMatch(
+      /<div class="thema" role="group" aria-label="Darstellung" hidden>/,
+    );
+    for (const w of ["system", "light", "dark"]) {
+      expect(html).toContain(`data-thema="${w}" aria-pressed="false"`);
+    }
+    expect(html).toContain("<span>Hell</span>");
+    expect(html).toContain("<span>Dunkel</span>");
+  });
+
+  test("Fehler- und Anmeldeseiten tragen das Theme-Skript und den Umschalter", () => {
+    const html = rendereFehlerseite(kontext());
+    expect(html).toContain('<script src="/website/theme.js"></script>');
+    expect(html).toContain('class="thema"');
+  });
+
+  test("Karussell: Liste mit Gruppe, Alt-Texten und eigenem Skript", () => {
+    const { ids, daten } = medien(3);
+    const html = seite(
+      dok("T", b("karussell", { bilder: ids.map((m) => ({ mediumId: m })) })),
+      daten,
+    );
+    expect(html).toContain(
+      '<div class="karussell" role="group" aria-roledescription="Karussell" aria-label="Bilder">',
+    );
+    expect(zaehle(html, '<li class="folie">')).toBe(3);
+    expect(html).toContain('alt="Bild 2"');
+    expect(html).toContain(
+      '<script src="/website/karussell.js" defer></script>',
+    );
+    // Kein Inline-Skript, nur die zwei eigenen Dateien
+    expect(zaehle(html, "<script")).toBe(2);
+  });
+
+  test("Karussell: ein Bild bleibt ein Bild, ohne Bild entfällt der Baustein", () => {
+    const { ids, daten } = medien(3);
+    const nurEines: Daten = {
+      ...daten,
+      medien: new Map([[ids[0]!, daten.medien.get(ids[0]!)!]]),
+    };
+    const bausteine = b("karussell", {
+      bilder: ids.map((m) => ({ mediumId: m })),
+    });
+    const eines = seite(dok("T", bausteine), nurEines);
+    expect(eines).toContain("<figure>");
+    expect(eines).not.toContain('class="karussell"');
+    expect(eines).not.toContain("karussell.js");
+    const keines = seite(dok("T", bausteine), keineDaten());
+    expect(keines).not.toContain("<figure>");
+    expect(keines).not.toContain("karussell.js");
+  });
+
+  test("Karussell nur für Angemeldete: Platzhalter, kein Bild, kein Karussell-Skript", () => {
+    const { ids, daten } = medien(3);
+    const html = seite(
+      dok(
+        "T",
+        b(
+          "karussell",
+          { bilder: ids.map((m) => ({ mediumId: m })) },
+          { sichtbarkeit: { art: "angemeldet" } },
+        ),
+      ),
+      daten,
+    );
+    expect(html).toContain("Nur angemeldet sichtbar");
+    expect(html).not.toContain("<img");
+    expect(html).not.toContain("karussell.js");
   });
 });

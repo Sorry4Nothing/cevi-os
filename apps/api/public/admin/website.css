@@ -351,3 +351,15 @@ dialog.ws-fenster--breit {
 .ws-blattform .feld textarea {
   min-height: 6rem;
 }
+
+/* Logo in den Einstellungen der Website (#550): auf hellem Grund, wie es im Kopf der Website steht */
+.ws-logovorschau {
+  display: block;
+  max-width: 100%;
+  max-height: 6rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  background: #fff;
+}

@@ -169,6 +169,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  "GET /admin/website-einstellungen.js": { erwartet: alle(200) },
   // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
   "GET /admin/geruest.css": { erwartet: alle(200) },
   "GET /admin/komponenten.css": { erwartet: alle(200) },
@@ -1216,6 +1217,27 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  // Name und Logo der Website (#550): nur Abteilungsleitung (und das Recht «Seiten veröffentlichen»); Stufenleitung hat Zugang zum Namensraum, darf aber nicht. Die Wirkung steht in test/redaktion-einstellungen.test.ts
+  "GET /api/v1/redaktion/website": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/website": {
+    // Kein Logo setzen �ndert den Stand nicht: Die Anfrage pr�ft nur das Recht
+    body: () => ({ logoMediumId: null }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   // Weiterleitungen alter Adressen (#356): nur Abteilungsleitung (und Webmaster); Stufenleitung hat Zugang zum Namensraum, darf aber nicht. Die Wirkung steht in test/redaktion-weiterleitungen.test.ts
