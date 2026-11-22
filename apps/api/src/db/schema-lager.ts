@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   date,
   index,
+  integer,
   pgTable,
   primaryKey,
   text,
@@ -45,12 +47,17 @@ export const lager = pgTable(
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
     }),
+    // Folgenummer des Lagers (#366): Stand der letzten Änderung. Wer schreibt, zählt sie unter der Zeilensperre dieser Zeile hoch (lager/sync.ts)
+    seq: bigint("seq", { mode: "number" }).notNull().default(0),
+    // Älteste Folgenummer, ab der der Änderungsfeed lückenlos ist; ein Client mit seit < seq_min - 1 bekommt 410 (der Aufräumjob hebt sie an)
+    seqMin: bigint("seq_min", { mode: "number" }).notNull().default(1),
     erstelltAm: timestamp("erstellt_am", { withTimezone: true })
       .notNull()
       .defaultNow(),
   },
   (t) => [
     index("lager_abteilung_id_idx").on(t.abteilungId, t.von),
+    check("lager_seq_check", sql`${t.seq} >= 0 and ${t.seqMin} >= 1`),
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check(
       "lager_status_check",
@@ -92,6 +99,71 @@ export const lagerMitglied = pgTable(
     check(
       "lager_mitglied_rolle_check",
       sql`${t.rolle} in ('lagerleitung', 'leitung', 'team', 'lesen')`,
+    ),
+  ],
+);
+
+// Gemeinsame Spalten jeder Lager-Tabelle mit Feed (#366). Jedes Modul schreibt pgTable("name", { ...lagerSpalten(), eigeneSpalten }) und beschreibt die Spalten in datenkategorien.ts mit LAGER_BASIS_SPALTEN. Verknüpfungen auf andere Zeilen nur als ID, nie als Anzeigename. Einen Index auf lager_id legt das Modul in seiner Tabelle an
+// Geschrieben wird nur über lager/sync.ts: Es setzt version, lager_seq, geaendert_* und geloescht_*; ein eigenes UPDATE daran umginge den Feed
+export function lagerSpalten() {
+  return {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    // Zeilenversion: beginnt bei 1 und steigt bei jeder Änderung um 1
+    version: integer("version").notNull().default(1),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    erstelltVon: uuid("erstellt_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    geaendertAm: timestamp("geaendert_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    geaendertVon: uuid("geaendert_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    // Soft-Delete: Die Zeile bleibt (Papierkorb, #368), der Feed meldet «geloescht»
+    geloeschtAm: timestamp("geloescht_am", { withTimezone: true }),
+    geloeschtVon: uuid("geloescht_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    // Folgenummer des Lagers bei der letzten Änderung dieser Zeile
+    lagerSeq: bigint("lager_seq", { mode: "number" }).notNull(),
+  };
+}
+
+// Index des Änderungsfeeds (#366): eine Zeile je Schreibvorgang, ohne Inhalte. Der Feed sagt nur, welche Zeile (Tabelle und ID) in welcher Version neu, geändert oder gelöscht ist; den Inhalt holt die App über die Route des Moduls, wo die Rechte der Rolle gelten. «tabelle» ist der Tabellenname, zeile_id hat keinen Fremdschlüssel, weil sie auf viele Tabellen zeigt
+export const lagerAenderung = pgTable(
+  "lager_aenderung",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    seq: bigint("seq", { mode: "number" }).notNull(),
+    tabelle: text("tabelle").notNull(),
+    zeileId: uuid("zeile_id").notNull(),
+    art: text("art", { enum: ["neu", "geaendert", "geloescht"] }).notNull(),
+    version: integer("version").notNull(),
+    // clock_timestamp() statt now(): Der Wert wächst mit seq, weil die Zeilensperre die Schreiber ordnet; der Aufräumjob entfernt so einen Anfang des Feeds
+    zeitpunkt: timestamp("zeitpunkt", { withTimezone: true })
+      .notNull()
+      .default(sql`clock_timestamp()`),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.seq] }),
+    index("lager_aenderung_zeitpunkt_idx").on(t.zeitpunkt),
+    check(
+      "lager_aenderung_seq_check",
+      sql`${t.seq} >= 1 and ${t.version} >= 1`,
+    ),
+    check(
+      "lager_aenderung_art_check",
+      sql`${t.art} in ('neu', 'geaendert', 'geloescht')`,
     ),
   ],
 );

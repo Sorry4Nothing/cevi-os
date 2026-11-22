@@ -8,6 +8,7 @@ import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import type { BildKodierer } from "./bild.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
+import { LagerAntwortFehler } from "./lager/sync.js";
 import { log } from "./log.js";
 import type { MedienKodierer } from "./medien.js";
 import type { Medienspeicher } from "./medien-speicher.js";
@@ -291,6 +292,10 @@ export function erstelleApp({
       .get("/.well-known/assetlinks.json", (c) => c.json([]))
       .notFound((c) => c.json(FEHLER[404], 404))
       .onError((fehler, c) => {
+        // Konfliktantwort des Lager-Sync (409 VERSION_KONFLIKT) mit dem Stand der Zeile im Body
+        if (fehler instanceof LagerAntwortFehler) {
+          return c.json(fehler.body, fehler.status);
+        }
         if (fehler instanceof HTTPException) {
           return c.json(
             FEHLER[fehler.status] ?? {
