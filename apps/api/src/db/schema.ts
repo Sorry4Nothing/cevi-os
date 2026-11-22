@@ -692,3 +692,6 @@ export const medium = pgTable(
     ),
   ],
 );
+
+// Tabellen der Website (#348)
+export * from "./schema-website.js";
