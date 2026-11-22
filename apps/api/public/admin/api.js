@@ -1,7 +1,7 @@
 // Alle Aufrufe gegen die eigene Herkunft. Die Sitzung liegt nur im Cookie des Browsers (httpOnly); die Seite speichert nichts davon.
 
 export class ApiFehler extends Error {
-  constructor(status, code, meldung, warten, verwendung) {
+  constructor(status, code, meldung, warten, verwendung, seiten) {
     super(code ?? String(status));
     this.status = status;
     this.code = code;
@@ -9,6 +9,8 @@ export class ApiFehler extends Error {
     this.warten = warten;
     // Bei 409 TAG_BELEGT: wie viele Personen den Tag tragen
     this.verwendung = verwendung;
+    // Bei 409 MEDIUM_VERWENDET: in wie vielen Seiten das Medium steht
+    this.seiten = seiten;
   }
 
   // Status 0: Die Anfrage kam gar nicht beim Server an
@@ -21,6 +23,46 @@ export class ApiFehler extends Error {
 let beiAbgelaufen = () => {};
 export function beiSitzungsende(fn) {
   beiAbgelaufen = fn;
+}
+
+function fehlerAus(status, daten, warten, pfad) {
+  if (status === 401 && pfad.startsWith("/api/v1/")) beiAbgelaufen();
+  return new ApiFehler(
+    status,
+    daten?.code,
+    daten?.message,
+    warten,
+    daten?.verwendung,
+    daten?.seiten,
+  );
+}
+
+// Eine Datei hochladen und den Fortschritt melden (fetch kennt keinen Upload-Fortschritt). Das Signal bricht ab: Die Antwort ist dann ein AbortError.
+export function hochladen(pfad, datei, { beiFortschritt, signal } = {}) {
+  return new Promise((erfolg, fehler) => {
+    const x = new window.XMLHttpRequest();
+    x.open("POST", pfad);
+    x.responseType = "json";
+    x.upload.onprogress = (e) => {
+      if (e.lengthComputable) beiFortschritt?.(e.loaded / e.total);
+    };
+    x.onload = () =>
+      x.status >= 200 && x.status < 300
+        ? erfolg(x.response)
+        : fehler(
+            fehlerAus(
+              x.status,
+              x.response,
+              x.getResponseHeader("X-Retry-After"),
+              pfad,
+            ),
+          );
+    x.onerror = () => fehler(new ApiFehler(0, "NETZ"));
+    x.onabort = () =>
+      fehler(new window.DOMException("Abgebrochen", "AbortError"));
+    signal?.addEventListener("abort", () => x.abort(), { once: true });
+    x.send(datei);
+  });
 }
 
 export async function anfrage(methode, pfad, body) {
@@ -51,13 +93,11 @@ export async function anfrage(methode, pfad, body) {
     // Kein JSON: Der Status genügt
   }
   if (!antwort.ok) {
-    if (antwort.status === 401 && pfad.startsWith("/api/v1/")) beiAbgelaufen();
-    throw new ApiFehler(
+    throw fehlerAus(
       antwort.status,
-      daten?.code,
-      daten?.message,
+      daten,
       antwort.headers.get("X-Retry-After"),
-      daten?.verwendung,
+      pfad,
     );
   }
   return daten;

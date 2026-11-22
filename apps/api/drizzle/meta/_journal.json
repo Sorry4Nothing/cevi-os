@@ -346,7 +346,7 @@
       "breakpoints": true
     },
     {
-      "idx": 68,
+"idx": 68,
       "version": "7",
       "when": 1793550800000,
       "tag": "0068_lager_aufgaben",
@@ -360,10 +360,31 @@
       "breakpoints": true
     },
     {
+      "idx": 76,
+      "version": "7",
+      "when": 1793551600000,
+      "tag": "0076_lager_pinnwand",
+      "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793551900000,
+      "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
       "tag": "0085_lager_anwesenheit",
+      "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "7",
+      "when": 1793552800000,
+      "tag": "0088_lager_infos",
       "breakpoints": true
     },
     {
@@ -378,6 +399,13 @@
       "version": "7",
       "when": 1793554000000,
       "tag": "0120_termin_kategorien",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793554300000,
+      "tag": "0123_anlass",
       "breakpoints": true
     }
   ]

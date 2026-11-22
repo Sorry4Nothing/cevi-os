@@ -707,6 +707,7 @@ function pruefePflichtfelder(formular) {
 
 // Liefert den Dialog-Inhalt in der Reihenfolge: Titel, Beschreibung, Felder, Fehler, Knöpfe
 // senden() darf werfen; die Meldung erscheint im Dialog, er bleibt offen
+// pruefe() (optional) prüft Felder, die keine Pflichtfelder im Sinn von «required» sind; sie zeigt die Meldungen beim Feld, setzt den Fokus selbst und liefert true, wenn etwas fehlt
 export function dialogFormular({
   titel,
   beschreibung,
@@ -715,6 +716,7 @@ export function dialogFormular({
   gefaehrlich = false,
   senden,
   danach,
+  pruefe,
   fehlertext = standardFehlertext,
 }) {
   const zurueck = ausloeser();
@@ -752,7 +754,7 @@ export function dialogFormular({
   formular.addEventListener("submit", async (ereignis) => {
     ereignis.preventDefault();
     fehler.hidden = true;
-    if (pruefePflichtfelder(formular)) return;
+    if (pruefePflichtfelder(formular) || pruefe?.()) return;
     abbrechen.disabled = bestaetigen.disabled = true;
     try {
       const ergebnis = await senden();
