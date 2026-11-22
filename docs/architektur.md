@@ -22,6 +22,15 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 - Die Web-Verwaltung unter `/admin` besteht aus statischen Dateien aus `apps/api/public/admin`, ohne Build-Schritt. Sie enthalten keine Daten: Die Seite meldet sich über `/api/auth` an und ruft `/api/v1/admin/*` auf, mit Sitzung und zweitem Faktor. Die Antworten tragen eine strenge Content-Security-Policy (kein Inline-Skript, kein Inline-Stil, `frame-ancestors 'none'`).
 - «Übersicht» und «System» der Verwaltung zeigen Betriebszahlen der laufenden API über `GET /api/v1/admin/system` und `/api/v1/admin/system/requests`: Bestand der Abteilung, Prozess, Datenbank und Anfragen nach Routenmuster mit Dauer und Fehlern. Die Anfragezähler liegen nur im Arbeitsspeicher der API (24 Stunden in Minuten-Eimern, ohne Query, Body, Header, IP und Personen) und sind nach jedem Neustart leer.
 
+### Lager-Modul
+
+- Ein Lager gehört einer Abteilung. Die Mitglieder haben je Lager eine Rolle (`lagerleitung`, `leitung`, `team`, `lesen`) in `lager_mitglied`, getrennt von Tags und Stufenrollen. Konten legt weiter die Abteilungsleitung an; Mitglied wird nur ein aktives Konto der Abteilung.
+- Die Policy (`apps/api/src/lager/policy.ts`) liest die Rolle bei jeder Anfrage aus der Datenbank, nie aus Sitzung oder Token. Jede Lager-Route hängt `lagerZugriff(db, { recht })` vor ihren Handler. Reihenfolge: Lager der eigenen Abteilung laden (fremd 404), Mitgliedschaft (Nicht-Mitglied 404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN` in abgeschlossenen und archivierten Lagern bei jeder Methode ausser GET, HEAD, OPTIONS).
+- Die Abteilungsleitung (`person.admin`) gilt in Lagern der eigenen Abteilung als Lagerleitung. Lager anlegen, ändern und die Mitglieder setzen nur Admins unter `/api/v1/admin/lager`.
+- Der Rechtekatalog (`apps/api/src/lager/rechte-katalog.ts`) nennt die 49 Rechte und die Standardmatrix als Daten; `darf(zugriff, recht)` fragt sie ab. Die Einstellbarkeit je Lager folgt mit #365.
+- Migrationen des Lager-Moduls liegen im Bereich 0060 bis 0099, von Hand geschrieben; `when` steigt streng (`test/migration-journal.test.ts`). Ein Rückweg liegt unter `apps/api/drizzle/rueckweg/`.
+- Die Rechte-Matrix der Lager-Routen liegt in `apps/api/test/lager/matrix/<modul>.ts`, je Lager-Persona und Lager-Zustand; `rechte-matrix.test.ts` liest sie mit.
+
 ### PostgreSQL
 
 - PostgreSQL 18 hält die Daten von Cevi OS.

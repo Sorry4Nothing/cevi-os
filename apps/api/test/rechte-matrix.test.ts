@@ -39,6 +39,13 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 import { legeProgrammAn } from "./hilfen/programme.js";
+import {
+  antwortenJePersona,
+  LAGER_MATRIX,
+  LAGER_ZUSTAENDE,
+  legeLagerWeltAn,
+  type LagerWelt,
+} from "./lager/matrix.js";
 
 bereiteAuthTestsVor();
 
@@ -1258,6 +1265,7 @@ const MATRIX: Record<string, Zeile> = {
 
 let welt: Welt;
 let standard: Record<Persona, PersonaKonto>;
+let lagerWelt: LagerWelt;
 let programmId: string;
 let anwesenheitProgrammId: string;
 let anwesenheitLeitungId: string;
@@ -1416,6 +1424,8 @@ async function personasAnlegen() {
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
   standard = await personasAnlegen();
+  // Lager der Lager-Matrix (test/lager/matrix/*.ts), einmal je Welt
+  lagerWelt = await legeLagerWeltAn(welt, standard);
   anwesenheitLeitungId = standard.slA.id as string;
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
@@ -1513,7 +1523,7 @@ const schluesselVon = (instanz: Instanz) =>
   new Set(instanz.routes.map((r) => `${r.method} ${r.path}`));
 const ohneZeile = (instanz: Instanz) =>
   [...schluesselVon(instanz)]
-    .filter((s) => !(s in MATRIX) && !MIDDLEWARE.has(s))
+    .filter((s) => !(s in MATRIX) && !(s in LAGER_MATRIX) && !MIDDLEWARE.has(s))
     .sort();
 
 describe("Vollständigkeit", () => {
@@ -1521,6 +1531,9 @@ describe("Vollständigkeit", () => {
     const routen = schluesselVon(app);
     expect(ohneZeile(app)).toEqual([]);
     expect(Object.keys(MATRIX).filter((s) => !routen.has(s))).toEqual([]);
+    expect(Object.keys(LAGER_MATRIX).filter((s) => !routen.has(s))).toEqual([]);
+    // Eine Route steht in genau einer der beiden Matrizen
+    expect(Object.keys(LAGER_MATRIX).filter((s) => s in MATRIX)).toEqual([]);
     expect([...MIDDLEWARE].filter((s) => !routen.has(s))).toEqual([]);
   });
 
@@ -1597,6 +1610,25 @@ describe("Matrix: jede Route mal jede Persona", () => {
       ergebnis[persona] = antwort.status;
     }
     expect(ergebnis).toEqual(zeile.erwartet);
+  });
+});
+
+// Rolle mal Lager-Zustand mal Anmeldung für jede Route der Lager-Module (test/lager/matrix/*.ts); die Regeln über alle Zeilen prüft test/lager/matrix-regeln.test.ts
+describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", () => {
+  const zeilen = Object.entries(LAGER_MATRIX).flatMap(([s, zeile]) =>
+    LAGER_ZUSTAENDE.map((zustand) => [s, zustand, zeile] as const),
+  );
+  test.each(zeilen)("%s (%s)", async (schluessel, zustand, zeile) => {
+    expect(
+      await antwortenJePersona(
+        app,
+        schluessel,
+        zeile,
+        lagerWelt,
+        standard,
+        zustand,
+      ),
+    ).toEqual(zeile.erwartet[zustand]);
   });
 });
 
@@ -1711,6 +1743,40 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
     await writeFile(
       new URL("matrix.json", ordner),
       JSON.stringify({ personas: PERSONAS, zeilen }, null, 1),
+    );
+
+    // Die Lager-Zeilen mit Platzhaltern für die zwei Lager der Testabteilung; die Umgebungen je Lager-Persona (KONTO_FUER) sind die der Personas. Die Collection erzeugt L7h (#407) neu
+    const lagerIds = {
+      lagerAktivId: lagerWelt.aktivId,
+      lagerAbgeschlossenId: lagerWelt.abgeschlossenId,
+    };
+    const ersetzeLager = (text: string) =>
+      Object.entries(lagerIds).reduce(
+        (t, [name, id]) => t.replaceAll(id, `{{${name}}}`),
+        text,
+      );
+    await writeFile(
+      new URL("lager-matrix.json", ordner),
+      JSON.stringify(
+        {
+          ids: lagerIds,
+          zeilen: await Promise.all(
+            Object.entries(LAGER_MATRIX).map(async ([schluessel, zeile]) => ({
+              schluessel,
+              methode: schluessel.split(" ")[0],
+              pfad: ersetzeLager(
+                (await zeile.url?.(lagerWelt, "aktiv")) ??
+                  schluessel.split(" ")[1],
+              ),
+              body:
+                zeile.body && ersetzeLager(JSON.stringify(zeile.body("aktiv"))),
+              erwartet: zeile.erwartet,
+            })),
+          ),
+        },
+        null,
+        1,
+      ),
     );
 
     for (const persona of PERSONAS) {
