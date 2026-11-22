@@ -6679,6 +6679,279 @@ paths:
   # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/pinnwand:
+    get:
+      operationId: holeLagerPinnwand
+      summary: Pinnwand des Lagers auflisten
+      description: |
+        Braucht das Recht `pinnwand.lesen` (Standard: alle Lager-Rollen; die Rechte lassen sich je Lager einstellen).
+
+        Der Server filtert: Eine Person sieht einen Beitrag nur, wenn er gerade im Zeitfenster liegt (`sichtbarAb` erreicht, `sichtbarBis` nicht erreicht; leer heisst unbegrenzt) und zu ihr passt. Ohne Empfänger gilt ein Beitrag für alle Mitglieder, sonst für die genannten Rollen und Personen. Wer `pinnwand.bearbeiten` hat (Standard: Lagerleitung, Abteilungsleitung und Leitung), sieht jeden Beitrag und mit `status=alle` auch Vergangenes und Künftiges. Das Zeitfenster wertet die Abfrage aus, es gibt keinen Job: Ein Beitrag erscheint oder verschwindet, ohne dass der Änderungsfeed etwas meldet; die Apps halten `sichtbarAb` und `sichtbarBis` fest.
+
+        Reihenfolge: Angeheftete zuerst, dann nach Beginn der Sichtbarkeit (ohne: Erstellung), neueste zuerst. Eine Abfrage für die Seite samt Empfängern und Name der Autorin oder des Autors, eine für die Dateien der ganzen Seite. Seitenwechsel über `nach` und `limit`. «Für WhatsApp kopieren» ist reine Oberfläche der Apps.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht oder mit `status=alle` ohne `pinnwand.bearbeiten`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: "`aktiv` (Standard): nur, was jetzt im Zeitfenster liegt. `alle`: auch Vergangenes und Künftiges, nur mit `pinnwand.bearbeiten`."
+          schema:
+            type: string
+            enum: [aktiv, alle]
+            default: aktiv
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Beiträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Beiträge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPinnwandSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerPinnwandBeitragAn
+      summary: Beitrag auf die Pinnwand setzen
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Schreibt über den Sync-Kern: Der Beitrag bekommt Version 1 und erscheint im Änderungsfeed.
+
+        Empfänger: Ohne `empfaenger` oder mit leeren Listen gilt der Beitrag für alle Mitglieder; Rollen sind `leitung`, `team` und `lesen`, Personen müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`). Dateien (`dateiIds`, höchstens 10) sind Verknüpfungen aus `POST /lager/{id}/dateien` (SharePoint, kein Upload); sie müssen im Lager liegen und für die Person sichtbar sein (400 `DATEI_UNBEKANNT`). `sichtbarBis` muss nach `sichtbarAb` liegen (400 `ZEITFENSTER_UNGUELTIG`).
+
+        Ein wichtiger Beitrag, der jetzt sichtbar ist, löst einen Push aus (Art `pinnwand_wichtig`, Push-Typ `lager_pinnwand`): an die Mitglieder, die der Beitrag meint und die `pinnwand.lesen` haben, ohne die Autorin oder den Autor. Der Push nennt nur den festen Titel «Wichtige Mitteilung» und den Lagertitel, nie Titel, Text oder Namen. Ein Beitrag mit `sichtbarAb` in der Zukunft löst keinen Push aus (kein Job im Takt).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPinnwandAnlegen"
+      responses:
+        "201":
+          description: Der neue Beitrag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPinnwandBeitrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/pinnwand/{beitragId}:
+    get:
+      operationId: holeLagerPinnwandBeitrag
+      summary: Beitrag der Pinnwand lesen
+      description: |
+        Braucht das Recht `pinnwand.lesen`. Ein Beitrag ausserhalb des Zeitfensters oder nicht für die Person gemeint gibt es für sie nicht (404, wie ein unbekannter); wer `pinnwand.bearbeiten` hat, liest jeden Beitrag.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung, ohne Mitgliedschaft oder wenn der Beitrag für die Person nicht sichtbar ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Beitrag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPinnwandBeitrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerPinnwandBeitrag
+      summary: Beitrag der Pinnwand ändern
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Schreibt über den Sync-Kern: Die zuletzt gesehene `version` ist Pflicht (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern). Nur die genannten Felder ändern sich; `null` bei `sichtbarAb` oder `sichtbarBis` hebt die Grenze auf. `empfaenger` ersetzt die Menge der Empfänger (leere Listen: für alle), `dateiIds` die Dateien samt Reihenfolge; fehlende Verknüpfungen entfallen (die Datei am Ablageort bleibt). Auch eine Änderung nur an Empfängern oder Dateien zählt die Version des Beitrags hoch.
+
+        Wird ein Beitrag wichtig (vorher nicht) und ist jetzt sichtbar, geht der Push wie beim Anlegen hinaus; jede weitere Änderung pusht nicht mehr.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerPinnwandAendern"
+      responses:
+        "200":
+          description: Der geänderte Beitrag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerPinnwandBeitrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerPinnwandBeitrag
+      summary: Beitrag von der Pinnwand löschen
+      description: |
+        Braucht das Recht `pinnwand.bearbeiten`. Soft-Delete über den Sync-Kern: Der Beitrag verschwindet aus allen Antworten, der Feed meldet «geloescht», und die Dateien am Beitrag sind nicht mehr über ihn abrufbar. Das endgültige Löschen kommt mit #427.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder `version`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beitrag, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beitragId
+          in: path
+          required: true
+          description: ID des Beitrags (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene `version` des Beitrags.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Der Beitrag ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -10751,6 +11024,202 @@ components:
     # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerPinnwandEmpfaenger:
+      description: "An wen ein Beitrag gerichtet ist. Ohne Empfänger gilt er für alle Mitglieder."
+      type: object
+      additionalProperties: false
+      required:
+        - rollen
+        - personen
+      properties:
+        rollen:
+          type: array
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum: [leitung, team, lesen]
+        personen:
+          description: "IDs von Mitgliedern des Lagers, höchstens 100."
+          type: array
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    LagerPinnwandEmpfaengerAnsicht:
+      description: "Die Empfänger in der Antwort. Die Personen nennt der Server nur, wer `pinnwand.bearbeiten` hat; alle anderen bekommen eine leere Liste."
+      type: object
+      additionalProperties: false
+      required:
+        - anAlle
+        - rollen
+        - personen
+      properties:
+        anAlle:
+          description: "Wahr, wenn der Beitrag keine Empfänger hat und damit für alle Mitglieder gilt."
+          type: boolean
+        rollen:
+          type: array
+          items:
+            type: string
+            enum: [leitung, team, lesen]
+        personen:
+          type: array
+          items:
+            type: string
+            format: uuid
+    LagerPinnwandBeitrag:
+      description: "Ein Beitrag der Pinnwand."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - titel
+        - text
+        - wichtig
+        - angeheftet
+        - sichtbarAb
+        - sichtbarBis
+        - vonPersonId
+        - erstelltAm
+        - von
+        - empfaenger
+        - dateien
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+        text:
+          type: string
+        wichtig:
+          type: boolean
+        angeheftet:
+          type: boolean
+        sichtbarAb:
+          type: [string, "null"]
+          format: date-time
+          description: "Ab wann der Beitrag erscheint; leer: sofort."
+        sichtbarBis:
+          type: [string, "null"]
+          format: date-time
+          description: "Bis wann der Beitrag erscheint (dann verschwindet er); leer: unbegrenzt."
+        vonPersonId:
+          type: [string, "null"]
+          format: uuid
+          description: "Wer den Beitrag geschrieben hat; null, wenn das Konto gelöscht ist."
+        erstelltAm:
+          type: string
+          format: date-time
+        von:
+          description: "Autorin oder Autor, Name beim Lesen aufgelöst; null, wenn das Konto gelöscht ist."
+          oneOf:
+            - $ref: "#/components/schemas/LagerRessortPerson"
+            - type: "null"
+        empfaenger:
+          $ref: "#/components/schemas/LagerPinnwandEmpfaengerAnsicht"
+        dateien:
+          description: "Verknüpfungen auf Dateien im SharePoint, in der Reihenfolge des Beitrags."
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDatei"
+    LagerPinnwandSeite:
+      description: "Eine Seite Beiträge."
+      type: object
+      additionalProperties: false
+      required:
+        - beitraege
+        - naechster
+      properties:
+        beitraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerPinnwandBeitrag"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerPinnwandAnlegen:
+      description: "Neuer Beitrag. Nur diese Felder; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: string
+          maxLength: 10000
+          default: ""
+        wichtig:
+          type: boolean
+          default: false
+        angeheftet:
+          type: boolean
+          default: false
+        sichtbarAb:
+          type: [string, "null"]
+          format: date-time
+        sichtbarBis:
+          type: [string, "null"]
+          format: date-time
+          description: "Muss nach `sichtbarAb` liegen."
+        empfaenger:
+          $ref: "#/components/schemas/LagerPinnwandEmpfaenger"
+        dateiIds:
+          description: "IDs von Verknüpfungen aus `POST /lager/{id}/dateien`, höchstens 10, jede einmal."
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    LagerPinnwandAendern:
+      description: "Änderung eines Beitrags. `version` ist Pflicht, dazu mindestens ein Feld."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: string
+          maxLength: 10000
+        wichtig:
+          type: boolean
+        angeheftet:
+          type: boolean
+        sichtbarAb:
+          type: [string, "null"]
+          format: date-time
+        sichtbarBis:
+          type: [string, "null"]
+          format: date-time
+        empfaenger:
+          $ref: "#/components/schemas/LagerPinnwandEmpfaenger"
+        dateiIds:
+          description: "Ersetzt die Dateien samt Reihenfolge."
+          type: array
+          maxItems: 10
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
     # lager-schemas: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

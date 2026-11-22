@@ -25,6 +25,8 @@ export type LagerZeile = typeof lager.$inferSelect;
 
 export type LagerZugriff = {
   lager: LagerZeile;
+  // Die Person der Anfrage: Module mit Zeilenfilter je Person (Pinnwand-Empfänger) brauchen sie auch dort, wo nur der Zugriff vorliegt (Feed, Dateiverweise)
+  personId: string;
   // Wirksame Rolle: die Abteilungsleitung (person.admin) ist in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied
   rolle: LagerRolle;
   // Gibt es eine Zeile in lager_mitglied? Die Abteilungsleitung braucht keine
@@ -79,6 +81,7 @@ export async function ladeLagerZugriff(
   if (!rolle) return undefined;
   return {
     lager: zeile.lager,
+    personId: person.id,
     rolle,
     mitglied: zeile.rolle !== null,
     geschlossen: istGeschlossen(zeile.lager.status),
