@@ -360,6 +360,115 @@ describe("bearbeitbar (Filter für Listen)", () => {
   });
 });
 
+// Verantwortliche eines Teams (#352, Annahme: Rolle «verantwortlich» am Tag): Option tagId in darfBearbeiten und bearbeitbar
+describe("Team-Verantwortliche (Option tagId)", () => {
+  const rolleAmTag = async (
+    rolle: string | null,
+    typ: "team" | "stufe" | "funktion" = "team",
+  ) => {
+    const [tag] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        typ,
+        name: `Team ${randomUUID()}`,
+        kuerzel: "T",
+      })
+      .returning({ id: schema.tag.id });
+    const person = await neuePerson("leitendeA");
+    await db
+      .insert(schema.personTag)
+      .values({ userId: person.id!, tagId: tag.id, rolle });
+    return { tagId: tag.id, person };
+  };
+  const darfTag = async (konto: PersonaKonto, tagId: string | undefined) =>
+    darfBearbeiten(db, await personVon(konto), SEITE, randomUUID(), { tagId });
+
+  test("«verantwortlich» am Team-Tag gibt das Recht, ohne die Option nicht", async () => {
+    const { tagId, person } = await rolleAmTag("verantwortlich");
+    expect(await darfTag(person, tagId)).toBe(true);
+    // Gross-/Kleinschreibung der Rolle zählt nicht
+    const gross = await rolleAmTag("Verantwortlich");
+    expect(await darfTag(gross.person, gross.tagId)).toBe(true);
+    // Die Seite gehört zu keiner Gruppe: kein Recht
+    expect(await darfTag(person, undefined)).toBe(false);
+  });
+
+  test("ein anderer Tag, eine andere oder keine Rolle gibt nichts", async () => {
+    const { tagId, person } = await rolleAmTag("verantwortlich");
+    expect(await darfTag(person, randomUUID())).toBe(false);
+    expect(await darfTag(person, await legeTagAn())).toBe(false);
+    for (const rolle of [null, "Mitglied", "verantwortlich "]) {
+      const t = await rolleAmTag(rolle);
+      expect(await darfTag(t.person, t.tagId), String(rolle)).toBe(false);
+    }
+    expect(await darfTag(eltern, tagId)).toBe(false);
+  });
+
+  test("an einem Stufen- oder Funktions-Tag gibt die Rolle nichts (Rechteausweitung)", async () => {
+    for (const typ of ["stufe", "funktion"] as const) {
+      const t = await rolleAmTag("verantwortlich", typ);
+      expect(await darfTag(t.person, t.tagId), typ).toBe(false);
+    }
+  });
+
+  test("ein Team der Fremdabteilung gibt nichts", async () => {
+    const [fremd] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.demoAbteilungId,
+        typ: "team",
+        name: `Fremd ${randomUUID()}`,
+        kuerzel: "F",
+      })
+      .returning({ id: schema.tag.id });
+    const person = await neuePerson("leitendeA");
+    await db.insert(schema.personTag).values({
+      userId: person.id!,
+      tagId: fremd.id,
+      rolle: "verantwortlich",
+    });
+    expect(await darfTag(person, fremd.id)).toBe(false);
+  });
+
+  test("der Filter für Listen nimmt die Seiten des Teams mit, nicht die anderen", async () => {
+    const mein = await rolleAmTag("verantwortlich");
+    const anderer = await legeTagAn();
+    const lege = async (tagId: string | null) => {
+      const [zeile] = await db
+        .insert(schema.seite)
+        .values({
+          abteilungId: welt.testabteilungId,
+          adresse: `t-${randomUUID().slice(0, 12)}`,
+          titel: "T",
+          sichtbarkeit: "angemeldet",
+          tagId,
+        })
+        .returning({ id: schema.seite.id });
+      return zeile.id;
+    };
+    const meine = await lege(mein.tagId);
+    await lege(anderer);
+    await lege(null);
+    const liste = async (tagSpalte: boolean) =>
+      (
+        await db
+          .select({ id: schema.seite.id })
+          .from(schema.seite)
+          .where(
+            bearbeitbar(await personVon(mein.person), SEITE, {
+              id: schema.seite.id,
+              abteilungId: schema.seite.abteilungId,
+              ...(tagSpalte && { tagId: schema.seite.tagId }),
+            }),
+          )
+      ).map((z) => z.id);
+    expect(await liste(true)).toEqual([meine]);
+    // Ohne die Option gibt es kein Teamrecht
+    expect(await liste(false)).toEqual([]);
+  });
+});
+
 describe("/api/v1/admin/bearbeiter", () => {
   test("legt ein Recht an, listet es und schreibt das Audit-Log ohne Inhalte", async () => {
     const person = await neuePerson("elternA");

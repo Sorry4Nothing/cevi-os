@@ -1181,6 +1181,32 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Vorlagen der Website (#352): Zugang wie bei den Seiten, Anlegen nur Abteilungsleitung und Redaktion; die Wirkung steht in test/redaktion-vorlagen.test.ts
+  "GET /api/v1/redaktion/vorlagen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/seiten/aus-vorlage": {
+    body: () => ({
+      vorlage: "textseite",
+      titel: "Matrix Vorlage",
+      sichtbarkeit: { art: "angemeldet" },
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({

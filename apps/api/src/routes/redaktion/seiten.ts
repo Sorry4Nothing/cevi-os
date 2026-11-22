@@ -153,13 +153,16 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
     return zeile;
   }
 
-  // Eine Seite einer Stufe (tagId = Stufe) bearbeitet auch deren Stufenleitung
+  // Eine Seite einer Stufe (tagId = Stufe) bearbeitet auch deren Stufenleitung, die eines Teams dessen Verantwortliche
   const darf = (
     d: Pick<Db, "select">,
     person: Person,
     z: { id: string; tagId: string | null },
   ) =>
-    darfBearbeiten(d, person, "seite", z.id, { stufeId: z.tagId ?? undefined });
+    darfBearbeiten(d, person, "seite", z.id, {
+      stufeId: z.tagId ?? undefined,
+      tagId: z.tagId ?? undefined,
+    });
 
   // Reservierte Adresse, Zyklus und Tiefe; die Eindeutigkeit der Adresse sichert zusätzlich die Datenbank
   function pruefeAdresseUndLage(
@@ -215,6 +218,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
               id: seite.id,
               abteilungId: seite.abteilungId,
               stufeId: seite.tagId,
+              tagId: seite.tagId,
             }),
           )
           .orderBy(asc(seite.reihenfolge), asc(seite.adresse), asc(seite.id)),

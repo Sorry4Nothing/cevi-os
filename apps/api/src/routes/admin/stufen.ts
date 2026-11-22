@@ -17,6 +17,8 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { legeSeiteFuerTagAn } from "../../website/automatik.js";
+import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 const name = z.string().trim().min(1).max(100);
 const kuerzel = z.string().trim().min(1).max(20);
@@ -78,8 +80,23 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             abteilungId: person.abteilungId,
             stufeId: zeile.id,
           });
-          return zeile;
+          // Zu jeder neuen Stufe entsteht eine Seite als Entwurf (#352), wie beim Tag vom Typ «stufe»
+          const seiten = await legeSeiteFuerTagAn(tx, {
+            abteilungId: person.abteilungId,
+            autorId: person.id,
+            tagId: zeile.id,
+            typ: "stufe",
+            name: c.req.valid("json").name,
+          });
+          return { ...zeile, seiten };
         });
+        for (const seiteId of neu.seiten) {
+          meldeWebsiteEreignis({
+            art: "seite_geaendert",
+            abteilungId: person.abteilungId,
+            seiteId,
+          });
+        }
         return c.json({ id: neu.id }, 201);
       } catch (fehler) {
         if (istNameVergeben(fehler)) return c.json(NAME_VERGEBEN, 409);
