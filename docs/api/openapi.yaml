@@ -5544,6 +5544,820 @@ paths:
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/ressorts:
+    get:
+      operationId: holeLagerRessorts
+      summary: Ressorts des Lagers auflisten
+      description: |
+        Braucht das Recht `ressorts.lesen` (Standard: Lagerleitung, Leitung und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Alle Ressorts des Lagers als flache Liste, sortiert nach `reihenfolge` und ID; den Baum bauen die Apps aus `parentId`. Leitung und Stellvertretung kommen mit dem Namen der Person (beim Lesen aufgelöst, eine Umbenennung bricht nichts). Eine gebündelte Abfrage je Seite, Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht (Team im Standard). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Ressorts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerRessortAn
+      summary: Ressort anlegen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Leitung und Stellvertretung müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`), ein übergeordnetes Ressort muss im Lager existieren (400 `RESSORT_UNBEKANNT`). Das Kürzel ist je Lager eindeutig, ohne Beachtung der Gross- und Kleinschreibung (409 `KUERZEL_VERGEBEN`). Ohne `reihenfolge` kommt das Ressort ans Ende.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED` oder `RESSORT_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `KUERZEL_VERGEBEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortAnlegen"
+      responses:
+        "201":
+          description: Das neue Ressort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern), das Kürzel ist im Lager schon vergeben (`KUERZEL_VERGEBEN`) oder das Ressort hat Unterressorts (`RESSORT_HAT_UNTERRESSORTS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/reihenfolge:
+    put:
+      operationId: setzeLagerRessortReihenfolge
+      summary: Reihenfolge der Ressorts ändern
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Die Stelle in der Liste `eintraege` ist die neue `reihenfolge` (0, 1, 2, ...). Jeder Eintrag nennt die zuletzt gesehene `version`; Ressorts, deren Reihenfolge schon stimmt, bleiben unberührt (keine neue Version). Alles oder nichts: Ein Konflikt oder ein unbekanntes Ressort ändert nichts. Höchstens 200 Einträge, jede ID höchstens einmal.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekanntem Ressort, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortReihenfolge"
+      responses:
+        "204":
+          description: Reihenfolge gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/{ressortId}:
+    get:
+      operationId: holeLagerRessort
+      summary: Ressort lesen
+      description: |
+        Braucht das Recht `ressorts.lesen` (Standard: Lagerleitung, Leitung und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Ressort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerRessort
+      summary: Ressort ändern
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich; `null` leert Leitung, Stellvertretung, Notiz oder das übergeordnete Ressort. Ein Ressort kann nicht unter sich selbst oder eines seiner Unterressorts gehören (400 `RESSORT_ZYKLUS`). Sonst gelten die Prüfungen wie beim Anlegen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `RESSORT_UNBEKANNT` oder `RESSORT_ZYKLUS`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `VERSION_KONFLIKT` oder `KUERZEL_VERGEBEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortAendern"
+      responses:
+        "200":
+          description: Das geänderte Ressort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern), das Kürzel ist im Lager schon vergeben (`KUERZEL_VERGEBEN`) oder das Ressort hat Unterressorts (`RESSORT_HAT_UNTERRESSORTS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerRessort
+      summary: Ressort löschen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Ein Ressort mit Unterressorts lässt sich nicht löschen (409 `RESSORT_HAT_UNTERRESSORTS`). Links und Notizen bleiben mit dem Ressort im Papierkorb.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `VERSION_KONFLIKT` oder `RESSORT_HAT_UNTERRESSORTS`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Ressort gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern), das Kürzel ist im Lager schon vergeben (`KUERZEL_VERGEBEN`) oder das Ressort hat Unterressorts (`RESSORT_HAT_UNTERRESSORTS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/{ressortId}/links:
+    get:
+      operationId: holeLagerRessortLinks
+      summary: Links eines Ressorts auflisten
+      description: |
+        Braucht das Recht `ressorts.lesen` (Standard: Lagerleitung, Leitung und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Älteste zuerst, Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Links.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortLinkSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerRessortLinkAn
+      summary: Link anlegen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur `https`-Adressen ohne Zugangsdaten, höchstens 2000 Zeichen (400 sonst). Der Server ruft die Adresse nie ab (SR-26); er speichert sie in normalisierter Form.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortLinkAnlegen"
+      responses:
+        "201":
+          description: Der neue Link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortLink"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/{ressortId}/links/{linkId}:
+    patch:
+      operationId: aendereLagerRessortLink
+      summary: Link ändern
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Gleiche Regeln für die Adresse wie beim Anlegen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Ressort oder Link, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          description: ID des Links (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortLinkAendern"
+      responses:
+        "200":
+          description: Der geänderte Link.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortLink"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerRessortLink
+      summary: Link löschen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Ressort oder Link, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: linkId
+          in: path
+          required: true
+          description: ID des Links (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Link gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/{ressortId}/notizen:
+    get:
+      operationId: holeLagerRessortNotizen
+      summary: Notizen eines Ressorts auflisten
+      description: |
+        Braucht das Recht `ressorts.lesen` (Standard: Lagerleitung, Leitung und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Neueste zuerst, mit dem Namen der Autorin oder des Autors (beim Lesen aufgelöst). Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Notizen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortNotizSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerRessortNotizAn
+      summary: Notiz anlegen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Text hat höchstens 10000 Zeichen. Wer die Notiz anlegt, steht als Autor.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Ressort, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortNotizAnlegen"
+      responses:
+        "201":
+          description: Die neue Notiz.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortNotiz"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/ressorts/{ressortId}/notizen/{notizId}:
+    patch:
+      operationId: aendereLagerRessortNotiz
+      summary: Notiz ändern
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Autor bleibt der, der die Notiz angelegt hat.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Ressort oder Notiz, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: notizId
+          in: path
+          required: true
+          description: ID der Notiz (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRessortNotizAendern"
+      responses:
+        "200":
+          description: Die geänderte Notiz.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRessortNotiz"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerRessortNotiz
+      summary: Notiz löschen
+      description: |
+        Braucht das Recht `ressorts.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Ressort oder Notiz, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: ressortId
+          in: path
+          required: true
+          description: ID des Ressorts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: notizId
+          in: path
+          required: true
+          description: ID der Notiz (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Notiz gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -8569,6 +9383,7 @@ components:
         - sichtbarkeit
         - tagId
         - veroeffentlicht
+        - geaendertAm
       properties:
         id:
           type: string
@@ -8600,6 +9415,10 @@ components:
         veroeffentlicht:
           type: boolean
           description: Ob die Seite eine veröffentlichte Version hat.
+        geaendertAm:
+          type: string
+          format: date-time
+          description: Letzte Änderung an Struktur oder Entwurf der Seite.
     RedaktionSeitenListe:
       type: object
       required:
@@ -9154,6 +9973,345 @@ components:
                 type: boolean
     # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerRessortPerson:
+      description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - ceviName
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        ceviName:
+          type: [string, "null"]
+    LagerRessort:
+      description: "Ein Ressort des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - kuerzel
+        - name
+        - leitungPersonId
+        - stvPersonId
+        - notiz
+        - parentId
+        - reihenfolge
+        - leitung
+        - stv
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        kuerzel:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        leitungPersonId:
+          description: "Mitglied des Lagers."
+          type: [string, "null"]
+          format: uuid
+        stvPersonId:
+          description: "Mitglied des Lagers."
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+        parentId:
+          description: "Übergeordnetes Ressort; `null` an der Wurzel. Der Baum hat keinen Zyklus."
+          type: [string, "null"]
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+        leitung:
+          description: "Nur in Antworten, die die Namen auflösen."
+          oneOf:
+            - $ref: "#/components/schemas/LagerRessortPerson"
+            - type: "null"
+        stv:
+          oneOf:
+            - $ref: "#/components/schemas/LagerRessortPerson"
+            - type: "null"
+    LagerRessortSeite:
+      description: "Eine Seite Ressorts."
+      type: object
+      additionalProperties: false
+      required:
+        - ressorts
+        - naechster
+      properties:
+        ressorts:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerRessort"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerRessortAnlegen:
+      description: "Neues Ressort. Nur diese Felder; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - kuerzel
+        - name
+      properties:
+        kuerzel:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        leitungPersonId:
+          type: [string, "null"]
+          format: uuid
+        stvPersonId:
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+        parentId:
+          type: [string, "null"]
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerRessortAendern:
+      description: "Änderung eines Ressorts: `version` und mindestens ein weiteres Feld."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        kuerzel:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        leitungPersonId:
+          type: [string, "null"]
+          format: uuid
+        stvPersonId:
+          type: [string, "null"]
+          format: uuid
+        notiz:
+          type: [string, "null"]
+          maxLength: 5000
+        parentId:
+          type: [string, "null"]
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerRessortReihenfolge:
+      description: "Neue Reihenfolge: Die Stelle in der Liste ist die `reihenfolge`."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+    LagerRessortLink:
+      description: "Ein Link eines Ressorts."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - ressortId
+        - titel
+        - url
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        ressortId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          description: "Nur `https`."
+          type: string
+          maxLength: 2000
+    LagerRessortLinkSeite:
+      description: "Eine Seite Links."
+      type: object
+      additionalProperties: false
+      required:
+        - links
+        - naechster
+      properties:
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerRessortLink"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerRessortLinkAnlegen:
+      description: "Neuer Link."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - url
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          description: "Nur `https` ohne Zugangsdaten."
+          type: string
+          maxLength: 2000
+    LagerRessortLinkAendern:
+      description: "Änderung eines Links: `version` und mindestens ein weiteres Feld."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        url:
+          type: string
+          maxLength: 2000
+    LagerRessortNotiz:
+      description: "Eine Notiz eines Ressorts."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - ressortId
+        - text
+        - vonPersonId
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        ressortId:
+          type: string
+          format: uuid
+        text:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        vonPersonId:
+          description: "Wer die Notiz angelegt hat."
+          type: [string, "null"]
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+        von:
+          description: "Die Autorin oder der Autor mit Namen (nur in der Liste)."
+          oneOf:
+            - $ref: "#/components/schemas/LagerRessortPerson"
+            - type: "null"
+    LagerRessortNotizSeite:
+      description: "Eine Seite Notizen."
+      type: object
+      additionalProperties: false
+      required:
+        - notizen
+        - naechster
+      properties:
+        notizen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerRessortNotiz"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerRessortNotizAnlegen:
+      description: "Neue Notiz."
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 10000
+    LagerRessortNotizAendern:
+      description: "Änderung einer Notiz."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+        - text
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 10000
     # lager-schemas: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

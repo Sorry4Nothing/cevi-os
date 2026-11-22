@@ -318,10 +318,10 @@
       "breakpoints": true
     },
     {
-      "idx": 120,
+      "idx": 67,
       "version": "7",
-      "when": 1793554000000,
-      "tag": "0120_termin_kategorien",
+      "when": 1793550700000,
+      "tag": "0067_lager_ressorts",
       "breakpoints": true
     }
   ]
