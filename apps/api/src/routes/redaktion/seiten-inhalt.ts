@@ -7,7 +7,7 @@ import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, seite, seiteVersion } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
-import { ladeDaten } from "../../website/abgleich.js";
+import { ladeDaten, ladeLogo } from "../../website/abgleich.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { CSP, rendereSeite, STYLESHEET_PFAD } from "../../website/rendern.js";
@@ -215,29 +215,34 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
               sichtbarkeit: "erbt" as const,
             })),
           };
-          const [daten, fakten, [abt]] = await Promise.all([
+          const [daten, fakten, [abt], logo] = await Promise.all([
             ladeDaten(db, person.abteilungId, [dokument], false),
             ladeStufenfaktenGemerkt(db, person.abteilungId, id),
             db
               .select({ name: abteilung.name })
               .from(abteilung)
               .where(eq(abteilung.id, person.abteilungId)),
+            ladeLogo(db, person.abteilungId),
           ]);
           if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
           const seitenHtml = rendereSeite(
             { id, pfad: "/vorschau", dokument },
             {
               abteilung: abt?.name ?? "",
+              ...(logo && { logo }),
               basisUrl: "",
               navigation: [],
               daten,
             },
           );
           // Der Stil kommt aus der Verwaltung (seiten.ts), nicht von der Website
-          const html = seitenHtml.replace(
-            `href="${STYLESHEET_PFAD}"`,
-            'href="/admin/website-vorschau.css"',
-          );
+          // Und ohne Skripte (Thema, Karussell): Die Vorschau läuft unter der CSP der Verwaltung, der Umschalter bleibt verborgen und das Karussell eine Bilderliste
+          const html = seitenHtml
+            .replace(
+              `href="${STYLESHEET_PFAD}"`,
+              'href="/admin/website-vorschau.css"',
+            )
+            .replace(/\n?<script [^>]*><\/script>/g, "");
           // Nur die eigene Verwaltung darf die Vorschau einrahmen
           return c.html(html, 200, {
             "Content-Security-Policy": `${CSP}; frame-ancestors 'self'`,

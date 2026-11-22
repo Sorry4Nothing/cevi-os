@@ -264,11 +264,14 @@ describe("Was ausgeliefert wird", () => {
     const d = await alle();
     expect(d["website/geschuetzt.js"]).toBe("// a");
     expect(d["website/knoten.js"]).toBe("// b");
-    // Das Menü (menue.js) ist auf jeder Seite mit Navigation; ohne Platzhalter braucht die Seite weder das Skript für geschützte Bausteine noch eine Verbindung
+    // Das Menü (menue.js) ist auf jeder Seite mit Navigation, theme.js (#550) auf jeder Seite; ohne Platzhalter braucht die Seite weder das Skript für geschützte Bausteine noch eine Verbindung
     expect(d["offen/index.html"]).not.toContain("geschuetzt.js");
     expect(d["offen/index.html"]).not.toContain("connect-src");
     expect(d["offen/index.html"]).toContain(
       '<script type="module" src="/website/menue.js"></script>',
+    );
+    expect(d["offen/index.html"]).toContain(
+      '<script src="/website/theme.js"></script>',
     );
     expect(d["mit/index.html"]).toContain(
       '<script type="module" src="/website/geschuetzt.js"></script>',
@@ -280,6 +283,110 @@ describe("Was ausgeliefert wird", () => {
       expect(html).not.toMatch(/unsafe-inline|unsafe-eval/);
       expect(html).not.toMatch(/<script(?![^>]* src=)/);
     }
+  });
+
+  test("Logo (#550): im Kopf jeder Seite, nur wenn das Medium öffentlich und ein Bild der Abteilung ist", async () => {
+    await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });
+    const neuesMedium = async (extra: object = {}, abt = abteilungId) =>
+      (
+        await db
+          .insert(schema.medium)
+          .values({
+            abteilungId: abt,
+            mimeTyp: "image/png",
+            groesse: 10,
+            breite: 715,
+            hoehe: 178,
+            altText: "Cevi",
+            dekorativ: false,
+            sichtbarkeit: "oeffentlich",
+            speicherSchluessel: randomUUID(),
+            ...extra,
+          })
+          .returning({ id: schema.medium.id })
+      )[0]!.id;
+    const setze = (logo: string | null) =>
+      db
+        .update(schema.abteilung)
+        .set({ websiteLogoMediumId: logo })
+        .where(eq(schema.abteilung.id, abteilungId));
+
+    await lauf();
+    expect(await lies("index.html")).toContain("<b>CEVI</b>");
+
+    const logo = await neuesMedium();
+    await setze(logo);
+    await lauf();
+    for (const datei of ["index.html", "404.html", "anmelden/index.html"]) {
+      const html = await lies(datei);
+      expect(html, datei).toContain(
+        `<img class="logo" src="/api/v1/medien/${logo}" alt="Cevi" width="715" height="178">`,
+      );
+      expect(html, datei).not.toContain("<b>CEVI</b>");
+    }
+
+    // Nicht öffentlich oder aus einer anderen Abteilung: wieder die Wortmarke
+    const intern = await neuesMedium({ sichtbarkeit: "angemeldet" });
+    await setze(intern);
+    await lauf();
+    expect(await lies("index.html")).toContain("<b>CEVI</b>");
+    const [fremd] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Fremde Abteilung" })
+      .returning();
+    const fremdes = await neuesMedium({}, fremd!.id);
+    await setze(fremdes);
+    await lauf();
+    const html = await lies("index.html");
+    expect(html).toContain("<b>CEVI</b>");
+    expect(html).not.toContain(fremdes);
+
+    // Wird das Medium gelöscht, fällt das Logo weg (kein Fehler, keine tote Adresse)
+    const weg = await neuesMedium();
+    await setze(weg);
+    await db.delete(schema.medium).where(eq(schema.medium.id, weg));
+    await lauf();
+    expect(await lies("index.html")).toContain("<b>CEVI</b>");
+  });
+
+  test("Karussell (#550): ein Skript nur auf Seiten, die eines zeigen", async () => {
+    const bilder = await Promise.all(
+      [1, 2, 3].map(async (n) => ({
+        mediumId: (
+          await db
+            .insert(schema.medium)
+            .values({
+              abteilungId,
+              mimeTyp: "image/webp",
+              groesse: 10,
+              breite: 16,
+              hoehe: 9,
+              altText: `Bild ${n}`,
+              dekorativ: false,
+              sichtbarkeit: "oeffentlich",
+              speicherSchluessel: randomUUID(),
+            })
+            .returning({ id: schema.medium.id })
+        )[0]!.id,
+      })),
+    );
+    await seite({
+      adresse: "mit",
+      inhalt: dok("Mit", {
+        id: randomUUID(),
+        typ: "karussell",
+        daten: { bilder },
+      }),
+    });
+    await seite({ adresse: "ohne", inhalt: dok("Ohne", text("Hallo")) });
+    await lauf({ skripte: { "karussell.js": "// k" } });
+    const d = await alle();
+    expect(d["website/karussell.js"]).toBe("// k");
+    expect(d["mit/index.html"]).toContain(
+      '<script src="/website/karussell.js" defer></script>',
+    );
+    expect(d["mit/index.html"]).toContain('aria-roledescription="Karussell"');
+    expect(d["ohne/index.html"]).not.toContain("karussell");
   });
 
   test("Seiten anderer Abteilungen und reservierte Adressen erzeugen nie eine Datei", async () => {

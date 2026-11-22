@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
@@ -35,6 +36,11 @@ export const abteilung = pgTable("abteilung", {
   syncFehler: text("sync_fehler"),
   // Erlaubte Hosts für Datei-Links im Lager (#370), kleingeschrieben; NULL = keine Einschränkung
   dateiHosts: text("datei_hosts").array(),
+  // Logo im Kopf der Website (#550): ein Bild der Abteilung im Medienspeicher; fällt es weg, zeigt der Kopf nur den Namen
+  websiteLogoMediumId: uuid("website_logo_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen

@@ -9,6 +9,7 @@ import { hatErweitertesRecht } from "../../website/seiten.js";
 import type { MedienHandler } from "../medien.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
 import { erstelleEckdatenRouten } from "./eckdaten.js";
+import { erstelleWebsiteEinstellungsRouten } from "./einstellungen.js";
 import { erstelleEditorIchRouten } from "./ich.js";
 import { erstelleEditorMedienRouten } from "./medien.js";
 import { erstelleSeitenRouten } from "./seiten.js";
@@ -41,6 +42,7 @@ export function erstelleEditorRouten({
       await next();
     })
     .route("/ich", erstelleEditorIchRouten({ db }))
+    .route("/website", erstelleWebsiteEinstellungsRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db }))
     .route("/stufen", erstelleEckdatenRouten({ db }))

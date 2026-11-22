@@ -7,7 +7,7 @@ Die öffentliche Website folgt dem Design «Cevi Web» (Tag und Nacht, Desktop u
 - **Eine Stilvorlage, kein Inline-Stil.** Die CSP der Seiten erlaubt `style-src 'self'`: Alle Stile stehen in `website/website.css`, nie in `style=`-Attributen oder `<style>`-Blöcken. Die Vorschau im Editor und die Sperrseite sind die einzigen Ausnahmen (siehe unten).
 - **Kein Skript nötig.** Ein Skript laden nur Seiten mit geschützten Bausteinen (`geschuetzt.js`) und die Anmeldeseite (`anmelden.js`) sowie jede Seite mit Navigation das Menü (`menue.js`, nur Pfeiltasten und Esc als Verbesserung); es gibt nie ein Inline-Skript. Das Menü am Handy ist ein `<details>`-Element, die Untermenüs öffnen sich bei Hover und Fokus.
 - **Nichts von aussen.** Archivo als eigene Datei (`website/archivo-latin.woff2`, SIL OFL, `@font-face` mit `font-display: swap`, CSP `font-src 'self'`), Bilder nur aus dem Medienspeicher (`/api/v1/medien/<ID>`), Symbole als Inline-SVG.
-- **Tag und Nacht** über `prefers-color-scheme`; `<meta name="color-scheme" content="light dark">` und `color-scheme` am `:root` sorgen für Formularelemente und Scrollleisten.
+- **Tag und Nacht** über `prefers-color-scheme` und die Wahl des Besuchers (`data-theme` auf `<html>`, gesetzt von `theme.js`; Tokens für beide Wege); `<meta name="color-scheme" content="light dark">` und `color-scheme` am `:root` sorgen für Formularelemente und Scrollleisten.
 - **Bewegung** (Schimmer des Skeletons, Lade-Kreis) läuft nur unter `prefers-reduced-motion: no-preference`.
 - **Erzwungene Farben:** Knöpfe, Chips, Bänder, Karten und Zustände haben einen Rand (`CanvasText`); nichts hängt nur an einer Hintergrundfarbe.
 - **Masse in `rem`** (200 Prozent Zoom), Umbruch bei 64 em (Tablet) und 47.5 em (Handy). Berührflächen mindestens 48 px.
@@ -60,11 +60,12 @@ Kontraste (Text mindestens 4.5:1, Ränder und Fokus mindestens 3:1) sind in den 
 ```
 
 - **Genau ein `h1`:** der Seitentitel. Ihn schreibt der Seitentyp selbst (siehe «Neuer Seitentyp»); die Bausteine «Überschrift» beginnen bei Ebene 2.
-- **Marke:** «Cevi Stäfa» wird zu `CEVI` und `Stäfa` (`markenname()`).
+- **Marke:** «Cevi Stäfa» wird zu `CEVI` und `Stäfa` (`markenname()`). Mit Logo (#550) steht statt der Wortmarke das Bild (`.marke--logo`, Höhe 3 rem, 2,25 rem am Handy, eigener weisser Grund), der Name bleibt für Screenreader im Link. Das Design «Cevi Web» kennt weder Logo noch Umschalter im Kopf; beide stehen in der weissen Kopfzeile (Logo links anstelle der Wortmarke, Umschalter rechts), damit die blaue Leiste mit der Navigation unverändert bleibt.
+- **Umschalter Hell, Dunkel, System:** `.thema` mit drei Knöpfen (44 px, Symbol und Beschriftung; am Handy nur Symbole), gewählt ist gefüllt und fett. Ohne Skript `hidden`.
 - **Navigation:** Die Leiste hat eine Zeile. Höchstens sechs Punkte und 80 Zeichen aller Titel stehen darin (der Rest unter «Mehr», einem `<details>`); ein Punkt mit Unterseiten hat ein Untermenü (`li.mit-unter`, offen bei Hover und Fokus, Pfeiltasten und Esc mit `menue.js`). Die Unterseiten des gewählten Bereichs stehen zusätzlich in der Unterleiste, im Menü am Handy (ab 74 em) der ganze Baum. Die aktuelle Seite trägt `aria-current="page"`, ihre Oberseiten `aria-current="true"`. Die Seiten `impressum` und `datenschutz-website` stehen im Fuss, nicht in der Leiste.
 - **Anmelden:** Ein Link auf `/anmelden`. Die statischen Seiten kennen die Sitzung nicht; ein Konto-Menü für angemeldete Personen (Design W11) gibt es darum nicht (Lücke, siehe PR).
 - **Fusszeile (W1):** drei Spalten (Name und Anschrift, Telefon und E-Mail, Impressum und Datenschutz) und «©». Die Angaben kommen aus der Konfiguration (siehe [website-auslieferung.md](website-auslieferung.md), «Konfiguration»); was fehlt, fehlt auch im Fuss.
-- **Optionen von `rahmen()`:** `nurMarke` (nur das Logo, für Wartung und Serverfehler), `robots`, `canonical`, `skript` (erlaubt zusätzlich `script-src` und `connect-src` im Meta-CSP), `hauptAttr`.
+- **Optionen von `rahmen()`:** `nurMarke` (nur das Logo, für Wartung und Serverfehler), `robots`, `canonical`, `skript` (erlaubt zusätzlich `connect-src` im Meta-CSP), `zusatzSkripte` (weitere eigene Skripte mit `defer`, zum Beispiel das Karussell; jede Seite lädt `theme.js` im `<head>`), `hauptAttr`.
 
 ## Klassen und Komponenten
 

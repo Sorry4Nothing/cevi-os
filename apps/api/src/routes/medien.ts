@@ -7,7 +7,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { istErlaubtesBild } from "../bild.js";
 import type { Db } from "../db/client.js";
-import { auditLog, medium } from "../db/schema.js";
+import { abteilung, auditLog, medium } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import { log } from "../log.js";
 import { MEDIEN_BILD_MAX_BYTES, type MedienKodierer } from "../medien.js";
@@ -315,7 +315,18 @@ export function erstelleMedienHandler({
           )
           .for("update");
         if (gesperrt.length === 0) throw new HTTPException(404);
-        const seiten = await seitenMitMedium(tx, person.abteilungId, id);
+        // Das Logo der Website (#550) zählt wie eine Seite: Ohne Logo bliebe der Kopf leer
+        const [logo] = await tx
+          .select({ id: abteilung.id })
+          .from(abteilung)
+          .where(
+            and(
+              eq(abteilung.id, person.abteilungId),
+              eq(abteilung.websiteLogoMediumId, id),
+            ),
+          );
+        const seiten =
+          (await seitenMitMedium(tx, person.abteilungId, id)) + (logo ? 1 : 0);
         if (seiten > 0) return { seiten };
         const [m] = await tx
           .delete(medium)
@@ -338,7 +349,7 @@ export function erstelleMedienHandler({
           {
             code: "MEDIUM_VERWENDET",
             message:
-              "Das Medium steht noch in Seiten (Entwurf oder Version). Entferne es dort zuerst.",
+              "Das Medium steht noch in Seiten (Entwurf oder Version) oder ist das Logo der Website. Entferne es dort zuerst.",
             seiten: ergebnis.seiten,
           },
           409,

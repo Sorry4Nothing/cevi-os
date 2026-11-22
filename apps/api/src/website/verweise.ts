@@ -34,6 +34,7 @@ export async function pruefeVerweise(
         id: medium.id,
         mimeTyp: medium.mimeTyp,
         sichtbarkeit: medium.sichtbarkeit,
+        dekorativ: medium.dekorativ,
       })
       .from(medium)
       .where(and(eq(medium.abteilungId, abteilungId), inArray(medium.id, ids)))
@@ -84,6 +85,9 @@ export async function pruefeVerweise(
         fehler.push({ pfad, code: "MEDIUM_FORMAT" });
       } else if (oeffentlich && m.sichtbarkeit !== "oeffentlich") {
         fehler.push({ pfad, code: "MEDIUM_NICHT_OEFFENTLICH" });
+      } else if (b.typ === "karussell" && m.dekorativ) {
+        // Im Karussell trägt jedes Bild den Inhalt, ein Alt-Text ist Pflicht (WCAG 1.1.1)
+        fehler.push({ pfad, code: "MEDIUM_ALT_FEHLT" });
       }
     }
     for (const id of klein(v.tags)) {
