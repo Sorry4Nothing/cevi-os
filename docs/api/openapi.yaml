@@ -3659,6 +3659,181 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten:
+    get:
+      operationId: listeRedaktionSeiten
+      summary: Seiten der Website, die die Person bearbeiten darf
+      description: |
+        Namensraum `/api/v1/redaktion` für Personen mit Bearbeitungsrecht, nicht nur Admins. Zugang haben die Abteilungsleitung, jede Stufenleitung und Personen mit einem Recht auf Seiten in `bearbeiter` (auf die Person oder einen Tag, den sie trägt); alle anderen bekommen 403. Admins brauchen auch hier den zweiten Faktor (Code `ZWEITER_FAKTOR_FEHLT`).
+
+        Die Liste enthält nur Seiten, die die Person bearbeiten darf: die Abteilungsleitung und die Redaktion (Recht auf alle Seiten) alle Seiten der Abteilung, eine Stufenleitung die Seiten ihrer Stufe (`tagId` = Stufe). `elternId` zeigt auch auf Seiten, die nicht in der Liste stehen. Sortiert nach `reihenfolge`, dann `adresse`; den Baum baut der Client aus `elternId`. Der Inhalt der Seiten gehört nicht zu dieser Route.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Seiten, nach Reihenfolge sortiert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionSeitenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeRedaktionSeiteAn
+      summary: Seite anlegen
+      description: |
+        Nur Abteilungsleitung und Redaktion. Die neue Seite hat noch keinen Inhalt und keine veröffentlichte Version. Ohne `reihenfolge` kommt sie ans Ende ihrer Geschwister. Adresse, Elternseite, Titel, Reihenfolge und Sichtbarkeit wirken sofort; nur der Inhalt ist später versioniert.
+
+        Regeln: `adresse` besteht aus `a-z`, `0-9` und `-`, höchstens 60 Zeichen. Auf der obersten Ebene sind `api`, `admin`, `health`, `datenschutz`, `konto-loeschen`, `support`, `website`, `anmelden`, `medien`, `ical`, `sitemap.xml`, `robots.txt` und `.well-known` reserviert. Der Baum ist höchstens 5 Ebenen tief. Die Adresse ist unter einer Elternseite eindeutig, und eine Gruppe (`tagId`) hat höchstens eine Seite. Die Tags der Sichtbarkeit müssen zur Abteilung gehören.
+
+        Reihenfolge der Prüfungen: Zugang (403), Body (400), Elternseite in der eigenen Abteilung (404), Recht zum Anlegen (403), Gruppe in der eigenen Abteilung (404), Tags der Sichtbarkeit (400), reservierte Adresse und Tiefe (400), Eindeutigkeit (409). Das Anlegen steht im Audit-Log (`seite_angelegt`; Kennungen und Art der Sichtbarkeit, nie der Titel).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, mit den Codes `ADRESSE_RESERVIERT` und `SEITE_ZU_TIEF` für die beiden Regeln. 403 ohne Recht. 404 für unbekannte Elternseite oder Gruppe. 409 mit `ADRESSE_VERGEBEN` oder `TAG_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionSeiteAnlegen"
+      responses:
+        "201":
+          description: Seite angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/RedaktionSeite400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}:
+    get:
+      operationId: leseRedaktionSeite
+      summary: Eine Seite lesen
+      description: |
+        Struktur und Sichtbarkeit einer Seite, ohne Inhalt. `pfad` ist die volle Adresse über alle Elternseiten.
+
+        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404, auch für Seiten anderer Abteilungen), dann das Recht an dieser Seite (403): Abteilungsleitung, Redaktion, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 ohne Recht an dieser Seite. 404 für unbekannte Seiten.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "200":
+          description: Die Seite.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereRedaktionSeite
+      summary: Struktur einer Seite ändern
+      description: |
+        Ändert Titel, Adresse, Elternseite, Reihenfolge, Sichtbarkeit oder Gruppe; nur die gesendeten Felder. Die Änderung wirkt sofort, auch das Zurückziehen einer Sichtbarkeit. Den Inhalt ändert diese Route nie.
+
+        Wer die Seite bearbeiten darf (siehe `GET`), darf Titel, Adresse, Reihenfolge und Sichtbarkeit ändern. Eine andere Elternseite setzt voraus, dass die Person auch diese bearbeiten darf; auf die oberste Ebene (`elternId: null`) setzt nur die Abteilungsleitung oder die Redaktion. Die Gruppe (`tagId`) ändern ebenfalls nur Abteilungsleitung und Redaktion, weil sie festlegt, welche Stufenleitung die Seite bearbeitet. Die Regeln für Adresse, Tiefe und Tags wie beim Anlegen; zusätzlich lässt sich eine Seite nicht unter sich selbst oder eine ihrer Unterseiten legen (`SEITE_ZYKLUS`). Strukturänderungen einer Abteilung laufen nacheinander.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Seite in der eigenen Abteilung (404), Recht an der Seite (403), neue Elternseite (404, 403), Gruppe (403, 404), Tags der Sichtbarkeit (400), Adresse, Zyklus und Tiefe (400), Eindeutigkeit (409). Das Audit-Log (`seite_geaendert`) nennt nur die Namen der geänderten Felder.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, kein Feld) oder wegen `ADRESSE_RESERVIERT`, `SEITE_ZYKLUS`, `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Seite, Elternseite oder Gruppe. 409 mit `ADRESSE_VERGEBEN` oder `TAG_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionSeiteAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/RedaktionSeite400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheRedaktionSeite
+      summary: Seite löschen
+      description: |
+        Nur Abteilungsleitung und Redaktion. Löscht die Seite samt Entwurf und allen Versionen. Mit Unterseiten antwortet der Server mit 409 `SEITE_HAT_UNTERSEITEN`: Sie sind zuerst zu verschieben oder zu löschen. Ein Recht auf genau diese Seite in `bearbeiter` fällt mit weg. Das Löschen steht im Audit-Log (`seite_geloescht`, ohne Inhalt).
+
+        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht zum Löschen (403), Unterseiten (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 ohne Recht, auch für die Stufenleitung der Seite. 404 für unbekannte Seiten. 409 `SEITE_HAT_UNTERSEITEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager:
     get:
@@ -6913,6 +7088,151 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Medium"
+    RedaktionSichtbarkeit:
+      description: |
+        Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
+      oneOf:
+        - type: object
+          required:
+            - art
+          additionalProperties: false
+          properties:
+            art:
+              const: oeffentlich
+        - type: object
+          required:
+            - art
+          additionalProperties: false
+          properties:
+            art:
+              const: angemeldet
+        - type: object
+          required:
+            - art
+            - tagIds
+          additionalProperties: false
+          properties:
+            art:
+              const: tags
+            tagIds:
+              type: array
+              maxItems: 50
+              uniqueItems: true
+              items:
+                type: string
+                format: uuid
+    RedaktionSeite:
+      type: object
+      required:
+        - id
+        - elternId
+        - adresse
+        - pfad
+        - titel
+        - reihenfolge
+        - sichtbarkeit
+        - tagId
+        - veroeffentlicht
+      properties:
+        id:
+          type: string
+          format: uuid
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "`null` heisst: oberste Ebene."
+        adresse:
+          type: string
+          description: Ein Pfadstück, `a-z`, `0-9` und `-`, höchstens 60 Zeichen.
+        pfad:
+          type: string
+          description: Volle Adresse über alle Elternseiten, zum Beispiel `/stufen/biber`.
+        titel:
+          type: string
+        reihenfolge:
+          type: integer
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Die Gruppe (Stufe, Team, ...), zu der die Seite gehört; `null` ohne Gruppe.
+        veroeffentlicht:
+          type: boolean
+          description: Ob die Seite eine veröffentlichte Version hat.
+    RedaktionSeitenListe:
+      type: object
+      required:
+        - seiten
+      properties:
+        seiten:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionSeite"
+    RedaktionSeiteAnlegen:
+      type: object
+      required:
+        - titel
+        - adresse
+        - sichtbarkeit
+      additionalProperties: false
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 150
+        adresse:
+          type: string
+          pattern: "^[a-z0-9-]{1,60}$"
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+          description: Ohne Angabe ans Ende der Geschwister.
+    RedaktionSeiteAendern:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 150
+        adresse:
+          type: string
+          pattern: "^[a-z0-9-]{1,60}$"
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
     # lager-schemas: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerRolle:
       type: string
@@ -7388,6 +7708,14 @@ components:
       schema:
         type: string
         format: uuid
+    RedaktionSeiteId:
+      name: id
+      in: path
+      required: true
+      description: ID der Seite (UUID).
+      schema:
+        type: string
+        format: uuid
     AdminBearbeiterId:
       name: id
       in: path
@@ -7479,6 +7807,20 @@ components:
             $ref: "#/components/schemas/Fehler"
     AppVeraltet426:
       description: App-Version unter dem Minimum (code APP_VERALTET)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionSeite400:
+      description: |
+        Ungültige Eingabe (code UNGUELTIGE_EINGABE) oder eine Regel des Seitenbaums: `ADRESSE_RESERVIERT` (Adresse auf der obersten Ebene reserviert), `SEITE_ZYKLUS` (Seite unter sich selbst oder einer Unterseite), `SEITE_ZU_TIEF` (mehr als 5 Ebenen).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionSeite409:
+      description: |
+        Konflikt: `ADRESSE_VERGEBEN` (die Adresse gibt es unter dieser Elternseite schon), `TAG_VERGEBEN` (die Gruppe hat schon eine Seite) oder `SEITE_HAT_UNTERSEITEN` (Löschen mit Unterseiten).
       content:
         application/json:
           schema:

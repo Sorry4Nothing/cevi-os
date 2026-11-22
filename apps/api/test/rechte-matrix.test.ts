@@ -1021,6 +1021,71 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Redaktion, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
+  "GET /api/v1/redaktion/seiten": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/seiten": {
+    // Nur Abteilungsleitung (und Redaktion): Stufenleitung hat Zugang, darf aber nicht anlegen. Die Demo-Abteilung legt in ihrer eigenen an
+    body: () => ({
+      titel: "Matrix",
+      adresse: "matrix-neu",
+      sichtbarkeit: { art: "angemeldet" },
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/seiten/:id": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/redaktion/seiten/:id": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}`,
+    body: () => ({ titel: "Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/redaktion/seiten/:id": {
+    // Jede Anfrage löscht ihre Seite; löschen darf nur die Abteilungsleitung (oder Redaktion), nicht die Stufenleitung der Seite
+    urlJeAnfrage: async () =>
+      `/api/v1/redaktion/seiten/${await wegwerfSeiteId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -1116,6 +1181,7 @@ let tagPersonId: string;
 let tagZaehler = 0;
 let bildZielId: string;
 let mediumId: string;
+let seiteId: string;
 let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
@@ -1230,6 +1296,20 @@ async function wegwerfBearbeiterId() {
   return zeile.id;
 }
 
+// Wegwerf-Seite der Testabteilung, oberste Ebene
+async function wegwerfSeiteId() {
+  const [zeile] = await welt.db
+    .insert(schema.seite)
+    .values({
+      abteilungId: welt.testabteilungId,
+      adresse: `w-${randomUUID()}`,
+      titel: "Wegwerf",
+      sichtbarkeit: "angemeldet",
+    })
+    .returning({ id: schema.seite.id });
+  return zeile.id;
+}
+
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
   return Object.fromEntries(
@@ -1307,6 +1387,17 @@ beforeAll(async () => {
     .returning({ id: schema.stufe.id });
   patchStufeId = patchStufe.id;
   mediumId = await wegwerfMediumId();
+  // Die Seite der Stufe A, an der die Zeilen `:id` der Matrix arbeiten
+  [{ id: seiteId }] = await db
+    .insert(schema.seite)
+    .values({
+      abteilungId: welt.testabteilungId,
+      adresse: "matrix-seite",
+      titel: "Matrix",
+      sichtbarkeit: "angemeldet",
+      tagId: welt.stufeAId,
+    })
+    .returning({ id: schema.seite.id });
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -1322,6 +1413,7 @@ const MIDDLEWARE = new Set([
   "ALL /api/*",
   "ALL /api/v1/*",
   "ALL /api/v1/admin/*",
+  "ALL /api/v1/redaktion/*",
 ]);
 
 type Instanz = { routes: { method: string; path: string }[] };
@@ -1496,6 +1588,7 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       patchTagId,
       tagPersonId,
       bildZielId,
+      seiteId,
       mediumId,
       elternAUserId: standard.elternA.id!,
     };
