@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -493,6 +493,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   ressort_notiz: {
     lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
+  },
+  // Einkaufsliste (#392): wer einkauft, steht als Personen-ID (Mitglied des Lagers). Stamm und Vorschläge sind Daten je Artikelname, ohne Person
+  einkauf_artikel: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "name_norm",
+      "menge",
+      "einheit",
+      "warengruppe",
+      "einkaeufer_person_id",
+      "erledigt",
+    ],
+  },
+  einkauf_artikelstamm: { lager: ["lager_id", "name_norm", "warengruppe"] },
+  einkauf_vorschlag: {
+    lager: ["lager_id", "name_norm", "name", "haeufigkeit"],
   },
   // Aufgaben (#372): Verantwortliche und Unterstützung als Personen-IDs; erledigt_am setzt der Server mit dem Status
   aufgabe: {

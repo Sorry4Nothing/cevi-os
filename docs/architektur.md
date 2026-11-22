@@ -78,7 +78,7 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | API             | PostgreSQL                          | internes Netz, eigene Rolle  | Daten lesen und schreiben                                                                                     |
 | Migrationen     | PostgreSQL                          | Besitzerrolle der Datenbank  | Tabellen anlegen und umbauen                                                                                  |
 | Backup (restic) | S3-Speicher in der Schweiz          | HTTPS                        | Verschlüsselte Backups ablegen, täglich und vor jedem Deploy                                                  |
-| API             | S3-Speicher der Medien              | HTTPS, S3-Zugangsschlüssel   | Bilder der Medien ablegen, lesen und löschen (eigener Bucket, nicht der des Backups)                 |
+| API             | S3-Speicher der Medien              | HTTPS, S3-Zugangsschlüssel   | Bilder der Medien ablegen, lesen und löschen (eigener Bucket, nicht der des Backups)                          |
 | API             | Outlook-Kalender (iCal)             | HTTPS, geheime Adresse       | Termine lesen, alle 5 Minuten                                                                                 |
 | API             | Pwned Passwords (Have I Been Pwned) | HTTPS                        | Neue Passwörter mit bekannten Datenlecks abgleichen; gesendet werden nur die ersten 5 Zeichen des SHA-1-Hashs |
 | App             | Firebase (FCM)                      | HTTPS                        | Push-Token holen                                                                                              |
