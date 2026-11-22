@@ -8883,6 +8883,445 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/einkauf:
+    get:
+      operationId: holeLagerEinkauf
+      summary: Einkaufsliste des Lagers auflisten
+      description: |
+        Braucht das Recht `einkauf.lesen` (Standard: Lagerleitung, Leitung und Lesen; das Team nicht; die Rechte lassen sich je Lager einstellen).
+
+        Die Artikel einzeln, sortiert nach ID (neueste zuletzt), ohne gelöschte. Wer einkauft, kommt als ID und mit dem Namen der Person (beim Lesen aufgelöst, eine Umbenennung bricht nichts). Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`. Die Filter `einkaeufer` (`ich` für die Person der Sitzung, sonst die ID eines Mitglieds) und `erledigt` verbinden sich mit UND. Gleiche Artikel zusammengezählt liefert `GET .../einkauf/zusammen`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht (Team im Standard). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+        - name: einkaeufer
+          in: query
+          required: false
+          description: "Nur Artikel, die diese Person einkauft: `ich` oder die ID eines Mitglieds des Lagers."
+          schema:
+            oneOf:
+              - type: string
+                enum: [ich]
+              - type: string
+                format: uuid
+        - name: erledigt
+          in: query
+          required: false
+          description: Nur erledigte (`true`) oder nur offene (`false`) Artikel.
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: Eine Seite Artikel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerEinkaufArtikelAn
+      summary: Artikel auf die Einkaufsliste setzen
+      description: |
+        Braucht das Recht `einkauf.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Die Zeile bekommt Version 1, kommt in den Änderungsfeed.
+
+        Die Warengruppe ist ein gespeichertes Feld. Ohne Angabe bestimmt der Server sie: Hat die Lagerleitung für diesen Namen schon eine Warengruppe gesetzt (Artikelstamm des Lagers), gilt sie; sonst leitet der Server sie aus dem Namen über eine Stichwortliste ab (Gross- und Kleinschreibung und Umlaute zählen nicht; kein Treffer: `diverses`). Mit Angabe gilt die Angabe, und der Artikelstamm merkt sie sich für gleiche Namen in diesem Lager. Der Name zählt in der Vorschlagsliste (`GET .../einkauf/vorschlaege`) eins hoch.
+
+        Die Einheit wird klein gespeichert (`KG` und `kg` sind dieselbe Einheit), eine leere Einheit heisst keine Einheit. Wer einkauft, muss Mitglied dieses Lagers sein (400 `KEIN_MITGLIED`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEinkaufArtikelAnlegen"
+      responses:
+        "201":
+          description: Der neue Artikel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufArtikel"
+        "400":
+          description: Ungültige Eingabe, oder die Person, die einkauft, ist kein Mitglied des Lagers (`KEIN_MITGLIED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/einkauf/zusammen:
+    get:
+      operationId: holeLagerEinkaufZusammen
+      summary: Einkaufsliste zusammengezählt
+      description: |
+        Braucht das Recht `einkauf.lesen` (Standard: Lagerleitung, Leitung und Lesen; das Team nicht).
+
+        Gleiche Artikel in einer Zeile, die Mengen summiert. Gleich heisst: gleicher Name (ohne Beachtung von Gross- und Kleinschreibung und Umlauten: «Käse», «KÄSE» und «Kaese» sind derselbe Artikel), gleiche Einheit, dieselbe Person, die einkauft, und derselbe Stand (offen oder erledigt). Mengen verschiedener Einheiten werden nie addiert («2 kg Reis» und «500 g Reis» sind zwei Zeilen). Artikel ohne Menge zählen in `anzahl` mit, nicht in `menge`; haben alle keine Menge, ist `menge` `null`. Name und Warengruppe nimmt der Server vom neuesten Artikel der Zeile.
+
+        `eintraege` nennt die Artikel hinter der Zeile mit ihrer Version: Abhaken ist je Artikel ein `PATCH` mit `erledigt`. Die Zusammenfassung läuft in einer einzigen Abfrage (GROUP BY), die Seiten über `nach` (ID des ersten Artikels der letzten Zeile) und `limit`. Die Filter `einkaeufer` und `erledigt` wie bei der Liste; mit `erledigt=false` ist es die Liste für den Einkauf.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Zeilen je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+        - name: einkaeufer
+          in: query
+          required: false
+          description: "Nur Artikel, die diese Person einkauft: `ich` oder die ID eines Mitglieds des Lagers."
+          schema:
+            oneOf:
+              - type: string
+                enum: [ich]
+              - type: string
+                format: uuid
+        - name: erledigt
+          in: query
+          required: false
+          description: Nur erledigte (`true`) oder nur offene (`false`) Artikel.
+          schema:
+            type: string
+            enum: ["true", "false"]
+      responses:
+        "200":
+          description: Eine Seite zusammengezählter Zeilen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufZusammenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/einkauf/vorschlaege:
+    get:
+      operationId: holeLagerEinkaufVorschlaege
+      summary: Vorschläge für Artikel beim Tippen
+      description: |
+        Braucht das Recht `einkauf.lesen` (Standard: Lagerleitung, Leitung und Lesen; das Team nicht).
+
+        Die häufigsten Artikelnamen dieses Lagers, häufigste zuerst. Mit `q` nur Namen, die so beginnen (ohne Beachtung von Gross- und Kleinschreibung und Umlauten; `%` und `_` sind gewöhnliche Zeichen). Die Häufigkeit steigt mit jedem Artikel, der angelegt wird; Ändern, Abhaken und Löschen zählen nicht. Die Schreibweise ist die zuletzt getippte. Eine Abfrage, keine Seiten (höchstens 50).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Anfang des Namens.
+          schema:
+            type: string
+            maxLength: 100
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Vorschläge.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 10
+      responses:
+        "200":
+          description: Die Vorschläge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufVorschlaege"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/einkauf/{artikelId}:
+    get:
+      operationId: holeLagerEinkaufArtikel
+      summary: Einen Artikel der Einkaufsliste lesen
+      description: |
+        Braucht das Recht `einkauf.lesen` (Standard: Lagerleitung, Leitung und Lesen; das Team nicht).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Artikel (auch einem Artikel eines anderen Lagers oder einem gelöschten), fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: artikelId
+          in: path
+          required: true
+          description: ID des Artikels (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Artikel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufArtikel"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerEinkaufArtikel
+      summary: Artikel ändern oder abhaken
+      description: |
+        Braucht das Recht `einkauf.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern).
+
+        Abhaken beim Einkauf ist ein einzelnes Update: `{ "version": 3, "erledigt": true }`. Nur die genannten Felder ändern sich; `null` leert Menge, Einheit oder die Person, die einkauft. Ein neuer `name` ohne eigene `warengruppe` leitet die Warengruppe aus dem neuen Namen neu ab (Artikelstamm, dann Stichwortliste); mit `warengruppe` gilt die Angabe und der Artikelstamm des Lagers merkt sie sich für den Namen. Entspricht die Angabe der Vorgabe der Stichwortliste, entfällt die Zeile im Stamm.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Artikel, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: artikelId
+          in: path
+          required: true
+          description: ID des Artikels (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEinkaufArtikelAendern"
+      responses:
+        "200":
+          description: Der geänderte Artikel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEinkaufArtikel"
+        "400":
+          description: Ungültige Eingabe, oder die Person, die einkauft, ist kein Mitglied des Lagers (`KEIN_MITGLIED`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerEinkaufArtikel
+      summary: Artikel von der Einkaufsliste nehmen
+      description: |
+        Braucht das Recht `einkauf.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Die Vorschlagsliste behält den Namen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Artikel, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: artikelId
+          in: path
+          required: true
+          description: ID des Artikels (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Artikel gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/packliste:
     get:
@@ -15792,6 +16231,248 @@ components:
                 minimum: 0
     # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerEinkaufPerson:
+      description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - name
+        - ceviName
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: [string, "null"]
+        ceviName:
+          type: [string, "null"]
+    LagerEinkaufWarengruppe:
+      description: "Warengruppe eines Artikels. Die Apps zeigen sie als: `obst_gemuese` Obst und Gemüse, `brot` Brot, `milch_kaese` Milch und Käse, `fleisch_fisch` Fleisch und Fisch, `vorrat` Vorrat, `getraenke` Getränke, `haushalt` Haushalt, `diverses` Diverses."
+      type: string
+      enum:
+        - obst_gemuese
+        - brot
+        - milch_kaese
+        - fleisch_fisch
+        - vorrat
+        - getraenke
+        - haushalt
+        - diverses
+    LagerEinkaufEintrag:
+      description: "Ein Artikel hinter einer zusammengezählten Zeile: ID und die zuletzt gesehene Version, die ein `PATCH` mitschickt."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+    LagerEinkaufArtikel:
+      description: "Ein Artikel der Einkaufsliste."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - menge
+        - einheit
+        - warengruppe
+        - einkaeuferPersonId
+        - einkaeufer
+        - erledigt
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        menge:
+          description: "Positive Zahl mit höchstens drei Nachkommastellen; `null` ohne Menge."
+          type: [number, "null"]
+          exclusiveMinimum: 0
+        einheit:
+          description: "Klein geschrieben; `null` ohne Einheit."
+          type: [string, "null"]
+          maxLength: 20
+        warengruppe:
+          $ref: "#/components/schemas/LagerEinkaufWarengruppe"
+        einkaeuferPersonId:
+          description: "Mitglied des Lagers, das einkauft; `null`, wenn es niemand ist oder die Person das Lager verlassen hat."
+          type: [string, "null"]
+          format: uuid
+        einkaeufer:
+          oneOf:
+            - $ref: "#/components/schemas/LagerEinkaufPerson"
+            - type: "null"
+        erledigt:
+          description: "Abgehakt beim Einkauf."
+          type: boolean
+    LagerEinkaufSeite:
+      description: "Eine Seite Artikel."
+      type: object
+      additionalProperties: false
+      required:
+        - artikel
+        - naechster
+      properties:
+        artikel:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerEinkaufArtikel"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerEinkaufZusammen:
+      description: "Eine zusammengezählte Zeile: gleicher Name, gleiche Einheit, dieselbe Person, die einkauft, gleicher Stand."
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - menge
+        - einheit
+        - warengruppe
+        - einkaeuferPersonId
+        - einkaeufer
+        - erledigt
+        - anzahl
+        - eintraege
+      properties:
+        name:
+          description: "Schreibweise des neuesten Artikels der Zeile."
+          type: string
+        menge:
+          description: "Summe der Mengen; `null`, wenn kein Artikel der Zeile eine Menge hat."
+          type: [number, "null"]
+        einheit:
+          type: [string, "null"]
+        warengruppe:
+          $ref: "#/components/schemas/LagerEinkaufWarengruppe"
+        einkaeuferPersonId:
+          type: [string, "null"]
+          format: uuid
+        einkaeufer:
+          oneOf:
+            - $ref: "#/components/schemas/LagerEinkaufPerson"
+            - type: "null"
+        erledigt:
+          type: boolean
+        anzahl:
+          description: "Wie viele Artikel in der Zeile stecken."
+          type: integer
+          minimum: 1
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerEinkaufEintrag"
+    LagerEinkaufZusammenSeite:
+      description: "Eine Seite zusammengezählter Zeilen."
+      type: object
+      additionalProperties: false
+      required:
+        - artikel
+        - naechster
+      properties:
+        artikel:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerEinkaufZusammen"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerEinkaufVorschlaege:
+      description: "Vorschläge für Artikelnamen, häufigste zuerst."
+      type: object
+      additionalProperties: false
+      required:
+        - vorschlaege
+      properties:
+        vorschlaege:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - name
+              - haeufigkeit
+            properties:
+              name:
+                type: string
+              haeufigkeit:
+                description: "Wie oft ein Artikel mit diesem Namen in diesem Lager angelegt wurde."
+                type: integer
+                minimum: 1
+    LagerEinkaufArtikelAnlegen:
+      description: "Neuer Artikel. Nur diese Felder; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          description: "Wird getrimmt, Leerraum zusammengezogen."
+          type: string
+          minLength: 1
+          maxLength: 100
+        menge:
+          type: [number, "null"]
+          exclusiveMinimum: 0
+          maximum: 1000000
+          multipleOf: 0.001
+        einheit:
+          description: "Wird getrimmt und klein gespeichert; leer heisst keine Einheit."
+          type: [string, "null"]
+          maxLength: 20
+        warengruppe:
+          $ref: "#/components/schemas/LagerEinkaufWarengruppe"
+        einkaeuferPersonId:
+          description: "Muss Mitglied des Lagers sein (400 `KEIN_MITGLIED`)."
+          type: [string, "null"]
+          format: uuid
+    LagerEinkaufArtikelAendern:
+      description: "Änderung eines Artikels. Neben `version` mindestens ein Feld; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          description: "Die Version, die die App zuletzt gesehen hat."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        menge:
+          type: [number, "null"]
+          exclusiveMinimum: 0
+          maximum: 1000000
+          multipleOf: 0.001
+        einheit:
+          type: [string, "null"]
+          maxLength: 20
+        warengruppe:
+          $ref: "#/components/schemas/LagerEinkaufWarengruppe"
+        einkaeuferPersonId:
+          type: [string, "null"]
+          format: uuid
+        erledigt:
+          type: boolean
     # lager-schemas: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerPacklistePunkt:
       description: Ein Punkt der Vorlage der Lagerleitung.
