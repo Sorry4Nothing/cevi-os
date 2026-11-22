@@ -6,6 +6,7 @@ import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleLagerKernRouten } from "./lager.js";
+import { erstelleEinkaufRouten } from "./einkauf.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
@@ -22,5 +23,6 @@ export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
     .route("/", erstelleLagerDateiRouten({ db }))
-    .route("/", erstelleRessortRouten({ db }));
+    .route("/", erstelleRessortRouten({ db }))
+    .route("/", erstelleEinkaufRouten({ db }));
 }

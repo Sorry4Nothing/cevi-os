@@ -346,6 +346,13 @@
       "breakpoints": true
     },
     {
+      "idx": 87,
+      "version": "7",
+      "when": 1793552700000,
+      "tag": "0087_lager_einkauf",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
