@@ -166,19 +166,22 @@ async function lauf(db: Db, basisUrl: string, abrufen: HoleSeite) {
           mitnehmen: e.mitnehmen,
           abgerufenAm: roh`now()`,
         };
+        // Eine im Editor gepflegte Zeile (quelle «seite», #355) bleibt, wie sie ist; beide Quellen laufen bis #361 nebeneinander
         await tx
           .insert(programmEckdaten)
           .values({ stufeId: eine.id, tag: e.tag, ...werte })
           .onConflictDoUpdate({
             target: [programmEckdaten.stufeId, programmEckdaten.tag],
             set: werte,
+            setWhere: eq(programmEckdaten.quelle, "web"),
           });
-        // Die Seite zeigt nur den nächsten Anlass; was für andere Tage dieser Stufe noch steht, ist überholt
+        // Die Seite zeigt nur den nächsten Anlass; was für andere Tage dieser Stufe noch steht, ist überholt (gepflegte Zeilen nie)
         await tx
           .delete(programmEckdaten)
           .where(
             and(
               eq(programmEckdaten.stufeId, eine.id),
+              eq(programmEckdaten.quelle, "web"),
               ne(programmEckdaten.tag, e.tag),
             ),
           );

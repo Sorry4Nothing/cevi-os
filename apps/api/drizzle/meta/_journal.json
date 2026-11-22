@@ -283,6 +283,13 @@
       "breakpoints": true
     },
     {
+      "idx": 43,
+      "version": "7",
+      "when": 1793549300000,
+      "tag": "0043_eckdaten_quelle",
+      "breakpoints": true
+    },
+    {
       "idx": 60,
       "version": "7",
       "when": 1793550000000,
