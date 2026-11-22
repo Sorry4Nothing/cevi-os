@@ -114,9 +114,9 @@ describe("Hinweisband", () => {
         }),
       ),
     );
-    expect(html).toContain('<div class="band" role="status"><svg');
+    expect(html).toContain('<div class="band hinweisband" role="status"><svg');
     expect(html).toContain(
-      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager">Zum Lager</a></div>',
+      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager" class="hinweis-link">Zum Lager<svg',
     );
   });
 
@@ -156,14 +156,19 @@ describe("Kontaktkarte", () => {
     expect(html).toContain(
       '<p class="leise">Mara Muster, Abteilungsleitung</p>',
     );
-    expect(html).toContain('<a href="tel:+41435439682">043 543 96 82</a>');
+    // Grosse Zeilen: Art und Wert in einem Link, ohne Symbol
     expect(html).toContain(
-      '<a href="mailto:info@example.org">info@example.org</a>',
+      '<a href="tel:+41435439682" class="weg"><span class="weg-art">Telefon</span>',
     );
+    expect(html).toContain('<span class="weg-wert">043 543 96 82</span>');
+    expect(html).toContain('<a href="mailto:info@example.org" class="weg">');
+    expect(html).toContain('<span class="weg-wert">info@example.org</span>');
   });
 
   test("ohne Person und ohne Kontaktdaten entfällt die Karte", () => {
-    expect(seite(dok("T", b("kontaktkarte", {})))).not.toContain("kontaktband");
+    expect(seite(dok("T", b("kontaktkarte", {})))).not.toContain(
+      'class="kontaktkarte"',
+    );
   });
 
   test("Telefon: Landesvorwahl bleibt, +41 steht für eine Nummer mit 0", () => {
@@ -201,12 +206,13 @@ describe("Termin-Liste", () => {
   test("Datumsfeld, Titel, Zeit und Ort, Chips der Stufen, Link «Alle Termine»", () => {
     const html = mitTermine([termin()]);
     expect(html).toContain(
-      '<div class="abschnitt-kopf"><h2>Nächste Termine</h2><a class="mehr" href="/termine">Alle Termine</a></div>',
+      '<div class="abschnitt-kopf"><h2>Das steht an</h2><a class="btn s" href="/termine">Alle Termine</a></div>',
     );
     expect(html).toContain(
       '<span class="datum" aria-hidden="true"><span class="tag">Sa</span><span class="nr">6</span><span class="mo">Feb.</span></span>',
     );
     expect(html).toContain('<span class="titel">Waldspiel</span>');
+    expect(html).toContain('<span class="termin-text">');
     expect(html).toContain(
       '<span class="meta">14:00–17:00 · Pfadiheim Beispielwald</span>',
     );
@@ -268,12 +274,12 @@ describe("Termin-Liste", () => {
 
   test("ohne geladene Daten (zum Beispiel in der Vorschau) entfällt der Baustein", () => {
     expect(seite(dok("T", b("terminliste", { anzahl: 5 })))).not.toContain(
-      "Nächste Termine",
+      "Das steht an",
     );
   });
 });
 
-describe("Titelbild und Foto auf der Startseite", () => {
+describe("Titelbild", () => {
   const medium = () => ({
     mimeTyp: "image/webp",
     groesse: 1,
@@ -285,48 +291,80 @@ describe("Titelbild und Foto auf der Startseite", () => {
     ...keineDaten(),
     medien: new Map(ids.map((m) => [m, medium()])),
   });
+  const absatz = (t: string) =>
+    b("text", { inhalt: [{ typ: "absatz", inhalt: [{ text: t }] }] });
 
-  test("zwei Bilder am Anfang: das erste ist das Titelbild ausserhalb der Spalte, das zweite das Foto im Teaser", () => {
-    const [a, f] = [id(), id()];
+  test("Startseite: das erste Bild geht bis zum Fensterrand, das Teaser-Feld überlappt es", () => {
+    const a = id();
     const html = seite(
-      dok(
-        "Start",
-        b("bild", { mediumId: a }),
-        b("bild", { mediumId: f }),
-        b("text", { inhalt: [{ typ: "absatz", inhalt: [{ text: "Hallo" }] }] }),
-      ),
-      mit(a, f),
+      dok("Start", b("bild", { mediumId: a }), absatz("Hallo")),
+      mit(a),
       "/",
     );
     expect(html).toMatch(
       new RegExp(
-        `<main[^>]*>\\n<figure class="titelbild"><img src="/api/v1/medien/${a}"[^>]*fetchpriority="high"[^>]*></figure>\\n<div class="wrap">`,
+        `<main[^>]*>\\n<div class="hero"><figure class="titelbild"><img src="/api/v1/medien/${a}"[^>]*fetchpriority="high"[^>]*></figure>\\n<section class="teaser teaser--ueber-bild"`,
       ),
     );
-    expect(html).toMatch(
-      new RegExp(
-        `<section class="teaser"[^>]*>\\n<figure><img src="/api/v1/medien/${f}"`,
-      ),
-    );
-    // Bilder im sichtbaren Bereich laden sofort
+    // Das Titelbild lädt sofort und mit Vorrang
     expect(html).not.toContain('loading="lazy"');
+    // Der Titel steht in der Fahne, der Text daneben; kein Etikett über dem Titel
+    expect(html).toContain(
+      '<div class="fahne"><h1 id="h1">Start</h1></div>\n<div class="teaser-text"><div class="text lesetext"><p>Hallo</p></div></div>',
+    );
+    expect(html).not.toContain("kicker");
   });
 
-  test("ein Bild: nur das Foto im Teaser, kein Titelbild", () => {
+  test("ein Bild ohne Text: Titelbild mit dem Seitentitel in der Fahne, auf der Startseite und auf jeder anderen Seite", () => {
     const a = id();
-    const html = seite(dok("Start", b("bild", { mediumId: a })), mit(a), "/");
-    expect(html).not.toContain("titelbild");
+    for (const pfad of ["/", "/seite"]) {
+      const html = seite(
+        dok("Start", b("bild", { mediumId: a })),
+        mit(a),
+        pfad,
+      );
+      expect(html).not.toContain('class="teaser');
+      expect(html).toMatch(
+        /<div class="hero hero--seite"><figure class="titelbild"><img [^>]*fetchpriority="high"[^>]*><\/figure>\n<div class="seitenband seitenband--ueber-bild"><div class="wrap"><div class="fahne"><h1>Start<\/h1><\/div><\/div><\/div><\/div>/,
+      );
+      expect(zaehle(html, "<h1")).toBe(1);
+    }
   });
 
-  test("nur die Startseite hat ein Titelbild", () => {
+  test("ohne Bild steht der Seitentitel allein im Band", () => {
+    const html = seite(dok("Start", absatz("Hallo")), mit(), "/seite");
+    expect(html).toContain(
+      '<div class="seitenband"><div class="wrap"><h1>Start</h1></div></div>',
+    );
+    expect(html).not.toContain("fahne");
+  });
+
+  test("jede Seite: das erste Bild ist das Titelbild vor dem Seitentitel, ein zweites steht im Inhalt", () => {
     const [a, f] = [id(), id()];
     const html = seite(
       dok("Seite", b("bild", { mediumId: a }), b("bild", { mediumId: f })),
       mit(a, f),
       "/seite",
     );
-    expect(html).not.toContain("titelbild");
-    expect(zaehle(html, 'loading="lazy"')).toBe(2);
+    expect(zaehle(html, 'class="titelbild"')).toBe(1);
+    expect(html.indexOf("titelbild")).toBeLessThan(html.indexOf("seitenband"));
+    expect(html).toContain(`<img src="/api/v1/medien/${f}"`);
+  });
+
+  test("Bilder oberhalb der Falz laden sofort, ab dem vierten Abschnitt erst beim Scrollen", () => {
+    const ids = [id(), id(), id(), id(), id()];
+    const abschnitte = ids.flatMap((m, i) => [
+      b("ueberschrift", { ebene: 2, text: `Abschnitt ${i}` }),
+      b("bild", { mediumId: m }),
+    ]);
+    const html = seite(dok("Seite", ...abschnitte), mit(...ids), "/seite");
+    const lazy = (m: string) =>
+      new RegExp(`<img src="/api/v1/medien/${m}"[^>]*loading="lazy"`).test(
+        html,
+      );
+    expect(ids.map(lazy)).toEqual([false, false, false, true, true]);
+    // Das Seitenverhältnis steht im Markup, damit nichts springt
+    expect(html).toContain('width="1264" height="379"');
   });
 });
 
@@ -402,7 +440,7 @@ describe("Fuss", () => {
       '<footer class="fuss">',
     )[1]!;
 
-  test("drei Spalten: Name und Anschrift, Telefon und E-Mail, Impressum und Datenschutz, dazu ©", () => {
+  test("Spalten: Name und Anschrift, Seiten, Telefon und E-Mail, Impressum und Datenschutz, dazu ©", () => {
     const html = fuss({
       ...keineDaten(),
       kontakt: {
@@ -429,7 +467,9 @@ describe("Fuss", () => {
     const html = fuss(keineDaten());
     expect(html).not.toContain("Impressum");
     expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
-    expect(zaehle(html, "<div>")).toBe(2);
+    // Nur Spalten mit Inhalt: Seiten und Rechtliches, kein leeres Kontakt
+    expect(zaehle(html, 'class="fuss-spalte"')).toBe(2);
+    expect(html).not.toContain('aria-label="Kontakt"');
   });
 });
 

@@ -6,6 +6,7 @@ import {
   rendereInhaltsBaustein,
   STIL_INHALT,
 } from "./inhaltsbausteine.js";
+import { symbol } from "./symbole.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -37,7 +38,8 @@ export type MedienDaten = {
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
-export type Fakt = { bezeichnung: string; wert: string };
+// link: der Wert als Link (Eckdaten, #560)
+export type Fakt = { bezeichnung: string; wert: string; link?: string };
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
 export type TerminEintrag = {
   id: string;
@@ -95,6 +97,8 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
+  // Fassung für den dunklen Grund (#555): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo in der Nacht auf einem hellen Feld
+  dunkel?: { id: string; breite: number | null; hoehe: number | null };
 };
 
 export type Kontext = {
@@ -131,133 +135,8 @@ export const el = (
 
 const LEERE_ELEMENTE = new Set(["img", "hr"]);
 
-// Symbole des Designs (24er Raster, Linie). Nur in der festen Hülle der Seite und in den Platzhaltern: Das Skript für geschützte Bausteine kennt keine SVG-Elemente
-const SYMBOLE: Record<string, HtmlKnoten[]> = {
-  info: [
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "9" } },
-    { tag: "path", attr: { d: "M12 11v5M12 8h.01" } },
-  ],
-  warnung: [
-    { tag: "path", attr: { d: "M12 3 2.5 20h19L12 3z" } },
-    { tag: "path", attr: { d: "M12 10v4M12 17h.01" } },
-  ],
-  schloss: [
-    {
-      tag: "rect",
-      attr: { x: "5", y: "11", width: "14", height: "9", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M8 11V8a4 4 0 0 1 8 0v3" } },
-  ],
-  person: [
-    { tag: "circle", attr: { cx: "12", cy: "8", r: "3.5" } },
-    { tag: "path", attr: { d: "M5 20c.8-3.8 3.6-6 7-6s6.2 2.2 7 6" } },
-  ],
-  menue: [{ tag: "path", attr: { d: "M4 7h16M4 12h16M4 17h16" } }],
-  schliessen: [{ tag: "path", attr: { d: "M6 6l12 12M18 6L6 18" } }],
-  nochmals: [
-    { tag: "path", attr: { d: "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" } },
-  ],
-  auge: [
-    {
-      tag: "path",
-      attr: { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" },
-    },
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "3" } },
-  ],
-  sonne: [
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "4" } },
-    {
-      tag: "path",
-      attr: {
-        d: "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
-      },
-    },
-  ],
-  mond: [
-    { tag: "path", attr: { d: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" } },
-  ],
-  bildschirm: [
-    {
-      tag: "rect",
-      attr: { x: "3", y: "4", width: "18", height: "12", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M8 20h8M12 16v4" } },
-  ],
-  // Symbole der Merkmalskacheln und Kontaktflächen (#555)
-  gruppe: [
-    { tag: "circle", attr: { cx: "9", cy: "8", r: "3" } },
-    { tag: "path", attr: { d: "M3 20c.5-3.4 3-5.5 6-5.5s5.5 2.1 6 5.5" } },
-    { tag: "circle", attr: { cx: "17.5", cy: "9", r: "2.5" } },
-    { tag: "path", attr: { d: "M16.5 14.6c2.6.2 4.2 2 4.5 4.9" } },
-  ],
-  zelt: [
-    { tag: "path", attr: { d: "M2 20h20M12 4 4 20M12 4l8 16" } },
-    { tag: "path", attr: { d: "M9.5 20 12 14l2.5 6" } },
-  ],
-  kalender: [
-    {
-      tag: "rect",
-      attr: { x: "4", y: "5", width: "16", height: "15", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M4 10h16M8 3v4M16 3v4" } },
-  ],
-  stern: [
-    {
-      tag: "path",
-      attr: {
-        d: "M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8L12 3.5z",
-      },
-    },
-  ],
-  herz: [
-    {
-      tag: "path",
-      attr: {
-        d: "M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.4a4.3 4.3 0 0 1 7.5 2.4C19.5 15.4 12 20 12 20z",
-      },
-    },
-  ],
-  ort: [
-    {
-      tag: "path",
-      attr: {
-        d: "M12 21s6.5-5.8 6.5-11a6.5 6.5 0 0 0-13 0C5.5 15.2 12 21 12 21z",
-      },
-    },
-    { tag: "circle", attr: { cx: "12", cy: "10", r: "2.3" } },
-  ],
-  telefon: [
-    {
-      tag: "path",
-      attr: {
-        d: "M6.6 3.5 9 3l1.8 4.3-1.9 1.4a11 11 0 0 0 5.4 5.4l1.4-1.9 4.4 1.8-.5 2.4a2.6 2.6 0 0 1-2.6 2.1A14 14 0 0 1 4.5 6.1a2.6 2.6 0 0 1 2.1-2.6z",
-      },
-    },
-  ],
-  mail: [
-    {
-      tag: "rect",
-      attr: { x: "3", y: "5", width: "18", height: "14", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M3.5 7 12 13l8.5-6" } },
-  ],
-  pfeil: [{ tag: "path", attr: { d: "M5 12h14M13 6l6 6-6 6" } }],
-  "auge-zu": [
-    {
-      tag: "path",
-      attr: {
-        d: "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.2 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.9",
-      },
-    },
-  ],
-};
-
-export const symbol = (name: keyof typeof SYMBOLE | string): HtmlKnoten =>
-  el(
-    "svg",
-    { class: "i", viewBox: "0 0 24 24", "aria-hidden": "true" },
-    ...SYMBOLE[name]!,
-  );
+// Der Symbolsatz liegt in symbole.ts; von hier aus bleibt «symbol» wie bisher erreichbar
+export { symbol } from "./symbole.js";
 
 export function serialisiere(k: HtmlKnoten): string {
   if (typeof k === "string") return esc(k);
@@ -321,6 +200,7 @@ function bild(
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
     loading: "lazy",
+    decoding: "async",
   });
   return el(
     "figure",
@@ -435,6 +315,21 @@ const neuerStand = (): Stand => ({
   anker: new Set(["inhalt", "h1"]),
 });
 
+// Die Tafel «auf einen Blick»: Stufenfelder und Eckdaten sehen gleich aus
+const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
+  el(
+    "dl",
+    { class: "fakten karte" },
+    ...fakten.map((f) =>
+      el(
+        "div",
+        { class: "fakt" },
+        el("dt", undefined, f.bezeichnung),
+        el("dd", undefined, ...verlinke(f.link, [f.wert])),
+      ),
+    ),
+  );
+
 // letzte.ebene: Ebene der letzten Überschrift der Seite (1 = der Seitentitel); eine neue springt höchstens eine Ebene tiefer.
 // letzte.schalter: Zahl der Schaltflächen bisher; nur die erste ist rot (eine Hauptaktion je Seite)
 function rendereBaustein(
@@ -444,7 +339,7 @@ function rendereBaustein(
   letzte: Stand,
 ): HtmlKnoten | null {
   if (istInhaltsBaustein(b)) {
-    return rendereInhaltsBaustein(b, seiteId, daten, letzte);
+    return rendereInhaltsBaustein(b, daten, letzte);
   }
   switch (b.typ) {
     case "ueberschrift": {
@@ -525,6 +420,35 @@ function rendereBaustein(
                 : []),
               el(`h${ebene}`, { class: "titel" }, e.titel),
               ...(e.text ? [el("p", undefined, e.text)] : []),
+            ),
+          ),
+        );
+      }
+      // Die Reihenfolge trägt Bedeutung: eine geordnete Liste
+      if (b.daten.darstellung === "zeitstrahl") {
+        return el(
+          "ol",
+          { class: "zeitstrahl" },
+          ...eintraege.map((e) =>
+            el(
+              "li",
+              undefined,
+              el("p", { class: "jahr" }, e.titel),
+              ...(e.text ? [el("p", undefined, e.text)] : []),
+            ),
+          ),
+        );
+      }
+      if (b.daten.darstellung === "zahlen") {
+        return el(
+          "ul",
+          { class: "zahlen" },
+          ...eintraege.map((e) =>
+            el(
+              "li",
+              undefined,
+              el("strong", { class: "zahl" }, e.titel),
+              ...(e.text ? [el("span", undefined, e.text)] : []),
             ),
           ),
         );
@@ -637,20 +561,26 @@ function rendereBaustein(
       );
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
-      return fakten.length === 0
-        ? null
-        : el(
-            "dl",
-            { class: "fakten karte" },
-            ...fakten.map((f) =>
-              el(
-                "div",
-                { class: "fakt" },
-                el("dt", undefined, f.bezeichnung),
-                el("dd", undefined, f.wert),
-              ),
-            ),
-          );
+      return fakten.length === 0 ? null : faktenTafel(fakten);
+    }
+    // Gehört die Seite zu einem Anlass (#560), steht unter der Tafel die Schaltfläche zur Anmeldung
+    case "eckdaten": {
+      const tafel = faktenTafel(b.daten.eintraege);
+      const anlassId = daten.anlaesse.get(seiteId);
+      if (!anlassId) return tafel;
+      return el(
+        "div",
+        { class: "eckdaten-block" },
+        tafel,
+        el(
+          "a",
+          {
+            class: `btn ${letzte.schalter++ === 0 ? "p" : "s"} gross voll`,
+            href: `${ANLASS_PFAD}?id=${anlassId}`,
+          },
+          "Zur Anmeldung",
+        ),
+      );
     }
     case "terminliste": {
       const liste = daten.termine.get(b.id);
@@ -685,11 +615,9 @@ function rendereBaustein(
       const k = daten.kontakt;
       const wege = [
         k?.telefon
-          ? wegFlaeche(telefonZiel(k.telefon), "telefon", "Telefon", k.telefon)
+          ? wegFlaeche(telefonZiel(k.telefon), "Telefon", k.telefon)
           : null,
-        k?.email
-          ? wegFlaeche(`mailto:${k.email}`, "mail", "E-Mail", k.email)
-          : null,
+        k?.email ? wegFlaeche(`mailto:${k.email}`, "E-Mail", k.email) : null,
       ].filter((w) => w !== null);
       if (!p && wege.length === 0) return null;
       const ebene = Math.min(2, letzte.ebene + 1);
@@ -747,10 +675,9 @@ function telefonZiel(nummer: string): string {
 const telefonLink = (nummer: string): HtmlKnoten =>
   kontaktLink(telefonZiel(nummer), nummer);
 
-// Grosse Aktionsfläche der Kontaktkarte: Symbol, Art und Wert in einem Link; null, wenn die Adresse keine erlaubte Art hat
+// Grosse Zeile der Kontaktkarte: Art und Wert in einem Link; null, wenn die Adresse keine erlaubte Art hat
 function wegFlaeche(
   ziel: string,
-  symbolName: string,
   art: string,
   wert: string,
 ): HtmlKnoten | null {
@@ -759,13 +686,8 @@ function wegFlaeche(
   return el(
     "a",
     { ...h, class: "weg" },
-    symbol(symbolName),
-    el(
-      "span",
-      { class: "weg-text" },
-      el("span", { class: "weg-art" }, art),
-      el("span", { class: "weg-wert" }, wert),
-    ),
+    el("span", { class: "weg-art" }, art),
+    el("span", { class: "weg-wert" }, wert),
   );
 }
 
@@ -939,11 +861,12 @@ const alsHtml = (liste: Eintrag[]) =>
 
 const sichtbar = (e: Eintrag) => e.knoten !== null && istOeffentlich(e.b);
 
-// Stufenfelder neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» stehen, bilden die linke Spalte, die Fakten die rechte (Design W2).
+// Stufenfelder und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
 // Ohne solche Bausteine davor oder am Handy steht alles untereinander in der Reihenfolge der Seite
 function ordneZweispaltig(eintraege: Eintrag[]): string {
   const fakten = eintraege.findIndex(
-    (e) => e.b.typ === "stufenfakten" && sichtbar(e),
+    (e) =>
+      (e.b.typ === "stufenfakten" || e.b.typ === "eckdaten") && sichtbar(e),
   );
   let von = fakten;
   while (
@@ -1016,11 +939,10 @@ function eifrig(k: HtmlKnoten, vorrang = true): HtmlKnoten {
   return { ...k, kinder: k.kinder?.map((x) => eifrig(x, vorrang)) };
 }
 
-// Startseite: Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1): ein blaues Feld, das das Titelbild von unten überlappt.
+// Startseite: Titel, erster Text und Schaltflächen am Anfang der Seite bilden den Einstieg (#555): die blaue Fahne mit Titel und Schaltflächen ragt von links ins Titelbild, der Text steht daneben auf der Fläche.
 // Fehlt davon alles, bleibt es beim gewöhnlichen Titel
 function rendereTeaser(
   titel: string,
-  abteilung: string,
   eintraege: Eintrag[],
   mitBild: boolean,
 ): { html: string; rest: Eintrag[] } | null {
@@ -1040,15 +962,9 @@ function rendereTeaser(
   }
   if (!text && knoepfe.length === 0) return null;
   const html = `<section class="teaser${mitBild ? " teaser--ueber-bild" : ""}" aria-labelledby="h1">
-<div class="wrap"><div class="box">
-<div class="teaser-kopf">
-<p class="kicker">${esc(abteilung)}</p>
-<h1 id="h1">${esc(titel)}</h1>
+<div class="wrap teaser-in">
+<div class="fahne"><h1 id="h1">${esc(titel)}</h1>${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}</div>${text ? `\n<div class="teaser-text">${serialisiere(text)}</div>` : ""}
 </div>
-<div class="teaser-text">
-${text ? serialisiere(text) : ""}${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}
-</div>
-</div></div>
 </section>`;
   return { html, rest: eintraege.slice(i) };
 }
@@ -1062,17 +978,26 @@ const EIGENER_ABSCHNITT = new Set<Baustein["typ"]>([
   "kontaktkarte",
   "terminliste",
 ]);
-// Nach einer Überschrift mit solchen Bausteinen steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Text rechts
-const BREITE_BAUSTEINE = new Set<Baustein["typ"]>([
-  "artikel",
+// Nach einer Überschrift mit Bildkarten, Galerie oder Karussell steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Inhalt rechts.
+// Merkmale und Listen sind Zeilen und stehen wie Text rechts neben dem Titel
+const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
   "karten",
   "galerie",
   "karussell",
 ]);
+const istBreit = (b: Baustein) =>
+  b.typ === "artikel" ||
+  b.typ === "galerie" ||
+  b.typ === "karussell" ||
+  (b.typ === "karten" &&
+    (b.daten.darstellung === "karten" || b.daten.darstellung === "stufen"));
 // Abschnitte ab dieser Nummer liegen unterhalb des ersten Bildschirms: ihre Bilder laden erst beim Scrollen
 const EIFRIGE_ABSCHNITTE = 3;
 
 type Gruppe = { eintraege: Eintrag[]; eigen: boolean };
+
+const istH2 = (e: Eintrag) =>
+  e.b.typ === "ueberschrift" && e.b.daten.ebene === 2;
 
 function gruppiere(eintraege: Eintrag[]): Gruppe[] {
   const gruppen: Gruppe[] = [];
@@ -1080,12 +1005,13 @@ function gruppiere(eintraege: Eintrag[]): Gruppe[] {
   for (const e of eintraege) {
     if (e.knoten === null) continue;
     if (sichtbar(e) && EIGENER_ABSCHNITT.has(e.b.typ)) {
-      gruppen.push({ eintraege: [e], eigen: true });
-      offen = null;
-    } else if (
-      offen === null ||
-      (e.b.typ === "ueberschrift" && e.b.daten.ebene === 2)
-    ) {
+      offen = { eintraege: [e], eigen: true };
+      gruppen.push(offen);
+      // Was nach der Kontaktkarte bis zur nächsten Überschrift folgt, steht noch in ihrem Abschnitt
+      if (e.b.typ !== "kontaktkarte") offen = null;
+    } else if (offen?.eigen && !istH2(e)) {
+      offen.eintraege.push(e);
+    } else if (offen === null || istH2(e)) {
       offen = { eintraege: [e], eigen: false };
       gruppen.push(offen);
     } else {
@@ -1095,20 +1021,22 @@ function gruppiere(eintraege: Eintrag[]): Gruppe[] {
   return gruppen;
 }
 
+// Der Ton wechselt, wo die Art des Inhalts wechselt: Abschnitte mit Titel links (Text, Merkmale, Termine, Kontakt) teilen sich hintereinander eine Fläche und trennen sich mit einer Linie («folge»);
+// Bildkarten, Galerie und Karussell heben sich mit dem anderen Ton ab. Der erste Abschnitt schliesst an den Titel der Seite an
 function rendereAbschnitte(eintraege: Eintrag[]): string {
-  let wechsel = 0;
+  let vor = { ton: "toenung", zeilen: false };
   return gruppiere(eintraege)
     .map((g, i) => {
       const erster = g.eintraege[0]!;
       const typ = erster.b.typ;
       if (g.eigen && (typ === "hinweis" || typ === "aufruf")) {
+        vor = { ton: "toenung", zeilen: false };
         return `<section class="sektion sektion--${typ}">
 <div class="wrap">
 ${alsHtml(g.eintraege)}
 </div>
 </section>`;
       }
-      const ton = wechsel++ % 2 === 0 ? "flaeche" : "toenung";
       const liste =
         i < EIFRIGE_ABSCHNITTE
           ? g.eintraege.map((e) => ({
@@ -1116,24 +1044,35 @@ ${alsHtml(g.eintraege)}
               knoten: e.knoten && eifrig(e.knoten, false),
             }))
           : g.eintraege;
+      const mitKopf = !g.eigen && typ === "ueberschrift";
+      const rest = liste.slice(1);
+      const breit = !g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b));
+      const folge = !breit && vor.zeilen;
+      const ton = folge
+        ? vor.ton
+        : vor.ton === "flaeche"
+          ? "toenung"
+          : "flaeche";
+      vor = { ton, zeilen: !breit };
+      const klassen = `sektion sektion--${ton}${folge ? " sektion--folge" : ""}`;
       if (g.eigen) {
-        return `<section class="sektion sektion--${ton} sektion--${typ}">
+        return `<section class="${klassen} sektion--${typ}">
 <div class="wrap">
 ${alsHtml(liste)}
 </div>
 </section>`;
       }
-      const mitKopf = typ === "ueberschrift";
-      const rest = liste.slice(1);
-      const breit = rest.some(
-        (e) => sichtbar(e) && BREITE_BAUSTEINE.has(e.b.typ),
-      );
-      // Ein kurzer Text unter dem Titel gehört zum Titel
+      // Ein kurzer Text zwischen Titel und Karten gehört zum Titel
       const lead =
-        mitKopf && breit && rest[0]?.b.typ === "text" && sichtbar(rest[0]);
+        mitKopf &&
+        rest[0]?.b.typ === "text" &&
+        sichtbar(rest[0]) &&
+        rest.some((e) => sichtbar(e) && LISTEN_BAUSTEINE.has(e.b.typ));
       const kopf = mitKopf ? liste.slice(0, lead ? 2 : 1) : [];
       const rumpf = mitKopf ? liste.slice(lead ? 2 : 1) : liste;
-      return `<section class="sektion sektion--${ton} sektion--${breit ? "breit" : "text"}">
+      // Ohne Titel gleich unter dem Seitentitel: der Einstieg der Seite, grösser gesetzt
+      const einstieg = i === 0 && !mitKopf ? " sektion--einstieg" : "";
+      return `<section class="${klassen} sektion--${breit ? "breit" : "text"}${einstieg}">
 <div class="wrap">
 ${kopf.length > 0 ? `<div class="sektion-kopf">\n${alsHtml(kopf)}\n</div>\n` : ""}<div class="sektion-rumpf">
 ${ordneZweispaltig(rumpf)}
@@ -1178,31 +1117,39 @@ function navigation(
     .join("")}</ul>`;
 }
 
-// Umschalter Hell, Dunkel, System (#550): ohne Skript bleibt er verborgen (hidden), website/theme.js zeigt ihn und merkt die Wahl im Browser
+// Umschalter Hell und Dunkel (#550, #555): zwei Knöpfe nur mit Symbol, der Name steht im aria-label. Ohne Skript bleibt er verborgen (hidden), website/theme.js zeigt ihn;
+// ohne gespeicherte Wahl markiert es den Knopf, der zum System passt, und speichert erst beim Klick
 const THEMA_WAHL: [string, string, string][] = [
-  ["system", "bildschirm", "System"],
   ["light", "sonne", "Hell"],
   ["dark", "mond", "Dunkel"],
 ];
 const themaSchalter = () =>
   `<div class="thema" role="group" aria-label="Darstellung" hidden>${THEMA_WAHL.map(
     ([wert, icon, name]) =>
-      `<button type="button" data-thema="${wert}" aria-pressed="false">${serialisiere(symbol(icon))}<span>${name}</span></button>`,
+      `<button type="button" data-thema="${wert}" aria-pressed="false" aria-label="${name}">${serialisiere(symbol(icon))}</button>`,
   ).join("")}</div>`;
 
-// Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke
+// Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke.
+// Gibt es eine Fassung für den dunklen Grund, stehen beide Bilder im Markup und der Stil zeigt je nach Darstellung eines (das verborgene ist display: none und wird nicht vorgelesen)
 function markeHtml(k: Kontext): string {
   const name = esc(markenname(k.abteilung));
   if (!k.logo) {
     return `<a class="marke" href="/"><b>CEVI</b><span>${name}</span></a>`;
   }
-  const { id, altText, breite, hoehe } = k.logo;
-  const mass = breite && hoehe ? ` width="${breite}" height="${hoehe}"` : "";
-  return `<a class="marke marke--logo" href="/"><img class="logo" src="${medienUrl(id)}" alt="${esc(altText ?? "")}"${mass}><span class="nur-sr">${name}</span></a>`;
+  const { id, altText, breite, hoehe, dunkel } = k.logo;
+  const alt = esc(altText ?? "");
+  const bild = (
+    klasse: string,
+    b: { id: string; breite: number | null; hoehe: number | null },
+  ) =>
+    `<img class="${klasse}" src="${medienUrl(b.id)}" alt="${alt}"${b.breite && b.hoehe ? ` width="${b.breite}" height="${b.hoehe}"` : ""}>`;
+  return dunkel
+    ? `<a class="marke marke--logo marke--zwei" href="/">${bild("logo logo--hell", { id, breite, hoehe })}${bild("logo logo--dunkel", dunkel)}<span class="nur-sr">${name}</span></a>`
+    : `<a class="marke marke--logo" href="/">${bild("logo", { id, breite, hoehe })}<span class="nur-sr">${name}</span></a>`;
 }
 
-// Die Leiste am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
-// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 74 em ins Menü am Handy um, wo alles steht
+// Die Navigation am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
+// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); unter 60 em übernimmt das Menü am Handy, wo alles steht
 const MAX_HAUPTPUNKTE = 6;
 const MAX_NAV_ZEICHEN = 80;
 
@@ -1222,12 +1169,17 @@ const istHier = (p: NavPunkt, aktuell: string | null): boolean =>
   istVorfahr(p.pfad, aktuell) ||
   p.kinder.some((k) => istHier(k, aktuell));
 
-// Unterseiten ohne Skript: Sie öffnen sich bei Hover und Fokus (CSS); menue.js ergänzt Pfeiltasten und Esc
+// Unterseiten ohne Skript: Sie öffnen sich bei Hover und Fokus (CSS); menue.js ergänzt Pfeiltasten und Esc. Die dritte Ebene steht eingerückt unter ihrer Seite, damit jede Seite von der Navigation aus erreichbar ist
 function hauptPunkt(p: NavPunkt, aktuell: string | null): string {
   if (p.kinder.length === 0) return `<li>${navLink(p, aktuell)}</li>`;
-  return `<li class="mit-unter">${navLink(p, aktuell)}<ul class="unter">${p.kinder
-    .map((k) => `<li>${navLink(k, aktuell)}</li>`)
-    .join("")}</ul></li>`;
+  const liste = (ps: NavPunkt[]): string =>
+    ps
+      .map(
+        (k) =>
+          `<li>${navLink(k, aktuell)}${k.kinder.length > 0 ? `<ul>${liste(k.kinder)}</ul>` : ""}</li>`,
+      )
+      .join("");
+  return `<li class="mit-unter">${navLink(p, aktuell)}<ul class="unter">${liste(p.kinder)}</ul></li>`;
 }
 
 // «Mehr» ist ein details-Element und braucht kein Skript; die Unterseiten der Punkte darin stehen eingerückt darunter
@@ -1248,31 +1200,33 @@ function hauptNavigation(punkte: NavPunkt[], aktuell: string | null): string {
   return `<ul>${leiste.map((p) => hauptPunkt(p, aktuell)).join("")}${mehr.length > 0 ? mehrPunkt(mehr, aktuell) : ""}</ul>`;
 }
 
+// Kopf (#555): ein Band, das beim Scrollen oben stehen bleibt. Links die Marke, daneben die Navigation, rechts «Anmelden», der Umschalter und am Handy das Menü.
+// Zwischen 60 und 96 em bricht die Navigation per CSS in eine zweite Zeile desselben Bands um
 function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
-  const marke = `<div class="kopf"><div class="wrap kopf-in">${markeHtml(k)}${themaSchalter()}</div></div>`;
   if (nurMarke)
-    return `<header>
-${marke}
+    return `<header class="kopf">
+<div class="wrap kopf-in">${markeHtml(k)}<div class="kopf-rechts">${themaSchalter()}</div></div>
 </header>`;
-  // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste
+  // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste unter dem Band; sie scrollt mit dem Inhalt weg
   const bereich = k.navigation.find(
     (p) =>
       p.kinder.length > 0 &&
       (p.pfad === aktuell || istVorfahr(p.pfad, aktuell)),
   );
-  return `<header>
-${marke}
-<div class="leiste"><div class="wrap leiste-in">
+  const anmelden = (klasse: string) =>
+    `<a class="${klasse}" href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a>`;
+  return `<header class="kopf">
+<div class="wrap kopf-in">
+${markeHtml(k)}
 <nav class="hauptnav" aria-label="Hauptnavigation">${hauptNavigation(k.navigation, aktuell)}</nav>
-<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
-<div class="rechts"><a href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a></div>
-</div></div>${
+<div class="kopf-rechts">${anmelden("anmelden")}${themaSchalter()}<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}${anmelden("anmelden-mobil")}</nav></details></div>
+</div>
+</header>${
     bereich
       ? `
 <nav class="unterleiste" aria-label="Unterseiten von ${esc(bereich.titel)}"><div class="wrap">${navigation(bereich.kinder, aktuell, false)}</div></nav>`
       : ""
-  }
-</header>`;
+  }`;
 }
 
 // Fuss (#555): Spalten für Name und Adresse, die Seiten der Website, Kontakt und Rechtliches, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
@@ -1412,16 +1366,14 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const uebrige = titelbild ? eintraege.slice(1) : eintraege;
   const teaser =
     s.pfad === "/"
-      ? rendereTeaser(
-          s.dokument.titel,
-          k.abteilung,
-          uebrige,
-          titelbild !== null,
-        )
+      ? rendereTeaser(s.dokument.titel, uebrige, titelbild !== null)
       : null;
   const kopf = teaser
     ? `<div class="hero">${titelbild ?? ""}\n${teaser.html}</div>`
-    : `${titelbild ?? ""}\n<div class="seitenband"><div class="wrap"><h1>${esc(s.dokument.titel)}</h1></div></div>`;
+    : titelbild
+      ? // Unterseite mit Titelbild: dieselbe Fahne, kleiner
+        `<div class="hero hero--seite">${titelbild}\n<div class="seitenband seitenband--ueber-bild"><div class="wrap"><div class="fahne"><h1>${esc(s.dokument.titel)}</h1></div></div></div></div>`
+      : `<div class="seitenband"><div class="wrap"><h1>${esc(s.dokument.titel)}</h1></div></div>`;
   const inhalt = `${kopf}\n${rendereAbschnitte(teaser ? teaser.rest : uebrige)}`;
   return rahmen(k, {
     titel: s.dokument.titel,

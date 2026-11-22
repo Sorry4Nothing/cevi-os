@@ -39,12 +39,8 @@ export const MERKMAL_SYMBOLE = [
   "ort",
   "sonne",
 ] as const;
-// Bausteine der Inhaltsseiten (#560): Eckdaten und Kennzahlen, Zeitstrahl, Personen, Artikel
 export const MAX_ECKDATEN = 12;
-export const MAX_BEZEICHNUNG = 60;
-export const MAX_WERT = 300;
-export const MAX_ZEITSTRAHL = 30;
-export const MAX_ZEIT = 40;
+// Bausteine der Inhaltsseiten (#560): Personen und Artikel
 export const MAX_PERSONEN = 24;
 export const MAX_ARTIKEL = 60;
 export const MAX_PREIS = 40;
@@ -198,8 +194,16 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein(
     "karten",
     z.strictObject({
-      // «merkmale» (#555): Kacheln mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Alterschip, ein Link auf die ganze Karte
-      darstellung: z.enum(["karten", "liste", "merkmale", "stufen"]),
+      // «merkmale» (#555): Zeilen mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Etikett im Bild (Alter, Preis), ein Link auf die ganze Karte;
+      // «zeitstrahl»: Jahr (Titel) und Ereignis (Text) in ihrer Reihenfolge; «zahlen»: grosse Zahl (Titel) mit Beschriftung (Text)
+      darstellung: z.enum([
+        "karten",
+        "liste",
+        "merkmale",
+        "stufen",
+        "zeitstrahl",
+        "zahlen",
+      ]),
       eintraege: z
         .array(
           z.strictObject({
@@ -271,6 +275,23 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
         .optional(),
     }),
   ),
+  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Stufenfelder; für Lager und Anlässe
+  baustein(
+    "eckdaten",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            bezeichnung: kurztext(MAX_BESCHRIFTUNG),
+            wert: kurztext(MAX_UNTERSCHRIFT),
+            // Der Wert als Link (#560), zum Beispiel die Adresse der Lagerleitung
+            link: linkAlle.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ECKDATEN),
+    }),
+  ),
   // Aufruf zum Handeln (#555): ein farbiges Band mit Titel, kurzem Text und einer Schaltfläche («Ich will in den Cevi!»)
   baustein(
     "aufruf",
@@ -287,39 +308,6 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
     z.strictObject({
       titel: kurztext(MAX_KURZTEXT).optional(),
       personId: z.uuid().optional(),
-    }),
-  ),
-  // Eckdaten (#560): Paare aus Bezeichnung und Wert. «liste» zeigt sie als Faktenblock (Datum, Ort, Kosten, Kontakt …), «zahlen» als Zahlenband (6 Stufen, 67 Kinder)
-  baustein(
-    "eckdaten",
-    z.strictObject({
-      darstellung: z.enum(["liste", "zahlen"]),
-      eintraege: z
-        .array(
-          z.strictObject({
-            bezeichnung: kurztext(MAX_BEZEICHNUNG),
-            wert: kurztext(MAX_WERT),
-            link: linkAlle.optional(),
-          }),
-        )
-        .min(1)
-        .max(MAX_ECKDATEN),
-    }),
-  ),
-  // Zeitstrahl (#560): Stationen in der Reihenfolge der Liste, je mit Zeitangabe als Text («2008», «Sommer 2013»)
-  baustein(
-    "zeitstrahl",
-    z.strictObject({
-      eintraege: z
-        .array(
-          z.strictObject({
-            zeit: kurztext(MAX_ZEIT),
-            titel: kurztext(MAX_KURZTEXT),
-            text: kurztext(MAX_KARTENTEXT).optional(),
-          }),
-        )
-        .min(1)
-        .max(MAX_ZEITSTRAHL),
     }),
   ),
   // Personen (#560): von Hand gepflegte Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Anders als «leitungsteam» braucht es kein Konto.

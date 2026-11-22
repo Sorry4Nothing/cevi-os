@@ -59,7 +59,7 @@ describe("Hülle", () => {
 
   test("Sprunglink zuerst, ein H1, ein main, Fusszeile mit Datenschutz", () => {
     expect(html.indexOf('class="sprunglink"')).toBeLessThan(
-      html.indexOf("<header>"),
+      html.indexOf('<header class="kopf">'),
     );
     expect(zaehle(html, "<h1")).toBe(1);
     expect(zaehle(html, "<main ")).toBe(1);
@@ -120,7 +120,7 @@ describe("Startseite und Stufenseite", () => {
     ]),
   };
 
-  test("Startseite: Foto, Text und Schaltflächen bilden das Teaser-Feld mit dem einzigen H1", () => {
+  test("Startseite: Text und Schaltflächen bilden das Teaser-Feld über dem Titelbild, mit dem einzigen H1", () => {
     const html = rendereSeite(
       {
         id: id(),
@@ -144,7 +144,7 @@ describe("Startseite und Stufenseite", () => {
       },
       kontext(daten),
     );
-    expect(html).toContain('<section class="teaser"');
+    expect(html).toContain('<section class="teaser teaser--ueber-bild"');
     expect(html).toContain('<h1 id="h1">Spiel und Natur</h1>');
     expect(zaehle(html, "<h1")).toBe(1);
     // Nur die erste Schaltfläche ist rot
@@ -155,7 +155,7 @@ describe("Startseite und Stufenseite", () => {
     expect(html.indexOf("teaser")).toBeLessThan(html.indexOf("<h2>Stufen"));
   });
 
-  test("Startseite ohne Foto, Text und Schaltfläche: gewöhnlicher Seitenkopf", () => {
+  test("Startseite ohne Text und Schaltfläche: gewöhnlicher Seitentitel", () => {
     const html = rendereSeite(
       {
         id: id(),
@@ -165,7 +165,9 @@ describe("Startseite und Stufenseite", () => {
       kontext(),
     );
     expect(html).not.toContain('class="teaser');
-    expect(html).toContain('<div class="seitenkopf"><h1>Start</h1></div>');
+    expect(html).toContain(
+      '<div class="seitenband"><div class="wrap"><h1>Start</h1></div></div>',
+    );
   });
 
   test("Stufenseite: Text und Bild vor den Stufenfeldern stehen links, die Felder rechts", () => {
@@ -346,11 +348,19 @@ describe("Stilvorlage", () => {
     expect(ausserhalb).not.toMatch(/rgba?\(/);
   });
 
-  test("Bewegung nur unter no-preference: kein animation ausserhalb", () => {
+  test("Bewegung nur unter no-preference: kein animation und kein transition ausserhalb", () => {
+    // Jeder Block der obersten Ebene, der nur ohne «Bewegung reduzieren» gilt (auch «screen and …»)
     const ohne = CSS.replace(
-      /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/,
+      /@media (screen and )?\(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/g,
       "",
     );
-    expect(ohne).not.toMatch(/animation:/);
+    expect(ohne).not.toMatch(/animation:|transition:/);
+  });
+
+  test("Bewegung hat eine Kurve und zwei Dauern als Tokens; Einblenden beim Scrollen nur, wo der Browser es kann", () => {
+    expect(CSS).toMatch(/--kurve: cubic-bezier\(/);
+    expect(CSS).toMatch(/--dauer: 0\.2s/);
+    expect(CSS).toMatch(/--dauer-lang: 0\.5s/);
+    expect(CSS).toContain("@supports (animation-timeline: view())");
   });
 });

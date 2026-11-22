@@ -22,8 +22,6 @@ export const MIN_KARUSSELL = 3;
 export const MAX_KARUSSELL = 8;
 export const MAX_BAUSTEINE = 100;
 // Bausteine der Inhaltsseiten (#560), wie in src/website/bausteine.ts
-export const MAX_ECKDATEN = 12;
-export const MAX_ZEITSTRAHL = 30;
 export const MAX_PERSONEN = 24;
 export const MAX_ARTIKEL = 60;
 
@@ -54,6 +52,9 @@ export const FELDNAMEN = {
   personId: "Die Person",
   tagId: "Die Gruppe",
   anzahl: "Die Anzahl",
+  symbol: "Das Symbol",
+  bild: "Das Bild",
+  alter: "Das Alter",
   sichtbarkeit: "Die Sichtbarkeit",
   tagIds: "Die Gruppen",
   bezeichnung: "Die Bezeichnung",
@@ -240,23 +241,31 @@ export const groesseText = (bytes) =>
 
 // Ein Bild der Bibliothek (E4): Vorschau, Angaben, «Bild wählen» und beim Typ «Bild» der Alt-Text.
 // Der Alt-Text gehört dem Medium, nicht dem Baustein: Wer Medien verwalten darf, ändert ihn hier; für alle anderen steht er zum Lesen da.
-function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
+// schluessel: Feld des Eintrags mit der Bild-ID; optional: das Bild darf fehlen (Stufenkarte), «Bild entfernen» erscheint
+function bildWahl(
+  k,
+  b,
+  reg,
+  ziel,
+  pfad,
+  { alt = false, schluessel = "mediumId", optional = false } = {},
+) {
   const wurzel = el("div", { class: "feld ws-bildwahl" });
   const zeichne = () => {
-    const medium = k.medien.get(ziel.mediumId);
+    const medium = k.medien.get(ziel[schluessel]);
     wurzel.replaceChildren();
     wurzel.classList.remove("fehler");
     const titelId = neueId("bild");
     const waehleFn = () =>
       k.waehleBild((m) => {
-        ziel.mediumId = m.id;
+        ziel[schluessel] = m.id;
         k.medien.set(m.id, m);
         k.aendere(b);
         zeichne();
         wurzel.querySelector("button")?.focus();
       });
     const waehlen = knopf(
-      ziel.mediumId ? "Anderes Bild wählen" : "Bild wählen",
+      ziel[schluessel] ? "Anderes Bild wählen" : "Bild wählen",
       {
         klein: true,
         "aria-describedby": titelId,
@@ -264,9 +273,13 @@ function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
       },
     );
     wurzel.append(el("span", { class: "legende", id: titelId }, "Bild"));
-    if (!ziel.mediumId) {
+    if (!ziel[schluessel]) {
       wurzel.append(
-        el("p", { class: "hilfe" }, "Noch kein Bild gewählt."),
+        el(
+          "p",
+          { class: "hilfe" },
+          optional ? "Kein Bild (optional)." : "Noch kein Bild gewählt.",
+        ),
         waehlen,
       );
       reg(pfad, wurzel, waehlen);
@@ -279,7 +292,7 @@ function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
       sk("b", 320),
     );
     const bild = el("img", {
-      src: `/api/v1/medien/${ziel.mediumId}`,
+      src: `/api/v1/medien/${ziel[schluessel]}`,
       alt: "",
       class: "ws-bildvorschau-bild",
       onload: () => {
@@ -323,6 +336,17 @@ function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
             .join(" · "),
         ),
       waehlen,
+      optional &&
+        knopf("Bild entfernen", {
+          klein: true,
+          "aria-describedby": titelId,
+          onclick: () => {
+            delete ziel[schluessel];
+            k.aendere(b);
+            zeichne();
+            wurzel.querySelector("button")?.focus();
+          },
+        }),
     );
     reg(pfad, wurzel, waehlen);
     if (alt) wurzel.append(altFeld(k, medium, ziel, reg));
@@ -475,12 +499,70 @@ function galerieForm(k, b, reg, karussell = false) {
   });
 }
 
+// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer der Website
+const MERKMAL_SYMBOLE = [
+  ["gruppe", "Gruppe"],
+  ["zelt", "Zelt"],
+  ["kalender", "Kalender"],
+  ["stern", "Stern"],
+  ["herz", "Herz"],
+  ["ort", "Ort"],
+  ["sonne", "Sonne"],
+];
+
+// Auswahl für ein Feld eines Eintrags (Symbol); leer = kein Wert
+function teilWahl(k, b, reg, eintrag, schluessel, label, pfad, optionen) {
+  const f = waehler({
+    label,
+    optionen: [["", "Keines"], ...optionen],
+    wert: eintrag[schluessel] ?? "",
+  });
+  f.eingabe.addEventListener("change", () => {
+    if (f.eingabe.value === "") delete eintrag[schluessel];
+    else eintrag[schluessel] = f.eingabe.value;
+    k.aendere(b);
+  });
+  anmelden(reg, pfad, f);
+  return f.wurzel;
+}
+
 function kartenForm(k, b, reg) {
+  const art = b.daten.darstellung;
+  const darstellung = wahl(k, b, reg, "darstellung", "Darstellung", [
+    ["karten", "Karten"],
+    ["liste", "Liste"],
+    ["merkmale", "Merkmale"],
+    ["stufen", "Bildkarten"],
+    ["zeitstrahl", "Zeitstrahl"],
+    ["zahlen", "Zahlen"],
+  ]);
+  // Die Felder hängen von der Darstellung ab: Das Formular zeichnet sich neu, der Fokus bleibt auf der Wahl
+  darstellung.addEventListener("change", () => {
+    k.formNeu(b);
+    document.querySelector(".ws-blattform input[type=radio]:checked")?.focus();
+  });
+  const hilfe = {
+    merkmale:
+      "Zeilen mit Symbol, Titel und kurzem Text, ohne Link. Gut für «Das erwartet dich».",
+    stufen:
+      "Karten mit Foto, einem Etikett im Bild und einem Link auf die ganze Karte. Gut für Stufen (Etikett: Alter) und für Artikel (Etikett: Preis).",
+    personen:
+      "Porträt, Name und Funktion, ohne Link. Ohne Bild stehen die Anfangsbuchstaben.",
+    zeitstrahl:
+      "Ereignisse in ihrer Reihenfolge: Im Titel steht das Jahr oder Datum, im Text, was geschah.",
+    zahlen:
+      "Wenige grosse Zahlen mit kurzer Beschriftung: Im Titel steht die Zahl, im Text, was sie zählt.",
+  }[art];
+  const titelName =
+    { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", personen: "Name" }[art] ??
+    "Titel";
+  const mitBild = art === "stufen" || art === "personen";
+  const ohneLink = ["merkmale", "personen", "zeitstrahl", "zahlen"].includes(
+    art,
+  );
   return [
-    wahl(k, b, reg, "darstellung", "Darstellung", [
-      ["karten", "Karten"],
-      ["liste", "Liste"],
-    ]),
+    darstellung,
+    ...(hilfe ? [el("p", { class: "hilfe" }, hilfe)] : []),
     listenForm(k, b, {
       name: "Eintrag",
       listeName: "Einträge",
@@ -493,9 +575,50 @@ function kartenForm(k, b, reg) {
         fertig(liste.length - 1);
       },
       zeile: (eintrag, pfad) => [
-        teilEingabe(k, b, reg, eintrag, "titel", "Titel", `${pfad}.titel`, {
+        teilEingabe(k, b, reg, eintrag, "titel", titelName, `${pfad}.titel`, {
           maxlength: 100,
         }),
+        ...(art === "stufen"
+          ? [
+              teilEingabe(
+                k,
+                b,
+                reg,
+                eintrag,
+                "alter",
+                "Etikett im Bild (optional)",
+                `${pfad}.alter`,
+                {
+                  optional: true,
+                  maxlength: 40,
+                  hilfe:
+                    "Steht unten links im Foto, zum Beispiel 3./4. Klasse oder CHF 25.–.",
+                },
+              ),
+            ]
+          : []),
+        ...(mitBild
+          ? [
+              bildWahl(k, b, reg, eintrag, `${pfad}.bild`, {
+                schluessel: "bild",
+                optional: true,
+              }),
+            ]
+          : []),
+        ...(art === "merkmale"
+          ? [
+              teilWahl(
+                k,
+                b,
+                reg,
+                eintrag,
+                "symbol",
+                "Symbol (optional)",
+                `${pfad}.symbol`,
+                MERKMAL_SYMBOLE,
+              ),
+            ]
+          : []),
         teilEingabe(
           k,
           b,
@@ -511,22 +634,26 @@ function kartenForm(k, b, reg) {
             rows: 3,
           },
         ),
-        teilEingabe(
-          k,
-          b,
-          reg,
-          eintrag,
-          "link",
-          "Link (optional)",
-          `${pfad}.link`,
-          {
-            optional: true,
-            maxlength: 2000,
-            spellcheck: "false",
-            hilfe:
-              "Eine Seite dieser Website (zum Beispiel /stufen/woelfe) oder eine Webadresse mit https.",
-          },
-        ),
+        ...(ohneLink
+          ? []
+          : [
+              teilEingabe(
+                k,
+                b,
+                reg,
+                eintrag,
+                "link",
+                "Link (optional)",
+                `${pfad}.link`,
+                {
+                  optional: true,
+                  maxlength: 2000,
+                  spellcheck: "false",
+                  hilfe:
+                    "Eine Seite dieser Website (zum Beispiel /stufen/woelfe) oder eine Webadresse mit https.",
+                },
+              ),
+            ]),
       ],
     }),
   ];
@@ -849,7 +976,7 @@ export const TYPEN = {
     form: (k, b, reg) => [galerieForm(k, b, reg, true)],
   },
   karten: {
-    name: "Karten oder Liste",
+    name: "Karten, Merkmale oder Liste",
     kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
     pruefe: (d) => [
       ...((d.eintraege ?? []).length === 0
@@ -911,81 +1038,6 @@ export const TYPEN = {
         hilfe: "Zum Beispiel PDF oder Word.",
       }),
       groesseFeld(k, b, reg),
-    ],
-  },
-  // Eckdaten und Kennzahlen (#560): Paare aus Bezeichnung und Wert
-  eckdaten: {
-    name: "Eckdaten und Kennzahlen",
-    kurz: (d) =>
-      kuerze(
-        (d.eintraege ?? [])
-          .map((e) =>
-            d.darstellung === "zahlen"
-              ? `${e.wert ?? ""} ${e.bezeichnung ?? ""}`
-              : (e.bezeichnung ?? ""),
-          )
-          .join(" · "),
-        80,
-      ),
-    pruefe: (d) => pflicht(d, "bezeichnung", "wert"),
-    form: (k, b, reg) => [
-      wahl(k, b, reg, "darstellung", "Darstellung", [
-        ["liste", "Eckdaten"],
-        ["zahlen", "Kennzahlen"],
-      ]),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Eckdaten: das Wichtigste auf einen Blick, zum Beispiel Datum, Ort, Kosten, Anmeldeschluss und Kontakt. Kennzahlen: grosse Zahlen mit kurzer Bezeichnung, zum Beispiel «6» und «Stufen». Gehört die Seite zu einem Anlass mit Anmeldung, steht unter den Eckdaten von selbst die Schaltfläche «Zur Anmeldung».",
-      ),
-      eintraegeForm(k, b, reg, {
-        name: "Eintrag",
-        max: MAX_ECKDATEN,
-        felder: [
-          ["bezeichnung", "Bezeichnung", { maxlength: 60 }],
-          ["wert", "Wert", { maxlength: 300 }],
-          [
-            "link",
-            "Link am Wert (optional)",
-            {
-              optional: true,
-              maxlength: 2000,
-              spellcheck: "false",
-              hilfe: LINK_HILFE,
-            },
-          ],
-        ],
-      }),
-    ],
-  },
-  zeitstrahl: {
-    name: "Zeitstrahl",
-    kurz: (d) =>
-      kuerze((d.eintraege ?? []).map((e) => e.zeit ?? "").join(" · "), 80),
-    pruefe: (d) => pflicht(d, "zeit", "titel"),
-    form: (k, b, reg) => [
-      el(
-        "p",
-        { class: "hilfe" },
-        "Stationen in der Reihenfolge der Liste, zum Beispiel die Geschichte der Abteilung.",
-      ),
-      eintraegeForm(k, b, reg, {
-        name: "Station",
-        max: MAX_ZEITSTRAHL,
-        felder: [
-          [
-            "zeit",
-            "Zeitangabe",
-            { maxlength: 40, hilfe: "Zum Beispiel 2008 oder Sommer 2013." },
-          ],
-          ["titel", "Titel", { maxlength: 100 }],
-          [
-            "text",
-            "Text (optional)",
-            { optional: true, maxlength: 500, mehrzeilig: true, rows: 3 },
-          ],
-        ],
-      }),
     ],
   },
   personen: {
@@ -1199,6 +1251,98 @@ export const TYPEN = {
       ),
     ],
   },
+  // Eckdaten (#555): frei benannte Angaben als Tafel neben dem Text
+  eckdaten: {
+    name: "Eckdaten",
+    kurz: (d) => (d.eintraege ?? []).map((e) => e.bezeichnung).join(", "),
+    pruefe: (d) =>
+      (d.eintraege ?? []).flatMap((e, i) => [
+        ...(e.bezeichnung?.trim()
+          ? []
+          : [[`daten.eintraege.${i}.bezeichnung`, "fehlt."]]),
+        ...(e.wert?.trim() ? [] : [[`daten.eintraege.${i}.wert`, "fehlt."]]),
+      ]),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Das Wichtigste auf einen Blick, zum Beispiel Datum, Ort, Kosten und Anmeldeschluss. Steht der Baustein gleich nach einem Text, erscheint er rechts daneben. Gehört die Seite zu einem Anlass mit Anmeldung, steht darunter von selbst die Schaltfläche «Zur Anmeldung».",
+      ),
+      listenForm(k, b, {
+        name: "Angabe",
+        listeName: "Angaben",
+        pfadName: "daten.eintraege",
+        liste: () => b.daten.eintraege,
+        max: 12,
+        hinzuText: "Angabe hinzufügen",
+        hinzu: (liste, fertig) => {
+          liste.push({ bezeichnung: "", wert: "" });
+          fertig(liste.length - 1);
+        },
+        zeile: (eintrag, pfad) => [
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "bezeichnung",
+            "Bezeichnung",
+            `${pfad}.bezeichnung`,
+            { maxlength: 60, hilfe: "Zum Beispiel: Datum." },
+          ),
+          teilEingabe(k, b, reg, eintrag, "wert", "Angabe", `${pfad}.wert`, {
+            maxlength: 300,
+          }),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "link",
+            "Link an der Angabe (optional)",
+            `${pfad}.link`,
+            {
+              optional: true,
+              maxlength: 2000,
+              spellcheck: "false",
+              hilfe: LINK_HILFE,
+            },
+          ),
+        ],
+      }),
+    ],
+  },
+  // Aufruf zum Handeln (#555): farbiges Band mit Titel, Text und Schaltfläche
+  aufruf: {
+    name: "Aufruf zum Handeln",
+    kurz: (d) => d.titel ?? "",
+    pruefe: (d) => [
+      ...(d.titel?.trim() ? [] : [["daten.titel", "fehlt."]]),
+      ...(d.beschriftung?.trim() ? [] : [["daten.beschriftung", "fehlt."]]),
+      ...(d.ziel?.trim() ? [] : [["daten.ziel", "fehlt."]]),
+    ],
+    form: (k, b, reg) => [
+      eingabe(k, b, reg, "titel", "Titel", {
+        maxlength: 100,
+        hilfe: "Zum Beispiel: Schnuppern im Cevi.",
+      }),
+      eingabe(k, b, reg, "text", "Text (optional)", {
+        maxlength: 500,
+        optional: true,
+        mehrzeilig: true,
+        rows: 3,
+      }),
+      eingabe(k, b, reg, "beschriftung", "Beschriftung der Schaltfläche", {
+        maxlength: 60,
+      }),
+      eingabe(k, b, reg, "ziel", "Ziel der Schaltfläche", {
+        maxlength: 2000,
+        spellcheck: "false",
+        autocapitalize: "off",
+        hilfe: LINK_HILFE,
+      }),
+    ],
+  },
   // Kontaktkarte (#549): Telefon und E-Mail der Abteilung stehen in der Konfiguration des Servers
   kontaktkarte: {
     name: "Kontaktkarte",
@@ -1264,7 +1408,7 @@ export const KATALOG = [
   },
   {
     typ: "karten",
-    beschreibung: "Einträge mit Titel, Text und Link.",
+    beschreibung: "Karten, Merkmale mit Symbol oder Stufenkarten mit Foto.",
     neu: () => ({ darstellung: "karten", eintraege: [{ titel: "" }] }),
   },
   {
@@ -1277,17 +1421,6 @@ export const KATALOG = [
     beschreibung:
       "Zum Beispiel ein PDF im SharePoint, mit Name, Grösse und Typ.",
     neu: () => ({ titel: "", link: "" }),
-  },
-  {
-    typ: "eckdaten",
-    beschreibung:
-      "Das Wichtigste auf einen Blick (Datum, Ort, Kosten) oder grosse Zahlen.",
-    neu: () => ({ darstellung: "liste", eintraege: [{}] }),
-  },
-  {
-    typ: "zeitstrahl",
-    beschreibung: "Stationen mit Zeitangabe, zum Beispiel eine Geschichte.",
-    neu: () => ({ eintraege: [{}] }),
   },
   {
     typ: "personen",
@@ -1333,6 +1466,16 @@ export const KATALOG = [
     typ: "hinweis",
     beschreibung: "Ein Satz mit Symbol, zum Beispiel «Anmeldung offen».",
     neu: () => ({ text: "" }),
+  },
+  {
+    typ: "eckdaten",
+    beschreibung: "Datum, Ort, Kosten und mehr auf einen Blick.",
+    neu: () => ({ eintraege: [{ bezeichnung: "", wert: "" }] }),
+  },
+  {
+    typ: "aufruf",
+    beschreibung: "Ein farbiges Band mit Titel, Text und Schaltfläche.",
+    neu: () => ({ titel: "", beschriftung: "", ziel: "" }),
   },
   {
     typ: "kontaktkarte",

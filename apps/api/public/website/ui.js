@@ -3,20 +3,26 @@
 
 const SVG = "http://www.w3.org/2000/svg";
 
+// Dieselben Formen wie im Renderer (src/website/rendern.ts): Linien, dazu gefüllte Dreiecke und Quadrate (Klasse «f»)
 const SYMBOLE = {
   info: [
     ["circle", { cx: 12, cy: 12, r: 9 }],
-    ["path", { d: "M12 11v5M12 8h.01" }],
+    ["path", { d: "M12 11v6" }],
+    ["path", { class: "f", d: "M11 6.5h2v2h-2z" }],
   ],
   warnung: [
-    ["path", { d: "M12 3 2.5 20h19L12 3z" }],
-    ["path", { d: "M12 10v4M12 17h.01" }],
+    ["path", { d: "M12 3.5 21.5 20h-19z" }],
+    ["path", { d: "M12 9.5v5" }],
+    ["path", { class: "f", d: "M11 15.5h2v2h-2z" }],
   ],
   schloss: [
-    ["rect", { x: 5, y: 11, width: 14, height: 9, rx: 2 }],
-    ["path", { d: "M8 11V8a4 4 0 0 1 8 0v3" }],
+    ["path", { d: "M5 11h14v10H5z" }],
+    ["path", { d: "M8 11V7.5a4 4 0 0 1 8 0V11" }],
   ],
-  nochmals: [["path", { d: "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" }]],
+  nochmals: [
+    ["path", { d: "M19.5 13.5A7.5 7.5 0 1 1 16 7" }],
+    ["path", { class: "f", d: "M14 3.5h7v7z" }],
+  ],
 };
 
 export function symbol(name) {
