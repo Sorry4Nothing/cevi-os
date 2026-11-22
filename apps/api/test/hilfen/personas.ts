@@ -229,7 +229,7 @@ export async function schalteZweitenFaktorEin(
   return { ...konto, headers: { ...konto.headers, cookie } };
 }
 
-// Wie legePersonaAn, mit zweitem Faktor: Wer ein erweitertes Recht hat (Redaktion, Zeile in bearbeiter, Team-Verantwortung), braucht ihn auf den Redaktionsrouten (#423)
+// Wie legePersonaAn, mit zweitem Faktor: Wer ein erweitertes Recht hat (Plattformrolle, Zeile in bearbeiter, Team-Verantwortung), braucht ihn auf den Routen der Website-Verwaltung (#423)
 export async function legePersonaMitFaktorAn(
   welt: Welt,
   schluessel: Persona,

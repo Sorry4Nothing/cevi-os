@@ -1,11 +1,12 @@
 import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db } from "./db/client.js";
 import { abteilung, bearbeiter, personTag, tag } from "./db/schema.js";
+import { plattformRechtSql } from "./plattform.js";
 import { hatRolle, type Person } from "./rechte.js";
 
 // Ein Modell für alle bearbeitbaren Objekte (#334), aufgebaut auf Person aus rechte.ts:
-// Abteilungsleitung (person.admin) darf alles; eine Stufenleitung die Objekte ihrer Stufe; alle anderen nur über eine Zeile in «bearbeiter»,
-// auf die Person oder auf einen Tag, den sie trägt. Eine Zeile ohne objekt_id gilt für alle Objekte des Typs: so ist die Rolle «Redaktion» (Typ «seite») gebaut.
+// Abteilungsleitung (person.admin) darf alles; eine Stufenleitung die Objekte ihrer Stufe; wer das Plattformrecht «Seiten bearbeiten» hat (Rolle Webmaster, #426), alle Seiten;
+// alle anderen nur über eine Zeile in «bearbeiter» für genau dieses Objekt, auf die Person oder auf einen Tag, den sie trägt.
 // Ein Tag verleiht für sich nichts; das Recht steht erst in der Zeile, die nur die Abteilungsleitung anlegt (/api/v1/admin/bearbeiter).
 export const OBJEKT_TYPEN = ["seite"] as const;
 export type ObjektTyp = (typeof OBJEKT_TYPEN)[number];
@@ -17,7 +18,7 @@ function sonderrecht(
   objektTyp: ObjektTyp,
   objektId: AnyColumn | SQL,
 ): SQL {
-  return sql`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = ${objektTyp} and (${bearbeiter.objektId} is null or ${bearbeiter.objektId} = ${objektId}) and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id})))`;
+  return sql`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = ${objektTyp} and ${bearbeiter.objektId} = ${objektId} and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id})))`;
 }
 
 // Verantwortliche eines Teams (#352, Annahme: Rolle «verantwortlich» am Tag, Wert offen). Nur Tags vom Typ «team»: Bei einer Stufe entscheidet die Stufenleitung, ein Freitext am Stufen-Tag verleiht nichts
@@ -29,23 +30,39 @@ function teamVerantwortung(
 }
 export const TEAM_ROLLE = "verantwortlich";
 
+// Das Plattformrecht, das ein Objekt des Typs ganz öffnet. Bearbeiten ist «Seiten bearbeiten»; Veröffentlichen ist ein eigenes Recht («Seiten veröffentlichen»), die Stufenleitung und die Sonderrechte pro Seite tragen beides
+const PLATTFORM_RECHT = {
+  seite: {
+    bearbeiten: "seiten.bearbeiten",
+    veroeffentlichen: "seiten.veroeffentlichen",
+  },
+} as const;
+
+type Aktion = keyof (typeof PLATTFORM_RECHT)["seite"];
+
 // stufeId: die Stufe, zu der das Objekt gehört (Stufenseite); ohne sie gibt es kein Stufenrecht.
-// tagId: die Gruppe, zu der das Objekt gehört (Seite eines Teams); ohne sie gibt es kein Teamrecht
+// tagId: die Gruppe, zu der das Objekt gehört (Seite eines Teams); ohne sie gibt es kein Teamrecht.
+// veroeffentlichen: Die Frage gilt dem Veröffentlichen und Zurückziehen; statt «Seiten bearbeiten» zählt dann «Seiten veröffentlichen»
 export async function darfBearbeiten(
   db: Pick<Db, "select">,
   person: Person,
   objektTyp: ObjektTyp,
   objektId: string,
-  { stufeId, tagId }: { stufeId?: string; tagId?: string } = {},
+  {
+    stufeId,
+    tagId,
+    veroeffentlichen,
+  }: { stufeId?: string; tagId?: string; veroeffentlichen?: boolean } = {},
 ) {
   if (person.admin) return true;
   if (stufeId !== undefined && hatRolle(person, stufeId, "stufenleitung")) {
     return true;
   }
-  // Eine Zeile aus der eigenen Abteilung trägt das exists; select ohne from kennt Drizzle nicht
+  const aktion: Aktion = veroeffentlichen ? "veroeffentlichen" : "bearbeiten";
+  // Eine Abfrage trägt alle Wege (Plattformrecht, Zeile aus der eigenen Abteilung, Team); select ohne from kennt Drizzle nicht
   const [zeile] = await db
     .select({
-      ok: sql<boolean>`(${sonderrecht(person, objektTyp, sql`${objektId}::uuid`)}${
+      ok: sql<boolean>`(${plattformRechtSql(person, [PLATTFORM_RECHT[objektTyp][aktion]])} or ${sonderrecht(person, objektTyp, sql`${objektId}::uuid`)}${
         tagId === undefined
           ? sql``
           : sql` or ${teamVerantwortung(person, sql`${tagId}::uuid`)}`
@@ -76,9 +93,12 @@ export function bearbeitbar(
     spalten.stufeId && stufen.length > 0
       ? sql`${inArray(spalten.stufeId, stufen)} or `
       : sql``;
+  const plattform = plattformRechtSql(person, [
+    PLATTFORM_RECHT[objektTyp].bearbeiten,
+  ]);
   return and(
     eigeneAbteilung,
-    sql`(${stufenrecht}${sonderrecht(person, objektTyp, spalten.id)}${
+    sql`(${stufenrecht}${plattform} or ${sonderrecht(person, objektTyp, spalten.id)}${
       spalten.tagId
         ? sql` or ${teamVerantwortung(person, spalten.tagId)}`
         : sql``
