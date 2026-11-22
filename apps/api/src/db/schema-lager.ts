@@ -454,6 +454,94 @@ export const aufgabeUnterstuetzung = pgTable(
   ],
 );
 
+// Ein Punkt der Checkliste einer Aufgabe (#373): eine Zeile je Punkt, damit zwei Personen nicht dieselbe Liste überschreiben. person_id ist, wer den Punkt abgehakt hat (der Server setzt und leert sie mit erledigt); verlässt die Person das Lager, bleibt der Punkt abgehakt ohne Person
+export const aufgabeCheckpunkt = pgTable(
+  "aufgabe_checkpunkt",
+  {
+    ...lagerSpalten(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    text: text("text").notNull(),
+    erledigt: boolean("erledigt").notNull().default(false),
+    personId: uuid("person_id"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_checkpunkt_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    // In der Migration ON DELETE SET NULL (person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "aufgabe_checkpunkt_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    index("aufgabe_checkpunkt_liste_idx").on(
+      t.lagerId,
+      t.aufgabeId,
+      t.reihenfolge,
+      t.id,
+    ),
+    check(
+      "aufgabe_checkpunkt_check",
+      sql`char_length(${t.text}) between 1 and 500 and ${t.reihenfolge} >= 0 and (${t.erledigt} or ${t.personId} is null)`,
+    ),
+  ],
+);
+
+// Ein Link einer Aufgabe (#373): nur https, der Server ruft ihn nie ab (SR-26)
+export const aufgabeLink = pgTable(
+  "aufgabe_link",
+  {
+    ...lagerSpalten(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    titel: text("titel").notNull(),
+    url: text("url").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_link_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    index("aufgabe_link_liste_idx").on(t.lagerId, t.aufgabeId, t.id),
+    check(
+      "aufgabe_link_check",
+      sql`char_length(${t.titel}) between 1 and 200 and char_length(${t.url}) <= 2000 and ${t.url} ~ '^https://[^[:space:]]+$'`,
+    ),
+  ],
+);
+
+// Stichworte einer Aufgabe (#373): eine Zeile je Stichwort, ohne Feed und Version (die Aufgabe zählt die Version hoch, wenn sich die Liste ändert, wie bei der Unterstützung). Ein Stichwort gilt je Aufgabe einmal, ohne Rücksicht auf Gross- und Kleinschreibung
+export const aufgabeStichwort = pgTable(
+  "aufgabe_stichwort",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    stichwort: text("stichwort").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_stichwort_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    uniqueIndex("aufgabe_stichwort_uq").on(
+      t.aufgabeId,
+      sql`lower(${t.stichwort})`,
+    ),
+    index("aufgabe_stichwort_suche_idx").on(
+      t.lagerId,
+      sql`lower(${t.stichwort})`,
+    ),
+    check(
+      "aufgabe_stichwort_check",
+      sql`char_length(${t.stichwort}) between 1 and 40 and ${t.stichwort} = btrim(${t.stichwort})`,
+    ),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",

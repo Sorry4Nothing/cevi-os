@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  kalenderlink: {
+    titel: "Persönlicher Kalenderlink",
+    zweck:
+      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn jederzeit erneuern oder widerrufen.",
+    frist:
+      "Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.",
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   profilbild: {
     titel: "Profilbild",
     zweck:
@@ -134,7 +143,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Checkliste, Links und Stichworte halten Teilschritte, Unterlagen und Schlagwörter der Aufgabe fest; eine wiederkehrende Aufgabe legt beim Erledigen die nächste an. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -402,6 +411,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "quelle",
     ],
   },
+  kalender_token: {
+    kalenderlink: [
+      "id",
+      "user_id",
+      "token_hash",
+      "endung",
+      "erstellt_am",
+      "zuletzt_abgerufen_am",
+      "widerrufen_am",
+    ],
+  },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
   profilbild: { profilbild: ["user_id", "inhalt", "geaendert_am"] },
   push_token: {
@@ -561,6 +581,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
+  aufgabe_checkpunkt: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "aufgabe_id",
+      "text",
+      "erledigt",
+      "person_id",
+      "reihenfolge",
+    ],
+  },
+  aufgabe_link: {
+    lager: [...LAGER_BASIS_SPALTEN, "aufgabe_id", "titel", "url"],
+  },
+  aufgabe_stichwort: {
+    lager: ["lager_id", "aufgabe_id", "stichwort"],
   },
   // Anwesenheit (#390): Leitende als Konto, Teilnehmende als ID; die Anfrage nennt, wer sie stellte und wer entschied
   anwesenheit: {
