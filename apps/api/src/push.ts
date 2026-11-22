@@ -7,7 +7,7 @@ import { log } from "./log.js";
 
 // Der Text steht unter dem Titel. Er trägt nie Chat-Inhalt oder Namen von Kindern: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export type Push = {
-  typ: "chat" | "programm" | "mitteilung";
+  typ: "chat" | "programm" | "mitteilung" | LagerPushTyp;
   id: string;
   titel: string;
   text?: string;
@@ -29,11 +29,28 @@ const ABGEMELDET = [
   "messaging/invalid-registration-token",
 ];
 
-const KANAL = {
+// Pushes des Lagers (#369): data.id ist die ID des Objekts; die App löst Lager und Ziel über GET /api/v1/lager/aufloesen/{typ}/{id} auf. Der Text trägt höchstens den Lagertitel (lager/benachrichtigung.ts)
+export const LAGER_PUSH_TYPEN = [
+  "lager_aufgabe",
+  "lager_erwaehnung",
+  "lager_pinnwand",
+  "lager_eingang",
+  "lager_einteilung",
+  "lager_anwesenheit",
+] as const;
+export type LagerPushTyp = (typeof LAGER_PUSH_TYPEN)[number];
+
+const KANAL: Record<Push["typ"], string> = {
   chat: "chat",
   programm: "programme",
   // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
   mitteilung: "mitteilungen",
+  lager_aufgabe: "lager_aufgaben",
+  lager_erwaehnung: "lager_mitteilungen",
+  lager_pinnwand: "lager_mitteilungen",
+  lager_eingang: "lager_mitteilungen",
+  lager_einteilung: "lager_einteilung",
+  lager_anwesenheit: "lager_einteilung",
 };
 
 type Fehler = { code?: unknown; cause?: { code?: unknown } };

@@ -1,9 +1,14 @@
 import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
+import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
-export function erstelleLagerRouten({ db }: { db: Db }) {
-  return new Hono<LagerEnv>().route("/", erstelleLagerKernRouten({ db }));
+// fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
+export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
+  return new Hono<LagerEnv>()
+    .route("/", erstelleLagerKernRouten({ db }))
+    .route("/", erstelleLagerBenachrichtigungenRouten({ db }));
 }

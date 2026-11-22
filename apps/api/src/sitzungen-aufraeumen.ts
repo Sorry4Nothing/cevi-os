@@ -13,16 +13,17 @@ export async function loescheAbgelaufeneSitzungen(db: Db) {
   return geloescht.length;
 }
 
-// Startet den Lauf sofort und dann alle 24 Stunden; ins Log kommt nur die Anzahl, bei einem Fehler nur sein Code
-export function starteSitzungenAufraeumen(lauf: () => Promise<number>) {
+// Startet den Lauf sofort und dann alle 24 Stunden; ins Log kommt nur die Anzahl, bei einem Fehler nur sein Code. Auch andere tägliche Aufräumläufe nutzen es und nennen ihr Ereignis
+export function starteSitzungenAufraeumen(
+  lauf: () => Promise<number>,
+  ereignis = "sitzungen",
+) {
   const starte = () =>
     lauf()
-      .then((anzahl) =>
-        log(undefined, { ereignis: "sitzungen", geloescht: anzahl }),
-      )
+      .then((anzahl) => log(undefined, { ereignis, geloescht: anzahl }))
       .catch((fehler) =>
         log(undefined, {
-          ereignis: "sitzungen",
+          ereignis,
           code: fehlerCode(fehler) ?? "unerwartet",
         }),
       );

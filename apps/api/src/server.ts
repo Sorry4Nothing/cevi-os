@@ -16,6 +16,7 @@ import {
   synchronisiereEckdaten,
 } from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
+import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { log } from "./log.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
@@ -95,6 +96,10 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+starteSitzungenAufraeumen(
+  () => loescheGeleseneBenachrichtigungen(db),
+  "lager_benachrichtigungen",
+);
 // Ohne Schlüssel gäbe es nichts zu senden, und eine Erinnerung gälte trotzdem als gesendet
 if (fcm) {
   starteZeitregelPruefer(() =>
