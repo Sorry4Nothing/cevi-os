@@ -7572,6 +7572,68 @@ paths:
   # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/aufgaben/schnell:
+    post:
+      operationId: schlageLagerAufgabenSchnellVor
+      summary: Aufgaben aus einem Text vorschlagen (Schnelleingabe)
+      description: |
+        Braucht das Recht `aufgaben.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Liefert nur einen **Vorschlag** und legt nie etwas an: Der Server schreibt nichts (kein Eintrag im Änderungsfeed, keine Benachrichtigung). Angelegt wird erst nach der Bestätigung durch die Person über `POST /api/v1/lager/{id}/aufgaben` mit den Werten des Vorschlags. Der Parser gilt für alle Apps gleich und ist deterministisch.
+
+        Der Text hat höchstens 500 Zeichen. Jede nicht leere Zeile ist eine Aufgabe (höchstens 20 Zeilen); Aufzählungszeichen und Nummern am Zeilenanfang fallen weg. Aus einer Zeile erkennt der Server:
+
+        - `@Person`: ein Mitglied des Lagers über den Cevi-Namen, den vollen Namen oder den Vornamen, ohne Rücksicht auf Gross- und Kleinschreibung. Der längste passende Name gewinnt.
+        - `#Ressort`: ein Ressort des Lagers über Kürzel oder Name.
+        - eine Frist: `heute`, `morgen`, `übermorgen`, `in 3 Tagen`, `in 2 Wochen`, `in 1 Monat`, `Ende Woche` (der Freitag, am Wochenende der kommende), `nächste Woche` (der Freitag der nächsten Woche), `Ende Monat`, ein Wochentag (der nächste nach heute; heute selbst erst in sieben Tagen), `15.3.` (ohne Jahr: das nächste Mal ab heute; der 29.2. wartet auf das nächste Schaltjahr), `15.3.27`, `15.3.2027`, `2027-03-15`, `Anfang`, `Mitte` oder `Ende Mai` (der nächste ab heute), `2 Wochen vor Lager`, `3 Tage vor Lager` und `vor Lager` (der Tag davor); die drei letzten rechnen ab dem Beginn des Lagers. Ein Vorspann «bis» oder «am» gehört zur Frist. «Heute» ist das Datum in der Schweiz. Nur die erste Frist, die erste Person und das erste Ressort zählen; was übrig bleibt, ist der Titel.
+
+        Mehrdeutiges wird **nie geraten**: Passt ein Name auf mehrere Personen oder Ressorts, steht `status: mehrdeutig` mit allen `kandidaten`, und die App lässt wählen; der Text fällt aus dem Titel. Ein unbekannter Name steht als `status: unbekannt` ohne Kandidaten, sein Text bleibt im Titel (ein `#Wort` kann auch ein Stichwort sein). Ein ungültiges Datum (31.2.) ergibt keine Frist, den Hinweis `DATUM_UNGUELTIG`, und der Text bleibt im Titel. Ein leerer Titel hat den Hinweis `TITEL_FEHLT`, ein Titel über 200 Zeichen `TITEL_ZU_LANG`.
+
+        Datenbank: höchstens zwei gebündelte Abfragen (Mitglieder, Ressorts), und nur, wenn der Text `@` oder `#` enthält. Je Konto höchstens 60 Anfragen pro Minute (429).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (zu lang, leer, mehr als 20 Zeilen, unbekanntes Feld). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAufgabeSchnelleingabe"
+      responses:
+        "200":
+          description: Ein Vorschlag je Zeile, in der Reihenfolge des Textes. Es wurde nichts angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufgabeSchnellVorschlaege"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -15472,6 +15534,143 @@ components:
           description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
           type: [string, "null"]
           format: uuid
+    LagerAufgabeSchnelleingabe:
+      description: "Text der Schnelleingabe. Nur dieses Feld; unbekannte lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          description: "Eine Zeile je Aufgabe, zum Beispiel `Offerte @Name bis 15.3. #Logistik`. Höchstens 500 Zeichen und 20 nicht leere Zeilen."
+          type: string
+          minLength: 1
+          maxLength: 500
+    LagerAufgabeSchnellVorschlaege:
+      type: object
+      additionalProperties: false
+      required:
+        - vorschlaege
+      properties:
+        vorschlaege:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/LagerAufgabeSchnellVorschlag"
+    LagerAufgabeSchnellVorschlag:
+      description: "Eine erkannte Aufgabe. Nichts davon ist angelegt."
+      type: object
+      additionalProperties: false
+      required:
+        - zeile
+        - titel
+        - person
+        - ressort
+        - frist
+        - hinweise
+      properties:
+        zeile:
+          description: "Die Zeile, aus der der Vorschlag entstand (ohne Aufzählungszeichen)."
+          type: string
+        titel:
+          description: "Der Rest der Zeile ohne Person, Ressort und Frist. Kann leer sein (Hinweis `TITEL_FEHLT`)."
+          type: string
+        person:
+          description: "`null`, wenn die Zeile kein `@` enthält."
+          oneOf:
+            - $ref: "#/components/schemas/LagerAufgabeSchnellPerson"
+            - type: "null"
+        ressort:
+          description: "`null`, wenn die Zeile kein `#` enthält."
+          oneOf:
+            - $ref: "#/components/schemas/LagerAufgabeSchnellRessort"
+            - type: "null"
+        frist:
+          oneOf:
+            - $ref: "#/components/schemas/LagerAufgabeSchnellFrist"
+            - type: "null"
+        hinweise:
+          type: array
+          items:
+            type: string
+            enum: [TITEL_FEHLT, TITEL_ZU_LANG, DATUM_UNGUELTIG]
+    LagerAufgabeSchnellFrist:
+      type: object
+      additionalProperties: false
+      required:
+        - datum
+        - text
+      properties:
+        datum:
+          type: string
+          format: date
+        text:
+          description: "Der erkannte Teil der Eingabe, zum Beispiel `bis 15.3.`."
+          type: string
+    LagerAufgabeSchnellPerson:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - text
+        - kandidaten
+      properties:
+        status:
+          description: "`gefunden`: genau eine Person (`kandidaten` hat einen Eintrag). `mehrdeutig`: mehrere, die App lässt wählen. `unbekannt`: keine, `kandidaten` ist leer."
+          type: string
+          enum: [gefunden, mehrdeutig, unbekannt]
+        text:
+          description: "Der Name nach dem `@`, wie getippt."
+          type: string
+        kandidaten:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - name
+              - ceviName
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              ceviName:
+                type: [string, "null"]
+    LagerAufgabeSchnellRessort:
+      type: object
+      additionalProperties: false
+      required:
+        - status
+        - text
+        - kandidaten
+      properties:
+        status:
+          description: "`gefunden`: genau ein Ressort (`kandidaten` hat einen Eintrag). `mehrdeutig`: mehrere, die App lässt wählen. `unbekannt`: keines, `kandidaten` ist leer, das Wort bleibt im Titel."
+          type: string
+          enum: [gefunden, mehrdeutig, unbekannt]
+        text:
+          description: "Das Wort nach dem `#`, wie getippt."
+          type: string
+        kandidaten:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - kuerzel
+              - name
+            properties:
+              id:
+                type: string
+                format: uuid
+              kuerzel:
+                type: string
+              name:
+                type: string
     LagerAufgabeAnlegen:
       description: "Neue Aufgabe. Nur diese Felder; unbekannte (auch `erledigtAm` und `quelle`) lehnt die Route mit 400 ab."
       type: object
