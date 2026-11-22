@@ -35,12 +35,14 @@ describe("Text zu Knoten", () => {
     ]);
   });
 
-  test("Marken dürfen sich überlappen", () => {
+  test("Marken dürfen sich überlappen; Leerraum am Rand steht ausserhalb der Marken", () => {
     expect(rt.textZuBloecken("**a *b** c*")).toEqual([
       absatz(
-        a("a ", { fett: true }),
+        a("a", { fett: true }),
+        a(" "),
         a("b", { fett: true, kursiv: true }),
-        a(" c", { kursiv: true }),
+        a(" "),
+        a("c", { kursiv: true }),
       ),
     ]);
   });
@@ -58,7 +60,8 @@ describe("Text zu Knoten", () => {
     ).toEqual([
       absatz(
         a("Siehe "),
-        a("die ", { link: "/stufen/woelfe" }),
+        a("die", { link: "/stufen/woelfe" }),
+        a(" "),
         a("Seite", { fett: true, link: "/stufen/woelfe" }),
         a(" oder "),
         a("x", { link: "u" }),

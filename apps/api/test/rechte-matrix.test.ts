@@ -146,6 +146,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-seiten.css": { erwartet: alle(200) },
   "GET /admin/website-editor.js": { erwartet: alle(200) },
   "GET /admin/website-editor.css": { erwartet: alle(200) },
+  "GET /admin/website-richtext.js": { erwartet: alle(200) },
+  "GET /admin/website-vorschau.css": { erwartet: alle(200) },
   "GET /admin/website-medien.js": { erwartet: alle(200) },
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
