@@ -287,6 +287,22 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTagesseiten: {
+    titel: "Tagesseiten im Lager",
+    zweck:
+      "Pro Lagertag eine Seite führen: wer Tageschef ist, eine Notiz, Hinweise und Ideen des Tages und Verknüpfungen auf Programmbilder im SharePoint der Abteilung. Die Leitung des Lagers pflegt die Seite; die Aufgaben mit Frist an diesem Tag zeigt die Seite aus den Aufgaben des Lagers, und das Wetter des Tages kommt aus dem Wetter des Lagers.",
+    frist: `Bis die Leitung den Block löscht oder das Lager gelöscht wird. Wird ein Tageschef aus dem Lager entfernt oder sein Konto gelöscht, verschwindet die Angabe auf der Seite. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerWetter: {
+    titel: "Wetter im Lager",
+    zweck:
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerHoeck: {
     titel: "Höcks und Traktanden im Lager",
     zweck:
@@ -307,7 +323,7 @@ export const KATEGORIEN = {
   anlass: {
     titel: "Anlässe und Anmeldungen",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt. Die Abteilungsleitung sieht die Anmeldungen mit Name und Telefon aus dem Konto und kann sie als CSV-Datei laden; der Server speichert die Datei nicht und hält im Protokoll nur fest, wann der Export lief und wie viele Anmeldungen er enthielt.",
     frist:
       "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis ein Webmaster sie löscht.",
     apple: ["Contact Info: Name", "User Content: Other User Content"],
@@ -607,6 +623,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
+    lagerWetter: ["breite", "laenge"],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -728,6 +745,36 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   lagertag: {
     lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  // Tagesseiten (#391): Tageschef als Personen-ID, Notiz und Blöcke; das Programmbild ist ein Verweis auf lager_datei
+  tagesseite: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tageschef_person_id",
+      "notiz",
+    ],
+  },
+  tagesseite_block: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "seite_id",
+      "art",
+      "text",
+      "datei_id",
+      "reihenfolge",
+    ],
+  },
+  // Zwischenspeicher des Wetters (#391): Ort und Tageswerte der Vorhersage, keine Personendaten
+  wetter_cache: {
+    lagerWetter: [
+      "lager_id",
+      "breite",
+      "laenge",
+      "abgerufen_am",
+      "versuch_am",
+      "tage",
+    ],
   },
   tagesabschnitt: {
     lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],

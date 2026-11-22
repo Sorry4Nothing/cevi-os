@@ -17,6 +17,7 @@ import {
   gruppeAendern,
   gruppeAnlegen,
   gruppeKurz,
+  ladeGruppen,
   MAX_GRUPPEN,
   mischen,
   versionAbfrage,
@@ -41,15 +42,6 @@ export const MISCHEN_PRO_MINUTE = 10;
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const gruppePfad = z.strictObject({ id: z.uuid(), gruppeId: z.uuid() });
 
-type Person = { personId: string; name: string; ceviName: string | null };
-type Kind = {
-  id: string;
-  vorname: string;
-  nachname: string;
-  stufe: string | null;
-  ceviName?: string | null;
-};
-
 // Programmgruppen und «nicht dabei» (#387). Lesen braucht einteilung.lesen, jede Änderung einteilung.bearbeiten (Standard: Lagerleitung und Leitung). Jede Schreibroute geht durch lager/sync.ts (Folgenummer, Feed); Zuordnen, Abwählen und Mischen sind Sammeloperationen mit gebündelten Statements in einer Transaktion unter der Lagersperre. Teilnehmende heissen in den Antworten wie in der Liste der Teilnehmenden; den Cevi-Namen sieht nur, wer teilnehmer.bearbeiten hat
 export function erstelleGruppenRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "einteilung.lesen" });
@@ -67,54 +59,8 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
     return voll;
   };
 
-  // Die Gruppen mit Personen und Teilnehmenden in einer Abfrage (GROUP BY je Gruppe, jede Zuordnung ist genau eine Person oder ein Teilnehmender, es gibt keine Vervielfachung); dazu eine Abfrage für die Zähler. Abgewählte und gelöschte Teilnehmende, Konten ausserhalb der Abteilung, deaktivierte und ehemalige Mitglieder erscheinen nicht
-  async function liste(
-    lagerId: string,
-    abteilungId: string,
-    mitCeviName: boolean,
-  ) {
-    const [gruppen, zaehler] = await Promise.all([
-      db.execute<{
-        id: string;
-        version: number;
-        name: string;
-        reihenfolge: number;
-        personen: (Person & { rolle: string })[];
-        teilnehmer: Kind[];
-      }>(sql`
-        select g.id, g.version, g.name, g.reihenfolge,
-          coalesce(jsonb_agg(jsonb_build_object('personId', u.id, 'name', u.name, 'ceviName', u.cevi_name, 'rolle', z.rolle)
-            order by u.name, u.id) filter (where u.id is not null), '[]'::jsonb) as personen,
-          coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'vorname', t.vorname, 'nachname', t.nachname, 'stufe', t.stufe, 'ceviName', t.cevi_name)
-            order by t.nachname, t.vorname, t.id) filter (where t.id is not null), '[]'::jsonb) as teilnehmer
-        from gruppe g
-        left join gruppe_zuordnung z on z.lager_id = g.lager_id and z.gruppe_id = g.id and z.geloescht_am is null
-        left join teilnehmer t on t.lager_id = z.lager_id and t.id = z.teilnehmer_id and t.geloescht_am is null and not t.abgewaehlt
-        left join lager_mitglied m on m.lager_id = z.lager_id and m.person_id = z.person_id
-        left join "user" u on u.id = m.person_id and u.abteilung_id = ${abteilungId} and u.deaktiviert_am is null and coalesce(u.banned, false) = false
-        where g.lager_id = ${lagerId} and g.geloescht_am is null
-        group by g.id
-        order by g.reihenfolge, g.name, g.id`),
-      db.execute<{ ohne_gruppe: number; abgewaehlt: number }>(sql`
-        select
-          count(*) filter (where not t.abgewaehlt and not exists (
-            select 1 from gruppe_zuordnung z
-            where z.lager_id = t.lager_id and z.teilnehmer_id = t.id and z.geloescht_am is null))::int as ohne_gruppe,
-          count(*) filter (where t.abgewaehlt)::int as abgewaehlt
-        from teilnehmer t
-        where t.lager_id = ${lagerId} and t.geloescht_am is null`),
-    ]);
-    return {
-      gruppen: gruppen.map((g) => ({
-        ...g,
-        teilnehmer: g.teilnehmer.map(({ ceviName, ...rest }) =>
-          mitCeviName ? { ...rest, ceviName } : rest,
-        ),
-      })),
-      ohneGruppe: zaehler[0]?.ohne_gruppe ?? 0,
-      abgewaehlt: zaehler[0]?.abgewaehlt ?? 0,
-    };
-  }
+  const liste = (lagerId: string, abteilungId: string, mitCeviName: boolean) =>
+    ladeGruppen(db, lagerId, abteilungId, mitCeviName);
 
   // Der Vorschlag: die Teilnehmenden ohne die Abgewählten (eine Abfrage) auf die ersten `anzahl` Gruppen (eine Abfrage); fehlen Gruppen, kommen neue mit dem Namen «Gruppe n» dazu (gruppeId null, bis sie angelegt sind)
   async function plane(

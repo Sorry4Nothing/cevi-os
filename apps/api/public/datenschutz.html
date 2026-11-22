@@ -750,6 +750,64 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-lager-tagesseiten">
+        <h3 id="k-lager-tagesseiten">Tagesseiten im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Je Lagertag: der Tageschef (ein Mitglied des Lagers), eine Notiz und
+            die Blöcke mit Text, Art (Hinweis, Idee oder Programmbild),
+            Reihenfolge und bei einem Programmbild die Verknüpfung auf die
+            Datei. Bei einer Änderung steht, welches Konto sie vornahm.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Pro Lagertag eine Seite führen: wer Tageschef ist, eine Notiz,
+            Hinweise und Ideen des Tages und Verknüpfungen auf Programmbilder im
+            SharePoint der Abteilung. Die Leitung des Lagers pflegt die Seite;
+            die Aufgaben mit Frist an diesem Tag zeigt die Seite aus den
+            Aufgaben des Lagers, und das Wetter des Tages kommt aus dem Wetter
+            des Lagers.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung den Block löscht oder das Lager gelöscht wird. Wird
+            ein Tageschef aus dem Lager entfernt oder sein Konto gelöscht,
+            verschwindet die Angabe auf der Seite. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-wetter">
+        <h3 id="k-lager-wetter">Wetter im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Der Ort des Lagers als Breite und Länge, und je Lager die zuletzt
+            abgerufene Vorhersage (Tageswerte für Wettercode, Temperatur, Regen
+            und Böen) mit dem Zeitpunkt des Abrufs.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind,
+            Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des
+            Lagers als Breite und Länge fest. Der Server holt die Vorhersage
+            dafür beim Wetterdienst Open-Meteo und speichert sie je Lager
+            zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den
+            Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen
+            gerundet, keine Namen und keine Angaben zu Personen.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht
+            wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf
+            ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
+            Daten.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-lager-eingang">
         <h3 id="k-lager-eingang">Eingang im Lager</h3>
         <dl>
@@ -1054,7 +1112,11 @@
             sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name
             und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt
             sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen,
-            wer angemeldet hat und ob die Anmeldung gilt.
+            wer angemeldet hat und ob die Anmeldung gilt. Die Abteilungsleitung
+            sieht die Anmeldungen mit Name und Telefon aus dem Konto und kann
+            sie als CSV-Datei laden; der Server speichert die Datei nicht und
+            hält im Protokoll nur fest, wann der Export lief und wie viele
+            Anmeldungen er enthielt.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -1150,6 +1212,13 @@
         <li>
           Microsoft liefert den Kalender der Abteilung (Outlook). Cevi OS liest
           daraus die Programme und schickt nichts über Personen dorthin.
+        </li>
+        <li>
+          Für das Wetter im Lager holt der Server die Vorhersage beim Dienst
+          Open-Meteo. Der Dienst erfährt nur die Breite und Länge des Lagerorts
+          auf zwei Stellen gerundet und die IP-Adresse des Servers, nie Namen,
+          Konten oder Angaben zu Personen. Ein Abruf erfolgt höchstens alle paar
+          Stunden je Lager.
         </li>
         <li>
           Pushes laufen über Firebase Cloud Messaging von Google und, auf dem
