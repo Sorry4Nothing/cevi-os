@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest, was im Lager zu tun ist, mit Status, Frist, Ressort, einer verantwortlichen Person und deren Unterstützung. Die Einkaufsliste hält fest, was fürs Lager eingekauft wird und wer es einkauft.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -213,6 +213,15 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  anlass: {
+    titel: "Anlässe und ihre Zusatzfelder",
+    zweck:
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
+    frist:
+      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
+    apple: [],
+    google: [],
+  },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
     titel: "Ungenutzt",
@@ -278,6 +287,35 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "details",
       "erstellt_am",
+    ],
+  },
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
+  anlass: {
+    anlass: [
+      "id",
+      "abteilung_id",
+      "programm_id",
+      "art",
+      "anmeldung_offen",
+      "frist",
+      "anmeldung_fuer",
+      "sichtbarkeit",
+      "sichtbarkeit_tags",
+      "seite_id",
+      "erstellt_von",
+      "erstellt_am",
+    ],
+  },
+  anlass_feld: {
+    anlass: [
+      "id",
+      "anlass_id",
+      "schluessel",
+      "beschriftung",
+      "typ",
+      "optionen",
+      "pflicht",
+      "reihenfolge",
     ],
   },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },
@@ -473,6 +511,23 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   ressort_notiz: {
     lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
+  },
+  // Einkaufsliste (#392): wer einkauft, steht als Personen-ID (Mitglied des Lagers). Stamm und Vorschläge sind Daten je Artikelname, ohne Person
+  einkauf_artikel: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "name_norm",
+      "menge",
+      "einheit",
+      "warengruppe",
+      "einkaeufer_person_id",
+      "erledigt",
+    ],
+  },
+  einkauf_artikelstamm: { lager: ["lager_id", "name_norm", "warengruppe"] },
+  einkauf_vorschlag: {
+    lager: ["lager_id", "name_norm", "name", "haeufigkeit"],
   },
   // Aufgaben (#372): Verantwortliche und Unterstützung als Personen-IDs; erledigt_am setzt der Server mit dem Status
   aufgabe: {

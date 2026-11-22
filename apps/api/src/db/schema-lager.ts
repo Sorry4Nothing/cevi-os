@@ -8,6 +8,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -854,6 +855,86 @@ export const infoAbschnittDatei = pgTable(
       .where(sql`${t.geloeschtAm} is null`),
   ],
 );
+
+// Warengruppen der Einkaufsliste (#392). Die Schlüssel stehen in der Datenbank, die Anzeigenamen kennt die App (Obst und Gemüse, Brot, Milch und Käse, Fleisch und Fisch, Vorrat, Getränke, Haushalt, Diverses). Die Liste steht auch in lager/einkauf.ts
+export const EINKAUF_WARENGRUPPEN = [
+  "obst_gemuese",
+  "brot",
+  "milch_kaese",
+  "fleisch_fisch",
+  "vorrat",
+  "getraenke",
+  "haushalt",
+  "diverses",
+] as const;
+const warengruppeListe = sql.raw(
+  EINKAUF_WARENGRUPPEN.map((w) => `'${w}'`).join(", "),
+);
+
+// Ein Artikel der Einkaufsliste des Lagers (#392). name_norm ist der Name ohne Gross- und Kleinschreibung und Umlaute (lager/einkauf.ts, normalisiereName): Er ist der Schlüssel, nach dem die Abfrage gleiche Artikel zusammenzählt. Die Menge ist eine Dezimalzahl (die Summe in der Datenbank ist exakt), die Einheit freier Text: Mengen werden nur bei gleicher Einheit gezählt. Wer einkauft, ist ein Mitglied des Lagers; verlässt es das Lager, wird die Angabe leer (in der Migration ON DELETE SET NULL (einkaeufer_person_id): Postgres 15 setzt nur die eine Spalte, drizzle kennt die Spaltenliste nicht)
+export const einkaufArtikel = pgTable(
+  "einkauf_artikel",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    nameNorm: text("name_norm").notNull(),
+    menge: numeric("menge", { precision: 12, scale: 3 }),
+    einheit: text("einheit"),
+    warengruppe: text("warengruppe", { enum: EINKAUF_WARENGRUPPEN }).notNull(),
+    einkaeuferPersonId: uuid("einkaeufer_person_id"),
+    erledigt: boolean("erledigt").notNull().default(false),
+  },
+  (t) => [
+    foreignKey({
+      name: "einkauf_artikel_einkaeufer_fk",
+      columns: [t.lagerId, t.einkaeuferPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    index("einkauf_artikel_liste_idx")
+      .on(t.lagerId, t.id)
+      .where(sql`${t.geloeschtAm} is null`),
+    check(
+      "einkauf_artikel_check",
+      sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and (${t.menge} is null or ${t.menge} > 0) and (${t.einheit} is null or char_length(${t.einheit}) between 1 and 20) and ${t.warengruppe} in (${warengruppeListe})`,
+    ),
+  ],
+);
+
+// Merkt, welcher Warengruppe ein Artikel in diesem Lager gehört, wenn die Lagerleitung die Vorgabe aus der Stichwortliste (lager/einkauf.ts) korrigiert hat. Nur der Server pflegt die Tabelle (beim Anlegen oder Ändern eines Artikels mit eigener Warengruppe); keine Zeilenversion, kein Feed: Die Apps lesen die Warengruppe am Artikel
+export const einkaufArtikelstamm = pgTable(
+  "einkauf_artikelstamm",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    nameNorm: text("name_norm").notNull(),
+    warengruppe: text("warengruppe", { enum: EINKAUF_WARENGRUPPEN }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.nameNorm] }),
+    check(
+      "einkauf_artikelstamm_check",
+      sql`char_length(${t.nameNorm}) between 1 and 200 and ${t.warengruppe} in (${warengruppeListe})`,
+    ),
+  ],
+);
+
+// Vorschläge beim Tippen (#392): wie oft ein Artikel in diesem Lager angelegt wurde, mit der zuletzt getippten Schreibweise. Nur der Server pflegt die Tabelle (hochzählen beim Anlegen); keine Zeilenversion, kein Feed
+export const einkaufVorschlag = pgTable(
+  "einkauf_vorschlag",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    nameNorm: text("name_norm").notNull(),
+    name: text("name").notNull(),
+    haeufigkeit: integer("haeufigkeit").notNull().default(1),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.nameNorm] }),
+    check(
+      "einkauf_vorschlag_check",
+      sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and ${t.haeufigkeit} >= 1`,
 
 // Dokument im Lager (#396): ein Titel, ein Verweis auf eine Datei im SharePoint (lager_datei, #370), Stichworte und die Freigabe für das Team. Cevi OS speichert nur den Link, nie den Inhalt. Stichworte als text[] (klein geschrieben, ohne Doppelte, höchstens 20): Sie stehen in derselben Zeile wie das Dokument und kosten in der Liste keine zweite Abfrage; der GIN-Index trägt den Filter «Stichwort». Der Fremdschlüssel auf lager_datei ist RESTRICT und trägt das Lager mit: Der Aufräumlauf (lager/datei-verweise.ts) entfernt nie eine Datei, die ein Dokument einbindet, und ein Dokument zeigt nie auf eine Datei eines anderen Lagers. Geschrieben wird nur über lager/sync.ts
 export const dokument = pgTable(

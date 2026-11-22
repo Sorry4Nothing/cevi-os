@@ -374,6 +374,13 @@
       "breakpoints": true
     },
     {
+      "idx": 87,
+      "version": "7",
+      "when": 1793552700000,
+      "tag": "0087_lager_einkauf",
+      "breakpoints": true
+    },
+    {
       "idx": 88,
       "version": "7",
       "when": 1793552800000,
@@ -399,6 +406,13 @@
       "version": "7",
       "when": 1793554000000,
       "tag": "0120_termin_kategorien",
+      "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1793554300000,
+      "tag": "0123_anlass",
       "breakpoints": true
     }
   ]

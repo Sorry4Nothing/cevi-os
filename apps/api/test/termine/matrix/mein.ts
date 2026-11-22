@@ -10,6 +10,8 @@ export const VORBEREITUNG: NonNullable<
   const termin = await legeProgrammAn(welt.db, {
     abteilungId: welt.testabteilungId,
     sichtbarkeit: "eltern",
+    // Auch die Stufenzuordnung des Kalenders: Ohne sie gälte der Termin in den Sichtbarkeitsregeln der Programme (programm_stufe_wirksam) für alle Stufen und das Profilbild von SL der Stufe A wäre in der Rechte-Matrix jeder Stufe sichtbar
+    stufen: [welt.stufeAId],
     titel: "Matrix-Termin",
   });
   await welt.db
