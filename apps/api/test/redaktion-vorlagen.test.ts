@@ -148,7 +148,7 @@ beforeAll(async () => {
 
 describe("GET /vorlagen", () => {
   test("nennt Schlüssel, Name, Beschreibung und ob ein Tag nötig ist, ohne Dokumente", async () => {
-    for (const konto of [admin, webmaster, slA]) {
+    for (const konto of [admin, webmaster]) {
       const antwort = await anfrage(konto, "GET", `${REDAKTION}/vorlagen`);
       expect(antwort.status).toBe(200);
       const { vorlagen } = await json<{
@@ -165,8 +165,8 @@ describe("GET /vorlagen", () => {
     }
   });
 
-  test("ohne Zugang 403", async () => {
-    for (const konto of [ohneRecht, eltern]) {
+  test("ohne das Recht «Vorlagen nutzen» 403, auch die Stufenleitung", async () => {
+    for (const konto of [ohneRecht, eltern, slA]) {
       expect(
         (await anfrage(konto, "GET", `${REDAKTION}/vorlagen`)).status,
       ).toBe(403);
