@@ -1,0 +1,371 @@
+import { and, asc, count, desc, eq, like } from "drizzle-orm";
+import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
+import { z } from "zod";
+import type { Db } from "../../db/client.js";
+import {
+  auditLog,
+  lager,
+  lagerMitglied,
+  medium,
+  user,
+} from "../../db/schema.js";
+import { eingabe } from "../../eingabe.js";
+import { lagerAnsicht } from "../../lager/ansicht.js";
+import { istGeschlossen } from "../../lager/policy.js";
+import { schreibeStandardrechte } from "../../lager/rechte.js";
+import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
+import { aktivesKonto, type Person } from "../../rechte.js";
+
+// Admin-Routen des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
+const datum = z.iso.date();
+const titel = z.string().trim().min(1).max(200);
+const ort = z.string().trim().min(1).max(200);
+const adresse = z.string().trim().min(1).max(500);
+// Kleingeschrieben gespeichert, wie der CHECK der Tabelle es verlangt
+const farbe = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/)
+  .transform((wert) => wert.toLowerCase());
+
+const anlegenSchema = z.strictObject({
+  titel,
+  von: datum,
+  bis: datum,
+  vorbereitungAb: datum.optional(),
+  ort: ort.optional(),
+  adresse: adresse.optional(),
+  farbe: farbe.optional(),
+  logoMediumId: z.uuid().optional(),
+});
+// null leert ein optionales Feld; ohne Schlüssel bleibt der Wert. Anlass und Übung sind bewusst nicht änderbar (eigene Issues)
+const aendernSchema = z.strictObject({
+  titel: titel.optional(),
+  von: datum.optional(),
+  bis: datum.optional(),
+  vorbereitungAb: datum.nullable().optional(),
+  ort: ort.nullable().optional(),
+  adresse: adresse.nullable().optional(),
+  farbe: farbe.nullable().optional(),
+  logoMediumId: z.uuid().nullable().optional(),
+  status: z.enum(LAGER_STATUS).optional(),
+});
+const mitgliedSchema = z.strictObject({ rolle: z.enum(LAGER_ROLLEN) });
+const pfad = () => z.strictObject({ id: z.uuid() });
+const pfadPerson = () => z.strictObject({ id: z.uuid(), personId: z.uuid() });
+
+class Konflikt extends Error {
+  constructor(
+    readonly code: "LAGER_GESCHLOSSEN" | "LAGERLEITUNG_FEHLT",
+    message: string,
+  ) {
+    super(message);
+  }
+}
+const geschlossen = () =>
+  new Konflikt(
+    "LAGER_GESCHLOSSEN",
+    "Das Lager ist abgeschlossen und lässt sich nicht ändern.",
+  );
+const leitungFehlt = () =>
+  new Konflikt(
+    "LAGERLEITUNG_FEHLT",
+    "Ein aktives Lager braucht mindestens eine Lagerleitung.",
+  );
+const antwortKonflikt = (fehler: Konflikt) => ({
+  code: fehler.code,
+  message: fehler.message,
+});
+
+// Zeitraum nach dem Zusammenführen: Der CHECK der Tabelle fängt es auch, die Route antwortet aber mit 400 statt mit 500
+const zeitraumGueltig = (zeit: {
+  von: string;
+  bis: string;
+  vorbereitungAb?: string | null;
+}) =>
+  zeit.bis >= zeit.von &&
+  (!zeit.vorbereitungAb || zeit.vorbereitungAb <= zeit.von);
+
+export function erstelleAdminLagerRouten({ db }: { db: Db }) {
+  type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Admin-Recht. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
+  async function ladeLager(
+    d: Db | Tx,
+    person: Person,
+    id: string,
+    sperren = false,
+  ) {
+    const abfrage = d
+      .select()
+      .from(lager)
+      .where(and(eq(lager.id, id), eq(lager.abteilungId, person.abteilungId)));
+    const [ziel] = await (sperren ? abfrage.for("update") : abfrage);
+    if (!ziel) throw new HTTPException(404);
+    if (!person.admin) throw new HTTPException(403);
+    return ziel;
+  }
+
+  // Ein Bild der eigenen Abteilung; alles andere ist für diese Route unbekannt
+  async function pruefeLogo(d: Db | Tx, abteilungId: string, id: string) {
+    const [ziel] = await d
+      .select({ id: medium.id })
+      .from(medium)
+      .where(
+        and(
+          eq(medium.id, id),
+          eq(medium.abteilungId, abteilungId),
+          like(medium.mimeTyp, "image/%"),
+        ),
+      );
+    if (!ziel) throw new HTTPException(400);
+  }
+
+  const anzahlLagerleitung = async (d: Db | Tx, lagerId: string) =>
+    (
+      await d
+        .select({ n: count() })
+        .from(lagerMitglied)
+        .where(
+          and(
+            eq(lagerMitglied.lagerId, lagerId),
+            eq(lagerMitglied.rolle, "lagerleitung"),
+          ),
+        )
+    )[0].n;
+
+  const mitgliedZeile = async (d: Db | Tx, lagerId: string, personId: string) =>
+    (
+      await d
+        .select({ rolle: lagerMitglied.rolle })
+        .from(lagerMitglied)
+        .where(
+          and(
+            eq(lagerMitglied.lagerId, lagerId),
+            eq(lagerMitglied.personId, personId),
+          ),
+        )
+    )[0];
+
+  return new Hono<{ Variables: { person: Person } }>()
+    .get("/", async (c) => {
+      const person = c.get("person");
+      if (!person.admin) throw new HTTPException(403);
+      const zeilen = await db
+        .select()
+        .from(lager)
+        .where(eq(lager.abteilungId, person.abteilungId))
+        .orderBy(desc(lager.von), asc(lager.id));
+      return c.json({ lager: zeilen.map(lagerAnsicht) });
+    })
+    .post("/", eingabe("json", anlegenSchema), async (c) => {
+      const person = c.get("person");
+      if (!person.admin) throw new HTTPException(403);
+      const felder = c.req.valid("json");
+      if (!zeitraumGueltig(felder)) throw new HTTPException(400);
+      if (felder.logoMediumId) {
+        await pruefeLogo(db, person.abteilungId, felder.logoMediumId);
+      }
+      const neu = await db.transaction(async (tx) => {
+        const [zeile] = await tx
+          .insert(lager)
+          .values({ ...felder, abteilungId: person.abteilungId })
+          .returning({ id: lager.id });
+        // Die Rechte der Rollen mit den Standardwerten (#365)
+        await schreibeStandardrechte(tx, zeile.id);
+        // Kein Inhalt: weder Titel noch Ort
+        await tx.insert(auditLog).values({
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+          aktion: "lager_angelegt",
+          zielTyp: "lager",
+          zielId: zeile.id,
+        });
+        return zeile;
+      });
+      return c.json({ id: neu.id }, 201);
+    })
+    .get("/:id", eingabe("param", pfad()), async (c) => {
+      const person = c.get("person");
+      const ziel = await ladeLager(db, person, c.req.valid("param").id);
+      return c.json(lagerAnsicht(ziel));
+    })
+    .patch(
+      "/:id",
+      eingabe("param", pfad()),
+      eingabe("json", aendernSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        const { status, ...stammdaten } = c.req.valid("json");
+        try {
+          await db.transaction(async (tx) => {
+            const alt = await ladeLager(tx, person, id, true);
+            const felder = Object.keys(stammdaten);
+            // Nur der Status darf ein geschlossenes Lager wieder öffnen; jede andere Änderung ist gesperrt
+            if (felder.length > 0 && istGeschlossen(alt.status)) {
+              throw geschlossen();
+            }
+            if (!zeitraumGueltig({ ...alt, ...stammdaten })) {
+              throw new HTTPException(400);
+            }
+            if (stammdaten.logoMediumId) {
+              await pruefeLogo(tx, person.abteilungId, stammdaten.logoMediumId);
+            }
+            if (
+              status === "aktiv" &&
+              alt.status !== "aktiv" &&
+              (await anzahlLagerleitung(tx, id)) === 0
+            ) {
+              throw leitungFehlt();
+            }
+            // Ohne Schlüssel wirft Drizzle bei set({}): kein Schreibzugriff
+            if (felder.length > 0 || status !== undefined) {
+              await tx
+                .update(lager)
+                .set({ ...stammdaten, ...(status && { status }) })
+                .where(eq(lager.id, id));
+            }
+            const audit = (aktion: string, details: object) =>
+              tx.insert(auditLog).values({
+                abteilungId: person.abteilungId,
+                akteurId: person.id,
+                aktion,
+                zielTyp: "lager",
+                zielId: id,
+                details,
+              });
+            // Welche Felder, nie die Werte
+            if (felder.length > 0) {
+              await audit("lager_geaendert", { felder });
+            }
+            if (status !== undefined && status !== alt.status) {
+              await audit("lager_status", { von: alt.status, nach: status });
+            }
+          });
+        } catch (fehler) {
+          if (fehler instanceof Konflikt) {
+            return c.json(antwortKonflikt(fehler), 409);
+          }
+          throw fehler;
+        }
+        return c.body(null, 204);
+      },
+    )
+    .get("/:id/mitglieder", eingabe("param", pfad()), async (c) => {
+      const person = c.get("person");
+      const ziel = await ladeLager(db, person, c.req.valid("param").id);
+      const mitglieder = await db
+        .select({
+          personId: lagerMitglied.personId,
+          name: user.name,
+          ceviName: user.ceviName,
+          rolle: lagerMitglied.rolle,
+        })
+        .from(lagerMitglied)
+        .innerJoin(user, eq(user.id, lagerMitglied.personId))
+        .where(eq(lagerMitglied.lagerId, ziel.id))
+        .orderBy(asc(user.name), asc(user.id));
+      return c.json({ mitglieder });
+    })
+    .put(
+      "/:id/mitglieder/:personId",
+      eingabe("param", pfadPerson()),
+      eingabe("json", mitgliedSchema),
+      async (c) => {
+        const person = c.get("person");
+        const { id, personId } = c.req.valid("param");
+        const { rolle } = c.req.valid("json");
+        try {
+          await db.transaction(async (tx) => {
+            const ziel = await ladeLager(tx, person, id, true);
+            if (istGeschlossen(ziel.status)) throw geschlossen();
+            // Nur ein aktives Konto der Abteilung; unbekannt, deaktiviert und fremd sind für diese Route dasselbe (404)
+            const [konto] = await tx
+              .select({ id: user.id })
+              .from(user)
+              .where(
+                and(eq(user.id, personId), aktivesKonto(person.abteilungId)),
+              );
+            if (!konto) throw new HTTPException(404);
+            const vorher = await mitgliedZeile(tx, id, personId);
+            // Ein aktives Lager behält seine Lagerleitung; die Sperre auf dem Lager macht die Zählung zuverlässig
+            if (
+              ziel.status === "aktiv" &&
+              vorher?.rolle === "lagerleitung" &&
+              rolle !== "lagerleitung" &&
+              (await anzahlLagerleitung(tx, id)) <= 1
+            ) {
+              throw leitungFehlt();
+            }
+            await tx
+              .insert(lagerMitglied)
+              .values({ lagerId: id, personId, rolle })
+              .onConflictDoUpdate({
+                target: [lagerMitglied.lagerId, lagerMitglied.personId],
+                set: { rolle },
+              });
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "mitglied_gesetzt",
+              zielTyp: "lager",
+              zielId: id,
+              details: { personId, rolle, vorher: vorher?.rolle ?? null },
+            });
+          });
+        } catch (fehler) {
+          if (fehler instanceof Konflikt) {
+            return c.json(antwortKonflikt(fehler), 409);
+          }
+          throw fehler;
+        }
+        return c.body(null, 204);
+      },
+    )
+    .delete(
+      "/:id/mitglieder/:personId",
+      eingabe("param", pfadPerson()),
+      async (c) => {
+        const person = c.get("person");
+        const { id, personId } = c.req.valid("param");
+        try {
+          await db.transaction(async (tx) => {
+            const ziel = await ladeLager(tx, person, id, true);
+            if (istGeschlossen(ziel.status)) throw geschlossen();
+            const vorher = await mitgliedZeile(tx, id, personId);
+            if (!vorher) throw new HTTPException(404);
+            if (
+              ziel.status === "aktiv" &&
+              vorher.rolle === "lagerleitung" &&
+              (await anzahlLagerleitung(tx, id)) <= 1
+            ) {
+              throw leitungFehlt();
+            }
+            await tx
+              .delete(lagerMitglied)
+              .where(
+                and(
+                  eq(lagerMitglied.lagerId, id),
+                  eq(lagerMitglied.personId, personId),
+                ),
+              );
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "mitglied_entfernt",
+              zielTyp: "lager",
+              zielId: id,
+              details: { personId, rolle: vorher.rolle },
+            });
+          });
+        } catch (fehler) {
+          if (fehler instanceof Konflikt) {
+            return c.json(antwortKonflikt(fehler), 409);
+          }
+          throw fehler;
+        }
+        return c.body(null, 204);
+      },
+    );
+}
