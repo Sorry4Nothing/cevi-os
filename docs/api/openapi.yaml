@@ -4503,6 +4503,236 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/rechte:
+    get:
+      operationId: holeLagerRechte
+      summary: Rechte der Rollen lesen
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Liefert alle Rechte des Katalogs (49) mit Bedeutung, dem Standard und dem aktuellen Wert je Rolle (`leitung`, `team`, `lesen`). Die Lagerleitung steht nicht in der Liste: Sie hat immer alles und lässt sich nicht einstellen. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Rechtekatalog mit Standard und aktuellem Wert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRechteListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeLagerRechte
+      summary: Rechte der Rollen ändern
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRechteAenderung"
+      responses:
+        "204":
+          description: Rechte gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/rechte/zuruecksetzen:
+    post:
+      operationId: setzeZurueckLagerRechte
+      summary: Rechte auf den Standard zurücksetzen
+      description: |
+        Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung). Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Lagerleitung (403 für Leitung, Team und Lesen), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Leitung, Team und Lesen. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Rechte zurückgesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/rechte:
+    get:
+      operationId: holeAdminLagerRechte
+      summary: Rechte der Rollen lesen
+      description: |
+        Nur Admins. Liefert alle Rechte des Katalogs (49) mit Bedeutung, dem Standard und dem aktuellen Wert je Rolle (`leitung`, `team`, `lesen`). Die Lagerleitung steht nicht in der Liste: Sie hat immer alles und lässt sich nicht einstellen. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Rechtekatalog mit Standard und aktuellem Wert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerRechteListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLagerRechte
+      summary: Rechte der Rollen ändern
+      description: |
+        Nur Admins. Setzt einzelne Rechte von Leitung, Team und Lesen. Nur Rechte des Katalogs und nur diese drei Rollen sind zulässig (400 sonst, auch für `lagerleitung`); jedes Paar aus Rolle und Recht höchstens einmal; nicht genannte Rechte bleiben. Die Änderung gilt ab der nächsten Anfrage, nur in diesem Lager. Jeder Wert, der sich ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerRechteAenderung"
+      responses:
+        "204":
+          description: Rechte gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/rechte/zuruecksetzen:
+    post:
+      operationId: setzeZurueckAdminLagerRechte
+      summary: Rechte auf den Standard zurücksetzen
+      description: |
+        Nur Admins. Setzt die Rechte von Leitung, Team und Lesen auf die Standardwerte des Katalogs zurück. Die Lagerleitung hat nie Einstellungen. Jeder Wert, der sich dadurch ändert, steht im Audit-Log (`lager_recht_geaendert`: Rolle, Recht, Wert, nie Inhalte). Die Änderung gilt ab der nächsten Anfrage. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder (Lager-Route) die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Rechte zurückgesetzt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -7533,6 +7763,126 @@ components:
         message:
           type: string
     # lager-schemas: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerRecht:
+      type: string
+      description: Ein Recht des Katalogs, `<bereich>.<aktion>`. Die Lagerleitung hat jedes Recht immer.
+      enum:
+        - ressorts.lesen
+        - ressorts.bearbeiten
+        - aufgaben.lesen_alle
+        - aufgaben.bearbeiten
+        - aufgaben.eigene
+        - zeitplan.lesen
+        - zeitplan.bearbeiten
+        - vorlagen.anwenden
+        - check.lesen
+        - hoecks.lesen_alle
+        - hoecks.team_lesen
+        - hoecks.bearbeiten
+        - protokolle.lesen
+        - protokolle.bearbeiten
+        - pinnwand.lesen
+        - pinnwand.bearbeiten
+        - interaktion.schreiben
+        - eingang.senden
+        - eingang.lesen
+        - eingang.antworten
+        - teilnehmer.lesen
+        - teilnehmer.bearbeiten
+        - einteilung.lesen
+        - einteilung.bearbeiten
+        - abzaehlen.schreiben
+        - diensttausch.anfragen
+        - diensttausch.entscheiden
+        - anwesenheit.lesen_alle
+        - anwesenheit.eigene
+        - anwesenheit.bearbeiten
+        - tagesseiten.lesen
+        - tagesseiten.bearbeiten
+        - einkauf.lesen
+        - einkauf.bearbeiten
+        - packliste.lesen
+        - packliste.abhaken
+        - packliste.bearbeiten
+        - notfall.lesen
+        - notfall.bearbeiten
+        - infos.lesen
+        - infos.bearbeiten
+        - vertrauliches.lesen
+        - wetter.lesen
+        - dokumente.lesen_alle
+        - dokumente.team_lesen
+        - dokumente.bearbeiten
+        - adressbuch.lesen
+        - adressbuch.bearbeiten
+        - verlauf.lesen
+    LagerRechteListe:
+      type: object
+      required:
+        - rechte
+      properties:
+        rechte:
+          type: array
+          items:
+            type: object
+            required:
+              - recht
+              - bedeutung
+              - standard
+              - aktuell
+            properties:
+              recht:
+                $ref: "#/components/schemas/LagerRecht"
+              bedeutung:
+                type: string
+              standard:
+                $ref: "#/components/schemas/LagerRechteJeRolle"
+              aktuell:
+                $ref: "#/components/schemas/LagerRechteJeRolle"
+    LagerRechteJeRolle:
+      type: object
+      description: Erlaubt oder verboten je einstellbarer Rolle.
+      required:
+        - leitung
+        - team
+        - lesen
+      properties:
+        leitung:
+          type: boolean
+        team:
+          type: boolean
+        lesen:
+          type: boolean
+    LagerRechteAenderung:
+      type: object
+      additionalProperties: false
+      required:
+        - rechte
+      properties:
+        rechte:
+          type: array
+          minItems: 1
+          maxItems: 147
+          description: Jedes Paar aus Rolle und Recht höchstens einmal.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - rolle
+              - recht
+              - erlaubt
+            properties:
+              rolle:
+                type: string
+                description: Die Lagerleitung ist nicht einstellbar.
+                enum:
+                  - leitung
+                  - team
+                  - lesen
+              recht:
+                $ref: "#/components/schemas/LagerRecht"
+              erlaubt:
+                type: boolean
     # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

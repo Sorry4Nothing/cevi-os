@@ -134,7 +134,7 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -327,6 +327,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   lager_mitglied: {
     lager: ["lager_id", "person_id", "rolle", "ressort_id", "erstellt_am"],
   },
+  lager_rolle_recht: { lager: ["lager_id", "rolle", "recht", "erlaubt"] },
   bearbeiter: {
     rollen: [
       "id",
