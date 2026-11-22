@@ -52,11 +52,10 @@ describe("Verwaltung: navigation.js", () => {
     const r = nav.loese("#termine/vorschlaege/abc", alle);
     expect(r.unter.schluessel).toBe("vorschlaege");
     expect(r.pfad).toEqual(["abc"]);
-    // Bei einer einzigen Unterseite gehört alles nach dem Bereich dem Modul
-    expect(nav.loese("#website/seiten/12", alle).pfad).toEqual([
-      "seiten",
-      "12",
-    ]);
+    // Website hat mehrere Unterseiten: «seiten» ist die Unterseite, «12» der Rest
+    const w = nav.loese("#website/seiten/12", alle);
+    expect(w.unter.schluessel).toBe("seiten");
+    expect(w.pfad).toEqual(["12"]);
     expect(nav.loese("#gibtsnicht", alle)).toBeNull();
     expect(nav.loese("#termine/gibtsnicht", alle)).toBeNull();
   });

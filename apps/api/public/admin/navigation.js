@@ -5,7 +5,7 @@
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
 //   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung) oder ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»). Die Anzeige folgt nur dem Server; jede Route prüft selbst.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
-// Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#website/seiten/<id>).
+// Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
 export const BEREICHE = [
   {
