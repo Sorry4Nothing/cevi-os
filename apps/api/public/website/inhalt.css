@@ -73,14 +73,16 @@
   background: var(--artikel-grund);
 }
 
-/* Absolut, damit die Masse des Bildes die Kachel nicht aufziehen */
+/* Das Bild steht unbeschnitten in der Mitte und wird nie über seine eigene Grösse gezogen: Ein kleines Foto bleibt klein und scharf */
 .artikel-bild img {
   position: absolute;
   inset: 1.5rem;
-  width: calc(100% - 3rem);
-  height: calc(100% - 3rem);
+  width: auto;
+  height: auto;
+  max-width: calc(100% - 3rem);
+  max-height: calc(100% - 3rem);
+  margin: auto;
   border-radius: 0;
-  object-fit: contain;
   mix-blend-mode: multiply;
 }
 
