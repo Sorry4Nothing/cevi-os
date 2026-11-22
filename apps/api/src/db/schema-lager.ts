@@ -1093,6 +1093,71 @@ export const reaktion = pgTable(
   ],
 );
 
+// Eingang für Ideen, Wünsche, Fragen und Feedback an die Lagerleitung (#383). Bewusst ohne lagerSpalten(): Der Sync-Kern schriebe erstellt_von, einen genauen Zeitpunkt und eine lager_seq, die neben anderen Einträgen derselben Sekunde stünde, und der Feed liesse die Meldung einer Person zuordnen. Darum gibt es hier
+//   - keine Zeit ausser dem Tag (erstellt_tag, beantwortet_tag) und keine uuidv7 (die ID ordnet nicht nach Zeit),
+//   - keinen Feed, keine Revision, keinen Verlauf und kein Audit für diese Tabelle,
+//   - bei einer anonymen Meldung (anonym) keine Person: person_id ist leer, der Check hält es in der Datenbank fest. Statt dessen steht ein Hash des Rückfragecodes (rueckfragecode_hash), mit dem die meldende Person die Antwort liest; der Code selbst wird nie gespeichert und hat 100 Bit, ein unsalzter SHA-256 genügt.
+// Eine nicht anonyme Meldung (person_id) darf die Person selbst lesen und die Lagerleitung sehen. ressort_id und traktandum_id setzt die Lagerleitung; fällt das Ressort oder das Traktandum weg, bleibt die Meldung ohne sie. Kein Feld für Gesundheitsdaten
+export const EINGANG_ARTEN = ["idee", "wunsch", "frage", "feedback"] as const;
+export const EINGANG_STATUS = ["neu", "in_arbeit", "erledigt"] as const;
+
+export const eingang = pgTable(
+  "eingang",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    version: integer("version").notNull().default(1),
+    art: text("art", { enum: EINGANG_ARTEN }).notNull(),
+    text: text("text").notNull(),
+    anonym: boolean("anonym").notNull(),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    rueckfragecodeHash: text("rueckfragecode_hash"),
+    erstelltTag: date("erstellt_tag", { mode: "string" })
+      .notNull()
+      .default(sql`current_date`),
+    status: text("status", { enum: EINGANG_STATUS }).notNull().default("neu"),
+    antwort: text("antwort"),
+    beantwortetTag: date("beantwortet_tag", { mode: "string" }),
+    ressortId: uuid("ressort_id"),
+    traktandumId: uuid("traktandum_id"),
+  },
+  (t) => [
+    // In der Migration ON DELETE SET NULL (spalte): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "eingang_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("set null"),
+    foreignKey({
+      name: "eingang_traktandum_fk",
+      columns: [t.lagerId, t.traktandumId],
+      foreignColumns: [traktandum.lagerId, traktandum.id],
+    }).onDelete("set null"),
+    index("eingang_liste_idx").on(t.lagerId, t.erstelltTag, t.id),
+    index("eingang_person_idx")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null`),
+    uniqueIndex("eingang_code_uq")
+      .on(t.rueckfragecodeHash)
+      .where(sql`${t.rueckfragecodeHash} is not null`),
+    check(
+      "eingang_check",
+      sql`${t.art} in ('idee', 'wunsch', 'frage', 'feedback') and ${t.status} in ('neu', 'in_arbeit', 'erledigt') and char_length(${t.text}) between 1 and 5000 and (${t.antwort} is null or char_length(${t.antwort}) between 1 and 5000) and (${t.antwort} is null) = (${t.beantwortetTag} is null)`,
+    ),
+    // Anonym: keine Person, dafür der Hash; sonst die Person und kein Hash
+    check(
+      "eingang_anonym_check",
+      sql`(${t.anonym} and ${t.personId} is null and ${t.rueckfragecodeHash} is not null) or (not ${t.anonym} and ${t.personId} is not null and ${t.rueckfragecodeHash} is null)`,
+    ),
+  ],
+);
+
 // Abzählen (#384): ein Haken je Teilnehmende oder Person des Lagers (Team), eine Zeile entsteht beim ersten Abhaken. Genau eines von teilnehmer_id und person_id; geprueft_am ist gesetzt, wenn geprueft gilt. Die Teilnehmerzeilen gehen mit der Löschung der Teilnehmenden
 export const abzaehlen = pgTable(
   "abzaehlen",

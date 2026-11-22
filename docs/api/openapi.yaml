@@ -11042,6 +11042,446 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/eingang:
+    get:
+      operationId: holeLagerEingang
+      summary: Eingang des Lagers auflisten
+      description: |
+        Braucht das Recht `eingang.lesen` (Standard: nur Lagerleitung und Abteilungsleitung; die Lagerleitung kann es einer Rolle geben).
+
+        Eine Meldung zeigt Art, Text, Status, Antwort, Tag der Meldung und der Antwort, Ressort und Traktandum. `von` nennt das Konto nur bei einer nicht anonymen Meldung; bei einer anonymen Meldung ist es `null`, und nirgends steht eine Person, ein Zeitpunkt oder der Prüfwert des Rückfragecodes (echte Anonymität, Bedrohung 23). Die Tabelle läuft nicht durch den Sync-Kern: Der Eingang erscheint nicht im Änderungsfeed und löst kein Ereignis aus; die Apps laden die Liste beim Öffnen.
+
+        Reihenfolge: neueste Tage zuerst. Am selben Tag ist die Reihenfolge zufällig (die ID ordnet nicht nach Zeit). Eine Abfrage für die Seite. Seitenwechsel über `nach` und `limit`; Filter `status` und `art`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Nur Meldungen mit diesem Status.
+          schema:
+            type: string
+            enum: [neu, in_arbeit, erledigt]
+        - name: art
+          in: query
+          required: false
+          description: Nur Meldungen dieser Art.
+          schema:
+            type: string
+            enum: [idee, wunsch, frage, feedback]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Meldungen je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Meldungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: sendeLagerEingang
+      summary: Idee, Wunsch, Frage oder Feedback an die Lagerleitung senden
+      description: |
+        Braucht das Recht `eingang.senden` (Standard: Lagerleitung, Leitung und Team, nicht Lesen). `anonym` ist Pflicht.
+
+        Nicht anonym: Die Meldung behält das Konto. Die Person liest sie unter `GET /lager/{id}/eingang/eigene`, die Lagerleitung sieht den Namen, und die Antwort löst einen Push aus.
+
+        Anonym: Der Server speichert keine Person, keine IP-Adresse und keinen Zeitpunkt (nur den Tag), schreibt kein Audit-Log und keinen Eintrag im Änderungsfeed. Die Antwort enthält `rueckfragecode` (20 Zeichen aus 32 in Vierergruppen, 100 Bit) genau einmal und keine ID; gespeichert ist nur sein SHA-256-Wert. Mit dem Code liest die Person Status und Antwort über `POST /lager/{id}/eingang/status`. Geht der Code verloren, gibt es für diese Person keine Antwort; sie steht nur an der Meldung, die die Lagerleitung liest. Eine Antwort per Push an eine anonyme Person gibt es nicht.
+
+        Das Feld `text` ist frei; es gibt kein Feld für Gesundheitsdaten und keines für eine Person (unbekannte Felder: 400). Rate-Limit ohne Person: anonym höchstens 60 Meldungen je Lager und Stunde (gezählt im Arbeitsspeicher je Lager), nicht anonym höchstens 20 je Konto und Stunde; darüber 429.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. 429 bei zu vielen Meldungen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEingangSenden"
+      responses:
+        "201":
+          description: Die gesendete Meldung. Anonym mit `rueckfragecode`, nicht anonym mit `id`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangGesendet"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/eingang/eigene:
+    get:
+      operationId: holeLagerEingangEigene
+      summary: Eigene nicht anonyme Meldungen lesen
+      description: |
+        Braucht das Recht `eingang.senden`. Liefert nur die nicht anonymen Meldungen der Person der Sitzung, mit Status und Antwort. Anonyme Meldungen gehören keiner Person und stehen hier nie; ihre Antwort liest man mit dem Rückfragecode. Seitenwechsel über `nach` und `limit`. Der Push `lager_eingang` (Antwort auf deine Nachricht) trägt die ID der Meldung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Meldungen je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite eigener Meldungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangEigeneSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/eingang/status:
+    post:
+      operationId: holeLagerEingangStatus
+      summary: Status und Antwort mit dem Rückfragecode lesen
+      description: |
+        Braucht das Recht `eingang.senden`. Die meldende Person einer anonymen Meldung liest damit Status und Antwort, ohne dass der Server weiss, wer sie ist. Der Code steht im Body, nicht in der Adresse. Gross- und Kleinschreibung, Bindestriche und Leerzeichen zählen nicht. Ein falscher, unbekannter oder aus einem anderen Lager stammender Code ist immer 404. Höchstens 120 Abfragen je Lager und Stunde (Zähler im Arbeitsspeicher je Lager, nie je Person); darüber 429.
+
+        Die Route ändert nichts und gilt darum auch im abgeschlossenen Lager.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder bei unbekanntem Code. 429 bei zu vielen Abfragen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEingangStatusAbfrage"
+      responses:
+        "200":
+          description: Status und Antwort der Meldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangCodeAnsicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/eingang/{eingangId}:
+    get:
+      operationId: holeLagerEingangMeldung
+      summary: Eine Meldung lesen
+      description: |
+        Braucht das Recht `eingang.lesen`. Gleiche Felder wie in der Liste; nie eine Person bei einer anonymen Meldung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Meldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangEintrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerEingangMeldung
+      summary: Eine Meldung beantworten, ihren Status setzen oder sie zuordnen
+      description: |
+        Braucht die Rechte `eingang.antworten` und `eingang.lesen` (Standard: nur Lagerleitung und Abteilungsleitung). Der Body nennt die zuletzt gesehene `version`; weicht sie ab, antwortet der Server mit 409 `VERSION_KONFLIKT` samt aktuellem Stand (ohne Person). Die Route läuft nicht durch den Sync-Kern.
+
+        `antwort` (1 bis 5000 Zeichen, `null` nimmt sie zurück) setzt den Tag der Antwort. Eine neue Antwort auf eine nicht anonyme Meldung benachrichtigt die Person (Art `eingang_antwort`, Push-Typ `lager_eingang`, nur der feste Titel «Antwort auf deine Nachricht» und der Lagertitel, nie Text oder Antwort; wer die Art abgeschaltet hat, bekommt nichts). Eine anonyme Meldung löst keine Benachrichtigung aus. `ressortId` und `traktandumId` müssen im selben Lager liegen und nicht gelöscht sein (400 `RESSORT_UNBEKANNT`, `TRAKTANDUM_UNBEKANNT`); `null` löst die Zuordnung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder unbekanntem Ziel. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `VERSION_KONFLIKT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEingangAendern"
+      responses:
+        "200":
+          description: Die Meldung nach der Änderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangEintrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerEingangMeldung
+      summary: Eine Meldung endgültig löschen
+      description: |
+        Braucht die Rechte `eingang.antworten` und `eingang.lesen`. Löscht die Zeile endgültig (kein Papierkorb: Der Text kann Namen enthalten). `version` ist die zuletzt gesehene Version; weicht sie ab, 409 `VERSION_KONFLIKT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `VERSION_KONFLIKT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Meldung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/eingang/{eingangId}/traktandum:
+    post:
+      operationId: legeLagerEingangTraktandumAn
+      summary: Aus einer Meldung ein Traktandum machen
+      description: |
+        Braucht `eingang.antworten`, `eingang.lesen` und `hoecks.bearbeiten`. Legt ein Traktandum mit dem Titel der Lagerleitung an (im Höck `hoeckId`, ohne Angabe oder mit `null` für den nächsten Höck) und verknüpft es mit der Meldung (`traktandumId`), in einer Transaktion: Bei einem Konflikt der Version (409) oder einem unbekannten Höck (400 `HOECK_UNBEKANNT`) entsteht nichts. Der Text der Meldung wird nie ins Traktandum kopiert, damit wer Traktanden liest, die Meldung nicht lesen können muss.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder unbekanntem Höck. 401 ohne Anmeldung. 403 ohne die Rechte. 404 bei unbekanntem Lager oder unbekannter Meldung, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `VERSION_KONFLIKT` oder `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: eingangId
+          in: path
+          required: true
+          description: ID der Meldung (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerEingangTraktandum"
+      responses:
+        "201":
+          description: Die Meldung mit dem neuen Traktandum.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerEingangEintrag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/teilnehmer:
     get:
@@ -23525,6 +23965,235 @@ components:
         emoji:
           $ref: "#/components/schemas/LagerReaktionSchluessel"
     # lager-schemas: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerEingangSenden:
+      type: object
+      additionalProperties: false
+      required: [art, text, anonym]
+      properties:
+        art:
+          type: string
+          enum: [idee, wunsch, frage, feedback]
+        text:
+          type: string
+          minLength: 1
+          maxLength: 5000
+          description: Freier Text (nach dem Kürzen von Leerraum).
+        anonym:
+          type: boolean
+          description: Bei `true` speichert der Server keine Person.
+    LagerEingangGesendet:
+      type: object
+      required: [anonym, art, status, antwort, beantwortetTag, erstelltTag]
+      properties:
+        anonym:
+          type: boolean
+        id:
+          type: string
+          format: uuid
+          description: Nur bei einer nicht anonymen Meldung.
+        rueckfragecode:
+          type: string
+          description: Nur bei einer anonymen Meldung, nur in dieser Antwort. 20 Zeichen aus 32 in Vierergruppen mit Bindestrich.
+        art:
+          type: string
+          enum: [idee, wunsch, frage, feedback]
+        status:
+          type: string
+          enum: [neu, in_arbeit, erledigt]
+        antwort:
+          type: string
+          nullable: true
+        beantwortetTag:
+          type: string
+          format: date
+          nullable: true
+        erstelltTag:
+          type: string
+          format: date
+    LagerEingangCodeAnsicht:
+      type: object
+      required: [art, status, antwort, beantwortetTag, erstelltTag]
+      properties:
+        art:
+          type: string
+          enum: [idee, wunsch, frage, feedback]
+        status:
+          type: string
+          enum: [neu, in_arbeit, erledigt]
+        antwort:
+          type: string
+          nullable: true
+        beantwortetTag:
+          type: string
+          format: date
+          nullable: true
+        erstelltTag:
+          type: string
+          format: date
+    LagerEingangStatusAbfrage:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code:
+          type: string
+          maxLength: 64
+          description: Der Rückfragecode der anonymen Meldung.
+    LagerEingangEigene:
+      type: object
+      required: [id, art, text, status, antwort, beantwortetTag, erstelltTag]
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          type: string
+          enum: [idee, wunsch, frage, feedback]
+        text:
+          type: string
+        status:
+          type: string
+          enum: [neu, in_arbeit, erledigt]
+        antwort:
+          type: string
+          nullable: true
+        beantwortetTag:
+          type: string
+          format: date
+          nullable: true
+        erstelltTag:
+          type: string
+          format: date
+    LagerEingangEigeneSeite:
+      type: object
+      required: [eintraege, naechster]
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerEingangEigene"
+        naechster:
+          type: string
+          format: uuid
+          nullable: true
+    LagerEingangEintrag:
+      type: object
+      required:
+        - id
+        - version
+        - art
+        - text
+        - anonym
+        - status
+        - antwort
+        - beantwortetTag
+        - erstelltTag
+        - ressortId
+        - traktandumId
+        - von
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+        art:
+          type: string
+          enum: [idee, wunsch, frage, feedback]
+        text:
+          type: string
+        anonym:
+          type: boolean
+        status:
+          type: string
+          enum: [neu, in_arbeit, erledigt]
+        antwort:
+          type: string
+          nullable: true
+        beantwortetTag:
+          type: string
+          format: date
+          nullable: true
+        erstelltTag:
+          type: string
+          format: date
+          description: Nur der Tag, nie ein Zeitpunkt.
+        ressortId:
+          type: string
+          format: uuid
+          nullable: true
+        traktandumId:
+          type: string
+          format: uuid
+          nullable: true
+        von:
+          type: object
+          nullable: true
+          description: Das Konto bei einer nicht anonymen Meldung; bei einer anonymen immer `null`.
+          required: [id, name, ceviName]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              nullable: true
+            ceviName:
+              type: string
+              nullable: true
+    LagerEingangSeite:
+      type: object
+      required: [eintraege, naechster]
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerEingangEintrag"
+        naechster:
+          type: string
+          format: uuid
+          nullable: true
+    LagerEingangAendern:
+      type: object
+      additionalProperties: false
+      required: [version]
+      minProperties: 2
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [neu, in_arbeit, erledigt]
+        antwort:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 5000
+        ressortId:
+          type: string
+          format: uuid
+          nullable: true
+        traktandumId:
+          type: string
+          format: uuid
+          nullable: true
+    LagerEingangTraktandum:
+      type: object
+      additionalProperties: false
+      required: [version, titel]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        hoeckId:
+          type: string
+          format: uuid
+          nullable: true
     # lager-schemas: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerTeilnehmer:
       description: "Eine teilnehmende Person, wie sie das Team sieht: nur Vorname, Nachname und Stufe. Wer `teilnehmer.bearbeiten` hat, bekommt `LagerTeilnehmerVoll`."
