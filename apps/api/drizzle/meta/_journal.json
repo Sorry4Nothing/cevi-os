@@ -395,6 +395,13 @@
       "breakpoints": true
     },
     {
+      "idx": 78,
+      "version": "7",
+      "when": 1793551800000,
+      "tag": "0078_lager_eingang",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
