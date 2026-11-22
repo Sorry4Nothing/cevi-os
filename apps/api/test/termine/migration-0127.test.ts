@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0127 und ihr Rückweg gegen eine eigene, frische Datenbank, die genau der Rolle cevi_os_besitzer gehört (wie auf dem Server): Die Rolle legt btree_gist ohne Superuser an (vertrauenswürdige Erweiterung). Erst bis 0125 migrieren, dann 0127 durch den echten Migrator, dann der Rückweg
+// 0127 und ihr Rückweg gegen eine eigene, frische Datenbank, die genau der Rolle cevi_os_besitzer gehört (wie auf dem Server): Die Rolle legt btree_gist ohne Superuser an (vertrauenswürdige Erweiterung). Erst bis 0126 migrieren (0126 gehört zu #449), dann 0127 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig447_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -47,7 +47,7 @@ beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
-  ordnerBauen(bisVorher, 125);
+  ordnerBauen(bisVorher, 126);
   ordnerBauen(komplett, 127);
 }, 60_000);
 
