@@ -168,12 +168,16 @@ describe("Was ausgeliefert wird", () => {
     });
 
     const e = await lauf();
-    expect(e).toEqual({ geschrieben: 7, geloescht: 0, fehler: 0 });
+    // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite und je eine Hülle für die zwei ganz geschützten Seiten
+    expect(e).toEqual({ geschrieben: 10, geloescht: 0, fehler: 0 });
 
     const dateien = await alle();
     expect(Object.keys(dateien).sort()).toEqual([
       "404.html",
+      "anmelden/index.html",
+      "gruppe/index.html",
       "index.html",
+      "intern/index.html",
       "robots.txt",
       "sitemap.xml",
       "stufen/index.html",
@@ -199,6 +203,28 @@ describe("Was ausgeliefert wird", () => {
       '<li><a href="/">Start</a></li><li><a href="/stufen">Stufen</a><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
     );
     expect(dateien["404.html"]).toContain("Seite nicht gefunden");
+    // Ganz geschützte Seiten: nur eine Hülle ohne Titel und Inhalt, mit Hinweis und Link zur Anmeldung, nie in der Sitemap
+    for (const [datei, pfad] of [
+      ["intern/index.html", "/intern"],
+      ["gruppe/index.html", "/gruppe"],
+    ] as const) {
+      const h = dateien[datei]!;
+      expect(h).toContain("<h1>Geschützte Seite</h1>");
+      expect(h).toContain(`data-huelle data-pfad="${pfad}"`);
+      expect(h).toContain(
+        `href="/anmelden?weiter=${encodeURIComponent(pfad)}"`,
+      );
+      expect(h).toContain("noindex");
+      expect(h).not.toContain("<h1>intern");
+      expect(h).not.toContain("<h1>gruppe");
+    }
+    expect(dateien["sitemap.xml"]).not.toContain("intern");
+    expect(dateien["sitemap.xml"]).not.toContain("gruppe");
+    // Die Anmeldeseite hat Formular und Skript, aber kein name-Attribut an den Feldern (nie ein Passwort in einer Adresse)
+    expect(dateien["anmelden/index.html"]).toContain(
+      'src="/website/anmelden.js"',
+    );
+    expect(dateien["anmelden/index.html"]).not.toMatch(/<input[^>]* name=/);
     // Sitemap nur öffentlich
     const locs = [
       ...dateien["sitemap.xml"]!.matchAll(/<loc>([^<]+)<\/loc>/g),
@@ -214,6 +240,35 @@ describe("Was ausgeliefert wird", () => {
     // Hash und Zeitpunkt nur bei den Seiten mit Datei
     expect((await hash(start)).h).toMatch(/^[0-9a-f]{64}$/);
     expect((await hash(start)).am).toBeInstanceOf(Date);
+  });
+
+  test("Skripte liegen unter website/; nur Seiten mit Platzhalter laden das Skript, mit angepasster Meta-CSP", async () => {
+    await seite({
+      adresse: "offen",
+      inhalt: dok("Offen", text("Nur öffentlich")),
+    });
+    await seite({
+      adresse: "mit",
+      inhalt: dok(
+        "Mit",
+        text("Geheim", { sichtbarkeit: { art: "angemeldet" } }),
+      ),
+    });
+    await lauf({ skripte: { "geschuetzt.js": "// a", "knoten.js": "// b" } });
+    const d = await alle();
+    expect(d["website/geschuetzt.js"]).toBe("// a");
+    expect(d["website/knoten.js"]).toBe("// b");
+    expect(d["offen/index.html"]).not.toMatch(/<script|script-src/);
+    expect(d["mit/index.html"]).toContain(
+      '<script type="module" src="/website/geschuetzt.js"></script>',
+    );
+    expect(d["mit/index.html"]).toContain("script-src");
+    expect(d["mit/index.html"]).toContain('data-pfad="/mit"');
+    // Ohne Inline-Skript, nie unsafe-inline oder eval
+    for (const html of Object.values(d)) {
+      expect(html).not.toMatch(/unsafe-inline|unsafe-eval/);
+      expect(html).not.toMatch(/<script(?![^>]* src=)/);
+    }
   });
 
   test("Seiten anderer Abteilungen und reservierte Adressen erzeugen nie eine Datei", async () => {
@@ -236,6 +291,7 @@ describe("Was ausgeliefert wird", () => {
     await lauf();
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "anmelden/index.html",
       "ordner/api/index.html",
       "ordner/index.html",
       "robots.txt",
@@ -401,7 +457,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     await seite({ adresse: "unter", inhalt: dok("Unter") });
     const merker = new Map<string, string>();
-    expect((await lauf({ merker })).geschrieben).toBe(6);
+    expect((await lauf({ merker })).geschrieben).toBe(7);
     const vorher = await hash(id);
     // Eigene Ausgabe, die jeden Schreibversuch zählt
     const schreibt = vi.spyOn(ausgabe, "schreibe");
@@ -412,8 +468,8 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
     const nachNeustart = await lauf();
-    expect(nachNeustart.geschrieben).toBe(4);
-    expect(schreibt).toHaveBeenCalledTimes(4);
+    expect(nachNeustart.geschrieben).toBe(5);
+    expect(schreibt).toHaveBeenCalledTimes(5);
     expect(await hash(id)).toEqual(vorher);
   });
 
@@ -457,9 +513,12 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       .where(eq(schema.seite.id, b));
     await db.delete(schema.seite).where(eq(schema.seite.id, c));
     const e = await lauf();
-    expect(e.geloescht).toBe(3);
+    // a (zurückgezogen) und c (gelöscht) gehen; b ist jetzt ganz geschützt und wird zur Hülle
+    expect(e.geloescht).toBe(2);
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "anmelden/index.html",
+      "b/index.html",
       "d/index.html",
       "notiz.txt",
       "robots.txt",
@@ -469,7 +528,9 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     expect(await lies(".htaccess")).toBe("bleibt");
     expect((await lies("sitemap.xml")).match(/<loc>/g)).toHaveLength(1);
     expect((await hash(a)).h).toBeNull();
-    expect((await hash(b)).h).toBeNull();
+    expect((await hash(b)).h).toMatch(/^[0-9a-f]{64}$/);
+    expect(await lies("b/index.html")).toContain("<h1>Geschützte Seite</h1>");
+    expect(await lies("b/index.html")).not.toContain("<h1>B</h1>");
     // Die Navigation der übrigen Seiten kennt sie nicht mehr
     expect(await lies("d/index.html")).not.toContain('href="/a"');
   });
@@ -491,6 +552,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     await lauf();
     expect(await ausgabe.liste()).toEqual([
       "404.html",
+      "anmelden/index.html",
       "robots.txt",
       "sitemap.xml",
       "website/website.css",
