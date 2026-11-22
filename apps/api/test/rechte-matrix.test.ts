@@ -1181,6 +1181,16 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Geschützte Bausteine der Website (#354): ohne Sitzung 401, mit Sitzung nichts ohne Seite (404, auch in der Demo-Abteilung); die Wirkung je Persona steht in test/website-inhalt.test.ts
+  "GET /api/v1/website/inhalt": {
+    url: () => "/api/v1/website/inhalt?pfad=/matrix-unbekannt",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({

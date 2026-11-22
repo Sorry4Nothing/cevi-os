@@ -4149,6 +4149,55 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/website/inhalt:
+    get:
+      operationId: leseWebsiteInhalt
+      summary: Geschützte Bausteine einer Seite der Website nachladen
+      description: |
+        Für das Skript der öffentlichen Website (#354). Liefert für die Seite `pfad` aus der veröffentlichten Version nur die Bausteine, die die Person laut Sichtbarkeit sehen darf, als Knoten: Elemente `{ tag, attr?, kinder? }` und Texte (Zeichenketten). Der Server liefert für geschützte Inhalte nie HTML; das Skript baut aus den Knoten DOM-Knoten ohne `innerHTML`. Telefon, E-Mail und Foto von Personen kommen nie vor.
+
+        Bei einer öffentlichen Seite kommen nur die Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags), bei einer ganz geschützten Seite alle Bausteine, die die Person sehen darf, dazu der Titel. Ein Baustein ohne Inhalt (zum Beispiel ein fehlendes Medium) fehlt in der Liste.
+
+        `pfad` ist `/` (die Startseite, Adresse `start`) oder `/a/b` mit bis zu fünf Adressstücken aus `a-z`, `0-9` und `-`, ohne Schrägstrich am Ende, Anfrage oder Anker. Die Seite wird nur in der Abteilung der Person gesucht.
+
+        Ohne Sitzung 401 mit dem üblichen neutralen Body. Mit Sitzung antworten eine unbekannte Seite, eine Seite ohne veröffentlichte Version, eine Seite einer anderen Abteilung, eine Seite, die die Person nicht sehen darf, und ein ungültiger `pfad` alle gleich mit 404, ohne Hinweis auf den Inhalt. Die Antwort ist `Cache-Control: private, no-store` und `Vary: Cookie`.
+
+        Statuscodes: 200, 401, 403 (Pflichtwechsel des Passworts offen), 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: pfad
+          in: query
+          required: true
+          description: Adresse der Seite auf der Website, zum Beispiel `/stufen/woelfe`.
+          schema:
+            type: string
+            maxLength: 400
+            pattern: "^/([a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4})?$"
+      responses:
+        "200":
+          description: Die Bausteine in der Reihenfolge der Seite.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                  - private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteInhalt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
 components:
   schemas:
     Fehler:
@@ -7051,6 +7100,49 @@ components:
         veroeffentlicht:
           type: boolean
           description: Die Seite zeigt gerade diese Version.
+    WebsiteInhalt:
+      type: object
+      required:
+        - titel
+        - bausteine
+      properties:
+        titel:
+          type: string
+          description: Titel der Seite (nur für die Person sichtbar, die die Seite sehen darf).
+        bausteine:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - knoten
+            properties:
+              id:
+                type: string
+                format: uuid
+                description: ID des Bausteins; bei einer öffentlichen Seite die des Platzhalters `data-geschuetzt` im HTML.
+              knoten:
+                $ref: "#/components/schemas/WebsiteKnoten"
+    WebsiteKnoten:
+      description: Ein Text (Zeichenkette) oder ein Element. Das Skript setzt Text als Textknoten und lässt nur bekannte Elemente und Attribute mit geprüften Werten zu.
+      oneOf:
+        - type: string
+        - type: object
+          required:
+            - tag
+          properties:
+            tag:
+              type: string
+            attr:
+              type: object
+              additionalProperties:
+                oneOf:
+                  - type: string
+                  - type: boolean
+            kinder:
+              type: array
+              items:
+                $ref: "#/components/schemas/WebsiteKnoten"
   parameters:
     AppVersion:
       name: X-App-Version

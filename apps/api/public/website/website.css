@@ -181,3 +181,118 @@ footer {
   border-top: 1px solid var(--rand);
   color: var(--text-leise);
 }
+
+/* Geschützte Bausteine und Anmeldung (#354) */
+:root {
+  --fehler: #9b1c1c;
+  --skelett: #dcdce6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fehler: #ffb4b4;
+    --skelett: #2c2c44;
+  }
+}
+
+.nur-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hinweis {
+  margin: 1rem 0;
+  padding: 1rem;
+  border: 1px solid var(--rand);
+  border-left-width: 0.375rem;
+  background: var(--hinweis);
+}
+
+.hinweis p {
+  margin: 0 0 0.5rem;
+}
+
+.hinweis > :last-child {
+  margin-bottom: 0;
+}
+
+.hinweis--fehler {
+  border-color: var(--fehler);
+}
+
+.hinweis--fehler strong {
+  color: var(--fehler);
+}
+
+/* Platzhalter in der Form des Inhalts: feste Mindesthöhe, damit nichts springt. Ohne Bewegung */
+.skeleton {
+  min-height: 6rem;
+  margin: 1rem 0;
+}
+
+.skeleton span {
+  display: block;
+  height: 1rem;
+  margin: 0 0 0.75rem;
+  background: var(--skelett);
+}
+
+.skeleton span:nth-child(2) {
+  width: 90%;
+}
+
+.skeleton span:nth-child(3) {
+  width: 60%;
+}
+
+.formular p {
+  margin: 0 0 1rem;
+}
+
+.formular label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+}
+
+.formular input {
+  width: 100%;
+  max-width: 24rem;
+  min-height: 2.75rem;
+  padding: 0.5rem;
+  border: 2px solid var(--text-leise);
+  background: var(--flaeche);
+  color: inherit;
+  font: inherit;
+}
+
+.formular input[aria-invalid="true"] {
+  border-color: var(--fehler);
+}
+
+.hilfe {
+  color: var(--text-leise);
+}
+
+button.knopf {
+  min-height: 2.75rem;
+  border: 2px solid var(--akzent);
+  font: inherit;
+  cursor: pointer;
+}
+
+button.knopf:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+button.knopf--still {
+  background: transparent;
+  color: var(--akzent);
+}
