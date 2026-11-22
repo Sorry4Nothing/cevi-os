@@ -367,6 +367,13 @@ Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Le
 - Zuordnung: Fahrer und Mitfahrende sind aktive Mitglieder des Lagers oder Teilnehmende dieses Lagers (400 sonst; fremde Abteilungen und gesperrte Konten zählen nicht). Je Richtung höchstens eine Fahrt je Person (409), geprüft unter der Lagersperre und zusätzlich durch Teilindizes und Fremdschlüssel über Lager, Fahrt und Richtung.
 - Ressourcenverbrauch (SR-71): Seitenwechsel bei der Liste, eine Abfrage je Seite und für «ohne Fahrt», unabhängig von der Zahl der Fahrten (Test zählt Abfragen).
 
+**Erweiterung #378 (Höcks):**
+
+- Das Team sieht von Höcks nur die der Art `team` und nur Datum, Zeit, Titel und Ort; ein Höck der Lagerleitung ist für das Team 404 (wie ein unbekannter), auch als Liste, im Änderungsfeed (Zeilenfilter) und als Kalenderdatei. Traktanden, Gäste, Anwesende und Höck-Modus brauchen `hoecks.lesen_alle` (Test `test/lager/hoecks.test.ts`).
+- Die Kalenderdatei (`GET .../hoecks/{id}.ics`) enthält nur Titel, Ort, Datum und Zeit; die Werte sind nach RFC 5545 maskiert, Steuerzeichen und Zeilenumbrüche können keine Zeile oder keinen Block einschleusen (Test mit `ical.js`). Kopfzeilen `Cache-Control: private, no-cache`, `ETag`, `X-Content-Type-Options: nosniff`.
+- Verantwortliche, Anwesende, Höck und Aufgabe eines Traktandums müssen zum selben Lager gehören (zusammengesetzte Fremdschlüssel und Prüfung in der Transaktion); Links nur `https` ohne Zugangsdaten, der Server ruft sie nie ab (SR-26). Gäste sind Freitext (Namen) und nur für `hoecks.lesen_alle` sichtbar.
+- Ein Höck mit Traktanden lässt sich nicht löschen (409), damit keine Entscheide als Nebenwirkung verloren gehen. Das Protokoll liegt als Verknüpfung im SharePoint (#379); `hoeck.protokoll_id` hat keinen Fremdschlüssel und ist über die API nicht setzbar.
+
 **Restrisiko:** Die Abteilungsleitung gilt in jedem Lager der Abteilung als Lagerleitung (Annahme, auch für Adressbuch und Eingang); wer ihr Konto übernimmt, liest alle Lager der Abteilung. Das Konto schützen der zweite Faktor und die Bedrohung 6. Der Änderungsfeed verrät einer Rolle mit Leserecht, dass sich ein Eintrag geändert hat und wann, auch wenn sie den Inhalt nie abruft; Inhalte und Personen stehen nicht darin. Wer ein Modul nicht im Register der Lager-Tabellen anmeldet, bekommt beim ersten Schreiben einen Fehler; ein falsch gewähltes Leserecht oder ein fehlender Zeilenfilter bei der Anmeldung zeigt kein Test, das prüft die Durchsicht des Moduls.
 
 **OWASP:** ASVS V8 Authorization.

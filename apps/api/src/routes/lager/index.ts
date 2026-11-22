@@ -12,6 +12,7 @@ import { erstelleDokumentRouten } from "./dokumente.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEinkaufRouten } from "./einkauf.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
+import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleRessortRouten } from "./ressorts.js";
@@ -46,6 +47,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleAufgabenDetailsRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
+    .route("/", erstelleHoeckRouten({ db }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))
