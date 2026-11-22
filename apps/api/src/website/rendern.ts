@@ -223,7 +223,7 @@ function navigation(punkte: NavPunkt[], aktuell: string | null): string {
 }
 
 // Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile und Bilder, keine Skripte, keine Rahmen
-const CSP =
+export const CSP =
   "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 
 function rahmen(

@@ -33,6 +33,7 @@ import {
   type Mitglied,
   type NavPunkt,
 } from "./rendern.js";
+import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
   adresseSchema,
   adressenVon,
@@ -52,7 +53,7 @@ const SITEMAP = "sitemap.xml";
 const ROBOTS = "robots.txt";
 const FEHLERSEITE = "404.html";
 const STYLESHEET = "website/website.css";
-// Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten. Alles andere im Verzeichnis bleibt unangetastet
+// Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
 const SEITENDATEI = /(^|\/)index\.html$/;
 
 // Weitere Quellen für Bausteine mit Daten (#355: Stufenfakten, später die Termine); ihre Einträge ergänzen die eingebauten
@@ -407,6 +408,17 @@ export async function erzeugeWebsite(
     daten,
   };
 
+  // Weiterleitungen alter Adressen (#356): weiterleitungen.caddy und eine Rückfallseite je alter Adresse, wie die übrigen Gesamtdateien
+  const weiterleitungen = await baueWeiterleitungen(db, {
+    abteilungId,
+    abteilung: abt.name,
+    basisUrl,
+    seiten: [...sichtbar.keys()].map((id) => ({
+      pfad: oeffentlich.get(id)!.pfad,
+      tagId: zeilen.find((z) => z.id === id)!.tagId,
+    })),
+  });
+
   const vorhanden = new Set(await ausgabe.liste());
   const soll = new Set<string>([
     ...behalten,
@@ -414,6 +426,7 @@ export async function erzeugeWebsite(
     ROBOTS,
     FEHLERSEITE,
     STYLESHEET,
+    ...weiterleitungen.map(([datei]) => datei),
   ]);
 
   // Seiten: schreiben, wenn sich die Datei geändert hat oder fehlt
@@ -458,6 +471,7 @@ export async function erzeugeWebsite(
     [ROBOTS, rendereRobots(basisUrl)],
     [FEHLERSEITE, rendereFehlerseite(kontext)],
     [STYLESHEET, opt.stylesheet],
+    ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {
     const hash = sha256(inhalt);
@@ -474,7 +488,12 @@ export async function erzeugeWebsite(
 
   // Aufräumen: Seitendateien, die zu keiner öffentlichen Seite mehr gehören (zurückgezogen, gelöscht, nicht mehr öffentlich, Adresse geändert)
   for (const datei of vorhanden) {
-    if (soll.has(datei) || !SEITENDATEI.test(datei)) continue;
+    if (
+      soll.has(datei) ||
+      !(SEITENDATEI.test(datei) || datei === CADDY_DATEI)
+    ) {
+      continue;
+    }
     try {
       await ausgabe.loesche(datei);
       ergebnis.geloescht++;

@@ -4149,6 +4149,140 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/weiterleitungen:
+    get:
+      operationId: listeRedaktionWeiterleitungen
+      summary: Weiterleitungen alter Adressen
+      description: |
+        Alle Weiterleitungen der Abteilung, nach alter Adresse sortiert (höchstens 1000, darum ohne Seitenwechsel). Nur Abteilungsleitung und Redaktion; eine Stufenleitung hat Zugang zum Namensraum, aber nicht zu dieser Route (403). Admins brauchen den zweiten Faktor.
+
+        Zusätzlich zu diesen Zeilen leitet die Website die alte Adresse `/cevistufe-<name>` der Stufenseiten automatisch auf die Stufenseite, sobald sie besteht; diese Zeilen stehen nicht in der Liste.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Recht.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Weiterleitungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionWeiterleitungenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeRedaktionWeiterleitungAn
+      summary: Weiterleitung anlegen
+      description: |
+        Nur Abteilungsleitung und Redaktion. Eine alte Adresse leitet auf einen internen Pfad der Website. Beide Pfade sind relativ: Stücke aus `a-z`, `0-9` und `-` (dahinter Endungen mit `.`), höchstens 7 Stücke und 200 Zeichen, sie beginnen mit `/`. Ein Host, ein Schema, `//`, `\`, `..`, eine Query oder ein Anker sind 400 (kein offener Redirect). Das Ziel darf `/` sein. Die alte Adresse darf nicht mit einer reservierten obersten Adresse beginnen (siehe Seite anlegen). Ohne `status` gilt 301; erlaubt sind 301 und 302.
+
+        Das Ziel ist nie selbst eine alte Adresse, und eine alte Adresse ist nie das Ziel einer anderen Weiterleitung: Ketten und Schleifen sind 409. Die alte Adresse ist je Abteilung eindeutig. Höchstens 1000 Weiterleitungen je Abteilung.
+
+        Die Auslieferung schreibt daraus `weiterleitungen.caddy` (ein Vorschlag, nichts wird eingebunden) und eine Rückfallseite mit `meta refresh` am alten Pfad. Wo eine Seite der Website liegt, gilt keine Weiterleitung. Audit-Log: `weiterleitung_angelegt` mit dem Status, nie mit den Pfaden.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 403 ohne Recht. 409 mit `WEITERLEITUNG_SCHLEIFE`, `WEITERLEITUNG_KETTE`, `WEITERLEITUNG_ADRESSE_VERGEBEN` oder `WEITERLEITUNG_ZU_VIELE`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionWeiterleitungAnlegen"
+      responses:
+        "201":
+          description: Weiterleitung angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "409":
+          $ref: "#/components/responses/RedaktionWeiterleitung409"
+  /api/v1/redaktion/weiterleitungen/{id}:
+    patch:
+      operationId: aendereRedaktionWeiterleitung
+      summary: Weiterleitung ändern
+      description: |
+        Nur Abteilungsleitung und Redaktion. Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. Es gelten dieselben Regeln wie beim Anlegen, geprüft gegen den Stand ohne diese Zeile. Audit-Log: `weiterleitung_geaendert` mit den Namen der Felder.
+
+        Reihenfolge der Prüfungen: Zugang (403), Body (400), Weiterleitung in der eigenen Abteilung (404), Recht (403), Kette und Eindeutigkeit (409).
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde oder unbekannte ID, 409 wie beim Anlegen.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionWeiterleitungId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionWeiterleitungAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionWeiterleitung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheRedaktionWeiterleitung
+      summary: Weiterleitung löschen
+      description: |
+        Nur Abteilungsleitung und Redaktion. Der nächste Abgleich entfernt die Rückfallseite und die Zeile in `weiterleitungen.caddy`. Audit-Log: `weiterleitung_geloescht`.
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde oder unbekannte ID.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionWeiterleitungId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
 components:
   schemas:
     Fehler:
@@ -6933,6 +7067,72 @@ components:
           type: integer
           minimum: 0
           description: Zählt jedes Speichern und jedes Zurückholen des Entwurfs.
+    RedaktionWeiterleitungAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - alterPfad
+        - zielPfad
+      properties:
+        alterPfad:
+          type: string
+          maxLength: 200
+          pattern: "^/[a-z0-9-]+([.][a-z0-9]+)*(/[a-z0-9-]+([.][a-z0-9]+)*){0,6}$"
+          description: Die alte Adresse als relativer Pfad, etwa `/alte-seite`.
+        zielPfad:
+          type: string
+          maxLength: 200
+          description: Der neue Pfad auf der Website, `/` oder wie die alte Adresse aufgebaut.
+        status:
+          type: integer
+          enum: [301, 302]
+          default: 301
+    RedaktionWeiterleitungAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        alterPfad:
+          type: string
+          maxLength: 200
+          pattern: "^/[a-z0-9-]+([.][a-z0-9]+)*(/[a-z0-9-]+([.][a-z0-9]+)*){0,6}$"
+        zielPfad:
+          type: string
+          maxLength: 200
+        status:
+          type: integer
+          enum: [301, 302]
+    RedaktionWeiterleitung:
+      type: object
+      required:
+        - id
+        - alterPfad
+        - zielPfad
+        - status
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        alterPfad:
+          type: string
+        zielPfad:
+          type: string
+        status:
+          type: integer
+          enum: [301, 302]
+        erstelltAm:
+          type: string
+          format: date-time
+    RedaktionWeiterleitungenListe:
+      type: object
+      required:
+        - weiterleitungen
+      properties:
+        weiterleitungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionWeiterleitung"
     RedaktionEntwurf:
       type: object
       required:
@@ -7159,6 +7359,14 @@ components:
       schema:
         type: string
         format: uuid
+    RedaktionWeiterleitungId:
+      name: id
+      in: path
+      required: true
+      description: ID der Weiterleitung (UUID).
+      schema:
+        type: string
+        format: uuid
     RedaktionVersionNr:
       name: nr
       in: path
@@ -7265,6 +7473,13 @@ components:
     RedaktionSeite409:
       description: |
         Konflikt: `ADRESSE_VERGEBEN` (die Adresse gibt es unter dieser Elternseite schon), `TAG_VERGEBEN` (die Gruppe hat schon eine Seite) oder `SEITE_HAT_UNTERSEITEN` (Löschen mit Unterseiten).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionWeiterleitung409:
+      description: |
+        Konflikt: `WEITERLEITUNG_SCHLEIFE` (die Weiterleitung führt im Kreis), `WEITERLEITUNG_KETTE` (das Ziel ist selbst eine alte Adresse oder umgekehrt), `WEITERLEITUNG_ADRESSE_VERGEBEN` (die alte Adresse hat schon eine Weiterleitung) oder `WEITERLEITUNG_ZU_VIELE` (mehr als 1000).
       content:
         application/json:
           schema:

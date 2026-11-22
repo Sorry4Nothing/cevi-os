@@ -2,15 +2,17 @@ import { log } from "../log.js";
 
 // Schnittstelle zwischen der Seitenverwaltung und der Auslieferung (#351): Wer Seiten ändert, meldet es hier, wer ausliefert, hört zu.
 // Gemeldet wird nach dem Schreiben (nach dem Commit), nie mit Inhalt: Der Hörer liest den Stand aus der Datenbank.
-// «seite_geaendert» und «seite_geloescht» meldet #348; «version_veroeffentlicht» und «version_zurueckgezogen» melden die Routen von #350.
+// «seite_geaendert» und «seite_geloescht» meldet #348; «version_veroeffentlicht» und «version_zurueckgezogen» melden die Routen von #350; «weiterleitung_geaendert» melden die Routen von #356.
 export type WebsiteEreignis = {
   art:
     | "seite_geaendert"
     | "version_veroeffentlicht"
     | "version_zurueckgezogen"
-    | "seite_geloescht";
+    | "seite_geloescht"
+    | "weiterleitung_geaendert";
   abteilungId: string;
-  seiteId: string;
+  // Bei Weiterleitungen (#356) leer: Sie gehören keiner Seite
+  seiteId?: string;
 };
 type Hoerer = (ereignis: WebsiteEreignis) => void | Promise<void>;
 

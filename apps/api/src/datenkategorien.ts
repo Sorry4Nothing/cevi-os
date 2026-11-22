@@ -134,9 +134,9 @@ export const KATEGORIEN = {
   website: {
     titel: "Seiten der Website",
     zweck:
-      "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat.",
+      "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat. Alte Adressen der Website leiten auf die neuen Seiten weiter; bei einer Weiterleitung steht, welches Konto sie angelegt hat.",
     frist:
-      "Bis die Redaktion die Seite löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand erstellt hat.",
+      "Bis die Redaktion die Seite oder die Weiterleitung löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand oder eine Weiterleitung erstellt hat.",
     apple: [],
     google: [],
   },
@@ -331,6 +331,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   seite_version: {
     website: ["id", "seite_id", "nr", "inhalt", "autor_id", "erstellt_am"],
+  },
+  weiterleitung: {
+    website: [
+      "id",
+      "abteilung_id",
+      "alter_pfad",
+      "ziel_pfad",
+      "status",
+      "erstellt_von",
+      "erstellt_am",
+    ],
   },
   anwesenheit_kind: {
     anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],
