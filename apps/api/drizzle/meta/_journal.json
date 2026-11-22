@@ -316,6 +316,13 @@
       "when": 1793550500000,
       "tag": "0065_lager_benachrichtigungen",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1793550700000,
+      "tag": "0067_lager_ressorts",
+      "breakpoints": true
     }
   ]
 }
