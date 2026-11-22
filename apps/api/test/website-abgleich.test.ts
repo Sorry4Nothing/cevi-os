@@ -206,7 +206,10 @@ describe("Was ausgeliefert wird", () => {
     expect(dateien["website/website.css"]).toBe(CSS);
     // Navigation: Baum nur aus öffentlichen Seiten, aktuelle Seite markiert
     expect(dateien["stufen/woelfe/index.html"]).toContain(
-      '<li><a href="/">Start</a></li><li><a href="/stufen" aria-current="true">Stufen</a><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
+      '<li><a href="/">Start</a></li><li class="mit-unter"><a href="/stufen" aria-current="true">Stufen</a><details open><summary aria-label="Unterseiten von Stufen">',
+    );
+    expect(dateien["stufen/woelfe/index.html"]).toContain(
+      '</summary><ul><li><a href="/stufen/woelfe" aria-current="page">Wölfe</a>',
     );
     expect(dateien["404.html"]).toContain("Seite nicht gefunden");
     // Ganz geschützte Seiten: nur eine Hülle ohne Titel und Inhalt, mit Hinweis und Link zur Anmeldung, nie in der Sitemap
@@ -324,6 +327,28 @@ describe("Was ausgeliefert wird", () => {
       );
       expect(html, datei).not.toContain("<b>CEVI</b>");
     }
+
+    // Fassung für den dunklen Modus (#558): beide Bilder im Kopf; eine nicht öffentliche Fassung fehlt, das Logo bleibt
+    const setzeDunkel = (dunkel: string | null) =>
+      db
+        .update(schema.abteilung)
+        .set({ websiteLogoDunkelMediumId: dunkel })
+        .where(eq(schema.abteilung.id, abteilungId));
+    const dunkel = await neuesMedium();
+    await setzeDunkel(dunkel);
+    await lauf();
+    expect(await lies("index.html")).toContain(
+      `<img class="logo logo--hell" src="/api/v1/medien/${logo}" alt="Cevi" width="715" height="178"><img class="logo logo--dunkel" src="/api/v1/medien/${dunkel}" alt="Cevi" width="715" height="178">`,
+    );
+    const dunkelIntern = await neuesMedium({ sichtbarkeit: "angemeldet" });
+    await setzeDunkel(dunkelIntern);
+    await lauf();
+    const ohneDunkel = await lies("index.html");
+    expect(ohneDunkel).toContain(
+      `<img class="logo" src="/api/v1/medien/${logo}"`,
+    );
+    expect(ohneDunkel).not.toContain(dunkelIntern);
+    await setzeDunkel(null);
 
     // Nicht öffentlich oder aus einer anderen Abteilung: wieder die Wortmarke
     const intern = await neuesMedium({ sichtbarkeit: "angemeldet" });
