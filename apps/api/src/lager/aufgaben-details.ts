@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -181,7 +181,6 @@ async function ladeCheckpunkt(
         eq(aufgabeCheckpunkt.id, id),
         eq(aufgabeCheckpunkt.lagerId, lagerId),
         eq(aufgabeCheckpunkt.aufgabeId, aufgabeId),
-        isNull(aufgabeCheckpunkt.geloeschtAm),
       ),
     );
   if (!zeile) throw new HTTPException(404);
@@ -202,7 +201,6 @@ async function ladeLink(
         eq(aufgabeLink.id, id),
         eq(aufgabeLink.lagerId, lagerId),
         eq(aufgabeLink.aufgabeId, aufgabeId),
-        isNull(aufgabeLink.geloeschtAm),
       ),
     );
   if (!zeile) throw new HTTPException(404);
@@ -217,12 +215,7 @@ async function checklisteMasse(tx: Pick<Db, "select">, aufgabeId: string) {
       ende: sql<number>`coalesce(max(${aufgabeCheckpunkt.reihenfolge}) + 1, 0)`,
     })
     .from(aufgabeCheckpunkt)
-    .where(
-      and(
-        eq(aufgabeCheckpunkt.aufgabeId, aufgabeId),
-        isNull(aufgabeCheckpunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(aufgabeCheckpunkt.aufgabeId, aufgabeId)));
   return zeile!;
 }
 
@@ -301,12 +294,7 @@ export async function sortiereCheckliste(
       reihenfolge: aufgabeCheckpunkt.reihenfolge,
     })
     .from(aufgabeCheckpunkt)
-    .where(
-      and(
-        eq(aufgabeCheckpunkt.aufgabeId, aufgabeId),
-        isNull(aufgabeCheckpunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(aufgabeCheckpunkt.aufgabeId, aufgabeId)));
   const nachId = new Map(vorhanden.map((z) => [z.id, z]));
   if (eintraege.some((e) => !nachId.has(e.id))) throw new HTTPException(404);
   for (const [stelle, e] of eintraege.entries()) {
@@ -330,12 +318,7 @@ export async function legeLinkAn(
   const [masse] = await tx
     .select({ n: sql<number>`count(*)::int` })
     .from(aufgabeLink)
-    .where(
-      and(
-        eq(aufgabeLink.aufgabeId, aufgabeId),
-        isNull(aufgabeLink.geloeschtAm),
-      ),
-    );
+    .where(and(eq(aufgabeLink.aufgabeId, aufgabeId)));
   if (masse!.n >= MAX_LINKS) return { fehler: "ZU_VIELE_LINKS" as const };
   return {
     zeile: await legeZeileAn(tx, aufgabeLink, k, { aufgabeId, ...eingabe }),
@@ -450,7 +433,6 @@ export async function ladeDetails(
         and(
           eq(aufgabeCheckpunkt.lagerId, lagerId),
           eq(aufgabeCheckpunkt.aufgabeId, aufgabeId),
-          isNull(aufgabeCheckpunkt.geloeschtAm),
         ),
       )
       .orderBy(asc(aufgabeCheckpunkt.reihenfolge), asc(aufgabeCheckpunkt.id)),
@@ -461,7 +443,6 @@ export async function ladeDetails(
         and(
           eq(aufgabeLink.lagerId, lagerId),
           eq(aufgabeLink.aufgabeId, aufgabeId),
-          isNull(aufgabeLink.geloeschtAm),
         ),
       )
       .orderBy(asc(aufgabeLink.id)),

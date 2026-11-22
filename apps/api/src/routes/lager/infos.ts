@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -49,7 +49,6 @@ export function erstelleInfosRouten({ db }: { db: Db }) {
         and(
           eq(infoAbschnitt.id, id),
           eq(infoAbschnitt.lagerId, lagerId),
-          isNull(infoAbschnitt.geloeschtAm),
           vertraulich ? undefined : eq(infoAbschnitt.nurLagerleitung, false),
         ),
       );
@@ -95,12 +94,7 @@ export function erstelleInfosRouten({ db }: { db: Db }) {
                 ende: sql<number>`coalesce(max(${infoAbschnitt.reihenfolge}) + 1, 0)`,
               })
               .from(infoAbschnitt)
-              .where(
-                and(
-                  eq(infoAbschnitt.lagerId, lagerId),
-                  isNull(infoAbschnitt.geloeschtAm),
-                ),
-              );
+              .where(and(eq(infoAbschnitt.lagerId, lagerId)));
             if (stand!.n >= INFOS_MAX) return undefined;
             const k = { lagerId, personId: c.get("person").id };
             const zeile = await legeZeileAn(tx, infoAbschnitt, k, {
@@ -149,7 +143,6 @@ export function erstelleInfosRouten({ db }: { db: Db }) {
               .where(
                 and(
                   eq(infoAbschnitt.lagerId, lagerId),
-                  isNull(infoAbschnitt.geloeschtAm),
                   vertraulich
                     ? undefined
                     : eq(infoAbschnitt.nurLagerleitung, false),
@@ -234,7 +227,6 @@ export function erstelleInfosRouten({ db }: { db: Db }) {
                 and(
                   eq(infoAbschnittDatei.lagerId, lagerId),
                   eq(infoAbschnittDatei.abschnittId, abschnittId),
-                  isNull(infoAbschnittDatei.geloeschtAm),
                 ),
               );
             for (const v of vorhanden) {

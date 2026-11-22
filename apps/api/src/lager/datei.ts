@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -79,13 +79,7 @@ export async function ladeDateien(db: Db, lagerId: string, ids: string[]) {
   const zeilen = await db
     .select()
     .from(lagerDatei)
-    .where(
-      and(
-        inArray(lagerDatei.id, ids),
-        eq(lagerDatei.lagerId, lagerId),
-        isNull(lagerDatei.geloeschtAm),
-      ),
-    );
+    .where(and(inArray(lagerDatei.id, ids), eq(lagerDatei.lagerId, lagerId)));
   return new Map(zeilen.map((z) => [z.id, dateiAnsicht(z)]));
 }
 
@@ -98,13 +92,7 @@ export async function pruefeDateiImLager(
   const [zeile] = await db
     .select({ id: lagerDatei.id })
     .from(lagerDatei)
-    .where(
-      and(
-        eq(lagerDatei.id, dateiId),
-        eq(lagerDatei.lagerId, lagerId),
-        isNull(lagerDatei.geloeschtAm),
-      ),
-    );
+    .where(and(eq(lagerDatei.id, dateiId), eq(lagerDatei.lagerId, lagerId)));
   if (!zeile) throw new HTTPException(400);
 }
 
@@ -119,11 +107,7 @@ export async function ladeSichtbareDatei(
     .select()
     .from(lagerDatei)
     .where(
-      and(
-        eq(lagerDatei.id, id),
-        eq(lagerDatei.lagerId, zugriff.lager.id),
-        isNull(lagerDatei.geloeschtAm),
-      ),
+      and(eq(lagerDatei.id, id), eq(lagerDatei.lagerId, zugriff.lager.id)),
     );
   if (!zeile) return undefined;
   if (

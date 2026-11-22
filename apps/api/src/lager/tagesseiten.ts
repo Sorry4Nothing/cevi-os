@@ -1,4 +1,4 @@
-import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -21,7 +21,7 @@ import { registriereLagerTabelle } from "./tabellen.js";
 import { ladeWetter } from "./wetter.js";
 import type { WetterHolen } from "./wetter-openmeteo.js";
 
-// Tagesseiten (#391): je Lagertag Tageschef, Notiz und Blöcke. Lesen braucht tagesseiten.lesen, Ändern tagesseiten.bearbeiten (Standard: Leitung und Lagerleitung). Die Seite entsteht beim ersten Schreiben. Die Antwort für einen Tag fasst zusammen, was der Tag zeigt: die Seite mit Blöcken, das Wetter des Tages (wetter.lesen, lager/wetter.ts) und die Aufgaben mit Frist an diesem Tag (die To-dos des Tages sind Aufgaben aus #372, keine eigene Tabelle). Alle Schreibwege gehen durch lager/sync.ts (Version, 409 VERSION_KONFLIKT, Feed); Löschen ist ein Soft-Delete
+// Tagesseiten (#391): je Lagertag Tageschef, Notiz und Blöcke. Lesen braucht tagesseiten.lesen, Ändern tagesseiten.bearbeiten (Standard: Leitung und Lagerleitung). Die Seite entsteht beim ersten Schreiben. Die Antwort für einen Tag fasst zusammen, was der Tag zeigt: die Seite mit Blöcken, das Wetter des Tages (wetter.lesen, lager/wetter.ts) und die Aufgaben mit Frist an diesem Tag (die To-dos des Tages sind Aufgaben aus #372, keine eigene Tabelle). Alle Schreibwege gehen durch lager/sync.ts (Version, 409 VERSION_KONFLIKT, Feed); Löschen ist endgültig (#427)
 registriereLagerTabelle({ tabelle: tagesseite, recht: "tagesseiten.lesen" });
 registriereLagerTabelle({
   tabelle: tagesseiteBlock,
@@ -41,7 +41,6 @@ registriereSuchquelle({
   titel: tagTitel,
   von: mitTag(tagesseite),
   id: sql`${lagertag.id}`,
-  aktiv: sql`${tagesseite.geloeschtAm} is null and ${lagertag.geloeschtAm} is null`,
 });
 registriereSuchquelle({
   typ: "tagesseite",
@@ -51,7 +50,6 @@ registriereSuchquelle({
   titel: tagTitel,
   von: mitTag(tagesseiteBlock),
   id: sql`${lagertag.id}`,
-  aktiv: sql`${tagesseiteBlock.geloeschtAm} is null and ${tagesseite.geloeschtAm} is null and ${lagertag.geloeschtAm} is null`,
 });
 // Das Programmbild sieht, wer die Tagesseite lesen darf (lager/datei-verweise.ts)
 registriereDateiVerweis({
@@ -135,13 +133,7 @@ async function ladeTag(tx: Leser, lagerId: string, lagertagId: string) {
   const [tag] = await tx
     .select()
     .from(lagertag)
-    .where(
-      and(
-        eq(lagertag.id, lagertagId),
-        eq(lagertag.lagerId, lagerId),
-        isNull(lagertag.geloeschtAm),
-      ),
-    );
+    .where(and(eq(lagertag.id, lagertagId), eq(lagertag.lagerId, lagerId)));
   if (!tag) throw new HTTPException(404);
   return tag;
 }
@@ -154,7 +146,6 @@ const seiteDesTags = (tx: Leser, lagerId: string, lagertagId: string) =>
       and(
         eq(tagesseite.lagerId, lagerId),
         eq(tagesseite.lagertagId, lagertagId),
-        isNull(tagesseite.geloeschtAm),
       ),
     )
     .then((z) => z[0]);
@@ -174,11 +165,10 @@ export async function ladeTagesliste(db: Leser, lagerId: string) {
       and(
         eq(tagesseite.lagerId, lagertag.lagerId),
         eq(tagesseite.lagertagId, lagertag.id),
-        isNull(tagesseite.geloeschtAm),
       ),
     )
     .leftJoin(user, eq(user.id, tagesseite.tageschefPersonId))
-    .where(and(eq(lagertag.lagerId, lagerId), isNull(lagertag.geloeschtAm)))
+    .where(and(eq(lagertag.lagerId, lagerId)))
     .orderBy(asc(lagertag.datum), asc(lagertag.id));
   return zeilen.map((z) => ({
     lagertagId: z.tag.id,
@@ -220,17 +210,10 @@ export async function ladeTagesseite(
       and(
         eq(tagesseite.lagerId, lagertag.lagerId),
         eq(tagesseite.lagertagId, lagertag.id),
-        isNull(tagesseite.geloeschtAm),
       ),
     )
     .leftJoin(user, eq(user.id, tagesseite.tageschefPersonId))
-    .where(
-      and(
-        eq(lagertag.id, lagertagId),
-        eq(lagertag.lagerId, lagerId),
-        isNull(lagertag.geloeschtAm),
-      ),
-    );
+    .where(and(eq(lagertag.id, lagertagId), eq(lagertag.lagerId, lagerId)));
   if (!zeile) throw new HTTPException(404);
   const { tag, seite } = zeile;
 
@@ -242,7 +225,6 @@ export async function ladeTagesseite(
           and(
             eq(tagesseiteBlock.lagerId, lagerId),
             eq(tagesseiteBlock.seiteId, seite.id),
-            isNull(tagesseiteBlock.geloeschtAm),
           ),
         )
         .orderBy(asc(tagesseiteBlock.reihenfolge), asc(tagesseiteBlock.id))
@@ -367,7 +349,6 @@ export async function legeBlockAn(
       and(
         eq(tagesseiteBlock.lagerId, k.lagerId),
         eq(tagesseiteBlock.seiteId, seite.id),
-        isNull(tagesseiteBlock.geloeschtAm),
       ),
     );
   if (stand!.n >= MAX_BLOECKE) return { fehler: "LIMIT_ERREICHT" };
@@ -405,9 +386,7 @@ async function ladeBlock(
       and(
         eq(tagesseiteBlock.id, blockId),
         eq(tagesseiteBlock.lagerId, lagerId),
-        isNull(tagesseiteBlock.geloeschtAm),
         eq(tagesseite.lagertagId, lagertagId),
-        isNull(tagesseite.geloeschtAm),
       ),
     );
   if (!zeile) throw new HTTPException(404);

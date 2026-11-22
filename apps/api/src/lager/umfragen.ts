@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -137,11 +137,7 @@ export async function ladeUmfragen(
     .select()
     .from(umfrage)
     .where(
-      and(
-        eq(umfrage.lagerId, lagerId),
-        inArray(umfrage.beitragId, beitragIds),
-        isNull(umfrage.geloeschtAm),
-      ),
+      and(eq(umfrage.lagerId, lagerId), inArray(umfrage.beitragId, beitragIds)),
     );
   if (umfragen.length === 0) return ergebnis;
   const ids = umfragen.map((u) => u.id);
@@ -152,7 +148,6 @@ export async function ladeUmfragen(
       and(
         eq(umfrageOption.lagerId, lagerId),
         inArray(umfrageOption.umfrageId, ids),
-        isNull(umfrageOption.geloeschtAm),
       ),
     )
     .orderBy(asc(umfrageOption.reihenfolge), asc(umfrageOption.id));
@@ -166,7 +161,7 @@ export async function ladeUmfragen(
     select umfrage_id, option_id, count(distinct person_id)::int as n,
       coalesce(bool_or(person_id = ${zugriff.personId}::uuid), false) as eigene
     from umfrage_stimme
-    where lager_id = ${lagerId} and umfrage_id in (${inListe(ids)}) and geloescht_am is null
+    where lager_id = ${lagerId} and umfrage_id in (${inListe(ids)})
     group by grouping sets ((umfrage_id, option_id), (umfrage_id))`);
 
   const verwalter = kannNamenSehen(zugriff);
@@ -188,7 +183,6 @@ export async function ladeUmfragen(
         and(
           eq(umfrageStimme.lagerId, lagerId),
           inArray(umfrageStimme.umfrageId, mitNamen),
-          isNull(umfrageStimme.geloeschtAm),
         ),
       )
       .orderBy(asc(umfrageStimme.erstelltAm), asc(umfrageStimme.id));
@@ -268,7 +262,7 @@ export async function ladeReaktionen(
     select ziel_id, emoji, count(*)::int as n,
       coalesce(bool_or(person_id = ${zugriff.personId}::uuid), false) as eigene
     from reaktion
-    where lager_id = ${zugriff.lager.id} and ziel_typ = ${zielTyp} and ziel_id in (${inListe(zielIds)}) and geloescht_am is null
+    where lager_id = ${zugriff.lager.id} and ziel_typ = ${zielTyp} and ziel_id in (${inListe(zielIds)})
     group by ziel_id, emoji`);
   for (const z of zeilen) {
     const a = ergebnis.get(z.ziel_id);
@@ -288,13 +282,7 @@ export async function ladeUmfrageZeile(
   const [zeile] = await db
     .select()
     .from(umfrage)
-    .where(
-      and(
-        eq(umfrage.lagerId, lagerId),
-        eq(umfrage.beitragId, beitragId),
-        isNull(umfrage.geloeschtAm),
-      ),
-    );
+    .where(and(eq(umfrage.lagerId, lagerId), eq(umfrage.beitragId, beitragId)));
   return zeile;
 }
 
@@ -307,7 +295,6 @@ async function meldeAmBeitrag(tx: Tx, k: SchreibKontext, beitragId: string) {
       and(
         eq(pinnwandBeitrag.id, beitragId),
         eq(pinnwandBeitrag.lagerId, k.lagerId),
-        isNull(pinnwandBeitrag.geloeschtAm),
       ),
     );
   if (!beitrag) throw new HTTPException(404);
@@ -376,7 +363,7 @@ export async function aendereUmfrage(
   });
 }
 
-// Soft-Delete der Umfrage; Optionen und Stimmen bleiben als Zeilen stehen und entfallen mit dem endgültigen Löschen (#427). Ohne aktive Umfrage sieht niemand sie mehr
+// Löscht die Umfrage endgültig; Optionen und Stimmen gehen mit (#427)
 export async function loescheUmfrage(
   db: Db,
   k: SchreibKontext,
@@ -424,7 +411,6 @@ export async function setzeStimmen(
         and(
           eq(umfrageOption.lagerId, k.lagerId),
           eq(umfrageOption.umfrageId, u.id),
-          isNull(umfrageOption.geloeschtAm),
         ),
       );
     const gueltig = new Set(optionen.map((o) => o.id));
@@ -480,7 +466,6 @@ const eigeneStimmen = (tx: Tx, k: SchreibKontext, umfrageId: string) =>
         eq(umfrageStimme.lagerId, k.lagerId),
         eq(umfrageStimme.umfrageId, umfrageId),
         eq(umfrageStimme.personId, k.personId),
-        isNull(umfrageStimme.geloeschtAm),
       ),
     );
 
@@ -522,7 +507,6 @@ const eigeneReaktion = async (
           eq(reaktion.zielTyp, zielTyp),
           eq(reaktion.zielId, zielId),
           eq(reaktion.personId, k.personId),
-          isNull(reaktion.geloeschtAm),
         ),
       )
   )[0];

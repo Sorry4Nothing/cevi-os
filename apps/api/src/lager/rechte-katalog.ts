@@ -31,7 +31,7 @@ const e = (bedeutung: string, ...standard: Standard[]): Eintrag => ({
 });
 const katalog = <K extends string>(eintraege: Record<K, Eintrag>) => eintraege;
 
-// Nicht im Katalog, weil fest: Lager-Stammdaten, Mitglieder und Rechte verwalten (Lagerleitung und Abteilungsleitung); eigene To-dos, Benachrichtigungen und Einstellungen (jede Rolle); Suche, Aggregate und Ausdrucke (folgen den Rechten der Daten); Papierkorb und Revisionen (wer den Bereich bearbeiten darf)
+// Nicht im Katalog, weil fest: Lager-Stammdaten, Mitglieder und Rechte verwalten (Lagerleitung und Abteilungsleitung); eigene To-dos, Benachrichtigungen und Einstellungen (jede Rolle); Suche, Aggregate und Ausdrucke (folgen den Rechten der Daten); einen Papierkorb und Revisionen gibt es nicht (#427)
 export const RECHTE_KATALOG = katalog({
   "ressorts.lesen": e("Ressorts, Links und Notizen lesen", "leitung", "lesen"),
   "ressorts.bearbeiten": e("Ressorts, Links und Notizen ändern"),

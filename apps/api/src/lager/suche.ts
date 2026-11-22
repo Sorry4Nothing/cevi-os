@@ -33,7 +33,7 @@ export type Suchquelle = {
   von?: SQL;
   // ID des Treffers (Standard: tabelle.id)
   id?: SQL;
-  // «Nicht gelöscht» für die Zeile und was daran hängt (Standard: tabelle.geloescht_am ist leer)
+  // Zusatzbedingung für Treffer, die eine andere Zeile als die der Tabelle zeigen (Standard: keine; gelöschte Zeilen gibt es nicht mehr, #427)
   aktiv?: SQL;
   // Zeilenfilter der Rolle wie in der Listenroute («Team sieht nur eigene Aufgaben»); db für Teilabfragen
   filter?: (zugriff: LagerZugriff, db: Db) => SQL | undefined;
@@ -79,10 +79,8 @@ export function zweig(
   const tsq = sql`to_tsquery('german', ${woerter.map((w) => `'${w}':*`).join(" & ")})`;
   const t = quelle.tabelle as typeof quelle.tabelle & {
     id: AnyPgColumn;
-    geloeschtAm?: AnyPgColumn;
   };
-  const aktiv =
-    quelle.aktiv ?? (t.geloeschtAm ? sql`${t.geloeschtAm} is null` : sql`true`);
+  const aktiv = quelle.aktiv ?? sql`true`;
   const filter = quelle.filter?.(zugriff, db);
   return sql`(select ${quelle.typ}::text as typ, (${quelle.id ?? sql`${t.id}`})::text as id, ${quelle.titel}::text as titel, left(${e}, 600) as text, (word_similarity(${phrase}, ${e}) + ts_rank(to_tsvector('german', ${e}), ${tsq}))::float8 as score from ${quelle.von ?? tabellenName(quelle.tabelle)} where ${t.lagerId} = ${zugriff.lager.id} and ${aktiv} and ${filter ?? sql`true`} and (to_tsvector('german', ${e}) @@ ${tsq} or ${phrase} <% ${e}) order by score desc limit ${SUCHE_TREFFER_MAX})`;
 }

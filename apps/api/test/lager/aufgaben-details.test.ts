@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -1179,7 +1179,7 @@ describe("Wiederholung", () => {
     expect(await folgen(b.id)).toHaveLength(1);
   });
 
-  test("eine gelöschte Folgeaufgabe kommt nicht wieder", async () => {
+  test("eine gelöschte Folgeaufgabe ist endgültig weg: wer die Aufgabe erneut erledigt, bekommt wieder eine", async () => {
     const a = await neu({ titel: "Gelöscht", wiederholung: "w1" });
     await statusSetzen(a, 1, "erledigt");
     const [folge] = await folgen(a.id);
@@ -1188,7 +1188,10 @@ describe("Wiederholung", () => {
     ).toBe(204);
     await statusSetzen(a, 2, "offen");
     await statusSetzen(a, 3, "erledigt");
-    expect(await folgen(a.id)).toHaveLength(1);
+    // Es gibt keine Spur der gelöschten mehr, die eine neue verhindert (#427)
+    const nach = await folgen(a.id);
+    expect(nach).toHaveLength(1);
+    expect(nach[0]!.id).not.toBe(folge!.id);
   });
 
   test("über PATCH, mit gleichzeitigen Änderungen und ohne Frist; ohne Wiederholung keine Folge", async () => {
@@ -1400,7 +1403,7 @@ describe("Zusammenführen", () => {
     return { a: { ...a, version: 2 }, b: { ...b, version: 2 }, pa, pb };
   }
 
-  test("vereint Checkliste, Links, Stichworte, Notiz und Frist; die zweite Aufgabe ist weg, behält aber ihre Details", async () => {
+  test("vereint Checkliste, Links, Stichworte, Notiz und Frist; die zweite Aufgabe ist samt ihren Details weg", async () => {
     const id = await neuesLager();
     const { a, b } = await paar(id);
     const r = await anfrage(
@@ -1434,28 +1437,26 @@ describe("Zusammenführen", () => {
     ]);
     expect(d.stichworte).toEqual(["Küche", "Material"]);
 
-    // Die zweite Aufgabe: für die API weg, in der Datenbank nur als gelöscht markiert, mit ihren Details
+    // Die zweite Aufgabe ist endgültig weg, mit ihren Details
     expect((await anfrage(leiter(), "GET", A(b.id, id))).status).toBe(404);
-    const [zeile] = await db
-      .select()
-      .from(schema.aufgabe)
-      .where(eq(schema.aufgabe.id, b.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
-    const rest = await db
-      .select()
-      .from(schema.aufgabeCheckpunkt)
-      .where(
-        and(
-          eq(schema.aufgabeCheckpunkt.aufgabeId, b.id),
-          isNull(schema.aufgabeCheckpunkt.geloeschtAm),
-        ),
-      );
-    expect(rest).toHaveLength(2);
-    // Der Feed meldet die Löschung
+    expect(
+      await db.select().from(schema.aufgabe).where(eq(schema.aufgabe.id, b.id)),
+    ).toHaveLength(0);
+    expect(
+      await db
+        .select()
+        .from(schema.aufgabeCheckpunkt)
+        .where(eq(schema.aufgabeCheckpunkt.aufgabeId, b.id)),
+    ).toHaveLength(0);
+    // Der Feed meldet die Löschung der Aufgabe und ihrer Checkpunkte
     const feed = await anfrage(leiter(), "GET", `${L(id)}/aenderungen?seit=0`);
     expect(feed.body.eintraege).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ id: b.id, art: "geloescht" }),
+        expect.objectContaining({
+          objekttyp: "aufgabe_checkpunkt",
+          art: "geloescht",
+        }),
       ]),
     );
   });

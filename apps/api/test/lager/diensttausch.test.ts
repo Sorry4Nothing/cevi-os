@@ -508,19 +508,13 @@ describe("Anfrage stellen", () => {
     const t = await neuerTag();
     const d = await neuerDienst(t.abschnitte[0]!);
     const s = await neueSchicht(t.tag, t.abschnitte[0]!, d, konten.team.id!);
-    await db
-      .update(schema.dienst)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.dienst.id, d));
+    await db.delete(schema.dienst).where(eq(schema.dienst.id, d));
     expect(
       (await anfrage(konten.team, "POST", T(), { schichtId: s })).status,
     ).toBe(404);
     const d2 = await neuerDienst(t.abschnitte[1]!);
     const s2 = await neueSchicht(t.tag, t.abschnitte[1]!, d2, konten.team.id!);
-    await db
-      .update(schema.schicht)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.schicht.id, s2));
+    await db.delete(schema.schicht).where(eq(schema.schicht.id, s2));
     expect(
       (await anfrage(konten.team, "POST", T(), { schichtId: s2 })).status,
     ).toBe(404);
@@ -886,7 +880,7 @@ describe("Entscheiden", () => {
       expect(e.body.code).toBe("PERSON_NICHT_VERFUEGBAR");
     });
 
-    test("ist die Schicht inzwischen anders besetzt oder gelöscht, scheitert das Annehmen (SCHICHT_GEAENDERT)", async () => {
+    test("ist die Schicht inzwischen anders besetzt, scheitert das Annehmen (SCHICHT_GEAENDERT); ist sie gelöscht, ist die Anfrage mit ihr weg", async () => {
       const wunsch = await wegwerfMitglied();
       const s = await mitAnfrage(() => ({ mitPersonId: wunsch }));
       await db
@@ -899,19 +893,17 @@ describe("Entscheiden", () => {
       });
       expect(e.status).toBe(409);
       expect(e.body.code).toBe("SCHICHT_GEAENDERT");
-      await db
-        .update(schema.schicht)
-        .set({ geloeschtAm: new Date() })
-        .where(eq(schema.schicht.id, s.schichtId));
+      // Die Schicht ist endgültig weg: Die Anfrage geht mit ihr (CASCADE), es gibt nichts mehr zu entscheiden
+      await db.delete(schema.schicht).where(eq(schema.schicht.id, s.schichtId));
       const e2 = await entscheide(s.tausch.id, {
         entscheid: "angenommen",
         version: 1,
       });
-      expect(e2.body.code).toBe("SCHICHT_GEAENDERT");
+      expect([e2.status, e2.body.code]).toEqual([404, "NICHT_GEFUNDEN"]);
       expect(
         (await entscheide(s.tausch.id, { entscheid: "abgelehnt", version: 1 }))
           .status,
-      ).toBe(200);
+      ).toBe(404);
     });
 
     test("beim Tausch zählt auch die Wunschschicht (SCHICHT_GEAENDERT, wenn sie die Person gewechselt hat)", async () => {

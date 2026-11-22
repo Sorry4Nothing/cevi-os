@@ -8,7 +8,6 @@ import { eingabe } from "../../eingabe.js";
 import {
   aendereAufgabe,
   aufgabeAendern,
-  aufgabeAktiv,
   aufgabeAnlegen,
   aufgabeAnsicht,
   aufgabenAbfrage,
@@ -112,7 +111,7 @@ export function erstelleAufgabenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             const vorhanden = await tx
               .select()
               .from(aufgabe)
-              .where(and(eq(aufgabe.lagerId, lagerId), aufgabeAktiv));
+              .where(and(eq(aufgabe.lagerId, lagerId)));
             const nachId = new Map(vorhanden.map((z) => [z.id, z]));
             if (eintraege.some((e) => !nachId.has(e.id))) {
               throw new HTTPException(404);

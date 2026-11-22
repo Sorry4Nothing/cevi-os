@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -26,7 +26,7 @@ import { registriereLagerTabelle } from "./tabellen.js";
 // Zeilen mit nur_lagerleitung liest nur, wer vertrauliches.lesen hat (Standard: nur die Lagerleitung). Das gilt in den Routen und im Änderungsfeed: Ohne das Recht kommen diese Zeilen nie, auch nicht ihre IDs. Eine solche Zeile ist für die Rolle unbekannt (404), nicht verboten.
 // Die eigene Kopie der Packliste ist nicht kopiert: Die Vorlage (packliste_punkt) gehört dem Lager, die Person hat nur ihre Abweichungen (packliste_abhaken: abgehakt oder entfernt) und ihre eigenen Punkte (packliste_eigen). Das hält die Tabelle klein (rund 100 Personen mal ein Dutzend Abweichungen statt 100 Kopien der Liste), und eine Änderung der Vorlage erreicht alle sofort. Beide Tabellen sind persönlich und ohne Feed: Der Zeilenfilter des Feeds kennt die Person nicht, ein Eintrag im Feed wäre darum für alle sichtbar. Die App liest die Liste der Person mit einer Abfrage.
 
-// Wer einen Zeilenfilter braucht, der nur nach nur_lagerleitung unterscheidet (Packliste, Infos): Ohne vertrauliches.lesen sind die Zeilen unsichtbar, auch gelöschte (der Feed meldet «geloescht» sonst für eine Zeile, die die Rolle nie sah)
+// Wer einen Zeilenfilter braucht, der nur nach nur_lagerleitung unterscheidet (Packliste, Infos): Ohne vertrauliches.lesen sind die Zeilen unsichtbar
 function ohneVertrauliches(
   tabelle: typeof packlistePunkt | typeof infoAbschnitt,
 ) {
@@ -67,13 +67,7 @@ async function sichtbareAbschnittDateien(
       and(
         inArray(spalte, ids),
         eq(infoAbschnittDatei.lagerId, zugriff.lager.id),
-        // Beim Feed zählen auch gelöschte Verknüpfungen (sie melden «geloescht»), bei den Datei-Einträgen nur lebende
-        spalte === infoAbschnittDatei.dateiId
-          ? and(
-              isNull(infoAbschnittDatei.geloeschtAm),
-              isNull(infoAbschnitt.geloeschtAm),
-            )
-          : undefined,
+        spalte === infoAbschnittDatei.dateiId ? and() : undefined,
         darf(zugriff, "vertrauliches.lesen")
           ? undefined
           : eq(infoAbschnitt.nurLagerleitung, false),
@@ -339,7 +333,6 @@ export async function ladeInfos(
     .where(
       and(
         eq(infoAbschnitt.lagerId, lagerId),
-        isNull(infoAbschnitt.geloeschtAm),
         vertraulich ? undefined : eq(infoAbschnitt.nurLagerleitung, false),
         p.id ? eq(infoAbschnitt.id, p.id) : undefined,
         p.nurNotfall ? eq(infoAbschnitt.notfall, true) : undefined,
@@ -367,7 +360,6 @@ export async function ladeInfos(
                 infoAbschnittDatei.abschnittId,
                 seite.map((z) => z.id),
               ),
-              isNull(infoAbschnittDatei.geloeschtAm),
             ),
           )
           .orderBy(asc(infoAbschnittDatei.id));
@@ -419,7 +411,6 @@ export async function ladeKontakte(
     .where(
       and(
         eq(notfallKontakt.lagerId, lagerId),
-        isNull(notfallKontakt.geloeschtAm),
         id ? eq(notfallKontakt.id, id) : undefined,
       ),
     )
@@ -460,7 +451,7 @@ export async function ladeSicherheit(
     .from(ressort)
     .leftJoin(leitung, eq(leitung.id, ressort.leitungPersonId))
     .leftJoin(stv, eq(stv.id, ressort.stvPersonId))
-    .where(and(eq(ressort.lagerId, lagerId), isNull(ressort.geloeschtAm)))
+    .where(and(eq(ressort.lagerId, lagerId)))
     .orderBy(asc(ressort.reihenfolge), asc(ressort.id));
   // Der Baum ist klein (ein Lager hat einige Ressorts): Die Unterressorts bestimmt der Code, nicht eine rekursive Abfrage
   const drin = new Set(
@@ -544,12 +535,7 @@ export async function pruefePackliste(
   const [z] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(packlistePunkt)
-    .where(
-      and(
-        eq(packlistePunkt.lagerId, lagerId),
-        isNull(packlistePunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(packlistePunkt.lagerId, lagerId)));
   return { erfuellt: (z?.n ?? 0) > 0, anzahl: z?.n ?? 0 };
 }
 

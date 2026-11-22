@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, lt, sql } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import { getTableConfig, type AnyPgColumn } from "drizzle-orm/pg-core";
 import type { Db } from "../db/client.js";
 import { lagerDatei } from "../db/schema.js";
@@ -68,11 +68,7 @@ export async function sichtbarJeVerweis(
     .select({ id: v.spalte })
     .from(v.tabelle)
     .where(
-      and(
-        inArray(v.spalte, dateiIds),
-        eq(v.tabelle.lagerId, zugriff.lager.id),
-        isNull(v.tabelle.geloeschtAm),
-      ),
+      and(inArray(v.spalte, dateiIds), eq(v.tabelle.lagerId, zugriff.lager.id)),
     );
   return new Set(zeilen.map((z) => String(z.id)));
 }
@@ -91,7 +87,7 @@ export const tabellenName = (v: DateiVerweis) => {
 // Frist, nach der ein Eintrag ohne Verweis entfällt
 export const DATEI_OHNE_VERWEIS_STUNDEN = 24;
 
-// Entfernt Einträge ohne Verweis, die älter sind als die Frist: eine einzige Abfrage mit einem NOT EXISTS je angemeldetem Verweis. Ein Datensatz im Papierkorb (gelöscht, aber noch da) zeigt weiter auf seinen Eintrag und hält ihn, damit das Wiederherstellen funktioniert. Ein Eintrag, den die Route gelöscht hat (geloescht_am), gehört dem Papierkorb (#368) und bleibt hier unberührt. Liefert die Zahl entfernter Einträge. Die Zeilen verschwinden ohne Feed-Eintrag: Sie waren nur für die Person sichtbar, die sie hinzugefügt hat
+// Entfernt Einträge ohne Verweis, die älter sind als die Frist: eine einzige Abfrage mit einem NOT EXISTS je angemeldetem Verweis. Ein Eintrag, den die Route gelöscht hat, ist endgültig weg (#427) und kommt hier nicht mehr vor. Liefert die Zahl entfernter Einträge. Die Zeilen verschwinden ohne Feed-Eintrag: Sie waren nur für die Person sichtbar, die sie hinzugefügt hat
 // shortcut: Läuft täglich, ein Eintrag lebt also 24 bis 48 Stunden; für eine genauere Frist den Lauf öfter starten (eine Abfrage, kein Lock auf dem Lager)
 export async function raeumeDateienOhneVerweisAuf(
   db: Db,
@@ -103,7 +99,6 @@ export async function raeumeDateienOhneVerweisAuf(
     .delete(lagerDatei)
     .where(
       and(
-        isNull(lagerDatei.geloeschtAm),
         lagerId ? eq(lagerDatei.lagerId, lagerId) : undefined,
         lt(
           lagerDatei.erstelltAm,

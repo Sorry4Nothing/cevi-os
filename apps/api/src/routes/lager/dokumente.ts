@@ -23,7 +23,7 @@ import { aendereZeile, legeZeileAn, loescheZeile } from "../../lager/sync.js";
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const dokumentPfad = z.strictObject({ id: z.uuid(), dokumentId: z.uuid() });
 
-// Dokumente im Lager (#396), Beschreibung in lager/dokumente.ts. Lesen: dokumente.lesen_alle (alle) oder dokumente.team_lesen (nur team_sichtbar); Schreiben: dokumente.bearbeiten. Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist ein Soft-Delete (Papierkorb) und entfernt nie die Datei am Ablageort
+// Dokumente im Lager (#396), Beschreibung in lager/dokumente.ts. Lesen: dokumente.lesen_alle (alle) oder dokumente.team_lesen (nur team_sichtbar); Schreiben: dokumente.bearbeiten. Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427) und entfernt nie die Datei am Ablageort
 export function erstelleDokumentRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, {
     einesDerRechte: ["dokumente.lesen_alle", "dokumente.team_lesen"],

@@ -218,7 +218,7 @@ function zelle(roh: string) {
 // Wie lange die Daten der Teilnehmenden nach dem Ende des Lagers bleiben: sechs Monate (altes Datenschutzfenster)
 export const AUFBEWAHRUNG_MONATE = 6;
 
-// Löscht die Teilnehmenden aller Lager, die vor mehr als sechs Monaten (nach dem Lagerende) endeten, samt ihrer Haken (Fremdschlüssel mit CASCADE), auch die schon im Papierkorb. Eine gebündelte Abfrage für alle Lager, ein Eintrag im Audit-Log je Lager mit nur der Anzahl. Der Änderungsfeed behält nur IDs und läuft nach 30 Tagen aus. Liefert die Zahl gelöschter Teilnehmenden
+// Löscht die Teilnehmenden aller Lager, die vor mehr als sechs Monaten (nach dem Lagerende) endeten, samt ihrer Haken (Fremdschlüssel mit CASCADE). Eine gebündelte Abfrage für alle Lager, ein Eintrag im Audit-Log je Lager mit nur der Anzahl. Der Änderungsfeed behält nur IDs und läuft nach 30 Tagen aus. Liefert die Zahl gelöschter Teilnehmenden
 export async function loescheAlteTeilnehmende(
   db: Db,
   jetzt = new Date(),

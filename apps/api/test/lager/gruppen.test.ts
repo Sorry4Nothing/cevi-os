@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleApp } from "../../src/app.js";
@@ -170,12 +170,7 @@ const zuordnungen = (lagerId: string) =>
   db
     .select()
     .from(schema.gruppeZuordnung)
-    .where(
-      and(
-        eq(schema.gruppeZuordnung.lagerId, lagerId),
-        isNull(schema.gruppeZuordnung.geloeschtAm),
-      ),
-    );
+    .where(and(eq(schema.gruppeZuordnung.lagerId, lagerId)));
 const feed = async (lagerId: string, tabelle: string) =>
   (
     await db

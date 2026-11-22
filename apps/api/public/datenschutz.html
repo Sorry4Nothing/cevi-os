@@ -1268,9 +1268,22 @@
         verlangst, steht unter
         <a href="/konto-loeschen">Konto löschen</a>.
       </p>
+      <p>
+        Im Lager ist Löschen endgültig. Was die Leitung im Lager löscht, ist
+        sofort aus der Datenbank entfernt; es gibt keinen Papierkorb und keine
+        Wiederherstellung. Teile, die an einer gelöschten Zeile hängen, gehen
+        mit (zum Beispiel die Schichten eines Dienstes). Geräte mit einer
+        Offline-Kopie erfahren die Löschung bei der nächsten Verbindung; dafür
+        bleibt 30 Tage lang ein Vermerk ohne Inhalt auf dem Server (Art des
+        Eintrags und Kennung).
+      </p>
       <p>Zeitliche Regeln gibt es für diese Daten:</p>
       <ul>
         <li>Logs des Servers und des Webservers: 14 Tage.</li>
+        <li>
+          Vermerke über gelöschte Einträge im Lager (nur Art und Kennung): 30
+          Tage.
+        </li>
         <li>
           Einträge der Begrenzung von Anfragen mit IP-Adresse: frühestens 15
           Minuten nach der letzten Anfrage.

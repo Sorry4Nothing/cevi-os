@@ -5,7 +5,6 @@ import {
   getTableName,
   ilike,
   inArray,
-  isNull,
   lt,
   or,
   sql,
@@ -29,7 +28,7 @@ import { registriereLagerTabelle } from "./tabellen.js";
 
 const alle = (zugriff: LagerZugriff) => darf(zugriff, "dokumente.lesen_alle");
 
-// Welche der IDs sieht die Person (Zeilenfilter des Feeds): Mit lesen_alle alle, sonst nur Dokumente mit team_sichtbar. Der Feed fragt auch gelöschte Zeilen, darum kein Filter auf geloescht_am
+// Welche der IDs sieht die Person (Zeilenfilter des Feeds): Mit lesen_alle alle, sonst nur Dokumente mit team_sichtbar. Gelöschte Zeilen gibt es nicht mehr; der Feed fragt den Filter nur für lebende
 async function sichtbareDokumente(
   db: Db,
   zugriff: LagerZugriff,
@@ -50,7 +49,7 @@ async function sichtbareDokumente(
   return new Set(zeilen.map((z) => z.id));
 }
 
-// Anmeldung beim ersten Import dieser Datei. Feed: nur mit dokumente.team_lesen, mit dem Zeilenfilter oben. Verweisregister: Die Datei eines Dokuments sieht, wer das Dokument sieht (nicht gelöschte Dokumente; eines im Papierkorb hält die Datei trotzdem, siehe datei-verweise.ts)
+// Anmeldung beim ersten Import dieser Datei. Feed: nur mit dokumente.team_lesen, mit dem Zeilenfilter oben. Verweisregister: Die Datei eines Dokuments sieht, wer das Dokument sieht (Dokumente, die es gibt; gelöscht ist endgültig)
 registriereLagerTabelle({
   tabelle: dokument,
   recht: "dokumente.team_lesen",
@@ -78,7 +77,6 @@ registriereDateiVerweis({
         and(
           inArray(dokument.dateiId, dateiIds),
           eq(dokument.lagerId, zugriff.lager.id),
-          isNull(dokument.geloeschtAm),
           alle(zugriff) ? undefined : eq(dokument.teamSichtbar, true),
         ),
       );
@@ -228,14 +226,10 @@ export async function ladeDokumente(
       sharepoint: sharepointSql,
     })
     .from(dokument)
-    .leftJoin(
-      lagerDatei,
-      and(eq(lagerDatei.id, dokument.dateiId), isNull(lagerDatei.geloeschtAm)),
-    )
+    .leftJoin(lagerDatei, and(eq(lagerDatei.id, dokument.dateiId)))
     .where(
       and(
         eq(dokument.lagerId, lagerId),
-        isNull(dokument.geloeschtAm),
         p.id ? eq(dokument.id, p.id) : undefined,
         p.nach ? lt(dokument.id, p.nach) : undefined,
         alle(zugriff) || p.ungefiltert
@@ -285,16 +279,15 @@ export async function ladeDokumente(
       .where(
         and(
           eq(lagerDatei.lagerId, lagerId),
-          isNull(lagerDatei.geloeschtAm),
           p.nach ? lt(lagerDatei.id, p.nach) : undefined,
           p.q ? ilike(lagerDatei.anzeigename, muster(p.q)) : undefined,
           typ,
           // Eine Datei, die ein Dokument einbindet, steht als Dokument in der Liste
-          sql`not exists (select 1 from dokument d where d.datei_id = ${lagerDatei.id} and d.lager_id = ${lagerId} and d.geloescht_am is null)`,
+          sql`not exists (select 1 from dokument d where d.datei_id = ${lagerDatei.id} and d.lager_id = ${lagerId})`,
           or(
             ...quellen.map(
               (v) =>
-                sql`exists (select 1 from ${tabellenName(v)} v where v.${sql.identifier(v.spalte.name)} = ${lagerDatei.id} and v.lager_id = ${lagerId} and v.geloescht_am is null)`,
+                sql`exists (select 1 from ${tabellenName(v)} v where v.${sql.identifier(v.spalte.name)} = ${lagerDatei.id} and v.lager_id = ${lagerId})`,
             ),
           ),
         ),

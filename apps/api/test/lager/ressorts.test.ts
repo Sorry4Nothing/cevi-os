@@ -618,12 +618,10 @@ describe("Ressort ändern, Baum und Reihenfolge", () => {
         .filter((e: { id: string }) => e.id === kind.id)
         .map((e: { art: string }) => e.art),
     ).toEqual(["neu", "geloescht"]);
-    // Die Zeile bleibt (Papierkorb)
-    const [zeile] = await db
-      .select()
-      .from(schema.ressort)
-      .where(eq(schema.ressort.id, kind.id));
-    expect(zeile?.geloeschtAm).not.toBeNull();
+    // Die Zeile ist endgültig weg
+    expect(
+      await db.$count(schema.ressort, eq(schema.ressort.id, kind.id)),
+    ).toBe(0);
     // Mit dem Kind weg lässt sich das Elternteil löschen
     expect(
       (

@@ -158,11 +158,10 @@ beforeAll(async () => {
 const team = () => konten.team.id!;
 const leitung = () => konten.leitung.id!;
 
-// Zeilen direkt in der Datenbank: eine lesbare und eine unlesbare je Quelle (nach Rolle, gelöscht, anderes Lager)
+// Zeilen direkt in der Datenbank: eine lesbare und eine unlesbare je Quelle (nach Rolle, anderes Lager)
 async function seed() {
-  const jetzt = new Date();
   const vorbei = new Date(Date.now() - 86_400_000);
-  // Aufgaben: eigene des Teams, eigene der Leitung, gelöschte, im anderen Lager; Treffer über Checkliste und Stichwort
+  // Aufgaben: eigene des Teams, eigene der Leitung, im anderen Lager; Treffer über Checkliste und Stichwort
   const aufgabe = async (
     titel: string,
     person: string,
@@ -181,19 +180,11 @@ async function seed() {
     )[0]!.id;
   await aufgabe(`${M} Aufgabe Team`, team());
   await aufgabe(`${M} Aufgabe Leitung`, leitung());
-  await aufgabe(`${M} Aufgabe gelöscht`, team(), { geloeschtAm: jetzt });
   const mitListe = await aufgabe("Aufgabe Checkliste", team());
   await db.insert(schema.aufgabeCheckpunkt).values({
     ...basis(),
     aufgabeId: mitListe,
     text: `${M} abhaken`,
-  });
-  const geloeschtePunkte = await aufgabe("Aufgabe Gelöschter Punkt", team());
-  await db.insert(schema.aufgabeCheckpunkt).values({
-    ...basis(),
-    aufgabeId: geloeschtePunkte,
-    text: `${M} weg`,
-    geloeschtAm: jetzt,
   });
   const mitStichwort = await aufgabe("Aufgabe Stichwort", leitung());
   await db.insert(schema.aufgabeStichwort).values({
@@ -293,7 +284,6 @@ async function seed() {
   await db
     .insert(schema.pinnwandEmpfaenger)
     .values({ lagerId, beitragId: nurLeitung, rolle: "leitung" });
-  await beitrag(`${M} Pinnwand gelöscht`, { geloeschtAm: jetzt });
   await beitrag(`${M} Pinnwand abgelaufen`, { sichtbarBis: vorbei });
 
   // Eingang (anonym): nur wer alle Eingänge lesen darf
@@ -347,14 +337,8 @@ async function seed() {
       .returning({ id: schema.fahrt.id });
   await fahrt(`${M} Fahrt Team`, team());
   await fahrt(`${M} Fahrt Leitung`, leitung());
-  const [gestrichen] = await fahrt(`${M} Fahrt gestrichen`);
-  await db.insert(schema.fahrtMitfahrer).values({
-    ...basis(),
-    fahrtId: gestrichen!.id,
-    richtung: "hin",
-    personId: team(),
-    geloeschtAm: jetzt,
-  });
+  // Eine Fahrt, in der das Team nie mitfährt (die Mitfahrt wäre gestrichen): sie bleibt dem Team verborgen
+  await fahrt(`${M} Fahrt gestrichen`);
 
   // Gruppe, Dienst, Einkauf, Meilenstein
   await db.insert(schema.gruppe).values({ ...basis(), name: `${M} Gruppe` });

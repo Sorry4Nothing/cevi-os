@@ -6067,7 +6067,7 @@ paths:
       description: |
         Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp, ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
 
-        Filter: Es erscheinen nur Objekttypen, deren Leserecht die Rolle hat, und davon nur die Zeilen, die der Zeilenfilter der Rolle zulässt (auch für gelöschte). Eine Seite, deren Einträge alle herausfallen, kommt leer zurück, `bis` rückt trotzdem vor.
+        Filter: Es erscheinen nur Objekttypen, deren Leserecht die Rolle hat, und davon nur die Zeilen, die der Zeilenfilter der Rolle zulässt. Gelöscht ist endgültig: Der Eintrag `geloescht` (nur Objekttyp, ID und Version) geht an jede Rolle mit dem Leserecht des Typs, weil die Zeile nicht mehr zu filtern ist; er bleibt 30 Tage im Feed. Eine Seite, deren Einträge alle herausfallen, kommt leer zurück, `bis` rückt trotzdem vor.
 
         Ablauf der App: Ohne `seit` liefert die Route die aktuelle Folgenummer `seq` und die lesbaren Objekttypen; die App lädt die Listen der Module und fragt dann mit `seit=seq`. Danach fragt sie mit `seit=<bis>` weiter, solange `weitere` wahr ist, und speichert das letzte `bis`. Jeder Schreibvorgang im Lager hat eine eigene Folgenummer; sie steigt ohne Lücke. Es gibt einen Eintrag je Schreibvorgang: Dieselbe Zeile kann mehrfach vorkommen, der letzte Eintrag gilt.
 
@@ -6363,9 +6363,9 @@ paths:
       operationId: loescheLagerDatei
       summary: Verknüpfung löschen
       description: |
-        Entfernt nur die Verknüpfung in Cevi OS (Soft-Delete über den Sync-Kern, der Änderungsfeed meldet `geloescht`), nie die Datei am Ablageort. Die Anfrage nennt die zuletzt gesehene `version`; stimmt sie nicht, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Gleiches Recht wie beim Anlegen. Reihenfolge der Prüfungen: Pfad (400), Lager (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eintrag (404), Version (409).
+        Entfernt nur die Verknüpfung in Cevi OS (endgültig, über den Sync-Kern: die Zeile ist danach weg, der Änderungsfeed meldet `geloescht`), nie die Datei am Ablageort. Die Anfrage nennt die zuletzt gesehene `version`; stimmt sie nicht, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Gleiches Recht wie beim Anlegen. Reihenfolge der Prüfungen: Pfad (400), Lager (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eintrag (404), Version (409).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder fehlender Version. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn Lager oder Eintrag für die Person nicht existieren. 409 bei `LAGER_GESCHLOSSEN` und `VERSION_KONFLIKT`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder fehlender Version. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn Lager oder Eintrag für die Person nicht existieren. 409 bei `LAGER_GESCHLOSSEN`, `VERSION_KONFLIKT` und `IN_VERWENDUNG` (ein Datensatz bindet die Datei noch ein).
       tags:
         - Lager
       parameters:
@@ -6403,7 +6403,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Version stimmt nicht (`VERSION_KONFLIKT`, mit aktuellem Stand und abweichenden Feldern).
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die Version stimmt nicht (`VERSION_KONFLIKT`, mit aktuellem Stand und abweichenden Feldern) oder ein Datensatz bindet die Datei noch ein (`IN_VERWENDUNG`).
           content:
             application/json:
               schema:

@@ -46,7 +46,7 @@ const datum = (tag: string) =>
 // Die abgewählten Teilnehmenden des Lagers (eine Abfrage): Sie fehlen auf jedem Aushang
 async function abgewaehlte(db: Pick<Db, "execute">, lagerId: string) {
   const zeilen = await db.execute<{ id: string }>(
-    sql`select id from teilnehmer where lager_id = ${lagerId} and geloescht_am is null and abgewaehlt`,
+    sql`select id from teilnehmer where lager_id = ${lagerId} and abgewaehlt`,
   );
   return new Set(zeilen.map((z) => z.id));
 }
@@ -55,7 +55,7 @@ async function schichtplan(db: Db, z: LagerZugriff): Promise<Aushang> {
   const [plan, abschnitte] = await Promise.all([
     ladeSchichtplan(db, z.lager.id),
     db.execute<{ id: string; name: string }>(
-      sql`select id, name from tagesabschnitt where lager_id = ${z.lager.id} and geloescht_am is null`,
+      sql`select id, name from tagesabschnitt where lager_id = ${z.lager.id}`,
     ),
   ]);
   const abschnittName = new Map(abschnitte.map((a) => [a.id, a.name]));
@@ -215,7 +215,7 @@ async function organigramm(db: Db, z: LagerZugriff): Promise<Aushang> {
     from ressort r
     left join "user" l on l.id = r.leitung_person_id
     left join "user" s on s.id = r.stv_person_id
-    where r.lager_id = ${z.lager.id} and r.geloescht_am is null
+    where r.lager_id = ${z.lager.id}
     order by r.reihenfolge, r.id
     limit ${MAX_ABSCHNITTE + 1}`);
   if (zeilen.length > MAX_ABSCHNITTE) throw new AushangZuGross();

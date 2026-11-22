@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -81,14 +81,13 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
         .where(
           and(
             eq(teilnehmer.lagerId, lagerId),
-            isNull(teilnehmer.geloeschtAm),
             eq(teilnehmer.abgewaehlt, false),
           ),
         ),
       q
         .select({ id: gruppe.id, name: gruppe.name })
         .from(gruppe)
-        .where(and(eq(gruppe.lagerId, lagerId), isNull(gruppe.geloeschtAm)))
+        .where(and(eq(gruppe.lagerId, lagerId)))
         .orderBy(asc(gruppe.reihenfolge), asc(gruppe.name), asc(gruppe.id))
         .limit(anzahl),
     ]);
@@ -131,7 +130,6 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
             .where(
               and(
                 eq(teilnehmer.lagerId, lagerId),
-                isNull(teilnehmer.geloeschtAm),
                 inArray(teilnehmer.id, teilnehmerIds),
               ),
             ),
@@ -182,9 +180,7 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
             const [{ n }] = await tx
               .select({ n: sql<number>`count(*)::int` })
               .from(gruppe)
-              .where(
-                and(eq(gruppe.lagerId, lagerId), isNull(gruppe.geloeschtAm)),
-              );
+              .where(and(eq(gruppe.lagerId, lagerId)));
             if (n! >= MAX_GRUPPEN) return null;
             return legeZeileAn(
               tx,
@@ -252,7 +248,6 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
               .where(
                 and(
                   eq(gruppeZuordnung.lagerId, lagerId),
-                  isNull(gruppeZuordnung.geloeschtAm),
                   sql`${gruppeZuordnung.teilnehmerId} is not null`,
                 ),
               );
@@ -301,11 +296,7 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
                 .select({ id: gruppe.id })
                 .from(gruppe)
                 .where(
-                  and(
-                    eq(gruppe.lagerId, lagerId),
-                    eq(gruppe.id, gruppeId),
-                    isNull(gruppe.geloeschtAm),
-                  ),
+                  and(eq(gruppe.lagerId, lagerId), eq(gruppe.id, gruppeId)),
                 );
               if (!da) throw new HTTPException(404);
             }
@@ -324,7 +315,6 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
               .where(
                 and(
                   eq(gruppeZuordnung.lagerId, lagerId),
-                  isNull(gruppeZuordnung.geloeschtAm),
                   or(
                     teilnehmerIds.length > 0
                       ? inArray(gruppeZuordnung.teilnehmerId, teilnehmerIds)
@@ -425,7 +415,6 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
                 .where(
                   and(
                     eq(gruppeZuordnung.lagerId, lagerId),
-                    isNull(gruppeZuordnung.geloeschtAm),
                     inArray(
                       gruppeZuordnung.teilnehmerId,
                       zeilen.map((z) => z.id),
@@ -482,20 +471,7 @@ export function erstelleGruppenRouten({ db }: { db: Db }) {
               version: c.req.valid("query").version,
               ansicht: gruppeKurz,
             });
-            // Die Zuordnungen gehen mit der Gruppe; die Leute sind danach in keiner Gruppe
-            const zuordnungen = await tx
-              .select({ id: gruppeZuordnung.id })
-              .from(gruppeZuordnung)
-              .where(
-                and(
-                  eq(gruppeZuordnung.lagerId, lagerId),
-                  eq(gruppeZuordnung.gruppeId, gruppeId),
-                  isNull(gruppeZuordnung.geloeschtAm),
-                ),
-              );
-            await loescheZeilen(tx, gruppeZuordnung, k, {
-              ids: zuordnungen.map((z) => z.id),
-            });
+            // Die Zuordnungen gehen mit der Gruppe (der Sync-Kern löscht sie mit und meldet jede im Feed); die Leute sind danach in keiner Gruppe
           });
           return c.body(null, 204);
         },

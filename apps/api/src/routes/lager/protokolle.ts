@@ -43,7 +43,7 @@ const fehlerAntwort = (code: keyof typeof FEHLER_TEXT) => ({
   message: FEHLER_TEXT[code],
 });
 
-// Protokolle (Verknüpfung auf eine Datei im SharePoint) und Beschlüsse eines Lagers (#379), Beschreibung in lager/protokolle.ts. Lesen: protokolle.lesen; Schreiben: protokolle.bearbeiten. Ein Protokoll oder Beschluss eines Höcks der Lagerleitung ist für Rollen ohne alle Höcks 404. Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist ein Soft-Delete (Papierkorb) und entfernt nie die Datei am Ablageort
+// Protokolle (Verknüpfung auf eine Datei im SharePoint) und Beschlüsse eines Lagers (#379), Beschreibung in lager/protokolle.ts. Lesen: protokolle.lesen; Schreiben: protokolle.bearbeiten. Ein Protokoll oder Beschluss eines Höcks der Lagerleitung ist für Rollen ohne alle Höcks 404. Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427) und entfernt nie die Datei am Ablageort
 export function erstelleProtokollRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "protokolle.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "protokolle.bearbeiten" });

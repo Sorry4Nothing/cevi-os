@@ -168,8 +168,8 @@ export async function ladeSchichtplan(db: Leser, lagerId: string) {
           'tagesabschnittId', d.tagesabschnitt_id, 'reihenfolge', d.reihenfolge)
           order by a.reihenfolge, a.id, d.reihenfolge, d.name, d.id)
         from dienst d
-        join tagesabschnitt a on a.lager_id = d.lager_id and a.id = d.tagesabschnitt_id and a.geloescht_am is null
-        where d.lager_id = ${lagerId} and d.geloescht_am is null), '[]'::jsonb) as dienste,
+        join tagesabschnitt a on a.lager_id = d.lager_id and a.id = d.tagesabschnitt_id
+        where d.lager_id = ${lagerId}), '[]'::jsonb) as dienste,
       coalesce((
         select jsonb_agg(jsonb_build_object(
           'id', s.id, 'version', s.version, 'dienstId', s.dienst_id, 'lagertagId', s.lagertag_id,
@@ -180,12 +180,12 @@ export async function ladeSchichtplan(db: Leser, lagerId: string) {
           order by t.datum, a.reihenfolge, a.id, d.reihenfolge, d.name, d.id, coalesce(u.name, k.nachname), s.id)
         from schicht s
         join lager l on l.id = s.lager_id
-        join dienst d on d.lager_id = s.lager_id and d.id = s.dienst_id and d.geloescht_am is null
-        join lagertag t on t.lager_id = s.lager_id and t.id = s.lagertag_id and t.geloescht_am is null
-        join tagesabschnitt a on a.lager_id = s.lager_id and a.id = s.tagesabschnitt_id and a.geloescht_am is null
+        join dienst d on d.lager_id = s.lager_id and d.id = s.dienst_id
+        join lagertag t on t.lager_id = s.lager_id and t.id = s.lagertag_id
+        join tagesabschnitt a on a.lager_id = s.lager_id and a.id = s.tagesabschnitt_id
         left join "user" u on u.id = s.person_id and u.abteilung_id = l.abteilung_id and u.deaktiviert_am is null and coalesce(u.banned, false) = false
-        left join teilnehmer k on k.lager_id = s.lager_id and k.id = s.teilnehmer_id and k.geloescht_am is null and not k.abgewaehlt
-        where s.lager_id = ${lagerId} and s.geloescht_am is null and (u.id is not null or k.id is not null)), '[]'::jsonb) as schichten`);
+        left join teilnehmer k on k.lager_id = s.lager_id and k.id = s.teilnehmer_id and not k.abgewaehlt
+        where s.lager_id = ${lagerId} and (u.id is not null or k.id is not null)), '[]'::jsonb) as schichten`);
   return zeile!;
 }
 
@@ -229,13 +229,7 @@ async function ladeDienst(tx: Pick<Db, "select">, lagerId: string, id: string) {
   const [zeile] = await tx
     .select()
     .from(dienst)
-    .where(
-      and(
-        eq(dienst.lagerId, lagerId),
-        eq(dienst.id, id),
-        isNull(dienst.geloeschtAm),
-      ),
-    );
+    .where(and(eq(dienst.lagerId, lagerId), eq(dienst.id, id)));
   if (!zeile) throw new HTTPException(404);
   return zeile;
 }
@@ -255,7 +249,6 @@ async function dienstVorhanden(
         eq(dienst.lagerId, lagerId),
         eq(dienst.tagesabschnittId, abschnittId),
         sql`lower(${dienst.name}) = lower(${n})`,
-        isNull(dienst.geloeschtAm),
         ausser ? ne(dienst.id, ausser) : undefined,
       ),
     );
@@ -279,7 +272,7 @@ export async function legeDienstAn(
   const [{ n }] = await tx
     .select({ n: sql<number>`count(*)::int` })
     .from(dienst)
-    .where(and(eq(dienst.lagerId, k.lagerId), isNull(dienst.geloeschtAm)));
+    .where(and(eq(dienst.lagerId, k.lagerId)));
   if (n! >= MAX_DIENSTE) return { fehler: "LIMIT_ERREICHT" };
   return {
     dienst: dienstAnsicht(
@@ -322,7 +315,7 @@ export async function aendereDienst(
   };
 }
 
-// Mit dem Dienst gehen seine Schichten (Soft-Delete wie der Dienst; endgültig mit #427)
+// Mit dem Dienst gehen seine Schichten (endgültig; der Sync-Kern löscht sie mit und meldet jede im Feed, #427)
 export async function loescheDienst(
   tx: Tx,
   k: Akteur,
@@ -331,17 +324,6 @@ export async function loescheDienst(
 ) {
   await sperreLager(tx, k.lagerId);
   await loescheZeile(tx, dienst, k, { id, version, ansicht: dienstAnsicht });
-  const schichten = await tx
-    .select({ id: schicht.id })
-    .from(schicht)
-    .where(
-      and(
-        eq(schicht.lagerId, k.lagerId),
-        eq(schicht.dienstId, id),
-        isNull(schicht.geloeschtAm),
-      ),
-    );
-  await loescheZeilen(tx, schicht, k, { ids: schichten.map((s) => s.id) });
 }
 
 // Schichten ----------------------------------------------------------------------
@@ -395,7 +377,6 @@ export async function besetze(
           .where(
             and(
               eq(teilnehmer.lagerId, k.lagerId),
-              isNull(teilnehmer.geloeschtAm),
               inArray(teilnehmer.id, e.teilnehmerIds),
             ),
           ),
@@ -407,7 +388,6 @@ export async function besetze(
           eq(schicht.lagerId, k.lagerId),
           eq(schicht.dienstId, d.id),
           eq(schicht.lagertagId, e.lagertagId),
-          isNull(schicht.geloeschtAm),
         ),
       ),
   ]);
@@ -449,7 +429,6 @@ export async function besetze(
             eq(anwesenheit.lagertagId, e.lagertagId),
             eq(anwesenheit.tagesabschnittId, d.tagesabschnittId),
             eq(anwesenheit.wert, "F"),
-            isNull(anwesenheit.geloeschtAm),
             werA,
           ),
         )
@@ -463,7 +442,6 @@ export async function besetze(
             eq(schicht.lagertagId, e.lagertagId),
             eq(schicht.tagesabschnittId, d.tagesabschnittId),
             ne(schicht.dienstId, d.id),
-            isNull(schicht.geloeschtAm),
             werS,
           ),
         )
@@ -512,7 +490,6 @@ export function anwesenheitFuerTage(
     .where(
       and(
         eq(anwesenheit.lagerId, lagerId),
-        isNull(anwesenheit.geloeschtAm),
         sql`${anwesenheit.wert} <> 'O'`,
         lagertagIds ? inArray(anwesenheit.lagertagId, lagertagIds) : undefined,
       ),
@@ -547,7 +524,6 @@ export async function planeVorschlag(
           .where(
             and(
               eq(teilnehmer.lagerId, lagerId),
-              isNull(teilnehmer.geloeschtAm),
               eq(teilnehmer.abgewaehlt, false),
             ),
           )
@@ -555,7 +531,7 @@ export async function planeVorschlag(
     q
       .select({ id: lagertag.id, datum: lagertag.datum })
       .from(lagertag)
-      .where(and(eq(lagertag.lagerId, lagerId), isNull(lagertag.geloeschtAm)))
+      .where(and(eq(lagertag.lagerId, lagerId)))
       .orderBy(asc(lagertag.datum), asc(lagertag.id)),
     anwesenheitFuerTage(q, lagerId, p.lagertagIds),
   ]);
