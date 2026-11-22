@@ -297,6 +297,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/plattform.js:
+    get:
+      operationId: getAdminPlattformSkript
+      summary: Skript der Verwaltung – Bereich Plattform
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags.js:
     get:
       operationId: getAdminTagsSkript
@@ -1840,6 +1855,101 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/AnwesenheitGeschlossen409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/plattform/schalter:
+    get:
+      operationId: listePlattformSchalter
+      summary: Aktive Schalter der Abteilung (Wartungsmodus)
+      description: |
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website. Wer nichts davon darf, bekommt 403.
+
+        Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die aktiven Schalter.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlattformSchalterListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzePlattformSchalter
+      summary: Wartungsmodus für einen Bereich einschalten oder ändern
+      description: |
+        Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
+
+        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext).
+
+        Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400), Recht auf genau diesen Bereich (403).
+
+        Statuscodes: 200, 400, 401, 403, 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlattformSchalterSetzen"
+      responses:
+        "200":
+          description: Der Schalter ist gesetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlattformSchalter"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: hebePlattformSchalterAuf
+      summary: Wartungsmodus für einen Bereich aufheben
+      description: |
+        Hebt den Schalter auf; die nächste Anfrage sieht den Bereich wieder frei. Gleiche Rechte wie beim Setzen. Steht im Audit-Log (`schalter_aufgehoben`).
+
+        Statuscodes: 204 bei Erfolg. 400, 401, 403, 404 (der Schalter ist nicht gesetzt), 426.
+      tags:
+        - Plattform
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/SchalterArt"
+        - $ref: "#/components/parameters/SchalterBereich"
+      responses:
+        "204":
+          description: Aufgehoben.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -20523,14 +20633,117 @@ components:
           description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
         bereiche:
           type: array
-          description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
+          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person den Wartungsmodus der Website schalten darf (Recht `wartungsmodus.website`, Entwickler, Abteilungsleitung). Ohne Zugang leer.
           items:
             type: string
             enum:
               - website
+              - plattform
         verwalten:
           type: boolean
           description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+    PlattformSchalter:
+      type: object
+      required:
+        - art
+        - bereich
+        - hinweis
+        - ende
+        - ausgeloestVon
+        - ausgeloestAm
+      properties:
+        art:
+          type: string
+          enum:
+            - wartung
+        bereich:
+          $ref: "#/components/schemas/PlattformBereich"
+        hinweis:
+          type: string
+          nullable: true
+          description: Text für die Anzeige, höchstens 500 Zeichen.
+        ende:
+          type: string
+          format: date-time
+          nullable: true
+          description: Geplantes Ende, nur zur Anzeige.
+        ausgeloestVon:
+          type: string
+          description: Kennung der Person, die geschaltet hat.
+        ausgeloestAm:
+          type: string
+          format: date-time
+    PlattformBereich:
+      type: string
+      description: Ein Bereich von Cevi OS; `alles` trifft jeden.
+      enum:
+        - website
+        - lager
+        - chat
+        - programme
+        - verwaltung
+        - alles
+    PlattformSchalterListe:
+      type: object
+      required:
+        - schalter
+        - bereiche
+      properties:
+        schalter:
+          type: array
+          items:
+            $ref: "#/components/schemas/PlattformSchalter"
+        bereiche:
+          type: array
+          description: Die Bereiche, die die Person schalten darf (für die Anzeige; jede Schaltung prüft selbst).
+          items:
+            $ref: "#/components/schemas/PlattformBereich"
+    PlattformSchalterSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - bereich
+      properties:
+        art:
+          type: string
+          enum:
+            - wartung
+        bereich:
+          $ref: "#/components/schemas/PlattformBereich"
+        hinweis:
+          type: string
+          nullable: true
+          minLength: 1
+          maxLength: 500
+          description: Text, den die Apps und die Verwaltung zeigen.
+        ende:
+          type: string
+          format: date-time
+          nullable: true
+          description: Geplantes Ende mit Zeitzone (ISO 8601).
+    InWartung:
+      type: object
+      description: Antwort 503 in einem Bereich im Wartungsmodus.
+      required:
+        - code
+        - message
+        - hinweis
+        - ende
+      properties:
+        code:
+          type: string
+          enum:
+            - IN_WARTUNG
+        message:
+          type: string
+        hinweis:
+          type: string
+          nullable: true
+        ende:
+          type: string
+          format: date-time
+          nullable: true
     MediumAendern:
       type: object
       description: Genau eines von beiden, `altText` oder `dekorativ`.
@@ -21013,6 +21226,21 @@ components:
         type: string
         minLength: 1
         maxLength: 100
+    SchalterArt:
+      name: art
+      in: query
+      required: true
+      description: Heute nur `wartung`.
+      schema:
+        type: string
+        enum:
+          - wartung
+    SchalterBereich:
+      name: bereich
+      in: query
+      required: true
+      schema:
+        $ref: "#/components/schemas/PlattformBereich"
     AppVersion:
       name: X-App-Version
       in: header

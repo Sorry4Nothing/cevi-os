@@ -307,6 +307,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Wartungsmodus und Sperre (#424, #425): kein Personenbezug ausser der Kennung der auslösenden Person
+  bereichsschalter: {
+    protokoll: [
+      "id",
+      "abteilung_id",
+      "bereich",
+      "art",
+      "hinweis",
+      "ende",
+      "website_offline",
+      "ausgeloest_von",
+      "ausgeloest_am",
+    ],
+  },
   // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
   anlass: {
     anlass: [

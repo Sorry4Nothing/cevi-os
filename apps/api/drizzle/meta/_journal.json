@@ -423,6 +423,13 @@
       "breakpoints": true
     },
     {
+      "idx": 102,
+      "version": "7",
+      "when": 1793553200000,
+      "tag": "0102_bereichsschalter",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
