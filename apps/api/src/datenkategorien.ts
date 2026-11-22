@@ -215,6 +215,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerProtokolle: {
+    titel: "Protokolle und Beschlüsse im Lager",
+    zweck:
+      "Protokolle und Beschlüsse eines Lagers festhalten und auffindbar machen: Ein Protokoll hat eine Art (Sitzung, Notiz, Kontakt oder Idee), einen Titel, ein Datum, optional einen Höck und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Cevi OS speichert nur den Verweis, nie den Inhalt des Protokolls, und ruft den Link nie ab; wer die Datei öffnen darf, regelt der Ablageort. Ein Beschluss ist ein kurzer Text mit optionalem Verweis auf Protokoll und Höck. Protokolle und Beschlüsse sieht nur, wer das Recht dazu hat, und das Team nie, wenn sie zu einem Höck der Lagerleitung gehören.",
+    frist: `Bis die Leitung das Protokoll oder den Beschluss löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag angelegt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerAdressbuch: {
     titel: "Adressbuch im Lager",
     zweck:
@@ -291,7 +299,7 @@ export const KATEGORIEN = {
   anlass: {
     titel: "Anlässe und Anmeldungen",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt. Die Abteilungsleitung sieht die Anmeldungen mit Name und Telefon aus dem Konto und kann sie als CSV-Datei laden; der Server speichert die Datei nicht und hält im Protokoll nur fest, wann der Export lief und wie viele Anmeldungen er enthielt.",
     frist:
       "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis ein Webmaster sie löscht.",
     apple: ["Contact Info: Name", "User Content: Other User Content"],
@@ -744,6 +752,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ort",
       "gaeste",
       "protokoll_id",
+    ],
+  },
+  // Protokolle (#379): Art, Titel, Datum, Höck und Verweis auf die Datei; Beschlüsse: Text mit Verweis auf Protokoll und Höck
+  protokoll: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "titel",
+      "datum",
+      "hoeck_id",
+      "datei_id",
+    ],
+  },
+  beschluss: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "text",
+      "protokoll_id",
+      "hoeck_id",
     ],
   },
   hoeck_anwesenheit: {

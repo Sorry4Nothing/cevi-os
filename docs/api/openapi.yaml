@@ -10359,6 +10359,609 @@ paths:
         "426": *a8
         "429": *a9
   # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/protokolle:
+    get:
+      operationId: holeLagerProtokolle
+      summary: Protokolle des Lagers auflisten
+      description: |
+        Braucht das Recht `protokolle.lesen` (Standard: Lagerleitung, Leitung und Lesen, nicht das Team; je Lager einstellbar). Ein Protokoll oder Beschluss, der zu einem Höck der Art `lagerleitung` gehört, ist für Rollen ohne alle Höcks (weder `hoecks.lesen_alle` noch `hoecks.bearbeiten`) unbekannt (404), unabhängig von den Rechten für Protokolle.
+
+        Ein Protokoll ist die Verknüpfung auf eine Datei im SharePoint (Art `sitzung`, `notiz`, `kontakt` oder `idee`, Titel, Datum, optional Höck). Cevi OS speichert keinen Protokolltext. Öffnen und Herunterladen gehen über `datei.link` direkt zum Ablageort (SharePoint oder ein anderer Ablageort der Abteilung); der Ablageort regelt, wer die Datei öffnen darf. Der Server ruft den Link nie ab. Ist die Verknüpfung gelöscht, ist `datei` null.
+
+        Neueste zuerst (sortiert nach ID, absteigend), Seitenwechsel über `nach`. `q` sucht ohne Beachtung der Gross- und Kleinschreibung im Titel, nie im Inhalt der Datei.
+
+        Datenbanklast: eine Abfrage je Seite (Protokolle samt Dateien im Join).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `protokolle.lesen`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: hoeckId
+          in: query
+          required: false
+          description: Nur Protokolle dieses Höcks.
+          schema:
+            type: string
+            format: uuid
+        - name: art
+          in: query
+          required: false
+          description: Nur diese Art.
+          schema:
+            type: string
+            enum: [sitzung, notiz, kontakt, idee]
+        - name: q
+          in: query
+          required: false
+          description: Suchtext für den Titel (1 bis 100 Zeichen).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Protokolle.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerProtokollSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+
+    post:
+      operationId: legeLagerProtokollAn
+      summary: Protokoll anlegen
+      description: |
+        Braucht das Recht `protokolle.bearbeiten` (Standard: Lagerleitung und Leitung). Schreibt über den Sync-Kern (Feed, Folgenummer).
+
+        `dateiId` ist die ID einer Verknüpfung aus `POST /lager/{id}/dateien` (dort wird der Link streng geprüft: nur https, keine Zugangsdaten, begrenzte Länge, Hosts der Abteilung). Die Datei muss zu diesem Lager gehören und für die Person sichtbar sein (selbst in den letzten 24 Stunden hinzugefügt oder über einen lesbaren Datensatz), sonst 400 `DATEI_UNBEKANNT`. `hoeckId` muss ein Höck dieses Lagers sein, den die Person sieht, sonst 400 `HOECK_UNBEKANNT`.
+
+        Ein Protokoll der Art `sitzung` mit Höck setzt `protokollId` des Höcks, wenn dieser noch kein Protokoll hat.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `DATEI_UNBEKANNT` oder `HOECK_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerProtokollAnlegen"
+      responses:
+        "201":
+          description: Das angelegte Protokoll.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerProtokoll"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/protokolle/{protokollId}:
+    get:
+      operationId: holeLagerProtokoll
+      summary: Protokoll lesen
+      description: |
+        Braucht das Recht `protokolle.lesen`. Ein Protokoll oder Beschluss, der zu einem Höck der Art `lagerleitung` gehört, ist für Rollen ohne alle Höcks (weder `hoecks.lesen_alle` noch `hoecks.bearbeiten`) unbekannt (404), unabhängig von den Rechten für Protokolle.
+
+        Öffnen und Herunterladen gehen über `datei.link` direkt zum Ablageort (SharePoint oder ein anderer Ablageort der Abteilung); der Ablageort regelt, wer die Datei öffnen darf. Der Server ruft den Link nie ab. Ist die Verknüpfung gelöscht, ist `datei` null.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Protokoll (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Protokoll, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Protokoll.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: protokollId
+          in: path
+          required: true
+          description: ID des Protokolls (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Protokoll.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerProtokoll"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerProtokoll
+      summary: Protokoll ändern
+      description: |
+        Braucht das Recht `protokolle.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich. `hoeckId` null löst das Protokoll vom Höck. Mit `dateiId` zeigt das Protokoll auf eine andere Verknüpfung (Prüfung wie beim Anlegen). Die Zeiger `protokollId` der Höcks folgen: Wechselt Höck oder Art, nimmt der Server sie beim bisherigen Höck zurück und setzt sie beim neuen, wenn dort noch keines steht.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Protokoll (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `DATEI_UNBEKANNT` oder `HOECK_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Protokoll, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Protokoll. 409 `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: protokollId
+          in: path
+          required: true
+          description: ID des Protokolls (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerProtokollAendern"
+      responses:
+        "200":
+          description: Das geänderte Protokoll.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerProtokoll"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerProtokoll
+      summary: Protokoll löschen
+      description: |
+        Braucht das Recht `protokolle.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version`.
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Die Datei am Ablageort bleibt immer. Beschlüsse, die auf das Protokoll zeigen, bleiben bestehen. Zeigt `protokollId` eines Höcks darauf, nimmt der Server sie zurück. Das endgültige Löschen gehört zu den Aufgaben der Verwaltung (#427).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Protokoll (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Protokoll, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Protokoll. 409 `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: protokollId
+          in: path
+          required: true
+          description: ID des Protokolls (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Protokoll gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/beschluesse:
+    get:
+      operationId: holeLagerBeschluesse
+      summary: Beschlüsse des Lagers auflisten
+      description: |
+        Braucht das Recht `protokolle.lesen`. Ein Protokoll oder Beschluss, der zu einem Höck der Art `lagerleitung` gehört, ist für Rollen ohne alle Höcks (weder `hoecks.lesen_alle` noch `hoecks.bearbeiten`) unbekannt (404), unabhängig von den Rechten für Protokolle.
+
+        Die Beschlüsse bleiben in Cevi OS: ein kurzer Text mit optionalem Verweis auf Protokoll und Höck. Neueste zuerst (sortiert nach ID, absteigend), Seitenwechsel über `nach`.
+
+        Datenbanklast: eine Abfrage je Seite.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne `protokolle.lesen`. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: hoeckId
+          in: query
+          required: false
+          description: Nur Beschlüsse dieses Höcks.
+          schema:
+            type: string
+            format: uuid
+        - name: protokollId
+          in: query
+          required: false
+          description: Nur Beschlüsse dieses Protokolls.
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Beschlüsse.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBeschlussSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerBeschlussAn
+      summary: Beschluss anlegen
+      description: |
+        Braucht das Recht `protokolle.bearbeiten`. Schreibt über den Sync-Kern.
+
+        `protokollId` und `hoeckId` sind optional und müssen zu diesem Lager gehören und für die Person sichtbar sein (400 `PROTOKOLL_UNBEKANNT`, `HOECK_UNBEKANNT`). Gehört das Protokoll zu einem Höck, muss ein genannter `hoeckId` derselbe sein (400 `HOECK_PASST_NICHT`); ohne `hoeckId` übernimmt der Beschluss den Höck des Protokolls.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder einem der drei Fehlercodes. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerBeschlussAnlegen"
+      responses:
+        "201":
+          description: Der angelegte Beschluss.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBeschluss"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/beschluesse/{beschlussId}:
+    get:
+      operationId: holeLagerBeschluss
+      summary: Beschluss lesen
+      description: |
+        Braucht das Recht `protokolle.lesen`. Ein Protokoll oder Beschluss, der zu einem Höck der Art `lagerleitung` gehört, ist für Rollen ohne alle Höcks (weder `hoecks.lesen_alle` noch `hoecks.bearbeiten`) unbekannt (404), unabhängig von den Rechten für Protokolle.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Beschluss (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beschluss, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Beschluss.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beschlussId
+          in: path
+          required: true
+          description: ID des Beschlusses (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Beschluss.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBeschluss"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerBeschluss
+      summary: Beschluss ändern
+      description: |
+        Braucht das Recht `protokolle.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich; `protokollId` oder `hoeckId` null löst den Verweis. Ändert sich ein Verweis, gelten dieselben Prüfungen wie beim Anlegen für den Stand nach der Änderung (kein Höck wird übernommen: Wer das Protokoll wechselt, nennt den Höck mit).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Beschluss (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder einem der drei Fehlercodes. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beschluss, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Beschluss. 409 `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beschlussId
+          in: path
+          required: true
+          description: ID des Beschlusses (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerBeschlussAendern"
+      responses:
+        "200":
+          description: Der geänderte Beschluss.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBeschluss"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerBeschluss
+      summary: Beschluss löschen
+      description: |
+        Braucht das Recht `protokolle.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version`.
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Das endgültige Löschen gehört zu den Aufgaben der Verwaltung (#427).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Beschluss (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Beschluss, fremder Abteilung, ohne Mitgliedschaft oder bei einem für die Rolle verborgenen Beschluss. 409 `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: beschlussId
+          in: path
+          required: true
+          description: ID des Beschlusses (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Beschluss gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/pinnwand:
@@ -17455,6 +18058,127 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/anlaesse/{id}/anmeldungen:
+    get:
+      operationId: listeAdminAnlassAnmeldungen
+      summary: Anmeldungen eines Anlasses ansehen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen des Anlasses in Seiten, zuletzt geänderte zuerst. Name und Telefon der Person (wer angemeldet hat) und die Angaben des Kindes liest der Server live aus dem Konto; die Anmeldung speichert nur die Antworten. `antworten` ist ein Objekt `Schlüssel des Feldes → Wert`; die Beschriftungen stehen beim Anlass (`GET /api/v1/admin/anlaesse/{id}`). Gesundheitsdaten gibt es nie: Die Felder eines Anlasses dürfen sie nicht verlangen.
+
+        `status` wählt, was die Liste zeigt: ohne Angabe die Angemeldeten, `abgemeldet` die Abgemeldeten (ohne Antworten), `alle` beide. `summe` zählt immer alle Anmeldungen des Anlasses je Status, unabhängig vom Filter und von der Seite. `nach` ist die `naechste` der Vorseite (ein undurchsichtiger Wert); eine Anmeldung, die sich zwischen zwei Seiten ändert, rückt in der Sortierung nach vorn und kann auf einer späteren Seite nicht mehr auftauchen.
+
+        Abfragen: 2 je Seite (Anlass mit Summe und Feldern; Seite mit Person und Kind in einem Join), unabhängig von der Seitengrösse.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder ungültigem `nach`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: status
+          in: query
+          required: false
+          description: Welche Anmeldungen die Liste zeigt (Vorgabe `angemeldet`).
+          schema:
+            type: string
+            enum:
+              - angemeldet
+              - abgemeldet
+              - alle
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Eine Seite der Anmeldungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnmeldungListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/anlaesse/{id}/anmeldungen.csv:
+    get:
+      operationId: exportiereAdminAnlassAnmeldungen
+      summary: Anmeldungen eines Anlasses als CSV-Datei exportieren
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen als CSV-Datei: UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF (Annahme für Excel in der Schweiz). Die erste Zeile nennt die festen Spalten (Angemeldet von, Telefon, Kind Vorname, Kind Nachname, Kind Cevi-Name, Kind Stufe, Status, Geändert am) und dann die Beschriftungen der Zusatzfelder des Anlasses in deren Reihenfolge. Je Anmeldung folgt eine Zeile; Ja/Nein-Antworten stehen als «Ja» und «Nein».
+
+        Schutz vor Formeln: Eine Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes `'` und gilt damit in Tabellenprogrammen als Text. Das trifft auch Telefonnummern mit `+`.
+
+        Die Datei wird in Blöcken zu 500 Anmeldungen aus der Datenbank gelesen und gleich an den Client gestreamt; sie liegt nie als Ganzes im Speicher des Servers und wird nirgends gespeichert. Der Dateiname ist fest `anlass-<id>.csv`. Das Protokoll hält `anlass_export` mit der Anlass-ID und der Zahl der Anmeldungen fest, nie mit Namen oder Antworten.
+
+        `status` wie bei der Liste: ohne Angabe die Angemeldeten. Höchstens 10 Exporte je Person in 10 Minuten.
+
+        Abfragen: 1 für den Anlass, 1 Protokolleintrag, dann 1 je Block von 500 Anmeldungen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 429 bei mehr als 10 Exporten in 10 Minuten.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: status
+          in: query
+          required: false
+          description: Welche Anmeldungen die Datei enthält (Vorgabe `angemeldet`).
+          schema:
+            type: string
+            enum:
+              - angemeldet
+              - abgemeldet
+              - alle
+      responses:
+        "200":
+          description: Die CSV-Datei als Anhang.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="anlass-<id>.csv"`'
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/website/inhalt:
@@ -23574,6 +24298,213 @@ components:
                         minimum: 0
                   - type: "null"
     # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerProtokoll:
+      description: "Ein Protokoll: die Verknüpfung auf eine Datei im SharePoint. Kein Protokolltext; der Server ruft den Link nie ab."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - art
+        - titel
+        - datum
+        - hoeckId
+        - dateiId
+        - datei
+        - erstelltAm
+        - erstelltVon
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        art:
+          type: string
+          enum: [sitzung, notiz, kontakt, idee]
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
+        dateiId:
+          type: string
+          format: uuid
+        datei:
+          description: "Die Verknüpfung auf die Datei (Anzeigename, Link, Typ, Grösse); null, wenn sie gelöscht ist."
+          oneOf:
+            - $ref: "#/components/schemas/LagerDatei"
+            - type: "null"
+        erstelltAm:
+          type: string
+          format: date-time
+        erstelltVon:
+          description: "Konto, das den Eintrag angelegt hat; null, wenn das Konto gelöscht ist."
+          type: [string, "null"]
+          format: uuid
+    LagerProtokollSeite:
+      description: "Eine Seite Protokolle."
+      type: object
+      additionalProperties: false
+      required:
+        - protokolle
+        - naechster
+      properties:
+        protokolle:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerProtokoll"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt."
+          type: [string, "null"]
+          format: uuid
+    LagerProtokollAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - titel
+        - datum
+        - dateiId
+      properties:
+        art:
+          type: string
+          enum: [sitzung, notiz, kontakt, idee]
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        dateiId:
+          description: "ID einer Verknüpfung aus `POST /lager/{id}/dateien`."
+          type: string
+          format: uuid
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
+    LagerProtokollAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        art:
+          type: string
+          enum: [sitzung, notiz, kontakt, idee]
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        dateiId:
+          type: string
+          format: uuid
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
+    LagerBeschluss:
+      description: "Ein Beschluss: ein kurzer Text mit optionalem Verweis auf Protokoll und Höck."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - text
+        - protokollId
+        - hoeckId
+        - erstelltAm
+        - erstelltVon
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        protokollId:
+          type: [string, "null"]
+          format: uuid
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+        erstelltVon:
+          type: [string, "null"]
+          format: uuid
+    LagerBeschlussSeite:
+      description: "Eine Seite Beschlüsse."
+      type: object
+      additionalProperties: false
+      required:
+        - beschluesse
+        - naechster
+      properties:
+        beschluesse:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerBeschluss"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt."
+          type: [string, "null"]
+          format: uuid
+    LagerBeschlussAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        protokollId:
+          type: [string, "null"]
+          format: uuid
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
+    LagerBeschlussAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        protokollId:
+          type: [string, "null"]
+          format: uuid
+        hoeckId:
+          type: [string, "null"]
+          format: uuid
     # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerPinnwandEmpfaenger:
@@ -28419,6 +29350,109 @@ components:
           type: boolean
           description: Ob die Person selbst oder eines ihrer Kinder angemeldet ist.
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AdminAnmeldung:
+      type: object
+      required:
+        - id
+        - person
+        - kind
+        - status
+        - antworten
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        person:
+          type: object
+          description: Das Konto, das die Anmeldung angelegt hat (bei einem Kind ein Elternteil), mit Name und Telefon aus dem Konto.
+          required:
+            - id
+            - name
+            - telefon
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            telefon:
+              type:
+                - string
+                - "null"
+        kind:
+          description: Das angemeldete Kind; `null`, wenn sich die Person selbst angemeldet hat.
+          oneOf:
+            - type: "null"
+            - type: object
+              required:
+                - id
+                - vorname
+                - nachname
+                - ceviName
+                - stufe
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                vorname:
+                  type: string
+                nachname:
+                  type: string
+                ceviName:
+                  type:
+                    - string
+                    - "null"
+                stufe:
+                  type: string
+                  description: Name der Stufe des Kindes.
+        status:
+          type: string
+          enum:
+            - angemeldet
+            - abgemeldet
+        antworten:
+          type: object
+          description: Schlüssel eines Feldes des Anlasses → Antwort. Leer bei einer Abmeldung.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+        geaendertAm:
+          type: string
+          format: date-time
+    AdminAnmeldungListe:
+      type: object
+      required:
+        - eintraege
+        - summe
+        - weitere
+        - naechste
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAnmeldung"
+        summe:
+          type: object
+          description: Alle Anmeldungen des Anlasses je Status, unabhängig von Filter und Seite.
+          required:
+            - angemeldet
+            - abgemeldet
+          properties:
+            angemeldet:
+              type: integer
+              minimum: 0
+            abgemeldet:
+              type: integer
+              minimum: 0
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
