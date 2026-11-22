@@ -638,6 +638,26 @@ describe("Verweisprüfung", () => {
     );
   });
 
+  test("Medium löschen über die Redaktion: ebenfalls 409 MEDIUM_VERWENDET, danach frei", async () => {
+    const medium = await neuesMedium("oeffentlich");
+    const id = await neueSeite();
+    await speichere(
+      admin,
+      id,
+      dokument(baustein("bild", { mediumId: medium })),
+      0,
+    );
+    const url = `/api/v1/redaktion/medien/${medium}`;
+    const verwendet = await anfrage(admin, "DELETE", url);
+    expect(verwendet.status).toBe(409);
+    expect(await verwendet.json()).toMatchObject({
+      code: "MEDIUM_VERWENDET",
+      seiten: 1,
+    });
+    await speichere(admin, id, dokument(), 1);
+    expect((await anfrage(admin, "DELETE", url)).status).toBe(204);
+  });
+
   test("Medium löschen: unbekannt und fremd bleiben 404, Nicht-Admins 403", async () => {
     const medium = await neuesMedium("oeffentlich");
     const url = `/api/v1/admin/medien/${medium}`;

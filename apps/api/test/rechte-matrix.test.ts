@@ -134,6 +134,16 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
+  "GET /admin/website.js": { erwartet: alle(200) },
+  "GET /admin/website.css": { erwartet: alle(200) },
+  "GET /admin/website-seiten.js": { erwartet: alle(200) },
+  "GET /admin/website-seiten.css": { erwartet: alle(200) },
+  "GET /admin/website-editor.js": { erwartet: alle(200) },
+  "GET /admin/website-editor.css": { erwartet: alle(200) },
+  "GET /admin/website-medien.js": { erwartet: alle(200) },
+  "GET /admin/website-medien.css": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
+  "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -1231,6 +1241,93 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
       demoAdmin: 404,
       demoEltern: 404,
+    },
+  },
+  // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  "GET /api/v1/redaktion/ich": {
+    // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
+    erwartet: {
+      ...alle(200),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/medien": {
+    ohnePostman: true,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/medien": {
+    url: () =>
+      "/api/v1/redaktion/medien?sichtbarkeit=angemeldet&altText=Matrix",
+    bild: true,
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    url: () => `/api/v1/redaktion/medien/${mediumId}`,
+    body: () => ({ altText: "Matrix neu" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/redaktion/medien/:id": {
+    ohnePostman: true,
+    urlJeAnfrage: async () =>
+      `/api/v1/redaktion/medien/${await wegwerfMediumId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/redaktion/tags": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/personen": {
+    // Der Tag gehört zur Testabteilung: Die Demo-Abteilung kennt ihn nicht
+    url: (w) => `/api/v1/redaktion/personen?tag=${w.stufeAId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
     },
   },
   "PUT /api/v1/push-token": {

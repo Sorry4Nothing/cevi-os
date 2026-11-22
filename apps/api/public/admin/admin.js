@@ -9,6 +9,7 @@ import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as tags from "./tags.js";
 import * as uebersicht from "./uebersicht.js";
+import * as website from "./website.js";
 import * as zeitregeln from "./zeitregeln.js";
 
 // [Schlüssel im Hash, Name, Modul, Icon, Untertitel im Seitenkopf]
@@ -58,6 +59,13 @@ const BEREICHE = [
     "Anstehende Programme und ihre Stufen.",
   ],
   [
+    "website",
+    "Website",
+    website,
+    "website",
+    "Seiten und Medien der Website der Abteilung.",
+  ],
+  [
     "zeitregeln",
     "Erinnerungen",
     zeitregeln,
@@ -75,6 +83,14 @@ const BEREICHE = [
 
 const app = document.getElementById("app");
 let ich = null;
+// Antwort von GET /api/v1/redaktion/ich; nur für die Anzeige, jede Route prüft selbst
+let redaktion = null;
+const istAdmin = () => ich?.role === "admin";
+// Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website»)
+const sichtbareBereiche = () =>
+  istAdmin()
+    ? BEREICHE
+    : BEREICHE.filter(([s]) => redaktion?.bereiche.includes(s));
 
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
@@ -309,7 +325,7 @@ function zeigeLogin(hinweis, kopfzeichen) {
   });
   anmeldeSeite({
     titel: "Anmelden",
-    text: "Melde dich mit deinem Admin-Konto an.",
+    text: "Melde dich mit deinem Konto an.",
     hinweis,
     kopfzeichen: kopfzeichen ? zeichen(kopfzeichen) : zuViele,
     inhalt: [formular],
@@ -420,22 +436,32 @@ async function pruefeKonto(nachAnmeldung = true) {
     return;
   }
   ich = sitzung.user;
-  if (ich.role !== "admin") {
-    zeigeSperre("Dieses Konto hat keine Admin-Rechte.", [
-      "403 · Keine Admin-Rechte",
-      "sperre",
-      "fehler",
-    ]);
-  } else if (ich.mussPasswortAendern) {
+  redaktion = null;
+  if (ich.mussPasswortAendern) {
     zeigeSperre(
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
       ["Startpasswort offen", "schluessel", "warn"],
     );
-  } else if (!ich.twoFactorEnabled) {
-    zeigeSperre(
-      "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
-    );
+  } else if (istAdmin()) {
+    if (!ich.twoFactorEnabled) {
+      zeigeSperre(
+        "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
+      );
+      return;
+    }
+    redaktion = { redigieren: true, bereiche: ["website"], verwalten: true };
+    zeigeVerwaltung();
   } else {
+    // Alle anderen: nur der Bereich «Website», und nur mit Bearbeitungsrecht. Es werden keine Admin-Daten geladen
+    redaktion = await anfrage("GET", "/api/v1/redaktion/ich");
+    if (!redaktion.redigieren) {
+      zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
+        "403 · Kein Zugang",
+        "sperre",
+        "fehler",
+      ]);
+      return;
+    }
     zeigeVerwaltung();
   }
 }
@@ -465,12 +491,14 @@ function melde(text, art = "ok") {
   }, 50);
 }
 
+// Zum ersten Bereich, den die Person sieht: für Admins die Übersicht
 function zurUebersicht(klasse = "") {
+  const [schluessel, name, , symbol] = sichtbareBereiche()[0];
   return el(
     "a",
-    { class: `knopf ${klasse}`.trim(), href: "#uebersicht" },
-    icon("uebersicht"),
-    "Zur Übersicht",
+    { class: `knopf ${klasse}`.trim(), href: `#${schluessel}` },
+    icon(symbol),
+    schluessel === "uebersicht" ? "Zur Übersicht" : `Zu «${name}»`,
   );
 }
 
@@ -512,7 +540,7 @@ function zeigeVerwaltung() {
   const bereiche = el(
     "nav",
     { class: "bereiche", "aria-label": "Bereiche" },
-    BEREICHE.map(([schluessel, name, , symbol]) =>
+    sichtbareBereiche().map(([schluessel, name, , symbol]) =>
       el(
         "a",
         { class: "punkt", href: `#${schluessel}`, "data-bereich": schluessel },
@@ -533,7 +561,7 @@ function zeigeVerwaltung() {
       "div",
       { class: "marke" },
       el("p", { class: "ueber" }, "Cevi Stäfa-Hombrechtikon"),
-      el("strong", {}, "Verwaltung"),
+      el("strong", {}, istAdmin() ? "Verwaltung" : "Redaktion"),
     ),
     bereiche,
     el(
@@ -550,7 +578,11 @@ function zeigeVerwaltung() {
           el(
             "p",
             { class: "mini leise" },
-            ich.twoFactorEnabled ? "Admin · zweiter Faktor aktiv" : "Admin",
+            !istAdmin()
+              ? "Redaktion"
+              : ich.twoFactorEnabled
+                ? "Admin · zweiter Faktor aktiv"
+                : "Admin",
           ),
         ),
       ),
@@ -597,7 +629,7 @@ function zeigeNichtGefunden() {
     {
       ueber: "Fehler 404",
       titel: "Diese Seite gibt es nicht.",
-      text: "Der Link ist vielleicht alt, oder der Bereich heisst inzwischen anders. Wähle links einen Bereich oder geh zur Übersicht.",
+      text: "Der Link ist vielleicht alt, oder der Bereich heisst inzwischen anders. Wähle links einen Bereich oder nutze den Knopf.",
       symbol: "lupe",
     },
     [zurUebersicht("knopf--haupt")],
@@ -616,16 +648,22 @@ function navigiere() {
     document.getElementById("inhalt").focus();
     return;
   }
-  const gesucht = location.hash.slice(1);
-  const treffer = BEREICHE.find(([s]) => s === gesucht);
-  // Ohne Hash gilt die Übersicht; ein unbekannter Hash ist ein toter Link
+  // Der erste Teil ist der Bereich, der Rest gehört dem Modul (#website/seiten/<id>)
+  const [gesucht, ...pfad] = location.hash.slice(1).split("/");
+  const bereiche = sichtbareBereiche();
+  const treffer = bereiche.find(([s]) => s === gesucht);
+  // Ohne Hash gilt der erste Bereich; ein unbekannter oder nicht erlaubter Hash ist ein toter Link
   if (gesucht && !treffer) {
     zeigeNichtGefunden();
     return;
   }
-  const [schluessel, name, ansicht, , untertitel] = treffer ?? BEREICHE[0];
+  const [schluessel, name, ansicht, , untertitel] = treffer ?? bereiche[0];
   markiereBereich(schluessel);
-  const seitenkopf = kopf({ ueber: "Verwaltung", titel: name, untertitel });
+  const seitenkopf = kopf({
+    ueber: istAdmin() ? "Verwaltung" : "Redaktion",
+    titel: name,
+    untertitel,
+  });
   seitenkopf.id = "seitenkopf";
   document.getElementById("seitenkopf").replaceWith(seitenkopf);
   document.title = `${name} – Verwaltung – Cevi OS`;
@@ -635,8 +673,12 @@ function navigiere() {
   document.getElementById("bereich").replaceWith(bereich);
   ansicht.zeige(bereich, {
     ich,
+    redaktion,
+    pfad,
     melde,
     lade: erstelleLader(bereich),
+    // Für Bereiche mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
+    erstelleLader,
     // Hauptaktion rechts im Seitenkopf, z. B. «Person anlegen»; der Kopf wird mit jeder Navigation neu gebaut
     kopfAktion: (...knoten) =>
       seitenkopf.querySelector(".kopf-aktion").replaceChildren(...knoten),
