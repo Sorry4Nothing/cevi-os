@@ -20,7 +20,12 @@ import {
   erinnereAnAufraeumen,
   loescheAlteKontakte,
 } from "./lager/adressbuch.js";
+import {
+  sendeFristErinnerungen,
+  starteFristErinnerung,
+} from "./lager/fristen.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
+import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
@@ -133,6 +138,13 @@ starteSitzungenAufraeumen(
   () => loescheAlteKontakte(db),
   "lager_adressbuch_aufraeumen",
 );
+// Anmeldungen zu Anlässen 180 Tage nach dem Ende des Anlasses löschen (#443)
+starteSitzungenAufraeumen(
+  () => loescheAlteAnmeldungen(db),
+  "anlass_anmeldungen",
+);
+// Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
+starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
   konfiguration.WEBSITE_AUSGABE_PFAD &&

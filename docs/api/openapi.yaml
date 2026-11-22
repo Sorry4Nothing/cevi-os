@@ -4942,7 +4942,7 @@ paths:
       operationId: legeAdminLagerAn
       summary: Lager anlegen
       description: |
-        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte).
+        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte). Mit `vorlageId` entstehen die Einträge einer Vorlage mit dem Lager (zusätzlich `vorlage_angewendet` im Audit-Log).
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 für Nicht-Admins.
       tags:
@@ -7360,7 +7360,7 @@ paths:
       description: |
         Braucht das Recht `aufgaben.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
 
-        Verantwortliche und Unterstützung müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`), ein Ressort muss zum Lager gehören (400 `RESSORT_UNBEKANNT`). Ohne Verantwortliche gilt die Leitung des Ressorts; die Antwort nennt sie unter `verantwortlich` mit `automatisch: true`. Ohne `reihenfolge` kommt die Aufgabe ans Ende. Mit Status `erledigt` setzt der Server `erledigtAm`. Benachrichtigt werden die wirksame Verantwortliche und die Unterstützung (Art `aufgabe_zugeteilt`, Push ohne Aufgabentext), nie die Person, die anlegt.
+        Verantwortliche und Unterstützung müssen Mitglieder dieses Lagers sein (400 `KEIN_MITGLIED`), ein Ressort muss zum Lager gehören (400 `RESSORT_UNBEKANNT`), ein Meilenstein der relativen Frist ebenso (400 `MEILENSTEIN_UNBEKANNT`). Mit `fristVersatzTage` rechnet der Server die Frist (Meilenstein oder Lagerbeginn plus Versatz); `frist` und `fristVersatzTage` zusammen sind 400. Eine feste `frist` löst eine bestehende relative Frist. Ohne Verantwortliche gilt die Leitung des Ressorts; die Antwort nennt sie unter `verantwortlich` mit `automatisch: true`. Ohne `reihenfolge` kommt die Aufgabe ans Ende. Mit Status `erledigt` setzt der Server `erledigtAm`. Benachrichtigt werden die wirksame Verantwortliche und die Unterstützung (Art `aufgabe_zugeteilt`, Push ohne Aufgabentext), nie die Person, die anlegt.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
@@ -8422,9 +8422,1176 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/zeitplan:
+    get:
+      operationId: holeLagerZeitplan
+      summary: Zeitplan des Lagers lesen
+      description: |
+        Braucht das Recht `zeitplan.lesen` (Standard: alle Rollen). Der ganze Zeitplan in einer Abfrage: Meilensteine (nach Datum), Lagertage (nach Datum) und Tagesabschnitte (nach Reihenfolge). Die Listen sind je Lager begrenzt (höchstens 200 Meilensteine, 100 Tage, 12 Abschnitte), darum ohne Seiten. Aufgaben mit Frist liefert `GET /aufgaben?fristVon=&fristBis=`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Der Zeitplan."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplan"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/vorschlag:
+    get:
+      operationId: holeLagerZeitplanVorschlag
+      summary: Vorschlag für Lagertage und Tagesabschnitte
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Ändert nichts. Liefert die Tage von Beginn bis Ende des Lagers, die es noch nicht gibt, und die Standard-Abschnitte (Vormittag, Nachmittag, Abend, Nacht), wenn das Lager keine hat. Die Lagerleitung bestätigt (oder ändert) den Vorschlag mit `POST /zeitplan/uebernehmen`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Der Vorschlag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplanVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/uebernehmen:
+    post:
+      operationId: uebernehmeLagerZeitplan
+      summary: Lagertage und Tagesabschnitte übernehmen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Legt die genannten Tage und Abschnitte in einem Schritt an (ein Insert je Tabelle). Was es schon gibt (gleiches Datum, gleicher Name ohne Beachtung der Gross- und Kleinschreibung), wird übersprungen; die Antwort nennt nur, was neu entstand. Ein Tag ausserhalb von Beginn und Ende des Lagers ist 400 `AUSSERHALB_LAGER`; mehr als 100 Tage oder 12 Abschnitte je Lager sind 409 `LIMIT_ERREICHT`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZeitplanUebernehmen"
+      responses:
+        "201":
+          description: "Die neu angelegten Tage und Abschnitte."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZeitplanUebernommen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine:
+    post:
+      operationId: legeLagerMeilensteinAn
+      summary: Meilenstein anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Höchstens 200 Meilensteine je Lager (409 `LIMIT_ERREICHT`). Die `art` ist eine freie Bezeichnung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinAnlegen"
+      responses:
+        "201":
+          description: "Der neue Meilenstein."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilenstein"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine/{meilensteinId}:
+    patch:
+      operationId: aendereLagerMeilenstein
+      summary: Meilenstein ändern (ohne Datum)
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Ändert Titel und Art. Das Datum ändert nur `POST .../verschieben`: So ziehen die Fristen der Aufgaben mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (auch bei `datum`). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinAendern"
+      responses:
+        "200":
+          description: "Der geänderte Meilenstein."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilenstein"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerMeilenstein
+      summary: Meilenstein löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Aufgaben, deren Frist am Meilenstein hängt, behalten ihre Frist als festes Datum (der Bezug fällt weg, mit Feed-Eintrag je Aufgabe). Der Meilenstein bleibt bis zur endgültigen Löschung als gelöscht markiert.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/meilensteine/{meilensteinId}/verschieben:
+    post:
+      operationId: verschiebeLagerMeilenstein
+      summary: Meilenstein verschieben (Vorschau und Bestätigung)
+      description: |
+        Braucht die Rechte `zeitplan.bearbeiten` und `aufgaben.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung), weil die Fristen von Aufgaben mitziehen. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Zwei Schritte mit demselben Aufruf. `trocken: true` ist die Vorschau: Sie liest und ändert nichts und nennt den Meilenstein (Version, altes und neues Datum) und alle Aufgaben, deren Frist am Meilenstein hängt (ID, Version, Titel, Status, alte und neue Frist). `trocken: false` bestätigt: Es braucht `version` des Meilensteins und die Aufgaben mit ihrer Version aus der Vorschau (leere Liste, wenn keine Aufgabe am Meilenstein hängt). Stimmt die Menge oder eine Version der Aufgaben nicht mehr, schreibt der Server nichts und antwortet 409 `VORSCHAU_VERALTET` mit der neuen Vorschau; ist die Version des Meilensteins veraltet, 409 `VERSION_KONFLIKT`. Erst dann wird das Datum geschrieben, danach alle Fristen in einer einzigen Anweisung (Frist = neues Datum + Versatz); jede Aufgabe bekommt ihre Version und ihren Feed-Eintrag. Die Beteiligten der nicht erledigten Aufgaben bekommen eine Benachrichtigung (Art `aufgabe_geaendert`, eine je Person, Push ohne Aufgabentext), nie die Person, die verschiebt.
+
+        Das gleiche Datum ist 400 `KEINE_AENDERUNG`, mehr als 500 betroffene Aufgaben sind 400 `ZU_VIELE_AUFGABEN`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg (Vorschau oder Verschiebung). 400 bei ungültiger Eingabe, `KEINE_AENDERUNG` oder `ZU_VIELE_AUFGABEN`. 401 ohne Anmeldung. 403 ohne eines der Rechte (`RECHT_FEHLT` bei fehlendem `aufgaben.bearbeiten`). 404 bei unbekanntem Meilenstein, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `VERSION_KONFLIKT` oder `VORSCHAU_VERALTET`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: meilensteinId
+          in: path
+          required: true
+          description: ID des Meilensteins (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerMeilensteinVerschieben"
+      responses:
+        "200":
+          description: "Die Vorschau (`trocken: true`) oder das Ergebnis der Verschiebung."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerMeilensteinVerschiebung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` des Meilensteins ist veraltet (`VERSION_KONFLIKT`) oder die Aufgaben der Vorschau stimmen nicht mehr (`VORSCHAU_VERALTET`, mit der neuen Vorschau unter `vorschau`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/lagertage:
+    post:
+      operationId: legeLagerLagertagAn
+      summary: Lagertag anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Tag liegt zwischen Beginn und Ende des Lagers (400 `AUSSERHALB_LAGER`), je Datum gibt es einen (409 `TAG_VORHANDEN`), höchstens 100 je Lager (409 `LIMIT_ERREICHT`). Viele Tage auf einmal legt `POST /zeitplan/uebernehmen` an.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `TAG_VORHANDEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerLagertagAnlegen"
+      responses:
+        "201":
+          description: "Der neue Lagertag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerLagertag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Tag besteht schon (`TAG_VORHANDEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/lagertage/{lagertagId}:
+    patch:
+      operationId: aendereLagerLagertag
+      summary: Lagertag ändern
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Datum und Bezeichnung; das Datum gilt wie beim Anlegen (im Lager, je Datum einmal).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `AUSSERHALB_LAGER`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `TAG_VORHANDEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerLagertagAendern"
+      responses:
+        "200":
+          description: "Der geänderte Lagertag."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerLagertag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Tag besteht schon (`TAG_VORHANDEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerLagertag
+      summary: Lagertag löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Anwesenheiten und Anfragen für diesen Tag bleiben bis zur endgültigen Löschung des Tages bestehen und gehen dann mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Tag, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagId
+          in: path
+          required: true
+          description: ID des Lagertags (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/tagesabschnitte:
+    post:
+      operationId: legeLagerTagesabschnittAn
+      summary: Tagesabschnitt anlegen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Der Name ist je Lager einmal vergeben, ohne Beachtung der Gross- und Kleinschreibung (409 `ABSCHNITT_VORHANDEN`); höchstens 12 je Lager (409 `LIMIT_ERREICHT`). Ohne `reihenfolge` kommt der Abschnitt ans Ende. `zeit` ist der Beginn als «HH:MM», freiwillig.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `ABSCHNITT_VORHANDEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesabschnittAnlegen"
+      responses:
+        "201":
+          description: "Der neue Abschnitt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesabschnitt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Name besteht schon (`ABSCHNITT_VORHANDEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zeitplan/tagesabschnitte/{abschnittId}:
+    patch:
+      operationId: aendereLagerTagesabschnitt
+      summary: Tagesabschnitt ändern
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Abschnitt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `ABSCHNITT_VORHANDEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Tagesabschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTagesabschnittAendern"
+      responses:
+        "200":
+          description: "Der geänderte Abschnitt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTagesabschnitt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), der Name besteht schon (`ABSCHNITT_VORHANDEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerTagesabschnitt
+      summary: Tagesabschnitt löschen
+      description: |
+        Braucht das Recht `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Anwesenheiten und Anfragen für diesen Abschnitt bleiben bis zur endgültigen Löschung bestehen und gehen dann mit.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Abschnitt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: abschnittId
+          in: path
+          required: true
+          description: ID des Tagesabschnitts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/todos:
+    get:
+      operationId: listeLagerTodos
+      summary: Meine privaten To-dos im Lager
+      description: |
+        Liefert die eigenen privaten To-dos der Person in diesem Lager nach Reihenfolge, höchstens 200. Jede Rolle führt ihre eigenen, auch «lesen»; ein eigenes Recht gibt es nicht. Kein anderes Konto sieht sie: Auch die Lagerleitung und die Abteilungsleitung lesen fremde To-dos nie, und sie erscheinen weder im Änderungsfeed noch in Ereignissen, Suche oder Verlauf.
+
+        Datenbank: eine Abfrage (zusätzlich die Abfragen der Policy). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die eigenen To-dos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodoListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerTodoAn
+      summary: Privates To-do anlegen
+      description: |
+        Legt ein To-do für die Person selbst an, ans Ende der Liste oder an der genannten Stelle. Höchstens 200 To-dos je Person und Lager (409 `LIMIT_ERREICHT`). Ohne Version, ohne Feed: Nur die Person selbst liest es.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTodoAnlegen"
+      responses:
+        "201":
+          description: Das neue To-do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Person hat die höchste Zahl an To-dos (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/todos/{todoId}:
+    patch:
+      operationId: aendereLagerTodo
+      summary: Privates To-do ändern oder abhaken
+      description: |
+        Nur die genannten Felder ändern sich, mindestens eines. Das To-do einer anderen Person ist unbekannt (404), auch für die Lagerleitung. Ohne Version: Nur die Person selbst ändert es.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), To-do der Person (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder To-do, fremder Abteilung, ohne Mitgliedschaft oder bei einem To-do einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: todoId
+          in: path
+          required: true
+          description: ID des To-dos (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTodoAendern"
+      responses:
+        "200":
+          description: Das geänderte To-do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerTodo
+      summary: Privates To-do löschen
+      description: |
+        Löscht das To-do endgültig (es ist rein persönlich, kein Papierkorb). Das To-do einer anderen Person ist unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), To-do der Person (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder To-do, fremder Abteilung, ohne Mitgliedschaft oder bei einem To-do einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: todoId
+          in: path
+          required: true
+          description: ID des To-dos (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/vorlagen/{vorlageId}/anwenden:
+    post:
+      operationId: wendeLagerVorlageAn
+      summary: Vorlage im Lager anwenden
+      description: |
+        Braucht das Recht `vorlagen.anwenden` (Standard: nur die Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Legt die Einträge einer Vorlage der eigenen Abteilung im Lager an: bei einer Aufgaben-Vorlage Aufgaben (Status offen, ohne Verantwortliche und Ressort, ans Ende der Liste), bei einer Packlisten-Vorlage Punkte der Packliste (ans Ende der Liste). `fristTage` zählt in Tagen ab Lagerbeginn (`von` des Lagers): 0 ist der erste Lagertag, -30 dreissig Tage davor. Die neuen Zeilen gehen durch den Sync-Kern (Version, Folgenummer, Änderungsfeed). Eine Benachrichtigung entsteht nicht. Wer dieselbe Vorlage zweimal anwendet, hat jeden Eintrag zweimal; es bleibt kein Verweis auf die Vorlage.
+
+        Mit `trocken=true` schreibt der Aufruf nichts und nennt, was entstünde (Titel mit Frist, beziehungsweise Punkte). Auch der Trockenlauf ist ein POST und darum in einem abgeschlossenen Lager gesperrt.
+
+        Eine Packliste fasst höchstens 500 Punkte: Würde die Vorlage sie übersteigen, geschieht nichts (409 `LIMIT_ERREICHT`).
+
+        Datenbank: Policy (2 Abfragen), Vorlage (1), beim Anwenden eine Transaktion: Sperre des Lagers, Zählen oder Ende der Liste (1), Folgenummern, ein Insert für alle Zeilen, ein Feed-Insert, ein Audit-Eintrag (`vorlage_angewendet`: Vorlage und Art, nie Inhalte). Die Zahl der Abfragen hängt nicht von der Zahl der Einträge ab.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Vorlage der eigenen Abteilung (404).
+
+        Statuscodes: 200 beim Trockenlauf. 201 beim Anwenden. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Vorlage, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `LIMIT_ERREICHT` oder `VORLAGE_UNGUELTIG` (der gespeicherte Inhalt ist nicht lesbar).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: vorlageId
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: trocken
+          in: query
+          required: false
+          description: "`true` schreibt nichts und zeigt nur, was entstünde. Vorgabe: `false`."
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Der Trockenlauf; nichts wurde geschrieben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VorlageAnwendung"
+        "201":
+          description: Die Einträge sind angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VorlageAnwendung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die Packliste würde die höchste Zahl an Punkten übersteigen (`LIMIT_ERREICHT`) oder der Inhalt der Vorlage ist nicht lesbar (`VORLAGE_UNGUELTIG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/vorlagen:
+    get:
+      operationId: listeAdminVorlagen
+      summary: Vorlagen der Abteilung
+      description: |
+        Nur Admins. Liefert die Vorlagen der eigenen Abteilung ohne Inhalt (mit Anzahl der Einträge), nach Art und Name; optional nur eine Art. Höchstens 100 Vorlagen je Abteilung, darum kein Seitenwechsel. Eine Abfrage.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Art. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: art
+          in: query
+          required: false
+          description: Nur Vorlagen dieser Art.
+          schema:
+            type: string
+            enum:
+              - aufgaben
+              - packliste
+      responses:
+        "200":
+          description: Die Vorlagen.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - vorlagen
+                properties:
+                  vorlagen:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VorlageUebersicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminVorlageAn
+      summary: Vorlage anlegen
+      description: |
+        Nur Admins. Legt eine Vorlage der eigenen Abteilung an. Der Inhalt hängt von der Art ab und ist strikt (unbekannte Felder 400): Art `aufgaben` hat `aufgaben` (1 bis 200 Einträge mit `titel`, optional `teil`, `notiz`, `stern`, `laufend`, `fristTage`), Art `packliste` hat `punkte` (1 bis 500 Einträge mit `abschnitt`, `text`, optional `nurLagerleitung`). `fristTage` zählt in Tagen ab Lagerbeginn (-366 bis 366). Name je Abteilung und Art eindeutig (409 `VORLAGENNAME_VERGEBEN`), höchstens 100 Vorlagen je Abteilung (409 `LIMIT_ERREICHT`). Das Audit-Log nennt `vorlage_angelegt` mit Art, nie Inhalte.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 409 bei vergebenem Namen oder erreichter Obergrenze.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VorlageAnlegen"
+      responses:
+        "201":
+          description: Die neue Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Der Name ist vergeben (`VORLAGENNAME_VERGEBEN`) oder die Obergrenze erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/vorlagen/{id}:
+    get:
+      operationId: holeAdminVorlage
+      summary: Vorlage mit Inhalt
+      description: |
+        Nur Admins. Reihenfolge der Prüfungen: Pfad (400), Vorlage der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminVorlage
+      summary: Vorlage ändern
+      description: |
+        Nur Admins. Nur die genannten Felder ändern sich, mindestens eines; der neue Inhalt ersetzt den alten ganz und muss zur Art der Vorlage passen (die Art bleibt). Bereits angewendete Aufgaben und Punkte bleiben unverändert. Das Audit-Log nennt `vorlage_geaendert` mit den Feldnamen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei vergebenem Namen (`VORLAGENNAME_VERGEBEN`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VorlageAendern"
+      responses:
+        "200":
+          description: Die geänderte Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Name ist vergeben (`VORLAGENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminVorlage
+      summary: Vorlage löschen
+      description: |
+        Nur Admins. Löscht die Vorlage endgültig. Aufgaben und Punkte, die aus ihr entstanden sind, bleiben. Das Audit-Log nennt `vorlage_geloescht` mit der Art.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -13034,7 +14201,168 @@ paths:
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/termine/warnungen:
+    get:
+      operationId: listeTermineWarnungen
+      summary: Warnliste «Termine ohne Kategorie»
+      tags:
+        - Termine
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+
+        Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
+        Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
+        Ein Termin mit bekannter und unbekannter Kategorie hat einen Tag und fehlt darum in `termine`.
+
+        `unbekannteKategorien` fasst alle Kategorienamen der kommenden Termine zusammen, die weder über `kategorie_zuordnung` noch über einen Tag gleichen Namens (getrimmt, ohne Gross-/Kleinschreibung) einem Tag entsprechen, auch bei Terminen, die über eine andere Kategorie sichtbar sind. `anzahl` zählt die Termine. Sortiert nach `anzahl` absteigend, dann nach Name; höchstens 200 Einträge. Die Zusammenfassung steht in jeder Antwort, unabhängig von der Seite.
+        Eine Zuordnung wirkt erst beim nächsten Lauf des Abgleichs (alle 5 Minuten).
+
+        Sortiert nach Beginn (ganztägige ab 00:00 Schweizer Zeit ihres ersten Tages), bei Gleichstand nach `id`. `nach` ist die `naechste` der Vorseite, undurchsichtig.
+        Zwei Abfragen je Aufruf, unabhängig von der Seitengrösse: die Seite der Termine und die Zusammenfassung der Kategorien.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (`limit` ausserhalb 1 bis 100, ungültiges `nach`, unbekannter Parameter). 401 keine gültige Sitzung. 403 für alle ausser der Abteilungsleitung. 426 App-Version zu alt. 429 zu viele Anfragen.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Termine je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite, unverändert.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eine Seite der Termine ohne Tag und die unbekannten Kategorien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminWarnungen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/kategorie-zuordnungen:
+    get:
+      operationId: listeKategorieZuordnungen
+      summary: Zuordnungen von Outlook-Kategorien zu Tags
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Abweichungen der eigenen Abteilung, in denen eine Outlook-Kategorie einen Tag meint, der nicht genau so heisst. Sortiert nach Kategorie ohne Gross-/Kleinschreibung, höchstens 500, kein Seitenwechsel. Eine Abfrage (Zuordnung mit Name und Typ des Tags).
+
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Zuordnungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeKategorieZuordnung
+      summary: Kategorie einem Tag zuordnen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Ordnet eine Outlook-Kategorie einem Tag der Abteilung zu. Gibt es die Kategorie schon (ohne Gross-/Kleinschreibung), ersetzt die neue Zeile die bisherige samt Schreibweise. Die Zuordnung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten), nicht in der Anfrage; die Termine werden hier nicht neu zugeordnet. Prüfprotokoll `kategorie_zugeordnet` mit der Tag-ID, nie dem Namen.
+
+        Kategorie 1 bis 100 Zeichen, ohne Steuerzeichen, Leerzeichen am Rand fallen weg.
+
+        Statuscodes: 201 neu angelegt, 200 bestehende ersetzt. 400 bei ungültiger Eingabe oder mit Code `TAG_UNBEKANNT`, wenn der Tag nicht zur Abteilung gehört. 403 für alle anderen. 409 mit Code `ZUORDNUNGEN_VOLL` bei mehr als 500 Zeilen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KategorieZuordnungSetzen"
+      responses:
+        "200":
+          description: Eine bestehende Zuordnung derselben Kategorie ist ersetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "201":
+          description: Zuordnung angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt schon 500 Zuordnungen (Code `ZUORDNUNGEN_VOLL`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kategorie-zuordnungen/{id}:
+    delete:
+      operationId: loescheKategorieZuordnung
+      summary: Zuordnung entfernen
+      description: |
+        Nur die Abteilungsleitung. Entfernt die Zuordnung; die Kategorie gilt beim nächsten Kalender-Abgleich (bis 5 Minuten) wieder nur, wenn ein Tag genau so heisst. Prüfprotokoll `kategorie_entfernt` mit der Tag-ID.
+
+        Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn die Zuordnung nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Zuordnung (UUID), in der Abteilung der Person.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Entfernt.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termine/mein:
     get:
@@ -13149,7 +14477,7 @@ paths:
         - `treffpunkt`, `schlussOrt`, `schlussZeit`, `mitnehmen`: die Eckdaten der Stufenseite, wenn Tag und Stufe zum Termin passen, sonst `null`.
         - `teilnahmeOffen`: wahr, wenn der Termin «aktiv» ist und noch nicht begonnen hat.
         - `eigeneAnmeldung`: nur wenn die Person Leitung einer Stufe des Termins ist; ohne Antwort «offen».
-        - `anlass`: heute immer `null`; später der Verweis auf die Anmeldung zu einem Anlass.
+        - `anlass`: der Verweis auf die Anmeldung zu einem Anlass (`id`, `anmeldeschluss`, `anmeldungOffen`, `angemeldet`), wenn der Termin einen Anlass hat, den die Person sehen darf (`GET /api/v1/anlaesse/{id}`); sonst `null`.
 
         Zwischenspeicher wie bei der Liste: `private`, `ETag`, 304 bei `If-None-Match`.
 
@@ -13288,6 +14616,191 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/termin-vorschlaege/optionen:
+    get:
+      operationId: holeTerminVorschlagOptionen
+      summary: Darf ich einen Termin vorschlagen, und mit welchen Kategorien?
+      description: |
+        Sagt, ob die Person Termine vorschlagen darf, und liefert die Tags der eigenen Abteilung, die sich als Kategorie wählen lassen. Wer nicht vorschlagen darf, bekommt `darfVorschlagen: false` und eine leere Liste. Vorschlagen dürfen (Annahme, vom Nutzer zu bestätigen): die Abteilungsleitung, Personen mit einer Rolle als Stufenleitung oder Leitung und Personen mit einem Tag vom Typ `funktion` oder `team`. Höchstens zwei Abfragen: das Recht (nur, wenn weder Admin noch Rolle genügen) und die Tags.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Recht und wählbare Kategorien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagOptionen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege/meine:
+    get:
+      operationId: listeMeineTerminVorschlaege
+      summary: Meine Terminvorschläge
+      description: |
+        Liefert die eigenen Vorschläge mit ihrem Stand, neueste zuerst. Jede Person mit Konto darf die Route aufrufen (wer nichts vorgeschlagen hat, bekommt eine leere Liste). Seiten: `limit` (1 bis 100, Standard 50) und `nach` (die `naechste`-ID der vorigen Seite); `weitere` sagt, ob es eine nächste Seite gibt. Zwei Abfragen je Seite, unabhängig von der Zahl der Vorschläge.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültigem `limit` oder `nach`. 401 ohne Anmeldung.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die `naechste`-ID der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite eigener Vorschläge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege:
+    post:
+      operationId: legeTerminVorschlagAn
+      summary: Termin vorschlagen
+      description: |
+        Reicht einen Terminvorschlag mit dem Status `offen` ein. Ganztägig braucht `tagVon` und `tagBis` (letzter Tag), sonst `beginn` und `ende` (mit Zeitzone); der Beginn darf nicht in der Vergangenheit liegen. `tagIds` sind 1 bis 20 Tags der eigenen Abteilung (Kategorien, siehe `/api/v1/termin-vorschlaege/optionen`). Grenzen: Titel 120, Ort 120, Beschreibung 2000, Bemerkung 1000 Zeichen, ohne Steuerzeichen; höchstens 10 offene Vorschläge je Person (Annahme); Rate-Limit: 20 Anfragen je Konto in 10 Minuten (429).
+
+        Danach geht ein Push `termin_vorschlag` an alle aktiven Konten der Abteilungsleitung der Abteilung (ohne die vorschlagende Person), mit festem Text ohne Titel und Namen; `data.id` ist die Vorschlags-ID. Cevi OS trägt nichts in Outlook ein. Reihenfolge der Prüfungen: Recht (403), Eingabe (400), Rate-Limit (429), Termin nicht in der Vergangenheit (400 `TERMIN_VERGANGEN`), Obergrenze (409 `VORSCHLAG_LIMIT`), Tags (400 `TAG_UNBEKANNT`).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `TERMIN_VERGANGEN` oder `TAG_UNBEKANNT` (ein Tag gibt es nicht oder gehört zu einer anderen Abteilung). 401 ohne Anmeldung. 403 ohne Recht zum Vorschlagen. 409 bei `VORSCHLAG_LIMIT`. 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TerminVorschlagAnlegen"
+      responses:
+        "201":
+          description: Der Vorschlag ist eingereicht.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlagAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Die Person hat schon 10 offene Vorschläge (code `VORSCHLAG_LIMIT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termin-vorschlaege/{id}:
+    get:
+      operationId: holeTerminVorschlag
+      summary: Ein Terminvorschlag
+      description: |
+        Liefert den Vorschlag. Die vorschlagende Person sieht ihre eigenen, die Abteilungsleitung jeden der Abteilung. Für alle anderen gibt es ihn nicht (404), auch nicht für die Abteilungsleitung einer anderen Abteilung. Zwei Abfragen (Vorschlag, Tags).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn der Vorschlag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht sehen darf.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Vorschlags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Vorschlag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: ziehTerminVorschlagZurueck
+      summary: Terminvorschlag zurückziehen
+      description: |
+        Löscht den eigenen Vorschlag, solange er `offen` ist. Ist schon entschieden, bleibt er (409 `VORSCHLAG_ENTSCHIEDEN`). Die Abteilungsleitung sieht jeden Vorschlag der Abteilung, zieht aber fremde nicht zurück (403). Für alle anderen gibt es den Vorschlag nicht (404). Das Zurückziehen steht im Protokoll der Verwaltung (ID, nie der Inhalt).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für die Abteilungsleitung bei einem fremden Vorschlag. 404 bei unbekanntem, fremder Abteilung oder nicht sichtbarem Vorschlag. 409 bei `VORSCHLAG_ENTSCHIEDEN`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Vorschlags (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Der Vorschlag ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Über den Vorschlag ist schon entschieden (code `VORSCHLAG_ENTSCHIEDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/admin/anlaesse:
@@ -13508,6 +15021,120 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/anlaesse/{id}:
+    get:
+      operationId: leseAnlassVorlage
+      summary: Anlass mit Formular und eigener Anmeldung lesen
+      description: |
+        Die Vorlage für die Anmeldung. Wer den Anlass sehen darf (Sichtbarkeit `oeffentlich` oder `angemeldet` für alle der Abteilung, `tags` für Personen mit einem der Tags, bei Eltern auch über die Stufe eines ihrer aktiven Kinder, die Abteilungsleitung immer), bekommt ihn; für alle anderen ist er 404, auch für Personen anderer Abteilungen.
+
+        `teilnehmende` sind bei `anmeldungFuer: kind` die eigenen aktiven Kinder (ohne Kind eine leere Liste), bei `person` die Person selbst. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
+
+        Abfragen: 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), unabhängig von der Zahl der Kinder.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger `id`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      responses:
+        "200":
+          description: Der Anlass mit Formular und eigener Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassVorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/anlaesse/{id}/anmeldung:
+    put:
+      operationId: meldeZuAnlassAn
+      summary: Zu einem Anlass anmelden oder die Anmeldung ändern
+      description: |
+        Meldet die Person (`anmeldungFuer: person`, ohne `kindId`) oder eines ihrer aktiven Kinder (`anmeldungFuer: kind`, mit `kindId`) an. Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
+
+        Die Antworten gelten gegen die Felder des Anlasses: unbekannte Schlüssel, fehlende Pflichtfelder (bei Text zählt leer als fehlend), falscher Typ (`ja_nein` ist `true` oder `false`), eine Auswahl ausserhalb der Optionen, Text über 500 Zeichen oder mit Steuerzeichen (auch Zeilenumbruch) ergeben 400 mit `fehler: [{ schluessel, code }]` und den Codes `UNBEKANNT`, `PFLICHT`, `TYP`, `OPTION`, `ZU_LANG`, `STEUERZEICHEN`, nie mit dem Wert. Text wird getrimmt gespeichert.
+
+        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes (`kind_eltern`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. `kindId` ist bei `kind` Pflicht (400 `KIND_ID_PFLICHT`) und bei `person` verboten (400 `KIND_ID_VERBOTEN`).
+
+        Ratenbegrenzung: höchstens 30 Anmeldungen und Abmeldungen je Person und Minute (429). Audit: `anlass_angemeldet` mit der ID der Anmeldung, nie mit Antworten.
+
+        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur bei `kind`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `ANTWORTEN_UNGUELTIG`, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnlassAnmeldungEingabe"
+      responses:
+        "200":
+          description: Die Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassAnmeldung"
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: meldeVonAnlassAb
+      summary: Von einem Anlass abmelden
+      description: |
+        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId`, Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: kindId
+          in: query
+          required: false
+          description: "Das Kind, nur bei Anlässen mit `anmeldungFuer: kind` (dort Pflicht)."
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Abgemeldet.
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16796,6 +18423,10 @@ components:
           type: string
           format: uuid
           description: Ein Bild aus den Medien der eigenen Abteilung.
+        vorlageId:
+          type: string
+          format: uuid
+          description: Eine Vorlage der eigenen Abteilung. Ihre Aufgaben oder Packlisten-Punkte entstehen mit dem Lager, in derselben Transaktion (eine unbekannte oder fremde Vorlage ist 400). Fristen zählen ab `von`.
     AdminLagerAendern:
       type: object
       additionalProperties: false
@@ -17691,6 +19322,8 @@ components:
         - status
         - notiz
         - frist
+        - fristMeilensteinId
+        - fristVersatzTage
         - stern
         - laufend
         - spaeterAb
@@ -17734,6 +19367,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist); ohne Angabe, aber mit `fristVersatzTage`, zählt der Beginn des Lagers."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -17855,6 +19497,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist). Verlangt `fristVersatzTage`; zusammen mit `frist` ungültig. Den Meilenstein gibt es im Lager (400 `MEILENSTEIN_UNBEKANNT`)."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -17914,6 +19565,15 @@ components:
         frist:
           type: [string, "null"]
           format: date
+        fristMeilensteinId:
+          description: "Meilenstein, an dem die Frist hängt (relative Frist). Verlangt `fristVersatzTage`; zusammen mit `frist` ungültig. Den Meilenstein gibt es im Lager (400 `MEILENSTEIN_UNBEKANNT`)."
+          type: [string, "null"]
+          format: uuid
+        fristVersatzTage:
+          description: "Relative Frist: Versatz in Tagen zum Meilenstein (ohne `fristMeilensteinId` zum Beginn des Lagers); der Server rechnet `frist` daraus und schreibt sie bei einer Verschiebung des Meilensteins neu. `null`: feste Frist."
+          type: [integer, "null"]
+          minimum: -3650
+          maximum: 3650
         stern:
           type: boolean
         laufend:
@@ -18315,9 +19975,646 @@ components:
           description: "Cursor für die nächste Seite (`vor`); `null`, wenn es keine gibt."
           type: [integer, "null"]
     # lager-schemas: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerMeilenstein:
+      description: "Ein Meilenstein des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - titel
+        - datum
+        - art
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1."
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        art:
+          description: "Freie Bezeichnung der Art."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerLagertag:
+      description: "Ein Tag des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - datum
+        - label
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerTagesabschnitt:
+      description: "Ein Abschnitt des Tages, zum Beispiel Vormittag."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - name
+        - zeit
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          description: "Beginn als HH:MM, freiwillig."
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerZeitplan:
+      description: "Der Zeitplan des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - meilensteine
+        - lagertage
+        - tagesabschnitte
+      properties:
+        meilensteine:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerMeilenstein"
+        lagertage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerLagertag"
+        tagesabschnitte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerTagesabschnitt"
+    LagerMeilensteinAnlegen:
+      description: "Neuer Meilenstein."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - datum
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        datum:
+          type: string
+          format: date
+        art:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerMeilensteinAendern:
+      description: "Titel und Art ändern; das Datum ändert nur die Verschiebung."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        art:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 50
+    LagerLagertagAnlegen:
+      description: "Neuer Lagertag."
+      type: object
+      additionalProperties: false
+      required:
+        - datum
+      properties:
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerLagertagAendern:
+      description: "Lagertag ändern."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        datum:
+          type: string
+          format: date
+        label:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+    LagerTagesabschnittAnlegen:
+      description: "Neuer Tagesabschnitt."
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerTagesabschnittAendern:
+      description: "Tagesabschnitt ändern."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        zeit:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerZeitplanVorschlag:
+      description: "Was das Lager noch braucht; ändert nichts."
+      type: object
+      additionalProperties: false
+      required:
+        - lagertage
+        - tagesabschnitte
+      properties:
+        lagertage:
+          description: "Tage von Beginn bis Ende, die es noch nicht gibt."
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [datum, label]
+            properties:
+              datum:
+                type: string
+                format: date
+              label:
+                type: "null"
+        tagesabschnitte:
+          description: "Standard-Abschnitte, wenn das Lager keine hat."
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, zeit, reihenfolge]
+            properties:
+              name:
+                type: string
+              zeit:
+                type: "null"
+              reihenfolge:
+                type: integer
+    LagerZeitplanUebernehmen:
+      description: "Die bestätigten Tage und Abschnitte; mindestens einer."
+      type: object
+      additionalProperties: false
+      properties:
+        lagertage:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required: [datum]
+            properties:
+              datum:
+                type: string
+                format: date
+              label:
+                type: [string, "null"]
+                minLength: 1
+                maxLength: 100
+        tagesabschnitte:
+          type: array
+          maxItems: 12
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+                minLength: 1
+                maxLength: 50
+              zeit:
+                type: [string, "null"]
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+              reihenfolge:
+                type: integer
+                minimum: 0
+                maximum: 1000
+    LagerZeitplanUebernommen:
+      description: "Neu angelegt."
+      type: object
+      additionalProperties: false
+      required:
+        - lagertage
+        - tagesabschnitte
+      properties:
+        lagertage:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerLagertag"
+        tagesabschnitte:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerTagesabschnitt"
+    LagerMeilensteinVerschieben:
+      description: "Vorschau (`trocken: true`) oder Bestätigung (`trocken: false`, mit den Aufgaben der Vorschau)."
+      type: object
+      additionalProperties: false
+      required:
+        - trocken
+        - datum
+        - version
+      properties:
+        trocken:
+          type: boolean
+        datum:
+          description: "Das neue Datum des Meilensteins."
+          type: string
+          format: date
+        version:
+          description: "Version des Meilensteins."
+          type: integer
+          minimum: 1
+        aufgaben:
+          description: "Pflicht bei `trocken: false`: die Aufgaben mit Version aus der Vorschau, leer, wenn keine betroffen ist."
+          type: array
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, version]
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+    LagerMeilensteinVerschiebung:
+      description: "Vorschau oder Ergebnis der Verschiebung."
+      type: object
+      additionalProperties: false
+      required:
+        - trocken
+        - meilenstein
+        - aufgaben
+      properties:
+        trocken:
+          type: boolean
+        meilenstein:
+          type: object
+          additionalProperties: false
+          required: [id, version, datumAlt, datumNeu]
+          properties:
+            id:
+              type: string
+              format: uuid
+            version:
+              type: integer
+              description: "Vorschau: die aktuelle Version; Verschiebung: die neue."
+            datumAlt:
+              type: string
+              format: date
+            datumNeu:
+              type: string
+              format: date
+        aufgaben:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, version, titel, status, fristAlt, fristNeu]
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                description: "Vorschau: die aktuelle Version; Verschiebung: die neue."
+              titel:
+                type: string
+              status:
+                $ref: "#/components/schemas/LagerAufgabeStatus"
+              fristAlt:
+                type: string
+                format: date
+              fristNeu:
+                type: string
+                format: date
     # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerTodo:
+      description: Ein privates To-do; es gehört der Person, die die Liste liest.
+      type: object
+      required:
+        - id
+        - text
+        - erledigt
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerTodoListe:
+      type: object
+      required:
+        - todos
+      properties:
+        todos:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/LagerTodo"
+    LagerTodoAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+          description: Ohne Angabe ans Ende der Liste.
+    LagerTodoAendern:
+      description: Mindestens ein Feld.
+      type: object
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
     # lager-schemas: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    VorlageArt:
+      type: string
+      enum:
+        - aufgaben
+        - packliste
+    VorlageAufgabenInhalt:
+      description: Inhalt einer Vorlage der Art `aufgaben`.
+      type: object
+      additionalProperties: false
+      required:
+        - aufgaben
+      properties:
+        aufgaben:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - titel
+            properties:
+              titel:
+                type: string
+                minLength: 1
+                maxLength: 200
+              teil:
+                type: string
+                minLength: 1
+                maxLength: 100
+              notiz:
+                type: string
+                minLength: 1
+                maxLength: 5000
+              stern:
+                type: boolean
+              laufend:
+                type: boolean
+              fristTage:
+                type: integer
+                minimum: -366
+                maximum: 366
+                description: Tage ab Lagerbeginn (`von`). 0 ist der erste Lagertag, negative Werte liegen davor. Ohne Angabe hat die Aufgabe keine Frist.
+    VorlagePacklisteInhalt:
+      description: Inhalt einer Vorlage der Art `packliste`.
+      type: object
+      additionalProperties: false
+      required:
+        - punkte
+      properties:
+        punkte:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - abschnitt
+              - text
+            properties:
+              abschnitt:
+                type: string
+                minLength: 1
+                maxLength: 100
+              text:
+                type: string
+                minLength: 1
+                maxLength: 300
+              nurLagerleitung:
+                type: boolean
+    VorlageUebersicht:
+      type: object
+      required:
+        - id
+        - art
+        - name
+        - anzahl
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+          description: Zahl der Einträge (Aufgaben oder Punkte).
+        geaendertAm:
+          type: string
+          format: date-time
+    Vorlage:
+      type: object
+      required:
+        - id
+        - art
+        - name
+        - anzahl
+        - geaendertAm
+        - inhalt
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+        geaendertAm:
+          type: string
+          format: date-time
+        inhalt:
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - name
+        - inhalt
+      properties:
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        inhalt:
+          description: Muss zur Art passen.
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAendern:
+      description: Mindestens ein Feld. Die Art bleibt.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        inhalt:
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAnwendung:
+      description: Was die Vorlage im Lager anlegt (beim Trockenlauf anlegen würde). Je nach Art steht `aufgaben` oder `punkte` da.
+      type: object
+      required:
+        - trocken
+        - art
+      properties:
+        trocken:
+          type: boolean
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        aufgaben:
+          type: array
+          items:
+            type: object
+            required:
+              - titel
+              - frist
+            properties:
+              titel:
+                type: string
+              frist:
+                type: string
+                format: date
+                nullable: true
+        punkte:
+          type: array
+          items:
+            type: object
+            required:
+              - abschnitt
+              - text
+              - nurLagerleitung
+            properties:
+              abschnitt:
+                type: string
+              text:
+                type: string
+              nurLagerleitung:
+                type: boolean
     # lager-schemas: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -20985,7 +23282,160 @@ components:
     # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminWarnungen:
+      type: object
+      required:
+        - termine
+        - unbekannteKategorien
+        - weitere
+        - naechste
+      properties:
+        termine:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminWarnung"
+        unbekannteKategorien:
+          type: array
+          description: Kategorienamen der kommenden Termine ohne Tag; nach `anzahl` absteigend, dann nach Name, höchstens 200. In jeder Antwort gleich.
+          items:
+            $ref: "#/components/schemas/TerminUnbekannteKategorie"
+        weitere:
+          type: boolean
+          description: Wahr, wenn es nach dieser Seite weitere Termine gibt.
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite, undurchsichtig; `null` auf der letzten Seite.
+    TerminWarnung:
+      type: object
+      description: |
+        Ein kommender Termin ohne Tag. Entweder ist `ganztaegig` wahr, dann sind `tagVon` und `tagBis` gesetzt und `beginn` und `ende` `null`,
+        oder `ganztaegig` ist falsch, dann sind `beginn` und `ende` gesetzt und `tagVon` und `tagBis` `null`.
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - grund
+        - kategorien
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Beginn als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Erster Tag (Schweizer Kalendertag). `null` bei Terminen mit Uhrzeit.
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Letzter Tag (inklusive). `null` bei Terminen mit Uhrzeit.
+        grund:
+          type: string
+          enum:
+            - keine_kategorie
+            - unbekannte_kategorie
+          description: «keine_kategorie» heisst, Outlook liefert keine Kategorie. «unbekannte_kategorie» heisst, es gibt Kategorien, aber keine entspricht einem Tag.
+        kategorien:
+          type: array
+          description: Die rohen Kategorienamen aus Outlook (leer bei «keine_kategorie»).
+          items:
+            type: string
+    TerminUnbekannteKategorie:
+      type: object
+      required:
+        - name
+        - anzahl
+      properties:
+        name:
+          type: string
+          description: Kategoriename aus Outlook, getrimmt; Schreibweisen, die sich nur in Gross-/Kleinschreibung unterscheiden, sind ein Eintrag.
+        anzahl:
+          type: integer
+          minimum: 1
+          description: Zahl der kommenden Termine mit dieser Kategorie.
     # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    KategorieZuordnungListe:
+      type: object
+      required:
+        - zuordnungen
+      properties:
+        zuordnungen:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/KategorieZuordnung"
+    KategorieZuordnung:
+      type: object
+      required:
+        - id
+        - kategorie
+        - tagId
+        - tagName
+        - tagTyp
+      properties:
+        id:
+          type: string
+          format: uuid
+        kategorie:
+          type: string
+          description: Name der Outlook-Kategorie, wie er gespeichert ist.
+        tagId:
+          type: string
+          format: uuid
+        tagName:
+          type: string
+        tagTyp:
+          type: string
+          enum: [stufe, funktion, team, lager]
+    KategorieZuordnungSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - kategorie
+        - tagId
+      properties:
+        kategorie:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ohne Steuerzeichen; Leerzeichen am Rand fallen weg.
+        tagId:
+          type: string
+          format: uuid
+          description: Tag der eigenen Abteilung.
+    KategorieZuordnungId:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
     # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     TerminMeinListe:
       type: object
@@ -21116,8 +23566,10 @@ components:
           items:
             $ref: "#/components/schemas/TerminMeinTag"
         anlass:
-          type: "null"
-          description: Verweis auf die Anmeldung zu einem Anlass. Heute immer `null`; das Objekt kommt mit der Anlass-Anmeldung (Epic Termine).
+          description: Verweis auf die Anmeldung zu einem Anlass; `null`, wenn der Termin keinen Anlass hat oder die Person ihn nicht sehen darf.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/TerminMeinAnlass"
         kinder:
           type: array
           description: Die eigenen, aktiven Kinder, deren Stufe am Termin hängt; sortiert nach Vorname, dann `id`.
@@ -21207,6 +23659,164 @@ components:
           description: Die letzten vier Zeichen des Tokens.
     # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminVorschlagTag:
+      type: object
+      required: [id, name, typ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        typ:
+          type: string
+          enum: [stufe, funktion, team, lager]
+    TerminVorschlagOptionen:
+      type: object
+      required: [darfVorschlagen, tags]
+      properties:
+        darfVorschlagen:
+          type: boolean
+        tags:
+          type: array
+          description: Alle Tags der Abteilung, die sich als Kategorie wählen lassen; leer, wenn die Person nicht vorschlagen darf.
+          items:
+            $ref: "#/components/schemas/TerminVorschlagTag"
+    TerminVorschlagAnlegen:
+      type: object
+      additionalProperties: false
+      required: [titel, ganztaegig, tagIds]
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 120
+        ganztaegig:
+          type: boolean
+        beginn:
+          type: string
+          format: date-time
+          description: Nur wenn nicht ganztägig, mit Zeitzone; nicht in der Vergangenheit.
+        ende:
+          type: string
+          format: date-time
+          description: Nur wenn nicht ganztägig, nach `beginn`.
+        tagVon:
+          type: string
+          format: date
+          description: Nur wenn ganztägig; nicht vor heute (Schweizer Zeit).
+        tagBis:
+          type: string
+          format: date
+          description: Nur wenn ganztägig, der letzte Tag, nicht vor `tagVon`.
+        ort:
+          type: [string, "null"]
+          maxLength: 120
+        beschreibung:
+          type: [string, "null"]
+          maxLength: 2000
+        bemerkung:
+          type: [string, "null"]
+          maxLength: 1000
+          description: Hinweis an die Abteilungsleitung, kein Teil des Termins.
+        tagIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    TerminVorschlagAngelegt:
+      type: object
+      required: [id, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [offen]
+    TerminVorschlag:
+      type: object
+      required:
+        - id
+        - status
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - ort
+        - beschreibung
+        - bemerkung
+        - tags
+        - begruendung
+        - entschiedenAm
+        - erstelltAm
+        - vorgeschlagenVon
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [offen, freigegeben, abgelehnt, in_outlook_eingetragen]
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type: [string, "null"]
+          format: date-time
+        ende:
+          type: [string, "null"]
+          format: date-time
+        tagVon:
+          type: [string, "null"]
+          format: date
+        tagBis:
+          type: [string, "null"]
+          format: date
+        ort:
+          type: [string, "null"]
+        beschreibung:
+          type: [string, "null"]
+        bemerkung:
+          type: [string, "null"]
+        tags:
+          type: array
+          description: Die gewünschten Kategorien; ein gelöschter Tag fehlt.
+          items:
+            $ref: "#/components/schemas/TerminVorschlagTag"
+        begruendung:
+          type: [string, "null"]
+          description: Begründung bei einer Ablehnung (#440).
+        entschiedenAm:
+          type: [string, "null"]
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+        vorgeschlagenVon:
+          type: [string, "null"]
+          format: uuid
+          description: Die vorschlagende Person; null, wenn ihr Konto gelöscht ist.
+    TerminVorschlagListe:
+      type: object
+      required: [vorschlaege, weitere, naechste]
+      properties:
+        vorschlaege:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminVorschlag"
+        weitere:
+          type: boolean
+        naechste:
+          type: [string, "null"]
+          format: uuid
+          description: Wert für `nach` der nächsten Seite; null auf der letzten.
     # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     AnlassSichtbarkeit:
@@ -21507,6 +24117,241 @@ components:
               items:
                 $ref: "#/components/schemas/AdminAnlassFeld"
     # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AnlassVorlageFeld:
+      type: object
+      required:
+        - schluessel
+        - beschriftung
+        - typ
+        - optionen
+        - pflicht
+      properties:
+        schluessel:
+          type: string
+          pattern: ^[a-z0-9_]{1,40}$
+        beschriftung:
+          type: string
+        typ:
+          type: string
+          enum:
+            - text
+            - ja_nein
+            - auswahl
+        optionen:
+          type: array
+          description: Nur bei `auswahl`, sonst leer.
+          items:
+            type: string
+        pflicht:
+          type: boolean
+    AnlassKontoWert:
+      type: object
+      description: Eine Angabe, die das Konto schon kennt. Die App zeigt sie als «aus deinem Konto», nicht editierbar.
+      required:
+        - schluessel
+        - beschriftung
+        - wert
+      properties:
+        schluessel:
+          type: string
+          examples:
+            - vorname
+        beschriftung:
+          type: string
+          examples:
+            - Vorname
+        wert:
+          type: string
+    AnlassAnmeldung:
+      type: object
+      required:
+        - id
+        - status
+        - antworten
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - angemeldet
+            - abgemeldet
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert (Text, `true`/`false` oder die gewählte Option). Bei `abgemeldet` leer.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+        geaendertAm:
+          type: string
+          format: date-time
+    AnlassTeilnehmende:
+      type: object
+      required:
+        - kindId
+        - name
+        - konto
+        - anmeldung
+      properties:
+        kindId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Das Kind; `null`, wenn die Person sich selbst anmeldet.
+        name:
+          type: string
+          description: Cevi-Name, sonst Name; bei Kindern Cevi-Name, sonst Vorname und Nachname.
+        konto:
+          type: array
+          description: Was das Konto kennt und vorausgefüllt zeigt; ohne Telefon, E-Mail und Gesundheitsdaten.
+          items:
+            $ref: "#/components/schemas/AnlassKontoWert"
+        anmeldung:
+          description: Die bisherige Anmeldung; `null`, wenn es noch keine gibt.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/AnlassAnmeldung"
+    AnlassVorlage:
+      type: object
+      required:
+        - id
+        - terminId
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - anmeldungOffen
+        - frist
+        - anmeldungFuer
+        - felder
+        - teilnehmende
+      properties:
+        id:
+          type: string
+          format: uuid
+        terminId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Anmeldeschluss; `null`, wenn der Anlass keine Frist hat.
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnlassVorlageFeld"
+        teilnehmende:
+          type: array
+          description: Bei `kind` die eigenen aktiven Kinder, bei `person` die Person selbst.
+          items:
+            $ref: "#/components/schemas/AnlassTeilnehmende"
+    AnlassAnmeldungEingabe:
+      type: object
+      required:
+        - antworten
+      additionalProperties: false
+      properties:
+        kindId:
+          type: string
+          format: uuid
+          description: "Pflicht bei `anmeldungFuer: kind`, verboten bei `person`."
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert; höchstens 20 Schlüssel. Text höchstens 500 Zeichen, ohne Steuerzeichen.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+    AnlassAnmeldungFehler:
+      description: Fehler wie sonst (`code`, `message`); bei `ANTWORTEN_UNGUELTIG` dazu `fehler` mit Schlüssel und Code, nie mit dem Wert.
+      allOf:
+        - $ref: "#/components/schemas/Fehler"
+        - type: object
+          properties:
+            fehler:
+              type: array
+              items:
+                type: object
+                required:
+                  - schluessel
+                  - code
+                properties:
+                  schluessel:
+                    type: string
+                  code:
+                    type: string
+                    enum:
+                      - UNBEKANNT
+                      - PFLICHT
+                      - TYP
+                      - OPTION
+                      - ZU_LANG
+                      - STEUERZEICHEN
+    TerminMeinAnlass:
+      type: object
+      description: Der Anlass zu einem Termin, aus Sicht der angemeldeten Person.
+      required:
+        - id
+        - anmeldeschluss
+        - anmeldungOffen
+        - angemeldet
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Die ID des Anlasses, Ziel von `GET /api/v1/anlaesse/{id}`.
+        anmeldeschluss:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende der Anmeldefrist; `null`, wenn der Anlass keine Frist hat.
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        angemeldet:
+          type: boolean
+          description: Ob die Person selbst oder eines ihrer Kinder angemeldet ist.
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -22586,6 +25431,20 @@ components:
     AnlassKonflikt409:
       description: |
         Konflikt: `ANLASS_VORHANDEN` (der Termin hat schon einen Anlass), `TERMIN_VORBEI` (der Termin ist vorbei), `ANMELDUNGEN_VORHANDEN` (es gibt schon Anmeldungen) oder `FELD_IN_BENUTZUNG` (zu einem Feld gibt es Antworten; die Antwort nennt die betroffenen `schluessel`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    AnlassAnmeldung400:
+      description: |
+        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`), `KIND_ID_PFLICHT` und `KIND_ID_VERBOTEN`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AnlassAnmeldungFehler"
+    AnlassAnmeldung409:
+      description: |
+        Konflikt: `ANMELDUNG_GESCHLOSSEN` (die Anmeldung ist nicht offen: nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei).
       content:
         application/json:
           schema:

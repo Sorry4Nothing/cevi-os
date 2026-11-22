@@ -346,7 +346,7 @@
       "breakpoints": true
     },
     {
-"idx": 68,
+      "idx": 68,
       "version": "7",
       "when": 1793550800000,
       "tag": "0068_lager_aufgaben",
@@ -357,6 +357,20 @@
       "version": "7",
       "when": 1793550900000,
       "tag": "0069_lager_aufgaben_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793551000000,
+      "tag": "0070_lager_zeitplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793551100000,
+      "tag": "0071_lager_todos_vorlagen",
       "breakpoints": true
     },
     {
@@ -430,6 +444,13 @@
       "breakpoints": true
     },
     {
+      "idx": 95,
+      "version": "7",
+      "when": 1793552990000,
+      "tag": "0095_lager_anwesenheit_zeitplan",
+      "breakpoints": true
+    },
+    {
       "idx": 100,
       "version": "7",
       "when": 1793553000000,
@@ -458,10 +479,24 @@
       "breakpoints": true
     },
     {
+      "idx": 122,
+      "version": "7",
+      "when": 1793554200000,
+      "tag": "0122_termin_vorschlag",
+      "breakpoints": true
+    },
+    {
       "idx": 123,
       "version": "7",
       "when": 1793554300000,
       "tag": "0123_anlass",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793554400000,
+      "tag": "0124_anlass_anmeldung",
       "breakpoints": true
     }
   ]
