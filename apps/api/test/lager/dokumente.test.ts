@@ -1124,3 +1124,40 @@ describe("Sammelabfrage mit Dateien anderer Module", () => {
     expect(a.body.quelle).toBe("dokument");
   });
 });
+
+describe("Sammelabfrage mit den angemeldeten Modulen des Stacks", () => {
+  // Die Dateien der Info-Abschnitte (lager/lagerinfos.ts) stehen im Verweisregister: Sie erscheinen mit ihrer Quelle, und ein Abschnitt «nur Lagerleitung» bleibt für Leitung und Team verborgen
+  test("Dateien von Info-Abschnitten erscheinen nach dem Recht der Rolle", async () => {
+    const m = marke();
+    const abschnitt = async (nurLagerleitung: boolean) =>
+      (
+        await db
+          .insert(schema.infoAbschnitt)
+          .values({ lagerId, titel: m, lagerSeq: 0, nurLagerleitung })
+          .returning({ id: schema.infoAbschnitt.id })
+      )[0]!.id;
+    const offen = await datei({ anzeigename: `${m}-offen.pdf` });
+    const geheim = await datei({ anzeigename: `${m}-geheim.pdf` });
+    for (const [abschnittId, dateiId] of [
+      [await abschnitt(false), offen],
+      [await abschnitt(true), geheim],
+    ] as const) {
+      await db
+        .insert(schema.infoAbschnittDatei)
+        .values({ lagerId, abschnittId, dateiId, lagerSeq: 0 });
+    }
+    const quellen = async (konto: PersonaKonto) =>
+      (await liste(konto, `?q=${m}`)).dokumente
+        .map((d) => `${d.titel}|${d.quelle}`)
+        .sort();
+    expect(await quellen(leiter())).toEqual([
+      `${m}-geheim.pdf|info_abschnitt_datei`,
+      `${m}-offen.pdf|info_abschnitt_datei`,
+    ]);
+    for (const p of ["leitung", "team", "lesen"] as const) {
+      expect(await quellen(konten[p])).toEqual([
+        `${m}-offen.pdf|info_abschnitt_datei`,
+      ]);
+    }
+  });
+});
