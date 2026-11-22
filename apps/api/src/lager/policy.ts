@@ -6,6 +6,7 @@ import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 import { ladeRollenRechte } from "./rechte.js";
+import type { LagerTabellenEintrag } from "./tabellen.js";
 import {
   istGeschlossen,
   RECHTE_KATALOG,
@@ -24,9 +25,9 @@ import {
 export type LagerZeile = typeof lager.$inferSelect;
 
 export type LagerZugriff = {
-  lager: LagerZeile;
-  // Die Person der Anfrage: Module mit Zeilenfilter je Person (Pinnwand-Empfänger) brauchen sie auch dort, wo nur der Zugriff vorliegt (Feed, Dateiverweise)
+  // Die Person der Anfrage (für Zeilenfilter wie «nur eigene Aufgaben» und die Empfänger einer Pinnwand-Mitteilung, auch dort, wo nur der Zugriff vorliegt: Feed, Dateiverweise)
   personId: string;
+  lager: LagerZeile;
   // Wirksame Rolle: die Abteilungsleitung (person.admin) ist in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied
   rolle: LagerRolle;
   // Gibt es eine Zeile in lager_mitglied? Die Abteilungsleitung braucht keine
@@ -57,6 +58,12 @@ export function darf(
   return zugriff.rechte?.get(recht) ?? standardErlaubt(zugriff.rolle, recht);
 }
 
+// Darf die Rolle diese Tabelle im Feed und in den Ereignissen überhaupt sehen (Register, lager/tabellen.ts)? Eine Liste genügt mit einem der Rechte; ohne eigenes Recht (null) entscheidet allein «sichtbar»
+export const darfTabelleLesen = (
+  zugriff: Parameters<typeof darf>[0],
+  recht: LagerTabellenEintrag["recht"],
+) => recht === null || [recht].flat().some((r) => darf(zugriff, r));
+
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
 export async function ladeLagerZugriff(
   db: Db,
@@ -80,8 +87,8 @@ export async function ladeLagerZugriff(
   const rolle = person.admin ? "lagerleitung" : zeile.rolle;
   if (!rolle) return undefined;
   return {
-    lager: zeile.lager,
     personId: person.id,
+    lager: zeile.lager,
     rolle,
     mitglied: zeile.rolle !== null,
     geschlossen: istGeschlossen(zeile.lager.status),

@@ -9,7 +9,11 @@ import {
   type Ereignisverteiler,
   type Verbindung,
 } from "../../lager/ereignisse.js";
-import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
+import {
+  darfTabelleLesen,
+  lagerZugriff,
+  type LagerEnv,
+} from "../../lager/policy.js";
 import { listeLagerTabellen } from "../../lager/tabellen.js";
 
 // Wie viele Meldungen ein Client unabgeholt haben darf, bevor die Verbindung endet
@@ -92,7 +96,9 @@ export function erstelleEreignisRouten({
       const lesbar = new Set(
         listeLagerTabellen()
           // Tabellen ohne eigenes Leserecht (recht: null, lager_datei) melden keinen Typ: Ihre Einträge kommen nur mit den Datensätzen der Module, die sie einbinden, und der Feed filtert die Zeilen
-          .filter(([, e]) => e.recht !== null && darf(zugriff, e.recht))
+          .filter(
+            ([, e]) => e.recht !== null && darfTabelleLesen(zugriff, e.recht),
+          )
           .map(([name]) => name),
       );
       const angemeldet = verteiler.verbinde(

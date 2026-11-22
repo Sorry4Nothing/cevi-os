@@ -47,6 +47,8 @@ export const lager = pgTable(
     uebung: boolean("uebung").notNull().default(false),
     // Hex-Farbe «#rrggbb», kleingeschrieben
     farbe: text("farbe"),
+    // Bis wann das Team die eigene Anwesenheit direkt einträgt (#390); danach nur noch per Anfrage. Leer: keine Frist. Setzt die Lagerleitung über PUT /lager/{id}/anwesenheit/frist
+    anwesenheitFrist: timestamp("anwesenheit_frist", { withTimezone: true }),
     // Dass das Medium zur Abteilung gehört und ein Bild ist, prüft die Route
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
@@ -346,6 +348,105 @@ export const ressortNotiz = pgTable(
   ],
 );
 
+// Aufgaben des Lagers (#372). Die Verantwortliche ist eine Personen-ID eines Mitglieds dieses Lagers (zusammengesetzter Fremdschlüssel auf lager_mitglied: Wer das Mitglied entfernt, leert die Spalte). Ohne Verantwortliche gilt die Leitung des Ressorts als Verantwortliche; die API rechnet das beim Lesen aus, gespeichert wird es nicht (wechselt die Leitung, wechselt die Aufgabe mit). Geschrieben wird nur über lager/sync.ts
+// erledigt_am gehört zum Status «erledigt» (CHECK): Der Server setzt und leert es, nie der Client. wiederholung, frist_erinnert_am und quelle füllen die Folge-Issues (#373, #374, #375, #376, #380); hier sind es nur Spalten
+export const AUFGABE_STATUS = [
+  "offen",
+  "laeuft",
+  "wartet",
+  "erledigt",
+  "naechster_hoeck",
+] as const;
+export type AufgabeStatus = (typeof AUFGABE_STATUS)[number];
+
+export const aufgabe = pgTable(
+  "aufgabe",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    // Das Ressort muss zum selben Lager gehören (zusammengesetzter Fremdschlüssel); wird es endgültig gelöscht, bleibt die Aufgabe ohne Ressort
+    ressortId: uuid("ressort_id"),
+    // Teilbereich innerhalb des Ressorts, freier Text
+    teil: text("teil"),
+    verantwortlichPersonId: uuid("verantwortlich_person_id"),
+    status: text("status", { enum: AUFGABE_STATUS }).notNull().default("offen"),
+    notiz: text("notiz"),
+    frist: date("frist"),
+    stern: boolean("stern").notNull().default(false),
+    laufend: boolean("laufend").notNull().default(false),
+    // «Später erinnern»: ab diesem Tag taucht die Aufgabe wieder auf
+    spaeterAb: date("spaeter_ab"),
+    wiederholung: text("wiederholung", { enum: ["w1", "w2", "m1"] }),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    quelle: text("quelle"),
+    erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
+    fristErinnertAm: timestamp("frist_erinnert_am", { withTimezone: true }),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels der Unterstützung: eine Zeile dort kann nie eine Aufgabe eines anderen Lagers meinen
+    unique("aufgabe_lager_id_id_uq").on(t.lagerId, t.id),
+    // In der Migration ON DELETE SET NULL (ressort_id) beziehungsweise (verantwortlich_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "aufgabe_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("set null"),
+    foreignKey({
+      name: "aufgabe_verantwortlich_fk",
+      columns: [t.lagerId, t.verantwortlichPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    // Die Listen der Routen: nach Reihenfolge, gefiltert nach Person, Status, Ressort oder Frist
+    index("aufgabe_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    index("aufgabe_person_idx").on(t.lagerId, t.verantwortlichPersonId),
+    index("aufgabe_status_idx").on(t.lagerId, t.status),
+    index("aufgabe_ressort_idx").on(t.lagerId, t.ressortId),
+    index("aufgabe_frist_idx")
+      .on(t.lagerId, t.frist)
+      .where(sql`${t.frist} is not null`),
+    check(
+      "aufgabe_status_check",
+      sql`${t.status} in ('offen', 'laeuft', 'wartet', 'erledigt', 'naechster_hoeck')`,
+    ),
+    check(
+      "aufgabe_wiederholung_check",
+      sql`${t.wiederholung} is null or ${t.wiederholung} in ('w1', 'w2', 'm1')`,
+    ),
+    check(
+      "aufgabe_erledigt_check",
+      sql`(${t.status} = 'erledigt') = (${t.erledigtAm} is not null)`,
+    ),
+    check(
+      "aufgabe_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.teil} is null or char_length(${t.teil}) between 1 and 100) and (${t.notiz} is null or char_length(${t.notiz}) <= 5000) and (${t.quelle} is null or char_length(${t.quelle}) between 1 and 100) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Wer eine Aufgabe unterstützt (#372): eine Zeile je Person und Aufgabe, ohne Feed und Version (die Aufgabe zählt die Version hoch, wenn sich die Liste ändert). Die Person muss Mitglied des Lagers sein; entfernt die Leitung das Mitglied oder fällt die Aufgabe weg, geht die Zeile mit
+export const aufgabeUnterstuetzung = pgTable(
+  "aufgabe_unterstuetzung",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.aufgabeId, t.personId] }),
+    foreignKey({
+      name: "aufgabe_unterstuetzung_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "aufgabe_unterstuetzung_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("aufgabe_unterstuetzung_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",
@@ -372,6 +473,75 @@ export const lagerDatei = pgTable(
     check(
       "lager_datei_typ_groesse_check",
       sql`(${t.typ} is null or char_length(${t.typ}) <= 100) and (${t.groesse} is null or ${t.groesse} >= 0)`,
+    ),
+  ],
+);
+
+// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) und Teilnehmende (#384) ohne Fremdschlüssel, bis diese Tabellen im Schema stehen. Geschrieben wird nur über lager/sync.ts
+export const anwesenheit = pgTable(
+  "anwesenheit",
+  {
+    ...lagerSpalten(),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    teilnehmerId: uuid("teilnehmer_id"),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    wert: text("wert", { enum: ["A", "F", "O"] }).notNull(),
+  },
+  (t) => [
+    // Ein Feld gibt es je Person und Abschnitt einmal; eine gelöschte Zeile blockiert es nicht
+    uniqueIndex("anwesenheit_person_uq")
+      .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("anwesenheit_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    // Die Matrix eines Zeitraums (ein Abruf je Lager und Lagertage), nach ID seitenweise
+    index("anwesenheit_tag_idx").on(t.lagerId, t.lagertagId, t.id),
+    check("anwesenheit_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
+    check(
+      "anwesenheit_anwesende_check",
+      sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Anfrage des Teams, ein eingetragenes Feld zu ändern, oder ein Feld nach der Frist zu setzen (#390). Die Lagerleitung nimmt sie an (die Anwesenheit ändert sich) oder lehnt sie ab. Eine offene Anfrage je Person und Feld
+export const anwesenheitAnfrage = pgTable(
+  "anwesenheit_anfrage",
+  {
+    ...lagerSpalten(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    lagertagId: uuid("lagertag_id").notNull(),
+    tagesabschnittId: uuid("tagesabschnitt_id").notNull(),
+    wert: text("wert", { enum: ["A", "F", "O"] }).notNull(),
+    notiz: text("notiz"),
+    status: text("status", { enum: ["offen", "angenommen", "abgelehnt"] })
+      .notNull()
+      .default("offen"),
+    entschiedenVon: uuid("entschieden_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("anwesenheit_anfrage_offen_uq")
+      .on(t.lagerId, t.personId, t.lagertagId, t.tagesabschnittId)
+      .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
+    index("anwesenheit_anfrage_liste_idx").on(t.lagerId, t.status, t.id),
+    index("anwesenheit_anfrage_person_idx").on(t.lagerId, t.personId, t.id),
+    check("anwesenheit_anfrage_wert_check", sql`${t.wert} in ('A', 'F', 'O')`),
+    check(
+      "anwesenheit_anfrage_status_check",
+      sql`${t.status} in ('offen', 'angenommen', 'abgelehnt') and (${t.status} = 'offen') = (${t.entschiedenAm} is null)`,
+    ),
+    check(
+      "anwesenheit_anfrage_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
     ),
   ],
 );
