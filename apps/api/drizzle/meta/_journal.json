@@ -346,10 +346,17 @@
       "breakpoints": true
     },
     {
-      "idx": 68,
+"idx": 68,
       "version": "7",
       "when": 1793550800000,
       "tag": "0068_lager_aufgaben",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1793551600000,
+      "tag": "0076_lager_pinnwand",
       "breakpoints": true
     },
     {

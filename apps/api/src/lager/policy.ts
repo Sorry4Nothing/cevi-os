@@ -26,7 +26,7 @@ import {
 export type LagerZeile = typeof lager.$inferSelect;
 
 export type LagerZugriff = {
-  // Die Person der Anfrage (für Zeilenfilter wie «nur eigene Aufgaben»)
+  // Die Person der Anfrage (für Zeilenfilter wie «nur eigene Aufgaben» und die Empfänger einer Pinnwand-Mitteilung, auch dort, wo nur der Zugriff vorliegt: Feed, Dateiverweise)
   personId: string;
   lager: LagerZeile;
   // Wirksame Rolle: die Abteilungsleitung (person.admin) ist in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied

@@ -147,6 +147,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerPinnwand: {
+    titel: "Pinnwand im Lager",
+    zweck:
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+    frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
     zweck:
@@ -506,6 +514,29 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "entschieden_von",
       "entschieden_am",
+    ],
+  },
+  // Pinnwand (#381): Empfänger als Rolle oder Personen-ID; die Dateien sind Verweise auf lager_datei
+  pinnwand_beitrag: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "text",
+      "wichtig",
+      "angeheftet",
+      "sichtbar_ab",
+      "sichtbar_bis",
+    ],
+  },
+  pinnwand_empfaenger: {
+    lagerPinnwand: ["id", "lager_id", "beitrag_id", "rolle", "person_id"],
+  },
+  pinnwand_datei: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "datei_id",
+      "reihenfolge",
     ],
   },
   lager_benachrichtigung: {
