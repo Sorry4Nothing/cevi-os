@@ -381,6 +381,13 @@
       "breakpoints": true
     },
     {
+      "idx": 74,
+      "version": "7",
+      "when": 1793551400000,
+      "tag": "0074_lager_protokolle",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,

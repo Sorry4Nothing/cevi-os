@@ -15,6 +15,7 @@ import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
+import { erstelleProtokollRouten } from "./protokolle.js";
 import { erstelleRessortRouten } from "./ressorts.js";
 import { erstelleInfosRouten } from "./infos.js";
 import { erstelleNotfallRouten } from "./notfall.js";
@@ -48,6 +49,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleDokumentRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleHoeckRouten({ db }))
+    .route("/", erstelleProtokollRouten({ db }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))

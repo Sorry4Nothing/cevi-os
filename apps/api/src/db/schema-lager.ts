@@ -627,7 +627,7 @@ export const aufgabeStichwort = pgTable(
   ],
 );
 
-// Höcks (#378): Sitzungstermine des Lagers. «team» ist für alle Mitglieder sichtbar (nur Datum, Zeit, Titel, Ort), «lagerleitung» nur für Rollen mit hoecks.lesen_alle. Die Zeit ist «HH:MM» in der Zeit des Lagers (ohne Zeitzone, ohne Ende); ohne Zeit ist der Höck ein Tag. gaeste: Namen von Gästen als Freitext, nur für Rollen mit hoecks.lesen_alle. protokoll_id: Verknüpfung auf das Protokoll (#379), bewusst ohne Fremdschlüssel und über die API noch nicht setzbar. Anwesende stehen in hoeck_anwesenheit
+// Höcks (#378): Sitzungstermine des Lagers. «team» ist für alle Mitglieder sichtbar (nur Datum, Zeit, Titel, Ort), «lagerleitung» nur für Rollen mit hoecks.lesen_alle. Die Zeit ist «HH:MM» in der Zeit des Lagers (ohne Zeitzone, ohne Ende); ohne Zeit ist der Höck ein Tag. gaeste: Namen von Gästen als Freitext, nur für Rollen mit hoecks.lesen_alle. protokoll_id: Verknüpfung auf das Protokoll (#379), bewusst ohne Fremdschlüssel; sie wird nur vom Server gesetzt (lager/protokolle.ts: Sitzungsprotokoll des Höcks), nie über die Höck-Route. Anwesende stehen in hoeck_anwesenheit
 export const HOECK_ART = ["lagerleitung", "team"] as const;
 export type HoeckArt = (typeof HOECK_ART)[number];
 
@@ -1511,6 +1511,76 @@ export const dokument = pgTable(
       "dokument_check",
       sql`char_length(${t.titel}) between 1 and 200 and cardinality(${t.stichworte}) <= 20 and char_length(array_to_string(${t.stichworte}, ',')) <= 900`,
     ),
+  ],
+);
+
+// Protokolle im Lager (#379): Das Protokoll liegt als Datei im SharePoint der Abteilung; Cevi OS speichert nur Art, Titel, Datum, den Verweis auf die Datei (lager_datei, #370, dort Link und Anzeigename) und optional den Höck. Kein Protokolltext, keine Abschnitte, keine Revisionen des Inhalts. Wer die Datei öffnen darf, regelt der Ablageort. hoeck_id: ein Protokoll eines Höcks der Art «lagerleitung» sehen nur Rollen, die alle Höcks lesen (nie das Team). Die Fremdschlüssel auf lager_datei und hoeck sind NO ACTION (kein SET NULL: Sonst würde ein Protokoll der Lagerleitung sichtbar, wenn der Höck endgültig fällt). Geschrieben wird nur über lager/sync.ts
+export const PROTOKOLL_ART = ["sitzung", "notiz", "kontakt", "idee"] as const;
+export type ProtokollArt = (typeof PROTOKOLL_ART)[number];
+
+export const protokoll = pgTable(
+  "protokoll",
+  {
+    ...lagerSpalten(),
+    art: text("art", { enum: PROTOKOLL_ART }).notNull(),
+    titel: text("titel").notNull(),
+    datum: date("datum").notNull(),
+    hoeckId: uuid("hoeck_id"),
+    dateiId: uuid("datei_id").notNull(),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von beschluss
+    unique("protokoll_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "protokoll_datei_fk",
+      columns: [t.lagerId, t.dateiId],
+      foreignColumns: [lagerDatei.lagerId, lagerDatei.id],
+    }).onDelete("no action"),
+    foreignKey({
+      name: "protokoll_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("no action"),
+    index("protokoll_liste_idx").on(t.lagerId, t.datum, t.id),
+    index("protokoll_datei_idx").on(t.dateiId),
+    index("protokoll_hoeck_idx")
+      .on(t.lagerId, t.hoeckId)
+      .where(sql`${t.hoeckId} is not null`),
+    check(
+      "protokoll_check",
+      sql`${t.art} in ('sitzung', 'notiz', 'kontakt', 'idee') and char_length(${t.titel}) between 1 and 200`,
+    ),
+  ],
+);
+
+// Beschlüsse im Lager (#379): ein kurzer Text mit optionalem Verweis auf das Protokoll und den Höck, für die Entscheide-Sammlung. Sie bleiben in Cevi OS (anders als das Protokoll selbst). Die Fremdschlüssel auf protokoll und hoeck sind NO ACTION aus demselben Grund wie bei protokoll. Geschrieben wird nur über lager/sync.ts
+export const beschluss = pgTable(
+  "beschluss",
+  {
+    ...lagerSpalten(),
+    text: text("text").notNull(),
+    protokollId: uuid("protokoll_id"),
+    hoeckId: uuid("hoeck_id"),
+  },
+  (t) => [
+    foreignKey({
+      name: "beschluss_protokoll_fk",
+      columns: [t.lagerId, t.protokollId],
+      foreignColumns: [protokoll.lagerId, protokoll.id],
+    }).onDelete("no action"),
+    foreignKey({
+      name: "beschluss_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("no action"),
+    index("beschluss_liste_idx").on(t.lagerId, t.id),
+    index("beschluss_protokoll_idx")
+      .on(t.lagerId, t.protokollId)
+      .where(sql`${t.protokollId} is not null`),
+    index("beschluss_hoeck_idx")
+      .on(t.lagerId, t.hoeckId)
+      .where(sql`${t.hoeckId} is not null`),
+    check("beschluss_check", sql`char_length(${t.text}) between 1 and 1000`),
   ],
 );
 

@@ -38,7 +38,7 @@ import { registriereLagerTabelle } from "./tabellen.js";
 //   hoecks.bearbeiten   Höcks, Traktanden und Anwesenheit ändern (wer das darf, liest auch alle)
 // Ein Höck der Lagerleitung ist für die Rolle mit nur «team_lesen» unbekannt (404, dieselbe Antwort wie für einen Höck, den es nicht gibt).
 //
-// Das Protokoll eines Höcks liegt als Verknüpfung auf eine Datei im SharePoint (#379); hier steht nur der kurze Entscheid je Traktandum. Die Spalte hoeck.protokoll_id ist vorbereitet und über die API noch nicht setzbar.
+// Das Protokoll eines Höcks liegt als Verknüpfung auf eine Datei im SharePoint (#379); hier steht nur der kurze Entscheid je Traktandum. Die Spalte hoeck.protokoll_id setzt der Server (lager/protokolle.ts, #379: Sitzungsprotokoll des Höcks), nie die Höck-Route.
 
 export const hoeckLeseRechte = [
   "hoecks.lesen_alle",
@@ -127,7 +127,7 @@ export const traktandumAnsicht = (t: TraktandumZeile) => ({
   status: t.status,
 });
 
-// Eingaben: strikt, nur die genannten Felder (SR-72). protokollId setzt nur #379
+// Eingaben: strikt, nur die genannten Felder (SR-72). protokollId setzt nur der Server (#379)
 const version = z.number().int().min(1);
 const datum = z.iso.date().refine((wert) => !wert.startsWith("0000"));
 const zeit = z.string().regex(/^([01][0-9]|2[0-3]):[0-5][0-9]$/);

@@ -206,6 +206,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerProtokolle: {
+    titel: "Protokolle und Beschlüsse im Lager",
+    zweck:
+      "Protokolle und Beschlüsse eines Lagers festhalten und auffindbar machen: Ein Protokoll hat eine Art (Sitzung, Notiz, Kontakt oder Idee), einen Titel, ein Datum, optional einen Höck und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Cevi OS speichert nur den Verweis, nie den Inhalt des Protokolls, und ruft den Link nie ab; wer die Datei öffnen darf, regelt der Ablageort. Ein Beschluss ist ein kurzer Text mit optionalem Verweis auf Protokoll und Höck. Protokolle und Beschlüsse sieht nur, wer das Recht dazu hat, und das Team nie, wenn sie zu einem Höck der Lagerleitung gehören.",
+    frist: `Bis die Leitung das Protokoll oder den Beschluss löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag angelegt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
     zweck:
@@ -706,6 +714,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ort",
       "gaeste",
       "protokoll_id",
+    ],
+  },
+  // Protokolle (#379): Art, Titel, Datum, Höck und Verweis auf die Datei; Beschlüsse: Text mit Verweis auf Protokoll und Höck
+  protokoll: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "titel",
+      "datum",
+      "hoeck_id",
+      "datei_id",
+    ],
+  },
+  beschluss: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "text",
+      "protokoll_id",
+      "hoeck_id",
     ],
   },
   hoeck_anwesenheit: {
