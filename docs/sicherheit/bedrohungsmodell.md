@@ -367,6 +367,12 @@ Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Le
 - Zuordnung: Fahrer und Mitfahrende sind aktive Mitglieder des Lagers oder Teilnehmende dieses Lagers (400 sonst; fremde Abteilungen und gesperrte Konten zählen nicht). Je Richtung höchstens eine Fahrt je Person (409), geprüft unter der Lagersperre und zusätzlich durch Teilindizes und Fremdschlüssel über Lager, Fahrt und Richtung.
 - Ressourcenverbrauch (SR-71): Seitenwechsel bei der Liste, eine Abfrage je Seite und für «ohne Fahrt», unabhängig von der Zahl der Fahrten (Test zählt Abfragen).
 
+**Erweiterung #388 (Dienste und Schichtplan):**
+
+- Sicht (SR-11): Lesen braucht `einteilung.lesen` (alle Lager-Rollen), Dienste, Schichten und der Vorschlag `einteilung.bearbeiten`. Teilnehmende erscheinen mit Vorname, Nachname und Stufe, nie mit dem Cevi-Namen; abgewählte Teilnehmende, gelöschte, deaktivierte und ausgetretene Konten erscheinen nie und werden nie eingeteilt oder vorgeschlagen.
+- Eingabe (SR-72): strikte Schemas, Namen normalisiert (NFC, ohne Steuerzeichen); höchstens 100 Dienste je Lager, 20 Personen Mindestbesetzung, 50 Personen je Dienst und Tag. Personen, Tage und Dienste anderer Lager sind 404 (zusammengesetzte Fremdschlüssel über `lager_id`).
+- Ressourcenverbrauch (SR-71): Der Vorschlag lädt den Stand mit fünf Abfragen, rechnet in Arbeitsspeicher und schreibt höchstens 2000 Schichten in einem Insert; 10 Läufe je Konto, Lager und Minute (429). Das Übernehmen sperrt das Lager nur für das Schreiben.
+
 **Restrisiko:** Die Abteilungsleitung gilt in jedem Lager der Abteilung als Lagerleitung (Annahme, auch für Adressbuch und Eingang); wer ihr Konto übernimmt, liest alle Lager der Abteilung. Das Konto schützen der zweite Faktor und die Bedrohung 6. Der Änderungsfeed verrät einer Rolle mit Leserecht, dass sich ein Eintrag geändert hat und wann, auch wenn sie den Inhalt nie abruft; Inhalte und Personen stehen nicht darin. Wer ein Modul nicht im Register der Lager-Tabellen anmeldet, bekommt beim ersten Schreiben einen Fehler; ein falsch gewähltes Leserecht oder ein fehlender Zeilenfilter bei der Anmeldung zeigt kein Test, das prüft die Durchsicht des Moduls.
 
 **OWASP:** ASVS V8 Authorization.
