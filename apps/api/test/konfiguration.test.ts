@@ -159,6 +159,26 @@ test("VERANTWORTLICHE_STELLE, VERANTWORTLICHE_ADRESSE und KONTAKT_EMAIL haben fe
   );
 });
 
+test("KONTAKT_TELEFON (#549) ist freiwillig: ohne Wert und mit leerer Zeile nicht gesetzt, sonst eine Nummer", () => {
+  expect(ladeKonfiguration(GUELTIG).KONTAKT_TELEFON).toBeUndefined();
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "" }).KONTAKT_TELEFON,
+  ).toBeUndefined();
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "043 543 96 82" })
+      .KONTAKT_TELEFON,
+  ).toBe("043 543 96 82");
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "+41 00 000 00 00" })
+      .KONTAKT_TELEFON,
+  ).toBe("+41 00 000 00 00");
+  for (const falsch of ["abc", "12", "<b>1</b>", "043-543-96-82"]) {
+    expect(meldung({ ...GUELTIG, KONTAKT_TELEFON: falsch })).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: KONTAKT_TELEFON",
+    );
+  }
+});
+
 describe("MEDIEN_S3_* (#335)", () => {
   // Erfundene Werte, nie ein echter Anbieter oder Schlüssel
   const MEDIEN = {

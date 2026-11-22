@@ -5,7 +5,7 @@ Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher 
 ## Ablauf
 
 1. Eine Person mit dem Recht «Seiten veröffentlichen» (Webmaster) oder die Stufenleitung veröffentlicht eine Version einer Seite (#350). Die Routen melden danach ein Website-Ereignis (`src/website/ereignisse.ts`).
-2. Der Abgleich (`src/website/abgleich.ts`) läuft beim Start, bei jedem Ereignis der Abteilung und alle 10 Minuten. Er liest die Seiten, die veröffentlichten Versionen und die Daten für Bausteine (Medien, Personen, Leitungsteams) und erzeugt daraus mit dem Renderer (`src/website/rendern.ts`) die Dateien.
+2. Der Abgleich (`src/website/abgleich.ts`) läuft beim Start, bei jedem Ereignis der Abteilung und alle 10 Minuten. Er liest die Seiten, die veröffentlichten Versionen und die Daten für Bausteine (Medien, Personen, Leitungsteams, Stufenfelder, Termine) und erzeugt daraus mit dem Renderer (`src/website/rendern.ts`) die Dateien.
 3. Er schreibt nur, was sich geändert hat: Der SHA-256 der erzeugten Datei steht an der Seite (`seite.ausgabe_hash`, `seite.ausgabe_am`, Migration 0041). Fehlt eine Datei, schreibt er sie neu.
 4. Er löscht Seitendateien (`…/index.html`), die zu keiner öffentlichen Seite mehr gehören: zurückgezogen, gelöscht, nicht mehr öffentlich oder mit neuer Adresse. Andere Dateien im Verzeichnis lässt er in Ruhe.
 5. Unter einer Informationssperre mit «Öffentliche Website vom Netz nehmen» läuft der Abgleich nicht (siehe «Wartungsmodus und Informationssperre»).
@@ -13,21 +13,22 @@ Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher 
 
 Erzeugt werden:
 
-| Datei                       | Inhalt                                                                                                                                 |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `<adresse>/index.html`      | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/` |
-| `sitemap.xml`               | nur öffentliche Seiten mit Datei                                                                                                       |
-| `robots.txt`                | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
-| `404.html`                  | Fehlerseite mit den Hauptpunkten (Design W4)                                                                                           |
-| `500.html`, `wartung.html`  | Seiten für Serverfehler und Wartung (Design W4); der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                |
-| `website/website.css`       | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))             |
-| `website/*.js`              | die Skripte aus `apps/api/public/website/` (#354, #529): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`             |
-| `anmelden/index.html`       | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
-| `termine/…`, `anlass/…`     | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript       |
-| `website/*.css`             | ausser `website.css` die Stile dieser Seiten (`termine.css`); wie die Skripte aus `apps/api/public/website/`                           |
-| `weiterleitungen.caddy`     | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden           |
-| `<alte-adresse>/index.html` | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                      |
-| `<adresse>/index.html`      | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
+| Datei                                                    | Inhalt                                                                                                                                       |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<adresse>/index.html`                                   | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/`       |
+| `sitemap.xml`                                            | nur öffentliche Seiten mit Datei                                                                                                             |
+| `robots.txt`                                             | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden                     |
+| `404.html`                                               | Fehlerseite mit den Hauptpunkten (Design W4)                                                                                                 |
+| `500.html`, `wartung.html`                               | Seiten für Serverfehler und Wartung (Design W4); der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                      |
+| `website/website.css`                                    | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))                   |
+| `website/*.js`                                           | die Skripte aus `apps/api/public/website/` (#354, #529, #549): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`, `menue.js` |
+| `website/archivo-latin.woff2`, `website/archivo-ofl.txt` | die Schrift Archivo (variabel, 400 bis 900, Teilmenge «latin», SIL OFL 1.1) und ihre Lizenz; Bytes, nicht als Text geschrieben (#549)        |
+| `anmelden/index.html`                                    | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                                 |
+| `termine/…`, `anlass/…`                                  | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript             |
+| `website/*.css`                                          | ausser `website.css` die Stile dieser Seiten (`termine.css`); wie die Skripte aus `apps/api/public/website/`                                 |
+| `weiterleitungen.caddy`                                  | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden                 |
+| `<alte-adresse>/index.html`                              | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                            |
+| `<adresse>/index.html`                                   | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                             |
 
 ## Was nie im HTML steht
 
@@ -36,7 +37,7 @@ Erzeugt werden:
 - Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein Platzhalter `<div data-geschuetzt="<ID>">` mit dem Hinweis «Nur angemeldet sichtbar» und dem Link «Anmelden», ohne Typ und Inhalt (Design W10). Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
 - Medien, die nicht `oeffentlich` sind oder zu einer anderen Abteilung gehören: Der Baustein entfällt.
 - Telefon, E-Mail und Foto von Personen: Kontaktperson und Leitungsteam zeigen nur den Cevi-Namen und die Funktion (die Rolle an der Gruppe). Personen ohne Cevi-Namen, deaktivierte und gesperrte Konten erscheinen nicht. Das gilt, bis der Nutzer anders entscheidet.
-- Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Tracking. Ein Meta-CSP (`default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts. Jede Seite lädt `website/theme.js` (Hell und Dunkel, siehe «Logo, Hell und Dunkel, Karussell»), darum erlaubt jede Meta-CSP `script-src 'self'`. Nur Seiten mit Platzhalter, die Hülle und die Anmeldeseite laden zusätzlich ein Skript zum Nachladen und erlauben deshalb auch `connect-src 'self'`; Seiten mit einem Karussell laden `website/karussell.js` (ohne Abrufe). Es gibt nie ein Inline-Skript.
+- Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Tracking. Ein Meta-CSP (`default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts; `font-src 'self'` gehört dazu, weil Archivo als eigene Datei unter `/website/` liegt. Jede Seite mit Navigation lädt das Menü-Skript `menue.js` (nur eine Verbesserung: Pfeiltasten und Esc; ohne Skript öffnen sich die Untermenüs bei Hover und Fokus), jede Seite `theme.js` (Hell und Dunkel, siehe «Logo, Hell und Dunkel, Karussell»); die Meta-CSP erlaubt deshalb auf jeder Seite `script-src 'self'`. Seiten mit einem Karussell laden zusätzlich `karussell.js` (ohne Abrufe). Nur Seiten mit Platzhalter, die Hülle und die Anmeldeseite laden dazu ein zweites Skript und erlauben zusätzlich `connect-src 'self'`; es gibt nie ein Inline-Skript.
 
 Bilder und Dateien sind Verweise auf `/api/v1/medien/<ID>` (öffentliche Medien, 5 Minuten Cache, Entscheid A7 des Plans). Die Website und die API müssen deshalb unter derselben Domain laufen.
 
@@ -63,6 +64,8 @@ Alle drei Variablen oder keine; mit einzelnen startet die API nicht. Ohne sie l�
 | `WEBSITE_ABTEILUNG_ID` | ID der Abteilung, deren Seiten erscheinen. Eine Datenbank kann mehrere Abteilungen haben (zum Beispiel die Demo-Abteilung); eine Website hat eine.                      |
 | `WEBSITE_BASIS_URL`    | Adresse der Website, etwa `https://www.example.org`; in Produktion nur `https`. Daraus entstehen `canonical` und die Sitemap. Pfad und Schrägstrich am Ende fallen weg. |
 
+**Fuss und Kontaktkarte** (#549) nehmen ihre Angaben aus der Konfiguration des Servers, nicht aus einer Tabelle: Anschrift (`VERANTWORTLICHE_ADRESSE`) und E-Mail (`KONTAKT_EMAIL`) sind die der verantwortlichen Stelle (siehe [betrieb.md](betrieb.md)), das Telefon ist neu und freiwillig (`KONTAKT_TELEFON`, etwa `+41 00 000 00 00`; ohne Wert fehlt es). Der Name ist der der Abteilung in der Datenbank. «Impressum» und «Datenschutz» im Fuss führen auf die Seiten des Seitenbaums mit den Adressen `impressum` und `datenschutz-website` (beide auf der obersten Ebene); sie stehen dann nicht zusätzlich in der Leiste. Gibt es `impressum` nicht, nennt der Fuss kein Impressum; gibt es `datenschutz-website` nicht, führt «Datenschutz» auf die Erklärung der Plattform `/datenschutz`.
+
 Die Vorlage für die lokale Entwicklung mit Kommentar steht in `apps/api/.env.example`. `deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die Variablen noch nicht: Der Compose-Stack reicht nur die Variablen durch, die er aufzählt, und der Ort der Dateien (siehe «Offene Punkte») steht nicht fest. Mit dieser Entscheidung kommen dazu: die drei Variablen in beiden Dateien, ein beschreibbares Volume für den Dienst `api` (er läuft mit `read_only: true`) und der lesende Einbau im Edge-Caddy.
 
 ## Vorschau im Editor
@@ -73,10 +76,14 @@ Entwürfe erscheinen nie in den erzeugten Dateien. Der Editor zeigt sie über `G
 - Die Antwort ist `private, no-store`, ohne Skript, und nur die eigene Verwaltung darf sie einrahmen (`frame-ancestors self`). Den Stil liefert die Verwaltung als `/admin/website-vorschau.css`; die API liefert die Website sonst nie aus.
 - Abfragen: Seite und Recht (2), bei `?version=` eine weitere, die Daten der Bausteine gebündelt (höchstens 3) und die Stufenfelder aus dem Zwischenspeicher. Es gibt keinen Abruf im Takt, nur auf Klick.
 
+## Schrift
+
+Archivo liegt als eigene Datei im Repo (`apps/api/public/website/archivo-latin.woff2`, Teilmenge «latin» der variablen Schrift, 400 bis 900, mit der Lizenz SIL OFL 1.1 in `archivo-ofl.txt`) und wird wie die Skripte beim Erzeugen nach `website/` kopiert (als Bytes). `website.css` lädt sie per `@font-face` mit `font-display: swap` von `/website/archivo-latin.woff2`; ohne die Datei gilt die Systemschrift. Der Host muss `/website/*` ausliefern (der Vorschlag unten tut es) und für `.woff2` den Typ `font/woff2` setzen (Caddy kennt ihn). Die Vorschau im Editor (`/admin/website-vorschau.css`) findet die Schrift nicht und zeigt die Systemschrift.
+
 ## Stufenfelder und der Baustein «Termin-Liste»
 
 - **Stufenfelder** (`stufenfakten`, #355): Treffzeit, Treffpunkt, Schluss und «mitnehmen» der nächsten Daten kommen aus `programm_eckdaten`. Der Abgleich holt sie mit einer Abfrage für alle Seiten (`ladeStufenfakten`); das Nachladen geschützter Bausteine nutzt einen Zwischenspeicher je Seite im Prozess (5 Minuten). Speichert die Stufenleitung Eckdaten, meldet die Route `seite_geaendert` für die Stufenseite, und der Abgleich erzeugt sie neu; sonst genügt der Lauf alle 10 Minuten (Datumswechsel).
-- **Termin-Liste** (`terminliste`): Das Schema des Bausteins gibt es (3 bis 10 Termine, optional ein Tag), der Renderer zeigt ihn aber **noch nicht**: Er liefert `null`, bis der Auftrag Termine die Daten einhängt. Wer den Baustein auf eine Seite legt, sieht ihn in der Vorschau und auf der Seite nicht. Das ist dokumentiert, nicht gebaut.
+- **Termin-Liste** (`terminliste`, #549, Design W1 und W2): Datumsfeld (Wochentag, Tag, Monat), Titel, Zeit und Ort, Chips der Stufen, Link «Alle Termine». Die Daten holt der Abgleich beim Erzeugen der Dateien (`ladeTerminlisten` in `src/website/termine-liste.ts`, wie `ladeStufenfakten` eine `Datenquelle`): höchstens zwei Abfragen für alle Seiten und Bausteine, nie eine je Seite, Baustein oder Abruf. Ohne Gruppe zeigt der Baustein die kommenden Termine von Anlässen mit Sichtbarkeit «öffentlich», mit Gruppe die kommenden Termine der Gruppe (`programm_tag`); beides nur für Termine mit Sichtbarkeit «eltern» und Status «aktiv», nie «intern» oder «leitende», nie Abgesagtes oder Vergangenes. Chips zeigen nur Stufen-Tags. Ein Anlass ist ein Link auf `/anlass?id=…`, ein Termin ohne Anlass nur eine Zeile. **Die Liste ist so aktuell wie die Datei:** Ein neuer oder geänderter Termin steht erst nach dem nächsten Lauf des Abgleichs darin (Veröffentlichen, Ereignis, spätestens 10 Minuten), ein vergangener bleibt bis dahin stehen. Im Nachladen für geschützte Bausteine und in der Vorschau des Editors fehlen die Daten: Dort entfällt der Baustein.
 
 ## Termine und Anlässe
 
@@ -111,7 +118,7 @@ Der Ausgabeordner ist aus der Datenbank ableitbar und wird **nicht gesichert** (
 
 ## Datenbanklast
 
-Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach einem Ereignis, alle 10 Minuten) liest in gebündelten Abfragen die Seiten der Abteilung, die veröffentlichten Versionen aller öffentlichen Seiten, die Medien, Personen und Tags der Bausteine, die Stufenfelder und die Weiterleitungen, nie eine Abfrage je Seite oder Baustein; geschrieben wird nur, wenn sich eine Datei ändert (ein `UPDATE` des Hashs je geänderter Seite). Das Nachladen geschützter Bausteine ist eine Anfrage je Seitenaufruf einer angemeldeten Person (alle Seiten der Abteilung für die Adresse, die Version, die Daten der sichtbaren Bausteine) und nutzt für die Stufenfelder einen Zwischenspeicher von 5 Minuten.
+Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach einem Ereignis, alle 10 Minuten) liest in gebündelten Abfragen die Seiten der Abteilung, die veröffentlichten Versionen aller öffentlichen Seiten, die Medien, Personen und Tags der Bausteine, die Stufenfelder, die Termine der Termin-Listen (höchstens zwei Abfragen) und die Weiterleitungen, nie eine Abfrage je Seite oder Baustein; geschrieben wird nur, wenn sich eine Datei ändert (ein `UPDATE` des Hashs je geänderter Seite). Das Nachladen geschützter Bausteine ist eine Anfrage je Seitenaufruf einer angemeldeten Person (alle Seiten der Abteilung für die Adresse, die Version, die Daten der sichtbaren Bausteine) und nutzt für die Stufenfelder einen Zwischenspeicher von 5 Minuten.
 
 ## Sicherheit der Ausgabe
 
@@ -146,7 +153,7 @@ www.example.org {
 		@versteckt path_regexp \/\.
 		respond @versteckt 404
 		header {
-			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 			# Kurz prüfen lassen: Die Dateien ändern sich beim Veröffentlichen, ETag und Last-Modified liefert file_server
 			Cache-Control "no-cache"
 		}
@@ -196,5 +203,5 @@ Ohne Caddy: `WEBSITE_AUSGABE_PFAD` auf ein lokales Verzeichnis setzen und es mit
 - Domain (#68), Ort der Dateien (Volume im Stack, Bucket oder anderer Host) und Änderung am Edge-Caddy: offen, entscheidet der Nutzer. Sie blockieren den Code nicht, aber den Betrieb: Erst mit der Entscheidung kommen die drei `WEBSITE_*`-Variablen, das beschreibbare Volume und der lesende Einbau in `deploy/`.
 - Die Seite mit der Adresse `start` ist die Startseite: eine Annahme, bis der Nutzer die Startseite bestätigt oder anders benennt (`STARTSEITE` in `src/website/rendern.ts`).
 - Ob Telefon, E-Mail und Foto von Leitenden erscheinen dürfen, entscheidet der Nutzer (Plan, Frage 2); bis dahin nur Cevi-Name und Funktion.
-- Der Baustein `terminliste` rendert nichts, bis der Auftrag Termine ihn mit Daten füllt (siehe oben).
+- Ob die Termin-Liste ohne Gruppe auch Termine ohne öffentlichen Anlass zeigen darf (zum Beispiel die Samstage), entscheidet der Nutzer; bis dahin nur Termine öffentlicher Anlässe (siehe oben).
 - Die Datei `weiterleitungen.caddy` und der Caddy-Vorschlag sind nicht gegen einen laufenden Caddy geprüft.
