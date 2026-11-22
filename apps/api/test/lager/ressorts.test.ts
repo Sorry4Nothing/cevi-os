@@ -735,6 +735,12 @@ describe("Links", () => {
         "//example.org",
         "example.org",
         "data:text/html,x",
+        "https://example.org:8443/x",
+        "https://127.0.0.1/x",
+        "https://localhost/x",
+        "https://example.org\\@evil.example/x",
+        "https://example.org/a b",
+        "https://exa\u202Emple.org/x",
         `https://example.org/${"x".repeat(2000)}`,
       ]) {
         const a = await anfrage(leiter(), "POST", url, {

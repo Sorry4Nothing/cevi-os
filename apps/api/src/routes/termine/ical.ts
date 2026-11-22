@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import type { SchalterZustand } from "../../bereichsschalter.js";
 import type { Db } from "../../db/client.js";
 import { programm } from "../../db/schema.js";
 import {
@@ -17,7 +18,7 @@ import {
 } from "../../termine/sicht.js";
 
 // ICS-Feed «Mein Kalender» (TC2 #438): GET /ical/<Token>.ics, ohne Sitzung und ausserhalb von /api/v1; app.ts hängt ihn vor der Sitzung ein. Der Token im Pfad ist das einzige Geheimnis.
-// Der Token steht nie in Log, Fehlertext oder Audit: Das Anfrage-Log führt das Routenmuster «/ical/:datei», die Fehlerantworten nennen den Pfad nicht, kein Cookie wird gelesen oder gesetzt. Unbekannter, widerrufener oder formal falscher Token und gesperrte Konten sind dieselbe 404-Antwort.
+// Der Token steht nie in Log, Fehlertext oder Audit: Das Anfrage-Log führt das Routenmuster «/ical/:datei», die Fehlerantworten nennen den Pfad nicht, kein Cookie wird gelesen oder gesetzt. Unbekannter, widerrufener oder formal falscher Token, gesperrte Konten und eine Sperre des Bereichs «programme» oder «alles» in der Abteilung der Person (#425) sind dieselbe 404-Antwort: Der Feed verrät unter Sperre weder, dass der Token stimmt, noch, dass eine Sperre gilt. Die Sperre gilt auch hier lesend; eine Wartung (nur Ändern gesperrt) berührt den lesenden Feed nicht.
 // Abfragen je Abruf: Token und Konto (1, Pflicht, damit ein Widerruf sofort wirkt); dazu bei leerem Zwischenspeicher die Sicht der Person (1) und die Termine (1). Der fertige Text liegt 5 Minuten (Takt des Kalender-Abgleichs) im Prozess; ein Abruf mit passendem If-None-Match bekommt 304 ohne Termine-Abfrage.
 
 const DATEI = /^([A-Za-z0-9_-]{43})\.ics$/;
@@ -66,8 +67,10 @@ export function erstelleIcalRoute({
   ipLimit = 300,
   praefixLimit = 30,
   fensterMs = 10 * 60_000,
+  schalter,
 }: {
   db: Db;
+  schalter?: SchalterZustand;
   ipLimit?: number;
   praefixLimit?: number;
   fensterMs?: number;
@@ -139,6 +142,10 @@ export function erstelleIcalRoute({
     if (!datei) throw new HTTPException(404);
     const person = await pruefeToken(db, datei[1]);
     if (!person) throw new HTTPException(404);
+    // Ohne Sitzung greift die Schalterprüfung der API nicht; die Abteilung kennen wir erst jetzt (kein Speicher: ein Widerruf und eine Sperre wirken sofort)
+    if (schalter?.trifft(person.abteilungId, "programme", "sperre")) {
+      throw new HTTPException(404);
+    }
     const feed = await feedFuer({
       id: person.userId,
       abteilungId: person.abteilungId,

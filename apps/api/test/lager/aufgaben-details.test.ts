@@ -810,6 +810,12 @@ describe("Links", () => {
       "http://beispiel.example.org",
       "javascript:alert(1)",
       "data:text/html,x",
+      "https://example.org:8443/x",
+      "https://127.0.0.1/x",
+      "https://localhost/x",
+      "https://example.org\\@evil.example/x",
+      "https://example.org/a b",
+      "https://exa\u202Emple.org/x",
       "ftp://beispiel.example.org",
       "https://nutzer:geheim@beispiel.example.org",
       "kein link",
@@ -980,7 +986,7 @@ describe("Stichworte", () => {
       ["   "],
       ["x".repeat(41)],
       ["Zelt\u0000"],
-      ["Zelt‮"],
+      ["Zelt\u202E"],
       Array.from({ length: 31 }, (_, i) => `w${i}`),
     ]) {
       expect(

@@ -93,12 +93,24 @@ export function erstelleSchalterZustand() {
 }
 export type SchalterZustand = ReturnType<typeof erstelleSchalterZustand>;
 
-// Welcher Bereich eine Route ist; die Routen der Plattform selbst (und alles, was kein Bereich ist) gehören keinem. Nur «alles» trifft einen Pfad ohne Bereich
+// Welcher Bereich eine Route ist; die Routen der Plattform selbst (und alles, was kein Bereich ist) gehören keinem. Nur «alles» trifft einen Pfad ohne Bereich.
+// Kalender, Termine, Anlässe, Terminvorschläge und Anwesenheit der Stufen sind «programme»; die Lager-Einstellungen der Person (ich/lager-…) sind «lager». Der ICS-Feed (/ical/…) liegt ausserhalb von /api/v1 und prüft den Schalter selbst (routes/termine/ical.ts).
+// Der Test «bereichsschalter-routen» geht alle Routen der App durch: Eine neue Route ohne Bereich fällt dort auf, bis sie hier steht oder in seiner Ausnahmeliste.
 const BEREICH_NACH_PFAD: [RegExp, SchalterBereich][] = [
   [/^\/api\/v1\/(redaktion|website|medien|admin\/medien)(\/|$)/, "website"],
-  [/^\/api\/v1\/(admin\/lager-dateien|admin\/lager|lager)(\/|$)/, "lager"],
+  [
+    /^\/api\/v1\/(admin\/lager-dateien|admin\/lager|lager|ich\/lager-[^/]+)(\/|$)/,
+    "lager",
+  ],
   [/^\/api\/v1\/chats(\/|$)/, "chat"],
-  [/^\/api\/v1\/(admin\/)?(programme|termine)(\/|$)/, "programme"],
+  [
+    /^\/api\/v1\/(admin\/)?(programme|termine|anlaesse|termin-vorschlaege|kategorie-zuordnungen)(\/|$)/,
+    "programme",
+  ],
+  [
+    /^\/api\/v1\/(ich\/kalender-link|stufen\/[^/]+\/anwesenheit)(\/|$)/,
+    "programme",
+  ],
   [/^\/api\/v1\/admin(\/|$)/, "verwaltung"],
 ];
 export const bereichVon = (pfad: string) =>

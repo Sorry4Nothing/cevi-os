@@ -6,6 +6,7 @@ import {
   anwesenheit,
   anwesenheitAnfrage,
   lagerMitglied,
+  teilnehmer,
 } from "../db/schema.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
 import { sperreLager } from "./ressorts.js";
@@ -201,7 +202,7 @@ export async function setzeAlsLeitung(
   items: LeitungEintrag[],
 ): Promise<
   | { eintraege: ReturnType<typeof anwesenheitAnsicht>[] }
-  | { fehler: "KEIN_MITGLIED" | "FELD_UNBEKANNT" }
+  | { fehler: "KEIN_MITGLIED" | "TEILNEHMER_UNBEKANNT" | "FELD_UNBEKANNT" }
 > {
   await sperreLager(tx, k.lagerId);
   if (!(await felderStimmen(tx, k.lagerId, items))) {
@@ -224,10 +225,31 @@ export async function setzeAlsLeitung(
       return { fehler: "KEIN_MITGLIED" };
     }
   }
-  // shortcut: Teilnehmende werden nicht gegen ihre Tabelle geprüft, weil #384 sie erst anlegt; eine fremde ID bleibt in diesem Lager folgenlos, aber unsichtbar falsch. Beim Zusammenführen mit #384 hier prüfen und den Fremdschlüssel (lager_id, id) in einer Migration ergänzen
-  const vorhanden = await ladeFelder(tx, k.lagerId, tageVon(items), personIds, [
+  // Teilnehmende des Lagers (Fremdschlüssel anwesenheit_teilnehmer_fk, Migration 0103): eine fremde oder erfundene ID ist ein Fehler, nie ein Eintrag ins Leere
+  const teilnehmerIds = [
     ...new Set(items.flatMap((i) => (i.teilnehmerId ? [i.teilnehmerId] : []))),
-  ]);
+  ];
+  if (teilnehmerIds.length > 0) {
+    const kinder = await tx
+      .select({ id: teilnehmer.id })
+      .from(teilnehmer)
+      .where(
+        and(
+          eq(teilnehmer.lagerId, k.lagerId),
+          inArray(teilnehmer.id, teilnehmerIds),
+        ),
+      );
+    if (kinder.length !== teilnehmerIds.length) {
+      return { fehler: "TEILNEHMER_UNBEKANNT" };
+    }
+  }
+  const vorhanden = await ladeFelder(
+    tx,
+    k.lagerId,
+    tageVon(items),
+    personIds,
+    teilnehmerIds,
+  );
   const ergebnis: ReturnType<typeof anwesenheitAnsicht>[] = [];
   for (const i of items) {
     const alt = vorhanden.get(schluessel(i));

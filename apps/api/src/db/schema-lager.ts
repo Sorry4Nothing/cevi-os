@@ -780,7 +780,7 @@ export const lagerDatei = pgTable(
   ],
 );
 
-// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) haben Fremdschlüssel mit Lager (Migration 0095); Teilnehmende (#384) ohne, bis diese Tabelle im Schema steht. Geschrieben wird nur über lager/sync.ts
+// Anwesenheit im Lager (#390): eine Zeile je Person (Leitende: user.id) oder Teilnehmende (teilnehmer_id) und Abschnitt eines Lagertags, nur für A (anwesend) und F (abwesend); «O» (offen) heisst keine Zeile, eine Zeile mit O entsteht nur, wenn die Lagerleitung ein eingetragenes Feld wieder öffnet. Ein eingetragenes Feld (A oder F) ist für das Team gesperrt: Änderungen laufen über anwesenheit_anfrage. Lagertag und Abschnitt (#374) haben Fremdschlüssel mit Lager (Migration 0095), ebenso die Teilnehmenden (Migration 0103, anwesenheit_teilnehmer_fk): Sie gehen mit der endgültigen Löschung der Teilnehmenden mit. Geschrieben wird nur über lager/sync.ts
 export const anwesenheit = pgTable(
   "anwesenheit",
   {
@@ -804,6 +804,11 @@ export const anwesenheit = pgTable(
       name: "anwesenheit_abschnitt_fk",
       columns: [t.lagerId, t.tagesabschnittId],
       foreignColumns: [tagesabschnitt.lagerId, tagesabschnitt.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "anwesenheit_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
     }).onDelete("cascade"),
     index("anwesenheit_abschnitt_idx").on(t.lagerId, t.tagesabschnittId),
     // Ein Feld gibt es je Person und Abschnitt einmal; eine gelöschte Zeile blockiert es nicht

@@ -194,6 +194,8 @@ export function berechneAnzeigenamen(personen: Anzeigeperson[]) {
 export async function anzeigeNamenLager(
   db: Pick<Db, "execute">,
   lagerId: string,
+  // false: Der Cevi-Name der Teilnehmenden zählt nicht (wer teilnehmer.bearbeiten nicht hat, sieht ihn nirgends, #384); der Name fällt auf den Vornamen zurück. Die Cevi-Namen der Konten (Leitende) bleiben
+  mitCeviNameTeilnehmer = true,
 ) {
   const zeilen = await db.execute<{
     id: string;
@@ -202,7 +204,7 @@ export async function anzeigeNamenLager(
     ceviName: string | null;
     konto: boolean;
   }>(sql`
-    select t.id, t.vorname, t.nachname, t.cevi_name as "ceviName", false as konto
+    select t.id, t.vorname, t.nachname, ${mitCeviNameTeilnehmer ? sql`t.cevi_name` : sql`null::text`} as "ceviName", false as konto
     from teilnehmer t
     where t.lager_id = ${lagerId}
     union all

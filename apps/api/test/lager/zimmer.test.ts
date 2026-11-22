@@ -636,13 +636,14 @@ describe("Sicht je Rolle", () => {
       art: "zimmer",
       mitglieder: expect.any(Array),
     });
-    // Nur Namen: Cevi-Name sonst Vorname, keine IDs, Plätze, Notiz, Belegung
+    // Nur Namen: keine IDs, Plätze, Notiz, Belegung; der Cevi-Name der Teilnehmenden gehört zu teilnehmer.bearbeiten (#384), das Team sieht den Vornamen
     expect(
       z.mitglieder.every((m: object) => Object.keys(m).join() === "name"),
     ).toBe(true);
     expect(z.mitglieder.map((m: { name: string }) => m.name)).toEqual(
-      expect.arrayContaining(["Fuchs", "Ben"]),
+      expect.arrayContaining(["Anna", "Ben"]),
     );
+    expect(JSON.stringify(a.body)).not.toContain("Fuchs");
     expect(JSON.stringify(a.body)).not.toContain("Muster");
     expect(JSON.stringify(a.body)).not.toContain("geheim");
     // Das Team ändert nichts und sieht die Auswahl nicht
@@ -656,6 +657,44 @@ describe("Sicht je Rolle", () => {
       expect((await anfrage(konten.team, methode, pfad, body)).status).toBe(
         403,
       );
+    }
+  });
+
+  test("der Cevi-Name der Teilnehmenden erscheint nur mit teilnehmer.bearbeiten, in der Liste und in der Auswahl", async () => {
+    const { id } = await aufbauen();
+    const mit = ["lagerleitung", "abteilungsleitung"] as const;
+    const ohne = ["leitung", "team", "lesen"] as const;
+    for (const p of mit) {
+      const a = await liste(id, konten[p]);
+      expect(JSON.stringify(a.body), p).toContain("Fuchs");
+    }
+    for (const p of ohne) {
+      const a = await liste(id, konten[p]);
+      expect(a.status, p).toBe(200);
+      expect(JSON.stringify(a.body), p).not.toContain("Fuchs");
+    }
+    for (const p of [...mit, "leitung"] as const) {
+      const offen = await anfrage(
+        konten[p],
+        "GET",
+        `${L(id)}/zimmer/offen?art=teilnehmer`,
+      );
+      expect(offen.status, p).toBe(200);
+      expect(JSON.stringify(offen.body), p).not.toContain("Fuchs");
+    }
+    // Anna ist eingeteilt; mit einem offenen Kind mit Cevi-Namen prüfen
+    await neuerTeilnehmer(id, "Dora", "Probe", "Igel");
+    for (const p of [...mit, "leitung"] as const) {
+      const offen = await anfrage(
+        konten[p],
+        "GET",
+        `${L(id)}/zimmer/offen?art=teilnehmer`,
+      );
+      const eintrag = offen.body.eintraege.find(
+        (e: { vorname: string }) => e.vorname === "Dora",
+      );
+      expect(eintrag, p).toBeDefined();
+      expect("ceviName" in eintrag, p).toBe(mit.includes(p as never));
     }
   });
 
