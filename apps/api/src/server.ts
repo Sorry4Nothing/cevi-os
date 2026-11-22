@@ -16,6 +16,7 @@ import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
+import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -111,6 +112,11 @@ starteSitzungenAufraeumen(
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
+);
+// Anmeldungen zu Anlässen 180 Tage nach dem Ende des Anlasses löschen (#443)
+starteSitzungenAufraeumen(
+  () => loescheAlteAnmeldungen(db),
+  "anlass_anmeldungen",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (

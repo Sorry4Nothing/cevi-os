@@ -206,13 +206,16 @@ export const KATEGORIEN = {
     google: [],
   },
   anlass: {
-    titel: "Anlässe und ihre Zusatzfelder",
+    titel: "Anlässe und Anmeldungen",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
     frist:
-      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
-    apple: [],
-    google: [],
+      "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis die Redaktion sie löscht.",
+    apple: ["Contact Info: Name", "User Content: Other User Content"],
+    google: [
+      "Personal info: Name",
+      "App activity: Other user-generated content",
+    ],
   },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
@@ -281,7 +284,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
-  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten (die stehen in anlass_anmeldung); wer ihn angelegt hat, steht in erstellt_von
   anlass: {
     anlass: [
       "id",
@@ -296,6 +299,19 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "seite_id",
       "erstellt_von",
       "erstellt_am",
+    ],
+  },
+  // Anmeldungen (#443): wer angemeldet hat (user_id), für welches Kind (kind_id) und die Antworten auf die Zusatzfelder; Name, Cevi-Name und Stufe liest die Ansicht live aus dem Konto
+  anlass_anmeldung: {
+    anlass: [
+      "id",
+      "anlass_id",
+      "user_id",
+      "kind_id",
+      "antworten",
+      "status",
+      "erstellt_am",
+      "geaendert_am",
     ],
   },
   anlass_feld: {

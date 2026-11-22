@@ -10061,7 +10061,7 @@ paths:
         - `treffpunkt`, `schlussOrt`, `schlussZeit`, `mitnehmen`: die Eckdaten der Stufenseite, wenn Tag und Stufe zum Termin passen, sonst `null`.
         - `teilnahmeOffen`: wahr, wenn der Termin «aktiv» ist und noch nicht begonnen hat.
         - `eigeneAnmeldung`: nur wenn die Person Leitung einer Stufe des Termins ist; ohne Antwort «offen».
-        - `anlass`: heute immer `null`; später der Verweis auf die Anmeldung zu einem Anlass.
+        - `anlass`: der Verweis auf die Anmeldung zu einem Anlass (`id`, `anmeldeschluss`, `anmeldungOffen`, `angemeldet`), wenn der Termin einen Anlass hat, den die Person sehen darf (`GET /api/v1/anlaesse/{id}`); sonst `null`.
 
         Zwischenspeicher wie bei der Liste: `private`, `ETag`, 304 bei `If-None-Match`.
 
@@ -10336,6 +10336,120 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/anlaesse/{id}:
+    get:
+      operationId: leseAnlassVorlage
+      summary: Anlass mit Formular und eigener Anmeldung lesen
+      description: |
+        Die Vorlage für die Anmeldung. Wer den Anlass sehen darf (Sichtbarkeit `oeffentlich` oder `angemeldet` für alle der Abteilung, `tags` für Personen mit einem der Tags, bei Eltern auch über die Stufe eines ihrer aktiven Kinder, die Abteilungsleitung immer), bekommt ihn; für alle anderen ist er 404, auch für Personen anderer Abteilungen.
+
+        `teilnehmende` sind bei `anmeldungFuer: kind` die eigenen aktiven Kinder (ohne Kind eine leere Liste), bei `person` die Person selbst. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
+
+        Abfragen: 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), unabhängig von der Zahl der Kinder.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger `id`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      responses:
+        "200":
+          description: Der Anlass mit Formular und eigener Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassVorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/anlaesse/{id}/anmeldung:
+    put:
+      operationId: meldeZuAnlassAn
+      summary: Zu einem Anlass anmelden oder die Anmeldung ändern
+      description: |
+        Meldet die Person (`anmeldungFuer: person`, ohne `kindId`) oder eines ihrer aktiven Kinder (`anmeldungFuer: kind`, mit `kindId`) an. Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
+
+        Die Antworten gelten gegen die Felder des Anlasses: unbekannte Schlüssel, fehlende Pflichtfelder (bei Text zählt leer als fehlend), falscher Typ (`ja_nein` ist `true` oder `false`), eine Auswahl ausserhalb der Optionen, Text über 500 Zeichen oder mit Steuerzeichen (auch Zeilenumbruch) ergeben 400 mit `fehler: [{ schluessel, code }]` und den Codes `UNBEKANNT`, `PFLICHT`, `TYP`, `OPTION`, `ZU_LANG`, `STEUERZEICHEN`, nie mit dem Wert. Text wird getrimmt gespeichert.
+
+        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes (`kind_eltern`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. `kindId` ist bei `kind` Pflicht (400 `KIND_ID_PFLICHT`) und bei `person` verboten (400 `KIND_ID_VERBOTEN`).
+
+        Ratenbegrenzung: höchstens 30 Anmeldungen und Abmeldungen je Person und Minute (429). Audit: `anlass_angemeldet` mit der ID der Anmeldung, nie mit Antworten.
+
+        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur bei `kind`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `ANTWORTEN_UNGUELTIG`, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnlassAnmeldungEingabe"
+      responses:
+        "200":
+          description: Die Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassAnmeldung"
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: meldeVonAnlassAb
+      summary: Von einem Anlass abmelden
+      description: |
+        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId`, Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: kindId
+          in: query
+          required: false
+          description: "Das Kind, nur bei Anlässen mit `anmeldungFuer: kind` (dort Pflicht)."
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Abgemeldet.
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -16339,8 +16453,10 @@ components:
           items:
             $ref: "#/components/schemas/TerminMeinTag"
         anlass:
-          type: "null"
-          description: Verweis auf die Anmeldung zu einem Anlass. Heute immer `null`; das Objekt kommt mit der Anlass-Anmeldung (Epic Termine).
+          description: Verweis auf die Anmeldung zu einem Anlass; `null`, wenn der Termin keinen Anlass hat oder die Person ihn nicht sehen darf.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/TerminMeinAnlass"
         kinder:
           type: array
           description: Die eigenen, aktiven Kinder, deren Stufe am Termin hängt; sortiert nach Vorname, dann `id`.
@@ -16693,6 +16809,241 @@ components:
               items:
                 $ref: "#/components/schemas/AdminAnlassFeld"
     # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AnlassVorlageFeld:
+      type: object
+      required:
+        - schluessel
+        - beschriftung
+        - typ
+        - optionen
+        - pflicht
+      properties:
+        schluessel:
+          type: string
+          pattern: ^[a-z0-9_]{1,40}$
+        beschriftung:
+          type: string
+        typ:
+          type: string
+          enum:
+            - text
+            - ja_nein
+            - auswahl
+        optionen:
+          type: array
+          description: Nur bei `auswahl`, sonst leer.
+          items:
+            type: string
+        pflicht:
+          type: boolean
+    AnlassKontoWert:
+      type: object
+      description: Eine Angabe, die das Konto schon kennt. Die App zeigt sie als «aus deinem Konto», nicht editierbar.
+      required:
+        - schluessel
+        - beschriftung
+        - wert
+      properties:
+        schluessel:
+          type: string
+          examples:
+            - vorname
+        beschriftung:
+          type: string
+          examples:
+            - Vorname
+        wert:
+          type: string
+    AnlassAnmeldung:
+      type: object
+      required:
+        - id
+        - status
+        - antworten
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - angemeldet
+            - abgemeldet
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert (Text, `true`/`false` oder die gewählte Option). Bei `abgemeldet` leer.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+        geaendertAm:
+          type: string
+          format: date-time
+    AnlassTeilnehmende:
+      type: object
+      required:
+        - kindId
+        - name
+        - konto
+        - anmeldung
+      properties:
+        kindId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Das Kind; `null`, wenn die Person sich selbst anmeldet.
+        name:
+          type: string
+          description: Cevi-Name, sonst Name; bei Kindern Cevi-Name, sonst Vorname und Nachname.
+        konto:
+          type: array
+          description: Was das Konto kennt und vorausgefüllt zeigt; ohne Telefon, E-Mail und Gesundheitsdaten.
+          items:
+            $ref: "#/components/schemas/AnlassKontoWert"
+        anmeldung:
+          description: Die bisherige Anmeldung; `null`, wenn es noch keine gibt.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/AnlassAnmeldung"
+    AnlassVorlage:
+      type: object
+      required:
+        - id
+        - terminId
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - anmeldungOffen
+        - frist
+        - anmeldungFuer
+        - felder
+        - teilnehmende
+      properties:
+        id:
+          type: string
+          format: uuid
+        terminId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Anmeldeschluss; `null`, wenn der Anlass keine Frist hat.
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnlassVorlageFeld"
+        teilnehmende:
+          type: array
+          description: Bei `kind` die eigenen aktiven Kinder, bei `person` die Person selbst.
+          items:
+            $ref: "#/components/schemas/AnlassTeilnehmende"
+    AnlassAnmeldungEingabe:
+      type: object
+      required:
+        - antworten
+      additionalProperties: false
+      properties:
+        kindId:
+          type: string
+          format: uuid
+          description: "Pflicht bei `anmeldungFuer: kind`, verboten bei `person`."
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert; höchstens 20 Schlüssel. Text höchstens 500 Zeichen, ohne Steuerzeichen.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+    AnlassAnmeldungFehler:
+      description: Fehler wie sonst (`code`, `message`); bei `ANTWORTEN_UNGUELTIG` dazu `fehler` mit Schlüssel und Code, nie mit dem Wert.
+      allOf:
+        - $ref: "#/components/schemas/Fehler"
+        - type: object
+          properties:
+            fehler:
+              type: array
+              items:
+                type: object
+                required:
+                  - schluessel
+                  - code
+                properties:
+                  schluessel:
+                    type: string
+                  code:
+                    type: string
+                    enum:
+                      - UNBEKANNT
+                      - PFLICHT
+                      - TYP
+                      - OPTION
+                      - ZU_LANG
+                      - STEUERZEICHEN
+    TerminMeinAnlass:
+      type: object
+      description: Der Anlass zu einem Termin, aus Sicht der angemeldeten Person.
+      required:
+        - id
+        - anmeldeschluss
+        - anmeldungOffen
+        - angemeldet
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Die ID des Anlasses, Ziel von `GET /api/v1/anlaesse/{id}`.
+        anmeldeschluss:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende der Anmeldefrist; `null`, wenn der Anlass keine Frist hat.
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        angemeldet:
+          type: boolean
+          description: Ob die Person selbst oder eines ihrer Kinder angemeldet ist.
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -17654,6 +18005,20 @@ components:
     AnlassKonflikt409:
       description: |
         Konflikt: `ANLASS_VORHANDEN` (der Termin hat schon einen Anlass), `TERMIN_VORBEI` (der Termin ist vorbei), `ANMELDUNGEN_VORHANDEN` (es gibt schon Anmeldungen) oder `FELD_IN_BENUTZUNG` (zu einem Feld gibt es Antworten; die Antwort nennt die betroffenen `schluessel`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    AnlassAnmeldung400:
+      description: |
+        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`), `KIND_ID_PFLICHT` und `KIND_ID_VERBOTEN`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AnlassAnmeldungFehler"
+    AnlassAnmeldung409:
+      description: |
+        Konflikt: `ANMELDUNG_GESCHLOSSEN` (die Anmeldung ist nicht offen: nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei).
       content:
         application/json:
           schema:

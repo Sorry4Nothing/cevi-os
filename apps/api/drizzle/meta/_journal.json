@@ -400,6 +400,13 @@
       "when": 1793554300000,
       "tag": "0123_anlass",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793554400000,
+      "tag": "0124_anlass_anmeldung",
+      "breakpoints": true
     }
   ]
 }
