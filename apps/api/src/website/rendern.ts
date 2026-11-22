@@ -326,7 +326,7 @@ function navigation(punkte: NavPunkt[], aktuell: string | null): string {
 }
 
 // Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline
-const CSP =
+export const CSP =
   "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";

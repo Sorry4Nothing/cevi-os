@@ -104,3 +104,39 @@ export const seiteVersion = pgTable(
     check("seite_version_nr_check", sql`${t.nr} >= 1`),
   ],
 );
+
+// Weiterleitung einer alten Adresse auf eine interne Seite (#356). Beide Pfade sind relativ zur Website: Stücke aus a-z, 0-9 und «-», dahinter Endungen mit «.»; nie «//», «\», «:», «..», Query oder Anker.
+// Deshalb ist ein offener Redirect (fremder Host) in der Datenbank ausgeschlossen. Dass das Ziel nie selbst eine alte Adresse ist (keine Kette, keine Schleife), prüfen die Routen unter einer Sperre.
+// Das Muster steht auch in website/weiterleitungen.ts (PFAD_MUSTER); beide müssen übereinstimmen
+const PFAD_REGEX = sql.raw(
+  "'^/[a-z0-9-]+([.][a-z0-9]+)*(/[a-z0-9-]+([.][a-z0-9]+)*){0,6}$'",
+);
+export const weiterleitung = pgTable(
+  "weiterleitung",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    alterPfad: text("alter_pfad").notNull(),
+    zielPfad: text("ziel_pfad").notNull(),
+    status: integer("status").notNull().default(301),
+    erstelltVon: uuid("erstellt_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("weiterleitung_alt_eindeutig").on(t.abteilungId, t.alterPfad),
+    check(
+      "weiterleitung_alt_check",
+      sql`char_length(${t.alterPfad}) <= 200 and ${t.alterPfad} ~ ${PFAD_REGEX}`,
+    ),
+    check(
+      "weiterleitung_ziel_check",
+      sql`char_length(${t.zielPfad}) <= 200 and (${t.zielPfad} = '/' or ${t.zielPfad} ~ ${PFAD_REGEX})`,
+    ),
+    check("weiterleitung_ungleich_check", sql`${t.alterPfad} <> ${t.zielPfad}`),
+    check("weiterleitung_status_check", sql`${t.status} in (301, 302)`),
+  ],
+);
