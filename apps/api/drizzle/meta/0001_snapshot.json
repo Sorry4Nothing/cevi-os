@@ -160,13 +160,9 @@
         "account_user_id_user_id_fk": {
           "name": "account_user_id_user_id_fk",
           "tableFrom": "account",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -237,13 +233,9 @@
         "audit_log_abteilung_id_abteilung_id_fk": {
           "name": "audit_log_abteilung_id_abteilung_id_fk",
           "tableFrom": "audit_log",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -308,26 +300,18 @@
         "kind_abteilung_id_abteilung_id_fk": {
           "name": "kind_abteilung_id_abteilung_id_fk",
           "tableFrom": "kind",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         },
         "kind_stufe_id_stufe_id_fk": {
           "name": "kind_stufe_id_stufe_id_fk",
           "tableFrom": "kind",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -367,26 +351,18 @@
         "kind_eltern_kind_id_kind_id_fk": {
           "name": "kind_eltern_kind_id_kind_id_fk",
           "tableFrom": "kind_eltern",
-          "columnsFrom": [
-            "kind_id"
-          ],
+          "columnsFrom": ["kind_id"],
           "tableTo": "kind",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "kind_eltern_user_id_user_id_fk": {
           "name": "kind_eltern_user_id_user_id_fk",
           "tableFrom": "kind_eltern",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -394,10 +370,7 @@
       "compositePrimaryKeys": {
         "kind_eltern_kind_id_user_id_pk": {
           "name": "kind_eltern_kind_id_user_id_pk",
-          "columns": [
-            "kind_id",
-            "user_id"
-          ]
+          "columns": ["kind_id", "user_id"]
         }
       },
       "uniqueConstraints": {},
@@ -441,9 +414,7 @@
       "uniqueConstraints": {
         "rate_limit_key_unique": {
           "name": "rate_limit_key_unique",
-          "columns": [
-            "key"
-          ],
+          "columns": ["key"],
           "nullsNotDistinct": false
         }
       },
@@ -486,26 +457,18 @@
         "rolle_user_id_user_id_fk": {
           "name": "rolle_user_id_user_id_fk",
           "tableFrom": "rolle",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         },
         "rolle_stufe_id_stufe_id_fk": {
           "name": "rolle_stufe_id_stufe_id_fk",
           "tableFrom": "rolle",
-          "columnsFrom": [
-            "stufe_id"
-          ],
+          "columnsFrom": ["stufe_id"],
           "tableTo": "stufe",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -513,10 +476,7 @@
       "compositePrimaryKeys": {
         "rolle_user_id_stufe_id_pk": {
           "name": "rolle_user_id_stufe_id_pk",
-          "columns": [
-            "user_id",
-            "stufe_id"
-          ]
+          "columns": ["user_id", "stufe_id"]
         }
       },
       "uniqueConstraints": {},
@@ -611,13 +571,9 @@
         "session_user_id_user_id_fk": {
           "name": "session_user_id_user_id_fk",
           "tableFrom": "session",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -626,9 +582,7 @@
       "uniqueConstraints": {
         "session_token_unique": {
           "name": "session_token_unique",
-          "columns": [
-            "token"
-          ],
+          "columns": ["token"],
           "nullsNotDistinct": false
         }
       },
@@ -682,13 +636,9 @@
         "stufe_abteilung_id_abteilung_id_fk": {
           "name": "stufe_abteilung_id_abteilung_id_fk",
           "tableFrom": "stufe",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -785,13 +735,9 @@
         "two_factor_user_id_user_id_fk": {
           "name": "two_factor_user_id_user_id_fk",
           "tableFrom": "two_factor",
-          "columnsFrom": [
-            "user_id"
-          ],
+          "columnsFrom": ["user_id"],
           "tableTo": "user",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "cascade"
         }
@@ -966,13 +912,9 @@
         "user_abteilung_id_abteilung_id_fk": {
           "name": "user_abteilung_id_abteilung_id_fk",
           "tableFrom": "user",
-          "columnsFrom": [
-            "abteilung_id"
-          ],
+          "columnsFrom": ["abteilung_id"],
           "tableTo": "abteilung",
-          "columnsTo": [
-            "id"
-          ],
+          "columnsTo": ["id"],
           "onUpdate": "no action",
           "onDelete": "restrict"
         }
@@ -981,16 +923,12 @@
       "uniqueConstraints": {
         "user_email_unique": {
           "name": "user_email_unique",
-          "columns": [
-            "email"
-          ],
+          "columns": ["email"],
           "nullsNotDistinct": false
         },
         "user_username_unique": {
           "name": "user_username_unique",
-          "columns": [
-            "username"
-          ],
+          "columns": ["username"],
           "nullsNotDistinct": false
         }
       },
