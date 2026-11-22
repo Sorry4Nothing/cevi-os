@@ -76,3 +76,19 @@ export function meineTermine(
   if (teile.length === 0) return sql`false`;
   return sql`(programm.abteilung_id = ${person.abteilungId} and (${sql.join(teile, sql` or `)}))`;
 }
+
+// Einhängepunkt für «Alle Termine» (#436, Annahme A2): Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich», die nicht in «Mein Kalender» liegen. #442 füllt die Regel; bis dahin gibt es keine.
+export function anlassTermine(): SQL {
+  return sql`false`;
+}
+
+// «Alle Termine» (Web): Die Abteilungsleitung sieht jeden Termin der Abteilung mit mindestens einem Tag («intern» wie überall ausgeblendet, A5); alle anderen «Mein Kalender» plus die Anlass-Termine. Ohne Tag nie.
+export function alleTermine(
+  person: Pick<Person, "abteilungId" | "admin">,
+  t: SichtTags,
+) {
+  if (person.admin) {
+    return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
+  }
+  return sql`(${meineTermine(person, t)} or ${anlassTermine()})`;
+}
