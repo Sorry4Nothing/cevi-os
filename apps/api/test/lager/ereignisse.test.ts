@@ -345,9 +345,13 @@ describe("GET /api/v1/lager/{id}/ereignisse", () => {
       expect(neu.erste).toMatchObject({
         event: "aenderung",
         id: String(await seq()),
-        // Alle Typen, die das Team lesen darf, nicht mehr
-        data: { bis: await seq(), objekttypen: ["offen"] },
+        // Alle Typen, die das Team lesen darf (auch die echten Tabellen mit pinnwand.lesen, etwa die Pinnwand), nicht mehr
+        data: {
+          bis: await seq(),
+          objekttypen: expect.arrayContaining(["offen"]),
+        },
       });
+      expect(JSON.stringify(neu.erste.data)).not.toContain('"objekt"');
       await neu.strom.schliesse();
     });
 
