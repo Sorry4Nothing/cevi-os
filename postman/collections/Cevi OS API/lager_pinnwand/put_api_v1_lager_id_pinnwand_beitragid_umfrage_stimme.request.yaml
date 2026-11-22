@@ -1,0 +1,24 @@
+$kind: http-request
+name: "PUT /api/v1/lager/:id/pinnwand/:beitragId/umfrage/stimme"
+order: 362000
+method: PUT
+url: "{{baseUrl}}{{pfad_L205}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "optionIds": [
+        "8c239d78-840e-47f3-a584-19cd410a1359"
+      ]
+    }

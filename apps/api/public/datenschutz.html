@@ -523,7 +523,10 @@
             Wunschperson); die Lagerleitung klärt die Zustimmung selbst und
             nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die
             Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt
-            nur den Lagertitel.
+            nur den Lagertitel. Aus diesen Angaben erzeugt Cevi OS auf Abruf
+            Aushänge als PDF (Zimmerliste, Türschilder, Gruppenlisten,
+            Fahrtenliste, Schichtplan, Organigramm); die Datei geht nur an die
+            abrufende Person und wird nicht gespeichert.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -625,7 +628,10 @@
           <dt>Aufbewahrung</dt>
           <dd>
             Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder
-            das Konto gelöscht wird. Auf Anfrage löscht die Leitung Daten.
+            das Konto gelöscht wird. Die Einträge der Teilnehmenden (nur Kennung
+            und Wert, kein Name) bleiben auch nach dem Löschen der
+            Teilnehmenden, sechs Monate nach dem Ende des Lagers, bis das Lager
+            gelöscht wird. Auf Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
       </section>
@@ -869,10 +875,11 @@
           <dd>
             Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen
             Titel, Stichworte und verweist auf eine Datei im SharePoint der
-            Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein
-            Dokument für das Team frei; ohne Freigabe sieht das Team es nicht.
-            Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft
-            nur über Titel und Stichworte.
+            Abteilung (siehe «Dateien im Lager»). Wer Dokumente bearbeiten darf
+            (im Standard Lagerleitung und Leitung), gibt ein Dokument für das
+            Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert
+            nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und
+            Stichworte.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -1251,13 +1258,14 @@
 
       <h2 id="aufbewahrung">Wie lange Daten bleiben</h2>
       <p>
-        Cevi OS löscht Nachrichten, Anmeldungen, Kinder und Konten nicht
-        automatisch. Sie bleiben, bis eine Person sie löscht oder das Konto
-        gelöscht wird. Auf Anfrage löscht die Leitung Daten. In der App kannst
-        du dein Konto nicht selbst löschen. Wird ein Konto gelöscht, gehen die
-        Nachrichten der Person mit; bei Eltern gehen auch der Einzelchat und die
-        Zuordnung zu den Kindern mit. Die Kinder und ihre Anmeldungen bleiben,
-        bis die Leitung sie löscht. Wie du eine Löschung verlangst, steht unter
+        Cevi OS löscht Nachrichten, Anmeldungen zu Programmen, Kinder und Konten
+        nicht automatisch. Sie bleiben, bis eine Person sie löscht oder das
+        Konto gelöscht wird. Auf Anfrage löscht die Leitung Daten. In der App
+        kannst du dein Konto nicht selbst löschen. Wird ein Konto gelöscht,
+        gehen die Nachrichten der Person mit; bei Eltern gehen auch der
+        Einzelchat und die Zuordnung zu den Kindern mit. Die Kinder und ihre
+        Anmeldungen bleiben, bis die Leitung sie löscht. Wie du eine Löschung
+        verlangst, steht unter
         <a href="/konto-loeschen">Konto löschen</a>.
       </p>
       <p>
@@ -1269,7 +1277,7 @@
         bleibt 30 Tage lang ein Vermerk ohne Inhalt auf dem Server (Art des
         Eintrags und Kennung).
       </p>
-      <p>Zeitliche Regeln gibt es nur für diese Daten:</p>
+      <p>Zeitliche Regeln gibt es für diese Daten:</p>
       <ul>
         <li>Logs des Servers und des Webservers: 14 Tage.</li>
         <li>
@@ -1285,6 +1293,21 @@
           erst aus den Backups, wenn die Stände ablaufen; das dauert rund drei
           Monate. Der Schutz vor dem Löschen beim Speicheranbieter kann das um
           bis zu 30 Tage verlängern.
+        </li>
+        <li>
+          Widerrufene persönliche Kalenderlinks: 30 Tage nach dem Widerruf.
+        </li>
+        <li>Anmeldungen zu Anlässen: 180 Tage nach dem Ende des Anlasses.</li>
+        <li>
+          Lager: Teilnehmende samt Einteilung und Abzählen sechs Monate nach dem
+          Ende des Lagers; Kontakte im Adressbuch 180 Tage nach dem Ende des
+          Lagers (ausser sie sind zum Behalten markiert); gelesene
+          Benachrichtigungen 90 Tage; das Verzeichnis der Änderungen und die
+          Ergebnisse gesammelter Änderungen 30 Tage.
+        </li>
+        <li>
+          Wetter, Aushänge und Suche speichern nichts über Personen; ein Aushang
+          als PDF wird bei jedem Abruf neu erzeugt.
         </li>
       </ul>
 

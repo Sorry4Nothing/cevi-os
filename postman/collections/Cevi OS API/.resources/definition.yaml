@@ -1,14 +1,20 @@
 $kind: collection
 name: Cevi OS API
-description: "Jede Route der Rechte-Matrix. Mit einer Umgebung je Persona laufen lassen; der Test erwartet den Status, den die Matrix für diese Persona festhält. Ablauf: docs/api/postman.md"
+description: "Jede Route der Rechte-Matrizen (Hauptmatrix, Lager, Termine). Mit einer Umgebung je Persona laufen lassen; der Test erwartet den Status, den die Matrix für diese Persona festhält. Ablauf: docs/api/postman.md"
 variables:
   - key: appVersion
     value: "1.2.0"
 scripts:
+  - type: http:beforeRequest
+    language: text/javascript
+    code: |-
+      if (JSON.parse(pm.environment.get("erwartet"))[pm.info.requestName] === undefined) pm.execution.skipRequest();
   - type: http:afterResponse
     language: text/javascript
     code: |-
       const erwartet = JSON.parse(pm.environment.get("erwartet"))[pm.info.requestName];
-      pm.test(pm.environment.get("persona") + ": " + pm.info.requestName + " -> " + erwartet, () => {
-        pm.response.to.have.status(erwartet);
-      });
+      if (erwartet !== undefined) {
+        pm.test(pm.environment.get("persona") + ": " + pm.info.requestName + " -> " + erwartet, () => {
+          pm.response.to.have.status(erwartet);
+        });
+      }

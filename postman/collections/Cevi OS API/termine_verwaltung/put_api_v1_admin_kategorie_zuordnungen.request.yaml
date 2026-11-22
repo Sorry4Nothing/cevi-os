@@ -1,0 +1,23 @@
+$kind: http-request
+name: "PUT /api/v1/admin/kategorie-zuordnungen"
+order: 415000
+method: PUT
+url: "{{baseUrl}}/api/v1/admin/kategorie-zuordnungen"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "kategorie": "Matrix d618f053-67e1-44f6-816f-a5a0b98c4e73",
+      "tagId": "01a202fd-6d03-71db-9d0d-371f00d5eae3"
+    }

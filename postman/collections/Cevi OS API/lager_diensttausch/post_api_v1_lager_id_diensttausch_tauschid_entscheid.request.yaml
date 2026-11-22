@@ -1,0 +1,23 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/diensttausch/:tauschId/entscheid"
+order: 211000
+method: POST
+url: "{{baseUrl}}{{pfad_L53}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "entscheid": "abgelehnt",
+      "version": 1
+    }

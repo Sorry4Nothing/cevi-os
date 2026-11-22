@@ -1,8 +1,8 @@
 $kind: http-request
-name: "POST /api/v1/admin/system/syncs/eckdaten"
-order: 45000
+name: "POST /api/v1/lager/:id/benachrichtigungen/gelesen"
+order: 199000
 method: POST
-url: "{{baseUrl}}/api/v1/admin/system/syncs/eckdaten"
+url: "{{baseUrl}}{{pfad_L41}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

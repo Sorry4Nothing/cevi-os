@@ -1,0 +1,31 @@
+$kind: http-request
+name: "POST /api/v1/admin/vorlagen"
+order: 367000
+method: POST
+url: "{{baseUrl}}/api/v1/admin/vorlagen"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "art": "packliste",
+      "name": "Matrix 2ebf4e5c-543c-491a-90af-9cfc77cc7d04",
+      "inhalt": {
+        "punkte": [
+          {
+            "abschnitt": "Kleidung",
+            "text": "Regenjacke"
+          }
+        ]
+      }
+    }

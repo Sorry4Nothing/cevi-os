@@ -1,0 +1,23 @@
+$kind: http-request
+name: "PATCH /api/v1/lager/:id/gruppen/:gruppeId"
+order: 251000
+method: PATCH
+url: "{{baseUrl}}{{pfad_L94}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "version": 1,
+      "name": "Umbenannt"
+    }
