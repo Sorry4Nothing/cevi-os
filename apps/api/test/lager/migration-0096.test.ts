@@ -15,7 +15,7 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "../hilfen/datenbank.js";
 
-// 0074 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0073 migrieren, dann 0074 durch den echten Migrator, dann der Rückweg
+// 0096 und ihr Rückweg gegen eine eigene Datenbank: erst bis 0095 migrieren, dann 0096 durch den echten Migrator, dann der Rückweg
 const dbName = `cevi_os_mig379_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
@@ -47,8 +47,8 @@ beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
   api = postgres(url("cevi_os_api"), { max: 1 });
-  ordnerBauen(bisVorher, 73);
-  ordnerBauen(komplett, 74);
+  ordnerBauen(bisVorher, 95);
+  ordnerBauen(komplett, 96);
 });
 
 afterAll(async () => {
@@ -68,7 +68,7 @@ const tabellen = async () =>
     await besitzer`select table_name from information_schema.tables where table_schema = 'public' and table_name in ('protokoll', 'beschluss') order by table_name`
   ).map((z) => z.table_name);
 
-test("0074 legt protokoll und beschluss an, die API-Rolle darf sie nutzen, CHECKs und Fremdschlüssel halten, der Rückweg räumt auf", async () => {
+test("0096 legt protokoll und beschluss an, die API-Rolle darf sie nutzen, CHECKs und Fremdschlüssel halten, der Rückweg räumt auf", async () => {
   await migrate(drizzle(besitzer), { migrationsFolder: bisVorher });
   const vorher = await anzahlMigrationen();
   expect(await tabellen()).toEqual([]);
@@ -151,12 +151,12 @@ test("0074 legt protokoll und beschluss an, die API-Rolle darf sie nutzen, CHECK
   expect(await api`select * from protokoll`).toHaveLength(0);
   expect(await api`select * from beschluss`).toHaveLength(0);
 
-  // Rückweg: Tabellen weg, hoeck.protokoll_id leer, Journal ohne 0074
+  // Rückweg: Tabellen weg, hoeck.protokoll_id leer, Journal ohne 0096
   await api`update hoeck set protokoll_id = ${randomUUID()} where id = ${hoeckZwei}`;
   await besitzer.unsafe(
     readFileSync(
       new URL(
-        "../../drizzle/rueckweg/0074_lager_protokolle.sql",
+        "../../drizzle/rueckweg/0096_lager_protokolle.sql",
         import.meta.url,
       ),
       "utf8",
@@ -168,7 +168,7 @@ test("0074 legt protokoll und beschluss an, die API-Rolle darf sie nutzen, CHECK
   ).toEqual([{ protokoll_id: null }]);
   expect(await anzahlMigrationen()).toBe(vorher);
 
-  // Erneut vorwärts: Der Rückweg hinterlässt einen Stand, auf dem 0074 wieder läuft
+  // Erneut vorwärts: Der Rückweg hinterlässt einen Stand, auf dem 0096 wieder läuft
   await migrate(drizzle(besitzer), { migrationsFolder: komplett });
   expect(await tabellen()).toEqual(["beschluss", "protokoll"]);
 }, 60_000);

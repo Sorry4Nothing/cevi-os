@@ -1,5 +1,5 @@
 -- Protokolle und Beschlüsse im Lager (#379): protokoll (Art, Titel, Datum, Verweis auf lager_datei, optional Höck) und beschluss (kurzer Text, optional Protokoll und Höck). Das Protokoll liegt als Datei im SharePoint, Cevi OS speichert nur die Verknüpfung. Die Migration legt an; sie ändert keine bestehende Tabelle.
--- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0074_lager_protokolle.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0074_lager_protokolle.sql
+-- Rückweg (Migrationen laufen nur vorwärts): drizzle/rueckweg/0096_lager_protokolle.sql, als Besitzer der Datenbank in einer Transaktion: psql -1 -f rueckweg/0096_lager_protokolle.sql
 --   Es gehen alle Protokoll-Einträge (Art, Titel, Datum, Verknüpfung) und alle Beschlüsse verloren; die Dateien am Ablageort und die Einträge in lager_datei bleiben (der Aufräumlauf entfernt sie nach 24 Stunden, wenn kein Datensatz sie einbindet). hoeck.protokoll_id behält seinen Wert ohne Ziel: Der Rückweg setzt sie auf NULL zurück. Einträge der Tabellen im Änderungsfeed (lager_aenderung) bleiben stehen und laufen mit dem Aufräumen aus.
 CREATE TABLE "protokoll" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
