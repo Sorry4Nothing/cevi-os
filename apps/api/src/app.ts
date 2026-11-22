@@ -35,6 +35,7 @@ import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
 import { erstelleProgrammRouten } from "./routes/programme.js";
 import { erstellePushTokenRouten } from "./routes/push-token.js";
 import { erstelleStufenRouten } from "./routes/stufen.js";
+import { MAX_ENTWURF_BYTES } from "./website/dokument.js";
 
 // Ein Format für alle Fehler, wie bei better-auth, damit die App nur eines kennen muss
 const FEHLER: Record<number, { code: string; message: string }> = {
@@ -109,6 +110,8 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
+  // Das Dokument einer Seite (#350)
+  const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
     new Hono<{ Variables: { nutzerId?: string } }>()
@@ -154,7 +157,7 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB und das Dokument einer Seite mit 512 KiB
       .use((c, next) =>
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
@@ -164,7 +167,12 @@ export function erstelleApp({
           : c.req.method === "POST" &&
               /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
             ? importLimit(c, next)
-            : kleinesLimit(c, next),
+            : c.req.method === "PUT" &&
+                /^\/api\/v1\/redaktion\/seiten\/[^/]+\/entwurf$/.test(
+                  c.req.path,
+                )
+              ? entwurfLimit(c, next)
+              : kleinesLimit(c, next),
       )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");

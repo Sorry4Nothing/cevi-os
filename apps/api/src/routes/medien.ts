@@ -18,6 +18,7 @@ import {
 } from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
+import { seitenMitMedium } from "../website/verweise.js";
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
 // Metadaten in der Query: Der Body ist die Datei selbst. Ohne Vorgabe für die Sichtbarkeit: Wer hochlädt, entscheidet
@@ -251,7 +252,21 @@ export function erstelleMedienRouten({
           );
         if (!vorhanden) throw new HTTPException(404);
         if (!person.admin) throw new HTTPException(403);
-        const schluessel = await db.transaction(async (tx) => {
+        const ergebnis = await db.transaction(async (tx) => {
+          // Sperren, dann zählen: Ein Entwurf, der das Medium gerade speichert (FOR SHARE), kommt vorher oder die Zählung sieht ihn; so bleibt kein totes Bild
+          const gesperrt = await tx
+            .select({ id: medium.id })
+            .from(medium)
+            .where(
+              and(
+                eq(medium.id, id),
+                eq(medium.abteilungId, person.abteilungId),
+              ),
+            )
+            .for("update");
+          if (gesperrt.length === 0) throw new HTTPException(404);
+          const seiten = await seitenMitMedium(tx, person.abteilungId, id);
+          if (seiten > 0) return { seiten };
           const [m] = await tx
             .delete(medium)
             .where(
@@ -269,8 +284,20 @@ export function erstelleMedienRouten({
             zielTyp: "medium",
             zielId: id,
           });
-          return m.schluessel;
+          return { schluessel: m.schluessel };
         });
+        if ("seiten" in ergebnis) {
+          return c.json(
+            {
+              code: "MEDIUM_VERWENDET",
+              message:
+                "Das Medium steht noch in Seiten (Entwurf oder Version). Entferne es dort zuerst.",
+              seiten: ergebnis.seiten,
+            },
+            409,
+          );
+        }
+        const { schluessel } = ergebnis;
         await speicher
           .loeschen(schluessel)
           .catch(() =>

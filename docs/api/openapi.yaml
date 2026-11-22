@@ -2967,7 +2967,9 @@ paths:
         der Speicher danach, bleibt die Antwort 204: Die Datei ist nicht mehr abrufbar, und der Server meldet die Waise im Log
         (code `WAISE`). Das Audit-Log hält Hochladen und Löschen fest, ohne Inhalt.
 
-        Statuscodes: 204, 400, 401, 403, 404 (unbekannt oder andere Abteilung), 426, 501.
+        Steht das Medium noch im Entwurf oder in einer Version einer Seite der Abteilung (auch einer zurückgezogenen), antwortet die Route mit 409 `MEDIUM_VERWENDET` und der Zahl der Seiten in `seiten`; nichts wird gelöscht. Das verhindert tote Bilder. Das Medium ist dafür gesperrt, bis die Zählung entschieden ist.
+
+        Statuscodes: 204, 400, 401, 403, 404 (unbekannt oder andere Abteilung), 409, 426, 501.
       tags:
         - Verwaltung
       parameters:
@@ -2984,6 +2986,26 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - seiten
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - MEDIUM_VERWENDET
+                  message:
+                    type: string
+                  seiten:
+                    type: integer
+                    minimum: 1
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "501":
@@ -3830,6 +3852,299 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/entwurf:
+    get:
+      operationId: leseRedaktionEntwurf
+      summary: Entwurf einer Seite lesen
+      description: |
+        Das Dokument der Bausteine im Entwurf (Form `{ v: 1, titel, bausteine }`, siehe Bausteinkatalog) und der Zähler, den das Speichern mitschicken muss. Eine neue Seite hat `dokument: null` und Zähler 0. `unveroeffentlicht` ist wahr, wenn es einen Entwurf gibt und er von der veröffentlichten Version abweicht (auch ohne veröffentlichte Version).
+
+        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht an dieser Seite (403): Abteilungsleitung, Redaktion, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite. Dasselbe gilt für alle Routen unter `/seiten/{id}/…` dieses Abschnitts.
+
+        Statuscodes: 200, 400, 403, 404.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "200":
+          description: Der Entwurf.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionEntwurf"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: speichereRedaktionEntwurf
+      summary: Entwurf speichern
+      description: |
+        Ersetzt den Entwurf durch das ganze Dokument. `zaehler` ist der Zähler aus dem letzten Lesen oder Speichern: Nur wer den aktuellen Stand kennt, schreibt (ein atomarer Schritt, keine Sperre). Wer mit einem veralteten Zähler speichert, bekommt 409 `KONFLIKT` mit dem aktuellen Zähler und Dokument und überschreibt nichts. Es gibt keine Sperre auf Bausteine.
+
+        Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
+
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild, kein PDF. `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+
+        Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
+
+        Reihenfolge der Prüfungen: Pfad und Body-Form (400), Seite (404), Recht (403), Rate-Limit (429), Dokument (400), Verweise (422), Zähler (409).
+
+        Statuscodes: 200 bei Erfolg, mit dem neuen Zähler. 400, 403, 404, 409, 413, 422, 429.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionEntwurfSpeichern"
+      responses:
+        "200":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionZaehler"
+        "400":
+          $ref: "#/components/responses/RedaktionDokument400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Zähler ist veraltet (code `KONFLIKT`). Der Body trägt den aktuellen Zähler und das aktuelle Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionKonflikt"
+        "413":
+          description: Die Anfrage ist grösser als 512 KiB (code ZU_GROSS).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/RedaktionVerweis422"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/veroeffentlichen:
+    post:
+      operationId: veroeffentlicheRedaktionSeite
+      summary: Entwurf veröffentlichen
+      description: |
+        Prüft das ganze Dokument des Entwurfs und die Verweise noch einmal (Sichtbarkeit der Seite und Medien können sich seit dem Speichern geändert haben), legt eine neue, unveränderliche Version mit der nächsten Nummer an (ab 1) und setzt die veröffentlichte Version der Seite auf sie. Kein Body.
+
+        409 `NICHTS_ZU_VEROEFFENTLICHEN`, wenn es keinen Entwurf gibt oder er gleich der veröffentlichten Version ist (die Seite ist nach dem Zurückziehen nicht veröffentlicht: dann gilt jeder Entwurf als neu). Zwei gleichzeitige Veröffentlichungen laufen nacheinander: Die zweite bekommt 409. 422 `DOKUMENT_UNGUELTIG` oder ein Code der Verweisprüfung (siehe Speichern).
+
+        Meldet das Ereignis `version_veroeffentlicht` an die Auslieferung. Audit-Log: `seite_veroeffentlicht` mit der Versionsnummer, nie Inhalt.
+
+        Statuscodes: 201 bei Erfolg, mit der Nummer. 400, 403, 404, 409, 422.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "201":
+          description: Version angelegt.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - nr
+                properties:
+                  nr:
+                    type: integer
+                    minimum: 1
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Nichts zu veröffentlichen (code `NICHTS_ZU_VEROEFFENTLICHEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/RedaktionVerweis422"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/zurueckziehen:
+    post:
+      operationId: ziehRedaktionSeiteZurueck
+      summary: Veröffentlichung zurückziehen
+      description: |
+        Setzt nur die veröffentlichte Version der Seite zurück: Die Seite ist danach nicht mehr veröffentlicht. Alle Versionen und der Entwurf bleiben. Kein Body. 409 `NICHT_VEROEFFENTLICHT`, wenn nichts veröffentlicht ist.
+
+        Meldet das Ereignis `version_zurueckgezogen`. Audit-Log: `seite_zurueckgezogen`.
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404, 409.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "204":
+          description: Zurückgezogen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Seite ist nicht veröffentlicht (code `NICHT_VEROEFFENTLICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/versionen:
+    get:
+      operationId: listeRedaktionVersionen
+      summary: Versionen einer Seite
+      description: |
+        Die jüngsten 100 Versionen, neueste zuerst, ohne Inhalt (den liefert `versionen/{nr}`). Keine Seitenwechsel: Ältere Versionen sind über ihre Nummer erreichbar.
+
+        Statuscodes: 200, 400, 403, 404.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+      responses:
+        "200":
+          description: Versionen, neueste zuerst.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - versionen
+                properties:
+                  versionen:
+                    type: array
+                    maxItems: 100
+                    items:
+                      $ref: "#/components/schemas/RedaktionVersion"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/versionen/{nr}:
+    get:
+      operationId: leseRedaktionVersion
+      summary: Eine Version mit ihrem Dokument
+      description: |
+        Eine veröffentlichte Version mit ihrem Dokument. Versionen sind unveränderlich: Es gibt keine Route, die eine ändert oder löscht (der API-Rolle der Datenbank ist `UPDATE` entzogen). `nr` ist eine ganze Zahl ab 1.
+
+        Statuscodes: 200, 400 (ungültige Nummer), 403, 404 (Seite oder Version unbekannt).
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+        - $ref: "#/components/parameters/RedaktionVersionNr"
+      responses:
+        "200":
+          description: Die Version.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/RedaktionVersion"
+                  - type: object
+                    required:
+                      - dokument
+                    properties:
+                      dokument:
+                        type: object
+                        description: "Das Dokument der Version (`{ v: 1, titel, bausteine }`)."
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/{id}/versionen/{nr}/zurueckholen:
+    post:
+      operationId: holeRedaktionVersionZurueck
+      summary: Frühere Version in den Entwurf zurückholen
+      description: |
+        Kopiert das Dokument der Version in den Entwurf und zählt den Zähler weiter (ein Editor mit altem Stand bekommt beim Speichern 409). Der bisherige Entwurf wird überschrieben. Die veröffentlichte Seite und alle Versionen bleiben unverändert; veröffentlicht wird erst mit `veroeffentlichen`, dann als neue Version. Kein Ereignis an die Auslieferung, weil sich die öffentliche Seite nicht ändert. Audit-Log: `seite_zurueckgeholt` mit der Nummer.
+
+        Statuscodes: 200 bei Erfolg, mit dem neuen Zähler. 400, 403, 404.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionSeiteId"
+        - $ref: "#/components/parameters/RedaktionVersionNr"
+      responses:
+        "200":
+          description: Zurückgeholt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionZaehler"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -6609,6 +6924,133 @@ components:
             - string
             - "null"
           format: uuid
+    RedaktionZaehler:
+      type: object
+      required:
+        - zaehler
+      properties:
+        zaehler:
+          type: integer
+          minimum: 0
+          description: Zählt jedes Speichern und jedes Zurückholen des Entwurfs.
+    RedaktionEntwurf:
+      type: object
+      required:
+        - zaehler
+        - dokument
+        - veroeffentlichteNr
+        - unveroeffentlicht
+      properties:
+        zaehler:
+          type: integer
+          minimum: 0
+        dokument:
+          type:
+            - object
+            - "null"
+          description: "Das Dokument `{ v: 1, titel, bausteine }`; `null`, solange noch nie gespeichert wurde."
+        veroeffentlichteNr:
+          type:
+            - integer
+            - "null"
+          description: Nummer der veröffentlichten Version; `null`, wenn die Seite nicht veröffentlicht ist.
+        unveroeffentlicht:
+          type: boolean
+          description: Der Entwurf weicht von der veröffentlichten Version ab (oder es gibt keine).
+    RedaktionEntwurfSpeichern:
+      type: object
+      additionalProperties: false
+      required:
+        - zaehler
+        - dokument
+      properties:
+        zaehler:
+          type: integer
+          minimum: 0
+          description: Der Zähler aus dem letzten Lesen oder Speichern.
+        dokument:
+          type: object
+          description: "Das ganze Dokument `{ v: 1, titel, bausteine }` (Bausteinkatalog Version 1)."
+    RedaktionKonflikt:
+      type: object
+      required:
+        - code
+        - message
+        - zaehler
+        - dokument
+      properties:
+        code:
+          type: string
+          enum:
+            - KONFLIKT
+        message:
+          type: string
+        zaehler:
+          type: integer
+          description: Der aktuelle Zähler.
+        dokument:
+          type:
+            - object
+            - "null"
+          description: Das aktuelle Dokument des Entwurfs.
+    RedaktionDokumentFehler:
+      type: object
+      required:
+        - code
+        - message
+        - fehler
+      properties:
+        code:
+          type: string
+          description: "`DOKUMENT_UNGUELTIG` oder bei 422 der erste Code der Verweisprüfung."
+          enum:
+            - DOKUMENT_UNGUELTIG
+            - MEDIUM_UNBEKANNT
+            - MEDIUM_FORMAT
+            - MEDIUM_NICHT_OEFFENTLICH
+            - TAG_UNBEKANNT
+            - PERSON_UNBEKANNT
+            - SEITE_UNBEKANNT
+        message:
+          type: string
+        fehler:
+          type: array
+          maxItems: 20
+          items:
+            type: object
+            required:
+              - pfad
+              - code
+            properties:
+              pfad:
+                type: string
+                description: Stelle im Dokument, zum Beispiel `bausteine.2.daten.ziel` oder bei der Verweisprüfung `bausteine.2`.
+              code:
+                type: string
+                description: Code der Prüfung (Code von zod oder der Verweisprüfung), nie ein Wert der Eingabe.
+    RedaktionVersion:
+      type: object
+      required:
+        - nr
+        - autorId
+        - erstelltAm
+        - veroeffentlicht
+      properties:
+        nr:
+          type: integer
+          minimum: 1
+        autorId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Wer veröffentlicht hat; `null`, wenn das Konto inzwischen gelöscht ist.
+        erstelltAm:
+          type: string
+          format: date-time
+        veroeffentlicht:
+          type: boolean
+          description: Die Seite zeigt gerade diese Version.
   parameters:
     AppVersion:
       name: X-App-Version
@@ -6717,6 +7159,14 @@ components:
       schema:
         type: string
         format: uuid
+    RedaktionVersionNr:
+      name: nr
+      in: path
+      required: true
+      description: Nummer der Version, eine ganze Zahl ab 1.
+      schema:
+        type: integer
+        minimum: 1
     AdminBearbeiterId:
       name: id
       in: path
@@ -6819,6 +7269,22 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Fehler"
+    RedaktionDokument400:
+      description: |
+        Ungültige Eingabe (code UNGUELTIGE_EINGABE, ohne Details) oder ein Dokument, das den Bausteinkatalog verletzt (code `DOKUMENT_UNGUELTIG`, mit `fehler`).
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: "#/components/schemas/Fehler"
+              - $ref: "#/components/schemas/RedaktionDokumentFehler"
+    RedaktionVerweis422:
+      description: |
+        Das Dokument ist gültig, verweist aber auf etwas Unzulässiges, oder ein gespeichertes Dokument besteht das Schema nicht mehr (`DOKUMENT_UNGUELTIG`). `code` ist der erste Code, `fehler` nennt alle mit dem Pfad des Bausteins.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/RedaktionDokumentFehler"
     AnwesenheitGeschlossen409:
       description: |
         Das Programm hat noch nicht begonnen oder liegt mehr als 14 Tage zurück. Die Anwesenheit lässt sich nicht
