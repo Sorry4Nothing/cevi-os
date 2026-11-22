@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/eingang/status"
-order: 218000
+order: 225000
 method: POST
-url: "{{baseUrl}}{{pfad_L62}}"
+url: "{{baseUrl}}{{pfad_L67}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "code": "FQE9-N66J-J62K-ZNFL-MTYL"
+      "code": "DRYP-4WNX-YHB3-US69-3R2F"
     }

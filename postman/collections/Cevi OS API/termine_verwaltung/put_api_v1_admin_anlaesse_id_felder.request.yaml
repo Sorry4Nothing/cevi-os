@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/admin/anlaesse/:id/felder"
-order: 397000
+order: 404000
 method: PUT
 url: "{{baseUrl}}{{pfad_T4}}"
 headers:

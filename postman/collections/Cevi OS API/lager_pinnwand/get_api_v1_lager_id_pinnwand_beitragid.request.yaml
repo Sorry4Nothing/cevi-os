@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/pinnwand/:beitragId"
-order: 298000
+order: 305000
 method: GET
-url: "{{baseUrl}}{{pfad_L143}}"
+url: "{{baseUrl}}{{pfad_L148}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

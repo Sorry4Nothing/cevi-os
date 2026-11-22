@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/anwesenheit/anfragen"
-order: 172000
+order: 174000
 method: POST
 url: "{{baseUrl}}{{pfad_L16}}"
 headers:
@@ -20,8 +20,8 @@ body:
     {
       "eintraege": [
         {
-          "lagertagId": "01a2038a-062a-722e-8d05-7dc6e3fdaa79",
-          "tagesabschnittId": "01a2038a-0677-7c60-9ce5-f6a13e3a82e5",
+          "lagertagId": "01a20372-a57b-7dc8-8aac-b1277361c182",
+          "tagesabschnittId": "01a20372-a594-7eaa-bf87-09cbd8bef458",
           "wert": "A"
         }
       ]

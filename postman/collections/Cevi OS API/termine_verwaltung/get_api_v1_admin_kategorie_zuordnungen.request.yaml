@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/kategorie-zuordnungen"
-order: 417000
+order: 424000
 method: GET
 url: "{{baseUrl}}/api/v1/admin/kategorie-zuordnungen"
 headers:

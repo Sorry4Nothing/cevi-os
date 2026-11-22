@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zeitplan/meilensteine/:meilensteinId/verschieben"
-order: 379000
+order: 386000
 method: POST
-url: "{{baseUrl}}{{pfad_L224}}"
+url: "{{baseUrl}}{{pfad_L229}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/eingang/:eingangId"
-order: 221000
+order: 228000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L65}}"
+url: "{{baseUrl}}{{pfad_L70}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

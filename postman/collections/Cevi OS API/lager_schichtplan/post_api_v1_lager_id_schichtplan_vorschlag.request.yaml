@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/schichtplan/vorschlag"
-order: 336000
+order: 343000
 method: POST
-url: "{{baseUrl}}{{pfad_L181}}"
+url: "{{baseUrl}}{{pfad_L186}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

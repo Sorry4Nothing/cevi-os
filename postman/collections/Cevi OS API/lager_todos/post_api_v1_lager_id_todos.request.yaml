@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/todos"
-order: 355000
+order: 362000
 method: POST
-url: "{{baseUrl}}{{pfad_L200}}"
+url: "{{baseUrl}}{{pfad_L205}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "text": "bf4efeb2-1c48-45b5-81d0-c397db343b85"
+      "text": "f2c72a66-acd9-427a-98be-7aa1136df9a8"
     }

@@ -9682,6 +9682,254 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/check:
+    get:
+      operationId: holeLagerCheck
+      summary: Lager-Check «Sind wir bereit?»
+      description: |
+        Braucht das Recht `check.lesen` (Standard: Lagerleitung, Leitung und Lesen; das Team nur, wenn die Lagerleitung es einstellt). Der Server rechnet bei jeder Anfrage aus den Daten des Lagers und speichert nichts. Das Ergebnis hat einen Gesamtstand (`bereit`, `hinweise` oder `offen`) und je Prüfer seinen Stand mit Hinweisen. Ein Hinweis hat eine `schwere` (`offen`: das Lager ist nicht bereit; `hinweis`: gut zu wissen), einen Text, die Gesamtzahl und bis zu fünf Beispiele.
+
+        Prüfer: `aufgaben` (überfällige Aufgaben, Aufgaben ohne Verantwortliche; braucht das Recht auf alle Aufgaben), `meilensteine` (nah in den nächsten sieben Tagen, vorbei mit offenen Aufgaben; braucht `zeitplan.lesen`, die Aufgaben nur mit dem Recht auf alle Aufgaben), `packliste` (leer; `packliste.lesen`), `notfall` (kein Kontakt mit Telefonnummer; `notfall.lesen`), `adressbuch` (Kontakte ohne «behalten» in den 14 Tagen vor der Aufräumfrist; `adressbuch.lesen`) und `eigene` (offene eigene Check-Punkte). Ein Prüfer, dessen Quelle die Rolle nicht lesen darf, fehlt im Ergebnis und zählt nicht zum Gesamtstand. Die Daten sind Zürcher Daten (`JJJJ-MM-TT`).
+
+        Datenbanklast: Die Prüfer laufen gebündelt; ohne die Anfragen der Policy sind es höchstens sieben Abfragen (Aufgaben 1, Meilensteine 1, Packliste 1, Notfall 2, Adressbuch 0 oder 1, eigene Punkte 1), nie eine je Zeile.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Der Check."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheck"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/check/punkte:
+    get:
+      operationId: holeLagerCheckPunkte
+      summary: Eigene Check-Punkte lesen
+      description: |
+        Braucht das Recht `check.lesen`. Die eigenen Punkte nach Reihenfolge, höchstens 100 je Lager (darum ohne Seiten): eine Abfrage.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Die eigenen Check-Punkte."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheckPunkte"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerCheckPunktAn
+      summary: Eigenen Check-Punkt anlegen
+      description: |
+        Braucht die Rechte `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung) und `check.lesen`: Wer den Check nicht lesen darf, schreibt keine Punkte, die er nicht sieht (403). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Höchstens 100 Punkte je Lager (409 `LIMIT_ERREICHT`). Ohne `reihenfolge` kommt der Punkt ans Ende.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten` und `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerCheckPunktAnlegen"
+      responses:
+        "201":
+          description: "Der neue Punkt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheckPunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Grenze je Lager ist erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/check/punkte/{punktId}:
+    patch:
+      operationId: aendereLagerCheckPunkt
+      summary: Eigenen Check-Punkt ändern oder abhaken
+      description: |
+        Braucht die Rechte `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung) und `check.lesen`: Wer den Check nicht lesen darf, schreibt keine Punkte, die er nicht sieht (403). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Ändert Titel, Haken (`erledigt`) und Reihenfolge.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten` und `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Punkt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: punktId
+          in: path
+          required: true
+          description: ID des Check-Punkts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerCheckPunktAendern"
+      responses:
+        "200":
+          description: "Der geänderte Punkt."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerCheckPunkt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerCheckPunkt
+      summary: Eigenen Check-Punkt löschen
+      description: |
+        Braucht die Rechte `zeitplan.bearbeiten` (Standard: Lagerleitung; die Abteilungsleitung gilt als Lagerleitung) und `check.lesen`: Wer den Check nicht lesen darf, schreibt keine Punkte, die er nicht sieht (403). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Löschen ist endgültig.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten` und `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Punkt, Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: punktId
+          in: path
+          required: true
+          description: ID des Check-Punkts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/hoecks:
     get:
@@ -25287,6 +25535,174 @@ components:
               nurLagerleitung:
                 type: boolean
     # lager-schemas: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerCheckPunkt:
+      description: "Ein eigener Check-Punkt des Lagers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - titel
+        - erledigt
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1."
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerCheckPunkte:
+      description: "Die eigenen Check-Punkte nach Reihenfolge (höchstens 100)."
+      type: object
+      additionalProperties: false
+      required:
+        - punkte
+      properties:
+        punkte:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/LagerCheckPunkt"
+    LagerCheckPunktAnlegen:
+      description: "Neuer eigener Check-Punkt."
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        reihenfolge:
+          description: "Ohne Angabe kommt der Punkt ans Ende."
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerCheckPunktAendern:
+      description: "Titel, Haken oder Reihenfolge ändern; mindestens ein Feld neben der Version."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 1000
+    LagerCheckBeispiel:
+      description: "Ein Beispiel zu einem Hinweis: eine Aufgabe (Frist), ein Meilenstein (Datum) oder ein eigener Punkt."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - titel
+        - datum
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        datum:
+          description: "Frist der Aufgabe beziehungsweise Datum des Meilensteins; bei einem eigenen Punkt null."
+          type: [string, "null"]
+          format: date
+        offeneAufgaben:
+          description: "Nur bei Meilensteinen und nur mit dem Recht auf alle Aufgaben: Zahl der offenen Aufgaben, deren Frist am Meilenstein hängt."
+          type: integer
+          minimum: 0
+    LagerCheckHinweis:
+      description: "Ein Hinweis eines Prüfers."
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - schwere
+        - text
+      properties:
+        code:
+          description: "Fester Schlüssel des Hinweises, zum Beispiel AUFGABEN_UEBERFAELLIG."
+          type: string
+        schwere:
+          description: "offen: das Lager ist nicht bereit. hinweis: gut zu wissen."
+          type: string
+          enum: [offen, hinweis]
+        text:
+          type: string
+        anzahl:
+          description: "Gesamtzahl hinter dem Hinweis (die Beispiele sind auf fünf begrenzt)."
+          type: integer
+          minimum: 1
+        beispiele:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/LagerCheckBeispiel"
+    LagerCheckPruefer:
+      description: "Das Ergebnis eines Prüfers."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - titel
+        - stand
+        - hinweise
+      properties:
+        id:
+          type: string
+          enum: [aufgaben, meilensteine, packliste, notfall, adressbuch, eigene]
+        titel:
+          type: string
+        stand:
+          description: "Der schlimmste Stand seiner Hinweise; bereit ohne Hinweise."
+          type: string
+          enum: [bereit, hinweise, offen]
+        hinweise:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerCheckHinweis"
+    LagerCheck:
+      description: "Das Ergebnis des Lager-Checks. Es enthält nur die Prüfer, deren Quelle die Rolle lesen darf."
+      type: object
+      additionalProperties: false
+      required:
+        - stand
+        - datum
+        - pruefer
+      properties:
+        stand:
+          description: "Der schlimmste Stand aller sichtbaren Prüfer."
+          type: string
+          enum: [bereit, hinweise, offen]
+        datum:
+          description: "Der Tag der Rechnung (Zürcher Zeit)."
+          type: string
+          format: date
+        pruefer:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerCheckPruefer"
     # lager-schemas: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerHoeckArt:
       description: "`lagerleitung`: nur für Rollen mit `hoecks.lesen_alle`. `team`: für alle Mitglieder sichtbar (Datum, Zeit, Titel, Ort)."

@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/schichtplan/schichten"
-order: 335000
+order: 342000
 method: PUT
-url: "{{baseUrl}}{{pfad_L180}}"
+url: "{{baseUrl}}{{pfad_L185}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
