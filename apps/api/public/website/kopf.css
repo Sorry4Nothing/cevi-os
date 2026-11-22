@@ -346,7 +346,17 @@ html {
 
 /* Die aktuelle Seite trägt links einen roten Strich: Form und Gewicht, nicht nur Farbe */
 .hauptnav .unter a[aria-current="page"] {
-  box-shadow: inset 3px 0 0 var(--primary);
+  position: relative;
+}
+
+.hauptnav .unter a[aria-current="page"]::before {
+  position: absolute;
+  top: 0.625rem;
+  bottom: 0.625rem;
+  left: 0;
+  width: 3px;
+  background: var(--primary);
+  content: "";
 }
 
 /* Tiefere Ebenen stehen eingerückt an einer feinen Linie */
