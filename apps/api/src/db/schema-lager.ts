@@ -588,6 +588,8 @@ export const teilnehmer = pgTable(
     nachname: text("nachname").notNull(),
     ceviName: text("cevi_name"),
     stufe: text("stufe"),
+    // «Nicht dabei» (#387): Wer abgewählt ist, erscheint weder in der Einteilung noch beim Mischen und lässt sich wieder zuwählen; die Zeile bleibt, bis die Lagerleitung sie löscht
+    abgewaehlt: boolean("abgewaehlt").notNull().default(false),
   },
   (t) => [
     // Ziel des Fremdschlüssels von abzaehlen: Ein Eintrag kann nie ein Kind eines anderen Lagers meinen
@@ -689,6 +691,64 @@ export const abzaehlen = pgTable(
     check(
       "abzaehlen_ziel_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.geprueft} = (${t.geprueftAm} is not null)`,
+    ),
+  ],
+);
+
+// Programmgruppen des Lagers (#387): Name und Reihenfolge; wer dazugehört, steht in gruppe_zuordnung. Geschrieben wird nur über lager/sync.ts
+export const gruppe = pgTable(
+  "gruppe",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von gruppe_zuordnung: Eine Zuordnung kann nie eine Gruppe eines anderen Lagers meinen
+    unique("gruppe_lager_id_id_uq").on(t.lagerId, t.id),
+    index("gruppe_liste_idx").on(t.lagerId, t.reihenfolge, t.name, t.id),
+    check(
+      "gruppe_check",
+      sql`char_length(${t.name}) between 1 and 100 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Wer in welcher Gruppe ist (#387): genau eines von teilnehmer_id (Teilnehmende, immer «mitglied») und person_id (Mitglied des Lagers, «leitung» oder «mitglied»). Eine Person und ein Teilnehmender stehen höchstens in einer Gruppe (Teilindex ohne gelöschte Zeilen). Die Zeilen gehen mit der Gruppe, den Teilnehmenden und dem Konto
+export const gruppeZuordnung = pgTable(
+  "gruppe_zuordnung",
+  {
+    ...lagerSpalten(),
+    gruppeId: uuid("gruppe_id").notNull(),
+    teilnehmerId: uuid("teilnehmer_id"),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    rolle: text("rolle", { enum: ["leitung", "mitglied"] })
+      .notNull()
+      .default("mitglied"),
+  },
+  (t) => [
+    foreignKey({
+      name: "gruppe_zuordnung_gruppe_fk",
+      columns: [t.lagerId, t.gruppeId],
+      foreignColumns: [gruppe.lagerId, gruppe.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "gruppe_zuordnung_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    index("gruppe_zuordnung_gruppe_idx").on(t.gruppeId),
+    uniqueIndex("gruppe_zuordnung_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("gruppe_zuordnung_person_uq")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    check(
+      "gruppe_zuordnung_check",
+      sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.rolle} in ('leitung', 'mitglied') and (${t.teilnehmerId} is null or ${t.rolle} = 'mitglied')`,
     ),
   ],
 );

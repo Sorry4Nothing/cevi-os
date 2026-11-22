@@ -144,7 +144,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
     frist:
-      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -575,6 +575,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "nachname",
       "cevi_name",
       "stufe",
+      "abgewaehlt",
+    ],
+  },
+  // Programmgruppen (#387): Name und Reihenfolge; die Zuordnung nennt Teilnehmende und Mitglieder nur als ID, mit der Rolle «leitung» oder «mitglied»
+  gruppe: {
+    lagerTeilnehmende: [...LAGER_BASIS_SPALTEN, "name", "reihenfolge"],
+  },
+  gruppe_zuordnung: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "gruppe_id",
+      "teilnehmer_id",
+      "person_id",
+      "rolle",
     ],
   },
   // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)
