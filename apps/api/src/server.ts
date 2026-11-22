@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
+import { erstelleSchalterZustand } from "./bereichsschalter.js";
 import {
   kodiereMedienbild,
   kodiereProfilbild,
@@ -15,8 +16,13 @@ import { erstelleFcm } from "./fcm.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
+import {
+  sendeFristErinnerungen,
+  starteFristErinnerung,
+} from "./lager/fristen.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
+import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
@@ -74,6 +80,9 @@ const db = erstelleDb(sql);
 const auth = erstelleAuth(
   drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
 );
+// Wartungsmodus und Sperre (#424): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
+const schalter = erstelleSchalterZustand();
+await schalter.lade(db);
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
   synchronisiere({
@@ -90,6 +99,7 @@ const app = erstelleApp({
   kodiereMedienbild,
   medienspeicher,
   seiten,
+  schalter,
   syncs: {
     kalender: kalenderLauf,
   },
@@ -107,11 +117,15 @@ starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
 );
+// Widerrufene ICS-Token (#437) nach 30 Tagen entfernen
+starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 // Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
 );
+// Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
+starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
   konfiguration.WEBSITE_AUSGABE_PFAD &&

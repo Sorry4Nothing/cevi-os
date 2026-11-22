@@ -49,28 +49,39 @@ export async function sichtbareDateien(
   if (dateiIds.length === 0) return sichtbar;
   for (const v of verweise) {
     if (!darf(zugriff, v.recht)) continue;
-    if (v.sichtbar) {
-      for (const id of await v.sichtbar(db, zugriff, dateiIds)) {
-        sichtbar.add(id);
-      }
-      continue;
+    for (const id of await sichtbarJeVerweis(db, zugriff, v, dateiIds)) {
+      sichtbar.add(id);
     }
-    const zeilen = await db
-      .select({ id: v.spalte })
-      .from(v.tabelle)
-      .where(
-        and(
-          inArray(v.spalte, dateiIds),
-          eq(v.tabelle.lagerId, zugriff.lager.id),
-          isNull(v.tabelle.geloeschtAm),
-        ),
-      );
-    for (const z of zeilen) sichtbar.add(String(z.id));
   }
   return sichtbar;
 }
 
-const tabellenName = (v: DateiVerweis) => {
+// Die Einträge, die ein einzelner Verweis freigibt (das Recht des Verweises ist schon geprüft)
+export async function sichtbarJeVerweis(
+  db: Db,
+  zugriff: LagerZugriff,
+  v: DateiVerweis,
+  dateiIds: string[],
+): Promise<Set<string>> {
+  if (v.sichtbar) return v.sichtbar(db, zugriff, dateiIds);
+  const zeilen = await db
+    .select({ id: v.spalte })
+    .from(v.tabelle)
+    .where(
+      and(
+        inArray(v.spalte, dateiIds),
+        eq(v.tabelle.lagerId, zugriff.lager.id),
+        isNull(v.tabelle.geloeschtAm),
+      ),
+    );
+  return new Set(zeilen.map((z) => String(z.id)));
+}
+
+// Die Verweise anderer Module, deren Leserecht die Person hat: für die Sammelabfrage der Dokumente (#396), die auch Dateien aus Infos, Ressorts, Pinnwand und Protokollen auflistet
+export const verweiseAnderer = (zugriff: LagerZugriff, ausser: AnyPgColumn) =>
+  verweise.filter((v) => v.spalte !== ausser && darf(zugriff, v.recht));
+
+export const tabellenName = (v: DateiVerweis) => {
   const { name, schema } = getTableConfig(v.tabelle);
   return schema
     ? sql`${sql.identifier(schema)}.${sql.identifier(name)}`

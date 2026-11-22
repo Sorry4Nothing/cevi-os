@@ -346,10 +346,31 @@
       "breakpoints": true
     },
     {
-"idx": 68,
+      "idx": 68,
       "version": "7",
       "when": 1793550800000,
       "tag": "0068_lager_aufgaben",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1793550900000,
+      "tag": "0069_lager_aufgaben_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1793551000000,
+      "tag": "0070_lager_zeitplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1793551100000,
+      "tag": "0071_lager_todos_vorlagen",
       "breakpoints": true
     },
     {
@@ -360,10 +381,31 @@
       "breakpoints": true
     },
     {
+      "idx": 77,
+      "version": "7",
+      "when": 1793551700000,
+      "tag": "0077_lager_umfragen",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
       "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793552000000,
+      "tag": "0080_lager_zimmer",
+      "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1793552300000,
+      "tag": "0083_lager_gruppen",
       "breakpoints": true
     },
     {
@@ -374,10 +416,31 @@
       "breakpoints": true
     },
     {
+      "idx": 87,
+      "version": "7",
+      "when": 1793552700000,
+      "tag": "0087_lager_einkauf",
+      "breakpoints": true
+    },
+    {
       "idx": 88,
       "version": "7",
       "when": 1793552800000,
       "tag": "0088_lager_infos",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1793552900000,
+      "tag": "0090_lager_dokumente",
+      "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793552990000,
+      "tag": "0095_lager_anwesenheit_zeitplan",
       "breakpoints": true
     },
     {
@@ -388,10 +451,31 @@
       "breakpoints": true
     },
     {
+      "idx": 102,
+      "version": "7",
+      "when": 1793553200000,
+      "tag": "0102_bereichsschalter",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
       "tag": "0120_termin_kategorien",
+      "breakpoints": true
+    },
+    {
+      "idx": 121,
+      "version": "7",
+      "when": 1793554100000,
+      "tag": "0121_kalender_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1793554200000,
+      "tag": "0122_termin_vorschlag",
       "breakpoints": true
     },
     {
