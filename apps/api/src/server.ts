@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
@@ -122,6 +122,18 @@ if (
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
   );
+  // Die Skripte der Website (#354): alle .js-Dateien in public/website/
+  const skripte = Object.fromEntries(
+    readdirSync(new URL("../public/website/", import.meta.url))
+      .filter((n) => n.endsWith(".js"))
+      .map((n) => [
+        n,
+        readFileSync(
+          new URL(`../public/website/${n}`, import.meta.url),
+          "utf8",
+        ),
+      ]),
+  );
   const merker = new Map<string, string>();
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
   const basisUrl = konfiguration.WEBSITE_BASIS_URL;
@@ -133,6 +145,7 @@ if (
         abteilungId,
         basisUrl,
         stylesheet,
+        skripte,
         merker,
       }),
     abteilungId,

@@ -19,16 +19,27 @@ Erzeugt werden:
 | `robots.txt`           | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden               |
 | `404.html`             | Fehlerseite mit der Navigation                                                                                                         |
 | `website/website.css`  | Platzhalter-Stil aus `apps/api/public/website/website.css`; das Design ersetzt diese Datei                                             |
+| `website/*.js`         | die Skripte aus `apps/api/public/website/` (#354): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`                            |
+| `anmelden/index.html`  | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                           |
+| `<adresse>/index.html` | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                       |
 
 ## Was nie im HTML steht
 
-- Seiten, die nicht `oeffentlich` sind, und Seiten ohne veröffentlichte Version: keine Datei, kein Eintrag in Navigation und Sitemap.
-- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein leerer Platzhalter `<div data-geschuetzt="<ID>"></div>`, ohne Typ und Inhalt. Das Nachladen nach der Anmeldung baut #354.
+- Seiten ohne veröffentlichte Version: keine Datei, kein Eintrag in Navigation und Sitemap.
+- Seiten, die nicht `oeffentlich` sind: keine Seitendatei mit Inhalt. Mit veröffentlichter Version gibt es nur eine Hülle (Titel «Geschützte Seite», Hinweis, Link zur Anmeldung, `noindex`); kein Titel, kein Inhalt, nie in Navigation oder Sitemap. Die Adresse einer solchen Seite ist damit für Besucher erkennbar (Annahme A6 des Plans).
+- Bausteine mit engerer Sichtbarkeit (angemeldet oder Tags): nur ein leerer Platzhalter `<div data-geschuetzt="<ID>"></div>`, ohne Typ und Inhalt. Das Skript lädt sie nach der Anmeldung nach (siehe «Geschützte Bausteine und Anmeldung»).
 - Medien, die nicht `oeffentlich` sind oder zu einer anderen Abteilung gehören: Der Baustein entfällt.
 - Telefon, E-Mail und Foto von Personen: Kontaktperson und Leitungsteam zeigen nur den Cevi-Namen und die Funktion (die Rolle an der Gruppe). Personen ohne Cevi-Namen, deaktivierte und gesperrte Konten erscheinen nicht. Das gilt, bis der Nutzer anders entscheidet.
-- Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Skript, kein Tracking. Ein Meta-CSP (`default-src 'none'; style-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts.
+- Der Renderer maskiert jede Zeichenkette, lässt nur Adressen mit `https:`, `mailto:`, `tel:` und Seitenpfaden zu und lädt nichts von aussen: keine Schriften, keine Einbettungen, kein Skript, kein Tracking. Ein Meta-CSP (`default-src 'none'; style-src 'self'; img-src 'self'; …`) ist eine zweite Schicht neben den Antwortköpfen des Hosts. Nur Seiten mit Platzhalter, die Hülle und die Anmeldeseite laden ein Skript und erlauben deshalb zusätzlich `script-src 'self'; connect-src 'self'`; es gibt nie ein Inline-Skript.
 
 Bilder und Dateien sind Verweise auf `/api/v1/medien/<ID>` (öffentliche Medien, 5 Minuten Cache, Entscheid A7 des Plans). Die Website und die API müssen deshalb unter derselben Domain laufen.
+
+## Geschützte Bausteine und Anmeldung
+
+- **Nachladen:** `GET /api/v1/website/inhalt?pfad=/a/b` (hinter der Sitzung) liefert für die Seite die Bausteine, die die Person laut Sichtbarkeit sehen darf, als JSON-Knoten (`{ tag, attr?, kinder? }` und Texte), nie als HTML. Ohne Sitzung 401; unbekannte Seite, andere Abteilung und fehlendes Recht antworten gleich mit 404. `Cache-Control: private, no-store`.
+- **Skript:** `website/geschuetzt.js` (ES-Modul, eigene Datei) ersetzt die Platzhalter durch DOM-Knoten (`website/knoten.js`: feste Liste von Elementen und Attributen, Text nur als Textknoten, nie `innerHTML`). Zustände: Laden (Skeleton, `aria-busy`, Live-Region), nicht angemeldet, Fehler mit «Nochmals versuchen», offline. Bei einer Hülle ersetzt es nach der Anmeldung den ganzen Inhalt der Seite.
+- **Anmeldung:** `/anmelden` ist eine erzeugte Datei (kein Datenbankzugriff beim Abruf) mit dem Skript `website/anmelden.js`. Es ruft dieselben Aufrufe wie die Verwaltung unter `/api/auth` (Rate-Limit und Sperre nach Fehlversuchen gelten dort) und führt danach auf `weiter`. `weiter` ist eine Allowlist (`website/weiter.js`): nur `/` oder Adressstücke aus `a-z`, `0-9` und `-`, nie eine reservierte Adresse; alles andere führt auf `/`.
+- **Gleiche Herkunft:** Die API prüft bei `POST` den `Origin` (`BETTER_AUTH_URL` und `BETTER_AUTH_TRUSTED_ORIGINS`). Die Website muss unter derselben Domain wie die API laufen; eine Testadresse mit anderer Domain braucht einen Eintrag in `BETTER_AUTH_TRUSTED_ORIGINS` (und dann ein Cookie für diese Domain, also einen Proxy auf dieselbe Herkunft).
 
 ## Konfiguration
 
@@ -75,7 +86,7 @@ www.example.org {
 		@versteckt path_regexp \/\.
 		respond @versteckt 404
 		header {
-			Content-Security-Policy "default-src 'none'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
 			# Kurz prüfen lassen: Die Dateien ändern sich beim Veröffentlichen, ETag und Last-Modified liefert file_server
 			Cache-Control "no-cache"
 		}
@@ -98,10 +109,10 @@ www.example.org {
 Warum so:
 
 - **Auslieferung:** `file_server` liefert nur Dateien unter `root` aus (Caddy bereinigt den Pfad). Vor dem Einsatz mit einer Anfrage wie `/../etc/passwd` und `/.tmp-x` prüfen. `try_files` macht aus `/stufen/woelfe` die Datei `stufen/woelfe/index.html`; die Startseite ist `index.html`.
-- **Sicherheits-Header:** Wie bei der API (HSTS, `nosniff`, kein Referrer, kein `Server`). Die CSP gilt für die erzeugten Seiten und deckt sich mit dem Meta-CSP des Renderers; sie ist strenger als die Seiten brauchen. Mit #354 (Skript zum Nachladen geschützter Bausteine) kommt `script-src 'self'` und `connect-src 'self'` dazu.
+- **Sicherheits-Header:** Wie bei der API (HSTS, `nosniff`, kein Referrer, kein `Server`). Die CSP gilt für die erzeugten Seiten und deckt sich mit dem Meta-CSP des Renderers; sie ist strenger als die Seiten brauchen. Für #354 (Skript zum Nachladen geschützter Bausteine, Anmeldeseite) braucht sie `script-src 'self'` und `connect-src 'self'`: im Vorschlag unten enthalten.
 - **Cache:** `no-cache` heisst nicht «nie speichern», sondern «vor jeder Verwendung nachfragen». Das ist günstig (Antwort 304) und zeigt eine neu veröffentlichte Seite sofort. Das Stylesheet darf eine Stunde liegen bleiben. Hinter einem CDN könnten die Seiten länger liegen, dann müsste der Abgleich es benachrichtigen; das ist hier nicht vorgesehen.
 - **Pfad-Hygiene:** Die API-Pfade stehen vor den Dateien, damit eine Seite nie eine API-Adresse überdeckt. Die Liste in `@api` entspricht `RESERVIERTE_ADRESSEN` in `src/website/seiten.ts`; kommt dort eine Adresse dazu, muss sie hier mit.
-- **Unbekannte Adressen:** `404.html` mit der Navigation und dem Status 404. Geschützte Seiten sind für Besucher nicht von unbekannten zu unterscheiden (bis #354 eine Hülle mit Weiterleitung auf die Anmeldung baut).
+- **Unbekannte Adressen:** `404.html` mit der Navigation und dem Status 404. Ganz geschützte Seiten mit veröffentlichter Version liefern die Hülle (Status 200); unbekannte Adressen die `404.html`.
 
 ## Entwicklung und Testadresse
 

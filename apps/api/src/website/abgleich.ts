@@ -22,7 +22,9 @@ import {
 import { aufWebsiteEreignis } from "./ereignisse.js";
 import {
   keineDaten,
+  rendereAnmeldung,
   rendereFehlerseite,
+  rendereHuelle,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -53,6 +55,8 @@ const SITEMAP = "sitemap.xml";
 const ROBOTS = "robots.txt";
 const FEHLERSEITE = "404.html";
 const STYLESHEET = "website/website.css";
+// Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
+const ANMELDUNG = "anmelden/index.html";
 // Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
 const SEITENDATEI = /(^|\/)index\.html$/;
 
@@ -70,6 +74,8 @@ export type AbgleichOptionen = {
   basisUrl: string;
   // Inhalt von public/website/website.css
   stylesheet: string;
+  // Skripte der Website (#354): Dateiname in public/website/ zu Inhalt; sie liegen unter website/<Name>
+  skripte?: Record<string, string>;
   datenquellen?: Datenquelle[];
   // Hash der zuletzt geschriebenen Gesamtdateien (Sitemap, robots.txt, ...); in Tests und beim Start leer
   merker?: Map<string, string>;
@@ -103,10 +109,12 @@ const sichtbarePerson = and(
   isNotNull(user.ceviName),
 );
 
-async function ladeDaten(
+// nurOeffentlich: false beim Nachladen für eine angemeldete Person (#354): Dann gehören auch Medien dazu, die nur für Angemeldete sichtbar sind (Entscheid A8)
+export async function ladeDaten(
   db: Db,
   abteilungId: string,
   dokumente: Seitendokument[],
+  nurOeffentlich = true,
 ): Promise<Daten> {
   const medienIds = new Set<string>();
   const personenIds = new Set<string>();
@@ -130,7 +138,7 @@ async function ladeDaten(
       .where(
         and(
           eq(medium.abteilungId, abteilungId),
-          eq(medium.sichtbarkeit, "oeffentlich"),
+          nurOeffentlich ? eq(medium.sichtbarkeit, "oeffentlich") : undefined,
           inArray(medium.id, [...medienIds]),
         ),
       );
@@ -379,6 +387,16 @@ export async function erzeugeWebsite(
     dokumente.set(z.id, { dok: pruefung.dokument, geaendert: v.erstelltAm });
   }
 
+  // Ganz geschützte Seiten mit veröffentlichter Version bekommen nur eine Hülle (#354): ohne Titel, ohne Inhalt, nicht in Navigation und Sitemap
+  const huellen = new Map<string, { pfad: string; datei: string }>();
+  for (const z of zeilen) {
+    if (z.sichtbarkeit === "oeffentlich" || !z.veroeffentlichteVersionId) {
+      continue;
+    }
+    const z2 = ziel(knoten, z.id);
+    if (z2) huellen.set(z.id, z2);
+  }
+
   const ids = [...dokumente.keys()];
   const daten = await ladeDaten(
     db,
@@ -426,20 +444,21 @@ export async function erzeugeWebsite(
     ROBOTS,
     FEHLERSEITE,
     STYLESHEET,
+    ANMELDUNG,
+    ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
+    ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
   ]);
 
   // Seiten: schreiben, wenn sich die Datei geändert hat oder fehlt
-  for (const [id, { dok }] of dokumente) {
-    const { pfad, datei } = oeffentlich.get(id)!;
+  const schreibeSeite = async (id: string, datei: string, html: string) => {
     soll.add(datei);
-    const html = rendereSeite({ id, pfad, dokument: dok }, kontext);
     const hash = sha256(html);
     if (
       zeilen.find((z) => z.id === id)!.ausgabeHash === hash &&
       vorhanden.has(datei)
     ) {
-      continue;
+      return;
     }
     try {
       await ausgabe.schreibe(datei, html);
@@ -452,6 +471,17 @@ export async function erzeugeWebsite(
       meldeFehler("schreiben", fehler, id);
       ergebnis.fehler++;
     }
+  };
+  for (const [id, { dok }] of dokumente) {
+    const { pfad, datei } = oeffentlich.get(id)!;
+    await schreibeSeite(
+      id,
+      datei,
+      rendereSeite({ id, pfad, dokument: dok }, kontext),
+    );
+  }
+  for (const [id, { pfad, datei }] of huellen) {
+    await schreibeSeite(id, datei, rendereHuelle(pfad, kontext));
   }
 
   // Gesamtdateien: Sitemap und robots.txt nennen nur öffentliche Seiten mit Datei
@@ -471,6 +501,10 @@ export async function erzeugeWebsite(
     [ROBOTS, rendereRobots(basisUrl)],
     [FEHLERSEITE, rendereFehlerseite(kontext)],
     [STYLESHEET, opt.stylesheet],
+    [ANMELDUNG, rendereAnmeldung(kontext)],
+    ...Object.entries(opt.skripte ?? {}).map(
+      ([name, inhalt]): [string, string] => [`website/${name}`, inhalt],
+    ),
     ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {
@@ -508,6 +542,7 @@ export async function erzeugeWebsite(
       (z) =>
         z.ausgabeHash !== null &&
         !dokumente.has(z.id) &&
+        !huellen.has(z.id) &&
         !behalten.has(oeffentlich.get(z.id)?.datei ?? ""),
     )
     .map((z) => z.id);
