@@ -354,6 +354,105 @@ export const ressortNotiz = pgTable(
   ],
 );
 
+// Aufgaben des Lagers (#372). Die Verantwortliche ist eine Personen-ID eines Mitglieds dieses Lagers (zusammengesetzter Fremdschlüssel auf lager_mitglied: Wer das Mitglied entfernt, leert die Spalte). Ohne Verantwortliche gilt die Leitung des Ressorts als Verantwortliche; die API rechnet das beim Lesen aus, gespeichert wird es nicht (wechselt die Leitung, wechselt die Aufgabe mit). Geschrieben wird nur über lager/sync.ts
+// erledigt_am gehört zum Status «erledigt» (CHECK): Der Server setzt und leert es, nie der Client. wiederholung, frist_erinnert_am und quelle füllen die Folge-Issues (#373, #374, #375, #376, #380); hier sind es nur Spalten
+export const AUFGABE_STATUS = [
+  "offen",
+  "laeuft",
+  "wartet",
+  "erledigt",
+  "naechster_hoeck",
+] as const;
+export type AufgabeStatus = (typeof AUFGABE_STATUS)[number];
+
+export const aufgabe = pgTable(
+  "aufgabe",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    // Das Ressort muss zum selben Lager gehören (zusammengesetzter Fremdschlüssel); wird es endgültig gelöscht, bleibt die Aufgabe ohne Ressort
+    ressortId: uuid("ressort_id"),
+    // Teilbereich innerhalb des Ressorts, freier Text
+    teil: text("teil"),
+    verantwortlichPersonId: uuid("verantwortlich_person_id"),
+    status: text("status", { enum: AUFGABE_STATUS }).notNull().default("offen"),
+    notiz: text("notiz"),
+    frist: date("frist"),
+    stern: boolean("stern").notNull().default(false),
+    laufend: boolean("laufend").notNull().default(false),
+    // «Später erinnern»: ab diesem Tag taucht die Aufgabe wieder auf
+    spaeterAb: date("spaeter_ab"),
+    wiederholung: text("wiederholung", { enum: ["w1", "w2", "m1"] }),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    quelle: text("quelle"),
+    erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
+    fristErinnertAm: timestamp("frist_erinnert_am", { withTimezone: true }),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels der Unterstützung: eine Zeile dort kann nie eine Aufgabe eines anderen Lagers meinen
+    unique("aufgabe_lager_id_id_uq").on(t.lagerId, t.id),
+    // In der Migration ON DELETE SET NULL (ressort_id) beziehungsweise (verantwortlich_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "aufgabe_ressort_fk",
+      columns: [t.lagerId, t.ressortId],
+      foreignColumns: [ressort.lagerId, ressort.id],
+    }).onDelete("set null"),
+    foreignKey({
+      name: "aufgabe_verantwortlich_fk",
+      columns: [t.lagerId, t.verantwortlichPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    // Die Listen der Routen: nach Reihenfolge, gefiltert nach Person, Status, Ressort oder Frist
+    index("aufgabe_liste_idx").on(t.lagerId, t.reihenfolge, t.id),
+    index("aufgabe_person_idx").on(t.lagerId, t.verantwortlichPersonId),
+    index("aufgabe_status_idx").on(t.lagerId, t.status),
+    index("aufgabe_ressort_idx").on(t.lagerId, t.ressortId),
+    index("aufgabe_frist_idx")
+      .on(t.lagerId, t.frist)
+      .where(sql`${t.frist} is not null`),
+    check(
+      "aufgabe_status_check",
+      sql`${t.status} in ('offen', 'laeuft', 'wartet', 'erledigt', 'naechster_hoeck')`,
+    ),
+    check(
+      "aufgabe_wiederholung_check",
+      sql`${t.wiederholung} is null or ${t.wiederholung} in ('w1', 'w2', 'm1')`,
+    ),
+    check(
+      "aufgabe_erledigt_check",
+      sql`(${t.status} = 'erledigt') = (${t.erledigtAm} is not null)`,
+    ),
+    check(
+      "aufgabe_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.teil} is null or char_length(${t.teil}) between 1 and 100) and (${t.notiz} is null or char_length(${t.notiz}) <= 5000) and (${t.quelle} is null or char_length(${t.quelle}) between 1 and 100) and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Wer eine Aufgabe unterstützt (#372): eine Zeile je Person und Aufgabe, ohne Feed und Version (die Aufgabe zählt die Version hoch, wenn sich die Liste ändert). Die Person muss Mitglied des Lagers sein; entfernt die Leitung das Mitglied oder fällt die Aufgabe weg, geht die Zeile mit
+export const aufgabeUnterstuetzung = pgTable(
+  "aufgabe_unterstuetzung",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.aufgabeId, t.personId] }),
+    foreignKey({
+      name: "aufgabe_unterstuetzung_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "aufgabe_unterstuetzung_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("aufgabe_unterstuetzung_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",

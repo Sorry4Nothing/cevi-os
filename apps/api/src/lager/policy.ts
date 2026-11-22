@@ -4,8 +4,9 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
-import type { Person } from "../rechte.js";
+import { zweiterFaktorFehlt, type Person } from "../rechte.js";
 import { ladeRollenRechte } from "./rechte.js";
+import type { LagerTabellenEintrag } from "./tabellen.js";
 import {
   istGeschlossen,
   RECHTE_KATALOG,
@@ -17,6 +18,7 @@ import {
 // Policy-Schicht des Lagers (#364): Jede Lager-Route unter /api/v1/lager hängt lagerZugriff() vor ihren Handler und fragt darin mit darf(). Die Reihenfolge ist fest und gleich wie in rechte.ts:
 //   1. Lager laden, in SQL auf die Abteilung der Sitzung gefiltert: fremd oder unbekannt = 404
 //   2. Mitgliedschaft: Nicht-Mitglied = 404 (die Abteilungsleitung gilt als Lagerleitung)
+//   2b. Die Lagerleitung (auch die Abteilungsleitung) braucht den zweiten Faktor: sonst 403 ZWEITER_FAKTOR_FEHLT (#423); leitung, team und lesen nicht
 //   3. Recht (optionen.recht): fehlt es = 403
 //   4. Schreibschutz: Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Methoden zu = 409 LAGER_GESCHLOSSEN
 // Die Rolle kommt bei jeder Anfrage aus lager_mitglied, nie aus Token oder Sitzung: Rollenwechsel und Entfernen wirken bei der nächsten Anfrage
@@ -24,6 +26,8 @@ import {
 export type LagerZeile = typeof lager.$inferSelect;
 
 export type LagerZugriff = {
+  // Die Person der Anfrage (für Zeilenfilter wie «nur eigene Aufgaben»)
+  personId: string;
   lager: LagerZeile;
   // Wirksame Rolle: die Abteilungsleitung (person.admin) ist in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied
   rolle: LagerRolle;
@@ -55,6 +59,12 @@ export function darf(
   return zugriff.rechte?.get(recht) ?? standardErlaubt(zugriff.rolle, recht);
 }
 
+// Darf die Rolle diese Tabelle im Feed und in den Ereignissen überhaupt sehen (Register, lager/tabellen.ts)? Eine Liste genügt mit einem der Rechte; ohne eigenes Recht (null) entscheidet allein «sichtbar»
+export const darfTabelleLesen = (
+  zugriff: Parameters<typeof darf>[0],
+  recht: LagerTabellenEintrag["recht"],
+) => recht === null || [recht].flat().some((r) => darf(zugriff, r));
+
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
 export async function ladeLagerZugriff(
   db: Db,
@@ -78,6 +88,7 @@ export async function ladeLagerZugriff(
   const rolle = person.admin ? "lagerleitung" : zeile.rolle;
   if (!rolle) return undefined;
   return {
+    personId: person.id,
     lager: zeile.lager,
     rolle,
     mitglied: zeile.rolle !== null,
@@ -111,6 +122,14 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
     if (!id.success) throw new HTTPException(400);
     const zugriff = await ladeLagerZugriff(db, c.get("person"), id.data);
     if (!zugriff) throw new HTTPException(404);
+    if (zugriff.rolle === "lagerleitung" && !c.get("person").zweiterFaktor) {
+      return c.json(
+        zweiterFaktorFehlt(
+          "Für die Lagerleitung braucht es zuerst einen zweiten Faktor.",
+        ),
+        403,
+      );
+    }
     if (optionen.recht && !darf(zugriff, optionen.recht)) {
       throw new HTTPException(403);
     }

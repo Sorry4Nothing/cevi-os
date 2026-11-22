@@ -7,6 +7,7 @@ import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb } from "../db/client.js";
 import * as schema from "../db/schema.js";
 import { ladeKonfiguration } from "../konfiguration.js";
+import { legeWebmasterAn } from "../plattform.js";
 import {
   erzeugeStartpasswort,
   normalisiereStartpasswort,
@@ -91,6 +92,8 @@ if (!argumente) {
           .values({ name: abteilungsname })
           .returning({ id: schema.abteilung.id });
         abteilungId = angelegt.id;
+        // Die Vorgabe jeder Abteilung (#423); bestehende Abteilungen bekamen sie mit Migration 0100
+        await legeWebmasterAn(tx, abteilungId);
       } else {
         const zeilen = await tx
           .select({ id: schema.abteilung.id })

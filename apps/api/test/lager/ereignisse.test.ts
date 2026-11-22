@@ -31,6 +31,7 @@ import { API_URL, BESITZER_URL } from "../hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "../hilfen/personas.js";
@@ -117,7 +118,10 @@ beforeAll(async () => {
           "elternA",
           "demoEltern",
         ] as const
-      ).map((p) => legePersonaAn(welt, p)),
+      ).map((p) =>
+        // Die Lagerleitung braucht den zweiten Faktor (#423)
+        p === "slA" ? legePersonaMitFaktorAn(welt, p) : legePersonaAn(welt, p),
+      ),
     );
   ohneLogin = await legePersonaAn(welt, "ohneLogin");
   const legeLager = async (status: "aktiv" | "abgeschlossen") => {
@@ -170,7 +174,8 @@ const miniApp = (
           id: konto.id,
           abteilungId: welt.testabteilungId,
           admin: false,
-          zweiterFaktor: false,
+          // Die Lagerleitung braucht den zweiten Faktor (#423); dieser Test prüft die Grenzen des Verteilers
+          zweiterFaktor: true,
           rollen: [],
         } as never,
       );
@@ -345,8 +350,14 @@ describe("GET /api/v1/lager/{id}/ereignisse", () => {
       expect(neu.erste).toMatchObject({
         event: "aenderung",
         id: String(await seq()),
-        // Alle Typen, die das Team lesen darf, nicht mehr
-        data: { bis: await seq(), objekttypen: ["offen"] },
+        // Alle Typen, die das Team lesen darf (auch die der echten Module, zum Beispiel Aufgaben), nicht mehr: nicht «objekt»
+        data: {
+          bis: await seq(),
+          objekttypen: expect.arrayContaining(["offen"]),
+        },
+      });
+      expect(neu.erste).not.toMatchObject({
+        data: { objekttypen: expect.arrayContaining(["objekt"]) },
       });
       await neu.strom.schliesse();
     });

@@ -346,6 +346,13 @@
       "breakpoints": true
     },
     {
+      "idx": 68,
+      "version": "7",
+      "when": 1793550800000,
+      "tag": "0068_lager_aufgaben",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
@@ -357,6 +364,13 @@
       "version": "7",
       "when": 1793552800000,
       "tag": "0088_lager_infos",
+      "breakpoints": true
+    },
+    {
+      "idx": 100,
+      "version": "7",
+      "when": 1793553000000,
+      "tag": "0100_plattformrollen",
       "breakpoints": true
     },
     {
