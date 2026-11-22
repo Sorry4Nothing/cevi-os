@@ -13,6 +13,7 @@ import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
 import { erstelleAushaengeRouten } from "./aushaenge.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleAufgabenDetailsRouten } from "./aufgaben-details.js";
+import { erstelleCheckRouten } from "./check.js";
 import { erstelleAufgabenSchnellRouten } from "./aufgaben-schnell.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
@@ -60,7 +61,7 @@ export function erstelleLagerRouten({
   db: Db;
   fcm?: Fcm;
   wetter?: WetterHolen;
-  // Die Uhr der Aggregate «Heute», «Meine Woche» und Start (#395); die Tests spritzen eine feste Zeit ein
+  // Die Uhr der Aggregate «Heute», «Meine Woche» und Start (#395) und der Lager-Check (#377); die Tests spritzen eine feste Zeit ein
   jetzt?: () => Date;
 }) {
   return new Hono<LagerEnv>()
@@ -103,5 +104,6 @@ export function erstelleLagerRouten({
     .route("/", erstelleTagesseitenRouten({ db, wetter }))
     .route("/", erstelleWetterRouten({ db, wetter }))
     .route("/", erstelleAggregateRouten({ db, wetter, jetzt }))
+    .route("/", erstelleCheckRouten({ db, jetzt }))
     .route("/", erstelleSucheRouten({ db }));
 }

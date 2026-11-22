@@ -783,6 +783,10 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   lagertag: {
     lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
   },
+  // Lager-Check (#377): eigene Punkte der Lagerleitung, nur Titel und Haken; der Check selbst rechnet aus den Daten der Module und speichert nichts
+  lager_check_punkt: {
+    lager: [...LAGER_BASIS_SPALTEN, "titel", "erledigt", "reihenfolge"],
+  },
   // Tagesseiten (#391): Tageschef als Personen-ID, Notiz und Blöcke; das Programmbild ist ein Verweis auf lager_datei
   tagesseite: {
     lagerTagesseiten: [

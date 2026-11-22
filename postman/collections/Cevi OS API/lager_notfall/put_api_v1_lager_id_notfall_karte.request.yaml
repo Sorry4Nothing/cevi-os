@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/notfall/karte"
-order: 286000
+order: 291000
 method: PUT
-url: "{{baseUrl}}{{pfad_L129}}"
+url: "{{baseUrl}}{{pfad_L134}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
