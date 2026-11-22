@@ -3,7 +3,10 @@ import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
-import { erstelleSchalterZustand } from "./bereichsschalter.js";
+import {
+  erstelleAnmeldungGesperrt,
+  erstelleSchalterZustand,
+} from "./bereichsschalter.js";
 import {
   kodiereMedienbild,
   kodiereProfilbild,
@@ -17,10 +20,15 @@ import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import {
+  erinnereAnAufraeumen,
+  loescheAlteKontakte,
+} from "./lager/adressbuch.js";
+import {
   sendeFristErinnerungen,
   starteFristErinnerung,
 } from "./lager/fristen.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
+import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
@@ -40,6 +48,7 @@ import {
 } from "./website/abgleich.js";
 import { ladeStufenfakten } from "./website/stufenfakten.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
+import { erstelleWebsiteSperre, mitSperre } from "./website/sperre.js";
 import {
   pruefeZeitregeln,
   starteZeitregelPruefer,
@@ -77,12 +86,25 @@ if (!medienspeicher)
   log(undefined, { ereignis: "medien", code: "ohne-speicher" });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
-const auth = erstelleAuth(
-  drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
-);
-// Wartungsmodus und Sperre (#424): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
+// Wartungsmodus und Sperre (#424, #425): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
 const schalter = erstelleSchalterZustand();
 await schalter.lade(db);
+const auth = erstelleAuth(
+  drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
+  // Unter einer Sperre von «alles» meldet sich nur die Abteilungsleitung oder der Entwickler an (#425)
+  { anmeldungGesperrt: erstelleAnmeldungGesperrt({ db, zustand: schalter }) },
+);
+// Die öffentliche Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht. Die Ausgabe gehört auch der Informationssperre (#425): Sie nimmt die Website vom Netz
+const websiteAusgabe =
+  konfiguration.WEBSITE_AUSGABE_PFAD &&
+  konfiguration.WEBSITE_ABTEILUNG_ID &&
+  konfiguration.WEBSITE_BASIS_URL
+    ? dateisystemAusgabe(konfiguration.WEBSITE_AUSGABE_PFAD)
+    : undefined;
+const websiteSperre =
+  websiteAusgabe && konfiguration.WEBSITE_ABTEILUNG_ID
+    ? erstelleWebsiteSperre(websiteAusgabe, konfiguration.WEBSITE_ABTEILUNG_ID)
+    : undefined;
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
   synchronisiere({
@@ -100,6 +122,7 @@ const app = erstelleApp({
   medienspeicher,
   seiten,
   schalter,
+  website: websiteSperre,
   syncs: {
     kalender: kalenderLauf,
   },
@@ -124,15 +147,29 @@ starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
 );
+// Adressbuch des Lagers (#397): Erinnerung an die Lagerleitung 14 Tage vorher, dann Kontakte ohne «behalten» 180 Tage nach dem Lagerende löschen
+starteSitzungenAufraeumen(
+  () => erinnereAnAufraeumen(db, fcm),
+  "lager_adressbuch_erinnerung",
+);
+starteSitzungenAufraeumen(
+  () => loescheAlteKontakte(db),
+  "lager_adressbuch_aufraeumen",
+);
+// Anmeldungen zu Anlässen 180 Tage nach dem Ende des Anlasses löschen (#443)
+starteSitzungenAufraeumen(
+  () => loescheAlteAnmeldungen(db),
+  "anlass_anmeldungen",
+);
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
-  konfiguration.WEBSITE_AUSGABE_PFAD &&
+  websiteAusgabe &&
   konfiguration.WEBSITE_ABTEILUNG_ID &&
   konfiguration.WEBSITE_BASIS_URL
 ) {
-  const ausgabe = dateisystemAusgabe(konfiguration.WEBSITE_AUSGABE_PFAD);
+  const ausgabe = websiteAusgabe;
   const stylesheet = readFileSync(
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
@@ -153,17 +190,21 @@ if (
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
   const basisUrl = konfiguration.WEBSITE_BASIS_URL;
   starteWebsiteAbgleich(
-    () =>
-      synchronisiereWebsite({
-        datenbankUrl: konfiguration.DATABASE_URL,
-        ausgabe,
-        abteilungId,
-        basisUrl,
-        stylesheet,
-        skripte,
-        datenquellen: [ladeStufenfakten],
-        merker,
-      }),
+    // Unter einer Sperre, die die Website vom Netz nimmt, läuft der Abgleich nicht (#425)
+    mitSperre(
+      () => schalter.websiteOffline(abteilungId),
+      () =>
+        synchronisiereWebsite({
+          datenbankUrl: konfiguration.DATABASE_URL,
+          ausgabe,
+          abteilungId,
+          basisUrl,
+          stylesheet,
+          skripte,
+          datenquellen: [ladeStufenfakten],
+          merker,
+        }),
+    ),
     abteilungId,
   );
 } else {

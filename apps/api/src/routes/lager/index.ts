@@ -2,18 +2,23 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleAdressbuchRouten } from "./adressbuch.js";
 import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleAufgabenDetailsRouten } from "./aufgaben-details.js";
+import { erstelleAufgabenSchnellRouten } from "./aufgaben-schnell.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleDokumentRouten } from "./dokumente.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEinkaufRouten } from "./einkauf.js";
+import { erstelleEingangRouten } from "./eingang.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
+import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
+import { erstelleProtokollRouten } from "./protokolle.js";
 import { erstelleRessortRouten } from "./ressorts.js";
 import { erstelleInfosRouten } from "./infos.js";
 import { erstelleNotfallRouten } from "./notfall.js";
@@ -27,6 +32,8 @@ import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
+import { erstelleFahrtenRouten } from "./fahrten.js";
+import { erstelleSchichtplanRouten } from "./schichtplan.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
@@ -44,15 +51,22 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleRessortRouten({ db }))
     .route("/", erstelleAufgabenDetailsRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
+    .route("/", erstelleAdressbuchRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
+    .route("/", erstelleAufgabenSchnellRouten({ db }))
+    .route("/", erstelleHoeckRouten({ db }))
+    .route("/", erstelleProtokollRouten({ db }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))
     .route("/", erstelleReaktionenRouten({ db }))
+    .route("/", erstelleEingangRouten({ db, fcm }))
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }))
     .route("/", erstelleZimmerRouten({ db }))
+    .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
+    .route("/", erstelleSchichtplanRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))

@@ -177,7 +177,8 @@
             Abteilung sind Tags vom Typ Stufe; die Rolle in einer Stufe (Leitung
             oder Stufenleitung) ist eine solche Zuordnung. Dazu die
             Bearbeitungsrechte, die die Leitung einer Person oder einem Tag gibt
-            (zum Beispiel als Redaktion).
+            (zum Beispiel das Recht auf eine bestimmte Seite). Dazu die
+            Plattformrollen, etwa die Rolle Webmaster.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -495,7 +496,11 @@
             Für jedes Zimmer und Zelt: Name, Art, Plätze und eine Notiz. Für
             jede Einteilung: welche teilnehmende Person oder welches Mitglied
             des Lagers in welchem Zimmer liegt, wann und von welchem Konto die
-            Einteilung gesetzt wurde. Keine weiteren Angaben zur Person.
+            Einteilung gesetzt wurde. Für jeden Dienst (zum Beispiel Küche oder
+            Nachtwache): Name, Beschreibung, Abschnitt des Tages, nötige
+            Personenzahl und ob es eine Nachtwache ist. Für jede Schicht: welche
+            teilnehmende Person oder welches Mitglied des Lagers an welchem
+            Lagertag in welchem Dienst steht. Keine weiteren Angaben zur Person.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -503,13 +508,52 @@
             einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein.
             Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner.
             Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren
-            Angaben zur Person.
+            Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche
+            oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl)
+            und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von
+            Hand oder mit einem Vorschlag, der nach der eingetragenen
+            Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle
+            Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem
+            Tag in welchem Dienst steht.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs
-            Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die
-            Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf
+            Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den
+            Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit
+            dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen
+            früher entfernen. Auf Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-fahrten">
+        <h3 id="k-lager-fahrten">Fahrten im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Fahrt: Richtung (Hinfahrt oder Rückfahrt), Auto oder
+            ÖV-Gruppe, ein Name, der Fahrer, die Zahl der Plätze, Datum, Zeit,
+            Start, Ziel und Treffpunkt, bei einer ÖV-Gruppe ein Link auf den
+            Fahrplan, dazu ein Kartenpunkt (Bezeichnung mit Adresse, Koordinaten
+            oder Link). Für jede Mitfahrt die Person des Lagers oder der
+            Teilnehmende. Dazu, wer die Einträge erfasst oder geändert hat.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Lagerleitung teilt die Hin- und Rückfahrt ein: Auto oder
+            ÖV-Gruppe, mit Fahrer, Plätzen, Datum, Zeit, Treffpunkt und den
+            Mitfahrenden (Leitende und Teilnehmende). Dazu kann sie einen Link
+            auf den Fahrplan und einen Kartenpunkt als Ziel der Fahrt
+            hinterlegen (Bezeichnung mit Adresse, Koordinaten oder Link), den
+            die App in der Karten-App öffnet. Der Server speichert beides nur
+            und ruft weder den Fahrplan noch einen Kartendienst ab. Das Team
+            sieht nur die eigene Fahrt.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Lagerleitung die Fahrt oder die Mitfahrt löscht oder das
+            Lager gelöscht wird; die Mitfahrt eines Teilnehmenden entfällt mit
+            dem Teilnehmenden, sechs Monate nach dem Ende des Lagers. Auf
             Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
@@ -706,6 +750,45 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-lager-eingang">
+        <h3 id="k-lager-eingang">Eingang im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Meldung: Art, Text, Tag der Meldung, Status, Antwort mit
+            Tag, Ressort und Traktandum, dazu bei einer nicht anonymen Meldung
+            das Konto der Person und bei einer anonymen Meldung nur einen
+            Prüfwert des Rückfragecodes.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Mitglieder des Lagers schicken der Lagerleitung eine Idee, einen
+            Wunsch, eine Frage oder Feedback, auf Wunsch anonym. Gespeichert
+            sind die Art, der Text, der Tag der Meldung, der Status, die Antwort
+            der Lagerleitung mit ihrem Tag und, wenn die Lagerleitung sie
+            zuordnet, das Ressort und das Traktandum. Bei einer nicht anonymen
+            Meldung steht auch das Konto der Person dabei: Die Lagerleitung
+            sieht den Namen, und die Person bekommt die Antwort als Push, der
+            nur den Lagertitel nennt. Bei einer anonymen Meldung speichert Cevi
+            OS keine Person, keine IP-Adresse und keine Uhrzeit, nur den Tag,
+            und schreibt weder ein Audit-Log noch einen Eintrag im
+            Änderungsfeed. Die Person bekommt beim Senden einen Rückfragecode,
+            mit dem sie Status und Antwort abruft; gespeichert ist nur ein
+            Prüfwert dieses Codes. Die Antwort steht ausserdem an der Meldung,
+            die die Lagerleitung liest. Die Meldungen sieht nur die Lagerleitung
+            und wer von ihr das Recht dazu bekommt.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Lagerleitung die Meldung löscht oder das Lager gelöscht
+            wird; eine nicht anonyme Meldung entfällt auch mit dem Konto. Auf
+            Anfrage löscht die Leitung Daten. Eine anonyme Meldung kennt keine
+            Person und lässt sich darum nur über den Rückfragecode oder durch
+            die Lagerleitung finden.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-lager-dokumente">
         <h3 id="k-lager-dokumente">Dokumente im Lager</h3>
         <dl>
@@ -730,6 +813,104 @@
             die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die
             Angabe, wer das Dokument angelegt hat. Auf Anfrage löscht die
             Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-adressbuch">
+        <h3 id="k-lager-adressbuch">Adressbuch im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jeden Kontakt: der Name, die Funktion, die Gruppe, die
+            Telefonnummer, die E-Mail-Adresse, eine Notiz und ob er für das
+            nächste Lager behalten wird. Dazu wann er erfasst wurde und von
+            welchem Konto. Es sind Daten von Personen, die selbst kein Konto
+            haben.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Externe Kontakte des Lagers an einem Ort haben, zum Beispiel
+            Bäckerei, Platzwart oder Behörde. Die Lagerleitung erfasst Name,
+            Funktion, Gruppe, Telefonnummer, E-Mail-Adresse und eine Notiz. Es
+            sind Daten Dritter, die selbst kein Konto haben: Nur die
+            Lagerleitung liest und ändert sie (die Rechte lassen sich je Lager
+            einstellen), und jedes Lesen steht im Protokoll, ohne die Inhalte.
+            Wer einen Kontakt für das nächste Lager behalten will, markiert ihn.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            180 Tage nach dem Ende des Lagers löscht Cevi OS jeden Kontakt
+            endgültig, ausser er ist mit «Fürs nächste Lager behalten» markiert;
+            14 Tage vorher erinnert Cevi OS die Lagerleitung. Markierte Kontakte
+            bleiben, bis die Lagerleitung sie löscht oder das Lager gelöscht
+            wird. Ein gelöschter Kontakt verschwindet nach 30 Tagen endgültig.
+            Mit dem Konto verschwindet nur die Angabe, wer den Kontakt erfasst
+            hat. Auf Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-hoecks">
+        <h3 id="k-lager-hoecks">Höcks und Traktanden im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jeden Höck: Art (Lagerleitung oder Team), Datum, Zeit, Ort,
+            Titel, Gäste als Freitext und die Konten der Personen, die dabei
+            waren. Für jedes Traktandum: Titel, Notizen, ein kurzer Entscheid,
+            Links, die Konten der Verantwortlichen, die Reihenfolge und ein
+            Verweis auf eine Aufgabe.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Sitzungen des Lagers planen und festhalten: Datum, Zeit, Ort und
+            Titel eines Höcks, wer beim Höck war, Gäste als Freitext, die
+            Traktanden mit Notizen, Links, Verantwortlichen und einem kurzen
+            Entscheid. Das Team sieht nur Höcks der Art Team, und von diesen nur
+            Datum, Zeit, Titel und Ort. Ein Höck lässt sich als Kalenderdatei
+            laden; sie enthält nur Titel, Ort, Datum und Zeit. Das Protokoll
+            liegt als Verknüpfung auf eine Datei im SharePoint der Abteilung.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung den Höck oder das Traktandum löscht, das Lager
+            gelöscht wird oder das Konto gelöscht wird. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-protokolle">
+        <h3 id="k-lager-protokolle">Protokolle und Beschlüsse im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jedes Protokoll: die Art, der Titel, das Datum, optional der
+            Höck, der Verweis auf die Datei, wann es angelegt wurde und von
+            welchem Konto. Für jeden Beschluss: der Text, optional der Verweis
+            auf Protokoll und Höck, wann er angelegt wurde und von welchem
+            Konto.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Protokolle und Beschlüsse eines Lagers festhalten und auffindbar
+            machen: Ein Protokoll hat eine Art (Sitzung, Notiz, Kontakt oder
+            Idee), einen Titel, ein Datum, optional einen Höck und verweist auf
+            eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»).
+            Cevi OS speichert nur den Verweis, nie den Inhalt des Protokolls,
+            und ruft den Link nie ab; wer die Datei öffnen darf, regelt der
+            Ablageort. Ein Beschluss ist ein kurzer Text mit optionalem Verweis
+            auf Protokoll und Höck. Protokolle und Beschlüsse sieht nur, wer das
+            Recht dazu hat, und das Team nie, wenn sie zu einem Höck der
+            Lagerleitung gehören.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung das Protokoll oder den Beschluss löscht oder das
+            Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto
+            verschwindet nur die Angabe, wer den Eintrag angelegt hat. Auf
+            Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
       </section>
@@ -809,7 +990,7 @@
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Bis die Redaktion die Seite oder die Weiterleitung löscht. Mit dem
+            Bis ein Webmaster die Seite oder die Weiterleitung löscht. Mit dem
             Konto verschwindet nur die Angabe, wer einen Stand oder eine
             Weiterleitung erstellt hat.
           </dd>
@@ -817,7 +998,7 @@
       </section>
 
       <section class="kategorie" aria-labelledby="k-anlass">
-        <h3 id="k-anlass">Anlässe und ihre Zusatzfelder</h3>
+        <h3 id="k-anlass">Anlässe und Anmeldungen</h3>
         <dl>
           <dt>Daten</dt>
           <dd>
@@ -826,7 +1007,12 @@
             die Seite der Website und welches Konto den Anlass angelegt hat.
             Dazu die Zusatzfragen der Anmeldung mit Beschriftung, Art (Text, Ja
             oder Nein, Auswahl), Auswahlmöglichkeiten und der Angabe, ob sie
-            Pflicht sind. Antworten gehören nicht dazu.
+            Pflicht sind. Zu jeder Anmeldung: welches Konto sie angelegt hat,
+            bei einem Kind welches Kind, deine Antworten auf die Zusatzfragen,
+            ob die Anmeldung gilt, und wann sie angelegt und zuletzt geändert
+            wurde. Name, Cevi-Name und die Stufe des Kindes speichert die
+            Anmeldung nicht: Sie werden aus dem Konto und den Angaben zum Kind
+            gelesen. Gesundheitsdaten fragt die Anmeldung nicht ab.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -835,14 +1021,23 @@
             die Anmeldung offen ist, wer den Anlass sieht und welche
             Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die
             Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht
-            eine Seite der Website als Entwurf.
+            eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet
+            sich über das Konto an: Eltern melden ihr Kind an, andere Personen
+            sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name
+            und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt
+            sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen,
+            wer angemeldet hat und ob die Anmeldung gilt.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange
-            es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die
-            Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer
-            den Anlass angelegt hat.
+            Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur,
+            solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server
+            180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung
+            löscht er sofort. Anlässe der Art Lager sind von diesem Lauf
+            ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto
+            verschwinden die Anmeldungen, die es angelegt hat, und die Angabe,
+            wer den Anlass angelegt hat. Die Seite der Website bleibt, bis ein
+            Webmaster sie löscht.
           </dd>
         </dl>
       </section>

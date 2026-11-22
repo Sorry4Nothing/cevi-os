@@ -106,7 +106,7 @@ export type SeiteAusVorlage = {
 // Die Seite startet als Entwurf (nie veröffentlicht), Adresse aus dem Titel mit Zusatz bei Kollision, ans Ende der Geschwister.
 // Gibt {neu: false} mit der bestehenden Seite zurück, wenn es zum Tag schon eine gibt (idempotent).
 // Wirft VorlagenFehler bei fehlendem Tag, fremdem oder unbekanntem Tag und Elternseite, zu tiefem Baum.
-// Der Aufrufer prüft das Recht (Abteilungsleitung oder Redaktion) und meldet nach dem Commit «seite_geaendert» (meldeWebsiteEreignis) für neu: true.
+// Der Aufrufer prüft das Recht (Abteilungsleitung oder Plattformrechte «Seiten anlegen und löschen», «Vorlagen nutzen») und meldet nach dem Commit «seite_geaendert» (meldeWebsiteEreignis) für neu: true.
 export async function erzeugeSeiteAusVorlage(
   tx: Tx,
   o: SeiteAusVorlage,

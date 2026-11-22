@@ -31,6 +31,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 bereiteAuthTestsVor();
 
@@ -126,6 +127,7 @@ async function setze(
 ): Promise<string> {
   const antwort = await anfrage(akteur, "POST", BASIS, {
     objektTyp: SEITE,
+    objektId: randomUUID(),
     ...body,
   });
   expect(antwort.status).toBe(201);
@@ -138,7 +140,7 @@ async function legeTagAn(abteilungId = welt.testabteilungId) {
     .values({
       abteilungId,
       typ: "team",
-      name: `Redaktion ${randomUUID()}`,
+      name: `Team ${randomUUID()}`,
       kuerzel: "R",
     })
     .returning({ id: schema.tag.id });
@@ -187,24 +189,72 @@ describe("darfBearbeiten: Rollen", () => {
     ).toBe(false);
   });
 
-  test("Redaktion darf alle Seiten, aber nichts in der Verwaltung", async () => {
-    const redaktion = await neuePerson("elternA");
+  test("Webmaster darf alle Seiten, aber nichts in der Verwaltung", async () => {
+    const webmaster = await neuePerson("elternA");
     const objekt = randomUUID();
-    expect(await darf(redaktion, objekt)).toBe(false);
-    await setze(admin, { userId: redaktion.id });
-    expect(await darf(redaktion, objekt)).toBe(true);
-    expect(await darf(redaktion, randomUUID(), welt.stufeBId)).toBe(true);
+    expect(await darf(webmaster, objekt)).toBe(false);
+    await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
+    expect(await darf(webmaster, objekt)).toBe(true);
+    expect(await darf(webmaster, randomUUID(), welt.stufeBId)).toBe(true);
     // Keine Admin-Rechte: Verwaltung bleibt 403, und der Admin-Status ist unverändert
-    expect((await anfrage(redaktion, "GET", BASIS)).status).toBe(403);
+    expect((await anfrage(webmaster, "GET", BASIS)).status).toBe(403);
     expect(
       (
-        await anfrage(redaktion, "POST", BASIS, {
+        await anfrage(webmaster, "POST", BASIS, {
           objektTyp: SEITE,
-          userId: redaktion.id,
+          objektId: objekt,
+          userId: webmaster.id,
         })
       ).status,
     ).toBe(403);
-    expect((await personVon(redaktion)).admin).toBe(false);
+    expect((await personVon(webmaster)).admin).toBe(false);
+  });
+
+  test("Das Recht «Seiten bearbeiten» entscheidet; Veröffentlichen ist ein eigenes Recht", async () => {
+    const objekt = randomUUID();
+    const nurBearbeiten = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, nurBearbeiten.id!, [
+      "seiten.bearbeiten",
+    ]);
+    const nurVeroeffentlichen = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, nurVeroeffentlichen.id!, [
+      "seiten.veroeffentlichen",
+    ]);
+    const nurMedien = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, nurMedien.id!, [
+      "medien.verwalten",
+    ]);
+    const frage = async (konto: PersonaKonto, veroeffentlichen: boolean) =>
+      darfBearbeiten(db, await personVon(konto), SEITE, objekt, {
+        veroeffentlichen,
+      });
+    expect(await frage(nurBearbeiten, false)).toBe(true);
+    expect(await frage(nurBearbeiten, true)).toBe(false);
+    expect(await frage(nurVeroeffentlichen, false)).toBe(false);
+    expect(await frage(nurVeroeffentlichen, true)).toBe(true);
+    // Ein anderes Recht der Rolle öffnet keine Seite
+    expect(await frage(nurMedien, false)).toBe(false);
+    expect(await frage(nurMedien, true)).toBe(false);
+    // Stufenleitung und Abteilungsleitung veröffentlichen immer; ein Sonderrecht auf die Seite auch
+    expect(
+      await darfBearbeiten(db, await personVon(sl), SEITE, objekt, {
+        stufeId: welt.stufeAId,
+        veroeffentlichen: true,
+      }),
+    ).toBe(true);
+    expect(
+      await darfBearbeiten(db, await personVon(admin), SEITE, objekt, {
+        veroeffentlichen: true,
+      }),
+    ).toBe(true);
+    await setze(admin, { objektId: objekt, userId: nurMedien.id });
+    expect(await frage(nurMedien, true)).toBe(true);
+  });
+
+  test("Die Rolle Webmaster einer anderen Abteilung gibt nichts", async () => {
+    const person = await neuePerson("elternA");
+    await macheWebmaster(db, welt.demoAbteilungId, person.id!);
+    expect(await darf(person, randomUUID())).toBe(false);
   });
 });
 
@@ -238,12 +288,24 @@ describe("darfBearbeiten: Sonderrechte", () => {
     expect(await darf(person, objekt)).toBe(false);
   });
 
-  test("Redaktion über einen Tag gilt für alle Seiten", async () => {
+  test("«Alle Seiten» gibt es nicht mehr als Sonderrecht: ohne Objekt 400, in der Datenbank nicht möglich", async () => {
     const person = await neuePerson("elternA");
     const tagId = await legeTagAn();
     await traegt(person.id!, tagId);
-    await setze(admin, { tagId });
-    expect(await darf(person, randomUUID())).toBe(true);
+    for (const ziel of [{ tagId }, { userId: person.id }]) {
+      expect(
+        (await anfrage(admin, "POST", BASIS, { objektTyp: SEITE, ...ziel }))
+          .status,
+      ).toBe(400);
+    }
+    await expect(
+      db.insert(schema.bearbeiter).values({
+        abteilungId: welt.testabteilungId,
+        objektTyp: SEITE,
+        tagId,
+      } as typeof schema.bearbeiter.$inferInsert),
+    ).rejects.toThrow();
+    expect(await darf(person, randomUUID())).toBe(false);
   });
 
   test("Das Recht für einen Typ gilt nicht für andere Abteilungen: Zeile und Tag der Fremdabteilung geben nichts", async () => {
@@ -253,6 +315,7 @@ describe("darfBearbeiten: Sonderrechte", () => {
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.demoAbteilungId,
       objektTyp: SEITE,
+      objektId: objekt,
       userId: person.id,
     });
     expect(await darf(person, objekt)).toBe(false);
@@ -262,6 +325,7 @@ describe("darfBearbeiten: Sonderrechte", () => {
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: SEITE,
+      objektId: objekt,
       tagId: fremderTag,
     });
     expect(await darf(person, objekt)).toBe(false);
@@ -284,13 +348,13 @@ describe("darfBearbeiten: Sonderrechte", () => {
   });
 
   test("Deaktivierte Personen kommen gar nicht erst an die Routen (401)", async () => {
-    const redaktion = await neuePerson("elternA");
-    await setze(admin, { userId: redaktion.id });
+    const webmaster = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
     await db
       .update(schema.user)
       .set({ banned: true, deaktiviertAm: new Date() })
-      .where(eq(schema.user.id, redaktion.id!));
-    expect((await anfrage(redaktion, "GET", "/api/v1/ich")).status).toBe(401);
+      .where(eq(schema.user.id, webmaster.id!));
+    expect((await anfrage(webmaster, "GET", "/api/v1/ich")).status).toBe(401);
   });
 });
 
@@ -323,7 +387,7 @@ describe("bearbeitbar (Filter für Listen)", () => {
     expect(await liste(leitende)).toEqual([]);
   });
 
-  test("Sonderrecht auf ein Objekt, über eine Person oder einen Tag, und Redaktion", async () => {
+  test("Sonderrecht auf ein Objekt, über eine Person oder einen Tag, und Webmaster", async () => {
     const mitPerson = await neuePerson("elternA");
     await setze(admin, { objektId: welt.kindBId, userId: mitPerson.id });
     expect(await liste(mitPerson)).toEqual([welt.kindBId]);
@@ -342,11 +406,17 @@ describe("bearbeitbar (Filter für Listen)", () => {
       sortiert(welt.kindAId, welt.kindBId),
     );
 
-    const redaktion = await neuePerson("elternA");
-    await setze(admin, { userId: redaktion.id });
-    expect(await liste(redaktion)).toEqual(
+    const webmaster = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
+    expect(await liste(webmaster)).toEqual(
       sortiert(welt.kindAId, welt.kindBId),
     );
+    // Ohne das Recht «Seiten bearbeiten» zeigt die Rolle nichts
+    const ohneSeiten = await neuePerson("elternA");
+    await macheWebmaster(db, welt.testabteilungId, ohneSeiten.id!, [
+      "medien.verwalten",
+    ]);
+    expect(await liste(ohneSeiten)).toEqual([]);
   });
 
   test("Zeile der Fremdabteilung gibt kein Objekt frei", async () => {
@@ -354,6 +424,7 @@ describe("bearbeitbar (Filter für Listen)", () => {
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.demoAbteilungId,
       objektTyp: SEITE,
+      objektId: welt.kindAId,
       userId: person.id,
     });
     expect(await liste(person)).toEqual([]);
@@ -499,20 +570,19 @@ describe("/api/v1/admin/bearbeiter", () => {
     });
   });
 
-  test("dasselbe Recht zweimal gibt 409, auch für «alle Objekte» (null und weggelassen)", async () => {
+  test("dasselbe Recht zweimal gibt 409", async () => {
     const person = await neuePerson("elternA");
-    await setze(admin, { userId: person.id });
-    for (const objektId of [undefined, null]) {
-      const antwort = await anfrage(admin, "POST", BASIS, {
-        objektTyp: SEITE,
-        objektId,
-        userId: person.id,
-      });
-      expect(antwort.status).toBe(409);
-      expect(await antwort.json()).toMatchObject({
-        code: "BEARBEITER_VORHANDEN",
-      });
-    }
+    const objektId = randomUUID();
+    await setze(admin, { objektId, userId: person.id });
+    const antwort = await anfrage(admin, "POST", BASIS, {
+      objektTyp: SEITE,
+      objektId,
+      userId: person.id,
+    });
+    expect(antwort.status).toBe(409);
+    expect(await antwort.json()).toMatchObject({
+      code: "BEARBEITER_VORHANDEN",
+    });
   });
 
   test.each([
@@ -520,6 +590,11 @@ describe("/api/v1/admin/bearbeiter", () => {
     ["Person und Tag zugleich", { userId: randomUUID(), tagId: randomUUID() }],
     ["unbekannter Objekttyp", { userId: randomUUID(), objektTyp: "termin" }],
     ["Objekt-ID keine uuid", { userId: randomUUID(), objektId: "x" }],
+    [
+      "Objekt-ID fehlt: alle Seiten ist das Recht Seiten bearbeiten",
+      { userId: randomUUID() },
+    ],
+    ["Objekt-ID null", { userId: randomUUID(), objektId: null }],
     ["unbekanntes Feld", { userId: randomUUID(), rolle: "x" }],
   ])("%s: 400", async (_, body) => {
     const antwort = await anfrage(admin, "POST", BASIS, {
@@ -534,8 +609,13 @@ describe("/api/v1/admin/bearbeiter", () => {
     const tagId = await legeTagAn();
     for (const ziel of [{ userId: person.id }, { tagId }]) {
       expect(
-        (await anfrage(demoAdmin, "POST", BASIS, { objektTyp: SEITE, ...ziel }))
-          .status,
+        (
+          await anfrage(demoAdmin, "POST", BASIS, {
+            objektTyp: SEITE,
+            objektId: randomUUID(),
+            ...ziel,
+          })
+        ).status,
       ).toBe(404);
     }
     const id = await setze(admin, { userId: person.id });
@@ -572,6 +652,7 @@ describe("/api/v1/admin/bearbeiter", () => {
         (
           await anfrage(konto, "POST", BASIS, {
             objektTyp: SEITE,
+            objektId: randomUUID(),
             userId: konto.id,
           })
         ).status,
@@ -591,6 +672,7 @@ describe("Datenbank", () => {
       db.insert(schema.bearbeiter).values({
         abteilungId: welt.testabteilungId,
         objektTyp: SEITE,
+        objektId: randomUUID(),
         ...werte,
       });
     await expect(einfuegen({})).rejects.toThrow();

@@ -393,7 +393,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
         (await anfrage(konto, "GET", "/api/v1/plattform/schalter")).status,
       ).toBe(403);
     }
-    expect(zustand.leer()).toBe(true);
+    expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
   test("ohne zweiten Faktor 403 ZWEITER_FAKTOR_FEHLT", async () => {
@@ -403,7 +403,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect(await antwort.json()).toMatchObject({
       code: "ZWEITER_FAKTOR_FEHLT",
     });
-    expect(zustand.leer()).toBe(true);
+    expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
   test("Webmaster mit dem Recht darf die Wartung der Website, aber keinen anderen Bereich", async () => {
@@ -418,16 +418,16 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect((await schreibe(slA, "website")).status).not.toBe(503);
   });
 
-  test("das Panel nennt «plattform» nur Personen mit dem Recht, auch ohne Redaktionszugang", async () => {
+  test("das Panel nennt «plattform» nur Personen mit dem Recht; «website» öffnen die Rechte der Website (Rolle Webmaster, Entwickler)", async () => {
     const bereiche = async (konto: PersonaKonto) =>
       (
         (await (
           await anfrage(konto, "GET", "/api/v1/redaktion/ich")
         ).json()) as { bereiche: string[] }
       ).bereiche;
-    expect(await bereiche(webmasterMitRecht)).toEqual(["plattform"]);
-    expect(await bereiche(entwickler)).toEqual(["plattform"]);
-    expect(await bereiche(webmaster)).toEqual([]);
+    expect(await bereiche(webmasterMitRecht)).toEqual(["website", "plattform"]);
+    expect(await bereiche(entwickler)).toEqual(["website", "plattform"]);
+    expect(await bereiche(webmaster)).toEqual(["website"]);
     expect(await bereiche(slA)).toEqual(["website"]);
   });
 
@@ -456,12 +456,12 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect(await lies(demoAdmin)).toEqual(["chat"]);
   });
 
-  test("Eingabe: unbekannter Bereich, noch nicht schaltbare Art, leerer Hinweis, falsches Ende, fremdes Feld", async () => {
+  test("Eingabe: unbekannter Bereich, unbekannte Art, leerer Hinweis, falsches Ende, fremdes Feld", async () => {
     expect((await schalte(admin, "keller")).status).toBe(400);
     expect(
       (
         await anfrage(admin, "PUT", "/api/v1/plattform/schalter", {
-          art: "sperre",
+          art: "sperrung",
           bereich: "lager",
         })
       ).status,
@@ -474,7 +474,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
       400,
     );
     expect((await schalte(admin, "lager", { sperre: true })).status).toBe(400);
-    expect(zustand.leer()).toBe(true);
+    expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
   test("jede Schaltung steht im Audit-Log, ohne den Hinweistext", async () => {

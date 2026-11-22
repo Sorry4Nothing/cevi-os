@@ -184,7 +184,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       ziel: linkAlle,
     }),
   ),
-  // Eine Datei liegt im SharePoint der Abteilung und wird nur verknüpft (#428): kein Medium, kein Abruf durch den Server. Typ als Wort («PDF») und Grösse in Bytes sind Angaben der Redaktion
+  // Eine Datei liegt im SharePoint der Abteilung und wird nur verknüpft (#428): kein Medium, kein Abruf durch den Server. Typ als Wort («PDF») und Grösse in Bytes sind Angaben der Person, die den Baustein pflegt
   baustein(
     "datei",
     z.strictObject({

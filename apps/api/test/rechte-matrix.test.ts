@@ -140,6 +140,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.js": { erwartet: alle(200) },
+  "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
   "GET /admin/website.js": { erwartet: alle(200) },
   "GET /admin/website.css": { erwartet: alle(200) },
@@ -474,7 +476,7 @@ const MATRIX: Record<string, Zeile> = {
     url: () => `/api/v1/admin/personen/${aktivierenZielId}/aktivieren`,
     erwartet: {
       ...alle(403),
-      admin: 204,
+      admin: 200,
       adminOhneZweitenFaktor: 403,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -1022,8 +1024,12 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/bearbeiter": {
-    // Redaktion f�r eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
-    body: () => ({ objektTyp: "seite", userId: tagPersonId }),
+    // Sonderrecht auf eine Seite f�r eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
+    body: () => ({
+      objektTyp: "seite",
+      objektId: randomUUID(),
+      userId: tagPersonId,
+    }),
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -1132,7 +1138,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Redaktion, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
+  // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
   "GET /api/v1/redaktion/seiten": {
     erwartet: {
       ...alle(403),
@@ -1145,7 +1151,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/redaktion/seiten": {
-    // Nur Abteilungsleitung (und Redaktion): Stufenleitung hat Zugang, darf aber nicht anlegen. Die Demo-Abteilung legt in ihrer eigenen an
+    // Nur Abteilungsleitung (und Webmaster): Stufenleitung hat Zugang, darf aber nicht anlegen. Die Demo-Abteilung legt in ihrer eigenen an
     body: () => ({
       titel: "Matrix",
       adresse: "matrix-neu",
@@ -1185,7 +1191,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "DELETE /api/v1/redaktion/seiten/:id": {
-    // Jede Anfrage löscht ihre Seite; löschen darf nur die Abteilungsleitung (oder Redaktion), nicht die Stufenleitung der Seite
+    // Jede Anfrage löscht ihre Seite; löschen darf nur die Abteilungsleitung (oder Webmaster), nicht die Stufenleitung der Seite
     urlJeAnfrage: async () =>
       `/api/v1/redaktion/seiten/${await wegwerfSeiteId()}`,
     erwartet: {
@@ -1197,7 +1203,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Weiterleitungen alter Adressen (#356): nur Abteilungsleitung (und Redaktion); Stufenleitung hat Zugang zum Namensraum, darf aber nicht. Die Wirkung steht in test/redaktion-weiterleitungen.test.ts
+  // Weiterleitungen alter Adressen (#356): nur Abteilungsleitung (und Webmaster); Stufenleitung hat Zugang zum Namensraum, darf aber nicht. Die Wirkung steht in test/redaktion-weiterleitungen.test.ts
   "GET /api/v1/redaktion/weiterleitungen": {
     erwartet: {
       ...alle(403),
@@ -1413,13 +1419,11 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Vorlagen der Website (#352): Zugang wie bei den Seiten, Anlegen nur Abteilungsleitung und Redaktion; die Wirkung steht in test/redaktion-vorlagen.test.ts
+  // Vorlagen der Website (#352): nur mit dem Recht Vorlagen nutzen (die Stufenleitung hat es nicht), Anlegen nur Abteilungsleitung und Webmaster; die Wirkung steht in test/redaktion-vorlagen.test.ts
   "GET /api/v1/redaktion/vorlagen": {
     erwartet: {
       ...alle(403),
       admin: 200,
-      slA: 200,
-      slB: 200,
       demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -1469,7 +1473,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Redaktionszugang (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Redaktion; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  // Zugang zur Verwaltung (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Webmaster; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
   "GET /api/v1/redaktion/ich": {
     // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
     erwartet: {
@@ -1765,7 +1769,7 @@ async function wegwerfTagId(userId?: string) {
   return zeile.id;
 }
 
-// Wegwerf-Recht der Testabteilung: Redaktion f�r den Tag-Empf�nger
+// Wegwerf-Recht der Testabteilung: Sonderrecht f�r den Tag-Empf�nger
 async function wegwerfBearbeiterId() {
   const [zeile] = await welt.db
     .insert(schema.bearbeiter)
@@ -1942,6 +1946,7 @@ const MIDDLEWARE = new Set([
   "ALL /api/*",
   "ALL /api/v1/*",
   "ALL /api/v1/admin/*",
+  "ALL /api/v1/medien/*",
   "ALL /api/v1/redaktion/*",
 ]);
 
