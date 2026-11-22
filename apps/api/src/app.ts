@@ -94,6 +94,7 @@ export function erstelleApp({
   auth,
   fcm,
   wetter,
+  jetzt,
   kodiereBild,
   kodiereLogo,
   kodiereMedienbild,
@@ -110,6 +111,8 @@ export function erstelleApp({
   fcm?: Fcm;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
   wetter?: WetterHolen;
+  // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
+  jetzt?: () => Date;
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
   kodiereBild?: BildKodierer;
   kodiereLogo?: BildKodierer;
@@ -269,7 +272,7 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
-      .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter }))
+      .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
       .route("/api/v1", erstelleTermineRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
