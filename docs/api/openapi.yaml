@@ -15468,6 +15468,83 @@ paths:
   # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/aushaenge/{art}:
+    get:
+      operationId: holeLagerAushang
+      summary: Aushang als PDF herunterladen
+      description: |
+        Erzeugt den Aushang beim Aufruf aus den Daten der Ansicht und liefert ihn als PDF zum Herunterladen (`Content-Disposition: attachment`, Dateiname nur nach der Art, zum Beispiel `schichtplan.pdf`; `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`). Die Datei wird nirgends gespeichert: nicht in der Datenbank, nicht im S3, nicht auf der Platte. Das PDF hat Titel und Sprache `de-CH` und eine getaggte Struktur in Lesereihenfolge (Überschriften, Tabellen mit Kopfzeile). Die Schrift ist die Standard-Helvetica des PDF-Formats (nicht eingebettet): Umlaute und die Zeichen Westeuropas stimmen, andere Zeichen erscheinen als «?».
+
+        Die Art bestimmt Inhalt und Recht (wie die Ansicht, aus der gedruckt wird):
+        - `schichtplan`: Dienste und Besetzung je Tag; Recht `einteilung.lesen`.
+        - `zimmerliste`: je Zimmer oder Zelt die Teilnehmenden und das Team mit Belegung; Rechte `einteilung.lesen` und `teilnehmer.lesen`. Das Team sieht wie in der Ansicht nur das eigene Zimmer.
+        - `tuerschilder`: ein Blatt je Zimmer mit Kindern, Zimmername gross, darunter die Namen der Kinder: Cevi-Name, sonst Vorname; ist der angezeigte Name im ganzen Lager nicht eindeutig, zuerst der Vorname, dann zusätzlich der Anfangsbuchstabe des Nachnamens («Anna M.»); Rechte wie `zimmerliste`.
+        - `gruppenlisten`: je Programmgruppe Leitung und Mitglieder mit Stufe; Rechte `einteilung.lesen` und `teilnehmer.lesen`.
+        - `fahrtenliste`: je Fahrt Angaben und Mitfahrende, Querformat; Rechte `einteilung.lesen` und `teilnehmer.lesen`. Das Team sieht nur die eigene Fahrt.
+        - `organigramm`: die Ressorts als eingerückter Baum mit Leitung und Stellvertretung; Recht `ressorts.lesen`.
+
+        Abgewählte Teilnehmende stehen auf keinem Aushang. Gelöschte Zeilen, deaktivierte Konten und Konten ohne Mitgliedschaft im Lager erscheinen nicht. Der Aufruf liest nur, auch in einem abgeschlossenen Lager.
+
+        Grenzen (SR-71): höchstens 2000 Tabellenzeilen, 300 Abschnitte (Zimmer, Gruppen, Fahrten, Ressorts, Tage), 100 Seiten und 10 Sekunden Erzeugungszeit; darüber 413 (`ZU_GROSS`). Je Konto höchstens 10 Aushänge in der Minute (429 `ZU_VIELE_ANFRAGEN`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht der Art (403), Rate-Limit (429), Grenzen (413).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder unbekannter Art. 401 ohne Anmeldung. 403 ohne das Recht der Art. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 413 über den Grenzen. 429 bei zu vielen Aufrufen.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: art
+          in: path
+          required: true
+          description: Die Art des Aushangs.
+          schema:
+            type: string
+            enum:
+              - schichtplan
+              - zimmerliste
+              - tuerschilder
+              - gruppenlisten
+              - fahrtenliste
+              - organigramm
+      responses:
+        "200":
+          description: Das PDF.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="<art>.pdf"`'
+              schema:
+                type: string
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "413":
+          description: Der Aushang wäre grösser als die Grenzen (code ZU_GROSS).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/admin/termine/warnungen:
     get:
