@@ -1,1 +1,521 @@
-/* Platzhalter (#353): #358 füllt diese Datei. Klassen mit dem Vorsatz «ws-editor-» */
+/* Editor einer Seite (#358). Klassen mit dem Vorsatz «ws-editor-» */
+
+.ws-editor {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 56rem;
+}
+
+.ws-editor > .feld,
+.ws-editor > .ws-editor-vorschau,
+.ws-editor > .ws-editor-bausteine,
+.ws-editor > .hinweis {
+  align-self: stretch;
+}
+
+.ws-editor-titelzeile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ws-editor-titelzeile h2 {
+  font-size: 1.5rem;
+  line-height: 1.75rem;
+  overflow-wrap: anywhere;
+}
+
+.ws-editor-status {
+  color: var(--leise);
+  font-size: 0.9375rem;
+}
+
+.ws-editor-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Speichern läuft: Der Knopf behält Platz und Text, ein Ring dreht sich davor */
+.ws-editor-laeuft::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  border: 2px solid currentcolor;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: ws-editor-dreh 0.9s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-editor-laeuft::before {
+    animation: none;
+    border-top-color: currentcolor;
+  }
+}
+
+@keyframes ws-editor-dreh {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ws-editor-fehler {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.ws-editor-fehlerliste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Sieht aus wie ein Link, springt aber zum Feld (kein Seitenwechsel) */
+.ws-editor-sprung {
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  color: inherit;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ws-editor-zwischentitel {
+  font-size: 1.125rem;
+}
+
+/* Bausteine */
+.ws-editor-bausteine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-editor-karte,
+.ws-editor-weg {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.ws-editor-weg {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  border-style: dashed;
+  border-color: var(--rand);
+}
+
+.ws-editor-kartenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ws-editor-kartentitel {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ws-editor-kartentitel h3 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1.0625rem;
+}
+
+.ws-editor-nr {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ws-editor-kurz {
+  color: var(--leise);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.ws-editor-kurz:empty {
+  display: none;
+}
+
+.ws-editor-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Pfeile ohne Text: Rand in Randfarbe, damit sie als Knöpfe erkennbar sind (3:1) */
+.ws-editor-pfeil {
+  border-color: var(--rand);
+}
+
+.ws-editor-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ws-editor-form[hidden] {
+  display: none;
+}
+
+.ws-editor-unten {
+  display: flex;
+}
+
+.ws-editor-sicht {
+  margin: 0;
+}
+
+/* Die Regel «Auswahl je Stufe» (Beschriftung links) gilt hier nicht: Beschriftung über dem Feld */
+.ws-editor-sicht .feld {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ws-editor-sicht .feld > label {
+  font-weight: 700;
+}
+
+/* Auswahlfelder: wie die Textfelder */
+.ws-editor-select {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 12px;
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--rand);
+  border-radius: 12px;
+  font: inherit;
+}
+
+.ws-editor-select:focus-visible {
+  border-color: var(--fokus);
+  outline-offset: 0;
+}
+
+.ws-editor-select[aria-invalid="true"] {
+  border-color: var(--fe);
+}
+
+.feld-titel {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* Bild */
+.ws-editor-bild {
+  align-items: flex-start;
+}
+
+.ws-editor-bildzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-editor-vorschaubild {
+  width: 96px;
+  height: 72px;
+  object-fit: cover;
+  background: var(--surface);
+  border: 1px solid var(--rand-leise);
+  border-radius: 8px;
+}
+
+/* Listen von Teilen (Galerie, Karten) */
+.ws-editor-liste {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ws-editor-teile {
+  display: flex;
+  align-self: stretch;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-editor-teil {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 16px;
+  background: var(--surface);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ws-editor-teil .feld textarea {
+  min-height: 6rem;
+}
+
+/* Eine leere Liste (keine Sichtbarkeitsmarke) soll kein Screenreader ansagen */
+.ws-editor .chips:empty {
+  display: none;
+}
+
+.ws-editor-teil h4 {
+  font-size: 0.9375rem;
+}
+
+.ws-editor-teilaktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ws-editor-person {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Vorschau */
+.ws-editor-vorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.ws-editor-vorschaukopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-editor-vorschaukopf h3 {
+  margin-right: auto;
+  font-size: 1.125rem;
+}
+
+.ws-editor-breite {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ws-editor-huelle {
+  display: flex;
+  justify-content: center;
+  padding: 8px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-editor-rahmen {
+  width: 100%;
+  height: 70vh;
+  min-height: 24rem;
+  background: #ffffff;
+  border: 0;
+  border-radius: 8px;
+}
+
+.ws-editor-huelle--mobil .ws-editor-rahmen {
+  width: 375px;
+  max-width: 100%;
+}
+
+/* Dialoge */
+.ws-editor-dialog {
+  width: min(48rem, calc(100vw - 32px));
+}
+
+.ws-editor-fassungen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 16px;
+}
+
+.ws-editor-fassung {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-editor-fassung h3 {
+  font-size: 1rem;
+}
+
+.ws-editor-fassung ol {
+  margin: 0;
+  padding-left: 20px;
+  overflow-wrap: anywhere;
+}
+
+.ws-editor-entscheidung {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.ws-editor-wahl {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.ws-editor-katalog,
+.ws-editor-medien,
+.ws-editor-versionen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-editor-katalog {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-editor-baustein {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: 10px 16px;
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--rand);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-editor-baustein:hover,
+.ws-editor-medium:hover {
+  background: var(--blau-f);
+}
+
+.ws-editor-baustein-name {
+  font-weight: 700;
+}
+
+.ws-editor-medien {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 12px;
+}
+
+.ws-editor-medium {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 2px solid var(--rand);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.ws-editor-medium img {
+  width: 100%;
+  height: 6rem;
+  object-fit: cover;
+  background: var(--karte);
+  border-radius: 8px;
+}
+
+.ws-editor-versionen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-editor-versionen li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-editor-fakten {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.ws-editor-fakten dt {
+  color: var(--leise);
+}
+
+.ws-editor-fakten dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .ws-editor-fakten {
+    grid-template-columns: 1fr;
+  }
+}
