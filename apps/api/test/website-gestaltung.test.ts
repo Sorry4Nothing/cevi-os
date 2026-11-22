@@ -72,10 +72,11 @@ describe("Abschnitte über die ganze Breite", () => {
 
   test("der Ton wechselt, wo die Art wechselt: Bildkarten heben sich ab, nach einem Band beginnt die Fläche neu", () => {
     const termine = b("terminliste", { anzahl: 3 });
-    const stufen = b("karten", {
-      darstellung: "stufen",
-      eintraege: [{ titel: "A" }],
-    });
+    const stufen = () =>
+      b("karten", {
+        darstellung: "stufen",
+        eintraege: [{ titel: "A" }],
+      });
     const html = seite(
       dok(
         "T",
@@ -83,13 +84,13 @@ describe("Abschnitte über die ganze Breite", () => {
         h2("Merkmale"),
         b("karten", { darstellung: "merkmale", eintraege: [{ titel: "A" }] }),
         h2("Gruppen"),
-        stufen,
+        stufen(),
         b("aufruf", { titel: "Los", beschriftung: "Los", ziel: "/los" }),
         termine,
         h2("Text"),
         absatz("x"),
         h2("Noch mehr Gruppen"),
-        stufen,
+        stufen(),
       ),
       { ...keineDaten(), termine: new Map([[termine.id, []]]) },
     );
@@ -396,7 +397,9 @@ describe("Umschalter Hell und Dunkel (theme.js)", () => {
       document: {
         documentElement: wurzel,
         addEventListener: (_: string, f: () => void) => (bereit = f),
-        querySelector: () => gruppe,
+        // Das Skript sucht alle Gruppen und alle Knöpfe im Dokument (Band und Menü, #558)
+        querySelectorAll: (auswahl: string) =>
+          auswahl.includes("button") ? knoepfe : [gruppe],
       },
       window: {
         localStorage: {

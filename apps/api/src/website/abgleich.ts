@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { and, eq, inArray, isNotNull, isNull, sql as roh } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
 import {
@@ -125,7 +126,9 @@ const sichtbarePerson = and(
   isNotNull(user.ceviName),
 );
 
-// Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke)
+// Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke).
+// Die Fassung für den dunklen Modus (#558) kommt in derselben Abfrage mit; für sie gelten dieselben Bedingungen, sonst fehlt sie
+const logoDunkel = alias(medium, "logo_dunkel");
 export async function ladeLogo(
   db: Pick<Db, "select">,
   abteilungId: string,
@@ -136,9 +139,21 @@ export async function ladeLogo(
       altText: medium.altText,
       breite: medium.breite,
       hoehe: medium.hoehe,
+      dunkelId: logoDunkel.id,
+      dunkelBreite: logoDunkel.breite,
+      dunkelHoehe: logoDunkel.hoehe,
     })
     .from(abteilung)
     .innerJoin(medium, eq(medium.id, abteilung.websiteLogoMediumId))
+    .leftJoin(
+      logoDunkel,
+      and(
+        eq(logoDunkel.id, abteilung.websiteLogoDunkelMediumId),
+        eq(logoDunkel.abteilungId, abteilungId),
+        eq(logoDunkel.sichtbarkeit, "oeffentlich"),
+        roh`${logoDunkel.mimeTyp} like 'image/%'`,
+      ),
+    )
     .where(
       and(
         eq(abteilung.id, abteilungId),
@@ -147,7 +162,14 @@ export async function ladeLogo(
         roh`${medium.mimeTyp} like 'image/%'`,
       ),
     );
-  return z;
+  if (!z) return undefined;
+  const { dunkelId, dunkelBreite, dunkelHoehe, ...logo } = z;
+  return {
+    ...logo,
+    ...(dunkelId && {
+      dunkel: { id: dunkelId, breite: dunkelBreite, hoehe: dunkelHoehe },
+    }),
+  };
 }
 
 // nurOeffentlich: false beim Nachladen für eine angemeldete Person (#354): Dann gehören auch Medien dazu, die nur für Angemeldete sichtbar sind (Entscheid A8)

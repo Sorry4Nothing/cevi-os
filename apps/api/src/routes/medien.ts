@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -322,7 +322,10 @@ export function erstelleMedienHandler({
           .where(
             and(
               eq(abteilung.id, person.abteilungId),
-              eq(abteilung.websiteLogoMediumId, id),
+              or(
+                eq(abteilung.websiteLogoMediumId, id),
+                eq(abteilung.websiteLogoDunkelMediumId, id),
+              ),
             ),
           );
         const seiten =

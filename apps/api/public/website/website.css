@@ -351,407 +351,6 @@ html {
   scroll-padding-top: 8rem;
 }
 
-.kopf {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  border-bottom: 1px solid var(--outline-variant);
-  background: var(--surface-container-low);
-}
-
-.kopf-in {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: clamp(1rem, 2.2vw, 2.75rem);
-  min-height: 4.5rem;
-}
-
-.marke {
-  display: inline-flex;
-  flex: none;
-  align-items: baseline;
-  padding: 0.5rem 0;
-  gap: 0.625rem;
-  color: var(--on-surface);
-  text-decoration: none;
-}
-
-.marke b {
-  font-size: 1.875rem;
-  line-height: 1.875rem;
-  font-weight: 900;
-  letter-spacing: 0.02em;
-}
-
-.marke span {
-  color: var(--primary-text);
-  font-size: 1.1875rem;
-  font-weight: 700;
-}
-
-.kopf-rechts {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  margin-left: auto;
-}
-
-/* Navigation: ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links */
-.hauptnav > ul {
-  display: flex;
-  flex-wrap: nowrap;
-  margin-left: -0.75rem;
-}
-
-.hauptnav a,
-.hauptnav summary {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4375rem;
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  color: var(--on-surface);
-  font-size: 1rem;
-  line-height: 1.25rem;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.hauptnav > ul > li > a,
-.hauptnav summary {
-  min-height: 4.5rem;
-}
-
-.hauptnav > ul > li > a::before,
-.hauptnav summary::before {
-  position: absolute;
-  right: 0.75rem;
-  bottom: -1px;
-  left: 0.75rem;
-  height: 3px;
-  background: var(--primary);
-  content: "";
-  transform: scaleX(0);
-  transform-origin: left;
-}
-
-.hauptnav > ul > li > a:hover::before,
-.hauptnav > ul > li:focus-within > a::before,
-.hauptnav > ul > li > a[aria-current]::before,
-.hauptnav summary:hover::before,
-.hauptnav details[open] > summary::before,
-.hauptnav .weitere.hier summary::before {
-  transform: scaleX(1);
-}
-
-.hauptnav > ul > li > a[aria-current],
-.hauptnav .weitere.hier summary {
-  color: var(--titel);
-  font-weight: 800;
-}
-
-.hauptnav .mit-unter {
-  position: relative;
-}
-
-/* Ein kleines gefülltes Dreieck zeigt Unterseiten an; es dreht sich, wenn das Untermenü offen ist */
-.hauptnav .mit-unter > a::after,
-.hauptnav summary::after {
-  width: 0.5rem;
-  height: 0.3125rem;
-  background: currentcolor;
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  content: "";
-}
-
-.hauptnav .mit-unter:hover > a::after,
-.hauptnav .mit-unter:focus-within > a::after,
-.hauptnav details[open] > summary::after {
-  transform: rotate(180deg);
-}
-
-.hauptnav summary {
-  cursor: pointer;
-  list-style: none;
-}
-
-.hauptnav summary::-webkit-details-marker {
-  display: none;
-}
-
-/* Untermenü: eine Tafel unter dem Punkt; ohne Skript öffnet sie sich bei Hover und Fokus */
-.hauptnav .unter {
-  position: absolute;
-  top: 100%;
-  left: -0.25rem;
-  z-index: 6;
-  display: none;
-  flex-direction: column;
-  min-width: 16rem;
-  padding: 0.5rem;
-  border: 1px solid var(--outline-variant);
-  border-top: 0;
-  border-radius: 0 0 var(--r-md) var(--r-md);
-  background: var(--surface-container-low);
-  box-shadow: var(--schatten);
-}
-
-.hauptnav .weitere .unter {
-  right: -0.25rem;
-  left: auto;
-}
-
-.hauptnav .mit-unter:hover > .unter,
-.hauptnav .mit-unter:focus-within > .unter,
-.hauptnav .weitere details[open] > .unter {
-  display: flex;
-}
-
-/* Esc schliesst das Untermenü, auch wenn die Maus noch darüber steht (menue.js) */
-.hauptnav .mit-unter[data-zu] > .unter {
-  display: none;
-}
-
-.hauptnav .unter a {
-  padding: 0 0.875rem;
-  border-radius: var(--r-sm);
-  font-weight: 500;
-}
-
-.hauptnav .unter a:hover {
-  background: var(--surface-container);
-}
-
-.hauptnav .unter a[aria-current] {
-  font-weight: 800;
-  box-shadow: inset 3px 0 0 var(--primary);
-}
-
-.hauptnav .unter ul {
-  display: flex;
-  flex-direction: column;
-  padding-left: 1rem;
-}
-
-/* «Anmelden»: ein Knopf mit Rand, nie so laut wie die Hauptaktion der Seite */
-.anmelden {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 1.125rem 0 0.875rem;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-  color: var(--on-surface);
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.anmelden:hover {
-  border-color: var(--secondary);
-  background: var(--secondary);
-  color: var(--on-secondary);
-}
-
-.anmelden .i,
-.anmelden-mobil .i {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-
-/* Unterleiste: die Unterseiten des gewählten Bereichs, eine leise Zeile unter dem Band; sie scrollt mit dem Inhalt weg */
-.unterleiste {
-  border-bottom: 1px solid var(--outline-variant);
-  background: var(--surface);
-}
-
-.unterleiste ul {
-  display: flex;
-  flex-wrap: wrap;
-  margin-left: -0.75rem;
-}
-
-.unterleiste a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  color: var(--on-surface);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-decoration: none;
-}
-
-.unterleiste a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-}
-
-.unterleiste a[aria-current] {
-  color: var(--titel);
-  font-weight: 800;
-  box-shadow: inset 0 -3px 0 var(--primary);
-}
-
-/* Menü am Handy: ein details-Element, es braucht kein Skript. Die Tafel hängt unter dem Band und rollt selbst, wenn sie höher ist als das Fenster */
-.menue-mobil {
-  display: none;
-}
-
-.menue-mobil summary {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 1rem 0 0.75rem;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-  color: var(--on-surface);
-  font-size: 1rem;
-  font-weight: 600;
-  white-space: nowrap;
-  cursor: pointer;
-  list-style: none;
-}
-
-.menue-mobil summary::-webkit-details-marker {
-  display: none;
-}
-
-.menue-mobil .zu {
-  display: none;
-}
-
-.menue-mobil[open] .auf {
-  display: none;
-}
-
-.menue-mobil[open] .zu {
-  display: inline;
-}
-
-.menue-mobil[open] summary {
-  border-color: var(--secondary);
-  background: var(--secondary);
-  color: var(--on-secondary);
-}
-
-.menue-mobil nav {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  left: 0;
-  z-index: 4;
-  max-height: calc(100vh - 4.5rem);
-  max-height: calc(100dvh - 4.5rem);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  padding: 0.5rem var(--rand) 1.5rem;
-  border-bottom: 1px solid var(--outline-variant);
-  background: var(--surface-container-low);
-  color: var(--on-surface);
-  box-shadow: var(--schatten);
-}
-
-.menue-mobil nav ul {
-  display: flex;
-  flex-direction: column;
-}
-
-.menue-mobil nav a {
-  display: flex;
-  align-items: center;
-  min-height: 3.5rem;
-  border-bottom: 1px solid var(--outline-variant);
-  color: var(--on-surface);
-  font-size: 1.375rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  text-decoration: none;
-}
-
-.menue-mobil nav ul ul a {
-  min-height: 2.75rem;
-  padding-left: 1.25rem;
-  border-bottom: 0;
-  font-size: 1.0625rem;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.menue-mobil nav ul ul {
-  padding-block: 0.25rem 0.5rem;
-  border-bottom: 1px solid var(--outline-variant);
-}
-
-.menue-mobil nav a[aria-current] {
-  color: var(--titel);
-  box-shadow: inset 0 -3px 0 var(--primary);
-}
-
-.menue-mobil nav ul ul a[aria-current] {
-  font-weight: 800;
-  box-shadow: inset 3px 0 0 var(--primary);
-}
-
-.menue-mobil .anmelden-mobil {
-  gap: 0.625rem;
-  border-bottom: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-}
-
-@media (max-width: 95.99em) and (min-width: 60em) {
-  /* Zweite Zeile im selben Band */
-  .kopf-in {
-    min-height: 4rem;
-  }
-
-  .hauptnav {
-    flex: 1 0 100%;
-    order: 3;
-    border-top: 1px solid var(--outline-variant);
-  }
-
-  .hauptnav > ul > li > a,
-  .hauptnav summary {
-    min-height: 3rem;
-  }
-}
-
-@media (max-width: 59.99em) {
-  .kopf-in {
-    min-height: 4rem;
-    column-gap: 0.5rem;
-  }
-
-  .hauptnav,
-  .anmelden,
-  .unterleiste {
-    display: none;
-  }
-
-  .menue-mobil {
-    display: block;
-  }
-
-  .kopf-rechts {
-    gap: 0.5rem;
-  }
-}
-
-@media print {
-  .kopf {
-    position: static;
-  }
-}
-
 .fuss {
   padding: clamp(2.5rem, 5vw, 4rem) 0 2rem;
   background: var(--secondary);
@@ -1555,19 +1154,6 @@ a.termin:hover {
     line-height: 1.625rem;
   }
 
-  .marke {
-    gap: 0.375rem;
-  }
-
-  .marke b {
-    font-size: 1.5rem;
-    line-height: 1.5rem;
-  }
-
-  .marke span {
-    font-size: 1rem;
-  }
-
   .seitenkopf {
     padding: 2rem 0 1.5rem;
   }
@@ -1645,90 +1231,9 @@ a.termin:hover {
     border: 1px solid CanvasText;
   }
 
-  .leiste a[aria-current],
-  .unterleiste a[aria-current] {
-    text-decoration: underline;
-  }
-
   .pw button[aria-pressed="true"] {
     border: 2px solid CanvasText;
   }
-}
-
-/* ===== Logo, Umschalter Hell und Dunkel, Karussell (#550, Gestaltung #555) ===== */
-/* Das Logo steht ohne Hintergrund im Kopf. Mit zwei Fassungen zeigt der Stil je nach Darstellung eine; gibt es nur eine, steht sie in der Nacht auf einem hellen Feld (--logo-grund) */
-.marke--logo {
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.logo {
-  width: auto;
-  height: 2.75rem;
-}
-
-.marke--logo:not(.marke--zwei) .logo {
-  border-radius: 0.375rem;
-  background: var(--logo-grund);
-}
-
-.logo--dunkel {
-  display: none;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .logo--hell {
-    display: none;
-  }
-
-  :root:not([data-theme="light"]) .logo--dunkel {
-    display: block;
-  }
-}
-
-:root[data-theme="dark"] .logo--hell {
-  display: none;
-}
-
-:root[data-theme="dark"] .logo--dunkel {
-  display: block;
-}
-
-/* Der Umschalter: zwei runde Knöpfe nur mit Symbol (Hell, Dunkel); ohne Skript bleibt er verborgen (hidden) */
-.thema {
-  display: flex;
-  padding: 0.125rem;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-}
-
-.thema button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r-full);
-  background: transparent;
-  color: var(--on-surface);
-  cursor: pointer;
-}
-
-.thema button:hover {
-  background: var(--surface-container-high);
-}
-
-/* Gewählt: gefüllt und mit innerem Ring; Fläche und Ring sind ein Formunterschied, nicht nur eine andere Farbe */
-.thema button[aria-pressed="true"] {
-  background: var(--secondary);
-  box-shadow: inset 0 0 0 2px var(--on-secondary);
-  color: var(--on-secondary);
-}
-
-.thema button:focus-visible {
-  outline-offset: 3px;
 }
 
 /* Karussell: eine Bühne für ein Bild, darunter eine Zeile aus Knöpfen, einem Balken je Bild und dem Zähler */
@@ -1903,14 +1408,6 @@ a.termin:hover {
 }
 
 @media (max-width: 47.5em) {
-  .logo {
-    height: 2.25rem;
-  }
-
-  .marke--logo {
-    gap: 0.5rem;
-  }
-
   .karussell--aktiv .folie img {
     aspect-ratio: 4 / 3;
   }
@@ -1987,22 +1484,12 @@ div.termin {
 }
 
 @media (forced-colors: active) {
-  .thema button[aria-pressed="true"] {
-    border: 2px solid CanvasText;
-  }
-
   .punkt .balken {
     background: CanvasText;
   }
 
-  .hauptnav .unter,
-  .menue-mobil nav,
   .steuerung button {
     border: 1px solid CanvasText;
-  }
-
-  .thema button {
-    border: 1px solid ButtonText;
   }
 }
 
@@ -3111,10 +2598,10 @@ a.btn.w {
     animation: auf var(--dauer-lang) var(--kurve) 0.2s both;
   }
 
-  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen */
+  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen.
+     Nur kurze Stücke (Titel, Karten, Zeilen): Ein langer Text bliebe sonst beim Lesen halb durchsichtig */
   @supports (animation-timeline: view()) {
     .sektion-kopf,
-    .sektion-rumpf > :not(ul),
     .stufenkarten > li,
     .merkmale > li,
     .karten > li,
@@ -3150,11 +2637,7 @@ a.btn.w {
 
   /* Knöpfe und Flächen antworten auf Zeigen und Drücken */
   .btn,
-  .anmelden,
-  .thema button,
-  .menue-mobil summary,
   .steuerung button,
-  .hauptnav .unter a,
   .karten > li {
     transition:
       background-color var(--dauer) var(--kurve),
@@ -3165,7 +2648,6 @@ a.btn.w {
   }
 
   .btn:active,
-  .anmelden:active,
   .steuerung button:active {
     scale: 0.96;
   }
@@ -3194,19 +2676,6 @@ a.btn.w {
   .btn:hover .i,
   .hinweis-link:hover .i {
     translate: 0.3125rem 0;
-  }
-
-  /* Navigation: der Strich wächst, das Dreieck dreht, die Tafel klappt auf */
-  .hauptnav > ul > li > a::before,
-  .hauptnav summary::before,
-  .hauptnav .mit-unter > a::after,
-  .hauptnav summary::after {
-    transition: transform var(--dauer) var(--kurve);
-  }
-
-  .hauptnav .unter,
-  .menue-mobil[open] nav {
-    animation: klapp var(--dauer) var(--kurve);
   }
 
   /* Karussell: das neue Bild schiebt sich aus der Richtung des Wechsels herein, das alte blendet aus; der Balken läuft mit der Zeit */
@@ -3253,12 +2722,6 @@ a.btn.w {
       to {
         box-shadow: var(--schatten);
       }
-    }
-
-    .kopf {
-      animation: kopf-schatten linear both;
-      animation-timeline: scroll(root);
-      animation-range: 0 6rem;
     }
   }
 }
