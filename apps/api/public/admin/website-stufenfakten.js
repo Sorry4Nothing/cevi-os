@@ -1,4 +1,5 @@
 import { anfrage } from "./api.js";
+import { zustandsKarte } from "./zustaende.js";
 import {
   aktionenZelle,
   auswahl,
@@ -46,7 +47,12 @@ export function zeige(bereich, ctx) {
 
 function zeichne(bereich, ctx, daten, neu) {
   if (!daten.gewaehlt) {
-    bereich.append(el("p", { class: "leer" }, "Es gibt noch keine Stufe."));
+    bereich.append(
+      zustandsKarte({
+        titel: "Es gibt noch keine Stufe.",
+        text: "Lege zuerst eine Stufe an, dann pflegst du hier ihre Angaben.",
+      }).wurzel,
+    );
     return;
   }
   const { gewaehlt, stufen, eckdaten } = daten;
@@ -58,26 +64,27 @@ function zeichne(bereich, ctx, daten, neu) {
   stufenwahl.eingabe.addEventListener("change", () => {
     location.hash = `#website/stufenfakten/${stufenwahl.eingabe.value}`;
   });
+  ctx.kopfAktion(
+    knopf("Neues Datum", {
+      art: "haupt",
+      symbol: "plus",
+      onclick: () => formular({ stufe: gewaehlt, ctx, neu }),
+    }),
+  );
   bereich.append(
-    el("h2", { class: "ws-stufenfakten-titel" }, "Stufenfelder"),
     el(
       "p",
       { class: "hilfe" },
       "Diese Angaben zeigt die Stufenseite für das nächste Datum. Sie wirken sofort, ohne Veröffentlichen.",
     ),
     el("div", { class: "ws-stufenfakten-kopf" }, stufenwahl.wurzel),
-    knopf("Neues Datum", {
-      art: "haupt",
-      onclick: () => formular({ stufe: gewaehlt, ctx, neu }),
-    }),
   );
   if (eckdaten.length === 0) {
     bereich.append(
-      el(
-        "p",
-        { class: "leer" },
-        "Für diese Stufe sind keine kommenden Daten eingetragen.",
-      ),
+      zustandsKarte({
+        titel: "Keine kommenden Daten.",
+        text: "Für diese Stufe sind keine kommenden Daten eingetragen. Lege mit «Neues Datum» das erste an.",
+      }).wurzel,
     );
     return;
   }

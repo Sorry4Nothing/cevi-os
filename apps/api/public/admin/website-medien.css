@@ -1,122 +1,260 @@
-/* Medienbibliothek (#359). Klassen mit dem Vorsatz «ws-medien-». Farben nur aus den Tokens der Verwaltung (admin.css). */
+/* Medienbibliothek (E7) und Hochladen (E8). Klassen mit dem Vorsatz «ws-». Farben nur aus den Tokens der Verwaltung (admin.css). */
 
-.ws-medien-raster {
+.medien {
   display: grid;
-  /* Auf schmalen Bildschirmen eine Spalte, sonst so viele, wie hineinpassen */
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
-  margin: 16px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.ws-medien-karte {
+.medium {
+  position: relative;
   display: flex;
   flex-direction: column;
+  gap: 8px;
   min-width: 0;
-  overflow: hidden;
+  padding: 12px;
   background: var(--karte);
   border: 1px solid var(--rand-leise);
   border-radius: 16px;
 }
 
+.medium.gewaehlt {
+  padding: 11px;
+  border: 2px solid var(--akzent);
+}
+
 /* Nur der Fokus nach einem Hochladen oder Löschen landet auf der Karte selbst */
-.ws-medien-karte:focus {
+.medium:focus {
   outline: 3px solid var(--fokus);
   outline-offset: 2px;
 }
 
-/* Festes Seitenverhältnis: Das Raster springt nicht, wenn die Bilder nachladen; das Bild füllt die Fläche und liegt darin ganz sichtbar */
-.ws-medien-bild {
-  position: relative;
+/* Festes Seitenverhältnis: Das Raster springt nicht, wenn die Bilder nachladen */
+.medium .bild {
   display: flex;
   align-items: center;
   justify-content: center;
   aspect-ratio: 4 / 3;
-  background: var(--surface);
-  border-bottom: 1px solid var(--rand-leise);
+  overflow: hidden;
+  color: var(--leise);
+  background: var(--erhoben);
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
 }
 
-.ws-medien-bild img {
-  position: absolute;
-  inset: 0;
+.medium .bild img {
   display: block;
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.ws-medien-ohne {
+.medium .wahl {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  min-height: 0;
+}
+
+.ws-medienname {
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.ws-ohne {
   padding: 8px;
-  color: var(--leise);
-  font-size: 0.875rem;
-  font-weight: 700;
   text-align: center;
 }
 
-.ws-medien-text {
+.ws-medienfuss {
   display: flex;
-  flex: 1;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-  padding: 16px;
+  justify-content: center;
+  padding: 16px 0;
 }
 
-.ws-medien-titel {
-  font-weight: 700;
-  overflow-wrap: anywhere;
+.ws-medienfuss [hidden] {
+  display: none;
 }
 
-.ws-medien-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-
-.ws-medien-meldung {
+.auswahlleiste {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  margin-top: 16px;
+  padding: 8px 8px 8px 16px;
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+  border-radius: 16px;
+  font-weight: 700;
 }
 
-.ws-medien-meldung:empty {
+.ws-auswahlzahl {
+  flex: 1;
+}
+
+/* Hochladen: Ablegefläche, gewählte Datei, Fortschritt */
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 24px;
+  text-align: center;
+  border: 2px dashed var(--rand);
+  border-radius: 16px;
+}
+
+.dropzone.ueberflaeche {
+  background: var(--blau-f);
+  border-color: var(--akzent);
+}
+
+.dropzone[hidden] {
   display: none;
 }
 
-.ws-medien-fuss {
-  display: flex;
-  justify-content: center;
-  margin-top: 16px;
+.medium.ws-gewaehlt {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  background: var(--leiste);
 }
 
-.ws-medien-vorschau canvas {
+.medium.ws-gewaehlt .bild {
+  flex: none;
+  width: 120px;
+  min-height: 90px;
+  aspect-ratio: auto;
+  background: var(--surface);
+}
+
+.ws-leinwand {
   display: block;
   max-width: 100%;
   height: auto;
-  max-height: 14rem;
-  object-fit: contain;
-  background: var(--surface);
-  border: 1px solid var(--rand-leise);
-  border-radius: 12px;
 }
 
-/* Der Alt-Text braucht Platz zum Schreiben, aber keine zwölf Zeilen wie die Standard-Textfläche */
-.ws-medien-alt textarea {
-  min-height: 7rem;
-}
-
-.ws-medien-fortschritt {
+.ws-fortschritt-feld {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 8px;
 }
 
-.ws-medien-fortschritt progress {
+.ws-fortschritt-feld .fortschritt {
   width: 100%;
-  height: 12px;
-  accent-color: var(--akzent);
+}
+
+.ws-sichtbarkeitwahl {
+  min-width: 0;
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .medien {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .medien {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .medium.ws-gewaehlt {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Breite des Fortschrittsbalkens in Stufen zu 5 %: Die CSP verbietet style-Attribute */
+.ws-p0 {
+  width: 0%;
+}
+
+.ws-p5 {
+  width: 5%;
+}
+
+.ws-p10 {
+  width: 10%;
+}
+
+.ws-p15 {
+  width: 15%;
+}
+
+.ws-p20 {
+  width: 20%;
+}
+
+.ws-p25 {
+  width: 25%;
+}
+
+.ws-p30 {
+  width: 30%;
+}
+
+.ws-p35 {
+  width: 35%;
+}
+
+.ws-p40 {
+  width: 40%;
+}
+
+.ws-p45 {
+  width: 45%;
+}
+
+.ws-p50 {
+  width: 50%;
+}
+
+.ws-p55 {
+  width: 55%;
+}
+
+.ws-p60 {
+  width: 60%;
+}
+
+.ws-p65 {
+  width: 65%;
+}
+
+.ws-p70 {
+  width: 70%;
+}
+
+.ws-p75 {
+  width: 75%;
+}
+
+.ws-p80 {
+  width: 80%;
+}
+
+.ws-p85 {
+  width: 85%;
+}
+
+.ws-p90 {
+  width: 90%;
+}
+
+.ws-p95 {
+  width: 95%;
+}
+
+.ws-p100 {
+  width: 100%;
 }

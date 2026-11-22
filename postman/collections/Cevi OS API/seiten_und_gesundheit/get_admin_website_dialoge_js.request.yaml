@@ -1,8 +1,8 @@
 $kind: http-request
-name: "GET /admin/website.js"
-order: 25000
+name: "GET /admin/website-dialoge.js"
+order: 36000
 method: GET
-url: "{{baseUrl}}/admin/website.js"
+url: "{{baseUrl}}/admin/website-dialoge.js"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

@@ -612,10 +612,100 @@ paths:
             text/javascript:
               schema:
                 type: string
-  /admin/website.js:
+  /admin/website-baum.js:
     get:
-      operationId: getAdminWebsiteSkript
-      summary: Skript der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      operationId: getAdminWebsiteBaumSkript
+      summary: Skript der Verwaltung – Bereich Website, Seitenbaum
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-bausteine.js:
+    get:
+      operationId: getAdminWebsiteBausteineSkript
+      summary: Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-dialoge.js:
+    get:
+      operationId: getAdminWebsiteDialogeSkript
+      summary: Skript der Verwaltung – Bereich Website, Fenster und Hinweise
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-felder.js:
+    get:
+      operationId: getAdminWebsiteFelderSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-sichtbarkeit.js:
+    get:
+      operationId: getAdminWebsiteSichtbarkeitSkript
+      summary: Skript der Verwaltung – Bereich Website, Sichtbarkeit
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-symbole.js:
+    get:
+      operationId: getAdminWebsiteSymboleSkript
+      summary: Skript der Verwaltung – Bereich Website, Symbole
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-veroeffentlichen.js:
+    get:
+      operationId: getAdminWebsiteVeroeffentlichenSkript
+      summary: Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen
       tags:
         - Allgemein
       security: []
@@ -630,7 +720,7 @@ paths:
   /admin/website.css:
     get:
       operationId: getAdminWebsiteStilvorlage
-      summary: Stilvorlage der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      summary: Stilvorlage der Verwaltung – Bereich Website (gemeinsame Bausteine)
       tags:
         - Allgemein
       security: []
