@@ -3349,7 +3349,7 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name).
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
       tags:
@@ -3541,6 +3541,109 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/AdminTagId"
         - $ref: "#/components/parameters/AdminTagPersonId"
+      responses:
+        "204":
+          description: Entzogen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/bearbeiter:
+    get:
+      operationId: listeAdminBearbeiter
+      summary: Bearbeitungsrechte der Abteilung
+      description: |
+        Nur Admins. Liefert alle Sonderrechte der eigenen Abteilung. Ein Recht gilt für eine Person (`userId`) oder einen Tag (`tagId`), genau eines von beiden. Ohne `objektId` gilt es für alle Objekte des Typs: Mit dem Typ `seite` ist das die Rolle «Redaktion».
+
+        Wer bearbeiten darf, prüft der Server bei jeder Anfrage: Die Abteilungsleitung darf alles, die Stufenleitung die Objekte ihrer Stufe, alle anderen nur mit einem Recht aus dieser Liste (auf die Person oder auf einen Tag, den sie trägt). Ein Tag verleiht für sich nichts.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Rechte der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminBearbeiterListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: setzeAdminBearbeiter
+      summary: Bearbeitungsrecht vergeben
+      description: |
+        Nur Admins. Vergibt ein Recht an eine Person oder einen Tag der eigenen Abteilung. Ohne `objektId` (oder mit `null`) gilt es für alle Objekte des Typs: `objektTyp: seite` ohne `objektId` macht die Person zur Redaktion für alle Seiten. Ein Recht gibt es höchstens einmal. Das Vergeben steht im Audit-Log (Typ, Objekt, Person oder Tag; nie Inhalte).
+
+        Reihenfolge der Prüfungen: Body (400), Admin-Recht (403), Person oder Tag in der eigenen Abteilung (404).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannter Typ, weder oder beide von `userId` und `tagId`, unbekannte Felder). 403 für Nicht-Admins. 404, wenn Person oder Tag unbekannt sind oder zu einer anderen Abteilung gehören. 409 mit Code `BEARBEITER_VORHANDEN`, wenn das Recht schon vergeben ist.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminBearbeiterSetzen"
+      responses:
+        "201":
+          description: Recht vergeben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Recht ist schon vergeben (`BEARBEITER_VORHANDEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/bearbeiter/{id}:
+    delete:
+      operationId: entzieheAdminBearbeiter
+      summary: Bearbeitungsrecht entziehen
+      description: |
+        Nur Admins, nur Rechte der eigenen Abteilung. Der Entzug wirkt sofort und steht im Audit-Log.
+
+        Reihenfolge der Prüfungen: Pfad (400), Recht in der eigenen Abteilung (404), dann Admin-Recht (403).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Recht unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminBearbeiterId"
       responses:
         "204":
           description: Entzogen.
@@ -4864,6 +4967,7 @@ components:
             - KEIN_ZWEITER_FAKTOR
             - STUFENNAME_VERGEBEN
             - STUFE_BELEGT
+            - BEARBEITER_VORHANDEN
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -5436,6 +5540,68 @@ components:
                 - integer
                 - "null"
               description: Zahl der Personen, die den Tag tragen; `null`, wenn die Zuordnung gleichzeitig entstand.
+    AdminBearbeiterSetzen:
+      type: object
+      required:
+        - objektTyp
+      additionalProperties: false
+      description: Genau eines von `userId` und `tagId`.
+      properties:
+        objektTyp:
+          $ref: "#/components/schemas/AdminBearbeiterObjektTyp"
+        objektId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Das Objekt. Fehlt es oder ist es `null`, gilt das Recht für alle Objekte des Typs («Redaktion»).
+        userId:
+          type: string
+          format: uuid
+        tagId:
+          type: string
+          format: uuid
+    AdminBearbeiterObjektTyp:
+      type: string
+      enum:
+        - seite
+    AdminBearbeiterListe:
+      type: object
+      required:
+        - bearbeiter
+      properties:
+        bearbeiter:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - objektTyp
+              - objektId
+              - userId
+              - tagId
+            properties:
+              id:
+                type: string
+                format: uuid
+              objektTyp:
+                $ref: "#/components/schemas/AdminBearbeiterObjektTyp"
+              objektId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+                description: "`null` heisst: alle Objekte des Typs."
+              userId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+              tagId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
     AdminAngelegt:
       type: object
       required:
@@ -6220,6 +6386,14 @@ components:
       in: path
       required: true
       description: ID der Erinnerungsregel (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminBearbeiterId:
+      name: id
+      in: path
+      required: true
+      description: ID des Rechts (UUID).
       schema:
         type: string
         format: uuid

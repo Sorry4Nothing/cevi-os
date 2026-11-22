@@ -50,7 +50,7 @@ export const KATEGORIEN = {
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu. Bearbeitungsrechte legen fest, wer Inhalte ändern darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -262,6 +262,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   rate_limit: { technik: ["id", "key", "count", "last_request"] },
+  // Seit Migration 0035 (#332) sind «rolle» und «stufe» Sichten auf person_tag und tag; die Daten stehen dort, die Einträge bleiben für die Spalten, die die Sichten den Routen zeigen
   rolle: {
     rollen: ["user_id", "stufe_id", "typ", "prioritaet", "erstellt_am"],
   },
@@ -282,9 +283,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     abteilung: ["id", "abteilung_id", "name", "kuerzel"],
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
+  // Tags vom Typ «stufe» sind die Stufen der Abteilung (Kategorie «abteilung», kein Personenbezug); alle anderen Tags gehören zu «rollen»
   tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
   person_tag: {
     rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+  },
+  bearbeiter: {
+    rollen: [
+      "id",
+      "abteilung_id",
+      "objekt_typ",
+      "objekt_id",
+      "user_id",
+      "tag_id",
+      "erstellt_am",
+    ],
   },
   anwesenheit_kind: {
     anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],

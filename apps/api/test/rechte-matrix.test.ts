@@ -977,6 +977,43 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Bearbeitungsrechte (#334): nur Admins; Wirkung der Rechte in test/bearbeiten.test.ts
+  "GET /api/v1/admin/bearbeiter": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/bearbeiter": {
+    // Redaktion für eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
+    body: () => ({ objektTyp: "seite", userId: tagPersonId }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+    },
+  },
+  "DELETE /api/v1/admin/bearbeiter/:id": {
+    // Jede Anfrage entzieht ihr Recht
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/bearbeiter/${await wegwerfBearbeiterId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -1168,6 +1205,20 @@ async function wegwerfTagId(userId?: string) {
   if (userId) {
     await welt.db.insert(schema.personTag).values({ userId, tagId: zeile.id });
   }
+  return zeile.id;
+}
+
+// Wegwerf-Recht der Testabteilung: Redaktion für den Tag-Empfänger
+async function wegwerfBearbeiterId() {
+  const [zeile] = await welt.db
+    .insert(schema.bearbeiter)
+    .values({
+      abteilungId: welt.testabteilungId,
+      objektTyp: "seite",
+      objektId: randomUUID(),
+      userId: tagPersonId,
+    })
+    .returning({ id: schema.bearbeiter.id });
   return zeile.id;
 }
 
