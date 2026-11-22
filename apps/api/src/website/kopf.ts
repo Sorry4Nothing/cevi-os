@@ -80,15 +80,15 @@ function markeHtml(k: Kontext): string {
 
 // Die Navigation am Computer hat eine Zeile. Der Server kennt die Titel, aber nicht ihre Breite im Browser:
 // shortcut: die Breite ist geschätzt (em je Zeichen der Schrift Archivo 600, dazu Innenabstand und Dreieck); CSS kann keinen Überlauf in ein Menü schieben. Reicht die Schätzung nicht, bricht die Zeile um (kopf.css), nichts wird abgeschnitten
-const EM_JE_ZEICHEN = 0.56;
+const EM_JE_ZEICHEN = 0.53;
 const EM_PUNKT = 1.5;
-const EM_DREIECK = 1.5;
+const EM_DREIECK = 1.4;
 const breiteVon = (p: { titel: string; kinder: unknown[] }) =>
   p.titel.length * EM_JE_ZEICHEN +
   EM_PUNKT +
   (p.kinder.length > 0 ? EM_DREIECK : 0);
 // So viel Platz hat die Zeile der Navigation im schmalsten Fenster mit Leiste (64 em, kleinere Schrift)
-const EM_ZEILE = 60;
+const EM_ZEILE = 64;
 const EM_MEHR = breiteVon({ titel: "Mehr", kinder: [1] });
 
 // Was nicht in die Zeile passt, steht unter «Mehr»; ein einzelner Punkt wandert nie allein dorthin, wenn er selbst Platz hat
@@ -105,15 +105,15 @@ function teileNavigation(punkte: NavPunkt[]) {
   return { leiste: punkte.slice(0, n), mehr: punkte.slice(n), breite };
 }
 
-// Ab welcher Fensterbreite Marke, Navigation und Knöpfe in eine Zeile passen, hängt von der Breite der Navigation ab; kopf.css kennt die drei Stufen. Ohne Klasse bleibt die Navigation immer in der zweiten Zeile
+// Ab welcher Fensterbreite Marke, Navigation und Knöpfe in eine Zeile passen, hängt von der Breite der Navigation ab; kopf.css kennt die vier Stufen
 const stufe = (breite: number) =>
   breite <= 38
     ? " kopf--kurz"
     : breite <= 48
       ? " kopf--mittel"
-      : breite <= 58
+      : breite <= 56
         ? " kopf--lang"
-        : "";
+        : " kopf--weit";
 
 // Ein Punkt mit Unterseiten: der Link führt zur Seite, das Dreieck daneben öffnet das Untermenü (details, darum ohne Skript und mit Tastatur und Finger bedienbar; mit menue.js öffnet es sich auch beim Zeigen).
 // Haben die Unterseiten selbst Unterseiten, wird das Untermenü zur Tafel mit einer Spalte je Unterseite

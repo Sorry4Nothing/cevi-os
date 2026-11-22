@@ -273,6 +273,12 @@ html {
   height: 1rem;
 }
 
+/* Dreiecke des Symbolsatzes sind gefüllt */
+.kopf .i .f {
+  fill: currentcolor;
+  stroke: none;
+}
+
 .hauptnav details[open] > summary .i {
   transform: rotate(180deg);
 }
@@ -612,21 +618,44 @@ html {
     border-top: 1px solid var(--outline-variant);
   }
 
+  /* Im schmalsten Fenster mit Leiste rücken die Punkte zusammen */
   .hauptnav > ul > li > a,
   .hauptnav .weitere > details > summary {
+    padding-inline: 0.5rem;
     font-size: 0.9375rem;
+  }
+
+  .hauptnav > ul {
+    margin-inline: -0.5rem;
+  }
+
+  .hauptnav > ul > li > a::before,
+  .hauptnav .weitere > details > summary::before {
+    right: 0.5rem;
+    left: 0.5rem;
   }
 }
 
 @media (min-width: 72em) {
   .hauptnav > ul > li > a,
   .hauptnav .weitere > details > summary {
+    padding-inline: 0.75rem;
     font-size: 1rem;
+  }
+
+  .hauptnav > ul {
+    margin-inline: -0.75rem;
+  }
+
+  .hauptnav > ul > li > a::before,
+  .hauptnav .weitere > details > summary::before {
+    right: 0.75rem;
+    left: 0.75rem;
   }
 }
 
-/* ===== Eine Zeile: Marke, Navigation und Knöpfe nebeneinander, sobald die Navigation daneben Platz hat. Drei gleiche Blöcke, je Stufe ab einer anderen Breite ===== */
-@media (min-width: 80em) {
+/* ===== Eine Zeile: Marke, Navigation und Knöpfe nebeneinander, sobald die Navigation daneben Platz hat. Vier gleiche Blöcke, je Stufe ab einer anderen Breite ===== */
+@media (min-width: 76em) {
   .kopf--kurz {
     --kopf-zeile: 4.5rem;
     --nav-hoehe: 4.5rem;
@@ -640,7 +669,7 @@ html {
   }
 }
 
-@media (min-width: 90em) {
+@media (min-width: 88em) {
   .kopf--mittel {
     --kopf-zeile: 4.5rem;
     --nav-hoehe: 4.5rem;
@@ -654,7 +683,7 @@ html {
   }
 }
 
-@media (min-width: 102em) {
+@media (min-width: 96em) {
   .kopf--lang {
     --kopf-zeile: 4.5rem;
     --nav-hoehe: 4.5rem;
@@ -668,13 +697,27 @@ html {
   }
 }
 
+@media (min-width: 106em) {
+  .kopf--weit {
+    --kopf-zeile: 4.5rem;
+    --nav-hoehe: 4.5rem;
+    top: 0;
+  }
+
+  .kopf--weit .hauptnav {
+    flex: 0 1 auto;
+    order: 0;
+    border-top: 0;
+  }
+}
+
 /* ===== Bewegung: kurz, eine Kurve; nur am Bildschirm und ohne «Bewegung reduzieren» ===== */
 @media (prefers-reduced-motion: no-preference) {
   .hauptnav > ul > li > a::before,
   .hauptnav .weitere > details > summary::before,
   .hauptnav summary .i,
   .menue-tafel summary .i {
-    transition: transform var(--dauer) var(--kurve);
+    transition: transform var(--dauer, 0.2s) var(--kurve, ease-out);
   }
 
   .anmelden,
@@ -682,15 +725,15 @@ html {
   .menue-mobil > summary,
   .hauptnav .unter a {
     transition:
-      background-color var(--dauer) var(--kurve),
-      border-color var(--dauer) var(--kurve),
-      color var(--dauer) var(--kurve);
+      background-color var(--dauer, 0.2s) var(--kurve, ease-out),
+      border-color var(--dauer, 0.2s) var(--kurve, ease-out),
+      color var(--dauer, 0.2s) var(--kurve, ease-out);
   }
 
   /* Die Tafel fährt beim Öffnen kurz von oben ein; menue.js blendet sie beim Schliessen aus (data-geht) */
   .hauptnav details[open] > .unter,
   .menue-mobil[open] > .menue-tafel {
-    animation: tafel-auf var(--dauer) var(--kurve) both;
+    animation: tafel-auf var(--dauer, 0.2s) var(--kurve, ease-out) both;
   }
 
   .hauptnav details[data-geht] > .unter {
@@ -698,7 +741,7 @@ html {
   }
 
   .menue-tafel nav details[open] > ul {
-    animation: zweig-auf var(--dauer) var(--kurve) both;
+    animation: zweig-auf var(--dauer, 0.2s) var(--kurve, ease-out) both;
   }
 
   /* Sobald die Seite gescrollt ist, hebt ein Schatten das Band vom Inhalt ab (wo der Browser Scroll-Zeitleisten kann; sonst bleibt die Linie) */
