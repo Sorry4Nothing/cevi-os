@@ -10,12 +10,7 @@ import type { Db } from "../db/client.js";
 import { auditLog, medium } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import { log } from "../log.js";
-import {
-  istPdf,
-  MEDIEN_BILD_MAX_BYTES,
-  MEDIEN_PDF_MAX_BYTES,
-  type MedienKodierer,
-} from "../medien.js";
+import { MEDIEN_BILD_MAX_BYTES, type MedienKodierer } from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
 import { seitenMitMedium } from "../website/verweise.js";
@@ -34,16 +29,24 @@ export const aendernSchema = z
     dekorativ: z.literal(true).optional(),
   })
   .refine((f) => (f.altText !== undefined) !== (f.dekorativ === true));
-// Der Body ist die Datei selbst; bodyLimit hält das PDF-Maximum, das kleinere Bild-Maximum prüft der Handler nach dem Typ
-export const medienUploadLimit = bodyLimit({ maxSize: MEDIEN_PDF_MAX_BYTES });
+const ZU_GROSS = {
+  code: "ZU_GROSS",
+  message: "Ein Bild darf höchstens 10 MB gross sein.",
+};
+// Der Body ist das Bild selbst; der Handler prüft die Grösse nach dem Typ noch einmal. Dateien zum Herunterladen liegen nicht hier, sondern im SharePoint (#428)
+export const medienUploadLimit = bodyLimit({
+  maxSize: MEDIEN_BILD_MAX_BYTES,
+  onError: (c) => c.json(ZU_GROSS, 413),
+});
 const FORMAT = {
   code: "MEDIEN_FORMAT",
-  message: "Bitte ein Bild als JPEG, PNG oder WebP oder ein PDF senden.",
+  message:
+    "Bitte ein Bild als JPEG, PNG oder WebP senden. Dateien zum Herunterladen werden verknüpft, nicht hochgeladen.",
 };
 const ALT_TEXT = {
   code: "ALT_TEXT",
   message:
-    "Ein Bild braucht einen Alt-Text oder die ausdrückliche Markierung «dekorativ», nie beides. Ein PDF kann nicht dekorativ sein.",
+    "Ein Bild braucht einen Alt-Text oder die ausdrückliche Markierung «dekorativ», nie beides.",
 };
 // Das Dekodieren kostet Rechenzeit; Uploads sind selten
 const UPLOADS = 10;
@@ -64,8 +67,9 @@ const antwort = (m: Zeile) => ({
   erstelltAm: m.erstelltAm,
 });
 
-// Die Bytes mit den Kopfzeilen, die ein aktives Format entschärfen: nosniff, kein Skript, kein Rahmen; ein PDF öffnet sich nie in der Seite, sondern lädt herunter. Ein Dateiname der Nutzer existiert nicht
+// Die Bytes mit den Kopfzeilen, die ein aktives Format entschärfen: nosniff, kein Skript, kein Rahmen. Ein Dateiname der Nutzer existiert nicht. Nur Bilder: ein altes PDF-Medium (vor #428) liefert keine Route mehr
 async function liefere(c: Context, speicher: Medienspeicher, m: Zeile) {
+  if (!m.mimeTyp.startsWith("image/")) throw new HTTPException(404);
   const inhalt = await speicher.holen(m.speicherSchluessel);
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Content-Security-Policy", "sandbox; frame-ancestors 'none'");
@@ -76,12 +80,7 @@ async function liefere(c: Context, speicher: Medienspeicher, m: Zeile) {
       ? "public, max-age=300"
       : "private, no-store",
   );
-  c.header(
-    "Content-Disposition",
-    m.mimeTyp === "application/pdf"
-      ? 'attachment; filename="dokument.pdf"'
-      : "inline",
-  );
+  c.header("Content-Disposition", "inline");
   return c.body(inhalt as Uint8Array<ArrayBuffer>, 200, {
     "Content-Type": m.mimeTyp,
   });
@@ -166,19 +165,9 @@ export function erstelleMedienHandler({
       let inhalt: Uint8Array;
       let breite: number | null = null;
       let hoehe: number | null = null;
-      if (istPdf(daten)) {
-        if (dekorativ) return c.json(ALT_TEXT, 400);
-        mimeTyp = "application/pdf";
-        inhalt = daten;
-      } else if (istErlaubtesBild(daten)) {
+      if (istErlaubtesBild(daten)) {
         if (daten.length > MEDIEN_BILD_MAX_BYTES) {
-          return c.json(
-            {
-              code: "ZU_GROSS",
-              message: "Ein Bild darf höchstens 10 MB gross sein.",
-            },
-            413,
-          );
+          return c.json(ZU_GROSS, 413);
         }
         // Genau eines von beiden
         if ((meta.altText !== undefined) === dekorativ) {
@@ -196,7 +185,7 @@ export function erstelleMedienHandler({
           return c.json(FORMAT, 415);
         }
       } else {
-        // Alles andere, auch SVG, GIF und HEIC
+        // Alles andere, auch PDF, SVG, GIF und HEIC
         return c.json(FORMAT, 415);
       }
 
@@ -263,7 +252,7 @@ export function erstelleMedienHandler({
       const person = c.get("person");
       const m = await ladeEigenes(person, id, darf);
       const dekorativ = aenderung.dekorativ === true;
-      // Ein PDF ist nie dekorativ
+      // Ein altes PDF-Medium (vor #428) ist nie dekorativ (medium_inhalt_check)
       if (dekorativ && m.mimeTyp === "application/pdf") {
         return c.json(ALT_TEXT, 400);
       }
