@@ -183,3 +183,58 @@ describe("MEDIEN_S3_* (#335)", () => {
     ).toBe("Fehlende oder ungültige Umgebungsvariablen: MEDIEN_S3_ENDPOINT");
   });
 });
+
+describe("WEBSITE_* (#351)", () => {
+  const WEBSITE = {
+    WEBSITE_AUSGABE_PFAD: "/srv/website",
+    WEBSITE_ABTEILUNG_ID: "0190a0b0-0000-7000-8000-000000000001",
+    WEBSITE_BASIS_URL: "https://www.example.org/",
+  };
+
+  test("ohne alle drei ist die Erzeugung aus, auch mit leeren Zeilen aus deploy/.env", () => {
+    expect(ladeKonfiguration(GUELTIG).WEBSITE_AUSGABE_PFAD).toBeUndefined();
+    const leer = Object.fromEntries(Object.keys(WEBSITE).map((n) => [n, ""]));
+    expect(ladeKonfiguration({ ...GUELTIG, ...leer }).WEBSITE_BASIS_URL).toBe(
+      undefined,
+    );
+  });
+
+  test("mit allen dreien gilt die Herkunft ohne Pfad und Schrägstrich am Ende", () => {
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        ...WEBSITE,
+        WEBSITE_BASIS_URL: "https://www.example.org/seite/",
+      }),
+    ).toMatchObject({
+      ...WEBSITE,
+      WEBSITE_BASIS_URL: "https://www.example.org",
+    });
+  });
+
+  test("mit einigen nennt die Meldung die fehlenden Namen und nie einen Wert", () => {
+    const text = meldung({ ...GUELTIG, WEBSITE_AUSGABE_PFAD: "/srv/website" });
+    expect(text).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: WEBSITE_ABTEILUNG_ID, WEBSITE_BASIS_URL",
+    );
+    expect(text).not.toContain("/srv");
+  });
+
+  test("die Abteilung ist eine UUID, die Adresse braucht in Produktion https", () => {
+    expect(
+      meldung({ ...GUELTIG, ...WEBSITE, WEBSITE_ABTEILUNG_ID: "keine-id" }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: WEBSITE_ABTEILUNG_ID");
+    const http = { ...WEBSITE, WEBSITE_BASIS_URL: "http://localhost:8080" };
+    expect(ladeKonfiguration({ ...GUELTIG, ...http }).WEBSITE_BASIS_URL).toBe(
+      "http://localhost:8080",
+    );
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...http,
+        NODE_ENV: "production",
+        BETTER_AUTH_URL: "https://api.example.org",
+      }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: WEBSITE_BASIS_URL");
+  });
+});

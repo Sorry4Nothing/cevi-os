@@ -267,6 +267,13 @@
       "when": 1793549000000,
       "tag": "0040_website_seiten",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1793549100000,
+      "tag": "0041_website_ausgabe",
+      "breakpoints": true
     }
   ]
 }
