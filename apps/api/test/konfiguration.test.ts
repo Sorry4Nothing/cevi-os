@@ -29,13 +29,19 @@ function meldung(env: Record<string, string | undefined>) {
 }
 
 test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () => {
-  expect(ladeKonfiguration({ ...GUELTIG, HOME: "/home/cevi" })).toEqual({
+  expect(
+    ladeKonfiguration({
+      ...GUELTIG,
+      HOME: "/home/cevi",
+      // Eine übrig gebliebene Variable des entfernten Auslesens (#361) stört den Start nicht
+      ECKDATEN_BASIS_URL: "https://alt.example.org",
+    }),
+  ).toEqual({
     DATABASE_URL: GUELTIG.DATABASE_URL,
     APP_MIN_VERSION: "0.1.0",
     PORT: 3000,
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
-    ECKDATEN_BASIS_URL: "https://www.cevi-staefa-hombi.ch",
     VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
   });

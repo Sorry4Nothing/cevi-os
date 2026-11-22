@@ -29,7 +29,7 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
         return c.json({
           seq,
           objekttypen: listeLagerTabellen()
-            .filter(([, e]) => darf(zugriff, e.recht))
+            .filter(([, e]) => e.recht === null || darf(zugriff, e.recht))
             .map(([name]) => name)
             .sort(),
         });
@@ -73,7 +73,8 @@ export function erstelleAenderungenRouten({ db }: { db: Db }) {
       const lesbar = new Map<string, Set<string> | "alle">();
       for (const tabelle of new Set(seite.map((z) => z.tabelle))) {
         const eintrag = holeLagerTabelle(tabelle);
-        if (!eintrag || !darf(zugriff, eintrag.recht)) continue;
+        if (!eintrag) continue;
+        if (eintrag.recht !== null && !darf(zugriff, eintrag.recht)) continue;
         lesbar.set(
           tabelle,
           eintrag.sichtbar

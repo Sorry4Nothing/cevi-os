@@ -58,7 +58,7 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von der Webseite der Stufen.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt.",
     frist:
       "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert.",
     apple: [],
@@ -134,10 +134,18 @@ export const KATEGORIEN = {
   lager: {
     titel: "Lager und Lagermitglieder",
     zweck:
-      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben.",
+      "Die Abteilungsleitung legt Lager an und legt fest, wer im Lager mitarbeitet und mit welcher Rolle (Lagerleitung, Leitung, Team oder Lesen). Die Rolle bestimmt, was eine Person im Lager sehen und ändern darf. Die Lagerleitung und die Abteilungsleitung stellen ein, welche Rechte Leitung, Team und Lesen im Lager haben. Die Ressorts gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine Stellvertretung, dazu Links und Notizen.",
     frist: `Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
+  },
+  lagerDatei: {
+    titel: "Dateien im Lager (Verknüpfungen)",
+    zweck:
+      "Dateien, die im SharePoint der Abteilung liegen, im Lager auffindbar machen, zum Beispiel an einem Pinnwand-Beitrag oder einem Dokument. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ und Grösse, nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Beim Eintrag steht, welches Konto ihn hinzugefügt hat. Die Abteilungsleitung kann festlegen, auf welchen Hosts die Links liegen dürfen. Eine Offline-Kopie legt nur die App an und nur, wenn die Person die Option in den Einstellungen der App einschaltet.",
+    frist: `Bis die Leitung die Verknüpfung löscht oder das Lager gelöscht wird; ein Eintrag, den kein Datensatz einbindet, entfällt nach 24 Stunden. Die Datei am Ablageort bleibt immer. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag hinzugefügt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
   },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
@@ -191,6 +199,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "google_kalender_id",
       "sync_ok_am",
       "sync_fehler",
+      "datei_hosts",
     ],
   },
   account: {
@@ -362,10 +371,42 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zeitpunkt",
     ],
   },
+  // Die Warteschlange für Offline-Änderungen (#367) hält je Operation das Ergebnis: IDs und Versionen, bei einem Konflikt nicht gespeichert
+  lager_client_op: {
+    lager: ["lager_id", "person_id", "client_op_id", "ergebnis", "erstellt_am"],
+  },
   lager_mitglied: {
     lager: ["lager_id", "person_id", "rolle", "ressort_id", "erstellt_am"],
   },
   lager_rolle_recht: { lager: ["lager_id", "rolle", "recht", "erlaubt"] },
+  lager_datei: {
+    lagerDatei: [
+      ...LAGER_BASIS_SPALTEN,
+      "anzeigename",
+      "link",
+      "typ",
+      "groesse",
+    ],
+  },
+  // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
+  ressort: {
+    lager: [
+      ...LAGER_BASIS_SPALTEN,
+      "kuerzel",
+      "name",
+      "leitung_person_id",
+      "stv_person_id",
+      "notiz",
+      "parent_id",
+      "reihenfolge",
+    ],
+  },
+  ressort_link: {
+    lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "titel", "url"],
+  },
+  ressort_notiz: {
+    lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
+  },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [
       "id",

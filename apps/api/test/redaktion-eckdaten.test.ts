@@ -18,7 +18,6 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { synchronisiereEckdaten } from "../src/kalender/eckdaten-sync.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { erzeugeWebsite } from "../src/website/abgleich.js";
 import { dateisystemAusgabe } from "../src/website/ausgabe.js";
@@ -376,86 +375,106 @@ describe("Eingabe", () => {
   });
 });
 
-describe("Quelle: gepflegt oder ausgelesen", () => {
-  test("DELETE trifft nur gepflegte Zeilen; PUT übernimmt eine ausgelesene Zeile", async () => {
-    const s = await neueStufe("Quellen");
-    const tag = tagIn(12);
-    await db.insert(schema.programmEckdaten).values({
-      stufeId: s.stufeId,
-      tag,
-      treffpunkt: "alt",
-    });
-    expect((await anfrage(admin, "DELETE", url(s.stufeId, tag))).status).toBe(
-      404,
-    );
-    const web = await (await anfrage(admin, "GET", url(s.stufeId, tag))).json();
-    expect(web).toMatchObject({ quelle: "web", treffpunkt: "alt" });
+describe("Programm aus den gepflegten Feldern (#361)", () => {
+  const programmeVon = (stufeId: string) =>
+    db
+      .select({
+        titel: schema.programm.titel,
+        beginn: schema.programm.beginn,
+        ende: schema.programm.ende,
+        ganztaegig: schema.programm.ganztaegig,
+        tagVon: schema.programm.tagVon,
+        sichtbarkeit: schema.programm.sichtbarkeit,
+        googleEventId: schema.programm.googleEventId,
+      })
+      .from(schema.programm)
+      .innerJoin(
+        schema.programmStufe,
+        eq(schema.programmStufe.programmId, schema.programm.id),
+      )
+      .where(eq(schema.programmStufe.stufeId, stufeId));
+
+  test("ohne Kalender entsteht das Programm beim Speichern: Zeiten in Zürich, für Eltern sichtbar, der Stufe zugeordnet; ein zweites Speichern legt kein zweites an", async () => {
+    const s = await neueStufe("Programm");
+    // 10. April 2027: Sommerzeit, 14:00 und 17:00 Uhr in Zürich sind 12:00 und 15:00 UTC
+    const tag = "2027-04-10";
     expect(
-      (await anfrage(admin, "PUT", url(s.stufeId, tag), { treffpunkt: "neu" }))
-        .status,
+      (await anfrage(admin, "PUT", url(s.stufeId, tag), FELDER)).status,
     ).toBe(204);
+    const erwartet = {
+      titel: `Cevi-Programm ${s.name}`,
+      beginn: new Date("2027-04-10T12:00:00Z"),
+      ende: new Date("2027-04-10T15:00:00Z"),
+      ganztaegig: false,
+      tagVon: null,
+      sichtbarkeit: "eltern",
+      googleEventId: `web:${s.stufeId}:${tag}`,
+    };
+    expect(await programmeVon(s.stufeId)).toEqual([erwartet]);
+    await anfrage(admin, "PUT", url(s.stufeId, tag), {
+      ...FELDER,
+      treffpunkt: "Anderer Ort",
+    });
+    expect(await programmeVon(s.stufeId)).toEqual([erwartet]);
+    // Weitere Daten sind weitere Programme; das Löschen der Zeile nimmt nur das eigene mit
+    await anfrage(admin, "PUT", url(s.stufeId, "2027-04-17"), FELDER);
+    expect(await programmeVon(s.stufeId)).toHaveLength(2);
     expect(
-      await (await anfrage(admin, "GET", url(s.stufeId, tag))).json(),
-    ).toMatchObject({ quelle: "seite", treffpunkt: "neu", treffZeit: null });
+      (await anfrage(admin, "DELETE", url(s.stufeId, "2027-04-17"))).status,
+    ).toBe(204);
+    expect(await programmeVon(s.stufeId)).toEqual([erwartet]);
   });
 
-  test("das Auslesen überschreibt und löscht keine gepflegte Zeile, die ausgelesenen Zeilen anderer Tage räumt es weiter weg", async () => {
-    const s = await neueStufe("Prio");
-    const slug = s.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-    // 10. April 2027 steht auf der «alten Seite»
-    const seiteHtml = `<section><h2>Eckdaten</h2><div><b>Cevi-Programm:</b><br />Samstag, 10. April 2027<br /><br /><b>Treff und Schlusspunkt:</b><br />14:00-17:00 Uhr<br />Ausgelesen-Ort<br /></div></section>`;
-    const gleicherTag = "2027-04-10";
-    await db.insert(schema.programmEckdaten).values([
-      {
-        stufeId: s.stufeId,
-        tag: gleicherTag,
-        treffpunkt: "Gepflegt-Ort",
-        quelle: "seite",
-      },
-      {
-        stufeId: s.stufeId,
-        tag: "2027-05-01",
-        treffpunkt: "Gepflegt-Mai",
-        quelle: "seite",
-      },
-      { stufeId: s.stufeId, tag: "2027-06-05", treffpunkt: "Web-Alt" },
-    ]);
-    const lauf = () =>
-      synchronisiereEckdaten({
-        datenbankUrl: API_URL,
-        basisUrl: "https://seite.example.org",
-        abrufen: async (u) =>
-          u.endsWith(`/cevistufe-${slug}`) ? seiteHtml : null,
-      });
-    expect(await lauf()).toBe("fertig");
-    const zeilen = await db
-      .select()
-      .from(schema.programmEckdaten)
-      .where(eq(schema.programmEckdaten.stufeId, s.stufeId));
-    const nachTag = Object.fromEntries(zeilen.map((z) => [z.tag, z]));
-    expect(nachTag[gleicherTag]).toMatchObject({
-      quelle: "seite",
-      treffpunkt: "Gepflegt-Ort",
+  test("ohne beide Zeiten (oder mit Schluss vor Beginn) ganztägig", async () => {
+    const s = await neueStufe("Ganztaegig");
+    await anfrage(admin, "PUT", url(s.stufeId, "2027-05-01"), {
+      treffpunkt: "Wald",
     });
-    expect(nachTag["2027-05-01"]?.treffpunkt).toBe("Gepflegt-Mai");
-    // Die ausgelesene Zeile eines anderen Tages ist überholt und weg
-    expect(nachTag["2027-06-05"]).toBeUndefined();
-    // Löscht der Editor die gepflegte Zeile, schreibt das Auslesen beim nächsten Lauf wieder
+    await anfrage(admin, "PUT", url(s.stufeId, "2027-05-08"), {
+      treffZeit: "17:00",
+      schlussZeit: "14:00",
+    });
+    const zeilen = await programmeVon(s.stufeId);
+    expect(zeilen).toHaveLength(2);
+    expect(zeilen).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ganztaegig: true,
+          beginn: null,
+          ende: null,
+          tagVon: "2027-05-01",
+        }),
+        expect.objectContaining({ ganztaegig: true, tagVon: "2027-05-08" }),
+      ]),
+    );
+  });
+
+  test("mit Kalender in der Abteilung entsteht nichts", async () => {
+    const s = await neueStufe("Kalender");
     await db
-      .delete(schema.programmEckdaten)
-      .where(
-        and(
-          eq(schema.programmEckdaten.stufeId, s.stufeId),
-          eq(schema.programmEckdaten.quelle, "seite"),
-        ),
-      );
-    await lauf();
-    const [web] = await db
-      .select()
-      .from(schema.programmEckdaten)
-      .where(eq(schema.programmEckdaten.stufeId, s.stufeId));
-    expect(web).toMatchObject({ quelle: "web", tag: gleicherTag });
-    expect(web?.treffpunkt).toContain("Ausgelesen-Ort");
+      .update(schema.abteilung)
+      .set({ googleKalenderId: "kalender-test" })
+      .where(eq(schema.abteilung.id, welt.testabteilungId));
+    try {
+      expect(
+        (await anfrage(admin, "PUT", url(s.stufeId, tagIn(20)), FELDER)).status,
+      ).toBe(204);
+      expect(await programmeVon(s.stufeId)).toEqual([]);
+    } finally {
+      // Die ungültige Adresse bliebe sonst in der Datenbank und störte jeden Kalender-Sync
+      await db
+        .update(schema.abteilung)
+        .set({ googleKalenderId: null })
+        .where(eq(schema.abteilung.id, welt.testabteilungId));
+    }
+  });
+
+  test("kein Abruf fremder Webseiten: weder im Code noch beim Speichern", async () => {
+    const abruf = vi.spyOn(globalThis, "fetch");
+    const s = await neueStufe("Ohnefetch");
+    await anfrage(admin, "PUT", url(s.stufeId, tagIn(21)), FELDER);
+    expect(abruf).not.toHaveBeenCalled();
+    abruf.mockRestore();
   });
 });
 
@@ -502,6 +521,30 @@ describe("App-Vertrag bleibt", () => {
     await anfrage(admin, "DELETE", url(welt.stufeAId, tag));
   });
 
+  test("das aus den gepflegten Feldern angelegte Programm hat in der App dasselbe Format und dieselben Werte (#361)", async () => {
+    const tag = tagIn(30);
+    await anfrage(slA, "PUT", url(welt.stufeAId, tag), FELDER);
+    const [p] = await db
+      .select({ id: schema.programm.id })
+      .from(schema.programm)
+      .where(eq(schema.programm.googleEventId, `web:${welt.stufeAId}:${tag}`));
+    const antwort = await app.request(`/api/v1/programme/${p!.id}`, {
+      headers: eltern.headers,
+    });
+    expect(antwort.status).toBe(200);
+    const body = (await antwort.json()) as Record<string, unknown>;
+    expect(
+      antwortVerletzungen("/api/v1/programme/{id}", "get", 200, body),
+    ).toEqual([]);
+    expect(body).toMatchObject({
+      treffpunkt: FELDER.treffpunkt,
+      schlussOrt: FELDER.schlussOrt,
+      schlussZeit: FELDER.schlussZeit,
+      mitnehmen: FELDER.mitnehmen,
+    });
+    await anfrage(admin, "DELETE", url(welt.stufeAId, tag));
+  });
+
   test("die Antworten der neuen Routen entsprechen openapi.yaml", async () => {
     const tag = tagIn(15);
     await anfrage(admin, "PUT", url(welt.stufeAId, tag), FELDER);
@@ -528,28 +571,24 @@ describe("App-Vertrag bleibt", () => {
 });
 
 describe("Datenquelle für den Baustein «stufenfakten»", () => {
-  test("gepflegte Zeile geht vor der ausgelesenen, auch wenn diese früher liegt; vergangene zählen nicht", async () => {
-    const s = await neueStufe("Vorrang");
+  test("die Zeile des nächsten Datums zählt; vergangene nicht; nach dem Löschen gilt die nächste", async () => {
+    const s = await neueStufe("Naechste");
     await db.insert(schema.programmEckdaten).values([
-      { stufeId: s.stufeId, tag: tagIn(2), treffpunkt: "Web-Ort" },
-      {
-        stufeId: s.stufeId,
-        tag: tagIn(-3),
-        treffpunkt: "Vergangen",
-        quelle: "seite",
-      },
-    ]);
-    const web = await ladeStufenfakten(db, welt.testabteilungId, [s.seiteId]);
-    expect(web.stufenfakten?.get(s.seiteId)).toEqual([
-      expect.objectContaining({ bezeichnung: "Datum" }),
-      { bezeichnung: "Treffpunkt", wert: "Web-Ort" },
+      { stufeId: s.stufeId, tag: tagIn(2), treffpunkt: "Nah-Ort" },
+      { stufeId: s.stufeId, tag: tagIn(-3), treffpunkt: "Vergangen" },
     ]);
     await anfrage(admin, "PUT", url(s.stufeId, tagIn(9)), FELDER);
-    const gepflegt = await ladeStufenfakten(db, welt.testabteilungId, [
+    const nah = await ladeStufenfakten(db, welt.testabteilungId, [s.seiteId]);
+    expect(nah.stufenfakten?.get(s.seiteId)).toEqual([
+      expect.objectContaining({ bezeichnung: "Datum" }),
+      { bezeichnung: "Treffpunkt", wert: "Nah-Ort" },
+    ]);
+    await anfrage(admin, "DELETE", url(s.stufeId, tagIn(2)));
+    const spaeter = await ladeStufenfakten(db, welt.testabteilungId, [
       s.seiteId,
     ]);
     expect(
-      gepflegt.stufenfakten?.get(s.seiteId)?.map((f) => f.bezeichnung),
+      spaeter.stufenfakten?.get(s.seiteId)?.map((f) => f.bezeichnung),
     ).toEqual([
       "Datum",
       "Treffzeit",
@@ -558,16 +597,10 @@ describe("Datenquelle für den Baustein «stufenfakten»", () => {
       "Schlussort",
       "Mitnehmen",
     ]);
-    expect(gepflegt.stufenfakten?.get(s.seiteId)?.[1]).toEqual({
+    expect(spaeter.stufenfakten?.get(s.seiteId)?.[1]).toEqual({
       bezeichnung: "Treffzeit",
       wert: "14:00 Uhr",
     });
-    // Löscht man die gepflegte Zeile, gilt wieder die ausgelesene
-    await anfrage(admin, "DELETE", url(s.stufeId, tagIn(9)));
-    const zurueck = await ladeStufenfakten(db, welt.testabteilungId, [
-      s.seiteId,
-    ]);
-    expect(zurueck.stufenfakten?.get(s.seiteId)).toHaveLength(2);
   });
 
   test("Seiten ohne Stufe, ohne Zeile oder aus einer anderen Abteilung bekommen nichts", async () => {

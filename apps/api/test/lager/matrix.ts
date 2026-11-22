@@ -39,6 +39,8 @@ export const LAGER_ZUSTAENDE = ["aktiv", "abgeschlossen"] as const;
 export type LagerZustand = (typeof LAGER_ZUSTAENDE)[number];
 
 export interface LagerWelt {
+  // Für Ziele, die eine Zeile brauchen (zum Beispiel ein Ressort); Zeilen direkt anlegen, nicht über die API
+  db: Welt["db"];
   aktivId: string;
   abgeschlossenId: string;
   // Ein Lager der fremden Abteilung (für Routen, die ein fremdes Lager brauchen)
@@ -151,6 +153,7 @@ export async function legeLagerWeltAn(
         .returning({ id: schema.user.id })
     )[0].id;
   return {
+    db,
     aktivId,
     abgeschlossenId,
     fremdId,
@@ -193,6 +196,10 @@ export async function antwortenJePersona(
       },
     );
     ergebnis[persona] = antwort.status;
+    // Ein Event-Stream endet nie von selbst: Die Verbindung schliessen, sonst bleibt sie offen (#367)
+    if (antwort.headers.get("content-type")?.startsWith("text/event-stream")) {
+      await antwort.body?.cancel();
+    }
   }
   return ergebnis;
 }

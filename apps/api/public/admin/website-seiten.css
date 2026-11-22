@@ -1,1 +1,73 @@
-/* Platzhalter (#353): #357 füllt diese Datei. Klassen mit dem Vorsatz «ws-seiten-» */
+/* Seitenliste (#357). Klassen mit dem Vorsatz «ws-seiten-» */
+
+/* Fünf Spalten mit Knöpfen brauchen mehr Breite; schmaler scrollt der Rahmen waagrecht */
+.ws-seiten-tabelle .tabelle {
+  min-width: 58rem;
+}
+
+.ws-seiten-zelle {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 14rem;
+  margin-left: calc(var(--ebene, 0) * 20px);
+}
+
+/* Die Ebene steht auch im Text (nur für Screenreader); die Linie ist Zierde */
+.ws-seiten-ebene-1,
+.ws-seiten-ebene-2,
+.ws-seiten-ebene-3,
+.ws-seiten-ebene-4 {
+  padding-left: 12px;
+  border-left: 2px solid var(--rand-leise);
+}
+
+.ws-seiten-ebene-1 {
+  --ebene: 0;
+}
+
+.ws-seiten-ebene-2 {
+  --ebene: 1;
+}
+
+.ws-seiten-ebene-3 {
+  --ebene: 2;
+}
+
+.ws-seiten-ebene-4 {
+  --ebene: 3;
+}
+
+.ws-seiten-pfad {
+  color: var(--leise);
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+/* Pfeile ohne Text: Rand in Randfarbe, damit sie als Knöpfe erkennbar sind (3:1) */
+.ws-seiten-pfeil {
+  border-color: var(--rand);
+}
+
+.ws-seiten-rechte {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-seiten-rechte li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  overflow-wrap: anywhere;
+}

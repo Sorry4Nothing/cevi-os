@@ -25,6 +25,7 @@ import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
+import { erstelleAdminLagerDateiRouten } from "./routes/admin/lager-dateien.js";
 import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
@@ -101,7 +102,6 @@ export function erstelleApp({
   medienspeicher?: Medienspeicher;
   // Die Abrufe im Hintergrund, von Hand anzustossen; ohne sie antwortet die Verwaltung mit 501
   syncs?: {
-    eckdaten?: () => Promise<"fertig" | "gesperrt">;
     kalender?: () => Promise<"fertig" | "gesperrt">;
   };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
@@ -125,6 +125,8 @@ export function erstelleApp({
   });
   // Das Dokument einer Seite (#350)
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
+  // Bis zu 100 Operationen der Offline-Warteschlange des Lagers (#367)
+  const warteschlangeLimit = bodyLimit({ maxSize: 256 * 1024 });
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
     new Hono<{ Variables: { nutzerId?: string } }>()
@@ -170,7 +172,7 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
-      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB und das Dokument einer Seite mit 512 KiB
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB, das Dokument einer Seite mit 512 KiB und die Warteschlange des Lagers mit 256 KB
       .use((c, next) =>
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
@@ -187,7 +189,10 @@ export function erstelleApp({
                   c.req.path,
                 )
               ? entwurfLimit(c, next)
-              : kleinesLimit(c, next),
+              : c.req.method === "POST" &&
+                  /^\/api\/v1\/lager\/[^/]+\/aenderungen$/.test(c.req.path)
+                ? warteschlangeLimit(c, next)
+                : kleinesLimit(c, next),
       )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
@@ -239,6 +244,10 @@ export function erstelleApp({
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
+      .route(
+        "/api/v1/admin/lager-dateien",
+        erstelleAdminLagerDateiRouten({ db }),
+      )
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
       .route(
         "/api/v1/admin/plattform/rollen",
