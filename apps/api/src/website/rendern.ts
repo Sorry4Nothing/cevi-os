@@ -1,3 +1,4 @@
+import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
 
@@ -26,7 +27,7 @@ export type MedienDaten = {
   groesse: number;
   breite: number | null;
   hoehe: number | null;
-  // null = dekorativ (leerer Alt-Text) oder bei einem PDF ohne Beschreibung
+  // null = dekorativ (leerer Alt-Text)
   altText: string | null;
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
@@ -223,17 +224,21 @@ function rendereBaustein(
           b.daten.darstellung === "schaltflaeche" ? "knopf" : undefined,
         ),
       );
+    // Verknüpfung auf die Datei im SharePoint: nur ein Link, nie eingebettet. Die Adresse prüft der Renderer noch einmal streng (die Norm-Schreibweise geht ins Markup)
     case "datei": {
-      const m = daten.medien.get(b.daten.mediumId);
-      if (!m) return null;
-      const art = m.mimeTyp === "application/pdf" ? "PDF" : "Datei";
-      const name = b.daten.beschriftung ?? m.altText ?? "Dokument";
+      const l = pruefeLink(b.daten.link);
+      if (!l.ok) return null;
+      const info = [
+        b.daten.typ,
+        b.daten.groesse === undefined ? undefined : groesse(b.daten.groesse),
+      ].filter((t) => t !== undefined);
       return el(
         "p",
         undefined,
-        el("a", { href: medienUrl(b.daten.mediumId), download: true }, name),
-        " ",
-        el("span", { class: "info" }, `(${art}, ${groesse(m.groesse)})`),
+        el("a", { href: l.link, rel: "noopener noreferrer" }, b.daten.titel),
+        ...(info.length > 0
+          ? [" ", el("span", { class: "info" }, `(${info.join(", ")})`)]
+          : []),
       );
     }
     case "kontaktperson": {

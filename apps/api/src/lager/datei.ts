@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { abteilung, lagerDatei } from "../db/schema.js";
+import { LINK_MAX } from "../link-pruefung.js";
 import { sichtbareDateien } from "./datei-verweise.js";
 import type { LagerZugriff } from "./policy.js";
 import type { LagerRecht } from "./rechte-katalog.js";
@@ -10,7 +11,8 @@ import { registriereLagerTabelle } from "./tabellen.js";
 
 // Dateien im Lager als Verknüpfung (#370). Die Dateien liegen im SharePoint (Microsoft 365) der Abteilung; Cevi OS speichert nur den Link. Der Server ruft die Adresse nie ab, löst sie nie auf und liefert nie Inhalt (SR-26): Öffnen und Herunterladen gehen direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Die Offline-Kopie legt die App an, nur wenn die Person die Option in den Einstellungen der App einschaltet (Vorgabe aus); die API liefert dafür Link, Typ und Grösse. Im Web gibt es keine Offline-Kopie
 
-export const LINK_MAX = 2048;
+// Die Link-Prüfung liegt gemeinsam mit der Website in link-pruefung.ts (#428)
+export { LINK_MAX, pruefeLink, type LinkErgebnis } from "../link-pruefung.js";
 
 // Wer einen Eintrag anlegen und löschen darf: wer eines der Module bearbeiten darf, die Dateien einbinden. Der Katalog hat kein eigenes Recht dafür; ein Eintrag allein zeigt nichts, gelesen wird er über den Datensatz, der ihn einbindet
 export const DATEI_RECHTE: readonly LagerRecht[] = [
@@ -19,56 +21,6 @@ export const DATEI_RECHTE: readonly LagerRecht[] = [
   "protokolle.bearbeiten",
   "infos.bearbeiten",
 ];
-
-export type LinkErgebnis =
-  { ok: true; link: string } | { ok: false; grund: "ungueltig" | "host" };
-
-// Ohne Steuer-, Format- und Trennzeichen (Leerzeichen, Zeilenumbruch, Bidi-Zeichen) und ohne Backslash: Eine Adresse, die Browser anders lesen als der Server, gibt es hier nicht. Gross- und Kleinschreibung des Schemas egal
-const ADRESSE = /^https:\/\/[^\p{C}\p{Z}\\]+$/iu;
-
-// Strenge Prüfung eines Links: nur https, kein javascript:, data: oder protokoll-relative Adresse, keine Zugangsdaten und kein Port in der Adresse, ein Host mit Punkt und kein IP-Literal, höchstens LINK_MAX Zeichen. «hosts» sind die erlaubten Hosts der Abteilung (der Host selbst oder eine Subdomain davon); null oder leer = keine Einschränkung (Vorgabe). Liefert die Adresse in der Schreibweise der URL-Norm (Host klein, Punycode)
-export function pruefeLink(
-  roh: string,
-  hosts?: readonly string[] | null,
-): LinkErgebnis {
-  const ungueltig = { ok: false, grund: "ungueltig" } as const;
-  if (roh.length > LINK_MAX || !ADRESSE.test(roh)) return ungueltig;
-  let url: URL;
-  try {
-    url = new URL(roh);
-  } catch {
-    return ungueltig;
-  }
-  if (
-    url.protocol !== "https:" ||
-    url.username !== "" ||
-    url.password !== "" ||
-    url.port !== ""
-  ) {
-    return ungueltig;
-  }
-  const host = url.hostname;
-  if (
-    !/^[a-z0-9.-]+$/.test(host) ||
-    !host.includes(".") ||
-    // Nur Ziffern und Punkte (auch die Kurzformen, die URL zu 127.0.0.1 umschreibt)
-    /^[0-9.]+$/.test(host) ||
-    host.startsWith(".") ||
-    host.endsWith(".") ||
-    host.includes("..")
-  ) {
-    return ungueltig;
-  }
-  if (url.href.length > LINK_MAX) return ungueltig;
-  if (
-    hosts &&
-    hosts.length > 0 &&
-    !hosts.some((h) => host === h || host.endsWith(`.${h}`))
-  ) {
-    return { ok: false, grund: "host" };
-  }
-  return { ok: true, link: url.href };
-}
 
 export const hostSchema = z
   .string()

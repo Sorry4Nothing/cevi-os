@@ -59,7 +59,12 @@ const BEISPIELE: Record<string, unknown> = {
     beschriftung: "Schnuppern",
     ziel: "/anlaesse/schnuppern",
   },
-  datei: { mediumId: id(), beschriftung: "Packliste" },
+  datei: {
+    titel: "Packliste",
+    link: "https://cevi.sharepoint.com/sites/lager/packliste.pdf",
+    typ: "PDF",
+    groesse: 123456,
+  },
   kontaktperson: { personId: id(), zusatz: ["telefon"] },
   leitungsteam: { tagId: id() },
   terminliste: { tagId: id(), anzahl: 5 },
@@ -412,10 +417,73 @@ describe("Bild, Galerie, Datei (Verweis auf ein Medium)", () => {
     expect(
       fehler(dok(b("bild", { mediumId: id(), url: "https://x.ch/a.png" }))),
     ).not.toBeNull();
+  });
+  test("Datei: eine Verknüpfung mit strenger Link-Prüfung, kein Medium mehr (#428)", () => {
+    const gut = {
+      titel: "Packliste",
+      link: "https://cevi.sharepoint.com/sites/lager/p.pdf",
+    };
+    expect(fehler(dok(b("datei", gut)))).toBeNull();
     expect(
-      fehler(dok(b("datei", { mediumId: id(), url: "https://x.ch/a.pdf" }))),
+      fehler(dok(b("datei", { ...gut, typ: "PDF", groesse: 0 }))),
+    ).toBeNull();
+    // Das alte Schema (Verweis auf ein Medium) ist ungültig
+    expect(
+      fehler(dok(b("datei", { mediumId: id(), beschriftung: "Packliste" }))),
     ).not.toBeNull();
+    expect(fehler(dok(b("datei", { ...gut, mediumId: id() })))).not.toBeNull();
     expect(fehler(dok(b("datei", {})))).not.toBeNull();
+    expect(fehler(dok(b("datei", { titel: "x" })))).not.toBeNull();
+    expect(fehler(dok(b("datei", { link: gut.link })))).not.toBeNull();
+    for (const falsch of [
+      { titel: "" },
+      { titel: "x".repeat(101) },
+      { titel: "a\nb" },
+      { typ: "" },
+      { typ: "x".repeat(21) },
+      { groesse: -1 },
+      { groesse: 1.5 },
+      { groesse: "12" },
+    ]) {
+      expect(
+        fehler(dok(b("datei", { ...gut, ...falsch }))),
+        JSON.stringify(falsch),
+      ).not.toBeNull();
+    }
+  });
+  test.each([
+    "javascript:alert(1)",
+    "JaVaScRiPt:alert(1)",
+    "data:text/html,<script>alert(1)</script>",
+    "vbscript:x",
+    "file:///etc/passwd",
+    "http://cevi.sharepoint.com/x",
+    "//cevi.sharepoint.com/x",
+    "/stufen/woelfe",
+    "mailto:a@b.ch",
+    "tel:+41791234567",
+    "ftp://cevi.sharepoint.com/x",
+    "https://",
+    "https:///x",
+    "https://nutzer:pass@cevi.sharepoint.com/x",
+    "https://nutzer@cevi.sharepoint.com/x",
+    "https://cevi.sharepoint.com:8443/x",
+    "https://localhost/x",
+    "https://127.0.0.1/x",
+    "https://2130706433/x",
+    "https://[::1]/x",
+    "https://cevi.sharepoint.com/a b",
+    "https://cevi.sharepoint.com/a\nb",
+    "https://cevi.sharepoint.com/a\\b",
+    "https://cevi.sharepoint.com/\u202Ex",
+    " https://cevi.sharepoint.com/x",
+    "https://cevi.sharepoint.com/x ",
+    "https://cevi..sharepoint.com/x",
+    "https://.sharepoint.com/x",
+    `https://cevi.sharepoint.com/${"a".repeat(2100)}`,
+    "",
+  ])("Datei: der böse Link %j ist abgelehnt", (link) => {
+    expect(fehler(dok(b("datei", { titel: "x", link })))).not.toBeNull();
   });
   test("Galerie: leer, zu gross, Fremdfeld", () => {
     const galerie = (n: number) => ({
@@ -545,12 +613,15 @@ describe("Karten, Termin-Liste, Kontakt, Leitungsteam, übrige", () => {
 
 describe("sammleVerweise", () => {
   test("findet Medien, Tags, Personen und Seiten ohne Doppelte", () => {
-    const [m1, m2, m3, t1, t2, t3, p1] = Array.from({ length: 7 }, id);
+    const [m1, m2, t1, t2, t3, p1] = Array.from({ length: 6 }, id);
     const d = gueltig(
       b("bild", { mediumId: m1 }),
       b("bild", { mediumId: m1 }),
       b("galerie", { bilder: [{ mediumId: m2 }] }),
-      b("datei", { mediumId: m3 }),
+      b("datei", {
+        titel: "Datei",
+        link: "https://cevi.sharepoint.com/sites/x/a.pdf",
+      }),
       b("leitungsteam", { tagId: t1 }),
       b("terminliste", { tagId: t2, anzahl: 3 }),
       b("terminliste", { anzahl: 3 }),
@@ -590,8 +661,8 @@ describe("sammleVerweise", () => {
       b("stufenfakten", {}),
     );
     const v = sammleVerweise(d);
-    expect(new Set(v.medien)).toEqual(new Set([m1, m2, m3]));
-    expect(v.medien).toHaveLength(3);
+    expect(new Set(v.medien)).toEqual(new Set([m1, m2]));
+    expect(v.medien).toHaveLength(2);
     expect(new Set(v.tags)).toEqual(new Set([t1, t2, t3]));
     expect(v.tags).toHaveLength(3);
     expect(v.personen).toEqual([p1]);
@@ -672,7 +743,11 @@ describe("sammleVerweise", () => {
                 sicht(),
               );
             case 2:
-              return b("datei", { mediumId: medium() }, sicht());
+              return b(
+                "datei",
+                { titel: "Datei", link: "https://cevi.sharepoint.com/x" },
+                sicht(),
+              );
             case 3: {
               const p = id();
               erwartet.personen.add(p);
