@@ -29,6 +29,7 @@ import {
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
+import { erstelleRedaktionRouten } from "./routes/redaktion/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
@@ -217,6 +218,7 @@ export function erstelleApp({
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
+      .route("/api/v1/redaktion", erstelleRedaktionRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/mitteilungen",

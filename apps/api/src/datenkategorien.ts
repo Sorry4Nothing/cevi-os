@@ -139,6 +139,15 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  website: {
+    titel: "Seiten der Website",
+    zweck:
+      "Die Seiten der Website der Abteilung aufbauen und verwalten: Adresse, Titel, Reihenfolge, wer sie sieht, und der Inhalt als Entwurf und als veröffentlichte Stände. Bei einem Stand steht, welches Konto ihn erstellt hat.",
+    frist:
+      "Bis die Redaktion die Seite löscht. Mit dem Konto verschwindet nur die Angabe, wer einen Stand erstellt hat.",
+    apple: [],
+    google: [],
+  },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
     titel: "Ungenutzt",
@@ -328,6 +337,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "tag_id",
       "erstellt_am",
     ],
+  },
+  seite: {
+    website: [
+      "id",
+      "abteilung_id",
+      "eltern_id",
+      "adresse",
+      "titel",
+      "reihenfolge",
+      "sichtbarkeit",
+      "sichtbarkeit_tags",
+      "tag_id",
+      "herkunft",
+      "veroeffentlichte_version_id",
+      "entwurf",
+      "entwurf_zaehler",
+      "erstellt_am",
+      "geaendert_am",
+    ],
+  },
+  seite_version: {
+    website: ["id", "seite_id", "nr", "inhalt", "autor_id", "erstellt_am"],
   },
   anwesenheit_kind: {
     anwesenheit: ["programm_id", "kind_id", "da", "erfasst_von", "erfasst_am"],
