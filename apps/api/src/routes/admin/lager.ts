@@ -12,6 +12,7 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
+import { ereignisverteiler } from "../../lager/ereignisse.js";
 import { istGeschlossen } from "../../lager/policy.js";
 import { schreibeStandardrechte } from "../../lager/rechte.js";
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
@@ -320,6 +321,8 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           }
           throw fehler;
         }
+        // Offene Ansichten der Person verbinden mit der neuen Rolle neu (#367)
+        ereignisverteiler.beendePerson(id, personId);
         return c.body(null, 204);
       },
     )
@@ -365,6 +368,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           }
           throw fehler;
         }
+        ereignisverteiler.beendePerson(id, personId);
         return c.body(null, 204);
       },
     );

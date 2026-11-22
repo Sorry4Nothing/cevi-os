@@ -312,6 +312,186 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/termine.js:
+    get:
+      operationId: getAdminTermineSkript
+      summary: Skript der Verwaltung – Bereich Termine (Rahmen und Reiter)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine.css:
+    get:
+      operationId: getAdminTermineStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine (Rahmen und Reiter)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-warnliste.js:
+    get:
+      operationId: getAdminTermineWarnlisteSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Warnliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-warnliste.css:
+    get:
+      operationId: getAdminTermineWarnlisteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Warnliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-kategorien.js:
+    get:
+      operationId: getAdminTermineKategorienSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Kategorien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-kategorien.css:
+    get:
+      operationId: getAdminTermineKategorienStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Kategorien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-vorschlaege.js:
+    get:
+      operationId: getAdminTermineVorschlaegeSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Vorschläge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-vorschlaege.css:
+    get:
+      operationId: getAdminTermineVorschlaegeStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Vorschläge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-anlaesse.js:
+    get:
+      operationId: getAdminTermineAnlaesseSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Anlässe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-anlaesse.css:
+    get:
+      operationId: getAdminTermineAnlaesseStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Anlässe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-raeume.js:
+    get:
+      operationId: getAdminTermineRaeumeSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Räume
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-raeume.css:
+    get:
+      operationId: getAdminTermineRaeumeStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Räume
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht.js:
     get:
       operationId: getAdminUebersichtSkript
@@ -1359,7 +1539,7 @@ paths:
   /api/v1/medien/{id}:
     get:
       operationId: mediumLesen
-      summary: Bild oder PDF aus dem Medienspeicher lesen
+      summary: Bild aus dem Medienspeicher lesen
       tags:
         - Medien
       parameters:
@@ -1374,10 +1554,10 @@ paths:
         Sitzung und nur der Abteilung des Mediums; für andere Abteilungen und unbekannte IDs ist die Antwort 404, nie 403.
         Die Sichtbarkeit nach Tags gibt es für Medien noch nicht; das Modul dafür (#333) steht bereit, ist aber noch an kein Objekt angeschlossen.
 
-        **Kopfzeilen.** `Content-Type` ist `image/webp` oder `application/pdf`; `X-Content-Type-Options: nosniff` und
-        `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer. Ein PDF trägt
-        `Content-Disposition: attachment` (es öffnet sich nie in der Seite), ein Bild `inline`. `Cache-Control` ist
-        `public, max-age=300` für öffentliche und `private, no-store` für angemeldete Medien.
+        **Kopfzeilen.** `Content-Type` ist `image/webp`; `X-Content-Type-Options: nosniff` und
+        `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer, `Content-Disposition` ist `inline`.
+        `Cache-Control` ist `public, max-age=300` für öffentliche und `private, no-store` für angemeldete Medien.
+        Der Medienspeicher liefert nur Bilder: Ein altes PDF-Medium (vor #428) antwortet 404.
 
         **Rollen.** Öffentlich: alle. Angemeldet: alle Personen der Abteilung, ausser bei offenem Pflichtwechsel des
         Passworts (403). Statuscodes: 200, 400, 401, 403, 404, 426, 500 (Medienspeicher nicht erreichbar, ohne Details),
@@ -1390,10 +1570,6 @@ paths:
           description: Die Datei.
           content:
             image/webp:
-              schema:
-                type: string
-                format: binary
-            application/pdf:
               schema:
                 type: string
                 format: binary
@@ -2622,11 +2798,9 @@ paths:
   /api/v1/admin/system/syncs:
     get:
       operationId: holeAdminSyncs
-      summary: Ausgaben der Abrufe im Hintergrund
+      summary: Stand des Kalender-Abgleichs
       description: |
-        Nur Admins (mit zweitem Faktor). Zeigt, was die Abrufe im Hintergrund zuletzt geliefert haben: je Stufe der Abteilung die Adresse der Stufenwebseite, den Ausgang des letzten Laufs und die gelesenen Eckdaten, dazu den Stand des Kalender-Syncs mit der Zahl der Programme.
-
-        Der Ausgang des letzten Laufs liegt im Arbeitsspeicher der API; nach einem Neustart ist er `null`, bis der nächste Lauf fertig ist. Die Antwort enthält nie HTML der Seiten oder Fehlertexte, bei einem Fehler nur dessen Code (etwa `ECONNRESET`).
+        Nur Admins (mit zweitem Faktor). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
 
         Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
@@ -2635,7 +2809,7 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
       responses:
         "200":
-          description: Stand der Abrufe.
+          description: Stand des Kalender-Abgleichs.
           content:
             application/json:
               schema:
@@ -2648,35 +2822,6 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/admin/system/syncs/eckdaten:
-    post:
-      operationId: stosseAdminEckdatenAn
-      summary: Abruf der Stufenwebseiten anstossen
-      description: |
-        Nur Admins (mit zweitem Faktor). Ruft die Eckdaten aller Stufen von der Webseite ab. Hat die Abteilung keinen Google-Kalender, legt der Abruf zum nächsten Anlass auch das Programm an (Titel «Cevi-Programm <Stufe>», für Eltern sichtbar) oder aktualisiert es. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
-
-        Statuscodes: 200 mit `ergebnis` `fertig` oder `gesperrt`. 401. 403 für Nicht-Admins. 426. 429 bei zu kurzem Abstand oder beim Limit. 501, wenn der Server keinen Abruf eingerichtet hat.
-      tags:
-        - Verwaltung
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      responses:
-        "200":
-          description: Ergebnis des Laufs.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminSyncErgebnis"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-        "501":
-          description: Der Server hat diesen Abruf nicht eingerichtet.
   /api/v1/admin/system/syncs/kalender:
     post:
       operationId: stosseAdminKalenderAn
@@ -3037,21 +3182,21 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     post:
       operationId: legeAdminMediumAn
-      summary: Bild oder PDF hochladen
+      summary: Bild hochladen
       description: |
-        Nur Admins (mit zweitem Faktor). Lädt ein Bild oder ein PDF in den Medienspeicher der eigenen Abteilung.
+        Nur Admins (mit zweitem Faktor). Lädt ein Bild in den Medienspeicher der eigenen Abteilung.
 
-        **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG, WebP und PDF; der Typ
-        ergibt sich aus den ersten Bytes (`%PDF-` für PDF), nie aus Dateiendung, `Content-Type` oder Query. SVG, GIF und
-        alles andere sind 415. Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
-        Pixel haben, ein PDF höchstens 20 MiB. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
+        **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
+        ergibt sich aus den ersten Bytes, nie aus Dateiendung, `Content-Type` oder Query. PDF, SVG, GIF und
+        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
+        Pixel haben. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
 
         **Alt-Text.** Ein Bild braucht entweder `altText` (1 bis 500 Zeichen) oder `dekorativ=true`, nie beides und nie
-        keines (400, code `ALT_TEXT`). Bei einem PDF ist `altText` eine freiwillige Beschreibung, `dekorativ=true` ist 400.
+        keines (400, code `ALT_TEXT`).
 
         **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 2048 Pixel je Seite
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als WebP ohne
-        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten. Ein PDF bleibt unverändert.
+        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten.
 
         **Begrenzung.** Pro Person höchstens 10 Uploads in 10 Minuten (429); auch abgelehnte zählen.
 
@@ -3101,10 +3246,6 @@ paths:
             schema:
               type: string
               format: binary
-          application/pdf:
-            schema:
-              type: string
-              format: binary
       responses:
         "201":
           description: Gespeichert.
@@ -3119,9 +3260,9 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+          description: Ein Bild ist grösser als 10 MiB.
         "415":
-          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
             application/json:
               schema:
@@ -4127,7 +4268,7 @@ paths:
 
         Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
 
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild, kein PDF. `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
 
         Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
 
@@ -5241,7 +5382,7 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     post:
       operationId: legeRedaktionMediumAn
-      summary: Bild oder PDF hochladen
+      summary: Bild hochladen
       description: |
         Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten. Derselbe Handler wie `POST /api/v1/admin/medien` (gleiche Regeln für Typ, Grösse, Alt-Text, Verarbeitung und Begrenzung: 10 Uploads in 10 Minuten je Person, gezählt über beide Routen); nur der Zugang ist ein anderer. Die Prüfung des Zugangs kommt vor der Prüfung der Eingabe.
 
@@ -5290,10 +5431,6 @@ paths:
             schema:
               type: string
               format: binary
-          application/pdf:
-            schema:
-              type: string
-              format: binary
       responses:
         "201":
           description: Gespeichert.
@@ -5308,9 +5445,9 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+          description: Ein Bild ist grösser als 10 MiB.
         "415":
-          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
             application/json:
               schema:
@@ -5332,11 +5469,11 @@ paths:
       operationId: aendereRedaktionMedium
       summary: Alt-Text nachtragen oder ändern
       description: |
-        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie. Ein PDF kann nicht dekorativ sein (400, code `ALT_TEXT`).
+        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie.
 
         Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403), PDF nicht dekorativ (400). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
+        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
 
         Statuscodes: 200, 400, 401, 403, 404, 426.
       tags:
@@ -5618,10 +5755,351 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: sendeLagerWarteschlange
+      summary: Offline gesammelte Änderungen des Lagers senden
+      description: |
+        Nimmt die Änderungen an, die die App offline gesammelt hat, gebündelt und idempotent. Jede Operation hat eine `clientOpId` (UUID, von der App einmal erzeugt und bei jeder Wiederholung beibehalten), einen `typ` (zum Beispiel `aufgabe.aendern`; die Module des Lagers melden ihre Operationen an) und eine `nutzlast`. Höchstens 100 Operationen je Anfrage, höchstens 256 KB, höchstens 20 Anfragen je Konto und Minute.
+
+        Jede Operation läuft in einer eigenen Transaktion, der Reihe nach, und bekommt ein eigenes Ergebnis in derselben Reihenfolge: `ok` (mit IDs und Versionen der geschriebenen Zeilen, keine Inhalte), `konflikt` (die Zeile hat inzwischen eine andere Version, mit `aktuell` in der Ansicht der Rolle und den abweichenden Feldern) oder `abgelehnt` (mit Code: `OPERATION_UNBEKANNT`, `UNGUELTIGE_EINGABE`, `KEINE_BERECHTIGUNG`, `NICHT_GEFUNDEN`, `KONFLIKT`). Eine Ablehnung oder ein Konflikt bricht die anderen Operationen nicht ab und nimmt nur die Schreibvorgänge dieser Operation zurück. Das Recht jeder Operation gilt gegen die Rolle der Person im Lager, nie gegen Angaben der Nutzlast.
+
+        Idempotenz: Ein `ok` wird je Lager, Person und `clientOpId` 30 Tage gespeichert. Eine Wiederholung derselben `clientOpId` liefert dieses Ergebnis, auch wenn sich Rechte seither geändert haben, und schreibt nichts noch einmal; gleichzeitige Wiederholungen schreiben einmal. `konflikt` und `abgelehnt` werden nicht gespeichert: Sie haben nichts geschrieben und kommen bei einer Wiederholung zum selben Ergebnis. Bei einem Konflikt holt die App den Stand (in `aktuell`) und schickt die Änderung mit einer neuen `clientOpId` und der aktuellen `version` noch einmal.
+
+        Statuscodes: 200 mit den Ergebnissen (auch wenn einzelne Operationen abgelehnt wurden). 400 bei ungültiger Anfrage (keine oder mehr als 100 Operationen, `clientOpId` keine UUID, unbekannte Felder). 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 `LAGER_GESCHLOSSEN`, wenn das Lager abgeschlossen oder archiviert ist: Die ganze Anfrage wird abgelehnt. 413 über 256 KB. 429 bei zu vielen Anfragen. 500 bei einem Fehler des Servers: Die App schickt dieselbe Anfrage noch einmal; erledigte Operationen kommen aus dem Speicher.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerWarteschlangeAnfrage"
+      responses:
+        "200":
+          description: Ein Ergebnis je Operation, in der Reihenfolge der Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWarteschlangeAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen oder archiviert (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Die Anfrage ist grösser als 256 KB (`ZU_GROSS`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/ereignisse:
+    get:
+      operationId: oeffneLagerEreignisse
+      summary: Ereignisse des Lagers (Server-Sent Events)
+      description: |
+        Offener Event-Stream (`text/event-stream`), über den eine offene Ansicht erfährt, dass es im Lager Neues gibt, statt in einem Takt zu fragen. Die Meldung nennt nur die Folgenummer und die Objekttypen, die die Rolle lesen darf; nie IDs, Namen oder Inhalte. Den Inhalt holt die App danach über den Änderungsfeed (`GET /api/v1/lager/{id}/aenderungen?seit=`), wo auch der Zeilenfilter der Rolle gilt.
+
+        Nachrichten (`event`, `id` ist die Folgenummer, `data` ist JSON, siehe `LagerEreignis`):
+        - `bereit`: erste Nachricht; `{ "bis": N }` ist der Stand des Lagers.
+        - `aenderung`: `{ "bis": N, "objekttypen": ["aufgabe", ...] }`. Schreibvorgänge in kurzer Zeit ergeben eine Meldung. Hat nichts Lesbares geändert, kommt keine. Beim Verbinden mit `Last-Event-ID` (oder `seit`), das kleiner ist als der Stand, kommt sie sofort mit allen lesbaren Objekttypen.
+        - `neu-laden`: `{ "bis": N }`; die Folgenummer der App liegt in der Zukunft (Lager zurückgespielt), die App lädt neu.
+        - `ende`: `{ "grund": "neu-verbinden" }`; der Server beendet die Verbindung, weil sich Rolle oder Rechte geändert haben oder eine Obergrenze der Verbindungen erreicht ist. Die App verbindet neu und bekommt dabei ihre aktuellen Rechte (oder 401 und 404, wenn sie keinen Zugang mehr hat).
+        - Kommentarzeile `: herzschlag` alle 25 Sekunden, ohne Datenbankzugriff.
+
+        Wiederverbinden: Die App merkt sich die letzte `id` und sendet sie als `Last-Event-ID` (Browser tun das selbst; wer keinen Kopf setzen kann, nimmt `seit`). Danach fragt sie den Feed ab dieser Folgenummer ab. Die Verbindung gilt für die Sitzung, die sie geöffnet hat: Endet die Sitzung, wird das Konto gesperrt oder ändert sich die Rolle im Lager, endet die Verbindung spätestens nach fünf Minuten, bei Änderungen in der Verwaltung (Mitglieder, Rechte) sofort.
+
+        Obergrenzen: höchstens 3 gleichzeitige Verbindungen je Konto (eine vierte beendet die älteste), 100 je Lager und 200 je Instanz; darüber antwortet die Route mit 429 `ZU_VIELE_VERBINDUNGEN` und `Retry-After: 30`. Ein Client, der Nachrichten nicht abholt, verliert die Verbindung.
+
+        Die Route ist lesend und darum auch in einem abgeschlossenen Lager offen. Proxys dürfen die Antwort nicht puffern (siehe docs/betrieb.md). Statuscodes: 200 (Stream). 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 429 bei erreichter Obergrenze.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: Last-Event-ID
+          in: header
+          required: false
+          description: Folgenummer der letzten Meldung, die die App erhalten hat.
+          schema:
+            type: integer
+            minimum: 0
+        - name: seit
+          in: query
+          required: false
+          description: Wie `Last-Event-ID`, für Clients, die keinen Kopf setzen können. Der Kopf geht vor.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        "200":
+          description: Ein Event-Stream. Die Verbindung bleibt offen, bis eine Seite sie beendet.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: Nachrichten im Format von Server-Sent Events; `data` ist ein `LagerEreignis`.
+              example: |
+                retry: 5000
+                id: 42
+                event: bereit
+                data: {"bis":42}
+
+                id: 43
+                event: aenderung
+                data: {"bis":43,"objekttypen":["aufgabe"]}
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          description: Obergrenze der Verbindungen erreicht (`ZU_VIELE_VERBINDUNGEN`), Kopf `Retry-After` mit 30 Sekunden.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
   # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/dateien:
+    post:
+      operationId: legeLagerDateiAn
+      summary: Datei als Verknüpfung hinzufügen
+      description: |
+        Speichert die Verknüpfung auf eine Datei, die im SharePoint (Microsoft 365) der Abteilung liegt. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ (MIME) und Grösse (Bytes), nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Offline-Kopien legt nur die App an, nur wenn die Person die Option in den Einstellungen der App einschaltet; im Web gibt es keine.
+
+        Der Link wird streng geprüft: nur `https:`, keine protokoll-relative Adresse, kein `javascript:` oder `data:`, keine Zugangsdaten und kein Port in der Adresse, ein Host mit Punkt und kein IP-Literal, höchstens 2048 Zeichen, ohne Leer-, Steuer- und Formatzeichen. Hat die Abteilung erlaubte Hosts festgelegt (`/api/v1/admin/lager-dateien/hosts`), muss der Host einer davon sein oder eine Subdomain davon. Der Link wird in der Schreibweise der URL-Norm gespeichert (Schema und Host klein).
+
+        Wer den Eintrag sieht: die Person, die ihn hinzugefügt hat, 24 Stunden lang, und wer einen Datensatz lesen darf, der ihn einbindet (Pinnwand, Dokumente, Protokolle, Infos). Ein Eintrag, den innerhalb von 24 bis 48 Stunden kein Datensatz einbindet, wird aufgeräumt. Recht: Pinnwand, Dokumente, Protokolle oder Infos bearbeiten (eines genügt). Rate-Limit: 30 Einträge je Konto in 10 Minuten (429). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Rate-Limit (429).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe: `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT` für den Link, sonst ohne Details. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiAnlegen"
+      responses:
+        "201":
+          description: Die Verknüpfung (Version 1).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          description: Ungültige Eingabe. Beim Link `LINK_UNGUELTIG` oder `LINK_HOST_NICHT_ERLAUBT`, sonst `UNGUELTIGE_EINGABE` ohne Details.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/dateien/{dateiId}:
+    get:
+      operationId: holeLagerDatei
+      summary: Verknüpfung lesen
+      description: |
+        Liefert Link, Anzeigename, Typ und Grösse einer Verknüpfung. Sichtbar ist der Eintrag für die Person, die ihn in den letzten 24 Stunden hinzugefügt hat, und für jede Person, die einen Datensatz lesen darf, der ihn einbindet; für alle anderen gibt es ihn nicht (404). Der Server liefert nie den Inhalt der Datei: Öffnen und Herunterladen gehen über den Link direkt zum Ablageort, der selbst regelt, wer die Datei öffnen darf. Eine Liste gibt es nicht; die Routen der Module, die Dateien einbinden, liefern die Einträge ihrer Datensätze.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager oder der Eintrag unbekannt ist, zu einer anderen Abteilung oder einem anderen Lager gehört, gelöscht oder für die Person nicht sichtbar ist, oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Verknüpfung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDatei"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerDatei
+      summary: Verknüpfung löschen
+      description: |
+        Entfernt nur die Verknüpfung in Cevi OS (Soft-Delete über den Sync-Kern, der Änderungsfeed meldet `geloescht`), nie die Datei am Ablageort. Die Anfrage nennt die zuletzt gesehene `version`; stimmt sie nicht, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Gleiches Recht wie beim Anlegen. Reihenfolge der Prüfungen: Pfad (400), Lager (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eintrag (404), Version (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder fehlender Version. 401 ohne Anmeldung. 403 ohne Recht. 404, wenn Lager oder Eintrag für die Person nicht existieren. 409 bei `LAGER_GESCHLOSSEN` und `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dateiId
+          in: path
+          required: true
+          description: ID der Verknüpfung (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version der Verknüpfung.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Verknüpfung gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Version stimmt nicht (`VERSION_KONFLIKT`, mit aktuellem Stand und abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/LagerKonflikt"
+                  - $ref: "#/components/schemas/LagerVersionKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager-dateien/hosts:
+    get:
+      operationId: holeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links lesen
+      description: |
+        Nur Admins. Liefert die Hosts, auf denen die Links der Dateien im Lager liegen dürfen, oder `null` ohne Einschränkung (Vorgabe).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die erlaubten Hosts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDateiHosts"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLagerDateiHosts
+      summary: Erlaubte Hosts für Datei-Links festlegen
+      description: |
+        Nur Admins. Legt fest, auf welchen Hosts die Links liegen dürfen, zum Beispiel `meineabteilung.sharepoint.com`: der Host selbst oder eine Subdomain davon. `null` hebt die Einschränkung auf (Vorgabe). Höchstens 20 Hosts, ohne Schema, Pfad und Port; Gross- und Kleinschreibung egal, doppelte Einträge fallen weg. Gilt für neue Links; bestehende bleiben. Audit-Log: `lager_datei_hosts_geaendert` (nur die Anzahl).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDateiHosts"
+      responses:
+        "204":
+          description: Hosts gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/ressorts:
     get:
@@ -6471,6 +6949,19 @@ paths:
   # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/website/inhalt:
     get:
       operationId: leseWebsiteInhalt
@@ -6659,7 +7150,7 @@ paths:
       operationId: listeRedaktionEckdaten
       summary: Kommende Felder der Stufenseite
       description: |
-        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist `seite` für im Editor gepflegte Zeilen und `web` für die, die das Auslesen der alten Stufenwebseite schrieb (läuft bis zur Ablösung nebenher). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
+        Die festen Felder der Stufenseite (Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen) für alle Daten ab heute (Zürich), nach Datum sortiert, höchstens 21. `quelle` ist immer `seite` (im Editor gepflegt); das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361). Recht wie an der Stufenseite: Stufenleitung der Stufe, Redaktion, Abteilungsleitung; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum).
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403).
 
@@ -6725,7 +7216,7 @@ paths:
       operationId: schreibeRedaktionEckdaten
       summary: Felder der Stufenseite für ein Datum pflegen
       description: |
-        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig (auch eine ausgelesene: sie gehört danach dem Editor, das Auslesen überschreibt sie nie mehr). Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
+        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig. Hat die Abteilung keinen Google-Kalender, legt das Speichern zugleich das Programm dieses Tages an oder aktualisiert es (ID `web:<Stufe>:<Tag>`, Titel «Cevi-Programm <Stufe>», für Eltern sichtbar; Beginn und Ende aus Treffzeit und Schlusszeit, ohne beide oder mit Schluss vor Beginn ganztägig); mit Kalender entsteht kein Programm. Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403), Body (400), Datum (400), Obergrenze (409).
 
@@ -6763,9 +7254,9 @@ paths:
       operationId: loescheRedaktionEckdaten
       summary: Gepflegte Felder für ein Datum löschen
       description: |
-        Löscht nur eine im Editor gepflegte Zeile (`quelle` = `seite`); eine ausgelesene gehört dem Auslesen und ist hier 404. Audit-Log: `eckdaten_geloescht` mit dem Datum.
+        Löscht die Zeile und das dazugehörige kommende Programm ohne Kalender (`web:<Stufe>:<Tag>`; Vergangenes bleibt). Audit-Log: `eckdaten_geloescht` mit dem Datum.
 
-        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde Stufe oder eine Zeile ohne gepflegte Werte.
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 für eine fremde Stufe oder ein Datum ohne Zeile.
       tags:
         - Redaktion
       parameters:
@@ -8977,62 +9468,8 @@ components:
     AdminSyncs:
       type: object
       additionalProperties: false
-      required: [eckdaten, kalender]
+      required: [kalender]
       properties:
-        eckdaten:
-          type: object
-          additionalProperties: false
-          required: [letzterLaufAm, stufen]
-          properties:
-            letzterLaufAm:
-              type: [string, "null"]
-              format: date-time
-            stufen:
-              type: array
-              items:
-                type: object
-                additionalProperties: false
-                required: [id, name, adresse, ausgang, fehlercode, eckdaten]
-                properties:
-                  id:
-                    type: string
-                    format: uuid
-                  name:
-                    type: string
-                  adresse:
-                    type: [string, "null"]
-                  ausgang:
-                    type: [string, "null"]
-                    enum: [gelesen, keine_seite, ohne_datum, fehler, null]
-                  fehlercode:
-                    type: [string, "null"]
-                  eckdaten:
-                    type: [object, "null"]
-                    additionalProperties: false
-                    required:
-                      [
-                        tag,
-                        treffpunkt,
-                        schlussOrt,
-                        schlussZeit,
-                        mitnehmen,
-                        abgerufenAm,
-                      ]
-                    properties:
-                      tag:
-                        type: string
-                        format: date
-                      treffpunkt:
-                        type: [string, "null"]
-                      schlussOrt:
-                        type: [string, "null"]
-                      schlussZeit:
-                        type: [string, "null"]
-                      mitnehmen:
-                        type: [string, "null"]
-                      abgerufenAm:
-                        type: string
-                        format: date-time
         kalender:
           type: object
           additionalProperties: false
@@ -9373,7 +9810,7 @@ components:
           format: uuid
         mimeTyp:
           type: string
-          description: Bilder sind immer `image/webp`, PDFs `application/pdf`.
+          description: Bilder sind immer `image/webp`. `application/pdf` kommt nur bei einem alten PDF-Medium vor (vor #428); es lässt sich löschen, wird aber nicht mehr ausgeliefert.
           enum:
             - image/webp
             - application/pdf
@@ -9394,7 +9831,7 @@ components:
           type:
             - string
             - "null"
-          description: "`null` bei dekorativen Bildern und bei PDFs ohne Beschreibung."
+          description: "`null` bei dekorativen Bildern."
         dekorativ:
           type: boolean
         sichtbarkeit:
@@ -9904,6 +10341,99 @@ components:
                 type: boolean
     # lager-schemas: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerEreignis:
+      type: object
+      description: Die Daten einer Nachricht des Event-Streams. Nie IDs, Namen oder Inhalte.
+      required:
+        - bis
+      properties:
+        bis:
+          type: integer
+          minimum: 0
+          description: Folgenummer, bis zu der es Neues gibt.
+        objekttypen:
+          type: array
+          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`).
+          items:
+            type: string
+        grund:
+          type: string
+          description: Nur bei `ende`.
+          enum:
+            - neu-verbinden
+    LagerWarteschlangeAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - operationen
+      properties:
+        operationen:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - clientOpId
+              - typ
+              - nutzlast
+            properties:
+              clientOpId:
+                type: string
+                format: uuid
+                description: Von der App einmal je Operation erzeugt und bei jeder Wiederholung beibehalten.
+              typ:
+                type: string
+                minLength: 1
+                maxLength: 64
+                description: Name der Operation, zum Beispiel `aufgabe.aendern`.
+              nutzlast:
+                type: object
+                description: Die Felder der Operation; unbekannte Felder lehnt die Operation ab.
+                additionalProperties: true
+    LagerWarteschlangeAntwort:
+      type: object
+      required:
+        - ergebnisse
+      properties:
+        ergebnisse:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerOperationsErgebnis"
+    LagerOperationsErgebnis:
+      type: object
+      required:
+        - clientOpId
+        - status
+      properties:
+        clientOpId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - ok
+            - konflikt
+            - abgelehnt
+        ergebnis:
+          type: object
+          description: Nur bei `ok`, enthält IDs und Versionen der geschriebenen Zeilen, keine Inhalte.
+          additionalProperties: true
+        code:
+          type: string
+          description: Nur bei `konflikt` (`VERSION_KONFLIKT`) und `abgelehnt`.
+        message:
+          type: string
+        aktuell:
+          type: object
+          description: Nur bei `konflikt`, der aktuelle Stand der Zeile in der Ansicht der Rolle.
+          additionalProperties: true
+        abweichend:
+          type: array
+          description: Nur bei `konflikt`, die Felder der Operation, die jetzt anders stehen.
+          items:
+            type: string
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerBenachrichtigungsArt:
@@ -10051,6 +10581,85 @@ components:
               aktiv:
                 type: boolean
     # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDatei:
+      type: object
+      additionalProperties: false
+      description: Verknüpfung auf eine Datei im SharePoint der Abteilung. Kein Inhalt; der Server ruft den Link nie ab.
+      required:
+        - id
+        - version
+        - anzeigename
+        - link
+        - typ
+        - groesse
+        - hinzugefuegtVon
+        - hinzugefuegtAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        anzeigename:
+          type: string
+        link:
+          type: string
+          format: uri
+          description: https-Adresse am Ablageort; der Ablageort regelt, wer die Datei öffnen darf. Die App legt die Offline-Kopie an, nur wenn die Person die Option in den Einstellungen der App einschaltet.
+        typ:
+          type: [string, "null"]
+          description: MIME-Typ, falls bekannt.
+        groesse:
+          type: [integer, "null"]
+          description: Bytes, falls bekannt.
+        hinzugefuegtVon:
+          type: [string, "null"]
+          format: uuid
+          description: ID des Kontos, das den Eintrag hinzugefügt hat; null, wenn das Konto gelöscht ist.
+        hinzugefuegtAm:
+          type: string
+          format: date-time
+    LagerDateiAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - anzeigename
+        - link
+      properties:
+        anzeigename:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Ohne Steuerzeichen; Leerraum an den Enden fällt weg.
+        link:
+          type: string
+          maxLength: 2048
+          description: https-Adresse, streng geprüft (siehe die Route).
+        typ:
+          type: string
+          maxLength: 100
+          pattern: "^[A-Za-z0-9.+-]+/[A-Za-z0-9.+-]+$"
+          description: MIME-Typ, wird klein gespeichert.
+        groesse:
+          type: integer
+          minimum: 0
+          description: Bytes.
+    LagerDateiHosts:
+      type: object
+      additionalProperties: false
+      required:
+        - hosts
+      properties:
+        hosts:
+          type: [array, "null"]
+          minItems: 1
+          maxItems: 20
+          description: Erlaubte Hosts; null = keine Einschränkung.
+          items:
+            type: string
+            maxLength: 253
+            example: meineabteilung.sharepoint.com
     # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerRessortPerson:
       description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
@@ -10425,6 +11034,19 @@ components:
     # lager-schemas: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
       type: object
       required:
@@ -10584,7 +11206,7 @@ components:
           description: Neuer Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Hebt «dekorativ» auf.
         dekorativ:
           const: true
-          description: Das Bild als dekorativ markieren; entfernt den Alt-Text. Bei einem PDF 400.
+          description: Das Bild als dekorativ markieren; entfernt den Alt-Text.
     RedaktionTag:
       type: object
       required:
@@ -10995,7 +11617,7 @@ components:
           maxLength: 1000
         quelle:
           type: string
-          enum: [web, seite]
+          enum: [seite]
     RedaktionEckdatenListe:
       type: object
       required:

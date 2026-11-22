@@ -4,7 +4,13 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { darfBearbeiten } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
-import { auditLog, programmEckdaten, seite, tag } from "../../db/schema.js";
+import {
+  abteilung,
+  auditLog,
+  programmEckdaten,
+  seite,
+  tag,
+} from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
@@ -17,6 +23,10 @@ import {
   vergissStufenfakten,
   ZEIT_MUSTER,
 } from "../../website/stufenfakten.js";
+import {
+  entferneStufenprogramm,
+  legeStufenprogrammAn,
+} from "../../website/stufenprogramm.js";
 
 // Steuerzeichen ausser Tab und Zeilenumbruch sind verboten, vor allem NUL: Postgres kann es nicht speichern, das wäre ein 500 statt 400
 // eslint-disable-next-line no-control-regex
@@ -76,8 +86,13 @@ const spalten = {
 export function erstelleEckdatenRouten({ db }: { db: Db }) {
   async function ladeMitRecht(person: Person, stufeId: string) {
     const [stufe] = await db
-      .select({ id: tag.id })
+      .select({
+        id: tag.id,
+        name: tag.name,
+        kalenderId: abteilung.googleKalenderId,
+      })
       .from(tag)
+      .innerJoin(abteilung, eq(abteilung.id, tag.abteilungId))
       .where(
         and(
           eq(tag.id, stufeId),
@@ -104,7 +119,15 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
       { stufeId },
     );
     if (!darf) throw new HTTPException(403);
-    return stufenseite?.id;
+    return {
+      stufenseiteId: stufenseite?.id,
+      stufe: {
+        stufeId,
+        stufeName: stufe.name,
+        abteilungId: person.abteilungId,
+        kalenderId: stufe.kalenderId,
+      },
+    };
   }
 
   // Die Stufenseite wird neu erzeugt, weil der Baustein andere Felder zeigt (nach dem Commit, nie mit Inhalt)
@@ -120,7 +143,7 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
       const person = c.get("person");
       const { stufeId } = c.req.valid("param");
       await ladeMitRecht(person, stufeId);
-      // Kommende Daten, beide Quellen; höchstens so viele, wie gepflegt werden dürfen, plus die eine ausgelesene
+      // Kommende Daten; höchstens so viele, wie gepflegt werden dürfen (plus eine Zeile Spielraum)
       const eckdaten = await db
         .select(spalten)
         .from(programmEckdaten)
@@ -153,7 +176,7 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
     .put("/:stufeId/eckdaten/:tag", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { stufeId, tag: tagWert } = c.req.valid("param");
-      const stufenseiteId = await ladeMitRecht(person, stufeId);
+      const { stufenseiteId, stufe } = await ladeMitRecht(person, stufeId);
       const parsed = speichernSchema.safeParse(
         await c.req.json().catch(() => null),
       );
@@ -227,6 +250,8 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
               .map(([name]) => name),
           },
         });
+        // Das Programm der Abteilung ohne Kalender entsteht hier, beim Speichern, nie im Takt
+        await legeStufenprogrammAn(tx, stufe, { tag: tagWert, ...werte });
         return true;
       });
       if (!ok) return c.json(ZU_VIELE, 409);
@@ -236,8 +261,7 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
     .delete("/:stufeId/eckdaten/:tag", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { stufeId, tag: tagWert } = c.req.valid("param");
-      const stufenseiteId = await ladeMitRecht(person, stufeId);
-      // Nur gepflegte Zeilen: Die ausgelesene gehört dem Auslesen (bis #361)
+      const { stufenseiteId } = await ladeMitRecht(person, stufeId);
       const weg = await db.transaction(async (tx) => {
         const geloescht = await tx
           .delete(programmEckdaten)
@@ -245,11 +269,11 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
             and(
               eq(programmEckdaten.stufeId, stufeId),
               eq(programmEckdaten.tag, tagWert),
-              eq(programmEckdaten.quelle, "seite"),
             ),
           )
           .returning({ tag: programmEckdaten.tag });
         if (geloescht.length === 0) return false;
+        await entferneStufenprogramm(tx, person.abteilungId, stufeId, tagWert);
         await tx.insert(auditLog).values({
           abteilungId: person.abteilungId,
           akteurId: person.id,

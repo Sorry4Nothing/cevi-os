@@ -7,7 +7,7 @@ import { log } from "./log.js";
 
 // Der Text steht unter dem Titel. Er trägt nie Chat-Inhalt oder Namen von Kindern: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export type Push = {
-  typ: "chat" | "programm" | "mitteilung" | LagerPushTyp;
+  typ: "chat" | "programm" | "mitteilung" | LagerPushTyp | TerminePushTyp;
   id: string;
   titel: string;
   text?: string;
@@ -40,7 +40,16 @@ export const LAGER_PUSH_TYPEN = [
 ] as const;
 export type LagerPushTyp = (typeof LAGER_PUSH_TYPEN)[number];
 
-const KANAL: Record<Push["typ"], string> = {
+// Pushes der Termine (Epic #430, Gerüst #431): data.id ist die ID des Vorschlags oder der Raumanfrage. Der Text trägt höchstens den Vorschlagstitel; feste Titel stehen in termine/push-arten.ts. Die Kanäle «termine» und «raeume» legt die App an (Vorschlag, vom Nutzer zu bestätigen)
+export const TERMINE_PUSH_TYPEN = [
+  "termin_vorschlag",
+  "termin_entscheid",
+  "raum_anfrage",
+  "raum_entscheid",
+] as const;
+export type TerminePushTyp = (typeof TERMINE_PUSH_TYPEN)[number];
+
+export const PUSH_KANAL: Record<Push["typ"], string> = {
   chat: "chat",
   programm: "programme",
   // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
@@ -51,6 +60,10 @@ const KANAL: Record<Push["typ"], string> = {
   lager_eingang: "lager_mitteilungen",
   lager_einteilung: "lager_einteilung",
   lager_anwesenheit: "lager_einteilung",
+  termin_vorschlag: "termine",
+  termin_entscheid: "termine",
+  raum_anfrage: "raeume",
+  raum_entscheid: "raeume",
 };
 
 type Fehler = { code?: unknown; cause?: { code?: unknown } };
@@ -73,7 +86,7 @@ export async function sendePush(
   { typ, id, titel, text }: Push,
 ): Promise<void> {
   if (!fcm) return;
-  const kanal = KANAL[typ];
+  const kanal = PUSH_KANAL[typ];
   let tokens: string[];
   try {
     const zeilen = await db

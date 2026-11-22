@@ -195,6 +195,10 @@ export async function antwortenJePersona(
       },
     );
     ergebnis[persona] = antwort.status;
+    // Ein Event-Stream endet nie von selbst: Die Verbindung schliessen, sonst bleibt sie offen (#367)
+    if (antwort.headers.get("content-type")?.startsWith("text/event-stream")) {
+      await antwort.body?.cancel();
+    }
   }
   return ergebnis;
 }
