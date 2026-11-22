@@ -27,7 +27,7 @@ export function pruefeAntworten(
   antworten: Record<string, unknown>,
 ): { antworten: Antworten } | { fehler: AntwortFehler[] } {
   const fehler: AntwortFehler[] = [];
-  // Als Paare, dann Object.fromEntries: Ein Schlüssel wie __proto__ ist erlaubt (a-z0-9_) und wird so ein gewöhnlicher Eintrag
+  // Als Paare, dann Object.fromEntries: Ein Schlüssel wie constructor ist erlaubt (a-z0-9_) und wird so ein gewöhnlicher Eintrag (die Eingabe verwirft __proto__ schon vorher)
   const ok: [string, string | boolean][] = [];
   const nachSchluessel = new Map(felder.map((f) => [f.schluessel, f]));
   for (const schluessel of Object.keys(antworten)) {

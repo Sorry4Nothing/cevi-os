@@ -786,7 +786,7 @@ describe("Antworten werden gegen die Felder geprüft", () => {
     ]);
   });
 
-  test("Schlüssel wie constructor und __proto__ sind gewöhnliche Felder", async () => {
+  test("Schlüssel wie constructor sind gewöhnliche Felder, __proto__ verbiegt nichts", async () => {
     const a = await neuerAnlass({
       felder: [{ schluessel: "constructor" }, { schluessel: "__proto__" }],
     });
@@ -806,7 +806,6 @@ describe("Antworten werden gegen die Felder geprüft", () => {
     expect(antwort.status).toBe(200);
     const zeilen = await anmeldungen(a.id);
     expect(Object.entries(zeilen[0].antworten).sort()).toEqual([
-      ["__proto__", "b"],
       ["constructor", "a"],
     ]);
   });
