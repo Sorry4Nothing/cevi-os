@@ -10,12 +10,14 @@ import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
 import { erstelleAufgabenRouten } from "./aufgaben.js";
 import { erstelleAufgabenDetailsRouten } from "./aufgaben-details.js";
+import { erstelleAufgabenSchnellRouten } from "./aufgaben-schnell.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleDokumentRouten } from "./dokumente.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEinkaufRouten } from "./einkauf.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
+import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleRessortRouten } from "./ressorts.js";
@@ -61,6 +63,8 @@ export function erstelleLagerRouten({
     .route("/", erstelleAufgabenDetailsRouten({ db }))
     .route("/", erstelleDokumentRouten({ db }))
     .route("/", erstelleAufgabenRouten({ db, fcm }))
+    .route("/", erstelleAufgabenSchnellRouten({ db }))
+    .route("/", erstelleHoeckRouten({ db }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))
