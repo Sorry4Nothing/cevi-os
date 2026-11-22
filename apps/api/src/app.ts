@@ -229,7 +229,7 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
-      .route("/api/v1/lager", erstelleLagerRouten({ db }))
+      .route("/api/v1/lager", erstelleLagerRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))

@@ -17,6 +17,7 @@ import {
   synchronisiereEckdaten,
 } from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
+import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -106,6 +107,10 @@ starteKalenderSync(kalenderLauf);
 starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
 starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
+starteSitzungenAufraeumen(
+  () => loescheGeleseneBenachrichtigungen(db),
+  "lager_benachrichtigungen",
+);
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
   konfiguration.WEBSITE_AUSGABE_PFAD &&

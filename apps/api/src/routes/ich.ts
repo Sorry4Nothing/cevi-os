@@ -7,6 +7,7 @@ import { kind, kindEltern, profilbild, stufe, user } from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
+import { erstelleLagerBenachrichtigungEinstellungRouten } from "./lager/benachrichtigungen.js";
 import { telefonSchema } from "../telefon.js";
 
 // Mindestens ein Feld: Ein leeres set() wirft in Drizzle («No values to set»)
@@ -129,5 +130,10 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         await db.update(user).set(daten).where(eq(user.id, person.id));
         return c.body(null, 204);
       })
+      // Schalter der Lager-Benachrichtigungen je Art (#369)
+      .route(
+        "/lager-benachrichtigungen",
+        erstelleLagerBenachrichtigungEinstellungRouten({ db }),
+      )
   );
 }

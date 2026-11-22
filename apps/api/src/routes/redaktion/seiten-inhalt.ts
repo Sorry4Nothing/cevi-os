@@ -99,6 +99,7 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
     const z = await ladeSeite(d, person, id);
     const darf = await darfBearbeiten(d, person, "seite", id, {
       stufeId: z.seite.tagId ?? undefined,
+      tagId: z.seite.tagId ?? undefined,
     });
     if (!darf) throw new HTTPException(403);
     return z;
