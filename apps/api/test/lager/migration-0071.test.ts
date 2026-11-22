@@ -101,24 +101,24 @@ test("0071 legt todo_privat und vorlage an, die Prüfungen der Datenbank halten,
   ).rejects.toMatchObject({ code: "23514" });
 
   // Vorlage: nur die zwei Arten, Inhalt ein Objekt, Name je Abteilung und Art eindeutig
-  const inhalt = JSON.stringify({ aufgaben: [{ titel: "A" }] });
-  await api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'aufgaben', 'Standard', ${inhalt}::jsonb)`;
-  await api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'packliste', 'Standard', '{}'::jsonb)`;
+  const inhalt = api.json({ aufgaben: [{ titel: "A" }] });
+  await api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'aufgaben', 'Standard', ${inhalt})`;
+  await api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'packliste', 'Standard', ${api.json({})})`;
   await expect(
-    api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'aufgaben', 'Standard', ${inhalt}::jsonb)`,
+    api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, 'aufgaben', 'Standard', ${inhalt})`,
   ).rejects.toMatchObject({ code: "23505" });
   for (const [art, name, json] of [
-    ["unbekannt", "X", "{}"],
-    ["aufgaben", "", "{}"],
-    ["aufgaben", "X", "[]"],
-    ["aufgaben", "X", '"text"'],
-  ]) {
+    ["unbekannt", "X", {}],
+    ["aufgaben", "", {}],
+    ["aufgaben", "X", []],
+    ["aufgaben", "X", "text"],
+  ] as const) {
     await expect(
-      api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, ${art}, ${name}, ${json}::jsonb)`,
+      api`insert into vorlage (abteilung_id, art, name, inhalt) values (${abteilung.id}, ${art}, ${name}, ${api.json(json)})`,
     ).rejects.toMatchObject({ code: "23514" });
   }
 
-  // Das Lager nimmt die To-dos mit, die Vorlage bleibt; mit der Abteilung geht auch die Vorlage
+  // Das Lager nimmt die To-dos mit, die Vorlage bleibt (die Abteilung lässt sich ohnehin nicht löschen: RESTRICT)
   await api`delete from lager where id = ${lager.id}`;
   expect(
     await api`select 1 from todo_privat where lager_id = ${lager.id}`,

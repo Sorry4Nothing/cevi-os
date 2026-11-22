@@ -62,7 +62,7 @@ export const vorlage = pgTable(
       .default(sql`uuidv7()`),
     abteilungId: uuid("abteilung_id")
       .notNull()
-      .references(() => abteilung.id, { onDelete: "cascade" }),
+      .references(() => abteilung.id, { onDelete: "restrict" }),
     art: text("art", { enum: VORLAGE_ARTEN }).notNull(),
     name: text("name").notNull(),
     inhalt: jsonb("inhalt").notNull(),
