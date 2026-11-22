@@ -33,7 +33,7 @@ export const KATEGORIEN = {
   kalenderlink: {
     titel: "Persönlicher Kalenderlink",
     zweck:
-      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn jederzeit erneuern oder widerrufen.",
+      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Kalender zeigt nur Titel, Ort, Zeit und Stand der Termine, nie Kinder, Beschreibung oder Anmeldungen. Der Link ist geheim und gehört nur dir: Wer ihn kennt, sieht diese Termine. Gib ihn nicht weiter; du kannst ihn jederzeit erneuern oder widerrufen.",
     frist:
       "Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.",
     apple: ["Other Data"],
@@ -67,9 +67,9 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen.",
     frist:
-      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert.",
+      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist.",
     apple: [],
     google: [],
   },
