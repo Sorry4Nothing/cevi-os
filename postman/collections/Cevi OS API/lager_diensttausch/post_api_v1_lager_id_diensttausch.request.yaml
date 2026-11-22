@@ -1,0 +1,22 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/diensttausch"
+order: 210000
+method: POST
+url: "{{baseUrl}}{{pfad_L52}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "schichtId": "1b80c463-8b6f-48a0-a962-e355cc736dbd"
+    }

@@ -1,0 +1,28 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/anwesenheit/anfragen"
+order: 174000
+method: POST
+url: "{{baseUrl}}{{pfad_L16}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "eintraege": [
+        {
+          "lagertagId": "01a202e0-8f55-7239-b09f-27fd5a3250c0",
+          "tagesabschnittId": "01a202e0-8f5c-7ae1-87af-7ea62cf99378",
+          "wert": "A"
+        }
+      ]
+    }

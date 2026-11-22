@@ -1,0 +1,14 @@
+$kind: http-request
+name: "DELETE /api/v1/plattform/schalter"
+order: 147000
+method: DELETE
+url: "{{baseUrl}}/api/v1/plattform/schalter?art=wartung&bereich=chat"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

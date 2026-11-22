@@ -168,7 +168,7 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht. Wer im Team eine eigene Schicht tauschen oder abgeben möchte, stellt eine Anfrage an die Lagerleitung (mit freiwilliger Bemerkung und, wenn gewünscht, einer Wunschperson); die Lagerleitung klärt die Zustimmung selbst und nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht. Wer im Team eine eigene Schicht tauschen oder abgeben möchte, stellt eine Anfrage an die Lagerleitung (mit freiwilliger Bemerkung und, wenn gewünscht, einer Wunschperson); die Lagerleitung klärt die Zustimmung selbst und nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel. Aus diesen Angaben erzeugt Cevi OS auf Abruf Aushänge als PDF (Zimmerliste, Türschilder, Gruppenlisten, Fahrtenliste, Schichtplan, Organigramm); die Datei geht nur an die abrufende Person und wird nicht gespeichert.",
     frist:
       "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
@@ -210,7 +210,7 @@ export const KATEGORIEN = {
   lagerDokumente: {
     titel: "Dokumente im Lager",
     zweck:
-      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
+      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Wer Dokumente bearbeiten darf (im Standard Lagerleitung und Leitung), gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
     frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -259,7 +259,7 @@ export const KATEGORIEN = {
     titel: "Anwesenheit im Lager",
     zweck:
       "Planen, wer an welchem Tag und zu welcher Tageszeit im Lager ist, zum Beispiel für den Schichtplan und die Einkaufsmenge. Die Lagerleitung trägt für alle ein, das Team seine eigene Anwesenheit; eine Änderung eines eingetragenen Feldes stellt das Team als Anfrage an die Lagerleitung, die sie annimmt oder ablehnt. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
-    frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    frist: `Bis die Leitung die Anwesenheit löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Einträge der Teilnehmenden (nur Kennung und Wert, kein Name) bleiben auch nach dem Löschen der Teilnehmenden, sechs Monate nach dem Ende des Lagers, bis das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },

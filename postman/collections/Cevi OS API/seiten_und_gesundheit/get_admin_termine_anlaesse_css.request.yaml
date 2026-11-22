@@ -1,0 +1,14 @@
+$kind: http-request
+name: "GET /admin/termine-anlaesse.css"
+order: 47000
+method: GET
+url: "{{baseUrl}}/admin/termine-anlaesse.css"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

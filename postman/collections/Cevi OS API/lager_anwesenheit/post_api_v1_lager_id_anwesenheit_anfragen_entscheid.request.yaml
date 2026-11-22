@@ -1,0 +1,28 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/anwesenheit/anfragen/entscheid"
+order: 175000
+method: POST
+url: "{{baseUrl}}{{pfad_L17}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "entscheid": "angenommen",
+      "anfragen": [
+        {
+          "id": "75cb50a3-3219-4058-b3ab-9b67019cfa01",
+          "version": 1
+        }
+      ]
+    }

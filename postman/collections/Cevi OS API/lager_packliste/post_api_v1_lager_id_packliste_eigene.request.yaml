@@ -1,0 +1,23 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/packliste/eigene"
+order: 294000
+method: POST
+url: "{{baseUrl}}{{pfad_L137}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "abschnitt": "Matrix",
+      "text": "f4a6ac80-102b-45f5-a3eb-97f0139f1b36"
+    }

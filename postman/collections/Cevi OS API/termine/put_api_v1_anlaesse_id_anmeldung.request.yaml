@@ -1,0 +1,25 @@
+$kind: http-request
+name: "PUT /api/v1/anlaesse/:id/anmeldung"
+order: 408000
+method: PUT
+url: "{{baseUrl}}{{pfad_T14}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "kindId": "01a202e0-89da-766f-9f86-1f334f64a3b0",
+      "antworten": {
+        "bemerkung": "Freue mich"
+      }
+    }

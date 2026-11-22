@@ -1,0 +1,23 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/aufgaben/:aufgabeId/links"
+order: 183000
+method: POST
+url: "{{baseUrl}}{{pfad_L25}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "titel": "Plan",
+      "url": "https://beispiel.example.org/plan"
+    }

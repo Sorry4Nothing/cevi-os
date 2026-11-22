@@ -1,0 +1,23 @@
+$kind: http-request
+name: "PATCH /api/v1/lager/:id/packliste/punkte/:punktId"
+order: 291000
+method: PATCH
+url: "{{baseUrl}}{{pfad_L134}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "version": 1,
+      "text": "Geändert"
+    }

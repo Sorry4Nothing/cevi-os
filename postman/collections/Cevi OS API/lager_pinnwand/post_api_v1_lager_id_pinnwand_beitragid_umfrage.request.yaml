@@ -1,0 +1,25 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/pinnwand/:beitragId/umfrage"
+order: 359000
+method: POST
+url: "{{baseUrl}}{{pfad_L202}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "optionen": [
+        "Ja",
+        "Nein"
+      ]
+    }
