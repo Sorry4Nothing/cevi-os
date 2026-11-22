@@ -169,10 +169,7 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
     `https://x.ch/${"a".repeat(2050)}`,
   ]) {
     await fehler({ art: "oev", plaetze: null, link }, "23514");
-    await fehler(
-      { bez: "Ort", zielLink: link },
-      "23514",
-    );
+    await fehler({ bez: "Ort", zielLink: link }, "23514");
   }
   // Der Kartenpunkt: Bereiche, Koordinaten nur zusammen, Bezeichnung nötig, ganz oder gar nicht
   await fehler({ bez: "Ort", lat: 90.5, lon: 8 }, "23514");
@@ -186,7 +183,10 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
   await fehler({ bez: "Ort", adresse: "x".repeat(201) }, "23514");
   await fahrt(lagerB, { bez: "Ort", lat: 0, lon: 0 });
   await fahrt(lagerB, { bez: "Pol", lat: -90, lon: 180 });
-  await fahrt(lagerB, { bez: "Karte", zielLink: "https://maps.example.ch/?q=x" });
+  await fahrt(lagerB, {
+    bez: "Karte",
+    zielLink: "https://maps.example.ch/?q=x",
+  });
   await fahrt(lagerB, { bez: "Adresse", adresse: "Dorfstrasse 1" });
 
   // Ein Fahrer fährt je Richtung höchstens eine Fahrt; nach Soft-Delete und in der anderen Richtung ist er frei
@@ -207,7 +207,11 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
     )[0].id as string;
   const f1 = await fahrt(lagerA, { art: "oev", plaetze: null });
   const f2 = await fahrt(lagerA, { art: "oev", plaetze: null });
-  const r1 = await fahrt(lagerA, { art: "oev", plaetze: null, richtung: "rueck" });
+  const r1 = await fahrt(lagerA, {
+    art: "oev",
+    plaetze: null,
+    richtung: "rueck",
+  });
   const mit = (
     lagerId: string,
     fahrtId: string,
@@ -257,7 +261,9 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
   ).toHaveLength(0);
   await api`delete from lager_mitglied where lager_id = ${lagerB} and person_id = ${p1}`;
   expect(
-    (await api`select lager_id, fahrer_person_id from fahrt where id = ${fahrerFahrt}`)[0],
+    (
+      await api`select lager_id, fahrer_person_id from fahrt where id = ${fahrerFahrt}`
+    )[0],
   ).toEqual({ lager_id: lagerB, fahrer_person_id: null });
   // Fällt der Teilnehmende weg, geht seine Mitfahrt mit; fällt die Fahrt weg, gehen ihre Mitfahrten mit
   await api`delete from teilnehmer where id = ${t}`;
@@ -270,7 +276,9 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
   ).toHaveLength(0);
   // Das Lager nimmt alles mit
   await api`delete from lager where id = ${lagerB}`;
-  expect(await api`select 1 from fahrt where lager_id = ${lagerB}`).toHaveLength(0);
+  expect(
+    await api`select 1 from fahrt where lager_id = ${lagerB}`,
+  ).toHaveLength(0);
 
   // Es gibt keine Spalte für Gesundheit, Telefon oder Adresse einer Person
   const spalten = (
@@ -296,10 +304,7 @@ test("0082 legt Fahrten und Mitfahrten an, Checks, Teilindizes und Fremdschlüss
   // Rückweg: Tabellen weg, Journal ohne 0082
   await besitzer.unsafe(
     readFileSync(
-      new URL(
-        "../../drizzle/rueckweg/0082_lager_fahrten.sql",
-        import.meta.url,
-      ),
+      new URL("../../drizzle/rueckweg/0082_lager_fahrten.sql", import.meta.url),
       "utf8",
     ),
   );
