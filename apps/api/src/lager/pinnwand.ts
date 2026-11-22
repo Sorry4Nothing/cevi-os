@@ -23,6 +23,7 @@ import { registriereDateiVerweis } from "./datei-verweise.js";
 import { benachrichtige } from "./benachrichtigung.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { ladeRollenRechte } from "./rechte.js";
+import { ladeReaktionen, ladeUmfragen } from "./umfragen.js";
 import {
   aendereZeile,
   legeZeileAn,
@@ -422,6 +423,11 @@ export async function ladeBeitraege(
     }
   }
 
+  // Umfragen und Reaktionen der ganzen Seite gebündelt (#382, lager/umfragen.ts), additiv zu den Feldern aus #381
+  const ids = seite.map((z) => z.zeile.id);
+  const umfragen = await ladeUmfragen(db, zugriff, ids);
+  const reaktionen = await ladeReaktionen(db, zugriff, "pinnwand_beitrag", ids);
+
   // Die Personen unter den Empfängern kennen nur, die den Beitrag verwalten
   const mitPersonen = kannAlleSehen(zugriff);
   return {
@@ -438,6 +444,8 @@ export async function ladeBeitraege(
         personen: mitPersonen ? z.personen : [],
       },
       dateien: dateien.get(z.zeile.id) ?? [],
+      umfrage: umfragen.get(z.zeile.id) ?? null,
+      reaktionen: reaktionen.get(z.zeile.id)!,
     })),
     naechster: zeilen.length > p.limit ? seite[p.limit - 1]!.zeile.id : null,
   };

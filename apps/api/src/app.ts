@@ -32,6 +32,7 @@ import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
 import { erstelleAdminLagerDateiRouten } from "./routes/admin/lager-dateien.js";
 import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
+import { erstelleAdminVorlagenRouten } from "./routes/admin/vorlagen.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstellePlattformRouten } from "./routes/plattform.js";
 import { erstelleChatRouten } from "./routes/chats.js";
@@ -265,6 +266,7 @@ export function erstelleApp({
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
+      .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))
       .route(
         "/api/v1/admin/lager-dateien",
         erstelleAdminLagerDateiRouten({ db }),
