@@ -49,7 +49,7 @@ beforeAll(async () => {
   api = postgres(url("cevi_os_api"), { max: 1 });
   ordnerBauen(bisVorher, 125);
   ordnerBauen(komplett, 127);
-});
+}, 60_000);
 
 afterAll(async () => {
   await besitzer?.end();
@@ -57,7 +57,7 @@ afterAll(async () => {
   await superuser.unsafe(`drop database if exists ${dbName} with (force)`);
   await superuser.end();
   rmSync(temp, { recursive: true, force: true });
-});
+}, 60_000);
 
 const anzahlMigrationen = async () =>
   (
