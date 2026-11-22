@@ -19845,6 +19845,205 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  # termine-pfade: raum-anfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/raeume/{id}/anfragen:
+    post:
+      operationId: frageRaumAn
+      summary: Einen Raum für eine Zeit anfragen
+      description: |
+        Jede angemeldete Person der Abteilung fragt einen aktiven Raum der eigenen Abteilung an (Annahme, vom Nutzer zu bestätigen). Die Zeit beginnt in der Zukunft, `ende` liegt nach `beginn`, die Dauer beträgt höchstens 14 Tage; der Zweck ist ein kurzer Text (höchstens 200 Zeichen, eine Zeile, keine Angaben zur Gesundheit). Höchstens 10 offene Anfragen je Person und 20 Anfragen je Konto in 10 Minuten. Überschneidet sich die Zeit mit einer bestätigten Buchung des Raums, ist die Antwort sofort 409 `RAUM_BELEGT`. Das Team des Raums bekommt einen Push mit festem Text (nie Name, Raum oder Zweck); bei einem Raum ohne Team die Abteilungsleitung.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `ZEIT_VERGANGEN` oder `ZEIT_ZU_LANG`. 401 ohne Sitzung. 403 bei offenem Passwortwechsel. 404, wenn der Raum nicht besteht, inaktiv ist oder zu einer anderen Abteilung gehört. 409 mit Code `RAUM_BELEGT` oder `ANFRAGE_LIMIT`. 429.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RaumId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaumAnfrageNeu"
+      responses:
+        "201":
+          description: Die Anfrage ist gespeichert und offen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumAnfrageStand"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RaumAnfrageKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/raeume/anfragen/meine:
+    get:
+      operationId: listeMeineRaumAnfragen
+      summary: Meine Raumanfragen und Buchungen
+      description: |
+        Die eigenen Anfragen in jedem Stand (`angefragt`, `bestaetigt`, `abgelehnt`, `storniert`), neueste zuerst, in Seiten. Eine bestätigte Anfrage ist die Buchung. Eine Abfrage je Seite (Join auf den Raum). `nach` ist die `naechste` der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 bei offenem Passwortwechsel.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Eine Seite der eigenen Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumAnfrageListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/raeume/anfragen/offen:
+    get:
+      operationId: listeOffeneRaumAnfragen
+      summary: Offene Raumanfragen, über die ich entscheide
+      description: |
+        Die offenen Anfragen (Status `angefragt`, Zeit noch nicht vorbei) der Räume, deren Team-Tag die Person trägt; bei Räumen ohne Team die Abteilungsleitung (Admin mit zweitem Faktor). Ohne die eigenen Anfragen, älteste zuerst, in Seiten. Wer über nichts entscheidet, bekommt eine leere Liste. Eine Abfrage je Seite. `nach` ist die `naechste` der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 bei offenem Passwortwechsel.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Eine Seite der offenen Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumAnfrageOffenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/raeume/anfragen/{id}:
+    delete:
+      operationId: storniereRaumAnfrage
+      summary: Eigene Raumanfrage oder Buchung stornieren
+      description: |
+        Die anfragende Person zieht ihre offene Anfrage zurück oder sagt ihre bestätigte Buchung ab, solange die Zeit nicht vorbei ist. Die Zeile bleibt mit dem Status `storniert` bis zur Löschfrist. Ein zweites Mal ist ebenfalls 204.
+
+        Statuscodes: 204 bei Erfolg. 401 ohne Sitzung. 403 bei offenem Passwortwechsel. 404, wenn die Anfrage nicht besteht, nicht der Person gehört oder zu einer anderen Abteilung gehört. 409 mit Code `STATUS_UNGUELTIG` (abgelehnt oder vorbei).
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RaumAnfrageId"
+      responses:
+        "204":
+          description: Storniert.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RaumAnfrageKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/raeume/anfragen/{id}/entscheid:
+    post:
+      operationId: entscheideRaumAnfrage
+      summary: Eine Raumanfrage annehmen oder ablehnen
+      description: |
+        Entscheiden darf, wer den Team-Tag des Raums trägt (eine Person genügt); bei einem Raum ohne Team die Abteilungsleitung (Admin mit zweitem Faktor). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push mit festem Text.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RaumAnfrageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RaumAnfrageEntscheid"
+      responses:
+        "200":
+          description: Der neue Stand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumAnfrageStand"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RaumAnfrageKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/admin/raeume:
     get:
@@ -19968,7 +20167,7 @@ paths:
       operationId: loescheRaum
       summary: Raum endgültig löschen
       description: |
-        Nur die Abteilungsleitung. Löscht den Raum endgültig. Offene Raumanfragen (kommen mit dem Folge-Issue) sperren das Löschen: Dann den Raum deaktivieren.
+        Nur die Abteilungsleitung. Löscht den Raum endgültig. Offene Raumanfragen und bestätigte Buchungen, die noch nicht vorbei sind, sperren das Löschen: Dann den Raum deaktivieren.
 
         Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn der Raum nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANFRAGEN_OFFEN`.
       tags:
@@ -32464,6 +32663,157 @@ components:
         id:
           type: string
           format: uuid
+    # termine-schemas: raum-anfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    RaumAnfrageNeu:
+      type: object
+      additionalProperties: false
+      required:
+        - beginn
+        - ende
+        - zweck
+      properties:
+        beginn:
+          type: string
+          format: date-time
+          description: Beginn mit Zeitzone, in der Zukunft.
+        ende:
+          type: string
+          format: date-time
+          description: Ende mit Zeitzone, nach `beginn`, höchstens 14 Tage danach.
+        zweck:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Kurzer Zweck, eine Zeile. Bitte keine Angaben zur Gesundheit.
+    RaumAnfrageStand:
+      type: object
+      required:
+        - id
+        - status
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - angefragt
+            - bestaetigt
+            - abgelehnt
+    RaumAnfrageEntscheid:
+      type: object
+      additionalProperties: false
+      required:
+        - entscheid
+      properties:
+        entscheid:
+          type: string
+          enum:
+            - annehmen
+            - ablehnen
+        begruendung:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Pflicht bei `ablehnen`, bei `annehmen` nicht erlaubt.
+    RaumAnfrage:
+      type: object
+      required:
+        - id
+        - raumId
+        - raumName
+        - beginn
+        - ende
+        - zweck
+        - status
+        - begruendung
+        - entschiedenAm
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        raumId:
+          type: string
+          format: uuid
+        raumName:
+          type: string
+        beginn:
+          type: string
+          format: date-time
+        ende:
+          type: string
+          format: date-time
+        zweck:
+          type: string
+        status:
+          type: string
+          enum:
+            - angefragt
+            - bestaetigt
+            - abgelehnt
+            - storniert
+        begruendung:
+          type:
+            - string
+            - "null"
+          description: Begründung der Ablehnung.
+        entschiedenAm:
+          type:
+            - string
+            - "null"
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+    RaumAnfrageListe:
+      type: object
+      required:
+        - anfragen
+        - weitere
+        - naechste
+      properties:
+        anfragen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RaumAnfrage"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
+    RaumAnfrageOffen:
+      allOf:
+        - $ref: "#/components/schemas/RaumAnfrage"
+        - type: object
+          required:
+            - vonName
+          properties:
+            vonName:
+              type: string
+              description: Name der anfragenden Person.
+    RaumAnfrageOffenListe:
+      type: object
+      required:
+        - anfragen
+        - weitere
+        - naechste
+      properties:
+        anfragen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RaumAnfrageOffen"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
       type: object
@@ -33467,6 +33817,14 @@ components:
       schema:
         type: string
         format: uuid
+    RaumAnfrageId:
+      name: id
+      in: path
+      required: true
+      description: ID der Raumanfrage (UUID), in der Abteilung der Person.
+      schema:
+        type: string
+        format: uuid
     TerminVorschlagId:
       name: id
       in: path
@@ -33637,6 +33995,13 @@ components:
     AnlassAnmeldung409:
       description: |
         Konflikt: `ANMELDUNG_GESCHLOSSEN` (die Anmeldung ist nicht offen: nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RaumAnfrageKonflikt409:
+      description: |
+        Konflikt: `RAUM_BELEGT` (die Zeit überschneidet sich mit einer bestätigten Buchung), `ANFRAGE_LIMIT` (schon 10 offene Anfragen) oder `STATUS_UNGUELTIG` (die Anfrage lässt sich in diesem Stand nicht so ändern).
       content:
         application/json:
           schema:

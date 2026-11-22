@@ -12,6 +12,7 @@ import { erstelleKalenderLinkRouten } from "./kalender-link.js";
 import { erstelleKategorieZuordnungenRouten } from "./kategorie-zuordnungen.js";
 import { erstelleMeinRouten } from "./mein.js";
 import { erstelleRaeumeRouten } from "./raeume.js";
+import { erstelleRaumAnfragenRouten } from "./raum-anfragen.js";
 import { erstelleVorschlaegeRouten } from "./vorschlaege.js";
 import { erstelleWarnungenRouten } from "./warnungen.js";
 
@@ -38,5 +39,6 @@ export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleVorschlaegeRouten({ db, fcm }))
     .route("/", erstelleAdminVorschlaegeRouten({ db, fcm }))
     .route("/", erstelleRaeumeRouten({ db }))
+    .route("/", erstelleRaumAnfragenRouten({ db, fcm }))
     .route("/", erstelleAdminRaeumeRouten({ db }));
 }

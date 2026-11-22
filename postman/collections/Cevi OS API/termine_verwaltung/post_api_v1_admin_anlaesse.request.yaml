@@ -18,7 +18,7 @@ body:
   type: json
   content: |-
     {
-      "programmId": "01a20372-98b9-774d-a60f-e6ce6f2f8edf",
+      "programmId": "01a20398-e7b4-7bfb-bff6-47d2ae6f075d",
       "anmeldungFuer": "kind",
       "anmeldungOffen": true,
       "sichtbarkeit": {
