@@ -82,6 +82,8 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
+  // Fassung für den dunklen Modus (#558); fehlt sie, gilt das Logo in Hell und Dunkel
+  dunkel?: { id: string; breite: number | null; hoehe: number | null };
 };
 
 export type Kontext = {
