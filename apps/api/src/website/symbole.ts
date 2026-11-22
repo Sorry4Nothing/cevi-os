@@ -98,6 +98,8 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "path", attr: { d: "M12 21.5 6 13.5a7.5 7.5 0 1 1 12 0z" } },
     { tag: "circle", attr: { cx: "12", cy: "9", r: "2.5" } },
   ],
+  // Kleines Dreieck nach unten: zeigt ein Untermenü an (Kopf, #558)
+  dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   pfeil: [
     { tag: "path", attr: { d: "M3 12h12" } },
     { tag: "path", attr: { class: "f", d: "M14 6l7.5 6-7.5 6z" } },

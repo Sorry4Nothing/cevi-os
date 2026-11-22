@@ -69,40 +69,40 @@ Kontraste (Text mindestens 4.5:1, Ränder und Fokus mindestens 3:1) sind in den 
 
 ## Klassen und Komponenten
 
-| Klasse                                                             | Bedeutung                                                                                         |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| `.wrap`                                                            | Spalte (76 rem breit, seitlicher Rand 48/24/20 px)                                                |
-| `.seitenkopf`                                                      | Block mit dem `h1` (und optional `.unter`, `.kicker`, `.knopfreihe`)                              |
-| `.inhalt`                                                          | Spalte der Bausteine, Abstand 24 px; `h2` bekommt mehr Luft                                       |
-| `.abschnitt`, `.abschnitt-kopf`                                    | Abschnitt mit Überschrift und «Alle …»-Link rechts                                                |
-| `.zweispalten` mit `.spalte` und `aside`                           | Text links, Kasten rechts (380 px); am Handy untereinander                                        |
-| `.lesetext`                                                        | Fliesstext, höchstens 70 Zeichen breit                                                            |
-| `.karte`                                                           | Fläche mit Rand und Radius 12 px                                                                  |
-| `.btn` mit `.p` (rot), `.s` (Rand), `.t` (Text), `.gross`, `.voll` | Knöpfe; nur eine rote Hauptaktion je Seite; `aria-disabled="true"` und `aria-busy` im Ladezustand |
-| `.chip` mit `.st`, `.ok`, `.fe`, `.wa`                             | Etikett (Stufe, Erfolg, Fehler, Warnung); Zustand nie nur über Farbe, immer mit Wort              |
-| `.band` mit `.ok`, `.fe`, `.wa`, `.oben`                           | Hinweisband mit Symbol, `strong` als Titel und Text; `role="status"` oder `role="alert"`          |
-| `.zustand` mit `.fe`                                               | Zustand im Inhalt (leer, Fehler, kein Zugriff): `.kopfzeile` mit Symbol, Text, Aktion             |
-| `.schutz`, `.schutzblock`                                          | Hinweis «Nur angemeldet sichtbar» mit Link «Anmelden»                                             |
-| `.termine`, `.termin`, `.datum`                                    | Termin-Liste: Datumskachel (`.tag`, `.nr`, `.mo`), `.titel`, `.meta`, `.chips`                    |
-| `.team`, `.person`, `.ava`                                         | Leitungsteam mit Avatar (Initialen), `.name`, `.funktion`                                         |
-| `.fakten`, `.fakt`                                                 | Faktenkasten (`dt` Bezeichnung, `dd` Wert)                                                        |
-| `.karten`, `.liste`                                                | Bausteine «Karten» (Stufenkarte: Raster mit rotem Rand oben, Name, Text, «» Mehr zu …») und Liste |
-| `.titelbild`                                                       | Bild über die ganze Breite am Anfang der Startseite, ausserhalb der Spalte (W1)                   |
-| `.galerie`                                                         | Kacheln im Seitenverhältnis 4:3 mit Platzhalterfläche, auch ohne geladene Bilder                  |
-| `.kontaktband`                                                     | Kontaktkarte: Frage und Ansprechperson links, `.wege` (Telefon, E-Mail) rechts                    |
-| `.mit-unter`, `.unter`, `.weitere`                                 | Untermenü eines Punktes der Leiste und «Mehr»                                                     |
-| `.datei`                                                           | Verknüpfung auf eine Datei im SharePoint mit `.info` (Typ, Grösse)                                |
-| `.teaser` mit `.box`                                               | Startseite: Foto und blaue Box mit `h1`                                                           |
-| `.formular`, `.feld`, `.eingabe`, `.pw`, `.hilfe`, `.fehlertext`   | Formulare (Anmelden); Fehler stehen als Text beim Feld und in einer Zusammenfassung oben          |
-| `.sk`, `.skel`, `.skel-rahmen`, `.schimmer`                        | Skeleton (siehe unten)                                                                            |
-| `.nur-sr`                                                          | Nur für Screenreader                                                                              |
-| `.i`                                                               | Symbol (Inline-SVG, 24 px, `currentcolor`)                                                        |
+| Klasse                                                                      | Bedeutung                                                                                                       |
+| --------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `.wrap`                                                                     | Fliessende Spalte: höchstens 105 rem (1680 px), seitlicher Rand `--rand` (16 bis 72 px)                         |
+| `.seitenkopf`                                                               | Block mit dem `h1` (und optional `.unter`, `.kicker`, `.knopfreihe`)                                            |
+| `.inhalt`                                                                   | Spalte der Bausteine, Abstand 24 px; `h2` bekommt mehr Luft                                                     |
+| `.abschnitt`, `.abschnitt-kopf`                                             | Abschnitt mit Überschrift und «Alle …»-Link rechts                                                              |
+| `.zweispalten` mit `.spalte` und `aside`                                    | Text links, blaue Tafel rechts (18 bis 27 rem); am Handy untereinander                                          |
+| `.lesetext`                                                                 | Fliesstext, höchstens 70 Zeichen breit                                                                          |
+| `.karte`                                                                    | Fläche mit Rand und Radius 12 px                                                                                |
+| `.btn` mit `.p` (rot), `.s` (Rand), `.t` (Text), `.gross`, `.voll`          | Knöpfe; nur eine rote Hauptaktion je Seite; `aria-disabled="true"` und `aria-busy` im Ladezustand               |
+| `.chip` mit `.st`, `.ok`, `.fe`, `.wa`                                      | Etikett (Stufe, Erfolg, Fehler, Warnung); Zustand nie nur über Farbe, immer mit Wort                            |
+| `.band` mit `.ok`, `.fe`, `.wa`, `.oben`                                    | Hinweisband mit Symbol, `strong` als Titel und Text; `role="status"` oder `role="alert"`                        |
+| `.zustand` mit `.fe`                                                        | Zustand im Inhalt (leer, Fehler, kein Zugriff): `.kopfzeile` mit Symbol, Text, Aktion                           |
+| `.schutz`, `.schutzblock`                                                   | Hinweis «Nur angemeldet sichtbar» mit Link «Anmelden»                                                           |
+| `.termine`, `.termin`, `.datum`                                             | Termin-Liste: Datumskachel (`.tag`, `.nr`, `.mo`), `.titel`, `.meta`, `.chips`                                  |
+| `.team`, `.person`, `.ava`                                                  | Leitungsteam mit Avatar (Initialen), `.name`, `.funktion`                                                       |
+| `.fakten`, `.fakt`                                                          | Faktenkasten (`dt` Bezeichnung, `dd` Wert)                                                                      |
+| `.karten`, `.liste`, `.merkmale`, `.stufenkarten`, `.zeitstrahl`, `.zahlen` | Darstellungen des Bausteins «Karten», siehe «Gestaltung der Seiten»                                             |
+| `.titelbild`, `.hero`, `.fahne`                                             | Titelbild bis zum Fensterrand; die blaue Fahne mit dem `h1` ragt von links hinein                               |
+| `.galerie`                                                                  | Kacheln im Seitenverhältnis 4:3 mit Platzhalterfläche, auch ohne geladene Bilder                                |
+| `.kontaktkarte`, `.wege`, `.weg`                                            | Kontakt: Frage und Ansprechperson in der Titelschiene, Telefon und E-Mail als grosse Zeilen                     |
+| `.mit-unter`, `.unter`, `.weitere`                                          | Untermenü eines Punktes der Leiste und «Mehr»                                                                   |
+| `.datei`                                                                    | Verknüpfung auf eine Datei im SharePoint mit `.info` (Typ, Grösse)                                              |
+| `.teaser`, `.teaser-text`                                                   | Einstieg der Startseite: Fahne mit `h1` und Schaltflächen, der Text daneben                                     |
+| `.formular`, `.feld`, `.eingabe`, `.pw`, `.hilfe`, `.fehlertext`            | Formulare (Anmelden); Fehler stehen als Text beim Feld und in einer Zusammenfassung oben                        |
+| `.sk`, `.skel`, `.skel-rahmen`, `.schimmer`                                 | Skeleton (siehe unten)                                                                                          |
+| `.nur-sr`                                                                   | Nur für Screenreader                                                                                            |
+| `.i`, darin `.f`                                                            | Symbol (Inline-SVG, 24 px, `currentcolor`): Linie 2 px, gerade Enden, spitze Ecken; `.f` ist eine gefüllte Form |
 
 `[hidden]` blendet immer aus (`display: none !important`).
 
 ### Symbole
 
-`symbol(name)` in `rendern.ts` liefert ein Inline-SVG als `HtmlKnoten` (`info`, `warnung`, `schloss`, `person`, `menue`, `schliessen`, `nochmals`, `auge`, `auge-zu`). Das Skript für geschützte Bausteine kennt keine SVG-Elemente (`knoten.js`); Bausteine tragen darum keine Symbole. Skripte erzeugen Symbole mit `symbol()` aus `website/ui.js`.
+`symbol(name)` aus `src/website/symbole.ts` liefert ein Inline-SVG als `HtmlKnoten` (`info`, `warnung`, `schloss`, `person`, `menue`, `schliessen`, `nochmals`, `auge`, `auge-zu`, `sonne`, `mond`, `gruppe`, `zelt`, `kalender`, `stern`, `herz`, `ort`, `pfeil`, `dreieck`). Der Satz ist eigens gezeichnet (24er Raster) und folgt einer Logik: Linien 2 px mit geraden Enden und spitzen Ecken, Formen aus Gerade, Kreis und Bogen; was eine Richtung zeigt oder betont, ist ein gefülltes Dreieck oder Quadrat (das Dreieck ist die Form des Cevi-Zeichens). Ein Symbol steht nur, wo es etwas beiträgt: Telefon und E-Mail der Kontaktkarte tragen ihre Art als Wort. Das Skript für geschützte Bausteine kennt keine SVG-Elemente (`knoten.js`); geschützte Bausteine tragen darum keine Symbole. Skripte erzeugen dieselben Formen mit `symbol()` aus `website/ui.js`.
 
 ### Skeleton (Grundlagen G3)
 
@@ -123,6 +123,30 @@ Wo Daten nachgeladen werden, steht ein formgleicher Platzhalter:
 - Die Information liefert die Live-Region, das Skeleton ist `aria-hidden`.
 - Es erscheint erst nach 200 ms (kein Flackern), der Schimmer läuft nur mit erlaubter Bewegung.
 - Nach 4 Sekunden steht «Das dauert länger als sonst.», nach 15 Sekunden der Fehlerzustand mit «Nochmals versuchen» (`geschuetzt.js`).
+
+## Gestaltung der Seiten (#555)
+
+Die Seiten nutzen die ganze Breite: Jeder Abschnitt (`section.sektion`) hat einen Hintergrund bis zum Fensterrand, sein Inhalt steht in der Spalte `.wrap`. Fliesstext bleibt über `.lesetext` bei höchstens 70 Zeichen.
+
+| Regel        | Umsetzung                                                                                                                                                                                                                                                                                                             |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Abschnitt    | Jede Überschrift der Ebene 2 beginnt einen Abschnitt; Hinweis, Aufruf, Termin-Liste und Kontaktkarte bilden je einen eigenen (`rendereAbschnitte` in `rendern.ts`)                                                                                                                                                    |
+| Titelschiene | Ab 1025 px steht der Titel links (`.sektion-kopf`, ein Drittel), der Inhalt rechts (`.sektion-rumpf`): Text, Merkmale, Liste, Zeitstrahl, Zahlen, Termine und Kontakt (`.sektion--text`). Der Titel bleibt stehen, solange sein Abschnitt durchläuft                                                                  |
+| Ganze Breite | Bildkarten, Karten, Galerie und Karussell stehen unter dem Titel über die ganze Spalte (`.sektion--breit`); ein kurzer Text zwischen Titel und Karten gehört zum Titel                                                                                                                                                |
+| Ton          | Der Hintergrund wechselt, wo die Art des Inhalts wechselt: Abschnitte mit Titelschiene teilen sich hintereinander die Fläche und trennen sich mit einer Linie (`.sektion--folge`); Abschnitte über die ganze Breite heben sich mit der Tönung ab (`.sektion--toenung`). Hinweis (getönt) und Aufruf (rot) sind Bänder |
+| Einstieg     | Der erste Abschnitt ohne Überschrift gleich unter dem Seitentitel ist grösser gesetzt (`.sektion--einstieg`)                                                                                                                                                                                                          |
+| Kartenarten  | Jede Art sieht nach ihrem Zweck aus: Merkmale sind Zeilen ohne Link, Bildkarten tragen ein Foto und einen Link über die ganze Karte, Termine haben vorn das Datumsfeld, der Aufruf ist ein rotes Band mit einer Schaltfläche, Kontakt sind grosse Zeilen. Karten haben einen feinen Rand statt Schatten               |
+
+Tokens der Gestaltung in `:root`: `--rand` (Seitenrand), `--abstand` (über und unter einem Abschnitt), `--spalt` (zwischen Titelschiene und Inhalt), `--titel` (Farbe der Titel: blau am Tag, hell in der Nacht), `--karte` (Fläche einer Karte).
+
+### Bewegung
+
+Eine Kurve und zwei Dauern gelten für alles: `--kurve`, `--dauer` (0.2 s, Zeigen und Drücken) und `--dauer-lang` (0.5 s, Einblenden und Wechsel). Jede Bewegung steht im Block «Bewegung (#555)» am Ende von `website.css` und gilt nur am Bildschirm und ohne «Bewegung reduzieren» (`@media screen and (prefers-reduced-motion: no-preference)`); ein Test prüft, dass ausserhalb kein `animation` und kein `transition` steht. Der Ruhezustand ist immer der sichtbare: Läuft eine Animation nicht (älterer Browser, Druck, kein Skript), steht der Inhalt da.
+
+- Beim Laden: Das Titelbild setzt sich, die Fahne kommt von links, der Text folgt.
+- Beim Scrollen: Titel, Karten und Zeilen steigen kurz auf, sobald sie ins Fenster kommen. Reines CSS (`animation-timeline: view()` in `@supports`), kein Skript; lange Texte bewegen sich nicht. Für eigene Bausteine: Klasse `einblenden`.
+- Zeigen und Drücken: Knöpfe, Karten und Pfeile antworten mit Farbe und kleiner Verschiebung.
+- Für Vollseiten-Screenshots «Bewegung reduzieren» einschalten: Sonst bleiben Stücke unterhalb des Fensters unsichtbar, weil ihre Animation noch nicht begonnen hat.
 
 ## Neuer Seitentyp
 
@@ -151,22 +175,23 @@ Geschützte Bausteine tragen im statischen HTML einen Platzhalter mit dem Hinwei
 
 ### Abbildung der Bausteine
 
-| Baustein                    | Darstellung                                                                                                                                                             |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Überschrift                 | `h2` bis `h4` in der Reihenfolge der Seite                                                                                                                              |
-| Text                        | `.text.lesetext`                                                                                                                                                        |
-| Bild, Galerie               | `figure` mit `img` (Radius 12 px) und `figcaption`; Galerie als Raster                                                                                                  |
-| Karten                      | «Karten»: `ul.karten`, je Eintrag Überschrift (`h3`, nie ein Link), Text und «» Mehr zu …»; «Liste»: `ul.liste` mit Link am Titel                                       |
-| Schaltfläche                | erste: `.btn.p.gross`, weitere: `.btn.s.gross`; Darstellung «Link»: einfacher Link                                                                                      |
-| Datei                       | `p.datei.karte` mit Link auf den Ablageort                                                                                                                              |
-| Kontaktperson, Leitungsteam | `ul.team` mit `li.person` (Avatar mit Initialen, Name, Funktion)                                                                                                        |
-| Stufenfakten                | `dl.fakten.karte`; neben dem Text und den Bildern davor (zweispaltig)                                                                                                   |
-| Trenner, Videolink          | `hr` oder Abstand, einfacher Link                                                                                                                                       |
-| Terminliste                 | `section.abschnitt` mit `h2` «Nächste Termine», Link «Alle Termine» und `ul.termine` (Daten aus dem Abgleich, siehe [website-auslieferung.md](website-auslieferung.md)) |
-| Hinweis                     | `div.band` mit Symbol, Satz (`strong`) und optionalem Link                                                                                                              |
-| Kontaktkarte                | `section.karte.kontaktband`; Telefon und E-Mail aus der Konfiguration                                                                                                   |
+| Baustein                    | Darstellung                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Überschrift                 | `h2` bis `h4` in der Reihenfolge der Seite                                                                                                                                                                                                                                                                                                                                                                                    |
+| Text                        | `.text.lesetext`                                                                                                                                                                                                                                                                                                                                                                                                              |
+| Bild, Galerie               | `figure` mit `img` (Radius 12 px) und `figcaption`; Galerie als Raster                                                                                                                                                                                                                                                                                                                                                        |
+| Karten                      | «Karten»: `ul.karten`, Kachel mit feinem Rand, der Link «Mehr zu …» deckt die Kachel ab; «Liste»: `ul.liste`, Zeilen mit Link am Titel; «Merkmale»: `ul.merkmale`, Zeilen aus Symbol, Titel, Text, ohne Link; «Bildkarten» (`stufen`): `ul.stufenkarten`, Foto mit Etikett im Bild (`.alterschip`: Alter oder Preis), Titel, Text, ein Link im Titel deckt die Karte ab; «Zeitstrahl»: `ol.zeitstrahl`; «Zahlen»: `ul.zahlen` |
+| Schaltfläche                | erste: `.btn.p.gross`, weitere: `.btn.s.gross`; Darstellung «Link»: einfacher Link                                                                                                                                                                                                                                                                                                                                            |
+| Datei                       | `p.datei.karte` mit Link auf den Ablageort                                                                                                                                                                                                                                                                                                                                                                                    |
+| Kontaktperson, Leitungsteam | `ul.team` mit `li.person` (Avatar mit Initialen, Name, Funktion)                                                                                                                                                                                                                                                                                                                                                              |
+| Stufenfakten, Eckdaten      | `dl.fakten.karte` (blaue Tafel); neben dem Text und den Bildern davor (zweispaltig). «Eckdaten» trägt frei benannte Angaben (Datum, Ort, Kosten)                                                                                                                                                                                                                                                                              |
+| Trenner, Videolink          | `hr` oder Abstand, einfacher Link                                                                                                                                                                                                                                                                                                                                                                                             |
+| Terminliste                 | `section.abschnitt` mit `h2` «Das steht an», Link «Alle Termine» und `ul.termine` (Daten aus dem Abgleich, siehe [website-auslieferung.md](website-auslieferung.md)); die einzige Liste kommender Anlässe einer Seite                                                                                                                                                                                                         |
+| Hinweis                     | `div.band` mit Symbol, Satz (`strong`) und optionalem Link                                                                                                                                                                                                                                                                                                                                                                    |
+| Kontaktkarte                | `section.kontaktkarte`; Telefon und E-Mail aus der Konfiguration                                                                                                                                                                                                                                                                                                                                                              |
+| Aufruf                      | `div.aufruf` in einem roten Band über die ganze Breite: Titel, Text, eine weisse Schaltfläche                                                                                                                                                                                                                                                                                                                                 |
 
-Auf der Startseite (Adresse `/`) bilden ein Bild, ein Text und Schaltflächen am Anfang der Seite das Teaser-Feld (Foto links, blaue Box mit `h1` rechts); sonst steht der Titel im Seitenkopf. Stehen **zwei Bilder** am Anfang, ist das erste das Titelbild über die ganze Breite und das zweite das Foto im Teaser. Beide laden sofort (`fetchpriority="high"`), alle anderen Bilder nachladend.
+Das erste Bild einer Seite ist ihr Titelbild und geht bis zum Fensterrand; der Seitentitel steht in der blauen Fahne, die von links unten ins Bild ragt. Auf der Startseite (Adresse `/`) stehen in der Fahne zusätzlich die Schaltflächen vom Anfang der Seite, der erste Text steht daneben. Ohne Bild steht der Titel gross auf der Fläche mit dem roten Strich darunter. Das Titelbild lädt sofort (`fetchpriority="high"`), die Bilder der ersten drei Abschnitte sofort ohne Vorrang, alle weiteren nachladend.
 
 ## Hinweise für den Betrieb
 

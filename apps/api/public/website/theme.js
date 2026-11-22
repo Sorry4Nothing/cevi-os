@@ -1,4 +1,4 @@
-// Darstellung der Website (#550, #555): Hell oder Dunkel. Ohne gespeicherte Wahl (und ohne dieses Skript) folgt die Seite dem System (prefers-color-scheme).
+// Darstellung der Website (#550, #555, #558): Hell oder Dunkel. Ohne gespeicherte Wahl (und ohne dieses Skript) folgt die Seite dem System (prefers-color-scheme).
 // Die Wahl liegt nur im Browser (localStorage), nie in einem Cookie und nie auf dem Server; gespeichert wird erst beim Klick. Das Skript steht im <head> und setzt data-theme auf <html> noch vor dem ersten Zeichnen, damit nichts aufblitzt.
 // Klassisches Skript ohne Module und ohne Abhängigkeit: Es muss laufen, bevor die Seite sichtbar wird.
 (function () {
@@ -44,9 +44,10 @@
   wende(lies());
 
   document.addEventListener("DOMContentLoaded", function () {
-    var gruppe = document.querySelector(".thema");
-    if (!gruppe) return;
-    var knoepfe = gruppe.querySelectorAll("button[data-thema]");
+    // Der Umschalter steht im Band und, für schmale Fenster, noch einmal im Menü (#558): beide zeigen denselben Stand
+    var gruppen = document.querySelectorAll(".thema");
+    if (gruppen.length === 0) return;
+    var knoepfe = document.querySelectorAll(".thema button[data-thema]");
     var aktuell = wirksam();
 
     function markiere() {
@@ -95,7 +96,7 @@
       };
       if (system.addEventListener) system.addEventListener("change", folge);
     }
-    gruppe.hidden = false;
+    for (var g = 0; g < gruppen.length; g++) gruppen[g].hidden = false;
     markiere();
   });
 })();

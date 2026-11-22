@@ -363,3 +363,8 @@ dialog.ws-fenster--breit {
   border-radius: var(--r-sm);
   background: #fff;
 }
+
+/* Fassung für den dunklen Modus (#558): auf dem dunklen Grund der Website */
+.ws-logovorschau--dunkel {
+  background: #141412;
+}

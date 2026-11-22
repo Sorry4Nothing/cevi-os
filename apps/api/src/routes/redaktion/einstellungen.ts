@@ -13,11 +13,12 @@ export const MAX_ABTEILUNGSNAME = 100;
 // Steuerzeichen gehören in keinen Namen (auch NUL, das Postgres nicht speichert)
 const sauber = (s: string) => !/\p{Cc}/u.test(s);
 
-// Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (null = kein Logo)
+// Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (null = kein Logo). Für den dunklen Modus gibt es eine zweite Fassung (#558, null = dasselbe Logo)
 const aendernSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_ABTEILUNGSNAME).refine(sauber),
     logoMediumId: z.uuid().nullable(),
+    logoDunkelMediumId: z.uuid().nullable(),
   })
   .partial()
   .refine((f) => Object.keys(f).length > 0);
@@ -41,6 +42,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
       .select({
         name: abteilung.name,
         logoMediumId: abteilung.websiteLogoMediumId,
+        logoDunkelMediumId: abteilung.websiteLogoDunkelMediumId,
       })
       .from(abteilung)
       .where(eq(abteilung.id, person.abteilungId));
@@ -63,7 +65,8 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
       }
 
       const fehler = await db.transaction(async (tx) => {
-        if (f.logoMediumId) {
+        for (const mediumId of [f.logoMediumId, f.logoDunkelMediumId]) {
+          if (!mediumId) continue;
           // FOR SHARE: Ein gleichzeitiges Löschen des Mediums wartet und sieht danach den Verweis
           const [m] = await tx
             .select({
@@ -73,7 +76,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             .from(medium)
             .where(
               and(
-                eq(medium.id, f.logoMediumId),
+                eq(medium.id, mediumId),
                 eq(medium.abteilungId, person.abteilungId),
               ),
             )
@@ -90,6 +93,9 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             ...(f.name !== undefined && { name: f.name }),
             ...(f.logoMediumId !== undefined && {
               websiteLogoMediumId: f.logoMediumId,
+            }),
+            ...(f.logoDunkelMediumId !== undefined && {
+              websiteLogoDunkelMediumId: f.logoDunkelMediumId,
             }),
           })
           .where(eq(abteilung.id, person.abteilungId));

@@ -3,7 +3,7 @@ import { el, feld, knopf } from "./dom.js";
 import { bildDialog } from "./website-bausteine.js";
 import { band, keinRecht } from "./website-dialoge.js";
 
-// Einstellungen der Website (#550): der Name der Abteilung und ihr Logo im Kopf jeder Seite.
+// Einstellungen der Website (#550, #558): der Name der Abteilung und ihr Logo im Kopf jeder Seite, dazu eine Fassung des Logos für den dunklen Modus.
 // Adresse: #website/einstellungen. Das Logo ist ein öffentliches Bild der Medienbibliothek; die Seiten der Website werden nach dem Speichern neu erzeugt.
 const API = "/api/v1/redaktion/website";
 const MAX_NAME = 100;
@@ -41,6 +41,7 @@ function zeichne(bereich, ctx, stand) {
   const darfName = stand.nameAenderbar === true;
   // logoMediumId: was gespeichert werden soll; null = kein Logo
   let logo = stand.logoMediumId;
+  let logoDunkel = stand.logoDunkelMediumId ?? null;
   const meldung = el("div");
 
   const name = feld({
@@ -55,51 +56,62 @@ function zeichne(bereich, ctx, stand) {
       : "Erscheint im Kopf und im Fuss der Website. Den Namen ändert nur der Entwickler.",
   });
 
-  const vorschau = el("div", { class: "ws-logo" });
-  const zeichneLogo = () => {
-    vorschau.replaceChildren();
-    const waehlen = knopf(logo ? "Anderes Logo wählen" : "Logo wählen", {
-      klein: true,
-      onclick: () =>
-        bildDialog({ medien: new Map() }, (m) => {
-          logo = m.id;
-          zeichneLogo();
-          vorschau.querySelector("button")?.focus();
-        }),
-    });
-    if (!logo) {
+  // Eine Auswahl je Fassung: «dunkel» ist die Fassung für den dunklen Modus und zeigt ihre Vorschau auf dunklem Grund
+  const logoWahl = (dunkel) => {
+    const vorschau = el("div", { class: "ws-logo" });
+    const text = dunkel
+      ? ["Fassung wählen", "Andere Fassung wählen", "Fassung entfernen"]
+      : ["Logo wählen", "Anderes Logo wählen", "Logo entfernen"];
+    const zeichneLogo = () => {
+      const id = dunkel ? logoDunkel : logo;
+      const setze = (neu) => {
+        if (dunkel) logoDunkel = neu;
+        else logo = neu;
+        zeichneLogo();
+        vorschau.querySelector("button")?.focus();
+      };
+      vorschau.replaceChildren();
+      const waehlen = knopf(id ? text[1] : text[0], {
+        klein: true,
+        onclick: () => bildDialog({ medien: new Map() }, (m) => setze(m.id)),
+      });
+      if (!id) {
+        vorschau.append(
+          el(
+            "p",
+            { class: "hilfe" },
+            dunkel
+              ? "Keine eigene Fassung: Der Kopf zeigt im dunklen Modus dasselbe Logo."
+              : "Kein Logo: Der Kopf zeigt die Wortmarke «CEVI» mit dem Namen.",
+          ),
+          waehlen,
+        );
+        return;
+      }
       vorschau.append(
-        el(
-          "p",
-          { class: "hilfe" },
-          "Kein Logo: Der Kopf zeigt die Wortmarke «CEVI» mit dem Namen.",
-        ),
-        waehlen,
-      );
-      return;
-    }
-    vorschau.append(
-      el("img", {
-        src: `/api/v1/medien/${logo}`,
-        alt: "Das gewählte Logo",
-        class: "ws-logovorschau",
-      }),
-      el(
-        "div",
-        { class: "ws-teilaktionen" },
-        waehlen,
-        knopf("Logo entfernen", {
-          klein: true,
-          onclick: () => {
-            logo = null;
-            zeichneLogo();
-            vorschau.querySelector("button")?.focus();
-          },
+        el("img", {
+          src: `/api/v1/medien/${id}`,
+          alt: dunkel
+            ? "Die gewählte Fassung für den dunklen Modus"
+            : "Das gewählte Logo",
+          class: dunkel
+            ? "ws-logovorschau ws-logovorschau--dunkel"
+            : "ws-logovorschau",
         }),
-      ),
-    );
+        el(
+          "div",
+          { class: "ws-teilaktionen" },
+          waehlen,
+          knopf(text[2], {
+            klein: true,
+            onclick: () => setze(null),
+          }),
+        ),
+      );
+    };
+    zeichneLogo();
+    return vorschau;
   };
-  zeichneLogo();
 
   const speichern = knopf("Speichern", { art: "haupt" });
   speichern.type = "submit";
@@ -114,9 +126,20 @@ function zeichne(bereich, ctx, stand) {
       el(
         "p",
         { class: "hilfe" },
-        "Ein öffentliches Bild aus der Medienbibliothek. Es hat seinen eigenen Hintergrund, damit es in Tag und Nacht lesbar ist. Der Alt-Text des Bildes erscheint auf der Website.",
+        "Ein öffentliches Bild aus der Medienbibliothek, am besten ohne Hintergrund (PNG oder WebP mit Transparenz). Der Alt-Text des Bildes erscheint auf der Website.",
       ),
-      vorschau,
+      logoWahl(false),
+    ),
+    el(
+      "div",
+      { class: "feld" },
+      el("span", { class: "legende" }, "Logo im dunklen Modus (optional)"),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Eine Fassung mit heller Schrift für den dunklen Grund, ohne Hintergrund. Ohne sie zeigt der Kopf im dunklen Modus das Logo oben.",
+      ),
+      logoWahl(true),
     ),
     meldung,
     el("div", { class: "dialog-knoepfe" }, speichern),
@@ -133,6 +156,9 @@ function zeichne(bereich, ctx, stand) {
     const aenderung = {
       ...(darfName && neuerName !== stand.name && { name: neuerName }),
       ...(logo !== stand.logoMediumId && { logoMediumId: logo }),
+      ...(logoDunkel !== (stand.logoDunkelMediumId ?? null) && {
+        logoDunkelMediumId: logoDunkel,
+      }),
     };
     if (Object.keys(aenderung).length === 0) {
       ctx.melde("Es gibt nichts zu speichern.");

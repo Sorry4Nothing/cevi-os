@@ -106,6 +106,7 @@ const stand = async (abteilungId: string) => {
     .select({
       name: schema.abteilung.name,
       logo: schema.abteilung.websiteLogoMediumId,
+      logoDunkel: schema.abteilung.websiteLogoDunkelMediumId,
     })
     .from(schema.abteilung)
     .where(eq(schema.abteilung.id, abteilungId));
@@ -262,6 +263,41 @@ describe("Name und Logo der Website (#550)", () => {
       expect(((await antwort.json()) as { code: string }).code).toBe(code);
     }
     expect((await stand(welt.testabteilungId)).logo).toBeNull();
+  });
+
+  test("Fassung für den dunklen Modus (#558): setzen, dieselben Prüfungen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const intern = await medium(welt.testabteilungId, {
+      sichtbarkeit: "angemeldet",
+    });
+    const fremd = await medium(welt.demoAbteilungId);
+    for (const [id, code] of [
+      [intern, "MEDIUM_NICHT_OEFFENTLICH"],
+      [fremd, "MEDIUM_UNBEKANNT"],
+    ]) {
+      const nein = await anfrage(admin, "PATCH", { logoDunkelMediumId: id });
+      expect(nein.status, code).toBe(422);
+      expect(((await nein.json()) as { code: string }).code).toBe(code);
+    }
+    const antwort = await anfrage(admin, "PATCH", { logoDunkelMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { logoDunkelMediumId: string })
+        .logoDunkelMediumId,
+    ).toBe(m);
+    // Das Logo selbst bleibt, wie es war
+    expect(await stand(welt.testabteilungId)).toMatchObject({
+      logo: null,
+      logoDunkel: m,
+    });
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { logoDunkelMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).logoDunkel).toBeNull();
   });
 
   test("ein Medium, das als Logo dient, lässt sich nicht löschen (409 MEDIUM_VERWENDET)", async () => {

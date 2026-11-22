@@ -59,7 +59,7 @@ describe("Hülle", () => {
 
   test("Sprunglink zuerst, ein H1, ein main, Fusszeile mit Datenschutz", () => {
     expect(html.indexOf('class="sprunglink"')).toBeLessThan(
-      html.indexOf('<header class="kopf">'),
+      html.indexOf("<header"),
     );
     expect(zaehle(html, "<h1")).toBe(1);
     expect(zaehle(html, "<main ")).toBe(1);
