@@ -402,6 +402,13 @@
       "breakpoints": true
     },
     {
+      "idx": 82,
+      "version": "7",
+      "when": 1793552200000,
+      "tag": "0082_lager_fahrten",
+      "breakpoints": true
+    },
+    {
       "idx": 83,
       "version": "7",
       "when": 1793552300000,
@@ -483,6 +490,13 @@
       "version": "7",
       "when": 1793554300000,
       "tag": "0123_anlass",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1793554400000,
+      "tag": "0124_anlass_anmeldung",
       "breakpoints": true
     }
   ]

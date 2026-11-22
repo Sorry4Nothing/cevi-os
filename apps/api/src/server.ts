@@ -21,6 +21,7 @@ import {
   starteFristErinnerung,
 } from "./lager/fristen.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
+import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
@@ -123,6 +124,11 @@ starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
+);
+// Anmeldungen zu Anlässen 180 Tage nach dem Ende des Anlasses löschen (#443)
+starteSitzungenAufraeumen(
+  () => loescheAlteAnmeldungen(db),
+  "anlass_anmeldungen",
 );
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));

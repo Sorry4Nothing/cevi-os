@@ -11234,6 +11234,469 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/fahrten:
+    get:
+      operationId: holeLagerFahrten
+      summary: Fahrten des Lagers auflisten
+      description: |
+        Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen). Das Team sieht nur die eigene Fahrt (als Fahrer oder Mitfahrende), solange es `einteilung.bearbeiten` nicht hat; eine fremde Fahrt ist für das Team unbekannt (404).
+
+        Jede Fahrt kommt mit dem Fahrer, den Mitfahrenden (Leitende und Teilnehmende, je mit Name) und der Belegung: `belegt` (Mitfahrende ohne den Fahrer), `frei` (freie Plätze, «x von y», nie unter 0) und `ueberbelegt` (Warnung bei mehr Mitfahrenden als Plätzen). Eine Abfrage je Seite für alle Fahrten samt Mitfahrenden, sortiert nach ID (Reihenfolge des Anlegens); die App sortiert nach Datum und Zeit. Seitenwechsel über `nach` und `limit`, Filter über `richtung`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: richtung
+          in: query
+          required: false
+          description: Hinfahrt oder Rückfahrt.
+          schema:
+            type: string
+            enum: [hin, rueck]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Fahrten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrtSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerFahrtAn
+      summary: Fahrt anlegen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        `richtung` (`hin` oder `rueck`) und `art` (`auto` oder `oev`) sind Pflicht und ändern sich später nicht. Ein Auto braucht `plaetze` (Plätze für Mitfahrende ohne den Fahrer, 1 bis 99) und hat keinen Link; eine ÖV-Gruppe hat weder Plätze noch Fahrer, dafür `link` auf den Fahrplan. Der Fahrer (`fahrerPersonId`) muss aktives Mitglied des Lagers sein und in dieser Richtung noch in keiner anderen Fahrt fahren oder mitfahren. `zeit` hat die Form `HH:MM`. Der Kartenpunkt (`zielBezeichnung`, `zielAdresse`, `zielLat`, `zielLon`, `zielLink`) ist das Ziel der Fahrt, das die App in der Karten-App öffnet: Er braucht eine Bezeichnung und dazu eine Adresse, Koordinaten oder einen Link (sonst 400 `KARTENPUNKT_UNVOLLSTAENDIG`); Breite (-90 bis 90) und Länge (-180 bis 180) kommen nur zusammen (400 `KOORDINATEN_UNVOLLSTAENDIG`). `link` (Fahrplan der ÖV-Gruppe) und `zielLink` sind nur `https`-Links ohne Zugangsdaten und Port, ohne IP-Adresse, höchstens 2048 Zeichen; der Server speichert sie in der normalisierten Form und ruft sie nie ab (SR-26). Er ruft auch keinen Kartendienst ab.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei `KEIN_MITGLIED` und bei den Fehlern des Kartenpunkts und der Art. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` und bei `BEREITS_IN_FAHRT` (Fahrer sitzt in dieser Richtung schon in einer Fahrt, mit `fahrtId`).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerFahrtAnlegen"
+      responses:
+        "201":
+          description: Die neue Fahrt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder der Fahrer sitzt in dieser Richtung schon in einer Fahrt (`BEREITS_IN_FAHRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/fahrten/ohne:
+    get:
+      operationId: holeLagerPersonenOhneFahrt
+      summary: Personen ohne Fahrt in einer Richtung
+      description: |
+        Braucht das Recht `einteilung.lesen` und zeigt alle Fahrten: Wer nur die eigene Fahrt sieht (das Team ohne `einteilung.bearbeiten`), bekommt 403.
+
+        Die Teilnehmenden und die Mitglieder des Lagers (Leitende, Team, Lesen, mit aktivem Konto der Abteilung), die in dieser Richtung weder fahren noch mitfahren. Eine Abfrage für die Seite und die Gesamtzahl, sortiert nach Name; Seitenwechsel über `nach` und `limit`. `richtung` ist Pflicht.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht oder bei Sicht nur auf die eigene Fahrt. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: richtung
+          in: query
+          required: true
+          description: Hinfahrt oder Rückfahrt.
+          schema:
+            type: string
+            enum: [hin, rueck]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite (`teilnehmer:<id>` oder `person:<id>`).
+          schema:
+            type: string
+            pattern: "^(teilnehmer|person):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Personen ohne Fahrt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrtOhneSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/fahrten/{fahrtId}:
+    get:
+      operationId: holeLagerFahrt
+      summary: Eine Fahrt lesen
+      description: |
+        Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen). Das Team sieht nur die eigene Fahrt (als Fahrer oder Mitfahrende), solange es `einteilung.bearbeiten` nicht hat; eine fremde Fahrt ist für das Team unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter oder fremder Fahrt (für das Team auch eine Fahrt, in der es nicht sitzt), fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: fahrtId
+          in: path
+          required: true
+          description: ID der Fahrt (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Fahrt mit Fahrer, Mitfahrenden und Belegung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerFahrt
+      summary: Fahrt ändern
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Nur die genannten Felder ändern sich; `null` leert ein freiwilliges Feld. Richtung und Art lassen sich nicht ändern (Fahrt löschen und neu anlegen). Die Regeln über mehrere Felder gelten für den Stand nach der Änderung. Ein neuer Fahrer muss aktives Mitglied des Lagers sein und in dieser Richtung noch in keiner Fahrt fahren oder mitfahren. Weniger Plätze als Mitfahrende sind erlaubt und ergeben die Warnung `ueberbelegt`. Der Kartenpunkt (`zielBezeichnung`, `zielAdresse`, `zielLat`, `zielLon`, `zielLink`) ist das Ziel der Fahrt, das die App in der Karten-App öffnet: Er braucht eine Bezeichnung und dazu eine Adresse, Koordinaten oder einen Link (sonst 400 `KARTENPUNKT_UNVOLLSTAENDIG`); Breite (-90 bis 90) und Länge (-180 bis 180) kommen nur zusammen (400 `KOORDINATEN_UNVOLLSTAENDIG`). `link` (Fahrplan der ÖV-Gruppe) und `zielLink` sind nur `https`-Links ohne Zugangsdaten und Port, ohne IP-Adresse, höchstens 2048 Zeichen; der Server speichert sie in der normalisierten Form und ruft sie nie ab (SR-26). Er ruft auch keinen Kartendienst ab.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Fahrt. 409 bei `VERSION_KONFLIKT`, `LAGER_GESCHLOSSEN` und `BEREITS_IN_FAHRT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: fahrtId
+          in: path
+          required: true
+          description: ID der Fahrt (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerFahrtAendern"
+      responses:
+        "200":
+          description: Die Fahrt nach der Änderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerFahrt
+      summary: Fahrt löschen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Soft-Delete: Die Fahrt und ihre Mitfahrenden bleiben mit Löschzeitpunkt stehen (Papierkorb); die Personen sind in dieser Richtung wieder frei.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Fahrt. 409 bei `VERSION_KONFLIKT` und `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: fahrtId
+          in: path
+          required: true
+          description: ID der Fahrt (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene `version` der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Die Fahrt ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/fahrten/{fahrtId}/mitfahrer:
+    post:
+      operationId: legeLagerMitfahrtAn
+      summary: Person oder Teilnehmenden zur Fahrt hinzufügen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Genau eines von `personId` (aktives Mitglied des Lagers) und `teilnehmerId` (Teilnehmender dieses Lagers). Eine Person oder ein Teilnehmender sitzt in dieser Richtung in höchstens einer Fahrt, auch nicht zugleich als Fahrer und Mitfahrende (409 `BEREITS_IN_FAHRT` mit der `fahrtId` der Fahrt). Mehr Mitfahrende als Plätze sind nur eine Warnung: Die Antwort meldet `ueberbelegt`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED` und `TEILNEHMER_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Fahrt. 409 bei `LAGER_GESCHLOSSEN` und `BEREITS_IN_FAHRT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: fahrtId
+          in: path
+          required: true
+          description: ID der Fahrt (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerFahrtMitfahrerAnlegen"
+      responses:
+        "201":
+          description: Die neue Mitfahrt mit der Belegung der Fahrt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerFahrtMitfahrt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Person sitzt in dieser Richtung schon in einer Fahrt (`BEREITS_IN_FAHRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/fahrten/{fahrtId}/mitfahrer/{mitfahrerId}:
+    delete:
+      operationId: loescheLagerMitfahrt
+      summary: Mitfahrt entfernen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Soft-Delete der Mitfahrt; die Person ist in dieser Richtung wieder frei.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Version. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, unbekannter Fahrt oder Mitfahrt (auch einer Mitfahrt einer anderen Fahrt). 409 bei `VERSION_KONFLIKT` und `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: fahrtId
+          in: path
+          required: true
+          description: ID der Fahrt (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: mitfahrerId
+          in: path
+          required: true
+          description: ID der Mitfahrt (UUID, `id` in `mitfahrer`).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene `version` der Zeile.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Die Mitfahrt ist entfernt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerVersionKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/gruppen:
     get:
@@ -13923,7 +14386,168 @@ paths:
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/termine/warnungen:
+    get:
+      operationId: listeTermineWarnungen
+      summary: Warnliste «Termine ohne Kategorie»
+      tags:
+        - Termine
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung niemand sieht, und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+
+        Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
+        Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
+        Ein Termin mit bekannter und unbekannter Kategorie hat einen Tag und fehlt darum in `termine`.
+
+        `unbekannteKategorien` fasst alle Kategorienamen der kommenden Termine zusammen, die weder über `kategorie_zuordnung` noch über einen Tag gleichen Namens (getrimmt, ohne Gross-/Kleinschreibung) einem Tag entsprechen, auch bei Terminen, die über eine andere Kategorie sichtbar sind. `anzahl` zählt die Termine. Sortiert nach `anzahl` absteigend, dann nach Name; höchstens 200 Einträge. Die Zusammenfassung steht in jeder Antwort, unabhängig von der Seite.
+        Eine Zuordnung wirkt erst beim nächsten Lauf des Abgleichs (alle 5 Minuten).
+
+        Sortiert nach Beginn (ganztägige ab 00:00 Schweizer Zeit ihres ersten Tages), bei Gleichstand nach `id`. `nach` ist die `naechste` der Vorseite, undurchsichtig.
+        Zwei Abfragen je Aufruf, unabhängig von der Seitengrösse: die Seite der Termine und die Zusammenfassung der Kategorien.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (`limit` ausserhalb 1 bis 100, ungültiges `nach`, unbekannter Parameter). 401 keine gültige Sitzung. 403 für alle ausser der Abteilungsleitung. 426 App-Version zu alt. 429 zu viele Anfragen.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Termine je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite, unverändert.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eine Seite der Termine ohne Tag und die unbekannten Kategorien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminWarnungen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/kategorie-zuordnungen:
+    get:
+      operationId: listeKategorieZuordnungen
+      summary: Zuordnungen von Outlook-Kategorien zu Tags
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Abweichungen der eigenen Abteilung, in denen eine Outlook-Kategorie einen Tag meint, der nicht genau so heisst. Sortiert nach Kategorie ohne Gross-/Kleinschreibung, höchstens 500, kein Seitenwechsel. Eine Abfrage (Zuordnung mit Name und Typ des Tags).
+
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Zuordnungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeKategorieZuordnung
+      summary: Kategorie einem Tag zuordnen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Ordnet eine Outlook-Kategorie einem Tag der Abteilung zu. Gibt es die Kategorie schon (ohne Gross-/Kleinschreibung), ersetzt die neue Zeile die bisherige samt Schreibweise. Die Zuordnung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten), nicht in der Anfrage; die Termine werden hier nicht neu zugeordnet. Prüfprotokoll `kategorie_zugeordnet` mit der Tag-ID, nie dem Namen.
+
+        Kategorie 1 bis 100 Zeichen, ohne Steuerzeichen, Leerzeichen am Rand fallen weg.
+
+        Statuscodes: 201 neu angelegt, 200 bestehende ersetzt. 400 bei ungültiger Eingabe oder mit Code `TAG_UNBEKANNT`, wenn der Tag nicht zur Abteilung gehört. 403 für alle anderen. 409 mit Code `ZUORDNUNGEN_VOLL` bei mehr als 500 Zeilen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KategorieZuordnungSetzen"
+      responses:
+        "200":
+          description: Eine bestehende Zuordnung derselben Kategorie ist ersetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "201":
+          description: Zuordnung angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KategorieZuordnungId"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Es gibt schon 500 Zuordnungen (Code `ZUORDNUNGEN_VOLL`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kategorie-zuordnungen/{id}:
+    delete:
+      operationId: loescheKategorieZuordnung
+      summary: Zuordnung entfernen
+      description: |
+        Nur die Abteilungsleitung. Entfernt die Zuordnung; die Kategorie gilt beim nächsten Kalender-Abgleich (bis 5 Minuten) wieder nur, wenn ein Tag genau so heisst. Prüfprotokoll `kategorie_entfernt` mit der Tag-ID.
+
+        Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn die Zuordnung nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Zuordnung (UUID), in der Abteilung der Person.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Entfernt.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termine/mein:
     get:
@@ -14038,7 +14662,7 @@ paths:
         - `treffpunkt`, `schlussOrt`, `schlussZeit`, `mitnehmen`: die Eckdaten der Stufenseite, wenn Tag und Stufe zum Termin passen, sonst `null`.
         - `teilnahmeOffen`: wahr, wenn der Termin «aktiv» ist und noch nicht begonnen hat.
         - `eigeneAnmeldung`: nur wenn die Person Leitung einer Stufe des Termins ist; ohne Antwort «offen».
-        - `anlass`: heute immer `null`; später der Verweis auf die Anmeldung zu einem Anlass.
+        - `anlass`: der Verweis auf die Anmeldung zu einem Anlass (`id`, `anmeldeschluss`, `anmeldungOffen`, `angemeldet`), wenn der Termin einen Anlass hat, den die Person sehen darf (`GET /api/v1/anlaesse/{id}`); sonst `null`.
 
         Zwischenspeicher wie bei der Liste: `private`, `ETag`, 304 bei `If-None-Match`.
 
@@ -14582,6 +15206,120 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/anlaesse/{id}:
+    get:
+      operationId: leseAnlassVorlage
+      summary: Anlass mit Formular und eigener Anmeldung lesen
+      description: |
+        Die Vorlage für die Anmeldung. Wer den Anlass sehen darf (Sichtbarkeit `oeffentlich` oder `angemeldet` für alle der Abteilung, `tags` für Personen mit einem der Tags, bei Eltern auch über die Stufe eines ihrer aktiven Kinder, die Abteilungsleitung immer), bekommt ihn; für alle anderen ist er 404, auch für Personen anderer Abteilungen.
+
+        `teilnehmende` sind bei `anmeldungFuer: kind` die eigenen aktiven Kinder (ohne Kind eine leere Liste), bei `person` die Person selbst. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
+
+        Abfragen: 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), unabhängig von der Zahl der Kinder.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger `id`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      responses:
+        "200":
+          description: Der Anlass mit Formular und eigener Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassVorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/anlaesse/{id}/anmeldung:
+    put:
+      operationId: meldeZuAnlassAn
+      summary: Zu einem Anlass anmelden oder die Anmeldung ändern
+      description: |
+        Meldet die Person (`anmeldungFuer: person`, ohne `kindId`) oder eines ihrer aktiven Kinder (`anmeldungFuer: kind`, mit `kindId`) an. Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
+
+        Die Antworten gelten gegen die Felder des Anlasses: unbekannte Schlüssel, fehlende Pflichtfelder (bei Text zählt leer als fehlend), falscher Typ (`ja_nein` ist `true` oder `false`), eine Auswahl ausserhalb der Optionen, Text über 500 Zeichen oder mit Steuerzeichen (auch Zeilenumbruch) ergeben 400 mit `fehler: [{ schluessel, code }]` und den Codes `UNBEKANNT`, `PFLICHT`, `TYP`, `OPTION`, `ZU_LANG`, `STEUERZEICHEN`, nie mit dem Wert. Text wird getrimmt gespeichert.
+
+        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes (`kind_eltern`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. `kindId` ist bei `kind` Pflicht (400 `KIND_ID_PFLICHT`) und bei `person` verboten (400 `KIND_ID_VERBOTEN`).
+
+        Ratenbegrenzung: höchstens 30 Anmeldungen und Abmeldungen je Person und Minute (429). Audit: `anlass_angemeldet` mit der ID der Anmeldung, nie mit Antworten.
+
+        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur bei `kind`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `ANTWORTEN_UNGUELTIG`, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AnlassAnmeldungEingabe"
+      responses:
+        "200":
+          description: Die Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnlassAnmeldung"
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: meldeVonAnlassAb
+      summary: Von einem Anlass abmelden
+      description: |
+        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId`, Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: kindId
+          in: query
+          required: false
+          description: "Das Kind, nur bei Anlässen mit `anmeldungFuer: kind` (dort Pflicht)."
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Abgemeldet.
+        "400":
+          $ref: "#/components/responses/AnlassAnmeldung400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/AnlassAnmeldung409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -21086,6 +21824,411 @@ components:
         ueberbelegt:
           type: boolean
     # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerFahrtAnlegen:
+      description: "Eine neue Fahrt. Nur `richtung` und `art` sind Pflicht; unbekannte Felder lehnt die Route ab."
+      type: object
+      additionalProperties: false
+      required:
+        - richtung
+        - art
+      properties:
+        richtung:
+          type: string
+          enum: [hin, rueck]
+        art:
+          type: string
+          enum: [auto, oev]
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        fahrerPersonId:
+          description: "Der Fahrer, ein aktives Mitglied des Lagers; nur bei einem Auto."
+          type: [string, "null"]
+          format: uuid
+        plaetze:
+          description: "Plätze für Mitfahrende ohne den Fahrer; Pflicht bei einem Auto, leer bei einer ÖV-Gruppe."
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 99
+        datum:
+          type: [string, "null"]
+          format: date
+        zeit:
+          description: "Abfahrt als HH:MM."
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        von:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        nach:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        treffpunkt:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        link:
+          description: "Link auf den Fahrplan der ÖV-Gruppe (nur https); der Server ruft ihn nie ab. Nur bei `art: oev`."
+          type: [string, "null"]
+          maxLength: 2048
+        zielBezeichnung:
+          description: "Bezeichnung des Kartenpunkts (Ziel der Fahrt)."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        zielAdresse:
+          description: "Adresse des Kartenpunkts."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        zielLat:
+          description: "Breite des Kartenpunkts; nur zusammen mit `zielLon`."
+          type: [number, "null"]
+          minimum: -90
+          maximum: 90
+        zielLon:
+          description: "Länge des Kartenpunkts; nur zusammen mit `zielLat`."
+          type: [number, "null"]
+          minimum: -180
+          maximum: 180
+        zielLink:
+          description: "Link auf den Kartenpunkt (nur https); der Server ruft ihn nie ab."
+          type: [string, "null"]
+          maxLength: 2048
+    LagerFahrtAendern:
+      description: "Änderung einer Fahrt: `version` und mindestens ein Feld. Richtung und Art lassen sich nicht ändern."
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        fahrerPersonId:
+          description: "Der Fahrer, ein aktives Mitglied des Lagers; nur bei einem Auto."
+          type: [string, "null"]
+          format: uuid
+        plaetze:
+          description: "Plätze für Mitfahrende ohne den Fahrer; Pflicht bei einem Auto, leer bei einer ÖV-Gruppe."
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 99
+        datum:
+          type: [string, "null"]
+          format: date
+        zeit:
+          description: "Abfahrt als HH:MM."
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        von:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        nach:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        treffpunkt:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        link:
+          description: "Link auf den Fahrplan der ÖV-Gruppe (nur https); der Server ruft ihn nie ab. Nur bei `art: oev`."
+          type: [string, "null"]
+          maxLength: 2048
+        zielBezeichnung:
+          description: "Bezeichnung des Kartenpunkts (Ziel der Fahrt)."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        zielAdresse:
+          description: "Adresse des Kartenpunkts."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        zielLat:
+          description: "Breite des Kartenpunkts; nur zusammen mit `zielLon`."
+          type: [number, "null"]
+          minimum: -90
+          maximum: 90
+        zielLon:
+          description: "Länge des Kartenpunkts; nur zusammen mit `zielLat`."
+          type: [number, "null"]
+          minimum: -180
+          maximum: 180
+        zielLink:
+          description: "Link auf den Kartenpunkt (nur https); der Server ruft ihn nie ab."
+          type: [string, "null"]
+          maxLength: 2048
+    LagerFahrtMitfahrerAnlegen:
+      description: "Genau eines von `personId` und `teilnehmerId`."
+      type: object
+      additionalProperties: false
+      properties:
+        personId:
+          type: string
+          format: uuid
+        teilnehmerId:
+          type: string
+          format: uuid
+    LagerFahrtMitfahrender:
+      description: "Eine Mitfahrt in einer Fahrt: eine Person des Lagers oder ein Teilnehmender."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - personId
+        - teilnehmerId
+        - name
+        - stufe
+      properties:
+        id:
+          description: "ID der Mitfahrt (Zeile), zum Entfernen."
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        personId:
+          type: [string, "null"]
+          format: uuid
+        teilnehmerId:
+          type: [string, "null"]
+          format: uuid
+        name:
+          type: string
+        stufe:
+          description: "Stufe des Teilnehmenden, bei einer Person leer."
+          type: [string, "null"]
+    LagerFahrt:
+      description: "Eine Fahrt mit Fahrer, Mitfahrenden und Belegung."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - richtung
+        - art
+        - name
+        - fahrerPersonId
+        - plaetze
+        - datum
+        - zeit
+        - von
+        - nach
+        - treffpunkt
+        - link
+        - zielBezeichnung
+        - zielAdresse
+        - zielLat
+        - zielLon
+        - zielLink
+        - fahrer
+        - mitfahrer
+        - belegt
+        - frei
+        - ueberbelegt
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        richtung:
+          type: string
+          enum: [hin, rueck]
+        art:
+          type: string
+          enum: [auto, oev]
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        fahrerPersonId:
+          description: "Der Fahrer, ein aktives Mitglied des Lagers; nur bei einem Auto."
+          type: [string, "null"]
+          format: uuid
+        plaetze:
+          description: "Plätze für Mitfahrende ohne den Fahrer; Pflicht bei einem Auto, leer bei einer ÖV-Gruppe."
+          type: [integer, "null"]
+          minimum: 1
+          maximum: 99
+        datum:
+          type: [string, "null"]
+          format: date
+        zeit:
+          description: "Abfahrt als HH:MM."
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+        von:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        nach:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        treffpunkt:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        link:
+          description: "Link auf den Fahrplan der ÖV-Gruppe (nur https); der Server ruft ihn nie ab. Nur bei `art: oev`."
+          type: [string, "null"]
+          maxLength: 2048
+        zielBezeichnung:
+          description: "Bezeichnung des Kartenpunkts (Ziel der Fahrt)."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 100
+        zielAdresse:
+          description: "Adresse des Kartenpunkts."
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 200
+        zielLat:
+          description: "Breite des Kartenpunkts; nur zusammen mit `zielLon`."
+          type: [number, "null"]
+          minimum: -90
+          maximum: 90
+        zielLon:
+          description: "Länge des Kartenpunkts; nur zusammen mit `zielLat`."
+          type: [number, "null"]
+          minimum: -180
+          maximum: 180
+        zielLink:
+          description: "Link auf den Kartenpunkt (nur https); der Server ruft ihn nie ab."
+          type: [string, "null"]
+          maxLength: 2048
+        fahrer:
+          description: "Der Fahrer mit Name; leer ohne Fahrer."
+          type: [object, "null"]
+          additionalProperties: false
+          required:
+            - personId
+            - name
+          properties:
+            personId:
+              type: string
+              format: uuid
+            name:
+              type: [string, "null"]
+        mitfahrer:
+          description: "Die Mitfahrenden in der Reihenfolge des Eintragens."
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerFahrtMitfahrender"
+        belegt:
+          description: "Zahl der Mitfahrenden (ohne den Fahrer)."
+          type: integer
+          minimum: 0
+        frei:
+          description: "Freie Plätze («x von y»), nie unter 0; leer bei einer ÖV-Gruppe."
+          type: [integer, "null"]
+          minimum: 0
+        ueberbelegt:
+          description: "Warnung: mehr Mitfahrende als Plätze. Der Server lässt es zu."
+          type: boolean
+    LagerFahrtSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - fahrten
+        - naechster
+      properties:
+        fahrten:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerFahrt"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`), leer auf der letzten."
+          type: [string, "null"]
+          format: uuid
+    LagerFahrtMitfahrt:
+      description: "Die neue Mitfahrt mit der Belegung der Fahrt nach dem Eintragen."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - fahrtId
+        - personId
+        - teilnehmerId
+        - belegt
+        - plaetze
+        - ueberbelegt
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        fahrtId:
+          type: string
+          format: uuid
+        personId:
+          type: [string, "null"]
+          format: uuid
+        teilnehmerId:
+          type: [string, "null"]
+          format: uuid
+        belegt:
+          type: integer
+          minimum: 0
+        plaetze:
+          type: [integer, "null"]
+        ueberbelegt:
+          description: "Warnung: mehr Mitfahrende als Plätze. Der Server lässt es zu."
+          type: boolean
+    LagerFahrtOhneSeite:
+      description: "Personen ohne Fahrt in einer Richtung: je Eintrag genau eines von `personId` und `teilnehmerId`."
+      type: object
+      additionalProperties: false
+      required:
+        - personen
+        - gesamt
+        - naechster
+      properties:
+        personen:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - personId
+              - teilnehmerId
+              - name
+              - stufe
+            properties:
+              personId:
+                type: [string, "null"]
+                format: uuid
+              teilnehmerId:
+                type: [string, "null"]
+                format: uuid
+              name:
+                type: string
+              stufe:
+                type: [string, "null"]
+        gesamt:
+          description: "Zahl aller Personen ohne Fahrt in dieser Richtung."
+          type: integer
+          minimum: 0
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`), leer auf der letzten."
+          type: [string, "null"]
     # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerGruppe:
       description: "Eine Programmgruppe des Lagers (ohne ihre Leute; die liefert `GET /gruppen`)."
@@ -22600,7 +23743,160 @@ components:
     # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    TerminWarnungen:
+      type: object
+      required:
+        - termine
+        - unbekannteKategorien
+        - weitere
+        - naechste
+      properties:
+        termine:
+          type: array
+          items:
+            $ref: "#/components/schemas/TerminWarnung"
+        unbekannteKategorien:
+          type: array
+          description: Kategorienamen der kommenden Termine ohne Tag; nach `anzahl` absteigend, dann nach Name, höchstens 200. In jeder Antwort gleich.
+          items:
+            $ref: "#/components/schemas/TerminUnbekannteKategorie"
+        weitere:
+          type: boolean
+          description: Wahr, wenn es nach dieser Seite weitere Termine gibt.
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite, undurchsichtig; `null` auf der letzten Seite.
+    TerminWarnung:
+      type: object
+      description: |
+        Ein kommender Termin ohne Tag. Entweder ist `ganztaegig` wahr, dann sind `tagVon` und `tagBis` gesetzt und `beginn` und `ende` `null`,
+        oder `ganztaegig` ist falsch, dann sind `beginn` und `ende` gesetzt und `tagVon` und `tagBis` `null`.
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - grund
+        - kategorien
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Beginn als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende als Zeitpunkt (UTC, ISO 8601). `null` bei ganztägigen Terminen.
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Erster Tag (Schweizer Kalendertag). `null` bei Terminen mit Uhrzeit.
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Letzter Tag (inklusive). `null` bei Terminen mit Uhrzeit.
+        grund:
+          type: string
+          enum:
+            - keine_kategorie
+            - unbekannte_kategorie
+          description: «keine_kategorie» heisst, Outlook liefert keine Kategorie. «unbekannte_kategorie» heisst, es gibt Kategorien, aber keine entspricht einem Tag.
+        kategorien:
+          type: array
+          description: Die rohen Kategorienamen aus Outlook (leer bei «keine_kategorie»).
+          items:
+            type: string
+    TerminUnbekannteKategorie:
+      type: object
+      required:
+        - name
+        - anzahl
+      properties:
+        name:
+          type: string
+          description: Kategoriename aus Outlook, getrimmt; Schreibweisen, die sich nur in Gross-/Kleinschreibung unterscheiden, sind ein Eintrag.
+        anzahl:
+          type: integer
+          minimum: 1
+          description: Zahl der kommenden Termine mit dieser Kategorie.
     # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    KategorieZuordnungListe:
+      type: object
+      required:
+        - zuordnungen
+      properties:
+        zuordnungen:
+          type: array
+          maxItems: 500
+          items:
+            $ref: "#/components/schemas/KategorieZuordnung"
+    KategorieZuordnung:
+      type: object
+      required:
+        - id
+        - kategorie
+        - tagId
+        - tagName
+        - tagTyp
+      properties:
+        id:
+          type: string
+          format: uuid
+        kategorie:
+          type: string
+          description: Name der Outlook-Kategorie, wie er gespeichert ist.
+        tagId:
+          type: string
+          format: uuid
+        tagName:
+          type: string
+        tagTyp:
+          type: string
+          enum: [stufe, funktion, team, lager]
+    KategorieZuordnungSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - kategorie
+        - tagId
+      properties:
+        kategorie:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Ohne Steuerzeichen; Leerzeichen am Rand fallen weg.
+        tagId:
+          type: string
+          format: uuid
+          description: Tag der eigenen Abteilung.
+    KategorieZuordnungId:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          format: uuid
     # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     TerminMeinListe:
       type: object
@@ -22731,8 +24027,10 @@ components:
           items:
             $ref: "#/components/schemas/TerminMeinTag"
         anlass:
-          type: "null"
-          description: Verweis auf die Anmeldung zu einem Anlass. Heute immer `null`; das Objekt kommt mit der Anlass-Anmeldung (Epic Termine).
+          description: Verweis auf die Anmeldung zu einem Anlass; `null`, wenn der Termin keinen Anlass hat oder die Person ihn nicht sehen darf.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/TerminMeinAnlass"
         kinder:
           type: array
           description: Die eigenen, aktiven Kinder, deren Stufe am Termin hängt; sortiert nach Vorname, dann `id`.
@@ -23280,6 +24578,241 @@ components:
               items:
                 $ref: "#/components/schemas/AdminAnlassFeld"
     # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AnlassVorlageFeld:
+      type: object
+      required:
+        - schluessel
+        - beschriftung
+        - typ
+        - optionen
+        - pflicht
+      properties:
+        schluessel:
+          type: string
+          pattern: ^[a-z0-9_]{1,40}$
+        beschriftung:
+          type: string
+        typ:
+          type: string
+          enum:
+            - text
+            - ja_nein
+            - auswahl
+        optionen:
+          type: array
+          description: Nur bei `auswahl`, sonst leer.
+          items:
+            type: string
+        pflicht:
+          type: boolean
+    AnlassKontoWert:
+      type: object
+      description: Eine Angabe, die das Konto schon kennt. Die App zeigt sie als «aus deinem Konto», nicht editierbar.
+      required:
+        - schluessel
+        - beschriftung
+        - wert
+      properties:
+        schluessel:
+          type: string
+          examples:
+            - vorname
+        beschriftung:
+          type: string
+          examples:
+            - Vorname
+        wert:
+          type: string
+    AnlassAnmeldung:
+      type: object
+      required:
+        - id
+        - status
+        - antworten
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - angemeldet
+            - abgemeldet
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert (Text, `true`/`false` oder die gewählte Option). Bei `abgemeldet` leer.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+        geaendertAm:
+          type: string
+          format: date-time
+    AnlassTeilnehmende:
+      type: object
+      required:
+        - kindId
+        - name
+        - konto
+        - anmeldung
+      properties:
+        kindId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Das Kind; `null`, wenn die Person sich selbst anmeldet.
+        name:
+          type: string
+          description: Cevi-Name, sonst Name; bei Kindern Cevi-Name, sonst Vorname und Nachname.
+        konto:
+          type: array
+          description: Was das Konto kennt und vorausgefüllt zeigt; ohne Telefon, E-Mail und Gesundheitsdaten.
+          items:
+            $ref: "#/components/schemas/AnlassKontoWert"
+        anmeldung:
+          description: Die bisherige Anmeldung; `null`, wenn es noch keine gibt.
+          oneOf:
+            - type: "null"
+            - $ref: "#/components/schemas/AnlassAnmeldung"
+    AnlassVorlage:
+      type: object
+      required:
+        - id
+        - terminId
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+        - anmeldungOffen
+        - frist
+        - anmeldungFuer
+        - felder
+        - teilnehmende
+      properties:
+        id:
+          type: string
+          format: uuid
+        terminId:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        frist:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Anmeldeschluss; `null`, wenn der Anlass keine Frist hat.
+        anmeldungFuer:
+          type: string
+          enum:
+            - kind
+            - person
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnlassVorlageFeld"
+        teilnehmende:
+          type: array
+          description: Bei `kind` die eigenen aktiven Kinder, bei `person` die Person selbst.
+          items:
+            $ref: "#/components/schemas/AnlassTeilnehmende"
+    AnlassAnmeldungEingabe:
+      type: object
+      required:
+        - antworten
+      additionalProperties: false
+      properties:
+        kindId:
+          type: string
+          format: uuid
+          description: "Pflicht bei `anmeldungFuer: kind`, verboten bei `person`."
+        antworten:
+          type: object
+          description: Schlüssel des Feldes auf den Wert; höchstens 20 Schlüssel. Text höchstens 500 Zeichen, ohne Steuerzeichen.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+    AnlassAnmeldungFehler:
+      description: Fehler wie sonst (`code`, `message`); bei `ANTWORTEN_UNGUELTIG` dazu `fehler` mit Schlüssel und Code, nie mit dem Wert.
+      allOf:
+        - $ref: "#/components/schemas/Fehler"
+        - type: object
+          properties:
+            fehler:
+              type: array
+              items:
+                type: object
+                required:
+                  - schluessel
+                  - code
+                properties:
+                  schluessel:
+                    type: string
+                  code:
+                    type: string
+                    enum:
+                      - UNBEKANNT
+                      - PFLICHT
+                      - TYP
+                      - OPTION
+                      - ZU_LANG
+                      - STEUERZEICHEN
+    TerminMeinAnlass:
+      type: object
+      description: Der Anlass zu einem Termin, aus Sicht der angemeldeten Person.
+      required:
+        - id
+        - anmeldeschluss
+        - anmeldungOffen
+        - angemeldet
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Die ID des Anlasses, Ziel von `GET /api/v1/anlaesse/{id}`.
+        anmeldeschluss:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Ende der Anmeldefrist; `null`, wenn der Anlass keine Frist hat.
+        anmeldungOffen:
+          type: boolean
+          description: Ob man sich jetzt anmelden kann (Anmeldung erlaubt, Frist nicht vorbei, Termin weder abgesagt noch vorbei).
+        angemeldet:
+          type: boolean
+          description: Ob die Person selbst oder eines ihrer Kinder angemeldet ist.
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -24359,6 +25892,20 @@ components:
     AnlassKonflikt409:
       description: |
         Konflikt: `ANLASS_VORHANDEN` (der Termin hat schon einen Anlass), `TERMIN_VORBEI` (der Termin ist vorbei), `ANMELDUNGEN_VORHANDEN` (es gibt schon Anmeldungen) oder `FELD_IN_BENUTZUNG` (zu einem Feld gibt es Antworten; die Antwort nennt die betroffenen `schluessel`).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    AnlassAnmeldung400:
+      description: |
+        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`), `KIND_ID_PFLICHT` und `KIND_ID_VERBOTEN`.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/AnlassAnmeldungFehler"
+    AnlassAnmeldung409:
+      description: |
+        Konflikt: `ANMELDUNG_GESCHLOSSEN` (die Anmeldung ist nicht offen: nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei).
       content:
         application/json:
           schema:

@@ -4,6 +4,7 @@ import {
   boolean,
   check,
   date,
+  doublePrecision,
   foreignKey,
   index,
   integer,
@@ -1382,6 +1383,105 @@ export const dokument = pgTable(
     check(
       "dokument_check",
       sql`char_length(${t.titel}) between 1 and 200 and cardinality(${t.stichworte}) <= 20 and char_length(array_to_string(${t.stichworte}, ',')) <= 900`,
+    ),
+  ],
+);
+
+// Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
+export const fahrt = pgTable(
+  "fahrt",
+  {
+    ...lagerSpalten(),
+    richtung: text("richtung", { enum: ["hin", "rueck"] }).notNull(),
+    art: text("art", { enum: ["auto", "oev"] }).notNull(),
+    name: text("name"),
+    fahrerPersonId: uuid("fahrer_person_id"),
+    plaetze: integer("plaetze"),
+    datum: date("datum"),
+    zeit: text("zeit"),
+    von: text("von"),
+    nach: text("nach"),
+    treffpunkt: text("treffpunkt"),
+    link: text("link"),
+    zielBezeichnung: text("ziel_bezeichnung"),
+    zielAdresse: text("ziel_adresse"),
+    zielLat: doublePrecision("ziel_lat"),
+    zielLon: doublePrecision("ziel_lon"),
+    zielLink: text("ziel_link"),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von fahrt_mitfahrer: Eine Mitfahrt kann weder ein anderes Lager noch eine andere Richtung meinen
+    unique("fahrt_lager_id_id_richtung_uq").on(t.lagerId, t.id, t.richtung),
+    foreignKey({
+      name: "fahrt_fahrer_fk",
+      columns: [t.lagerId, t.fahrerPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    // Eine Person fährt je Richtung höchstens eine Fahrt (als Fahrer; als Mitfahrende prüft die Route gegen fahrt_mitfahrer)
+    uniqueIndex("fahrt_fahrer_uq")
+      .on(t.lagerId, t.richtung, t.fahrerPersonId)
+      .where(sql`${t.fahrerPersonId} is not null and ${t.geloeschtAm} is null`),
+    // Die Liste: nach ID (UUIDv7 = Reihenfolge des Anlegens), Seitenwechsel über die ID
+    index("fahrt_liste_idx").on(t.lagerId, t.id),
+    check(
+      "fahrt_richtung_art_check",
+      sql`${t.richtung} in ('hin', 'rueck') and ${t.art} in ('auto', 'oev')`,
+    ),
+    check(
+      "fahrt_art_check",
+      sql`(${t.art} = 'auto' and ${t.plaetze} is not null and ${t.plaetze} between 1 and 99 and ${t.link} is null) or (${t.art} = 'oev' and ${t.plaetze} is null and ${t.fahrerPersonId} is null)`,
+    ),
+    check(
+      "fahrt_text_check",
+      sql`(${t.name} is null or char_length(${t.name}) between 1 and 100) and (${t.von} is null or char_length(${t.von}) between 1 and 200) and (${t.nach} is null or char_length(${t.nach}) between 1 and 200) and (${t.treffpunkt} is null or char_length(${t.treffpunkt}) between 1 and 200) and (${t.zeit} is null or ${t.zeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')`,
+    ),
+    check(
+      "fahrt_link_check",
+      sql`(${t.link} is null or (${t.link} ~ '^https://[^[:space:]]+$' and strpos(${t.link}, chr(92)) = 0 and char_length(${t.link}) <= 2048)) and (${t.zielLink} is null or (${t.zielLink} ~ '^https://[^[:space:]]+$' and strpos(${t.zielLink}, chr(92)) = 0 and char_length(${t.zielLink}) <= 2048))`,
+    ),
+    check(
+      "fahrt_ziel_check",
+      sql`(${t.zielBezeichnung} is null or char_length(${t.zielBezeichnung}) between 1 and 100) and (${t.zielAdresse} is null or char_length(${t.zielAdresse}) between 1 and 200) and ((${t.zielLat} is null) = (${t.zielLon} is null)) and (${t.zielLat} is null or (${t.zielLat} between -90 and 90 and ${t.zielLon} between -180 and 180)) and ((${t.zielBezeichnung} is null and ${t.zielAdresse} is null and ${t.zielLat} is null and ${t.zielLink} is null) or (${t.zielBezeichnung} is not null and (${t.zielAdresse} is not null or ${t.zielLat} is not null or ${t.zielLink} is not null)))`,
+    ),
+  ],
+);
+
+// Eine Mitfahrt: eine Person des Lagers (Leitung, Team) oder ein Teilnehmender, je eine Zeile. Die Richtung steht hier noch einmal, damit die Datenbank hält, dass jemand je Richtung höchstens in einer Fahrt sitzt (Fremdschlüssel über Lager, Fahrt und Richtung). Fällt die Fahrt, die Person aus dem Lager oder der Teilnehmende weg, geht die Zeile mit. Geschrieben wird nur über lager/sync.ts
+export const fahrtMitfahrer = pgTable(
+  "fahrt_mitfahrer",
+  {
+    ...lagerSpalten(),
+    fahrtId: uuid("fahrt_id").notNull(),
+    richtung: text("richtung", { enum: ["hin", "rueck"] }).notNull(),
+    personId: uuid("person_id"),
+    teilnehmerId: uuid("teilnehmer_id"),
+  },
+  (t) => [
+    foreignKey({
+      name: "fahrt_mitfahrer_fahrt_fk",
+      columns: [t.lagerId, t.fahrtId, t.richtung],
+      foreignColumns: [fahrt.lagerId, fahrt.id, fahrt.richtung],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "fahrt_mitfahrer_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "fahrt_mitfahrer_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    uniqueIndex("fahrt_mitfahrer_person_uq")
+      .on(t.lagerId, t.richtung, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("fahrt_mitfahrer_teilnehmer_uq")
+      .on(t.lagerId, t.richtung, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    index("fahrt_mitfahrer_fahrt_idx").on(t.lagerId, t.fahrtId),
+    check(
+      "fahrt_mitfahrer_check",
+      sql`${t.richtung} in ('hin', 'rueck') and num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
     ),
   ],
 );

@@ -515,6 +515,39 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-lager-fahrten">
+        <h3 id="k-lager-fahrten">Fahrten im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Fahrt: Richtung (Hinfahrt oder Rückfahrt), Auto oder
+            ÖV-Gruppe, ein Name, der Fahrer, die Zahl der Plätze, Datum, Zeit,
+            Start, Ziel und Treffpunkt, bei einer ÖV-Gruppe ein Link auf den
+            Fahrplan, dazu ein Kartenpunkt (Bezeichnung mit Adresse, Koordinaten
+            oder Link). Für jede Mitfahrt die Person des Lagers oder der
+            Teilnehmende. Dazu, wer die Einträge erfasst oder geändert hat.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Lagerleitung teilt die Hin- und Rückfahrt ein: Auto oder
+            ÖV-Gruppe, mit Fahrer, Plätzen, Datum, Zeit, Treffpunkt und den
+            Mitfahrenden (Leitende und Teilnehmende). Dazu kann sie einen Link
+            auf den Fahrplan und einen Kartenpunkt als Ziel der Fahrt
+            hinterlegen (Bezeichnung mit Adresse, Koordinaten oder Link), den
+            die App in der Karten-App öffnet. Der Server speichert beides nur
+            und ruft weder den Fahrplan noch einen Kartendienst ab. Das Team
+            sieht nur die eigene Fahrt.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Lagerleitung die Fahrt oder die Mitfahrt löscht oder das
+            Lager gelöscht wird; die Mitfahrt eines Teilnehmenden entfällt mit
+            dem Teilnehmenden, sechs Monate nach dem Ende des Lagers. Auf
+            Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-lager-datei">
         <h3 id="k-lager-datei">Dateien im Lager (Verknüpfungen)</h3>
         <dl>
@@ -817,7 +850,7 @@
       </section>
 
       <section class="kategorie" aria-labelledby="k-anlass">
-        <h3 id="k-anlass">Anlässe und ihre Zusatzfelder</h3>
+        <h3 id="k-anlass">Anlässe und Anmeldungen</h3>
         <dl>
           <dt>Daten</dt>
           <dd>
@@ -826,7 +859,12 @@
             die Seite der Website und welches Konto den Anlass angelegt hat.
             Dazu die Zusatzfragen der Anmeldung mit Beschriftung, Art (Text, Ja
             oder Nein, Auswahl), Auswahlmöglichkeiten und der Angabe, ob sie
-            Pflicht sind. Antworten gehören nicht dazu.
+            Pflicht sind. Zu jeder Anmeldung: welches Konto sie angelegt hat,
+            bei einem Kind welches Kind, deine Antworten auf die Zusatzfragen,
+            ob die Anmeldung gilt, und wann sie angelegt und zuletzt geändert
+            wurde. Name, Cevi-Name und die Stufe des Kindes speichert die
+            Anmeldung nicht: Sie werden aus dem Konto und den Angaben zum Kind
+            gelesen. Gesundheitsdaten fragt die Anmeldung nicht ab.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -835,14 +873,23 @@
             die Anmeldung offen ist, wer den Anlass sieht und welche
             Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die
             Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht
-            eine Seite der Website als Entwurf.
+            eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet
+            sich über das Konto an: Eltern melden ihr Kind an, andere Personen
+            sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name
+            und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt
+            sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen,
+            wer angemeldet hat und ob die Anmeldung gilt.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange
-            es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die
-            Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer
-            den Anlass angelegt hat.
+            Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur,
+            solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server
+            180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung
+            löscht er sofort. Anlässe der Art Lager sind von diesem Lauf
+            ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto
+            verschwinden die Anmeldungen, die es angelegt hat, und die Angabe,
+            wer den Anlass angelegt hat. Die Seite der Website bleibt, bis die
+            Redaktion sie löscht.
           </dd>
         </dl>
       </section>
