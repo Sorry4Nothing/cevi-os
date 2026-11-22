@@ -196,6 +196,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerVorlagen: {
+    titel: "Private To-dos und Vorlagen im Lager",
+    zweck:
+      "Jede Person im Lager führt eigene To-dos, die nur sie sieht; auch die Lagerleitung und die Abteilungsleitung lesen sie nie. Die Abteilungsleitung pflegt Vorlagen für Aufgaben und Packlisten; die Lagerleitung wendet eine Vorlage in einem Lager an, und es entstehen daraus gewöhnliche Aufgaben und Punkte des Lagers.",
+    frist: `Die To-dos, bis die Person sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Vorlagen, bis die Abteilungsleitung sie löscht. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
@@ -658,6 +666,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   info_abschnitt_datei: {
     lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
+  },
+  todo_privat: {
+    lagerVorlagen: [
+      "id",
+      "lager_id",
+      "person_id",
+      "text",
+      "erledigt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  vorlage: {
+    lagerVorlagen: [
+      "id",
+      "abteilung_id",
+      "art",
+      "name",
+      "inhalt",
+      "erstellt_am",
+      "erstellt_von",
+      "geaendert_am",
+      "geaendert_von",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

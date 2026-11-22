@@ -353,6 +353,13 @@
       "breakpoints": true
     },
     {
+      "idx": 71,
+      "version": "7",
+      "when": 1793551100000,
+      "tag": "0071_lager_todos_vorlagen",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,

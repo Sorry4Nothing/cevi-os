@@ -19,6 +19,8 @@ import { erstellePacklisteRouten } from "./packliste.js";
 import { erstellePinnwandRouten } from "./pinnwand.js";
 import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
 import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
+import { erstelleTodoRouten } from "./todos.js";
+import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
@@ -40,5 +42,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))
-    .route("/", erstelleEinkaufRouten({ db }));
+    .route("/", erstelleEinkaufRouten({ db }))
+    .route("/", erstelleTodoRouten({ db }))
+    .route("/", erstelleVorlagenAnwendenRouten({ db }));
 }
