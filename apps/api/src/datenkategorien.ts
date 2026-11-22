@@ -190,6 +190,22 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerAdressbuch: {
+    titel: "Adressbuch im Lager",
+    zweck:
+      "Externe Kontakte des Lagers an einem Ort haben, zum Beispiel Bäckerei, Platzwart oder Behörde. Die Lagerleitung erfasst Name, Funktion, Gruppe, Telefonnummer, E-Mail-Adresse und eine Notiz. Es sind Daten Dritter, die selbst kein Konto haben: Nur die Lagerleitung liest und ändert sie (die Rechte lassen sich je Lager einstellen), und jedes Lesen steht im Protokoll, ohne die Inhalte. Wer einen Kontakt für das nächste Lager behalten will, markiert ihn.",
+    frist: `180 Tage nach dem Ende des Lagers löscht Cevi OS jeden Kontakt endgültig, ausser er ist mit «Fürs nächste Lager behalten» markiert; 14 Tage vorher erinnert Cevi OS die Lagerleitung. Markierte Kontakte bleiben, bis die Lagerleitung sie löscht oder das Lager gelöscht wird. Ein gelöschter Kontakt verschwindet nach 30 Tagen endgültig. Mit dem Konto verschwindet nur die Angabe, wer den Kontakt erfasst hat. ${AUF_ANFRAGE}`,
+    apple: [
+      "Contact Info: Name",
+      "Contact Info: Phone Number",
+      "Contact Info: Email Address",
+    ],
+    google: [
+      "Personal info: Name",
+      "Personal info: Phone number",
+      "Personal info: Email address",
+    ],
+  },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
     zweck:
@@ -534,6 +550,19 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datei_id",
       "stichworte",
       "team_sichtbar",
+    ],
+  },
+  // Adressbuch (#397): Personendaten Dritter, nur Lagerleitung; Aufräumfrist 180 Tage nach dem Lagerende, ausser «behalten»
+  adressbuch_kontakt: {
+    lagerAdressbuch: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "funktion",
+      "gruppe",
+      "telefon",
+      "email",
+      "notiz",
+      "behalten",
     ],
   },
   // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb

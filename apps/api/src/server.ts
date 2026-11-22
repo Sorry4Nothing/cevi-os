@@ -16,6 +16,10 @@ import { erstelleFcm } from "./fcm.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
+import {
+  erinnereAnAufraeumen,
+  loescheAlteKontakte,
+} from "./lager/adressbuch.js";
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
@@ -119,6 +123,15 @@ starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 starteSitzungenAufraeumen(
   () => loescheAlteTeilnehmende(db),
   "lager_teilnehmende",
+);
+// Adressbuch des Lagers (#397): Erinnerung an die Lagerleitung 14 Tage vorher, dann Kontakte ohne «behalten» 180 Tage nach dem Lagerende löschen
+starteSitzungenAufraeumen(
+  () => erinnereAnAufraeumen(db, fcm),
+  "lager_adressbuch_erinnerung",
+);
+starteSitzungenAufraeumen(
+  () => loescheAlteKontakte(db),
+  "lager_adressbuch_aufraeumen",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (

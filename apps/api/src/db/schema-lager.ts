@@ -1279,3 +1279,29 @@ export const dokument = pgTable(
     ),
   ],
 );
+
+// Adressbuch des Lagers (#397): externe Kontakte (Bäckerei, Platzwart, Behörde) mit Name, Funktion, Gruppe, Telefon, E-Mail und Notiz. Personendaten Dritter, nur für die Lagerleitung (adressbuch.lesen und adressbuch.bearbeiten). «behalten» («Fürs nächste Lager behalten») nimmt den Kontakt aus der Aufräumfrist: Alle anderen löscht der tägliche Lauf (lager/adressbuch.ts) 180 Tage nach dem Lagerende; die Frist folgt dem Lagerende (lager.bis) und steht darum nicht als Spalte. Geschrieben wird nur über lager/sync.ts
+export const adressbuchKontakt = pgTable(
+  "adressbuch_kontakt",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    funktion: text("funktion"),
+    gruppe: text("gruppe"),
+    telefon: text("telefon"),
+    email: text("email"),
+    notiz: text("notiz"),
+    behalten: boolean("behalten").notNull().default(false),
+  },
+  (t) => [
+    index("adressbuch_kontakt_liste_idx").on(
+      t.lagerId,
+      sql`lower(${t.name})`,
+      t.id,
+    ),
+    check(
+      "adressbuch_kontakt_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.funktion} is null or char_length(${t.funktion}) between 1 and 100) and (${t.gruppe} is null or char_length(${t.gruppe}) between 1 and 100) and (${t.telefon} is null or ${t.telefon} ~ '^\+?[0-9][0-9 ()/.-]{4,28}[0-9]$') and (${t.email} is null or (char_length(${t.email}) <= 254 and ${t.email} ~ '^[^@[:space:]]+@[^@[:space:]]+$')) and (${t.notiz} is null or char_length(${t.notiz}) <= 2000)`,
+    ),
+  ],
+);
