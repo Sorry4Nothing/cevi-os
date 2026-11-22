@@ -16,7 +16,6 @@ import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeKalender } from "./abruf.js";
 import { findeNachfolger } from "./nachfolger.js";
 import { ordneTagsZu } from "./tags-zuordnen.js";
-import { ordneAutomatischZu } from "./zuordnung.js";
 
 // Beliebige feste Zahl: pg_try_advisory_lock braucht einen Schlüssel, der in der ganzen Datenbank nur diesem Job gehört
 const SPERRE_KALENDER = 740_027;
@@ -100,7 +99,7 @@ async function lauf(db: Db, jetzt: Date) {
           zeilen,
           bekannt,
         );
-        // Übernehmen heisst umschlüsseln: Die Zeile behält id, Zuordnung und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
+        // Übernehmen heisst umschlüsseln: Die Zeile behält id, Tags und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
         for (const u of uebernahmen) {
           await tx
             .update(programm)
@@ -115,7 +114,7 @@ async function lauf(db: Db, jetzt: Date) {
             .onConflictDoUpdate({
               target: [programm.abteilungId, programm.googleEventId],
               // Jede Kalenderspalte aus excluded, auch NULL: Der Wechsel ganztägig ↔ mit Zeit leert das andere Paar.
-              // Zuordnung und Sichtbarkeit bleiben unberührt
+              // Tags und Sichtbarkeit bleiben unberührt
               set: {
                 googleSerie: roh`excluded.google_serie`,
                 titel: roh`excluded.titel`,
@@ -131,13 +130,7 @@ async function lauf(db: Db, jetzt: Date) {
               },
             })
             .returning({ id: programm.id, kategorien: programm.kategorien });
-          // Nach dem Upsert, damit ein neuer Titel gleich zählt; Zuordnungen von Hand bleiben (zuordnung.ts)
-          await ordneAutomatischZu(
-            tx,
-            eine.id,
-            aktuell.map((z) => z.id),
-          );
-          // Im selben Lauf und derselben Transaktion; gebündelt für alle Programme, schreibt nur den Unterschied (#432)
+          // Die Tags eines Termins kommen nur aus seinen Outlook-Kategorien (#449: die Titelregel gibt es nicht mehr). Im selben Lauf und derselben Transaktion; gebündelt für alle Programme, schreibt nur den Unterschied (#432)
           await ordneTagsZu(tx, eine.id, aktuell);
         }
         // Nach den Übernahmen, damit eine Absage im selben Lauf gewinnt; unbekannte IDs treffen nichts

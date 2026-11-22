@@ -561,7 +561,6 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "widerrufen_am",
     ],
   },
-  programm_stufe: { programme: ["programm_id", "stufe_id"] },
   profilbild: { profilbild: ["user_id", "inhalt", "geaendert_am"] },
   push_token: {
     benachrichtigungen: [

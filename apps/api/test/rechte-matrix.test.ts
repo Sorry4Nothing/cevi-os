@@ -133,7 +133,6 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/dom.js": { erwartet: alle(200) },
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
-  "GET /admin/kalender.js": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
@@ -259,7 +258,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Die Felder je Rolle prüft test/programme.test.ts, die Zuordnungsregeln test/zuordnung.test.ts; hier zählt der Status.
+  // Die Felder je Rolle prüft test/programme.test.ts; hier zählt der Status.
   // adminOhneZweitenFaktor wie admin: #23 sperrt nur /api/v1/admin/*. mussPasswortAendern: #15 sperrt das Konto auf allen Routen ausser GET /api/v1/ich
   "GET /api/v1/programme": {
     // Ohne Fenster antwortet die Route 400, darum eine URL trotz fehlendem Pfad-Parameter
@@ -289,24 +288,6 @@ const MATRIX: Record<string, Zeile> = {
     url: () => `/api/v1/programme/${programmId}/kontakte`,
     erwartet: {
       ...alle(200),
-      mussPasswortAendern: 403,
-      leitendeB: 404,
-      elternB: 404,
-      deaktiviert: 401,
-      ohneLogin: 401,
-      demoAdmin: 404,
-      demoEltern: 404,
-    },
-  },
-  "PUT /api/v1/programme/:id/zuordnung": {
-    url: () => `/api/v1/programme/${programmId}/zuordnung`,
-    // Der aktuelle Stand als No-op: Der Matrix-Lauf verändert nichts
-    body: () => ({ stufen: [welt.stufeAId], sichtbarkeit: "eltern" }),
-    erwartet: {
-      ...alle(204),
-      leitendeA: 403,
-      leitendeAElternB: 403,
-      elternA: 403,
       mussPasswortAendern: 403,
       leitendeB: 404,
       elternB: 404,

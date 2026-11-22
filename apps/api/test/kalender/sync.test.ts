@@ -105,9 +105,8 @@ const lauf2 = await lies("zweiter-lauf.ics");
 const vorher = await lies("serie-vorher.ics");
 const geteilt = await lies("serie-geteilt.ics");
 
-// Eigene Abteilung samt Stufe pro Test; die Kalenderadresse trägt nur sie, und afterEach räumt sie weg
+// Eigene Abteilung pro Test; die Kalenderadresse trägt nur sie, und afterEach räumt sie weg
 let abteilungId: string;
-let stufeId: string;
 let kalenderId: string;
 let ausgabe: MockInstance<typeof console.log>;
 
@@ -117,10 +116,6 @@ beforeEach(async () => {
     insert into abteilung (name, google_kalender_id)
     values ('Sync-Testabteilung', ${kalenderId}) returning id`;
   abteilungId = abteilung.id as string;
-  const [stufe] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel)
-    values (${abteilungId}, 'Teststufe', 'TS') returning id`;
-  stufeId = stufe.id as string;
   ausgabe = vi.spyOn(console, "log").mockImplementation(() => {});
 });
 
@@ -155,7 +150,7 @@ const eigeneAbteilung = async () =>
     await sql`select sync_ok_am, sync_fehler from abteilung where id = ${abteilungId}`
   )[0];
 
-test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar, aktiv und ohne Stufe (= alle Stufen) in der Datenbank, Private und Titellose nicht", async () => {
+test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar, aktiv und ohne Tag in der Datenbank, Private und Titellose nicht", async () => {
   stubKalender([lauf1]);
   expect(
     await synchronisiere({
@@ -183,9 +178,9 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar
       sichtbarkeit: "eltern",
     });
   }
-  // Ohne Treffer im Titel keine Zuordnung: Der Termin gilt für alle Stufen
+  // Ohne Kategorie kein Tag, auch wenn der Titel eine Stufe nennt (#449)
   expect(
-    await sql`select ps.* from programm_stufe ps join programm p on p.id = ps.programm_id where p.abteilung_id = ${abteilungId}`,
+    await sql`select pt.* from programm_tag pt join programm p on p.id = pt.programm_id where p.abteilung_id = ${abteilungId}`,
   ).toEqual([]);
 
   const abteilung = await eigeneAbteilung();
@@ -197,7 +192,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar
   expect(ausgabe).not.toHaveBeenCalled();
 });
 
-test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und die Zuordnung bleibt", async () => {
+test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und die Sichtbarkeit bleibt", async () => {
   stubKalender([lauf1, lauf2]);
   const starte = () =>
     synchronisiere({
@@ -206,16 +201,15 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
     });
   expect(await starte()).toBe("fertig");
 
-  // Wie eine SL nach dem ersten Lauf: Stufe zuordnen, Sichtbarkeit öffnen
+  // Wie eine Person nach dem ersten Lauf: Sichtbarkeit öffnen
   const [waldtag] = await sql`
     select id from programm where abteilung_id = ${abteilungId} and google_event_id = '0aldtag000000001'`;
   await sql`update programm set sichtbarkeit = 'eltern' where id = ${waldtag.id}`;
-  await sql`insert into programm_stufe (programm_id, stufe_id) values (${waldtag.id}, ${stufeId})`;
 
   expect(await starte()).toBe("fertig");
   const zeilen = await programme();
 
-  // Geändert (Titel, Zeit): aktualisiert, Zuordnung unberührt
+  // Geändert (Titel, Zeit): aktualisiert, Sichtbarkeit unberührt
   const feuer = zeilen.find((z) => z.google_event_id === "0aldtag000000001");
   expect(feuer).toMatchObject({
     titel: "Waldtag mit Feuer",
@@ -224,9 +218,6 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
     status: "aktiv",
     sichtbarkeit: "eltern",
   });
-  expect(
-    await sql`select stufe_id from programm_stufe where programm_id = ${waldtag.id}`,
-  ).toEqual([{ stufe_id: stufeId }]);
 
   // Abgesagte Instanz über Serie und Beginn gefunden: nur der Status ändert sich
   const abgesagteInstanz = zeilen.find(
@@ -466,8 +457,7 @@ const finde = async (titel: string, beginn: string) => {
   return zeile;
 };
 const anhang = async (programmId: string) => ({
-  stufen:
-    await sql`select stufe_id from programm_stufe where programm_id = ${programmId}`,
+  tags: await sql`select tag_id from programm_tag where programm_id = ${programmId}`,
   leitung:
     await sql`select user_id, status from leitung_anmeldung where programm_id = ${programmId}`,
 });
@@ -483,13 +473,12 @@ async function ersterSerienLauf() {
     ids.set(schluessel(z), z.id as string);
     if (!MIT_ZUORDNUNG.includes(schluessel(z))) continue;
     await sql`update programm set sichtbarkeit = 'eltern' where id = ${z.id}`;
-    await sql`insert into programm_stufe (programm_id, stufe_id) values (${z.id}, ${stufeId})`;
     await sql`insert into leitung_anmeldung (programm_id, user_id, status) values (${z.id}, ${person.id}, 'ja')`;
   }
   return { ids, personId: person.id as string };
 }
 
-test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen für Eltern dazu", async () => {
+test("geteilte Serie: A wird umgeschlüsselt und behält id und Leitungsanmeldung, B ohne Nachfolger geht zu «Prüfen», neue Termine kommen für Eltern dazu", async () => {
   stubKalender([vorher, geteilt]);
   const { ids, personId } = await ersterSerienLauf();
   expect(ids.size).toBe(6);
@@ -507,7 +496,7 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohn
       // Neuer Termin: für Eltern sichtbar, ohne Stufe
       expect([...ids.values()]).not.toContain(zeile.id);
       expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
-      expect((await anhang(zeile.id as string)).stufen).toEqual([]);
+      expect((await anhang(zeile.id as string)).tags).toEqual([]);
       continue;
     }
     const vorherKey = `${erwartet.titel}|${erwartet.vorher}`;
@@ -515,7 +504,7 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Zuordnung, B ohn
     if (MIT_ZUORDNUNG.includes(vorherKey)) {
       expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
       expect(await anhang(zeile.id as string)).toEqual({
-        stufen: [{ stufe_id: stufeId }],
+        tags: [],
         leitung: [{ user_id: personId, status: "ja" }],
       });
     }
@@ -643,33 +632,6 @@ function stubNetz(text: string) {
   });
 }
 
-// Das Programm, wie der Sync es schon kennt; Zuordnung und Sichtbarkeit setzt sonst eine SL
-async function programm(
-  event: string,
-  {
-    titel = "Waldtag",
-    sichtbarkeit = "eltern",
-    stufen = [stufeId],
-    status = "aktiv",
-  }: {
-    titel?: string;
-    sichtbarkeit?: string;
-    stufen?: string[];
-    status?: string;
-  } = {},
-) {
-  const [zeile] = await sql`
-    insert into programm (abteilung_id, google_event_id, titel, ganztaegig, beginn, ende,
-                          sichtbarkeit, status)
-    values (${abteilungId}, ${event}, ${titel}, false, '2027-09-25T12:00:00Z',
-            '2027-09-25T14:00:00Z', ${sichtbarkeit}, ${status})
-    returning id`;
-  for (const stufeId of stufen) {
-    await sql`insert into programm_stufe (programm_id, stufe_id) values (${zeile.id}, ${stufeId})`;
-  }
-  return zeile.id as string;
-}
-
 // Ein Termin am Sa 25.9.2027, 14 bis 16 Uhr Sommerzeit; «von» und «bis» sind UTC-Zeitpunkte oder, mit «ganztaegig», Tage
 const termin = (
   id: string,
@@ -705,168 +667,23 @@ const lauf = () =>
     jetzt: JETZT,
   });
 
-// Automatische Zuordnung nach dem Titel (#34): «Stufen» meint alle, sonst Stufenname oder Kürzel als ganzes Wort
-async function stufenFuerZuordnung() {
-  const [biber] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel)
-    values (${abteilungId}, 'Biber', 'BI') returning id`;
-  const [woelfe] = await sql`
-    insert into stufe (abteilung_id, name, kuerzel)
-    values (${abteilungId}, 'Wölfe', 'WÖ') returning id`;
-  return { biber: biber.id as string, woelfe: woelfe.id as string };
-}
-
-const mitTitel = (titel: string, id = "auto000000000001") =>
-  stubNetz(kalender(termin(id, { summary: titel })));
-
-const zugeordnet = async (id = "auto000000000001") => {
+// Die Titelregel (#34) gibt es nicht mehr (#449): Ein Stufenname im Titel ordnet nichts zu, Tags kommen nur aus den Kategorien
+test("ein Stufenname im Titel ergibt keinen Tag und keinen Audit-Eintrag", async () => {
+  await sql`insert into stufe (abteilung_id, name, kuerzel) values (${abteilungId}, 'Biber', 'BI')`;
+  stubNetz(
+    kalender(
+      termin("auto000000000001", { summary: "Waldtag Biber und Stufen" }),
+    ),
+  );
+  await lauf();
   const [p] = await sql`
     select id, sichtbarkeit from programm
-    where abteilung_id = ${abteilungId} and google_event_id = ${id}`;
-  const stufen = await sql`
-    select stufe_id from programm_stufe where programm_id = ${p.id}`;
-  return {
-    id: p.id as string,
-    sichtbarkeit: p.sichtbarkeit as string,
-    stufen: stufen.map((s) => s.stufe_id as string).sort(),
-  };
-};
-
-const auditEintraege = (programmId: string) => sql`
-  select akteur_id, aktion, ziel_typ, details from audit_log
-  where ziel_id = ${programmId} order by erstellt_am, id`;
-
-test("«Stufen» im Titel: alle Stufen der Abteilung, für Eltern sichtbar, Audit-Eintrag vom System", async () => {
-  const { biber, woelfe } = await stufenFuerZuordnung();
-  mitTitel("Samstag aller STUFEN");
-  await lauf();
-
-  const z = await zugeordnet();
-  expect(z.sichtbarkeit).toBe("eltern");
-  expect(z.stufen).toEqual([stufeId, biber, woelfe].sort());
-  expect(await auditEintraege(z.id)).toEqual([
-    {
-      akteur_id: "system",
-      aktion: "programm_zugeordnet",
-      ziel_typ: "programm",
-      details: { stufen: z.stufen },
-    },
-  ]);
-});
-
-test("ein Stufenname im Titel: nur diese Stufe, für Eltern sichtbar", async () => {
-  const { biber } = await stufenFuerZuordnung();
-  mitTitel("Waldtag biber");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "eltern",
-    stufen: [biber],
-  });
-});
-
-test("zwei Stufennamen im Titel: beide Stufen", async () => {
-  const { biber, woelfe } = await stufenFuerZuordnung();
-  mitTitel("Biber und Wölfe: Waldtag");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "eltern",
-    stufen: [biber, woelfe].sort(),
-  });
-});
-
-test("kein Treffer: Der Termin bleibt für Eltern sichtbar und ohne Stufe (= alle Stufen), ohne Audit-Eintrag", async () => {
-  await stufenFuerZuordnung();
-  mitTitel("Waldtag mit Stufenleitung und Biberburg");
-  await lauf();
-  const z = await zugeordnet();
-  expect(z).toMatchObject({ sichtbarkeit: "eltern", stufen: [] });
-  expect(await auditEintraege(z.id)).toEqual([]);
-});
-
-test("eine Zuordnung von Hand bleibt, auch wenn der Titel eine Stufe nennt", async () => {
-  const { biber } = await stufenFuerZuordnung();
-  mitTitel("Waldtag Wölfe");
-  await lauf();
-  const vorher = await zugeordnet();
-
-  // Wie eine SL: auf Biber umgestellt, mit Audit-Eintrag einer Person
-  await sql`delete from programm_stufe where programm_id = ${vorher.id}`;
-  await sql`insert into programm_stufe (programm_id, stufe_id) values (${vorher.id}, ${biber})`;
-  await sql`update programm set sichtbarkeit = 'leitende' where id = ${vorher.id}`;
-  await sql`insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, details)
-            values (${abteilungId}, ${randomUUID()}, 'programm_zugeordnet', 'programm', ${vorher.id}, '{}')`;
-
-  mitTitel("Waldtag Stufen");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "leitende",
-    stufen: [biber],
-  });
-  expect(await auditEintraege(vorher.id)).toHaveLength(2);
-});
-
-test("eine Zuordnung von Hand, die alles wieder entfernt, bleibt unzugeordnet", async () => {
-  await stufenFuerZuordnung();
-  mitTitel("Waldtag");
-  await lauf();
-  const { id } = await zugeordnet();
-  // Eine Person hat zugeordnet und wieder entfernt: Stand «ohne Stufe», aber mit ihrem Eintrag
-  await sql`insert into audit_log (abteilung_id, akteur_id, aktion, ziel_typ, ziel_id, details)
-            values (${abteilungId}, ${randomUUID()}, 'programm_zugeordnet', 'programm', ${id}, '{}')`;
-
-  mitTitel("Waldtag Biber");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "eltern",
-    stufen: [],
-  });
-});
-
-test("Titeländerung: Die Automatik folgt dem neuen Titel, bis keine Stufe mehr passt, und ein unveränderter Lauf schreibt nichts", async () => {
-  const { biber, woelfe } = await stufenFuerZuordnung();
-  mitTitel("Waldtag Biber");
-  await lauf();
-  const { id } = await zugeordnet();
-  expect(await zugeordnet()).toMatchObject({ stufen: [biber] });
-
-  await lauf();
-  expect(await auditEintraege(id)).toHaveLength(1);
-
-  mitTitel("Waldtag Wölfe");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "eltern",
-    stufen: [woelfe],
-  });
-
-  mitTitel("Waldtag");
-  await lauf();
-  expect(await zugeordnet()).toMatchObject({
-    sichtbarkeit: "eltern",
-    stufen: [],
-  });
-
-  const eintraege = await auditEintraege(id);
-  expect(eintraege.map((e) => e.akteur_id)).toEqual([
-    "system",
-    "system",
-    "system",
-  ]);
-  expect(eintraege[2].details).toEqual({ stufen: [] });
-});
-
-test("ein Zustand, den weder Standard noch Automatik gesetzt haben, bleibt auch ohne Audit-Eintrag", async () => {
-  await stufenFuerZuordnung();
-  const id = await programm("hand0000000000001", {
-    titel: "Waldtag",
-    stufen: [stufeId],
-    sichtbarkeit: "leitende",
-  });
-  mitTitel("Waldtag Biber", "hand0000000000001");
-  await lauf();
-  expect(await zugeordnet("hand0000000000001")).toMatchObject({
-    id,
-    sichtbarkeit: "leitende",
-    stufen: [stufeId],
-  });
+    where abteilung_id = ${abteilungId} and google_event_id = 'auto000000000001'`;
+  expect(p.sichtbarkeit).toBe("eltern");
+  expect(
+    await sql`select * from programm_tag where programm_id = ${p.id}`,
+  ).toEqual([]);
+  expect(await sql`select * from audit_log where ziel_id = ${p.id}`).toEqual(
+    [],
+  );
 });

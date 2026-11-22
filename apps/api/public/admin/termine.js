@@ -5,7 +5,7 @@ import * as raeume from "./termine-raeume.js";
 import * as vorschlaege from "./termine-vorschlaege.js";
 import * as warnliste from "./termine-warnliste.js";
 
-// Bereich «Termine» (Epic #430, Gerüst #431): Unternavigation und Fläche für die Reiter, nach dem Muster von website.js. Sichtbar nur für die Abteilungsleitung (Admin mit zweitem Faktor): Alle anderen bekommen nur die Bereiche, die der Server ihnen nennt, und dort steht «termine» nicht. Der Bereich «Kalender» bleibt unverändert.
+// Bereich «Termine» (Epic #430, Gerüst #431): Unternavigation und Fläche für die Reiter, nach dem Muster von website.js. Sichtbar nur für die Abteilungsleitung (Admin mit zweitem Faktor): Alle anderen bekommen nur die Bereiche, die der Server ihnen nennt, und dort steht «termine» nicht.  Seit #449 gibt es den Bereich «Kalender» nicht mehr: Die Stufen eines Termins ergeben sich nur noch aus seinen Tags, also aus den Outlook-Kategorien («Warnliste», «Kategorien»).
 //
 // So hängt sich ein Folge-Issue ein: Es füllt nur seine eigene Datei termine-<reiter>.js (und .css, Klassen mit dem Vorsatz «tm-<reiter>-»); termine.js, admin.js, index.html und dom.js bleiben unberührt. Reiter und Issue:
 //   warnliste #433 (TA2) · kategorien #434 (TA3) · vorschlaege #441 (TD3) · anlaesse #445 (TE4) · raeume #446 und #447 (TG1, TG2; warten auf das OK des Nutzers)

@@ -9,7 +9,6 @@ import {
   chat,
   kind,
   programmEckdaten,
-  programmStufe,
   rolle,
   stufe,
   stufenlogo,
@@ -204,12 +203,11 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             .where(eq(rolle.stufeId, id))
             .limit(1);
           if (mitKind || mitRolle) throw new Belegt();
-          // Alles, was nur an der Stufe hängt; die Chats nehmen ihre Nachrichten per CASCADE mit
+          // Alles, was nur an der Stufe hängt; die Chats nehmen ihre Nachrichten per CASCADE mit, programm_tag und kategorie_zuordnung gehen mit dem Tag
           await tx.delete(stufenlogo).where(eq(stufenlogo.stufeId, id));
           await tx
             .delete(programmEckdaten)
             .where(eq(programmEckdaten.stufeId, id));
-          await tx.delete(programmStufe).where(eq(programmStufe.stufeId, id));
           await tx.delete(zeitregel).where(eq(zeitregel.stufeId, id));
           await tx.delete(chat).where(eq(chat.stufeId, id));
           await tx.delete(stufe).where(eq(stufe.id, id));

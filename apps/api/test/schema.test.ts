@@ -121,18 +121,18 @@ test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async
   });
 });
 
-test("Löschen eines Programms entfernt die Stufen-Zuordnung", async () => {
+test("Löschen eines Programms entfernt seine Tag-Zuordnung", async () => {
   await zurueckgerollt(sql, async (tx) => {
     const { abteilung, stufe } = await grunddaten(tx);
     const [programm] = await tx`
       insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
       values (${abteilung}, 'event00000000001', 'Testlager', true, '2027-07-30', '2027-08-02')
       returning id`;
-    await tx`insert into programm_stufe (programm_id, stufe_id) values (${programm.id}, ${stufe})`;
+    await tx`insert into programm_tag (programm_id, tag_id) values (${programm.id}, ${stufe})`;
 
     await tx`delete from programm where id = ${programm.id}`;
     expect(
-      await tx`select * from programm_stufe where programm_id = ${programm.id}`,
+      await tx`select * from programm_tag where programm_id = ${programm.id}`,
     ).toEqual([]);
   });
 });

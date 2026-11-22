@@ -21,11 +21,11 @@ import {
   kind,
   kindEltern,
   nachricht,
-  programmStufeWirksam,
   rolle,
   stufe,
   user,
 } from "./db/schema.js";
+import { PROGRAMM_STUFEN_ROH } from "./termine/stufen-sicht.js";
 
 // Eltern haben keine Stufenrolle: Ihre Rechte hängen am Kind, die Routen joinen kind_eltern direkt in SQL
 export type Person = {
@@ -302,7 +302,7 @@ export function hatRolle(
   );
 }
 
-// Admins und SL sehen jedes Programm der Abteilung: SL brauchen den Eingang «Nicht zugeordnet» und fremde Stufen für Abteilungsanlässe
+// Admins und SL sehen jedes Programm der Abteilung, auch eines ohne Stufen-Tag: SL brauchen fremde Stufen für Abteilungsanlässe
 const adminOderSl = (person: Person) =>
   person.admin || person.rollen.some((r) => r.typ === "stufenleitung");
 
@@ -311,15 +311,15 @@ export function programmLeitungssicht(person: Person): SQL {
   const eigeneAbteilung = sql`programm.abteilung_id = ${person.abteilungId}`;
   if (adminOderSl(person)) return eigeneAbteilung;
   // inArray mit leerer Liste wird zu «false»: Ohne Rolle bleibt alles verborgen
-  return sql`(${eigeneAbteilung} and programm.sichtbarkeit in ('leitende', 'eltern') and exists (select 1 from programm_stufe_wirksam where programm_stufe_wirksam.programm_id = programm.id and ${inArray(
-    programmStufeWirksam.stufeId,
+  return sql`(${eigeneAbteilung} and programm.sichtbarkeit in ('leitende', 'eltern') and exists (select 1 from ${PROGRAMM_STUFEN_ROH} where programm_tag.programm_id = programm.id and ${inArray(
+    sql`programm_tag.tag_id`,
     person.rollen.map((r) => r.stufeId),
   )}))`;
 }
 
 // Fail-closed über das Kind: Es zählt nur aktiv und in der eigenen Abteilung
 function programmElternsicht(person: Person): SQL {
-  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from programm_stufe_wirksam inner join kind on kind.stufe_id = programm_stufe_wirksam.stufe_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_stufe_wirksam.programm_id = programm.id))`;
+  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from ${PROGRAMM_STUFEN_ROH} inner join kind on kind.stufe_id = programm_tag.tag_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_tag.programm_id = programm.id))`;
 }
 
 // Sichtbar ist ein Programm mit Leitungs- oder Elternsicht; beide schränken auf die Abteilung aus der Sitzung ein
@@ -338,35 +338,4 @@ export function darfLeitungAnmelden(
   stufeIds: readonly string[],
 ) {
   return stufeIds.some((stufeId) => hatRolle(person, stufeId, "leitung"));
-}
-
-// Admin alles; eine SL nur Änderungen, die ausschliesslich eigene Stufen betreffen (also nie von oder zu «alle Stufen»); Leitende und Eltern nie, auch kein No-op
-export function darfZuordnen(
-  person: Person,
-  {
-    vorher,
-    nachher,
-    sichtbarkeitAendert,
-  }: {
-    vorher: readonly string[];
-    nachher: readonly string[];
-    sichtbarkeitAendert: boolean;
-  },
-) {
-  if (person.admin) return true;
-  if (!person.rollen.some((r) => r.typ === "stufenleitung")) return false;
-  // Ohne Stufe gilt das Programm für alle Stufen: Wer es dazu macht oder daraus ändert, entscheidet über fremde Stufen mit
-  if (vorher.length === 0 || nachher.length === 0) return false;
-  const vorherMenge = new Set(vorher);
-  const nachherMenge = new Set(nachher);
-  // Jede hinzugefügte oder entfernte Stufe; ändert die Sichtbarkeit, jede beteiligte
-  const betroffen = [...vorher, ...nachher].filter(
-    (stufeId) =>
-      sichtbarkeitAendert ||
-      !vorherMenge.has(stufeId) ||
-      !nachherMenge.has(stufeId),
-  );
-  return betroffen.every((stufeId) =>
-    hatRolle(person, stufeId, "stufenleitung"),
-  );
 }

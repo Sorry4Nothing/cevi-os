@@ -11,7 +11,7 @@ import {
 import { abteilung, programm, tag } from "./schema.js";
 
 // Termine (#432): Die Kategorien eines Outlook-Termins ergeben Tags. Ein Termin ohne Zeile hier ist für niemanden sichtbar
-// (anders als programm_stufe, wo «keine Zeile» alle Stufen meint). Geschrieben wird nur vom Kalender-Abgleich
+// (seit #449 gilt das auch für die Stufen: «kein Stufen-Tag» heisst «keine Stufe», nicht mehr «alle Stufen»). Geschrieben wird vom Kalender-Abgleich und, für Abteilungen ohne Kalender, vom gepflegten Stufenprogramm (website/stufenprogramm.ts)
 export const programmTag = pgTable(
   "programm_tag",
   {

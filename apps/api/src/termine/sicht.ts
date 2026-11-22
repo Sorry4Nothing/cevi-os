@@ -4,7 +4,7 @@ import { kind, kindEltern, personTag, tag } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 // Sicht der Termine (Epic #430, #435): Ein Termin gehört zu den Tags in programm_tag; die Person sieht ihn, wenn sie einen dieser Tags hat.
-// Anders als bei programm_stufe heisst «kein Tag» hier «für niemanden sichtbar», auch nicht für die Abteilungsleitung.
+// «Kein Tag» heisst «für niemanden sichtbar», auch nicht für die Abteilungsleitung (die alte Regel «ohne Stufe = alle Stufen» entfiel mit #449).
 
 // Die Tags der Person, getrennt nach Herkunft: eigene Tags (person_tag, auch die Stufenrolle) und die Stufen der aktiven Kinder (Annahme A1, abgeleitet, nicht gespeichert)
 export interface SichtTags {

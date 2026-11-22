@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
@@ -235,7 +235,7 @@ describe("Lesende Routen liefern ihr Format unverändert", () => {
     );
   });
 
-  test("Programme: Stufen am Programm, auch bei «alle Stufen»", async () => {
+  test("Programme: Stufen am Programm kommen aus den Stufen-Tags (programm_tag)", async () => {
     const eigenes = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       sichtbarkeit: "eltern",
@@ -245,6 +245,7 @@ describe("Lesende Routen liefern ihr Format unverändert", () => {
     const alle = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       sichtbarkeit: "eltern",
+      stufen: [welt.stufeAId, welt.stufeBId],
       beginn: new Date("2027-03-13T13:00:00Z"),
     });
     const liste = await gegenVertrag(
@@ -259,11 +260,7 @@ describe("Lesende Routen liefern ihr Format unverändert", () => {
         .find((p: { id: string }) => p.id === id)
         .stufen.map((s: { id: string }) => s.id);
     expect(stufenVon(eigenes.id)).toEqual([welt.stufeAId]);
-    // Ohne eigene Zuordnung gilt das Programm für alle Stufen der Abteilung (Sicht programm_stufe_wirksam über die Stufen-Tags)
-    const sicht = await db.execute(
-      sql`select stufe_id from programm_stufe_wirksam where programm_id = ${alle.id}`,
-    );
-    expect(sicht.map((z) => z.stufe_id).sort()).toEqual(
+    expect(stufenVon(alle.id).sort()).toEqual(
       [welt.stufeAId, welt.stufeBId].sort(),
     );
     const vonLeitung = await gegenVertrag(

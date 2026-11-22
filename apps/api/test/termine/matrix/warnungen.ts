@@ -6,11 +6,10 @@ import { legeProgrammAn } from "../../hilfen/programme.js";
 export const VORBEREITUNG: NonNullable<
   TermineModulDatei["VORBEREITUNG"]
 > = async (welt) => {
-  // Ein kommender Termin ohne Tag: steht auf der Warnliste. Mit Stufenzuordnung: Ohne sie gälte er in den Sichtbarkeitsregeln der Programme (programm_stufe_wirksam) für alle Stufen und das Profilbild von SL der Stufe A wäre in der Rechte-Matrix jeder Stufe sichtbar
+  // Ein kommender Termin ohne Tag: steht auf der Warnliste.
   const termin = await legeProgrammAn(welt.db, {
     abteilungId: welt.testabteilungId,
     sichtbarkeit: "eltern",
-    stufen: [welt.stufeAId],
     titel: "Matrix-Termin ohne Kategorie",
     beginn: new Date("2099-03-06T13:00:00Z"),
   });

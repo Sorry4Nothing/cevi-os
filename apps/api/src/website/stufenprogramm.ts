@@ -1,6 +1,6 @@
 import { and, eq, sql as roh } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { programm, programmStufe } from "../db/schema.js";
+import { programm, programmTag } from "../db/schema.js";
 import { programmBeginn } from "../rechte.js";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -54,8 +54,8 @@ export async function legeStufenprogrammAn(
     })
     .returning({ id: programm.id });
   await tx
-    .insert(programmStufe)
-    .values({ programmId: eins.id, stufeId: eine.stufeId })
+    .insert(programmTag)
+    .values({ programmId: eins.id, tagId: eine.stufeId })
     .onConflictDoNothing();
 }
 
