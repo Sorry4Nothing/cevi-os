@@ -387,7 +387,10 @@ describe("Anlegen: Rechte je Rolle", () => {
   });
 
   test("böser Link: 400 LINK_UNGUELTIG, nichts gespeichert", async () => {
-    const vorher = await db.$count(schema.lagerDatei);
+    const vorher = await db.$count(
+      schema.lagerDatei,
+      eq(schema.lagerDatei.lagerId, lagerId),
+    );
     for (const link of [
       "javascript:alert(1)",
       "data:text/html;base64,PHNjcmlwdD4=",
@@ -398,7 +401,12 @@ describe("Anlegen: Rechte je Rolle", () => {
       expect(antwort.status).toBe(400);
       expect(await antwort.json()).toMatchObject({ code: "LINK_UNGUELTIG" });
     }
-    expect(await db.$count(schema.lagerDatei)).toBe(vorher);
+    expect(
+      await db.$count(
+        schema.lagerDatei,
+        eq(schema.lagerDatei.lagerId, lagerId),
+      ),
+    ).toBe(vorher);
   });
 
   test("Hosts der Abteilung: andere Hosts 400 LINK_HOST_NICHT_ERLAUBT, danach wieder frei", async () => {
@@ -757,7 +765,7 @@ describe("Aufräumlauf", () => {
     (await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, id))) === 1;
 
   test("entfernt alte Einträge ohne Verweis, lässt verwiesene, junge und gelöschte stehen", async () => {
-    await raeumeDateienOhneVerweisAuf(db);
+    await raeumeDateienOhneVerweisAuf(db, undefined, lagerId);
     const ohne = await neueDatei();
     const jung = await neueDatei();
     const mitBeitrag = await neueDatei();
@@ -775,22 +783,22 @@ describe("Aufräumlauf", () => {
     for (const d of [ohne, mitBeitrag, mitIntern, imPapierkorb, geloescht]) {
       await alt(d.id);
     }
-    expect(await raeumeDateienOhneVerweisAuf(db)).toBe(1);
+    expect(await raeumeDateienOhneVerweisAuf(db, undefined, lagerId)).toBe(1);
     expect(await gibt(ohne.id)).toBe(false);
     for (const d of [jung, mitBeitrag, mitIntern, imPapierkorb, geloescht]) {
       expect(await gibt(d.id)).toBe(true);
     }
     // Zweiter Lauf: nichts mehr zu tun
-    expect(await raeumeDateienOhneVerweisAuf(db)).toBe(0);
+    expect(await raeumeDateienOhneVerweisAuf(db, undefined, lagerId)).toBe(0);
   });
 
   test("ein Verweis, der wegfällt, gibt den Eintrag zum Abräumen frei", async () => {
     const datei = await neueDatei();
     const [zeile] = await binde(beitrag, datei.id);
     await alt(datei.id);
-    expect(await raeumeDateienOhneVerweisAuf(db)).toBe(0);
+    expect(await raeumeDateienOhneVerweisAuf(db, undefined, lagerId)).toBe(0);
     await db.delete(beitrag).where(eq(beitrag.id, zeile!.id));
-    expect(await raeumeDateienOhneVerweisAuf(db)).toBe(1);
+    expect(await raeumeDateienOhneVerweisAuf(db, undefined, lagerId)).toBe(1);
     expect(await gibt(datei.id)).toBe(false);
   });
 
@@ -809,7 +817,11 @@ describe("Aufräumlauf", () => {
       debug: (_c, q) => abfragen.push(q),
     });
     try {
-      await raeumeDateienOhneVerweisAuf(erstelleDb(zaehler));
+      await raeumeDateienOhneVerweisAuf(
+        erstelleDb(zaehler),
+        undefined,
+        lagerId,
+      );
     } finally {
       await zaehler.end();
     }
