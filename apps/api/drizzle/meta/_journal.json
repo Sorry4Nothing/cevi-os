@@ -297,6 +297,13 @@
       "breakpoints": true
     },
     {
+      "idx": 62,
+      "version": "7",
+      "when": 1793550200000,
+      "tag": "0062_lager_sync",
+      "breakpoints": true
+    },
+    {
       "idx": 65,
       "version": "7",
       "when": 1793550500000,

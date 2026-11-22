@@ -19,6 +19,10 @@ import {
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { ladeKonfiguration } from "./konfiguration.js";
+import {
+  raeumeAenderungenAuf,
+  starteAenderungenAufraeumen,
+} from "./lager/aufraeumen.js";
 import { log } from "./log.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
 import { ladeSeiten } from "./seiten.js";
@@ -102,6 +106,7 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
   "lager_benachrichtigungen",

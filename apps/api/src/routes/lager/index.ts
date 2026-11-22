@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleAenderungenRouten } from "./aenderungen.js";
 import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
@@ -11,6 +12,7 @@ import { erstelleLagerRechteRouten } from "./rechte.js";
 export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
   return new Hono<LagerEnv>()
     .route("/", erstelleLagerKernRouten({ db }))
+    .route("/", erstelleAenderungenRouten({ db }))
     .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }));
 }

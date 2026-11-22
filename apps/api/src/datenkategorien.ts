@@ -168,6 +168,20 @@ export const KATEGORIEN = {
 
 export type KategorieId = keyof typeof KATEGORIEN;
 
+// Die Spalten, die lagerSpalten() (db/schema-lager.ts) jeder Lager-Tabelle mitgibt (#366); ein Modul schreibt { lager: [...LAGER_BASIS_SPALTEN, "eigene", ...] }
+export const LAGER_BASIS_SPALTEN = [
+  "id",
+  "lager_id",
+  "version",
+  "erstellt_am",
+  "erstellt_von",
+  "geaendert_am",
+  "geaendert_von",
+  "geloescht_am",
+  "geloescht_von",
+  "lager_seq",
+];
+
 // Tabelle -> Kategorie -> Spalten. Jede Spalte steht genau einmal da; ein Test scheitert bei einer neuen oder entfernten Spalte
 export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   abteilung: {
@@ -329,7 +343,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "uebung",
       "farbe",
       "logo_medium_id",
+      "seq",
+      "seq_min",
       "erstellt_am",
+    ],
+  },
+  // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
+  lager_aenderung: {
+    lager: [
+      "lager_id",
+      "seq",
+      "tabelle",
+      "zeile_id",
+      "art",
+      "version",
+      "zeitpunkt",
     ],
   },
   lager_mitglied: {
