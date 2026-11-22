@@ -17,7 +17,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 // Zyklus mit schema.ts (das diese Datei weiterreicht), harmlos: Die Verweise stehen nur in Funktionen, die erst beim Aufbau der Fremdschlüssel laufen
-import { abteilung, medium, user } from "./schema.js";
+import { abteilung, kind, medium, user } from "./schema.js";
 
 // Lager (#364), Modul Lager-Backend. Alle späteren Lager-Tabellen hängen mit ON DELETE CASCADE an lager.id und liegen ab Migration 0061 in eigenen Dateien dieses Verzeichnisses
 // Das Lager gehört einer Abteilung; jede Lager-Route lädt es auf die Abteilung der Sitzung gefiltert (fremd = 404)
@@ -342,6 +342,63 @@ export const ressortNotiz = pgTable(
     check(
       "ressort_notiz_check",
       sql`char_length(${t.text}) between 1 and 10000`,
+    ),
+  ],
+);
+
+// Teilnehmende des Lagers (#384): nur Name und Stufe, bewusst keine Gesundheitsdaten, kein Telefon und keine Adresse (Test in lager/teilnehmer.test.ts hält die Spaltenliste fest). cevi_name ist der Anzeigename für Aushänge (Cevi-Name, sonst Vorname). kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anlass-Anmeldung: anmeldung_id ohne Fremdschlüssel, bis der Auftrag Termine die Anmeldung anlegt; beide sind über die API noch nicht setzbar. Geschrieben wird nur über lager/sync.ts. Nach dem Lager löscht ein täglicher Lauf die Zeilen (lager/teilnehmer.ts)
+export const teilnehmer = pgTable(
+  "teilnehmer",
+  {
+    ...lagerSpalten(),
+    kindId: uuid("kind_id").references(() => kind.id, {
+      onDelete: "set null",
+    }),
+    anmeldungId: uuid("anmeldung_id"),
+    vorname: text("vorname").notNull(),
+    nachname: text("nachname").notNull(),
+    ceviName: text("cevi_name"),
+    stufe: text("stufe"),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von abzaehlen: Ein Eintrag kann nie ein Kind eines anderen Lagers meinen
+    unique("teilnehmer_lager_id_id_uq").on(t.lagerId, t.id),
+    // Die Liste: sortiert nach Name, mit Seitenwechsel über (nachname, vorname, id)
+    index("teilnehmer_liste_idx").on(t.lagerId, t.nachname, t.vorname, t.id),
+    check(
+      "teilnehmer_text_check",
+      sql`char_length(${t.vorname}) between 1 and 100 and char_length(${t.nachname}) between 1 and 100 and (${t.ceviName} is null or char_length(${t.ceviName}) between 1 and 50) and (${t.stufe} is null or char_length(${t.stufe}) between 1 and 50)`,
+    ),
+  ],
+);
+
+// Abzählen (#384): ein Haken je Teilnehmende oder Person des Lagers (Team), eine Zeile entsteht beim ersten Abhaken. Genau eines von teilnehmer_id und person_id; geprueft_am ist gesetzt, wenn geprueft gilt. Die Teilnehmerzeilen gehen mit der Löschung der Teilnehmenden
+export const abzaehlen = pgTable(
+  "abzaehlen",
+  {
+    ...lagerSpalten(),
+    teilnehmerId: uuid("teilnehmer_id"),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    geprueft: boolean("geprueft").notNull().default(false),
+    geprueftAm: timestamp("geprueft_am", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({
+      name: "abzaehlen_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    uniqueIndex("abzaehlen_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("abzaehlen_person_uq")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    check(
+      "abzaehlen_ziel_check",
+      sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.geprueft} = (${t.geprueftAm} is not null)`,
     ),
   ],
 );

@@ -9,6 +9,8 @@ import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
 import { erstelleRessortRouten } from "./ressorts.js";
+import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
+import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
@@ -20,5 +22,7 @@ export function erstelleLagerRouten({ db }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleEreignisRouten({ db }))
     .route("/", erstelleLagerRechteRouten({ db }))
     .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
-    .route("/", erstelleRessortRouten({ db }));
+    .route("/", erstelleRessortRouten({ db }))
+    .route("/", erstelleTeilnehmerRouten({ db }))
+    .route("/", erstelleAbzaehlenRouten({ db }));
 }

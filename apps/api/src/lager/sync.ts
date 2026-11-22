@@ -1,4 +1,4 @@
-import { and, eq, getTableName, isNull, sql } from "drizzle-orm";
+import { and, eq, getTableName, inArray, isNull, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import type { Db } from "../db/client.js";
 import { lager, lagerAenderung } from "../db/schema.js";
@@ -127,6 +127,18 @@ async function melde(
     art,
     version: nachher.version,
   });
+  await rufeHaken(tx, name, k, seq, art, nachher, vorher);
+}
+
+async function rufeHaken(
+  tx: Tx,
+  name: string,
+  k: SchreibKontext,
+  seq: number,
+  art: SchreibArt,
+  nachher: Zeile,
+  vorher?: Zeile,
+) {
   for (const h of haken) {
     await h(tx, {
       lagerId: k.lagerId,
@@ -278,4 +290,141 @@ export async function loescheZeile<T extends LagerSpaltenTabelle>(
   if (!neu) return werfeKeineZeile(tx, tabelle, k, p.id, {}, p.ansicht);
   await melde(tx, name, k, seq, "geloescht", neu as Zeile, vorher);
   return neu as T["$inferSelect"];
+}
+
+// Sammeloperationen (#384): viele Zeilen in einer Transaktion mit gebündelten Statements (ein Insert, ein Update, ein Feed-Insert) statt drei Abfragen je Zeile. Jede Zeile bekommt weiter ihre eigene Folgenummer und ihren Feed-Eintrag; die Folgenummern werden am Stück reserviert, die Lagersperre hält bis zum Ende der Transaktion. Haken laufen je Zeile in der Reihenfolge der Folgenummer. shortcut: ein Statement je Aufruf, Aufrufer begrenzen die Menge (Import 500, Abzählen 200); bei mehr Zeilen in Stapeln aufrufen, sonst reicht das Limit der Parameter je Statement nicht
+
+async function reserviereFolgenummern(tx: Tx, lagerId: string, anzahl: number) {
+  const [zeile] = await tx
+    .update(lager)
+    .set({ seq: sql`${lager.seq} + ${anzahl}` })
+    .where(eq(lager.id, lagerId))
+    .returning({ seq: lager.seq });
+  if (!zeile) throw new HTTPException(404);
+  // Die erste reservierte Nummer
+  return zeile.seq - anzahl + 1;
+}
+
+async function meldeViele(
+  tx: Tx,
+  name: string,
+  k: SchreibKontext,
+  art: SchreibArt,
+  zeilen: Zeile[],
+  vorher?: Map<string, Zeile>,
+) {
+  const sortiert = [...zeilen].sort(
+    (a, b) => (a.lagerSeq as number) - (b.lagerSeq as number),
+  );
+  await tx.insert(lagerAenderung).values(
+    sortiert.map((z) => ({
+      lagerId: k.lagerId,
+      seq: z.lagerSeq as number,
+      tabelle: name,
+      zeileId: z.id,
+      art,
+      version: z.version,
+    })),
+  );
+  for (const z of sortiert) {
+    await rufeHaken(
+      tx,
+      name,
+      k,
+      z.lagerSeq as number,
+      art,
+      z,
+      vorher?.get(z.id),
+    );
+  }
+  return sortiert;
+}
+
+export async function legeZeilenAn<T extends LagerSpaltenTabelle>(
+  tx: Tx,
+  tabelle: T,
+  k: SchreibKontext,
+  liste: AnlegeWerte<T>[],
+): Promise<T["$inferSelect"][]> {
+  if (liste.length === 0) return [];
+  const name = pruefeAnmeldung(tabelle);
+  const erste = await reserviereFolgenummern(tx, k.lagerId, liste.length);
+  const neu = await tx
+    .insert(tabelle)
+    .values(
+      liste.map((werte, i) => ({
+        ...werte,
+        lagerId: k.lagerId,
+        version: 1,
+        erstelltVon: k.personId,
+        geaendertVon: k.personId,
+        lagerSeq: erste + i,
+      })) as never,
+    )
+    .returning();
+  return (await meldeViele(
+    tx,
+    name,
+    k,
+    "neu",
+    neu as Zeile[],
+  )) as T["$inferSelect"][];
+}
+
+// Setzt dieselben Werte auf alle genannten Zeilen des Lagers, ohne Versionsprüfung: für Zustände, die jeder Schreiber auf denselben Wert setzt (Abzählen), nicht für Änderungen am Inhalt einer Zeile. Gelöschte und fremde Zeilen werden übergangen; Aufrufer, die das nicht wollen, prüfen vorher. Zeilen, die schon stehen, wie sie sollen, filtert der Aufrufer heraus (keine neue Version ohne Änderung). Liefert die geänderten Zeilen
+export async function setzeZeilen<T extends LagerSpaltenTabelle>(
+  tx: Tx,
+  tabelle: T,
+  k: SchreibKontext,
+  p: { ids: string[]; werte: AendereWerte<T> },
+): Promise<T["$inferSelect"][]> {
+  if (p.ids.length === 0) return [];
+  const name = pruefeAnmeldung(tabelle);
+  // Sperre zuerst: Danach ändert kein anderer Schreiber die Zeilen, die gezählt werden, und die Folgenummern haben keine Lücke
+  await tx.execute(
+    sql`select id from lager where id = ${k.lagerId} for update`,
+  );
+  const t: LagerSpaltenTabelle = tabelle;
+  const treffer = (await tx
+    .select()
+    .from(t)
+    .where(
+      and(
+        eq(tabelle.lagerId, k.lagerId),
+        inArray(tabelle.id, p.ids),
+        isNull(tabelle.geloeschtAm),
+      ),
+    )) as Zeile[];
+  if (treffer.length === 0) return [];
+  const ids = treffer.map((z) => z.id);
+  const erste = await reserviereFolgenummern(tx, k.lagerId, ids.length);
+  const reihe = sql.join(
+    ids.map((id) => sql`${id}::uuid`),
+    sql`, `,
+  );
+  const neu = await tx
+    .update(tabelle)
+    .set({
+      ...p.werte,
+      version: sql`${tabelle.version} + 1`,
+      geaendertAm: sql`now()`,
+      geaendertVon: k.personId,
+      lagerSeq: sql`${erste}::bigint + array_position(array[${reihe}], ${tabelle.id}) - 1`,
+    } as never)
+    .where(
+      and(
+        eq(tabelle.lagerId, k.lagerId),
+        inArray(tabelle.id, ids),
+        isNull(tabelle.geloeschtAm),
+      ),
+    )
+    .returning();
+  return (await meldeViele(
+    tx,
+    name,
+    k,
+    "geaendert",
+    neu as Zeile[],
+    brauchtVorher ? new Map(treffer.map((z) => [z.id, z])) : undefined,
+  )) as T["$inferSelect"][];
 }

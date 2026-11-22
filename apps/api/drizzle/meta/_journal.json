@@ -330,6 +330,13 @@
       "when": 1793550700000,
       "tag": "0067_lager_ressorts",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1793551900000,
+      "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
     }
   ]
 }

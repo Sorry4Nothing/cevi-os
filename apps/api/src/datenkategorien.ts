@@ -139,6 +139,15 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTeilnehmende: {
+    titel: "Teilnehmende im Lager",
+    zweck:
+      "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
+    frist:
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
     zweck:
@@ -388,6 +397,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   ressort_notiz: {
     lager: [...LAGER_BASIS_SPALTEN, "ressort_id", "text"],
+  },
+  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
+  teilnehmer: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "kind_id",
+      "anmeldung_id",
+      "vorname",
+      "nachname",
+      "cevi_name",
+      "stufe",
+    ],
+  },
+  // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)
+  abzaehlen: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "teilnehmer_id",
+      "person_id",
+      "geprueft",
+      "geprueft_am",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [

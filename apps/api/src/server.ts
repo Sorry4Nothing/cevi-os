@@ -18,6 +18,7 @@ import {
 } from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
+import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import {
   raeumeAenderungenAuf,
@@ -111,6 +112,11 @@ starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
   "lager_benachrichtigungen",
+);
+// Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)
+starteSitzungenAufraeumen(
+  () => loescheAlteTeilnehmende(db),
+  "lager_teilnehmende",
 );
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
