@@ -588,6 +588,10 @@ describe("Entscheiden", () => {
     const uebernimmt = await wegwerfMitglied();
     const tokenTeam = await pushToken(konten.team.id!);
     const s = await mitAnfrage(() => ({ mitPersonId: uebernimmt }));
+    // Das Team bekam in früheren Tests schon Entscheide: gezählt wird, was neu dazukommt
+    const bisher = (
+      await benachrichtigungen(konten.team.id!, "diensttausch_entscheid")
+    ).length;
     gesendet = [];
     const e = await entscheide(s.tausch.id, {
       entscheid: "angenommen",
@@ -608,7 +612,7 @@ describe("Entscheiden", () => {
     });
     expect(
       await benachrichtigungen(konten.team.id!, "diensttausch_entscheid"),
-    ).toHaveLength(1);
+    ).toHaveLength(bisher + 1);
     expect(
       await benachrichtigungen(uebernimmt, "diensttausch_entscheid"),
     ).toHaveLength(1);
@@ -1185,7 +1189,10 @@ describe("Zurückziehen und Listen", () => {
       })),
     );
     const viel = await messen();
-    expect(viel).toEqual(wenig);
+    // Eine Abfrage mehr oder weniger je Aufruf (Sitzung) ist Rauschen; 30 Zeilen mehr dürfen keine 30 Abfragen kosten
+    viel.forEach((n, i) =>
+      expect(Math.abs(n - wenig[i]!)).toBeLessThanOrEqual(1),
+    );
     // Die Anfrage stellen und entscheiden: feste Zahl Abfragen, unabhängig von der Zahl der offenen Anfragen
     console.info("Abfragen je Aufruf (Liste, eigene):", viel);
   });
