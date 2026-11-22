@@ -360,6 +360,13 @@ Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Le
 - Aufbewahrung: Sechs Monate nach dem Ende des Lagers löscht ein täglicher Lauf (`lager/teilnehmer.ts`) die Teilnehmenden samt Haken endgültig, auch Einträge im Papierkorb; ins Audit-Log kommt nur die Anzahl. Der Änderungsfeed hält nur IDs und läuft nach 30 Tagen aus.
 - Die Abzählliste der Mitglieder (`art=team`) zeigt nur Name und Cevi-Name aktiver Konten der eigenen Abteilung; eine falsche Mitgliedszeile eines fremden Kontos erscheint nicht (Test).
 
+**Erweiterung #386 (Fahrten):**
+
+- Links und Kartenpunkt (SR-26, SR-72): Fahrplan-Link (`link`) und Kartenlink (`ziel_link`) gehen durch die strenge Prüfung `link-pruefung.ts` (nur https, kein `javascript:`, `data:` oder protokoll-relativ, keine Zugangsdaten, kein Port, kein IP-Literal, keine Steuer- und Bidi-Zeichen, höchstens 2048 Zeichen) und zusätzlich durch einen CHECK in der Datenbank. Koordinaten sind auf -90 bis 90 und -180 bis 180 begrenzt und nur zusammen erlaubt. Der Server ruft weder den Link noch einen Kartendienst ab (Test mit `fetch`-Spion); die App öffnet den Punkt in der Karten-App der Person.
+- Sicht (SR-11): Das Team sieht nur die eigene Fahrt, in Liste, Einzelabruf (sonst 404) und Änderungsfeed; «Personen ohne Fahrt» gibt es für das Team nicht (403), solange es `einteilung.bearbeiten` nicht hat. Namen der Mitfahrenden kommen erst in der Antwort aus Konto und Teilnehmerliste (nur Vorname, Nachname, Stufe), nie als Kopie.
+- Zuordnung: Fahrer und Mitfahrende sind aktive Mitglieder des Lagers oder Teilnehmende dieses Lagers (400 sonst; fremde Abteilungen und gesperrte Konten zählen nicht). Je Richtung höchstens eine Fahrt je Person (409), geprüft unter der Lagersperre und zusätzlich durch Teilindizes und Fremdschlüssel über Lager, Fahrt und Richtung.
+- Ressourcenverbrauch (SR-71): Seitenwechsel bei der Liste, eine Abfrage je Seite und für «ohne Fahrt», unabhängig von der Zahl der Fahrten (Test zählt Abfragen).
+
 **Restrisiko:** Die Abteilungsleitung gilt in jedem Lager der Abteilung als Lagerleitung (Annahme, auch für Adressbuch und Eingang); wer ihr Konto übernimmt, liest alle Lager der Abteilung. Das Konto schützen der zweite Faktor und die Bedrohung 6. Der Änderungsfeed verrät einer Rolle mit Leserecht, dass sich ein Eintrag geändert hat und wann, auch wenn sie den Inhalt nie abruft; Inhalte und Personen stehen nicht darin. Wer ein Modul nicht im Register der Lager-Tabellen anmeldet, bekommt beim ersten Schreiben einen Fehler; ein falsch gewähltes Leserecht oder ein fehlender Zeilenfilter bei der Anmeldung zeigt kein Test, das prüft die Durchsicht des Moduls.
 
 **OWASP:** ASVS V8 Authorization.

@@ -54,7 +54,11 @@ export interface LagerWelt {
 
 export interface LagerZeile {
   erwartet: Record<LagerZustand, Record<LagerPersona, number>>;
-  body?: (zustand: LagerZustand) => Record<string, unknown>;
+  // Bekommt auch die Welt: Ein Body, der Zeilen des Lagers braucht (zum Beispiel einen Lagertag), legt sie direkt in der Datenbank an
+  body?: (
+    zustand: LagerZustand,
+    welt: LagerWelt,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
   // Pflicht für jede Route mit Pfad-Parameter; ohne Angabe gilt der Pfad des Schlüssels. Wird pro Anfrage aufgerufen, ein Ziel darf sich also verbrauchen (DELETE)
   url?: (welt: LagerWelt, zustand: LagerZustand) => string | Promise<string>;
   // Die Route darf auch ein geschlossenes Lager ändern (wie lagerZugriff({ auchGeschlossen }))
@@ -184,7 +188,7 @@ export async function antwortenJePersona(
   const ergebnis = {} as Record<LagerPersona, number>;
   for (const persona of LAGER_PERSONAS) {
     const konto = konten[KONTO_FUER[persona]];
-    const body = zeile.body?.(zustand);
+    const body = await zeile.body?.(zustand, lagerWelt);
     const antwort = await app.request(
       (await zeile.url?.(lagerWelt, zustand)) ?? pfad,
       {
