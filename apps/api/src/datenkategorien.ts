@@ -89,6 +89,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["App activity: Other actions"],
   },
+  terminvorschlaege: {
+    titel: "Terminvorschläge",
+    zweck:
+      "Berechtigte Personen schlagen der Abteilungsleitung einen Termin vor, mit Titel, Zeit, Ort, Beschreibung, gewünschten Kategorien und einer Bemerkung. Die Abteilungsleitung entscheidet; in Outlook trägt sie den Termin von Hand ein. Die vorschlagende Person sieht ihre Vorschläge mit dem Stand und kann einen offenen zurückziehen. Der Push an die Abteilungsleitung nennt weder Titel noch Namen.",
+    frist: `Bis die Leitung den Vorschlag löscht oder die vorschlagende Person ihn zurückzieht. Mit dem Konto verschwindet nur die Angabe, wer vorgeschlagen oder entschieden hat. ${AUF_ANFRAGE}`,
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -419,6 +427,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   programm_tag: { programme: ["programm_id", "tag_id"] },
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
+  },
+  termin_vorschlag: {
+    terminvorschlaege: [
+      "id",
+      "abteilung_id",
+      "vorgeschlagen_von",
+      "titel",
+      "ganztaegig",
+      "beginn",
+      "ende",
+      "tag_von",
+      "tag_bis",
+      "ort",
+      "beschreibung",
+      "bemerkung",
+      "tag_ids",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+      "begruendung",
+      "erstellt_am",
+    ],
   },
   programm_eckdaten: {
     programme: [
