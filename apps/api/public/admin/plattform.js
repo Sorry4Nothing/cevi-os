@@ -14,7 +14,7 @@ import {
 // Bereich «Plattform» (#424): Wartungsmodus je Bereich schalten und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche»); jede Schaltung prüft er selbst.
 const BEREICHE = [
   ["alles", "Alles", "Jeder Bereich von Cevi OS."],
-  ["website", "Website", "Seiten und Medien der Website, die Redaktion."],
+  ["website", "Website", "Seiten und Medien der Website, die Verwaltung der Website."],
   ["lager", "Lager", "Das Lager-Modul und seine Verwaltung."],
   ["chat", "Chat", "Die Chats der App."],
   ["programme", "Programme und Termine", "Programme, Anmeldungen, Termine."],
