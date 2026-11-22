@@ -312,6 +312,186 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/termine.js:
+    get:
+      operationId: getAdminTermineSkript
+      summary: Skript der Verwaltung – Bereich Termine (Rahmen und Reiter)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine.css:
+    get:
+      operationId: getAdminTermineStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine (Rahmen und Reiter)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-warnliste.js:
+    get:
+      operationId: getAdminTermineWarnlisteSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Warnliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-warnliste.css:
+    get:
+      operationId: getAdminTermineWarnlisteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Warnliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-kategorien.js:
+    get:
+      operationId: getAdminTermineKategorienSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Kategorien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-kategorien.css:
+    get:
+      operationId: getAdminTermineKategorienStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Kategorien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-vorschlaege.js:
+    get:
+      operationId: getAdminTermineVorschlaegeSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Vorschläge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-vorschlaege.css:
+    get:
+      operationId: getAdminTermineVorschlaegeStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Vorschläge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-anlaesse.js:
+    get:
+      operationId: getAdminTermineAnlaesseSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Anlässe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-anlaesse.css:
+    get:
+      operationId: getAdminTermineAnlaesseStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Anlässe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/termine-raeume.js:
+    get:
+      operationId: getAdminTermineRaeumeSkript
+      summary: Skript der Verwaltung – Bereich Termine, Reiter Räume
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-raeume.css:
+    get:
+      operationId: getAdminTermineRaeumeStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Termine, Reiter Räume
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht.js:
     get:
       operationId: getAdminUebersichtSkript
@@ -1329,7 +1509,7 @@ paths:
   /api/v1/medien/{id}:
     get:
       operationId: mediumLesen
-      summary: Bild oder PDF aus dem Medienspeicher lesen
+      summary: Bild aus dem Medienspeicher lesen
       tags:
         - Medien
       parameters:
@@ -1344,10 +1524,10 @@ paths:
         Sitzung und nur der Abteilung des Mediums; für andere Abteilungen und unbekannte IDs ist die Antwort 404, nie 403.
         Die Sichtbarkeit nach Tags gibt es für Medien noch nicht; das Modul dafür (#333) steht bereit, ist aber noch an kein Objekt angeschlossen.
 
-        **Kopfzeilen.** `Content-Type` ist `image/webp` oder `application/pdf`; `X-Content-Type-Options: nosniff` und
-        `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer. Ein PDF trägt
-        `Content-Disposition: attachment` (es öffnet sich nie in der Seite), ein Bild `inline`. `Cache-Control` ist
-        `public, max-age=300` für öffentliche und `private, no-store` für angemeldete Medien.
+        **Kopfzeilen.** `Content-Type` ist `image/webp`; `X-Content-Type-Options: nosniff` und
+        `Content-Security-Policy: sandbox; frame-ancestors 'none'` stehen immer, `Content-Disposition` ist `inline`.
+        `Cache-Control` ist `public, max-age=300` für öffentliche und `private, no-store` für angemeldete Medien.
+        Der Medienspeicher liefert nur Bilder: Ein altes PDF-Medium (vor #428) antwortet 404.
 
         **Rollen.** Öffentlich: alle. Angemeldet: alle Personen der Abteilung, ausser bei offenem Pflichtwechsel des
         Passworts (403). Statuscodes: 200, 400, 401, 403, 404, 426, 500 (Medienspeicher nicht erreichbar, ohne Details),
@@ -1360,10 +1540,6 @@ paths:
           description: Die Datei.
           content:
             image/webp:
-              schema:
-                type: string
-                format: binary
-            application/pdf:
               schema:
                 type: string
                 format: binary
@@ -2976,21 +3152,21 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     post:
       operationId: legeAdminMediumAn
-      summary: Bild oder PDF hochladen
+      summary: Bild hochladen
       description: |
-        Nur Admins (mit zweitem Faktor). Lädt ein Bild oder ein PDF in den Medienspeicher der eigenen Abteilung.
+        Nur Admins (mit zweitem Faktor). Lädt ein Bild in den Medienspeicher der eigenen Abteilung.
 
-        **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG, WebP und PDF; der Typ
-        ergibt sich aus den ersten Bytes (`%PDF-` für PDF), nie aus Dateiendung, `Content-Type` oder Query. SVG, GIF und
-        alles andere sind 415. Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
-        Pixel haben, ein PDF höchstens 20 MiB. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
+        **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
+        ergibt sich aus den ersten Bytes, nie aus Dateiendung, `Content-Type` oder Query. PDF, SVG, GIF und
+        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
+        Pixel haben. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
 
         **Alt-Text.** Ein Bild braucht entweder `altText` (1 bis 500 Zeichen) oder `dekorativ=true`, nie beides und nie
-        keines (400, code `ALT_TEXT`). Bei einem PDF ist `altText` eine freiwillige Beschreibung, `dekorativ=true` ist 400.
+        keines (400, code `ALT_TEXT`).
 
         **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 2048 Pixel je Seite
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als WebP ohne
-        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten. Ein PDF bleibt unverändert.
+        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten.
 
         **Begrenzung.** Pro Person höchstens 10 Uploads in 10 Minuten (429); auch abgelehnte zählen.
 
@@ -3040,10 +3216,6 @@ paths:
             schema:
               type: string
               format: binary
-          application/pdf:
-            schema:
-              type: string
-              format: binary
       responses:
         "201":
           description: Gespeichert.
@@ -3058,9 +3230,9 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+          description: Ein Bild ist grösser als 10 MiB.
         "415":
-          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
             application/json:
               schema:
@@ -4017,7 +4189,7 @@ paths:
 
         Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
 
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild, kein PDF. `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
 
         Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
 
@@ -5131,7 +5303,7 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
     post:
       operationId: legeRedaktionMediumAn
-      summary: Bild oder PDF hochladen
+      summary: Bild hochladen
       description: |
         Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten. Derselbe Handler wie `POST /api/v1/admin/medien` (gleiche Regeln für Typ, Grösse, Alt-Text, Verarbeitung und Begrenzung: 10 Uploads in 10 Minuten je Person, gezählt über beide Routen); nur der Zugang ist ein anderer. Die Prüfung des Zugangs kommt vor der Prüfung der Eingabe.
 
@@ -5180,10 +5352,6 @@ paths:
             schema:
               type: string
               format: binary
-          application/pdf:
-            schema:
-              type: string
-              format: binary
       responses:
         "201":
           description: Gespeichert.
@@ -5198,9 +5366,9 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+          description: Ein Bild ist grösser als 10 MiB.
         "415":
-          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
             application/json:
               schema:
@@ -5222,11 +5390,11 @@ paths:
       operationId: aendereRedaktionMedium
       summary: Alt-Text nachtragen oder ändern
       description: |
-        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie. Ein PDF kann nicht dekorativ sein (400, code `ALT_TEXT`).
+        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie.
 
         Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403), PDF nicht dekorativ (400). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
+        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
 
         Statuscodes: 200, 400, 401, 403, 404, 426.
       tags:
@@ -7141,6 +7309,19 @@ paths:
   # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/website/inhalt:
     get:
       operationId: leseWebsiteInhalt
@@ -9989,7 +10170,7 @@ components:
           format: uuid
         mimeTyp:
           type: string
-          description: Bilder sind immer `image/webp`, PDFs `application/pdf`.
+          description: Bilder sind immer `image/webp`. `application/pdf` kommt nur bei einem alten PDF-Medium vor (vor #428); es lässt sich löschen, wird aber nicht mehr ausgeliefert.
           enum:
             - image/webp
             - application/pdf
@@ -10010,7 +10191,7 @@ components:
           type:
             - string
             - "null"
-          description: "`null` bei dekorativen Bildern und bei PDFs ohne Beschreibung."
+          description: "`null` bei dekorativen Bildern."
         dekorativ:
           type: boolean
         sichtbarkeit:
@@ -11455,6 +11636,19 @@ components:
     # lager-schemas: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: warnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: kategorie-zuordnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
       type: object
       required:
@@ -11614,7 +11808,7 @@ components:
           description: Neuer Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Hebt «dekorativ» auf.
         dekorativ:
           const: true
-          description: Das Bild als dekorativ markieren; entfernt den Alt-Text. Bei einem PDF 400.
+          description: Das Bild als dekorativ markieren; entfernt den Alt-Text.
     RedaktionTag:
       type: object
       required:
