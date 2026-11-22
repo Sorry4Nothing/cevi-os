@@ -5175,6 +5175,77 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/vorlagen:
+    get:
+      operationId: listeRedaktionVorlagen
+      summary: Vorlagen für neue Seiten
+      description: |
+        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Zugang wie bei `GET /api/v1/redaktion/seiten`.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Vorlagen in fester Reihenfolge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionVorlagenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/aus-vorlage:
+    post:
+      operationId: legeRedaktionSeiteAusVorlageAn
+      summary: Seite aus einer Vorlage anlegen
+      description: |
+        Wie `POST /api/v1/redaktion/seiten` (nur Abteilungsleitung und Redaktion), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
+
+        Die Vorlage `stufenseite` braucht `tagId` (Leitungsteam und Termine hängen daran). Eine Gruppe hat höchstens eine Seite: Gibt es zu `tagId` schon eine, antwortet die Route mit 409. Die Rechte der Verantwortlichen folgen aus `tagId`: Die Stufenleitung der Stufe und die Verantwortlichen eines Teams (Rolle `verantwortlich` am Tag, Typ `team`) bearbeiten die Seite.
+
+        Reihenfolge der Prüfungen: Zugang (403), Body (400), Recht zum Anlegen (403), Tags der Sichtbarkeit (400), Vorlage braucht Gruppe (400), Gruppe und Elternseite in der eigenen Abteilung (404), Tiefe (400), Gruppe schon vergeben (409). Audit-Log: `seite_angelegt` (Kennungen, Art der Sichtbarkeit und Vorlage, nie der Titel).
+
+        Statuscodes: 201 bei Erfolg, mit `id` und `adresse`. 400 bei ungültiger Eingabe, `TAG_ERFORDERLICH` oder `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Elternseite oder Gruppe. 409 mit `TAG_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionSeiteAusVorlage"
+      responses:
+        "201":
+          description: Seite als Entwurf angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionSeiteAusVorlageAngelegt"
+        "400":
+          $ref: "#/components/responses/RedaktionSeite400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
 components:
   schemas:
     Fehler:
@@ -8540,6 +8611,78 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RedaktionPerson"
+    RedaktionVorlagenListe:
+      type: object
+      required:
+        - vorlagen
+      properties:
+        vorlagen:
+          type: array
+          items:
+            type: object
+            required:
+              - schluessel
+              - name
+              - beschreibung
+              - brauchtTag
+            properties:
+              schluessel:
+                type: string
+                enum:
+                  - stufenseite
+                  - anlass
+                  - textseite
+                  - leer
+              name:
+                type: string
+              beschreibung:
+                type: string
+              brauchtTag:
+                type: boolean
+                description: Die Vorlage verlangt `tagId` (Stufenseite).
+    RedaktionSeiteAusVorlage:
+      type: object
+      required:
+        - vorlage
+        - titel
+        - sichtbarkeit
+      additionalProperties: false
+      properties:
+        vorlage:
+          type: string
+          enum:
+            - stufenseite
+            - anlass
+            - textseite
+            - leer
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 150
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+    RedaktionSeiteAusVorlageAngelegt:
+      type: object
+      required:
+        - id
+        - adresse
+      properties:
+        id:
+          type: string
+          format: uuid
+        adresse:
+          type: string
+          description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
   parameters:
     AppVersion:
       name: X-App-Version

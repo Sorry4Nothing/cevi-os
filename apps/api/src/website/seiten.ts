@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
-import { darfBearbeiten } from "../bearbeiten.js";
+import { darfBearbeiten, TEAM_ROLLE } from "../bearbeiten.js";
 import type { Db } from "../db/client.js";
 import { abteilung, bearbeiter, personTag, tag } from "../db/schema.js";
 import type { Person } from "../rechte.js";
@@ -89,7 +89,7 @@ export function pruefeLage(
   return oben + unten > MAX_TIEFE ? "zu_tief" : "ok";
 }
 
-// Zugang zum Namensraum /api/v1/redaktion: Abteilungsleitung, Stufenleitung oder eine Zeile in «bearbeiter» für Seiten (auf die Person oder einen Tag, den sie trägt).
+// Zugang zum Namensraum /api/v1/redaktion: Abteilungsleitung, Stufenleitung, Verantwortliche eines Teams (#352) oder eine Zeile in «bearbeiter» für Seiten (auf die Person oder einen Tag, den sie trägt).
 // Das Recht an einer einzelnen Seite prüft darfBearbeiten; dies ist nur die Tür. #353 öffnet sie für weitere Rollen, indem es diese Funktion ändert
 export async function hatRedaktionszugang(db: Db, person: Person) {
   if (person.admin || person.rollen.some((r) => r.typ === "stufenleitung")) {
@@ -97,7 +97,7 @@ export async function hatRedaktionszugang(db: Db, person: Person) {
   }
   const [zeile] = await db
     .select({
-      ok: sql<boolean>`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = 'seite' and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id})))`,
+      ok: sql<boolean>`exists (select 1 from ${bearbeiter} where ${bearbeiter.abteilungId} = ${person.abteilungId} and ${bearbeiter.objektTyp} = 'seite' and (${bearbeiter.userId} = ${person.id} or ${bearbeiter.tagId} in (select ${personTag.tagId} from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} and ${tag.abteilungId} = ${person.abteilungId} where ${personTag.userId} = ${person.id}))) or exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team' and ${tag.abteilungId} = ${person.abteilungId})`,
     })
     .from(abteilung)
     .where(eq(abteilung.id, person.abteilungId));
