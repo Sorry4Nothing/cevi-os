@@ -8307,6 +8307,410 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/zimmer:
+    get:
+      operationId: holeLagerZimmer
+      summary: Zimmer und Zelte des Lagers auflisten
+      description: |
+        Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
+
+        Drei Abfragen, unabhängig von der Zahl der Zimmer: die Zimmer mit Belegung (GROUP BY), die Anzeigenamen des Lagers und die Zähler der Nichteingeteilten. Wer alles sehen darf (Lagerleitung, Leitung, Lesen), bekommt alle Zimmer mit `plaetze`, `belegt`, `ueberbelegt` (Warnung, keine Sperre), den Mitgliedern mit Namen und die Zähler `offen`. Das Team (ohne `einteilung.bearbeiten`) sieht nur sein eigenes Zimmer mit den Namen der Mitbewohner, ohne Plätze, Belegung und Notiz. Der Name ist der Cevi-Name, sonst der Vorname; ist er im Lager nicht eindeutig, folgen der Vorname und dann der Vorname mit dem Anfangsbuchstaben des Nachnamens.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Zimmer des Lagers; die Form hängt von der Sicht ab.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerZimmerAn
+      summary: Zimmer oder Zelt anlegen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Name, Art (`zimmer` oder `zelt`) und Plätze sind Pflicht, Notiz und Reihenfolge freiwillig.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerAnlegen"
+      responses:
+        "201":
+          description: Das neue Zimmer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmer"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/offen:
+    get:
+      operationId: holeLagerZimmerOffene
+      summary: Noch nicht eingeteilte Personen auflisten
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Die Auswahl für «Person einteilen»: wer noch in keinem Zimmer liegt. `art=teilnehmer` (Vorgabe) liefert Teilnehmende mit Vorname, Nachname, Stufe und Cevi-Name, `art=team` die Mitglieder des Lagers mit aktivem Konto der Abteilung. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: art
+          in: query
+          required: false
+          description: "`teilnehmer` (Vorgabe): die Teilnehmenden. `team`: die Mitglieder des Lagers."
+          schema:
+            type: string
+            enum:
+              - teilnehmer
+              - team
+            default: teilnehmer
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite noch nicht eingeteilter Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerOffeneSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}:
+    patch:
+      operationId: aendereLagerZimmer
+      summary: Zimmer oder Zelt ändern
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed. Die zuletzt gesehene `version` ist Pflicht (409 `VERSION_KONFLIKT` sonst).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerAendern"
+      responses:
+        "200":
+          description: Das geänderte Zimmer.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmer"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerZimmer
+      summary: Zimmer oder Zelt löschen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed. Die zuletzt gesehene `version` kommt als Abfrageparameter. Die Zuordnungen gehen mit dem Zimmer (Soft-Delete, der Feed meldet jede als gelöscht).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die zuletzt gesehene Version des Zimmers.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Das Zimmer ist gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}/zuordnung:
+    post:
+      operationId: teileLagerZimmerEin
+      summary: Personen ins Zimmer einteilen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Sammeloperation: höchstens 200 Teilnehmende und Mitglieder je Anfrage (`teilnehmerIds`, `personIds`, zusammen mindestens eine, ohne Doppelte). Wer schon in diesem Zimmer liegt, bleibt unberührt. Eine Person oder teilnehmende Person liegt in höchstens einem Zimmer: Liegt jemand schon in einem anderen, antwortet die Route mit 409 `SCHON_EINGETEILT` und den IDs und schreibt nichts. Mehr Personen als Plätze ist erlaubt; die Antwort meldet `belegt`, `plaetze` und `ueberbelegt` als Warnung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer oder Person (auch ein Eintrag eines anderen Lagers), fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `SCHON_EINGETEILT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerZuordnung"
+      responses:
+        "200":
+          description: Wie viele neu eingeteilt wurden und die Belegung des Zimmers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerEingeteilt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder eine Person liegt schon in einem anderen Zimmer (`SCHON_EINGETEILT`, mit `teilnehmerIds` und `personIds`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/zimmer/{zimmerId}/zuordnung/entfernen:
+    post:
+      operationId: nimmLagerZimmerPersonenHeraus
+      summary: Personen aus dem Zimmer nehmen
+      description: |
+        Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen). Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch und kommt in den Änderungsfeed.
+
+        Sammeloperation wie das Einteilen. Wer nicht in diesem Zimmer liegt, wird übergangen (die Anfrage ist wiederholbar). Die Antwort meldet die Belegung des Zimmers.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, Zimmer, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: zimmerId
+          in: path
+          required: true
+          description: ID des Zimmers oder Zelts (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerZimmerZuordnung"
+      responses:
+        "200":
+          description: Wie viele entfernt wurden und die Belegung des Zimmers.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerZimmerEntfernt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -15273,6 +15677,279 @@ components:
           type: integer
           minimum: 0
     # lager-schemas: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerZimmer:
+      description: "Ein Zimmer oder Zelt (ohne Belegung)."
+      type: object
+      additionalProperties: false
+      required: [id, version, name, art, plaetze, notiz, reihenfolge]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerAnlegen:
+      description: "Neues Zimmer oder Zelt. Unbekannte Felder lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required: [name, art, plaetze]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerAendern:
+      description: "Änderung eines Zimmers: `version` und mindestens ein weiteres Feld."
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        notiz:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+    LagerZimmerMitglied:
+      description: "Wer im Zimmer liegt, mit dem Anzeigenamen (Cevi-Name, sonst Vorname; bei Gleichheit im Lager der Vorname, danach der Vorname mit dem Anfangsbuchstaben des Nachnamens)."
+      type: object
+      additionalProperties: false
+      required: [typ, id, name]
+      properties:
+        typ:
+          description: "`teilnehmer`: teilnehmende Person (`teilnehmerIds`), `person`: Mitglied des Lagers (`personIds`)."
+          type: string
+          enum: [teilnehmer, person]
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+    LagerZimmerVoll:
+      description: "Ein Zimmer mit Belegung. `ueberbelegt` ist eine Warnung, keine Sperre."
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          version,
+          name,
+          art,
+          plaetze,
+          notiz,
+          reihenfolge,
+          belegt,
+          ueberbelegt,
+          mitglieder,
+        ]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        plaetze:
+          type: integer
+        notiz:
+          type: [string, "null"]
+        reihenfolge:
+          type: integer
+        belegt:
+          type: integer
+          minimum: 0
+        ueberbelegt:
+          type: boolean
+        mitglieder:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerZimmerMitglied"
+    LagerZimmerTeam:
+      description: "Das eigene Zimmer des Teams: Name, Art und die Namen der Mitbewohner (ohne Plätze, Belegung, Notiz)."
+      type: object
+      additionalProperties: false
+      required: [id, version, name, art, mitglieder]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+        art:
+          type: string
+          enum: [zimmer, zelt]
+        mitglieder:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name]
+            properties:
+              name:
+                type: string
+    LagerZimmerListe:
+      description: "Die Zimmer des Lagers. Mit voller Sicht `LagerZimmerVoll` und die Zähler `offen`; das Team bekommt nur sein eigenes Zimmer (`LagerZimmerTeam`) und kein `offen`."
+      type: object
+      additionalProperties: false
+      required: [zimmer]
+      properties:
+        zimmer:
+          type: array
+          items:
+            oneOf:
+              - $ref: "#/components/schemas/LagerZimmerVoll"
+              - $ref: "#/components/schemas/LagerZimmerTeam"
+        offen:
+          description: "Wer noch in keinem Zimmer liegt (nur bei voller Sicht)."
+          type: object
+          additionalProperties: false
+          required: [teilnehmer, team]
+          properties:
+            teilnehmer:
+              type: integer
+              minimum: 0
+            team:
+              type: integer
+              minimum: 0
+    LagerZimmerOffeneSeite:
+      description: "Eine Seite noch nicht eingeteilter Personen: bei `art=teilnehmer` mit Vorname, Nachname, Stufe und Cevi-Name, bei `art=team` mit Name und Cevi-Name des Kontos."
+      type: object
+      additionalProperties: false
+      required: [eintraege, naechster]
+      properties:
+        eintraege:
+          type: array
+          items:
+            type: object
+            required: [id]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              vorname:
+                type: string
+              nachname:
+                type: string
+              stufe:
+                type: [string, "null"]
+              ceviName:
+                type: [string, "null"]
+        naechster:
+          description: "Cursor für die nächste Seite, sonst null."
+          type: [string, "null"]
+          format: uuid
+    LagerZimmerZuordnung:
+      description: "Teilnehmende und Mitglieder für das Einteilen oder Entfernen: zusammen 1 bis 200 Einträge, ohne Doppelte."
+      type: object
+      additionalProperties: false
+      properties:
+        teilnehmerIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+        personIds:
+          type: array
+          maxItems: 200
+          items:
+            type: string
+            format: uuid
+    LagerZimmerEingeteilt:
+      description: "Ergebnis des Einteilens mit der Belegung des Zimmers (Warnung bei Überbelegung)."
+      type: object
+      additionalProperties: false
+      required: [eingeteilt, belegt, plaetze, ueberbelegt]
+      properties:
+        eingeteilt:
+          description: "Wie viele neu eingeteilt wurden (wer schon im Zimmer lag, zählt nicht)."
+          type: integer
+          minimum: 0
+        belegt:
+          type: integer
+          minimum: 0
+        plaetze:
+          type: integer
+        ueberbelegt:
+          type: boolean
+    LagerZimmerEntfernt:
+      description: "Ergebnis des Entfernens mit der Belegung des Zimmers."
+      type: object
+      additionalProperties: false
+      required: [entfernt, belegt, plaetze, ueberbelegt]
+      properties:
+        entfernt:
+          type: integer
+          minimum: 0
+        belegt:
+          type: integer
+          minimum: 0
+        plaetze:
+          type: integer
+        ueberbelegt:
+          type: boolean
     # lager-schemas: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

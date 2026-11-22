@@ -693,6 +693,65 @@ export const abzaehlen = pgTable(
   ],
 );
 
+// Zimmer und Zelte des Lagers (#385): Name, Art, Plätze und eine Notiz. Die Belegung ist keine Spalte, sie ergibt sich aus zimmer_zuordnung (eine Abfrage mit GROUP BY); mehr Zuordnungen als Plätze sind erlaubt und nur eine Warnung (ueberbelegt). Geschrieben wird nur über lager/sync.ts
+export const zimmer = pgTable(
+  "zimmer",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    art: text("art", { enum: ["zimmer", "zelt"] }).notNull(),
+    plaetze: integer("plaetze").notNull(),
+    notiz: text("notiz"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von zimmer_zuordnung: Eine Zuordnung kann nie ein Zimmer eines anderen Lagers meinen
+    unique("zimmer_lager_id_id_uq").on(t.lagerId, t.id),
+    index("zimmer_liste_idx").on(t.lagerId, t.reihenfolge, t.name, t.id),
+    check("zimmer_art_check", sql`${t.art} in ('zimmer', 'zelt')`),
+    check(
+      "zimmer_check",
+      sql`char_length(${t.name}) between 1 and 100 and ${t.plaetze} between 1 and 1000 and (${t.notiz} is null or char_length(${t.notiz}) between 1 and 500) and ${t.reihenfolge} between 0 and 100000`,
+    ),
+  ],
+);
+
+// Wer in welchem Zimmer liegt: eine Zeile je Teilnehmende (teilnehmer_id) oder Mitglied des Lagers (person_id), genau eines von beiden. Höchstens ein Zimmer je Person oder Teilnehmende, solange die Zeile nicht gelöscht ist (eindeutiger Index). Die Zeilen der Teilnehmenden und des Zimmers gehen mit diesen (CASCADE)
+export const zimmerZuordnung = pgTable(
+  "zimmer_zuordnung",
+  {
+    ...lagerSpalten(),
+    zimmerId: uuid("zimmer_id").notNull(),
+    teilnehmerId: uuid("teilnehmer_id"),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (t) => [
+    foreignKey({
+      name: "zimmer_zuordnung_zimmer_fk",
+      columns: [t.lagerId, t.zimmerId],
+      foreignColumns: [zimmer.lagerId, zimmer.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "zimmer_zuordnung_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    index("zimmer_zuordnung_zimmer_idx").on(t.zimmerId),
+    uniqueIndex("zimmer_zuordnung_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("zimmer_zuordnung_person_uq")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    check(
+      "zimmer_zuordnung_ziel_check",
+      sql`(${t.teilnehmerId} is null) <> (${t.personId} is null)`,
+    ),
+  ],
+);
+
 // Packliste der Lagerleitung (#393): die Vorlage des Lagers, Abschnitt und Punkt. Jede Person hat eine eigene Kopie, aber nicht als Kopie in der Datenbank: packliste_abhaken hält nur die Abweichungen je Person (abgehakt, entfernt), packliste_eigen die eigenen Punkte. Geschrieben wird nur über lager/sync.ts. Mit nur_lagerleitung liest den Punkt nur, wer vertrauliches.lesen hat
 export const packlistePunkt = pgTable(
   "packliste_punkt",

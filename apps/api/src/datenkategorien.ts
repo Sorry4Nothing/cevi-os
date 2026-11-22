@@ -148,6 +148,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  lagerEinteilung: {
+    titel: "Zimmer und Zelte im Lager",
+    zweck:
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+    frist:
+      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
@@ -585,6 +594,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "person_id",
       "geprueft",
       "geprueft_am",
+    ],
+  },
+  // Zimmer und Zelte (#385): Name, Art, Plätze und Notiz; die Zuordnung hält nur, wer in welchem Zimmer liegt
+  zimmer: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "art",
+      "plaetze",
+      "notiz",
+      "reihenfolge",
+    ],
+  },
+  zimmer_zuordnung: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "zimmer_id",
+      "teilnehmer_id",
+      "person_id",
     ],
   },
   // Packliste, Notfall und Infos (#393): Telefonnummern stehen nur bei den Notfall-Kontakten (oder im Konto, aus dem sie kommen); die Abweichungen und eigenen Punkte der Packliste gehören einer Person und sehen nur sie
