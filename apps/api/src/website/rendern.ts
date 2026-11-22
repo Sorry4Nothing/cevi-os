@@ -339,7 +339,7 @@ export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 export const ANMELDEN_PFAD = "/anmelden";
 
-function rahmen(
+export function rahmen(
   k: Kontext,
   {
     titel,
@@ -348,6 +348,7 @@ function rahmen(
     inhalt,
     robots,
     skript,
+    stile = [],
     hauptAttr = "",
   }: {
     titel: string;
@@ -356,10 +357,18 @@ function rahmen(
     inhalt: string;
     robots?: string;
     skript?: string;
+    // Weitere Stylesheets der Website (Pfade unter /website/), nach dem Grundstil
+    stile?: string[];
     // Fertig maskierte Attribute für <main> (nur Konstanten und esc())
     hauptAttr?: string;
   },
 ) {
+  const stileHtml = stile
+    .map(
+      (s) => `
+<link rel="stylesheet" href="${esc(s)}">`,
+    )
+    .join("");
   return `<!doctype html>
 <html lang="de-CH">
 <head>
@@ -368,7 +377,7 @@ function rahmen(
 <meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
-<link rel="stylesheet" href="${STYLESHEET_PFAD}">${skript ? `\n<script type="module" src="${skript}"></script>` : ""}
+<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skript ? `\n<script type="module" src="${skript}"></script>` : ""}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>

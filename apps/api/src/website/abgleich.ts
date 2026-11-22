@@ -36,6 +36,7 @@ import {
   type NavPunkt,
 } from "./rendern.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
+import { rendereTermineSeiten, TERMINE_DATEIEN } from "./termine-seiten.js";
 import {
   adresseSchema,
   adressenVon,
@@ -445,6 +446,7 @@ export async function erzeugeWebsite(
     FEHLERSEITE,
     STYLESHEET,
     ANMELDUNG,
+    ...TERMINE_DATEIEN,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
@@ -502,6 +504,7 @@ export async function erzeugeWebsite(
     [FEHLERSEITE, rendereFehlerseite(kontext)],
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
+    ...rendereTermineSeiten(kontext),
     ...Object.entries(opt.skripte ?? {}).map(
       ([name, inhalt]): [string, string] => [`website/${name}`, inhalt],
     ),
