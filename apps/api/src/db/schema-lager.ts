@@ -627,6 +627,133 @@ export const aufgabeStichwort = pgTable(
   ],
 );
 
+// Höcks (#378): Sitzungstermine des Lagers. «team» ist für alle Mitglieder sichtbar (nur Datum, Zeit, Titel, Ort), «lagerleitung» nur für Rollen mit hoecks.lesen_alle. Die Zeit ist «HH:MM» in der Zeit des Lagers (ohne Zeitzone, ohne Ende); ohne Zeit ist der Höck ein Tag. gaeste: Namen von Gästen als Freitext, nur für Rollen mit hoecks.lesen_alle. protokoll_id: Verknüpfung auf das Protokoll (#379), bewusst ohne Fremdschlüssel und über die API noch nicht setzbar. Anwesende stehen in hoeck_anwesenheit
+export const HOECK_ART = ["lagerleitung", "team"] as const;
+export type HoeckArt = (typeof HOECK_ART)[number];
+
+export const hoeck = pgTable(
+  "hoeck",
+  {
+    ...lagerSpalten(),
+    art: text("art", { enum: HOECK_ART }).notNull(),
+    datum: date("datum").notNull(),
+    zeit: text("zeit"),
+    titel: text("titel").notNull(),
+    ort: text("ort"),
+    gaeste: text("gaeste"),
+    protokollId: uuid("protokoll_id"),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel von Traktandum und Anwesenheit: Ein Höck eines anderen Lagers ist nie gemeint
+    unique("hoeck_lager_id_id_uq").on(t.lagerId, t.id),
+    index("hoeck_liste_idx").on(t.lagerId, t.datum, t.id),
+    check("hoeck_art_check", sql`${t.art} in ('lagerleitung', 'team')`),
+    check(
+      "hoeck_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.zeit} is null or ${t.zeit} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$') and (${t.ort} is null or char_length(${t.ort}) between 1 and 200) and (${t.gaeste} is null or char_length(${t.gaeste}) between 1 and 500)`,
+    ),
+  ],
+);
+
+// Wer beim Höck da war (#378): eine Zeile je Person und Höck, ohne Feed und Version (Haken im Höck-Modus). Nur Mitglieder des Lagers; entfernt die Verwaltung das Mitglied oder fällt der Höck weg, geht die Zeile mit
+export const hoeckAnwesenheit = pgTable(
+  "hoeck_anwesenheit",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    hoeckId: uuid("hoeck_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.hoeckId, t.personId] }),
+    foreignKey({
+      name: "hoeck_anwesenheit_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "hoeck_anwesenheit_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("hoeck_anwesenheit_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
+// Traktanden (#378). Ohne Höck (hoeck_id leer) ist es ein Punkt für «den nächsten Höck». «text» sind die Notizen, «entscheid» der kurze Beschluss (die Entscheide-Sammlung liest ihn); das Protokoll liegt als Verknüpfung im SharePoint (#379). links: Liste von {titel, url}, nur https, der Server ruft sie nie ab (SR-26). aufgabe_id: Aufgabe, aus der der Punkt stammt oder auf die er zeigt; fällt die Aufgabe endgültig weg, bleibt das Traktandum ohne sie. Verantwortliche stehen in traktandum_verantwortlich
+export const TRAKTANDUM_STATUS = ["offen", "besprochen"] as const;
+export type TraktandumStatus = (typeof TRAKTANDUM_STATUS)[number];
+
+export const traktandum = pgTable(
+  "traktandum",
+  {
+    ...lagerSpalten(),
+    hoeckId: uuid("hoeck_id"),
+    titel: text("titel").notNull(),
+    text: text("text"),
+    entscheid: text("entscheid"),
+    links: jsonb("links")
+      .$type<{ titel: string; url: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    aufgabeId: uuid("aufgabe_id"),
+    status: text("status", { enum: TRAKTANDUM_STATUS })
+      .notNull()
+      .default("offen"),
+  },
+  (t) => [
+    unique("traktandum_lager_id_id_uq").on(t.lagerId, t.id),
+    // Höck weg: Traktanden weg (der Höck lässt sich über die API nur ohne Traktanden löschen)
+    foreignKey({
+      name: "traktandum_hoeck_fk",
+      columns: [t.lagerId, t.hoeckId],
+      foreignColumns: [hoeck.lagerId, hoeck.id],
+    }).onDelete("cascade"),
+    // In der Migration ON DELETE SET NULL (aufgabe_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "traktandum_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("set null"),
+    index("traktandum_liste_idx").on(t.lagerId, t.hoeckId, t.reihenfolge, t.id),
+    index("traktandum_aufgabe_idx")
+      .on(t.lagerId, t.aufgabeId)
+      .where(sql`${t.aufgabeId} is not null`),
+    check(
+      "traktandum_status_check",
+      sql`${t.status} in ('offen', 'besprochen')`,
+    ),
+    check(
+      "traktandum_text_check",
+      sql`char_length(${t.titel}) between 1 and 200 and (${t.text} is null or char_length(${t.text}) <= 5000) and (${t.entscheid} is null or char_length(${t.entscheid}) between 1 and 1000) and ${t.reihenfolge} >= 0 and jsonb_typeof(${t.links}) = 'array' and jsonb_array_length(${t.links}) <= 10`,
+    ),
+  ],
+);
+
+// Wer ein Traktandum vorbereitet oder vorträgt (#378): eine Zeile je Person und Traktandum, ohne Feed (das Traktandum zählt die Version hoch, wenn sich die Liste ändert). Nur Mitglieder des Lagers
+export const traktandumVerantwortlich = pgTable(
+  "traktandum_verantwortlich",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    traktandumId: uuid("traktandum_id").notNull(),
+    personId: uuid("person_id").notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.traktandumId, t.personId] }),
+    foreignKey({
+      name: "traktandum_verantwortlich_traktandum_fk",
+      columns: [t.lagerId, t.traktandumId],
+      foreignColumns: [traktandum.lagerId, traktandum.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "traktandum_verantwortlich_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    index("traktandum_verantwortlich_person_idx").on(t.lagerId, t.personId),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",
