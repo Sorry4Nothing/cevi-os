@@ -187,6 +187,15 @@ const protokollTitel = async (konto: PersonaKonto, abfrage = "") => {
   expect(a.status).toBe(200);
   return (a.body.protokolle as P[]).map((p) => p.titel).sort();
 };
+// Die Verknüpfung über die Route anlegen: Nur so steht sie im Änderungsfeed
+async function dateiUeberRoute(id: string) {
+  const a = await anfrage(leiter(), "POST", `${L(id)}/dateien`, {
+    anzeigename: `Feed-${randomUUID().slice(0, 6)}.docx`,
+    link: `${SP}/Feed.docx`,
+  });
+  expect(a.status).toBe(201);
+  return a.body.id as string;
+}
 // Das Team bekommt das Leserecht eingestellt: Die Regel «nie Protokolle der Lagerleitung» gilt trotzdem
 async function teamDarfLesen(id: string) {
   await db.insert(schema.lagerRolleRecht).values({
@@ -641,11 +650,21 @@ describe("Protokolle der Lagerleitung sieht das Team nie", () => {
     const intern = await hoeck("lagerleitung", id);
     const offen = await hoeck("team", id);
     const pIntern = await neu(
-      { art: "sitzung", titel: "intern", hoeckId: intern.id },
+      {
+        art: "sitzung",
+        titel: "intern",
+        hoeckId: intern.id,
+        dateiId: await dateiUeberRoute(id),
+      },
       id,
     );
     const pOffen = await neu(
-      { art: "sitzung", titel: "offen", hoeckId: offen.id },
+      {
+        art: "sitzung",
+        titel: "offen",
+        hoeckId: offen.id,
+        dateiId: await dateiUeberRoute(id),
+      },
       id,
     );
     const pOhne = await neu({ art: "notiz", titel: "ohne" }, id);
