@@ -39,6 +39,7 @@ export const MERKMAL_SYMBOLE = [
   "ort",
   "sonne",
 ] as const;
+export const MAX_ECKDATEN = 12;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -189,8 +190,17 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein(
     "karten",
     z.strictObject({
-      // «merkmale» (#555): Kacheln mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Alterschip, ein Link auf die ganze Karte
-      darstellung: z.enum(["karten", "liste", "merkmale", "stufen"]),
+      // «merkmale» (#555): Zeilen mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Etikett im Bild (Alter, Preis), ein Link auf die ganze Karte;
+      // «personen»: Porträt, Name und Funktion; «zeitstrahl»: Jahr (Titel) und Ereignis (Text) in ihrer Reihenfolge; «zahlen»: grosse Zahl (Titel) mit Beschriftung (Text)
+      darstellung: z.enum([
+        "karten",
+        "liste",
+        "merkmale",
+        "stufen",
+        "personen",
+        "zeitstrahl",
+        "zahlen",
+      ]),
       eintraege: z
         .array(
           z.strictObject({
@@ -260,6 +270,21 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
           ziel: linkAlle,
         })
         .optional(),
+    }),
+  ),
+  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Stufenfelder; für Lager und Anlässe
+  baustein(
+    "eckdaten",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            bezeichnung: kurztext(MAX_BESCHRIFTUNG),
+            wert: kurztext(MAX_UNTERSCHRIFT),
+          }),
+        )
+        .min(1)
+        .max(MAX_ECKDATEN),
     }),
   ),
   // Aufruf zum Handeln (#555): ein farbiges Band mit Titel, kurzem Text und einer Schaltfläche («Ich will in den Cevi!»)

@@ -339,7 +339,7 @@ describe("Aufbau und Barrierefreiheit", () => {
     // Dazu das Untermenü bei «Stufen» in der Leiste
     expect(zaehle(html, '<a href="/stufen/biber">Biber</a>')).toBe(3);
     expect(html).toContain('<details class="menue-mobil">');
-    expect(html).toContain('<a href="/anmelden">');
+    expect(html).toContain('<a class="anmelden" href="/anmelden">');
     expect(html).toContain(
       '<link rel="canonical" href="https://www.example.org/stufen">',
     );
@@ -409,6 +409,8 @@ describe("Aufbau und Barrierefreiheit", () => {
     const html = seite(
       dok(
         "T",
+        // Ein erstes Bild wäre das Titelbild; die Bilder stehen darum nach einem Text
+        b("text", { inhalt: [{ typ: "absatz", inhalt: [{ text: "Hallo" }] }] }),
         b("bild", { mediumId: mit }),
         b("bild", { mediumId: deko }),
         b("bild", { mediumId: fehlt }),
@@ -417,10 +419,10 @@ describe("Aufbau und Barrierefreiheit", () => {
       daten,
     );
     expect(html).toContain(
-      `<img src="/api/v1/medien/${mit}" alt="Zwei Kinder am Feuer" width="40" height="30" loading="lazy">`,
+      `<img src="/api/v1/medien/${mit}" alt="Zwei Kinder am Feuer" width="40" height="30" decoding="async">`,
     );
     expect(html).toContain(
-      `<img src="/api/v1/medien/${deko}" alt="" loading="lazy">`,
+      `<img src="/api/v1/medien/${deko}" alt="" decoding="async">`,
     );
     expect(zaehle(html, "<img")).toBe(2);
     expect(zaehle(html, "<img") - zaehle(html, " alt=")).toBe(0);
@@ -564,8 +566,9 @@ describe("Aufbau und Barrierefreiheit", () => {
       dok("T", b("terminliste", { anzahl: 3 }), b("stufenfakten", {})),
     );
     expect(html).toContain(
-      '<div class="seitenkopf"><h1>T</h1></div>\n<div class="inhalt">\n\n</div>',
+      '<div class="seitenband"><div class="wrap"><h1>T</h1></div></div>',
     );
+    expect(html).not.toContain("sektion");
   });
 });
 
@@ -639,16 +642,20 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(mit).not.toContain("<b>CEVI</b>");
   });
 
-  test("Umschalter: drei Knöpfe mit aria-pressed, ohne Skript verborgen", () => {
+  test("Umschalter: zwei Knöpfe nur mit Symbol, Name im aria-label, aria-pressed, ohne Skript verborgen", () => {
     const html = seite(dok("T", b("trenner", { art: "linie" })));
     expect(html).toMatch(
       /<div class="thema" role="group" aria-label="Darstellung" hidden>/,
     );
-    for (const w of ["system", "light", "dark"]) {
-      expect(html).toContain(`data-thema="${w}" aria-pressed="false"`);
-    }
-    expect(html).toContain("<span>Hell</span>");
-    expect(html).toContain("<span>Dunkel</span>");
+    expect(html).toContain(
+      '<button type="button" data-thema="light" aria-pressed="false" aria-label="Hell"><svg',
+    );
+    expect(html).toContain(
+      '<button type="button" data-thema="dark" aria-pressed="false" aria-label="Dunkel"><svg',
+    );
+    // Keine Option «System» und keine sichtbare Beschriftung
+    expect(html).not.toContain('data-thema="system"');
+    expect(html).not.toContain("<span>Hell</span>");
   });
 
   test("Fehler- und Anmeldeseiten tragen das Theme-Skript und den Umschalter", () => {
