@@ -327,6 +327,156 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website.js:
+    get:
+      operationId: getAdminWebsiteSkript
+      summary: Skript der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website.css:
+    get:
+      operationId: getAdminWebsiteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-seiten.js:
+    get:
+      operationId: getAdminWebsiteSeitenSkript
+      summary: Skript der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-seiten.css:
+    get:
+      operationId: getAdminWebsiteSeitenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-editor.js:
+    get:
+      operationId: getAdminWebsiteEditorSkript
+      summary: Skript der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-editor.css:
+    get:
+      operationId: getAdminWebsiteEditorStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-medien.js:
+    get:
+      operationId: getAdminWebsiteMedienSkript
+      summary: Skript der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-medien.css:
+    get:
+      operationId: getAdminWebsiteMedienStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-stufenfakten.js:
+    get:
+      operationId: getAdminWebsiteStufenfaktenSkript
+      summary: Skript der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-stufenfakten.css:
+    get:
+      operationId: getAdminWebsiteStufenfaktenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/zeitregeln.js:
     get:
       operationId: getAdminZeitregelnSkript
@@ -3834,6 +3984,278 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/ich:
+    get:
+      operationId: leseRedaktionIch
+      summary: Zugang zur Redaktion und sichtbare Bereiche
+      description: |
+        Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
+
+        Statuscodes: 200. 403 für Admins ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zugang und Bereiche.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionIch"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/medien:
+    get:
+      operationId: listeRedaktionMedien
+      summary: Medien der Abteilung auflisten
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel. Gleiche Antwort wie `/api/v1/admin/medien`.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Medien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedienListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: legeRedaktionMediumAn
+      summary: Bild oder PDF hochladen
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten. Derselbe Handler wie `POST /api/v1/admin/medien` (gleiche Regeln für Typ, Grösse, Alt-Text, Verarbeitung und Begrenzung: 10 Uploads in 10 Minuten je Person, gezählt über beide Routen); nur der Zugang ist ein anderer. Die Prüfung des Zugangs kommt vor der Prüfung der Eingabe.
+
+        Statuscodes: 201, 400 (code `ALT_TEXT` bei fehlendem Alt-Text), 401, 403, 413, 415 (code `MEDIEN_FORMAT`), 426, 429, 500, 501 (ohne eingerichteten Medienspeicher).
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: sichtbarkeit
+          in: query
+          required: true
+          description: Wer das Medium sehen darf, `oeffentlich` (jeder, ohne Anmeldung) oder `angemeldet` (die Abteilung).
+          schema:
+            type: string
+            enum:
+              - oeffentlich
+              - angemeldet
+        - name: altText
+          in: query
+          required: false
+          description: Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Bei Bildern Pflicht, ausser bei `dekorativ=true`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: dekorativ
+          in: query
+          required: false
+          description: Nur bei Bildern, ausdrückliche Markierung «dekorativ»; dann ohne `altText`.
+          schema:
+            type: string
+            enum:
+              - "true"
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "413":
+          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+        "415":
+          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "500":
+          description: Der Medienspeicher oder die Datenbank hat versagt; ohne Details (code `INTERNER_FEHLER`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/medien/{id}:
+    patch:
+      operationId: aendereRedaktionMedium
+      summary: Alt-Text nachtragen oder ändern
+      description: |
+        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie. Ein PDF kann nicht dekorativ sein (400, code `ALT_TEXT`).
+
+        Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403), PDF nicht dekorativ (400). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediumAendern"
+      responses:
+        "200":
+          description: Das Medium mit dem neuen Alt-Text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: loescheRedaktionMedium
+      summary: Medium löschen
+      description: |
+        Nur Abteilungsleitung und Redaktion (Recht auf alle Seiten); eine Stufenleitung hat Zugang, darf aber nicht löschen (403). Derselbe Handler wie `DELETE /api/v1/admin/medien/{id}`: erst die Zeile, dann die Datei im Medienspeicher.
+
+        Reihenfolge der Prüfungen: Pfad (400), Medium in der eigenen Abteilung (404), Recht (403).
+
+        Statuscodes: 204, 400, 401, 403, 404, 426, 501.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/tags:
+    get:
+      operationId: listeRedaktionTags
+      summary: Tags der Abteilung für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: alle Tags der eigenen Abteilung mit Id, Name und Typ, sortiert nach Typ und Name. Ohne Kürzel, ohne Zahl der Personen und ohne Personen.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Tags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/personen:
+    get:
+      operationId: listeRedaktionPersonen
+      summary: Personen mit einem Tag für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: die aktiven Konten, die den Tag tragen. Nur Id, Anzeigename (Cevi-Name, sonst der Name des Kontos) und Funktion (die Rolle am Tag). Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos. Sortiert nach der Reihenfolge im Tag, dann nach Name.
+
+        Reihenfolge der Prüfungen: Zugang (403), Query (400), Tag in der eigenen Abteilung (404, auch für Tags anderer Abteilungen).
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: tag
+          in: query
+          required: true
+          description: Der Tag, dessen Personen gesucht sind (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionPersonenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
 components:
   schemas:
     Fehler:
@@ -6609,6 +7031,94 @@ components:
             - string
             - "null"
           format: uuid
+    RedaktionIch:
+      type: object
+      required:
+        - redigieren
+        - bereiche
+        - verwalten
+      properties:
+        redigieren:
+          type: boolean
+          description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
+        bereiche:
+          type: array
+          description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
+          items:
+            type: string
+            enum:
+              - website
+        verwalten:
+          type: boolean
+          description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+    MediumAendern:
+      type: object
+      description: Genau eines von beiden, `altText` oder `dekorativ`.
+      additionalProperties: false
+      properties:
+        altText:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Neuer Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Hebt «dekorativ» auf.
+        dekorativ:
+          const: true
+          description: Das Bild als dekorativ markieren; entfernt den Alt-Text. Bei einem PDF 400.
+    RedaktionTag:
+      type: object
+      required:
+        - id
+        - name
+        - typ
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        typ:
+          type: string
+          enum:
+            - stufe
+            - funktion
+            - team
+            - lager
+    RedaktionTagListe:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionTag"
+    RedaktionPerson:
+      type: object
+      required:
+        - id
+        - anzeigename
+        - funktion
+      properties:
+        id:
+          type: string
+          format: uuid
+        anzeigename:
+          type: string
+          description: Der Cevi-Name, sonst der Name des Kontos.
+        funktion:
+          type:
+            - string
+            - "null"
+          description: Die Rolle der Person an diesem Tag (freier Text); `null` ohne Rolle.
+    RedaktionPersonenListe:
+      type: object
+      required:
+        - personen
+      properties:
+        personen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionPerson"
   parameters:
     AppVersion:
       name: X-App-Version

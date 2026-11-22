@@ -25,6 +25,7 @@ import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import {
+  erstelleMedienHandler,
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
@@ -109,6 +110,12 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
+  // Admin und Redaktion teilen die Handler und damit das Limit für Uploads je Person
+  const medienHandler = erstelleMedienHandler({
+    db,
+    speicher: medienspeicher,
+    kodiereMedienbild,
+  });
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
     new Hono<{ Variables: { nutzerId?: string } }>()
@@ -159,7 +166,9 @@ export function erstelleApp({
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
             /^\/api\/v1\/admin\/stufen\/[^/]+\/logo$/.test(c.req.path))) ||
-        (c.req.method === "POST" && c.req.path === "/api/v1/admin/medien")
+        (c.req.method === "POST" &&
+          (c.req.path === "/api/v1/admin/medien" ||
+            c.req.path === "/api/v1/redaktion/medien"))
           ? next()
           : c.req.method === "POST" &&
               /^\/api\/v1\/admin\/import(\/vorschau)?$/.test(c.req.path)
@@ -202,7 +211,7 @@ export function erstelleApp({
         erstelleMedienRouten({
           db,
           speicher: medienspeicher,
-          kodiereMedienbild,
+          handler: medienHandler,
         }),
       )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
@@ -214,7 +223,10 @@ export function erstelleApp({
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
-      .route("/api/v1/redaktion", erstelleRedaktionRouten({ db }))
+      .route(
+        "/api/v1/redaktion",
+        erstelleRedaktionRouten({ db, medien: medienHandler }),
+      )
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
       .route(
         "/api/v1/admin/mitteilungen",
