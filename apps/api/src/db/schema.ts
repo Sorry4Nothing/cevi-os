@@ -250,7 +250,7 @@ export const personTag = pgTable(
   ],
 );
 
-// Bearbeitungsrechte (#334): Sonderrechte pro Objekt für genau eine Person oder einen Tag. objekt_id leer = alle Objekte des Typs (Rolle «Redaktion»); das Recht steht hier, nie am Tag selbst.
+// Bearbeitungsrechte (#334): Sonderrechte pro Objekt für genau eine Person oder einen Tag. objekt_id ist Pflicht (seit #426): «alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster; das Recht steht hier, nie am Tag selbst.
 // Dass Person und Tag zur Abteilung gehören, prüfen die Routen und jede Abfrage in bearbeiten.ts. Fällt eine Person oder ein Tag weg, fällt das Recht mit
 export const bearbeiter = pgTable(
   "bearbeiter",
@@ -260,7 +260,7 @@ export const bearbeiter = pgTable(
       .notNull()
       .references(() => abteilung.id, { onDelete: "restrict" }),
     objektTyp: text("objekt_typ", { enum: ["seite"] }).notNull(),
-    objektId: uuid("objekt_id"),
+    objektId: uuid("objekt_id").notNull(),
     userId: uuid("user_id").references(() => user.id, { onDelete: "cascade" }),
     tagId: uuid("tag_id").references(() => tag.id, { onDelete: "cascade" }),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),

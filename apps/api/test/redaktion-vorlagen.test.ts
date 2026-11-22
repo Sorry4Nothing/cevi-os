@@ -34,6 +34,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { macheWebmaster } from "./hilfen/webmaster.js";
 
 // Durchreichen, ausser ein Test lässt die Automatik gezielt scheitern
 vi.mock("../src/website/automatik.js", async (original) => {
@@ -65,7 +66,7 @@ let admin: PersonaKonto;
 let demoAdmin: PersonaKonto;
 let slA: PersonaKonto;
 let slB: PersonaKonto;
-let redaktion: PersonaKonto;
+let webmaster: PersonaKonto;
 let ohneRecht: PersonaKonto;
 let eltern: PersonaKonto;
 
@@ -132,7 +133,7 @@ const leitende = () => legePersonaMitFaktorAn(welt, "leitendeA");
 
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
-  [admin, demoAdmin, slA, slB, redaktion, ohneRecht, eltern] =
+  [admin, demoAdmin, slA, slB, webmaster, ohneRecht, eltern] =
     await Promise.all([
       legePersonaAn(welt, "admin"),
       legePersonaAn(welt, "demoAdmin"),
@@ -142,16 +143,12 @@ beforeAll(async () => {
       legePersonaAn(welt, "leitendeB"),
       legePersonaAn(welt, "elternA"),
     ]);
-  await db.insert(schema.bearbeiter).values({
-    abteilungId: welt.testabteilungId,
-    objektTyp: "seite",
-    userId: redaktion.id!,
-  });
+  await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
 });
 
 describe("GET /vorlagen", () => {
   test("nennt Schlüssel, Name, Beschreibung und ob ein Tag nötig ist, ohne Dokumente", async () => {
-    for (const konto of [admin, redaktion, slA]) {
+    for (const konto of [admin, webmaster]) {
       const antwort = await anfrage(konto, "GET", `${REDAKTION}/vorlagen`);
       expect(antwort.status).toBe(200);
       const { vorlagen } = await json<{
@@ -168,8 +165,8 @@ describe("GET /vorlagen", () => {
     }
   });
 
-  test("ohne Zugang 403", async () => {
-    for (const konto of [ohneRecht, eltern]) {
+  test("ohne das Recht «Vorlagen nutzen» 403, auch die Stufenleitung", async () => {
+    for (const konto of [ohneRecht, eltern, slA]) {
       expect(
         (await anfrage(konto, "GET", `${REDAKTION}/vorlagen`)).status,
       ).toBe(403);
@@ -346,9 +343,9 @@ describe("POST /seiten/aus-vorlage", () => {
     expect((await json<{ code: string }>(zuTief)).code).toBe("SEITE_ZU_TIEF");
   });
 
-  test("Rechte: Anlegen nur Abteilungsleitung und Redaktion", async () => {
+  test("Rechte: Anlegen nur Abteilungsleitung und Webmaster", async () => {
     const body = { vorlage: "leer", titel: eindeutig("Recht") };
-    expect((await ausVorlage(redaktion, body)).status).toBe(201);
+    expect((await ausVorlage(webmaster, body)).status).toBe(201);
     // Stufenleitung hat den Zugang, darf aber nicht anlegen
     expect((await ausVorlage(slA, body)).status).toBe(403);
     expect((await ausVorlage(ohneRecht, body)).status).toBe(403);
@@ -619,14 +616,14 @@ describe("Rechte an der automatisch erzeugten Seite", () => {
       (await anfrage(neueSl, "PATCH", `${SEITEN}/${seite!.id}`, { titel: "N" }))
         .status,
     ).toBe(204);
-    // Die Stufenleitung einer anderen Stufe, die Redaktion und die Abteilungsleitung
+    // Die Stufenleitung einer anderen Stufe, die Webmaster und die Abteilungsleitung
     expect((await anfrage(slA, "GET", entwurf)).status).toBe(403);
     expect((await anfrage(slB, "GET", entwurf)).status).toBe(403);
     expect((await anfrage(ohneRecht, "GET", entwurf)).status).toBe(403);
     expect((await anfrage(eltern, "GET", entwurf)).status).toBe(403);
     expect((await anfrage(admin, "GET", entwurf)).status).toBe(200);
-    expect((await anfrage(redaktion, "GET", entwurf)).status).toBe(200);
-    // Die neue Stufenleitung sieht in der Liste nur ihre Seite; Anlegen und Löschen bleibt der Redaktion
+    expect((await anfrage(webmaster, "GET", entwurf)).status).toBe(200);
+    // Die neue Stufenleitung sieht in der Liste nur ihre Seite; Anlegen und Löschen bleibt der Webmaster
     const liste = await json<{ seiten: { id: string }[] }>(
       await anfrage(neueSl, "GET", SEITEN),
     );
@@ -674,7 +671,7 @@ describe("Rechte an der automatisch erzeugten Seite", () => {
         dokument: e.dokument,
       });
       expect(gespeichert.status).toBe(200);
-      // Löschen und Anlegen bleiben bei Abteilungsleitung und Redaktion
+      // Löschen und Anlegen bleiben bei Abteilungsleitung und Webmaster
       expect(
         (await anfrage(a.person, "DELETE", `${SEITEN}/${a.seiteId}`)).status,
       ).toBe(403);

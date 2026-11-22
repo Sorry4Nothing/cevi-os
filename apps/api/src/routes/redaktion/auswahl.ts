@@ -6,13 +6,13 @@ import type { Db } from "../../db/client.js";
 import { personTag, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
-import { hatRedaktionszugang } from "../../website/seiten.js";
+import { hatWebsiteZugang } from "../../website/seiten.js";
 
 // Auswahllisten für den Editor (#353): nur was eine Auswahl braucht. Nie Telefon, E-Mail, Benutzername oder Rolle des Kontos.
 // Beide Listen sind auf die Abteilung der Person gefiltert; ein fremder oder unbekannter Tag ist 404.
 export function erstelleAuswahlRouten({ db }: { db: Db }) {
   const zugang = async (person: Person) => {
-    if (!(await hatRedaktionszugang(db, person))) throw new HTTPException(403);
+    if (!(await hatWebsiteZugang(db, person))) throw new HTTPException(403);
   };
 
   return new Hono<{ Variables: { person: Person } }>()
