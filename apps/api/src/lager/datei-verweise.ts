@@ -96,12 +96,15 @@ export const DATEI_OHNE_VERWEIS_STUNDEN = 24;
 export async function raeumeDateienOhneVerweisAuf(
   db: Db,
   stunden = DATEI_OHNE_VERWEIS_STUNDEN,
+  // Nur für Tests: auf ein Lager begrenzen, damit ein Lauf nicht Dateien anderer Testdateien trifft, deren Verweise er nicht kennt
+  lagerId?: string,
 ) {
   const geloescht = await db
     .delete(lagerDatei)
     .where(
       and(
         isNull(lagerDatei.geloeschtAm),
+        lagerId ? eq(lagerDatei.lagerId, lagerId) : undefined,
         lt(
           lagerDatei.erstelltAm,
           sql`now() - make_interval(hours => ${stunden})`,
