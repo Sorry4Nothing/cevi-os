@@ -213,6 +213,7 @@ Eine angemeldete Person ändert eine ID in einer Anfrage, um fremde Chats, Kinde
 | Die Sichtbarkeitsfilter stehen direkt in den SQL-Abfragen, eingeschränkt auf die Abteilung aus der Sitzung | `test/programme.test.ts`: Rechte-Tests der Programme (#29); fremde Chats liefern per ID 404 (#48); Rechte-Tests für fremde Kinder (#36)                             | #10, #29, #48 | geplant |
 
 **Restrisiko:** Der Test prüft nur, was die Matrix erwartet. Ein falscher Erwartungswert fällt erst im Review auf.
+Bewusst hingenommen (#226): Die Admin-Routen laden zuerst das Objekt in der eigenen Abteilung (Fremdabteilung wie unbekannte ID: 404) und prüfen danach das Recht (403). Eine Person ohne Admin-Recht erfährt so, ob eine UUID in der eigenen Abteilung existiert. Das ist vernachlässigbar: IDs sind keine Geheimnisse, die Antwort zeigt keinen Inhalt, und die Reihenfolge ist Teil der Rechte-Matrix.
 
 **OWASP:** ASVS V8 Authorization.
 
