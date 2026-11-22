@@ -26,6 +26,7 @@ import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
   legePersonaAn,
+  legePersonaMitFaktorAn,
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
@@ -197,7 +198,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "demoEltern"),
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "slB"),
-    legePersonaAn(welt, "leitendeA"),
+    legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
   ]);
@@ -955,7 +956,7 @@ describe("Rechte", () => {
     const id = await neueSeite();
     const andere = await neueSeite();
     await speichere(redaktion, id, dokument(), 0);
-    const person = await legePersonaAn(welt, "leitendeA");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",
@@ -977,7 +978,7 @@ describe("Rechte", () => {
 
   test("ein Recht ohne Auswirkung auf fremde Abteilungen: Zeile mit fremder Seiten-ID gibt kein Recht", async () => {
     const demoSeite = await neueSeite("angemeldet", null, welt.demoAbteilungId);
-    const person = await legePersonaAn(welt, "leitendeA");
+    const person = await legePersonaMitFaktorAn(welt, "leitendeA");
     await db.insert(schema.bearbeiter).values({
       abteilungId: welt.testabteilungId,
       objektTyp: "seite",

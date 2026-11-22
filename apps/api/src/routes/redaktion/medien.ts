@@ -11,6 +11,7 @@ import {
 import {
   aendernSchema,
   hochladenSchema,
+  listeSchema,
   medienUploadLimit,
   pfadSchema,
   type MedienHandler,
@@ -44,7 +45,9 @@ export function erstelleRedaktionMedienRouten({
       medienUploadLimit,
       (c) => handler.hochladen(c, c.req.valid("query")),
     )
-    .get("/", zugang, (c) => handler.liste(c))
+    .get("/", zugang, eingabe("query", listeSchema), (c) =>
+      handler.liste(c, c.req.valid("query")),
+    )
     .patch(
       "/:id",
       eingabe("param", pfadSchema),

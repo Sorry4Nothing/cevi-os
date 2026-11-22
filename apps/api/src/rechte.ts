@@ -92,15 +92,18 @@ export const zweiterFaktorPflicht = createMiddleware<{
   const person = c.get("person");
   if (person.admin && !person.zweiterFaktor) {
     return c.json(
-      {
-        code: "ZWEITER_FAKTOR_FEHLT",
-        message: "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
-      },
+      zweiterFaktorFehlt(
+        "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+      ),
       403,
     );
   }
   await next();
 });
+
+// Der Body der Antwort 403, wenn ein erweitertes Recht ohne zweiten Faktor genutzt wird (#423): Code für die App, Text zur Anzeige
+export const zweiterFaktorFehlt = (message: string) =>
+  ({ code: "ZWEITER_FAKTOR_FEHLT", message }) as const;
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 
