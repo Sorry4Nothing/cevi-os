@@ -19,17 +19,27 @@ export type LagerSpaltenTabelle = PgTable & {
   lagerSeq: AnyPgColumn;
 };
 
+// Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
+type Sichtbar = (
+  db: Db,
+  zugriff: LagerZugriff,
+  ids: string[],
+) => Promise<Set<string>>;
+
 export type LagerTabellenEintrag = {
   tabelle: LagerSpaltenTabelle;
-  // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs
-  recht: LagerRecht;
-  // Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Fehlt er, gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
-  sichtbar?: (
-    db: Db,
-    zugriff: LagerZugriff,
-    ids: string[],
-  ) => Promise<Set<string>>;
-};
+} & (
+  | {
+      // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Ohne «sichtbar» gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist
+      recht: LagerRecht;
+      sichtbar?: Sichtbar;
+    }
+  | {
+      // Für Tabellen, die kein eigenes Leserecht haben, weil sie über die Datensätze anderer Module gelesen werden (lager_datei): «sichtbar» entscheidet allein und ist Pflicht
+      recht: null;
+      sichtbar: Sichtbar;
+    }
+);
 
 const register = new Map<string, LagerTabellenEintrag>();
 

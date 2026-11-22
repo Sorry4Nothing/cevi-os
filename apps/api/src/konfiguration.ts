@@ -37,10 +37,6 @@ const schema = z.object({
   // Beide liest better-auth selbst aus der Umgebung; hier nur geprüft, damit der Start ohne sie scheitert
   BETTER_AUTH_SECRET: z.string().min(32),
   BETTER_AUTH_URL: z.url({ protocol: /^https?$/ }),
-  // Webseite der Abteilung, von der Treffpunkt, Schluss und Mitnehmen kommen (…/cevistufe-<stufe>); öffentlich, darum eine feste Vorgabe, die die Variable überschreibt
-  ECKDATEN_BASIS_URL: z
-    .url({ protocol: /^https$/ })
-    .default("https://www.cevi-staefa-hombi.ch"),
   // Freiwillig: Pfad zur Schlüsseldatei des Firebase-Dienstkontos für FCM; ohne sie startet die API und sendet keine Pushes
   FCM_SCHLUESSEL_DATEI: z.string().min(1).optional(),
   // Eigener Bucket für Bilder und PDFs, getrennt vom Backup (docs/betrieb.md); die Zugangsdaten stehen nur in deploy/.env

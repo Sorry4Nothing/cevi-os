@@ -181,7 +181,8 @@
           <dt>Zweck</dt>
           <dd>
             Information über Zeit und Ort der Programme. Sie stammen aus dem
-            Kalender der Abteilung und von der Webseite der Stufen.
+            Kalender der Abteilung und von den Angaben, die die Stufenleitung
+            pflegt.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -329,8 +330,9 @@
         <dl>
           <dt>Daten</dt>
           <dd>
-            Name der Abteilung, ihre Stufen (mit freiwilligem Logo) und die
-            Anbindung an den Kalender.
+            Name der Abteilung, ihre Stufen (mit freiwilligem Logo), die
+            Anbindung an den Kalender und die Hosts, auf denen Datei-Links im
+            Lager liegen dürfen.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -357,7 +359,13 @@
             weder Inhalte noch Personen. Es entfällt nach 30 Tagen. Dazu die
             Ressorts des Lagers mit Kürzel, Name, Leitung und Stellvertretung
             (als Personen), ihren Links und Notizen; bei einer Notiz steht, wer
-            sie geschrieben hat.
+            sie geschrieben hat. Dazu für Änderungen, die die App ohne Netz
+            gesammelt und später gesendet hat, eine Kennung der Änderung, wer
+            sie gesendet hat und ihr Ergebnis (Kennungen und Versionen der
+            geschriebenen Einträge, keine Inhalte); sie verhindert, dass eine
+            wiederholte Sendung doppelt schreibt, und entfällt nach 30 Tagen.
+            Offene Ansichten erfahren Änderungen über eine Verbindung, die nur
+            meldet, dass es Neues gibt; sie speichert nichts.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -373,6 +381,38 @@
           <dd>
             Bis die Leitung die Mitgliedschaft entfernt oder das Konto gelöscht
             wird. Auf Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-datei">
+        <h3 id="k-lager-datei">Dateien im Lager (Verknüpfungen)</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Verknüpfung: der Link, der Anzeigename, falls bekannt Typ
+            und Grösse, wann sie hinzugefügt wurde und von welchem Konto. Den
+            Inhalt der Datei speichert Cevi OS nicht.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Dateien, die im SharePoint der Abteilung liegen, im Lager auffindbar
+            machen, zum Beispiel an einem Pinnwand-Beitrag oder einem Dokument.
+            Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt,
+            Typ und Grösse, nie den Inhalt, und ruft den Link nie ab. Wer die
+            Datei öffnen darf, regelt der Ablageort. Beim Eintrag steht, welches
+            Konto ihn hinzugefügt hat. Die Abteilungsleitung kann festlegen, auf
+            welchen Hosts die Links liegen dürfen. Eine Offline-Kopie legt nur
+            die App an und nur, wenn die Person die Option in den Einstellungen
+            der App einschaltet.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung die Verknüpfung löscht oder das Lager gelöscht wird;
+            ein Eintrag, den kein Datensatz einbindet, entfällt nach 24 Stunden.
+            Die Datei am Ablageort bleibt immer. Mit dem Konto verschwindet nur
+            die Angabe, wer den Eintrag hinzugefügt hat. Auf Anfrage löscht die
+            Leitung Daten.
           </dd>
         </dl>
       </section>
@@ -472,7 +512,7 @@
         <li>
           Die Programme stammen aus dem Outlook-Kalender der Abteilung. Cevi OS
           liest ihn nur und schreibt nichts hinein. Treffpunkt, Schluss und
-          Mitnehmen liest Cevi OS von der Webseite der Stufen.
+          Mitnehmen trägt die Stufenleitung in Cevi OS ein.
         </li>
         <li>
           Nachrichten, Anmeldungen und deine Einstellungen gibst du selbst ein.

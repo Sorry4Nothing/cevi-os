@@ -368,16 +368,6 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  "POST /api/v1/admin/system/syncs/eckdaten": {
-    erwartet: {
-      ...alle(403),
-      admin: 501,
-      adminOhneZweitenFaktor: 403,
-      demoAdmin: 501,
-      deaktiviert: 401,
-      ohneLogin: 401,
-    },
-  },
   "POST /api/v1/admin/system/syncs/kalender": {
     erwartet: {
       ...alle(403),

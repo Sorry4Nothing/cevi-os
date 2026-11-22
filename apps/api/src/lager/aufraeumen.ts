@@ -24,6 +24,10 @@ export async function raeumeAenderungenAuf(db: Db, tage = AENDERUNGEN_TAGE) {
       returning lager.id
     )
     select count(*)::int as n from weg`);
+  // Die Ergebnisse der Warteschlange (#367) entfallen mit derselben Frist: Eine Wiederholung nach so langer Zeit gibt es nicht, ihr Feed wäre ohnehin zu alt
+  await db.execute(
+    sql`delete from lager_client_op where erstellt_am < now() - make_interval(days => ${tage})`,
+  );
   return zeilen[0]?.n ?? 0;
 }
 
