@@ -562,9 +562,15 @@ describe("Der Token steht in keinem Log", () => {
   });
 
   test("kein Audit-Eintrag nennt den Token und der Abruf schreibt keinen", async () => {
-    const vorher = await db.select().from(schema.auditLog);
+    // Nur die Abteilung dieser Welt: Andere Testdateien schreiben parallel in die gleiche Tabelle
+    const audit = () =>
+      db
+        .select()
+        .from(schema.auditLog)
+        .where(eq(schema.auditLog.abteilungId, welt.testabteilungId));
+    const vorher = await audit();
     await feed(tokens.elternA);
-    const nachher = await db.select().from(schema.auditLog);
+    const nachher = await audit();
     expect(nachher.length).toBe(vorher.length);
     expect(JSON.stringify(nachher)).not.toContain(tokens.elternA);
   });
