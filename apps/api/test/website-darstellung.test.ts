@@ -385,27 +385,9 @@ describe("Navigation in einer Zeile", () => {
     html.indexOf("</nav>"),
   );
 
-  test("höchstens sechs Punkte und nicht mehr als 80 Zeichen, der Rest steht unter «Mehr»", () => {
-    expect(
-      zaehle(leiste, '<li class="mit-unter">') + zaehle(leiste, "<li><a"),
-    ).toBeGreaterThan(0);
-    expect(leiste).toContain(
-      '<li class="mit-unter weitere"><details><summary>Mehr</summary>',
-    );
-    const mehr = leiste.slice(leiste.indexOf("<details>"));
-    expect(mehr).toContain(">Fotos</a>");
-    expect(mehr).toContain(">Dokumente</a>");
-    // Die Unterseiten eines Punktes unter «Mehr» bleiben erreichbar
-    expect(mehr).toContain(">Statuten</a>");
-    expect(leiste.slice(0, leiste.indexOf("<details>"))).not.toContain(
-      ">Fotos</a>",
-    );
-  });
-
-  test("ein Punkt mit Unterseiten hat ein Untermenü, auch ohne Skript; die Punkte bleiben Links", () => {
-    expect(leiste).toContain(
-      '<li class="mit-unter"><a href="/unsere-gruppen">Unsere Gruppen</a><ul class="unter"><li><a href="/bienli">Bienli</a></li><li><a href="/wölfe">Wölfe</a></li></ul></li>',
-    );
+  // Aufteilung der Zeile, Untermenüs und «Mehr»: test/website-kopf.test.ts (#558)
+  test("die Navigation steht in der Hülle jeder Seite", () => {
+    expect(leiste).toContain(">Unsere Gruppen</a>");
   });
 
   test("wenige Punkte: kein «Mehr»", () => {

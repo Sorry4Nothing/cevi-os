@@ -345,12 +345,7 @@ figcaption,
   padding: 0 var(--rand);
 }
 
-/* Kopf (#555): ein Band auf der Fläche der Seite, das beim Scrollen oben stehen bleibt. Marke links, Navigation daneben, rechts «Anmelden», Umschalter und am Handy das Menü.
-   Ab 96 em eine Zeile; von 60 bis 96 em steht die Navigation in einer zweiten Zeile desselben Bands; darunter übernimmt das Menü */
-html {
-  scroll-padding-top: 8rem;
-}
-
+/* Der Kopf (Marke, Navigation, Umschalter, Menü) steht in kopf.css (#558) */
 .fuss {
   padding: clamp(2.5rem, 5vw, 4rem) 0 2rem;
   background: var(--secondary);
@@ -2388,10 +2383,10 @@ a.btn.w {
     animation: auf var(--dauer-lang) var(--kurve) 0.2s both;
   }
 
-  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen.
-     Nur kurze Stücke (Titel, Karten, Zeilen): Ein langer Text bliebe sonst beim Lesen halb durchsichtig */
+  /* Beim Scrollen: Was ins Fenster kommt, steigt kurz auf. Reines CSS (animation-timeline: view()); ohne diese Fähigkeit bleibt alles ruhig stehen */
   @supports (animation-timeline: view()) {
     .sektion-kopf,
+    .sektion-rumpf > :not(ul),
     .stufenkarten > li,
     .merkmale > li,
     .karten > li,

@@ -2,8 +2,8 @@ import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
 import { karussell, SKRIPT_KARUSSELL, STIL_KARUSSELL } from "./karussell.js";
-import { symbol } from "./symbole.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
+import { symbol } from "./symbole.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -85,7 +85,7 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
-  // Fassung für den dunklen Modus (#558); fehlt sie, gilt das Logo in Hell und Dunkel
+  // Fassung für den dunklen Modus (#558): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo im dunklen Modus auf einem hellen Feld
   dunkel?: { id: string; breite: number | null; hoehe: number | null };
 };
 
