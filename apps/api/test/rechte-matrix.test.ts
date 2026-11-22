@@ -122,7 +122,6 @@ const alle = (status: number) =>
 const MATRIX: Record<string, Zeile> = {
   "GET /health": { erwartet: alle(200) },
   // Wurzeladresse (#531): leitet auf /admin
-  "GET /": { erwartet: alle(302) },
   // Statische Seiten und .well-known: offen für alle, auch deaktiviert und ohne Login
   "GET /datenschutz": { erwartet: alle(200) },
   "GET /konto-loeschen": { erwartet: alle(200) },

@@ -38,27 +38,6 @@ paths:
                 type: string
                 enum:
                   - fehler
-  /:
-    get:
-      operationId: getWurzel
-      summary: Wurzeladresse leitet auf die Verwaltung weiter
-      tags:
-        - Allgemein
-      security: []
-      description: |
-        Ohne Anmeldung und ausserhalb der Versionsprüfung. Antwortet mit `302` und `Location: /admin`, damit man lokal
-        nur die Adresse der API öffnen muss. Kein Cookie, kein Body, kein Hinweis auf die Konfiguration.
-        Wartungsmodus und Sperre gelten nur unter `/api/v1` und halten die Weiterleitung nicht auf.
-        `HEAD /` antwortet gleich. Im Betrieb liegt vor der API der Edge-Server, der die Wurzel der Abteilung der
-        öffentlichen Website zuweist; dort kommt diese Route nicht zum Zug.
-      responses:
-        "302":
-          description: Weiterleitung auf `/admin`.
-          headers:
-            Location:
-              description: Immer `/admin`.
-              schema:
-                type: string
   /datenschutz:
     get:
       operationId: getDatenschutzSeite
