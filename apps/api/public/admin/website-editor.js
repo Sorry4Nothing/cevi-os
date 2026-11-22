@@ -268,7 +268,7 @@ function textForm(k, b, reg) {
 
 function altTextInfo(m) {
   if (!m)
-    return "Das Bild wird gezeigt. Sein Alt-Text erscheint, sobald die Bibliothek geladen ist.";
+    return "Der Alt-Text dieses Bildes steht in der Medienbibliothek und erscheint mit dem Bild auf der Seite.";
   if (m.dekorativ) return "Das Bild ist als dekorativ markiert.";
   if (m.altText) return `Alt-Text: «${m.altText}»`;
   return "Für dieses Bild fehlt der Alt-Text. Trage ihn unter «Medien» nach.";
@@ -316,10 +316,6 @@ function bildWahl(k, b, reg, ziel, pfad) {
     );
     reg(pfad, wurzel, wahlKnopf);
   };
-  // Die Liste der Medien liefert den Alt-Text; sie wird erst geladen, wenn ein Bild darauf wartet
-  if (ziel.mediumId && !k.medien.has(ziel.mediumId)) {
-    k.ladeMedien().then(zeichne, () => {});
-  }
   zeichne();
   return wurzel;
 }
@@ -1012,7 +1008,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
     tagNamen: new Map(tags.map((t) => [t.id, t.name])),
     personNamen: new Map(),
     medien: new Map(),
-    medienLaden: null,
     dok: gepuffert ? gepuffert.dok : (entwurf.dokument ?? leer()),
     zaehler: gepuffert ? gepuffert.zaehler : entwurf.zaehler,
     dirty: Boolean(gepuffert),
@@ -1034,15 +1029,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags }) {
   k.medienName = (mediumId) => {
     const m = k.medien.get(mediumId);
     return m ? (m.altText ?? (m.dekorativ ? "dekorativ" : "")) : "";
-  };
-  k.ladeMedien = () => {
-    k.medienLaden ??= anfrage("GET", `${API}/medien`).then((antwort) => {
-      for (const m of antwort.medien) k.medien.set(m.id, m);
-    });
-    k.medienLaden.catch(() => {
-      k.medienLaden = null;
-    });
-    return k.medienLaden;
   };
   k.aendere = (b) => {
     if (!k.dirty) {
@@ -1935,6 +1921,8 @@ function katalogDialog(k) {
   });
 }
 
+// Die Bilder kommen seitenweise vom Server, die Suche läuft dort (nach Alt-Text); nichts wird vorab geladen
+const MEDIEN_SEITE = 24;
 function bildDialog(k, beiWahl) {
   const suche = feld({
     label: "Bild suchen (nach Beschreibung)",
@@ -1944,6 +1932,12 @@ function bildDialog(k, beiWahl) {
   const raster = el("ul", { class: "ws-editor-medien" });
   const zaehler = el("p", { class: "meta", role: "status" }, "Wird geladen …");
   const fehler = el("div");
+  const weitere = knopf("Weitere Bilder laden", {
+    klein: true,
+    symbol: "plus",
+    hidden: true,
+    onclick: () => lade(false),
+  });
   const blatt = seitenblatt({
     titel: "Bild wählen",
     inhalt: [
@@ -1951,6 +1945,7 @@ function bildDialog(k, beiWahl) {
       zaehler,
       fehler,
       raster,
+      weitere,
       el(
         "p",
         { class: "hilfe" },
@@ -1960,70 +1955,83 @@ function bildDialog(k, beiWahl) {
       ),
     ],
   });
-  let alle = [];
-  const zeichne = () => {
-    const frage = suche.eingabe.value.trim().toLowerCase();
-    const passend = alle.filter((m) =>
-      `${m.altText ?? ""} ${m.dekorativ ? "dekorativ" : ""}`
-        .toLowerCase()
-        .includes(frage),
-    );
-    raster.replaceChildren(
-      ...passend.map((m) =>
+  let anzahl = 0;
+  // Eine spätere Suche macht eine laufende Antwort ungültig
+  let lauf = 0;
+  const karte = (m) =>
+    el(
+      "li",
+      {},
+      el(
+        "button",
+        {
+          type: "button",
+          class: "ws-editor-medium",
+          onclick: () => schliesseMit(blatt, () => beiWahl(m)),
+        },
+        el("img", { src: m.url, alt: "", loading: "lazy" }),
         el(
-          "li",
+          "span",
           {},
-          el(
-            "button",
-            {
-              type: "button",
-              class: "ws-editor-medium",
-              onclick: () => schliesseMit(blatt, () => beiWahl(m)),
-            },
-            el("img", { src: m.url, alt: "", loading: "lazy" }),
-            el(
-              "span",
-              {},
-              m.dekorativ
-                ? "Dekoratives Bild"
-                : (m.altText ?? "Ohne Beschreibung"),
-            ),
-          ),
+          m.dekorativ ? "Dekoratives Bild" : (m.altText ?? "Ohne Beschreibung"),
         ),
       ),
     );
-    zaehler.textContent =
-      passend.length > 0
-        ? `${anzahlText(passend.length, "1 Bild", "Bilder")} von ${alle.length}`
-        : alle.length === 0
-          ? "Es gibt noch keine Bilder."
-          : "Kein Bild passt zur Suche.";
-  };
-  suche.eingabe.addEventListener("input", zeichne);
-  const lade = async () => {
+  async function lade(neu) {
+    const mein = ++lauf;
     fehler.replaceChildren();
+    weitere.hidden = true;
+    if (neu) {
+      anzahl = 0;
+      raster.replaceChildren();
+    }
     zaehler.textContent = "Wird geladen …";
+    const frage = suche.eingabe.value.trim();
     try {
-      await k.ladeMedien();
-      alle = [...k.medien.values()]
-        .filter((m) => m.mimeTyp.startsWith("image/"))
-        .sort((a, b) =>
-          String(b.erstelltAm).localeCompare(String(a.erstelltAm)),
-        );
-      zeichne();
+      const antwort = await anfrage(
+        "GET",
+        `${API}/medien?limit=${MEDIEN_SEITE}&offset=${anzahl}${
+          frage ? `&suche=${encodeURIComponent(frage)}` : ""
+        }`,
+      );
+      if (mein !== lauf) return;
+      // Ein altes PDF-Medium (vor #428) ist kein Bild
+      const bilder = antwort.medien.filter((m) =>
+        m.mimeTyp.startsWith("image/"),
+      );
+      anzahl += antwort.medien.length;
+      for (const m of bilder) {
+        k.medien.set(m.id, m);
+        raster.append(karte(m));
+      }
+      weitere.hidden = !antwort.weitere;
+      zaehler.textContent =
+        raster.children.length === 0
+          ? frage
+            ? "Kein Bild passt zur Suche."
+            : "Es gibt noch keine Bilder."
+          : anzahlText(raster.children.length, "1 Bild", "Bilder") +
+            (antwort.weitere ? " (weitere folgen)" : "");
     } catch (f) {
+      if (mein !== lauf) return;
       zaehler.textContent = "";
       fehler.replaceChildren(
         el("p", { class: "feld-fehler", role: "alert" }, fehlertext(f)),
         knopf("Nochmals versuchen", {
           klein: true,
           symbol: "aktualisieren",
-          onclick: lade,
+          onclick: () => lade(neu),
         }),
       );
     }
-  };
-  lade();
+  }
+  // Die Suche startet kurz nach der letzten Eingabe, nicht bei jedem Zeichen
+  let timer = null;
+  suche.eingabe.addEventListener("input", () => {
+    window.clearTimeout(timer);
+    timer = window.setTimeout(() => lade(true), 400);
+  });
+  lade(true);
 }
 
 // --- Vorschau, Veröffentlichen, Versionen ----------------------------------------------------------------------------------
