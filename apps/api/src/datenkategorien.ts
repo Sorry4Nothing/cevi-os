@@ -139,11 +139,28 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTeilnehmende: {
+    titel: "Teilnehmende im Lager",
+    zweck:
+      "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
+    frist:
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden und das Abzählen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Contact Info: Name"],
+    google: ["Personal info: Name"],
+  },
   lagerDatei: {
     titel: "Dateien im Lager (Verknüpfungen)",
     zweck:
       "Dateien, die im SharePoint der Abteilung liegen, im Lager auffindbar machen, zum Beispiel an einem Pinnwand-Beitrag oder einem Dokument. Cevi OS speichert nur den Link, den Anzeigenamen und, falls bekannt, Typ und Grösse, nie den Inhalt, und ruft den Link nie ab. Wer die Datei öffnen darf, regelt der Ablageort. Beim Eintrag steht, welches Konto ihn hinzugefügt hat. Die Abteilungsleitung kann festlegen, auf welchen Hosts die Links liegen dürfen. Eine Offline-Kopie legt nur die App an und nur, wenn die Person die Option in den Einstellungen der App einschaltet.",
     frist: `Bis die Leitung die Verknüpfung löscht oder das Lager gelöscht wird; ein Eintrag, den kein Datensatz einbindet, entfällt nach 24 Stunden. Die Datei am Ablageort bleibt immer. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag hinzugefügt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
+  lagerPinnwand: {
+    titel: "Pinnwand im Lager",
+    zweck:
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+    frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -468,6 +485,51 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "entschieden_von",
       "entschieden_am",
+    ],
+  },
+  // Pinnwand (#381): Empfänger als Rolle oder Personen-ID; die Dateien sind Verweise auf lager_datei
+  pinnwand_beitrag: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "text",
+      "wichtig",
+      "angeheftet",
+      "sichtbar_ab",
+      "sichtbar_bis",
+    ],
+  },
+  pinnwand_empfaenger: {
+    lagerPinnwand: ["id", "lager_id", "beitrag_id", "rolle", "person_id"],
+  },
+  pinnwand_datei: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "datei_id",
+      "reihenfolge",
+    ],
+  },
+  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
+  teilnehmer: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "kind_id",
+      "anmeldung_id",
+      "vorname",
+      "nachname",
+      "cevi_name",
+      "stufe",
+    ],
+  },
+  // Ein Haken je Teilnehmende oder Mitglied des Lagers (Team)
+  abzaehlen: {
+    lagerTeilnehmende: [
+      ...LAGER_BASIS_SPALTEN,
+      "teilnehmer_id",
+      "person_id",
+      "geprueft",
+      "geprueft_am",
     ],
   },
   lager_benachrichtigung: {
