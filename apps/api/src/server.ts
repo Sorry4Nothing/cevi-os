@@ -34,6 +34,7 @@ import {
   starteWebsiteAbgleich,
   synchronisiereWebsite,
 } from "./website/abgleich.js";
+import { ladeStufenfakten } from "./website/stufenfakten.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
 import {
   pruefeZeitregeln,
@@ -146,6 +147,7 @@ if (
         basisUrl,
         stylesheet,
         skripte,
+        datenquellen: [ladeStufenfakten],
         merker,
       }),
     abteilungId,

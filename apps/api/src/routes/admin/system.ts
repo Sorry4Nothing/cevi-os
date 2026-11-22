@@ -1,5 +1,5 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
-import { asc, count, eq } from "drizzle-orm";
+import { and, asc, count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Sql } from "postgres";
@@ -164,7 +164,14 @@ export function erstelleSystemRouten({
             abgerufenAm: programmEckdaten.abgerufenAm,
           })
           .from(stufe)
-          .leftJoin(programmEckdaten, eq(programmEckdaten.stufeId, stufe.id))
+          // Nur was das Auslesen schrieb; im Editor gepflegte Zeilen (#355) gehören nicht in diesen Status
+          .leftJoin(
+            programmEckdaten,
+            and(
+              eq(programmEckdaten.stufeId, stufe.id),
+              eq(programmEckdaten.quelle, "web"),
+            ),
+          )
           .where(eq(stufe.abteilungId, person.abteilungId))
           .orderBy(asc(stufe.name), asc(stufe.id));
         const [abt] = await db
