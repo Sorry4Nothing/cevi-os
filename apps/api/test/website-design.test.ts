@@ -144,8 +144,8 @@ describe("Startseite und Stufenseite", () => {
     expect(html).toContain('<h1 id="h1">Spiel und Natur</h1>');
     expect(zaehle(html, "<h1")).toBe(1);
     // Nur die erste Schaltfläche ist rot
-    expect(html).toContain('class="btn p gross" href="/kontakt"');
-    expect(html).toContain('class="btn s gross" href="/termine"');
+    expect(html).toContain('href="/kontakt" class="btn p gross"');
+    expect(html).toContain('href="/termine" class="btn s gross"');
     expect(html).toContain("<h2>Stufen</h2>");
     // Der Teaser steht vor dem übrigen Inhalt
     expect(html.indexOf("teaser")).toBeLessThan(html.indexOf("<h2>Stufen"));
@@ -329,7 +329,10 @@ describe("Stilvorlage", () => {
   });
 
   test("Farben nur als Token ausserhalb der Token-Blöcke", () => {
-    const ausserhalb = CSS.replace(/:root\s*\{[^}]*\}/g, "");
+    const ausserhalb = CSS.replace(/\/\*[\s\S]*?\*\//g, "").replace(
+      /:root\s*\{[^}]*\}/g,
+      "",
+    );
     // Erlaubt: Systemfarben der erzwungenen Farben (CanvasText) und transparent
     expect(ausserhalb).not.toMatch(/#[0-9a-f]{3,8}\b/i);
     expect(ausserhalb).not.toMatch(/rgba?\(/);
