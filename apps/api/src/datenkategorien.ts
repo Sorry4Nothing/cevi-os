@@ -210,7 +210,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
     frist:
-      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
+      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis ein Webmaster sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
     apple: [],
     google: [],
   },

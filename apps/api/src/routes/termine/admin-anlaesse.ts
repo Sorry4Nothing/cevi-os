@@ -398,7 +398,7 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
         const ziel = await ladeKurz(tx, person, id, true);
         if ((await zaehleAnmeldungen(tx, id)) > 0) return true;
         await tx.delete(anlass).where(eq(anlass.id, id));
-        // Die Anlassseite bleibt (die Redaktion entscheidet über sie)
+        // Die Anlassseite bleibt (die Verwaltung der Website entscheidet über sie)
         await tx.insert(auditLog).values({
           abteilungId: person.abteilungId,
           akteurId: person.id,
