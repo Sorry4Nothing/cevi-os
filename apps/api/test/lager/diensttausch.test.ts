@@ -1137,11 +1137,11 @@ describe("Zurückziehen und Listen", () => {
     };
     const lager = await legeLager(welt.testabteilungId);
     await mitgliederEintragen(lager);
-    const messen = () =>
-      Promise.all([
-        zaehle(T(lager), leiter()),
-        zaehle(`${T(lager)}/eigene`, konten.team),
-      ]);
+    // Nacheinander: der Zähler ist global, parallele Aufrufe würden sich gegenseitig mitzählen
+    const messen = async () => [
+      await zaehle(T(lager), leiter()),
+      await zaehle(`${T(lager)}/eigene`, konten.team),
+    ];
     const wenig = await messen();
     // 30 offene Anfragen mit je einer eigenen Schicht, in drei Statements
     const tage = await db

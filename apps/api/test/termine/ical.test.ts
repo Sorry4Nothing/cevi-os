@@ -45,6 +45,7 @@ const app = erstelleApp({ ...optionen, db });
 afterAll(() => sql.end());
 
 let welt: Welt;
+let lagerTerminId: string;
 let konten: Record<Persona, PersonaKonto>;
 let ausgabe: MockInstance<typeof console.log>;
 const tokens = {} as Record<Persona, string>;
@@ -110,7 +111,7 @@ beforeAll(async () => {
     ort: "Pfadiheim, Stäfa",
   });
   await termin({ titel: LANGER_TITEL, tags: [a, b], beginn: inTagen(12) });
-  await termin({
+  lagerTerminId = await termin({
     titel: "Lager",
     tags: [a],
     tagVon: datumIn(20),
@@ -241,11 +242,7 @@ describe("Feed: genau die Termine von «Mein Kalender»", () => {
     );
     expect(nach(LANGER_TITEL).summary).toBe(LANGER_TITEL);
     // Stabile UID: dieselbe wie der Termin in der Datenbank
-    const [lager] = await db
-      .select({ id: schema.programm.id })
-      .from(schema.programm)
-      .where(eq(schema.programm.titel, "Lager"));
-    expect(nach("Lager").uid).toBe(`${lager.id}@cevi-os`);
+    expect(nach("Lager").uid).toBe(`${lagerTerminId}@cevi-os`);
   });
 
   test("keine Kindernamen, Beschreibung, Tags oder Kategorien", async () => {
