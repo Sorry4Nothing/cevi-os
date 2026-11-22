@@ -1,9 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  gleicheAb,
-  htmlZuText,
-  liegtAmSamstag,
-} from "../../src/kalender/abgleich.js";
+import { gleicheAb, liegtAmSamstag } from "../../src/kalender/abgleich.js";
 import {
   ANTWORT_UNGUELTIG,
   KalenderFehler,
@@ -375,32 +371,5 @@ describe("liegtAmSamstag", () => {
     expect(liegtAmSamstag(false, samstag, samstag)).toBe(true);
     const freitag = new Date("2027-09-03T10:00:00Z");
     expect(liegtAmSamstag(false, freitag, freitag)).toBe(false);
-  });
-});
-
-describe("htmlZuText", () => {
-  test.each<[string, string | null]>([
-    [
-      '<b>Wurst &amp; Brot</b> mitnehmen<br>Fragen an leitung@example.org<br>Anmeldung: <a href="https://example.org/anmeldung">Formular</a>',
-      "Wurst & Brot mitnehmen\nFragen an leitung@example.org\nAnmeldung: Formular (https://example.org/anmeldung)",
-    ],
-    ["Alter < 10 und > 5", "Alter < 10 und > 5"],
-    ["&lt;b&gt;kein Tag&lt;/b&gt;", "<b>kein Tag</b>"],
-    ["<ul><li>Eins</li><li>Zwei</li></ul>", "Eins\nZwei"],
-    [
-      '<a href="https://example.org">https://example.org</a>',
-      "https://example.org",
-    ],
-    ["<p>Absatz</p><p>Zwei</p>", "Absatz\nZwei"],
-    ["<p>Eins</p><br><br><br>Zwei", "Eins\n\nZwei"],
-    ["  <br>  ", null],
-    ["", null],
-    ["Z&#252;ri &#x1F332; &nbsp;Wald", "Züri 🌲  Wald"],
-    [
-      "kaputt &#99999999; &#x110000; &#0;",
-      "kaputt &#99999999; &#x110000; &#0;",
-    ],
-  ])("%j", (html, text) => {
-    expect(htmlZuText(html)).toBe(text);
   });
 });

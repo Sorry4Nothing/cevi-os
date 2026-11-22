@@ -686,77 +686,13 @@ function routenDetail(r, fehler) {
   );
 }
 
-const AUSGANG = {
-  gelesen: ["Gelesen", "ok"],
-  keine_seite: ["Keine Seite", "warn"],
-  ohne_datum: ["Ohne Datum", "warn"],
-  fehler: ["Fehler", "fehler"],
-};
-
 export const ladeAbrufe = () => anfrage("GET", "/api/v1/admin/system/syncs");
 
-// Die Ausgaben der Abrufe im Hintergrund (#267); «Jetzt abrufen» startet dieselben Läufe von Hand
+// Der Stand des Kalender-Abgleichs im Hintergrund (#267); «Jetzt abgleichen» startet denselben Lauf von Hand
 function zeichneAbrufe(ziel, d, starten, laeuft) {
-  const e = d.eckdaten;
   const k = d.kalender;
-  const zeilen = e.stufen.map((z) => {
-    const [text, art] = z.ausgang
-      ? AUSGANG[z.ausgang]
-      : ["Noch kein Lauf", undefined];
-    const x = z.eckdaten;
-    return el(
-      "tr",
-      {},
-      el("th", { scope: "row" }, z.name),
-      el(
-        "td",
-        {},
-        el("ul", { class: "chips" }, chip(text, art, art ? undefined : "info")),
-      ),
-      el("td", { class: "mono" }, z.fehlercode ?? "–"),
-      el("td", {}, x ? `${x.tag}, ${x.treffpunkt ?? "–"}` : "–"),
-      el(
-        "td",
-        {},
-        x ? `${x.schlussOrt ?? "–"} ${x.schlussZeit ?? ""}`.trim() : "–",
-      ),
-      el("td", {}, x?.mitnehmen ?? "–"),
-      el("td", { class: "mono" }, z.adresse ?? "–"),
-    );
-  });
   ersetze(
     ziel,
-    panel(
-      "Stufenwebseiten",
-      el(
-        "p",
-        { class: "hilfe" },
-        e.letzterLaufAm
-          ? `Letzter Lauf ${zeit(e.letzterLaufAm)} (${vor(e.letzterLaufAm)}).`
-          : "Seit dem Start der API lief noch kein Abruf. Der Ausgang liegt im Arbeitsspeicher.",
-      ),
-      zeilen.length === 0
-        ? el("p", { class: "leer leer--klein" }, "Keine Stufen.")
-        : tabelle({
-            beschriftung: "Ausgaben je Stufe",
-            spalten: [
-              "Stufe",
-              "Ausgang",
-              "Code",
-              "Nächster Anlass",
-              "Schluss",
-              "Mitnehmen",
-              "Adresse",
-            ],
-            zeilen,
-          }).wurzel,
-      knopf("Jetzt abrufen", {
-        symbol: "aktualisieren",
-        disabled: laeuft.eckdaten,
-        "data-fokus": "abruf-eckdaten",
-        onclick: () => starten("eckdaten"),
-      }),
-    ),
     panel(
       "Kalender",
       werte([
@@ -806,7 +742,7 @@ function zeichneSeite(bereich, daten, ctx) {
   const fehler = el("div", {});
   const abrufe = el("div", { class: "raster" });
   const abrufeFehler = el("p", { class: "meta fehlerzeile", role: "status" });
-  const abrufLaeuft = { eckdaten: false, kalender: false };
+  const abrufLaeuft = { kalender: false };
   let abrufDaten;
 
   const sortieren = auswahl({

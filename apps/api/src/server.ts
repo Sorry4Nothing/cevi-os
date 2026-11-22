@@ -12,10 +12,6 @@ import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
-import {
-  starteEckdatenSync,
-  synchronisiereEckdaten,
-} from "./kalender/eckdaten-sync.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { ladeKonfiguration } from "./konfiguration.js";
@@ -81,11 +77,6 @@ const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
   });
-const eckdatenLauf = () =>
-  synchronisiereEckdaten({
-    datenbankUrl: konfiguration.DATABASE_URL,
-    basisUrl: konfiguration.ECKDATEN_BASIS_URL,
-  });
 const app = erstelleApp({
   appMinVersion: konfiguration.APP_MIN_VERSION,
   sql,
@@ -99,13 +90,11 @@ const app = erstelleApp({
   seiten,
   syncs: {
     kalender: kalenderLauf,
-    eckdaten: eckdatenLauf,
   },
 });
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
-starteEckdatenSync(eckdatenLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
 starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
