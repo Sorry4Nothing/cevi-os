@@ -471,13 +471,21 @@ describe("Schreibende Routen halten die Daten in tag und person_tag", () => {
     );
     expect(kontakte.status).toBe(403);
 
-    // Dieselbe Zuordnung mit der Rolle «leitung» ist eine Stufenrolle, wie sie PATCH /admin/personen setzt
-    await aufruf(
+    // Dieselbe Zuordnung mit der Rolle «leitung» ist eine Stufenrolle: Die Tag-Route lehnt sie ab (#344), PATCH /admin/personen setzt sie
+    const abgelehnt = await aufruf(
       "admin",
       "put",
       `/api/v1/admin/tags/${welt.stufeBId}/personen/${eltern.id}`,
       { rolle: "leitung" },
     );
+    expect(abgelehnt.status).toBe(400);
+    const gesetzt = await aufruf(
+      "admin",
+      "patch",
+      `/api/v1/admin/personen/${eltern.id}`,
+      { rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }] },
+    );
+    expect(gesetzt.status).toBe(204);
     const danach = await app.request("/api/v1/ich", {
       headers: eltern.headers,
     });

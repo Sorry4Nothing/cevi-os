@@ -47,8 +47,9 @@
       <p>
         Cevi OS bearbeitet nur, was die Abteilung für Programme, Anmeldungen und
         den Chat braucht. Es gibt keine E-Mail-Adressen, nur freiwillige
-        Profilbilder von Personen, kein Tracking, keine Analyse und keine
-        Werbung. Kinder haben kein eigenes Konto.
+        Profilbilder von Personen und die Bilder und PDFs, die die Leitung als
+        Medien hochlädt, kein Tracking, keine Analyse und keine Werbung. Kinder
+        haben kein eigenes Konto.
       </p>
 
       <section class="kategorie" aria-labelledby="k-konto">
@@ -433,10 +434,10 @@
           Eltern.
         </li>
         <li>
-          Admins verwalten Personen, Kinder, Stufen und Rollen und lesen keine
-          Chats. Wer eine Rolle als Stufenleitung vergibt, gibt damit Zugriff
-          auf die Chats der Stufe. Solche Änderungen stehen im Protokoll der
-          Verwaltung.
+          Admins verwalten Personen, Kinder, Stufen, Rollen, Tags,
+          Bearbeitungsrechte und Medien und lesen keine Chats. Wer eine Rolle
+          als Stufenleitung vergibt, gibt damit Zugriff auf die Chats der Stufe.
+          Solche Änderungen stehen im Protokoll der Verwaltung.
         </li>
         <li>
           Ein Profilbild sehen nur angemeldete Personen, die die Person ohnehin
@@ -445,7 +446,13 @@
           bei den Kontakten einer Stufe die Admins, die Leitenden und die
           Stufenleitung dieser Stufe sowie Eltern mit einem aktiven Kind darin;
           bei den Kontakten eines Programms alle, die das Programm sehen. Es
-          gibt keine öffentliche Adresse für Bilder.
+          gibt keine öffentliche Adresse für Profilbilder.
+        </li>
+        <li>
+          Ein Medium sehen nach der Wahl der Leitung entweder alle, die seine
+          Adresse kennen (öffentlich), oder nur angemeldete Personen derselben
+          Abteilung (angemeldet). Öffentliche Medien liefert der Server ohne
+          Anmeldung aus.
         </li>
         <li>Wer den Server betreibt, kann technisch alle Daten lesen.</li>
       </ul>
@@ -455,6 +462,10 @@
         <li>
           Der Server mit der Datenbank und der Speicher für die Backups stehen
           in der Schweiz. Die Backups sind verschlüsselt.
+        </li>
+        <li>
+          Die Dateien der Medien liegen in einem eigenen Speicher, nicht in der
+          Datenbank.
         </li>
         <li>
           Microsoft liefert den Kalender der Abteilung (Outlook). Cevi OS liest
