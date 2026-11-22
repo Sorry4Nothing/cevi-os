@@ -374,6 +374,13 @@
       "breakpoints": true
     },
     {
+      "idx": 83,
+      "version": "7",
+      "when": 1793552300000,
+      "tag": "0083_lager_gruppen",
+      "breakpoints": true
+    },
+    {
       "idx": 85,
       "version": "7",
       "when": 1793552500000,
@@ -381,10 +388,24 @@
       "breakpoints": true
     },
     {
+      "idx": 87,
+      "version": "7",
+      "when": 1793552700000,
+      "tag": "0087_lager_einkauf",
+      "breakpoints": true
+    },
+    {
       "idx": 88,
       "version": "7",
       "when": 1793552800000,
       "tag": "0088_lager_infos",
+      "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1793552900000,
+      "tag": "0090_lager_dokumente",
       "breakpoints": true
     },
     {
