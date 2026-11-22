@@ -34,6 +34,8 @@ const tageAbfrage = z.strictObject({
   lagertagIds: matrixAbfrage.shape.lagertagIds,
 });
 
+const FELD_UNBEKANNT_TEXT =
+  "Einen der Tage oder Abschnitte gibt es in diesem Lager nicht.";
 const NUR_MITGLIEDER = {
   code: "KEIN_MITGLIED",
   message: "Nur Mitglieder des Lagers tragen eigene Anwesenheit ein.",
@@ -82,7 +84,10 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             return c.json(
               {
                 code: ergebnis.fehler,
-                message: "Eine der Personen ist kein Mitglied dieses Lagers.",
+                message:
+                  ergebnis.fehler === "FELD_UNBEKANNT"
+                    ? FELD_UNBEKANNT_TEXT
+                    : "Eine der Personen ist kein Mitglied dieses Lagers.",
               },
               400,
             );
@@ -151,6 +156,12 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               frist(c),
             ),
           );
+          if ("fehler" in ergebnis) {
+            return c.json(
+              { code: ergebnis.fehler, message: FELD_UNBEKANNT_TEXT },
+              400,
+            );
+          }
           if ("gesperrt" in ergebnis) {
             return c.json(
               {
@@ -247,7 +258,13 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               frist(c),
             ),
           );
-          if ("fehler" in ergebnis) {
+          if ("fehler" in ergebnis && ergebnis.fehler === "FELD_UNBEKANNT") {
+            return c.json(
+              { code: ergebnis.fehler, message: FELD_UNBEKANNT_TEXT },
+              400,
+            );
+          }
+          if ("fehler" in ergebnis && "felder" in ergebnis) {
             return c.json(
               ergebnis.fehler === "ANFRAGE_OFFEN"
                 ? {

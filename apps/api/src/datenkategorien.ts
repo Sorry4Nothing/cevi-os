@@ -89,6 +89,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["App activity: Other actions"],
   },
+  terminvorschlaege: {
+    titel: "Terminvorschläge",
+    zweck:
+      "Berechtigte Personen schlagen der Abteilungsleitung einen Termin vor, mit Titel, Zeit, Ort, Beschreibung, gewünschten Kategorien und einer Bemerkung. Die Abteilungsleitung entscheidet; in Outlook trägt sie den Termin von Hand ein. Die vorschlagende Person sieht ihre Vorschläge mit dem Stand und kann einen offenen zurückziehen. Der Push an die Abteilungsleitung nennt weder Titel noch Namen.",
+    frist: `Bis die Leitung den Vorschlag löscht oder die vorschlagende Person ihn zurückzieht. Mit dem Konto verschwindet nur die Angabe, wer vorgeschlagen oder entschieden hat. ${AUF_ANFRAGE}`,
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -177,7 +185,7 @@ export const KATEGORIEN = {
   lagerPinnwand: {
     titel: "Pinnwand im Lager",
     zweck:
-      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt.",
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann eine Umfrage hängen: Die Antworten, welche Person welche Antwort gewählt hat und optional bis wann sie offen ist. Die Namen der Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag mit einem von fünf festen Zeichen reagieren; es zählen nur die Anzahl und die eigene Reaktion.",
     frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -222,6 +230,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerVorlagen: {
+    titel: "Private To-dos und Vorlagen im Lager",
+    zweck:
+      "Jede Person im Lager führt eigene To-dos, die nur sie sieht; auch die Lagerleitung und die Abteilungsleitung lesen sie nie. Die Abteilungsleitung pflegt Vorlagen für Aufgaben und Packlisten; die Lagerleitung wendet eine Vorlage in einem Lager an, und es entstehen daraus gewöhnliche Aufgaben und Punkte des Lagers.",
+    frist: `Die To-dos, bis die Person sie löscht, das Lager gelöscht wird oder das Konto gelöscht wird. Die Vorlagen, bis die Abteilungsleitung sie löscht. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   lagerHoeck: {
     titel: "Höcks und Traktanden im Lager",
     zweck:
@@ -240,16 +256,13 @@ export const KATEGORIEN = {
     google: [],
   },
   anlass: {
-    titel: "Anlässe und Anmeldungen",
+    titel: "Anlässe und ihre Zusatzfelder",
     zweck:
-      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf. Wer den Anlass sieht, meldet sich über das Konto an: Eltern melden ihr Kind an, andere Personen sich selbst, und beides geht bis zum Anmeldeschluss. Name, Cevi-Name und die Stufe des Kindes liest die Anmeldung aus dem Konto und füllt sie vor; gespeichert werden nur die Antworten auf die Zusatzfragen, wer angemeldet hat und ob die Anmeldung gilt.",
+      "Die Abteilungsleitung macht aus einem Termin einen Anlass, zu dem sich Kinder oder Personen anmelden können, und legt fest, bis wann die Anmeldung offen ist, wer den Anlass sieht und welche Zusatzfragen die Anmeldung stellt (Text, Ja oder Nein, Auswahl). Die Fragen dürfen keine Gesundheitsdaten verlangen. Zum Anlass entsteht eine Seite der Website als Entwurf.",
     frist:
-      "Den Anlass bis die Abteilungsleitung ihn löscht; das geht nur, solange es keine Anmeldungen gibt. Die Anmeldungen löscht der Server 180 Tage nach dem Ende des Anlasses; die Antworten einer Abmeldung löscht er sofort. Anlässe der Art Lager sind von diesem Lauf ausgenommen, ihre Anmeldungen behandelt das Lager. Mit dem Konto verschwinden die Anmeldungen, die es angelegt hat, und die Angabe, wer den Anlass angelegt hat. Die Seite der Website bleibt, bis die Redaktion sie löscht.",
-    apple: ["Contact Info: Name", "User Content: Other User Content"],
-    google: [
-      "Personal info: Name",
-      "App activity: Other user-generated content",
-    ],
+      "Bis die Abteilungsleitung den Anlass löscht; das geht nur, solange es keine Anmeldungen gibt. Die Seite der Website bleibt, bis die Redaktion sie löscht. Mit dem Konto verschwindet nur die Angabe, wer den Anlass angelegt hat.",
+    apple: [],
+    google: [],
   },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
   ungenutzt: {
@@ -332,7 +345,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ausgeloest_am",
     ],
   },
-  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten (die stehen in anlass_anmeldung); wer ihn angelegt hat, steht in erstellt_von
+  // Anlässe (#442): Einstellungen und Fragen der Anmeldung, keine Antworten; wer ihn angelegt hat, steht in erstellt_von
   anlass: {
     anlass: [
       "id",
@@ -347,19 +360,6 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "seite_id",
       "erstellt_von",
       "erstellt_am",
-    ],
-  },
-  // Anmeldungen (#443): wer angemeldet hat (user_id), für welches Kind (kind_id) und die Antworten auf die Zusatzfelder; Name, Cevi-Name und Stufe liest die Ansicht live aus dem Konto
-  anlass_anmeldung: {
-    anlass: [
-      "id",
-      "anlass_id",
-      "user_id",
-      "kind_id",
-      "antworten",
-      "status",
-      "erstellt_am",
-      "geaendert_am",
     ],
   },
   anlass_feld: {
@@ -435,6 +435,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   programm_tag: { programme: ["programm_id", "tag_id"] },
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
+  },
+  termin_vorschlag: {
+    terminvorschlaege: [
+      "id",
+      "abteilung_id",
+      "vorgeschlagen_von",
+      "titel",
+      "ganztaegig",
+      "beginn",
+      "ende",
+      "tag_von",
+      "tag_bis",
+      "ort",
+      "beschreibung",
+      "bemerkung",
+      "tag_ids",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+      "begruendung",
+      "erstellt_am",
+    ],
   },
   programm_eckdaten: {
     programme: [
@@ -607,6 +629,8 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "status",
       "notiz",
       "frist",
+      "frist_meilenstein_id",
+      "frist_versatz_tage",
       "stern",
       "laufend",
       "spaeter_ab",
@@ -619,6 +643,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   aufgabe_unterstuetzung: {
     lager: ["lager_id", "aufgabe_id", "person_id"],
+  },
+  // Zeitplan (#374): Termine und Bezeichnungen des Lagers, keine Personendaten ausser den Spalten der Basis
+  meilenstein: {
+    lager: [...LAGER_BASIS_SPALTEN, "titel", "datum", "art"],
+  },
+  lagertag: {
+    lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  tagesabschnitt: {
+    lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],
   },
   // Details einer Aufgabe (#373): Checkpunkte mit der Person, die abgehakt hat, Links und Stichworte
   aufgabe_checkpunkt: {
@@ -714,6 +748,42 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "beitrag_id",
       "datei_id",
       "reihenfolge",
+    ],
+  },
+  // Umfragen und Reaktionen (#382): Stimmen und Reaktionen gehören einer Person (person_id); die Reaktion ist ein fester Schlüssel, kein Emoji-Zeichen
+  umfrage: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "beitrag_id",
+      "mehrfach",
+      "schliesst_am",
+      "geschlossen",
+      "namen_fuer_team",
+    ],
+  },
+  umfrage_option: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "text",
+      "reihenfolge",
+    ],
+  },
+  umfrage_stimme: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "umfrage_id",
+      "option_id",
+      "person_id",
+    ],
+  },
+  reaktion: {
+    lagerPinnwand: [
+      ...LAGER_BASIS_SPALTEN,
+      "ziel_typ",
+      "ziel_id",
+      "person_id",
+      "emoji",
     ],
   },
   // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
@@ -825,6 +895,30 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   info_abschnitt_datei: {
     lagerInfos: [...LAGER_BASIS_SPALTEN, "abschnitt_id", "datei_id"],
+  },
+  todo_privat: {
+    lagerVorlagen: [
+      "id",
+      "lager_id",
+      "person_id",
+      "text",
+      "erledigt",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  vorlage: {
+    lagerVorlagen: [
+      "id",
+      "abteilung_id",
+      "art",
+      "name",
+      "inhalt",
+      "erstellt_am",
+      "erstellt_von",
+      "geaendert_am",
+      "geaendert_von",
+    ],
   },
   lager_benachrichtigung: {
     lagerBenachrichtigung: [
