@@ -465,6 +465,20 @@ export async function erzeugeWebsite(
       ([id]) => dokumente.has(id) || behalten.has(oeffentlich.get(id)!.datei),
     ),
   );
+  // Seiten des Baums ohne Datei für Besucher (nicht öffentlich, nicht veröffentlicht): Karten mit einem Link dorthin entfallen (#560)
+  daten.verborgen = new Set(
+    zeilen.flatMap((z) => {
+      const pfad = sichtbar.has(z.id) ? undefined : ziel(knoten, z.id)?.pfad;
+      return pfad ? [pfad] : [];
+    }),
+  );
+  // Ein Termin, dessen Anlass eine öffentliche Seite hat, führt auf diese Seite (#560): Dort steht der Inhalt und der Weg zur Anmeldung
+  for (const liste of daten.termine.values()) {
+    for (const t of liste) {
+      const pfad = t.seiteId ? sichtbar.get(t.seiteId)?.pfad : undefined;
+      if (pfad) t.seitePfad = pfad;
+    }
+  }
   // Impressum und Datenschutz stehen im Fuss, nicht in der Leiste; ohne Seite «Datenschutz» führt der Fuss auf die Erklärung der Plattform, ein Impressum nennt er nur, wenn es die Seite gibt
   const fusspfad = (adresse: string) =>
     [...sichtbar.values()].find((z) => z.pfad === `/${adresse}`)?.pfad;

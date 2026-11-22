@@ -1,0 +1,361 @@
+/* Bausteine der Inhaltsseiten (#560): Eckdaten, Kennzahlen, Zeitstrahl, Personen, Artikel.
+   Die Website lädt die Datei nur auf Seiten mit einem dieser Bausteine; Farben, Radien und Schatten kommen aus den Tokens in website.css. */
+
+/* Ein Anker («/anlaesse#lager») landet mit Luft über der Überschrift */
+h2[id] {
+  scroll-margin-top: 1.5rem;
+}
+
+/* ===== Eckdaten: das Wichtigste auf einen Blick, als blaues Feld ===== */
+.eckdaten-block {
+  padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  border-radius: var(--r-md);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.eckdaten {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 1.5rem clamp(1.5rem, 3vw, 3rem);
+}
+
+.eckdatum dt {
+  color: var(--on-secondary-muted);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.eckdatum dd {
+  margin-top: 0.25rem;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.eckdatum dd a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.eckdatum dd a:focus-visible,
+.eckdaten-aktion .btn:focus-visible {
+  outline: 2px solid var(--on-secondary);
+  outline-offset: 3px;
+}
+
+.eckdaten-aktion {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgb(255 255 255 / 24%);
+}
+
+/* Auf dem blauen Feld ist die Schaltfläche weiss: Rot auf Blau hätte zu wenig Kontrast */
+.eckdaten-aktion .btn,
+.eckdaten-aktion a.btn {
+  background: var(--on-secondary);
+  color: var(--secondary);
+}
+
+/* ===== Kennzahlen: grosse Zahl, darunter die Bezeichnung ===== */
+.kennzahlen {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 9rem), 1fr));
+  gap: 2rem clamp(1.5rem, 4vw, 4rem);
+}
+
+.kennzahl {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  padding-top: 1rem;
+  border-top: 3px solid var(--accent);
+}
+
+.kennzahl dd {
+  color: var(--titel);
+  font-size: clamp(2.5rem, 1.75rem + 3vw, 4.5rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kennzahl dd a {
+  color: inherit;
+}
+
+.kennzahl dt {
+  margin-top: 0.5rem;
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+}
+
+/* ===== Zeitstrahl: Zeitangabe links, Linie mit Punkt, Station rechts ===== */
+.zeitstrahl {
+  --zeit-spalte: 11rem;
+  --zeit-luecke: 3rem;
+  padding: 0;
+  list-style: none;
+}
+
+.zeitstrahl > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--zeit-spalte) minmax(0, 1fr);
+  column-gap: var(--zeit-luecke);
+  padding-bottom: 2.5rem;
+}
+
+.zeitstrahl > li:last-child {
+  padding-bottom: 0;
+}
+
+/* Linie zwischen den Spalten; bei der letzten Station endet sie am Punkt */
+.zeitstrahl > li::after {
+  content: "";
+  position: absolute;
+  top: 0.5rem;
+  bottom: -0.5rem;
+  left: calc(var(--zeit-spalte) + var(--zeit-luecke) / 2 - 1px);
+  width: 2px;
+  background: var(--outline-variant);
+}
+
+.zeitstrahl > li:last-child::after {
+  display: none;
+}
+
+.zeitstrahl > li::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  top: 0.4375rem;
+  left: calc(var(--zeit-spalte) + var(--zeit-luecke) / 2 - 0.4375rem);
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  box-shadow: 0 0 0 4px var(--zeit-grund, var(--surface-container-low));
+}
+
+.sektion--toenung .zeitstrahl {
+  --zeit-grund: var(--surface);
+}
+
+.zeitstrahl .zeit {
+  grid-row: 1 / span 2;
+  color: var(--accent);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+  text-align: right;
+}
+
+.zeitstrahl .titel {
+  grid-column: 2;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.zeitstrahl > li > p:not(.zeit) {
+  grid-column: 2;
+  max-width: 65ch;
+  margin-top: 0.375rem;
+  color: var(--on-surface-variant);
+}
+
+/* Schmal: Linie am linken Rand, Zeitangabe über dem Titel */
+@media (max-width: 40em) {
+  .zeitstrahl > li {
+    display: block;
+    padding-left: 2rem;
+  }
+
+  .zeitstrahl > li::after {
+    left: calc(0.4375rem - 1px);
+  }
+
+  .zeitstrahl > li::before {
+    left: 0;
+  }
+
+  .zeitstrahl .zeit {
+    font-size: 1rem;
+    line-height: 1.5rem;
+    text-align: left;
+  }
+}
+
+/* ===== Personen: Porträt, Name, Funktion, Adresse ===== */
+.personen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.kontaktperson {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+.kontaktperson > img,
+.kontaktperson > .ava {
+  flex: none;
+  align-self: stretch;
+  width: 7.5rem;
+  height: auto;
+  min-height: 9.375rem;
+}
+
+.kontaktperson > img {
+  border-radius: 0;
+  object-fit: cover;
+  object-position: 50% 20%;
+}
+
+.kontaktperson > .ava {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.kontaktperson-text {
+  min-width: 0;
+  padding: 1rem 1.25rem 1rem 0;
+}
+
+.kontaktperson .name {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+}
+
+.kontaktperson .funktion {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.kontaktperson .adresse {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+/* Die Adresse ist das einzige Ziel der Karte: Zeile mit 44 px Höhe */
+.kontaktperson .adresse a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+/* ===== Artikel: Bild, Name und Preis gehören zusammen ===== */
+.artikel {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13.5rem), 1fr));
+  gap: 1.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.artikel > li {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten-karte);
+}
+
+/* Die Fotos zeigen den Artikel auf Weiss, hoch, quer oder quadratisch: Der Grund bleibt in Tag und Nacht weiss, das Bild wird nie beschnitten */
+.artikel-bild {
+  position: relative;
+  aspect-ratio: 1;
+  background: #ffffff;
+}
+
+/* Absolut, damit die Masse des Bildes die Kachel nicht aufziehen */
+.artikel-bild img {
+  position: absolute;
+  inset: 0.75rem;
+  width: calc(100% - 1.5rem);
+  height: calc(100% - 1.5rem);
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.artikel-bild--leer {
+  background: var(--surface-container-high);
+}
+
+.artikel-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.artikel .name {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+
+.artikel .preis {
+  color: var(--titel);
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.artikel .hinweis {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+/* Erzwungene Farben: Flächen und Punkte bekommen einen Rand, damit sie sichtbar bleiben */
+@media (forced-colors: active) {
+  .eckdaten-block,
+  .kontaktperson,
+  .artikel > li {
+    border: 1px solid CanvasText;
+  }
+
+  .zeitstrahl > li::before {
+    background: CanvasText;
+    box-shadow: none;
+  }
+
+  .zeitstrahl > li::after {
+    background: CanvasText;
+  }
+
+  .kennzahl {
+    border-top-color: CanvasText;
+  }
+}

@@ -1,6 +1,11 @@
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
+import {
+  istInhaltsBaustein,
+  rendereInhaltsBaustein,
+  STIL_INHALT,
+} from "./inhaltsbausteine.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -44,6 +49,9 @@ export type TerminEintrag = {
   ort: string | null;
   stufen: string[];
   anlassId: string | null;
+  // Adresse der öffentlichen Seite des Anlasses (#560): Die Zeile führt dann dorthin statt auf die Anmeldung; der Abgleich setzt sie
+  seiteId?: string | null;
+  seitePfad?: string;
 };
 
 // Angaben der Abteilung für Fuss und Kontaktkarte (#549): Name steht im Kontext, Adresse, Telefon und E-Mail kommen aus der Konfiguration des Servers, die Seiten aus dem Seitenbaum
@@ -67,6 +75,10 @@ export type Daten = {
   termine: ReadonlyMap<string, TerminEintrag[]>;
   // Angaben der Abteilung für Kontaktkarte und Fuss (#549)
   kontakt?: Kontakt;
+  // Je Seite (ID) der Anlass, der zu ihr gehört (#560): Unter den Eckdaten steht dann die Schaltfläche zur Anmeldung
+  anlaesse: ReadonlyMap<string, string>;
+  // Adressen von Seiten des Baums, die Besucher nicht sehen (#560): Karten und Listeneinträge mit einem Link dorthin entfallen
+  verborgen?: ReadonlySet<string>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -74,6 +86,7 @@ export const keineDaten = (): Daten => ({
   teams: new Map(),
   stufenfakten: new Map(),
   termine: new Map(),
+  anlaesse: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -98,7 +111,7 @@ export type SeiteZumRendern = {
   dokument: Seitendokument;
 };
 
-const medienUrl = (id: string) => `/api/v1/medien/${id}`;
+export const medienUrl = (id: string) => `/api/v1/medien/${id}`;
 
 // Ein Knoten des Markups: Text (wird beim Ausgeben maskiert) oder ein Element. Dieselben Knoten gehen als JSON an das Skript, das geschützte Bausteine nachlädt (#354); dort entstehen daraus DOM-Knoten ohne innerHTML.
 // attr: «true» ist ein Attribut ohne Wert (download)
@@ -110,7 +123,7 @@ export type HtmlKnoten =
       kinder?: HtmlKnoten[];
     };
 
-const el = (
+export const el = (
   tag: string,
   attr?: Record<string, string | true>,
   ...kinder: HtmlKnoten[]
@@ -264,7 +277,7 @@ function href(ziel: string): Record<string, string> | null {
     : { href: ziel };
 }
 
-function verlinke(
+export function verlinke(
   ziel: string | undefined,
   innen: HtmlKnoten[],
   klasse?: string,
@@ -318,7 +331,7 @@ function bild(
 }
 
 // Anfangsbuchstaben der ersten zwei Wörter des Cevi-Namens, nur Buchstaben und Ziffern
-function initialen(name: string): string {
+export function initialen(name: string): string {
   return (
     name
       .split(/\s+/)
@@ -396,19 +409,50 @@ function stufenkarte(
   );
 }
 
+// Anker einer Überschrift der Ebene 2 (#560): ihr Text als Adresse («Unsere Lager» wird «unsere-lager»); ein doppelter bekommt «-2»
+function anker(text: string, vergeben: Set<string>): string | null {
+  const basis = text
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  if (basis === "") return null;
+  let id = basis;
+  for (let n = 2; vergeben.has(id); n++) id = `${basis}-${n}`;
+  vergeben.add(id);
+  return id;
+}
+
+// Stand beim Rendern einer Seite; anker: vergebene IDs («inhalt» und «h1» gehören dem Rahmen)
+type Stand = { ebene: number; schalter: number; anker: Set<string> };
+const neuerStand = (): Stand => ({
+  ebene: 1,
+  schalter: 0,
+  anker: new Set(["inhalt", "h1"]),
+});
+
 // letzte.ebene: Ebene der letzten Überschrift der Seite (1 = der Seitentitel); eine neue springt höchstens eine Ebene tiefer.
 // letzte.schalter: Zahl der Schaltflächen bisher; nur die erste ist rot (eine Hauptaktion je Seite)
 function rendereBaustein(
   b: Baustein,
   seiteId: string,
   daten: Daten,
-  letzte: { ebene: number; schalter: number },
+  letzte: Stand,
 ): HtmlKnoten | null {
+  if (istInhaltsBaustein(b)) {
+    return rendereInhaltsBaustein(b, seiteId, daten, letzte);
+  }
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
       letzte.ebene = ebene;
-      return el(`h${ebene}`, undefined, b.daten.text);
+      // Abschnitte sind über einen Anker erreichbar («/anlaesse#lager»)
+      const id = ebene === 2 ? anker(b.daten.text, letzte.anker) : null;
+      return el(`h${ebene}`, id ? { id } : undefined, b.daten.text);
     }
     case "text":
       return el(
@@ -463,7 +507,11 @@ function rendereBaustein(
     // «merkmale» (#555): Kachel ohne Link mit Symbol, Titel und Text; «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
     case "karten": {
       const ebene = Math.min(3, letzte.ebene + 1);
-      const eintraege = b.daten.eintraege;
+      // Ein Eintrag, der auf eine Seite führt, die Besucher nicht sehen, entfällt (#560)
+      const eintraege = b.daten.eintraege.filter(
+        (e) => !e.link || !daten.verborgen?.has(e.link.split("#")[0]!),
+      );
+      if (eintraege.length === 0) return null;
       if (b.daten.darstellung === "merkmale") {
         return el(
           "ul",
@@ -799,7 +847,7 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     "a",
     {
       class: "termin",
-      href: `${ANLASS_PFAD}?id=${t.anlassId}`,
+      href: t.seitePfad ?? `${ANLASS_PFAD}?id=${t.anlassId}`,
       "aria-label": beschreibung,
     },
     ...innen,
@@ -873,7 +921,7 @@ function rendereEintraege(
   daten: Daten,
   pfad?: string,
 ): Eintrag[] {
-  const letzte = { ebene: 1, schalter: 0 };
+  const letzte = neuerStand();
   return dok.bausteine.map((b) => ({
     b,
     knoten: istOeffentlich(b)
@@ -941,7 +989,7 @@ export function rendereGeschuetzte(
   daten: Daten,
   erlaubt: (b: Baustein) => boolean,
 ): { id: string; knoten: HtmlKnoten }[] {
-  const letzte = { ebene: 1, schalter: 0 };
+  const letzte = neuerStand();
   const ergebnis: { id: string; knoten: HtmlKnoten }[] = [];
   for (const b of dok.bausteine) {
     if (!erlaubt(b)) continue;
@@ -1016,6 +1064,7 @@ const EIGENER_ABSCHNITT = new Set<Baustein["typ"]>([
 ]);
 // Nach einer Überschrift mit solchen Bausteinen steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Text rechts
 const BREITE_BAUSTEINE = new Set<Baustein["typ"]>([
+  "artikel",
   "karten",
   "galerie",
   "karussell",
@@ -1380,6 +1429,10 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     canonical: k.basisUrl + s.pfad,
     inhalt,
     vollbreit: true,
+    // Der Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
+    ...(s.dokument.bausteine.some(istInhaltsBaustein) && {
+      stile: [STIL_INHALT],
+    }),
     ...(eintraege.some(
       (e) =>
         sichtbar(e) &&

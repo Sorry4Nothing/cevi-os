@@ -109,6 +109,15 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
       case "hinweis":
         ziel(b.daten.link?.ziel);
         break;
+      case "eckdaten":
+        b.daten.eintraege.forEach((e) => ziel(e.link));
+        break;
+      case "personen":
+      case "artikel":
+        b.daten.eintraege.forEach((e) => {
+          if (e.mediumId) medien.add(e.mediumId);
+        });
+        break;
       case "text":
         for (const block of b.daten.inhalt) {
           const listen =

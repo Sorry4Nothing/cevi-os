@@ -8,6 +8,7 @@ import {
   type DokumentFehler,
   type Seitendokument,
 } from "./dokument.js";
+import { ANMELDEN_PFAD, TERMINE_PFAD } from "./rendern.js";
 import { adressenVon, type Knoten } from "./seiten.js";
 
 type Lesen = Pick<Db, "select">;
@@ -53,7 +54,8 @@ export async function pruefeVerweise(
       .where(and(eq(user.abteilungId, abteilungId), inArray(user.id, ids))),
   );
   // Adressen der Abteilung aus dem Baum. Die Startseite «/» lässt sich hier nicht prüfen (offen, #351)
-  const pfade = new Set<string>();
+  // Die festen Seiten der Website (Termine, Anmelden) gibt es immer: Ein Link darauf ist gültig (#560)
+  const pfade = new Set<string>([TERMINE_PFAD, ANMELDEN_PFAD]);
   if (alle.seiten.some((s) => s !== "/")) {
     const zeilen = await d
       .select({

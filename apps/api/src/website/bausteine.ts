@@ -39,6 +39,15 @@ export const MERKMAL_SYMBOLE = [
   "ort",
   "sonne",
 ] as const;
+// Bausteine der Inhaltsseiten (#560): Eckdaten und Kennzahlen, Zeitstrahl, Personen, Artikel
+export const MAX_ECKDATEN = 12;
+export const MAX_BEZEICHNUNG = 60;
+export const MAX_WERT = 300;
+export const MAX_ZEITSTRAHL = 30;
+export const MAX_ZEIT = 40;
+export const MAX_PERSONEN = 24;
+export const MAX_ARTIKEL = 60;
+export const MAX_PREIS = 40;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -278,6 +287,74 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
     z.strictObject({
       titel: kurztext(MAX_KURZTEXT).optional(),
       personId: z.uuid().optional(),
+    }),
+  ),
+  // Eckdaten (#560): Paare aus Bezeichnung und Wert. «liste» zeigt sie als Faktenblock (Datum, Ort, Kosten, Kontakt …), «zahlen» als Zahlenband (6 Stufen, 67 Kinder)
+  baustein(
+    "eckdaten",
+    z.strictObject({
+      darstellung: z.enum(["liste", "zahlen"]),
+      eintraege: z
+        .array(
+          z.strictObject({
+            bezeichnung: kurztext(MAX_BEZEICHNUNG),
+            wert: kurztext(MAX_WERT),
+            link: linkAlle.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ECKDATEN),
+    }),
+  ),
+  // Zeitstrahl (#560): Stationen in der Reihenfolge der Liste, je mit Zeitangabe als Text («2008», «Sommer 2013»)
+  baustein(
+    "zeitstrahl",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            zeit: kurztext(MAX_ZEIT),
+            titel: kurztext(MAX_KURZTEXT),
+            text: kurztext(MAX_KARTENTEXT).optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ZEITSTRAHL),
+    }),
+  ),
+  // Personen (#560): von Hand gepflegte Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Anders als «leitungsteam» braucht es kein Konto.
+  // Es gibt bewusst kein Feld für eine Telefonnummer: auf die Website gehört die Funktionsadresse
+  baustein(
+    "personen",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            name: kurztext(MAX_KURZTEXT),
+            funktion: kurztext(MAX_KURZTEXT).optional(),
+            email: z.email().max(254).optional(),
+            mediumId: mediumId.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_PERSONEN),
+    }),
+  ),
+  // Artikel (#560): Karten mit Bild, Name und Preis (Lädeli); der Preis ist Text («40.–», «gratis»)
+  baustein(
+    "artikel",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            name: kurztext(MAX_KURZTEXT),
+            preis: kurztext(MAX_PREIS).optional(),
+            hinweis: kurztext(MAX_HINWEIS).optional(),
+            mediumId: mediumId.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ARTIKEL),
     }),
   ),
 ]);

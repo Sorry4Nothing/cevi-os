@@ -18,6 +18,7 @@ type Zeile = {
   zeit_bis: string | null;
   ort: string | null;
   anlass_id: string | null;
+  seite_id: string | null;
   stufen: string[];
   pool: string | null;
 };
@@ -32,11 +33,12 @@ const zuEintrag = (z: Zeile): TerminEintrag => ({
   ort: z.ort,
   stufen: z.stufen,
   anlassId: z.anlass_id,
+  seiteId: z.seite_id,
 });
 
 // Tage und Zeiten kommen schon in Zürcher Zeit aus der Abfrage
 const FELDER = sql`
-  programm.id, programm.titel, programm.ort, anlass.id as anlass_id,
+  programm.id, programm.titel, programm.ort, anlass.id as anlass_id, anlass.seite_id,
   case when programm.ganztaegig then programm.tag_von::text else to_char(programm.beginn at time zone 'Europe/Zurich', 'YYYY-MM-DD') end as von,
   case when programm.ganztaegig then programm.tag_bis::text else to_char(coalesce(programm.ende, programm.beginn) at time zone 'Europe/Zurich', 'YYYY-MM-DD') end as bis,
   case when programm.ganztaegig then null else to_char(programm.beginn at time zone 'Europe/Zurich', 'HH24:MI') end as zeit_von,
@@ -114,4 +116,28 @@ export const ladeTerminlisten: Datenquelle = async (
     );
   }
   return { termine };
+};
+
+// Welche Seite zu welchem Anlass gehört (#560): eine Abfrage für alle Seiten des Laufs. Die Seite zeigt dann unter ihren Eckdaten die Schaltfläche zur Anmeldung.
+// Nur Anlässe, die Besucher nach dem Anmelden sehen können («öffentlich» und «angemeldet»); die Anmeldung selbst prüft das Recht erneut
+export const ladeAnlassSeiten: Datenquelle = async (
+  db,
+  abteilungId,
+  seitenIds,
+) => {
+  const anlaesse = new Map<string, string>();
+  if (seitenIds.length === 0) return { anlaesse };
+  const ids: SQL = sql.join(
+    seitenIds.map((s) => sql`${s}::uuid`),
+    sql`, `,
+  );
+  const zeilen = await db.execute<{ id: string; seite_id: string }>(sql`
+    select anlass.id, anlass.seite_id
+    from anlass
+    join programm on programm.id = anlass.programm_id and programm.status = 'aktiv'
+    where anlass.abteilung_id = ${abteilungId} and anlass.seite_id in (${ids})
+      and anlass.sichtbarkeit in ('oeffentlich', 'angemeldet')
+    order by anlass.id`);
+  for (const z of zeilen) anlaesse.set(z.seite_id, z.id);
+  return { anlaesse };
 };

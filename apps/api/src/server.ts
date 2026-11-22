@@ -48,7 +48,7 @@ import {
   synchronisiereWebsite,
 } from "./website/abgleich.js";
 import { ladeStufenfakten } from "./website/stufenfakten.js";
-import { ladeTerminlisten } from "./website/termine-liste.js";
+import { ladeAnlassSeiten, ladeTerminlisten } from "./website/termine-liste.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
 import { erstelleWebsiteSperre, mitSperre } from "./website/sperre.js";
 import {
@@ -212,7 +212,7 @@ if (
           basisUrl,
           stylesheet,
           skripte,
-          datenquellen: [ladeStufenfakten, ladeTerminlisten],
+          datenquellen: [ladeStufenfakten, ladeTerminlisten, ladeAnlassSeiten],
           kontakt: {
             adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
             telefon: konfiguration.KONTAKT_TELEFON,

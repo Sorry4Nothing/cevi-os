@@ -21,6 +21,11 @@ export const MAX_GALERIE = 50;
 export const MIN_KARUSSELL = 3;
 export const MAX_KARUSSELL = 8;
 export const MAX_BAUSTEINE = 100;
+// Bausteine der Inhaltsseiten (#560), wie in src/website/bausteine.ts
+export const MAX_ECKDATEN = 12;
+export const MAX_ZEITSTRAHL = 30;
+export const MAX_PERSONEN = 24;
+export const MAX_ARTIKEL = 60;
 
 const kuerze = (text, n = 60) =>
   text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
@@ -51,6 +56,14 @@ export const FELDNAMEN = {
   anzahl: "Die Anzahl",
   sichtbarkeit: "Die Sichtbarkeit",
   tagIds: "Die Gruppen",
+  bezeichnung: "Die Bezeichnung",
+  wert: "Der Wert",
+  zeit: "Die Zeitangabe",
+  name: "Der Name",
+  funktion: "Die Funktion",
+  email: "Die E-Mail-Adresse",
+  preis: "Der Preis",
+  hinweis: "Der Hinweis",
 };
 export const CODE_TEXTE = {
   too_small: "fehlt oder ist zu kurz.",
@@ -519,6 +532,70 @@ function kartenForm(k, b, reg) {
   ];
 }
 
+// --- Bausteine der Inhaltsseiten (#560): Listen von Einträgen mit Pflicht- und freiwilligen Feldern ---------------------------
+
+// Fehlt ein Pflichtfeld eines Eintrags, meldet die Prüfung den Pfad des Feldes
+const pflicht = (d, ...felder) => [
+  ...((d.eintraege ?? []).length === 0 ? [["daten.eintraege", "fehlt."]] : []),
+  ...(d.eintraege ?? []).flatMap((x, i) =>
+    felder.flatMap((f) =>
+      x[f]?.trim() ? [] : [[`daten.eintraege.${i}.${f}`, "fehlt."]],
+    ),
+  ),
+];
+
+// Ein freiwilliges Bild je Eintrag: wählen, wechseln, entfernen. Der Alt-Text bleibt am Medium
+function bildOptional(k, b, reg, eintrag, pfad) {
+  const index = Number(pfad.split(".").at(-1));
+  return [
+    bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`),
+    ...(eintrag.mediumId
+      ? [
+          knopf("Bild entfernen", {
+            klein: true,
+            kontext: `Eintrag ${index + 1}`,
+            onclick: () => {
+              delete eintrag.mediumId;
+              k.aendere(b);
+              k.formNeu(b, { index, was: "neu" });
+            },
+          }),
+        ]
+      : []),
+  ];
+}
+
+// felder: [Schlüssel, Beschriftung, Optionen von teilEingabe]; bild: der Eintrag hat ein freiwilliges Bild
+function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
+  return listenForm(k, b, {
+    name,
+    listeName: "Einträge",
+    pfadName: "daten.eintraege",
+    liste: () => b.daten.eintraege,
+    max,
+    hinzuText: `${name} hinzufügen`,
+    hinzu: (liste, fertig) => {
+      liste.push({});
+      fertig(liste.length - 1);
+    },
+    zeile: (eintrag, pfad) => [
+      ...felder.map(([schluessel, label, optionen]) =>
+        teilEingabe(
+          k,
+          b,
+          reg,
+          eintrag,
+          schluessel,
+          label,
+          `${pfad}.${schluessel}`,
+          optionen,
+        ),
+      ),
+      ...(bild ? bildOptional(k, b, reg, eintrag, pfad) : []),
+    ],
+  });
+}
+
 // Die Grösse der Datei: Der Server speichert Bytes, das Feld nimmt Kilobyte
 function groesseFeld(k, b, reg) {
   const f = feld({
@@ -836,6 +913,147 @@ export const TYPEN = {
       groesseFeld(k, b, reg),
     ],
   },
+  // Eckdaten und Kennzahlen (#560): Paare aus Bezeichnung und Wert
+  eckdaten: {
+    name: "Eckdaten und Kennzahlen",
+    kurz: (d) =>
+      kuerze(
+        (d.eintraege ?? [])
+          .map((e) =>
+            d.darstellung === "zahlen"
+              ? `${e.wert ?? ""} ${e.bezeichnung ?? ""}`
+              : (e.bezeichnung ?? ""),
+          )
+          .join(" · "),
+        80,
+      ),
+    pruefe: (d) => pflicht(d, "bezeichnung", "wert"),
+    form: (k, b, reg) => [
+      wahl(k, b, reg, "darstellung", "Darstellung", [
+        ["liste", "Eckdaten"],
+        ["zahlen", "Kennzahlen"],
+      ]),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Eckdaten: das Wichtigste auf einen Blick, zum Beispiel Datum, Ort, Kosten, Anmeldeschluss und Kontakt. Kennzahlen: grosse Zahlen mit kurzer Bezeichnung, zum Beispiel «6» und «Stufen». Gehört die Seite zu einem Anlass mit Anmeldung, steht unter den Eckdaten von selbst die Schaltfläche «Zur Anmeldung».",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Eintrag",
+        max: MAX_ECKDATEN,
+        felder: [
+          ["bezeichnung", "Bezeichnung", { maxlength: 60 }],
+          ["wert", "Wert", { maxlength: 300 }],
+          [
+            "link",
+            "Link am Wert (optional)",
+            {
+              optional: true,
+              maxlength: 2000,
+              spellcheck: "false",
+              hilfe: LINK_HILFE,
+            },
+          ],
+        ],
+      }),
+    ],
+  },
+  zeitstrahl: {
+    name: "Zeitstrahl",
+    kurz: (d) =>
+      kuerze((d.eintraege ?? []).map((e) => e.zeit ?? "").join(" · "), 80),
+    pruefe: (d) => pflicht(d, "zeit", "titel"),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Stationen in der Reihenfolge der Liste, zum Beispiel die Geschichte der Abteilung.",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Station",
+        max: MAX_ZEITSTRAHL,
+        felder: [
+          [
+            "zeit",
+            "Zeitangabe",
+            { maxlength: 40, hilfe: "Zum Beispiel 2008 oder Sommer 2013." },
+          ],
+          ["titel", "Titel", { maxlength: 100 }],
+          [
+            "text",
+            "Text (optional)",
+            { optional: true, maxlength: 500, mehrzeilig: true, rows: 3 },
+          ],
+        ],
+      }),
+    ],
+  },
+  personen: {
+    name: "Personen",
+    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen"),
+    pruefe: (d) => pflicht(d, "name"),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Person",
+        max: MAX_PERSONEN,
+        bild: true,
+        felder: [
+          ["name", "Name", { maxlength: 100 }],
+          [
+            "funktion",
+            "Funktion (optional)",
+            { optional: true, maxlength: 100 },
+          ],
+          [
+            "email",
+            "E-Mail-Adresse der Funktion (optional)",
+            {
+              optional: true,
+              maxlength: 254,
+              type: "email",
+              spellcheck: "false",
+              autocapitalize: "off",
+            },
+          ],
+        ],
+      }),
+    ],
+  },
+  artikel: {
+    name: "Artikel",
+    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Artikel", "Artikel"),
+    pruefe: (d) => pflicht(d, "name"),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Karten mit Bild, Name und Preis, zum Beispiel für das Lädeli.",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Artikel",
+        max: MAX_ARTIKEL,
+        bild: true,
+        felder: [
+          ["name", "Name", { maxlength: 100 }],
+          [
+            "preis",
+            "Preis (optional)",
+            {
+              optional: true,
+              maxlength: 40,
+              hilfe: "Zum Beispiel CHF 40.– oder gratis.",
+            },
+          ],
+          ["hinweis", "Hinweis (optional)", { optional: true, maxlength: 200 }],
+        ],
+      }),
+    ],
+  },
   kontaktperson: {
     name: "Kontaktperson",
     kurz: (d, k) => k.personNamen.get(d.personId) ?? "",
@@ -1059,6 +1277,27 @@ export const KATALOG = [
     beschreibung:
       "Zum Beispiel ein PDF im SharePoint, mit Name, Grösse und Typ.",
     neu: () => ({ titel: "", link: "" }),
+  },
+  {
+    typ: "eckdaten",
+    beschreibung:
+      "Das Wichtigste auf einen Blick (Datum, Ort, Kosten) oder grosse Zahlen.",
+    neu: () => ({ darstellung: "liste", eintraege: [{}] }),
+  },
+  {
+    typ: "zeitstrahl",
+    beschreibung: "Stationen mit Zeitangabe, zum Beispiel eine Geschichte.",
+    neu: () => ({ eintraege: [{}] }),
+  },
+  {
+    typ: "personen",
+    beschreibung: "Ansprechpersonen mit Foto, Name, Funktion und E-Mail.",
+    neu: () => ({ eintraege: [{}] }),
+  },
+  {
+    typ: "artikel",
+    beschreibung: "Karten mit Bild, Name und Preis.",
+    neu: () => ({ eintraege: [{}] }),
   },
   {
     typ: "kontaktperson",
