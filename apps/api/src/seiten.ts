@@ -44,10 +44,11 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
       .map((datei) => [datei, lade(`admin/${datei}`)]),
   );
   // Die Vorschau im Editor (#358) lädt den Stil der Website von hier: Die Website selbst liefert die API nicht aus
-  // Mit dem Stil des Kopfs (#558) und der Inhaltsbausteine (#560), den die Website nur auf Seiten mit einem solchen Baustein lädt
+  // Samt dem Stil des Kopfs (#558), des Karussells (#559) und der Inhaltsbausteine (#560), den die Website nur auf Seiten mit einem solchen Baustein lädt
   admin["website-vorschau.css"] =
     lade("website/website.css") +
     lade("website/kopf.css") +
+    lade("website/karussell.css") +
     lade("website/inhalt.css");
   // Der Stil liegt einmal in seite.css; die CSP-freien Seiten setzen ihn ein, statt ihn zu laden
   const stil = lade("seite.css");

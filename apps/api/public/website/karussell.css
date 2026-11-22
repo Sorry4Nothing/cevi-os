@@ -1,0 +1,332 @@
+/* Bilder-Karussell (#559): ein Bildstreifen. Alle Bilder haben dieselbe Höhe und ihr eigenes Format; das aktuelle steht links an der Kante der Spalte, die nächsten laufen rechts aus dem Bild.
+   Ohne Skript ist der Streifen ein Bereich zum Scrollen und Wischen. karussell.js setzt «karussell--aktiv» und ergänzt Lineal, Stand und Knöpfe; ihr Platz ist schon reserviert. */
+
+.karussell {
+  /* Dauer und Kurve aller Übergänge: die Bewegungs-Tokens der Website (#555) */
+  --k-dauer: var(--dauer, 0.2s);
+  --k-kurve: var(--kurve, cubic-bezier(0.2, 0.7, 0.2, 1));
+  --k-intervall: 6s;
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  /* Streifen, Lineal, Leiste: Die Zeilen des Skripts haben ihre Höhe schon, bevor es läuft */
+  grid-template-rows: auto 0.375rem auto;
+  gap: 0.875rem 1.5rem;
+  align-items: center;
+  container-type: inline-size;
+}
+
+.folien {
+  position: relative;
+  display: flex;
+  grid-row: 1;
+  grid-column: 1 / -1;
+  gap: 0.75rem;
+  margin: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.folien::-webkit-scrollbar {
+  display: none;
+}
+
+/* Ohne Skript zeigt die Bildlaufleiste, dass es seitwärts weitergeht */
+@media (scripting: none) {
+  .folien {
+    padding-bottom: 0.5rem;
+    scrollbar-width: thin;
+  }
+
+  .folien::-webkit-scrollbar {
+    display: block;
+    height: 0.5rem;
+  }
+}
+
+.folie {
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.folie figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: none;
+}
+
+/* Gleiche Höhe, eigenes Format: Breite Bilder werden auf die Spalte beschnitten (rechts bleibt Platz für das nächste), hohe behalten eine Mindestbreite */
+.folie img {
+  width: auto;
+  min-width: min(11rem, 70cqi);
+  max-width: 88cqi;
+  height: clamp(13.5rem, 36cqi, 30rem);
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  object-fit: cover;
+}
+
+/* Die Unterschrift ist so breit wie ihr Bild und macht den Streifen nicht breiter */
+.folie figcaption {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Platz der Leiste: ohne Skript steht hier die Anzahl der Bilder */
+.k-stand {
+  display: flex;
+  grid-row: 3;
+  grid-column: 1;
+  align-items: center;
+  height: 2.75rem;
+  margin: 0;
+  color: var(--on-surface-variant);
+  line-height: 1;
+}
+
+/* ===== Mit Skript ===== */
+
+/* Nur das aktuelle Bild ist klar; die anderen treten zurück und lassen sich anklicken */
+.karussell--aktiv .folie:not([data-aktiv]) {
+  cursor: pointer;
+}
+
+.karussell--aktiv .folie:not([data-aktiv]) img {
+  opacity: 0.42;
+}
+
+.karussell--aktiv .folie:not([data-aktiv]):hover img {
+  opacity: 0.7;
+}
+
+.karussell--aktiv .folie:not([data-aktiv]) figcaption {
+  opacity: 0;
+}
+
+/* Lineal: ein Abschnitt je Bild; der aktuelle ist länger und dicker (Form, nicht nur Farbe) und füllt sich, solange das Karussell läuft */
+.k-teile {
+  display: flex;
+  grid-row: 2;
+  grid-column: 1 / -1;
+  gap: 0.375rem;
+  align-items: center;
+}
+
+.k-teil {
+  flex: 1;
+  height: 0.125rem;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--outline-variant);
+}
+
+.k-teil[data-aktiv] {
+  flex: 3;
+  height: 0.375rem;
+  background: var(--outline);
+}
+
+.k-fuell {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-full);
+  background: var(--on-surface);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.k-teil[data-aktiv] .k-fuell {
+  transform: none;
+}
+
+/* Stand: «02 / 06» */
+.k-zahl {
+  color: var(--on-surface);
+  font-size: 1.75rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.k-zahl span {
+  margin-left: 0.375rem;
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.k-knoepfe {
+  display: flex;
+  grid-row: 3;
+  grid-column: 2;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.k-knoepfe button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Pause und Start: leise, mit Wort */
+.k-pause {
+  gap: 0.375rem;
+  padding: 0 0.875rem 0 0.5rem;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.k-pause:hover {
+  background: var(--surface-container);
+}
+
+/* Vor und Zurück: ein Paar in Cevi-Blau, in der Mitte geteilt */
+.k-pfeile {
+  display: flex;
+  gap: 1px;
+}
+
+.k-pfeile button {
+  width: 3.5rem;
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.k-pfeile button:first-child {
+  border-radius: var(--r-full) 0.25rem 0.25rem var(--r-full);
+}
+
+.k-pfeile button:last-child {
+  border-radius: 0.25rem var(--r-full) var(--r-full) 0.25rem;
+}
+
+/* Der Fokusring hebt sich auf Blau und auf dem Grund ab */
+.k-pfeile button:focus-visible {
+  z-index: 1;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .karussell--aktiv .folie img,
+  .karussell--aktiv .folie figcaption {
+    transition: opacity var(--k-dauer) var(--k-kurve);
+  }
+
+  /* Weiter Weg (zurück zum ersten Bild): Der Streifen blendet aus, springt und blendet ein */
+  .karussell--aktiv .folien {
+    transition: opacity var(--k-dauer) var(--k-kurve);
+  }
+
+  .folien[data-blende] {
+    opacity: 0;
+  }
+
+  .k-teil {
+    transition:
+      flex-grow var(--k-dauer) var(--k-kurve),
+      height var(--k-dauer) var(--k-kurve);
+  }
+
+  .k-knoepfe .i {
+    transition: transform var(--k-dauer) var(--k-kurve);
+  }
+
+  /* Der Pfeil rückt in seine Richtung */
+  .k-zurueck:hover .i {
+    transform: translateX(-0.1875rem);
+  }
+
+  .k-weiter:hover .i {
+    transform: translateX(0.1875rem);
+  }
+
+  .k-pfeile button:active .i {
+    transform: scale(0.88);
+  }
+
+  /* Läuft das Karussell, füllt sich der aktuelle Abschnitt bis zum Wechsel; das Ende der Animation löst ihn aus (karussell.js). «halt» hält sie bei Zeigen und Fokus an */
+  .karussell[data-lauf] .k-teil[data-aktiv] .k-fuell {
+    animation: k-lauf var(--k-intervall) linear forwards;
+  }
+
+  .karussell[data-lauf="halt"] .k-teil[data-aktiv] .k-fuell {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes k-lauf {
+  from {
+    transform: scaleX(0);
+  }
+
+  to {
+    transform: none;
+  }
+}
+
+/* Schmale Spalte und Handy: höhere Bilder im Verhältnis zur Breite, Knöpfe über die ganze Breite verteilt */
+@container (max-width: 34rem) {
+  .folie img {
+    max-width: 86cqi;
+    height: clamp(13.5rem, 62cqi, 18rem);
+  }
+
+  .k-zahl {
+    font-size: 1.5rem;
+  }
+
+  .k-knoepfe {
+    gap: 0.25rem;
+  }
+
+  .k-pfeile button {
+    width: 3rem;
+  }
+}
+
+/* Sehr schmal (320 px, starker Zoom): Pause und Start nur als Symbol; das Wort bleibt für Screenreader */
+@container (max-width: 19rem) {
+  .k-pause {
+    padding: 0;
+  }
+
+  .k-pause span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (forced-colors: active) {
+  .k-teil,
+  .k-fuell {
+    background: CanvasText;
+  }
+
+  .k-teil[data-aktiv] {
+    background: Canvas;
+    outline: 1px solid CanvasText;
+  }
+
+  .k-pfeile button {
+    border: 1px solid ButtonText;
+  }
+}

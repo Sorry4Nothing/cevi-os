@@ -493,6 +493,10 @@ function galerieForm(k, b, reg, karussell = false) {
         {
           optional: true,
           maxlength: 300,
+          // Im Karussell steht unter jedem Bild ein Text (#559)
+          ...(karussell && {
+            hilfe: "Ohne Bildunterschrift steht der Alt-Text unter dem Bild.",
+          }),
         },
       ),
     ],
