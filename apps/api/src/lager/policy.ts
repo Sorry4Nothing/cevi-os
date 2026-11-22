@@ -5,7 +5,10 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
 import type { Person } from "../rechte.js";
+import { ladeRollenRechte } from "./rechte.js";
 import {
+  istGeschlossen,
+  RECHTE_KATALOG,
   standardErlaubt,
   type LagerRecht,
   type LagerRolle,
@@ -28,18 +31,28 @@ export type LagerZugriff = {
   mitglied: boolean;
   // Abgeschlossen oder archiviert
   geschlossen: boolean;
+  // Die eingestellten Rechte dieser Rolle im Lager (lager_rolle_recht, #365): Recht -> erlaubt. Die Lagerleitung hat keine Einstellungen. Eine fehlende Zeile gilt als Standard (darf)
+  rechte: ReadonlyMap<string, boolean>;
 };
 
 export type LagerEnv = {
   Variables: { person: Person; lager: LagerZugriff };
 };
 
-export const istGeschlossen = (status: LagerZeile["status"]) =>
-  status === "abgeschlossen" || status === "archiviert";
+export { istGeschlossen };
 
-// Die Stelle, die L0b (#365) umbaut: Dann liest lagerZugriff() die Zeilen von lager_rolle_recht für (Lager, Rolle) in den Zugriff, und darf() bleibt synchron. Bis dahin gilt die Standardmatrix aus rechte-katalog.ts
-export function darf(zugriff: Pick<LagerZugriff, "rolle">, recht: LagerRecht) {
-  return standardErlaubt(zugriff.rolle, recht);
+// Ein eingestelltes Recht (lager_rolle_recht) gilt vor dem Standard des Katalogs; ohne Zeile gilt der Standard, ein unbekanntes Recht ist verboten. Die Lagerleitung hat immer jedes Recht des Katalogs und ist nicht einstellbar
+export function darf(
+  zugriff: Pick<LagerZugriff, "rolle"> & Partial<Pick<LagerZugriff, "rechte">>,
+  recht: LagerRecht,
+) {
+  if (
+    zugriff.rolle === "lagerleitung" ||
+    !Object.hasOwn(RECHTE_KATALOG, recht)
+  ) {
+    return standardErlaubt(zugriff.rolle, recht);
+  }
+  return zugriff.rechte?.get(recht) ?? standardErlaubt(zugriff.rolle, recht);
 }
 
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
@@ -69,6 +82,11 @@ export async function ladeLagerZugriff(
     rolle,
     mitglied: zeile.rolle !== null,
     geschlossen: istGeschlossen(zeile.lager.status),
+    // Wirkt bei der nächsten Anfrage: Die Einstellungen werden bei jeder Anfrage gelesen, nie zwischengespeichert
+    rechte:
+      rolle === "lagerleitung"
+        ? new Map()
+        : await ladeRollenRechte(db, zeile.lager.id, rolle),
   };
 }
 
@@ -78,6 +96,8 @@ const lagerId = z.uuid();
 export type LagerZugriffOptionen = {
   // Das Recht, das die Route braucht; ohne Angabe genügt die Mitgliedschaft
   recht?: LagerRecht;
+  // Nur die Lagerleitung (und damit die Abteilungsleitung): für die festen Rechte, die sich nicht einstellen lassen, etwa die Rechte der Rollen selbst. Wie «recht»: fehlt sie, 403 vor dem Schreibschutz
+  nurLagerleitung?: true;
   // Für die wenigen schreibenden Routen, die auch ein geschlossenes Lager ändern dürfen; sonst gilt der Schreibschutz für jede Methode ausser GET, HEAD und OPTIONS
   auchGeschlossen?: true;
 };
@@ -90,6 +110,9 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
     const zugriff = await ladeLagerZugriff(db, c.get("person"), id.data);
     if (!zugriff) throw new HTTPException(404);
     if (optionen.recht && !darf(zugriff, optionen.recht)) {
+      throw new HTTPException(403);
+    }
+    if (optionen.nurLagerleitung && zugriff.rolle !== "lagerleitung") {
       throw new HTTPException(403);
     }
     if (

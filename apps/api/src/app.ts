@@ -24,6 +24,7 @@ import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
+import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import {
@@ -218,6 +219,7 @@ export function erstelleApp({
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
       .route("/api/v1/redaktion", erstelleRedaktionRouten({ db }))
       .route("/api/v1/admin/zeitregeln", erstelleZeitregelRouten({ db }))
