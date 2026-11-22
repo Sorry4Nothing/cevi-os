@@ -135,6 +135,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
   "GET /admin/system.js": { erwartet: alle(200) },
+  "GET /admin/plattform.js": { erwartet: alle(200) },
   "GET /admin/tags.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
@@ -1436,6 +1437,36 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(403),
       admin: 201,
       demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Der Admin schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
+  "GET /api/v1/plattform/schalter": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/plattform/schalter": {
+    body: () => ({ art: "wartung", bereich: "chat" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/plattform/schalter": {
+    url: () => "/api/v1/plattform/schalter?art=wartung&bereich=chat",
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      demoAdmin: 204,
       deaktiviert: 401,
       ohneLogin: 401,
     },

@@ -5,6 +5,7 @@ import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
 import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
+import * as plattform from "./plattform.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as tags from "./tags.js";
@@ -79,6 +80,13 @@ const BEREICHE = [
     zeitregeln,
     "uhr",
     "Pushes an Eltern, die noch nicht geantwortet haben.",
+  ],
+  [
+    "plattform",
+    "Plattform",
+    plattform,
+    "schild",
+    "Wartungsmodus für Bereiche schalten.",
   ],
   [
     "system",
@@ -467,9 +475,9 @@ async function pruefeKonto(nachAnmeldung = true) {
     );
     zeigeVerwaltung();
   } else {
-    // Alle anderen: nur der Bereich «Website», und nur mit Bearbeitungsrecht. Es werden keine Admin-Daten geladen
+    // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
     zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
-    if (!zugang.redigieren) {
+    if (zugang.bereiche.length === 0) {
       zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
         "403 · Kein Zugang",
         "sperre",

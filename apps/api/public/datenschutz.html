@@ -91,6 +91,29 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-kalenderlink">
+        <h3 id="k-kalenderlink">Persönlicher Kalenderlink</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Der Prüfwert deines geheimen Kalenderlinks (nie der Link selbst),
+            die letzten vier Zeichen zur Anzeige, wann du ihn erzeugt hast und
+            wann er zuletzt abgerufen wurde.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Du abonnierst die Termine, die du in der App siehst, in einer
+            Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn
+            jederzeit erneuern oder widerrufen.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht
+            wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-profilbild">
         <h3 id="k-profilbild">Profilbild</h3>
         <dl>
@@ -370,7 +393,9 @@
             meldet, dass es Neues gibt; sie speichert nichts. Dazu die Aufgaben
             des Lagers mit Titel, Status, Frist, Notiz und Ressort, der
             verantwortlichen Person und den Personen, die die Aufgabe
-            unterstützen. Dazu die Einkaufsliste mit Artikel, Menge, Einheit und
+            unterstützen. Zu einer Aufgabe gehören ihre Checkliste (mit der
+            Person, die einen Punkt abgehakt hat), ihre Links und ihre
+            Stichworte. Dazu die Einkaufsliste mit Artikel, Menge, Einheit und
             Warengruppe und der Person, die einkauft, samt den Vorschlägen und
             den von der Leitung gesetzten Warengruppen je Artikelname.
           </dd>
@@ -384,8 +409,11 @@
             gliedern die Arbeit im Lager: Jedes hat eine Leitung und eine
             Stellvertretung, dazu Links und Notizen. Die Aufgaben halten fest,
             was im Lager zu tun ist, mit Status, Frist, Ressort, einer
-            verantwortlichen Person und deren Unterstützung. Die Einkaufsliste
-            hält fest, was fürs Lager eingekauft wird und wer es einkauft.
+            verantwortlichen Person und deren Unterstützung. Checkliste, Links
+            und Stichworte halten Teilschritte, Unterlagen und Schlagwörter der
+            Aufgabe fest; eine wiederkehrende Aufgabe legt beim Erledigen die
+            nächste an. Die Einkaufsliste hält fest, was fürs Lager eingekauft
+            wird und wer es einkauft.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -403,9 +431,11 @@
             Für jede teilnehmende Person: Vorname, Nachname, Stufe und ein
             freiwilliger Cevi-Name; dazu, wer den Eintrag erfasst oder geändert
             hat. Beim Abzählen ein Haken je Teilnehmende und je Mitglied des
-            Lagers mit dem Zeitpunkt. Keine Angaben zur Gesundheit, keine
-            Telefonnummer, keine Adresse. Das Team sieht Vorname, Nachname und
-            Stufe.
+            Lagers mit dem Zeitpunkt. Für die Einteilung in Programmgruppen,
+            welcher Gruppe eine teilnehmende Person oder ein Mitglied des Lagers
+            angehört, und ob eine teilnehmende Person «nicht dabei» ist. Keine
+            Angaben zur Gesundheit, keine Telefonnummer, keine Adresse. Das Team
+            sieht Vorname, Nachname und Stufe.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -418,9 +448,38 @@
           <dt>Aufbewahrung</dt>
           <dd>
             Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf
-            die Teilnehmenden und das Abzählen endgültig; im Protokoll der
-            Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge
-            früher entfernen. Auf Anfrage löscht die Leitung Daten.
+            die Teilnehmenden, das Abzählen und die Einteilung in Gruppen
+            endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die
+            Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-einteilung">
+        <h3 id="k-lager-einteilung">Zimmer und Zelte im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jedes Zimmer und Zelt: Name, Art, Plätze und eine Notiz. Für
+            jede Einteilung: welche teilnehmende Person oder welches Mitglied
+            des Lagers in welchem Zimmer liegt, wann und von welchem Konto die
+            Einteilung gesetzt wurde. Keine weiteren Angaben zur Person.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und
+            einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein.
+            Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner.
+            Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren
+            Angaben zur Person.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs
+            Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die
+            Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf
+            Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
       </section>
@@ -495,7 +554,9 @@
             Für jeden Beitrag: Titel, Text, ob er wichtig oder angeheftet ist,
             von wann bis wann er sichtbar ist und an wen er sich richtet (alle,
             eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien
-            und das Konto, das ihn geschrieben hat.
+            und das Konto, das ihn geschrieben hat. Bei einer Umfrage die
+            Antworten und die Stimmen der Personen, dazu die Reaktionen der
+            Personen auf Beiträge.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -506,7 +567,13 @@
             Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der
             Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im
             Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus,
-            der nur den Lagertitel nennt, nie den Inhalt.
+            der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann
+            eine Umfrage hängen: Die Antworten, welche Person welche Antwort
+            gewählt hat und optional bis wann sie offen ist. Die Namen der
+            Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem
+            Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag
+            mit einem von fünf festen Zeichen reagieren; es zählen nur die
+            Anzahl und die eigene Reaktion.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -577,6 +644,34 @@
             Lager gelöscht wird. Die Abweichungen und eigenen Punkte einer
             Person, bis sie sie löscht, das Lager gelöscht wird oder das Konto
             gelöscht wird. Auf Anfrage löscht die Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-dokumente">
+        <h3 id="k-lager-dokumente">Dokumente im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jedes Dokument: der Titel, die Stichworte, der Verweis auf die
+            Datei, ob das Team es sehen darf, wann es angelegt wurde und von
+            welchem Konto.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen
+            Titel, Stichworte und verweist auf eine Datei im SharePoint der
+            Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein
+            Dokument für das Team frei; ohne Freigabe sieht das Team es nicht.
+            Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft
+            nur über Titel und Stichworte.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung das Dokument löscht oder das Lager gelöscht wird;
+            die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die
+            Angabe, wer das Dokument angelegt hat. Auf Anfrage löscht die
+            Leitung Daten.
           </dd>
         </dl>
       </section>

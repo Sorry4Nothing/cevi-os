@@ -593,6 +593,7 @@ describe("Listen und Panel", () => {
     const ich = async (name: string) =>
       (await (await anfrage(konten[name], "GET", `${R}/ich`)).json()) as {
         redigieren: boolean;
+        bereiche: string[];
         verwalten: boolean;
         rechte: string[];
       };
@@ -613,9 +614,11 @@ describe("Listen und Panel", () => {
       verwalten: false,
       rechte: ["medien.verwalten"],
     });
+    // Der Wartungsmodus öffnet nur den Bereich «plattform», nicht die Website-Verwaltung
     expect(await ich("nurWartung")).toMatchObject({
       redigieren: false,
-      rechte: [],
+      bereiche: ["plattform"],
+      rechte: ["wartungsmodus.website"],
     });
     // Stufenleitung: Zugang, aber keine Plattformrechte
     expect(await ich("slA")).toMatchObject({

@@ -164,7 +164,7 @@ describe("GET /api/v1/redaktion/ich", () => {
       { redigieren: false, verwalten: false },
     ],
     ["Eltern", () => eltern, { redigieren: false, verwalten: false }],
-  ])("%s", async (_, konto, erwartet) => {
+  ])("%s", async (name, konto, erwartet) => {
     const antwort = await holen(konto(), ICH);
     expect(antwort.status).toBe(200);
     const koerper = (await antwort.json()) as {
@@ -173,7 +173,14 @@ describe("GET /api/v1/redaktion/ich", () => {
       verwalten: boolean;
     };
     expect(koerper).toMatchObject(erwartet);
-    expect(koerper.bereiche).toEqual(koerper.redigieren ? ["website"] : []);
+    // Die Abteilungsleitung darf auch den Wartungsmodus der Website schalten (#424): «plattform»
+    expect(koerper.bereiche).toEqual(
+      !koerper.redigieren
+        ? []
+        : name === "Admin"
+          ? ["website", "plattform"]
+          : ["website"],
+    );
     expect(koerper.verwalten).toBe(erwartet.verwalten);
   });
 
