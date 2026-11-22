@@ -1,4 +1,99 @@
 /* Reiter «Vorschläge» (#441 (TD3)). Klassen mit dem Vorsatz «tm-vorschlaege-» */
 .tm-vorschlaege-titel {
   margin: 0 0 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.tm-vorschlaege-hinweis {
+  max-width: 65ch;
+  margin: 0 0 1rem;
+}
+
+.tm-vorschlaege-filter {
+  margin: 0 0 0.75rem;
+}
+
+.tm-vorschlaege-zaehler {
+  margin: 0.75rem 0;
+  font-weight: 700;
+}
+
+.tm-vorschlaege-zaehler:empty {
+  display: none;
+}
+
+.tm-vorschlaege-meldung:not(:empty) {
+  margin: 0.5rem 0 0;
+}
+
+.tm-vorschlaege-mehr {
+  margin-top: 0.75rem;
+}
+
+/* Trefferfläche 44 px hoch, ohne die Zeile zu vergrössern (die Zelle hat 12 px Abstand) */
+.tm-vorschlaege-link {
+  display: inline-block;
+  padding-block: 11px;
+  margin-block: -11px;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  overflow-wrap: anywhere;
+}
+
+/* Kopf des Details: Titel und Status nebeneinander, bei Platzmangel untereinander */
+.tm-vorschlaege-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin: 0.75rem 0 1rem;
+}
+
+.tm-vorschlaege-kopf .tm-vorschlaege-titel {
+  margin: 0;
+}
+
+/* Name links, Wert rechts daneben; unter 40rem untereinander */
+.tm-vorschlaege-werte {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: 12px 24px;
+  max-width: 48rem;
+  margin: 0 0 1.5rem;
+}
+
+.tm-vorschlaege-werte > div {
+  display: contents;
+}
+
+.tm-vorschlaege-werte dt {
+  color: var(--leise);
+}
+
+.tm-vorschlaege-werte dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.tm-vorschlaege-text {
+  white-space: pre-wrap;
+}
+
+/* Kategorienamen sind frei gewählt und dürfen umbrechen */
+.tm-vorschlaege-kategorien .chip {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 40rem) {
+  .tm-vorschlaege-werte {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .tm-vorschlaege-werte dd {
+    margin-bottom: 12px;
+  }
 }

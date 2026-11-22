@@ -20,6 +20,7 @@ export const DATEI_RECHTE: readonly LagerRecht[] = [
   "dokumente.bearbeiten",
   "protokolle.bearbeiten",
   "infos.bearbeiten",
+  "tagesseiten.bearbeiten",
 ];
 
 export const hostSchema = z
@@ -90,7 +91,7 @@ export async function ladeDateien(db: Db, lagerId: string, ids: string[]) {
 
 // Für Module beim Einbinden: Der Eintrag muss zu diesem Lager gehören und darf nicht gelöscht sein, sonst 400 (nicht 404: Die Route des Moduls hat ihr Ziel schon gefunden)
 export async function pruefeDateiImLager(
-  db: Db,
+  db: Pick<Db, "select">,
   lagerId: string,
   dateiId: string,
 ) {
