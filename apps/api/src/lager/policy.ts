@@ -57,12 +57,6 @@ export function darf(
   return zugriff.rechte?.get(recht) ?? standardErlaubt(zugriff.rolle, recht);
 }
 
-// Mit mindestens einem der Rechte (ein einzelnes Recht oder eine Liste)
-export const darfEines = (
-  zugriff: Parameters<typeof darf>[0],
-  recht: LagerRecht | readonly LagerRecht[],
-) => [recht].flat().some((r) => darf(zugriff, r));
-
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
 export async function ladeLagerZugriff(
   db: Db,
@@ -103,8 +97,10 @@ const LESEND = new Set(["GET", "HEAD", "OPTIONS"]);
 const lagerId = z.uuid();
 
 export type LagerZugriffOptionen = {
-  // Das Recht, das die Route braucht; ohne Angabe genügt die Mitgliedschaft. Eine Liste genügt mit einem der Rechte (zum Beispiel «alle oder eigene Aufgaben»); die Route fragt dann selbst, welches es war
-  recht?: LagerRecht | readonly LagerRecht[];
+  // Das Recht, das die Route braucht; ohne Angabe genügt die Mitgliedschaft
+  recht?: LagerRecht;
+  // Eines von mehreren Rechten genügt (zum Beispiel wer irgendein Modul bearbeiten darf, das Dateien einbindet); fehlen alle, 403 wie bei «recht»
+  einesDerRechte?: readonly LagerRecht[];
   // Nur die Lagerleitung (und damit die Abteilungsleitung): für die festen Rechte, die sich nicht einstellen lassen, etwa die Rechte der Rollen selbst. Wie «recht»: fehlt sie, 403 vor dem Schreibschutz
   nurLagerleitung?: true;
   // Für die wenigen schreibenden Routen, die auch ein geschlossenes Lager ändern dürfen; sonst gilt der Schreibschutz für jede Methode ausser GET, HEAD und OPTIONS
@@ -118,7 +114,13 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
     if (!id.success) throw new HTTPException(400);
     const zugriff = await ladeLagerZugriff(db, c.get("person"), id.data);
     if (!zugriff) throw new HTTPException(404);
-    if (optionen.recht && !darfEines(zugriff, optionen.recht)) {
+    if (optionen.recht && !darf(zugriff, optionen.recht)) {
+      throw new HTTPException(403);
+    }
+    if (
+      optionen.einesDerRechte &&
+      !optionen.einesDerRechte.some((r) => darf(zugriff, r))
+    ) {
       throw new HTTPException(403);
     }
     if (optionen.nurLagerleitung && zugriff.rolle !== "lagerleitung") {

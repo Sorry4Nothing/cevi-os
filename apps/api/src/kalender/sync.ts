@@ -15,6 +15,7 @@ import { gleicheAb } from "./abgleich.js";
 import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeKalender } from "./abruf.js";
 import { findeNachfolger } from "./nachfolger.js";
+import { ordneTagsZu } from "./tags-zuordnen.js";
 import { ordneAutomatischZu } from "./zuordnung.js";
 
 // Beliebige feste Zahl: pg_try_advisory_lock braucht einen Schlüssel, der in der ganzen Datenbank nur diesem Job gehört
@@ -123,17 +124,21 @@ async function lauf(db: Db, jetzt: Date) {
                 ende: roh`excluded.ende`,
                 tagVon: roh`excluded.tag_von`,
                 tagBis: roh`excluded.tag_bis`,
+                kategorien: roh`excluded.kategorien`,
+                ort: roh`excluded.ort`,
                 // Wieder im Kalender heisst wieder aktiv, auch nach einer Absage
                 status: "aktiv",
               },
             })
-            .returning({ id: programm.id });
+            .returning({ id: programm.id, kategorien: programm.kategorien });
           // Nach dem Upsert, damit ein neuer Titel gleich zählt; Zuordnungen von Hand bleiben (zuordnung.ts)
           await ordneAutomatischZu(
             tx,
             eine.id,
             aktuell.map((z) => z.id),
           );
+          // Im selben Lauf und derselben Transaktion; gebündelt für alle Programme, schreibt nur den Unterschied (#432)
+          await ordneTagsZu(tx, eine.id, aktuell);
         }
         // Nach den Übernahmen, damit eine Absage im selben Lauf gewinnt; unbekannte IDs treffen nichts
         if (absagen.length > 0) {

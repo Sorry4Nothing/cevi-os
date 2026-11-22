@@ -1,7 +1,7 @@
 import { getTableName } from "drizzle-orm";
 import type { AnyPgColumn, PgTable } from "drizzle-orm/pg-core";
 import type { Db } from "../db/client.js";
-import type { LagerZugriff } from "./policy.js";
+import { darf, type LagerZugriff } from "./policy.js";
 import type { LagerRecht } from "./rechte-katalog.js";
 
 // Register der Lager-Tabellen mit Feed (#366). Jedes Modul meldet seine Tabelle einmal beim Laden seiner Routen an (registriereLagerTabelle). Ohne Eintrag schreibt lager/sync.ts nicht in die Tabelle, und der Feed lieferte ihre Zeilen nie: Wer die Anmeldung vergisst, bekommt einen Fehler beim ersten Schreiben statt einer Lücke im Rechtefilter.
@@ -19,17 +19,33 @@ export type LagerSpaltenTabelle = PgTable & {
   lagerSeq: AnyPgColumn;
 };
 
+// Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
+type Sichtbar = (
+  db: Db,
+  zugriff: LagerZugriff,
+  ids: string[],
+) => Promise<Set<string>>;
+
 export type LagerTabellenEintrag = {
   tabelle: LagerSpaltenTabelle;
-  // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Eine Liste genügt mit einem der Rechte (Aufgaben: alle oder eigene)
-  recht: LagerRecht | readonly LagerRecht[];
-  // Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Fehlt er, gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
-  sichtbar?: (
-    db: Db,
-    zugriff: LagerZugriff,
-    ids: string[],
-  ) => Promise<Set<string>>;
-};
+} & (
+  | {
+      // Das Leserecht des Katalogs (rechte-katalog.ts): Wer es nicht hat, bekommt von dieser Tabelle nichts im Feed, auch nicht die Zeilen-IDs. Eine Liste genügt mit einem der Rechte (Aufgaben: alle oder eigene). Ohne «sichtbar» gilt jede Zeile der Tabelle als lesbar, sobald das Recht da ist
+      recht: LagerRecht | readonly LagerRecht[];
+      sichtbar?: Sichtbar;
+    }
+  | {
+      // Für Tabellen, die kein eigenes Leserecht haben, weil sie über die Datensätze anderer Module gelesen werden (lager_datei): «sichtbar» entscheidet allein und ist Pflicht
+      recht: null;
+      sichtbar: Sichtbar;
+    }
+);
+
+// Darf die Rolle diese Tabelle im Feed und in den Ereignissen überhaupt sehen? Ohne eigenes Recht (null) entscheidet allein «sichtbar»
+export const darfTabelleLesen = (
+  zugriff: Parameters<typeof darf>[0],
+  recht: LagerTabellenEintrag["recht"],
+) => recht === null || [recht].flat().some((r) => darf(zugriff, r));
 
 const register = new Map<string, LagerTabellenEintrag>();
 

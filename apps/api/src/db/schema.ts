@@ -34,6 +34,8 @@ export const abteilung = pgTable("abteilung", {
   googleKalenderId: text("google_kalender_id"),
   syncOkAm: zeitpunkt("sync_ok_am"),
   syncFehler: text("sync_fehler"),
+  // Erlaubte Hosts für Datei-Links im Lager (#370), kleingeschrieben; NULL = keine Einschränkung
+  dateiHosts: text("datei_hosts").array(),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
@@ -335,6 +337,13 @@ export const programm = pgTable(
     })
       .notNull()
       .default("eltern"),
+    // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
+    kategorien: text("kategorien")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // LOCATION des Termins (#432)
+    ort: text("ort"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(
@@ -357,7 +366,7 @@ export const programm = pgTable(
   ],
 );
 
-// Von der Webseite der Stufe abgerufen (kalender/eckdaten-sync.ts) oder im Editor gepflegt (routes/redaktion/eckdaten.ts, Spalte «quelle»), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
+// Die festen Felder der Stufenseite, im Editor gepflegt (routes/redaktion/eckdaten.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
 // Der Schlüssel ist Stufe und Tag; die Route hängt sie über beides an das Programm
 export const programmEckdaten = pgTable(
   "programm_eckdaten",
@@ -374,17 +383,14 @@ export const programmEckdaten = pgTable(
     schlussZeit: text("schluss_zeit"),
     mitnehmen: text("mitnehmen"),
     abgerufenAm: zeitpunkt("abgerufen_am").notNull().defaultNow(),
-    // «web»: ausgelesen von der alten Webseite (überschreibt das Auslesen); «seite»: gepflegt im Editor (#355), das Auslesen lässt die Zeile in Ruhe
-    quelle: text("quelle", { enum: ["web", "seite"] })
+    // Nur noch «seite» (gepflegt im Editor, #355); «web» war das Auslesen der alten Webseiten, das #361 entfernt hat
+    quelle: text("quelle", { enum: ["seite"] })
       .notNull()
-      .default("web"),
+      .default("seite"),
   },
   (t) => [
     primaryKey({ columns: [t.stufeId, t.tag] }),
-    check(
-      "programm_eckdaten_quelle_check",
-      sql`${t.quelle} in ('web', 'seite')`,
-    ),
+    check("programm_eckdaten_quelle_check", sql`${t.quelle} = 'seite'`),
   ],
 );
 
@@ -710,3 +716,6 @@ export * from "./schema-website.js";
 
 // Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
 export * from "./schema-lager.js";
+
+// Termine (#432): Zuordnung Kategorie zu Tag
+export * from "./schema-termine.js";

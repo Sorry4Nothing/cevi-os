@@ -48,11 +48,15 @@ const pruefungAntwort = (fehler: NonNullable<Pruefung>) => ({
 export function erstelleAufgabenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   // Die Rechte stehen in der Middleware (403 vor dem Schreibschutz 409); welches davon galt, fragt die Route selbst
   const lesen = lagerZugriff(db, {
-    recht: ["aufgaben.lesen_alle", "aufgaben.bearbeiten", "aufgaben.eigene"],
+    einesDerRechte: [
+      "aufgaben.lesen_alle",
+      "aufgaben.bearbeiten",
+      "aufgaben.eigene",
+    ],
   });
   const bearbeiten = lagerZugriff(db, { recht: "aufgaben.bearbeiten" });
   const statusRecht = lagerZugriff(db, {
-    recht: ["aufgaben.bearbeiten", "aufgaben.eigene"],
+    einesDerRechte: ["aufgaben.bearbeiten", "aufgaben.eigene"],
   });
 
   return (
