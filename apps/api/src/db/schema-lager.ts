@@ -546,6 +546,29 @@ export const anwesenheitAnfrage = pgTable(
   ],
 );
 
+// Pinnwand des Lagers (#381). Ein Beitrag hat Titel, Text, die Kennzeichen «wichtig» und «angeheftet» und ein Zeitfenster (sichtbar_ab, sichtbar_bis; leer = unbegrenzt). Wer ihn geschrieben hat, steht in erstellt_von. Die Zeitfenster wertet die Abfrage aus, es gibt keinen Job. Geschrieben wird nur über lager/sync.ts
+export const pinnwandBeitrag = pgTable(
+  "pinnwand_beitrag",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    text: text("text").notNull().default(""),
+    wichtig: boolean("wichtig").notNull().default(false),
+    angeheftet: boolean("angeheftet").notNull().default(false),
+    sichtbarAb: timestamp("sichtbar_ab", { withTimezone: true }),
+    sichtbarBis: timestamp("sichtbar_bis", { withTimezone: true }),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel mit Lager: Empfänger und Datei eines Beitrags können nie zu einem Beitrag eines anderen Lagers gehören
+    unique("pinnwand_beitrag_lager_id_id_uq").on(t.lagerId, t.id),
+    index("pinnwand_beitrag_lager_idx").on(t.lagerId),
+    check(
+      "pinnwand_beitrag_check",
+      sql`char_length(${t.titel}) between 1 and 200 and char_length(${t.text}) <= 10000 and (${t.sichtbarAb} is null or ${t.sichtbarBis} is null or ${t.sichtbarBis} > ${t.sichtbarAb})`,
+    ),
+  ],
+);
+
 // Teilnehmende des Lagers (#384): nur Name und Stufe, bewusst keine Gesundheitsdaten, kein Telefon und keine Adresse (Test in lager/teilnehmer.test.ts hält die Spaltenliste fest). cevi_name ist der Anzeigename für Aushänge (Cevi-Name, sonst Vorname). kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anlass-Anmeldung: anmeldung_id ohne Fremdschlüssel, bis der Auftrag Termine die Anmeldung anlegt; beide sind über die API noch nicht setzbar. Geschrieben wird nur über lager/sync.ts. Nach dem Lager löscht ein täglicher Lauf die Zeilen (lager/teilnehmer.ts)
 export const teilnehmer = pgTable(
   "teilnehmer",
@@ -569,6 +592,67 @@ export const teilnehmer = pgTable(
       "teilnehmer_text_check",
       sql`char_length(${t.vorname}) between 1 and 100 and char_length(${t.nachname}) between 1 and 100 and (${t.ceviName} is null or char_length(${t.ceviName}) between 1 and 50) and (${t.stufe} is null or char_length(${t.stufe}) between 1 and 50)`,
     ),
+  ],
+);
+
+// Empfänger eines Beitrags: eine Rolle oder eine Person je Zeile. Ohne Zeile gilt der Beitrag für alle Mitglieder. Keine eigenen Feed-Spalten: Die Empfänger gehören zum Beitrag und werden mit ihm gesetzt (die Version des Beitrags steigt dabei)
+export const pinnwandEmpfaenger = pgTable(
+  "pinnwand_empfaenger",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    beitragId: uuid("beitrag_id").notNull(),
+    rolle: text("rolle", { enum: ["leitung", "team", "lesen"] }),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (t) => [
+    foreignKey({
+      name: "pinnwand_empfaenger_beitrag_fk",
+      columns: [t.lagerId, t.beitragId],
+      foreignColumns: [pinnwandBeitrag.lagerId, pinnwandBeitrag.id],
+    }).onDelete("cascade"),
+    uniqueIndex("pinnwand_empfaenger_rolle_uq")
+      .on(t.beitragId, t.rolle)
+      .where(sql`${t.rolle} is not null`),
+    uniqueIndex("pinnwand_empfaenger_person_uq")
+      .on(t.beitragId, t.personId)
+      .where(sql`${t.personId} is not null`),
+    check(
+      "pinnwand_empfaenger_check",
+      sql`(${t.rolle} is null) <> (${t.personId} is null) and (${t.rolle} is null or ${t.rolle} in ('leitung', 'team', 'lesen'))`,
+    ),
+  ],
+);
+
+// Eine Datei am Beitrag: Verweis auf lager_datei (#370, eine Verknüpfung auf den SharePoint, kein Upload). Wer die Datei sieht, bestimmt der Beitrag (lager/pinnwand.ts meldet den Verweis an). ON DELETE RESTRICT: Eine eingebundene Datei entfernt der Aufräumlauf nie
+export const pinnwandDatei = pgTable(
+  "pinnwand_datei",
+  {
+    ...lagerSpalten(),
+    beitragId: uuid("beitrag_id").notNull(),
+    dateiId: uuid("datei_id")
+      .notNull()
+      .references(() => lagerDatei.id, { onDelete: "restrict" }),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    foreignKey({
+      name: "pinnwand_datei_beitrag_fk",
+      columns: [t.lagerId, t.beitragId],
+      foreignColumns: [pinnwandBeitrag.lagerId, pinnwandBeitrag.id],
+    }).onDelete("cascade"),
+    index("pinnwand_datei_beitrag_idx").on(t.beitragId),
+    index("pinnwand_datei_datei_idx").on(t.dateiId),
+    uniqueIndex("pinnwand_datei_uq")
+      .on(t.beitragId, t.dateiId)
+      .where(sql`${t.geloeschtAm} is null`),
+    check("pinnwand_datei_check", sql`${t.reihenfolge} >= 0`),
   ],
 );
 
