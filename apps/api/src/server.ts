@@ -16,6 +16,7 @@ import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import { ladeKonfiguration } from "./konfiguration.js";
+import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
@@ -106,6 +107,8 @@ starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
 );
+// Widerrufene ICS-Token (#437) nach 30 Tagen entfernen
+starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
 if (
   konfiguration.WEBSITE_AUSGABE_PFAD &&

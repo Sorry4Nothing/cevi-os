@@ -8018,6 +8018,90 @@ paths:
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/ich/kalender-link:
+    get:
+      operationId: kalenderLinkStatus
+      summary: Status des persönlichen Kalenderlinks lesen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Zeigt, ob die Person einen aktiven Kalenderlink hat, wann sie ihn erzeugt hat, wann ihn eine Kalender-App zuletzt abgerufen hat und seine letzten vier Zeichen. Der Token selbst steht nie in dieser Antwort; es gibt ihn nur einmal beim Erzeugen.
+        `zuletztAbgerufenAm` schreibt der Feed höchstens einmal je Stunde: Der Wert kann bis zu eine Stunde hinterherhinken.
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor. Jede Person sieht nur ihren eigenen Link.
+        Statuscodes: 200, 401, 403, 426.
+      responses:
+        "200":
+          description: Status des Links
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KalenderLinkStatus"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: kalenderLinkErzeugen
+      summary: Persönlichen Kalenderlink erzeugen oder ersetzen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Erzeugt einen neuen geheimen Link für die Termine der Person. Hat die Person schon einen aktiven, ist dieser sofort ungültig. Kein Body.
+        Der Klartext des Tokens steht nur in dieser Antwort: Die App zeigt ihn einmal und bietet Kopieren und Teilen an. Danach kennt ihn niemand mehr; verloren heisst neu erzeugen. Er gehört in kein Log und keinen Fehlerbericht.
+
+        **Adresse.** Die API liefert den Token und den Pfad `pfad` (`/ical/<Token>.ics`), nicht die ganze Adresse. Die App setzt die Basisadresse der API davor. Den Feed unter diesem Pfad liefert ein eigener Endpunkt.
+
+        **Ratenbegrenzung.** Höchstens 10 Aufrufe von `POST` und `DELETE` zusammen je Person und 10 Minuten (429).
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor.
+        Statuscodes: 201, 401, 403, 426, 429.
+      responses:
+        "201":
+          description: Neuer Link; der Token steht nur hier.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KalenderLinkNeu"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: kalenderLinkWiderrufen
+      summary: Persönlichen Kalenderlink widerrufen
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Macht den aktiven Link sofort ungültig; Kalender-Apps, die ihn abonniert haben, bekommen danach 404. Ohne aktiven Link antwortet die Route ebenfalls 204 und ändert nichts. Widerrufene Zeilen entfernt ein täglicher Lauf nach 30 Tagen.
+
+        **Ratenbegrenzung.** Wie `POST`: gemeinsam 10 Aufrufe je Person und 10 Minuten (429).
+
+        **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403); kein zweiter Faktor.
+        Statuscodes: 204, 401, 403, 426, 429.
+      responses:
+        "204":
+          description: Widerrufen (oder es gab keinen aktiven Link); kein Body.
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -12898,6 +12982,43 @@ components:
     # termine-schemas: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: alle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: kalender-link (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    KalenderLinkStatus:
+      type: object
+      additionalProperties: false
+      required: [aktiv, erstelltAm, zuletztAbgerufenAm, endung]
+      properties:
+        aktiv:
+          type: boolean
+        erstelltAm:
+          type: [string, "null"]
+          format: date-time
+          description: Wann der aktive Link erzeugt wurde; `null` ohne aktiven Link.
+        zuletztAbgerufenAm:
+          type: [string, "null"]
+          format: date-time
+          description: Letzter Abruf des Feeds, höchstens einmal je Stunde festgehalten; `null`, solange er nie abgerufen wurde.
+        endung:
+          type: [string, "null"]
+          description: Die letzten vier Zeichen des Tokens, damit die Person ihren Link erkennt; `null` ohne aktiven Link.
+          example: aB3_
+    KalenderLinkNeu:
+      type: object
+      additionalProperties: false
+      required: [token, pfad, erstelltAm, endung]
+      properties:
+        token:
+          type: string
+          pattern: "^[A-Za-z0-9_-]{43}$"
+          description: 32 zufällige Byte als base64url. Nur in dieser Antwort; die API speichert nur den Hash.
+        pfad:
+          type: string
+          description: Pfad des Feeds, `/ical/<Token>.ics`. Die App setzt die Basisadresse der API davor.
+        erstelltAm:
+          type: string
+          format: date-time
+        endung:
+          type: string
+          description: Die letzten vier Zeichen des Tokens.
     # termine-schemas: ical (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-vorschlaege (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

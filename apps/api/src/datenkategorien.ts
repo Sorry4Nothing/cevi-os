@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  kalenderlink: {
+    titel: "Persönlicher Kalenderlink",
+    zweck:
+      "Du abonnierst die Termine, die du in der App siehst, in einer Kalender-App. Der Link ist geheim und gehört nur dir; du kannst ihn jederzeit erneuern oder widerrufen.",
+    frist:
+      "Bis du den Link widerrufst oder erneuerst oder das Konto gelöscht wird; ein widerrufener Link verschwindet nach 30 Tagen ganz.",
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   profilbild: {
     titel: "Profilbild",
     zweck:
@@ -312,6 +321,17 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "mitnehmen",
       "abgerufen_am",
       "quelle",
+    ],
+  },
+  kalender_token: {
+    kalenderlink: [
+      "id",
+      "user_id",
+      "token_hash",
+      "endung",
+      "erstellt_am",
+      "zuletzt_abgerufen_am",
+      "widerrufen_am",
     ],
   },
   programm_stufe: { programme: ["programm_id", "stufe_id"] },
