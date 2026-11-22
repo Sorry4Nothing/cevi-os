@@ -168,9 +168,9 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht.",
     frist:
-      "Die Einteilung der Teilnehmenden geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -892,6 +892,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zimmer_id",
       "teilnehmer_id",
       "person_id",
+    ],
+  },
+  // Dienste und Schichtplan (#388): Name, Beschreibung, nötige Personenzahl und Nachtwache je Dienst; die Schicht nennt Person oder Teilnehmende nur als ID, mit Tag, Abschnitt und Dienst
+  dienst: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "name",
+      "beschreibung",
+      "mindestbesetzung",
+      "nacht",
+      "tagesabschnitt_id",
+      "reihenfolge",
+    ],
+  },
+  schicht: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tagesabschnitt_id",
+      "dienst_id",
+      "person_id",
+      "teilnehmer_id",
     ],
   },
   // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender

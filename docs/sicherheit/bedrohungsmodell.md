@@ -368,6 +368,12 @@ Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Le
 - Zuordnung: Fahrer und Mitfahrende sind aktive Mitglieder des Lagers oder Teilnehmende dieses Lagers (400 sonst; fremde Abteilungen und gesperrte Konten zählen nicht). Je Richtung höchstens eine Fahrt je Person (409), geprüft unter der Lagersperre und zusätzlich durch Teilindizes und Fremdschlüssel über Lager, Fahrt und Richtung.
 - Ressourcenverbrauch (SR-71): Seitenwechsel bei der Liste, eine Abfrage je Seite und für «ohne Fahrt», unabhängig von der Zahl der Fahrten (Test zählt Abfragen).
 
+**Erweiterung #388 (Dienste und Schichtplan):**
+
+- Sicht (SR-11): Lesen braucht `einteilung.lesen` (alle Lager-Rollen), Dienste, Schichten und der Vorschlag `einteilung.bearbeiten`. Teilnehmende erscheinen mit Vorname, Nachname und Stufe, nie mit dem Cevi-Namen; abgewählte Teilnehmende, gelöschte, deaktivierte und ausgetretene Konten erscheinen nie und werden nie eingeteilt oder vorgeschlagen.
+- Eingabe (SR-72): strikte Schemas, Namen normalisiert (NFC, ohne Steuerzeichen); höchstens 100 Dienste je Lager, 20 Personen Mindestbesetzung, 50 Personen je Dienst und Tag. Personen, Tage und Dienste anderer Lager sind 404 (zusammengesetzte Fremdschlüssel über `lager_id`).
+- Ressourcenverbrauch (SR-71): Der Vorschlag lädt den Stand mit fünf Abfragen, rechnet in Arbeitsspeicher und schreibt höchstens 2000 Schichten in einem Insert; 10 Läufe je Konto, Lager und Minute (429). Das Übernehmen sperrt das Lager nur für das Schreiben.
+
 **Erweiterung #378 (Höcks):**
 
 - Das Team sieht von Höcks nur die der Art `team` und nur Datum, Zeit, Titel und Ort; ein Höck der Lagerleitung ist für das Team 404 (wie ein unbekannter), auch als Liste, im Änderungsfeed (Zeilenfilter) und als Kalenderdatei. Traktanden, Gäste, Anwesende und Höck-Modus brauchen `hoecks.lesen_alle` (Test `test/lager/hoecks.test.ts`).
