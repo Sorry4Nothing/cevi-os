@@ -360,6 +360,13 @@
       "breakpoints": true
     },
     {
+      "idx": 77,
+      "version": "7",
+      "when": 1793551700000,
+      "tag": "0077_lager_umfragen",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,

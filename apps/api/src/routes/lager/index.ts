@@ -16,6 +16,8 @@ import { erstelleInfosRouten } from "./infos.js";
 import { erstelleNotfallRouten } from "./notfall.js";
 import { erstellePacklisteRouten } from "./packliste.js";
 import { erstellePinnwandRouten } from "./pinnwand.js";
+import { erstelleReaktionenRouten } from "./reaktionen.js";
+import { erstelleUmfragenRouten } from "./umfragen.js";
 import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
 import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
 
@@ -34,6 +36,8 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
+    .route("/", erstelleUmfragenRouten({ db }))
+    .route("/", erstelleReaktionenRouten({ db }))
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
