@@ -28,6 +28,7 @@ import {
 // Dafür geht nichts verloren: Rückfrage beim Verlassen, Warnung beim Schliessen des Tabs, und beim Zurückkehren auf dieselbe Seite die ungespeicherte Fassung.
 
 const API = "/api/v1/redaktion";
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_BAUSTEINE = 100;
 const MAX_TEXT_ZEICHEN = 20000;
 const MAX_KARTEN = 24;
@@ -975,6 +976,17 @@ const kurzText = (k, b) => {
 
 export function zeige(bereich, ctx) {
   const id = ctx.pfad[0];
+  // Die Kennung steht in der Adresse der Seite und geht in Pfade der API: nur eine echte UUID, nie «../» oder «?»
+  if (!UUID.test(id) || ctx.pfad.length > 1) {
+    bereich.append(
+      el(
+        "p",
+        { class: "leer" },
+        "Diese Seite gibt es nicht. Wähle sie in der Seitenliste.",
+      ),
+    );
+    return;
+  }
   ctx.lade(
     async () => {
       const [seite, entwurf, tags] = await Promise.all([
