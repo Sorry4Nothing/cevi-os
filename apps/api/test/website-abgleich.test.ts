@@ -525,7 +525,7 @@ describe("Was ausgeliefert wird", () => {
     await lauf();
     const html = await lies("index.html");
     expect(html).toContain(
-      `<img src="/api/v1/medien/${offen}" alt="Lagerfeuer" width="10" height="10" fetchpriority="high" decoding="async">`,
+      `<img src="/api/v1/medien/${offen}" alt="Lagerfeuer" width="10" height="10" decoding="async" fetchpriority="high">`,
     );
     expect(html.match(/<img/g)).toHaveLength(1);
     expect(html).toContain(

@@ -41,6 +41,11 @@ export const abteilung = pgTable("abteilung", {
     (): AnyPgColumn => medium.id,
     { onDelete: "set null" },
   ),
+  // Fassung des Logos für den dunklen Modus (#558), zum Beispiel mit heller Schrift; ohne sie gilt das Logo oben auch dort
+  websiteLogoDunkelMediumId: uuid("website_logo_dunkel_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
