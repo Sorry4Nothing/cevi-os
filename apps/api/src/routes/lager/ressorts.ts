@@ -8,10 +8,14 @@ import { ressort, ressortLink, ressortNotiz, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import {
-  ladeRessortZeile,
   linkAendern,
   linkAnlegen,
   linkAnsicht,
+  aendereNotiz,
+  loescheNotiz,
+  legeNotizAn,
+  ordneRessorts,
+  ressortDa,
   notizAendern,
   notizAnlegen,
   notizAnsicht,
@@ -120,17 +124,6 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
     };
   }
 
-  // Das Ressort im Lager gibt es nicht (mehr): 404, auch für ein Ressort eines fremden Lagers
-  async function ressortDa(
-    tx: Pick<Db, "select">,
-    lagerId: string,
-    id: string,
-  ) {
-    const zeile = await ladeRessortZeile(tx, lagerId, id);
-    if (!zeile) throw new HTTPException(404);
-    return zeile;
-  }
-
   return (
     new Hono<LagerEnv>()
       .get(
@@ -192,35 +185,16 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         eingabe("param", lagerPfad),
         eingabe("json", reihenfolgeSetzen),
         async (c) => {
-          const lagerId = c.get("lager").lager.id;
-          const person = c.get("person");
-          const { eintraege } = c.req.valid("json");
-          await db.transaction(async (tx) => {
-            await sperreLager(tx, lagerId);
-            const vorhanden = await tx
-              .select()
-              .from(ressort)
-              .where(and(eq(ressort.lagerId, lagerId)));
-            const nachId = new Map(vorhanden.map((z) => [z.id, z]));
-            if (eintraege.some((e) => !nachId.has(e.id))) {
-              throw new HTTPException(404);
-            }
-            // Die Stelle in der Liste ist die neue Reihenfolge; was schon stimmt, bleibt unberührt (keine neue Version, kein Feed-Eintrag)
-            for (const [stelle, e] of eintraege.entries()) {
-              if (nachId.get(e.id)!.reihenfolge === stelle) continue;
-              await aendereZeile(
-                tx,
-                ressort,
-                { lagerId, personId: person.id },
-                {
-                  id: e.id,
-                  version: e.version,
-                  werte: { reihenfolge: stelle },
-                  ansicht: ressortAnsicht,
-                },
-              );
-            }
-          });
+          await db.transaction((tx) =>
+            ordneRessorts(
+              tx,
+              {
+                lagerId: c.get("lager").lager.id,
+                personId: c.get("person").id,
+              },
+              c.req.valid("json").eintraege,
+            ),
+          );
           return c.body(null, 204);
         },
       )
@@ -465,18 +439,18 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         eingabe("param", ressortPfad),
         eingabe("json", notizAnlegen),
         async (c) => {
-          const lagerId = c.get("lager").lager.id;
           const { ressortId } = c.req.valid("param");
-          const neu = await db.transaction(async (tx) => {
-            await sperreLager(tx, lagerId);
-            await ressortDa(tx, lagerId, ressortId);
-            return legeZeileAn(
+          const neu = await db.transaction((tx) =>
+            legeNotizAn(
               tx,
-              ressortNotiz,
-              { lagerId, personId: c.get("person").id },
-              { ressortId, ...c.req.valid("json") },
-            );
-          });
+              {
+                lagerId: c.get("lager").lager.id,
+                personId: c.get("person").id,
+              },
+              ressortId,
+              c.req.valid("json"),
+            ),
+          );
           return c.json(notizAnsicht(neu), 201);
         },
       )
@@ -486,19 +460,19 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         eingabe("param", notizPfad),
         eingabe("json", notizAendern),
         async (c) => {
-          const lagerId = c.get("lager").lager.id;
           const { ressortId, notizId } = c.req.valid("param");
-          const { version, ...werte } = c.req.valid("json");
-          const zeile = await db.transaction(async (tx) => {
-            await sperreLager(tx, lagerId);
-            await notizDa(tx, lagerId, ressortId, notizId);
-            return aendereZeile(
+          const zeile = await db.transaction((tx) =>
+            aendereNotiz(
               tx,
-              ressortNotiz,
-              { lagerId, personId: c.get("person").id },
-              { id: notizId, version, werte, ansicht: notizAnsicht },
-            );
-          });
+              {
+                lagerId: c.get("lager").lager.id,
+                personId: c.get("person").id,
+              },
+              ressortId,
+              notizId,
+              c.req.valid("json"),
+            ),
+          );
           return c.json(notizAnsicht(zeile));
         },
       )
@@ -508,22 +482,19 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         eingabe("param", notizPfad),
         eingabe("query", versionAbfrage),
         async (c) => {
-          const lagerId = c.get("lager").lager.id;
           const { ressortId, notizId } = c.req.valid("param");
-          await db.transaction(async (tx) => {
-            await sperreLager(tx, lagerId);
-            await notizDa(tx, lagerId, ressortId, notizId);
-            await loescheZeile(
+          await db.transaction((tx) =>
+            loescheNotiz(
               tx,
-              ressortNotiz,
-              { lagerId, personId: c.get("person").id },
               {
-                id: notizId,
-                version: c.req.valid("query").version,
-                ansicht: notizAnsicht,
+                lagerId: c.get("lager").lager.id,
+                personId: c.get("person").id,
               },
-            );
-          });
+              ressortId,
+              notizId,
+              c.req.valid("query").version,
+            ),
+          );
           return c.body(null, 204);
         },
       )
@@ -545,24 +516,6 @@ async function linkDa(
         eq(ressortLink.id, id),
         eq(ressortLink.lagerId, lagerId),
         eq(ressortLink.ressortId, ressortId),
-      ),
-    );
-  if (!zeile) throw new HTTPException(404);
-}
-async function notizDa(
-  tx: Pick<Db, "select">,
-  lagerId: string,
-  ressortId: string,
-  id: string,
-) {
-  const [zeile] = await tx
-    .select({ id: ressortNotiz.id })
-    .from(ressortNotiz)
-    .where(
-      and(
-        eq(ressortNotiz.id, id),
-        eq(ressortNotiz.lagerId, lagerId),
-        eq(ressortNotiz.ressortId, ressortId),
       ),
     );
   if (!zeile) throw new HTTPException(404);

@@ -58,6 +58,8 @@ describe("Adressen", () => {
         "anmelden",
         "medien",
         "ical",
+        "termine",
+        "anlass",
         "sitemap.xml",
         "robots.txt",
         ".well-known",

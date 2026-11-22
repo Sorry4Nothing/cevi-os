@@ -155,10 +155,15 @@ const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 // Fehler: Zustandskarte mit «Nochmals versuchen»; bei 404 zusätzlich ein Knopf «Zur Übersicht» (zurUebersicht liefert ihn).
 export function erstelleLader(bereich, { zurUebersicht } = {}) {
   let lauf = 0;
-  async function lade(laden, zeichnen, { skeleton = "tabelle" } = {}) {
+  async function lade(
+    laden,
+    zeichnen,
+    { skeleton = "tabelle", fehlerTitel, fehlerText } = {},
+  ) {
     const meine = ++lauf;
     const erstes = !bereich.firstChild;
-    const erneut = () => lade(laden, zeichnen, { skeleton });
+    const erneut = () =>
+      lade(laden, zeichnen, { skeleton, fehlerTitel, fehlerText });
     let sichtbarSeit = 0;
     let platzhalter = null;
     let hinweis = null;
@@ -212,11 +217,23 @@ export function erstelleLader(bereich, { zurUebersicht } = {}) {
     hinweis?.remove();
     bereich.replaceChildren();
     if (fehler) {
+      const d = zustandsDaten(fehler);
+      // Eigener Wortlaut nur für Serverfehler und Aussetzer; 401, 403, 404, 429 und die Sperren behalten ihren Text
+      if (
+        fehlerTitel &&
+        !(fehler.status >= 400 && fehler.status < 500) &&
+        !fehler.code
+      ) {
+        d.titel = fehlerTitel;
+        d.hilfe = undefined;
+        if (fehlerText) d.text = fehlerText;
+      }
       const karte = zustandsKarte(
-        zustandsDaten(fehler),
-        [nochmals(erneut), fehler.status === 404 && zurUebersicht?.()].filter(
-          Boolean,
-        ),
+        d,
+        [
+          nochmals(erneut, ""),
+          fehler.status === 404 && zurUebersicht?.(),
+        ].filter(Boolean),
       );
       bereich.append(karte.wurzel);
       karte.titel.focus();

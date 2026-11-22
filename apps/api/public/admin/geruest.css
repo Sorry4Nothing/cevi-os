@@ -138,7 +138,7 @@
 }
 
 /* Zähler: rote Pille mit weisser Zahl (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1) */
-.zaehler {
+.pille-zaehler {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -267,6 +267,10 @@
   color: var(--auf-blau-f);
 }
 
+.hinweis > span {
+  flex: 1;
+}
+
 .hinweis .knopf--rund {
   color: inherit;
 }
@@ -278,7 +282,12 @@
     text-decoration-thickness: 3px;
   }
 
-  .zaehler {
+  .pille-zaehler {
     border: 1px solid CanvasText;
   }
+}
+
+/* Werte-Listen in Flächen: Wert fett, Zahlen tabellarisch (A1 «Bestand») */
+.flaeche .werte dd {
+  font-weight: 700;
 }

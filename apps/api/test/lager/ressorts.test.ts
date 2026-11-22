@@ -264,6 +264,48 @@ describe("Rechte je Lager-Persona", () => {
   });
 });
 
+describe("Ruhige Ressorts (#520)", () => {
+  test("ruhig ist anfangs falsch, lässt sich setzen und wieder lösen", async () => {
+    const r = await neu();
+    const lese = (konto = konten.lesen) =>
+      anfrage(konto, "GET", `${L()}/ressorts/${r.id}`);
+    expect((await lese()).body.ruhig).toBe(false);
+    const a = await anfrage(leiter(), "PATCH", `${L()}/ressorts/${r.id}`, {
+      version: r.version,
+      ruhig: true,
+    });
+    expect(a.status).toBe(200);
+    expect(a.body.ruhig).toBe(true);
+    expect((await lese()).body.ruhig).toBe(true);
+    const b = await anfrage(leiter(), "PATCH", `${L()}/ressorts/${r.id}`, {
+      version: a.body.version,
+      ruhig: false,
+    });
+    expect(b.body.ruhig).toBe(false);
+    // Beim Anlegen
+    const c = await neu({ ruhig: true });
+    expect(
+      (await anfrage(leiter(), "GET", `${L()}/ressorts/${c.id}`)).body.ruhig,
+    ).toBe(true);
+  });
+
+  test("nur ein Boolean ist gültig, das Team darf es nicht setzen", async () => {
+    const r = await neu();
+    for (const wert of ["ja", 1, null]) {
+      const a = await anfrage(leiter(), "PATCH", `${L()}/ressorts/${r.id}`, {
+        version: r.version,
+        ruhig: wert,
+      });
+      expect(a.status).toBe(400);
+    }
+    const t = await anfrage(konten.team, "PATCH", `${L()}/ressorts/${r.id}`, {
+      version: r.version,
+      ruhig: true,
+    });
+    expect(t.status).toBe(403);
+  });
+});
+
 describe("Ressort anlegen und lesen", () => {
   test("legt an, löst die Namen auf und hängt ans Ende", async () => {
     const leit = await mitglied();

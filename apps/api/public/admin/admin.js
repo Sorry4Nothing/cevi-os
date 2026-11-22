@@ -525,8 +525,13 @@ async function navigiere() {
       document.title = `${text} – Verwaltung – Cevi OS`;
     },
     // Zähler der Unterleiste (z. B. offene Vorschläge), wenn das Modul die Zahl ohnehin kennt
-    zaehler: (unterSchluessel, anzahl) => {
-      zaehlerStand.set(`${gruppe.schluessel}/${unterSchluessel}`, anzahl);
+    // bereichSchluessel: für einen anderen Bereich als den eigenen (die Übersicht kennt die Zahlen der Termine und Räume)
+    zaehler: (
+      unterSchluessel,
+      anzahl,
+      bereichSchluessel = gruppe.schluessel,
+    ) => {
+      zaehlerStand.set(`${bereichSchluessel}/${unterSchluessel}`, anzahl);
       if (meine === navigation) {
         leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
       }

@@ -452,16 +452,26 @@ describe("Empfängerfilter", () => {
       anAlle: false,
       rollen: ["lesen"],
       personen: [],
+      ressortIds: [],
+      gruppeIds: [],
     });
     expect(await f("lagerleitung")).toEqual({
       anAlle: false,
       rollen: ["lesen"],
       personen: [konten.team.id],
+      ressortIds: [],
+      gruppeIds: [],
     });
     const alle = (
       await anfrage(konten.team, "GET", `${L(lagerId)}/pinnwand`)
     ).body.beitraege.find((b: { titel: string }) => b.titel === "alle");
-    expect(alle.empfaenger).toEqual({ anAlle: true, rollen: [], personen: [] });
+    expect(alle.empfaenger).toEqual({
+      anAlle: true,
+      rollen: [],
+      personen: [],
+      ressortIds: [],
+      gruppeIds: [],
+    });
   });
 
   test("Empfänger ändern über PATCH ersetzt die Menge und zählt die Version hoch", async () => {
@@ -1241,5 +1251,356 @@ describe("Push bei einer wichtigen Mitteilung", () => {
     });
     expect(res.status).toBe(201);
     expect(gesendet).toEqual([]);
+  });
+});
+
+describe("Empfänger Ressort und Gruppe (#520)", () => {
+  let lagerId: string;
+  let ressortId: string;
+  let gruppeId: string;
+  let tokens: Record<"leitung" | "team" | "lesen", string>;
+  beforeAll(async () => {
+    lagerId = await neuesLager("aktiv", "Empfängerlager");
+    const [r] = await db
+      .insert(schema.ressort)
+      .values({ lagerId, kuerzel: "KÜ", name: "Küche", lagerSeq: 0 })
+      .returning({ id: schema.ressort.id });
+    ressortId = r!.id;
+    // Das Team gehört zum Ressort (Zuordnung), die Leitung leitet es
+    await db
+      .update(schema.lagerMitglied)
+      .set({ ressortId })
+      .where(
+        and(
+          eq(schema.lagerMitglied.lagerId, lagerId),
+          eq(schema.lagerMitglied.personId, konten.team.id!),
+        ),
+      );
+    await db
+      .update(schema.ressort)
+      .set({ leitungPersonId: konten.leitung.id! })
+      .where(eq(schema.ressort.id, ressortId));
+    const [g] = await db
+      .insert(schema.gruppe)
+      .values({ lagerId, name: "Gruppe A", lagerSeq: 0 })
+      .returning({ id: schema.gruppe.id });
+    gruppeId = g!.id;
+    await db.insert(schema.gruppeZuordnung).values({
+      lagerId,
+      gruppeId,
+      personId: konten.lesen.id!,
+      rolle: "leitung",
+      lagerSeq: 0,
+    });
+    tokens = {
+      leitung: await legeToken(konten.leitung.id!),
+      team: await legeToken(konten.team.id!),
+      lesen: await legeToken(konten.lesen.id!),
+    };
+  });
+
+  test("ein Ressort als Empfänger: Leitung und Zugeordnete sehen den Beitrag, die übrigen nicht", async () => {
+    const b = await neu(lagerId, {
+      titel: "Nur Küche",
+      empfaenger: { rollen: [], personen: [], ressortIds: [ressortId] },
+    });
+    expect(b.empfaenger).toEqual({
+      anAlle: false,
+      rollen: [],
+      personen: [],
+      ressortIds: [ressortId],
+      gruppeIds: [],
+    });
+    expect(await titel("team", lagerId)).toContain("Nur Küche");
+    expect(await titel("leitung", lagerId)).toContain("Nur Küche");
+    expect(await titel("lagerleitung", lagerId)).toContain("Nur Küche");
+    expect(await titel("lesen", lagerId)).not.toContain("Nur Küche");
+    expect(
+      (await anfrage(konten.lesen, "GET", `${L(lagerId)}/pinnwand/${b.id}`))
+        .status,
+    ).toBe(404);
+    // Das Team sieht den Beitrag, aber die Ressort-IDs nur die Verwaltung
+    const team = await anfrage(
+      konten.team,
+      "GET",
+      `${L(lagerId)}/pinnwand/${b.id}`,
+    );
+    expect(team.status).toBe(200);
+    expect(team.body.empfaenger.ressortIds).toEqual([]);
+  });
+
+  test("eine Gruppe als Empfänger: nur die Leitenden darin sehen den Beitrag", async () => {
+    await neu(lagerId, {
+      titel: "Nur Gruppe A",
+      empfaenger: { rollen: [], personen: [], gruppeIds: [gruppeId] },
+    });
+    expect(await titel("lesen", lagerId)).toContain("Nur Gruppe A");
+    expect(await titel("team", lagerId)).not.toContain("Nur Gruppe A");
+    // Die Leitung verwaltet die Pinnwand und sieht jeden Beitrag
+    expect(await titel("leitung", lagerId)).toContain("Nur Gruppe A");
+  });
+
+  test("Rolle, Ressort und Gruppe zusammen gelten als oder", async () => {
+    await neu(lagerId, {
+      titel: "Gemischt",
+      empfaenger: {
+        rollen: ["leitung"],
+        personen: [],
+        ressortIds: [ressortId],
+        gruppeIds: [gruppeId],
+      },
+    });
+    for (const p of ["leitung", "team", "lesen"] as const) {
+      expect(await titel(p, lagerId)).toContain("Gemischt");
+    }
+  });
+
+  test("ein Ressort oder eine Gruppe eines anderen Lagers ist 400", async () => {
+    const anderes = await neuesLager("aktiv", "Anderes");
+    const [r] = await db
+      .insert(schema.ressort)
+      .values({ lagerId: anderes, kuerzel: "X", name: "X", lagerSeq: 0 })
+      .returning({ id: schema.ressort.id });
+    const [g] = await db
+      .insert(schema.gruppe)
+      .values({ lagerId: anderes, name: "G", lagerSeq: 0 })
+      .returning({ id: schema.gruppe.id });
+    const a = await anfrage(
+      konten.lagerleitung,
+      "POST",
+      `${L(lagerId)}/pinnwand`,
+      {
+        titel: "x",
+        empfaenger: { rollen: [], personen: [], ressortIds: [r!.id] },
+      },
+    );
+    expect(a.status).toBe(400);
+    expect(a.body.code).toBe("RESSORT_UNBEKANNT");
+    const b = await anfrage(
+      konten.lagerleitung,
+      "POST",
+      `${L(lagerId)}/pinnwand`,
+      {
+        titel: "x",
+        empfaenger: { rollen: [], personen: [], gruppeIds: [g!.id] },
+      },
+    );
+    expect(b.status).toBe(400);
+    expect(b.body.code).toBe("GRUPPE_UNBEKANNT");
+    // Auch beim Ändern
+    const ok = await neu(lagerId, { titel: "ändern" });
+    const c = await anfrage(
+      konten.lagerleitung,
+      "PATCH",
+      `${L(lagerId)}/pinnwand/${ok.id}`,
+      {
+        version: ok.version,
+        empfaenger: { rollen: [], personen: [], ressortIds: [r!.id] },
+      },
+    );
+    expect(c.status).toBe(400);
+  });
+
+  test("ein gelöschtes Ressort öffnet den Beitrag nicht für alle", async () => {
+    const [r] = await db
+      .insert(schema.ressort)
+      .values({ lagerId, kuerzel: "WEG", name: "Weg", lagerSeq: 0 })
+      .returning({ id: schema.ressort.id });
+    await neu(lagerId, {
+      titel: "Für ein Ressort, das wegfällt",
+      empfaenger: { rollen: [], personen: [], ressortIds: [r!.id] },
+    });
+    await db.delete(schema.ressort).where(eq(schema.ressort.id, r!.id));
+    expect(await titel("team", lagerId)).not.toContain(
+      "Für ein Ressort, das wegfällt",
+    );
+    expect(await titel("lagerleitung", lagerId)).toContain(
+      "Für ein Ressort, das wegfällt",
+    );
+  });
+
+  test("der Push einer wichtigen Mitteilung geht nur an die Mitglieder des Ressorts oder der Gruppe", async () => {
+    await neu(lagerId, {
+      titel: "Wichtig Küche",
+      wichtig: true,
+      empfaenger: { rollen: [], personen: [], ressortIds: [ressortId] },
+    });
+    const meine = () =>
+      gesendet
+        .map((g) => g.token)
+        .filter((t) => Object.values(tokens).includes(t))
+        .sort();
+    expect(meine()).toEqual([tokens.leitung, tokens.team].sort());
+    gesendet = [];
+    await neu(lagerId, {
+      titel: "Wichtig Gruppe",
+      wichtig: true,
+      empfaenger: { rollen: [], personen: [], gruppeIds: [gruppeId] },
+    });
+    expect(meine()).toEqual([tokens.lesen]);
+  });
+});
+
+describe("Gesehen (#520)", () => {
+  let lagerId: string;
+  beforeAll(async () => {
+    lagerId = await neuesLager("aktiv", "Gesehenlager");
+  });
+  const gesehen = (id: string, b: string, persona: LagerPersona = "team") =>
+    anfrage(konten[persona], "PUT", `${L(id)}/pinnwand/${b}/gesehen`);
+  const lies = async (persona: LagerPersona, b: string) =>
+    (await anfrage(konten[persona], "GET", `${L(lagerId)}/pinnwand/${b}`)).body
+      .gesehen;
+
+  test("die Meldung ist idempotent, die Liste zählt jede Person einmal", async () => {
+    const b = await neu(lagerId, { titel: "Gesehen 1" });
+    expect(await lies("team", b.id)).toEqual({
+      anzahl: 0,
+      eigene: false,
+      personen: null,
+    });
+    expect((await gesehen(lagerId, b.id)).status).toBe(204);
+    expect((await gesehen(lagerId, b.id)).status).toBe(204);
+    expect((await gesehen(lagerId, b.id, "lesen")).status).toBe(204);
+    // Das Team sieht Zahl und «eigene», nie Namen
+    expect(await lies("team", b.id)).toEqual({
+      anzahl: 2,
+      eigene: true,
+      personen: null,
+    });
+    const lesende = await lies("lesen", b.id);
+    expect(lesende.eigene).toBe(true);
+    expect(lesende.personen).toBeNull();
+    // Die Verwaltung (pinnwand.bearbeiten) sieht die Namen
+    expect((await lies("leitung", b.id)).eigene).toBe(false);
+    const v = await lies("lagerleitung", b.id);
+    expect(v.anzahl).toBe(2);
+    expect(v.personen.map((p: { id: string }) => p.id).sort()).toEqual(
+      [konten.team.id, konten.lesen.id].sort(),
+    );
+    expect(v.personen.every((p: { name: string }) => !!p.name)).toBe(true);
+    const zeilen = await db
+      .select()
+      .from(schema.pinnwandGesehen)
+      .where(eq(schema.pinnwandGesehen.beitragId, b.id));
+    expect(zeilen).toHaveLength(2);
+  });
+
+  test("die Sammelroute meldet mehrere Beiträge, ein nicht lesbarer macht alles zu 404", async () => {
+    const a = await neu(lagerId, { titel: "Sammel a" });
+    const b = await neu(lagerId, { titel: "Sammel b" });
+    const nurLeitung = await neu(lagerId, {
+      titel: "Sammel c",
+      empfaenger: { rollen: ["leitung"], personen: [] },
+    });
+    const sammel = (ids: string[], persona: LagerPersona = "team") =>
+      anfrage(konten[persona], "PUT", `${L(lagerId)}/pinnwand/gesehen`, {
+        beitragIds: ids,
+      });
+    expect((await sammel([a.id, b.id])).status).toBe(204);
+    expect((await lies("team", a.id)).eigene).toBe(true);
+    expect((await lies("team", b.id)).eigene).toBe(true);
+    // Das Team darf den dritten nicht lesen: nichts wird gemeldet
+    const c = await sammel([a.id, nurLeitung.id].reverse(), "lesen");
+    expect(c.status).toBe(404);
+    expect((await lies("lagerleitung", a.id)).anzahl).toBe(1);
+    expect((await gesehen(lagerId, nurLeitung.id)).status).toBe(404);
+    // Ungültig: leer, doppelt, mehr als 50, fremde Felder
+    expect((await sammel([])).status).toBe(400);
+    expect((await sammel([a.id, a.id])).status).toBe(400);
+    expect(
+      (await sammel(Array.from({ length: 51 }, () => randomUUID()))).status,
+    ).toBe(400);
+    expect(
+      (
+        await anfrage(konten.team, "PUT", `${L(lagerId)}/pinnwand/gesehen`, {
+          beitragIds: [a.id],
+          extra: 1,
+        })
+      ).status,
+    ).toBe(400);
+  });
+
+  test("Rechte je Lager-Persona, fremdes Lager 404, auch im abgeschlossenen Lager", async () => {
+    const b = await neu(lagerId, { titel: "Rechte" });
+    const erwartet: Record<LagerPersona, number> = {
+      abteilungsleitung: 204,
+      lagerleitung: 204,
+      leitung: 204,
+      team: 204,
+      lesen: 204,
+      ohneMitgliedschaft: 404,
+      fremdeAbteilung: 404,
+      ohneLogin: 401,
+    };
+    for (const p of LAGER_PERSONAS) {
+      const res = await app.request(`${L(lagerId)}/pinnwand/${b.id}/gesehen`, {
+        method: "PUT",
+        headers: konten[p].headers,
+      });
+      expect([p, res.status]).toEqual([p, erwartet[p]]);
+    }
+    // Ein Beitrag eines anderen Lagers der eigenen Abteilung ist 404
+    const anderes = await neuesLager();
+    expect((await gesehen(anderes, b.id)).status).toBe(404);
+    expect((await gesehen(fremdLagerId, b.id)).status).toBe(404);
+    // Abgeschlossenes Lager: gemeldet werden darf
+    const zu = await neuesLager("aktiv", "Zu");
+    const c = await neu(zu, { titel: "Vor dem Abschluss" });
+    await db
+      .update(schema.lager)
+      .set({ status: "abgeschlossen" })
+      .where(eq(schema.lager.id, zu));
+    expect((await gesehen(zu, c.id)).status).toBe(204);
+  });
+
+  test("die Zeile geht mit dem Beitrag", async () => {
+    const b = await neu(lagerId, { titel: "Weg" });
+    await gesehen(lagerId, b.id);
+    await db
+      .delete(schema.pinnwandBeitrag)
+      .where(eq(schema.pinnwandBeitrag.id, b.id));
+    expect(
+      await db
+        .select()
+        .from(schema.pinnwandGesehen)
+        .where(eq(schema.pinnwandGesehen.beitragId, b.id)),
+    ).toEqual([]);
+  });
+
+  test("die Zahl der Abfragen hängt nicht von der Zahl der Beiträge ab", async () => {
+    const id = await neuesLager("aktiv", "Abfragen");
+    const erster = await neu(id, { titel: "eins" });
+    await gesehen(id, erster.id);
+    const zaehle = async (persona: LagerPersona) => {
+      await anfrage(konten[persona], "GET", `${L(id)}/pinnwand`);
+      const vorher = abfragen;
+      const a = await anfrage(konten[persona], "GET", `${L(id)}/pinnwand`);
+      expect(a.status).toBe(200);
+      return { n: abfragen - vorher, beitraege: a.body.beitraege.length };
+    };
+    const klein = [await zaehle("team"), await zaehle("lagerleitung")];
+    const ids: string[] = [];
+    for (let i = 0; i < 9; i++) {
+      ids.push((await neu(id, { titel: `g${i}` })).id);
+    }
+    for (const p of ["team", "lesen"] as const) {
+      await anfrage(konten[p], "PUT", `${L(id)}/pinnwand/gesehen`, {
+        beitragIds: ids,
+      });
+    }
+    const gross = [await zaehle("team"), await zaehle("lagerleitung")];
+    expect(gross[0]!.beitraege).toBe(10);
+    expect(gross[0]!.n).toBe(klein[0]!.n);
+    expect(gross[1]!.n).toBe(klein[1]!.n);
+    // Die Sammelmeldung kostet für 1 und für 9 Beiträge gleich viel
+    const meldeN = async (liste: string[]) => {
+      const vorher = abfragen;
+      await anfrage(konten.leitung, "PUT", `${L(id)}/pinnwand/gesehen`, {
+        beitragIds: liste,
+      });
+      return abfragen - vorher;
+    };
+    expect(await meldeN(ids)).toBe(await meldeN(ids.slice(0, 1)));
   });
 });

@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/protokolle/:protokollId"
-order: 310000
+order: 312000
 method: DELETE
-url: "{{baseUrl}}{{pfad_L155}}"
+url: "{{baseUrl}}{{pfad_L157}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

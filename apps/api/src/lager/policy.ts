@@ -18,7 +18,7 @@ import {
 // Policy-Schicht des Lagers (#364): Jede Lager-Route unter /api/v1/lager hängt lagerZugriff() vor ihren Handler und fragt darin mit darf(). Die Reihenfolge ist fest und gleich wie in rechte.ts:
 //   1. Lager laden, in SQL auf die Abteilung der Sitzung gefiltert: fremd oder unbekannt = 404
 //   2. Mitgliedschaft: Nicht-Mitglied = 404 (die Abteilungsleitung gilt als Lagerleitung)
-//   2b. Die Lagerleitung (auch die Abteilungsleitung) braucht den zweiten Faktor: sonst 403 ZWEITER_FAKTOR_FEHLT (#423); leitung, team und lesen nicht
+//   2b. Nur mit optionen.zweiterFaktor (Rechte der Rollen ändern): Die Lagerleitung (auch die Abteilungsleitung) braucht den zweiten Faktor, sonst 403 ZWEITER_FAKTOR_FEHLT. Sonst gilt er im Lager nicht: Er gilt nur im Web, die App fragt ihn nicht ab (#523)
 //   3. Recht (optionen.recht): fehlt es = 403
 //   4. Schreibschutz: Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Methoden zu = 409 LAGER_GESCHLOSSEN
 // Die Rolle kommt bei jeder Anfrage aus lager_mitglied, nie aus Token oder Sitzung: Rollenwechsel und Entfernen wirken bei der nächsten Anfrage
@@ -111,6 +111,8 @@ export type LagerZugriffOptionen = {
   einesDerRechte?: readonly LagerRecht[];
   // Nur die Lagerleitung (und damit die Abteilungsleitung): für die festen Rechte, die sich nicht einstellen lassen, etwa die Rechte der Rollen selbst. Wie «recht»: fehlt sie, 403 vor dem Schreibschutz
   nurLagerleitung?: true;
+  // Die Lagerleitung braucht für diese Route den zweiten Faktor (403 ZWEITER_FAKTOR_FEHLT, vor dem Recht): nur für Änderungen der Rechte der Rollen, die am PC laufen. Alle anderen Lager-Routen verlangen ihn nicht (#523)
+  zweiterFaktor?: true;
   // Für die wenigen schreibenden Routen, die auch ein geschlossenes Lager ändern dürfen; sonst gilt der Schreibschutz für jede Methode ausser GET, HEAD und OPTIONS
   auchGeschlossen?: true;
 };
@@ -122,7 +124,11 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
     if (!id.success) throw new HTTPException(400);
     const zugriff = await ladeLagerZugriff(db, c.get("person"), id.data);
     if (!zugriff) throw new HTTPException(404);
-    if (zugriff.rolle === "lagerleitung" && !c.get("person").zweiterFaktor) {
+    if (
+      optionen.zweiterFaktor &&
+      zugriff.rolle === "lagerleitung" &&
+      !c.get("person").zweiterFaktor
+    ) {
       return c.json(
         zweiterFaktorFehlt(
           "Für die Lagerleitung braucht es zuerst einen zweiten Faktor.",

@@ -31,22 +31,31 @@ export function antwortAufAenderung(
 // Rechte der Rollen eines Lagers (#365). Nur die Lagerleitung und die Abteilungsleitung (gilt als Lagerleitung) lesen und ändern sie; Leitung, Team und Lesen bekommen 403 (Rechteausweitung). Die Rolle «lagerleitung» steht nicht zur Wahl. Eine Änderung wirkt bei der nächsten Anfrage: Die Policy liest die Rechte bei jeder Anfrage aus der Datenbank
 export function erstelleLagerRechteRouten({ db }: { db: Db }) {
   const nurLeitung = lagerZugriff(db, { nurLagerleitung: true });
+  // Ändern nur mit zweitem Faktor (gilt nur im Web, #523); Lesen braucht ihn nicht
+  const aendernMitFaktor = lagerZugriff(db, {
+    nurLagerleitung: true,
+    zweiterFaktor: true,
+  });
   return new Hono<LagerEnv>()
     .get("/:id/rechte", nurLeitung, async (c) =>
       c.json(await leseRechte(db, c.get("lager").lager.id)),
     )
-    .put("/:id/rechte", nurLeitung, eingabe("json", rechteSchema), async (c) =>
-      antwortAufAenderung(
-        c,
-        await aendereRechte(
-          db,
-          c.get("person"),
-          c.get("lager").lager.id,
-          c.req.valid("json").rechte,
+    .put(
+      "/:id/rechte",
+      aendernMitFaktor,
+      eingabe("json", rechteSchema),
+      async (c) =>
+        antwortAufAenderung(
+          c,
+          await aendereRechte(
+            db,
+            c.get("person"),
+            c.get("lager").lager.id,
+            c.req.valid("json").rechte,
+          ),
         ),
-      ),
     )
-    .post("/:id/rechte/zuruecksetzen", nurLeitung, async (c) =>
+    .post("/:id/rechte/zuruecksetzen", aendernMitFaktor, async (c) =>
       antwortAufAenderung(
         c,
         await aendereRechte(
