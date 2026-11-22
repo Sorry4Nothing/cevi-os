@@ -24,6 +24,8 @@ import { erstelleUmfragenRouten } from "./umfragen.js";
 import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
 import { erstelleGruppenRouten } from "./gruppen.js";
 import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
+import { erstelleTodoRouten } from "./todos.js";
+import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
@@ -55,5 +57,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleNotfallRouten({ db }))
     .route("/", erstelleInfosRouten({ db }))
     .route("/", erstelleEinkaufRouten({ db }))
+    .route("/", erstelleTodoRouten({ db }))
+    .route("/", erstelleVorlagenAnwendenRouten({ db }))
     .route("/", erstelleZeitplanRouten({ db, fcm }));
 }

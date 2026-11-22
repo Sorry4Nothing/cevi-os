@@ -4942,7 +4942,7 @@ paths:
       operationId: legeAdminLagerAn
       summary: Lager anlegen
       description: |
-        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte).
+        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte). Mit `vorlageId` entstehen die Einträge einer Vorlage mit dem Lager (zusätzlich `vorlage_angewendet` im Audit-Log).
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 für Nicht-Admins.
       tags:
@@ -9126,7 +9126,472 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/todos:
+    get:
+      operationId: listeLagerTodos
+      summary: Meine privaten To-dos im Lager
+      description: |
+        Liefert die eigenen privaten To-dos der Person in diesem Lager nach Reihenfolge, höchstens 200. Jede Rolle führt ihre eigenen, auch «lesen»; ein eigenes Recht gibt es nicht. Kein anderes Konto sieht sie: Auch die Lagerleitung und die Abteilungsleitung lesen fremde To-dos nie, und sie erscheinen weder im Änderungsfeed noch in Ereignissen, Suche oder Verlauf.
+
+        Datenbank: eine Abfrage (zusätzlich die Abfragen der Policy). Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die eigenen To-dos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodoListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerTodoAn
+      summary: Privates To-do anlegen
+      description: |
+        Legt ein To-do für die Person selbst an, ans Ende der Liste oder an der genannten Stelle. Höchstens 200 To-dos je Person und Lager (409 `LIMIT_ERREICHT`). Ohne Version, ohne Feed: Nur die Person selbst liest es.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTodoAnlegen"
+      responses:
+        "201":
+          description: Das neue To-do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die Person hat die höchste Zahl an To-dos (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/todos/{todoId}:
+    patch:
+      operationId: aendereLagerTodo
+      summary: Privates To-do ändern oder abhaken
+      description: |
+        Nur die genannten Felder ändern sich, mindestens eines. Das To-do einer anderen Person ist unbekannt (404), auch für die Lagerleitung. Ohne Version: Nur die Person selbst ändert es.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), To-do der Person (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder To-do, fremder Abteilung, ohne Mitgliedschaft oder bei einem To-do einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: todoId
+          in: path
+          required: true
+          description: ID des To-dos (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerTodoAendern"
+      responses:
+        "200":
+          description: Das geänderte To-do.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerTodo"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerTodo
+      summary: Privates To-do löschen
+      description: |
+        Löscht das To-do endgültig (es ist rein persönlich, kein Papierkorb). Das To-do einer anderen Person ist unbekannt (404).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), To-do der Person (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder To-do, fremder Abteilung, ohne Mitgliedschaft oder bei einem To-do einer anderen Person. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: todoId
+          in: path
+          required: true
+          description: ID des To-dos (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/vorlagen/{vorlageId}/anwenden:
+    post:
+      operationId: wendeLagerVorlageAn
+      summary: Vorlage im Lager anwenden
+      description: |
+        Braucht das Recht `vorlagen.anwenden` (Standard: nur die Lagerleitung; die Rechte lassen sich je Lager einstellen).
+
+        Legt die Einträge einer Vorlage der eigenen Abteilung im Lager an: bei einer Aufgaben-Vorlage Aufgaben (Status offen, ohne Verantwortliche und Ressort, ans Ende der Liste), bei einer Packlisten-Vorlage Punkte der Packliste (ans Ende der Liste). `fristTage` zählt in Tagen ab Lagerbeginn (`von` des Lagers): 0 ist der erste Lagertag, -30 dreissig Tage davor. Die neuen Zeilen gehen durch den Sync-Kern (Version, Folgenummer, Änderungsfeed). Eine Benachrichtigung entsteht nicht. Wer dieselbe Vorlage zweimal anwendet, hat jeden Eintrag zweimal; es bleibt kein Verweis auf die Vorlage.
+
+        Mit `trocken=true` schreibt der Aufruf nichts und nennt, was entstünde (Titel mit Frist, beziehungsweise Punkte). Auch der Trockenlauf ist ein POST und darum in einem abgeschlossenen Lager gesperrt.
+
+        Eine Packliste fasst höchstens 500 Punkte: Würde die Vorlage sie übersteigen, geschieht nichts (409 `LIMIT_ERREICHT`).
+
+        Datenbank: Policy (2 Abfragen), Vorlage (1), beim Anwenden eine Transaktion: Sperre des Lagers, Zählen oder Ende der Liste (1), Folgenummern, ein Insert für alle Zeilen, ein Feed-Insert, ein Audit-Eintrag (`vorlage_angewendet`: Vorlage und Art, nie Inhalte). Die Zahl der Abfragen hängt nicht von der Zahl der Einträge ab.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Vorlage der eigenen Abteilung (404).
+
+        Statuscodes: 200 beim Trockenlauf. 201 beim Anwenden. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Vorlage, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`, `LIMIT_ERREICHT` oder `VORLAGE_UNGUELTIG` (der gespeicherte Inhalt ist nicht lesbar).
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: vorlageId
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: trocken
+          in: query
+          required: false
+          description: "`true` schreibt nichts und zeigt nur, was entstünde. Vorgabe: `false`."
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Der Trockenlauf; nichts wurde geschrieben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VorlageAnwendung"
+        "201":
+          description: Die Einträge sind angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VorlageAnwendung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die Packliste würde die höchste Zahl an Punkten übersteigen (`LIMIT_ERREICHT`) oder der Inhalt der Vorlage ist nicht lesbar (`VORLAGE_UNGUELTIG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/vorlagen:
+    get:
+      operationId: listeAdminVorlagen
+      summary: Vorlagen der Abteilung
+      description: |
+        Nur Admins. Liefert die Vorlagen der eigenen Abteilung ohne Inhalt (mit Anzahl der Einträge), nach Art und Name; optional nur eine Art. Höchstens 100 Vorlagen je Abteilung, darum kein Seitenwechsel. Eine Abfrage.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Art. 401 ohne Anmeldung. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: art
+          in: query
+          required: false
+          description: Nur Vorlagen dieser Art.
+          schema:
+            type: string
+            enum:
+              - aufgaben
+              - packliste
+      responses:
+        "200":
+          description: Die Vorlagen.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - vorlagen
+                properties:
+                  vorlagen:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/VorlageUebersicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminVorlageAn
+      summary: Vorlage anlegen
+      description: |
+        Nur Admins. Legt eine Vorlage der eigenen Abteilung an. Der Inhalt hängt von der Art ab und ist strikt (unbekannte Felder 400): Art `aufgaben` hat `aufgaben` (1 bis 200 Einträge mit `titel`, optional `teil`, `notiz`, `stern`, `laufend`, `fristTage`), Art `packliste` hat `punkte` (1 bis 500 Einträge mit `abschnitt`, `text`, optional `nurLagerleitung`). `fristTage` zählt in Tagen ab Lagerbeginn (-366 bis 366). Name je Abteilung und Art eindeutig (409 `VORLAGENNAME_VERGEBEN`), höchstens 100 Vorlagen je Abteilung (409 `LIMIT_ERREICHT`). Das Audit-Log nennt `vorlage_angelegt` mit Art, nie Inhalte.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 409 bei vergebenem Namen oder erreichter Obergrenze.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VorlageAnlegen"
+      responses:
+        "201":
+          description: Die neue Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Der Name ist vergeben (`VORLAGENNAME_VERGEBEN`) oder die Obergrenze erreicht (`LIMIT_ERREICHT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/vorlagen/{id}:
+    get:
+      operationId: holeAdminVorlage
+      summary: Vorlage mit Inhalt
+      description: |
+        Nur Admins. Reihenfolge der Prüfungen: Pfad (400), Vorlage der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminVorlage
+      summary: Vorlage ändern
+      description: |
+        Nur Admins. Nur die genannten Felder ändern sich, mindestens eines; der neue Inhalt ersetzt den alten ganz und muss zur Art der Vorlage passen (die Art bleibt). Bereits angewendete Aufgaben und Punkte bleiben unverändert. Das Audit-Log nennt `vorlage_geaendert` mit den Feldnamen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei vergebenem Namen (`VORLAGENNAME_VERGEBEN`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VorlageAendern"
+      responses:
+        "200":
+          description: Die geänderte Vorlage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Vorlage"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Name ist vergeben (`VORLAGENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminVorlage
+      summary: Vorlage löschen
+      description: |
+        Nur Admins. Löscht die Vorlage endgültig. Aufgaben und Punkte, die aus ihr entstanden sind, bleiben. Das Audit-Log nennt `vorlage_geloescht` mit der Art.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Vorlage (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -17393,6 +17858,10 @@ components:
           type: string
           format: uuid
           description: Ein Bild aus den Medien der eigenen Abteilung.
+        vorlageId:
+          type: string
+          format: uuid
+          description: Eine Vorlage der eigenen Abteilung. Ihre Aufgaben oder Packlisten-Punkte entstehen mit dem Lager, in derselben Transaktion (eine unbekannte oder fremde Vorlage ist 400). Fristen zählen ab `von`.
     AdminLagerAendern:
       type: object
       additionalProperties: false
@@ -19326,7 +19795,259 @@ components:
                 format: date
     # lager-schemas: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerTodo:
+      description: Ein privates To-do; es gehört der Person, die die Liste liest.
+      type: object
+      required:
+        - id
+        - text
+        - erledigt
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+    LagerTodoListe:
+      type: object
+      required:
+        - todos
+      properties:
+        todos:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/LagerTodo"
+    LagerTodoAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - text
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
+          description: Ohne Angabe ans Ende der Liste.
+    LagerTodoAendern:
+      description: Mindestens ein Feld.
+      type: object
+      additionalProperties: false
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 500
+        erledigt:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 100000
     # lager-schemas: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    VorlageArt:
+      type: string
+      enum:
+        - aufgaben
+        - packliste
+    VorlageAufgabenInhalt:
+      description: Inhalt einer Vorlage der Art `aufgaben`.
+      type: object
+      additionalProperties: false
+      required:
+        - aufgaben
+      properties:
+        aufgaben:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - titel
+            properties:
+              titel:
+                type: string
+                minLength: 1
+                maxLength: 200
+              teil:
+                type: string
+                minLength: 1
+                maxLength: 100
+              notiz:
+                type: string
+                minLength: 1
+                maxLength: 5000
+              stern:
+                type: boolean
+              laufend:
+                type: boolean
+              fristTage:
+                type: integer
+                minimum: -366
+                maximum: 366
+                description: Tage ab Lagerbeginn (`von`). 0 ist der erste Lagertag, negative Werte liegen davor. Ohne Angabe hat die Aufgabe keine Frist.
+    VorlagePacklisteInhalt:
+      description: Inhalt einer Vorlage der Art `packliste`.
+      type: object
+      additionalProperties: false
+      required:
+        - punkte
+      properties:
+        punkte:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - abschnitt
+              - text
+            properties:
+              abschnitt:
+                type: string
+                minLength: 1
+                maxLength: 100
+              text:
+                type: string
+                minLength: 1
+                maxLength: 300
+              nurLagerleitung:
+                type: boolean
+    VorlageUebersicht:
+      type: object
+      required:
+        - id
+        - art
+        - name
+        - anzahl
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+          description: Zahl der Einträge (Aufgaben oder Punkte).
+        geaendertAm:
+          type: string
+          format: date-time
+    Vorlage:
+      type: object
+      required:
+        - id
+        - art
+        - name
+        - anzahl
+        - geaendertAm
+        - inhalt
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+        geaendertAm:
+          type: string
+          format: date-time
+        inhalt:
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - art
+        - name
+        - inhalt
+      properties:
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        inhalt:
+          description: Muss zur Art passen.
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAendern:
+      description: Mindestens ein Feld. Die Art bleibt.
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        inhalt:
+          oneOf:
+            - $ref: "#/components/schemas/VorlageAufgabenInhalt"
+            - $ref: "#/components/schemas/VorlagePacklisteInhalt"
+    VorlageAnwendung:
+      description: Was die Vorlage im Lager anlegt (beim Trockenlauf anlegen würde). Je nach Art steht `aufgaben` oder `punkte` da.
+      type: object
+      required:
+        - trocken
+        - art
+      properties:
+        trocken:
+          type: boolean
+        art:
+          $ref: "#/components/schemas/VorlageArt"
+        aufgaben:
+          type: array
+          items:
+            type: object
+            required:
+              - titel
+              - frist
+            properties:
+              titel:
+                type: string
+              frist:
+                type: string
+                format: date
+                nullable: true
+        punkte:
+          type: array
+          items:
+            type: object
+            required:
+              - abschnitt
+              - text
+              - nurLagerleitung
+            properties:
+              abschnitt:
+                type: string
+              text:
+                type: string
+              nurLagerleitung:
+                type: boolean
     # lager-schemas: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
