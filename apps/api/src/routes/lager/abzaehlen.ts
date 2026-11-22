@@ -23,6 +23,8 @@ const listeAbfrage = z.strictObject({
   limit: z.coerce.number().int().min(1).max(200).default(SEITE),
   // Nur diese Stufe (nur bei art=teilnehmer), ohne Beachtung der Gross- und Kleinschreibung
   stufe: z.string().trim().min(1).max(50).optional(),
+  // Nur die Mitglieder dieser Gruppe (#387): bei art=teilnehmer die Teilnehmenden, bei art=team die Leitenden und Mitglieder der Gruppe
+  gruppe: z.uuid().optional(),
 });
 const haken = z
   .strictObject({
@@ -51,7 +53,12 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
     abteilungId: string,
     p: z.infer<typeof listeAbfrage>,
   ) {
-    const { art, nach, limit, stufe } = p;
+    const { art, nach, limit, stufe, gruppe } = p;
+    // Gehört die Person oder der Teilnehmende zur Gruppe: ein Teilnehmer in einer Gruppe, die es nicht gibt, ergibt eine leere Liste
+    const inGruppe = (spalte: "teilnehmer_id" | "person_id", id: unknown) =>
+      gruppe
+        ? sql`exists (select 1 from gruppe_zuordnung z where z.lager_id = ${lagerId} and z.gruppe_id = ${gruppe} and z.${sql.raw(spalte)} = ${id} and z.geloescht_am is null)`
+        : undefined;
     if (art === "teilnehmer") {
       const gleich = and(
         eq(abzaehlen.lagerId, teilnehmer.lagerId),
@@ -61,7 +68,10 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
       const filter = and(
         eq(teilnehmer.lagerId, lagerId),
         isNull(teilnehmer.geloeschtAm),
+        // Wer nicht dabei ist, wird nicht abgezählt (#387)
+        eq(teilnehmer.abgewaehlt, false),
         stufe ? sql`lower(${teilnehmer.stufe}) = lower(${stufe})` : undefined,
+        inGruppe("teilnehmer_id", teilnehmer.id),
       );
       const [zeilen, [summe]] = await Promise.all([
         db
@@ -118,6 +128,7 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
       eq(user.abteilungId, abteilungId),
       isNull(user.deaktiviertAm),
       sql`coalesce(${user.banned}, false) = false`,
+      inGruppe("person_id", lagerMitglied.personId),
     );
     const [zeilen, [summe]] = await Promise.all([
       db

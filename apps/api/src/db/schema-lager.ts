@@ -8,6 +8,7 @@ import {
   index,
   integer,
   jsonb,
+  numeric,
   pgTable,
   primaryKey,
   text,
@@ -453,6 +454,94 @@ export const aufgabeUnterstuetzung = pgTable(
   ],
 );
 
+// Ein Punkt der Checkliste einer Aufgabe (#373): eine Zeile je Punkt, damit zwei Personen nicht dieselbe Liste überschreiben. person_id ist, wer den Punkt abgehakt hat (der Server setzt und leert sie mit erledigt); verlässt die Person das Lager, bleibt der Punkt abgehakt ohne Person
+export const aufgabeCheckpunkt = pgTable(
+  "aufgabe_checkpunkt",
+  {
+    ...lagerSpalten(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    text: text("text").notNull(),
+    erledigt: boolean("erledigt").notNull().default(false),
+    personId: uuid("person_id"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_checkpunkt_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    // In der Migration ON DELETE SET NULL (person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht
+    foreignKey({
+      name: "aufgabe_checkpunkt_person_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    index("aufgabe_checkpunkt_liste_idx").on(
+      t.lagerId,
+      t.aufgabeId,
+      t.reihenfolge,
+      t.id,
+    ),
+    check(
+      "aufgabe_checkpunkt_check",
+      sql`char_length(${t.text}) between 1 and 500 and ${t.reihenfolge} >= 0 and (${t.erledigt} or ${t.personId} is null)`,
+    ),
+  ],
+);
+
+// Ein Link einer Aufgabe (#373): nur https, der Server ruft ihn nie ab (SR-26)
+export const aufgabeLink = pgTable(
+  "aufgabe_link",
+  {
+    ...lagerSpalten(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    titel: text("titel").notNull(),
+    url: text("url").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_link_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    index("aufgabe_link_liste_idx").on(t.lagerId, t.aufgabeId, t.id),
+    check(
+      "aufgabe_link_check",
+      sql`char_length(${t.titel}) between 1 and 200 and char_length(${t.url}) <= 2000 and ${t.url} ~ '^https://[^[:space:]]+$'`,
+    ),
+  ],
+);
+
+// Stichworte einer Aufgabe (#373): eine Zeile je Stichwort, ohne Feed und Version (die Aufgabe zählt die Version hoch, wenn sich die Liste ändert, wie bei der Unterstützung). Ein Stichwort gilt je Aufgabe einmal, ohne Rücksicht auf Gross- und Kleinschreibung
+export const aufgabeStichwort = pgTable(
+  "aufgabe_stichwort",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    aufgabeId: uuid("aufgabe_id").notNull(),
+    stichwort: text("stichwort").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "aufgabe_stichwort_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("cascade"),
+    uniqueIndex("aufgabe_stichwort_uq").on(
+      t.aufgabeId,
+      sql`lower(${t.stichwort})`,
+    ),
+    index("aufgabe_stichwort_suche_idx").on(
+      t.lagerId,
+      sql`lower(${t.stichwort})`,
+    ),
+    check(
+      "aufgabe_stichwort_check",
+      sql`char_length(${t.stichwort}) between 1 and 40 and ${t.stichwort} = btrim(${t.stichwort})`,
+    ),
+  ],
+);
+
 // Verknüpfung auf eine Datei im SharePoint der Abteilung (#370). Cevi OS speichert nur die Adresse, nie den Inhalt, und ruft sie nie ab (SR-26). Wer die Datei öffnen darf, regelt der Ablageort; in Cevi OS sieht den Eintrag, wer den verweisenden Datensatz lesen darf (lager/datei-verweise.ts). Hinzugefügt von = erstellt_von. Die CHECKs halten die Link-Prüfung (lager/datei.ts) auch ohne die Routen: nur https, begrenzte Länge
 export const lagerDatei = pgTable(
   "lager_datei",
@@ -466,6 +555,8 @@ export const lagerDatei = pgTable(
     groesse: bigint("groesse", { mode: "number" }),
   },
   (t) => [
+    // Ziel des zusammengesetzten Fremdschlüssels von dokument (#396): ein Dokument kann nie auf eine Datei eines anderen Lagers zeigen
+    unique("lager_datei_lager_id_id_uq").on(t.lagerId, t.id),
     index("lager_datei_lager_idx").on(t.lagerId),
     index("lager_datei_erstellt_idx").on(t.erstelltAm),
     check(
@@ -588,6 +679,8 @@ export const teilnehmer = pgTable(
     nachname: text("nachname").notNull(),
     ceviName: text("cevi_name"),
     stufe: text("stufe"),
+    // «Nicht dabei» (#387): Wer abgewählt ist, erscheint weder in der Einteilung noch beim Mischen und lässt sich wieder zuwählen; die Zeile bleibt, bis die Lagerleitung sie löscht
+    abgewaehlt: boolean("abgewaehlt").notNull().default(false),
   },
   (t) => [
     // Ziel des Fremdschlüssels von abzaehlen: Ein Eintrag kann nie ein Kind eines anderen Lagers meinen
@@ -689,6 +782,64 @@ export const abzaehlen = pgTable(
     check(
       "abzaehlen_ziel_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.geprueft} = (${t.geprueftAm} is not null)`,
+    ),
+  ],
+);
+
+// Programmgruppen des Lagers (#387): Name und Reihenfolge; wer dazugehört, steht in gruppe_zuordnung. Geschrieben wird nur über lager/sync.ts
+export const gruppe = pgTable(
+  "gruppe",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von gruppe_zuordnung: Eine Zuordnung kann nie eine Gruppe eines anderen Lagers meinen
+    unique("gruppe_lager_id_id_uq").on(t.lagerId, t.id),
+    index("gruppe_liste_idx").on(t.lagerId, t.reihenfolge, t.name, t.id),
+    check(
+      "gruppe_check",
+      sql`char_length(${t.name}) between 1 and 100 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Wer in welcher Gruppe ist (#387): genau eines von teilnehmer_id (Teilnehmende, immer «mitglied») und person_id (Mitglied des Lagers, «leitung» oder «mitglied»). Eine Person und ein Teilnehmender stehen höchstens in einer Gruppe (Teilindex ohne gelöschte Zeilen). Die Zeilen gehen mit der Gruppe, den Teilnehmenden und dem Konto
+export const gruppeZuordnung = pgTable(
+  "gruppe_zuordnung",
+  {
+    ...lagerSpalten(),
+    gruppeId: uuid("gruppe_id").notNull(),
+    teilnehmerId: uuid("teilnehmer_id"),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+    rolle: text("rolle", { enum: ["leitung", "mitglied"] })
+      .notNull()
+      .default("mitglied"),
+  },
+  (t) => [
+    foreignKey({
+      name: "gruppe_zuordnung_gruppe_fk",
+      columns: [t.lagerId, t.gruppeId],
+      foreignColumns: [gruppe.lagerId, gruppe.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "gruppe_zuordnung_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    index("gruppe_zuordnung_gruppe_idx").on(t.gruppeId),
+    uniqueIndex("gruppe_zuordnung_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("gruppe_zuordnung_person_uq")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    check(
+      "gruppe_zuordnung_check",
+      sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.rolle} in ('leitung', 'mitglied') and (${t.teilnehmerId} is null or ${t.rolle} = 'mitglied')`,
     ),
   ],
 );
@@ -850,5 +1001,118 @@ export const infoAbschnittDatei = pgTable(
     uniqueIndex("info_abschnitt_datei_uq")
       .on(t.abschnittId, t.dateiId)
       .where(sql`${t.geloeschtAm} is null`),
+  ],
+);
+
+// Warengruppen der Einkaufsliste (#392). Die Schlüssel stehen in der Datenbank, die Anzeigenamen kennt die App (Obst und Gemüse, Brot, Milch und Käse, Fleisch und Fisch, Vorrat, Getränke, Haushalt, Diverses). Die Liste steht auch in lager/einkauf.ts
+export const EINKAUF_WARENGRUPPEN = [
+  "obst_gemuese",
+  "brot",
+  "milch_kaese",
+  "fleisch_fisch",
+  "vorrat",
+  "getraenke",
+  "haushalt",
+  "diverses",
+] as const;
+const warengruppeListe = sql.raw(
+  EINKAUF_WARENGRUPPEN.map((w) => `'${w}'`).join(", "),
+);
+
+// Ein Artikel der Einkaufsliste des Lagers (#392). name_norm ist der Name ohne Gross- und Kleinschreibung und Umlaute (lager/einkauf.ts, normalisiereName): Er ist der Schlüssel, nach dem die Abfrage gleiche Artikel zusammenzählt. Die Menge ist eine Dezimalzahl (die Summe in der Datenbank ist exakt), die Einheit freier Text: Mengen werden nur bei gleicher Einheit gezählt. Wer einkauft, ist ein Mitglied des Lagers; verlässt es das Lager, wird die Angabe leer (in der Migration ON DELETE SET NULL (einkaeufer_person_id): Postgres 15 setzt nur die eine Spalte, drizzle kennt die Spaltenliste nicht)
+export const einkaufArtikel = pgTable(
+  "einkauf_artikel",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    nameNorm: text("name_norm").notNull(),
+    menge: numeric("menge", { precision: 12, scale: 3 }),
+    einheit: text("einheit"),
+    warengruppe: text("warengruppe", { enum: EINKAUF_WARENGRUPPEN }).notNull(),
+    einkaeuferPersonId: uuid("einkaeufer_person_id"),
+    erledigt: boolean("erledigt").notNull().default(false),
+  },
+  (t) => [
+    foreignKey({
+      name: "einkauf_artikel_einkaeufer_fk",
+      columns: [t.lagerId, t.einkaeuferPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("set null"),
+    index("einkauf_artikel_liste_idx")
+      .on(t.lagerId, t.id)
+      .where(sql`${t.geloeschtAm} is null`),
+    check(
+      "einkauf_artikel_check",
+      sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and (${t.menge} is null or ${t.menge} > 0) and (${t.einheit} is null or char_length(${t.einheit}) between 1 and 20) and ${t.warengruppe} in (${warengruppeListe})`,
+    ),
+  ],
+);
+
+// Merkt, welcher Warengruppe ein Artikel in diesem Lager gehört, wenn die Lagerleitung die Vorgabe aus der Stichwortliste (lager/einkauf.ts) korrigiert hat. Nur der Server pflegt die Tabelle (beim Anlegen oder Ändern eines Artikels mit eigener Warengruppe); keine Zeilenversion, kein Feed: Die Apps lesen die Warengruppe am Artikel
+export const einkaufArtikelstamm = pgTable(
+  "einkauf_artikelstamm",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    nameNorm: text("name_norm").notNull(),
+    warengruppe: text("warengruppe", { enum: EINKAUF_WARENGRUPPEN }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.nameNorm] }),
+    check(
+      "einkauf_artikelstamm_check",
+      sql`char_length(${t.nameNorm}) between 1 and 200 and ${t.warengruppe} in (${warengruppeListe})`,
+    ),
+  ],
+);
+
+// Vorschläge beim Tippen (#392): wie oft ein Artikel in diesem Lager angelegt wurde, mit der zuletzt getippten Schreibweise. Nur der Server pflegt die Tabelle (hochzählen beim Anlegen); keine Zeilenversion, kein Feed
+export const einkaufVorschlag = pgTable(
+  "einkauf_vorschlag",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    nameNorm: text("name_norm").notNull(),
+    name: text("name").notNull(),
+    haeufigkeit: integer("haeufigkeit").notNull().default(1),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.nameNorm] }),
+    check(
+      "einkauf_vorschlag_check",
+      sql`char_length(${t.name}) between 1 and 100 and char_length(${t.nameNorm}) between 1 and 200 and ${t.haeufigkeit} >= 1`,
+    ),
+  ],
+);
+
+// Dokument im Lager (#396): ein Titel, ein Verweis auf eine Datei im SharePoint (lager_datei, #370), Stichworte und die Freigabe für das Team. Cevi OS speichert nur den Link, nie den Inhalt. Stichworte als text[] (klein geschrieben, ohne Doppelte, höchstens 20): Sie stehen in derselben Zeile wie das Dokument und kosten in der Liste keine zweite Abfrage; der GIN-Index trägt den Filter «Stichwort». Der Fremdschlüssel auf lager_datei ist RESTRICT und trägt das Lager mit: Der Aufräumlauf (lager/datei-verweise.ts) entfernt nie eine Datei, die ein Dokument einbindet, und ein Dokument zeigt nie auf eine Datei eines anderen Lagers. Geschrieben wird nur über lager/sync.ts
+export const dokument = pgTable(
+  "dokument",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    dateiId: uuid("datei_id").notNull(),
+    stichworte: text("stichworte")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // Wer nur dokumente.team_lesen hat (das Team), sieht nur Dokumente mit true
+    teamSichtbar: boolean("team_sichtbar").notNull().default(false),
+  },
+  (t) => [
+    foreignKey({
+      name: "dokument_datei_fk",
+      columns: [t.lagerId, t.dateiId],
+      foreignColumns: [lagerDatei.lagerId, lagerDatei.id],
+    }).onDelete("restrict"),
+    index("dokument_liste_idx").on(t.lagerId, t.id),
+    index("dokument_datei_idx").on(t.dateiId),
+    index("dokument_stichworte_idx").using("gin", t.stichworte),
+    check(
+      "dokument_check",
+      sql`char_length(${t.titel}) between 1 and 200 and cardinality(${t.stichworte}) <= 20 and char_length(array_to_string(${t.stichworte}, ',')) <= 900`,
+    ),
   ],
 );
