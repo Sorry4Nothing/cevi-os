@@ -64,7 +64,7 @@ export function hoeckUmfang(
   return darf(zugriff, "hoecks.team_lesen") ? ("team" as const) : undefined;
 }
 
-// Zeilenfilter des Feeds: Wer nicht alle Höcks lesen darf, sieht nur die der Art «team». Beurteilt auch gelöschte Zeilen
+// Zeilenfilter des Feeds: Wer nicht alle Höcks lesen darf, sieht nur die der Art «team».
 registriereLagerTabelle({
   tabelle: hoeck,
   recht: hoeckLeseRechte,
@@ -103,9 +103,6 @@ registriereSuchquelle({
   spalten: [traktandum.titel, traktandum.text, traktandum.entscheid],
   titel: sql`${traktandum.titel}`,
 });
-
-export const hoeckAktiv = isNull(hoeck.geloeschtAm);
-export const traktandumAktiv = isNull(traktandum.geloeschtAm);
 
 export type HoeckZeile = typeof hoeck.$inferSelect;
 export type TraktandumZeile = typeof traktandum.$inferSelect;
@@ -277,7 +274,7 @@ export async function ladeHoecks(
       zeile: hoeck,
       // Die Unterabfragen stehen in einem eigenen sql: In einer Abfrage mit nur einer Tabelle lässt drizzle die Tabellennamen vor den Spalten weg, und «hoeck_id = id» meinte dann die Spalten der Unterabfrage selbst
       anzahlTraktanden: zaehle(
-        sql`select count(*) from ${traktandum} where ${traktandum.hoeckId} = ${hoeck.id} and ${traktandum.lagerId} = ${hoeck.lagerId} and ${traktandumAktiv}`,
+        sql`select count(*) from ${traktandum} where ${traktandum.hoeckId} = ${hoeck.id} and ${traktandum.lagerId} = ${hoeck.lagerId}`,
       ),
       anzahlAnwesende: zaehle(
         sql`select count(*) from ${hoeckAnwesenheit} where ${hoeckAnwesenheit.hoeckId} = ${hoeck.id}`,
@@ -287,7 +284,6 @@ export async function ladeHoecks(
     .where(
       and(
         eq(hoeck.lagerId, lagerId),
-        hoeckAktiv,
         umfang === "team" ? eq(hoeck.art, "team") : undefined,
         p.von ? sql`${hoeck.datum} >= ${p.von}` : undefined,
         p.bis ? sql`${hoeck.datum} <= ${p.bis}` : undefined,
@@ -329,7 +325,6 @@ export async function ladeTraktanden(
     .where(
       and(
         eq(traktandum.lagerId, lagerId),
-        traktandumAktiv,
         p.id ? eq(traktandum.id, p.id) : undefined,
         p.hoeckId === undefined
           ? undefined
@@ -368,7 +363,6 @@ export async function ladeHoeck(
       and(
         eq(hoeck.id, id),
         eq(hoeck.lagerId, lagerId),
-        hoeckAktiv,
         umfang === "team" ? eq(hoeck.art, "team") : undefined,
       ),
     );
@@ -390,7 +384,7 @@ export async function ladeHoeckZeile(
   const [zeile] = await tx
     .select()
     .from(hoeck)
-    .where(and(eq(hoeck.id, id), eq(hoeck.lagerId, lagerId), hoeckAktiv));
+    .where(and(eq(hoeck.id, id), eq(hoeck.lagerId, lagerId)));
   return zeile;
 }
 export async function ladeTraktandumZeile(
@@ -401,13 +395,7 @@ export async function ladeTraktandumZeile(
   const [zeile] = await tx
     .select()
     .from(traktandum)
-    .where(
-      and(
-        eq(traktandum.id, id),
-        eq(traktandum.lagerId, lagerId),
-        traktandumAktiv,
-      ),
-    );
+    .where(and(eq(traktandum.id, id), eq(traktandum.lagerId, lagerId)));
   return zeile;
 }
 
@@ -455,13 +443,7 @@ export async function loescheHoeck(
   const [n] = await tx
     .select({ n: sql<number>`count(*)`.mapWith(Number) })
     .from(traktandum)
-    .where(
-      and(
-        eq(traktandum.lagerId, k.lagerId),
-        eq(traktandum.hoeckId, id),
-        traktandumAktiv,
-      ),
-    );
+    .where(and(eq(traktandum.lagerId, k.lagerId), eq(traktandum.hoeckId, id)));
   if (n!.n > 0) return { fehler: "HOECK_HAT_TRAKTANDEN" };
   await loescheZeile(tx, hoeck, k, {
     id,
@@ -510,11 +492,7 @@ export async function pruefeTraktandumWerte(
       .select({ id: aufgabe.id })
       .from(aufgabe)
       .where(
-        and(
-          eq(aufgabe.id, werte.aufgabeId),
-          eq(aufgabe.lagerId, lagerId),
-          isNull(aufgabe.geloeschtAm),
-        ),
+        and(eq(aufgabe.id, werte.aufgabeId), eq(aufgabe.lagerId, lagerId)),
       );
     if (!a) return { fehler: "AUFGABE_UNBEKANNT" };
   }
@@ -565,7 +543,6 @@ async function endeVon(tx: Tx, lagerId: string, hoeckId: string | null) {
     .where(
       and(
         eq(traktandum.lagerId, lagerId),
-        traktandumAktiv,
         hoeckId === null
           ? isNull(traktandum.hoeckId)
           : eq(traktandum.hoeckId, hoeckId),
@@ -671,7 +648,6 @@ export async function ordneTraktanden(
     .where(
       and(
         eq(traktandum.lagerId, k.lagerId),
-        traktandumAktiv,
         hoeckId === null
           ? isNull(traktandum.hoeckId)
           : eq(traktandum.hoeckId, hoeckId),
@@ -707,7 +683,6 @@ export async function uebernehmeTraktanden(
     .where(
       and(
         eq(traktandum.lagerId, k.lagerId),
-        traktandumAktiv,
         isNull(traktandum.hoeckId),
         eq(traktandum.status, "offen"),
         ids ? inArray(traktandum.id, ids) : undefined,
@@ -793,8 +768,6 @@ export async function ladeEntscheide(
     .where(
       and(
         eq(traktandum.lagerId, lagerId),
-        traktandumAktiv,
-        hoeckAktiv,
         sql`${traktandum.entscheid} is not null`,
         p.nach
           ? sql`(${hoeck.datum}, ${traktandum.id}) < (select h.datum, t.id from traktandum t join hoeck h on h.id = t.hoeck_id and h.lager_id = t.lager_id where t.id = ${p.nach} and t.lager_id = ${lagerId})`
@@ -879,10 +852,9 @@ async function ladeRessortRunde(
       and(
         mitZahlen ? eq(aufgabe.ressortId, ressort.id) : sql`false`,
         eq(aufgabe.lagerId, ressort.lagerId),
-        isNull(aufgabe.geloeschtAm),
       ),
     )
-    .where(and(eq(ressort.lagerId, lagerId), isNull(ressort.geloeschtAm)))
+    .where(and(eq(ressort.lagerId, lagerId)))
     .groupBy(ressort.id, leitung.id)
     .orderBy(asc(ressort.reihenfolge), asc(ressort.id))
     .limit(200);

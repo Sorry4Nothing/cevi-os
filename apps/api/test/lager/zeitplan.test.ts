@@ -1629,14 +1629,6 @@ describe("Frist-Erinnerung", () => {
       await aufgabeDirekt(
         {
           frist: "2031-05-10",
-          geloeschtAm: new Date(),
-          verantwortlichPersonId: person,
-        },
-        l,
-      ),
-      await aufgabeDirekt(
-        {
-          frist: "2031-05-10",
           spaeterAb: "2031-05-11",
           verantwortlichPersonId: person,
         },

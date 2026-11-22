@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNull, notInArray, or } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, notInArray, or } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -106,18 +106,13 @@ async function ladeSchichten(tx: Leser, lagerId: string, ids: string[]) {
     .from(schicht)
     .innerJoin(
       dienst,
-      and(
-        eq(dienst.lagerId, schicht.lagerId),
-        eq(dienst.id, schicht.dienstId),
-        isNull(dienst.geloeschtAm),
-      ),
+      and(eq(dienst.lagerId, schicht.lagerId), eq(dienst.id, schicht.dienstId)),
     )
     .innerJoin(
       lagertag,
       and(
         eq(lagertag.lagerId, schicht.lagerId),
         eq(lagertag.id, schicht.lagertagId),
-        isNull(lagertag.geloeschtAm),
       ),
     )
     .innerJoin(
@@ -125,16 +120,9 @@ async function ladeSchichten(tx: Leser, lagerId: string, ids: string[]) {
       and(
         eq(tagesabschnitt.lagerId, schicht.lagerId),
         eq(tagesabschnitt.id, schicht.tagesabschnittId),
-        isNull(tagesabschnitt.geloeschtAm),
       ),
     )
-    .where(
-      and(
-        eq(schicht.lagerId, lagerId),
-        isNull(schicht.geloeschtAm),
-        inArray(schicht.id, ids),
-      ),
-    );
+    .where(and(eq(schicht.lagerId, lagerId), inArray(schicht.id, ids)));
   return new Map(zeilen.map((z) => [z.id, z]));
 }
 type SchichtZeile =
@@ -189,7 +177,6 @@ export async function legeTauschAn(
         eq(diensttausch.lagerId, k.lagerId),
         eq(diensttausch.schichtId, e.schichtId),
         eq(diensttausch.status, "offen"),
-        isNull(diensttausch.geloeschtAm),
       ),
     );
   if (offen) return { fehler: "ANFRAGE_OFFEN" };
@@ -224,13 +211,7 @@ async function ladeTausch(tx: Leser, lagerId: string, id: string) {
   const [zeile] = await tx
     .select()
     .from(diensttausch)
-    .where(
-      and(
-        eq(diensttausch.lagerId, lagerId),
-        eq(diensttausch.id, id),
-        isNull(diensttausch.geloeschtAm),
-      ),
-    );
+    .where(and(eq(diensttausch.lagerId, lagerId), eq(diensttausch.id, id)));
   if (!zeile) throw new HTTPException(404);
   return zeile;
 }
@@ -277,7 +258,6 @@ async function pruefePlaetze(
         and(
           eq(anwesenheit.lagerId, lagerId),
           eq(anwesenheit.wert, "F"),
-          isNull(anwesenheit.geloeschtAm),
           or(
             ...plaetze.map((p) =>
               and(
@@ -296,7 +276,6 @@ async function pruefePlaetze(
       .where(
         and(
           eq(schicht.lagerId, lagerId),
-          isNull(schicht.geloeschtAm),
           notInArray(schicht.id, ausser),
           or(
             ...plaetze.map((p) =>
@@ -468,7 +447,6 @@ export async function ladeTausche(
     .where(
       and(
         eq(diensttausch.lagerId, lagerId),
-        isNull(diensttausch.geloeschtAm),
         p.status ? eq(diensttausch.status, p.status) : undefined,
         p.nach ? gt(diensttausch.id, p.nach) : undefined,
       ),

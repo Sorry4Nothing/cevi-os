@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -39,13 +39,10 @@ registriereLagerTabelle({
   sichtbar: aufgabeSichtbar,
 });
 
-// Eine Aufgabe zählt nur, solange sie nicht gelöscht ist. Eine einzige Stelle, damit die endgültige Löschung (#427) die Bedingung hier entfernt statt in jeder Abfrage
-export const aufgabeAktiv = isNull(aufgabe.geloeschtAm);
-// Das Ressort einer Aufgabe: dasselbe Lager, nicht gelöscht (gleiches Ziel wie aufgabeAktiv)
+// Das Ressort einer Aufgabe: dasselbe Lager
 export const ressortJoin = and(
   eq(ressort.id, aufgabe.ressortId),
   eq(ressort.lagerId, aufgabe.lagerId),
-  isNull(ressort.geloeschtAm),
 );
 
 export type AufgabeZeile = typeof aufgabe.$inferSelect;
@@ -202,7 +199,6 @@ registriereSuchquelle({
   titel: sql`${aufgabe.titel}`,
   von: mitAufgabe(aufgabeCheckpunkt),
   id: sql`${aufgabe.id}`,
-  aktiv: sql`${aufgabeCheckpunkt.geloeschtAm} is null and ${aufgabe.geloeschtAm} is null`,
   filter: aufgabeSuchfilter,
 });
 registriereSuchquelle({
@@ -213,11 +209,10 @@ registriereSuchquelle({
   titel: sql`${aufgabe.titel}`,
   von: mitAufgabe(aufgabeStichwort),
   id: sql`${aufgabe.id}`,
-  aktiv: sql`${aufgabe.geloeschtAm} is null`,
   filter: aufgabeSuchfilter,
 });
 
-// Zeilenfilter des Feeds: Wer nicht alle Aufgaben lesen darf, sieht nur die eigenen. Beurteilt auch gelöschte Zeilen (der Feed meldet «geloescht»)
+// Zeilenfilter des Feeds: Wer nicht alle Aufgaben lesen darf, sieht nur die eigenen.
 async function aufgabeSichtbar(db: Db, zugriff: LagerZugriff, ids: string[]) {
   if (leseUmfang(zugriff) === "alle") return new Set(ids);
   const personId = zugriff.personId;
@@ -280,7 +275,6 @@ export async function ladeAufgaben(
     .where(
       and(
         eq(aufgabe.lagerId, lagerId),
-        aufgabeAktiv,
         p.id ? eq(aufgabe.id, p.id) : undefined,
         p.eigeneVon ? beteiligt(p.eigeneVon) : undefined,
         p.offen ? sql`${aufgabe.status} <> 'erledigt'` : undefined,
@@ -372,7 +366,7 @@ export async function ladeAufgabeZeile(
   const [zeile] = await tx
     .select()
     .from(aufgabe)
-    .where(and(eq(aufgabe.id, id), eq(aufgabe.lagerId, lagerId), aufgabeAktiv));
+    .where(and(eq(aufgabe.id, id), eq(aufgabe.lagerId, lagerId)));
   return zeile;
 }
 
@@ -391,7 +385,6 @@ export async function istBeteiligt(
       and(
         eq(aufgabe.id, id),
         eq(aufgabe.lagerId, lagerId),
-        aufgabeAktiv,
         beteiligt(personId),
       ),
     );
@@ -435,11 +428,7 @@ export async function pruefeAufgabenWerte(
       .select({ id: ressort.id })
       .from(ressort)
       .where(
-        and(
-          eq(ressort.id, werte.ressortId),
-          eq(ressort.lagerId, lagerId),
-          isNull(ressort.geloeschtAm),
-        ),
+        and(eq(ressort.id, werte.ressortId), eq(ressort.lagerId, lagerId)),
       );
     if (!r) return { fehler: "RESSORT_UNBEKANNT" };
   }
@@ -628,7 +617,7 @@ export async function legeAufgabeAn(
   const [ende] = await tx
     .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
     .from(aufgabe)
-    .where(and(eq(aufgabe.lagerId, k.lagerId), aufgabeAktiv));
+    .where(and(eq(aufgabe.lagerId, k.lagerId)));
   const neu = await legeZeileAn(tx, aufgabe, k, {
     ...werte,
     reihenfolge: werte.reihenfolge ?? ende!.n,

@@ -353,8 +353,6 @@ export const LAGER_BASIS_SPALTEN = [
   "erstellt_von",
   "geaendert_am",
   "geaendert_von",
-  "geloescht_am",
-  "geloescht_von",
   "lager_seq",
 ];
 

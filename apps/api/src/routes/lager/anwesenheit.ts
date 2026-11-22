@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, gt, inArray } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
@@ -112,7 +112,6 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               and(
                 eq(anwesenheit.lagerId, lagerId),
                 eq(anwesenheit.personId, personId),
-                isNull(anwesenheit.geloeschtAm),
                 lagertagIds
                   ? inArray(anwesenheit.lagertagId, lagertagIds)
                   : undefined,
@@ -126,7 +125,6 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               and(
                 eq(anwesenheitAnfrage.lagerId, lagerId),
                 eq(anwesenheitAnfrage.personId, personId),
-                isNull(anwesenheitAnfrage.geloeschtAm),
               ),
             )
             .orderBy(desc(anwesenheitAnfrage.id))
@@ -224,7 +222,6 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             .where(
               and(
                 eq(anwesenheitAnfrage.lagerId, c.get("lager").lager.id),
-                isNull(anwesenheitAnfrage.geloeschtAm),
                 status ? eq(anwesenheitAnfrage.status, status) : undefined,
                 nach ? gt(anwesenheitAnfrage.id, nach) : undefined,
               ),

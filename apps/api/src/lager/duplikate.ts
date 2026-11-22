@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -59,7 +59,6 @@ export async function findeDuplikate(
     .where(
       and(
         eq(aufgabe.lagerId, lagerId),
-        isNull(aufgabe.geloeschtAm),
         sql`${aufgabe.status} <> 'erledigt'`,
         p.titel !== undefined
           ? sql`${aufgabe.ressortId} is not distinct from ${p.ressortId ?? null}`
@@ -104,7 +103,7 @@ export const duplikateAbfrage = z.strictObject({
   ressortId: z.uuid().optional(),
 });
 
-// Führt «mitId» in die Aufgabe «id» zusammen: Checkliste, Links, Stichworte, Notiz und Frist werden vereint, die zweite Aufgabe wird gelöscht (über loescheZeile des Sync-Kerns; bis dahin Soft-Delete, sie behält ihre Details). Alles in der Transaktion des Aufrufers, unter der Lagersperre; beide Versionen werden geprüft (409 VERSION_KONFLIKT).
+// Führt «mitId» in die Aufgabe «id» zusammen: Checkliste, Links, Stichworte, Notiz und Frist werden vereint, die zweite Aufgabe wird gelöscht (über loescheZeile des Sync-Kerns: endgültig, ihre Details gehen mit). Alles in der Transaktion des Aufrufers, unter der Lagersperre; beide Versionen werden geprüft (409 VERSION_KONFLIKT).
 // - Checkpunkte und Links der zweiten Aufgabe kommen als Kopien ans Ende (ein Punkt mit gleichem Text und ein Link mit gleicher Adresse nicht doppelt), Stand und Person des Abhakens bleiben; Stichworte als Vereinigung.
 // - Notiz: Hat nur eine eine Notiz, gilt sie; sonst stehen beide untereinander (zuerst die der Zielaufgabe).
 // - Frist: die frühere der beiden.
@@ -127,22 +126,12 @@ export async function fuehreAufgabenZusammen(
     tx
       .select()
       .from(aufgabeCheckpunkt)
-      .where(
-        and(
-          inArray(aufgabeCheckpunkt.aufgabeId, ids),
-          isNull(aufgabeCheckpunkt.geloeschtAm),
-        ),
-      )
+      .where(and(inArray(aufgabeCheckpunkt.aufgabeId, ids)))
       .orderBy(asc(aufgabeCheckpunkt.reihenfolge), asc(aufgabeCheckpunkt.id)),
     tx
       .select()
       .from(aufgabeLink)
-      .where(
-        and(
-          inArray(aufgabeLink.aufgabeId, ids),
-          isNull(aufgabeLink.geloeschtAm),
-        ),
-      )
+      .where(and(inArray(aufgabeLink.aufgabeId, ids)))
       .orderBy(asc(aufgabeLink.id)),
     tx
       .select()

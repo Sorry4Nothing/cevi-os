@@ -869,10 +869,7 @@ describe("Mitfahrende", () => {
     }
     // Ein gelöschter Teilnehmender ist unbekannt
     const weg = await kind(id);
-    await db
-      .update(schema.teilnehmer)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.teilnehmer.id, weg));
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, weg));
     expect((await mitfahrt(f.id, { teilnehmerId: weg }, id)).status).toBe(400);
     expect((await liste(leiter(), id))[0]!.mitfahrer).toHaveLength(0);
   });
@@ -1127,10 +1124,7 @@ describe("Personen ohne Fahrt", () => {
     expect(gesehen).toHaveLength(7);
     expect(new Set(gesehen).size).toBe(7);
     // Ein Teilnehmender im Papierkorb zählt nicht
-    await db
-      .update(schema.teilnehmer)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.teilnehmer.id, c));
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, c));
     expect((await ohne("hin")).gesamt).toBe(3);
     // Richtung ist Pflicht, der Cursor streng
     expect(

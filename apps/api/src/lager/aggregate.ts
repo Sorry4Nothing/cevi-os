@@ -1,9 +1,8 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { aufgabe, lagertag, ressort } from "../db/schema.js";
 import { ladeZusammenfassung } from "./anwesenheit.js";
 import {
-  aufgabeAktiv,
   beteiligt,
   ladeAufgaben,
   leseUmfang,
@@ -72,13 +71,7 @@ export async function ladeHeute(
   const [tag] = await db
     .select({ id: lagertag.id, datum: lagertag.datum, label: lagertag.label })
     .from(lagertag)
-    .where(
-      and(
-        eq(lagertag.lagerId, lagerId),
-        eq(lagertag.datum, heute),
-        isNull(lagertag.geloeschtAm),
-      ),
-    );
+    .where(and(eq(lagertag.lagerId, lagerId), eq(lagertag.datum, heute)));
 
   const [seite, wetter, anwesenheit, plan, hoecks] = await Promise.all([
     mitSeite && tag ? ladeTagesseite(db, zugriff, tag.id, holen) : undefined,
@@ -213,7 +206,6 @@ export async function ladeStart(db: Leser, zugriff: LagerZugriff, jetzt: Date) {
           .where(
             and(
               eq(aufgabe.lagerId, lagerId),
-              aufgabeAktiv,
               nurEigene ? beteiligt(nurEigene) : undefined,
             ),
           )

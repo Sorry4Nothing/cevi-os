@@ -70,23 +70,29 @@ const unbekannteId = () => ({
   abgeschlossen: bearbeiten(200).abgeschlossen,
 });
 
-// Ein Dienst direkt in der Datenbank: Jede Anfrage bekommt einen frischen (Version 1), weil Ändern und Löschen ihn verbrauchen. Sein Abschnitt ist weich gelöscht und zählt darum nicht gegen die Grenze der Abschnitte
+// Ein Dienst direkt in der Datenbank: Jede Anfrage bekommt einen frischen (Version 1), weil Ändern und Löschen ihn verbrauchen. Alle Dienste eines Lagers hängen an einem Abschnitt (einer je Lager), damit die Grenze der Abschnitte nicht erreicht wird
+const matrixAbschnitt = new Map<string, string>();
 async function neuerDienst(w: LagerWelt, z: LagerZustand) {
-  const [abschnitt] = await w.db
-    .insert(schema.tagesabschnitt)
-    .values({
-      lagerId: w.lagerId(z),
-      name: `Matrix ${randomUUID().slice(0, 8)}`,
-      geloeschtAm: new Date(),
-      lagerSeq: 0,
-    })
-    .returning({ id: schema.tagesabschnitt.id });
+  const lagerId = w.lagerId(z);
+  let abschnittId = matrixAbschnitt.get(lagerId);
+  if (!abschnittId) {
+    const [abschnitt] = await w.db
+      .insert(schema.tagesabschnitt)
+      .values({
+        lagerId,
+        name: `Matrix ${randomUUID().slice(0, 8)}`,
+        lagerSeq: 0,
+      })
+      .returning({ id: schema.tagesabschnitt.id });
+    abschnittId = abschnitt!.id;
+    matrixAbschnitt.set(lagerId, abschnittId);
+  }
   const [zeile] = await w.db
     .insert(schema.dienst)
     .values({
-      lagerId: w.lagerId(z),
-      name: "Matrix-Dienst",
-      tagesabschnittId: abschnitt!.id,
+      lagerId,
+      name: `Matrix-Dienst ${randomUUID().slice(0, 8)}`,
+      tagesabschnittId: abschnittId,
       lagerSeq: 0,
     })
     .returning({ id: schema.dienst.id });
@@ -106,7 +112,7 @@ export const ZEILEN: LagerMatrix = {
   "PATCH /api/v1/lager/:id/schichtplan/dienste/:dienstId": {
     url: async (w, z) =>
       `${lagerPfad(w, z)}/schichtplan/dienste/${await neuerDienst(w, z)}`,
-    body: () => ({ version: 1, name: "Umbenannt" }),
+    body: () => ({ version: 1, name: `Umbenannt ${randomUUID().slice(0, 8)}` }),
     erwartet: bearbeiten(200),
   },
   "DELETE /api/v1/lager/:id/schichtplan/dienste/:dienstId": {

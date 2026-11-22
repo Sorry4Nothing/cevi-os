@@ -941,7 +941,10 @@ describe("Traktanden", () => {
         art: "geloescht",
       }),
     ]);
-    // Die Zeile bleibt in der Datenbank bis zur endgültigen Löschung (#427), ist aber nirgends mehr sichtbar
+    // Die Zeile ist endgültig weg (#427)
+    expect(
+      await db.$count(schema.traktandum, eq(schema.traktandum.id, t.id)),
+    ).toBe(0);
     expect(
       (await anfrage(leiter(), "DELETE", `${L()}/traktanden/${t.id}?version=2`))
         .status,
@@ -1080,16 +1083,6 @@ describe("Höck-Modus", () => {
         status: "erledigt",
         erledigtAm: new Date(),
         frist: gestern,
-        lagerSeq: 0,
-      },
-      // Gelöscht: zählt nicht
-      {
-        lagerId: id,
-        ressortId: ressortA!.id,
-        titel: "d",
-        status: "offen",
-        frist: gestern,
-        geloeschtAm: new Date(),
         lagerSeq: 0,
       },
     ]);

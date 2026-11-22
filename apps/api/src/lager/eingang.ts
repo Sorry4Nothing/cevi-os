@@ -291,11 +291,7 @@ export async function pruefeEingangZiele(
       .select({ id: ressort.id })
       .from(ressort)
       .where(
-        and(
-          eq(ressort.id, werte.ressortId),
-          eq(ressort.lagerId, lagerId),
-          sql`${ressort.geloeschtAm} is null`,
-        ),
+        and(eq(ressort.id, werte.ressortId), eq(ressort.lagerId, lagerId)),
       );
     if (!r) return "RESSORT_UNBEKANNT";
   }
@@ -307,7 +303,6 @@ export async function pruefeEingangZiele(
         and(
           eq(traktandum.id, werte.traktandumId),
           eq(traktandum.lagerId, lagerId),
-          sql`${traktandum.geloeschtAm} is null`,
         ),
       );
     if (!t) return "TRAKTANDUM_UNBEKANNT";

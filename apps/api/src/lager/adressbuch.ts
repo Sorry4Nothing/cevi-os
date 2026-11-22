@@ -1,4 +1,4 @@
-import { and, asc, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, ilike, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { adressbuchKontakt } from "../db/schema.js";
@@ -15,8 +15,6 @@ import { registriereLagerTabelle } from "./tabellen.js";
 export const AUFRAEUMEN_TAGE = 180;
 // Wie viele Tage vor dem Löschen die Lagerleitung erinnert wird
 export const ERINNERUNG_TAGE = 14;
-// Eine Zeile im «Papierkorb» (weiches Löschen über den Sync-Kern) hält Personendaten; der Lauf entfernt sie nach der Frist des Papierkorbs (A11, 30 Tage)
-export const GELOESCHT_AUFBEWAHRUNG_TAGE = 30;
 
 // Suche (#399): nur Name, Funktion und Gruppe (wie der Filter «q» der Liste), nie Telefon, E-Mail oder Notiz. Wer sucht und Treffer aus dem Adressbuch bekommt, hinterlässt wie beim Lesen der Liste einen Eintrag im Audit-Log (nur Anzahl)
 registriereSuchquelle({
@@ -163,7 +161,6 @@ export async function ladeKontakte(
     .where(
       and(
         eq(k.lagerId, lager.id),
-        isNull(k.geloeschtAm),
         p.id ? eq(k.id, p.id) : undefined,
         p.q
           ? or(
@@ -186,9 +183,7 @@ export async function ladeKontakte(
   };
 }
 
-// Der tägliche Aufräumlauf: eine einzige Löschanweisung für alle Lager. Sie entfernt endgültig
-//  - Kontakte ohne «behalten», sobald heute der Tag aufraeumenAb(lager.bis) erreicht ist (Grenze: am Tag 180 nach dem Lagerende weg, am Tag 179 noch da), auch in abgeschlossenen Lagern,
-//  - Kontakte im Papierkorb nach 30 Tagen (auch mit «behalten»), damit ein gelöschter Kontakt nicht 180 Tage nachwirkt.
+// Der tägliche Aufräumlauf: eine einzige Löschanweisung für alle Lager. Sie entfernt endgültig die Kontakte ohne «behalten», sobald heute der Tag aufraeumenAb(lager.bis) erreicht ist (Grenze: am Tag 180 nach dem Lagerende weg, am Tag 179 noch da), auch in abgeschlossenen Lagern. Einen Papierkorb gibt es nicht mehr (#427): Ein gelöschter Kontakt ist sofort weg.
 // Je betroffenes Lager zählt dieselbe Anweisung die Folgenummer hoch und schreibt je Kontakt einen Feed-Eintrag «geloescht» (nur IDs), damit Geräte mit einer Offline-Kopie den Kontakt verlieren, und einen Audit-Eintrag mit der Anzahl, ohne Inhalte. Liefert die Zahl gelöschter Kontakte
 export async function loescheAlteKontakte(
   db: Db,
@@ -208,10 +203,7 @@ export async function loescheAlteKontakte(
       select k.id, k.lager_id, k.version, l.abteilung_id,
         row_number() over (partition by k.lager_id order by k.id) as rn
       from adressbuch_kontakt k join lager l on l.id = k.lager_id
-      where (
-        (not k.behalten and (l.bis + make_interval(days => ${AUFRAEUMEN_TAGE}))::date <= ${heute}::date)
-        or k.geloescht_am < ${jetzt.toISOString()}::timestamptz - make_interval(days => ${GELOESCHT_AUFBEWAHRUNG_TAGE})
-      ) ${eingeschraenkt}
+      where not k.behalten and (l.bis + make_interval(days => ${AUFRAEUMEN_TAGE}))::date <= ${heute}::date ${eingeschraenkt}
     ),
     weg as (
       delete from adressbuch_kontakt where id in (select id from faellig) returning id
@@ -255,7 +247,7 @@ export async function erinnereAnAufraeumen(
       and (l.bis + make_interval(days => ${AUFRAEUMEN_TAGE}))::date > ${heute}::date
       and exists (
         select 1 from adressbuch_kontakt k
-        where k.lager_id = l.id and not k.behalten and k.geloescht_am is null
+        where k.lager_id = l.id and not k.behalten
       )
       and not exists (
         select 1 from lager_benachrichtigung b

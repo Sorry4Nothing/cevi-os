@@ -46,7 +46,7 @@ const offenAbfrage = z.strictObject({
   limit: z.coerce.number().int().min(1).max(200).default(SEITE),
 });
 
-// Zimmer und Zelte des Lagers (#385). Lesen braucht einteilung.lesen: Lagerleitung, Leitung und Lesen sehen alle Zimmer mit Plätzen, Belegung und Namen, das Team nur das eigene Zimmer mit den Namen der Mitbewohner (nur Namen, keine Plätze, keine Notiz). Einteilen und Zimmer ändern braucht einteilung.bearbeiten (Standard: Lagerleitung und Leitung). Mehr Personen als Plätze ist erlaubt: Die Antworten melden belegt, plaetze und ueberbelegt, die App warnt, die Route sperrt nicht. Jede Schreibroute geht durch lager/sync.ts (Version, Folgenummer, Feed); Zimmer löschen ist ein Soft-Delete samt seinen Zuordnungen
+// Zimmer und Zelte des Lagers (#385). Lesen braucht einteilung.lesen: Lagerleitung, Leitung und Lesen sehen alle Zimmer mit Plätzen, Belegung und Namen, das Team nur das eigene Zimmer mit den Namen der Mitbewohner (nur Namen, keine Plätze, keine Notiz). Einteilen und Zimmer ändern braucht einteilung.bearbeiten (Standard: Lagerleitung und Leitung). Mehr Personen als Plätze ist erlaubt: Die Antworten melden belegt, plaetze und ueberbelegt, die App warnt, die Route sperrt nicht. Jede Schreibroute geht durch lager/sync.ts (Version, Folgenummer, Feed); Zimmer löschen ist endgültig samt seinen Zuordnungen
 export function erstelleZimmerRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "einteilung.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "einteilung.bearbeiten" });
@@ -75,17 +75,11 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
     const [z] = await tx
       .select({ id: zimmer.id })
       .from(zimmer)
-      .where(
-        and(
-          eq(zimmer.id, zimmerId),
-          eq(zimmer.lagerId, lagerId),
-          isNull(zimmer.geloeschtAm),
-        ),
-      );
+      .where(and(eq(zimmer.id, zimmerId), eq(zimmer.lagerId, lagerId)));
     if (!z) throw new HTTPException(404);
   }
 
-  // Alle genannten Ziele gehören zu diesem Lager (Teilnehmende nicht im Papierkorb, Mitglieder mit Konto der Abteilung), sonst 404; gibt die schon bestehenden Zuordnungen dieser Ziele zurück (in jedem Zimmer)
+  // Alle genannten Ziele gehören zu diesem Lager (Teilnehmende, die es gibt, Mitglieder mit Konto der Abteilung), sonst 404; gibt die schon bestehenden Zuordnungen dieser Ziele zurück (in jedem Zimmer)
   async function pruefeZiele(
     tx: Tx,
     lagerId: string,
@@ -102,7 +96,6 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
             .where(
               and(
                 eq(teilnehmer.lagerId, lagerId),
-                isNull(teilnehmer.geloeschtAm),
                 inArray(teilnehmer.id, teilnehmerIds),
               ),
             ),
@@ -125,7 +118,6 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
         .where(
           and(
             eq(zimmerZuordnung.lagerId, lagerId),
-            isNull(zimmerZuordnung.geloeschtAm),
             or(
               teilnehmerIds.length > 0
                 ? inArray(zimmerZuordnung.teilnehmerId, teilnehmerIds)
@@ -231,8 +223,7 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
               .where(
                 and(
                   eq(teilnehmer.lagerId, lagerId),
-                  isNull(teilnehmer.geloeschtAm),
-                  sql`not exists (select 1 from zimmer_zuordnung a where a.lager_id = ${teilnehmer.lagerId} and a.teilnehmer_id = ${teilnehmer.id} and a.geloescht_am is null)`,
+                  sql`not exists (select 1 from zimmer_zuordnung a where a.lager_id = ${teilnehmer.lagerId} and a.teilnehmer_id = ${teilnehmer.id})`,
                   nach
                     ? sql`(${teilnehmer.nachname}, ${teilnehmer.vorname}, ${teilnehmer.id}) > (select t.nachname, t.vorname, t.id from teilnehmer t where t.id = ${nach} and t.lager_id = ${lagerId})`
                     : undefined,
@@ -264,7 +255,7 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
                 eq(user.abteilungId, zugriff.lager.abteilungId),
                 isNull(user.deaktiviertAm),
                 sql`coalesce(${user.banned}, false) = false`,
-                sql`not exists (select 1 from zimmer_zuordnung a where a.lager_id = ${lagerMitglied.lagerId} and a.person_id = ${lagerMitglied.personId} and a.geloescht_am is null)`,
+                sql`not exists (select 1 from zimmer_zuordnung a where a.lager_id = ${lagerMitglied.lagerId} and a.person_id = ${lagerMitglied.personId})`,
                 nach
                   ? sql`(${user.name}, ${user.id}) > (select u.name, u.id from "user" u where u.id = ${nach})`
                   : undefined,
@@ -322,20 +313,7 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
               version: c.req.valid("query").version,
               ansicht: zimmerAnsicht,
             });
-            // Die Zuordnungen gehen mit dem Zimmer (der Feed meldet jede als gelöscht)
-            const ids = await tx
-              .select({ id: zimmerZuordnung.id })
-              .from(zimmerZuordnung)
-              .where(
-                and(
-                  eq(zimmerZuordnung.lagerId, k.lagerId),
-                  eq(zimmerZuordnung.zimmerId, zimmerId),
-                  isNull(zimmerZuordnung.geloeschtAm),
-                ),
-              );
-            await loescheZeilen(tx, zimmerZuordnung, k, {
-              ids: ids.map((z) => z.id),
-            });
+            // Die Zuordnungen gehen mit dem Zimmer (der Sync-Kern löscht sie mit und meldet jede im Feed)
           });
           return c.body(null, 204);
         },
@@ -414,7 +392,6 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
                   and(
                     eq(zimmerZuordnung.lagerId, lagerId),
                     eq(zimmerZuordnung.zimmerId, zimmerId),
-                    isNull(zimmerZuordnung.geloeschtAm),
                     or(
                       teilnehmerIds.length > 0
                         ? inArray(zimmerZuordnung.teilnehmerId, teilnehmerIds)

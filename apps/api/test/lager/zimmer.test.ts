@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -236,12 +236,8 @@ describe("Zimmer anlegen, ändern, löschen", () => {
         .status,
     ).toBe(204);
     expect((await liste(id)).body.zimmer).toEqual([]);
-    // Soft-Delete: Die Zeile bleibt
-    const [zeile] = await db
-      .select()
-      .from(schema.zimmer)
-      .where(eq(schema.zimmer.id, z.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
+    // Endgültig: Die Zeile ist weg
+    expect(await db.$count(schema.zimmer, eq(schema.zimmer.id, z.id))).toBe(0);
   });
 
   test("ungültige Eingaben: 400", async () => {
@@ -416,10 +412,7 @@ describe("Einteilen, Belegung und Überbelegung", () => {
     expect(s2.body.eintraege[0].id).not.toBe(s1.body.eintraege[0].id);
     expect(s2.body.naechster).toBeNull();
     // Ein gelöschter Teilnehmender fällt aus Auswahl und Belegung
-    await db
-      .update(schema.teilnehmer)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.teilnehmer.id, a!));
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, a!));
     expect((await liste(id)).body.zimmer[0].belegt).toBe(1);
   });
 
@@ -496,12 +489,7 @@ describe("Einteilen, Belegung und Überbelegung", () => {
       await db
         .select()
         .from(schema.zimmerZuordnung)
-        .where(
-          and(
-            eq(schema.zimmerZuordnung.teilnehmerId, a),
-            isNull(schema.zimmerZuordnung.geloeschtAm),
-          ),
-        ),
+        .where(and(eq(schema.zimmerZuordnung.teilnehmerId, a))),
     ).toHaveLength(1);
   });
 
@@ -528,10 +516,7 @@ describe("Einteilen, Belegung und Überbelegung", () => {
         .where(eq(schema.zimmerZuordnung.lagerId, id)),
     ).toHaveLength(0);
     // Ein gelöschter Teilnehmender zählt als unbekannt
-    await db
-      .update(schema.teilnehmer)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.teilnehmer.id, eigener));
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, eigener));
     expect(
       (await einteilen(id, z.id, { teilnehmerIds: [eigener] })).status,
     ).toBe(404);
@@ -817,10 +802,7 @@ describe("Anzeigenamen", () => {
     const b = await neuerTeilnehmer(id, "Anna", "Test");
     const c = await neuerTeilnehmer(id, "Anna", "Beispiel");
     const weg = await neuerTeilnehmer(id, "Anna", "Gelöscht");
-    await db
-      .update(schema.teilnehmer)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.teilnehmer.id, weg));
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, weg));
     const n = await anzeigeNamenLager(db, id);
     expect(n.get(a)).toBe("Fuchs");
     // Zwei Anna (b, c) ohne Cevi-Name: Anfangsbuchstabe; die gelöschte zählt nicht

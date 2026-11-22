@@ -493,7 +493,7 @@ describe("Verknüpfung auf die Datei", () => {
     }
   });
 
-  test("Löschen ist weich: weg aus Liste und Einzelabruf, Zeile bleibt, Datei bleibt", async () => {
+  test("Löschen ist endgültig: weg aus Liste, Einzelabruf und Tabelle, Datei bleibt", async () => {
     const p = await neu();
     expect(
       (
@@ -507,16 +507,13 @@ describe("Verknüpfung auf die Datei", () => {
     expect(
       (await anfrage(leiter(), "GET", `${L()}/protokolle/${p.id}`)).status,
     ).toBe(404);
-    const [zeile] = await db
-      .select()
-      .from(schema.protokoll)
-      .where(eq(schema.protokoll.id, p.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
-    const [d] = await db
-      .select()
-      .from(schema.lagerDatei)
-      .where(eq(schema.lagerDatei.id, p.dateiId));
-    expect(d!.geloeschtAm).toBeNull();
+    expect(
+      await db.$count(schema.protokoll, eq(schema.protokoll.id, p.id)),
+    ).toBe(0);
+    // Die Datei am Ablageort und ihr Eintrag bleiben (der Aufräumlauf entfernt ihn nach 24 Stunden)
+    expect(
+      await db.$count(schema.lagerDatei, eq(schema.lagerDatei.id, p.dateiId)),
+    ).toBe(1);
   });
 
   test("Liste: Filter nach Art, Höck und Titel, Seitenwechsel", async () => {
@@ -884,7 +881,7 @@ describe("Beschlüsse", () => {
     expect(geloest.body).toMatchObject({ protokollId: null, hoeckId: null });
   });
 
-  test("Beschlüsse bleiben, wenn das Protokoll gelöscht wird; Liste filtert nach Protokoll und Höck", async () => {
+  test("Beschlüsse bleiben, wenn das Protokoll gelöscht wird, ohne Verweis darauf und mit dem Höck; Liste filtert nach Protokoll und Höck", async () => {
     const h = await hoeck("team");
     const p = await neu({ art: "notiz", hoeckId: h.id });
     const b = (await neuerBeschluss({ protokollId: p.id })).body as B;
@@ -899,7 +896,12 @@ describe("Beschlüsse", () => {
       "GET",
       `${L()}/beschluesse?protokollId=${p.id}`,
     );
-    expect(nachProtokoll.body.beschluesse.map((x: B) => x.id)).toEqual([b.id]);
+    expect(nachProtokoll.body.beschluesse).toEqual([]);
+    const [danach] = await db
+      .select()
+      .from(schema.beschluss)
+      .where(eq(schema.beschluss.id, b.id));
+    expect(danach).toMatchObject({ protokollId: null, version: 2 });
     const nachHoeck = await anfrage(
       leiter(),
       "GET",

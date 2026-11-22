@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { zimmer, zimmerZuordnung } from "../db/schema.js";
@@ -21,7 +21,6 @@ const meineZimmer = (db: Db, lagerId: string, personId: string) =>
       and(
         eq(zimmerZuordnung.lagerId, lagerId),
         eq(zimmerZuordnung.personId, personId),
-        isNull(zimmerZuordnung.geloeschtAm),
       ),
     );
 
@@ -63,7 +62,7 @@ registriereLagerTabelle({
   recht: "einteilung.lesen",
   sichtbar: async (db, zugriff, ids) => {
     if (!nurEigenes(zugriff)) return new Set(ids);
-    // Die eigene Zuordnung (auch die gelöschte: Die Person erfährt, dass sie aus dem Zimmer ist) und die im eigenen Zimmer
+    // Die eigene Zuordnung  und die im eigenen Zimmer
     const zeilen = await db
       .select({ id: zimmerZuordnung.id })
       .from(zimmerZuordnung)
@@ -205,7 +204,7 @@ export async function anzeigeNamenLager(
   }>(sql`
     select t.id, t.vorname, t.nachname, t.cevi_name as "ceviName", false as konto
     from teilnehmer t
-    where t.lager_id = ${lagerId} and t.geloescht_am is null
+    where t.lager_id = ${lagerId}
     union all
     select u.id, u.name, '', u.cevi_name, true
     from lager_mitglied m
@@ -231,7 +230,7 @@ export type ZimmerZeile = ReturnType<typeof zimmerAnsicht> & {
   mitglieder: Mitglied[];
 };
 
-// Die Zimmer des Lagers mit Belegung in einer Abfrage (GROUP BY): belegt zählt nur gültige Einträge (Teilnehmende nicht im Papierkorb, Mitglieder des Lagers mit aktivem Konto der Abteilung). Mit zimmerId nur dieses Zimmer, mit nurPerson nur Zimmer, in denen die Person liegt (Team). Mehr Belegte als Plätze ist erlaubt
+// Die Zimmer des Lagers mit Belegung in einer Abfrage (GROUP BY): belegt zählt nur gültige Einträge (Teilnehmende, die es gibt, Mitglieder des Lagers mit aktivem Konto der Abteilung). Mit zimmerId nur dieses Zimmer, mit nurPerson nur Zimmer, in denen die Person liegt (Team). Mehr Belegte als Plätze ist erlaubt
 export async function ladeZimmer(
   db: Pick<Db, "execute">,
   lagerId: string,
@@ -251,16 +250,16 @@ export async function ladeZimmer(
           filter (where t.id is not null or u.id is not null),
         '[]'::jsonb) as mitglieder
     from zimmer z
-    left join zimmer_zuordnung a on a.lager_id = z.lager_id and a.zimmer_id = z.id and a.geloescht_am is null
-    left join teilnehmer t on t.lager_id = a.lager_id and t.id = a.teilnehmer_id and t.geloescht_am is null
+    left join zimmer_zuordnung a on a.lager_id = z.lager_id and a.zimmer_id = z.id
+    left join teilnehmer t on t.lager_id = a.lager_id and t.id = a.teilnehmer_id
     left join lager_mitglied m on m.lager_id = a.lager_id and m.person_id = a.person_id
     left join "user" u on u.id = m.person_id and u.abteilung_id = ${abteilungId}
       and u.deaktiviert_am is null and coalesce(u.banned, false) = false
-    where z.lager_id = ${lagerId} and z.geloescht_am is null
+    where z.lager_id = ${lagerId}
       ${p.zimmerId ? sql`and z.id = ${p.zimmerId}` : sql``}
       ${
         p.nurPerson
-          ? sql`and z.id in (select e.zimmer_id from zimmer_zuordnung e where e.lager_id = ${lagerId} and e.person_id = ${p.nurPerson} and e.geloescht_am is null)`
+          ? sql`and z.id in (select e.zimmer_id from zimmer_zuordnung e where e.lager_id = ${lagerId} and e.person_id = ${p.nurPerson})`
           : sql``
       }
     group by z.id
@@ -276,10 +275,10 @@ export async function zaehleOffene(
 ) {
   const [z] = await db.execute<{ teilnehmer: number; team: number }>(sql`
     select
-      (select count(*) from teilnehmer t where t.lager_id = ${lagerId} and t.geloescht_am is null
-        and not exists (select 1 from zimmer_zuordnung a where a.lager_id = t.lager_id and a.teilnehmer_id = t.id and a.geloescht_am is null))::int as teilnehmer,
+      (select count(*) from teilnehmer t where t.lager_id = ${lagerId}
+        and not exists (select 1 from zimmer_zuordnung a where a.lager_id = t.lager_id and a.teilnehmer_id = t.id))::int as teilnehmer,
       (select count(*) from lager_mitglied m join "user" u on u.id = m.person_id
         where m.lager_id = ${lagerId} and u.abteilung_id = ${abteilungId} and u.deaktiviert_am is null and coalesce(u.banned, false) = false
-        and not exists (select 1 from zimmer_zuordnung a where a.lager_id = m.lager_id and a.person_id = m.person_id and a.geloescht_am is null))::int as team`);
+        and not exists (select 1 from zimmer_zuordnung a where a.lager_id = m.lager_id and a.person_id = m.person_id))::int as team`);
   return z!;
 }

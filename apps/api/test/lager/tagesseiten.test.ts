@@ -277,10 +277,7 @@ describe("Rechte je Lager-Persona", () => {
   });
   test("ein gelöschter Tag ist 404", async () => {
     const tag = await neuerTag();
-    await db
-      .update(schema.lagertag)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.lagertag.id, tag.id));
+    await db.delete(schema.lagertag).where(eq(schema.lagertag.id, tag.id));
     expect((await anfrage(leiter(), "GET", `${T()}/${tag.id}`)).status).toBe(
       404,
     );
@@ -602,12 +599,13 @@ describe("Blöcke", () => {
     );
     const seite = await anfrage(leiter(), "GET", `${T()}/${tag.id}`);
     expect(seite.body.bloecke).toEqual([]);
-    // Soft-Delete: die Zeile bleibt für den Papierkorb
-    const [zeile] = await db
-      .select()
-      .from(schema.tagesseiteBlock)
-      .where(eq(schema.tagesseiteBlock.id, block.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
+    // Endgültig: die Zeile ist weg
+    expect(
+      await db.$count(
+        schema.tagesseiteBlock,
+        eq(schema.tagesseiteBlock.id, block.id),
+      ),
+    ).toBe(0);
     expect((await anfrage(leiter(), "DELETE", `${url}?version=3`)).status).toBe(
       404,
     );
@@ -678,10 +676,7 @@ describe("Was der Tag zeigt", () => {
     const heute = await aufgabe(tag.datum);
     await aufgabe("2000-01-01");
     const gelöscht = await aufgabe(tag.datum);
-    await db
-      .update(schema.aufgabe)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.aufgabe.id, gelöscht));
+    await db.delete(schema.aufgabe).where(eq(schema.aufgabe.id, gelöscht));
     const a = await anfrage(leiter(), "GET", `${T()}/${tag.id}`);
     expect(a.body.aufgaben.map((x: { id: string }) => x.id)).toEqual([heute]);
     expect(a.body.aufgaben[0]).toMatchObject({

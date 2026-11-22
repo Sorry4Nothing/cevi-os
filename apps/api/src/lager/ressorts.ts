@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -32,7 +32,6 @@ registriereSuchquelle({
   titel: sql`${ressort.name}`,
   von: sql`${ressortNotiz} join ${ressort} on ${ressort.lagerId} = ${ressortNotiz.lagerId} and ${ressort.id} = ${ressortNotiz.ressortId}`,
   id: sql`${ressort.id}`,
-  aktiv: sql`${ressortNotiz.geloeschtAm} is null and ${ressort.geloeschtAm} is null`,
 });
 
 // Ansichten für die Antwort und die Konfliktantwort des Sync-Kerns: nur die Spalten der Route, nie die ganze Zeile. Personen nur als ID, die Namen löst die Route beim Lesen auf
@@ -176,7 +175,7 @@ export async function pruefeRessortWerte(
     const [r] = await tx.execute<{ vorhanden: boolean; zyklus: boolean }>(sql`
       with recursive oben as (
         select id, parent_id from ressort
-          where id = ${werte.parentId} and lager_id = ${lagerId} and geloescht_am is null
+          where id = ${werte.parentId} and lager_id = ${lagerId}
         union
         select r.id, r.parent_id from ressort r join oben o on r.id = o.parent_id
           where r.lager_id = ${lagerId}
@@ -198,12 +197,6 @@ export async function ladeRessortZeile(
   const [zeile] = await tx
     .select()
     .from(ressort)
-    .where(
-      and(
-        eq(ressort.id, id),
-        eq(ressort.lagerId, lagerId),
-        isNull(ressort.geloeschtAm),
-      ),
-    );
+    .where(and(eq(ressort.id, id), eq(ressort.lagerId, lagerId)));
   return zeile;
 }

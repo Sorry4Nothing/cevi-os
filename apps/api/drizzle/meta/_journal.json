@@ -514,6 +514,13 @@
       "breakpoints": true
     },
     {
+      "idx": 99,
+      "version": "7",
+      "when": 1793552999000,
+      "tag": "0099_lager_endgueltig_loeschen",
+      "breakpoints": true
+    },
+    {
       "idx": 100,
       "version": "7",
       "when": 1793553000000,

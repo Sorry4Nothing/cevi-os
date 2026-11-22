@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleApp } from "../../src/app.js";
@@ -253,12 +253,7 @@ const schichtZeilen = (lagerId: string) =>
   db
     .select()
     .from(schema.schicht)
-    .where(
-      and(
-        eq(schema.schicht.lagerId, lagerId),
-        isNull(schema.schicht.geloeschtAm),
-      ),
-    );
+    .where(and(eq(schema.schicht.lagerId, lagerId)));
 const feed = async (lagerId: string, tabelle: string) =>
   (
     await db
@@ -856,13 +851,9 @@ describe("Schichtplan lesen", () => {
     );
     expect(direkt.schichten[0]!.datum).toBe("2027-07-10");
     // Ein gelöschter Lagertag und ein gelöschter Abschnitt nehmen Dienste und Schichten aus dem Plan
+    await db.delete(schema.lagertag).where(eq(schema.lagertag.id, z.tage[1]!));
     await db
-      .update(schema.lagertag)
-      .set({ geloeschtAm: new Date() })
-      .where(eq(schema.lagertag.id, z.tage[1]!));
-    await db
-      .update(schema.tagesabschnitt)
-      .set({ geloeschtAm: new Date() })
+      .delete(schema.tagesabschnitt)
       .where(eq(schema.tagesabschnitt.id, z.abschnitt.nacht));
     const rest = await plan(id);
     expect(rest.dienste.map((d) => d.name)).toEqual(["Küche"]);
@@ -1097,8 +1088,7 @@ describe("Vorschlag", () => {
     expect(weit.body.unbesetzt).toEqual([]);
     // Eine Zeile mit gelöschtem Eintrag zählt nicht
     await db
-      .update(schema.anwesenheit)
-      .set({ geloeschtAm: new Date() })
+      .delete(schema.anwesenheit)
       .where(
         and(
           eq(schema.anwesenheit.lagerId, id),

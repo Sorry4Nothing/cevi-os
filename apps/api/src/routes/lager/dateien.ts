@@ -101,7 +101,7 @@ export function erstelleLagerDateiRouten({ db }: { db: Db }) {
           return c.json(dateiAnsicht(datei));
         },
       )
-      // Löscht nur die Verknüpfung (Soft-Delete über den Sync-Kern), nie die Datei am Ablageort. Gleiches Recht wie beim Anlegen
+      // Löscht nur die Verknüpfung (endgültig, über den Sync-Kern), nie die Datei am Ablageort. Gleiches Recht wie beim Anlegen
       .delete(
         "/:id/dateien/:dateiId",
         eingabe("param", pfad()),

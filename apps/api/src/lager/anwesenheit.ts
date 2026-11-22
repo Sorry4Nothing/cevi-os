@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, gt, inArray, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -178,7 +178,6 @@ async function ladeFelder(
     .where(
       and(
         eq(anwesenheit.lagerId, lagerId),
-        isNull(anwesenheit.geloeschtAm),
         inArray(anwesenheit.lagertagId, tage),
         or(...anwesende),
       ),
@@ -367,7 +366,6 @@ export async function legeAnfragenAn(
         eq(anwesenheitAnfrage.lagerId, k.lagerId),
         eq(anwesenheitAnfrage.personId, k.personId),
         eq(anwesenheitAnfrage.status, "offen"),
-        isNull(anwesenheitAnfrage.geloeschtAm),
         inArray(anwesenheitAnfrage.lagertagId, tageVon(items)),
       ),
     );
@@ -438,7 +436,6 @@ export async function entscheideAnfragen(
     .where(
       and(
         eq(anwesenheitAnfrage.lagerId, k.lagerId),
-        isNull(anwesenheitAnfrage.geloeschtAm),
         inArray(
           anwesenheitAnfrage.id,
           items.map((i) => i.id),
@@ -528,7 +525,6 @@ export async function ladeMatrix(
     .where(
       and(
         eq(anwesenheit.lagerId, lagerId),
-        isNull(anwesenheit.geloeschtAm),
         p.lagertagIds
           ? inArray(anwesenheit.lagertagId, p.lagertagIds)
           : undefined,
@@ -562,7 +558,6 @@ export async function anwesenheitFuerTag(
       and(
         eq(anwesenheit.lagerId, lagerId),
         eq(anwesenheit.lagertagId, lagertagId),
-        isNull(anwesenheit.geloeschtAm),
         sql`${anwesenheit.wert} <> 'O'`,
       ),
     );
@@ -593,7 +588,6 @@ export async function ladeZusammenfassung(
     .where(
       and(
         eq(anwesenheit.lagerId, lagerId),
-        isNull(anwesenheit.geloeschtAm),
         lagertagId ? eq(anwesenheit.lagertagId, lagertagId) : undefined,
       ),
     )

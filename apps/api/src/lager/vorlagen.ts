@@ -1,9 +1,8 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { aufgabe, packlistePunkt, vorlage } from "../db/schema.js";
 import { VORLAGE_ARTEN } from "../db/schema-lager-vorlagen.js";
-import { aufgabeAktiv } from "./aufgaben.js";
 import { PUNKTE_MAX } from "./lagerinfos.js";
 import { sperreLager } from "./ressorts.js";
 import { legeZeilenAn, type Tx } from "./sync.js";
@@ -146,12 +145,7 @@ export async function passtInsLager(
   const [stand] = await d
     .select({ n: sql<number>`count(*)::int` })
     .from(packlistePunkt)
-    .where(
-      and(
-        eq(packlistePunkt.lagerId, lagerId),
-        isNull(packlistePunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(packlistePunkt.lagerId, lagerId)));
   return stand!.n + plan.punkte.length <= PUNKTE_MAX;
 }
 
@@ -166,7 +160,7 @@ export async function schreibePlan(
     const [ende] = await tx
       .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
       .from(aufgabe)
-      .where(and(eq(aufgabe.lagerId, k.lagerId), aufgabeAktiv));
+      .where(and(eq(aufgabe.lagerId, k.lagerId)));
     await legeZeilenAn(
       tx,
       aufgabe,
@@ -180,12 +174,7 @@ export async function schreibePlan(
       n: sql<number>`coalesce(max(${packlistePunkt.reihenfolge}) + 1, 0)`,
     })
     .from(packlistePunkt)
-    .where(
-      and(
-        eq(packlistePunkt.lagerId, k.lagerId),
-        isNull(packlistePunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(packlistePunkt.lagerId, k.lagerId)));
   await legeZeilenAn(
     tx,
     packlistePunkt,

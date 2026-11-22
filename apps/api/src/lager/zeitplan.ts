@@ -1,4 +1,4 @@
-import { and, count, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
@@ -144,11 +144,11 @@ export async function ladeZeitplan(db: Leser, lagerId: string) {
   }>(sql`
     select
       coalesce((select json_agg(json_build_object('id', m.id, 'version', m.version, 'titel', m.titel, 'datum', m.datum::text, 'art', m.art) order by m.datum, m.id)
-        from meilenstein m where m.lager_id = ${lagerId} and m.geloescht_am is null), '[]'::json) as meilensteine,
+        from meilenstein m where m.lager_id = ${lagerId}), '[]'::json) as meilensteine,
       coalesce((select json_agg(json_build_object('id', t.id, 'version', t.version, 'datum', t.datum::text, 'label', t.label) order by t.datum, t.id)
-        from lagertag t where t.lager_id = ${lagerId} and t.geloescht_am is null), '[]'::json) as lagertage,
+        from lagertag t where t.lager_id = ${lagerId}), '[]'::json) as lagertage,
       coalesce((select json_agg(json_build_object('id', a.id, 'version', a.version, 'name', a.name, 'zeit', a.zeit, 'reihenfolge', a.reihenfolge) order by a.reihenfolge, a.id)
-        from tagesabschnitt a where a.lager_id = ${lagerId} and a.geloescht_am is null), '[]'::json) as tagesabschnitte`);
+        from tagesabschnitt a where a.lager_id = ${lagerId}), '[]'::json) as tagesabschnitte`);
   return zeilen[0]!;
 }
 
@@ -170,7 +170,7 @@ const zaehle = async (
   const [z] = await tx
     .select({ n: count() })
     .from(t)
-    .where(and(eq(t.lagerId, lagerId), isNull(t.geloeschtAm)));
+    .where(and(eq(t.lagerId, lagerId)));
   return z!.n;
 };
 
@@ -184,7 +184,7 @@ async function ladeZeile<
   const [zeile] = await tx
     .select()
     .from(t as typeof meilenstein)
-    .where(and(eq(t.id, id), eq(t.lagerId, lagerId), isNull(t.geloeschtAm)));
+    .where(and(eq(t.id, id), eq(t.lagerId, lagerId)));
   if (!zeile) throw new HTTPException(404);
   return zeile as T["$inferSelect"];
 }
@@ -241,11 +241,7 @@ export async function loescheMeilenstein(
     .select({ id: aufgabe.id })
     .from(aufgabe)
     .where(
-      and(
-        eq(aufgabe.lagerId, k.lagerId),
-        eq(aufgabe.fristMeilensteinId, id),
-        isNull(aufgabe.geloeschtAm),
-      ),
+      and(eq(aufgabe.lagerId, k.lagerId), eq(aufgabe.fristMeilensteinId, id)),
     );
   await setzeZeilen(tx, aufgabe, k, {
     ids: haengen.map((a) => a.id),
@@ -269,13 +265,7 @@ async function tagVorhanden(
   const [z] = await tx
     .select({ id: lagertag.id })
     .from(lagertag)
-    .where(
-      and(
-        eq(lagertag.lagerId, lagerId),
-        eq(lagertag.datum, d),
-        isNull(lagertag.geloeschtAm),
-      ),
-    );
+    .where(and(eq(lagertag.lagerId, lagerId), eq(lagertag.datum, d)));
   return z !== undefined && z.id !== ausser;
 }
 
@@ -353,7 +343,6 @@ async function abschnittVorhanden(
       and(
         eq(tagesabschnitt.lagerId, lagerId),
         sql`lower(${tagesabschnitt.name}) = lower(${n})`,
-        isNull(tagesabschnitt.geloeschtAm),
       ),
     );
   return z !== undefined && z.id !== ausser;
@@ -442,17 +431,12 @@ export async function ladeVorschlag(
   const tage = await tx
     .select({ datum: lagertag.datum })
     .from(lagertag)
-    .where(and(eq(lagertag.lagerId, lager.id), isNull(lagertag.geloeschtAm)));
+    .where(and(eq(lagertag.lagerId, lager.id)));
   const da = new Set(tage.map((t) => t.datum));
   const [abschnitte] = await tx
     .select({ n: count() })
     .from(tagesabschnitt)
-    .where(
-      and(
-        eq(tagesabschnitt.lagerId, lager.id),
-        isNull(tagesabschnitt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(tagesabschnitt.lagerId, lager.id)));
   return {
     lagertage: tageZwischen(lager.von, lager.bis)
       .filter((d) => !da.has(d))
@@ -483,9 +467,7 @@ export async function uebernehme(
       await tx
         .select({ datum: lagertag.datum })
         .from(lagertag)
-        .where(
-          and(eq(lagertag.lagerId, k.lagerId), isNull(lagertag.geloeschtAm)),
-        )
+        .where(and(eq(lagertag.lagerId, k.lagerId)))
     ).map((t) => t.datum),
   );
   const neueTage = (e.lagertage ?? []).filter(
@@ -494,12 +476,7 @@ export async function uebernehme(
   const vorhandeneAbschnitte = await tx
     .select({ name: tagesabschnitt.name })
     .from(tagesabschnitt)
-    .where(
-      and(
-        eq(tagesabschnitt.lagerId, k.lagerId),
-        isNull(tagesabschnitt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(tagesabschnitt.lagerId, k.lagerId)));
   const bekannt = new Set(
     vorhandeneAbschnitte.map((a) => a.name.toLowerCase()),
   );
@@ -547,13 +524,7 @@ export async function pruefeTageUndAbschnitte(
     ? await tx
         .select({ n: count() })
         .from(lagertag)
-        .where(
-          and(
-            eq(lagertag.lagerId, lagerId),
-            isNull(lagertag.geloeschtAm),
-            inArray(lagertag.id, tage),
-          ),
-        )
+        .where(and(eq(lagertag.lagerId, lagerId), inArray(lagertag.id, tage)))
     : [{ n: 0 }];
   const [a] = abschnitte.length
     ? await tx
@@ -562,7 +533,6 @@ export async function pruefeTageUndAbschnitte(
         .where(
           and(
             eq(tagesabschnitt.lagerId, lagerId),
-            isNull(tagesabschnitt.geloeschtAm),
             inArray(tagesabschnitt.id, abschnitte),
           ),
         )

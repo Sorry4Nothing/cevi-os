@@ -449,13 +449,9 @@ describe("Abgleich", () => {
     expect(abfragen - v2).toBeLessThanOrEqual(abfragen - vorher);
   });
 
-  test("ein gelöschter oder fremder Inhalt ist 404", async () => {
+  test("ein fremder oder unbekannter Inhalt ist 404", async () => {
     const lagerId = await neuesLager();
     const anderes = await neuesLager();
-    const id = await aufgabe(lagerId, { geloeschtAm: new Date() });
-    expect(
-      (await abgleichen("lagerleitung", lagerId, "aufgabe", id)).status,
-    ).toBe(404);
     const fremd = await aufgabe(anderes);
     expect(
       (await abgleichen("lagerleitung", lagerId, "aufgabe", fremd)).status,
@@ -678,8 +674,7 @@ describe("Liste, erledigt und Als Aufgabe", () => {
         .erwaehnungen.length;
     expect(await sehen()).toBe(2);
     await db
-      .update(schema.pinnwandBeitrag)
-      .set({ geloeschtAm: new Date() })
+      .delete(schema.pinnwandBeitrag)
       .where(eq(schema.pinnwandBeitrag.id, a));
     expect(await sehen()).toBe(1);
     await db

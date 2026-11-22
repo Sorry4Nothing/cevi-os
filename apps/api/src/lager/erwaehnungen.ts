@@ -73,13 +73,7 @@ const QUELLEN: Record<
             notiz: aufgabe.notiz,
           })
           .from(aufgabe)
-          .where(
-            and(
-              eq(aufgabe.lagerId, lagerId),
-              inArray(aufgabe.id, ids),
-              isNull(aufgabe.geloeschtAm),
-            ),
-          )
+          .where(and(eq(aufgabe.lagerId, lagerId), inArray(aufgabe.id, ids)))
       ).map((z) => ({ id: z.id, titel: z.titel, texte: [z.titel, z.notiz] })),
   },
   traktandum: {
@@ -96,11 +90,7 @@ const QUELLEN: Record<
           })
           .from(traktandum)
           .where(
-            and(
-              eq(traktandum.lagerId, lagerId),
-              inArray(traktandum.id, ids),
-              isNull(traktandum.geloeschtAm),
-            ),
+            and(eq(traktandum.lagerId, lagerId), inArray(traktandum.id, ids)),
           )
       ).map((z) => ({
         id: z.id,
@@ -124,7 +114,6 @@ const QUELLEN: Record<
             and(
               eq(pinnwandBeitrag.lagerId, lagerId),
               inArray(pinnwandBeitrag.id, ids),
-              isNull(pinnwandBeitrag.geloeschtAm),
             ),
           )
       ).map((z) => ({ id: z.id, titel: z.titel, texte: [z.titel, z.text] })),
@@ -138,11 +127,7 @@ const QUELLEN: Record<
           .select({ id: beschluss.id, text: beschluss.text })
           .from(beschluss)
           .where(
-            and(
-              eq(beschluss.lagerId, lagerId),
-              inArray(beschluss.id, ids),
-              isNull(beschluss.geloeschtAm),
-            ),
+            and(eq(beschluss.lagerId, lagerId), inArray(beschluss.id, ids)),
           )
       ).map((z) => ({ id: z.id, titel: ersteZeile(z.text), texte: [z.text] })),
   },

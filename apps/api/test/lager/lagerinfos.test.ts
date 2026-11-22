@@ -1022,7 +1022,7 @@ describe("Infos", () => {
     ).toBe(403);
   });
 
-  test("Löschen ist ein Soft-Delete; ein Versionskonflikt nennt den Stand", async () => {
+  test("Löschen ist endgültig; ein Versionskonflikt nennt den Stand", async () => {
     const lager = await legeLager();
     const a = await anfrage(leiter(), "POST", `${L(lager)}/infos`, {
       titel: "A",
@@ -1051,7 +1051,7 @@ describe("Infos", () => {
       .select()
       .from(schema.infoAbschnitt)
       .where(eq(schema.infoAbschnitt.id, a.body.id));
-    expect(zeilen[0]!.geloeschtAm).not.toBeNull();
+    expect(zeilen).toHaveLength(0);
   });
 
   test("ein Lager eines anderen Mandanten und ein fremder Abschnitt sind 404", async () => {

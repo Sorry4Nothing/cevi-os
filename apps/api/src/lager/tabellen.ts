@@ -14,12 +14,10 @@ export type LagerSpaltenTabelle = PgTable & {
   erstelltVon: AnyPgColumn;
   geaendertAm: AnyPgColumn;
   geaendertVon: AnyPgColumn;
-  geloeschtAm: AnyPgColumn;
-  geloeschtVon: AnyPgColumn;
   lagerSeq: AnyPgColumn;
 };
 
-// Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Er muss auch gelöschte Zeilen beurteilen (der Feed meldet «geloescht»)
+// Zeilenfilter der Rolle (zum Beispiel «Team sieht nur eigene Aufgaben»): bekommt die IDs eines Feed-Abschnitts und liefert die, die die Person lesen darf. Gelöschte Zeilen bekommt er nicht (es gibt sie nicht mehr, #427); der Feed reicht ihren Eintrag «geloescht» an jede Rolle mit dem Leserecht der Tabelle
 type Sichtbar = (
   db: Db,
   zugriff: LagerZugriff,

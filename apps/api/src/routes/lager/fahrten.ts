@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -28,7 +28,6 @@ import {
   aendereZeile,
   legeZeileAn,
   loescheZeile,
-  loescheZeilen,
   type Tx,
 } from "../../lager/sync.js";
 
@@ -69,7 +68,7 @@ type Ablehnung =
   | { fehler: FahrtFehler | "KEIN_MITGLIED" | "TEILNEHMER_UNBEKANNT" }
   | { bereitsIn: string };
 
-// Fahrten eines Lagers (#386), Hin- und Rückfahrt getrennt, mit Mitfahrenden als Einzelzeilen. Lesen braucht einteilung.lesen, jede Änderung einteilung.bearbeiten (Standard: Lagerleitung und Leitung). Das Team sieht nur die eigene Fahrt (lager/fahrten.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Feed; Löschen ist ein Soft-Delete. Prüfung und Schreiben laufen unter der Lagersperre, damit zwei gleichzeitige Zuteilungen dieselbe Person nicht doppelt setzen. Der Server ruft weder den Fahrplan noch einen Kartendienst ab: Link und Kartenpunkt sind nur gespeicherte Angaben
+// Fahrten eines Lagers (#386), Hin- und Rückfahrt getrennt, mit Mitfahrenden als Einzelzeilen. Lesen braucht einteilung.lesen, jede Änderung einteilung.bearbeiten (Standard: Lagerleitung und Leitung). Das Team sieht nur die eigene Fahrt (lager/fahrten.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Feed; Löschen ist endgültig (#427). Prüfung und Schreiben laufen unter der Lagersperre, damit zwei gleichzeitige Zuteilungen dieselbe Person nicht doppelt setzen. Der Server ruft weder den Fahrplan noch einen Kartendienst ab: Link und Kartenpunkt sind nur gespeicherte Angaben
 export function erstelleFahrtenRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "einteilung.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "einteilung.bearbeiten" });
@@ -227,13 +226,7 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
               const [aktuell] = await tx
                 .select()
                 .from(fahrt)
-                .where(
-                  and(
-                    eq(fahrt.id, fahrtId),
-                    eq(fahrt.lagerId, lagerId),
-                    isNull(fahrt.geloeschtAm),
-                  ),
-                );
+                .where(and(eq(fahrt.id, fahrtId), eq(fahrt.lagerId, lagerId)));
               if (!aktuell) throw new HTTPException(404);
               // Die Regeln über mehrere Felder gelten für den Stand nach der Änderung
               const danach = { ...aktuell, ...werte };
@@ -288,20 +281,7 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
               version: c.req.valid("query").version,
               ansicht: fahrtAnsicht,
             });
-            // Die Mitfahrenden fallen mit der Fahrt weg (sonst blieben sie für diese Richtung besetzt): ein Update für alle, ein Feed-Insert
-            const mit = await tx
-              .select({ id: fahrtMitfahrer.id })
-              .from(fahrtMitfahrer)
-              .where(
-                and(
-                  eq(fahrtMitfahrer.lagerId, lagerId),
-                  eq(fahrtMitfahrer.fahrtId, fahrtId),
-                  isNull(fahrtMitfahrer.geloeschtAm),
-                ),
-              );
-            await loescheZeilen(tx, fahrtMitfahrer, k, {
-              ids: mit.map((m) => m.id),
-            });
+            // Die Mitfahrenden fallen mit der Fahrt weg (der Sync-Kern löscht sie mit und meldet jede im Feed)
           });
           return c.body(null, 204);
         },
@@ -322,13 +302,7 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
               const [f] = await tx
                 .select()
                 .from(fahrt)
-                .where(
-                  and(
-                    eq(fahrt.id, fahrtId),
-                    eq(fahrt.lagerId, lagerId),
-                    isNull(fahrt.geloeschtAm),
-                  ),
-                );
+                .where(and(eq(fahrt.id, fahrtId), eq(fahrt.lagerId, lagerId)));
               if (!f) throw new HTTPException(404);
               if (personId) {
                 if (
@@ -349,7 +323,6 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
                     and(
                       eq(teilnehmer.lagerId, lagerId),
                       eq(teilnehmer.id, teilnehmerId!),
-                      isNull(teilnehmer.geloeschtAm),
                     ),
                   );
                 if (!t) return { fehler: "TEILNEHMER_UNBEKANNT" } as const;
@@ -380,7 +353,6 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
                   and(
                     eq(fahrtMitfahrer.lagerId, lagerId),
                     eq(fahrtMitfahrer.fahrtId, fahrtId),
-                    isNull(fahrtMitfahrer.geloeschtAm),
                   ),
                 );
               return { neu, plaetze: f.plaetze, belegt: n!.n };
@@ -427,7 +399,6 @@ export function erstelleFahrtenRouten({ db }: { db: Db }) {
                   eq(fahrtMitfahrer.id, mitfahrerId),
                   eq(fahrtMitfahrer.lagerId, lagerId),
                   eq(fahrtMitfahrer.fahrtId, fahrtId),
-                  isNull(fahrtMitfahrer.geloeschtAm),
                 ),
               );
             if (!m) throw new HTTPException(404);

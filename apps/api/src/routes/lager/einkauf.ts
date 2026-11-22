@@ -1,14 +1,4 @@
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gt,
-  isNull,
-  like,
-  sql,
-  type SQL,
-} from "drizzle-orm";
+import { and, asc, desc, eq, gt, like, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -51,7 +41,7 @@ const KEIN_MITGLIED = {
 
 type Person = { id: string; name: string | null; ceviName: string | null };
 
-// Einkaufsliste des Lagers (#392). Lesen braucht einkauf.lesen, jede Änderung einkauf.bearbeiten (lager/rechte-katalog.ts; Standard: Lagerleitung, Leitung und Lesen lesen, Lagerleitung und Leitung schreiben, das Team nichts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist ein Soft-Delete; das endgültige Entfernen kommt mit dem Papierkorb. Abhaken ist ein einzelnes PATCH mit erledigt
+// Einkaufsliste des Lagers (#392). Lesen braucht einkauf.lesen, jede Änderung einkauf.bearbeiten (lager/rechte-katalog.ts; Standard: Lagerleitung, Leitung und Lesen lesen, Lagerleitung und Leitung schreiben, das Team nichts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427); das Entfernen ist endgültig (#427). Abhaken ist ein einzelnes PATCH mit erledigt
 export function erstelleEinkaufRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "einkauf.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "einkauf.bearbeiten" });
@@ -80,7 +70,6 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
       .where(
         and(
           eq(einkaufArtikel.lagerId, lagerId),
-          isNull(einkaufArtikel.geloeschtAm),
           p.id ? eq(einkaufArtikel.id, p.id) : undefined,
           p.nach ? gt(einkaufArtikel.id, p.nach) : undefined,
           p.einkaeufer
@@ -182,10 +171,7 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
           const { nach, limit, einkaeufer, erledigt } = c.req.valid("query");
           const kaeuferId =
             einkaeufer === "ich" ? c.get("person").id : einkaeufer;
-          const bedingungen: SQL[] = [
-            sql`a.lager_id = ${lagerId}`,
-            sql`a.geloescht_am is null`,
-          ];
+          const bedingungen: SQL[] = [sql`a.lager_id = ${lagerId}`];
           if (kaeuferId)
             bedingungen.push(sql`a.einkaeufer_person_id = ${kaeuferId}`);
           if (erledigt !== undefined)
@@ -328,7 +314,6 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
                       and(
                         eq(einkaufArtikel.id, artikelId),
                         eq(einkaufArtikel.lagerId, lagerId),
-                        isNull(einkaufArtikel.geloeschtAm),
                       ),
                     );
                   if (!zeile) throw new HTTPException(404);

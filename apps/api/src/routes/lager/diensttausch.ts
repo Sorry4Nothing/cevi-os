@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
@@ -96,7 +96,6 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               and(
                 eq(diensttausch.lagerId, c.get("lager").lager.id),
                 eq(diensttausch.vonPersonId, c.get("person").id),
-                isNull(diensttausch.geloeschtAm),
               ),
             )
             .orderBy(desc(diensttausch.id))

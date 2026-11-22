@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -41,7 +41,7 @@ const fehlerAntwort = (f: NonNullable<Pruefung>) => ({
   message: FEHLER_TEXT[f.fehler],
 });
 
-// Pinnwand eines Lagers (#381), Beschreibung in lager/pinnwand.ts. Lesen braucht pinnwand.lesen, jede Änderung pinnwand.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed; Löschen ist ein Soft-Delete
+// Pinnwand eines Lagers (#381), Beschreibung in lager/pinnwand.ts. Lesen braucht pinnwand.lesen, jede Änderung pinnwand.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed; Löschen ist endgültig (#427)
 export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   const lesen = lagerZugriff(db, { recht: "pinnwand.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "pinnwand.bearbeiten" });
@@ -167,12 +167,7 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           const bestehend = await db
             .select({ id: pinnwandDatei.dateiId })
             .from(pinnwandDatei)
-            .where(
-              and(
-                eq(pinnwandDatei.beitragId, beitragId),
-                isNull(pinnwandDatei.geloeschtAm),
-              ),
-            );
+            .where(and(eq(pinnwandDatei.beitragId, beitragId)));
           schon = new Set(bestehend.map((z) => z.id));
         }
         const fehler = await pruefeBeitragWerte(db, zugriff, {
@@ -232,7 +227,7 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         if (!(await ladeBeitragZeile(db, k.lagerId, beitragId))) {
           throw new HTTPException(404);
         }
-        // Soft-Delete über den Sync-Kern; das endgültige Löschen kommt mit #427
+        // Endgültig, über den Sync-Kern (#427)
         await db.transaction((tx) =>
           loescheZeile(tx, pinnwandBeitrag, k, {
             id: beitragId,
