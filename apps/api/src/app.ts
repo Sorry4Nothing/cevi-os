@@ -6,6 +6,11 @@ import { routePath } from "hono/route";
 import type { Sql } from "postgres";
 import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import type { BildKodierer } from "./bild.js";
+import {
+  erstelleSchalterPruefung,
+  erstelleSchalterZustand,
+  type SchalterZustand,
+} from "./bereichsschalter.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { LagerAntwortFehler } from "./lager/sync.js";
@@ -27,7 +32,9 @@ import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
 import { erstelleAdminLagerDateiRouten } from "./routes/admin/lager-dateien.js";
 import { erstelleAdminLagerRechteRouten } from "./routes/admin/lager-rechte.js";
+import { erstelleAdminVorlagenRouten } from "./routes/admin/vorlagen.js";
 import { erstelleZeitregelRouten } from "./routes/admin/zeitregeln.js";
+import { erstellePlattformRouten } from "./routes/plattform.js";
 import { erstelleChatRouten } from "./routes/chats.js";
 import {
   erstelleMedienHandler,
@@ -89,6 +96,7 @@ export function erstelleApp({
   medienspeicher,
   seiten,
   syncs,
+  schalter = erstelleSchalterZustand(),
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -105,6 +113,8 @@ export function erstelleApp({
   syncs?: {
     kalender?: () => Promise<"fertig" | "gesperrt">;
   };
+  // Wartungsmodus und Sperre (#424, #425): der Zustand im Speicher, beim Start aus der Datenbank geladen (server.ts); ohne Angabe ist nichts geschaltet
+  schalter?: SchalterZustand;
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -223,7 +233,13 @@ export function erstelleApp({
       )
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
+      // Gleich nach der Sitzung, vor jeder Route: Wartung und Sperre gelten für alles dahinter
+      .use("/api/v1/*", erstelleSchalterPruefung({ db, zustand: schalter }))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
+      .route(
+        "/api/v1/plattform",
+        erstellePlattformRouten({ db, zustand: schalter }),
+      )
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
       .route(
@@ -247,6 +263,7 @@ export function erstelleApp({
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
+      .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))
       .route(
         "/api/v1/admin/lager-dateien",
         erstelleAdminLagerDateiRouten({ db }),

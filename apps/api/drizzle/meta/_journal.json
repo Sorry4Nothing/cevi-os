@@ -360,6 +360,13 @@
       "breakpoints": true
     },
     {
+      "idx": 71,
+      "version": "7",
+      "when": 1793551100000,
+      "tag": "0071_lager_todos_vorlagen",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,
@@ -367,10 +374,24 @@
       "breakpoints": true
     },
     {
+      "idx": 77,
+      "version": "7",
+      "when": 1793551700000,
+      "tag": "0077_lager_umfragen",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
       "tag": "0079_lager_teilnehmer",
+      "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1793552000000,
+      "tag": "0080_lager_zimmer",
       "breakpoints": true
     },
     {
@@ -416,6 +437,13 @@
       "breakpoints": true
     },
     {
+      "idx": 102,
+      "version": "7",
+      "when": 1793553200000,
+      "tag": "0102_bereichsschalter",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
@@ -427,6 +455,13 @@
       "version": "7",
       "when": 1793554100000,
       "tag": "0121_kalender_token",
+      "breakpoints": true
+    },
+    {
+      "idx": 122,
+      "version": "7",
+      "when": 1793554200000,
+      "tag": "0122_termin_vorschlag",
       "breakpoints": true
     },
     {

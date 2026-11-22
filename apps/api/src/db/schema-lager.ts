@@ -755,6 +755,110 @@ export const pinnwandDatei = pgTable(
   ],
 );
 
+// Umfrage an einem Beitrag (#382): höchstens eine je Beitrag. Die Frage ist der Titel des Beitrags. mehrfach: mehrere Stimmen je Person erlaubt. Geschlossen ist sie mit geschlossen = true oder ab schliesst_am (die Abfrage wertet es aus, kein Job). namen_fuer_team: Annahme (offene Frage «Wer sieht die Namen?»): Vorgabe false, dann sehen nur Rollen mit pinnwand.bearbeiten die Namen der Stimmen, alle anderen nur Zahlen; true zeigt die Namen allen, die den Beitrag lesen
+export const umfrage = pgTable(
+  "umfrage",
+  {
+    ...lagerSpalten(),
+    beitragId: uuid("beitrag_id").notNull(),
+    mehrfach: boolean("mehrfach").notNull().default(false),
+    schliesstAm: timestamp("schliesst_am", { withTimezone: true }),
+    geschlossen: boolean("geschlossen").notNull().default(false),
+    namenFuerTeam: boolean("namen_fuer_team").notNull().default(false),
+  },
+  (t) => [
+    // Ziel der Fremdschlüssel mit Lager: Option und Stimme können nie zu einer Umfrage eines anderen Lagers gehören
+    unique("umfrage_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "umfrage_beitrag_fk",
+      columns: [t.lagerId, t.beitragId],
+      foreignColumns: [pinnwandBeitrag.lagerId, pinnwandBeitrag.id],
+    }).onDelete("cascade"),
+    uniqueIndex("umfrage_beitrag_uq")
+      .on(t.beitragId)
+      .where(sql`${t.geloeschtAm} is null`),
+  ],
+);
+
+// Antwortmöglichkeit einer Umfrage; nach dem Anlegen unveränderlich (Stimmen hängen daran)
+export const umfrageOption = pgTable(
+  "umfrage_option",
+  {
+    ...lagerSpalten(),
+    umfrageId: uuid("umfrage_id").notNull(),
+    text: text("text").notNull(),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    unique("umfrage_option_lager_id_id_uq").on(t.lagerId, t.id),
+    foreignKey({
+      name: "umfrage_option_umfrage_fk",
+      columns: [t.lagerId, t.umfrageId],
+      foreignColumns: [umfrage.lagerId, umfrage.id],
+    }).onDelete("cascade"),
+    index("umfrage_option_umfrage_idx").on(t.umfrageId),
+    check(
+      "umfrage_option_check",
+      sql`char_length(${t.text}) between 1 and 200 and ${t.reihenfolge} >= 0`,
+    ),
+  ],
+);
+
+// Eine Stimme: eine Zeile je Person und Option, damit sich Stimmen nie überschreiben. Gehört der Person (person_id); die Route setzt nur die eigene. Zurückgezogen = Soft-Delete (die Einmaligkeit gilt für aktive Zeilen)
+export const umfrageStimme = pgTable(
+  "umfrage_stimme",
+  {
+    ...lagerSpalten(),
+    umfrageId: uuid("umfrage_id").notNull(),
+    optionId: uuid("option_id").notNull(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    foreignKey({
+      name: "umfrage_stimme_umfrage_fk",
+      columns: [t.lagerId, t.umfrageId],
+      foreignColumns: [umfrage.lagerId, umfrage.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "umfrage_stimme_option_fk",
+      columns: [t.lagerId, t.optionId],
+      foreignColumns: [umfrageOption.lagerId, umfrageOption.id],
+    }).onDelete("cascade"),
+    uniqueIndex("umfrage_stimme_uq")
+      .on(t.optionId, t.personId)
+      .where(sql`${t.geloeschtAm} is null`),
+    index("umfrage_stimme_umfrage_idx").on(t.umfrageId),
+  ],
+);
+
+// Reaktion einer Person auf ein Ziel (#382): ein Emoji je Person und Ziel. ziel_typ kommt aus einer Allowlist (heute nur der Pinnwand-Beitrag), emoji ist ein fester Schlüssel statt eines Zeichens: Der Server speichert nie Emoji-Zeichen, die App ordnet die Schlüssel ihren Symbolen zu. ziel_id hat keinen Fremdschlüssel (das Ziel hängt vom Typ ab); die Route prüft Lager und Lesbarkeit des Ziels
+export const reaktion = pgTable(
+  "reaktion",
+  {
+    ...lagerSpalten(),
+    zielTyp: text("ziel_typ", { enum: ["pinnwand_beitrag"] }).notNull(),
+    zielId: uuid("ziel_id").notNull(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    emoji: text("emoji", {
+      enum: ["daumen", "herz", "lachen", "staunen", "danke"],
+    }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("reaktion_uq")
+      .on(t.zielTyp, t.zielId, t.personId)
+      .where(sql`${t.geloeschtAm} is null`),
+    index("reaktion_ziel_idx").on(t.zielTyp, t.zielId),
+    check(
+      "reaktion_check",
+      sql`${t.zielTyp} in ('pinnwand_beitrag') and ${t.emoji} in ('daumen', 'herz', 'lachen', 'staunen', 'danke')`,
+    ),
+  ],
+);
+
 // Abzählen (#384): ein Haken je Teilnehmende oder Person des Lagers (Team), eine Zeile entsteht beim ersten Abhaken. Genau eines von teilnehmer_id und person_id; geprueft_am ist gesetzt, wenn geprueft gilt. Die Teilnehmerzeilen gehen mit der Löschung der Teilnehmenden
 export const abzaehlen = pgTable(
   "abzaehlen",
@@ -840,6 +944,65 @@ export const gruppeZuordnung = pgTable(
     check(
       "gruppe_zuordnung_check",
       sql`(${t.teilnehmerId} is null) <> (${t.personId} is null) and ${t.rolle} in ('leitung', 'mitglied') and (${t.teilnehmerId} is null or ${t.rolle} = 'mitglied')`,
+    ),
+  ],
+);
+
+// Zimmer und Zelte des Lagers (#385): Name, Art, Plätze und eine Notiz. Die Belegung ist keine Spalte, sie ergibt sich aus zimmer_zuordnung (eine Abfrage mit GROUP BY); mehr Zuordnungen als Plätze sind erlaubt und nur eine Warnung (ueberbelegt). Geschrieben wird nur über lager/sync.ts
+export const zimmer = pgTable(
+  "zimmer",
+  {
+    ...lagerSpalten(),
+    name: text("name").notNull(),
+    art: text("art", { enum: ["zimmer", "zelt"] }).notNull(),
+    plaetze: integer("plaetze").notNull(),
+    notiz: text("notiz"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+  },
+  (t) => [
+    // Ziel des Fremdschlüssels von zimmer_zuordnung: Eine Zuordnung kann nie ein Zimmer eines anderen Lagers meinen
+    unique("zimmer_lager_id_id_uq").on(t.lagerId, t.id),
+    index("zimmer_liste_idx").on(t.lagerId, t.reihenfolge, t.name, t.id),
+    check("zimmer_art_check", sql`${t.art} in ('zimmer', 'zelt')`),
+    check(
+      "zimmer_check",
+      sql`char_length(${t.name}) between 1 and 100 and ${t.plaetze} between 1 and 1000 and (${t.notiz} is null or char_length(${t.notiz}) between 1 and 500) and ${t.reihenfolge} between 0 and 100000`,
+    ),
+  ],
+);
+
+// Wer in welchem Zimmer liegt: eine Zeile je Teilnehmende (teilnehmer_id) oder Mitglied des Lagers (person_id), genau eines von beiden. Höchstens ein Zimmer je Person oder Teilnehmende, solange die Zeile nicht gelöscht ist (eindeutiger Index). Die Zeilen der Teilnehmenden und des Zimmers gehen mit diesen (CASCADE)
+export const zimmerZuordnung = pgTable(
+  "zimmer_zuordnung",
+  {
+    ...lagerSpalten(),
+    zimmerId: uuid("zimmer_id").notNull(),
+    teilnehmerId: uuid("teilnehmer_id"),
+    personId: uuid("person_id").references(() => user.id, {
+      onDelete: "cascade",
+    }),
+  },
+  (t) => [
+    foreignKey({
+      name: "zimmer_zuordnung_zimmer_fk",
+      columns: [t.lagerId, t.zimmerId],
+      foreignColumns: [zimmer.lagerId, zimmer.id],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "zimmer_zuordnung_teilnehmer_fk",
+      columns: [t.lagerId, t.teilnehmerId],
+      foreignColumns: [teilnehmer.lagerId, teilnehmer.id],
+    }).onDelete("cascade"),
+    index("zimmer_zuordnung_zimmer_idx").on(t.zimmerId),
+    uniqueIndex("zimmer_zuordnung_teilnehmer_uq")
+      .on(t.lagerId, t.teilnehmerId)
+      .where(sql`${t.teilnehmerId} is not null and ${t.geloeschtAm} is null`),
+    uniqueIndex("zimmer_zuordnung_person_uq")
+      .on(t.lagerId, t.personId)
+      .where(sql`${t.personId} is not null and ${t.geloeschtAm} is null`),
+    check(
+      "zimmer_zuordnung_ziel_check",
+      sql`(${t.teilnehmerId} is null) <> (${t.personId} is null)`,
     ),
   ],
 );
