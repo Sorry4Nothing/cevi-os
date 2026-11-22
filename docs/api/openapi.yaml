@@ -327,6 +327,156 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website.js:
+    get:
+      operationId: getAdminWebsiteSkript
+      summary: Skript der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website.css:
+    get:
+      operationId: getAdminWebsiteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website (Rahmen und Unternavigation)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-seiten.js:
+    get:
+      operationId: getAdminWebsiteSeitenSkript
+      summary: Skript der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-seiten.css:
+    get:
+      operationId: getAdminWebsiteSeitenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Seiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-editor.js:
+    get:
+      operationId: getAdminWebsiteEditorSkript
+      summary: Skript der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-editor.css:
+    get:
+      operationId: getAdminWebsiteEditorStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-medien.js:
+    get:
+      operationId: getAdminWebsiteMedienSkript
+      summary: Skript der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-medien.css:
+    get:
+      operationId: getAdminWebsiteMedienStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-stufenfakten.js:
+    get:
+      operationId: getAdminWebsiteStufenfaktenSkript
+      summary: Skript der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-stufenfakten.css:
+    get:
+      operationId: getAdminWebsiteStufenfaktenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Stufenfelder
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/zeitregeln.js:
     get:
       operationId: getAdminZeitregelnSkript
@@ -2578,7 +2728,7 @@ paths:
       operationId: legeAdminStufeAn
       summary: Stufe anlegen
       description: |
-        Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen. Ebenso entsteht in derselben Transaktion eine Seite der Website als Entwurf (siehe `POST /api/v1/admin/tags`).
+        Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins. 409 mit Code `STUFENNAME_VERGEBEN`, wenn es in der Abteilung schon eine Stufe mit diesem Namen gibt (Gross-/Kleinschreibung zählt nicht).
       tags:
@@ -3006,26 +3156,6 @@ paths:
                   seiten:
                     type: integer
                     minimum: 1
-        "409":
-          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - code
-                  - message
-                  - seiten
-                properties:
-                  code:
-                    type: string
-                    enum:
-                      - MEDIUM_VERWENDET
-                  message:
-                    type: string
-                  seiten:
-                    type: integer
-                    minimum: 1
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "501":
@@ -3391,7 +3521,7 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit. Bei Typ `stufe` und `team` entsteht in derselben Transaktion eine Seite der Website als Entwurf (Titel = Name, Gruppe = der neue Tag, Sichtbarkeit `angemeldet`) unter der Seite `stufen` bzw. `teams`, die bei Bedarf selbst als Entwurf entsteht; scheitert das, entsteht auch der Tag nicht. Typ `funktion` und `lager` legen keine Seite an.
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
       tags:
@@ -4169,370 +4299,6 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/vorlagen:
-    get:
-      operationId: listeRedaktionVorlagen
-      summary: Vorlagen für neue Seiten
-      description: |
-        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Zugang wie bei `GET /api/v1/redaktion/seiten`.
-
-        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      responses:
-        "200":
-          description: Vorlagen in fester Reihenfolge.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionVorlagenListe"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/aus-vorlage:
-    post:
-      operationId: legeRedaktionSeiteAusVorlageAn
-      summary: Seite aus einer Vorlage anlegen
-      description: |
-        Wie `POST /api/v1/redaktion/seiten` (nur Abteilungsleitung und Redaktion), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
-
-        Die Vorlage `stufenseite` braucht `tagId` (Leitungsteam und Termine hängen daran). Eine Gruppe hat höchstens eine Seite: Gibt es zu `tagId` schon eine, antwortet die Route mit 409. Die Rechte der Verantwortlichen folgen aus `tagId`: Die Stufenleitung der Stufe und die Verantwortlichen eines Teams (Rolle `verantwortlich` am Tag, Typ `team`) bearbeiten die Seite.
-
-        Reihenfolge der Prüfungen: Zugang (403), Body (400), Recht zum Anlegen (403), Tags der Sichtbarkeit (400), Vorlage braucht Gruppe (400), Gruppe und Elternseite in der eigenen Abteilung (404), Tiefe (400), Gruppe schon vergeben (409). Audit-Log: `seite_angelegt` (Kennungen, Art der Sichtbarkeit und Vorlage, nie der Titel).
-
-        Statuscodes: 201 bei Erfolg, mit `id` und `adresse`. 400 bei ungültiger Eingabe, `TAG_ERFORDERLICH` oder `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Elternseite oder Gruppe. 409 mit `TAG_VERGEBEN`.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RedaktionSeiteAusVorlage"
-      responses:
-        "201":
-          description: Seite als Entwurf angelegt.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionSeiteAusVorlageAngelegt"
-        "400":
-          $ref: "#/components/responses/RedaktionSeite400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          $ref: "#/components/responses/RedaktionSeite409"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/entwurf:
-    get:
-      operationId: leseRedaktionEntwurf
-      summary: Entwurf einer Seite lesen
-      description: |
-        Das Dokument der Bausteine im Entwurf (Form `{ v: 1, titel, bausteine }`, siehe Bausteinkatalog) und der Zähler, den das Speichern mitschicken muss. Eine neue Seite hat `dokument: null` und Zähler 0. `unveroeffentlicht` ist wahr, wenn es einen Entwurf gibt und er von der veröffentlichten Version abweicht (auch ohne veröffentlichte Version).
-
-        Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404), Recht an dieser Seite (403): Abteilungsleitung, Redaktion, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite. Dasselbe gilt für alle Routen unter `/seiten/{id}/…` dieses Abschnitts.
-
-        Statuscodes: 200, 400, 403, 404.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-      responses:
-        "200":
-          description: Der Entwurf.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionEntwurf"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-    put:
-      operationId: speichereRedaktionEntwurf
-      summary: Entwurf speichern
-      description: |
-        Ersetzt den Entwurf durch das ganze Dokument. `zaehler` ist der Zähler aus dem letzten Lesen oder Speichern: Nur wer den aktuellen Stand kennt, schreibt (ein atomarer Schritt, keine Sperre). Wer mit einem veralteten Zähler speichert, bekommt 409 `KONFLIKT` mit dem aktuellen Zähler und Dokument und überschreibt nichts. Es gibt keine Sperre auf Bausteine.
-
-        Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
-
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild und Galerie brauchen ein Bild, kein PDF. `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
-
-        Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
-
-        Reihenfolge der Prüfungen: Pfad und Body-Form (400), Seite (404), Recht (403), Rate-Limit (429), Dokument (400), Verweise (422), Zähler (409).
-
-        Statuscodes: 200 bei Erfolg, mit dem neuen Zähler. 400, 403, 404, 409, 413, 422, 429.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/RedaktionEntwurfSpeichern"
-      responses:
-        "200":
-          description: Gespeichert.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionZaehler"
-        "400":
-          $ref: "#/components/responses/RedaktionDokument400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          description: Der Zähler ist veraltet (code `KONFLIKT`). Der Body trägt den aktuellen Zähler und das aktuelle Dokument.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionKonflikt"
-        "413":
-          description: Die Anfrage ist grösser als 512 KiB (code ZU_GROSS).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
-        "422":
-          $ref: "#/components/responses/RedaktionVerweis422"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/veroeffentlichen:
-    post:
-      operationId: veroeffentlicheRedaktionSeite
-      summary: Entwurf veröffentlichen
-      description: |
-        Prüft das ganze Dokument des Entwurfs und die Verweise noch einmal (Sichtbarkeit der Seite und Medien können sich seit dem Speichern geändert haben), legt eine neue, unveränderliche Version mit der nächsten Nummer an (ab 1) und setzt die veröffentlichte Version der Seite auf sie. Kein Body.
-
-        409 `NICHTS_ZU_VEROEFFENTLICHEN`, wenn es keinen Entwurf gibt oder er gleich der veröffentlichten Version ist (die Seite ist nach dem Zurückziehen nicht veröffentlicht: dann gilt jeder Entwurf als neu). Zwei gleichzeitige Veröffentlichungen laufen nacheinander: Die zweite bekommt 409. 422 `DOKUMENT_UNGUELTIG` oder ein Code der Verweisprüfung (siehe Speichern).
-
-        Meldet das Ereignis `version_veroeffentlicht` an die Auslieferung. Audit-Log: `seite_veroeffentlicht` mit der Versionsnummer, nie Inhalt.
-
-        Statuscodes: 201 bei Erfolg, mit der Nummer. 400, 403, 404, 409, 422.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-      responses:
-        "201":
-          description: Version angelegt.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - nr
-                properties:
-                  nr:
-                    type: integer
-                    minimum: 1
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          description: Nichts zu veröffentlichen (code `NICHTS_ZU_VEROEFFENTLICHEN`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
-        "422":
-          $ref: "#/components/responses/RedaktionVerweis422"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/zurueckziehen:
-    post:
-      operationId: ziehRedaktionSeiteZurueck
-      summary: Veröffentlichung zurückziehen
-      description: |
-        Setzt nur die veröffentlichte Version der Seite zurück: Die Seite ist danach nicht mehr veröffentlicht. Alle Versionen und der Entwurf bleiben. Kein Body. 409 `NICHT_VEROEFFENTLICHT`, wenn nichts veröffentlicht ist.
-
-        Meldet das Ereignis `version_zurueckgezogen`. Audit-Log: `seite_zurueckgezogen`.
-
-        Statuscodes: 204 bei Erfolg. 400, 403, 404, 409.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-      responses:
-        "204":
-          description: Zurückgezogen.
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          description: Die Seite ist nicht veröffentlicht (code `NICHT_VEROEFFENTLICHT`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/versionen:
-    get:
-      operationId: listeRedaktionVersionen
-      summary: Versionen einer Seite
-      description: |
-        Die jüngsten 100 Versionen, neueste zuerst, ohne Inhalt (den liefert `versionen/{nr}`). Keine Seitenwechsel: Ältere Versionen sind über ihre Nummer erreichbar.
-
-        Statuscodes: 200, 400, 403, 404.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-      responses:
-        "200":
-          description: Versionen, neueste zuerst.
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - versionen
-                properties:
-                  versionen:
-                    type: array
-                    maxItems: 100
-                    items:
-                      $ref: "#/components/schemas/RedaktionVersion"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/versionen/{nr}:
-    get:
-      operationId: leseRedaktionVersion
-      summary: Eine Version mit ihrem Dokument
-      description: |
-        Eine veröffentlichte Version mit ihrem Dokument. Versionen sind unveränderlich: Es gibt keine Route, die eine ändert oder löscht (der API-Rolle der Datenbank ist `UPDATE` entzogen). `nr` ist eine ganze Zahl ab 1.
-
-        Statuscodes: 200, 400 (ungültige Nummer), 403, 404 (Seite oder Version unbekannt).
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-        - $ref: "#/components/parameters/RedaktionVersionNr"
-      responses:
-        "200":
-          description: Die Version.
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: "#/components/schemas/RedaktionVersion"
-                  - type: object
-                    required:
-                      - dokument
-                    properties:
-                      dokument:
-                        type: object
-                        description: "Das Dokument der Version (`{ v: 1, titel, bausteine }`)."
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/redaktion/seiten/{id}/versionen/{nr}/zurueckholen:
-    post:
-      operationId: holeRedaktionVersionZurueck
-      summary: Frühere Version in den Entwurf zurückholen
-      description: |
-        Kopiert das Dokument der Version in den Entwurf und zählt den Zähler weiter (ein Editor mit altem Stand bekommt beim Speichern 409). Der bisherige Entwurf wird überschrieben. Die veröffentlichte Seite und alle Versionen bleiben unverändert; veröffentlicht wird erst mit `veroeffentlichen`, dann als neue Version. Kein Ereignis an die Auslieferung, weil sich die öffentliche Seite nicht ändert. Audit-Log: `seite_zurueckgeholt` mit der Nummer.
-
-        Statuscodes: 200 bei Erfolg, mit dem neuen Zähler. 400, 403, 404.
-      tags:
-        - Redaktion
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - $ref: "#/components/parameters/RedaktionSeiteId"
-        - $ref: "#/components/parameters/RedaktionVersionNr"
-      responses:
-        "200":
-          description: Zurückgeholt.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RedaktionZaehler"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager:
     get:
       operationId: listeLager
@@ -4885,7 +4651,6 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  # lager-pfade: rechte (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/rechte:
     get:
       operationId: holeLagerRechte
@@ -5116,46 +4881,371 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
-  # lager-pfade: aenderungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: aufgaben-details (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: zeitplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: aufgaben-schnell (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: todos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: vorlagen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: check (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: hoecks (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: protokolle (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: umfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: eingang (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: teilnehmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: zimmer (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: fahrten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: gruppen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: verwaltung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: export (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: wiederherstellen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: uebung (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
-  # lager-pfade: ausdruck (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/redaktion/ich:
+    get:
+      operationId: leseRedaktionIch
+      summary: Zugang zur Redaktion und sichtbare Bereiche
+      description: |
+        Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
+
+        Statuscodes: 200. 403 für Admins ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zugang und Bereiche.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionIch"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/medien:
+    get:
+      operationId: listeRedaktionMedien
+      summary: Medien der Abteilung auflisten
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel. Gleiche Antwort wie `/api/v1/admin/medien`.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Medien.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedienListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    post:
+      operationId: legeRedaktionMediumAn
+      summary: Bild oder PDF hochladen
+      description: |
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten. Derselbe Handler wie `POST /api/v1/admin/medien` (gleiche Regeln für Typ, Grösse, Alt-Text, Verarbeitung und Begrenzung: 10 Uploads in 10 Minuten je Person, gezählt über beide Routen); nur der Zugang ist ein anderer. Die Prüfung des Zugangs kommt vor der Prüfung der Eingabe.
+
+        Statuscodes: 201, 400 (code `ALT_TEXT` bei fehlendem Alt-Text), 401, 403, 413, 415 (code `MEDIEN_FORMAT`), 426, 429, 500, 501 (ohne eingerichteten Medienspeicher).
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: sichtbarkeit
+          in: query
+          required: true
+          description: Wer das Medium sehen darf, `oeffentlich` (jeder, ohne Anmeldung) oder `angemeldet` (die Abteilung).
+          schema:
+            type: string
+            enum:
+              - oeffentlich
+              - angemeldet
+        - name: altText
+          in: query
+          required: false
+          description: Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Bei Bildern Pflicht, ausser bei `dekorativ=true`.
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 500
+        - name: dekorativ
+          in: query
+          required: false
+          description: Nur bei Bildern, ausdrückliche Markierung «dekorativ»; dann ohne `altText`.
+          schema:
+            type: string
+            enum:
+              - "true"
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+          application/pdf:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "413":
+          description: Ein Bild ist grösser als 10 MiB oder ein PDF grösser als 20 MiB.
+        "415":
+          description: Kein JPEG, PNG, WebP oder PDF, kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "500":
+          description: Der Medienspeicher oder die Datenbank hat versagt; ohne Details (code `INTERNER_FEHLER`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/medien/{id}:
+    patch:
+      operationId: aendereRedaktionMedium
+      summary: Alt-Text nachtragen oder ändern
+      description: |
+        Setzt einen Alt-Text (`altText`) oder markiert ein Bild als dekorativ (`dekorativ: true`), genau eines von beiden; so lässt sich eine fehlende Beschreibung nachtragen. Die Sichtbarkeit und die Datei ändern sich nie. Ein PDF kann nicht dekorativ sein (400, code `ALT_TEXT`).
+
+        Wer darf: die Person, die das Medium hochgeladen hat, sowie die Abteilungsleitung und die Redaktion (Recht auf alle Seiten). Eine Stufenleitung beschreibt also nur ihre eigenen Uploads.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Medium in der eigenen Abteilung (404, auch für Medien anderer Abteilungen), Zugang und Recht am Medium (403), PDF nicht dekorativ (400). Das Audit-Log hält `medium_beschrieben` fest, ohne den Text.
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediumAendern"
+      responses:
+        "200":
+          description: Das Medium mit dem neuen Alt-Text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Medium"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: loescheRedaktionMedium
+      summary: Medium löschen
+      description: |
+        Nur Abteilungsleitung und Redaktion (Recht auf alle Seiten); eine Stufenleitung hat Zugang, darf aber nicht löschen (403). Derselbe Handler wie `DELETE /api/v1/admin/medien/{id}`: erst die Zeile, dann die Datei im Medienspeicher.
+
+        Reihenfolge der Prüfungen: Pfad (400), Medium in der eigenen Abteilung (404), Recht (403).
+
+        Steht das Medium noch im Entwurf oder in einer Version einer Seite der Abteilung (auch einer zurückgezogenen), antwortet die Route mit 409 `MEDIUM_VERWENDET` und der Zahl der Seiten in `seiten`; nichts wird gelöscht (wie beim Admin-Weg).
+
+        Statuscodes: 204, 400, 401, 403, 404, 409, 426, 501.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MediumId"
+      responses:
+        "204":
+          description: Gelöscht; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Medium steht noch in Seiten (code `MEDIUM_VERWENDET`, `seiten` zählt sie).
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - code
+                  - message
+                  - seiten
+                properties:
+                  code:
+                    type: string
+                    enum:
+                      - MEDIUM_VERWENDET
+                  message:
+                    type: string
+                  seiten:
+                    type: integer
+                    minimum: 1
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "501":
+          description: Der Server hat keinen Medienspeicher eingerichtet.
+  /api/v1/redaktion/tags:
+    get:
+      operationId: listeRedaktionTags
+      summary: Tags der Abteilung für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: alle Tags der eigenen Abteilung mit Id, Name und Typ, sortiert nach Typ und Name. Ohne Kürzel, ohne Zahl der Personen und ohne Personen.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Tags.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/personen:
+    get:
+      operationId: listeRedaktionPersonen
+      summary: Personen mit einem Tag für die Auswahl im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: die aktiven Konten, die den Tag tragen. Nur Id, Anzeigename (Cevi-Name, sonst der Name des Kontos) und Funktion (die Rolle am Tag). Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos. Sortiert nach der Reihenfolge im Tag, dann nach Name.
+
+        Reihenfolge der Prüfungen: Zugang (403), Query (400), Tag in der eigenen Abteilung (404, auch für Tags anderer Abteilungen).
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: tag
+          in: query
+          required: true
+          description: Der Tag, dessen Personen gesucht sind (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Personen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionPersonenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/vorlagen:
+    get:
+      operationId: listeRedaktionVorlagen
+      summary: Vorlagen für neue Seiten
+      description: |
+        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Zugang wie bei `GET /api/v1/redaktion/seiten`.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Vorlagen in fester Reihenfolge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionVorlagenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/aus-vorlage:
+    post:
+      operationId: legeRedaktionSeiteAusVorlageAn
+      summary: Seite aus einer Vorlage anlegen
+      description: |
+        Wie `POST /api/v1/redaktion/seiten` (nur Abteilungsleitung und Redaktion), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
+
+        Die Vorlage `stufenseite` braucht `tagId` (Leitungsteam und Termine hängen daran). Eine Gruppe hat höchstens eine Seite: Gibt es zu `tagId` schon eine, antwortet die Route mit 409. Die Rechte der Verantwortlichen folgen aus `tagId`: Die Stufenleitung der Stufe und die Verantwortlichen eines Teams (Rolle `verantwortlich` am Tag, Typ `team`) bearbeiten die Seite.
+
+        Reihenfolge der Prüfungen: Zugang (403), Body (400), Recht zum Anlegen (403), Tags der Sichtbarkeit (400), Vorlage braucht Gruppe (400), Gruppe und Elternseite in der eigenen Abteilung (404), Tiefe (400), Gruppe schon vergeben (409). Audit-Log: `seite_angelegt` (Kennungen, Art der Sichtbarkeit und Vorlage, nie der Titel).
+
+        Statuscodes: 201 bei Erfolg, mit `id` und `adresse`. 400 bei ungültiger Eingabe, `TAG_ERFORDERLICH` oder `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Elternseite oder Gruppe. 409 mit `TAG_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionSeiteAusVorlage"
+      responses:
+        "201":
+          description: Seite als Entwurf angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionSeiteAusVorlageAngelegt"
+        "400":
+          $ref: "#/components/responses/RedaktionSeite400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
 components:
   schemas:
     Fehler:
@@ -7931,205 +8021,6 @@ components:
             - string
             - "null"
           format: uuid
-    RedaktionVorlagenListe:
-      type: object
-      required:
-        - vorlagen
-      properties:
-        vorlagen:
-          type: array
-          items:
-            type: object
-            required:
-              - schluessel
-              - name
-              - beschreibung
-              - brauchtTag
-            properties:
-              schluessel:
-                type: string
-                enum:
-                  - stufenseite
-                  - anlass
-                  - textseite
-                  - leer
-              name:
-                type: string
-              beschreibung:
-                type: string
-              brauchtTag:
-                type: boolean
-                description: Die Vorlage verlangt `tagId` (Stufenseite).
-    RedaktionSeiteAusVorlage:
-      type: object
-      required:
-        - vorlage
-        - titel
-        - sichtbarkeit
-      additionalProperties: false
-      properties:
-        vorlage:
-          type: string
-          enum:
-            - stufenseite
-            - anlass
-            - textseite
-            - leer
-        titel:
-          type: string
-          minLength: 1
-          maxLength: 150
-        elternId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        tagId:
-          type:
-            - string
-            - "null"
-          format: uuid
-        sichtbarkeit:
-          $ref: "#/components/schemas/RedaktionSichtbarkeit"
-    RedaktionSeiteAusVorlageAngelegt:
-      type: object
-      required:
-        - id
-        - adresse
-      properties:
-        id:
-          type: string
-          format: uuid
-        adresse:
-          type: string
-          description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
-    RedaktionZaehler:
-      type: object
-      required:
-        - zaehler
-      properties:
-        zaehler:
-          type: integer
-          minimum: 0
-          description: Zählt jedes Speichern und jedes Zurückholen des Entwurfs.
-    RedaktionEntwurf:
-      type: object
-      required:
-        - zaehler
-        - dokument
-        - veroeffentlichteNr
-        - unveroeffentlicht
-      properties:
-        zaehler:
-          type: integer
-          minimum: 0
-        dokument:
-          type:
-            - object
-            - "null"
-          description: "Das Dokument `{ v: 1, titel, bausteine }`; `null`, solange noch nie gespeichert wurde."
-        veroeffentlichteNr:
-          type:
-            - integer
-            - "null"
-          description: Nummer der veröffentlichten Version; `null`, wenn die Seite nicht veröffentlicht ist.
-        unveroeffentlicht:
-          type: boolean
-          description: Der Entwurf weicht von der veröffentlichten Version ab (oder es gibt keine).
-    RedaktionEntwurfSpeichern:
-      type: object
-      additionalProperties: false
-      required:
-        - zaehler
-        - dokument
-      properties:
-        zaehler:
-          type: integer
-          minimum: 0
-          description: Der Zähler aus dem letzten Lesen oder Speichern.
-        dokument:
-          type: object
-          description: "Das ganze Dokument `{ v: 1, titel, bausteine }` (Bausteinkatalog Version 1)."
-    RedaktionKonflikt:
-      type: object
-      required:
-        - code
-        - message
-        - zaehler
-        - dokument
-      properties:
-        code:
-          type: string
-          enum:
-            - KONFLIKT
-        message:
-          type: string
-        zaehler:
-          type: integer
-          description: Der aktuelle Zähler.
-        dokument:
-          type:
-            - object
-            - "null"
-          description: Das aktuelle Dokument des Entwurfs.
-    RedaktionDokumentFehler:
-      type: object
-      required:
-        - code
-        - message
-        - fehler
-      properties:
-        code:
-          type: string
-          description: "`DOKUMENT_UNGUELTIG` oder bei 422 der erste Code der Verweisprüfung."
-          enum:
-            - DOKUMENT_UNGUELTIG
-            - MEDIUM_UNBEKANNT
-            - MEDIUM_FORMAT
-            - MEDIUM_NICHT_OEFFENTLICH
-            - TAG_UNBEKANNT
-            - PERSON_UNBEKANNT
-            - SEITE_UNBEKANNT
-        message:
-          type: string
-        fehler:
-          type: array
-          maxItems: 20
-          items:
-            type: object
-            required:
-              - pfad
-              - code
-            properties:
-              pfad:
-                type: string
-                description: Stelle im Dokument, zum Beispiel `bausteine.2.daten.ziel` oder bei der Verweisprüfung `bausteine.2`.
-              code:
-                type: string
-                description: Code der Prüfung (Code von zod oder der Verweisprüfung), nie ein Wert der Eingabe.
-    RedaktionVersion:
-      type: object
-      required:
-        - nr
-        - autorId
-        - erstelltAm
-        - veroeffentlicht
-      properties:
-        nr:
-          type: integer
-          minimum: 1
-        autorId:
-          type:
-            - string
-            - "null"
-          format: uuid
-          description: Wer veröffentlicht hat; `null`, wenn das Konto inzwischen gelöscht ist.
-        erstelltAm:
-          type: string
-          format: date-time
-        veroeffentlicht:
-          type: boolean
-          description: Die Seite zeigt gerade diese Version.
     # lager-schemas: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerRolle:
       type: string
@@ -8632,6 +8523,166 @@ components:
         veroeffentlicht:
           type: boolean
           description: Die Seite zeigt gerade diese Version.
+    RedaktionIch:
+      type: object
+      required:
+        - redigieren
+        - bereiche
+        - verwalten
+      properties:
+        redigieren:
+          type: boolean
+          description: Ob die Person Zugang zur Redaktion hat (Abteilungsleitung, Stufenleitung oder ein Recht auf Seiten in `bearbeiter`).
+        bereiche:
+          type: array
+          description: Die Bereiche des Panels, die die Person sehen darf. Heute nur `website`; ohne Zugang leer.
+          items:
+            type: string
+            enum:
+              - website
+        verwalten:
+          type: boolean
+          description: Ob die Person Seiten anlegen und löschen und Medien löschen darf (Abteilungsleitung und Redaktion). Nur für die Anzeige; jede Route prüft selbst.
+    MediumAendern:
+      type: object
+      description: Genau eines von beiden, `altText` oder `dekorativ`.
+      additionalProperties: false
+      properties:
+        altText:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: Neuer Alternativtext, 1 bis 500 Zeichen nach dem Entfernen von Leerraum am Rand. Hebt «dekorativ» auf.
+        dekorativ:
+          const: true
+          description: Das Bild als dekorativ markieren; entfernt den Alt-Text. Bei einem PDF 400.
+    RedaktionTag:
+      type: object
+      required:
+        - id
+        - name
+        - typ
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        typ:
+          type: string
+          enum:
+            - stufe
+            - funktion
+            - team
+            - lager
+    RedaktionTagListe:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionTag"
+    RedaktionPerson:
+      type: object
+      required:
+        - id
+        - anzeigename
+        - funktion
+      properties:
+        id:
+          type: string
+          format: uuid
+        anzeigename:
+          type: string
+          description: Der Cevi-Name, sonst der Name des Kontos.
+        funktion:
+          type:
+            - string
+            - "null"
+          description: Die Rolle der Person an diesem Tag (freier Text); `null` ohne Rolle.
+    RedaktionPersonenListe:
+      type: object
+      required:
+        - personen
+      properties:
+        personen:
+          type: array
+          items:
+            $ref: "#/components/schemas/RedaktionPerson"
+    RedaktionVorlagenListe:
+      type: object
+      required:
+        - vorlagen
+      properties:
+        vorlagen:
+          type: array
+          items:
+            type: object
+            required:
+              - schluessel
+              - name
+              - beschreibung
+              - brauchtTag
+            properties:
+              schluessel:
+                type: string
+                enum:
+                  - stufenseite
+                  - anlass
+                  - textseite
+                  - leer
+              name:
+                type: string
+              beschreibung:
+                type: string
+              brauchtTag:
+                type: boolean
+                description: Die Vorlage verlangt `tagId` (Stufenseite).
+    RedaktionSeiteAusVorlage:
+      type: object
+      required:
+        - vorlage
+        - titel
+        - sichtbarkeit
+      additionalProperties: false
+      properties:
+        vorlage:
+          type: string
+          enum:
+            - stufenseite
+            - anlass
+            - textseite
+            - leer
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 150
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+    RedaktionSeiteAusVorlageAngelegt:
+      type: object
+      required:
+        - id
+        - adresse
+      properties:
+        id:
+          type: string
+          format: uuid
+        adresse:
+          type: string
+          description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
   parameters:
     AppVersion:
       name: X-App-Version
@@ -8748,14 +8799,6 @@ components:
       schema:
         type: integer
         minimum: 1
-    RedaktionVersionNr:
-      name: nr
-      in: path
-      required: true
-      description: Nummer der Version, eine ganze Zahl ab 1.
-      schema:
-        type: integer
-        minimum: 1
     AdminBearbeiterId:
       name: id
       in: path
@@ -8853,7 +8896,7 @@ components:
             $ref: "#/components/schemas/Fehler"
     RedaktionSeite400:
       description: |
-        Ungültige Eingabe (code UNGUELTIGE_EINGABE) oder eine Regel des Seitenbaums: `ADRESSE_RESERVIERT` (Adresse auf der obersten Ebene reserviert), `SEITE_ZYKLUS` (Seite unter sich selbst oder einer Unterseite), `SEITE_ZU_TIEF` (mehr als 5 Ebenen), `TAG_ERFORDERLICH` (die Vorlage braucht eine Gruppe).
+        Ungültige Eingabe (code UNGUELTIGE_EINGABE) oder eine Regel des Seitenbaums: `ADRESSE_RESERVIERT` (Adresse auf der obersten Ebene reserviert), `SEITE_ZYKLUS` (Seite unter sich selbst oder einer Unterseite), `SEITE_ZU_TIEF` (mehr als 5 Ebenen).
       content:
         application/json:
           schema:
@@ -8865,22 +8908,6 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Fehler"
-    RedaktionDokument400:
-      description: |
-        Ungültige Eingabe (code UNGUELTIGE_EINGABE, ohne Details) oder ein Dokument, das den Bausteinkatalog verletzt (code `DOKUMENT_UNGUELTIG`, mit `fehler`).
-      content:
-        application/json:
-          schema:
-            oneOf:
-              - $ref: "#/components/schemas/Fehler"
-              - $ref: "#/components/schemas/RedaktionDokumentFehler"
-    RedaktionVerweis422:
-      description: |
-        Das Dokument ist gültig, verweist aber auf etwas Unzulässiges, oder ein gespeichertes Dokument besteht das Schema nicht mehr (`DOKUMENT_UNGUELTIG`). `code` ist der erste Code, `fehler` nennt alle mit dem Pfad des Bausteins.
-      content:
-        application/json:
-          schema:
-            $ref: "#/components/schemas/RedaktionDokumentFehler"
     RedaktionDokument400:
       description: |
         Ungültige Eingabe (code UNGUELTIGE_EINGABE, ohne Details) oder ein Dokument, das den Bausteinkatalog verletzt (code `DOKUMENT_UNGUELTIG`, mit `fehler`).
