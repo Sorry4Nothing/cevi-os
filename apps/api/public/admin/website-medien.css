@@ -1,1 +1,122 @@
-/* Platzhalter (#353): #359 füllt diese Datei. Klassen mit dem Vorsatz «ws-medien-» */
+/* Medienbibliothek (#359). Klassen mit dem Vorsatz «ws-medien-». Farben nur aus den Tokens der Verwaltung (admin.css). */
+
+.ws-medien-raster {
+  display: grid;
+  /* Auf schmalen Bildschirmen eine Spalte, sonst so viele, wie hineinpassen */
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 16px;
+  margin: 16px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-medien-karte {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+/* Nur der Fokus nach einem Hochladen oder Löschen landet auf der Karte selbst */
+.ws-medien-karte:focus {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+/* Festes Seitenverhältnis: Das Raster springt nicht, wenn die Bilder nachladen; das Bild füllt die Fläche und liegt darin ganz sichtbar */
+.ws-medien-bild {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+.ws-medien-bild img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ws-medien-ohne {
+  padding: 8px;
+  color: var(--leise);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.ws-medien-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+}
+
+.ws-medien-titel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ws-medien-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.ws-medien-meldung {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ws-medien-meldung:empty {
+  display: none;
+}
+
+.ws-medien-fuss {
+  display: flex;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.ws-medien-vorschau canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  max-height: 14rem;
+  object-fit: contain;
+  background: var(--surface);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+/* Der Alt-Text braucht Platz zum Schreiben, aber keine zwölf Zeilen wie die Standard-Textfläche */
+.ws-medien-alt textarea {
+  min-height: 7rem;
+}
+
+.ws-medien-fortschritt {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-medien-fortschritt progress {
+  width: 100%;
+  height: 12px;
+  accent-color: var(--akzent);
+}

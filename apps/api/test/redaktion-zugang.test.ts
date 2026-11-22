@@ -299,7 +299,19 @@ describe("Medien", () => {
         400,
       );
     }
-    const pdfId = await lege(slB, pdf, "");
+    // Ein altes PDF-Medium (vor #428); hochladen lässt sich keines mehr
+    const [pdfZeile] = await db
+      .insert(schema.medium)
+      .values({
+        abteilungId: welt.testabteilungId,
+        mimeTyp: "application/pdf",
+        groesse: pdf.length,
+        sichtbarkeit: "angemeldet",
+        speicherSchluessel: randomUUID(),
+        hochgeladenVon: slB.id,
+      })
+      .returning({ id: schema.medium.id });
+    const pdfId = pdfZeile.id;
     const antwort = await senden(slB, "PATCH", `${MEDIEN}/${pdfId}`, {
       dekorativ: true,
     });
