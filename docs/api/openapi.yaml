@@ -6688,6 +6688,496 @@ paths:
   # lager-pfade: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/anwesenheit:
+    get:
+      operationId: holeLagerAnwesenheit
+      summary: Anwesenheits-Matrix des Lagers lesen
+      description: |
+        Braucht das Recht `anwesenheit.lesen_alle` (Standard: Lagerleitung, Leitung und Lesen; das Team liest über `/anwesenheit/eigene`; die Rechte lassen sich je Lager einstellen).
+
+        Die Matrix ist Person (Leitende als Konto, Teilnehmende als `teilnehmerId`) mal Lagertag mal Tagesabschnitt mit den Werten `A` (anwesend), `F` (abwesend) und `O` (offen). Eine Zeile gibt es nur für eingetragene Felder; wer fehlt, ist offen (`O`). Eine Abfrage je Seite für alle Personen; `lagertagIds` (kommagetrennt, höchstens 40) schränkt auf Lagertage ein, `nach` und `limit` blättern (nach ID geordnet). `frist` ist die Frist, bis zu der das Team direkt einträgt, oder `null`. Die Namen löst die App über die Listen der Mitglieder und Teilnehmenden auf.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht (Team im Standard). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagIds
+          in: query
+          required: false
+          description: Lagertage, kommagetrennt (UUIDs, höchstens 40); ohne Angabe alle.
+          schema:
+            type: string
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 5000
+            default: 1000
+      responses:
+        "200":
+          description: Eine Seite der Matrix.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeLagerAnwesenheit
+      summary: Anwesenheit für Personen eintragen (Lagerleitung)
+      description: |
+        Braucht das Recht `anwesenheit.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version des Feldes hoch und kommt in den Änderungsfeed.
+
+        Sammeloperation: höchstens 100 Felder in einem Aufruf, in einer Transaktion (alles oder nichts); ein ganzer Tag ist ein Aufruf mit allen Abschnitten. Jedes Feld nennt genau eine von `personId` (Mitglied des Lagers) und `teilnehmerId`, `lagertagId`, `tagesabschnittId` und den Wert. Die Lagerleitung überschreibt jedes Feld, auch eingetragene, und ignoriert die Frist. Für ein bestehendes Feld mit anderem Wert gehört die zuletzt gesehene `version` dazu; ohne Angabe gilt das Feld als leer (409 `VERSION_KONFLIKT` mit dem aktuellen Stand, wenn es schon eingetragen ist). Der Wert, der schon dasteht, ist kein Fehler. `O` öffnet ein eingetragenes Feld wieder (das Team trägt dann wieder direkt ein); auf ein leeres Feld schreibt `O` nichts. Lagertag, Tagesabschnitt und Teilnehmende werden erst mit den Tabellen dazu (Zeitplan, Teilnehmende) gegen das Lager geprüft.
+
+        Datenbanklast: Je Aufruf eine Abfrage für die Mitgliedschaft und eine für die bestehenden Felder, dazu je geändertes Feld die Schreibvorgänge des Sync-Kerns.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit den geschriebenen Feldern. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED` (eine Person ist kein Mitglied des Lagers). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAnwesenheitLeitungSetzen"
+      responses:
+        "200":
+          description: Die geschriebenen Felder. Felder mit `O` ohne bestehende Zeile fehlen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitEintraege"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` eines Feldes ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern); dann ist nichts geschrieben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/anwesenheit/eigene:
+    get:
+      operationId: holeLagerAnwesenheitEigene
+      summary: Eigene Anwesenheit und eigene Anfragen lesen
+      description: |
+        Braucht das Recht `anwesenheit.eigene` (Standard: Lagerleitung, Leitung und Team). Liefert nur die Felder und Anfragen der angemeldeten Person und die Frist, bis zu der das Team direkt einträgt. Zwei gebündelte Abfragen: die eigenen Felder (höchstens Tage mal Abschnitte) und die letzten 200 Anfragen, neueste zuerst. `lagertagIds` schränkt die Felder auf Lagertage ein.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht (Rolle Lesen im Standard). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: lagertagIds
+          in: query
+          required: false
+          description: Lagertage, kommagetrennt (UUIDs, höchstens 40); ohne Angabe alle.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Eigene Felder, eigene Anfragen und Frist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitEigene"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeLagerAnwesenheitEigene
+      summary: Eigene offene Felder eintragen
+      description: |
+        Braucht das Recht `anwesenheit.eigene` (Standard: Lagerleitung, Leitung und Team) und die Mitgliedschaft im Lager (die Abteilungsleitung ohne Mitgliedschaft trägt über `PUT /anwesenheit` ein). Der Weg nimmt keine Person entgegen: Geschrieben wird immer für die angemeldete Person, ein fremdes Feld ist nicht möglich. Es gibt keinen Weg, einen Eintrag zu löschen.
+
+        Sammeloperation: höchstens 100 Felder in einem Aufruf, alles oder nichts; ein ganzer Tag ist ein Aufruf mit allen Abschnitten. Nur offene Felder (keine Zeile oder `O`) werden gesetzt, und nur bis zur Frist. Ist ein Feld mit einem anderen Wert eingetragen (`A` oder `F`) oder die Frist abgelaufen, schreibt der Aufruf nichts und antwortet 409 `ANFRAGE_NOETIG` mit den gesperrten Feldern und dem Grund (`eingetragen` oder `frist`); die App stellt dafür eine Anfrage (`POST /anwesenheit/anfragen`). Der Wert, der schon dasteht, und `O` auf ein offenes Feld sind kein Fehler und schreiben nichts (die Wiederholung aus der Warteschlange bleibt folgenlos).
+
+        Datenbanklast: Eine Abfrage für die bestehenden Felder, dazu je geschriebenes Feld die Schreibvorgänge des Sync-Kerns.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit den eigenen Feldern. 400 bei ungültiger Eingabe (auch bei `personId` oder `version`). 401 ohne Anmeldung. 403 ohne das Recht oder ohne Mitgliedschaft (`KEIN_MITGLIED`). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager oder `ANFRAGE_NOETIG`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAnwesenheitEigeneSetzen"
+      responses:
+        "200":
+          description: Die eigenen Felder, die jetzt eingetragen sind (nicht die mit `O` ohne Zeile).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitEintraege"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder mindestens ein Feld braucht eine Anfrage (`ANFRAGE_NOETIG`, mit `gesperrt`); dann ist nichts geschrieben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitAnfrageNoetig"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/anwesenheit/zusammenfassung:
+    get:
+      operationId: holeLagerAnwesenheitZusammenfassung
+      summary: Zusammenfassung der Anwesenheit
+      description: |
+        Braucht das Recht `anwesenheit.lesen_alle` (Standard: Lagerleitung, Leitung und Lesen). Zählt je Lagertag, Tagesabschnitt und Wert (`A`, `F`, `O`), wie viele Leitende und wie viele Teilnehmende eingetragen sind. Eine Abfrage, unabhängig von der Zahl der Personen. «Offen» ergibt sich aus der Zahl der Anwesenden des Lagers minus `A` und `F`. Die Aufteilung nach Stufe folgt, sobald die Teilnehmenden mit ihrer Stufe im Lager stehen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht (Team im Standard). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Zahlen je Lagertag, Abschnitt und Wert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitZusammenfassung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/anwesenheit/frist:
+    put:
+      operationId: setzeLagerAnwesenheitFrist
+      summary: Frist für die Anwesenheit des Teams setzen
+      description: |
+        Braucht das Recht `anwesenheit.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Bis zur Frist trägt das Team seine eigene Anwesenheit direkt ein; danach nur noch per Anfrage. `null` hebt die Frist auf. Die Änderung steht im Protokoll (`lager_anwesenheit_frist`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAnwesenheitFristSetzen"
+      responses:
+        "200":
+          description: Die gesetzte Frist.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitFrist"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/anwesenheit/anfragen:
+    get:
+      operationId: holeLagerAnwesenheitAnfragen
+      summary: Anfragen des Teams auflisten
+      description: |
+        Braucht das Recht `anwesenheit.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Alle Anfragen des Lagers, die ältesten zuerst; `status` filtert, `nach` und `limit` blättern. Eine Abfrage je Seite. Das Team liest seine eigenen Anfragen über `/anwesenheit/eigene`.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          description: Nur Anfragen mit diesem Stand.
+          schema:
+            type: string
+            enum:
+              - offen
+              - angenommen
+              - abgelehnt
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 100
+      responses:
+        "200":
+          description: Eine Seite Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitAnfrageSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerAnwesenheitAnfragenAn
+      summary: Anfrage stellen, ein eingetragenes Feld zu ändern
+      description: |
+        Braucht das Recht `anwesenheit.eigene` (Standard: Lagerleitung, Leitung und Team) und die Mitgliedschaft im Lager. Die Anfrage gilt immer für die angemeldete Person. Eine Anfrage gibt es nur, wo das Team nicht direkt eintragen kann (das Feld ist mit `A` oder `F` eingetragen oder die Frist ist abgelaufen) und der Wert sich ändert; sonst 409 `KEINE_ANFRAGE_NOETIG` mit den Feldern. Je Person und Feld wartet höchstens eine Anfrage (409 `ANFRAGE_OFFEN`). Ein ganzer Tag sind höchstens 100 Felder in einem Aufruf, je Feld eine Anfrage; alles oder nichts.
+
+        Benachrichtigung: Die Lagerleitung bekommt eine Benachrichtigung je Aufruf (Art `anwesenheit_anfrage`, Push `lager_anwesenheit`); der Push nennt nur den Lagertitel, nie Person, Feld oder Bemerkung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht oder ohne Mitgliedschaft (`KEIN_MITGLIED`). 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager, `KEINE_ANFRAGE_NOETIG` oder `ANFRAGE_OFFEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAnwesenheitAnfragenAnlegen"
+      responses:
+        "201":
+          description: Die angelegten Anfragen, je Feld eine.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitAnfragen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), ein Feld braucht keine Anfrage (`KEINE_ANFRAGE_NOETIG`) oder für ein Feld wartet schon eine (`ANFRAGE_OFFEN`); die beiden letzten nennen die `felder`. Dann ist nichts angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/anwesenheit/anfragen/entscheid:
+    post:
+      operationId: entscheideLagerAnwesenheitAnfragen
+      summary: Anfragen annehmen oder ablehnen
+      description: |
+        Braucht das Recht `anwesenheit.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Entscheidet höchstens 50 offene Anfragen in einem Aufruf (ein ganzer Tag ist eine Anfrage je Abschnitt), alles oder nichts, mit der zuletzt gesehenen `version` je Anfrage (409 `VERSION_KONFLIKT`). Annehmen setzt das Feld der Person auf den angefragten Wert (ohne Frist und ohne Sperre); ablehnen ändert nur die Anfrage. Eine schon entschiedene Anfrage ist 409 `BEREITS_ENTSCHIEDEN`; eine unbekannte oder fremde 404.
+
+        Benachrichtigung: Jede anfragende Person bekommt eine Benachrichtigung je Aufruf (Art `anwesenheit_entscheid`, Push `lager_anwesenheit`); der Push nennt nur den Lagertitel und nie den Entscheid.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit den entschiedenen Anfragen. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT` oder `BEREITS_ENTSCHIEDEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerAnwesenheitEntscheiden"
+      responses:
+        "200":
+          description: Die entschiedenen Anfragen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAnwesenheitAnfragen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), eine `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand) oder eine Anfrage ist schon entschieden (`BEREITS_ENTSCHIEDEN`, mit den `ids`). Dann ist nichts geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -10760,6 +11250,385 @@ components:
     # lager-schemas: schichtplan (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: diensttausch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: anwesenheit (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerAnwesenheitWert:
+      description: "`A` anwesend, `F` abwesend, `O` offen."
+      type: string
+      enum:
+        - A
+        - F
+        - O
+    LagerAnwesenheitEintrag:
+      description: "Ein eingetragenes Feld der Matrix: genau eine von `personId` (Leitende) und `teilnehmerId`."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - personId
+        - teilnehmerId
+        - lagertagId
+        - tagesabschnittId
+        - wert
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion des Feldes; die Lagerleitung schickt sie beim Überschreiben mit."
+          type: integer
+          minimum: 1
+        personId:
+          type: [string, "null"]
+          format: uuid
+        teilnehmerId:
+          type: [string, "null"]
+          format: uuid
+        lagertagId:
+          type: string
+          format: uuid
+        tagesabschnittId:
+          type: string
+          format: uuid
+        wert:
+          $ref: "#/components/schemas/LagerAnwesenheitWert"
+    LagerAnwesenheitSeite:
+      description: "Eine Seite der Matrix mit der Frist des Teams."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+        - naechster
+        - frist
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitEintrag"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+        frist:
+          description: "Bis wann das Team direkt einträgt; `null` ohne Frist."
+          type: [string, "null"]
+          format: date-time
+    LagerAnwesenheitEintraege:
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitEintrag"
+    LagerAnwesenheitLeitungFeld:
+      type: object
+      additionalProperties: false
+      required:
+        - lagertagId
+        - tagesabschnittId
+        - wert
+      properties:
+        personId:
+          description: "Mitglied des Lagers; genau eine von `personId` und `teilnehmerId`."
+          type: string
+          format: uuid
+        teilnehmerId:
+          type: string
+          format: uuid
+        lagertagId:
+          type: string
+          format: uuid
+        tagesabschnittId:
+          type: string
+          format: uuid
+        wert:
+          $ref: "#/components/schemas/LagerAnwesenheitWert"
+        version:
+          description: "Die zuletzt gesehene Version des Feldes; ohne Angabe gilt das Feld als leer."
+          type: integer
+          minimum: 1
+    LagerAnwesenheitLeitungSetzen:
+      description: "Felder für Personen eintragen. Höchstens 100, jedes Feld einmal; unbekannte Felder lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitLeitungFeld"
+    LagerAnwesenheitEigenesFeld:
+      type: object
+      additionalProperties: false
+      required:
+        - lagertagId
+        - tagesabschnittId
+        - wert
+      properties:
+        lagertagId:
+          type: string
+          format: uuid
+        tagesabschnittId:
+          type: string
+          format: uuid
+        wert:
+          $ref: "#/components/schemas/LagerAnwesenheitWert"
+    LagerAnwesenheitEigeneSetzen:
+      description: "Eigene Felder eintragen. Höchstens 100, jedes Feld einmal; keine Person, keine Version: unbekannte Felder lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitEigenesFeld"
+    LagerAnwesenheitGesperrt:
+      type: object
+      additionalProperties: false
+      required:
+        - lagertagId
+        - tagesabschnittId
+        - grund
+      properties:
+        lagertagId:
+          type: string
+          format: uuid
+        tagesabschnittId:
+          type: string
+          format: uuid
+        grund:
+          description: "`eingetragen`: das Feld hat schon einen anderen Wert; `frist`: die Frist ist abgelaufen."
+          type: string
+          enum:
+            - eingetragen
+            - frist
+    LagerAnwesenheitAnfrageNoetig:
+      description: "Antwort 409 auf `PUT /anwesenheit/eigene`: Der Aufruf hat nichts geschrieben; die Felder brauchen eine Anfrage."
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - message
+        - gesperrt
+      properties:
+        code:
+          type: string
+          enum:
+            - ANFRAGE_NOETIG
+        message:
+          type: string
+        gesperrt:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitGesperrt"
+    LagerAnwesenheitAnfrage:
+      description: "Eine Anfrage des Teams. Solange sie `offen` ist, sind `entschiedenVon` und `entschiedenAm` leer."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - version
+        - personId
+        - lagertagId
+        - tagesabschnittId
+        - wert
+        - notiz
+        - status
+        - entschiedenVon
+        - entschiedenAm
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; der Entscheid schickt sie mit."
+          type: integer
+          minimum: 1
+        personId:
+          description: "Die Person, die die Anfrage gestellt hat."
+          type: string
+          format: uuid
+        lagertagId:
+          type: string
+          format: uuid
+        tagesabschnittId:
+          type: string
+          format: uuid
+        wert:
+          $ref: "#/components/schemas/LagerAnwesenheitWert"
+        notiz:
+          description: "Freiwillige Bemerkung der Person, höchstens 500 Zeichen."
+          type: [string, "null"]
+        status:
+          type: string
+          enum:
+            - offen
+            - angenommen
+            - abgelehnt
+        entschiedenVon:
+          type: [string, "null"]
+          format: uuid
+        entschiedenAm:
+          type: [string, "null"]
+          format: date-time
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerAnwesenheitAnfragen:
+      type: object
+      additionalProperties: false
+      required:
+        - anfragen
+      properties:
+        anfragen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitAnfrage"
+    LagerAnwesenheitAnfrageSeite:
+      description: "Eine Seite Anfragen, die ältesten zuerst."
+      type: object
+      additionalProperties: false
+      required:
+        - anfragen
+        - naechster
+      properties:
+        anfragen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitAnfrage"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); `null` am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerAnwesenheitEigene:
+      description: "Die eigenen Felder, die letzten 200 eigenen Anfragen (neueste zuerst) und die Frist."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+        - anfragen
+        - frist
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitEintrag"
+        anfragen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitAnfrage"
+        frist:
+          type: [string, "null"]
+          format: date-time
+    LagerAnwesenheitAnfragenAnlegen:
+      description: "Anfragen für eigene Felder. Höchstens 100, jedes Feld einmal; unbekannte Felder (auch eine Person) lehnt die Route mit 400 ab."
+      type: object
+      additionalProperties: false
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/LagerAnwesenheitEigenesFeld"
+        notiz:
+          description: "Freiwillige Bemerkung für die Lagerleitung, 1 bis 500 Zeichen (getrimmt)."
+          type: string
+          minLength: 1
+          maxLength: 500
+    LagerAnwesenheitEntscheiden:
+      description: "Entscheid über offene Anfragen. Höchstens 50, jede Anfrage einmal."
+      type: object
+      additionalProperties: false
+      required:
+        - entscheid
+        - anfragen
+      properties:
+        entscheid:
+          type: string
+          enum:
+            - angenommen
+            - abgelehnt
+        anfragen:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+                format: uuid
+              version:
+                type: integer
+                minimum: 1
+    LagerAnwesenheitFristSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - frist
+      properties:
+        frist:
+          description: "Zeitpunkt mit Zeitzone (ISO 8601); `null` hebt die Frist auf."
+          type: [string, "null"]
+          format: date-time
+    LagerAnwesenheitFrist:
+      type: object
+      additionalProperties: false
+      required:
+        - frist
+      properties:
+        frist:
+          type: [string, "null"]
+          format: date-time
+    LagerAnwesenheitZusammenfassung:
+      type: object
+      additionalProperties: false
+      required:
+        - zeilen
+      properties:
+        zeilen:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - lagertagId
+              - tagesabschnittId
+              - wert
+              - leitende
+              - teilnehmende
+            properties:
+              lagertagId:
+                type: string
+                format: uuid
+              tagesabschnittId:
+                type: string
+                format: uuid
+              wert:
+                $ref: "#/components/schemas/LagerAnwesenheitWert"
+              leitende:
+                type: integer
+                minimum: 0
+              teilnehmende:
+                type: integer
+                minimum: 0
     # lager-schemas: tagesseiten (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: einkauf (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: lagerinfos (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
