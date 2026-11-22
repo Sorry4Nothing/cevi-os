@@ -139,6 +139,14 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerBenachrichtigung: {
+    titel: "Benachrichtigungen im Lager",
+    zweck:
+      "Die Mitglieder eines Lagers über Neues im Lager informieren, zum Beispiel über eine zugeteilte Aufgabe oder eine wichtige Mitteilung. Die Benachrichtigung zeigt in der App eine Liste mit Art und Ziel, der Push nennt nur den Lagertitel. Jede Person schaltet jede Art selbst ab.",
+    frist: `Gelesene Benachrichtigungen 90 Tage, ungelesene bis die Person das Lager verlässt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   website: {
     titel: "Seiten der Website",
     zweck:
@@ -328,6 +336,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     lager: ["lager_id", "person_id", "rolle", "ressort_id", "erstellt_am"],
   },
   lager_rolle_recht: { lager: ["lager_id", "rolle", "recht", "erlaubt"] },
+  lager_benachrichtigung: {
+    lagerBenachrichtigung: [
+      "id",
+      "lager_id",
+      "person_id",
+      "art",
+      "objekt_typ",
+      "objekt_id",
+      "gelesen_am",
+      "erstellt_am",
+    ],
+  },
+  lager_benachrichtigung_einstellung: {
+    lagerBenachrichtigung: ["person_id", "art", "aktiv"],
+  },
   bearbeiter: {
     rollen: [
       "id",
