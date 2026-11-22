@@ -5,6 +5,8 @@ import {
   eq,
   inArray,
   isNull,
+  lte,
+  ne,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -24,12 +26,18 @@ import {
   traktandumVerantwortlich,
   user,
 } from "../db/schema.js";
-import { leseUmfang as aufgabenUmfang } from "./aufgaben.js";
+import {
+  beteiligt,
+  leseUmfang as aufgabenUmfang,
+  ressortJoin,
+} from "./aufgaben.js";
+import { lehneAb, registriereOperation } from "./operationen.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { httpsAdresse, sperreLager } from "./ressorts.js";
 import { registriereSuchquelle } from "./suche.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
+import { anzeigeNamenLager } from "./zimmer.js";
 
 // Höcks, Traktanden und Höck-Modus des Lagers (#378): Ansichten, Eingabeschemas, Abfragen und die Schreibwege. Die Tabellen hoeck und traktandum sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet.
 //
@@ -141,6 +149,7 @@ export const traktandumAnsicht = (t: TraktandumZeile) => ({
   reihenfolge: t.reihenfolge,
   aufgabeId: t.aufgabeId,
   status: t.status,
+  dauerMinuten: t.dauerMinuten,
 });
 
 // Eingaben: strikt, nur die genannten Felder (SR-72). protokollId setzt nur der Server (#379)
@@ -152,6 +161,8 @@ const ort = z.string().trim().min(1).max(200).nullable();
 const gaeste = z.string().trim().min(1).max(500).nullable();
 const text = z.string().trim().min(1).max(5000).nullable();
 const entscheid = z.string().trim().min(1).max(1000).nullable();
+// Geplante Dauer in Minuten (#520); null löscht sie
+const dauerMinuten = z.number().int().min(1).max(600).nullable();
 const hoeckFelder = {
   art: z.enum(HOECK_ART),
   datum,
@@ -207,6 +218,7 @@ const traktandumFelder = {
   aufgabeId: z.uuid().nullable(),
   status: z.enum(TRAKTANDUM_STATUS),
   reihenfolge: z.number().int().min(0).max(100000),
+  dauerMinuten,
 };
 const optional = Object.fromEntries(
   Object.entries(traktandumFelder).map(([k, f]) => [k, f.optional()]),
@@ -789,7 +801,7 @@ export async function ladeEntscheide(
 // Höck-Modus (#378): alles, was die App für die Sitzung braucht, in vier Abfragen und unabhängig von der Zahl der Traktanden: der Höck mit den Anwesenden, die Traktanden mit Verantwortlichen, die Mitglieder zum Abhaken, die Ressort-Runde. Nur mit hoecks.lesen_alle oder hoecks.bearbeiten (die Route prüft es)
 // Ressort-Runde nach Rolle: ohne ressorts.lesen fehlt sie (null); ohne das Recht, alle Aufgaben zu lesen, stehen die Ressorts ohne Zahlen (die Zahlen würden Aufgaben verraten, die die Rolle nicht lesen darf)
 export async function ladeHoeckModus(
-  db: Pick<Db, "select">,
+  db: Pick<Db, "select" | "execute">,
   zugriff: LagerZugriff,
   id: string,
 ) {
@@ -809,14 +821,95 @@ export async function ladeHoeckModus(
     .innerJoin(user, eq(user.id, lagerMitglied.personId))
     .where(eq(lagerMitglied.lagerId, lagerId))
     .orderBy(asc(user.name), asc(user.id));
+  const umfang = aufgabenUmfang(zugriff);
   const runde = darf(zugriff, "ressorts.lesen")
-    ? await ladeRessortRunde(db, lagerId, aufgabenUmfang(zugriff) === "alle")
+    ? await ladeRessortRunde(db, lagerId, umfang === "alle")
     : null;
+  // Die offenen Aufgaben je Ressort (#520), wie die Aufgabenliste gefiltert: alle, nur die eigenen oder gar keine (null). Zwei Abfragen für alle Ressorts: die Aufgaben (Fensterfunktion, höchstens OFFENE_JE_RESSORT je Ressort) und die Anzeigenamen des Lagers
+  const offene =
+    runde && runde.length > 0 && umfang
+      ? await ladeOffeneAufgaben(db, zugriff, umfang)
+      : null;
   return {
     hoeck: hoeckTeil,
     mitglieder: mitglieder.map((m) => ({ ...m, anwesend: dabei.has(m.id) })),
-    ressortRunde: runde,
+    ressortRunde:
+      runde &&
+      runde.map((z) => ({
+        ...z,
+        offeneAufgaben: offene ? (offene.get(z.id) ?? []) : null,
+      })),
   };
+}
+
+export const OFFENE_JE_RESSORT = 50;
+
+// Die offenen Aufgaben (nicht erledigt) mit Ressort, je Ressort die ersten OFFENE_JE_RESSORT nach Frist (ohne Frist zuletzt), Reihenfolge und ID. Verantwortlich ist die wirksame Person (gesetzt, sonst die Leitung des Ressorts), mit dem Anzeigenamen des Lagers (zimmer.ts); nie ein Cevi-Name von Teilnehmenden
+async function ladeOffeneAufgaben(
+  db: Pick<Db, "select" | "execute">,
+  zugriff: LagerZugriff,
+  umfang: "alle" | "eigene",
+) {
+  const lagerId = zugriff.lager.id;
+  const rang = db
+    .select({
+      id: aufgabe.id,
+      titel: aufgabe.titel,
+      status: aufgabe.status,
+      ressortId: aufgabe.ressortId,
+      personId: sql<
+        string | null
+      >`coalesce(${aufgabe.verantwortlichPersonId}, ${ressort.leitungPersonId})`.as(
+        "person_id",
+      ),
+      rang: sql<number>`row_number() over (partition by ${aufgabe.ressortId} order by ${aufgabe.frist} asc nulls last, ${aufgabe.reihenfolge}, ${aufgabe.id})`.as(
+        "rang",
+      ),
+    })
+    .from(aufgabe)
+    .innerJoin(ressort, ressortJoin)
+    .where(
+      and(
+        eq(aufgabe.lagerId, lagerId),
+        ne(aufgabe.status, "erledigt"),
+        umfang === "eigene" ? beteiligt(zugriff.personId) : undefined,
+      ),
+    )
+    .as("offene");
+  const zeilen = await db
+    .select()
+    .from(rang)
+    .where(lte(rang.rang, OFFENE_JE_RESSORT))
+    .orderBy(asc(rang.ressortId), asc(rang.rang));
+  const namen =
+    zeilen.length === 0
+      ? new Map<string, string>()
+      : await anzeigeNamenLager(
+          db,
+          lagerId,
+          darf(zugriff, "teilnehmer.bearbeiten"),
+        );
+  const je = new Map<
+    string,
+    {
+      id: string;
+      titel: string;
+      status: string;
+      verantwortlich: { id: string; name: string } | null;
+    }[]
+  >();
+  for (const z of zeilen) {
+    const liste = je.get(z.ressortId!) ?? [];
+    const name = z.personId ? namen.get(z.personId) : undefined;
+    liste.push({
+      id: z.id,
+      titel: z.titel,
+      status: z.status,
+      verantwortlich: z.personId && name ? { id: z.personId, name } : null,
+    });
+    je.set(z.ressortId!, liste);
+  }
+  return je;
 }
 
 // Je Ressort die Aufgaben nach Stand: gesamt, erledigt, offen (nicht erledigt) und überfällig (Frist vorbei, nicht erledigt, Datum in der Schweiz). Eine Abfrage mit Gruppierung; mitZahlen false: nur die Ressorts
@@ -875,3 +968,141 @@ async function ladeRessortRunde(
       : null,
   }));
 }
+
+const FEHLER_TEXT = {
+  KEIN_MITGLIED: "Die Personen müssen Mitglieder dieses Lagers sein.",
+  HOECK_UNBEKANNT: "Den Höck gibt es in diesem Lager nicht.",
+  AUFGABE_UNBEKANNT: "Die Aufgabe gibt es in diesem Lager nicht.",
+} as const;
+// Antwort der Route (400) und Ablehnung der Operation mit demselben Code und Text
+export const pruefungAntwort = (fehler: NonNullable<Pruefung>) => ({
+  code: fehler.fehler,
+  message: FEHLER_TEXT[fehler.fehler],
+});
+const abgelehnt = (fehler: NonNullable<Pruefung>) => {
+  const { code, message } = pruefungAntwort(fehler);
+  return lehneAb(code, message);
+};
+
+// Operationen der Warteschlange (#367, #521): dieselben Schreibwege wie die Routen, mit demselben Recht (hoecks.bearbeiten). Eine Prüfung, die die Route mit 400 beantwortet, lehnt die Operation mit demselben Code ab
+const HOECK_RECHT = "hoecks.bearbeiten";
+const uuid = z.uuid();
+const akteur = ({
+  zugriff,
+  person,
+}: {
+  zugriff: LagerZugriff;
+  person: { id: string };
+}) => ({ lagerId: zugriff.lager.id, personId: person.id });
+const mindestens = (anzahl: number) => (b: object) =>
+  Object.keys(b).length > anzahl;
+registriereOperation({
+  typ: "hoeck.anlegen",
+  recht: HOECK_RECHT,
+  schema: hoeckAnlegen,
+  fuehreAus: async (kontext, n) => {
+    const neu = await legeHoeckAn(kontext.tx, akteur(kontext), n);
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "hoeck.aendern",
+  recht: HOECK_RECHT,
+  schema: z
+    .strictObject({ id: uuid, ...hoeckAendern.shape })
+    .refine(mindestens(2)),
+  fuehreAus: async (kontext, { id: hoeckId, ...n }) => {
+    const neu = await aendereHoeck(kontext.tx, akteur(kontext), hoeckId, n);
+    return { id: neu.id, version: neu.version };
+  },
+});
+registriereOperation({
+  typ: "hoeck.loeschen",
+  recht: HOECK_RECHT,
+  fehler: ["HOECK_HAT_TRAKTANDEN"],
+  schema: z.strictObject({ id: uuid, version }),
+  fuehreAus: async (kontext, n) => {
+    const fehler = await loescheHoeck(
+      kontext.tx,
+      akteur(kontext),
+      n.id,
+      n.version,
+    );
+    if (fehler) {
+      throw lehneAb(
+        fehler.fehler,
+        "Der Höck hat noch Traktanden. Schiebe sie auf den nächsten Höck oder lösche sie zuerst.",
+      );
+    }
+    return { id: n.id };
+  },
+});
+// Der Haken je Person; beides ist idempotent
+registriereOperation({
+  typ: "hoeck.anwesend",
+  recht: HOECK_RECHT,
+  fehler: ["KEIN_MITGLIED"],
+  schema: z.strictObject({
+    hoeckId: uuid,
+    personId: uuid,
+    anwesend: z.boolean(),
+  }),
+  fuehreAus: async ({ tx, zugriff }, n) => {
+    const fehler = await setzeHoeckAnwesenheit(
+      tx,
+      { lagerId: zugriff.lager.id },
+      n.hoeckId,
+      n.personId,
+      n.anwesend,
+    );
+    if (fehler) throw abgelehnt(fehler);
+    return { id: n.hoeckId };
+  },
+});
+const schreibeTraktandum = (e: SchreibErgebnis) => {
+  if ("fehler" in e) throw abgelehnt(e);
+  return { id: e.id, version: e.version };
+};
+const FEHLER_TRAKTANDUM = [
+  "KEIN_MITGLIED",
+  "HOECK_UNBEKANNT",
+  "AUFGABE_UNBEKANNT",
+];
+registriereOperation({
+  typ: "traktandum.anlegen",
+  recht: HOECK_RECHT,
+  fehler: FEHLER_TRAKTANDUM,
+  schema: traktandumAnlegen,
+  fuehreAus: async (kontext, n) =>
+    schreibeTraktandum(await legeTraktandumAn(kontext.tx, akteur(kontext), n)),
+});
+registriereOperation({
+  typ: "traktandum.aendern",
+  recht: HOECK_RECHT,
+  fehler: FEHLER_TRAKTANDUM,
+  schema: z
+    .strictObject({ id: uuid, ...traktandumAendern.shape })
+    .refine(mindestens(2)),
+  fuehreAus: async (kontext, { id: traktandumId, ...n }) =>
+    schreibeTraktandum(
+      await aendereTraktandum(kontext.tx, akteur(kontext), traktandumId, n),
+    ),
+});
+registriereOperation({
+  typ: "traktandum.loeschen",
+  recht: HOECK_RECHT,
+  schema: z.strictObject({ id: uuid, version }),
+  fuehreAus: async (kontext, n) => {
+    await loescheTraktandum(kontext.tx, akteur(kontext), n.id, n.version);
+    return { id: n.id };
+  },
+});
+registriereOperation({
+  typ: "traktandum.reihenfolge",
+  recht: HOECK_RECHT,
+  schema: traktandumReihenfolge,
+  fuehreAus: async (kontext, n) => {
+    await ordneTraktanden(kontext.tx, akteur(kontext), n.hoeckId, n.eintraege);
+    return {};
+  },
+});

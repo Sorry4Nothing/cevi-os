@@ -12,6 +12,7 @@ import {
   tauschAnlegen,
   tauschAnsicht,
   tauschEntscheiden,
+  tauschMitNamen,
   tauschZurueckziehen,
   type TauschFehler,
   ziehTauschZurueck,
@@ -74,14 +75,17 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         entscheiden,
         eingabe("param", lagerPfad),
         eingabe("query", tauschAbfrage),
-        async (c) =>
-          c.json(
-            await ladeTausche(
-              db,
-              c.get("lager").lager.id,
-              c.req.valid("query"),
-            ),
-          ),
+        async (c) => {
+          const liste = await ladeTausche(
+            db,
+            c.get("lager").lager.id,
+            c.req.valid("query"),
+          );
+          return c.json({
+            ...liste,
+            tausche: await tauschMitNamen(db, c.get("lager"), liste.tausche),
+          });
+        },
       )
       // Die letzten 200 eigenen Anfragen in einer Abfrage
       .get(
@@ -100,7 +104,13 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             )
             .orderBy(desc(diensttausch.id))
             .limit(200);
-          return c.json({ tausche: zeilen.map(tauschAnsicht) });
+          return c.json({
+            tausche: await tauschMitNamen(
+              db,
+              c.get("lager"),
+              zeilen.map(tauschAnsicht),
+            ),
+          });
         },
       )
       .post(
@@ -124,7 +134,10 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             return c.json(a.body, a.status);
           }
           await ergebnis.zustellung.senden({ db, fcm, c });
-          return c.json(ergebnis.tausch, 201);
+          return c.json(
+            (await tauschMitNamen(db, c.get("lager"), [ergebnis.tausch]))[0],
+            201,
+          );
         },
       )
       .post(
@@ -150,7 +163,9 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           for (const z of ergebnis.zustellungen) {
             await z.senden({ db, fcm, c });
           }
-          return c.json(ergebnis.tausch);
+          return c.json(
+            (await tauschMitNamen(db, c.get("lager"), [ergebnis.tausch]))[0],
+          );
         },
       )
       .post(
@@ -174,7 +189,9 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             const a = fehlerAntwort(ergebnis.fehler);
             return c.json(a.body, a.status);
           }
-          return c.json(ergebnis.tausch);
+          return c.json(
+            (await tauschMitNamen(db, c.get("lager"), [ergebnis.tausch]))[0],
+          );
         },
       )
   );

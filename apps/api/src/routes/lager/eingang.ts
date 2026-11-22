@@ -22,6 +22,7 @@ import {
   ladeEingaenge,
   ladeEingangZeile,
   ladeNachCode,
+  nimmTraktandumZurueck,
   LIMIT_ANONYM_JE_LAGER,
   LIMIT_CODE_JE_LAGER,
   LIMIT_NAMENTLICH_JE_KONTO,
@@ -65,194 +66,223 @@ export function erstelleEingangRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     if (!darf(zugriff, "eingang.lesen")) throw new HTTPException(403);
   };
 
-  return new Hono<LagerEnv>()
-    .post(
-      "/:id/eingang",
-      senden,
-      eingabe("param", lagerPfad),
-      eingabe("json", eingangSenden),
-      async (c) => {
-        const zugriff = c.get("lager");
-        const person = c.get("person");
-        const felder = c.req.valid("json");
-        const lagerId = zugriff.lager.id;
-        if (
-          felder.anonym ? zuVieleAnonym(lagerId) : zuVieleNamentlich(person.id)
-        ) {
-          throw new HTTPException(429);
-        }
-        const { zeile, rueckfragecode } = await sendeEingang(
-          db,
-          lagerId,
-          person.id,
-          felder,
-        );
-        // Anonym: weder ID noch Person in der Antwort, nur der Code, einmal
-        return c.json(
-          felder.anonym
-            ? { ...codeAnsicht(zeile), anonym: true, rueckfragecode }
-            : { ...codeAnsicht(zeile), anonym: false, id: zeile.id },
-          201,
-        );
-      },
-    )
-    .get(
-      "/:id/eingang/eigene",
-      senden,
-      eingabe("param", lagerPfad),
-      eingabe("query", eigeneListe),
-      async (c) =>
-        c.json(
-          await ladeEigene(
+  return (
+    new Hono<LagerEnv>()
+      .post(
+        "/:id/eingang",
+        senden,
+        eingabe("param", lagerPfad),
+        eingabe("json", eingangSenden),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const person = c.get("person");
+          const felder = c.req.valid("json");
+          const lagerId = zugriff.lager.id;
+          if (
+            felder.anonym
+              ? zuVieleAnonym(lagerId)
+              : zuVieleNamentlich(person.id)
+          ) {
+            throw new HTTPException(429);
+          }
+          const { zeile, rueckfragecode } = await sendeEingang(
             db,
-            c.get("lager").lager.id,
-            c.get("person").id,
-            c.req.valid("query"),
-          ),
-        ),
-    )
-    .post(
-      "/:id/eingang/status",
-      statusLesen,
-      eingabe("param", lagerPfad),
-      eingabe("json", eingangStatusAbfrage),
-      async (c) => {
-        const lagerId = c.get("lager").lager.id;
-        if (zuVieleCodes(lagerId)) throw new HTTPException(429);
-        const hash = hashVonCode(c.req.valid("json").code);
-        // Ein Code, der nicht passt, und einer, den es nicht gibt, sind dasselbe (404)
-        const zeile = hash && (await ladeNachCode(db, lagerId, hash));
-        if (!zeile) throw new HTTPException(404);
-        return c.json(codeAnsicht(zeile));
-      },
-    )
-    .get(
-      "/:id/eingang",
-      lesen,
-      eingabe("param", lagerPfad),
-      eingabe("query", eingangListe),
-      async (c) =>
-        c.json(
-          await ladeEingaenge(
-            db,
-            c.get("lager").lager.id,
-            c.req.valid("query"),
-          ),
-        ),
-    )
-    .get(
-      "/:id/eingang/:eingangId",
-      lesen,
-      eingabe("param", eingangPfad),
-      async (c) => {
-        const { eintraege } = await ladeEingaenge(db, c.get("lager").lager.id, {
-          id: c.req.valid("param").eingangId,
-          limit: 1,
-        });
-        if (!eintraege[0]) throw new HTTPException(404);
-        return c.json(eintraege[0]);
-      },
-    )
-    .patch(
-      "/:id/eingang/:eingangId",
-      antworten,
-      eingabe("param", eingangPfad),
-      eingabe("json", eingangAendern),
-      async (c) => {
-        nurMitLesen(c.get("lager"));
-        const zugriff = c.get("lager");
-        const k = { lagerId: zugriff.lager.id, personId: c.get("person").id };
-        const { eingangId } = c.req.valid("param");
-        const felder = c.req.valid("json");
-        if (!(await ladeEingangZeile(db, k.lagerId, eingangId))) {
-          throw new HTTPException(404);
-        }
-        const fehler = await pruefeEingangZiele(db, k.lagerId, felder);
-        if (fehler) return c.json(fehlerAntwort(fehler), 400);
-        const { zustellung } = await db.transaction((tx) =>
-          aendereEingang(tx, k, eingangId, felder),
-        );
-        // Nach dem Commit: Ein Fehler beim Push lässt die Antwort stehen
-        await zustellung?.senden({ db, fcm, c });
-        const { eintraege } = await ladeEingaenge(db, k.lagerId, {
-          id: eingangId,
-          limit: 1,
-        });
-        return c.json(eintraege[0]);
-      },
-    )
-    .post(
-      "/:id/eingang/:eingangId/traktandum",
-      antworten,
-      eingabe("param", eingangPfad),
-      eingabe("json", eingangTraktandum),
-      async (c) => {
-        nurMitLesen(c.get("lager"));
-        const zugriff = c.get("lager");
-        if (!darf(zugriff, "hoecks.bearbeiten")) throw new HTTPException(403);
-        const k = { lagerId: zugriff.lager.id, personId: c.get("person").id };
-        const { eingangId } = c.req.valid("param");
-        const { version, titel, hoeckId } = c.req.valid("json");
-        if (!(await ladeEingangZeile(db, k.lagerId, eingangId))) {
-          throw new HTTPException(404);
-        }
-        // Das Traktandum trägt nur den Titel der Lagerleitung, nie den Text der Meldung: Wer Traktanden liest, muss die Meldung nicht lesen dürfen
-        const fehler = await db.transaction(async (tx) => {
-          const neu = await legeTraktandumAn(tx, k, {
-            titel,
-            hoeckId: hoeckId ?? null,
-          });
-          if ("fehler" in neu) return neu.fehler;
-          await aendereEingang(tx, k, eingangId, {
-            version,
-            traktandumId: neu.id,
-          });
-          return undefined;
-        });
-        if (fehler === "HOECK_UNBEKANNT") {
-          return c.json(fehlerAntwort(fehler), 400);
-        }
-        if (fehler) throw new HTTPException(400);
-        const { eintraege } = await ladeEingaenge(db, k.lagerId, {
-          id: eingangId,
-          limit: 1,
-        });
-        return c.json(eintraege[0], 201);
-      },
-    )
-    .delete(
-      "/:id/eingang/:eingangId",
-      antworten,
-      eingabe("param", eingangPfad),
-      eingabe("query", eingangVersionAbfrage),
-      async (c) => {
-        nurMitLesen(c.get("lager"));
-        const lagerId = c.get("lager").lager.id;
-        const { eingangId } = c.req.valid("param");
-        const { version } = c.req.valid("query");
-        // Endgültig: Der Eingang kann Namen im Freitext tragen und hat keinen Papierkorb
-        const weg = await db
-          .delete(eingang)
-          .where(
-            and(
-              eq(eingang.id, eingangId),
-              eq(eingang.lagerId, lagerId),
-              eq(eingang.version, version),
-            ),
-          )
-          .returning({ id: eingang.id });
-        if (weg.length === 0) {
-          const aktuell = await ladeEingangZeile(db, lagerId, eingangId);
-          if (!aktuell) throw new HTTPException(404);
-          return c.json(
-            {
-              code: "VERSION_KONFLIKT",
-              message: "Die Meldung wurde inzwischen geändert.",
-            },
-            409,
+            lagerId,
+            person.id,
+            felder,
           );
-        }
-        return c.body(null, 204);
-      },
-    );
+          // Anonym: weder ID noch Person in der Antwort, nur der Code, einmal
+          return c.json(
+            felder.anonym
+              ? { ...codeAnsicht(zeile), anonym: true, rueckfragecode }
+              : { ...codeAnsicht(zeile), anonym: false, id: zeile.id },
+            201,
+          );
+        },
+      )
+      .get(
+        "/:id/eingang/eigene",
+        senden,
+        eingabe("param", lagerPfad),
+        eingabe("query", eigeneListe),
+        async (c) =>
+          c.json(
+            await ladeEigene(
+              db,
+              c.get("lager").lager.id,
+              c.get("person").id,
+              c.req.valid("query"),
+            ),
+          ),
+      )
+      .post(
+        "/:id/eingang/status",
+        statusLesen,
+        eingabe("param", lagerPfad),
+        eingabe("json", eingangStatusAbfrage),
+        async (c) => {
+          const lagerId = c.get("lager").lager.id;
+          if (zuVieleCodes(lagerId)) throw new HTTPException(429);
+          const hash = hashVonCode(c.req.valid("json").code);
+          // Ein Code, der nicht passt, und einer, den es nicht gibt, sind dasselbe (404)
+          const zeile = hash && (await ladeNachCode(db, lagerId, hash));
+          if (!zeile) throw new HTTPException(404);
+          return c.json(codeAnsicht(zeile));
+        },
+      )
+      .get(
+        "/:id/eingang",
+        lesen,
+        eingabe("param", lagerPfad),
+        eingabe("query", eingangListe),
+        async (c) =>
+          c.json(
+            await ladeEingaenge(
+              db,
+              c.get("lager").lager.id,
+              c.req.valid("query"),
+            ),
+          ),
+      )
+      .get(
+        "/:id/eingang/:eingangId",
+        lesen,
+        eingabe("param", eingangPfad),
+        async (c) => {
+          const { eintraege } = await ladeEingaenge(
+            db,
+            c.get("lager").lager.id,
+            {
+              id: c.req.valid("param").eingangId,
+              limit: 1,
+            },
+          );
+          if (!eintraege[0]) throw new HTTPException(404);
+          return c.json(eintraege[0]);
+        },
+      )
+      .patch(
+        "/:id/eingang/:eingangId",
+        antworten,
+        eingabe("param", eingangPfad),
+        eingabe("json", eingangAendern),
+        async (c) => {
+          nurMitLesen(c.get("lager"));
+          const zugriff = c.get("lager");
+          const k = { lagerId: zugriff.lager.id, personId: c.get("person").id };
+          const { eingangId } = c.req.valid("param");
+          const felder = c.req.valid("json");
+          if (!(await ladeEingangZeile(db, k.lagerId, eingangId))) {
+            throw new HTTPException(404);
+          }
+          const fehler = await pruefeEingangZiele(db, k.lagerId, felder);
+          if (fehler) return c.json(fehlerAntwort(fehler), 400);
+          const { zustellung } = await db.transaction((tx) =>
+            aendereEingang(tx, k, eingangId, felder),
+          );
+          // Nach dem Commit: Ein Fehler beim Push lässt die Antwort stehen
+          await zustellung?.senden({ db, fcm, c });
+          const { eintraege } = await ladeEingaenge(db, k.lagerId, {
+            id: eingangId,
+            limit: 1,
+          });
+          return c.json(eintraege[0]);
+        },
+      )
+      .post(
+        "/:id/eingang/:eingangId/traktandum",
+        antworten,
+        eingabe("param", eingangPfad),
+        eingabe("json", eingangTraktandum),
+        async (c) => {
+          nurMitLesen(c.get("lager"));
+          const zugriff = c.get("lager");
+          if (!darf(zugriff, "hoecks.bearbeiten")) throw new HTTPException(403);
+          const k = { lagerId: zugriff.lager.id, personId: c.get("person").id };
+          const { eingangId } = c.req.valid("param");
+          const { version, titel, hoeckId } = c.req.valid("json");
+          if (!(await ladeEingangZeile(db, k.lagerId, eingangId))) {
+            throw new HTTPException(404);
+          }
+          // Das Traktandum trägt nur den Titel der Lagerleitung, nie den Text der Meldung: Wer Traktanden liest, muss die Meldung nicht lesen dürfen
+          const fehler = await db.transaction(async (tx) => {
+            const neu = await legeTraktandumAn(tx, k, {
+              titel,
+              hoeckId: hoeckId ?? null,
+            });
+            if ("fehler" in neu) return neu.fehler;
+            await aendereEingang(tx, k, eingangId, {
+              version,
+              traktandumId: neu.id,
+            });
+            return undefined;
+          });
+          if (fehler === "HOECK_UNBEKANNT") {
+            return c.json(fehlerAntwort(fehler), 400);
+          }
+          if (fehler) throw new HTTPException(400);
+          const { eintraege } = await ladeEingaenge(db, k.lagerId, {
+            id: eingangId,
+            limit: 1,
+          });
+          return c.json(eintraege[0], 201);
+        },
+      )
+      // Nimmt «Als Traktandum» zurück (#521): das Traktandum entfällt, die Meldung hat wieder keines. Recht wie beim Anlegen
+      .delete(
+        "/:id/eingang/:eingangId/traktandum",
+        antworten,
+        eingabe("param", eingangPfad),
+        eingabe("query", eingangVersionAbfrage),
+        async (c) => {
+          nurMitLesen(c.get("lager"));
+          const zugriff = c.get("lager");
+          if (!darf(zugriff, "hoecks.bearbeiten")) throw new HTTPException(403);
+          await db.transaction((tx) =>
+            nimmTraktandumZurueck(
+              tx,
+              { lagerId: zugriff.lager.id, personId: c.get("person").id },
+              c.req.valid("param").eingangId,
+              c.req.valid("query").version,
+            ),
+          );
+          return c.body(null, 204);
+        },
+      )
+      .delete(
+        "/:id/eingang/:eingangId",
+        antworten,
+        eingabe("param", eingangPfad),
+        eingabe("query", eingangVersionAbfrage),
+        async (c) => {
+          nurMitLesen(c.get("lager"));
+          const lagerId = c.get("lager").lager.id;
+          const { eingangId } = c.req.valid("param");
+          const { version } = c.req.valid("query");
+          // Endgültig: Der Eingang kann Namen im Freitext tragen und hat keinen Papierkorb
+          const weg = await db
+            .delete(eingang)
+            .where(
+              and(
+                eq(eingang.id, eingangId),
+                eq(eingang.lagerId, lagerId),
+                eq(eingang.version, version),
+              ),
+            )
+            .returning({ id: eingang.id });
+          if (weg.length === 0) {
+            const aktuell = await ladeEingangZeile(db, lagerId, eingangId);
+            if (!aktuell) throw new HTTPException(404);
+            return c.json(
+              {
+                code: "VERSION_KONFLIKT",
+                message: "Die Meldung wurde inzwischen geändert.",
+              },
+              409,
+            );
+          }
+          return c.body(null, 204);
+        },
+      )
+  );
 }

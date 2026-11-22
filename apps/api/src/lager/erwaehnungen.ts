@@ -4,6 +4,10 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
   aufgabe,
+  aufgabeCheckpunkt,
+  aufgabeLink,
+  aufgabeStichwort,
+  aufgabeUnterstuetzung,
   beschluss,
   erwaehnung,
   lagerMitglied,
@@ -12,13 +16,13 @@ import {
   user,
   type ErwaehnungQuelle,
 } from "../db/schema.js";
-import { legeAufgabeAn } from "./aufgaben.js";
+import { ladeAufgabeZeile, legeAufgabeAn, loescheAufgabe } from "./aufgaben.js";
 import { benachrichtige, type Zustellung } from "./benachrichtigung.js";
 import { darfTabelleLesen, type LagerZugriff } from "./policy.js";
 import { ladeRollenRechte, type EinstellbareRolle } from "./rechte.js";
 import type { LagerRecht } from "./rechte-katalog.js";
 import { sperreLager } from "./ressorts.js";
-import type { Tx } from "./sync.js";
+import { LagerAntwortFehler, type Tx } from "./sync.js";
 import { holeLagerTabelle } from "./tabellen.js";
 // Die Tabellen von Höck, Pinnwand und Protokoll melden sich beim Laden ihres Moduls im Register an; die Sichtbarkeit lesen wir von dort
 import "./hoecks.js";
@@ -440,4 +444,43 @@ export async function alsAufgabe(
     .set({ aufgabeId: ergebnis.id })
     .where(eq(erwaehnung.id, e.id));
   return { aufgabeId: ergebnis.id, neu: true };
+}
+
+// Nimmt «Als Aufgabe» zurück (#521): Die Aufgabe, die die Erwähnung angelegt hat, wird endgültig gelöscht, die Erwähnung ist wieder offen (der Fremdschlüssel setzt aufgabe_id auf leer). Nur solange die Aufgabe unverändert ist: Version 1 und weder Unterstützung noch Checkpunkte, Links, Stichworte oder ein Traktandum, das auf sie zeigt; sonst 409 AUFGABE_VERAENDERT, und nichts geht verloren. Hat die Erwähnung keine Aufgabe (mehr), tut der Aufruf nichts. Die Erwähnung muss der Person gehören (404)
+export async function nimmAlsAufgabeZurueck(
+  tx: Tx,
+  k: { lagerId: string; personId: string },
+  erwaehnungId: string,
+) {
+  await sperreLager(tx, k.lagerId);
+  const [zeile] = await tx
+    .select({ aufgabeId: erwaehnung.aufgabeId })
+    .from(erwaehnung)
+    .where(
+      and(
+        eq(erwaehnung.id, erwaehnungId),
+        eq(erwaehnung.lagerId, k.lagerId),
+        eq(erwaehnung.personId, k.personId),
+      ),
+    );
+  if (!zeile) throw new HTTPException(404);
+  const a =
+    zeile.aufgabeId && (await ladeAufgabeZeile(tx, k.lagerId, zeile.aufgabeId));
+  if (!a) return;
+  const [d] = await tx.execute<{ abhaengig: boolean }>(sql`
+    select
+      exists (select 1 from ${aufgabeUnterstuetzung} where ${aufgabeUnterstuetzung.aufgabeId} = ${a.id})
+      or exists (select 1 from ${aufgabeCheckpunkt} where ${aufgabeCheckpunkt.aufgabeId} = ${a.id})
+      or exists (select 1 from ${aufgabeLink} where ${aufgabeLink.aufgabeId} = ${a.id})
+      or exists (select 1 from ${aufgabeStichwort} where ${aufgabeStichwort.aufgabeId} = ${a.id})
+      or exists (select 1 from ${traktandum} where ${traktandum.aufgabeId} = ${a.id})
+      as abhaengig`);
+  if (a.version !== 1 || d!.abhaengig) {
+    throw new LagerAntwortFehler(409, {
+      code: "AUFGABE_VERAENDERT",
+      message:
+        "Die Aufgabe wurde schon bearbeitet. Lösche sie bei den Aufgaben, wenn du sie nicht mehr brauchst.",
+    });
+  }
+  await loescheAufgabe(tx, k, a.id, a.version);
 }

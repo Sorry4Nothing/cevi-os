@@ -124,6 +124,11 @@ export const ZEILEN: LagerMatrix = {
     body: () => ({ version: 1, titel: "Aus dem Eingang" }),
     erwartet: leitungSchreibend(201),
   },
+  // Zurücknehmen (#521): eine Meldung ohne Traktandum, der Aufruf tut nichts (204); den Erfolg mit Traktandum zeigt eingang.test.ts
+  "DELETE /api/v1/lager/:id/eingang/:eingangId/traktandum": {
+    url: async (w, z) => `${await neueMeldung(w, z)}/traktandum?version=1`,
+    erwartet: leitungSchreibend(204),
+  },
   "DELETE /api/v1/lager/:id/eingang/:eingangId": {
     url: async (w, z) => `${await neueMeldung(w, z)}?version=1`,
     erwartet: leitungSchreibend(204),

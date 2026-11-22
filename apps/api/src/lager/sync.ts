@@ -61,10 +61,10 @@ export type Ansicht<T extends LagerSpaltenTabelle> = (
   zeile: T["$inferSelect"],
 ) => Record<string, unknown>;
 
-// Antwort mit festem Status und Body, die die Transaktion zurückrollt (409 VERSION_KONFLIKT); app.ts gibt sie unverändert aus
+// Antwort mit festem Status und Body, die die Transaktion zurückrollt (409 VERSION_KONFLIKT, 400 für eine Prüfung der Warteschlange); app.ts gibt sie unverändert aus
 export class LagerAntwortFehler extends Error {
   constructor(
-    readonly status: 409,
+    readonly status: 400 | 409,
     readonly body: Record<string, unknown>,
   ) {
     super(String(body.code));
