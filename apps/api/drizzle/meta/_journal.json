@@ -542,6 +542,13 @@
       "breakpoints": true
     },
     {
+      "idx": 103,
+      "version": "7",
+      "when": 1793553300000,
+      "tag": "0103_anwesenheit_teilnehmer_fk",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,

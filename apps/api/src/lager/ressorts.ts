@@ -7,6 +7,7 @@ import {
   ressortLink,
   ressortNotiz,
 } from "../db/schema.js";
+import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import type { Tx } from "./sync.js";
 import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
@@ -98,20 +99,17 @@ export const reihenfolgeSetzen = z.strictObject({
     .refine((l) => new Set(l.map((e) => e.id)).size === l.length),
 });
 
-// Nur https, ohne Zugangsdaten in der Adresse. Der Server ruft die Adresse nie ab (SR-26); gespeichert wird die normalisierte Form (kleingeschriebenes Schema und Host)
+// Links von Ressorts, Aufgaben und Höcks gehen durch die strenge Prüfung von Dokumenten und Protokollen (link-pruefung.ts, #428): nur https, keine Zugangsdaten, kein Port, kein IP-Literal, keine Steuer- oder Trennzeichen. Der Server ruft die Adresse nie ab (SR-26); gespeichert wird die Schreibweise der URL-Norm. Keine Einschränkung auf die Hosts der Abteilung: Hier stehen auch Fahrplan- oder Kartenlinks, nicht nur Dateien
 export const httpsAdresse = z
   .string()
   .trim()
-  .max(2000)
-  .refine((wert) => {
-    try {
-      const u = new URL(wert);
-      return u.protocol === "https:" && !u.username && !u.password;
-    } catch {
-      return false;
-    }
+  .max(LINK_MAX)
+  .refine((wert) => pruefeLink(wert).ok)
+  .transform((wert) => {
+    const e = pruefeLink(wert);
+    return e.ok ? e.link : wert;
   })
-  .transform((wert) => new URL(wert).href)
+  // Die Tabellen der Links halten höchstens 2000 Zeichen fest (ressort_link_check, aufgabe_link_check)
   .refine((wert) => wert.length <= 2000);
 const linkTitel = z.string().trim().min(1).max(200);
 export const linkAnlegen = z.strictObject({

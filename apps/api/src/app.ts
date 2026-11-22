@@ -231,7 +231,7 @@ export function erstelleApp({
       })
       .route("/", erstelleAuthRouten(auth))
       // ICS-Feed der Termine (#438): der geheime Token im Pfad ersetzt die Sitzung, darum vor ihr und ausserhalb von /api/v1
-      .route("/", erstelleIcalRoute({ db }))
+      .route("/", erstelleIcalRoute({ db, schalter }))
       // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
       .use("/api/v1/*", async (c, next) => {
         const herkunft = c.req.header("Origin");

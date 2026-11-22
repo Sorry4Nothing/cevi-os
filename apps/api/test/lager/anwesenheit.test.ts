@@ -169,6 +169,22 @@ async function neuerTag(id = lagerId) {
   return { tag: tag!.id, abschnitte: abschnitte.map((a) => a.id) };
 }
 type TagMitAbschnitten = Awaited<ReturnType<typeof neuerTag>>;
+// Teilnehmende gibt es wirklich (Fremdschlüssel anwesenheit_teilnehmer_fk, Migration 0103)
+async function neueKinder(n: number, id = lagerId) {
+  const zeilen = await db
+    .insert(schema.teilnehmer)
+    .values(
+      Array.from({ length: n }, (_, i) => ({
+        lagerId: id,
+        vorname: `Kind${i}`,
+        nachname: "Muster",
+        lagerSeq: 0,
+      })),
+    )
+    .returning({ id: schema.teilnehmer.id });
+  return zeilen.map((z) => z.id);
+}
+const neuesKind = async (id = lagerId) => (await neueKinder(1, id))[0]!;
 const felder = (
   t: TagMitAbschnitten,
   wert: "A" | "F" | "O",
@@ -294,10 +310,11 @@ describe("Rechte je Lager-Persona", () => {
     "%s: für andere eintragen, Frist, Anfragen lesen",
     async (p) => {
       const t = await neuerTag();
+      const kind = await neuesKind();
       const schreiben = await anfrage(konten[p], "PUT", A(), {
         eintraege: [
           {
-            teilnehmerId: randomUUID(),
+            teilnehmerId: kind,
             ...felder(t, "A", [t.abschnitte[0]!])[0],
           },
         ],
@@ -501,7 +518,7 @@ describe("Team: nur eigene, offene Felder", () => {
 describe("Lagerleitung: für alle, mit Versionen", () => {
   test("trägt für Leitende und Teilnehmende ein, überschreibt mit der Version, öffnet ein Feld wieder", async () => {
     const t = await neuerTag();
-    const kind = randomUUID();
+    const kind = await neuesKind();
     const a = await alsLeitung([
       { personId: konten.team.id, ...felder(t, "A", [t.abschnitte[0]!])[0] },
       { teilnehmerId: kind, ...felder(t, "F", [t.abschnitte[0]!])[0] },
@@ -594,6 +611,12 @@ describe("Lagerleitung: für alle, mit Versionen", () => {
     expect(
       (await alsLeitung([{ ...f, personId: konten.team.id, extra: 1 }])).status,
     ).toBe(400);
+    // Ein Teilnehmender, den es im Lager nicht gibt (auch einer aus einem anderen Lager): 400, nichts geschrieben
+    for (const fremdesKind of [randomUUID(), await neuesKind(fremdLagerId)]) {
+      const fremdKind = await alsLeitung([{ ...f, teilnehmerId: fremdesKind }]);
+      expect(fremdKind.status).toBe(400);
+      expect(fremdKind.body.code).toBe("TEILNEHMER_UNBEKANNT");
+    }
     const unbekannt = await alsLeitung([{ ...f, personId: randomUUID() }]);
     expect(unbekannt.status).toBe(400);
     expect(unbekannt.body.code).toBe("KEIN_MITGLIED");
@@ -1119,7 +1142,7 @@ describe("Matrix lesen und Zusammenfassung", () => {
     );
     const t1 = await neuerTag(l!.id);
     const t2 = await neuerTag(l!.id);
-    const kinder = [randomUUID(), randomUUID()];
+    const kinder = await neueKinder(2, l!.id);
     await anfrage(leiter(), "PUT", A(l!.id), {
       eintraege: [
         ...personen.flatMap((personId) =>
@@ -1217,9 +1240,10 @@ describe("Matrix lesen und Zusammenfassung", () => {
       return abfragen - vor;
     };
     const wenige = await zaehle(`${A()}?lagertagIds=${t.tag}`);
+    const kinder60 = await neueKinder(60);
     await alsLeitung(
-      Array.from({ length: 60 }, () => ({
-        teilnehmerId: randomUUID(),
+      kinder60.map((teilnehmerId) => ({
+        teilnehmerId,
         ...felder(t, "A", [t.abschnitte[0]!])[0],
       })),
     );
@@ -1335,7 +1359,7 @@ describe("anwesenheitFuerTag (Lesefunktion für Schichtplan und Tagesseite)", ()
   test("liefert A und F eines Tages, nie O, nie andere Tage oder Lager", async () => {
     const t = await neuerTag();
     const u = await neuerTag();
-    const kind = randomUUID();
+    const kind = await neuesKind();
     await alsLeitung([
       { personId: konten.team.id, ...felder(t, "A", [t.abschnitte[0]!])[0] },
       { personId: konten.team.id, ...felder(t, "F", [t.abschnitte[1]!])[0] },
@@ -1421,11 +1445,39 @@ describe("Datenbank", () => {
     await expect(roh({ personId: konten.team.id })).rejects.toMatchObject({
       cause: { code: "23505" },
     });
-    const kind = randomUUID();
+    const kind = await neuesKind();
     await roh({ teilnehmerId: kind });
     await expect(roh({ teilnehmerId: kind })).rejects.toMatchObject({
       cause: { code: "23505" },
     });
+  });
+
+  test("ein Teilnehmender eines anderen Lagers oder eine erfundene ID ist nicht möglich; mit der Löschung gehen die Einträge mit (Migration 0103)", async () => {
+    const t = await neuerTag();
+    const roh = (teilnehmerId: string) =>
+      db.insert(schema.anwesenheit).values({
+        lagerId,
+        teilnehmerId,
+        lagertagId: t.tag,
+        tagesabschnittId: t.abschnitte[0]!,
+        wert: "A",
+        lagerSeq: 0,
+      });
+    await expect(roh(randomUUID())).rejects.toMatchObject({
+      cause: { code: "23503" },
+    });
+    await expect(roh(await neuesKind(fremdLagerId))).rejects.toMatchObject({
+      cause: { code: "23503" },
+    });
+    const kind = await neuesKind();
+    await roh(kind);
+    await db.delete(schema.teilnehmer).where(eq(schema.teilnehmer.id, kind));
+    expect(
+      await db
+        .select()
+        .from(schema.anwesenheit)
+        .where(eq(schema.anwesenheit.teilnehmerId, kind)),
+    ).toHaveLength(0);
   });
 
   test("eine offene Anfrage je Feld; Status und Entscheidzeit gehören zusammen", async () => {
@@ -1467,7 +1519,7 @@ describe("Datenbank", () => {
     const t = await neuerTag(l!.id);
     await db.insert(schema.anwesenheit).values({
       lagerId: l!.id,
-      teilnehmerId: randomUUID(),
+      teilnehmerId: await neuesKind(l!.id),
       lagertagId: t.tag,
       tagesabschnittId: t.abschnitte[0]!,
       wert: "A",

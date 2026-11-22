@@ -109,6 +109,20 @@ async function feld(w: LagerWelt, z: LagerZustand) {
   return neu;
 }
 
+// Ein Teilnehmender des Lagers (Fremdschlüssel anwesenheit_teilnehmer_fk, Migration 0103): je Lager einmal angelegt
+const kinder = new Map<string, string>();
+async function kind(w: LagerWelt, z: LagerZustand) {
+  const lagerId = w.lagerId(z);
+  const bekannt = kinder.get(lagerId);
+  if (bekannt) return bekannt;
+  const [k] = await w.db
+    .insert(schema.teilnehmer)
+    .values({ lagerId, vorname: "Matrix", nachname: "Kind", lagerSeq: 0 })
+    .returning({ id: schema.teilnehmer.id });
+  kinder.set(lagerId, k!.id);
+  return k!.id;
+}
+
 export const ZEILEN: LagerMatrix = {
   "GET /api/v1/lager/:id/anwesenheit": {
     url: (w, z) => pfad(w, z),
@@ -116,10 +130,10 @@ export const ZEILEN: LagerMatrix = {
   },
   "PUT /api/v1/lager/:id/anwesenheit": {
     url: (w, z) => pfad(w, z),
-    // Ein Teilnehmender mit frischer ID: Die Lagerleitung schreibt (200), alle anderen scheitern am Recht
+    // Ein Teilnehmender des Lagers: Die Lagerleitung schreibt (200), alle anderen scheitern am Recht
     body: async (z, w) => ({
       eintraege: [
-        { teilnehmerId: randomUUID(), ...(await feld(w, z)), wert: "A" },
+        { teilnehmerId: await kind(w, z), ...(await feld(w, z)), wert: "A" },
       ],
     }),
     erwartet: nurBearbeiten(200),

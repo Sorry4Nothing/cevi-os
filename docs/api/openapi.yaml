@@ -12892,7 +12892,7 @@ paths:
       description: |
         Braucht das Recht `einteilung.lesen` (Standard: Lagerleitung, Leitung, Team und Lesen; die Rechte lassen sich je Lager einstellen).
 
-        Drei Abfragen, unabhängig von der Zahl der Zimmer: die Zimmer mit Belegung (GROUP BY), die Anzeigenamen des Lagers und die Zähler der Nichteingeteilten. Wer alles sehen darf (Lagerleitung, Leitung, Lesen), bekommt alle Zimmer mit `plaetze`, `belegt`, `ueberbelegt` (Warnung, keine Sperre), den Mitgliedern mit Namen und die Zähler `offen`. Das Team (ohne `einteilung.bearbeiten`) sieht nur sein eigenes Zimmer mit den Namen der Mitbewohner, ohne Plätze, Belegung und Notiz. Der Name ist der Cevi-Name, sonst der Vorname; ist er im Lager nicht eindeutig, folgen der Vorname und dann der Vorname mit dem Anfangsbuchstaben des Nachnamens.
+        Drei Abfragen, unabhängig von der Zahl der Zimmer: die Zimmer mit Belegung (GROUP BY), die Anzeigenamen des Lagers und die Zähler der Nichteingeteilten. Wer alles sehen darf (Lagerleitung, Leitung, Lesen), bekommt alle Zimmer mit `plaetze`, `belegt`, `ueberbelegt` (Warnung, keine Sperre), den Mitgliedern mit Namen und die Zähler `offen`. Das Team (ohne `einteilung.bearbeiten`) sieht nur sein eigenes Zimmer mit den Namen der Mitbewohner, ohne Plätze, Belegung und Notiz. Der Name ist der Cevi-Name der Konten, bei Teilnehmenden nur für Rollen mit `teilnehmer.bearbeiten` (sonst der Vorname); ist er im Lager nicht eindeutig, folgen der Vorname und dann der Vorname mit dem Anfangsbuchstaben des Nachnamens.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
@@ -12988,7 +12988,7 @@ paths:
       description: |
         Braucht das Recht `einteilung.bearbeiten` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung; die Rechte lassen sich je Lager einstellen).
 
-        Die Auswahl für «Person einteilen»: wer noch in keinem Zimmer liegt. `art=teilnehmer` (Vorgabe) liefert Teilnehmende mit Vorname, Nachname, Stufe und Cevi-Name, `art=team` die Mitglieder des Lagers mit aktivem Konto der Abteilung. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`.
+        Die Auswahl für «Person einteilen»: wer noch in keinem Zimmer liegt. `art=teilnehmer` (Vorgabe) liefert Teilnehmende mit Vorname, Nachname und Stufe (den Cevi-Namen `ceviName` nur mit `teilnehmer.bearbeiten`), `art=team` die Mitglieder des Lagers mit aktivem Konto der Abteilung. Eine Abfrage je Seite, Seitenwechsel über `nach` und `limit`.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
@@ -14830,13 +14830,13 @@ paths:
       description: |
         Braucht das Recht `anwesenheit.bearbeiten` (Standard: nur die Lagerleitung; die Abteilungsleitung gilt als Lagerleitung). Schreibt über den Sync-Kern: Jede Änderung zählt die Version des Feldes hoch und kommt in den Änderungsfeed.
 
-        Sammeloperation: höchstens 100 Felder in einem Aufruf, in einer Transaktion (alles oder nichts); ein ganzer Tag ist ein Aufruf mit allen Abschnitten. Jedes Feld nennt genau eine von `personId` (Mitglied des Lagers) und `teilnehmerId`, `lagertagId`, `tagesabschnittId` und den Wert. Die Lagerleitung überschreibt jedes Feld, auch eingetragene, und ignoriert die Frist. Für ein bestehendes Feld mit anderem Wert gehört die zuletzt gesehene `version` dazu; ohne Angabe gilt das Feld als leer (409 `VERSION_KONFLIKT` mit dem aktuellen Stand, wenn es schon eingetragen ist). Der Wert, der schon dasteht, ist kein Fehler. `O` öffnet ein eingetragenes Feld wieder (das Team trägt dann wieder direkt ein); auf ein leeres Feld schreibt `O` nichts. Lagertag, Tagesabschnitt und Teilnehmende werden erst mit den Tabellen dazu (Zeitplan, Teilnehmende) gegen das Lager geprüft.
+        Sammeloperation: höchstens 100 Felder in einem Aufruf, in einer Transaktion (alles oder nichts); ein ganzer Tag ist ein Aufruf mit allen Abschnitten. Jedes Feld nennt genau eine von `personId` (Mitglied des Lagers) und `teilnehmerId` (Teilnehmender dieses Lagers), `lagertagId`, `tagesabschnittId` und den Wert. Die Lagerleitung überschreibt jedes Feld, auch eingetragene, und ignoriert die Frist. Für ein bestehendes Feld mit anderem Wert gehört die zuletzt gesehene `version` dazu; ohne Angabe gilt das Feld als leer (409 `VERSION_KONFLIKT` mit dem aktuellen Stand, wenn es schon eingetragen ist). Der Wert, der schon dasteht, ist kein Fehler. `O` öffnet ein eingetragenes Feld wieder (das Team trägt dann wieder direkt ein); auf ein leeres Feld schreibt `O` nichts. Lagertag, Tagesabschnitt und Teilnehmende werden erst mit den Tabellen dazu (Zeitplan, Teilnehmende) gegen das Lager geprüft.
 
         Datenbanklast: Je Aufruf eine Abfrage für die Mitgliedschaft und eine für die bestehenden Felder, dazu je geändertes Feld die Schreibvorgänge des Sync-Kerns.
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 200 bei Erfolg, mit den geschriebenen Feldern. 400 bei ungültiger Eingabe oder `KEIN_MITGLIED` (eine Person ist kein Mitglied des Lagers). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager oder `VERSION_KONFLIKT`.
+        Statuscodes: 200 bei Erfolg, mit den geschriebenen Feldern. 400 bei ungültiger Eingabe, `KEIN_MITGLIED` (eine Person ist kein Mitglied des Lagers) oder `TEILNEHMER_UNBEKANNT` (ein Teilnehmender gehört nicht zu diesem Lager). 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei abgeschlossenem Lager oder `VERSION_KONFLIKT`.
       tags:
         - Lager
       parameters:
@@ -18665,7 +18665,7 @@ paths:
 
         **Kein Token in Logs.** Das Anfrage-Log und die Metriken führen das Routenmuster `/ical/:datei`, nie den Pfad; Fehlerantworten nennen ihn nicht.
 
-        **404** gilt einheitlich für unbekannte, widerrufene und formal falsche Token, für falsche Endungen und für deaktivierte oder gesperrte Konten; die Antwort verrät nicht, ob ein Token je existierte.
+        **404** gilt einheitlich für unbekannte, widerrufene und formal falsche Token, für falsche Endungen, für deaktivierte oder gesperrte Konten und, solange in der Abteilung der Person eine Informationssperre für `programme` oder `alles` gilt (kein 423, kein ETag: Der Feed verrät nicht, dass der Token stimmt); die Antwort verrät nicht, ob ein Token je existierte.
 
         **Ratenbegrenzung.** Je IP-Adresse höchstens 300 Abrufe in 10 Minuten, je Token-Anfang (8 Zeichen) höchstens 30; Fehlversuche zählen mit (429, `Retry-After`). Eine API-Instanz zählt für sich.
 

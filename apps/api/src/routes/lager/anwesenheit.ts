@@ -87,7 +87,9 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 message:
                   ergebnis.fehler === "FELD_UNBEKANNT"
                     ? FELD_UNBEKANNT_TEXT
-                    : "Eine der Personen ist kein Mitglied dieses Lagers.",
+                    : ergebnis.fehler === "TEILNEHMER_UNBEKANNT"
+                      ? "Einer der Teilnehmenden gehört nicht zu diesem Lager."
+                      : "Eine der Personen ist kein Mitglied dieses Lagers.",
               },
               400,
             );

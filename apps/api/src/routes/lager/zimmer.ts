@@ -11,7 +11,7 @@ import {
   zimmerZuordnung,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
+import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import { sperreLager } from "../../lager/ressorts.js";
 import {
   aendereZeile,
@@ -153,7 +153,11 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
             abteilungId,
             eigenes ? { nurPerson: zugriff.personId } : {},
           ),
-          anzeigeNamenLager(db, lagerId),
+          anzeigeNamenLager(
+            db,
+            lagerId,
+            darf(zugriff, "teilnehmer.bearbeiten"),
+          ),
           eigenes ? undefined : zaehleOffene(db, lagerId, abteilungId),
         ]);
         const sortiert = (z: ZimmerZeile) =>
@@ -235,7 +239,13 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
                 asc(teilnehmer.id),
               )
               .limit(limit + 1);
-            const seite = zeilen.slice(0, limit);
+            // Der Cevi-Name der Teilnehmenden gehört zu teilnehmer.bearbeiten (#384), auch hier
+            const mitCevi = darf(zugriff, "teilnehmer.bearbeiten");
+            const seite = zeilen
+              .slice(0, limit)
+              .map(({ ceviName, ...rest }) =>
+                mitCevi ? { ...rest, ceviName } : rest,
+              );
             return c.json({
               eintraege: seite,
               naechster: zeilen.length > limit ? seite[limit - 1]!.id : null,
