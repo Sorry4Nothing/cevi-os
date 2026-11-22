@@ -337,6 +337,13 @@ export const programm = pgTable(
     })
       .notNull()
       .default("eltern"),
+    // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
+    kategorien: text("kategorien")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // LOCATION des Termins (#432)
+    ort: text("ort"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(
