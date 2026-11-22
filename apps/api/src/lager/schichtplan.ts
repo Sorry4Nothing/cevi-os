@@ -338,7 +338,7 @@ export async function loescheDienst(
 // Schichten ----------------------------------------------------------------------
 
 // Mitglieder des Lagers in der Abteilung, aktiv: nur sie lassen sich einteilen
-const aktiveMitglieder = (
+export const aktiveMitglieder = (
   tx: Pick<Db, "select">,
   lagerId: string,
   abteilungId: string,

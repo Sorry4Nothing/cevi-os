@@ -1682,6 +1682,60 @@ export const beschluss = pgTable(
   ],
 );
 
+// Erwähnungen im Lager (#380): eine Zeile je erwähnter Person und Inhalt. Der Inhalt (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) trägt die Marke «@{person:<id>}»; lager/erwaehnungen.ts gleicht sie ab. quelle_id ohne Fremdschlüssel (vier Tabellen); die Liste filtert gelöschte Inhalte. Die Zeile hat keinen Text: Die App liest den Inhalt über seine Route. erledigt_am setzt die erwähnte Person. aufgabe_id: die Aufgabe, die «Als Aufgabe» angelegt hat (höchstens eine je Erwähnung); fällt sie endgültig weg, bleibt die Erwähnung ohne sie. Fällt das Mitglied weg, gehen seine Erwähnungen mit. In der Migration ON DELETE SET NULL (aufgabe_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Kein Sync-Kern: Die Zeilen der Person sind keine geteilten Daten
+export const ERWAEHNUNG_QUELLE = [
+  "aufgabe",
+  "traktandum",
+  "pinnwand",
+  "beschluss",
+] as const;
+export type ErwaehnungQuelle = (typeof ERWAEHNUNG_QUELLE)[number];
+
+export const erwaehnung = pgTable(
+  "erwaehnung",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    quelleTyp: text("quelle_typ", { enum: ERWAEHNUNG_QUELLE }).notNull(),
+    quelleId: uuid("quelle_id").notNull(),
+    personId: uuid("person_id").notNull(),
+    erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
+    aufgabeId: uuid("aufgabe_id"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("erwaehnung_quelle_person_uq").on(
+      t.lagerId,
+      t.quelleTyp,
+      t.quelleId,
+      t.personId,
+    ),
+    foreignKey({
+      name: "erwaehnung_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "erwaehnung_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("set null"),
+    // Die Liste der Person: neueste zuerst, Cursor über die ID
+    index("erwaehnung_person_idx").on(t.lagerId, t.personId, t.id),
+    index("erwaehnung_quelle_idx").on(t.quelleId),
+    check(
+      "erwaehnung_quelle_check",
+      sql`${t.quelleTyp} in ('aufgabe', 'traktandum', 'pinnwand', 'beschluss')`,
+    ),
+  ],
+);
+
 // Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
 export const fahrt = pgTable(
   "fahrt",
@@ -1859,6 +1913,61 @@ export const schicht = pgTable(
     check(
       "schicht_check",
       sql`num_nonnulls(${t.personId}, ${t.teilnehmerId}) = 1`,
+    ),
+  ],
+);
+
+// Anfrage eines Mitglieds, eine eigene Schicht zu tauschen oder abzugeben (#389). schicht_id ist die eigene Schicht. Mit mit_schicht_id (Schicht einer anderen Person) tauschen beide, mit nur mit_person_id übernimmt diese Person die Schicht, ohne beides wählt die Lagerleitung beim Entscheid die Person. Ob die Wunschperson einverstanden ist, klärt die Lagerleitung; Cevi OS fragt sie nicht. Erst der Entscheid «angenommen» bucht die Schichten um (lager/diensttausch.ts). Beim Zurückziehen und Entscheiden setzt entschieden_am den Zeitpunkt, entschieden_von die Person (beim Zurückziehen die anfragende). schicht_id und mit_schicht_id haben keinen Fremdschlüssel mit Lager (schicht hat keinen Schlüssel dafür): Der Code lädt Schichten immer mit lager_id. Geschrieben wird nur über lager/sync.ts
+export const diensttausch = pgTable(
+  "diensttausch",
+  {
+    ...lagerSpalten(),
+    vonPersonId: uuid("von_person_id").notNull(),
+    schichtId: uuid("schicht_id")
+      .notNull()
+      .references(() => schicht.id, { onDelete: "cascade" }),
+    mitPersonId: uuid("mit_person_id"),
+    mitSchichtId: uuid("mit_schicht_id").references(() => schicht.id, {
+      onDelete: "cascade",
+    }),
+    notiz: text("notiz"),
+    status: text("status", {
+      enum: ["offen", "angenommen", "abgelehnt", "zurueckgezogen"],
+    })
+      .notNull()
+      .default("offen"),
+    entschiedenVon: uuid("entschieden_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    entschiedenAm: timestamp("entschieden_am", { withTimezone: true }),
+  },
+  (t) => [
+    foreignKey({
+      name: "diensttausch_von_fk",
+      columns: [t.lagerId, t.vonPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "diensttausch_mit_fk",
+      columns: [t.lagerId, t.mitPersonId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    uniqueIndex("diensttausch_offen_uq")
+      .on(t.lagerId, t.schichtId)
+      .where(sql`${t.status} = 'offen' and ${t.geloeschtAm} is null`),
+    index("diensttausch_liste_idx").on(t.lagerId, t.status, t.id),
+    index("diensttausch_person_idx").on(t.lagerId, t.vonPersonId, t.id),
+    check(
+      "diensttausch_status_check",
+      sql`${t.status} in ('offen', 'angenommen', 'abgelehnt', 'zurueckgezogen') and (${t.status} = 'offen') = (${t.entschiedenAm} is null)`,
+    ),
+    check(
+      "diensttausch_wunsch_check",
+      sql`(${t.mitSchichtId} is null or ${t.mitPersonId} is not null) and ${t.mitPersonId} is distinct from ${t.vonPersonId} and ${t.mitSchichtId} is distinct from ${t.schichtId}`,
+    ),
+    check(
+      "diensttausch_notiz_check",
+      sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
     ),
   ],
 );

@@ -168,7 +168,7 @@ export const KATEGORIEN = {
   lagerEinteilung: {
     titel: "Zimmer und Zelte im Lager",
     zweck:
-      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht.",
+      "Die Lagerleitung legt Zimmer und Zelte mit Namen, Art, Plätzen und einer Notiz an und teilt Teilnehmende und Mitglieder des Lagers ein. Das Team sieht nur das eigene Zimmer und die Namen der Mitbewohner. Gespeichert ist nur, wer in welchem Zimmer liegt, keine weiteren Angaben zur Person. Dazu legt sie Dienste an (zum Beispiel Küche oder Nachtwache, mit Abschnitt des Tages und nötiger Personenzahl) und teilt Mitglieder und Teilnehmende für jeden Lagertag ein, von Hand oder mit einem Vorschlag, der nach der eingetragenen Anwesenheit gleichmässig verteilt. Der Schichtplan ist für alle Mitglieder des Lagers lesbar; gespeichert ist nur, wer an welchem Tag in welchem Dienst steht. Wer im Team eine eigene Schicht tauschen oder abgeben möchte, stellt eine Anfrage an die Lagerleitung (mit freiwilliger Bemerkung und, wenn gewünscht, einer Wunschperson); die Lagerleitung klärt die Zustimmung selbst und nimmt die Anfrage an oder lehnt sie ab. Erst dann ändert sich die Einteilung. Ein Push über eine Anfrage oder ihren Entscheid nennt nur den Lagertitel.",
     frist:
       "Die Einteilung der Teilnehmenden (Zimmer und Dienste) geht mit den Teilnehmenden sechs Monate nach dem Ende des Lagers, die übrigen mit dem Lager. Die Lagerleitung kann Zimmer, Dienste und Einteilungen früher entfernen. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
@@ -244,6 +244,14 @@ export const KATEGORIEN = {
     zweck:
       "Die Mitglieder eines Lagers über Neues im Lager informieren, zum Beispiel über eine zugeteilte Aufgabe oder eine wichtige Mitteilung. Die Benachrichtigung zeigt in der App eine Liste mit Art und Ziel, der Push nennt nur den Lagertitel. Jede Person schaltet jede Art selbst ab.",
     frist: `Gelesene Benachrichtigungen 90 Tage, ungelesene bis die Person das Lager verlässt oder das Konto gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
+  lagerErwaehnungen: {
+    titel: "Erwähnungen im Lager",
+    zweck:
+      "Wer in einem Inhalt des Lagers (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) erwähnt wird, soll es merken: Cevi OS benachrichtigt die Person, und sie kann die Erwähnung als erledigt markieren oder daraus eine Aufgabe machen. Die Erwähnung speichert nur, wer in welchem Inhalt erwähnt wurde, nie den Text; sie sieht nur die erwähnte Person.",
+    frist: `Bis die Marke aus dem Inhalt entfällt (ausser es ist daraus eine Aufgabe entstanden), die Person das Lager verlässt oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -1018,6 +1026,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "teilnehmer_id",
     ],
   },
+  // Diensttausch (#389): wer welche eigene Schicht mit wem tauschen oder abgeben will, mit freiwilliger Notiz, Stand und wer wann entschied; die Schichten nur als ID
+  diensttausch: {
+    lagerEinteilung: [
+      ...LAGER_BASIS_SPALTEN,
+      "von_person_id",
+      "schicht_id",
+      "mit_person_id",
+      "mit_schicht_id",
+      "notiz",
+      "status",
+      "entschieden_von",
+      "entschieden_am",
+    ],
+  },
   // Fahrten (#386): Hin- und Rückfahrt mit Fahrer, Plätzen, Treffpunkt, Fahrplan-Link und Kartenpunkt (ziel_*); die Mitfahrt ist eine Person des Lagers oder ein Teilnehmender
   fahrt: {
     lagerFahrten: [
@@ -1137,6 +1159,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "objekt_typ",
       "objekt_id",
       "gelesen_am",
+      "erstellt_am",
+    ],
+  },
+  erwaehnung: {
+    lagerErwaehnungen: [
+      "id",
+      "lager_id",
+      "quelle_typ",
+      "quelle_id",
+      "person_id",
+      "erledigt_am",
+      "aufgabe_id",
       "erstellt_am",
     ],
   },

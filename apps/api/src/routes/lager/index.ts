@@ -21,6 +21,7 @@ import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEinkaufRouten } from "./einkauf.js";
 import { erstelleEingangRouten } from "./eingang.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
+import { erstelleErwaehnungenRouten } from "./erwaehnungen.js";
 import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
@@ -39,6 +40,7 @@ import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
 import { erstelleFahrtenRouten } from "./fahrten.js";
+import { erstelleDiensttauschRouten } from "./diensttausch.js";
 import { erstelleTagesseitenRouten } from "./tagesseiten.js";
 import { erstelleWetterRouten } from "./wetter.js";
 import { erstelleSchichtplanRouten } from "./schichtplan.js";
@@ -76,6 +78,7 @@ export function erstelleLagerRouten({
     .route("/", erstelleAufgabenSchnellRouten({ db }))
     .route("/", erstelleHoeckRouten({ db }))
     .route("/", erstelleProtokollRouten({ db }))
+    .route("/", erstelleErwaehnungenRouten({ db, fcm }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))
@@ -87,6 +90,7 @@ export function erstelleLagerRouten({
     .route("/", erstelleFahrtenRouten({ db }))
     .route("/", erstelleGruppenRouten({ db }))
     .route("/", erstelleSchichtplanRouten({ db }))
+    .route("/", erstelleDiensttauschRouten({ db, fcm }))
     .route("/", erstelleAushaengeRouten({ db }))
     .route("/", erstellePacklisteRouten({ db }))
     .route("/", erstelleNotfallRouten({ db }))
