@@ -2,11 +2,15 @@ import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
+  gruppe,
+  gruppeZuordnung,
   lagerDatei,
   lagerMitglied,
   pinnwandBeitrag,
   pinnwandDatei,
   pinnwandEmpfaenger,
+  pinnwandGesehen,
+  ressort,
   user,
 } from "../db/schema.js";
 import { dateiAnsicht, ladeSichtbareDatei } from "./datei.js";
@@ -24,6 +28,7 @@ import {
 } from "./sync.js";
 import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
+import { anzeigeNamenLager } from "./zimmer.js";
 
 // Pinnwand des Lagers (#381): Beiträge mit Wichtig, Anheften, Zeitfenster, Empfängern und Dateien (Verknüpfungen aus #370, kein Upload). Der Server filtert die Sichtbarkeit:
 //   - Wer pinnwand.bearbeiten hat (Lagerleitung, Abteilungsleitung, im Standard die Leitung), sieht jeden Beitrag.
@@ -45,8 +50,14 @@ const B = {
 const IM_FENSTER = sql`(${B.ab} is null or ${B.ab} <= now()) and (${B.bis} is null or ${B.bis} > now())`;
 
 // Eine Teilabfrage statt einer je Empfänger: bool_or über die Empfänger des Beitrags; ohne Empfänger (NULL) gilt er für alle. coalesce je Vergleich, weil «false or NULL» NULL ist und eine fremde Rolle sonst nicht als Nein zählt
+// Ein Ressort als Empfänger meint dessen Leitung, Stellvertretung und die Mitglieder, die diesem Ressort zugeordnet sind (lager_mitglied.ressort_id); eine Gruppe meint die Leitenden in dieser Gruppe (gruppe_zuordnung). Ein gelöschtes Ressort oder eine gelöschte Gruppe trifft niemanden, der Beitrag bleibt aber eingeschränkt (kein Fremdschlüssel, Migration 0107)
 const empfaengerPasst = (z: Pick<LagerZugriff, "rolle" | "personId">) =>
-  sql`coalesce((select bool_or(coalesce(e.rolle = ${z.rolle}, false) or coalesce(e.person_id = ${z.personId}::uuid, false)) from pinnwand_empfaenger e where e.beitrag_id = ${B.id}), true)`;
+  sql`coalesce((select bool_or(
+    coalesce(e.rolle = ${z.rolle}, false)
+    or coalesce(e.person_id = ${z.personId}::uuid, false)
+    or (e.ressort_id is not null and exists (select 1 from ressort r where r.lager_id = e.lager_id and r.id = e.ressort_id and (r.leitung_person_id = ${z.personId}::uuid or r.stv_person_id = ${z.personId}::uuid or exists (select 1 from lager_mitglied m where m.lager_id = e.lager_id and m.person_id = ${z.personId}::uuid and m.ressort_id = r.id))))
+    or (e.gruppe_id is not null and exists (select 1 from gruppe_zuordnung g where g.lager_id = e.lager_id and g.gruppe_id = e.gruppe_id and g.person_id = ${z.personId}::uuid))
+  ) from pinnwand_empfaenger e where e.beitrag_id = ${B.id}), true)`;
 
 // Welche nicht gelöschten Beiträge die Person sieht. alle: ohne Zeitfenster (nur wer bearbeiten darf)
 function lesbar(zugriff: LagerZugriff, alle = false) {
@@ -156,8 +167,11 @@ const empfaengerSchema = z.strictObject({
     .max(3)
     .refine(einmalig),
   personen: z.array(z.uuid()).max(100).refine(einmalig),
+  // Ressorts und Gruppen des Lagers als Empfänger (#520); ohne Angabe keine
+  ressortIds: z.array(z.uuid()).max(50).refine(einmalig).default([]),
+  gruppeIds: z.array(z.uuid()).max(50).refine(einmalig).default([]),
 });
-export type EmpfaengerEingabe = z.infer<typeof empfaengerSchema>;
+export type EmpfaengerEingabe = z.output<typeof empfaengerSchema>;
 const titel = z.string().trim().min(1).max(200);
 const text = z.string().trim().max(10000);
 const zeit = z.iso
@@ -201,7 +215,14 @@ export const listeAbfrage = z.strictObject({
 });
 
 export type Pruefung =
-  | { fehler: "KEIN_MITGLIED" | "DATEI_UNBEKANNT" | "ZEITFENSTER_UNGUELTIG" }
+  | {
+      fehler:
+        | "KEIN_MITGLIED"
+        | "RESSORT_UNBEKANNT"
+        | "GRUPPE_UNBEKANNT"
+        | "DATEI_UNBEKANNT"
+        | "ZEITFENSTER_UNGUELTIG";
+    }
   | undefined;
 
 export const fensterGueltig = (ab?: Date | null, bis?: Date | null) =>
@@ -213,6 +234,8 @@ export async function pruefeBeitragWerte(
   zugriff: LagerZugriff,
   w: {
     personen?: string[];
+    ressortIds?: string[];
+    gruppeIds?: string[];
     dateiIds?: string[];
     schonEingebunden?: Set<string>;
   },
@@ -231,6 +254,35 @@ export async function pruefeBeitragWerte(
       return { fehler: "KEIN_MITGLIED" };
     }
   }
+  // Ressorts und Gruppen müssen zu diesem Lager gehören
+  if (w.ressortIds && w.ressortIds.length > 0) {
+    const gefunden = await db
+      .select({ id: ressort.id })
+      .from(ressort)
+      .where(
+        and(
+          eq(ressort.lagerId, zugriff.lager.id),
+          inArray(ressort.id, w.ressortIds),
+        ),
+      );
+    if (gefunden.length !== w.ressortIds.length) {
+      return { fehler: "RESSORT_UNBEKANNT" };
+    }
+  }
+  if (w.gruppeIds && w.gruppeIds.length > 0) {
+    const gefunden = await db
+      .select({ id: gruppe.id })
+      .from(gruppe)
+      .where(
+        and(
+          eq(gruppe.lagerId, zugriff.lager.id),
+          inArray(gruppe.id, w.gruppeIds),
+        ),
+      );
+    if (gefunden.length !== w.gruppeIds.length) {
+      return { fehler: "GRUPPE_UNBEKANNT" };
+    }
+  }
   for (const id of w.dateiIds ?? []) {
     if (w.schonEingebunden?.has(id)) continue;
     if (!(await ladeSichtbareDatei(db, zugriff, zugriff.personId, id))) {
@@ -240,7 +292,7 @@ export async function pruefeBeitragWerte(
   return undefined;
 }
 
-// Ersetzt die Empfänger des Beitrags (Löschen und Einfügen in der Transaktion; es sind höchstens 103 Zeilen)
+// Ersetzt die Empfänger des Beitrags (Löschen und Einfügen in der Transaktion; es sind höchstens 203 Zeilen)
 export async function setzeEmpfaenger(
   tx: Tx,
   lagerId: string,
@@ -253,6 +305,8 @@ export async function setzeEmpfaenger(
   const zeilen = [
     ...e.rollen.map((rolle) => ({ lagerId, beitragId, rolle })),
     ...e.personen.map((personId) => ({ lagerId, beitragId, personId })),
+    ...e.ressortIds.map((ressortId) => ({ lagerId, beitragId, ressortId })),
+    ...e.gruppeIds.map((gruppeId) => ({ lagerId, beitragId, gruppeId })),
   ];
   if (zeilen.length > 0) await tx.insert(pinnwandEmpfaenger).values(zeilen);
 }
@@ -318,15 +372,55 @@ export async function benachrichtigeUeberBeitrag(
   ausgeloestVon: string,
 ) {
   const mitglieder = await tx
-    .select({ id: lagerMitglied.personId, rolle: lagerMitglied.rolle })
+    .select({
+      id: lagerMitglied.personId,
+      rolle: lagerMitglied.rolle,
+      ressortId: lagerMitglied.ressortId,
+    })
     .from(lagerMitglied)
     .where(eq(lagerMitglied.lagerId, lagerId));
-  const anAlle = e.rollen.length === 0 && e.personen.length === 0;
+  // Wer zu den genannten Ressorts (Leitung, Stellvertretung, Zuordnung) und Gruppen gehört, wie in der Sicht (empfaengerPasst); je eine Abfrage, nur wenn der Beitrag sie nennt
+  const ausZielen = new Set<string>();
+  if (e.ressortIds.length > 0) {
+    const leitung = await tx
+      .select({ leitung: ressort.leitungPersonId, stv: ressort.stvPersonId })
+      .from(ressort)
+      .where(
+        and(eq(ressort.lagerId, lagerId), inArray(ressort.id, e.ressortIds)),
+      );
+    for (const z of leitung) {
+      if (z.leitung) ausZielen.add(z.leitung);
+      if (z.stv) ausZielen.add(z.stv);
+    }
+    for (const m of mitglieder) {
+      if (m.ressortId && e.ressortIds.includes(m.ressortId)) {
+        ausZielen.add(m.id);
+      }
+    }
+  }
+  if (e.gruppeIds.length > 0) {
+    const zeilen = await tx
+      .select({ personId: gruppeZuordnung.personId })
+      .from(gruppeZuordnung)
+      .where(
+        and(
+          eq(gruppeZuordnung.lagerId, lagerId),
+          inArray(gruppeZuordnung.gruppeId, e.gruppeIds),
+        ),
+      );
+    for (const z of zeilen) if (z.personId) ausZielen.add(z.personId);
+  }
+  const anAlle =
+    e.rollen.length === 0 &&
+    e.personen.length === 0 &&
+    e.ressortIds.length === 0 &&
+    e.gruppeIds.length === 0;
   const passend = mitglieder.filter(
     (m) =>
       anAlle ||
       (m.rolle !== "lagerleitung" && e.rollen.includes(m.rolle)) ||
-      e.personen.includes(m.id),
+      e.personen.includes(m.id) ||
+      ausZielen.has(m.id),
   );
   // Das Recht je Rolle einmal (höchstens drei Abfragen)
   const darfLesen = new Map<string, boolean>();
@@ -370,6 +464,12 @@ export async function ladeBeitraege(
       personen: sql<
         string[]
       >`coalesce((select array_agg(e.person_id::text order by e.person_id) from pinnwand_empfaenger e where e.beitrag_id = ${B.id} and e.person_id is not null), '{}')`,
+      ressortIds: sql<
+        string[]
+      >`coalesce((select array_agg(e.ressort_id::text order by e.ressort_id) from pinnwand_empfaenger e where e.beitrag_id = ${B.id} and e.ressort_id is not null), '{}')`,
+      gruppeIds: sql<
+        string[]
+      >`coalesce((select array_agg(e.gruppe_id::text order by e.gruppe_id) from pinnwand_empfaenger e where e.beitrag_id = ${B.id} and e.gruppe_id is not null), '{}')`,
     })
     .from(pinnwandBeitrag)
     .leftJoin(user, eq(user.id, pinnwandBeitrag.erstelltVon))
@@ -415,6 +515,7 @@ export async function ladeBeitraege(
 
   // Umfragen und Reaktionen der ganzen Seite gebündelt (#382, lager/umfragen.ts), additiv zu den Feldern aus #381
   const ids = seite.map((z) => z.zeile.id);
+  const gesehen = await ladeGesehen(db, zugriff, ids);
   const umfragen = await ladeUmfragen(db, zugriff, ids);
   const reaktionen = await ladeReaktionen(db, zugriff, "pinnwand_beitrag", ids);
 
@@ -429,16 +530,115 @@ export async function ladeBeitraege(
         ceviName: z.ceviName,
       },
       empfaenger: {
-        anAlle: z.rollen.length === 0 && z.personen.length === 0,
+        anAlle:
+          z.rollen.length === 0 &&
+          z.personen.length === 0 &&
+          z.ressortIds.length === 0 &&
+          z.gruppeIds.length === 0,
         rollen: z.rollen,
         personen: mitPersonen ? z.personen : [],
+        // Ressorts und Gruppen wie die Personen nur für wen den Beitrag verwaltet
+        ressortIds: mitPersonen ? z.ressortIds : [],
+        gruppeIds: mitPersonen ? z.gruppeIds : [],
       },
       dateien: dateien.get(z.zeile.id) ?? [],
+      gesehen: gesehen.get(z.zeile.id) ?? NIEMAND(zugriff),
       umfrage: umfragen.get(z.zeile.id) ?? null,
       reaktionen: reaktionen.get(z.zeile.id)!,
     })),
     naechster: zeilen.length > p.limit ? seite[p.limit - 1]!.zeile.id : null,
   };
+}
+
+const NIEMAND = (zugriff: LagerZugriff) => ({
+  anzahl: 0,
+  eigene: false,
+  personen: kannAlleSehen(zugriff) ? [] : null,
+});
+
+// «Gesehen» für die Beiträge einer Seite (#520): Anzahl und ob die Person selbst gesehen hat, eine Abfrage mit GROUP BY für die ganze Seite. Wer die Pinnwand verwalten darf (pinnwand.bearbeiten), bekommt dazu die Personen mit dem Anzeigenamen des Lagers (eine weitere Abfrage, nur wenn es Einträge gibt); alle anderen sehen nie Namen (personen: null)
+async function ladeGesehen(db: Db, zugriff: LagerZugriff, ids: string[]) {
+  const je = new Map<
+    string,
+    {
+      anzahl: number;
+      eigene: boolean;
+      personen: { id: string; name: string }[] | null;
+    }
+  >();
+  if (ids.length === 0) return je;
+  const mitNamen = kannAlleSehen(zugriff);
+  const zeilen = await db
+    .select({
+      beitragId: pinnwandGesehen.beitragId,
+      anzahl: sql<number>`count(*)`.mapWith(Number),
+      eigene: sql<boolean>`bool_or(${pinnwandGesehen.personId} = ${zugriff.personId}::uuid)`,
+      personen: mitNamen
+        ? sql<
+            string[]
+          >`array_agg(${pinnwandGesehen.personId}::text order by ${pinnwandGesehen.gesehenAm}, ${pinnwandGesehen.personId})`
+        : sql<null>`null`,
+    })
+    .from(pinnwandGesehen)
+    .where(
+      and(
+        eq(pinnwandGesehen.lagerId, zugriff.lager.id),
+        inArray(pinnwandGesehen.beitragId, ids),
+      ),
+    )
+    .groupBy(pinnwandGesehen.beitragId);
+  const namen =
+    mitNamen && zeilen.length > 0
+      ? await anzeigeNamenLager(
+          db,
+          zugriff.lager.id,
+          darf(zugriff, "teilnehmer.bearbeiten"),
+        )
+      : new Map<string, string>();
+  for (const z of zeilen) {
+    je.set(z.beitragId, {
+      anzahl: z.anzahl,
+      eigene: z.eigene,
+      personen: z.personen
+        ? z.personen.flatMap((id) => {
+            const name = namen.get(id);
+            return name ? [{ id, name }] : [];
+          })
+        : null,
+    });
+  }
+  return je;
+}
+
+// Die Person hat diese Beiträge geöffnet (#520). Jeder muss für sie lesbar sein, sonst ändert sich nichts und die Antwort ist false (404). Zwei Abfragen für beliebig viele Beiträge: lesen prüfen, dann ein Insert ON CONFLICT DO NOTHING (doppeltes Melden ist ohne Wirkung)
+export async function meldeGesehen(
+  db: Db,
+  zugriff: LagerZugriff,
+  beitragIds: string[],
+) {
+  const ids = [...new Set(beitragIds)];
+  const lesbare = await db
+    .select({ id: pinnwandBeitrag.id })
+    .from(pinnwandBeitrag)
+    .where(
+      and(
+        eq(pinnwandBeitrag.lagerId, zugriff.lager.id),
+        inArray(pinnwandBeitrag.id, ids),
+        lesbar(zugriff, true),
+      ),
+    );
+  if (lesbare.length !== ids.length) return false;
+  await db
+    .insert(pinnwandGesehen)
+    .values(
+      ids.map((beitragId) => ({
+        lagerId: zugriff.lager.id,
+        beitragId,
+        personId: zugriff.personId,
+      })),
+    )
+    .onConflictDoNothing();
+  return true;
 }
 
 // Der Beitrag, den die Person ändern oder löschen will: ohne Zeitfenster und Empfängerfilter (wer bearbeiten darf, sieht alle); fremdes Lager oder gelöscht = undefined
@@ -462,11 +662,15 @@ export async function ladeEmpfaenger(tx: Tx, beitragId: string) {
     .select({
       rolle: pinnwandEmpfaenger.rolle,
       personId: pinnwandEmpfaenger.personId,
+      ressortId: pinnwandEmpfaenger.ressortId,
+      gruppeId: pinnwandEmpfaenger.gruppeId,
     })
     .from(pinnwandEmpfaenger)
     .where(eq(pinnwandEmpfaenger.beitragId, beitragId));
   return {
     rollen: zeilen.flatMap((z) => (z.rolle ? [z.rolle] : [])),
     personen: zeilen.flatMap((z) => (z.personId ? [z.personId] : [])),
+    ressortIds: zeilen.flatMap((z) => (z.ressortId ? [z.ressortId] : [])),
+    gruppeIds: zeilen.flatMap((z) => (z.gruppeId ? [z.gruppeId] : [])),
   } satisfies EmpfaengerEingabe;
 }

@@ -46,6 +46,7 @@ export const ressortAnsicht = (r: typeof ressort.$inferSelect) => ({
   notiz: r.notiz,
   parentId: r.parentId,
   reihenfolge: r.reihenfolge,
+  ruhig: r.ruhig,
 });
 export const linkAnsicht = (r: typeof ressortLink.$inferSelect) => ({
   id: r.id,
@@ -78,6 +79,7 @@ export const ressortAnlegen = z.strictObject({
   notiz: notiz.optional(),
   parentId: z.uuid().nullable().optional(),
   reihenfolge: z.number().int().min(0).max(100000).optional(),
+  ruhig: z.boolean().optional(),
 });
 export const ressortAendern = z
   .strictObject({
@@ -89,6 +91,7 @@ export const ressortAendern = z
     notiz: notiz.optional(),
     parentId: z.uuid().nullable().optional(),
     reihenfolge: z.number().int().min(0).max(100000).optional(),
+    ruhig: z.boolean().optional(),
   })
   .refine((b) => Object.keys(b).length > 1);
 export const reihenfolgeSetzen = z.strictObject({

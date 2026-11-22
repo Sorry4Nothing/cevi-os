@@ -26,7 +26,8 @@ import {
   setzeAlsEigene,
   setzeAlsLeitung,
 } from "../../lager/anwesenheit.js";
-import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
+import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
+import { anzeigeNamenLager } from "../../lager/zimmer.js";
 import type { Fcm } from "../../push.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
@@ -56,15 +57,40 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         lesen,
         eingabe("param", lagerPfad),
         eingabe("query", matrixAbfrage),
-        async (c) =>
-          c.json({
-            ...(await ladeMatrix(
-              db,
-              c.get("lager").lager.id,
-              c.req.valid("query"),
-            )),
+        async (c) => {
+          const zugriff = c.get("lager");
+          const matrix = await ladeMatrix(
+            db,
+            zugriff.lager.id,
+            c.req.valid("query"),
+          );
+          // Namen der Seite (#520): ID der Person oder des Teilnehmenden -> Anzeigename des Lagers, eine Abfrage für die ganze Seite. Teilnehmende nur mit teilnehmer.lesen
+          const ids = new Set(
+            matrix.eintraege.flatMap((e) => [
+              ...(e.personId ? [e.personId] : []),
+              ...(e.teilnehmerId && darf(zugriff, "teilnehmer.lesen")
+                ? [e.teilnehmerId]
+                : []),
+            ]),
+          );
+          const alle =
+            ids.size > 0
+              ? await anzeigeNamenLager(
+                  db,
+                  zugriff.lager.id,
+                  darf(zugriff, "teilnehmer.bearbeiten"),
+                )
+              : new Map<string, string>();
+          return c.json({
+            ...matrix,
+            namen: Object.fromEntries(
+              [...ids].flatMap((id) =>
+                alle.has(id) ? [[id, alle.get(id)!]] : [],
+              ),
+            ),
             frist: frist(c),
-          }),
+          });
+        },
       )
       .put(
         "/:id/anwesenheit",

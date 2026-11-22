@@ -5,6 +5,8 @@ import {
   eq,
   inArray,
   isNull,
+  lte,
+  ne,
   sql,
   type SQL,
 } from "drizzle-orm";
@@ -24,12 +26,17 @@ import {
   traktandumVerantwortlich,
   user,
 } from "../db/schema.js";
-import { leseUmfang as aufgabenUmfang } from "./aufgaben.js";
+import {
+  beteiligt,
+  leseUmfang as aufgabenUmfang,
+  ressortJoin,
+} from "./aufgaben.js";
 import { darf, type LagerZugriff } from "./policy.js";
 import { httpsAdresse, sperreLager } from "./ressorts.js";
 import { registriereSuchquelle } from "./suche.js";
 import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
+import { anzeigeNamenLager } from "./zimmer.js";
 
 // Höcks, Traktanden und Höck-Modus des Lagers (#378): Ansichten, Eingabeschemas, Abfragen und die Schreibwege. Die Tabellen hoeck und traktandum sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet.
 //
@@ -141,6 +148,7 @@ export const traktandumAnsicht = (t: TraktandumZeile) => ({
   reihenfolge: t.reihenfolge,
   aufgabeId: t.aufgabeId,
   status: t.status,
+  dauerMinuten: t.dauerMinuten,
 });
 
 // Eingaben: strikt, nur die genannten Felder (SR-72). protokollId setzt nur der Server (#379)
@@ -152,6 +160,8 @@ const ort = z.string().trim().min(1).max(200).nullable();
 const gaeste = z.string().trim().min(1).max(500).nullable();
 const text = z.string().trim().min(1).max(5000).nullable();
 const entscheid = z.string().trim().min(1).max(1000).nullable();
+// Geplante Dauer in Minuten (#520); null löscht sie
+const dauerMinuten = z.number().int().min(1).max(600).nullable();
 const hoeckFelder = {
   art: z.enum(HOECK_ART),
   datum,
@@ -207,6 +217,7 @@ const traktandumFelder = {
   aufgabeId: z.uuid().nullable(),
   status: z.enum(TRAKTANDUM_STATUS),
   reihenfolge: z.number().int().min(0).max(100000),
+  dauerMinuten,
 };
 const optional = Object.fromEntries(
   Object.entries(traktandumFelder).map(([k, f]) => [k, f.optional()]),
@@ -789,7 +800,7 @@ export async function ladeEntscheide(
 // Höck-Modus (#378): alles, was die App für die Sitzung braucht, in vier Abfragen und unabhängig von der Zahl der Traktanden: der Höck mit den Anwesenden, die Traktanden mit Verantwortlichen, die Mitglieder zum Abhaken, die Ressort-Runde. Nur mit hoecks.lesen_alle oder hoecks.bearbeiten (die Route prüft es)
 // Ressort-Runde nach Rolle: ohne ressorts.lesen fehlt sie (null); ohne das Recht, alle Aufgaben zu lesen, stehen die Ressorts ohne Zahlen (die Zahlen würden Aufgaben verraten, die die Rolle nicht lesen darf)
 export async function ladeHoeckModus(
-  db: Pick<Db, "select">,
+  db: Pick<Db, "select" | "execute">,
   zugriff: LagerZugriff,
   id: string,
 ) {
@@ -809,14 +820,95 @@ export async function ladeHoeckModus(
     .innerJoin(user, eq(user.id, lagerMitglied.personId))
     .where(eq(lagerMitglied.lagerId, lagerId))
     .orderBy(asc(user.name), asc(user.id));
+  const umfang = aufgabenUmfang(zugriff);
   const runde = darf(zugriff, "ressorts.lesen")
-    ? await ladeRessortRunde(db, lagerId, aufgabenUmfang(zugriff) === "alle")
+    ? await ladeRessortRunde(db, lagerId, umfang === "alle")
     : null;
+  // Die offenen Aufgaben je Ressort (#520), wie die Aufgabenliste gefiltert: alle, nur die eigenen oder gar keine (null). Zwei Abfragen für alle Ressorts: die Aufgaben (Fensterfunktion, höchstens OFFENE_JE_RESSORT je Ressort) und die Anzeigenamen des Lagers
+  const offene =
+    runde && runde.length > 0 && umfang
+      ? await ladeOffeneAufgaben(db, zugriff, umfang)
+      : null;
   return {
     hoeck: hoeckTeil,
     mitglieder: mitglieder.map((m) => ({ ...m, anwesend: dabei.has(m.id) })),
-    ressortRunde: runde,
+    ressortRunde:
+      runde &&
+      runde.map((z) => ({
+        ...z,
+        offeneAufgaben: offene ? (offene.get(z.id) ?? []) : null,
+      })),
   };
+}
+
+export const OFFENE_JE_RESSORT = 50;
+
+// Die offenen Aufgaben (nicht erledigt) mit Ressort, je Ressort die ersten OFFENE_JE_RESSORT nach Frist (ohne Frist zuletzt), Reihenfolge und ID. Verantwortlich ist die wirksame Person (gesetzt, sonst die Leitung des Ressorts), mit dem Anzeigenamen des Lagers (zimmer.ts); nie ein Cevi-Name von Teilnehmenden
+async function ladeOffeneAufgaben(
+  db: Pick<Db, "select" | "execute">,
+  zugriff: LagerZugriff,
+  umfang: "alle" | "eigene",
+) {
+  const lagerId = zugriff.lager.id;
+  const rang = db
+    .select({
+      id: aufgabe.id,
+      titel: aufgabe.titel,
+      status: aufgabe.status,
+      ressortId: aufgabe.ressortId,
+      personId: sql<
+        string | null
+      >`coalesce(${aufgabe.verantwortlichPersonId}, ${ressort.leitungPersonId})`.as(
+        "person_id",
+      ),
+      rang: sql<number>`row_number() over (partition by ${aufgabe.ressortId} order by ${aufgabe.frist} asc nulls last, ${aufgabe.reihenfolge}, ${aufgabe.id})`.as(
+        "rang",
+      ),
+    })
+    .from(aufgabe)
+    .innerJoin(ressort, ressortJoin)
+    .where(
+      and(
+        eq(aufgabe.lagerId, lagerId),
+        ne(aufgabe.status, "erledigt"),
+        umfang === "eigene" ? beteiligt(zugriff.personId) : undefined,
+      ),
+    )
+    .as("offene");
+  const zeilen = await db
+    .select()
+    .from(rang)
+    .where(lte(rang.rang, OFFENE_JE_RESSORT))
+    .orderBy(asc(rang.ressortId), asc(rang.rang));
+  const namen =
+    zeilen.length === 0
+      ? new Map<string, string>()
+      : await anzeigeNamenLager(
+          db,
+          lagerId,
+          darf(zugriff, "teilnehmer.bearbeiten"),
+        );
+  const je = new Map<
+    string,
+    {
+      id: string;
+      titel: string;
+      status: string;
+      verantwortlich: { id: string; name: string } | null;
+    }[]
+  >();
+  for (const z of zeilen) {
+    const liste = je.get(z.ressortId!) ?? [];
+    const name = z.personId ? namen.get(z.personId) : undefined;
+    liste.push({
+      id: z.id,
+      titel: z.titel,
+      status: z.status,
+      verantwortlich: z.personId && name ? { id: z.personId, name } : null,
+    });
+    je.set(z.ressortId!, liste);
+  }
+  return je;
 }
 
 // Je Ressort die Aufgaben nach Stand: gesamt, erledigt, offen (nicht erledigt) und überfällig (Frist vorbei, nicht erledigt, Datum in der Schweiz). Eine Abfrage mit Gruppierung; mitZahlen false: nur die Ressorts

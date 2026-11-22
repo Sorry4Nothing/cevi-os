@@ -79,6 +79,22 @@ export const ZEILEN: LagerMatrix = {
     url: neuerBeitrag,
     erwartet: gleichLesen(200),
   },
+  // «Gesehen» (#520): pinnwand.lesen, auch im abgeschlossenen Lager (nur die eigene Zeile)
+  "PUT /api/v1/lager/:id/pinnwand/gesehen": {
+    url: (w, z) => `${lagerPfad(w, z)}/pinnwand/gesehen`,
+    body: async (z, w) => {
+      const [zeile] = await w.db
+        .insert(schema.pinnwandBeitrag)
+        .values({ lagerId: w.lagerId(z), titel: "Matrix-Beitrag", lagerSeq: 0 })
+        .returning({ id: schema.pinnwandBeitrag.id });
+      return { beitragIds: [zeile!.id] };
+    },
+    erwartet: gleichLesen(204),
+  },
+  "PUT /api/v1/lager/:id/pinnwand/:beitragId/gesehen": {
+    url: async (w, z) => `${await neuerBeitrag(w, z)}/gesehen`,
+    erwartet: gleichLesen(204),
+  },
   "PATCH /api/v1/lager/:id/pinnwand/:beitragId": {
     url: neuerBeitrag,
     body: () => ({ version: 1, titel: "Anders" }),

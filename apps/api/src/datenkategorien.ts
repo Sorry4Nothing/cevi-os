@@ -202,7 +202,7 @@ export const KATEGORIEN = {
   lagerPinnwand: {
     titel: "Pinnwand im Lager",
     zweck:
-      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann eine Umfrage hängen: Die Antworten, welche Person welche Antwort gewählt hat und optional bis wann sie offen ist. Die Namen der Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag mit einem von fünf festen Zeichen reagieren; es zählen nur die Anzahl und die eigene Reaktion.",
+      "Mitteilungen an die Mitglieder eines Lagers: Titel, Text, ob eine Mitteilung wichtig oder angeheftet ist, von wann bis wann sie sichtbar ist, und an wen sie sich richtet (alle, eine Rolle, ein Ressort, eine Gruppe oder einzelne Personen), dazu Verknüpfungen auf Dateien im SharePoint. Bei einem Beitrag steht, welches Konto ihn geschrieben hat. Der Server zeigt jeder Person nur die Beiträge, die zu ihr passen und im Zeitfenster liegen. Eine wichtige Mitteilung löst einen Push aus, der nur den Lagertitel nennt, nie den Inhalt. An einem Beitrag kann eine Umfrage hängen: Die Antworten, welche Person welche Antwort gewählt hat und optional bis wann sie offen ist. Die Namen der Stimmen sieht nur die Leitung, ausser die Umfrage zeigt sie dem Team; sonst gibt es nur Zahlen. Jede Person kann auf einen Beitrag mit einem von fünf festen Zeichen reagieren; es zählen nur die Anzahl und die eigene Reaktion. Wer einen Beitrag geöffnet hat, wird einmal festgehalten (Person und Zeitpunkt); die Leitung sieht, wer ihn gesehen hat, alle anderen nur die Anzahl.",
     frist: `Bis die Leitung den Beitrag löscht oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
@@ -724,6 +724,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "notiz",
       "parent_id",
       "reihenfolge",
+      "ruhig",
     ],
   },
   ressort_link: {
@@ -882,6 +883,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "reihenfolge",
       "aufgabe_id",
       "status",
+      "dauer_minuten",
     ],
   },
   traktandum_verantwortlich: {
@@ -924,7 +926,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   pinnwand_empfaenger: {
-    lagerPinnwand: ["id", "lager_id", "beitrag_id", "rolle", "person_id"],
+    lagerPinnwand: [
+      "id",
+      "lager_id",
+      "beitrag_id",
+      "rolle",
+      "person_id",
+      "ressort_id",
+      "gruppe_id",
+    ],
+  },
+  pinnwand_gesehen: {
+    lagerPinnwand: ["lager_id", "beitrag_id", "person_id", "gesehen_am"],
   },
   pinnwand_datei: {
     lagerPinnwand: [

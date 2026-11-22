@@ -1115,6 +1115,21 @@ describe("Höck-Modus", () => {
         name: "Küche",
         leitung: { id: person, name: "Mitglied Test", ceviName: null },
         aufgaben: { gesamt: 3, erledigt: 1, offen: 2, ueberfaellig: 1 },
+        // Nur die offenen, nach Frist: «a» (gestern) vor «b» (morgen); die Leitung des Ressorts ist die wirksame Verantwortliche
+        offeneAufgaben: [
+          {
+            id: expect.any(String),
+            titel: "a",
+            status: "offen",
+            verantwortlich: { id: person, name: expect.any(String) },
+          },
+          {
+            id: expect.any(String),
+            titel: "b",
+            status: "laeuft",
+            verantwortlich: { id: person, name: expect.any(String) },
+          },
+        ],
       },
       {
         id: ressortB!.id,
@@ -1122,6 +1137,7 @@ describe("Höck-Modus", () => {
         name: "Programm",
         leitung: null,
         aufgaben: { gesamt: 0, erledigt: 0, offen: 0, ueberfaellig: 0 },
+        offeneAufgaben: [],
       },
     ]);
   });
@@ -1138,7 +1154,11 @@ describe("Höck-Modus", () => {
     await setzeRecht(id, "lesen", "aufgaben.lesen_alle", false);
     const ohneAufgaben = await modus(konten.lesen);
     expect(ohneAufgaben.body.ressortRunde).toEqual([
-      expect.objectContaining({ kuerzel: "KU", aufgaben: null }),
+      expect.objectContaining({
+        kuerzel: "KU",
+        aufgaben: null,
+        offeneAufgaben: null,
+      }),
     ]);
     await setzeRecht(id, "lesen", "ressorts.lesen", false);
     expect((await modus(konten.lesen)).body.ressortRunde).toBeNull();
@@ -1398,5 +1418,159 @@ describe("Datenbanklast", () => {
     const hoecks = await messe("/hoecks");
     expect(await messe("/entscheide")).toBe(hoecks);
     expect(await messe("/traktanden/naechster")).toBe(hoecks);
+  });
+});
+
+describe("Höck-Modus: offene Aufgaben je Ressort (#520)", () => {
+  test("höchstens 50 je Ressort, nur offene, nur dieses Lager, in einer Abfrage unabhängig von der Zahl der Ressorts", async () => {
+    const id = await neuesLager();
+    const anderes = await neuesLager();
+    const h = await neuerHoeck({}, id);
+    const [a, b] = await db
+      .insert(schema.ressort)
+      .values([
+        { lagerId: id, kuerzel: "A", name: "A", reihenfolge: 0, lagerSeq: 0 },
+        { lagerId: id, kuerzel: "B", name: "B", reihenfolge: 1, lagerSeq: 0 },
+      ])
+      .returning({ id: schema.ressort.id });
+    await db.insert(schema.aufgabe).values([
+      ...Array.from({ length: 55 }, (_, i) => ({
+        lagerId: id,
+        ressortId: a!.id,
+        titel: `offen ${String(i).padStart(2, "0")}`,
+        reihenfolge: i,
+        lagerSeq: 0,
+      })),
+      {
+        lagerId: id,
+        ressortId: a!.id,
+        titel: "fertig",
+        status: "erledigt" as const,
+        erledigtAm: new Date(),
+        lagerSeq: 0,
+      },
+      { lagerId: id, ressortId: b!.id, titel: "b1", lagerSeq: 0 },
+    ]);
+    const modus = async () =>
+      anfrage(leiter(), "GET", `${L(id)}/hoecks/${h.id}/modus`);
+    const m = await modus();
+    const [ra, rb] = m.body.ressortRunde;
+    expect(ra.offeneAufgaben).toHaveLength(50);
+    expect(ra.offeneAufgaben[0].titel).toBe("offen 00");
+    expect(
+      ra.offeneAufgaben.map((x: { titel: string }) => x.titel),
+    ).not.toContain("fertig");
+    // Die Zahl aller offenen steht weiter bei den Zahlen: Die App erkennt die Kürzung
+    expect(ra.aufgaben.offen).toBe(55);
+    expect(rb.offeneAufgaben).toEqual([
+      {
+        id: expect.any(String),
+        titel: "b1",
+        status: "offen",
+        verantwortlich: null,
+      },
+    ]);
+    // Aufgaben eines anderen Lagers kommen nie vor
+    await db
+      .insert(schema.aufgabe)
+      .values({ lagerId: anderes, titel: "fremd", lagerSeq: 0 });
+    expect(JSON.stringify((await modus()).body)).not.toContain("fremd");
+    // Abfragen: unabhängig von der Zahl der Ressorts und Aufgaben
+    await modus();
+    const vorher = abfragen;
+    await modus();
+    const n = abfragen - vorher;
+    await db.insert(schema.ressort).values(
+      Array.from({ length: 5 }, (_, i) => ({
+        lagerId: id,
+        kuerzel: `Z${i}`,
+        name: `Z${i}`,
+        reihenfolge: 5 + i,
+        lagerSeq: 0,
+      })),
+    );
+    const vorher2 = abfragen;
+    const m2 = await modus();
+    expect(m2.body.ressortRunde).toHaveLength(7);
+    expect(abfragen - vorher2).toBe(n);
+  });
+
+  test("wer nur eigene Aufgaben lesen darf, sieht nur die eigenen, ohne Aufgaben-Recht gibt es null", async () => {
+    const id = await neuesLager();
+    const h = await neuerHoeck({}, id);
+    const [r] = await db
+      .insert(schema.ressort)
+      .values({ lagerId: id, kuerzel: "K", name: "K", lagerSeq: 0 })
+      .returning({ id: schema.ressort.id });
+    await db.insert(schema.aufgabe).values([
+      {
+        lagerId: id,
+        ressortId: r!.id,
+        titel: "meine",
+        verantwortlichPersonId: konten.leitung.id!,
+        lagerSeq: 0,
+      },
+      { lagerId: id, ressortId: r!.id, titel: "andere", lagerSeq: 0 },
+    ]);
+    const lies = async (konto: PersonaKonto) =>
+      (await anfrage(konto, "GET", `${L(id)}/hoecks/${h.id}/modus`)).body
+        .ressortRunde[0];
+    expect((await lies(konten.leitung)).offeneAufgaben).toHaveLength(2);
+    await setzeRecht(id, "leitung", "aufgaben.lesen_alle", false);
+    await setzeRecht(id, "leitung", "aufgaben.bearbeiten", false);
+    const eigene = await lies(konten.leitung);
+    expect(eigene.aufgaben).toBeNull();
+    expect(
+      eigene.offeneAufgaben.map((x: { titel: string }) => x.titel),
+    ).toEqual(["meine"]);
+    expect(eigene.offeneAufgaben[0].verantwortlich.id).toBe(konten.leitung.id);
+    await setzeRecht(id, "leitung", "aufgaben.eigene", false);
+    expect((await lies(konten.leitung)).offeneAufgaben).toBeNull();
+  });
+});
+
+describe("Dauer je Traktandum (#520)", () => {
+  test("optional, 1 bis 600 Minuten, null löscht sie", async () => {
+    const t = await neuesTraktandum();
+    expect(t.dauerMinuten).toBeNull();
+    const mit = await neuesTraktandum({ dauerMinuten: 15 });
+    expect(mit.dauerMinuten).toBe(15);
+    const a = await anfrage(leiter(), "PATCH", `${L()}/traktanden/${t.id}`, {
+      version: t.version,
+      dauerMinuten: 600,
+    });
+    expect(a.status).toBe(200);
+    expect(a.body.dauerMinuten).toBe(600);
+    const b = await anfrage(leiter(), "PATCH", `${L()}/traktanden/${t.id}`, {
+      version: a.body.version,
+      dauerMinuten: null,
+    });
+    expect(b.body.dauerMinuten).toBeNull();
+    for (const wert of [0, -1, 601, 1.5, "10"]) {
+      const c = await anfrage(leiter(), "POST", `${L()}/traktanden`, {
+        titel: "x",
+        dauerMinuten: wert,
+      });
+      expect([wert, c.status]).toEqual([wert, 400]);
+    }
+  });
+
+  test("die Dauer steht im Höck, im Modus und im Feed-Eintrag der Zeile", async () => {
+    const h = await neuerHoeck();
+    const t = await neuesTraktandum({ hoeckId: h.id, dauerMinuten: 5 });
+    const d = await anfrage(leiter(), "GET", `${L()}/hoecks/${h.id}`);
+    expect(d.body.traktanden[0].dauerMinuten).toBe(5);
+    const m = await anfrage(leiter(), "GET", `${L()}/hoecks/${h.id}/modus`);
+    expect(m.body.hoeck.traktanden[0]).toMatchObject({
+      id: t.id,
+      dauerMinuten: 5,
+    });
+    // Die Datenbank hält die Grenze auch ohne die Route
+    await expect(
+      db
+        .update(schema.traktandum)
+        .set({ dauerMinuten: 0 })
+        .where(eq(schema.traktandum.id, t.id)),
+    ).rejects.toMatchObject({ cause: { code: "23514" } });
   });
 });

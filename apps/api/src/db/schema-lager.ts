@@ -291,6 +291,8 @@ export const ressort = pgTable(
     notiz: text("notiz"),
     parentId: uuid("parent_id"),
     reihenfolge: integer("reihenfolge").notNull().default(0),
+    // Ruhiges Ressort (#520): hat gerade nichts zu tun; die Apps blenden es aus oder zeigen es grau
+    ruhig: boolean("ruhig").notNull().default(false),
   },
   (t) => [
     // Ziel der Fremdschlüssel mit Lager: ein Ressort, ein Unterressort, ein Link oder eine Notiz kann nie ein Ressort eines anderen Lagers meinen
@@ -694,6 +696,8 @@ export const traktandum = pgTable(
     status: text("status", { enum: TRAKTANDUM_STATUS })
       .notNull()
       .default("offen"),
+    // Geplante Dauer in Minuten (#520), optional
+    dauerMinuten: integer("dauer_minuten"),
   },
   (t) => [
     unique("traktandum_lager_id_id_uq").on(t.lagerId, t.id),
@@ -716,6 +720,10 @@ export const traktandum = pgTable(
     check(
       "traktandum_status_check",
       sql`${t.status} in ('offen', 'besprochen')`,
+    ),
+    check(
+      "traktandum_dauer_check",
+      sql`${t.dauerMinuten} is null or ${t.dauerMinuten} between 1 and 600`,
     ),
     check(
       "traktandum_text_check",
@@ -927,7 +935,7 @@ export const teilnehmer = pgTable(
   ],
 );
 
-// Empfänger eines Beitrags: eine Rolle oder eine Person je Zeile. Ohne Zeile gilt der Beitrag für alle Mitglieder. Keine eigenen Feed-Spalten: Die Empfänger gehören zum Beitrag und werden mit ihm gesetzt (die Version des Beitrags steigt dabei)
+// Empfänger eines Beitrags: eine Rolle, eine Person, ein Ressort oder eine Gruppe je Zeile (#520; Ressort und Gruppe ohne Fremdschlüssel, damit ein gelöschtes Ziel den Beitrag nie für alle öffnet, Migration 0107). Ohne Zeile gilt der Beitrag für alle Mitglieder. Keine eigenen Feed-Spalten: Die Empfänger gehören zum Beitrag und werden mit ihm gesetzt (die Version des Beitrags steigt dabei)
 export const pinnwandEmpfaenger = pgTable(
   "pinnwand_empfaenger",
   {
@@ -942,6 +950,8 @@ export const pinnwandEmpfaenger = pgTable(
     personId: uuid("person_id").references(() => user.id, {
       onDelete: "cascade",
     }),
+    ressortId: uuid("ressort_id"),
+    gruppeId: uuid("gruppe_id"),
   },
   (t) => [
     foreignKey({
@@ -955,10 +965,40 @@ export const pinnwandEmpfaenger = pgTable(
     uniqueIndex("pinnwand_empfaenger_person_uq")
       .on(t.beitragId, t.personId)
       .where(sql`${t.personId} is not null`),
+    uniqueIndex("pinnwand_empfaenger_ressort_uq")
+      .on(t.beitragId, t.ressortId)
+      .where(sql`${t.ressortId} is not null`),
+    uniqueIndex("pinnwand_empfaenger_gruppe_uq")
+      .on(t.beitragId, t.gruppeId)
+      .where(sql`${t.gruppeId} is not null`),
     check(
       "pinnwand_empfaenger_check",
-      sql`(${t.rolle} is null) <> (${t.personId} is null) and (${t.rolle} is null or ${t.rolle} in ('leitung', 'team', 'lesen'))`,
+      sql`((case when ${t.rolle} is null then 0 else 1 end) + (case when ${t.personId} is null then 0 else 1 end) + (case when ${t.ressortId} is null then 0 else 1 end) + (case when ${t.gruppeId} is null then 0 else 1 end)) = 1 and (${t.rolle} is null or ${t.rolle} in ('leitung', 'team', 'lesen'))`,
     ),
+  ],
+);
+
+// Wer einen Beitrag geöffnet hat (#520): eine Zeile je Beitrag und Person, Zeitpunkt des ersten Öffnens. Kein Sync-Kern, kein Feed. Die Zeile geht mit dem Beitrag und mit dem Konto
+export const pinnwandGesehen = pgTable(
+  "pinnwand_gesehen",
+  {
+    lagerId: uuid("lager_id").notNull(),
+    beitragId: uuid("beitrag_id").notNull(),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    gesehenAm: timestamp("gesehen_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.beitragId, t.personId] }),
+    foreignKey({
+      name: "pinnwand_gesehen_beitrag_fk",
+      columns: [t.lagerId, t.beitragId],
+      foreignColumns: [pinnwandBeitrag.lagerId, pinnwandBeitrag.id],
+    }).onDelete("cascade"),
+    index("pinnwand_gesehen_person_idx").on(t.personId),
   ],
 );
 
