@@ -15,6 +15,11 @@ import { lagerAnsicht } from "../../lager/ansicht.js";
 import { ereignisverteiler } from "../../lager/ereignisse.js";
 import { istGeschlossen } from "../../lager/policy.js";
 import { schreibeStandardrechte } from "../../lager/rechte.js";
+import {
+  ladeVorlage,
+  planeVorlage,
+  schreibePlan,
+} from "../../lager/vorlagen.js";
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
 
@@ -38,6 +43,8 @@ const anlegenSchema = z.strictObject({
   adresse: adresse.optional(),
   farbe: farbe.optional(),
   logoMediumId: z.uuid().optional(),
+  // Eine Vorlage der eigenen Abteilung (#376): Ihre Aufgaben oder Packlisten-Punkte entstehen mit dem Lager
+  vorlageId: z.uuid().optional(),
 });
 // null leert ein optionales Feld; ohne Schlüssel bleibt der Wert. Anlass und Übung sind bewusst nicht änderbar (eigene Issues)
 const aendernSchema = z.strictObject({
@@ -162,7 +169,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
       if (!person.admin) throw new HTTPException(403);
-      const felder = c.req.valid("json");
+      const { vorlageId, ...felder } = c.req.valid("json");
       if (!zeitraumGueltig(felder)) throw new HTTPException(400);
       if (felder.logoMediumId) {
         await pruefeLogo(db, person.abteilungId, felder.logoMediumId);
@@ -174,6 +181,25 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           .returning({ id: lager.id });
         // Die Rechte der Rollen mit den Standardwerten (#365)
         await schreibeStandardrechte(tx, zeile.id);
+        // Die Vorlage wirkt in derselben Transaktion: Scheitert sie, entsteht kein Lager. Eine fremde oder unbekannte Vorlage ist für diese Route ein 400
+        if (vorlageId) {
+          const v = await ladeVorlage(tx, person.abteilungId, vorlageId);
+          const plan = v && planeVorlage(v, felder.von);
+          if (!plan) throw new HTTPException(400);
+          await schreibePlan(
+            tx,
+            { lagerId: zeile.id, personId: person.id },
+            plan,
+          );
+          await tx.insert(auditLog).values({
+            abteilungId: person.abteilungId,
+            akteurId: person.id,
+            aktion: "vorlage_angewendet",
+            zielTyp: "lager",
+            zielId: zeile.id,
+            details: { vorlageId, art: v.art },
+          });
+        }
         // Kein Inhalt: weder Titel noch Ort
         await tx.insert(auditLog).values({
           abteilungId: person.abteilungId,
