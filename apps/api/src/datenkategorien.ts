@@ -279,6 +279,22 @@ export const KATEGORIEN = {
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
+  lagerTagesseiten: {
+    titel: "Tagesseiten im Lager",
+    zweck:
+      "Pro Lagertag eine Seite führen: wer Tageschef ist, eine Notiz, Hinweise und Ideen des Tages und Verknüpfungen auf Programmbilder im SharePoint der Abteilung. Die Leitung des Lagers pflegt die Seite; die Aufgaben mit Frist an diesem Tag zeigt die Seite aus den Aufgaben des Lagers, und das Wetter des Tages kommt aus dem Wetter des Lagers.",
+    frist: `Bis die Leitung den Block löscht oder das Lager gelöscht wird. Wird ein Tageschef aus dem Lager entfernt oder sein Konto gelöscht, verschwindet die Angabe auf der Seite. ${AUF_ANFRAGE}`,
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
+  lagerWetter: {
+    titel: "Wetter im Lager",
+    zweck:
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerHoeck: {
     titel: "Höcks und Traktanden im Lager",
     zweck:
@@ -599,6 +615,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
+    lagerWetter: ["breite", "laenge"],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -720,6 +737,36 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   lagertag: {
     lager: [...LAGER_BASIS_SPALTEN, "datum", "label"],
+  },
+  // Tagesseiten (#391): Tageschef als Personen-ID, Notiz und Blöcke; das Programmbild ist ein Verweis auf lager_datei
+  tagesseite: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "lagertag_id",
+      "tageschef_person_id",
+      "notiz",
+    ],
+  },
+  tagesseite_block: {
+    lagerTagesseiten: [
+      ...LAGER_BASIS_SPALTEN,
+      "seite_id",
+      "art",
+      "text",
+      "datei_id",
+      "reihenfolge",
+    ],
+  },
+  // Zwischenspeicher des Wetters (#391): Ort und Tageswerte der Vorhersage, keine Personendaten
+  wetter_cache: {
+    lagerWetter: [
+      "lager_id",
+      "breite",
+      "laenge",
+      "abgerufen_am",
+      "versuch_am",
+      "tage",
+    ],
   },
   tagesabschnitt: {
     lager: [...LAGER_BASIS_SPALTEN, "name", "zeit", "reihenfolge"],

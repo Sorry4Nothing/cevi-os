@@ -1,5 +1,9 @@
 import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
+import {
+  holeOpenMeteo,
+  type WetterHolen,
+} from "../../lager/wetter-openmeteo.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleAdressbuchRouten } from "./adressbuch.js";
@@ -34,13 +38,24 @@ import { erstelleTodoRouten } from "./todos.js";
 import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
 import { erstelleZimmerRouten } from "./zimmer.js";
 import { erstelleFahrtenRouten } from "./fahrten.js";
+import { erstelleTagesseitenRouten } from "./tagesseiten.js";
+import { erstelleWetterRouten } from "./wetter.js";
 import { erstelleSchichtplanRouten } from "./schichtplan.js";
 import { erstelleZeitplanRouten } from "./zeitplan.js";
 
 // Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
 // Die Aufgaben-Details stehen vor den Aufgaben: «/aufgaben/duplikate» wäre dort eine Aufgaben-ID
 // fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
-export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
+// wetter holt die Vorhersage für die Tagesseiten (lager/wetter.ts); die Tests spritzen eine Attrappe ein, damit kein Abruf ins Netz geht
+export function erstelleLagerRouten({
+  db,
+  fcm,
+  wetter = holeOpenMeteo,
+}: {
+  db: Db;
+  fcm?: Fcm;
+  wetter?: WetterHolen;
+}) {
   return new Hono<LagerEnv>()
     .route("/", erstelleLagerKernRouten({ db }))
     .route("/", erstelleAenderungenRouten({ db }))
@@ -75,5 +90,7 @@ export function erstelleLagerRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .route("/", erstelleEinkaufRouten({ db }))
     .route("/", erstelleTodoRouten({ db }))
     .route("/", erstelleVorlagenAnwendenRouten({ db }))
-    .route("/", erstelleZeitplanRouten({ db, fcm }));
+    .route("/", erstelleZeitplanRouten({ db, fcm }))
+    .route("/", erstelleTagesseitenRouten({ db, wetter }))
+    .route("/", erstelleWetterRouten({ db, wetter }));
 }
