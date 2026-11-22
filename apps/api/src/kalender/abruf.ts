@@ -1,14 +1,35 @@
 import {
   ADRESSE_UNGUELTIG,
+  ANTWORT_UNGUELTIG,
   antwortMitStatus,
   KalenderFehler,
   NICHT_ERREICHBAR,
 } from "./fehler.js";
 
 const ZEITLIMIT_MS = 30_000;
+export const MAX_BYTES = 10 * 1024 * 1024;
 
-// Holt den iCal-Text unter einem Zeitlimit, ohne Wiederholung; die Adresse ist geheim und steht in keinem Fehlertext.
-// shortcut: keine Obergrenze für die Antwortgrösse, der Kalender einer Abteilung ist klein; bei fremden Quellen begrenzen
+// Liest den Body in Stücken und bricht ab, sobald MAX_BYTES überschritten sind: Der ganze Body landet nie im Speicher
+async function leseGedeckelt(antwort: Response): Promise<string> {
+  const laenge = Number(antwort.headers.get("content-length"));
+  if (laenge > MAX_BYTES) {
+    await antwort.body?.cancel();
+    throw new KalenderFehler(ANTWORT_UNGUELTIG);
+  }
+  if (!antwort.body) return "";
+  const stuecke: Uint8Array[] = [];
+  let summe = 0;
+  for await (const stueck of antwort.body) {
+    summe += stueck.byteLength;
+    if (summe > MAX_BYTES) {
+      throw new KalenderFehler(ANTWORT_UNGUELTIG);
+    }
+    stuecke.push(stueck);
+  }
+  return Buffer.concat(stuecke).toString("utf8");
+}
+
+// Holt den iCal-Text unter einem Zeitlimit und einer Grössengrenze, ohne Wiederholung; die Adresse ist geheim und steht in keinem Fehlertext.
 export async function holeKalender(adresse: string): Promise<string> {
   let url: URL;
   try {
@@ -22,10 +43,11 @@ export async function holeKalender(adresse: string): Promise<string> {
   let text: string;
   try {
     antwort = await fetch(url, { signal: AbortSignal.timeout(ZEITLIMIT_MS) });
-    text = await antwort.text();
+    if (!antwort.ok) throw new KalenderFehler(antwortMitStatus(antwort.status));
+    text = await leseGedeckelt(antwort);
   } catch (fehler) {
+    if (fehler instanceof KalenderFehler) throw fehler;
     throw new KalenderFehler(NICHT_ERREICHBAR, { cause: fehler });
   }
-  if (!antwort.ok) throw new KalenderFehler(antwortMitStatus(antwort.status));
   return text;
 }

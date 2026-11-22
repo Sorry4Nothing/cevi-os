@@ -213,6 +213,7 @@ Eine angemeldete Person ändert eine ID in einer Anfrage, um fremde Chats, Kinde
 | Die Sichtbarkeitsfilter stehen direkt in den SQL-Abfragen, eingeschränkt auf die Abteilung aus der Sitzung | `test/programme.test.ts`: Rechte-Tests der Programme (#29); fremde Chats liefern per ID 404 (#48); Rechte-Tests für fremde Kinder (#36)                             | #10, #29, #48 | geplant |
 
 **Restrisiko:** Der Test prüft nur, was die Matrix erwartet. Ein falscher Erwartungswert fällt erst im Review auf.
+Bewusst hingenommen (#226): Die Admin-Routen laden zuerst das Objekt in der eigenen Abteilung (Fremdabteilung wie unbekannte ID: 404) und prüfen danach das Recht (403). Eine Person ohne Admin-Recht erfährt so, ob eine UUID in der eigenen Abteilung existiert. Das ist vernachlässigbar: IDs sind keine Geheimnisse, die Antwort zeigt keinen Inhalt, und die Reihenfolge ist Teil der Rechte-Matrix.
 
 **OWASP:** ASVS V8 Authorization.
 
@@ -366,6 +367,12 @@ Das Lager-Modul hat ein eigenes Rollenmodell (`lager_mitglied`: Lagerleitung, Le
 - Sicht (SR-11): Das Team sieht nur die eigene Fahrt, in Liste, Einzelabruf (sonst 404) und Änderungsfeed; «Personen ohne Fahrt» gibt es für das Team nicht (403), solange es `einteilung.bearbeiten` nicht hat. Namen der Mitfahrenden kommen erst in der Antwort aus Konto und Teilnehmerliste (nur Vorname, Nachname, Stufe), nie als Kopie.
 - Zuordnung: Fahrer und Mitfahrende sind aktive Mitglieder des Lagers oder Teilnehmende dieses Lagers (400 sonst; fremde Abteilungen und gesperrte Konten zählen nicht). Je Richtung höchstens eine Fahrt je Person (409), geprüft unter der Lagersperre und zusätzlich durch Teilindizes und Fremdschlüssel über Lager, Fahrt und Richtung.
 - Ressourcenverbrauch (SR-71): Seitenwechsel bei der Liste, eine Abfrage je Seite und für «ohne Fahrt», unabhängig von der Zahl der Fahrten (Test zählt Abfragen).
+
+**Erweiterung #388 (Dienste und Schichtplan):**
+
+- Sicht (SR-11): Lesen braucht `einteilung.lesen` (alle Lager-Rollen), Dienste, Schichten und der Vorschlag `einteilung.bearbeiten`. Teilnehmende erscheinen mit Vorname, Nachname und Stufe, nie mit dem Cevi-Namen; abgewählte Teilnehmende, gelöschte, deaktivierte und ausgetretene Konten erscheinen nie und werden nie eingeteilt oder vorgeschlagen.
+- Eingabe (SR-72): strikte Schemas, Namen normalisiert (NFC, ohne Steuerzeichen); höchstens 100 Dienste je Lager, 20 Personen Mindestbesetzung, 50 Personen je Dienst und Tag. Personen, Tage und Dienste anderer Lager sind 404 (zusammengesetzte Fremdschlüssel über `lager_id`).
+- Ressourcenverbrauch (SR-71): Der Vorschlag lädt den Stand mit fünf Abfragen, rechnet in Arbeitsspeicher und schreibt höchstens 2000 Schichten in einem Insert; 10 Läufe je Konto, Lager und Minute (429). Das Übernehmen sperrt das Lager nur für das Schreiben.
 
 **Erweiterung #378 (Höcks):**
 
