@@ -81,4 +81,10 @@ export const ZEILEN: LagerMatrix = {
       abgeschlossen: verwaltungObjekt(409),
     },
   },
+  "DELETE /api/v1/admin/lager/:id": {
+    url: (w, z) => `/api/v1/admin/lager/${w.lagerId(z)}`,
+    // Die Matrix-Lager sind aktiv oder abgeschlossen und lassen sich nie löschen: Die Abteilungsleitung bekommt 409 (nichts verschwindet), alle anderen wie bei den übrigen Verwaltungsrouten. Das Löschen selbst prüft test/lager/loeschen.test.ts
+    body: () => ({ titel: "Matrix-Lager" }),
+    erwartet: gleich(verwaltungObjekt(409)),
+  },
 };
