@@ -1,7 +1,7 @@
 // Alle Aufrufe gegen die eigene Herkunft. Die Sitzung liegt nur im Cookie des Browsers (httpOnly); die Seite speichert nichts davon.
 
 export class ApiFehler extends Error {
-  constructor(status, code, meldung, warten, verwendung) {
+  constructor(status, code, meldung, warten, verwendung, daten) {
     super(code ?? String(status));
     this.status = status;
     this.code = code;
@@ -9,6 +9,8 @@ export class ApiFehler extends Error {
     this.warten = warten;
     // Bei 409 TAG_BELEGT: wie viele Personen den Tag tragen
     this.verwendung = verwendung;
+    // Der ganze Body der Fehlerantwort (409 KONFLIKT des Editors: aktueller Zähler und Dokument; 400 und 422: die Fehler mit Pfad)
+    this.daten = daten;
   }
 
   // Status 0: Die Anfrage kam gar nicht beim Server an
@@ -58,6 +60,7 @@ export async function anfrage(methode, pfad, body) {
       daten?.message,
       antwort.headers.get("X-Retry-After"),
       daten?.verwendung,
+      daten,
     );
   }
   return daten;

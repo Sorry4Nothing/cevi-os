@@ -980,3 +980,100 @@ describe("Rechte", () => {
     expect(z.n).toBe(0);
   });
 });
+
+describe("Vorschau (#358)", () => {
+  const vorschau = (konto: PersonaKonto, id: string, abfrage = "") =>
+    anfrage(konto, "GET", `${BASIS}/${id}/vorschau${abfrage}`);
+
+  test("der gespeicherte Entwurf als Seite: Titel, Text maskiert, Rahmen nur von der eigenen Herkunft, nie zwischengespeichert", async () => {
+    const id = await neueSeite("oeffentlich");
+    await speichere(
+      admin,
+      id,
+      dokument(
+        ueberschrift("<b>Hallo</b>"),
+        baustein("trenner", { art: "linie" }),
+      ),
+      0,
+    );
+    const antwort = await vorschau(admin, id);
+    expect(antwort.status).toBe(200);
+    expect(antwort.headers.get("content-type")).toContain("text/html");
+    expect(antwort.headers.get("cache-control")).toBe("private, no-store");
+    const csp = antwort.headers.get("content-security-policy")!;
+    expect(csp).toContain("frame-ancestors 'self'");
+    expect(csp).not.toContain("frame-ancestors 'none'");
+    expect(csp).not.toContain("script-src");
+    const html = await antwort.text();
+    expect(html).toContain("<h1>Titel</h1>");
+    expect(html).toContain("&lt;b&gt;Hallo&lt;/b&gt;");
+    expect(html).not.toContain("<b>Hallo</b>");
+    // Der Stil kommt aus der Verwaltung, nicht von der Website
+    expect(html).toContain('href="/admin/website-vorschau.css"');
+    expect(html).not.toContain('href="/website/website.css"');
+    expect(html).not.toContain("<script");
+  });
+
+  test("Bausteine mit engerer Sichtbarkeit stehen offen in der Vorschau, nie als Platzhalter", async () => {
+    const id = await neueSeite("oeffentlich");
+    await speichere(
+      admin,
+      id,
+      dokument(
+        baustein(
+          "ueberschrift",
+          { ebene: 2, text: "Nur Angemeldete" },
+          { art: "angemeldet" },
+        ),
+      ),
+      0,
+    );
+    const html = await (await vorschau(admin, id)).text();
+    expect(html).toContain("Nur Angemeldete");
+    expect(html).not.toContain("data-geschuetzt");
+  });
+
+  test("eine Seite ohne Entwurf zeigt nur den Titel; ?version= zeigt eine frühere Version", async () => {
+    const leer = await neueSeite();
+    const leerHtml = await (await vorschau(admin, leer)).text();
+    expect(leerHtml).toContain("<h1>Seite</h1>");
+
+    const id = await neueSeite("oeffentlich");
+    const a = await speichere(
+      admin,
+      id,
+      dokument(ueberschrift("Erste Fassung")),
+      0,
+    );
+    expect((await veroeffentliche(admin, id)).status).toBe(201);
+    const { zaehler } = (await a.json()) as { zaehler: number };
+    await speichere(
+      admin,
+      id,
+      dokument(ueberschrift("Zweite Fassung")),
+      zaehler,
+    );
+    expect(await (await vorschau(admin, id)).text()).toContain(
+      "Zweite Fassung",
+    );
+    expect(await (await vorschau(admin, id, "?version=1")).text()).toContain(
+      "Erste Fassung",
+    );
+    expect((await vorschau(admin, id, "?version=9")).status).toBe(404);
+    expect((await vorschau(admin, id, "?version=0")).status).toBe(400);
+    expect((await vorschau(admin, id, "?version=x")).status).toBe(400);
+    expect((await vorschau(admin, id, "?andere=1")).status).toBe(400);
+  });
+
+  test("dieselben Rechte wie der Entwurf: Fremdabteilung 404, ohne Recht 403, ohne Anmeldung 401", async () => {
+    const id = await neueSeite();
+    expect((await vorschau(demoAdmin, id)).status).toBe(404);
+    expect((await vorschau(eltern, id)).status).toBe(403);
+    expect((await vorschau(slB, id)).status).toBe(403);
+    expect((await vorschau(slA, id)).status).toBe(403);
+    const stufe = await vorschau(slA, stufeSeite);
+    expect(stufe.status).toBe(200);
+    const ohneLogin = await app.request(`${BASIS}/${id}/vorschau`);
+    expect(ohneLogin.status).toBe(401);
+  });
+});

@@ -1210,6 +1210,19 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Vorschau des Entwurfs (#358): dasselbe Recht wie der Entwurf
+  "GET /api/v1/redaktion/seiten/:id/vorschau": {
+    url: () => `/api/v1/redaktion/seiten/${seiteId}/vorschau`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "PUT /api/v1/redaktion/seiten/:id/entwurf": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
     // Der Zähler 0 gilt nur für den ersten Schreiber: Die Stufenleitung A hat das Recht, aber einen veralteten Stand (409)
