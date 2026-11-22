@@ -361,6 +361,8 @@ export const lagerDatei = pgTable(
     groesse: bigint("groesse", { mode: "number" }),
   },
   (t) => [
+    // Ziel des zusammengesetzten Fremdschlüssels von dokument (#396): ein Dokument kann nie auf eine Datei eines anderen Lagers zeigen
+    unique("lager_datei_lager_id_id_uq").on(t.lagerId, t.id),
     index("lager_datei_lager_idx").on(t.lagerId),
     index("lager_datei_erstellt_idx").on(t.erstelltAm),
     check(
@@ -443,6 +445,36 @@ export const anwesenheitAnfrage = pgTable(
     check(
       "anwesenheit_anfrage_notiz_check",
       sql`${t.notiz} is null or char_length(${t.notiz}) between 1 and 500`,
+    ),
+  ],
+);
+
+// Dokument im Lager (#396): ein Titel, ein Verweis auf eine Datei im SharePoint (lager_datei, #370), Stichworte und die Freigabe für das Team. Cevi OS speichert nur den Link, nie den Inhalt. Stichworte als text[] (klein geschrieben, ohne Doppelte, höchstens 20): Sie stehen in derselben Zeile wie das Dokument und kosten in der Liste keine zweite Abfrage; der GIN-Index trägt den Filter «Stichwort». Der Fremdschlüssel auf lager_datei ist RESTRICT und trägt das Lager mit: Der Aufräumlauf (lager/datei-verweise.ts) entfernt nie eine Datei, die ein Dokument einbindet, und ein Dokument zeigt nie auf eine Datei eines anderen Lagers. Geschrieben wird nur über lager/sync.ts
+export const dokument = pgTable(
+  "dokument",
+  {
+    ...lagerSpalten(),
+    titel: text("titel").notNull(),
+    dateiId: uuid("datei_id").notNull(),
+    stichworte: text("stichworte")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // Wer nur dokumente.team_lesen hat (das Team), sieht nur Dokumente mit true
+    teamSichtbar: boolean("team_sichtbar").notNull().default(false),
+  },
+  (t) => [
+    foreignKey({
+      name: "dokument_datei_fk",
+      columns: [t.lagerId, t.dateiId],
+      foreignColumns: [lagerDatei.lagerId, lagerDatei.id],
+    }).onDelete("restrict"),
+    index("dokument_liste_idx").on(t.lagerId, t.id),
+    index("dokument_datei_idx").on(t.dateiId),
+    index("dokument_stichworte_idx").using("gin", t.stichworte),
+    check(
+      "dokument_check",
+      sql`char_length(${t.titel}) between 1 and 200 and cardinality(${t.stichworte}) <= 20 and char_length(array_to_string(${t.stichworte}, ',')) <= 900`,
     ),
   ],
 );

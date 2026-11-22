@@ -7352,6 +7352,312 @@ paths:
   # lager-pfade: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/dokumente:
+    get:
+      operationId: holeLagerDokumente
+      summary: Dokumente des Lagers auflisten (Sammelabfrage)
+      description: |
+        Braucht `dokumente.lesen_alle` (alle Dokumente) oder `dokumente.team_lesen` (nur Dokumente mit `teamSichtbar`); Standard: Lagerleitung, Leitung und Lesen sehen alle, das Team nur die freigegebenen. Die Rechte lassen sich je Lager einstellen. Wer beide hat, sieht alle.
+
+        Die Sicht «Dokumente»: die Dokumente des Lagers, neueste zuerst (sortiert nach ID, absteigend), dazu, soweit andere Module ihre Dateien im Verweisregister des Servers angemeldet haben (Pinnwand, Infos, Protokolle und weitere, sobald sie bestehen), deren Dateien mit `quelle` = Name der Tabelle des Moduls. Von den Dateien anderer Module erscheinen nur die, die ein Datensatz einbindet, den die Person lesen darf; ein Dokument, das eine Datei einbindet, ersetzt dort ihren Eintrag. Heute sind keine anderen Module angemeldet: Die Liste enthält dann nur Dokumente.
+
+        Suche und Filter: `q` sucht ohne Beachtung der Gross- und Kleinschreibung im Titel und in den Stichworten (bei Dateien anderer Module im Anzeigenamen), nie im Inhalt der Datei. `stichwort` filtert nach einem oder mehreren Stichworten (kommagetrennt, höchstens 5; das Dokument muss alle tragen; Dateien anderer Module haben keine Stichworte und entfallen dann). `typ` filtert nach Art (`pdf`, `word`, `excel`, `bild`), nach Ablageort (`sharepoint`, Host `*.sharepoint.com`) oder `link` (alles andere). Die Art folgt dem MIME-Typ oder der Endung des Anzeigenamens; der Server ruft den Link nie ab. Stichworte sind klein geschrieben gespeichert. Die Markierung «neu» setzt die App aus `erstelltAm` und dem eigenen letzten Besuch; der Server speichert sie nicht.
+
+        Datenbanklast: eine gebündelte Abfrage je Seite für die Dokumente samt Dateien (Join), dazu nur wenn andere Module Dateien angemeldet haben und kein Stichwort gefiltert wird: eine für deren Dateien und eine je angemeldetem Modul für die Sichtbarkeit. Seitenwechsel über `nach` und `limit`. Eine Seite kann kürzer sein als `limit`, auch leer, und trotzdem ein `naechster` haben, wenn Dateien anderer Module für die Person unsichtbar sind; die App fragt dann weiter, bis `naechster` leer ist.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne eines der beiden Leserechte. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: q
+          in: query
+          required: false
+          description: Suchtext für Titel und Stichworte (1 bis 100 Zeichen).
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: stichwort
+          in: query
+          required: false
+          description: Ein oder mehrere Stichworte, kommagetrennt, höchstens 5.
+          schema:
+            type: string
+            maxLength: 300
+        - name: typ
+          in: query
+          required: false
+          description: Art oder Ablageort.
+          schema:
+            type: string
+            enum: [pdf, word, excel, bild, sharepoint, link]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Einträge je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Dokumente.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokumentSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeLagerDokumentAn
+      summary: Dokument anlegen
+      description: |
+        Braucht das Recht `dokumente.bearbeiten` (Standard: Lagerleitung und Leitung). Schreibt über den Sync-Kern: Die Zeile bekommt Version 1, eine Folgenummer und einen Eintrag im Änderungsfeed.
+
+        Das Dokument verweist auf eine Verknüpfung aus `POST /lager/{id}/dateien` (dort läuft die Link-Prüfung; der Server speichert nie einen Inhalt und ruft den Link nie ab). Die Datei muss zu diesem Lager gehören und für die Person sichtbar sein (sie hat sie in den letzten 24 Stunden selbst hinzugefügt oder sie hängt an einem Datensatz, den die Person lesen darf); sonst 400 `DATEI_UNBEKANNT`. Stichworte werden klein geschrieben und ohne Doppelte gespeichert (höchstens 20, je 1 bis 40 Zeichen, ohne Komma). Ohne Angabe ist das Dokument nicht für das Team freigegeben.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder `DATEI_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDokumentAnlegen"
+      responses:
+        "201":
+          description: Das neue Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/dokumente/{dokumentId}:
+    get:
+      operationId: holeLagerDokument
+      summary: Dokument lesen
+      description: |
+        Braucht `dokumente.lesen_alle` oder `dokumente.team_lesen`. Wer nur `dokumente.team_lesen` hat, sieht nur Dokumente mit `teamSichtbar`; ein anderes Dokument gibt es für diese Person nicht (404).
+
+        Öffnen und Herunterladen gehen über `datei.link` direkt zum Ablageort; der Ablageort regelt, wer die Datei öffnen darf. Ist die Verknüpfung gelöscht, ist `datei` null.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Eingabe (400), Dokument (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne eines der beiden Leserechte. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung, ohne Mitgliedschaft oder für das Team ohne Freigabe.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereLagerDokument
+      summary: Dokument ändern
+      description: |
+        Braucht das Recht `dokumente.bearbeiten`. Schreibt über den Sync-Kern: Jede Änderung zählt die Version der Zeile hoch, kommt in den Änderungsfeed und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst, mit dem aktuellen Stand und den abweichenden Feldern).
+
+        Nur die genannten Felder ändern sich; `stichworte` ersetzt die Liste ganz. Mit `dateiId` zeigt das Dokument auf eine andere Verknüpfung (Prüfung wie beim Anlegen); die bisherige Verknüpfung entfällt nach 24 Stunden, wenn kein Datensatz sie einbindet. Wer ein Dokument nicht sehen darf (Leserechte), bekommt 404.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Dokument (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `DATEI_UNBEKANNT`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDokumentAendern"
+      responses:
+        "200":
+          description: Das geänderte Dokument.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDokument"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`, mit dem aktuellen Stand und den abweichenden Feldern).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheLagerDokument
+      summary: Dokument löschen
+      description: |
+        Braucht das Recht `dokumente.bearbeiten`. Schreibt über den Sync-Kern und braucht die zuletzt gesehene `version` (409 `VERSION_KONFLIKT` sonst).
+
+        Weiches Löschen: Die Zeile bleibt (Papierkorb), der Feed meldet «geloescht». Die Datei am Ablageort bleibt immer; die Verknüpfung in Cevi OS bleibt mit dem Dokument im Papierkorb. Das endgültige Löschen folgt mit dem Papierkorb.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Dokument (404).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Dokument, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: dokumentId
+          in: path
+          required: true
+          description: ID des Dokuments (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: version
+          in: query
+          required: true
+          description: Die Version, die die App zuletzt gesehen hat.
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        "204":
+          description: Dokument gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`) oder die `version` ist veraltet (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # lager-pfade: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -11816,6 +12122,130 @@ components:
     # lager-schemas: wetter (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aggregate (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: dokumente (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerDokument:
+      description: "Ein Eintrag der Sammelabfrage: ein Dokument oder die Datei eines anderen Moduls. Kein Inhalt; der Server ruft den Link nie ab."
+      type: object
+      additionalProperties: false
+      required:
+        - quelle
+        - id
+        - version
+        - titel
+        - stichworte
+        - teamSichtbar
+        - datei
+        - art
+        - sharepoint
+        - erstelltAm
+      properties:
+        quelle:
+          description: "`dokument` oder der Name der Tabelle des Moduls, das die Datei einbindet. Bei einer Datei eines anderen Moduls ist `id` die ID der Datei, `version` und `teamSichtbar` sind null und die Stichworte leer."
+          type: string
+        id:
+          type: string
+          format: uuid
+        version:
+          description: "Zeilenversion; steigt bei jeder Änderung um 1. Die App schickt die zuletzt gesehene mit jeder Änderung."
+          type: [integer, "null"]
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        stichworte:
+          description: "Klein geschrieben, ohne Doppelte, höchstens 20."
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          description: "Ob das Team das Dokument sieht."
+          type: [boolean, "null"]
+        datei:
+          description: "Die Verknüpfung auf die Datei; null, wenn sie gelöscht ist."
+          oneOf:
+            - $ref: "#/components/schemas/LagerDatei"
+            - type: "null"
+        art:
+          description: "Art der Datei nach MIME-Typ oder Endung; `link` für alles andere. Null, wenn die Datei gelöscht ist."
+          type: [string, "null"]
+          enum: [pdf, word, excel, bild, link, null]
+        sharepoint:
+          description: "Ob der Link auf einem SharePoint-Host (`*.sharepoint.com`) liegt. Null, wenn die Datei gelöscht ist."
+          type: [boolean, "null"]
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerDokumentSeite:
+      description: "Eine Seite der Sammelabfrage."
+      type: object
+      additionalProperties: false
+      required:
+        - dokumente
+        - naechster
+      properties:
+        dokumente:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerDokument"
+        naechster:
+          description: "Cursor für die nächste Seite (Parameter `nach`); null, wenn es keine weitere gibt. Die Seite kann leer sein und trotzdem einen Cursor haben."
+          type: [string, "null"]
+          format: uuid
+    LagerDokumentAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - titel
+        - dateiId
+      properties:
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        dateiId:
+          description: "ID einer Verknüpfung aus `POST /lager/{id}/dateien`."
+          type: string
+          format: uuid
+        stichworte:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          description: "Vorgabe false."
+          type: boolean
+    LagerDokumentAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 2
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 200
+        dateiId:
+          type: string
+          format: uuid
+        stichworte:
+          description: "Ersetzt die Liste."
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        teamSichtbar:
+          type: boolean
     # lager-schemas: adressbuch (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: wissen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: suche (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)

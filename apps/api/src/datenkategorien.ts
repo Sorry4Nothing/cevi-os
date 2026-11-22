@@ -147,6 +147,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerDokumente: {
+    titel: "Dokumente im Lager",
+    zweck:
+      "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
+    frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerBenachrichtigung: {
     titel: "Benachrichtigungen im Lager",
     zweck:
@@ -401,6 +409,16 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "link",
       "typ",
       "groesse",
+    ],
+  },
+  // Dokumente (#396): Titel, Verweis auf die Datei, Stichworte, Freigabe für das Team
+  dokument: {
+    lagerDokumente: [
+      ...LAGER_BASIS_SPALTEN,
+      "titel",
+      "datei_id",
+      "stichworte",
+      "team_sichtbar",
     ],
   },
   // Ressorts (#371): Leitung und Stellvertretung als Personen-IDs, die Notiz nennt über erstellt_von, wer sie schrieb
