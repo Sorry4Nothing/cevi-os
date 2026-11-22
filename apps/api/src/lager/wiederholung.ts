@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import {
   aufgabe,
   aufgabeCheckpunkt,
@@ -10,7 +10,7 @@ import { legeZeileAn, legeZeilenAn, type Tx } from "./sync.js";
 // Meldet die Tabellen der Details im Sync-Kern an, bevor die Folgeaufgabe sie beschreibt (Zyklus mit aufgaben.ts, harmlos: beide nutzen die andere Seite nur in Funktionen)
 import "./aufgaben-details.js";
 
-// Wiederholung einer Aufgabe (#373): Wird eine Aufgabe mit `wiederholung` erledigt, legt der Server die nächste an. Sie bekommt dieselben Angaben, die Frist verschoben, einen Status «offen» und eine Checkliste mit allen Punkten offen. Genau einmal je Aufgabe: Die Folgeaufgabe trägt die ID der Vorgängerin in `quelle`, und wer die Aufgabe wieder öffnet und erneut erledigt (oder wessen Anfrage doppelt eintrifft), bekommt keine zweite. Die Prüfung gilt auch für eine gelöschte Folgeaufgabe: Wer sie löscht, will sie nicht noch einmal.
+// Wiederholung einer Aufgabe (#373): Wird eine Aufgabe mit `wiederholung` erledigt, legt der Server die nächste an. Sie bekommt dieselben Angaben, die Frist verschoben, einen Status «offen» und eine Checkliste mit allen Punkten offen. Genau einmal je Aufgabe: Die Folgeaufgabe trägt die ID der Vorgängerin in `quelle`, und wer die Aufgabe wieder öffnet und erneut erledigt (oder wessen Anfrage doppelt eintrifft), bekommt keine zweite. Löschen ist endgültig (#427): Eine gelöschte Folgeaufgabe hinterlässt nichts, die Prüfung findet sie nicht mehr, und wer die Aufgabe danach wieder erledigt, bekommt eine neue Folge.
 
 export type Wiederholung = "w1" | "w2" | "m1";
 
@@ -55,7 +55,7 @@ export async function legeFolgeAufgabeAn(
   const [ende] = await tx
     .select({ n: sql<number>`coalesce(max(${aufgabe.reihenfolge}) + 1, 0)` })
     .from(aufgabe)
-    .where(and(eq(aufgabe.lagerId, k.lagerId), isNull(aufgabe.geloeschtAm)));
+    .where(and(eq(aufgabe.lagerId, k.lagerId)));
   const folge = await legeZeileAn(tx, aufgabe, k, {
     titel: alt.titel,
     ressortId: alt.ressortId,
@@ -84,19 +84,12 @@ export async function legeFolgeAufgabeAn(
         reihenfolge: aufgabeCheckpunkt.reihenfolge,
       })
       .from(aufgabeCheckpunkt)
-      .where(
-        and(
-          eq(aufgabeCheckpunkt.aufgabeId, alt.id),
-          isNull(aufgabeCheckpunkt.geloeschtAm),
-        ),
-      )
+      .where(and(eq(aufgabeCheckpunkt.aufgabeId, alt.id)))
       .orderBy(asc(aufgabeCheckpunkt.reihenfolge), asc(aufgabeCheckpunkt.id)),
     tx
       .select({ titel: aufgabeLink.titel, url: aufgabeLink.url })
       .from(aufgabeLink)
-      .where(
-        and(eq(aufgabeLink.aufgabeId, alt.id), isNull(aufgabeLink.geloeschtAm)),
-      )
+      .where(and(eq(aufgabeLink.aufgabeId, alt.id)))
       .orderBy(asc(aufgabeLink.id)),
     tx
       .select({ stichwort: aufgabeStichwort.stichwort })

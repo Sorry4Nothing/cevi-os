@@ -7,10 +7,19 @@ import {
   einkaufVorschlag,
 } from "../db/schema.js";
 import type { Tx } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Einkaufsliste des Lagers (#392): Normalisierung der Namen, Ableitung der Warengruppe, Ansicht und Eingabeschemas. Die Tabelle ist beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit einkauf.lesen); einen Zeilenfilter gibt es nicht, jede Rolle mit dem Recht liest die ganze Liste.
 registriereLagerTabelle({ tabelle: einkaufArtikel, recht: "einkauf.lesen" });
+// Suche (#399): der Name des Artikels, wie ihn die ganze Liste zeigt
+registriereSuchquelle({
+  typ: "einkauf",
+  recht: "einkauf.lesen",
+  tabelle: einkaufArtikel,
+  spalten: [einkaufArtikel.name],
+  titel: sql`${einkaufArtikel.name}`,
+});
 
 export type Warengruppe = (typeof EINKAUF_WARENGRUPPEN)[number];
 

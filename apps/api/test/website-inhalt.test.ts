@@ -94,7 +94,7 @@ const dok = (titel: string, ...bausteine: unknown[]) => ({
 const angemeldet = { sichtbarkeit: { art: "angemeldet" } };
 const nurTag = () => ({ sichtbarkeit: { art: "tags", tagIds: [tagId] } });
 
-// Eine veröffentlichte Seite direkt in der Datenbank (die Routen der Redaktion testet #350)
+// Eine veröffentlichte Seite direkt in der Datenbank (die Routen der Website-Verwaltung testet #350)
 async function seite(
   adresse: string,
   sichtbarkeit: "oeffentlich" | "angemeldet" | "tags",
@@ -261,17 +261,29 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
   });
 
   test("Nachladen verändert nichts: Seiten und Versionen bleiben gleich", async () => {
-    const vorher = JSON.stringify([
-      await db.select().from(schema.seite),
-      await db.select().from(schema.seiteVersion),
-    ]);
+    // Nur die Seiten dieser Abteilung: Andere Testdateien legen gleichzeitig Seiten an
+    const stand = async () =>
+      JSON.stringify([
+        await db
+          .select()
+          .from(schema.seite)
+          .where(eq(schema.seite.abteilungId, welt.testabteilungId))
+          .orderBy(schema.seite.id),
+        await db
+          .select({ v: schema.seiteVersion })
+          .from(schema.seiteVersion)
+          .innerJoin(
+            schema.seite,
+            eq(schema.seite.id, schema.seiteVersion.seiteId),
+          )
+          .where(eq(schema.seite.abteilungId, welt.testabteilungId))
+          .orderBy(schema.seiteVersion.id),
+      ]);
+    const vorher = await stand();
     await inhalt(admin, pfad);
     await inhalt(elternA, pfad);
     await inhalt(ohneLogin, pfad);
-    const nachher = JSON.stringify([
-      await db.select().from(schema.seite),
-      await db.select().from(schema.seiteVersion),
-    ]);
+    const nachher = await stand();
     expect(nachher).toBe(vorher);
   });
 });

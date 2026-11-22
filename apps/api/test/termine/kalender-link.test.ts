@@ -396,7 +396,7 @@ describe("Keine Token in Logs", () => {
     const zeilenImLog = ausgabe.mock.calls.map(([z]) => String(z));
     expect(zeilenImLog.length).toBeGreaterThan(0);
     for (const z of zeilenImLog) expect(z).not.toContain(neu.token);
-    // Auch nicht die Endung zusammen mit einem Pfad
-    expect(zeilenImLog.join("\n")).not.toContain("/ical/");
+    // Der Feed (#438) steht mit seinem Routenmuster im Log, nie mit einem Pfad
+    expect(zeilenImLog.join("\n")).not.toMatch(/\/ical\/[A-Za-z0-9_-]{4,}/);
   });
 });

@@ -774,8 +774,8 @@ describe("Dateien", () => {
       .select()
       .from(schema.pinnwandDatei)
       .where(eq(schema.pinnwandDatei.beitragId, b.id));
-    expect(zeilen.filter((z) => z.geloeschtAm === null)).toHaveLength(2);
-    expect(zeilen.filter((z) => z.geloeschtAm !== null)).toHaveLength(2);
+    // Die entfernten Verweise sind endgültig weg
+    expect(zeilen).toHaveLength(2);
     // Ohne dateiIds bleibt alles
     const f = await anfrage(
       konten.lagerleitung,
@@ -839,7 +839,7 @@ describe("Dateien", () => {
       .update(schema.lagerDatei)
       .set({ erstelltAm: new Date(Date.now() - 48 * 3_600_000) })
       .where(and(eq(schema.lagerDatei.lagerId, lagerId)));
-    await raeumeDateienOhneVerweisAuf(db);
+    await raeumeDateienOhneVerweisAuf(db, undefined, lagerId);
     const rest = await db
       .select({ id: schema.lagerDatei.id })
       .from(schema.lagerDatei)
@@ -881,7 +881,6 @@ describe("Schreiben und Sync", () => {
     expect(b.von.id).toBe(konten.lagerleitung.id);
     // Keine Systemspalten
     expect(Object.keys(b)).not.toContain("lagerSeq");
-    expect(Object.keys(b)).not.toContain("geloeschtAm");
 
     const p = await anfrage(
       konten.lagerleitung,
@@ -943,7 +942,7 @@ describe("Schreiben und Sync", () => {
     ).toBe(404);
     expect(await titel("lagerleitung", lagerId)).not.toContain("Danach");
 
-    // Feed für das Team: neu, geändert, gelöscht, nur Typ, ID und Version
+    // Feed für das Team: Die Zeile gibt es nicht mehr, «neu» und «geaendert» durchlaufen den Zeilenfilter nicht; «geloescht» nennt nur Typ, ID und Version
     const feed = await anfrage(
       konten.team,
       "GET",
@@ -952,14 +951,10 @@ describe("Schreiben und Sync", () => {
     const meinen = feed.body.eintraege.filter(
       (e: { id: string }) => e.id === b.id,
     );
-    expect(meinen.map((e: { art: string }) => e.art)).toEqual([
-      "neu",
-      "geaendert",
-      "geloescht",
-    ]);
+    expect(meinen.map((e: { art: string }) => e.art)).toEqual(["geloescht"]);
     expect(meinen[0]).toMatchObject({
       objekttyp: "pinnwand_beitrag",
-      version: 1,
+      version: 3,
     });
     expect(Object.keys(meinen[0]).sort()).toEqual([
       "art",

@@ -1,0 +1,14 @@
+$kind: http-request
+name: "GET /admin/website-medien.js"
+order: 34000
+method: GET
+url: "{{baseUrl}}/admin/website-medien.js"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

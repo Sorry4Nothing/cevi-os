@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleApp } from "../../src/app.js";
@@ -120,22 +120,12 @@ const aufgabenImLager = (lagerId: string) =>
   db
     .select()
     .from(schema.aufgabe)
-    .where(
-      and(
-        eq(schema.aufgabe.lagerId, lagerId),
-        isNull(schema.aufgabe.geloeschtAm),
-      ),
-    );
+    .where(and(eq(schema.aufgabe.lagerId, lagerId)));
 const punkteImLager = (lagerId: string) =>
   db
     .select()
     .from(schema.packlistePunkt)
-    .where(
-      and(
-        eq(schema.packlistePunkt.lagerId, lagerId),
-        isNull(schema.packlistePunkt.geloeschtAm),
-      ),
-    );
+    .where(and(eq(schema.packlistePunkt.lagerId, lagerId)));
 const seqVon = async (lagerId: string) =>
   (
     await db

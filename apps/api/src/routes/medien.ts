@@ -123,7 +123,7 @@ type Kontext = Context<{ Variables: { person: Person } }>;
 // Darf die Person dieses Medium löschen oder beschreiben? Die Handler fragen erst nach der Abteilung (404), dann hier (403)
 type Darf = (person: Person, m: Zeile) => boolean | Promise<boolean>;
 
-// Die Handler der Medien, von der Admin- und der Redaktions-Variante geteilt (#353): Beide Routen prüfen nur den Zugang selbst, alles andere liegt hier. Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
+// Die Handler der Medien, von der Admin- und der Editor-Variante geteilt (#353): Beide Routen prüfen nur den Zugang selbst, alles andere liegt hier. Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
 export function erstelleMedienHandler({
   db,
   speicher,

@@ -1,0 +1,26 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/zeitplan/uebernehmen"
+order: 376000
+method: POST
+url: "{{baseUrl}}{{pfad_L219}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "lagertage": [
+        {
+          "datum": "2027-07-24"
+        }
+      ]
+    }

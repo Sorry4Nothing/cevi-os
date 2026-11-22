@@ -51,3 +51,43 @@ export async function pushNeuerVorschlag(
     log(c, { ereignis: "push" });
   }
 }
+
+// Fester Text je Entscheid, nie der Titel des Vorschlags und nie die Begründung (sie steht in der App im Vorschlag)
+const ENTSCHEID_TEXT = {
+  freigegeben: "Dein Vorschlag ist freigegeben.",
+  abgelehnt: "Dein Vorschlag ist abgelehnt.",
+} as const;
+
+// Push «termin_entscheid» an die vorschlagende Person, nur wenn ihr Konto noch aktiv ist. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für das Konto, dann die von sendePush
+export async function pushEntscheid(
+  { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
+  {
+    abteilungId,
+    vorschlagId,
+    vonId,
+    entscheid,
+  }: {
+    abteilungId: string;
+    vorschlagId: string;
+    vonId: string | null;
+    entscheid: keyof typeof ENTSCHEID_TEXT;
+  },
+): Promise<void> {
+  if (!fcm || !vonId) return;
+  try {
+    const [konto] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(aktivesKonto(abteilungId), eq(user.id, vonId)));
+    if (!konto) return;
+    await sendePush({ db, fcm, c }, [konto.id], {
+      typ: "termin_entscheid",
+      id: vorschlagId,
+      titel: TERMINE_PUSH_ARTEN.termin_entscheid.titel,
+      text: ENTSCHEID_TEXT[entscheid],
+    });
+  } catch {
+    // Nur die Tatsache, nie die Meldung: Drizzles message trägt die SQL-Parameter
+    log(c, { ereignis: "push" });
+  }
+}

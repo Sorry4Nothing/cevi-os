@@ -477,7 +477,7 @@ describe("Artikel anlegen, ändern, löschen", () => {
     expect(offen.body.erledigt).toBe(false);
   });
 
-  test("löschen entfernt aus Liste und Einzelabruf, die Zeile bleibt weich gelöscht", async () => {
+  test("löschen entfernt aus Liste und Einzelabruf, die Zeile ist endgültig weg", async () => {
     const id = await frischesLager();
     const a = await neu(id, { name: "Reis" });
     const del = await anfrage(leiter(), "DELETE", `${E(id)}/${a.id}?version=1`);
@@ -489,11 +489,12 @@ describe("Artikel anlegen, ändern, löschen", () => {
       0,
     );
     expect((await zusammen(id)).artikel).toHaveLength(0);
-    const [zeile] = await db
-      .select()
-      .from(schema.einkaufArtikel)
-      .where(eq(schema.einkaufArtikel.id, a.id));
-    expect(zeile!.geloeschtAm).not.toBeNull();
+    expect(
+      await db.$count(
+        schema.einkaufArtikel,
+        eq(schema.einkaufArtikel.id, a.id),
+      ),
+    ).toBe(0);
     // Nochmals löschen: 404
     expect(
       (await anfrage(leiter(), "DELETE", `${E(id)}/${a.id}?version=2`)).status,

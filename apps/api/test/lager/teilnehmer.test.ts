@@ -365,8 +365,6 @@ describe("Datenschutz: keine Gesundheitsdaten", () => {
         "erstelltVon",
         "geaendertAm",
         "geaendertVon",
-        "geloeschtAm",
-        "geloeschtVon",
         "id",
         "kindId",
         "lagerId",
@@ -545,7 +543,7 @@ describe("Erfassen, ändern, löschen", () => {
     ).toBe(400);
   });
 
-  test("löschen ist ein Soft-Delete: weg aus Liste und Abzählen, Feed meldet «geloescht»", async () => {
+  test("löschen ist endgültig: weg aus Liste, Abzählen und Tabelle, Feed meldet «geloescht»", async () => {
     const id = await frischesLager();
     const t = await neu({}, id);
     await anfrage(leiter(), "PUT", `${L(id)}/abzaehlen`, {
@@ -584,7 +582,7 @@ describe("Erfassen, ändern, löschen", () => {
       .select()
       .from(schema.teilnehmer)
       .where(eq(schema.teilnehmer.id, t.id));
-    expect(zeile[0]!.geloeschtAm).not.toBeNull();
+    expect(zeile).toHaveLength(0);
     const art = (await feed(id, "teilnehmer")).map((e) => e.art);
     expect(art).toEqual(["neu", "geloescht"]);
   });
@@ -1024,7 +1022,6 @@ describe("Abzählen", () => {
     )[0]!;
     expect(zeile).toMatchObject({
       version: 1,
-      geloeschtAm: null,
       vorname: "Anna",
       stufe: "Wolf",
     });
@@ -1239,8 +1236,8 @@ describe("Löschen nach dem Lager", () => {
       "2020-01-01",
     );
     for (const id of [alt, grenze, neuer, leer]) await mitgliederEintragen(id);
-    // Zwei Teilnehmende im alten Lager (einer im Papierkorb), je einer in den anderen
-    const einfuegen = async (id: string, n: number, geloescht = false) => {
+    // Drei Teilnehmende im alten Lager, je einer in den anderen
+    const einfuegen = async (id: string, n: number) => {
       const zeilen = await db
         .insert(schema.teilnehmer)
         .values(
@@ -1249,14 +1246,13 @@ describe("Löschen nach dem Lager", () => {
             vorname: `Kind${i}`,
             nachname: "Alt",
             lagerSeq: 0,
-            geloeschtAm: geloescht ? new Date() : null,
           })),
         )
         .returning({ id: schema.teilnehmer.id });
       return zeilen.map((z) => z.id);
     };
     const [a1] = await einfuegen(alt, 2);
-    await einfuegen(alt, 1, true);
+    await einfuegen(alt, 1);
     await einfuegen(grenze, 1);
     await einfuegen(neuer, 1);
     await db.insert(schema.abzaehlen).values({

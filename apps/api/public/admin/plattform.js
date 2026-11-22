@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import {
   aktionenZelle,
+  ankreuzen,
   bestaetigen,
   chip,
   dialogFormular,
@@ -11,10 +12,14 @@ import {
   zeit,
 } from "./dom.js";
 
-// Bereich «Plattform» (#424): Wartungsmodus je Bereich schalten und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche»); jede Schaltung prüft er selbst.
+// Bereich «Plattform» (#424 Wartungsmodus, #425 Informationssperre): Schalter je Bereich setzen und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche», «darfSperre»); jede Schaltung prüft er selbst.
 const BEREICHE = [
   ["alles", "Alles", "Jeder Bereich von Cevi OS."],
-  ["website", "Website", "Seiten und Medien der Website, die Redaktion."],
+  [
+    "website",
+    "Website",
+    "Seiten, Medien, Weiterleitungen und Vorlagen der Website.",
+  ],
   ["lager", "Lager", "Das Lager-Modul und seine Verwaltung."],
   ["chat", "Chat", "Die Chats der App."],
   ["programme", "Programme und Termine", "Programme, Anmeldungen, Termine."],
@@ -38,7 +43,7 @@ function alsLokal(iso) {
   return `${d.getFullYear()}-${zweistellig(d.getMonth() + 1)}-${zweistellig(d.getDate())}T${zweistellig(d.getHours())}:${zweistellig(d.getMinutes())}`;
 }
 
-function dialog({ eintrag, schalter, ctx, neu }) {
+function wartungDialog({ eintrag, schalter, ctx, neu }) {
   const [schluessel, name] = eintrag;
   const hinweis = feld({
     label: "Hinweistext",
@@ -82,7 +87,7 @@ function dialog({ eintrag, schalter, ctx, neu }) {
   });
 }
 
-function aufheben(eintrag, ctx, neu) {
+function wartungAufheben(eintrag, ctx, neu) {
   const [schluessel, name] = eintrag;
   bestaetigen({
     titel: `Wartung aufheben: ${name}`,
@@ -101,26 +106,100 @@ function aufheben(eintrag, ctx, neu) {
   });
 }
 
-function zeichne(bereich, ctx, daten, neu) {
-  const wartung = new Map(
-    daten.schalter
-      .filter((s) => s.art === "wartung")
-      .map((s) => [s.bereich, s]),
+function sperreDialog({ eintrag, daten, ctx, neu }) {
+  const [schluessel, name] = eintrag;
+  const hinweis = feld({
+    label: "Notiz (optional)",
+    mehrzeilig: true,
+    rows: 3,
+    maxlength: 500,
+    hilfe:
+      "Nur für Entwickler und Abteilungsleitung sichtbar, zum Beispiel der Anlass. Alle anderen sehen nur «vorübergehend nicht verfügbar». Keine Namen schreiben.",
+  });
+  const sitzungen = ankreuzen({
+    label: "Alle Sitzungen der Abteilung beenden (deine bleibt)",
+  });
+  // Nur, wo es eine Website gibt, die sich vom Netz nehmen lässt
+  const website = ankreuzen({
+    label: "Öffentliche Website vom Netz nehmen",
+  });
+  const mitWebsite =
+    daten.websiteVorhanden &&
+    (schluessel === "website" || schluessel === "alles");
+  dialogFormular({
+    titel: `Informationssperre auslösen: ${name}`,
+    beschreibung:
+      "Die API liefert dann keine Inhalte dieses Bereichs mehr (423), auch nicht der Abteilungsleitung. Nur Entwickler und Abteilungsleitung heben die Sperre wieder auf.",
+    felder: [
+      hinweis.wurzel,
+      sitzungen.wurzel,
+      ...(mitWebsite ? [website.wurzel] : []),
+    ],
+    ok: "Informationssperre auslösen",
+    gefaehrlich: true,
+    senden: () =>
+      anfrage("PUT", "/api/v1/plattform/schalter", {
+        art: "sperre",
+        bereich: schluessel,
+        hinweis: hinweis.eingabe.value.trim() || null,
+        sitzungenBeenden: sitzungen.eingabe.checked,
+        websiteOffline: mitWebsite && website.eingabe.checked,
+      }),
+    danach: (antwort) => {
+      neu();
+      const teile = [`${name} ist gesperrt.`];
+      if (antwort?.sitzungenBeendet != null) {
+        teile.push(`${antwort.sitzungenBeendet} Sitzungen beendet.`);
+      }
+      if (antwort?.websiteOffline) {
+        teile.push(
+          antwort.websiteVomNetz
+            ? "Die öffentliche Website ist vom Netz."
+            : "Die öffentliche Website liess sich nicht vom Netz nehmen. Prüfe sie von Hand.",
+        );
+      }
+      ctx.melde(
+        teile.join(" "),
+        antwort?.websiteOffline && !antwort.websiteVomNetz ? "fehler" : "ok",
+      );
+    },
+  });
+}
+
+function sperreAufheben(eintrag, ctx, neu) {
+  const [schluessel, name] = eintrag;
+  bestaetigen({
+    titel: `Informationssperre aufheben: ${name}`,
+    beschreibung:
+      "Der Bereich liefert sofort wieder Inhalte. Beendete Sitzungen kommen nicht zurück: Die Personen melden sich neu an.",
+    ok: "Sperre aufheben",
+    gefaehrlich: false,
+    aktion: () =>
+      anfrage(
+        "DELETE",
+        `/api/v1/plattform/schalter?art=sperre&bereich=${schluessel}`,
+      ),
+    danach: () => {
+      neu();
+      ctx.melde(`${name} ist wieder freigegeben.`);
+    },
+  });
+}
+
+// Eine Tabelle je Art: art «wartung» oder «sperre»; der Zustand steht im Wort und als Symbol, nie nur über Farbe
+function zustandsTabelle({ art, eintraege, schalter, ctx, daten, neu }) {
+  const istSperre = art === "sperre";
+  const nachBereich = new Map(
+    schalter.filter((s) => s.art === art).map((s) => [s.bereich, s]),
   );
-  const sichtbar = BEREICHE.filter(([s]) => daten.bereiche.includes(s));
-  bereich.append(
-    el(
-      "p",
-      { class: "meta" },
-      "Im Wartungsmodus ist ein Bereich nur lesbar. Schreibende Anfragen und Bearbeitungsansichten antworten mit dem Hinweistext; Abteilungsleitung und Entwickler arbeiten weiter.",
-    ),
-  );
-  const { wurzel } = tabelle({
-    beschriftung: "Wartungsmodus je Bereich",
+  return tabelle({
+    beschriftung: istSperre
+      ? "Informationssperre je Bereich"
+      : "Wartungsmodus je Bereich",
     spalten: ["Bereich", "Zustand", "Aktionen"],
-    zeilen: sichtbar.map((eintrag) => {
+    zeilen: eintraege.map((eintrag) => {
       const [schluessel, name, beschreibung] = eintrag;
-      const schalter = wartung.get(schluessel);
+      const aktiv = nachBereich.get(schluessel);
       return el(
         "tr",
         {},
@@ -133,48 +212,120 @@ function zeichne(bereich, ctx, daten, neu) {
         el(
           "td",
           {},
-          schalter
+          aktiv
             ? [
-                el("ul", { class: "chips" }, chip("In Wartung", "warn", "uhr")),
-                schalter.hinweis &&
-                  el("p", { class: "klein" }, schalter.hinweis),
+                el(
+                  "ul",
+                  { class: "chips" },
+                  istSperre
+                    ? chip("Gesperrt", "fehler", "sperre")
+                    : chip("In Wartung", "warn", "uhr"),
+                ),
+                aktiv.hinweis && el("p", { class: "klein" }, aktiv.hinweis),
+                istSperre
+                  ? aktiv.websiteOffline &&
+                    el(
+                      "p",
+                      { class: "meta klein" },
+                      "Öffentliche Website vom Netz.",
+                    )
+                  : el(
+                      "p",
+                      { class: "meta klein" },
+                      aktiv.ende
+                        ? `Geplantes Ende: ${zeit(aktiv.ende)}`
+                        : "Kein Ende angegeben.",
+                    ),
                 el(
                   "p",
                   { class: "meta klein" },
-                  schalter.ende
-                    ? `Geplantes Ende: ${zeit(schalter.ende)}`
-                    : "Kein Ende angegeben.",
+                  `Seit ${zeit(aktiv.ausgeloestAm)}`,
                 ),
               ]
-            : el("ul", { class: "chips" }, chip("Frei", "ok")),
+            : el(
+                "ul",
+                { class: "chips" },
+                chip(istSperre ? "Offen" : "Frei", "ok"),
+              ),
         ),
         aktionenZelle(
-          ...(schalter
+          ...(aktiv
             ? [
-                knopf("Ändern", {
-                  klein: true,
-                  symbol: "bearbeiten",
-                  kontext: name,
-                  onclick: () => dialog({ eintrag, schalter, ctx, neu }),
-                }),
+                !istSperre &&
+                  knopf("Ändern", {
+                    klein: true,
+                    symbol: "bearbeiten",
+                    kontext: name,
+                    onclick: () =>
+                      wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
+                  }),
                 knopf("Aufheben", {
                   klein: true,
                   symbol: "haken",
                   kontext: name,
-                  onclick: () => aufheben(eintrag, ctx, neu),
+                  onclick: () =>
+                    (istSperre ? sperreAufheben : wartungAufheben)(
+                      eintrag,
+                      ctx,
+                      neu,
+                    ),
                 }),
               ]
             : [
-                knopf("Einschalten", {
-                  klein: true,
-                  symbol: "uhr",
-                  kontext: name,
-                  onclick: () => dialog({ eintrag, schalter, ctx, neu }),
-                }),
+                istSperre
+                  ? knopf("Sperren", {
+                      klein: true,
+                      art: "gefahr",
+                      symbol: "sperre",
+                      kontext: name,
+                      onclick: () => sperreDialog({ eintrag, daten, ctx, neu }),
+                    })
+                  : knopf("Einschalten", {
+                      klein: true,
+                      symbol: "uhr",
+                      kontext: name,
+                      onclick: () =>
+                        wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
+                    }),
               ]),
         ),
       );
     }),
-  });
-  bereich.append(wurzel);
+  }).wurzel;
+}
+
+function zeichne(bereich, ctx, daten, neu) {
+  const alleBereiche = BEREICHE.filter(([s]) => daten.bereiche.includes(s));
+  bereich.append(
+    el(
+      "p",
+      { class: "meta" },
+      "Im Wartungsmodus ist ein Bereich nur lesbar. Schreibende Anfragen und Bearbeitungsansichten antworten mit dem Hinweistext; Abteilungsleitung und Entwickler arbeiten weiter.",
+    ),
+    zustandsTabelle({
+      art: "wartung",
+      eintraege: alleBereiche,
+      schalter: daten.schalter,
+      ctx,
+      daten,
+      neu,
+    }),
+  );
+  if (!daten.darfSperre) return;
+  bereich.append(
+    el("h2", { class: "abschnitt" }, "Informationssperre"),
+    el(
+      "p",
+      { class: "meta" },
+      "Bei einem Vorfall, zum Beispiel einer Datenpanne, liefert ein gesperrter Bereich keine Inhalte mehr, auch nicht der Abteilungsleitung. Nur diese Seite bleibt offen: Hier hebst du die Sperre wieder auf. Wer die Verwaltung nicht mehr erreicht, meldet sich an und öffnet diese Seite.",
+    ),
+    zustandsTabelle({
+      art: "sperre",
+      eintraege: alleBereiche,
+      schalter: daten.schalter,
+      ctx,
+      daten,
+      neu,
+    }),
+  );
 }

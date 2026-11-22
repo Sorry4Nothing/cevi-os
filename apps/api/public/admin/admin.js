@@ -1,5 +1,6 @@
 import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
 import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
+import * as anwesenheit from "./anwesenheit.js";
 import * as importieren from "./import.js";
 import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
@@ -47,6 +48,13 @@ const BEREICHE = [
     "Kinder und Leitende aus einem Export der Cevi-Datenbank anlegen.",
   ],
   [
+    "anwesenheit",
+    "Anwesenheit",
+    anwesenheit,
+    "haken",
+    "Wer in den letzten Anlässen der Stufe da war.",
+  ],
+  [
     "mitteilungen",
     "Mitteilungen",
     mitteilungen,
@@ -86,7 +94,7 @@ const BEREICHE = [
     "Plattform",
     plattform,
     "schild",
-    "Wartungsmodus für Bereiche schalten.",
+    "Wartungsmodus und Informationssperre für Bereiche schalten.",
   ],
   [
     "system",
@@ -99,14 +107,18 @@ const BEREICHE = [
 
 const app = document.getElementById("app");
 let ich = null;
-// Antwort von GET /api/v1/redaktion/ich; nur für die Anzeige, jede Route prüft selbst
-let redaktion = null;
+// Antwort von GET /api/v1/redaktion/ich, mit darf(recht) für die Plattformrechte (Rolle Webmaster); nur für die Anzeige, jede Route prüft selbst
+let zugang = null;
+const mitDarf = (daten, alle) => ({
+  ...daten,
+  darf: (recht) => alle || daten.rechte.includes(recht),
+});
 const istAdmin = () => ich?.role === "admin";
 // Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website»)
 const sichtbareBereiche = () =>
   istAdmin()
     ? BEREICHE
-    : BEREICHE.filter(([s]) => redaktion?.bereiche.includes(s));
+    : BEREICHE.filter(([s]) => zugang?.bereiche.includes(s));
 
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
@@ -452,7 +464,7 @@ async function pruefeKonto(nachAnmeldung = true) {
     return;
   }
   ich = sitzung.user;
-  redaktion = null;
+  zugang = null;
   if (ich.mussPasswortAendern) {
     zeigeSperre(
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
@@ -465,12 +477,15 @@ async function pruefeKonto(nachAnmeldung = true) {
       );
       return;
     }
-    redaktion = { redigieren: true, bereiche: ["website"], verwalten: true };
+    zugang = mitDarf(
+      { redigieren: true, bereiche: ["website"], verwalten: true, rechte: [] },
+      true,
+    );
     zeigeVerwaltung();
   } else {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
-    redaktion = await anfrage("GET", "/api/v1/redaktion/ich");
-    if (redaktion.bereiche.length === 0) {
+    zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
+    if (zugang.bereiche.length === 0) {
       zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
         "403 · Kein Zugang",
         "sperre",
@@ -577,7 +592,7 @@ function zeigeVerwaltung() {
       "div",
       { class: "marke" },
       el("p", { class: "ueber" }, "Cevi Stäfa-Hombrechtikon"),
-      el("strong", {}, istAdmin() ? "Verwaltung" : "Redaktion"),
+      el("strong", {}, istAdmin() ? "Verwaltung" : "Website"),
     ),
     bereiche,
     el(
@@ -595,7 +610,7 @@ function zeigeVerwaltung() {
             "p",
             { class: "mini leise" },
             !istAdmin()
-              ? "Redaktion"
+              ? "Website"
               : ich.twoFactorEnabled
                 ? "Admin · zweiter Faktor aktiv"
                 : "Admin",
@@ -676,7 +691,7 @@ function navigiere() {
   const [schluessel, name, ansicht, , untertitel] = treffer ?? bereiche[0];
   markiereBereich(schluessel);
   const seitenkopf = kopf({
-    ueber: istAdmin() ? "Verwaltung" : "Redaktion",
+    ueber: istAdmin() ? "Verwaltung" : "Website",
     titel: name,
     untertitel,
   });
@@ -689,7 +704,7 @@ function navigiere() {
   document.getElementById("bereich").replaceWith(bereich);
   ansicht.zeige(bereich, {
     ich,
-    redaktion,
+    zugang,
     pfad,
     melde,
     lade: erstelleLader(bereich),

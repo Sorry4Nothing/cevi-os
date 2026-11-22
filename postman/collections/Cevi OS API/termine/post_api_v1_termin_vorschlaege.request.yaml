@@ -1,0 +1,28 @@
+$kind: http-request
+name: "POST /api/v1/termin-vorschlaege"
+order: 421000
+method: POST
+url: "{{baseUrl}}/api/v1/termin-vorschlaege"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "titel": "Matrix: Terminvorschlag",
+      "ganztaegig": true,
+      "tagVon": "2026-12-22",
+      "tagBis": "2026-12-22",
+      "tagIds": [
+        "01a202fd-6d1c-724f-bc0d-2ee034b054f2"
+      ]
+    }

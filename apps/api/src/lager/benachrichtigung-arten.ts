@@ -13,7 +13,14 @@ export const ARTEN = {
     push: "lager_eingang",
     titel: "Antwort auf deine Nachricht",
   },
-  diensttausch: { push: "lager_einteilung", titel: "Diensttausch" },
+  diensttausch_anfrage: {
+    push: "lager_einteilung",
+    titel: "Neue Diensttausch-Anfrage",
+  },
+  diensttausch_entscheid: {
+    push: "lager_einteilung",
+    titel: "Diensttausch entschieden",
+  },
   anwesenheit_anfrage: {
     push: "lager_anwesenheit",
     titel: "Neue Anwesenheits-Anfrage",
@@ -21,6 +28,11 @@ export const ARTEN = {
   anwesenheit_entscheid: {
     push: "lager_anwesenheit",
     titel: "Deine Anwesenheits-Anfrage wurde entschieden",
+  },
+  // Erinnerung der Lagerleitung vor dem Aufräumen des Adressbuchs (#397); der Push nutzt den Kanal der Mitteilungen, die App öffnet das Ziel über objektTyp «adressbuch» (objektId ist das Lager)
+  adressbuch_aufraeumen: {
+    push: "lager_pinnwand",
+    titel: "Das Adressbuch wird bald aufgeräumt",
   },
 } as const satisfies Record<string, { push: LagerPushTyp; titel: string }>;
 

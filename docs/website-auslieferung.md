@@ -4,7 +4,7 @@ Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher 
 
 ## Ablauf
 
-1. Die Redaktion veröffentlicht eine Version einer Seite (#350). Die Routen melden danach ein Website-Ereignis (`src/website/ereignisse.ts`).
+1. Eine Person mit dem Recht «Seiten veröffentlichen» (Webmaster) oder die Stufenleitung veröffentlicht eine Version einer Seite (#350). Die Routen melden danach ein Website-Ereignis (`src/website/ereignisse.ts`).
 2. Der Abgleich (`src/website/abgleich.ts`) läuft beim Start, bei jedem Ereignis der Abteilung und alle 10 Minuten. Er liest die Seiten, die veröffentlichten Versionen und die Daten für Bausteine (Medien, Personen, Leitungsteams) und erzeugt daraus mit dem Renderer (`src/website/rendern.ts`) die Dateien.
 3. Er schreibt nur, was sich geändert hat: Der SHA-256 der erzeugten Datei steht an der Seite (`seite.ausgabe_hash`, `seite.ausgabe_am`, Migration 0041). Fehlt eine Datei, schreibt er sie neu.
 4. Er löscht Seitendateien (`…/index.html`), die zu keiner öffentlichen Seite mehr gehören: zurückgezogen, gelöscht, nicht mehr öffentlich oder mit neuer Adresse. Andere Dateien im Verzeichnis lässt er in Ruhe.

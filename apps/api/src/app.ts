@@ -8,6 +8,7 @@ import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
 import type { BildKodierer } from "./bild.js";
 import {
   erstelleSchalterPruefung,
+  erstelleSperrePruefungOhnePerson,
   erstelleSchalterZustand,
   type SchalterZustand,
 } from "./bereichsschalter.js";
@@ -41,10 +42,12 @@ import {
   erstelleMedienRouten,
   erstelleOeffentlicheMedienRoute,
 } from "./routes/medien.js";
-import { erstelleRedaktionRouten } from "./routes/redaktion/index.js";
+import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
+import type { WetterHolen } from "./lager/wetter-openmeteo.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
+import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -90,6 +93,8 @@ export function erstelleApp({
   db,
   auth,
   fcm,
+  wetter,
+  jetzt,
   kodiereBild,
   kodiereLogo,
   kodiereMedienbild,
@@ -97,12 +102,17 @@ export function erstelleApp({
   seiten,
   syncs,
   schalter = erstelleSchalterZustand(),
+  website,
 }: {
   appMinVersion: string;
   sql: Sql;
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
   fcm?: Fcm;
+  // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
+  wetter?: WetterHolen;
+  // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
+  jetzt?: () => Date;
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
   kodiereBild?: BildKodierer;
   kodiereLogo?: BildKodierer;
@@ -115,6 +125,12 @@ export function erstelleApp({
   };
   // Wartungsmodus und Sperre (#424, #425): der Zustand im Speicher, beim Start aus der Datenbank geladen (server.ts); ohne Angabe ist nichts geschaltet
   schalter?: SchalterZustand;
+  // Die Ausgabe der öffentlichen Website, die die Informationssperre vom Netz nimmt (#425); ausgeschrieben, ein Typ-Import aus website/sperre.ts zöge node:fs in dieses Programm
+  website?: {
+    abteilungId: string;
+    nimmVomNetz: () => Promise<void>;
+    gibFrei: () => Promise<void>;
+  };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -128,7 +144,7 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
-  // Admin und Redaktion teilen die Handler und damit das Limit für Uploads je Person
+  // Admin und die Verwaltung der Website teilen die Handler und damit das Limit für Uploads je Person
   const medienHandler = erstelleMedienHandler({
     db,
     speicher: medienspeicher,
@@ -214,6 +230,8 @@ export function erstelleApp({
         await next();
       })
       .route("/", erstelleAuthRouten(auth))
+      // ICS-Feed der Termine (#438): der geheime Token im Pfad ersetzt die Sitzung, darum vor ihr und ausserhalb von /api/v1
+      .route("/", erstelleIcalRoute({ db }))
       // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
       .use("/api/v1/*", async (c, next) => {
         const herkunft = c.req.header("Origin");
@@ -226,7 +244,8 @@ export function erstelleApp({
         }
         await next();
       })
-      // Öffentliche Medien (#335) brauchen keine Sitzung, darum vor ihr; alle anderen Medien gehen weiter zur Sitzung
+      // Öffentliche Medien (#335) brauchen keine Sitzung, darum vor ihr; alle anderen Medien gehen weiter zur Sitzung. Eine Sperre der Website hält auch sie zurück (#425)
+      .use("/api/v1/medien/*", erstelleSperrePruefungOhnePerson(schalter))
       .route(
         "/",
         erstelleOeffentlicheMedienRoute({ db, speicher: medienspeicher }),
@@ -238,7 +257,7 @@ export function erstelleApp({
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route(
         "/api/v1/plattform",
-        erstellePlattformRouten({ db, zustand: schalter }),
+        erstellePlattformRouten({ db, zustand: schalter, fcm, website }),
       )
       .route("/api/v1", erstelleProfilbildRouten({ db, kodiereBild }))
       .route("/api/v1", erstelleStufenlogoRouten({ db, kodiereLogo }))
@@ -253,7 +272,7 @@ export function erstelleApp({
       .route("/api/v1/ich", erstelleIchRouten({ db }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
-      .route("/api/v1/lager", erstelleLagerRouten({ db, fcm }))
+      .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
       .route("/api/v1", erstelleTermineRouten({ db, fcm }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
@@ -273,9 +292,10 @@ export function erstelleApp({
         "/api/v1/admin/plattform/rollen",
         erstellePlattformRollenRouten({ db }),
       )
+      // Namensraum der Website-Verwaltung (Seiten, Medien, Weiterleitungen, Vorlagen). Der Pfad stammt aus der Zeit vor #426 und bleibt, damit Editor und Clients nicht brechen; was jemand darf, bestimmen die Plattformrechte (plattform.ts)
       .route(
         "/api/v1/redaktion",
-        erstelleRedaktionRouten({ db, medien: medienHandler }),
+        erstelleEditorRouten({ db, medien: medienHandler }),
       )
       // Geschützte Bausteine der Website nachladen (#354): hinter der Sitzung
       .route("/api/v1/website", erstelleWebsiteRouten({ db }))

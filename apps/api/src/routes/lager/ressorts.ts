@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
@@ -65,7 +65,7 @@ const KUERZEL_VERGEBEN = {
   message: "Dieses Kürzel gibt es in diesem Lager schon.",
 } as const;
 
-// Ressorts eines Lagers (#371), mit Links und Notizen als Einzelzeilen. Lesen braucht ressorts.lesen, jede Änderung ressorts.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist ein Soft-Delete. Leitung und Stellvertretung sind Personen-IDs von Mitgliedern des Lagers; die Namen löst die Route beim Lesen auf, eine Umbenennung bricht also nichts
+// Ressorts eines Lagers (#371), mit Links und Notizen als Einzelzeilen. Lesen braucht ressorts.lesen, jede Änderung ressorts.bearbeiten (lager/rechte-katalog.ts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427). Leitung und Stellvertretung sind Personen-IDs von Mitgliedern des Lagers; die Namen löst die Route beim Lesen auf, eine Umbenennung bricht also nichts
 export function erstelleRessortRouten({ db }: { db: Db }) {
   const lesen = lagerZugriff(db, { recht: "ressorts.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "ressorts.bearbeiten" });
@@ -92,7 +92,6 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
       .where(
         and(
           eq(ressort.lagerId, lagerId),
-          isNull(ressort.geloeschtAm),
           p.id ? eq(ressort.id, p.id) : undefined,
           // Nach (Reihenfolge, ID) der letzten bekannten Zeile; ist sie unbekannt, bleibt die Seite leer
           p.nach
@@ -164,12 +163,7 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
                   n: sql<number>`coalesce(max(${ressort.reihenfolge}) + 1, 0)`,
                 })
                 .from(ressort)
-                .where(
-                  and(
-                    eq(ressort.lagerId, lagerId),
-                    isNull(ressort.geloeschtAm),
-                  ),
-                );
+                .where(and(eq(ressort.lagerId, lagerId)));
               return legeZeileAn(
                 tx,
                 ressort,
@@ -206,9 +200,7 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
             const vorhanden = await tx
               .select()
               .from(ressort)
-              .where(
-                and(eq(ressort.lagerId, lagerId), isNull(ressort.geloeschtAm)),
-              );
+              .where(and(eq(ressort.lagerId, lagerId)));
             const nachId = new Map(vorhanden.map((z) => [z.id, z]));
             if (eintraege.some((e) => !nachId.has(e.id))) {
               throw new HTTPException(404);
@@ -304,7 +296,6 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
                 and(
                   eq(ressort.lagerId, lagerId),
                   eq(ressort.parentId, ressortId),
-                  isNull(ressort.geloeschtAm),
                 ),
               )
               .limit(1);
@@ -346,7 +337,6 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
               and(
                 eq(ressortLink.lagerId, lagerId),
                 eq(ressortLink.ressortId, ressortId),
-                isNull(ressortLink.geloeschtAm),
                 nach ? gt(ressortLink.id, nach) : undefined,
               ),
             )
@@ -450,7 +440,6 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
               and(
                 eq(ressortNotiz.lagerId, lagerId),
                 eq(ressortNotiz.ressortId, ressortId),
-                isNull(ressortNotiz.geloeschtAm),
                 nach ? lt(ressortNotiz.id, nach) : undefined,
               ),
             )
@@ -556,7 +545,6 @@ async function linkDa(
         eq(ressortLink.id, id),
         eq(ressortLink.lagerId, lagerId),
         eq(ressortLink.ressortId, ressortId),
-        isNull(ressortLink.geloeschtAm),
       ),
     );
   if (!zeile) throw new HTTPException(404);
@@ -575,7 +563,6 @@ async function notizDa(
         eq(ressortNotiz.id, id),
         eq(ressortNotiz.lagerId, lagerId),
         eq(ressortNotiz.ressortId, ressortId),
-        isNull(ressortNotiz.geloeschtAm),
       ),
     );
   if (!zeile) throw new HTTPException(404);

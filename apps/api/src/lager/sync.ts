@@ -1,8 +1,21 @@
-import { and, eq, getTableName, inArray, isNull, sql } from "drizzle-orm";
+import {
+  and,
+  eq,
+  getTableColumns,
+  getTableName,
+  inArray,
+  sql,
+} from "drizzle-orm";
+import { getTableConfig, type AnyPgColumn } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import type { Db } from "../db/client.js";
-import { lager, lagerAenderung } from "../db/schema.js";
-import { holeLagerTabelle, type LagerSpaltenTabelle } from "./tabellen.js";
+import { erwaehnung, lager, lagerAenderung, reaktion } from "../db/schema.js";
+import { fehlerCode } from "../kalender/fehler.js";
+import {
+  holeLagerTabelle,
+  listeLagerTabellen,
+  type LagerSpaltenTabelle,
+} from "./tabellen.js";
 
 // Sync-Kern des Lager-Backends (#366). Jede Lager-Tabelle schreibt ausschliesslich über legeZeileAn, aendereZeile und loescheZeile; ein eigenes INSERT, UPDATE oder DELETE in einer Route umgeht Version, Folgenummer und Feed.
 //
@@ -16,6 +29,8 @@ import { holeLagerTabelle, type LagerSpaltenTabelle } from "./tabellen.js";
 //      Die Route prüft vorher selbst, ob die Rolle diese Zeile ändern darf (Rechte und Zeilenfilter); der Kern kennt die Rolle nicht. Er prüft nur, dass die Zeile zum Lager gehört
 //   4. Antworten über eine feste Ansicht (nie die ganze Zeile), die die Rolle nur sehen lässt, was sie lesen darf. Dieselbe Ansicht liefert den Stand in der Konfliktantwort
 //   5. Änderungen mehrerer Zeilen (zum Beispiel Aufgabe und ihre Checkliste) laufen in derselben Transaktion; jede Zeile bekommt ihre eigene Folgenummer
+//
+// Löschen ist endgültig (#427, Entscheid vom 22.11.2026: «gelöscht ist gelöscht»): loescheZeile und loescheZeilen entfernen die Zeile mit DELETE, es gibt keinen Papierkorb, keine Wiederherstellung und keinen Verlauf. Der Feed behält den Eintrag «geloescht» (Tabelle, ID, Version), damit Apps die Löschung übernehmen; der Aufräumlauf (lager/aufraeumen.ts) entfernt ihn nach 30 Tagen. Abhängige Zeilen gehen in derselben Transaktion mit und melden sich im Feed: Zeilen mit ON DELETE CASCADE werden gelöscht, Zeilen mit ON DELETE SET NULL verlieren den Verweis (neue Version, Feed «geaendert»). Die Fremdschlüssel liest loescheKinder aus den Schemas; Zeilen in Tabellen ohne Feed erledigt die Datenbank selbst. Verweise ohne Fremdschlüssel (Erwähnungen, Reaktionen) räumt raeumeVerweise auf. Hängt noch eine Zeile mit RESTRICT oder NO ACTION daran (Datei im Dokument, Höck mit Protokoll), antwortet der Kern mit 409 IN_VERWENDUNG
 //
 // Ablauf eines Schreibvorgangs: Das Lager wird gesperrt (UPDATE lager SET seq = seq + 1, die Zeilensperre hält bis zum Ende der Transaktion), die Zeile mit WHERE version = erwartet geschrieben, ein Eintrag in lager_aenderung angelegt. Weil die Sperre die Schreiber eines Lagers ordnet, steigen Folgenummer und Commit gleich, ein Rollback gibt die Nummer zurück (keine Lücken), und der Feed sieht nie eine spätere Nummer vor einer früheren. Preis: Schreibvorgänge eines Lagers laufen nacheinander. Darum halten Aufrufer die Transaktion kurz (kein Netzwerk, keine Dateien darin), und Massenläufe (Übernahme, Wiederherstellen) teilen sich in Stapel.
 // shortcut: eine Sperre je Lager serialisiert alle Schreiber, genug für rund 100 Personen; bei Engpass die Folgenummer aus einer Sequenz je Lager ziehen und den Feed nur bis zur ersten Lücke ausliefern
@@ -32,8 +47,6 @@ type Systemspalten =
   | "erstelltVon"
   | "geaendertAm"
   | "geaendertVon"
-  | "geloeschtAm"
-  | "geloeschtVon"
   | "lagerSeq";
 export type AnlegeWerte<T extends LagerSpaltenTabelle> = Omit<
   T["$inferInsert"],
@@ -78,7 +91,7 @@ const haken: SchreibHaken[] = [];
 // Die Zeile vor dem Schreiben kostet eine Abfrage; sie wird nur geladen, wenn ein Haken sie braucht
 let brauchtVorher = false;
 
-// Haken für L0e (#368) und die Ereignisse offener Ansichten (#367): Papierkorb, Revisionen und Verlauf hängen sich hier ein. Er läuft in der Transaktion des Schreibvorgangs, nach dem Eintrag im Feed; wirft er, wird nichts geschrieben. Wer «vorher» nicht liest, setzt ohneVorher und spart die Abfrage
+// Haken für die Ereignisse offener Ansichten (#367); Papierkorb, Revisionen und Verlauf entfallen (#427, #368), heute benutzt ihn nichts. Er läuft in der Transaktion des Schreibvorgangs, nach dem Eintrag im Feed; wirft er, wird nichts geschrieben. Wer «vorher» nicht liest, setzt ohneVorher und spart die Abfrage
 export function registriereSchreibHaken(
   h: SchreibHaken,
   optionen?: { ohneVorher?: true },
@@ -163,7 +176,7 @@ async function ladeZeile(
   const [zeile] = await tx
     .select()
     .from(t)
-    .where(and(eq(t.id, id), eq(t.lagerId, k.lagerId), isNull(t.geloeschtAm)));
+    .where(and(eq(t.id, id), eq(t.lagerId, k.lagerId)));
   return zeile as Zeile | undefined;
 }
 
@@ -245,7 +258,6 @@ export async function aendereZeile<T extends LagerSpaltenTabelle>(
         eq(tabelle.id, p.id),
         eq(tabelle.lagerId, k.lagerId),
         eq(tabelle.version, p.version),
-        isNull(tabelle.geloeschtAm),
       ),
     )
     .returning();
@@ -256,7 +268,7 @@ export async function aendereZeile<T extends LagerSpaltenTabelle>(
   return neu as T["$inferSelect"];
 }
 
-// Soft-Delete: Die Zeile bleibt mit geloescht_am (Papierkorb, #368), die Version steigt, der Feed meldet «geloescht»
+// Endgültig löschen: DELETE mit Prüfung der Version, der Feed meldet «geloescht» (Version im Feed: die der gelöschten Zeile plus 1). Gibt es die Zeile nicht (mehr), 404; steht sie in einer anderen Version, 409 mit dem aktuellen Stand. Abhängige Zeilen gehen in derselben Transaktion mit (siehe oben)
 export async function loescheZeile<T extends LagerSpaltenTabelle>(
   tx: Tx,
   tabelle: T,
@@ -265,31 +277,172 @@ export async function loescheZeile<T extends LagerSpaltenTabelle>(
 ): Promise<T["$inferSelect"]> {
   const name = pruefeAnmeldung(tabelle);
   const seq = await naechsteFolgenummer(tx, k.lagerId);
-  const vorher = brauchtVorher
-    ? await ladeZeile(tx, tabelle, k, p.id)
-    : undefined;
-  const [neu] = await tx
-    .update(tabelle)
-    .set({
-      version: sql`${tabelle.version} + 1`,
-      geaendertAm: sql`now()`,
-      geaendertVon: k.personId,
-      geloeschtAm: sql`now()`,
-      geloeschtVon: k.personId,
-      lagerSeq: seq,
-    } as never)
-    .where(
-      and(
-        eq(tabelle.id, p.id),
-        eq(tabelle.lagerId, k.lagerId),
-        eq(tabelle.version, p.version),
-        isNull(tabelle.geloeschtAm),
-      ),
-    )
-    .returning();
-  if (!neu) return werfeKeineZeile(tx, tabelle, k, p.id, {}, p.ansicht);
-  await melde(tx, name, k, seq, "geloescht", neu as Zeile, vorher);
-  return neu as T["$inferSelect"];
+  const kinder = kindFremdschluessel(name);
+  // Die Abhängigen brauchen die ID, solange die Zeile noch steht; ohne sie (Blatt der Tabellen) genügt der DELETE mit Versionsprüfung
+  if (kinder.length > 0) {
+    const vorher = await ladeZeile(tx, tabelle, k, p.id);
+    if (!vorher || vorher.version !== p.version) {
+      return werfeKeineZeile(tx, tabelle, k, p.id, {}, p.ansicht);
+    }
+    await loescheKinder(tx, k, kinder, [p.id]);
+  }
+  const [weg] = (await mitVerwendung(() =>
+    tx
+      .delete(tabelle)
+      .where(
+        and(
+          eq(tabelle.id, p.id),
+          eq(tabelle.lagerId, k.lagerId),
+          eq(tabelle.version, p.version),
+        ),
+      )
+      .returning(),
+  )) as Zeile[];
+  if (!weg) return werfeKeineZeile(tx, tabelle, k, p.id, {}, p.ansicht);
+  await raeumeVerweise(tx, k, name, [p.id]);
+  await melde(
+    tx,
+    name,
+    k,
+    seq,
+    "geloescht",
+    { ...weg, version: weg.version + 1 },
+    weg,
+  );
+  return weg as T["$inferSelect"];
+}
+
+// Ein DELETE, an dem noch eine Zeile mit RESTRICT (23001) oder NO ACTION (23503) hängt, ist 409 statt eines Serverfehlers
+async function mitVerwendung<R>(lauf: () => Promise<R>): Promise<R> {
+  try {
+    return await lauf();
+  } catch (fehler) {
+    if (fehlerCode(fehler) === "23503" || fehlerCode(fehler) === "23001") {
+      throw new LagerAntwortFehler(409, {
+        code: "IN_VERWENDUNG",
+        message:
+          "Der Eintrag wird noch verwendet und kann nicht gelöscht werden.",
+      });
+    }
+    throw fehler;
+  }
+}
+
+// Die Fremdschlüssel anderer Lager-Tabellen mit Feed auf eine Tabelle, deren Zeilen beim Löschen mitgehen (CASCADE) oder den Verweis verlieren (SET NULL). Aus den Schemas gelesen und gemerkt, bis sich die Anmeldungen ändern
+type KindFremdschluessel = {
+  kind: LagerSpaltenTabelle;
+  // Die Spalte des Kindes, die auf die ID der gelöschten Zeile zeigt
+  spalte: AnyPgColumn;
+  art: "cascade" | "set null";
+  // Bei SET NULL: die Spalten (ohne lager_id), die der Verweis leert
+  leeren: Record<string, null>;
+};
+let kinderCache:
+  { schluessel: string; je: Map<string, KindFremdschluessel[]> } | undefined;
+
+function kindFremdschluessel(elternName: string): KindFremdschluessel[] {
+  const eintraege = listeLagerTabellen();
+  const schluessel = eintraege.map(([n]) => n).join(",");
+  if (kinderCache?.schluessel !== schluessel) {
+    const je = new Map<string, KindFremdschluessel[]>();
+    for (const [, e] of eintraege) {
+      const spalten = getTableColumns(e.tabelle) as Record<string, AnyPgColumn>;
+      for (const fk of getTableConfig(e.tabelle).foreignKeys) {
+        if (fk.onDelete !== "cascade" && fk.onDelete !== "set null") continue;
+        const r = fk.reference();
+        const eltern = getTableName(r.foreignTable);
+        const i = r.foreignColumns.findIndex((c) => c.name === "id");
+        const idSpalte = r.columns[i];
+        if (i < 0 || !idSpalte || !holeLagerTabelle(eltern)) continue;
+        const leeren: Record<string, null> = {};
+        for (const c of r.columns) {
+          if (c.name === "lager_id") continue;
+          const schl = Object.keys(spalten).find((n) => spalten[n] === c);
+          if (schl) leeren[schl] = null;
+        }
+        je.set(eltern, [
+          ...(je.get(eltern) ?? []),
+          { kind: e.tabelle, spalte: idSpalte, art: fk.onDelete, leeren },
+        ]);
+      }
+    }
+    kinderCache = { schluessel, je };
+  }
+  return kinderCache.je.get(elternName) ?? [];
+}
+
+// Löscht die abhängigen Zeilen der genannten Zeilen (je Fremdschlüssel eine Abfrage) und leert die Verweise; beides meldet der Feed. Läuft vor dem DELETE der Eltern, solange die IDs noch da sind
+async function loescheKinder(
+  tx: Tx,
+  k: SchreibKontext,
+  kinder: KindFremdschluessel[],
+  ids: string[],
+) {
+  for (const f of kinder) {
+    const spalten = getTableColumns(f.kind) as Record<string, AnyPgColumn>;
+    const treffer = await tx
+      .select({ id: spalten.id! })
+      .from(f.kind)
+      .where(and(eq(spalten.lagerId!, k.lagerId), inArray(f.spalte, ids)));
+    if (treffer.length === 0) continue;
+    const kindIds = treffer.map((z) => z.id as string);
+    if (f.art === "cascade") {
+      await loescheZeilen(tx, f.kind, k, { ids: kindIds });
+    } else {
+      await setzeZeilen(tx, f.kind, k, {
+        ids: kindIds,
+        werte: f.leeren as never,
+      });
+    }
+  }
+}
+
+// Verweise ohne Fremdschlüssel, die mit dem Inhalt gehen: die Erwähnungen in ihm (kein Feed) und die Reaktionen auf einen Pinnwand-Beitrag (Feed «geloescht»)
+const ERWAEHNUNG_QUELLE: Record<
+  string,
+  "aufgabe" | "traktandum" | "pinnwand" | "beschluss"
+> = {
+  aufgabe: "aufgabe",
+  traktandum: "traktandum",
+  pinnwand_beitrag: "pinnwand",
+  beschluss: "beschluss",
+};
+
+async function raeumeVerweise(
+  tx: Tx,
+  k: SchreibKontext,
+  name: string,
+  ids: string[],
+) {
+  const quelle = ERWAEHNUNG_QUELLE[name];
+  if (quelle) {
+    await tx
+      .delete(erwaehnung)
+      .where(
+        and(
+          eq(erwaehnung.lagerId, k.lagerId),
+          eq(erwaehnung.quelleTyp, quelle),
+          inArray(erwaehnung.quelleId, ids),
+        ),
+      );
+  }
+  if (name === "pinnwand_beitrag") {
+    const reaktionen = await tx
+      .select({ id: reaktion.id })
+      .from(reaktion)
+      .where(
+        and(
+          eq(reaktion.lagerId, k.lagerId),
+          eq(reaktion.zielTyp, "pinnwand_beitrag"),
+          inArray(reaktion.zielId, ids),
+        ),
+      );
+    if (reaktionen.length > 0) {
+      await loescheZeilen(tx, reaktion, k, {
+        ids: reaktionen.map((r) => r.id),
+      });
+    }
+  }
 }
 
 // Sammeloperationen (#384): viele Zeilen in einer Transaktion mit gebündelten Statements (ein Insert, ein Update, ein Feed-Insert) statt drei Abfragen je Zeile. Jede Zeile bekommt weiter ihre eigene Folgenummer und ihren Feed-Eintrag; die Folgenummern werden am Stück reserviert, die Lagersperre hält bis zum Ende der Transaktion. Haken laufen je Zeile in der Reihenfolge der Folgenummer. shortcut: ein Statement je Aufruf, Aufrufer begrenzen die Menge (Import 500, Abzählen 200); bei mehr Zeilen in Stapeln aufrufen, sonst reicht das Limit der Parameter je Statement nicht
@@ -371,7 +524,7 @@ export async function legeZeilenAn<T extends LagerSpaltenTabelle>(
   )) as T["$inferSelect"][];
 }
 
-// Setzt dieselben Werte auf alle genannten Zeilen des Lagers, ohne Versionsprüfung: für Zustände, die jeder Schreiber auf denselben Wert setzt (Abzählen), nicht für Änderungen am Inhalt einer Zeile. Gelöschte und fremde Zeilen werden übergangen; Aufrufer, die das nicht wollen, prüfen vorher. Zeilen, die schon stehen, wie sie sollen, filtert der Aufrufer heraus (keine neue Version ohne Änderung). Liefert die geänderten Zeilen
+// Setzt dieselben Werte auf alle genannten Zeilen des Lagers, ohne Versionsprüfung: für Zustände, die jeder Schreiber auf denselben Wert setzt (Abzählen), nicht für Änderungen am Inhalt einer Zeile. Unbekannte und fremde Zeilen werden übergangen; Aufrufer, die das nicht wollen, prüfen vorher. Zeilen, die schon stehen, wie sie sollen, filtert der Aufrufer heraus (keine neue Version ohne Änderung). Liefert die geänderten Zeilen
 export const setzeZeilen = <T extends LagerSpaltenTabelle>(
   tx: Tx,
   tabelle: T,
@@ -379,21 +532,51 @@ export const setzeZeilen = <T extends LagerSpaltenTabelle>(
   p: { ids: string[]; werte: AendereWerte<T> },
 ) => schreibeZeilen(tx, tabelle, k, p.ids, p.werte, "geaendert");
 
-// Soft-Delete mehrerer Zeilen (#387), sonst wie setzeZeilen: ohne Versionsprüfung, gelöschte und fremde Zeilen werden übergangen, der Feed meldet «geloescht». Für abhängige Zeilen, die mit ihrer Hauptzeile gehen (Zuordnungen einer Gruppe); eine einzelne Zeile mit Versionsprüfung löscht loescheZeile
-export const loescheZeilen = <T extends LagerSpaltenTabelle>(
+// Endgültiges Löschen mehrerer Zeilen (#387, #427), sonst wie setzeZeilen: ohne Versionsprüfung, unbekannte und fremde Zeilen werden übergangen, der Feed meldet «geloescht». Für abhängige Zeilen, die mit ihrer Hauptzeile gehen (Zuordnungen einer Gruppe); eine einzelne Zeile mit Versionsprüfung löscht loescheZeile. Liefert die gelöschten Zeilen
+export async function loescheZeilen<T extends LagerSpaltenTabelle>(
   tx: Tx,
   tabelle: T,
   k: SchreibKontext,
   p: { ids: string[] },
-) =>
-  schreibeZeilen(
-    tx,
-    tabelle,
-    k,
-    p.ids,
-    { geloeschtAm: sql`now()`, geloeschtVon: k.personId },
-    "geloescht",
+): Promise<T["$inferSelect"][]> {
+  if (p.ids.length === 0) return [];
+  const name = pruefeAnmeldung(tabelle);
+  await sperreLager(tx, k.lagerId);
+  const t: LagerSpaltenTabelle = tabelle;
+  const treffer = (await tx
+    .select()
+    .from(t)
+    .where(
+      and(eq(tabelle.lagerId, k.lagerId), inArray(tabelle.id, p.ids)),
+    )) as Zeile[];
+  if (treffer.length === 0) return [];
+  const ids = treffer.map((z) => z.id);
+  await loescheKinder(tx, k, kindFremdschluessel(name), ids);
+  const erste = await reserviereFolgenummern(tx, k.lagerId, ids.length);
+  await mitVerwendung(() =>
+    tx
+      .delete(tabelle)
+      .where(and(eq(tabelle.lagerId, k.lagerId), inArray(tabelle.id, ids))),
   );
+  await raeumeVerweise(tx, k, name, ids);
+  await meldeViele(
+    tx,
+    name,
+    k,
+    "geloescht",
+    treffer.map((z, i) => ({
+      ...z,
+      version: z.version + 1,
+      lagerSeq: erste + i,
+    })),
+    brauchtVorher ? new Map(treffer.map((z) => [z.id, z])) : undefined,
+  );
+  return treffer as T["$inferSelect"][];
+}
+
+// Sperre zuerst: Danach ändert kein anderer Schreiber die Zeilen, die gezählt werden, und die Folgenummern haben keine Lücke
+const sperreLager = (tx: Tx, lagerId: string) =>
+  tx.execute(sql`select id from lager where id = ${lagerId} for update`);
 
 async function schreibeZeilen<T extends LagerSpaltenTabelle>(
   tx: Tx,
@@ -406,20 +589,13 @@ async function schreibeZeilen<T extends LagerSpaltenTabelle>(
   const p = { ids: alleIds, werte };
   if (p.ids.length === 0) return [];
   const name = pruefeAnmeldung(tabelle);
-  // Sperre zuerst: Danach ändert kein anderer Schreiber die Zeilen, die gezählt werden, und die Folgenummern haben keine Lücke
-  await tx.execute(
-    sql`select id from lager where id = ${k.lagerId} for update`,
-  );
+  await sperreLager(tx, k.lagerId);
   const t: LagerSpaltenTabelle = tabelle;
   const treffer = (await tx
     .select()
     .from(t)
     .where(
-      and(
-        eq(tabelle.lagerId, k.lagerId),
-        inArray(tabelle.id, p.ids),
-        isNull(tabelle.geloeschtAm),
-      ),
+      and(eq(tabelle.lagerId, k.lagerId), inArray(tabelle.id, p.ids)),
     )) as Zeile[];
   if (treffer.length === 0) return [];
   const ids = treffer.map((z) => z.id);
@@ -437,13 +613,7 @@ async function schreibeZeilen<T extends LagerSpaltenTabelle>(
       geaendertVon: k.personId,
       lagerSeq: sql`${erste}::bigint + array_position(array[${reihe}], ${tabelle.id}) - 1`,
     } as never)
-    .where(
-      and(
-        eq(tabelle.lagerId, k.lagerId),
-        inArray(tabelle.id, ids),
-        isNull(tabelle.geloeschtAm),
-      ),
-    )
+    .where(and(eq(tabelle.lagerId, k.lagerId), inArray(tabelle.id, ids)))
     .returning();
   return (await meldeViele(
     tx,

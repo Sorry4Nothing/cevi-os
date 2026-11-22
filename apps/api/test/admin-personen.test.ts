@@ -603,6 +603,7 @@ describe("POST /api/v1/admin/personen/:id/startpasswort", () => {
 
   test.each([
     ["startpasswort", "POST", "/startpasswort"],
+    ["aktivieren", "POST", "/aktivieren"],
     ["deaktivieren", "POST", "/deaktivieren"],
     ["löschen", "DELETE", ""],
   ])(
@@ -616,7 +617,7 @@ describe("POST /api/v1/admin/personen/:id/startpasswort", () => {
 });
 
 describe("Deaktivieren und Aktivieren", () => {
-  test("Deaktivieren sperrt Login und löscht Sitzungen, Aktivieren öffnet wieder", async () => {
+  test("Deaktivieren sperrt Login und löscht Sitzungen, Aktivieren gibt ein neues Startpasswort und das alte gilt nicht mehr", async () => {
     const angelegt = await legePersonAn();
     await anmelden(angelegt.benutzername, angelegt.startpasswort);
 
@@ -639,11 +640,21 @@ describe("Deaktivieren und Aktivieren", () => {
       "POST",
       `/${angelegt.id}/aktivieren`,
     );
-    expect(aktiviert.status).toBe(204);
+    expect(aktiviert.status).toBe(200);
+    const { startpasswort } = (await aktiviert.json()) as {
+      startpasswort: string;
+    };
+    expect(startpasswort).toMatch(STARTPASSWORT_FORM);
+    expect(startpasswort).not.toBe(angelegt.startpasswort);
     const wieder = await userZeile(angelegt.id);
     expect(wieder.banned).toBe(false);
     expect(wieder.deaktiviertAm).toBeNull();
-    await anmelden(angelegt.benutzername, angelegt.startpasswort);
+    expect(wieder.mussPasswortAendern).toBe(true);
+    // Das alte Startpasswort ist ungültig, das neue öffnet
+    await expect(
+      anmelden(angelegt.benutzername, angelegt.startpasswort),
+    ).rejects.toMatchObject({ body: { code: "INVALID_USERNAME_OR_PASSWORD" } });
+    await anmelden(angelegt.benutzername, startpasswort);
     expect(await sitzungen(angelegt.id)).toHaveLength(1);
   });
 });

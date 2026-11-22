@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { aufgabe, meilenstein } from "../db/schema.js";
@@ -66,7 +66,7 @@ export async function berechneFrist(
     const [z] = await tx.execute<{ frist: string }>(
       e.fristMeilensteinId
         ? sql`select (m.datum + ${e.fristVersatzTage}::int)::text as frist from meilenstein m
-            where m.id = ${e.fristMeilensteinId} and m.lager_id = ${lagerId} and m.geloescht_am is null`
+            where m.id = ${e.fristMeilensteinId} and m.lager_id = ${lagerId}`
         : sql`select (l.von + ${e.fristVersatzTage}::int)::text as frist from lager l where l.id = ${lagerId}`,
     );
     if (!z) return { fehler: "MEILENSTEIN_UNBEKANNT" };
@@ -120,7 +120,6 @@ export async function ladeBetroffene(
       and(
         eq(aufgabe.lagerId, lagerId),
         eq(aufgabe.fristMeilensteinId, meilensteinId),
-        isNull(aufgabe.geloeschtAm),
       ),
     )
     .orderBy(asc(aufgabe.frist), asc(aufgabe.id))
@@ -153,11 +152,7 @@ export async function zeigeVerschiebung(
     .select()
     .from(meilenstein)
     .where(
-      and(
-        eq(meilenstein.id, meilensteinId),
-        eq(meilenstein.lagerId, lagerId),
-        isNull(meilenstein.geloeschtAm),
-      ),
+      and(eq(meilenstein.id, meilensteinId), eq(meilenstein.lagerId, lagerId)),
     );
   if (!m) return undefined;
   if (m.datum === neuesDatum) return { fehler: "KEINE_AENDERUNG" };
@@ -278,7 +273,7 @@ async function ladeBeteiligteAbfrage(
   }>(sql`
     select a.id as aufgabe_id, w.person_id
     from aufgabe a
-    left join ressort r on r.lager_id = a.lager_id and r.id = a.ressort_id and r.geloescht_am is null
+    left join ressort r on r.lager_id = a.lager_id and r.id = a.ressort_id
     cross join lateral (
       select coalesce(a.verantwortlich_person_id, r.leitung_person_id) as person_id
       union
@@ -367,7 +362,7 @@ export async function sendeFristErinnerungen(
         from lager l, heute h
         where l.id = a.lager_id
           and l.status in ('entwurf', 'aktiv') and not l.uebung
-          and a.geloescht_am is null and a.status <> 'erledigt'
+          and a.status <> 'erledigt'
           and a.frist is not null and a.frist between h.tag and h.tag + ${ERINNERUNG_TAGE}::int
           and (a.spaeter_ab is null or a.spaeter_ab <= h.tag)
           and (a.frist_erinnert_am is null or (a.frist_erinnert_am at time zone 'Europe/Zurich')::date < h.tag)
@@ -375,7 +370,7 @@ export async function sendeFristErinnerungen(
       )
       select f.id as aufgabe_id, f.lager_id, w.person_id
       from faellig f
-      left join ressort r on r.lager_id = f.lager_id and r.id = f.ressort_id and r.geloescht_am is null
+      left join ressort r on r.lager_id = f.lager_id and r.id = f.ressort_id
       left join lateral (
         select coalesce(f.verantwortlich_person_id, r.leitung_person_id) as person_id
         union

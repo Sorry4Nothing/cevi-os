@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -189,12 +189,7 @@ const stimmenZeilen = async (lagerId: string) =>
   db
     .select()
     .from(schema.umfrageStimme)
-    .where(
-      and(
-        eq(schema.umfrageStimme.lagerId, lagerId),
-        isNull(schema.umfrageStimme.geloeschtAm),
-      ),
-    );
+    .where(and(eq(schema.umfrageStimme.lagerId, lagerId)));
 
 describe("Rechte je Lager-Persona", () => {
   let lagerId: string;
@@ -720,6 +715,78 @@ describe("Sichtbarkeit folgt dem Beitrag", () => {
     expect((await stimme("team", z.pfad, [z.optionen[0]])).status).toBe(404);
   });
 
+  test("ein gelöschter Beitrag nimmt Umfrage, Antworten, Stimmen und Reaktionen endgültig mit; der Feed meldet jede Zeile", async () => {
+    const z = await neueUmfrage(lagerId);
+    expect((await stimme("team", z.pfad, [z.optionen[0]!])).status).toBe(200);
+    expect(
+      (
+        await anfrage(
+          konten.leitung,
+          "PUT",
+          `${L(lagerId)}/reaktionen/pinnwand_beitrag/${z.beitragId}`,
+          { emoji: "herz" },
+        )
+      ).status,
+    ).toBe(200);
+    const seit = (
+      await anfrage(konten.lagerleitung, "GET", `${L(lagerId)}/aenderungen`)
+    ).body.seq;
+    const b = await anfrage(
+      konten.lagerleitung,
+      "GET",
+      `${L(lagerId)}/pinnwand/${z.beitragId}`,
+    );
+    expect(
+      (
+        await anfrage(
+          konten.lagerleitung,
+          "DELETE",
+          `${L(lagerId)}/pinnwand/${z.beitragId}?version=${b.body.version}`,
+        )
+      ).status,
+    ).toBe(204);
+    expect(
+      await db.$count(
+        schema.umfrage,
+        eq(schema.umfrage.beitragId, z.beitragId),
+      ),
+    ).toBe(0);
+    expect(
+      await db.$count(
+        schema.umfrageOption,
+        inArray(schema.umfrageOption.id, z.optionen),
+      ),
+    ).toBe(0);
+    expect(
+      await db.$count(
+        schema.umfrageStimme,
+        eq(schema.umfrageStimme.optionId, z.optionen[0]!),
+      ),
+    ).toBe(0);
+    expect(
+      await db.$count(schema.reaktion, eq(schema.reaktion.zielId, z.beitragId)),
+    ).toBe(0);
+    const feed = (
+      await anfrage(
+        konten.lagerleitung,
+        "GET",
+        `${L(lagerId)}/aenderungen?seit=${seit}&limit=500`,
+      )
+    ).body.eintraege as { objekttyp: string; art: string }[];
+    const geloescht = feed.filter((e) => e.art === "geloescht");
+    expect(geloescht.map((e) => e.objekttyp).sort()).toEqual(
+      [
+        "pinnwand_beitrag",
+        "umfrage",
+        "umfrage_option",
+        "umfrage_option",
+        "umfrage_option",
+        "umfrage_stimme",
+        "reaktion",
+      ].sort(),
+    );
+  });
+
   test("Lesen mit der Pinnwand: Der Pinnwand-Eintrag des Teams zeigt Umfrage und Reaktionen additiv", async () => {
     const z = await neueUmfrage(lagerId);
     const b = (await liste("team", lagerId)).find((x) => x.id === z.beitragId)!;
@@ -789,12 +856,7 @@ describe("Reaktionen", () => {
     const zeilen = await db
       .select()
       .from(schema.reaktion)
-      .where(
-        and(
-          eq(schema.reaktion.zielId, b.id),
-          isNull(schema.reaktion.geloeschtAm),
-        ),
-      );
+      .where(and(eq(schema.reaktion.zielId, b.id)));
     expect(zeilen.map((z) => z.personId)).toEqual([konten.leitung.id]);
   });
 

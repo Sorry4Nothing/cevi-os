@@ -1,13 +1,4 @@
-import {
-  and,
-  desc,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -31,6 +22,7 @@ import {
   type SchreibKontext,
   type Tx,
 } from "./sync.js";
+import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Pinnwand des Lagers (#381): Beiträge mit Wichtig, Anheften, Zeitfenster, Empfängern und Dateien (Verknüpfungen aus #370, kein Upload). Der Server filtert die Sichtbarkeit:
@@ -62,6 +54,16 @@ function lesbar(zugriff: LagerZugriff, alle = false) {
   return and(IM_FENSTER, empfaengerPasst(zugriff));
 }
 
+// Suche (#399): Titel und Text, mit der Sicht der Liste (Zeitfenster und Empfänger; wer bearbeiten darf, findet auch Beiträge ausserhalb des Fensters)
+registriereSuchquelle({
+  typ: "pinnwand",
+  recht: "pinnwand.lesen",
+  tabelle: pinnwandBeitrag,
+  spalten: [pinnwandBeitrag.titel, pinnwandBeitrag.text],
+  titel: sql`${pinnwandBeitrag.titel}`,
+  filter: (zugriff) => lesbar(zugriff, true),
+});
+
 // Für den Eingang (#383) und alle, die einen Beitrag von Dritten aufrufen lassen: darf die Person ihn lesen?
 export async function beitragLesbar(db: Db, zugriff: LagerZugriff, id: string) {
   const [zeile] = await db
@@ -71,7 +73,6 @@ export async function beitragLesbar(db: Db, zugriff: LagerZugriff, id: string) {
       and(
         eq(pinnwandBeitrag.id, id),
         eq(pinnwandBeitrag.lagerId, zugriff.lager.id),
-        isNull(pinnwandBeitrag.geloeschtAm),
         lesbar(zugriff, true),
       ),
     );
@@ -90,12 +91,7 @@ registriereLagerTabelle({
         and(
           eq(pinnwandBeitrag.lagerId, zugriff.lager.id),
           inArray(pinnwandBeitrag.id, ids),
-          kannAlleSehen(zugriff)
-            ? undefined
-            : or(
-                isNotNull(pinnwandBeitrag.geloeschtAm),
-                empfaengerPasst(zugriff),
-              ),
+          kannAlleSehen(zugriff) ? undefined : empfaengerPasst(zugriff),
         ),
       );
     return new Set(zeilen.map((z) => z.id));
@@ -124,8 +120,6 @@ registriereDateiVerweis({
         and(
           inArray(pinnwandDatei.dateiId, dateiIds),
           eq(pinnwandDatei.lagerId, zugriff.lager.id),
-          isNull(pinnwandDatei.geloeschtAm),
-          isNull(pinnwandBeitrag.geloeschtAm),
           lesbar(zugriff, true),
         ),
       );
@@ -277,7 +271,6 @@ export async function setzeDateien(
       and(
         eq(pinnwandDatei.lagerId, k.lagerId),
         eq(pinnwandDatei.beitragId, beitragId),
-        isNull(pinnwandDatei.geloeschtAm),
       ),
     );
   const gewollt = new Set(ids);
@@ -383,7 +376,6 @@ export async function ladeBeitraege(
     .where(
       and(
         eq(pinnwandBeitrag.lagerId, lagerId),
-        isNull(pinnwandBeitrag.geloeschtAm),
         p.id ? eq(pinnwandBeitrag.id, p.id) : undefined,
         lesbar(zugriff, p.alle),
         // Nach (angeheftet, Sortierzeit, ID) der letzten bekannten Zeile; ist sie unbekannt, bleibt die Seite leer
@@ -409,8 +401,6 @@ export async function ladeBeitraege(
             pinnwandDatei.beitragId,
             seite.map((z) => z.zeile.id),
           ),
-          isNull(pinnwandDatei.geloeschtAm),
-          isNull(lagerDatei.geloeschtAm),
           eq(lagerDatei.lagerId, lagerId),
         ),
       )
@@ -461,11 +451,7 @@ export async function ladeBeitragZeile(
     .select()
     .from(pinnwandBeitrag)
     .where(
-      and(
-        eq(pinnwandBeitrag.id, id),
-        eq(pinnwandBeitrag.lagerId, lagerId),
-        isNull(pinnwandBeitrag.geloeschtAm),
-      ),
+      and(eq(pinnwandBeitrag.id, id), eq(pinnwandBeitrag.lagerId, lagerId)),
     );
   return zeile;
 }
