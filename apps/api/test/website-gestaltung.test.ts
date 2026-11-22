@@ -129,7 +129,7 @@ describe("Abschnitte über die ganze Breite", () => {
       /<div class="sektion-kopf">\n<h2 id="karten">Karten<\/h2>\n<div class="text lesetext"><p>Lead<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="merkmale">/,
     );
     expect(html).toMatch(
-      /<div class="sektion-kopf">\n<h2>Stufen<\/h2>\n<div class="text lesetext"><p>Lead 2<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="stufenkarten">/,
+      /<div class="sektion-kopf">\n<h2 id="stufen">Stufen<\/h2>\n<div class="text lesetext"><p>Lead 2<\/p><\/div>\n<\/div>\n<div class="sektion-rumpf">\n<ul class="stufenkarten">/,
     );
   });
 
