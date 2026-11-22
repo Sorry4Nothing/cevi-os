@@ -17,10 +17,12 @@ import { erstelleLagerDateiRouten } from "./dateien.js";
 import { erstelleDokumentRouten } from "./dokumente.js";
 import { erstelleLagerKernRouten } from "./lager.js";
 import { erstelleEinkaufRouten } from "./einkauf.js";
+import { erstelleEingangRouten } from "./eingang.js";
 import { erstelleEreignisRouten } from "./ereignisse.js";
 import { erstelleHoeckRouten } from "./hoecks.js";
 import { erstelleLagerRechteRouten } from "./rechte.js";
 import { erstelleWarteschlangeRouten } from "./warteschlange.js";
+import { erstelleProtokollRouten } from "./protokolle.js";
 import { erstelleRessortRouten } from "./ressorts.js";
 import { erstelleInfosRouten } from "./infos.js";
 import { erstelleNotfallRouten } from "./notfall.js";
@@ -68,10 +70,12 @@ export function erstelleLagerRouten({
     .route("/", erstelleAufgabenRouten({ db, fcm }))
     .route("/", erstelleAufgabenSchnellRouten({ db }))
     .route("/", erstelleHoeckRouten({ db }))
+    .route("/", erstelleProtokollRouten({ db }))
     .route("/", erstelleAnwesenheitRouten({ db, fcm }))
     .route("/", erstellePinnwandRouten({ db, fcm }))
     .route("/", erstelleUmfragenRouten({ db }))
     .route("/", erstelleReaktionenRouten({ db }))
+    .route("/", erstelleEingangRouten({ db, fcm }))
     .route("/", erstelleTeilnehmerRouten({ db }))
     .route("/", erstelleAbzaehlenRouten({ db }))
     .route("/", erstelleZimmerRouten({ db }))

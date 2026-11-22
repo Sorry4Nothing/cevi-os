@@ -198,11 +198,28 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerEingang: {
+    titel: "Eingang im Lager",
+    zweck:
+      "Mitglieder des Lagers schicken der Lagerleitung eine Idee, einen Wunsch, eine Frage oder Feedback, auf Wunsch anonym. Gespeichert sind die Art, der Text, der Tag der Meldung, der Status, die Antwort der Lagerleitung mit ihrem Tag und, wenn die Lagerleitung sie zuordnet, das Ressort und das Traktandum. Bei einer nicht anonymen Meldung steht auch das Konto der Person dabei: Die Lagerleitung sieht den Namen, und die Person bekommt die Antwort als Push, der nur den Lagertitel nennt. Bei einer anonymen Meldung speichert Cevi OS keine Person, keine IP-Adresse und keine Uhrzeit, nur den Tag, und schreibt weder ein Audit-Log noch einen Eintrag im Änderungsfeed. Die Person bekommt beim Senden einen Rückfragecode, mit dem sie Status und Antwort abruft; gespeichert ist nur ein Prüfwert dieses Codes. Die Antwort steht ausserdem an der Meldung, die die Lagerleitung liest. Die Meldungen sieht nur die Lagerleitung und wer von ihr das Recht dazu bekommt.",
+    frist:
+      "Bis die Lagerleitung die Meldung löscht oder das Lager gelöscht wird; eine nicht anonyme Meldung entfällt auch mit dem Konto. Auf Anfrage löscht die Leitung Daten. Eine anonyme Meldung kennt keine Person und lässt sich darum nur über den Rückfragecode oder durch die Lagerleitung finden.",
+    apple: ["User Content: Other User Content"],
+    google: ["App activity: Other user-generated content"],
+  },
   lagerDokumente: {
     titel: "Dokumente im Lager",
     zweck:
       "Unterlagen des Lagers auffindbar machen: Ein Dokument hat einen Titel, Stichworte und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Die Lagerleitung gibt ein Dokument für das Team frei; ohne Freigabe sieht das Team es nicht. Cevi OS speichert nur den Verweis, nie den Inhalt. Die Suche läuft nur über Titel und Stichworte.",
     frist: `Bis die Leitung das Dokument löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer das Dokument angelegt hat. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
+  lagerProtokolle: {
+    titel: "Protokolle und Beschlüsse im Lager",
+    zweck:
+      "Protokolle und Beschlüsse eines Lagers festhalten und auffindbar machen: Ein Protokoll hat eine Art (Sitzung, Notiz, Kontakt oder Idee), einen Titel, ein Datum, optional einen Höck und verweist auf eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»). Cevi OS speichert nur den Verweis, nie den Inhalt des Protokolls, und ruft den Link nie ab; wer die Datei öffnen darf, regelt der Ablageort. Ein Beschluss ist ein kurzer Text mit optionalem Verweis auf Protokoll und Höck. Protokolle und Beschlüsse sieht nur, wer das Recht dazu hat, und das Team nie, wenn sie zu einem Höck der Lagerleitung gehören.",
+    frist: `Bis die Leitung das Protokoll oder den Beschluss löscht oder das Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto verschwindet nur die Angabe, wer den Eintrag angelegt hat. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -784,6 +801,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "protokoll_id",
     ],
   },
+  // Protokolle (#379): Art, Titel, Datum, Höck und Verweis auf die Datei; Beschlüsse: Text mit Verweis auf Protokoll und Höck
+  protokoll: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "art",
+      "titel",
+      "datum",
+      "hoeck_id",
+      "datei_id",
+    ],
+  },
+  beschluss: {
+    lagerProtokolle: [
+      ...LAGER_BASIS_SPALTEN,
+      "text",
+      "protokoll_id",
+      "hoeck_id",
+    ],
+  },
   hoeck_anwesenheit: {
     lagerHoeck: ["lager_id", "hoeck_id", "person_id"],
   },
@@ -884,6 +920,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "ziel_id",
       "person_id",
       "emoji",
+    ],
+  },
+  // Eingang (#383): bei einer anonymen Meldung (anonym) ist person_id leer, dafür steht ein Prüfwert des Rückfragecodes; nur der Tag, keine Uhrzeit, keine zeitgeordnete ID. Die Tabelle hat keine LAGER_BASIS_SPALTEN (kein Feed, keine Revision)
+  eingang: {
+    lagerEingang: [
+      "id",
+      "lager_id",
+      "version",
+      "art",
+      "text",
+      "anonym",
+      "person_id",
+      "rueckfragecode_hash",
+      "erstellt_tag",
+      "status",
+      "antwort",
+      "beantwortet_tag",
+      "ressort_id",
+      "traktandum_id",
     ],
   },
   // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt

@@ -395,6 +395,13 @@
       "breakpoints": true
     },
     {
+      "idx": 78,
+      "version": "7",
+      "when": 1793551800000,
+      "tag": "0078_lager_eingang",
+      "breakpoints": true
+    },
+    {
       "idx": 79,
       "version": "7",
       "when": 1793551900000,
@@ -476,6 +483,13 @@
       "version": "7",
       "when": 1793552990000,
       "tag": "0095_lager_anwesenheit_zeitplan",
+      "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793552995000,
+      "tag": "0096_lager_protokolle",
       "breakpoints": true
     },
     {

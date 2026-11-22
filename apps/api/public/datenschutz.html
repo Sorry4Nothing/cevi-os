@@ -804,6 +804,41 @@
             wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf
             ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
             Daten.
+      <section class="kategorie" aria-labelledby="k-lager-eingang">
+        <h3 id="k-lager-eingang">Eingang im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jede Meldung: Art, Text, Tag der Meldung, Status, Antwort mit
+            Tag, Ressort und Traktandum, dazu bei einer nicht anonymen Meldung
+            das Konto der Person und bei einer anonymen Meldung nur einen
+            Prüfwert des Rückfragecodes.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Mitglieder des Lagers schicken der Lagerleitung eine Idee, einen
+            Wunsch, eine Frage oder Feedback, auf Wunsch anonym. Gespeichert
+            sind die Art, der Text, der Tag der Meldung, der Status, die Antwort
+            der Lagerleitung mit ihrem Tag und, wenn die Lagerleitung sie
+            zuordnet, das Ressort und das Traktandum. Bei einer nicht anonymen
+            Meldung steht auch das Konto der Person dabei: Die Lagerleitung
+            sieht den Namen, und die Person bekommt die Antwort als Push, der
+            nur den Lagertitel nennt. Bei einer anonymen Meldung speichert Cevi
+            OS keine Person, keine IP-Adresse und keine Uhrzeit, nur den Tag,
+            und schreibt weder ein Audit-Log noch einen Eintrag im
+            Änderungsfeed. Die Person bekommt beim Senden einen Rückfragecode,
+            mit dem sie Status und Antwort abruft; gespeichert ist nur ein
+            Prüfwert dieses Codes. Die Antwort steht ausserdem an der Meldung,
+            die die Lagerleitung liest. Die Meldungen sieht nur die Lagerleitung
+            und wer von ihr das Recht dazu bekommt.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Lagerleitung die Meldung löscht oder das Lager gelöscht
+            wird; eine nicht anonyme Meldung entfällt auch mit dem Konto. Auf
+            Anfrage löscht die Leitung Daten. Eine anonyme Meldung kennt keine
+            Person und lässt sich darum nur über den Rückfragecode oder durch
+            die Lagerleitung finden.
           </dd>
         </dl>
       </section>
@@ -896,6 +931,40 @@
             Bis die Leitung den Höck oder das Traktandum löscht, das Lager
             gelöscht wird oder das Konto gelöscht wird. Auf Anfrage löscht die
             Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
+      <section class="kategorie" aria-labelledby="k-lager-protokolle">
+        <h3 id="k-lager-protokolle">Protokolle und Beschlüsse im Lager</h3>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Für jedes Protokoll: die Art, der Titel, das Datum, optional der
+            Höck, der Verweis auf die Datei, wann es angelegt wurde und von
+            welchem Konto. Für jeden Beschluss: der Text, optional der Verweis
+            auf Protokoll und Höck, wann er angelegt wurde und von welchem
+            Konto.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Protokolle und Beschlüsse eines Lagers festhalten und auffindbar
+            machen: Ein Protokoll hat eine Art (Sitzung, Notiz, Kontakt oder
+            Idee), einen Titel, ein Datum, optional einen Höck und verweist auf
+            eine Datei im SharePoint der Abteilung (siehe «Dateien im Lager»).
+            Cevi OS speichert nur den Verweis, nie den Inhalt des Protokolls,
+            und ruft den Link nie ab; wer die Datei öffnen darf, regelt der
+            Ablageort. Ein Beschluss ist ein kurzer Text mit optionalem Verweis
+            auf Protokoll und Höck. Protokolle und Beschlüsse sieht nur, wer das
+            Recht dazu hat, und das Team nie, wenn sie zu einem Höck der
+            Lagerleitung gehören.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung das Protokoll oder den Beschluss löscht oder das
+            Lager gelöscht wird; die Datei am Ablageort bleibt. Mit dem Konto
+            verschwindet nur die Angabe, wer den Eintrag angelegt hat. Auf
+            Anfrage löscht die Leitung Daten.
           </dd>
         </dl>
       </section>
