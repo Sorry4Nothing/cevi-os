@@ -6,6 +6,7 @@ import { erstelleAuswahlRouten } from "./auswahl.js";
 import { erstelleRedaktionIchRouten } from "./ich.js";
 import { erstelleRedaktionMedienRouten } from "./medien.js";
 import { erstelleSeitenRouten } from "./seiten.js";
+import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
 
 // Namensraum für Personen mit Bearbeitungsrecht, nicht nur für Admins. Jede Folgeroute hängt sich hier mit einer Zeile ein.
 // Eine Admin-Person braucht auch hier den zweiten Faktor (sonst umginge sie ihn über diesen Weg); alle anderen passen vorbei.
@@ -21,6 +22,7 @@ export function erstelleRedaktionRouten({
     .use(zweiterFaktorPflicht)
     .route("/ich", erstelleRedaktionIchRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
+    .route("/seiten", erstelleSeitenInhaltRouten({ db }))
     .route("/medien", erstelleRedaktionMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }));
 }
