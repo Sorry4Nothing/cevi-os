@@ -13,6 +13,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { istGeschlossen } from "../../lager/policy.js";
+import { schreibeStandardrechte } from "../../lager/rechte.js";
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
 
@@ -170,6 +171,8 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           .insert(lager)
           .values({ ...felder, abteilungId: person.abteilungId })
           .returning({ id: lager.id });
+        // Die Rechte der Rollen mit den Standardwerten (#365)
+        await schreibeStandardrechte(tx, zeile.id);
         // Kein Inhalt: weder Titel noch Ort
         await tx.insert(auditLog).values({
           abteilungId: person.abteilungId,
