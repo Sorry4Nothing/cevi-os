@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/termine/alle"
-order: 407000
+order: 411000
 method: GET
-url: "{{baseUrl}}{{pfad_T12}}"
+url: "{{baseUrl}}{{pfad_T16}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

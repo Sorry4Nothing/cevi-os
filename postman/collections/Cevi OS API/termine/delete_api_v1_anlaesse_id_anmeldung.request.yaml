@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/anlaesse/:id/anmeldung"
-order: 410000
+order: 414000
 method: DELETE
-url: "{{baseUrl}}{{pfad_T15}}"
+url: "{{baseUrl}}{{pfad_T19}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

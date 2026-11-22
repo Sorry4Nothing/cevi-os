@@ -142,9 +142,9 @@ export const KATEGORIEN = {
   medien: {
     titel: "Medien",
     zweck:
-      "Bilder und PDFs der Abteilung bereitstellen, zum Beispiel für die Webseite. Nur die Leitung lädt sie hoch. Wer ein Medium sehen darf, legt die Leitung beim Hochladen fest.",
+      "Bilder der Abteilung bereitstellen, zum Beispiel für die Website. Wer die Website bearbeiten darf, lädt sie hoch. Wer ein Medium sehen darf, legt die hochladende Person beim Hochladen fest.",
     frist:
-      "Bis die Leitung das Medium löscht. Mit dem Konto verschwindet nur die Angabe, wer es hochgeladen hat.",
+      "Bis die Leitung oder ein Webmaster das Medium löscht. Mit dem Konto verschwindet nur die Angabe, wer es hochgeladen hat.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
@@ -512,6 +512,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   programm_tag: { programme: ["programm_id", "tag_id"] },
+  // Räume (#446): keine Personendaten; das zuständige Team ist ein Tag (team_tag_id)
+  raum: {
+    programme: [
+      "id",
+      "abteilung_id",
+      "name",
+      "ort",
+      "beschreibung",
+      "kapazitaet",
+      "team_tag_id",
+      "aktiv",
+      "erstellt_am",
+    ],
+  },
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
   },

@@ -152,6 +152,15 @@ Nicht aufgeräumt wird, was ausdrücklich bleibt oder an einem Konto, Lager oder
 
 Mehrere Instanzen: Heute läuft eine Instanz. Kalender, Zeitregeln und Website haben eine Sperre in der Datenbank (`pg_try_advisory_lock`), die Frist-Erinnerung vermerkt die Aufgaben in derselben Anweisung. Die Löschläufe haben keine Sperre; die Adressbuch-Erinnerung und der Adressbuch-Löschlauf wurden mit zwei Instanzen nicht geprüft. Vor einer zweiten Instanz auch den Event-Stream (`LISTEN/NOTIFY`, siehe `docs/architektur.md`), die Zähler der Rate-Limits (im Arbeitsspeicher) und die Schalter des Wartungsmodus (beim Start geladen) prüfen.
 
+## Website
+
+Die öffentliche Website besteht aus fertigen Dateien, die die API in ein eigenes Verzeichnis schreibt (`WEBSITE_AUSGABE_PFAD`) und ein Host ausliefert; Besucher belasten die Datenbank nicht. Ablauf, Konfiguration, Vorschlag für den Edge-Caddy, Vorschau im Editor und Datenbanklast stehen in [website-auslieferung.md](website-auslieferung.md). Hier nur, was der Betrieb wissen muss:
+
+- **Heute nicht eingerichtet:** Domain (#68), Ort der Dateien und die Änderung am Edge-Caddy stehen nicht fest. `deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die drei `WEBSITE_*`-Variablen noch nicht; ohne sie erzeugt die API nichts (Log `website_ausgabe`, Art `aus`). Der Dienst `api` läuft mit `read_only: true` und braucht für das Verzeichnis ein beschreibbares Volume.
+- **Neuaufbau der Dateien:** Fehlt eine Datei oder das ganze Verzeichnis, schreibt der Abgleich sie beim nächsten Lauf neu (beim Start der API, bei jedem Ereignis, spätestens nach 10 Minuten). Einen vollständigen Neuaufbau erzwingt man, indem man den Inhalt des Verzeichnisses löscht und die API neu startet.
+- **Backup:** Der Ausgabeordner ist aus der Datenbank ableitbar und wird **nicht gesichert**. Gesichert sind die Seiten, Versionen und Weiterleitungen (Tabellen `seite`, `seite_version`, `weiterleitung`) im Dump; nach einer Wiederherstellung gleicht der Abgleich die Dateien selbst ab. Die Bilder der Website liegen im Medienspeicher (siehe «Medienspeicher»), Dateien zum Herunterladen im SharePoint.
+- **Vom Netz nehmen:** Die Informationssperre mit «Öffentliche Website vom Netz nehmen» leert das Verzeichnis und schreibt eine Hinweisseite (siehe «Informationssperre»).
+
 ## Ausgehende Verbindungen der API
 
 Die API ruft ausserhalb des Servers nur diese Dienste auf; der Dienst `api` braucht dafür das Docker-Netz `default` (Weg nach aussen).
@@ -180,6 +189,7 @@ Die Adresse von Open-Meteo steht im Code und ist keine Einstellung; es gibt kein
 
 - Sitzungen, offene Bestätigungscodes, die Schlüssel des Rate-Limits und Push-Tokens (Tabellen `session`, `verification`, `rate_limit`, `push_token`): Sitzungen enthalten Tokens, und Push-Tokens hängen an ihrer Sitzung. **Nach einer Wiederherstellung melden sich darum alle neu an.**
 - Dateien auf dem Server: `deploy/.env` (Passwörter und restic-Schlüssel), `deploy/secrets/fcm-service-account.json` und die Zertifikate des Edge-Caddys (Volume im Edge-Ordner). Caddy holt Zertifikate selbst neu; die Dateien ausser den Zertifikaten sind ohne eigene Kopie verloren.
+- Die erzeugten Dateien der Website (`WEBSITE_AUSGABE_PFAD`): Sie lassen sich aus der Datenbank neu erzeugen, siehe «Website».
 - Die Dateien der Medien (nur Bilder, #335): Sie liegen im Bucket des Medienspeichers, nicht in der Datenbank. Der Dump enthält nur die Tabelle `medium` (Metadaten), siehe «Medienspeicher» unten.
 
 Das Skript bricht ohne Backup ab, wenn eine andere Tabelle per Fremdschlüssel auf eine ausgeschlossene verweist, denn solche Zeilen machten die ganze Wiederherstellung ungültig. Dann die Ausschlussliste in `deploy/backup.sh` nachführen. Fehlt eine ausgeschlossene Tabelle dagegen noch (beim Deploy läuft das Backup vor der Migration, die sie anlegt), warnt das Skript nur und sichert ohne sie; die Prüfung meldet eine solche Tabelle im zurückgespielten Stand ebenfalls nur als Hinweis.
