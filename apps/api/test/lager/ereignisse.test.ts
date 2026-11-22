@@ -345,9 +345,15 @@ describe("GET /api/v1/lager/{id}/ereignisse", () => {
       expect(neu.erste).toMatchObject({
         event: "aenderung",
         id: String(await seq()),
-        // Alle Typen, die das Team lesen darf, nicht mehr
-        data: { bis: await seq(), objekttypen: ["offen"] },
+        // Alle Typen, die das Team lesen darf (auch die der Module, die diese Datei nicht kennt, zum Beispiel Teilnehmende), nicht mehr: das «objekt» ohne Leserecht des Teams fehlt
+        data: {
+          bis: await seq(),
+          objekttypen: expect.arrayContaining(["offen"]),
+        },
       });
+      expect(
+        (neu.erste.data as { objekttypen: string[] }).objekttypen,
+      ).not.toContain("objekt");
       await neu.strom.schliesse();
     });
 
