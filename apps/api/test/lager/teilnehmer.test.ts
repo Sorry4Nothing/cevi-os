@@ -358,6 +358,7 @@ describe("Datenschutz: keine Gesundheitsdaten", () => {
   test("die Tabelle hat nur Name, Stufe und Verknüpfungen, kein Gesundheitsfeld", () => {
     expect(Object.keys(getTableColumns(schema.teilnehmer)).sort()).toEqual(
       [
+        "abgewaehlt",
         "anmeldungId",
         "ceviName",
         "erstelltAm",
@@ -444,6 +445,7 @@ describe("Datenschutz: keine Gesundheitsdaten", () => {
         vorname: "Anna",
         nachname: "Muster",
         stufe: "Wolf",
+        abgewaehlt: false,
       },
     ]);
     const einzeln = await anfrage(
@@ -452,7 +454,7 @@ describe("Datenschutz: keine Gesundheitsdaten", () => {
       `${L(id)}/teilnehmer/${t.id}`,
     );
     expect(Object.keys(einzeln.body).sort()).toEqual(
-      ["id", "nachname", "stufe", "version", "vorname"].sort(),
+      ["abgewaehlt", "id", "nachname", "stufe", "version", "vorname"].sort(),
     );
     const leitung = await anfrage(leiter(), "GET", `${L(id)}/teilnehmer`);
     expect(leitung.body.teilnehmer[0].ceviName).toBe("Balu");
