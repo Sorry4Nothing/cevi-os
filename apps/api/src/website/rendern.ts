@@ -707,7 +707,10 @@ export function rendereGeschuetzte(
 function eifrig(k: HtmlKnoten): HtmlKnoten {
   if (typeof k === "string") return k;
   if (k.tag === "img") {
-    const attr = { ...k.attr, fetchpriority: "high" };
+    const attr: Record<string, string | true> = {
+      ...k.attr,
+      fetchpriority: "high",
+    };
     delete attr.loading;
     return { ...k, attr };
   }

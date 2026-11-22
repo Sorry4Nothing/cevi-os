@@ -1677,6 +1677,13 @@ a.termin:hover {
   }
 }
 
+/* Link im Hinweisband: Zielgrösse 44 px */
+.band .text a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
 /* Termin ohne Anlass ist keine Verknüpfung */
 div.termin {
   color: var(--on-surface);
@@ -1697,8 +1704,9 @@ div.termin {
 }
 
 .kontaktband .wege a {
-  display: inline-block;
-  padding: 0.25rem 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
 }
 
 /* Fuss: drei Spalten */
@@ -1711,8 +1719,9 @@ div.termin {
 }
 
 .fuss a {
-  display: inline-block;
-  padding: 0.125rem 0;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
 }
 
 @media (max-width: 47.5em) {
