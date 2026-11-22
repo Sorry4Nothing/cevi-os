@@ -267,6 +267,10 @@
   color: var(--auf-blau-f);
 }
 
+.hinweis > span {
+  flex: 1;
+}
+
 .hinweis .knopf--rund {
   color: inherit;
 }
@@ -281,4 +285,9 @@
   .zaehler {
     border: 1px solid CanvasText;
   }
+}
+
+/* Werte-Listen in Flächen: Wert fett, Zahlen tabellarisch (A1 «Bestand») */
+.flaeche .werte dd {
+  font-weight: 700;
 }

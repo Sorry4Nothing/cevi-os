@@ -186,6 +186,10 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
 
+## Lokal prüfen
+
+Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/seiten.ts`). Nach jeder Änderung an einer Datei dort den Server neu starten, sonst zeigt der Browser die alte Fassung. Eigener Dev-Server und Datenbank wie in der Regel für UI-Arbeit; der zweite Faktor lässt sich in Playwright umgehen, indem `GET /api/auth/get-session` und die Daten-Routen mit `page.route` beantwortet werden (siehe die Antwortformen in `docs/api/openapi.yaml`). Prüfe jede Ansicht bei 1280, 1024 und 390 px in Tag und Nacht (`emulateMedia({ colorScheme })`), mit Tastatur und mit `reducedMotion: "reduce"`.
+
 ## Änderungen am Gerüst
 
 Das Gerüst ändert sich nach dem ersten Stand nur additiv: neue Klassen in der eigenen Datei, neue Einträge in `navigation.js`. Wer `admin.js`, `admin.css`, `dom.js` oder `index.html` anfasst, hält die Änderung klein und nennt sie im PR. Stile eines Bereichs gehören in `<bereich>.css` mit eigenem Klassenvorsatz.
