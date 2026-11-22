@@ -335,8 +335,6 @@ export function erstelleApp({
           return c.text("fehler", 503);
         }
       })
-      // Wurzeladresse (#531): leitet auf die Verwaltung; ohne Cookie, ohne Hinweis auf Konfiguration. 302, damit sich die Weiterleitung ändern lässt
-      .get("/", (c) => c.redirect("/admin", 302))
       // Seiten für die Stores, ohne Login und ausserhalb der Versionsprüfung; die Texte folgen in #63
       .get("/datenschutz", (c) => c.html(seiten.datenschutz))
       .get("/konto-loeschen", (c) => c.html(seiten.kontoLoeschen))
