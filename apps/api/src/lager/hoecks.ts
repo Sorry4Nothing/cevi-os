@@ -235,6 +235,8 @@ const verantwortliche = () =>
     sql`select json_agg(json_build_object('id', ${user.id}, 'name', ${user.name}, 'ceviName', ${user.ceviName}) order by ${user.name}, ${user.id}) from ${traktandumVerantwortlich} inner join ${user} on ${user.id} = ${traktandumVerantwortlich.personId} where ${traktandumVerantwortlich.traktandumId} = ${traktandum.id}`,
   );
 
+const zaehle = (abfrage: SQL) => sql<number>`(${abfrage})`.mapWith(Number);
+
 export type HoeckListeEintrag = ReturnType<typeof hoeckAnsicht> & {
   anzahlTraktanden: number;
   anzahlAnwesende: number;
@@ -254,14 +256,13 @@ export async function ladeHoecks(
   const zeilen = await db
     .select({
       zeile: hoeck,
-      anzahlTraktanden:
-        sql<number>`(select count(*) from ${traktandum} where ${traktandum.hoeckId} = ${hoeck.id} and ${traktandum.lagerId} = ${hoeck.lagerId} and ${traktandumAktiv})`.mapWith(
-          Number,
-        ),
-      anzahlAnwesende:
-        sql<number>`(select count(*) from ${hoeckAnwesenheit} where ${hoeckAnwesenheit.hoeckId} = ${hoeck.id})`.mapWith(
-          Number,
-        ),
+      // Die Unterabfragen stehen in einem eigenen sql: In einer Abfrage mit nur einer Tabelle lässt drizzle die Tabellennamen vor den Spalten weg, und «hoeck_id = id» meinte dann die Spalten der Unterabfrage selbst
+      anzahlTraktanden: zaehle(
+        sql`select count(*) from ${traktandum} where ${traktandum.hoeckId} = ${hoeck.id} and ${traktandum.lagerId} = ${hoeck.lagerId} and ${traktandumAktiv}`,
+      ),
+      anzahlAnwesende: zaehle(
+        sql`select count(*) from ${hoeckAnwesenheit} where ${hoeckAnwesenheit.hoeckId} = ${hoeck.id}`,
+      ),
     })
     .from(hoeck)
     .where(

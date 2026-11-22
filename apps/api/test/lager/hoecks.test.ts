@@ -808,16 +808,16 @@ describe("Traktanden", () => {
     ];
     const r = await anfrage(leiter(), "PUT", `${L()}/traktanden/reihenfolge`, {
       hoeckId: h.id,
-      eintraege: [c, a, b].map((x) => ({ id: x.id, version: x.version })),
+      eintraege: [b, a, c].map((x) => ({ id: x.id, version: x.version })),
     });
     expect(r.status).toBe(204);
     const nachher = await anfrage(leiter(), "GET", `${L()}/hoecks/${h.id}`);
     expect(
       nachher.body.traktanden.map((x: { titel: string }) => x.titel),
-    ).toEqual(["c", "a", "b"]);
-    // b stand schon an der Stelle 2: keine neue Version
+    ).toEqual(["b", "a", "c"]);
+    // c stand schon an der Stelle 2: keine neue Version
     expect(
-      nachher.body.traktanden.find((x: { id: string }) => x.id === b.id)
+      nachher.body.traktanden.find((x: { id: string }) => x.id === c.id)
         .version,
     ).toBe(1);
     // Ein Traktandum aus einer anderen Liste: alles oder nichts
@@ -848,7 +848,7 @@ describe("Traktanden", () => {
       (
         await anfrage(leiter(), "GET", `${L()}/hoecks/${h.id}`)
       ).body.traktanden.map((x: { titel: string }) => x.titel),
-    ).toEqual(["c", "a", "b"]);
+    ).toEqual(["b", "a", "c"]);
   });
 
   test("offene Punkte für den nächsten Höck übernehmen", async () => {

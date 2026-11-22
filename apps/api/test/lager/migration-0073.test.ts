@@ -152,13 +152,13 @@ test("0073 legt Höcks und Traktanden an, die Fremdschlüssel halten das Lager, 
       aufgabe?: string | null;
       titel?: string;
       entscheid?: string | null;
-      links?: string;
+      links?: unknown;
       status?: string;
       reihenfolge?: number;
     } = {},
   ) =>
     (
-      await api`insert into traktandum (lager_id, hoeck_id, aufgabe_id, titel, entscheid, links, status, reihenfolge, lager_seq) values (${lagerId}, ${extra.hoeck ?? null}, ${extra.aufgabe ?? null}, ${extra.titel ?? "Budget"}, ${extra.entscheid ?? null}, ${extra.links ?? "[]"}::jsonb, ${extra.status ?? "offen"}, ${extra.reihenfolge ?? 0}, 1) returning id`
+      await api`insert into traktandum (lager_id, hoeck_id, aufgabe_id, titel, entscheid, links, status, reihenfolge, lager_seq) values (${lagerId}, ${extra.hoeck ?? null}, ${extra.aufgabe ?? null}, ${extra.titel ?? "Budget"}, ${extra.entscheid ?? null}, ${api.json((extra.links ?? []) as never)}, ${extra.status ?? "offen"}, ${extra.reihenfolge ?? 0}, 1) returning id`
     )[0].id as string;
   const t = await traktandum(lagerA, { hoeck: h });
   const lose = await traktandum(lagerA);
@@ -176,11 +176,12 @@ test("0073 legt Höcks und Traktanden an, die Fremdschlüssel halten das Lager, 
     { entscheid: "" },
     { entscheid: "x".repeat(1001) },
     { reihenfolge: -1 },
-    { links: '{"a":1}' },
+    { links: { a: 1 } },
     {
-      links: JSON.stringify(
-        Array.from({ length: 11 }, () => ({ titel: "x", url: "https://e.ch" })),
-      ),
+      links: Array.from({ length: 11 }, () => ({
+        titel: "x",
+        url: "https://e.ch",
+      })),
     },
   ]) {
     await expect(traktandum(lagerA, extra)).rejects.toMatchObject({
