@@ -127,6 +127,29 @@ async function holeUndSpeichere(
   }
 }
 
+// Liest den Zwischenspeicher (eine Abfrage). «aktuell»: Der Ort stimmt und entweder ist der Stand frisch oder der letzte Versuch noch keine NEUER_VERSUCH_MINUTEN her
+async function lies(
+  db: Leseschreiber,
+  abruf: { id: string; breite: number; laenge: number },
+  jetzt: Date,
+) {
+  const [zeile] = await db
+    .select()
+    .from(wetterCache)
+    .where(eq(wetterCache.lagerId, abruf.id));
+  const gleichOrt =
+    zeile !== undefined &&
+    zeile.breite === abruf.breite &&
+    zeile.laenge === abruf.laenge;
+  const frisch =
+    gleichOrt &&
+    zeile.abgerufenAm !== null &&
+    stunden(zeile.abgerufenAm, jetzt) < WETTER_STUNDEN;
+  const gesperrt =
+    gleichOrt && stunden(zeile.versuchAm, jetzt) * 60 < NEUER_VERSUCH_MINUTEN;
+  return { zeile, gleichOrt, aktuell: frisch || gesperrt };
+}
+
 // Das Wetter des Lagers: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang. Ohne Ort oder bei Ausfall des Dienstes eine leere Liste, nie ein Fehler
 export async function ladeWetter(
   db: Leseschreiber,
@@ -146,34 +169,26 @@ export async function ladeWetter(
     breite: rundeOrt(lager.breite),
     laenge: rundeOrt(lager.laenge),
   };
-  const [zeile] = await db
-    .select()
-    .from(wetterCache)
-    .where(eq(wetterCache.lagerId, lager.id));
-  const gleichOrt =
-    zeile !== undefined &&
-    zeile.breite === abruf.breite &&
-    zeile.laenge === abruf.laenge;
-  const frisch =
-    gleichOrt &&
-    zeile.abgerufenAm !== null &&
-    stunden(zeile.abgerufenAm, jetzt) < WETTER_STUNDEN;
-  const gesperrt =
-    gleichOrt && stunden(zeile.versuchAm, jetzt) * 60 < NEUER_VERSUCH_MINUTEN;
+  const stand = await lies(db, abruf, jetzt);
   let ergebnis: Stand | undefined;
-  if (frisch || gesperrt) {
-    ergebnis = gespeichert(zeile, jetzt);
+  if (stand.aktuell) {
+    ergebnis = gespeichert(stand.zeile, jetzt);
   } else {
     let lauf = laufend.get(lager.id);
     if (!lauf) {
-      lauf = holeUndSpeichere(
-        db,
-        abruf,
-        holen,
-        jetzt,
-        zeile,
-        gleichOrt,
-      ).finally(() => laufend.delete(lager.id));
+      // Im Abruf liest der Server den Zwischenspeicher noch einmal: Ein Aufruf, der vor dem Abruf eines anderen las und erst danach hierher kommt, holt nicht ein zweites Mal
+      lauf = (async () => {
+        const jetztStand = await lies(db, abruf, jetzt);
+        if (jetztStand.aktuell) return gespeichert(jetztStand.zeile, jetzt);
+        return holeUndSpeichere(
+          db,
+          abruf,
+          holen,
+          jetzt,
+          jetztStand.zeile,
+          jetztStand.gleichOrt,
+        );
+      })().finally(() => laufend.delete(lager.id));
       laufend.set(lager.id, lauf);
     }
     ergebnis = await lauf;
