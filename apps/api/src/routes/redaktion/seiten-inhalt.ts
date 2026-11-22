@@ -4,11 +4,14 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { darfBearbeiten } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
-import { auditLog, seite, seiteVersion } from "../../db/schema.js";
+import { abteilung, auditLog, seite, seiteVersion } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { ladeDaten } from "../../website/abgleich.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
+import { CSP, rendereSeite, STYLESHEET_PFAD } from "../../website/rendern.js";
+import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
 import { pruefeVerweise } from "../../website/verweise.js";
 
 const pfad = () => z.strictObject({ id: z.uuid() });
@@ -26,6 +29,13 @@ const speichernSchema = z.strictObject({
   dokument: z.unknown(),
 });
 
+const vorschauSchema = z.strictObject({
+  version: z
+    .string()
+    .regex(/^[1-9][0-9]{0,8}$/)
+    .transform(Number)
+    .optional(),
+});
 // Speichern des Entwurfs: je Person höchstens SPEICHERN im Fenster. Autospeichern alle paar Sekunden bleibt weit darunter
 const SPEICHERN = 120;
 const FENSTER_MS = 60_000;
@@ -143,44 +153,183 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
       throw fehler;
     };
 
-  return new Hono<{ Variables: { person: Person } }>()
-    .get("/:id/entwurf", eingabe("param", pfad()), async (c) => {
-      const z = await ladeMitRecht(
-        db,
-        c.get("person"),
-        c.req.valid("param").id,
-      );
-      return c.json({
-        zaehler: z.seite.entwurfZaehler,
-        dokument: z.seite.entwurf ?? null,
-        veroeffentlichteNr: z.nr,
-        // Gibt es etwas, das «Veröffentlichen» neu veröffentlichte?
-        unveroeffentlicht: z.seite.entwurf !== null && z.gleich !== true,
-      });
-    })
-    .put(
-      "/:id/entwurf",
-      eingabe("param", pfad()),
-      eingabe("json", speichernSchema),
-      async (c) => {
+  return (
+    new Hono<{ Variables: { person: Person } }>()
+      .get("/:id/entwurf", eingabe("param", pfad()), async (c) => {
+        const z = await ladeMitRecht(
+          db,
+          c.get("person"),
+          c.req.valid("param").id,
+        );
+        return c.json({
+          zaehler: z.seite.entwurfZaehler,
+          dokument: z.seite.entwurf ?? null,
+          veroeffentlichteNr: z.nr,
+          // Gibt es etwas, das «Veröffentlichen» neu veröffentlichte?
+          unveroeffentlicht: z.seite.entwurf !== null && z.gleich !== true,
+        });
+      })
+      // Vorschau des gespeicherten Entwurfs als Seite im Rahmen der Verwaltung (#358): derselbe Renderer wie bei der Auslieferung.
+      // Alle Bausteine erscheinen offen, auch die mit engerer Sichtbarkeit: Wer die Seite bearbeitet, darf sie sehen. Kein Skript, keine Navigation.
+      .get(
+        "/:id/vorschau",
+        eingabe("param", pfad()),
+        eingabe("query", vorschauSchema),
+        async (c) => {
+          const person = c.get("person");
+          const { id } = c.req.valid("param");
+          const { version } = c.req.valid("query");
+          const z = await ladeMitRecht(db, person, id);
+          let quelle: unknown = z.seite.entwurf ?? {
+            v: 1,
+            titel: z.seite.titel,
+            bausteine: [],
+          };
+          // Eine frühere Version statt des Entwurfs (aus der Versionsliste)
+          if (version !== undefined) {
+            const [v] = await db
+              .select({ inhalt: seiteVersion.inhalt })
+              .from(seiteVersion)
+              .where(
+                and(eq(seiteVersion.seiteId, id), eq(seiteVersion.nr, version)),
+              );
+            if (!v) throw new HTTPException(404);
+            quelle = v.inhalt;
+          }
+          const p = pruefeDokument(quelle);
+          if (!p.ok) {
+            return c.json({ ...DOKUMENT_UNGUELTIG, fehler: p.fehler }, 422);
+          }
+          const dokument = {
+            ...p.dokument,
+            bausteine: p.dokument.bausteine.map((b) => ({
+              ...b,
+              sichtbarkeit: "erbt" as const,
+            })),
+          };
+          const [daten, fakten, [abt]] = await Promise.all([
+            ladeDaten(db, person.abteilungId, [dokument], false),
+            ladeStufenfaktenGemerkt(db, person.abteilungId, id),
+            db
+              .select({ name: abteilung.name })
+              .from(abteilung)
+              .where(eq(abteilung.id, person.abteilungId)),
+          ]);
+          if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
+          const seitenHtml = rendereSeite(
+            { id, pfad: "/vorschau", dokument },
+            {
+              abteilung: abt?.name ?? "",
+              basisUrl: "",
+              navigation: [],
+              daten,
+            },
+          );
+          // Der Stil kommt aus der Verwaltung (seiten.ts), nicht von der Website
+          const html = seitenHtml.replace(
+            `href="${STYLESHEET_PFAD}"`,
+            'href="/admin/website-vorschau.css"',
+          );
+          // Nur die eigene Verwaltung darf die Vorschau einrahmen
+          return c.html(html, 200, {
+            "Content-Security-Policy": `${CSP}; frame-ancestors 'self'`,
+            "Cache-Control": "private, no-store",
+          });
+        },
+      )
+      .put(
+        "/:id/entwurf",
+        eingabe("param", pfad()),
+        eingabe("json", speichernSchema),
+        async (c) => {
+          const person = c.get("person");
+          const { id } = c.req.valid("param");
+          const felder = c.req.valid("json");
+          try {
+            const zaehler = await db.transaction(async (tx) => {
+              const { seite: alt } = await ladeMitRecht(tx, person, id);
+              if (zuViele(person.id)) throw new HTTPException(429);
+              const p = pruefeDokument(felder.dokument);
+              if (!p.ok) {
+                throw new Abbruch(
+                  { ...DOKUMENT_UNGUELTIG, fehler: p.fehler },
+                  400,
+                );
+              }
+              const verweise = await pruefeVerweise(
+                tx,
+                person.abteilungId,
+                alt.sichtbarkeit,
+                p.dokument,
+              );
+              if (verweise.length > 0) {
+                throw new Abbruch(
+                  {
+                    code: verweise[0]!.code,
+                    message: "Das Dokument verweist auf etwas Unzulässiges.",
+                    fehler: verweise,
+                  },
+                  422,
+                );
+              }
+              // Ein Schritt: nur wer den aktuellen Zähler kennt, schreibt (sonst 0 Zeilen)
+              const [neu] = await tx
+                .update(seite)
+                .set({
+                  entwurf: p.dokument,
+                  entwurfZaehler: sql`${seite.entwurfZaehler} + 1`,
+                  geaendertAm: new Date(),
+                })
+                .where(
+                  and(
+                    eq(seite.id, id),
+                    eq(seite.entwurfZaehler, felder.zaehler),
+                  ),
+                )
+                .returning({ zaehler: seite.entwurfZaehler });
+              if (!neu) {
+                const { seite: jetzt } = await ladeSeite(tx, person, id);
+                throw new Abbruch(
+                  {
+                    code: "KONFLIKT",
+                    message:
+                      "Die Seite wurde inzwischen geändert. Hier ist der aktuelle Stand.",
+                    zaehler: jetzt.entwurfZaehler,
+                    dokument: jetzt.entwurf ?? null,
+                  },
+                  409,
+                );
+              }
+              // Das Speichern steht nicht im Audit-Log: Autospeichern soll es nicht fluten
+              return neu.zaehler;
+            });
+            return c.json({ zaehler }, 200);
+          } catch (fehler) {
+            return antworte(c)(fehler);
+          }
+        },
+      )
+      .post("/:id/veroeffentlichen", eingabe("param", pfad()), async (c) => {
         const person = c.get("person");
         const { id } = c.req.valid("param");
-        const felder = c.req.valid("json");
         try {
-          const zaehler = await db.transaction(async (tx) => {
-            const { seite: alt } = await ladeMitRecht(tx, person, id);
-            if (zuViele(person.id)) throw new HTTPException(429);
-            const p = pruefeDokument(felder.dokument);
+          const nr = await db.transaction(async (tx) => {
+            const { seite: z, gleich } = await ladeGesperrt(tx, person, id);
+            if (z.entwurf === null || gleich === true) {
+              throw new Abbruch(NICHTS_ZU_VEROEFFENTLICHEN, 409);
+            }
+            // Das ganze Dokument, auch wenn der Entwurf es beim Speichern schon bestand: Schema und Seite können sich seither geändert haben
+            const p = pruefeDokument(z.entwurf);
             if (!p.ok) {
               throw new Abbruch(
                 { ...DOKUMENT_UNGUELTIG, fehler: p.fehler },
-                400,
+                422,
               );
             }
             const verweise = await pruefeVerweise(
               tx,
               person.abteilungId,
-              alt.sichtbarkeit,
+              z.sichtbarkeit,
               p.dokument,
             );
             if (verweise.length > 0) {
@@ -193,197 +342,138 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
                 422,
               );
             }
-            // Ein Schritt: nur wer den aktuellen Zähler kennt, schreibt (sonst 0 Zeilen)
-            const [neu] = await tx
-              .update(seite)
-              .set({
-                entwurf: p.dokument,
-                entwurfZaehler: sql`${seite.entwurfZaehler} + 1`,
-                geaendertAm: new Date(),
+            // Unter der Sperre der Zeile: Zwei Veröffentlichungen ziehen nie dieselbe Nummer
+            const [letzte] = await tx
+              .select({ nr: seiteVersion.nr })
+              .from(seiteVersion)
+              .where(eq(seiteVersion.seiteId, id))
+              .orderBy(desc(seiteVersion.nr))
+              .limit(1);
+            const neueNr = (letzte?.nr ?? 0) + 1;
+            const [version] = await tx
+              .insert(seiteVersion)
+              .values({
+                seiteId: id,
+                nr: neueNr,
+                inhalt: p.dokument,
+                autorId: person.id,
               })
-              .where(
-                and(eq(seite.id, id), eq(seite.entwurfZaehler, felder.zaehler)),
-              )
-              .returning({ zaehler: seite.entwurfZaehler });
-            if (!neu) {
-              const { seite: jetzt } = await ladeSeite(tx, person, id);
-              throw new Abbruch(
-                {
-                  code: "KONFLIKT",
-                  message:
-                    "Die Seite wurde inzwischen geändert. Hier ist der aktuelle Stand.",
-                  zaehler: jetzt.entwurfZaehler,
-                  dokument: jetzt.entwurf ?? null,
-                },
-                409,
-              );
-            }
-            // Das Speichern steht nicht im Audit-Log: Autospeichern soll es nicht fluten
-            return neu.zaehler;
+              .returning({ id: seiteVersion.id });
+            await tx
+              .update(seite)
+              .set({ veroeffentlichteVersionId: version.id })
+              .where(eq(seite.id, id));
+            await audit(tx, person, "seite_veroeffentlicht", id, {
+              nr: neueNr,
+            });
+            return neueNr;
           });
-          return c.json({ zaehler }, 200);
+          meldeWebsiteEreignis({
+            art: "version_veroeffentlicht",
+            abteilungId: person.abteilungId,
+            seiteId: id,
+          });
+          return c.json({ nr }, 201);
         } catch (fehler) {
           return antworte(c)(fehler);
         }
-      },
-    )
-    .post("/:id/veroeffentlichen", eingabe("param", pfad()), async (c) => {
-      const person = c.get("person");
-      const { id } = c.req.valid("param");
-      try {
-        const nr = await db.transaction(async (tx) => {
-          const { seite: z, gleich } = await ladeGesperrt(tx, person, id);
-          if (z.entwurf === null || gleich === true) {
-            throw new Abbruch(NICHTS_ZU_VEROEFFENTLICHEN, 409);
-          }
-          // Das ganze Dokument, auch wenn der Entwurf es beim Speichern schon bestand: Schema und Seite können sich seither geändert haben
-          const p = pruefeDokument(z.entwurf);
-          if (!p.ok) {
-            throw new Abbruch({ ...DOKUMENT_UNGUELTIG, fehler: p.fehler }, 422);
-          }
-          const verweise = await pruefeVerweise(
-            tx,
-            person.abteilungId,
-            z.sichtbarkeit,
-            p.dokument,
-          );
-          if (verweise.length > 0) {
-            throw new Abbruch(
-              {
-                code: verweise[0]!.code,
-                message: "Das Dokument verweist auf etwas Unzulässiges.",
-                fehler: verweise,
-              },
-              422,
-            );
-          }
-          // Unter der Sperre der Zeile: Zwei Veröffentlichungen ziehen nie dieselbe Nummer
-          const [letzte] = await tx
-            .select({ nr: seiteVersion.nr })
-            .from(seiteVersion)
-            .where(eq(seiteVersion.seiteId, id))
-            .orderBy(desc(seiteVersion.nr))
-            .limit(1);
-          const neueNr = (letzte?.nr ?? 0) + 1;
-          const [version] = await tx
-            .insert(seiteVersion)
-            .values({
-              seiteId: id,
-              nr: neueNr,
-              inhalt: p.dokument,
-              autorId: person.id,
-            })
-            .returning({ id: seiteVersion.id });
-          await tx
-            .update(seite)
-            .set({ veroeffentlichteVersionId: version.id })
-            .where(eq(seite.id, id));
-          await audit(tx, person, "seite_veroeffentlicht", id, { nr: neueNr });
-          return neueNr;
+      })
+      .post("/:id/zurueckziehen", eingabe("param", pfad()), async (c) => {
+        const person = c.get("person");
+        const { id } = c.req.valid("param");
+        try {
+          await db.transaction(async (tx) => {
+            const { seite: z } = await ladeGesperrt(tx, person, id);
+            if (z.veroeffentlichteVersionId === null) {
+              throw new Abbruch(NICHT_VEROEFFENTLICHT, 409);
+            }
+            // Nur der Zeiger: Die Versionen bleiben
+            await tx
+              .update(seite)
+              .set({ veroeffentlichteVersionId: null })
+              .where(eq(seite.id, id));
+            await audit(tx, person, "seite_zurueckgezogen", id, {});
+          });
+          meldeWebsiteEreignis({
+            art: "version_zurueckgezogen",
+            abteilungId: person.abteilungId,
+            seiteId: id,
+          });
+          return c.body(null, 204);
+        } catch (fehler) {
+          return antworte(c)(fehler);
+        }
+      })
+      .get("/:id/versionen", eingabe("param", pfad()), async (c) => {
+        const { id } = c.req.valid("param");
+        const z = await ladeMitRecht(db, c.get("person"), id);
+        // shortcut: die jüngsten MAX_VERSIONEN ohne Seitenwechsel; ältere über versionen/{nr} erreichbar, Seiten, sobald Seiten so viele Versionen haben
+        const zeilen = await db
+          .select({
+            id: seiteVersion.id,
+            nr: seiteVersion.nr,
+            autorId: seiteVersion.autorId,
+            erstelltAm: seiteVersion.erstelltAm,
+          })
+          .from(seiteVersion)
+          .where(eq(seiteVersion.seiteId, id))
+          .orderBy(desc(seiteVersion.nr))
+          .limit(MAX_VERSIONEN);
+        return c.json({
+          versionen: zeilen.map((v) => ({
+            nr: v.nr,
+            autorId: v.autorId,
+            erstelltAm: v.erstelltAm,
+            veroeffentlicht: v.id === z.seite.veroeffentlichteVersionId,
+          })),
         });
-        meldeWebsiteEreignis({
-          art: "version_veroeffentlicht",
-          abteilungId: person.abteilungId,
-          seiteId: id,
-        });
-        return c.json({ nr }, 201);
-      } catch (fehler) {
-        return antworte(c)(fehler);
-      }
-    })
-    .post("/:id/zurueckziehen", eingabe("param", pfad()), async (c) => {
-      const person = c.get("person");
-      const { id } = c.req.valid("param");
-      try {
-        await db.transaction(async (tx) => {
-          const { seite: z } = await ladeGesperrt(tx, person, id);
-          if (z.veroeffentlichteVersionId === null) {
-            throw new Abbruch(NICHT_VEROEFFENTLICHT, 409);
-          }
-          // Nur der Zeiger: Die Versionen bleiben
-          await tx
-            .update(seite)
-            .set({ veroeffentlichteVersionId: null })
-            .where(eq(seite.id, id));
-          await audit(tx, person, "seite_zurueckgezogen", id, {});
-        });
-        meldeWebsiteEreignis({
-          art: "version_zurueckgezogen",
-          abteilungId: person.abteilungId,
-          seiteId: id,
-        });
-        return c.body(null, 204);
-      } catch (fehler) {
-        return antworte(c)(fehler);
-      }
-    })
-    .get("/:id/versionen", eingabe("param", pfad()), async (c) => {
-      const { id } = c.req.valid("param");
-      const z = await ladeMitRecht(db, c.get("person"), id);
-      // shortcut: die jüngsten MAX_VERSIONEN ohne Seitenwechsel; ältere über versionen/{nr} erreichbar, Seiten, sobald Seiten so viele Versionen haben
-      const zeilen = await db
-        .select({
-          id: seiteVersion.id,
-          nr: seiteVersion.nr,
-          autorId: seiteVersion.autorId,
-          erstelltAm: seiteVersion.erstelltAm,
-        })
-        .from(seiteVersion)
-        .where(eq(seiteVersion.seiteId, id))
-        .orderBy(desc(seiteVersion.nr))
-        .limit(MAX_VERSIONEN);
-      return c.json({
-        versionen: zeilen.map((v) => ({
+      })
+      .get("/:id/versionen/:nr", eingabe("param", versionPfad()), async (c) => {
+        const { id, nr } = c.req.valid("param");
+        const z = await ladeMitRecht(db, c.get("person"), id);
+        const [v] = await db
+          .select()
+          .from(seiteVersion)
+          .where(and(eq(seiteVersion.seiteId, id), eq(seiteVersion.nr, nr)));
+        if (!v) throw new HTTPException(404);
+        return c.json({
           nr: v.nr,
           autorId: v.autorId,
           erstelltAm: v.erstelltAm,
           veroeffentlicht: v.id === z.seite.veroeffentlichteVersionId,
-        })),
-      });
-    })
-    .get("/:id/versionen/:nr", eingabe("param", versionPfad()), async (c) => {
-      const { id, nr } = c.req.valid("param");
-      const z = await ladeMitRecht(db, c.get("person"), id);
-      const [v] = await db
-        .select()
-        .from(seiteVersion)
-        .where(and(eq(seiteVersion.seiteId, id), eq(seiteVersion.nr, nr)));
-      if (!v) throw new HTTPException(404);
-      return c.json({
-        nr: v.nr,
-        autorId: v.autorId,
-        erstelltAm: v.erstelltAm,
-        veroeffentlicht: v.id === z.seite.veroeffentlichteVersionId,
-        dokument: v.inhalt,
-      });
-    })
-    .post(
-      "/:id/versionen/:nr/zurueckholen",
-      eingabe("param", versionPfad()),
-      async (c) => {
-        const person = c.get("person");
-        const { id, nr } = c.req.valid("param");
-        const zaehler = await db.transaction(async (tx) => {
-          await ladeGesperrt(tx, person, id);
-          const [v] = await tx
-            .select({ inhalt: seiteVersion.inhalt })
-            .from(seiteVersion)
-            .where(and(eq(seiteVersion.seiteId, id), eq(seiteVersion.nr, nr)));
-          if (!v) throw new HTTPException(404);
-          // Eine Kopie in den Entwurf; die veröffentlichte Seite bleibt. Der Zähler zählt weiter: Wer gerade mit altem Stand speichert, bekommt 409
-          const [neu] = await tx
-            .update(seite)
-            .set({
-              entwurf: v.inhalt,
-              entwurfZaehler: sql`${seite.entwurfZaehler} + 1`,
-              geaendertAm: new Date(),
-            })
-            .where(eq(seite.id, id))
-            .returning({ zaehler: seite.entwurfZaehler });
-          await audit(tx, person, "seite_zurueckgeholt", id, { nr });
-          return neu.zaehler;
+          dokument: v.inhalt,
         });
-        return c.json({ zaehler }, 200);
-      },
-    );
+      })
+      .post(
+        "/:id/versionen/:nr/zurueckholen",
+        eingabe("param", versionPfad()),
+        async (c) => {
+          const person = c.get("person");
+          const { id, nr } = c.req.valid("param");
+          const zaehler = await db.transaction(async (tx) => {
+            await ladeGesperrt(tx, person, id);
+            const [v] = await tx
+              .select({ inhalt: seiteVersion.inhalt })
+              .from(seiteVersion)
+              .where(
+                and(eq(seiteVersion.seiteId, id), eq(seiteVersion.nr, nr)),
+              );
+            if (!v) throw new HTTPException(404);
+            // Eine Kopie in den Entwurf; die veröffentlichte Seite bleibt. Der Zähler zählt weiter: Wer gerade mit altem Stand speichert, bekommt 409
+            const [neu] = await tx
+              .update(seite)
+              .set({
+                entwurf: v.inhalt,
+                entwurfZaehler: sql`${seite.entwurfZaehler} + 1`,
+                geaendertAm: new Date(),
+              })
+              .where(eq(seite.id, id))
+              .returning({ zaehler: seite.entwurfZaehler });
+            await audit(tx, person, "seite_zurueckgeholt", id, { nr });
+            return neu.zaehler;
+          });
+          return c.json({ zaehler }, 200);
+        },
+      )
+  );
 }
