@@ -1048,7 +1048,7 @@ paths:
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet.
+        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
 
         **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
 
@@ -4881,6 +4881,233 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/benachrichtigungen:
+    get:
+      operationId: listeLagerBenachrichtigungen
+      summary: Meine Benachrichtigungen in einem Lager
+      description: |
+        Liefert die eigenen Benachrichtigungen der Person in diesem Lager, neueste zuerst (die Glocke). Andere Personen sehen nie fremde Einträge. Jede Rolle liest ihre eigenen; ein eigenes Recht gibt es nicht. Die Zeile trägt Art, Ziel (`objektTyp`, `objektId`) und den Lesestatus, keinen Text: Das Ziel liest die App über die Route des Moduls, die ihre Rechte prüft.
+
+        Seiten: `limit` (1 bis 100, Standard 50) und `nach` (die `naechster`-ID der vorigen Seite). Wer die Art abgeschaltet hat (`PUT /api/v1/ich/lager-benachrichtigungen`), bekommt weder Eintrag noch Push; gelesene Einträge löscht der Server nach 90 Tagen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID, ungültigem `nach` oder `limit`. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die `naechster`-ID der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite der Benachrichtigungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBenachrichtigungenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/benachrichtigungen/ungelesen:
+    get:
+      operationId: zaehleLagerBenachrichtigungenUngelesen
+      summary: Ungelesene Benachrichtigungen zählen
+      description: |
+        Zählt die ungelesenen eigenen Benachrichtigungen der Person in diesem Lager (für das Zeichen an der Glocke).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Anzahl.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBenachrichtigungenUngelesen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/benachrichtigungen/gelesen:
+    post:
+      operationId: markiereLagerBenachrichtigungenGelesen
+      summary: Benachrichtigungen als gelesen markieren
+      description: |
+        Markiert eigene ungelesene Benachrichtigungen dieses Lagers als gelesen: die genannten `ids`, ohne `ids` alle. Fremde und unbekannte IDs ändern nichts (kein Fehler). Die Route gilt auch in einem abgeschlossenen Lager, weil sie keine Lagerdaten ändert. Der Body ist strikt: `{}` oder `{ "ids": [...] }` mit höchstens 100 IDs.
+
+        Statuscodes: 204 bei Erfolg, ohne Body. 400 bei ungültiger ID oder ungültigem Body. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerBenachrichtigungenGelesenAnfrage"
+      responses:
+        "204":
+          description: Markiert; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/aufloesen/{typ}/{id}:
+    get:
+      operationId: loeseLagerPushZielAuf
+      summary: Ziel eines Lager-Pushes auflösen
+      description: |
+        Löst den Deep Link eines Lager-Pushes auf. Der Push trägt als Daten nur `typ` (ein Wert von `LagerPushTyp`) und `id` (die ID des Objekts, etwa einer Aufgabe), nie eine Lager-ID. Die App fragt hier, in welchem Lager das Objekt liegt, und öffnet es dann über die Route des Moduls (die ihre Rechte selbst prüft).
+
+        Die Antwort gibt es nur, wenn die Person für dieses Objekt benachrichtigt wurde und noch Mitglied des Lagers ist. In jedem anderen Fall, auch bei unbekannter ID, fremdem Lager, fremder Abteilung oder entferntem Mitglied, antwortet der Server gleich mit 404 und verrät weder das Objekt noch das Lager.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültigem `typ` oder ungültiger ID. 401 ohne Anmeldung. 404 wie beschrieben.
+      tags:
+        - Lager
+        - Push
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: typ
+          in: path
+          required: true
+          description: Der `typ` aus den Daten des Pushes.
+          schema:
+            $ref: "#/components/schemas/LagerPushTyp"
+        - name: id
+          in: path
+          required: true
+          description: Die `id` aus den Daten des Pushes (ID des Objekts, UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Lager und Ziel.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerAufloesung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/ich/lager-benachrichtigungen:
+    get:
+      operationId: holeLagerBenachrichtigungEinstellungen
+      summary: Meine Schalter für Lager-Benachrichtigungen
+      description: |
+        Liefert je Art, ob die Person sie bekommt. Standard ist an; die Liste nennt immer alle Arten. Die Schalter gelten für alle Lager der Person und für Liste und Push zugleich. Eine abgeschaltete Art erzeugt weder Eintrag noch Push. Die Person ändert nur ihre eigenen Schalter.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung.
+      tags:
+        - Lager
+        - Push
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Schalter aller Arten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerBenachrichtigungEinstellungen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeLagerBenachrichtigungEinstellungen
+      summary: Schalter für Lager-Benachrichtigungen setzen
+      description: |
+        Setzt die genannten Arten; die übrigen bleiben unverändert. Der Body ist strikt: Jede Art höchstens einmal, nur bekannte Arten, nur `art` und `aktiv`.
+
+        Statuscodes: 204 bei Erfolg, ohne Body. 400 bei ungültigem Body. 401 ohne Anmeldung.
+      tags:
+        - Lager
+        - Push
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerBenachrichtigungEinstellungenAnfrage"
+      responses:
+        "204":
+          description: Gesetzt; kein Body.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/ich:
     get:
       operationId: leseRedaktionIch
@@ -5175,6 +5402,77 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/vorlagen:
+    get:
+      operationId: listeRedaktionVorlagen
+      summary: Vorlagen für neue Seiten
+      description: |
+        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Zugang wie bei `GET /api/v1/redaktion/seiten`.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Zugang.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Vorlagen in fester Reihenfolge.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionVorlagenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/seiten/aus-vorlage:
+    post:
+      operationId: legeRedaktionSeiteAusVorlageAn
+      summary: Seite aus einer Vorlage anlegen
+      description: |
+        Wie `POST /api/v1/redaktion/seiten` (nur Abteilungsleitung und Redaktion), aber der Inhalt ist die Vorlage: ein vorbefüllter, gültiger Entwurf mit Platzhaltertexten. Die Seite ist nie veröffentlicht; die Adresse fehlt im Body und wird aus dem Titel gebildet (Kleinbuchstaben, Umlaute ausgeschrieben); gibt es sie unter der Elternseite schon, hängt die Antwort `-2`, `-3` an. Eine reservierte Adresse auf der obersten Ebene bekommt ebenso einen Zusatz. Ohne `elternId` entsteht die Seite auf der obersten Ebene, ans Ende der Geschwister. `sichtbarkeit` ist Pflicht und gilt erst beim Veröffentlichen.
+
+        Die Vorlage `stufenseite` braucht `tagId` (Leitungsteam und Termine hängen daran). Eine Gruppe hat höchstens eine Seite: Gibt es zu `tagId` schon eine, antwortet die Route mit 409. Die Rechte der Verantwortlichen folgen aus `tagId`: Die Stufenleitung der Stufe und die Verantwortlichen eines Teams (Rolle `verantwortlich` am Tag, Typ `team`) bearbeiten die Seite.
+
+        Reihenfolge der Prüfungen: Zugang (403), Body (400), Recht zum Anlegen (403), Tags der Sichtbarkeit (400), Vorlage braucht Gruppe (400), Gruppe und Elternseite in der eigenen Abteilung (404), Tiefe (400), Gruppe schon vergeben (409). Audit-Log: `seite_angelegt` (Kennungen, Art der Sichtbarkeit und Vorlage, nie der Titel).
+
+        Statuscodes: 201 bei Erfolg, mit `id` und `adresse`. 400 bei ungültiger Eingabe, `TAG_ERFORDERLICH` oder `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Elternseite oder Gruppe. 409 mit `TAG_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionSeiteAusVorlage"
+      responses:
+        "201":
+          description: Seite als Entwurf angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionSeiteAusVorlageAngelegt"
+        "400":
+          $ref: "#/components/responses/RedaktionSeite400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionSeite409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  # lager-pfade: lager (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/website/inhalt:
     get:
       operationId: leseWebsiteInhalt
@@ -8338,6 +8636,150 @@ components:
     # lager-schemas: ereignisse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: papierkorb (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: benachrichtigungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerBenachrichtigungsArt:
+      type: string
+      description: |
+        Art einer Benachrichtigung des Lagers. Jedes Modul des Lager-Backends trägt seine Arten ein; der Push-`typ` (und damit der Android-Kanal) folgt aus der Art:
+        - `aufgabe_zugeteilt`, `aufgabe_geaendert`, `frist`: `lager_aufgabe`
+        - `erwaehnung`: `lager_erwaehnung`
+        - `pinnwand_wichtig`: `lager_pinnwand`
+        - `eingang_antwort`: `lager_eingang`
+        - `diensttausch`: `lager_einteilung`
+        - `anwesenheit_anfrage`: `lager_anwesenheit`
+      enum:
+        - aufgabe_zugeteilt
+        - aufgabe_geaendert
+        - erwaehnung
+        - frist
+        - pinnwand_wichtig
+        - eingang_antwort
+        - diensttausch
+        - anwesenheit_anfrage
+    LagerPushTyp:
+      type: string
+      description: |
+        Wert von `data.typ` eines Lager-Pushes. `data.id` ist die ID des Objekts; die App löst Lager und Ziel mit `GET /api/v1/lager/aufloesen/{typ}/{id}` auf. Android-Kanäle: `lager_aufgaben` (`lager_aufgabe`), `lager_mitteilungen` (`lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`), `lager_einteilung` (`lager_einteilung`, `lager_anwesenheit`).
+      enum:
+        - lager_aufgabe
+        - lager_erwaehnung
+        - lager_pinnwand
+        - lager_eingang
+        - lager_einteilung
+        - lager_anwesenheit
+    LagerBenachrichtigung:
+      type: object
+      required:
+        - id
+        - art
+        - objektTyp
+        - objektId
+        - gelesen
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        art:
+          $ref: "#/components/schemas/LagerBenachrichtigungsArt"
+        objektTyp:
+          type: string
+          description: Was die App öffnet, zum Beispiel `aufgabe`. Die Zeile trägt keinen Text und keinen Inhalt.
+        objektId:
+          type: string
+          format: uuid
+        gelesen:
+          type: boolean
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerBenachrichtigungenSeite:
+      type: object
+      required:
+        - eintraege
+        - naechster
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerBenachrichtigung"
+        naechster:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Cursor für ältere Einträge (Query `nach`); `null` am Ende.
+    LagerBenachrichtigungenUngelesen:
+      type: object
+      required:
+        - anzahl
+      properties:
+        anzahl:
+          type: integer
+          minimum: 0
+    LagerBenachrichtigungenGelesenAnfrage:
+      type: object
+      additionalProperties: false
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+          description: Nur diese Einträge. Ohne `ids` gelten alle ungelesenen Einträge der Person in diesem Lager.
+    LagerAufloesung:
+      type: object
+      required:
+        - lagerId
+        - objektTyp
+        - objektId
+      properties:
+        lagerId:
+          type: string
+          format: uuid
+        objektTyp:
+          type: string
+        objektId:
+          type: string
+          format: uuid
+    LagerBenachrichtigungEinstellungen:
+      type: object
+      required:
+        - arten
+      properties:
+        arten:
+          type: array
+          items:
+            type: object
+            required:
+              - art
+              - aktiv
+            properties:
+              art:
+                $ref: "#/components/schemas/LagerBenachrichtigungsArt"
+              aktiv:
+                type: boolean
+    LagerBenachrichtigungEinstellungenAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - arten
+      properties:
+        arten:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - art
+              - aktiv
+            properties:
+              art:
+                $ref: "#/components/schemas/LagerBenachrichtigungsArt"
+              aktiv:
+                type: boolean
     # lager-schemas: dateien (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: ressorts (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # lager-schemas: aufgaben (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
@@ -8589,6 +9031,78 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RedaktionPerson"
+    RedaktionVorlagenListe:
+      type: object
+      required:
+        - vorlagen
+      properties:
+        vorlagen:
+          type: array
+          items:
+            type: object
+            required:
+              - schluessel
+              - name
+              - beschreibung
+              - brauchtTag
+            properties:
+              schluessel:
+                type: string
+                enum:
+                  - stufenseite
+                  - anlass
+                  - textseite
+                  - leer
+              name:
+                type: string
+              beschreibung:
+                type: string
+              brauchtTag:
+                type: boolean
+                description: Die Vorlage verlangt `tagId` (Stufenseite).
+    RedaktionSeiteAusVorlage:
+      type: object
+      required:
+        - vorlage
+        - titel
+        - sichtbarkeit
+      additionalProperties: false
+      properties:
+        vorlage:
+          type: string
+          enum:
+            - stufenseite
+            - anlass
+            - textseite
+            - leer
+        titel:
+          type: string
+          minLength: 1
+          maxLength: 150
+        elternId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        tagId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        sichtbarkeit:
+          $ref: "#/components/schemas/RedaktionSichtbarkeit"
+    RedaktionSeiteAusVorlageAngelegt:
+      type: object
+      required:
+        - id
+        - adresse
+      properties:
+        id:
+          type: string
+          format: uuid
+        adresse:
+          type: string
+          description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
     WebsiteInhalt:
       type: object
       required:

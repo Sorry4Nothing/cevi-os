@@ -115,3 +115,46 @@ export const lagerRolleRecht = pgTable(
     ),
   ],
 );
+
+// Benachrichtigungen des Lagers (#369): eine Zeile je Person, Art und Objekt, nur für die Glocke und den Deep Link. Kein Text und kein Inhalt: Die App liest das Objekt über seine eigene Route, die ihre Rechte prüft. Zeilen anderer Personen sind nie lesbar (Routen filtern auf person_id)
+export const lagerBenachrichtigung = pgTable(
+  "lager_benachrichtigung",
+  {
+    // UUIDv7 ordnet nach Zeit: Die ID ist der Cursor der Liste (wie bei den Chats)
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    // Eine Art aus lager/benachrichtigung-arten.ts; ohne CHECK, damit eine neue Art keine Migration braucht
+    art: text("art").notNull(),
+    // Was die App öffnet, zum Beispiel «aufgabe»; ohne Fremdschlüssel, weil das Ziel in einer Tabelle des jeweiligen Moduls liegt
+    objektTyp: text("objekt_typ").notNull(),
+    objektId: uuid("objekt_id").notNull(),
+    gelesenAm: timestamp("gelesen_am", { withTimezone: true }),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    index("lager_benachrichtigung_liste_idx").on(t.personId, t.lagerId, t.id),
+    index("lager_benachrichtigung_objekt_idx").on(t.personId, t.objektId),
+  ],
+);
+
+// Abgeschaltete Arten je Person, über alle Lager. Standard ist an; eine Zeile gibt es erst, wenn die Person einen Schalter bedient
+export const lagerBenachrichtigungEinstellung = pgTable(
+  "lager_benachrichtigung_einstellung",
+  {
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    art: text("art").notNull(),
+    aktiv: boolean("aktiv").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.personId, t.art] })],
+);
