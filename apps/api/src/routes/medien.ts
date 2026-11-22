@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, ilike } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -29,6 +29,15 @@ export const aendernSchema = z
     dekorativ: z.literal(true).optional(),
   })
   .refine((f) => (f.altText !== undefined) !== (f.dekorativ === true));
+// Liste: Seiten über limit und offset, Suche im Alt-Text. Ohne Angaben die jüngsten 200 wie bisher
+export const listeSchema = z.strictObject({
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).max(100_000).optional(),
+  suche: z.string().trim().min(1).max(100).optional(),
+});
+const LISTE_STANDARD = 200;
+// LIKE kennt % und _ als Platzhalter, \ als Maskierung: Die Eingabe der Nutzer ist nur Text
+const likeText = (s: string) => s.replace(/[\\%_]/g, "\\$&");
 const ZU_GROSS = {
   code: "ZU_GROSS",
   message: "Ein Bild darf höchstens 10 MB gross sein.",
@@ -230,16 +239,28 @@ export function erstelleMedienHandler({
       }
     },
 
-    async liste(c: Kontext) {
+    // Eine Abfrage je Seite (Index abteilung, erstellt_am); eine Zeile mehr als verlangt zeigt, ob es weitere gibt
+    async liste(c: Kontext, q: z.infer<typeof listeSchema> = {}) {
       const person = c.get("person");
-      // shortcut: die jüngsten 200 ohne Seitenwechsel; Seiten, sobald die Redaktion (#334) mehr braucht
+      const limit = q.limit ?? LISTE_STANDARD;
       const zeilen = await db
         .select()
         .from(medium)
-        .where(eq(medium.abteilungId, person.abteilungId))
-        .orderBy(desc(medium.erstelltAm))
-        .limit(200);
-      return c.json({ medien: zeilen.map(antwort) });
+        .where(
+          and(
+            eq(medium.abteilungId, person.abteilungId),
+            q.suche === undefined
+              ? undefined
+              : ilike(medium.altText, `%${likeText(q.suche)}%`),
+          ),
+        )
+        .orderBy(desc(medium.erstelltAm), desc(medium.id))
+        .limit(limit + 1)
+        .offset(q.offset ?? 0);
+      return c.json({
+        medien: zeilen.slice(0, limit).map(antwort),
+        weitere: zeilen.length > limit,
+      });
     },
 
     // Alt-Text nachtragen oder ändern, oder ein Bild als dekorativ markieren; sonst bliebe eine fehlende Beschreibung für immer
@@ -360,7 +381,9 @@ export function erstelleMedienRouten({
         medienUploadLimit,
         (c) => handler.hochladen(c, c.req.valid("query")),
       )
-      .get("/admin/medien", nurAdmin, (c) => handler.liste(c))
+      .get("/admin/medien", nurAdmin, eingabe("query", listeSchema), (c) =>
+        handler.liste(c, c.req.valid("query")),
+      )
       .delete("/admin/medien/:id", eingabe("param", pfadSchema), (c) =>
         handler.loeschen(c, c.req.valid("param").id, istAdmin),
       )

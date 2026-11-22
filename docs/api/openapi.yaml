@@ -3130,13 +3130,16 @@ paths:
       operationId: listeAdminMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Nur Admins. Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel.
+        Nur Admins. Die Medien der eigenen Abteilung, neueste zuerst. Ohne Angaben die jüngsten 200; mit `limit` und `offset` seitenweise, mit `suche` nur Medien, deren Alt-Text den Text enthält (ohne Beachtung der Gross- und Kleinschreibung; `%` und `_` zählen als Text). `weitere` sagt, ob nach dieser Seite noch Medien folgen.
 
-        Statuscodes: 200, 401, 403, 426.
+        Statuscodes: 200, 400, 401, 403, 426.
       tags:
         - Verwaltung
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MedienLimit"
+        - $ref: "#/components/parameters/MedienOffset"
+        - $ref: "#/components/parameters/MedienSuche"
       responses:
         "200":
           description: Die Medien.
@@ -3972,12 +3975,221 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/plattform/rollen:
+    get:
+      operationId: listeAdminPlattformRollen
+      summary: Plattformrollen der Abteilung und Rechtekatalog
+      description: |
+        Nur die Abteilungsleitung. Liefert den Rechtekatalog, die Rollen der eigenen Abteilung mit ihren Rechten und die Personen, die sie tragen (Kennung und Name). Zwei Datenbankabfragen für die ganze Liste.
+
+        Jedes Recht des Katalogs ist «erweitert»: Wer es hat, braucht den zweiten Faktor, sonst antwortet jede Route, die das Recht verlangt, mit 403 und dem Code `ZWEITER_FAKTOR_FEHLT`. Die Abteilungsleitung hat jedes Recht fest; der Entwickler hat jedes Recht und lässt sich nur über die Kommandozeile vergeben (`npm run entwickler:vergeben`). Beide stehen nicht in der Liste und lassen sich nicht ändern. Die Rolle mit `vorgabe: true` (Webmaster) gibt es in jeder Abteilung; sie hat anfangs alle Rechte ausser dem Wartungsmodus der Website.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Katalog und Rollen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPlattformRollenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminPlattformRolleAn
+      summary: Plattformrolle anlegen
+      description: |
+        Nur die Abteilungsleitung. Legt eine Rolle mit einer Auswahl an Rechten aus dem Katalog an. Wer Rechte vergibt, muss sie selbst haben (die Abteilungsleitung hat jedes). Das Anlegen steht im Audit-Log (`plattform_rolle_angelegt`, mit den Rechten, ohne den Namen).
+
+        Reihenfolge der Prüfungen: Body (400), Admin-Recht (403), eigene Rechte (403).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (Name leer oder über 50 Zeichen, ein Recht, das der Katalog nicht kennt, ein doppeltes Recht, unbekannte Felder). 403 für Nicht-Admins. 409 mit Code `ROLLENNAME_VERGEBEN`, wenn es den Namen in der Abteilung schon gibt (ohne Rücksicht auf Gross- und Kleinschreibung).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPlattformRolleAnlegen"
+      responses:
+        "201":
+          description: Rolle angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Der Name ist vergeben (`ROLLENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/plattform/rollen/{id}:
+    patch:
+      operationId: aendereAdminPlattformRolle
+      summary: Name oder Rechte einer Plattformrolle ändern
+      description: |
+        Nur die Abteilungsleitung, nur Rollen der eigenen Abteilung. `rechte` ersetzt die Rechte der Rolle als Ganzes; die Änderung wirkt bei der nächsten Anfrage der Personen. Nur hinzukommende Rechte muss die handelnde Person selbst haben. Die Vorgabe (`vorgabe: true`) behält ihren Namen, ihre Rechte lassen sich ändern. Das Ändern steht im Audit-Log (`plattform_rolle_geaendert`, mit den Rechten vorher und nachher, ohne Namen).
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Rolle in der eigenen Abteilung (404), Admin-Recht (403), Umbenennen der Vorgabe (409), eigene Rechte (403).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (auch ohne `name` und `rechte`). 403 für Nicht-Admins. 404, wenn die Rolle unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `ROLLENNAME_VERGEBEN` oder `ROLLE_VORGEGEBEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminPlattformRolleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminPlattformRolleAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Name ist vergeben (`ROLLENNAME_VERGEBEN`) oder die Vorgabe lässt sich nicht umbenennen (`ROLLE_VORGEGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminPlattformRolle
+      summary: Plattformrolle löschen
+      description: |
+        Nur die Abteilungsleitung, nur Rollen der eigenen Abteilung. Die Rechte und alle Vergaben der Rolle fallen mit; der Entzug wirkt bei der nächsten Anfrage der Personen. Die Vorgabe (Webmaster) lässt sich nicht löschen. Das Löschen steht im Audit-Log (`plattform_rolle_geloescht`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Rolle in der eigenen Abteilung (404), Admin-Recht (403), Vorgabe (409).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404 bei unbekannter oder fremder Rolle. 409 mit Code `ROLLE_VORGEGEBEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminPlattformRolleId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Vorgabe lässt sich nicht löschen (`ROLLE_VORGEGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/plattform/rollen/{id}/personen/{userId}:
+    put:
+      operationId: vergebeAdminPlattformRolle
+      summary: Plattformrolle einer Person zuweisen
+      description: |
+        Nur die Abteilungsleitung. Weist einer Person der eigenen Abteilung die Rolle zu; schon vergeben ist kein Fehler und schreibt keine zweite Audit-Zeile. Wer eine Rolle vergibt, muss ihre Rechte selbst haben. Das Zuweisen steht im Audit-Log (`plattform_rolle_vergeben`, Person und Rolle).
+
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Admin-Recht (403), eigene Rechte (403).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn Rolle oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminPlattformRolleId"
+        - $ref: "#/components/parameters/AdminPlattformRolleUserId"
+      responses:
+        "204":
+          description: Zugewiesen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: entzieheAdminPlattformRolle
+      summary: Plattformrolle einer Person entziehen
+      description: |
+        Nur die Abteilungsleitung. Der Entzug wirkt bei der nächsten Anfrage der Person und steht im Audit-Log (`plattform_rolle_entzogen`).
+
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Admin-Recht (403).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn Rolle oder Person unbekannt sind, zu einer anderen Abteilung gehören oder die Person die Rolle nicht trägt.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminPlattformRolleId"
+        - $ref: "#/components/parameters/AdminPlattformRolleUserId"
+      responses:
+        "204":
+          description: Entzogen.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/seiten:
     get:
       operationId: listeRedaktionSeiten
       summary: Seiten der Website, die die Person bearbeiten darf
       description: |
-        Namensraum `/api/v1/redaktion` für Personen mit Bearbeitungsrecht, nicht nur Admins. Zugang haben die Abteilungsleitung, jede Stufenleitung und Personen mit einem Recht auf Seiten in `bearbeiter` (auf die Person oder einen Tag, den sie trägt); alle anderen bekommen 403. Admins brauchen auch hier den zweiten Faktor (Code `ZWEITER_FAKTOR_FEHLT`).
+        Namensraum `/api/v1/redaktion` für Personen mit Bearbeitungsrecht, nicht nur Admins. Zugang haben die Abteilungsleitung, jede Stufenleitung und Personen mit einem Recht auf Seiten in `bearbeiter` (auf die Person oder einen Tag, den sie trägt); alle anderen bekommen 403. Admins brauchen auch hier den zweiten Faktor, ebenso jede Person mit einem erweiterten Recht (Plattformrolle, Recht in `bearbeiter`, Verantwortung für ein Team): sonst 403 mit Code `ZWEITER_FAKTOR_FEHLT`. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne zweiten Faktor.
 
         Die Liste enthält nur Seiten, die die Person bearbeiten darf: die Abteilungsleitung und die Redaktion (Recht auf alle Seiten) alle Seiten der Abteilung, eine Stufenleitung die Seiten ihrer Stufe (`tagId` = Stufe). `elternId` zeigt auch auf Seiten, die nicht in der Liste stehen. Sortiert nach `reihenfolge`, dann `adresse`; den Baum baut der Client aus `elternId`. Der Inhalt der Seiten gehört nicht zu dieser Route.
 
@@ -4472,7 +4684,7 @@ paths:
       operationId: holeLager
       summary: Ein Lager
       description: |
-        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
+        Liefert das Lager mit der eigenen Rolle und dem Schreibschutz. Reihenfolge der Prüfungen für jede Lager-Route: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404; die Abteilungsleitung gilt als Lagerleitung), zweiter Faktor der Lagerleitung (403 `ZWEITER_FAKTOR_FEHLT`; `leitung`, `team` und `lesen` brauchen ihn nicht), Recht der Route (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`). Ein abgeschlossenes oder archiviertes Lager lässt nur lesende Anfragen zu.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 404, wenn das Lager unbekannt ist, zu einer anderen Abteilung gehört oder die Person kein Mitglied ist.
       tags:
@@ -5281,13 +5493,16 @@ paths:
       operationId: listeRedaktionMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die jüngsten 200 Medien der eigenen Abteilung, neueste zuerst; ohne Seitenwechsel. Gleiche Antwort wie `/api/v1/admin/medien`.
+        Für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die Medien der eigenen Abteilung, neueste zuerst; seitenweise mit `limit` und `offset`, durchsuchbar im Alt-Text mit `suche`. Gleiche Antwort und gleiche Regeln wie `/api/v1/admin/medien`.
 
-        Statuscodes: 200, 401, 403, 426.
+        Statuscodes: 200, 400, 401, 403, 426.
       tags:
         - Redaktion
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/MedienLimit"
+        - $ref: "#/components/parameters/MedienOffset"
+        - $ref: "#/components/parameters/MedienSuche"
       responses:
         "200":
           description: Die Medien.
@@ -9600,6 +9815,8 @@ components:
             - STUFENNAME_VERGEBEN
             - STUFE_BELEGT
             - BEARBEITER_VORHANDEN
+            - ROLLENNAME_VERGEBEN
+            - ROLLE_VORGEGEBEN
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -10242,6 +10459,106 @@ components:
         id:
           type: string
           format: uuid
+    PlattformRecht:
+      type: string
+      description: Ein Recht aus dem Rechtekatalog (`src/plattform.ts`). Jedes Recht ist «erweitert» und verlangt den zweiten Faktor.
+      enum:
+        - seiten.bearbeiten
+        - seiten.veroeffentlichen
+        - seiten.anlegen_loeschen
+        - medien.verwalten
+        - weiterleitungen.verwalten
+        - vorlagen.nutzen
+        - wartungsmodus.website
+    AdminPlattformRolleAnlegen:
+      type: object
+      required:
+        - name
+        - rechte
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        rechte:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/PlattformRecht"
+    AdminPlattformRolleAendern:
+      type: object
+      description: Mindestens `name` oder `rechte`. `rechte` ersetzt alle Rechte der Rolle.
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        rechte:
+          type: array
+          uniqueItems: true
+          items:
+            $ref: "#/components/schemas/PlattformRecht"
+    AdminPlattformRollenListe:
+      type: object
+      required:
+        - katalog
+        - rollen
+      properties:
+        katalog:
+          type: array
+          description: Alle Rechte, die eine Rolle haben kann, in fester Reihenfolge.
+          items:
+            type: object
+            required:
+              - recht
+              - bedeutung
+              - erweitert
+            properties:
+              recht:
+                $ref: "#/components/schemas/PlattformRecht"
+              bedeutung:
+                type: string
+              erweitert:
+                type: boolean
+                description: Wer das Recht hat, braucht den zweiten Faktor.
+        rollen:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - vorgabe
+              - rechte
+              - personen
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              vorgabe:
+                type: boolean
+                description: Die Vorgabe jeder Abteilung (Webmaster); sie lässt sich nicht löschen und nicht umbenennen.
+              rechte:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PlattformRecht"
+              personen:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - id
+                    - name
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
     AdminMitteilung:
       type: object
       required:
@@ -10862,11 +11179,15 @@ components:
       type: object
       required:
         - medien
+        - weitere
       properties:
         medien:
           type: array
           items:
             $ref: "#/components/schemas/Medium"
+        weitere:
+          type: boolean
+          description: Es folgen noch Medien nach dieser Seite.
     RedaktionSichtbarkeit:
       description: |
         Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
@@ -13529,6 +13850,34 @@ components:
           type: [string, "null"]
           maxLength: 1000
   parameters:
+    MedienLimit:
+      name: limit
+      in: query
+      required: false
+      description: Anzahl Medien je Seite (1 bis 100). Ohne Angabe die jüngsten 200.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+    MedienOffset:
+      name: offset
+      in: query
+      required: false
+      description: So viele Medien überspringen (neueste zuerst).
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 100000
+        default: 0
+    MedienSuche:
+      name: suche
+      in: query
+      required: false
+      description: Text im Alt-Text (1 bis 100 Zeichen).
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
     AppVersion:
       name: X-App-Version
       in: header
@@ -13649,6 +13998,22 @@ components:
       in: path
       required: true
       description: ID des Rechts (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminPlattformRolleId:
+      name: id
+      in: path
+      required: true
+      description: ID der Plattformrolle (UUID).
+      schema:
+        type: string
+        format: uuid
+    AdminPlattformRolleUserId:
+      name: userId
+      in: path
+      required: true
+      description: ID der Person (UUID).
       schema:
         type: string
         format: uuid

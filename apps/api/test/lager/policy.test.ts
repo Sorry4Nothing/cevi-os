@@ -40,7 +40,8 @@ const konto = async (name: string, abteilung: string, admin = false) => {
     id: zeile.id,
     abteilungId: abteilung,
     admin,
-    zweiterFaktor: admin,
+    // Die Lagerleitung und die Abteilungsleitung brauchen den zweiten Faktor (#423); die Namen «…Ohne» haben ihn nicht
+    zweiterFaktor: name === "lagerleitung" || (admin && name !== "adminOhne"),
     rollen: [],
   };
 };
@@ -104,6 +105,8 @@ beforeAll(async () => {
     konto("lesen", abteilungId),
     konto("ohne", abteilungId),
     konto("admin", abteilungId, true),
+    konto("lagerleitungOhne", abteilungId),
+    konto("adminOhne", abteilungId, true),
     konto("adminAlsLesen", abteilungId, true),
     konto("fremd", fremdeAbteilungId),
     konto("fremdAdmin", fremdeAbteilungId, true),
@@ -113,6 +116,7 @@ beforeAll(async () => {
   await legeLager("archiv", "archiviert");
   for (const l of ["aktiv", "zu", "archiv"]) {
     await mitglied(l, "lagerleitung", "lagerleitung");
+    await mitglied(l, "lagerleitungOhne", "lagerleitung");
     await mitglied(l, "leitung", "leitung");
     await mitglied(l, "team", "team");
     await mitglied(l, "lesen", "lesen");
@@ -153,6 +157,39 @@ describe("lagerZugriff: Reihenfolge der Prüfungen", () => {
     expect(
       (await rufe("lagerleitung", "POST", pfad("aktiv", "schreiben"))).status,
     ).toBe(204);
+  });
+
+  test("die Lagerleitung braucht den zweiten Faktor, Leitung, Team und Lesen nicht (#423)", async () => {
+    // Ohne Faktor: 403 ZWEITER_FAKTOR_FEHLT, auch für die Abteilungsleitung, vor dem Recht und vor dem Schreibschutz
+    for (const wer of ["lagerleitungOhne", "adminOhne"]) {
+      for (const [methode, route] of [
+        ["GET", "offen"],
+        ["GET", "lesen"],
+        ["POST", "schreiben"],
+      ] as const) {
+        const antwort = await rufe(wer, methode, `/${lagerOf.aktiv}/${route}`);
+        expect(antwort.status, `${wer} ${route}`).toBe(403);
+        expect(await antwort.json()).toMatchObject({
+          code: "ZWEITER_FAKTOR_FEHLT",
+        });
+      }
+      const zu = await rufe(wer, "POST", `/${lagerOf.zu}/schreiben`);
+      expect(zu.status, wer).toBe(403);
+    }
+    // Mit Faktor und ohne Faktor in den übrigen Rollen: wie vorher
+    expect(
+      (await rufe("lagerleitung", "GET", `/${lagerOf.aktiv}/lesen`)).status,
+    ).toBe(200);
+    for (const wer of ["leitung", "team", "lesen"]) {
+      expect(
+        (await rufe(wer, "GET", `/${lagerOf.aktiv}/offen`)).status,
+        wer,
+      ).toBe(200);
+    }
+    // Wer kein Mitglied ist, bekommt weiter 404, auch ohne Faktor
+    expect((await rufe("ohne", "GET", `/${lagerOf.aktiv}/offen`)).status).toBe(
+      404,
+    );
   });
 
   test("Nicht-Mitglied, fremde Abteilung, unbekanntes Lager: 404 vor dem Recht; ungültige ID: 400", async () => {
