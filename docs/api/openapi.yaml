@@ -18343,6 +18343,127 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/admin/anlaesse/{id}/anmeldungen:
+    get:
+      operationId: listeAdminAnlassAnmeldungen
+      summary: Anmeldungen eines Anlasses ansehen
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen des Anlasses in Seiten, zuletzt geänderte zuerst. Name und Telefon der Person (wer angemeldet hat) und die Angaben des Kindes liest der Server live aus dem Konto; die Anmeldung speichert nur die Antworten. `antworten` ist ein Objekt `Schlüssel des Feldes → Wert`; die Beschriftungen stehen beim Anlass (`GET /api/v1/admin/anlaesse/{id}`). Gesundheitsdaten gibt es nie: Die Felder eines Anlasses dürfen sie nicht verlangen.
+
+        `status` wählt, was die Liste zeigt: ohne Angabe die Angemeldeten, `abgemeldet` die Abgemeldeten (ohne Antworten), `alle` beide. `summe` zählt immer alle Anmeldungen des Anlasses je Status, unabhängig vom Filter und von der Seite. `nach` ist die `naechste` der Vorseite (ein undurchsichtiger Wert); eine Anmeldung, die sich zwischen zwei Seiten ändert, rückt in der Sortierung nach vorn und kann auf einer späteren Seite nicht mehr auftauchen.
+
+        Abfragen: 2 je Seite (Anlass mit Summe und Feldern; Seite mit Person und Kind in einem Join), unabhängig von der Seitengrösse.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder ungültigem `nach`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: status
+          in: query
+          required: false
+          description: Welche Anmeldungen die Liste zeigt (Vorgabe `angemeldet`).
+          schema:
+            type: string
+            enum:
+              - angemeldet
+              - abgemeldet
+              - alle
+        - name: limit
+          in: query
+          required: false
+          description: Zahl der Einträge je Seite, 1 bis 100 (Vorgabe 50).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: nach
+          in: query
+          required: false
+          description: Die `naechste` der Vorseite.
+          schema:
+            type: string
+            maxLength: 200
+      responses:
+        "200":
+          description: Eine Seite der Anmeldungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnmeldungListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/anlaesse/{id}/anmeldungen.csv:
+    get:
+      operationId: exportiereAdminAnlassAnmeldungen
+      summary: Anmeldungen eines Anlasses als CSV-Datei exportieren
+      description: |
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen als CSV-Datei: UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF (Annahme für Excel in der Schweiz). Die erste Zeile nennt die festen Spalten (Angemeldet von, Telefon, Kind Vorname, Kind Nachname, Kind Cevi-Name, Kind Stufe, Status, Geändert am) und dann die Beschriftungen der Zusatzfelder des Anlasses in deren Reihenfolge. Je Anmeldung folgt eine Zeile; Ja/Nein-Antworten stehen als «Ja» und «Nein».
+
+        Schutz vor Formeln: Eine Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes `'` und gilt damit in Tabellenprogrammen als Text. Das trifft auch Telefonnummern mit `+`.
+
+        Die Datei wird in Blöcken zu 500 Anmeldungen aus der Datenbank gelesen und gleich an den Client gestreamt; sie liegt nie als Ganzes im Speicher des Servers und wird nirgends gespeichert. Der Dateiname ist fest `anlass-<id>.csv`. Das Protokoll hält `anlass_export` mit der Anlass-ID und der Zahl der Anmeldungen fest, nie mit Namen oder Antworten.
+
+        `status` wie bei der Liste: ohne Angabe die Angemeldeten. Höchstens 10 Exporte je Person in 10 Minuten.
+
+        Abfragen: 1 für den Anlass, 1 Protokolleintrag, dann 1 je Block von 500 Anmeldungen.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 429 bei mehr als 10 Exporten in 10 Minuten.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AnlassId"
+        - name: status
+          in: query
+          required: false
+          description: Welche Anmeldungen die Datei enthält (Vorgabe `angemeldet`).
+          schema:
+            type: string
+            enum:
+              - angemeldet
+              - abgemeldet
+              - alle
+      responses:
+        "200":
+          description: Die CSV-Datei als Anhang.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="anlass-<id>.csv"`'
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `no-store`.
+              schema:
+                type: string
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   # termine-pfade: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/website/inhalt:
@@ -29648,6 +29769,109 @@ components:
           type: boolean
           description: Ob die Person selbst oder eines ihrer Kinder angemeldet ist.
     # termine-schemas: admin-anmeldungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    AdminAnmeldung:
+      type: object
+      required:
+        - id
+        - person
+        - kind
+        - status
+        - antworten
+        - geaendertAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        person:
+          type: object
+          description: Das Konto, das die Anmeldung angelegt hat (bei einem Kind ein Elternteil), mit Name und Telefon aus dem Konto.
+          required:
+            - id
+            - name
+            - telefon
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            telefon:
+              type:
+                - string
+                - "null"
+        kind:
+          description: Das angemeldete Kind; `null`, wenn sich die Person selbst angemeldet hat.
+          oneOf:
+            - type: "null"
+            - type: object
+              required:
+                - id
+                - vorname
+                - nachname
+                - ceviName
+                - stufe
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                vorname:
+                  type: string
+                nachname:
+                  type: string
+                ceviName:
+                  type:
+                    - string
+                    - "null"
+                stufe:
+                  type: string
+                  description: Name der Stufe des Kindes.
+        status:
+          type: string
+          enum:
+            - angemeldet
+            - abgemeldet
+        antworten:
+          type: object
+          description: Schlüssel eines Feldes des Anlasses → Antwort. Leer bei einer Abmeldung.
+          additionalProperties:
+            oneOf:
+              - type: string
+              - type: boolean
+        geaendertAm:
+          type: string
+          format: date-time
+    AdminAnmeldungListe:
+      type: object
+      required:
+        - eintraege
+        - summe
+        - weitere
+        - naechste
+      properties:
+        eintraege:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminAnmeldung"
+        summe:
+          type: object
+          description: Alle Anmeldungen des Anlasses je Status, unabhängig von Filter und Seite.
+          required:
+            - angemeldet
+            - abgemeldet
+          properties:
+            angemeldet:
+              type: integer
+              minimum: 0
+            abgemeldet:
+              type: integer
+              minimum: 0
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
     # termine-schemas: raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     # termine-schemas: admin-raeume (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     RedaktionZaehler:
