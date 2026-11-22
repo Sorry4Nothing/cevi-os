@@ -264,6 +264,16 @@ Der **Entwickler** hat jedes Recht der Plattform und lässt sich nur mit der CLI
 
 Die **Abteilungsleitung** hat die Rechte fest. Weitere Rollen (zuerst der Webmaster, den jede Abteilung als Vorgabe hat) legt die Abteilungsleitung an und stellt ihre Rechte ein (`/api/v1/admin/plattform/rollen`). Jedes dieser Rechte ist «erweitert» und braucht den zweiten Faktor; einfach ist nur die Arbeit der Stufenleitung an der eigenen Stufenseite. Auch die Lager-Rolle `lagerleitung` braucht ihn. Die Rolle einer Person ändert sich mit der nächsten Anfrage, ohne neue Anmeldung.
 
+## Wartungsmodus
+
+Bevor ein Bereich gewartet wird (zum Beispiel ein Update der Datenbank oder ein Umbau der Website), setzt ihn die Abteilungsleitung oder der Entwickler in den **Wartungsmodus** (#424): In der Verwaltung unter «Plattform» den Bereich wählen, «Wartung einschalten», einen Hinweistext und ein geplantes Ende eintragen. Dieselbe Seite hebt die Wartung wieder auf. Die Rolle «Webmaster» darf nur die Wartung der Website schalten, und nur mit dem einstellbaren Recht `wartungsmodus.website` (die Vorgabe hat es nicht). Jede Schaltung braucht den zweiten Faktor und steht im Audit-Log.
+
+- **Immer nur lesbar:** Ansehen geht, jede schreibende Anfrage und jede Bearbeitungsansicht der Website antwortet mit 503 und dem Code `IN_WARTUNG` samt Hinweistext und Ende. Es gibt keine ganz gesperrte Wartung; das ist die Informationssperre.
+- **Bereiche:** `website`, `lager`, `chat`, `programme`, `verwaltung` oder `alles`. Abteilungsleitung und Entwickler arbeiten in jedem Bereich weiter, die Verwaltung bleibt für sie erreichbar. Anmeldung und `/health` sind nie in Wartung.
+- **Kein Ende von selbst:** Das geplante Ende ist nur eine Anzeige; die Wartung dauert, bis sie jemand aufhebt. Aufheben wirkt mit der nächsten Anfrage.
+- **Zustand:** Er liegt in der Tabelle `bereichsschalter` und wird beim Start in den Speicher der API geladen; ein Neustart behält ihn. Läuft die API auf mehr als einer Instanz, wirkt eine Schaltung erst nach dem Neustart der übrigen (heute läuft eine Instanz).
+- **Ohne Verwaltung:** Fällt die Verwaltung aus, lässt sich der Zustand in der Datenbank ändern (`delete from bereichsschalter where bereich = '<bereich>' and art = 'wartung'`) und die API neu starten.
+
 ## Datenpanne
 
 Der Ablauf gilt, sobald Daten in falsche Hände geraten sein könnten, etwa durch ein gekapertes Konto, ein geleaktes Geheimnis oder eine kopierte Datenbank. Es handeln Rollen, keine bestimmten Personen: Wer den Server betreibt, führt die Befehle aus; der Vorstand entscheidet und meldet.

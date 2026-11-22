@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
+import { erstelleSchalterZustand } from "./bereichsschalter.js";
 import {
   kodiereMedienbild,
   kodiereProfilbild,
@@ -73,6 +74,9 @@ const db = erstelleDb(sql);
 const auth = erstelleAuth(
   drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
 );
+// Wartungsmodus und Sperre (#424): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
+const schalter = erstelleSchalterZustand();
+await schalter.lade(db);
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
   synchronisiere({
@@ -89,6 +93,7 @@ const app = erstelleApp({
   kodiereMedienbild,
   medienspeicher,
   seiten,
+  schalter,
   syncs: {
     kalender: kalenderLauf,
   },

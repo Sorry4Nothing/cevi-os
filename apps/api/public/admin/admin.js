@@ -5,6 +5,7 @@ import * as kalender from "./kalender.js";
 import * as kinder from "./kinder.js";
 import * as mitteilungen from "./mitteilungen.js";
 import * as personen from "./personen.js";
+import * as plattform from "./plattform.js";
 import * as stufen from "./stufen.js";
 import * as system from "./system.js";
 import * as tags from "./tags.js";
@@ -79,6 +80,13 @@ const BEREICHE = [
     zeitregeln,
     "uhr",
     "Pushes an Eltern, die noch nicht geantwortet haben.",
+  ],
+  [
+    "plattform",
+    "Plattform",
+    plattform,
+    "schild",
+    "Wartungsmodus für Bereiche schalten.",
   ],
   [
     "system",

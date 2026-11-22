@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
+import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import {
   darfSeitenVerwalten,
@@ -14,7 +15,12 @@ export function erstelleRedaktionIchRouten({ db }: { db: Db }) {
     const redigieren = await hatRedaktionszugang(db, person);
     return c.json({
       redigieren,
-      bereiche: redigieren ? ["website"] : [],
+      // «plattform»: wer den Wartungsmodus der Website schalten darf (#424)
+      bereiche: !redigieren
+        ? []
+        : (await hatPlattformRecht(db, person, "wartungsmodus.website"))
+          ? ["website", "plattform"]
+          : ["website"],
       // Seiten anlegen und löschen, Medien löschen: Abteilungsleitung und Redaktion
       verwalten: redigieren && (await darfSeitenVerwalten(db, person)),
     });

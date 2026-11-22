@@ -239,6 +239,20 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Wartungsmodus und Sperre (#424, #425): kein Personenbezug ausser der Kennung der auslösenden Person
+  bereichsschalter: {
+    protokoll: [
+      "id",
+      "abteilung_id",
+      "bereich",
+      "art",
+      "hinweis",
+      "ende",
+      "website_offline",
+      "ausgeloest_von",
+      "ausgeloest_am",
+    ],
+  },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },
   chat: {
     chat: ["id", "abteilung_id", "typ", "stufe_id", "eltern_user_id"],
