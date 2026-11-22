@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/tagesseiten/:lagertagId"
-order: 342000
+order: 343000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L185}}"
+url: "{{baseUrl}}{{pfad_L186}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

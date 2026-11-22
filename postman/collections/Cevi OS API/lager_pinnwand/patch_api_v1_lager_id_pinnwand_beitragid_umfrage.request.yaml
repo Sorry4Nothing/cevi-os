@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/pinnwand/:beitragId/umfrage"
-order: 360000
+order: 361000
 method: PATCH
-url: "{{baseUrl}}{{pfad_L203}}"
+url: "{{baseUrl}}{{pfad_L204}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

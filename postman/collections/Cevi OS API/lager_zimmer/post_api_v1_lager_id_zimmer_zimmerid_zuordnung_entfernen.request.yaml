@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zimmer/:zimmerId/zuordnung/entfernen"
-order: 393000
+order: 394000
 method: POST
-url: "{{baseUrl}}{{pfad_L236}}"
+url: "{{baseUrl}}{{pfad_L237}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
