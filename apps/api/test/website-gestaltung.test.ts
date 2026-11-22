@@ -387,16 +387,14 @@ describe("Umschalter Hell und Dunkel (theme.js)", () => {
       };
     };
     const knoepfe = [knopf("light"), knopf("dark")];
-    const gruppe = {
-      hidden: true,
-      querySelectorAll: () => knoepfe,
-    };
+    const gruppe = { hidden: true };
     let bereit: () => void = () => {};
     runInNewContext(skript, {
       document: {
         documentElement: wurzel,
         addEventListener: (_: string, f: () => void) => (bereit = f),
-        querySelector: () => gruppe,
+        // Zwei Gruppen (Band und Menü am Handy, #558) teilen sich den Stand; hier genügt eine
+        querySelectorAll: (s: string) => (s === ".thema" ? [gruppe] : knoepfe),
       },
       window: {
         localStorage: {

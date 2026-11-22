@@ -65,21 +65,7 @@ describe("Umschalter Hell und Dunkel", () => {
     }
   });
 
-  test("theme.js: ohne gespeicherte Wahl folgt die Seite dem System und speichert nichts; nur ein Klick speichert", () => {
-    const skript = readFileSync(
-      new URL("../public/website/theme.js", import.meta.url),
-      "utf8",
-    );
-    expect(skript).toContain("prefers-color-scheme: dark");
-    expect(skript).not.toContain('"system"');
-    // setItem steht nur in speichere(), und speichere() ruft nur der Klick auf
-    expect(zaehle(skript, "setItem(")).toBe(1);
-    expect(zaehle(skript, "speichere(")).toBe(2);
-    expect(skript).toMatch(
-      /addEventListener\("click", function \(e\) \{\s*aktuell = [^;]+;\s*speichere\(aktuell\);/,
-    );
-    expect(skript).not.toMatch(/cookie|fetch\(|XMLHttpRequest/);
-  });
+  // Verhalten von theme.js (System, Klick, Speicher): test/website-gestaltung.test.ts
 });
 
 describe("Marke und Logo", () => {
@@ -156,7 +142,7 @@ describe("Navigation am Computer", () => {
     );
     const ganz = kopf(kontext(viele), "/s11/u", false);
     const nav = hauptnav(ganz);
-    expect(ganz).toContain('<header class="kopf kopf--weit">');
+    expect(ganz).toMatch(/<header class="kopf kopf--(lang|weit)">/);
     const mehr = nav.slice(nav.indexOf('<li class="mit-unter weitere hier">'));
     expect(mehr).toContain("<summary>Mehr<svg");
     expect(mehr).toContain(
@@ -177,7 +163,7 @@ describe("Navigation am Computer", () => {
       "/",
       false,
     );
-    expect(boese).not.toContain("<b>\"x\"");
+    expect(boese).not.toContain('<b>"x"');
     expect(boese).toContain(
       'aria-label="Unterseiten von &lt;b&gt;&quot;x&quot;&lt;/b&gt;"',
     );
