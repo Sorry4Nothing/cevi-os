@@ -346,6 +346,20 @@
       "breakpoints": true
     },
     {
+      "idx": 68,
+      "version": "7",
+      "when": 1793550800000,
+      "tag": "0068_lager_aufgaben",
+      "breakpoints": true
+    },
+    {
+      "idx": 85,
+      "version": "7",
+      "when": 1793552500000,
+      "tag": "0085_lager_anwesenheit",
+      "breakpoints": true
+    },
+    {
       "idx": 120,
       "version": "7",
       "when": 1793554000000,
