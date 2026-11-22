@@ -10963,6 +10963,267 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/lager/{id}/erwaehnungen:
+    get:
+      operationId: holeLagerErwaehnungen
+      summary: Eigene Erwähnungen auflisten
+      description: |
+        Die Erwähnungen der anfragenden Person in diesem Lager, neueste zuerst (sortiert nach ID, absteigend). Es gibt kein eigenes Recht: Jedes Mitglied liest nur die eigenen. Eine Erwähnung erscheint nur, solange der Inhalt nicht gelöscht ist und die Person ihn nach den Sichtbarkeitsregeln des Ziels (Recht und Zeilenfilter wie im Änderungsfeed) noch sehen darf; die Seite kann deshalb kürzer sein als `limit`. Die Antwort nennt den Titel des Inhalts (bei einem Beschluss die erste Zeile), nie den übrigen Text.
+
+        Protokolle liegen im SharePoint und haben keine Erwähnungen; sie sind keine Inhaltsart.
+
+        Datenbanklast: eine Abfrage für die Seite, je vorkommender Inhaltsart zwei weitere (Sichtbarkeit, Titel), also höchstens neun.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID oder Abfrage. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: offen
+          in: query
+          required: false
+          description: "`true`: nur Erwähnungen, die noch nicht erledigt sind."
+          schema:
+            type: string
+            enum: ["true", "false"]
+        - name: nach
+          in: query
+          required: false
+          description: Cursor, die Angabe `naechster` der vorigen Seite.
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          required: false
+          description: Höchstens so viele Zeilen je Seite.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+      responses:
+        "200":
+          description: Eine Seite Erwähnungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{typ}/{quelleId}:
+    put:
+      operationId: gleicheLagerErwaehnungenAb
+      summary: Erwähnungen eines Inhalts abgleichen
+      description: |
+        Die App ruft das nach dem Speichern eines Inhalts auf, der Marken `@{person:<id>}` enthält oder enthielt (`typ`: `aufgabe`, `traktandum`, `pinnwand` oder `beschluss`; bei der Aufgabe stehen Marken in Titel und Notiz, beim Traktandum in Titel, Text und Entscheid, beim Pinnwand-Beitrag in Titel und Text, beim Beschluss im Text). Der Server liest nur diese Marken und rät nie einen Namen. Ohne Body, gleicher Aufruf gleiches Ergebnis (idempotent).
+
+        - Neue Marke: legt die Erwähnung an und benachrichtigt die Person genau einmal (Art `erwaehnung`, fester Titel und Lagertitel, nie der Inhalt; wer die Art abgeschaltet hat oder selbst auslöst, bekommt nichts).
+        - Bekannte Marke: tut nichts, auch bei erneutem Speichern oder gleichzeitigem Aufruf.
+        - Entfallene Marke: die Erwähnung geht weg, ausser es ist daraus schon eine Aufgabe entstanden.
+        - Eine neue Marke gilt nur für ein aktives Mitglied dieses Lagers, das den Inhalt mit seinen eigenen Rechten sehen darf (zum Beispiel nicht das Team bei einem Traktandum eines Höcks der Lagerleitung); sonst 400 `ERWAEHNUNG_UNGUELTIG` und nichts wird geändert. Mehr als 10 verschiedene Marken in einem Inhalt: 400 `ZU_VIELE_MARKEN`.
+
+        Braucht das Recht, den Inhalt zu schreiben: `aufgaben.bearbeiten` (Aufgabe), `hoecks.bearbeiten` (Traktandum), `pinnwand.bearbeiten` (Pinnwand-Beitrag) oder `protokolle.bearbeiten` (Beschluss; Standard je: Lagerleitung und Leitung). Den Inhalt muss die Person sehen, sonst 404.
+
+        Datenbanklast: eine Transaktion unter der Sperre des Lagers: Inhalt laden, Sichtbarkeit (höchstens eine Abfrage), vorhandene Erwähnungen. Nur bei neuen Marken zusätzlich: Mitglieder (eine Abfrage für alle), Rechte je Rolle (höchstens drei) und der Zeilenfilter je erwähnter Person, dann Einfügen und Benachrichtigung (je eine Abfrage für alle).
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Inhalt (404), Marken (400).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID, `ERWAEHNUNG_UNGUELTIG` oder `ZU_VIELE_MARKEN`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder Inhalt, fremder Abteilung, ohne Mitgliedschaft oder bei einem Inhalt, den die Person nicht sieht. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: typ
+          in: path
+          required: true
+          description: Art des Inhalts.
+          schema:
+            type: string
+            enum: [aufgabe, traktandum, pinnwand, beschluss]
+        - name: quelleId
+          in: path
+          required: true
+          description: ID des Inhalts (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Personen, die der Inhalt jetzt erwähnt, und wie viele davon neu sind.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAbgleich"
+        "400":
+          description: |
+            Ungültige Eingabe, `ERWAEHNUNG_UNGUELTIG` (eine neue Marke meint niemanden, der Mitglied ist und den Inhalt sehen darf) oder `ZU_VIELE_MARKEN`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{erwaehnungId}:
+    patch:
+      operationId: setzeLagerErwaehnungErledigt
+      summary: Erwähnung als erledigt markieren
+      description: |
+        Setzt oder löscht «erledigt» an der eigenen Erwähnung. Es gibt kein eigenes Recht; eine fremde Erwähnung, eine, deren Inhalt gelöscht ist oder die die Person nicht mehr sehen darf, ist 404. Gleicher Aufruf gleiches Ergebnis. Keine Zeilenversion: Die Erwähnung gehört der Person allein.
+
+        Datenbanklast: Erwähnung samt Titel laden (wie die Liste, zwei bis drei Abfragen), eine Änderung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400), Erwähnung (404).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerErwaehnungErledigt"
+      responses:
+        "200":
+          description: Die Erwähnung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/erwaehnungen/{erwaehnungId}/als-aufgabe:
+    post:
+      operationId: legeLagerAufgabeAusErwaehnungAn
+      summary: Aus einer Erwähnung eine Aufgabe machen
+      description: |
+        Die erwähnte Person legt aus der eigenen Erwähnung eine Aufgabe für sich an: Titel ist der Titel des Inhalts, Verantwortliche ist sie selbst, `quelle` der Aufgabe ist `erwaehnung:<id>`. Es entsteht höchstens eine Aufgabe je Erwähnung: Ein zweiter oder gleichzeitiger Aufruf liefert dieselbe Aufgabe (200 statt 201). Der Text des Inhalts wird nicht in die Aufgabe kopiert. Eine Benachrichtigung entsteht nicht (die Person ist selbst Auslöserin und Verantwortliche).
+
+        Braucht `aufgaben.bearbeiten` oder `aufgaben.eigene` (Standard: Lagerleitung, Leitung und Team; nicht Lesen). Die Aufgabe ist eine eigene der Person und für sie sichtbar, auch mit nur `aufgaben.eigene`. Eine fremde Erwähnung ist 404.
+
+        Datenbanklast: Erwähnung samt Titel laden (zwei bis drei Abfragen), eine Transaktion unter der Sperre des Lagers: Erwähnung lesen, Aufgabe anlegen (wie `POST /lager/{id}/aufgaben`), Erwähnung verknüpfen.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Erwähnung (404).
+
+        Statuscodes: 201 bei neuer Aufgabe, 200 wenn es sie schon gab. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager oder unbekannter Erwähnung, fremder Abteilung oder ohne Mitgliedschaft. 409 `LAGER_GESCHLOSSEN`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: erwaehnungId
+          in: path
+          required: true
+          description: ID der Erwähnung (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Aufgabe gab es schon.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAufgabe"
+        "201":
+          description: Die Aufgabe wurde angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerErwaehnungAufgabe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # lager-pfade: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/lager/{id}/pinnwand:
     get:
@@ -24385,6 +24646,91 @@ components:
           type: [string, "null"]
           format: uuid
     # lager-schemas: erwaehnungen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    LagerErwaehnung:
+      description: "Eine Erwähnung der anfragenden Person: wo sie steht, ob sie erledigt ist und welche Aufgabe daraus entstand. Kein Text des Inhalts, nur sein Titel."
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - quelleTyp
+        - quelleId
+        - titel
+        - erledigt
+        - aufgabeId
+        - erstelltAm
+      properties:
+        id:
+          type: string
+          format: uuid
+        quelleTyp:
+          description: "Art des Inhalts; die App öffnet ihn über die Route seines Moduls (`quelleId`)."
+          type: string
+          enum: [aufgabe, traktandum, pinnwand, beschluss]
+        quelleId:
+          type: string
+          format: uuid
+        titel:
+          description: "Titel des Inhalts, bei einem Beschluss seine erste Zeile (höchstens 200 Zeichen)."
+          type: string
+        erledigt:
+          type: boolean
+        aufgabeId:
+          description: "Die Aufgabe, die «Als Aufgabe» angelegt hat; null, solange es keine gibt."
+          type: [string, "null"]
+          format: uuid
+        erstelltAm:
+          type: string
+          format: date-time
+    LagerErwaehnungSeite:
+      type: object
+      additionalProperties: false
+      required:
+        - erwaehnungen
+        - naechster
+      properties:
+        erwaehnungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LagerErwaehnung"
+        naechster:
+          description: "Cursor für die nächste Seite (`nach`); null am Ende."
+          type: [string, "null"]
+          format: uuid
+    LagerErwaehnungErledigt:
+      type: object
+      additionalProperties: false
+      required:
+        - erledigt
+      properties:
+        erledigt:
+          type: boolean
+    LagerErwaehnungAbgleich:
+      type: object
+      additionalProperties: false
+      required:
+        - personIds
+        - neu
+      properties:
+        personIds:
+          description: "Die Personen, die der Inhalt jetzt mit einer Marke erwähnt."
+          type: array
+          maxItems: 10
+          items:
+            type: string
+            format: uuid
+        neu:
+          description: "Wie viele davon durch diesen Aufruf neu erwähnt wurden (und benachrichtigt, soweit sie die Art nicht abgeschaltet haben)."
+          type: integer
+          minimum: 0
+    LagerErwaehnungAufgabe:
+      type: object
+      additionalProperties: false
+      required:
+        - aufgabeId
+      properties:
+        aufgabeId:
+          type: string
+          format: uuid
     # lager-schemas: pinnwand (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     LagerPinnwandEmpfaenger:
       description: "An wen ein Beitrag gerichtet ist. Ohne Empfänger gilt er für alle Mitglieder."

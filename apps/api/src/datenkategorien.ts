@@ -247,6 +247,14 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  lagerErwaehnungen: {
+    titel: "Erwähnungen im Lager",
+    zweck:
+      "Wer in einem Inhalt des Lagers (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) erwähnt wird, soll es merken: Cevi OS benachrichtigt die Person, und sie kann die Erwähnung als erledigt markieren oder daraus eine Aufgabe machen. Die Erwähnung speichert nur, wer in welchem Inhalt erwähnt wurde, nie den Text; sie sieht nur die erwähnte Person.",
+    frist: `Bis die Marke aus dem Inhalt entfällt (ausser es ist daraus eine Aufgabe entstanden), die Person das Lager verlässt oder das Lager gelöscht wird. ${AUF_ANFRAGE}`,
+    apple: [],
+    google: [],
+  },
   lagerAnwesenheit: {
     titel: "Anwesenheit im Lager",
     zweck:
@@ -1090,6 +1098,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "objekt_typ",
       "objekt_id",
       "gelesen_am",
+      "erstellt_am",
+    ],
+  },
+  erwaehnung: {
+    lagerErwaehnungen: [
+      "id",
+      "lager_id",
+      "quelle_typ",
+      "quelle_id",
+      "person_id",
+      "erledigt_am",
+      "aufgabe_id",
       "erstellt_am",
     ],
   },

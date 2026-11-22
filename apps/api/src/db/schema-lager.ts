@@ -1675,6 +1675,60 @@ export const beschluss = pgTable(
   ],
 );
 
+// Erwähnungen im Lager (#380): eine Zeile je erwähnter Person und Inhalt. Der Inhalt (Aufgabe, Traktandum, Pinnwand-Beitrag, Beschluss) trägt die Marke «@{person:<id>}»; lager/erwaehnungen.ts gleicht sie ab. quelle_id ohne Fremdschlüssel (vier Tabellen); die Liste filtert gelöschte Inhalte. Die Zeile hat keinen Text: Die App liest den Inhalt über seine Route. erledigt_am setzt die erwähnte Person. aufgabe_id: die Aufgabe, die «Als Aufgabe» angelegt hat (höchstens eine je Erwähnung); fällt sie endgültig weg, bleibt die Erwähnung ohne sie. Fällt das Mitglied weg, gehen seine Erwähnungen mit. In der Migration ON DELETE SET NULL (aufgabe_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Kein Sync-Kern: Die Zeilen der Person sind keine geteilten Daten
+export const ERWAEHNUNG_QUELLE = [
+  "aufgabe",
+  "traktandum",
+  "pinnwand",
+  "beschluss",
+] as const;
+export type ErwaehnungQuelle = (typeof ERWAEHNUNG_QUELLE)[number];
+
+export const erwaehnung = pgTable(
+  "erwaehnung",
+  {
+    id: uuid("id")
+      .primaryKey()
+      .default(sql`uuidv7()`),
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    quelleTyp: text("quelle_typ", { enum: ERWAEHNUNG_QUELLE }).notNull(),
+    quelleId: uuid("quelle_id").notNull(),
+    personId: uuid("person_id").notNull(),
+    erledigtAm: timestamp("erledigt_am", { withTimezone: true }),
+    aufgabeId: uuid("aufgabe_id"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    unique("erwaehnung_quelle_person_uq").on(
+      t.lagerId,
+      t.quelleTyp,
+      t.quelleId,
+      t.personId,
+    ),
+    foreignKey({
+      name: "erwaehnung_mitglied_fk",
+      columns: [t.lagerId, t.personId],
+      foreignColumns: [lagerMitglied.lagerId, lagerMitglied.personId],
+    }).onDelete("cascade"),
+    foreignKey({
+      name: "erwaehnung_aufgabe_fk",
+      columns: [t.lagerId, t.aufgabeId],
+      foreignColumns: [aufgabe.lagerId, aufgabe.id],
+    }).onDelete("set null"),
+    // Die Liste der Person: neueste zuerst, Cursor über die ID
+    index("erwaehnung_person_idx").on(t.lagerId, t.personId, t.id),
+    index("erwaehnung_quelle_idx").on(t.quelleId),
+    check(
+      "erwaehnung_quelle_check",
+      sql`${t.quelleTyp} in ('aufgabe', 'traktandum', 'pinnwand', 'beschluss')`,
+    ),
+  ],
+);
+
 // Fahrten des Lagers (#386): Hin- und Rückfahrt getrennt (richtung), Auto oder ÖV-Gruppe (art). «plaetze» sind die Plätze für Mitfahrende ohne den Fahrer («x von y»); eine ÖV-Gruppe hat weder Plätze noch Fahrer. Der Fahrer ist Mitglied des Lagers. «link» ist der Link auf den Fahrplan der ÖV-Gruppe, der Kartenpunkt (ziel_*) das Ziel der Fahrt mit Bezeichnung und Adresse, Koordinaten oder Link, das die App in der Karten-App öffnet. Der Server speichert beides nur und ruft nie einen Dienst ab (SR-26). Art und Richtung ändern sich nicht (Mitfahrende tragen die Richtung mit). In der Migration ON DELETE SET NULL (fahrer_person_id): Postgres setzt nur die eine Spalte; drizzle kennt die Spaltenliste nicht. Geschrieben wird nur über lager/sync.ts
 export const fahrt = pgTable(
   "fahrt",

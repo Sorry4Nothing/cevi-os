@@ -381,6 +381,13 @@
       "breakpoints": true
     },
     {
+      "idx": 75,
+      "version": "7",
+      "when": 1793551500000,
+      "tag": "0075_lager_erwaehnungen",
+      "breakpoints": true
+    },
+    {
       "idx": 76,
       "version": "7",
       "when": 1793551600000,
