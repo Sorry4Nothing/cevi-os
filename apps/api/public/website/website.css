@@ -165,15 +165,68 @@ body {
   line-height: 1.6;
 }
 
+/* Linkbild (#555): Ein Link im Text ist blau (in der Nacht hellblau) und unterstrichen, nie nur farbig; beim Zeigen wird der Strich dicker. Rot bleibt der einen Hauptaktion.
+   Ein Link auf eine fremde Seite trägt hinten einen kleinen Pfeil nach oben rechts (der Renderer ergänzt für Screenreader «externe Seite»).
+   Ein Verweis, der allein steht (.verweis, «Mehr zu …»), ist fett, ohne Strich und trägt einen Pfeil; beim Zeigen kommt der Strich dazu und der Pfeil rückt vor */
 a {
-  color: var(--primary-text);
+  color: var(--accent);
   text-decoration: underline;
-  text-underline-offset: 3px;
+  text-underline-offset: 0.2em;
   text-decoration-thickness: 1px;
 }
 
 a:hover {
+  text-decoration-thickness: 3px;
+}
+
+.lesetext a,
+.text a {
+  font-weight: 600;
+}
+
+a[rel~="noopener"]:not(.btn)::after {
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-left: 0.3em;
+  background: currentcolor;
+  clip-path: polygon(
+    40% 0,
+    100% 0,
+    100% 60%,
+    78% 38%,
+    16% 100%,
+    0 84%,
+    62% 22%
+  );
+  content: "";
+}
+
+.verweis,
+a.mehr {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.verweis:hover,
+a.mehr:hover {
+  text-decoration: underline;
   text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+.verweis:not([rel])::after,
+a.mehr::after {
+  flex: none;
+  width: 1em;
+  height: 0.75em;
+  margin-left: 0.5em;
+  background: currentcolor;
+  clip-path: polygon(0 42%, 55% 42%, 55% 8%, 100% 50%, 55% 92%, 55% 58%, 0 58%);
+  content: "";
 }
 
 :focus-visible {
@@ -480,25 +533,6 @@ figcaption {
   font-size: 1.25rem;
   line-height: 1.75rem;
   font-weight: 700;
-}
-
-a.mehr {
-  font-weight: 700;
-  text-decoration: none;
-}
-
-a.mehr:hover {
-  text-decoration: underline;
-}
-
-a.mehr::after {
-  display: inline-block;
-  width: 0.4em;
-  height: 0.6em;
-  margin-left: 0.45em;
-  background: currentcolor;
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
-  content: "";
 }
 
 .datei {
@@ -858,6 +892,7 @@ a.termin {
 
 a.termin:hover {
   border-color: var(--outline);
+  background: var(--surface-container);
 }
 
 .datum {
@@ -1597,58 +1632,71 @@ div.termin {
   font-weight: 700;
 }
 
-/* Merkmale: Zeilen aus Symbol, Titel und Text, ohne Kachel und ohne Link */
+/* Merkmale: ein Band in der Markenfarbe über die ganze Breite. Wenige Stichworte nebeneinander, gross gesetzt, darunter ein kurzer Text; ohne Symbol, ohne Link, auf Wunsch je mit Foto */
+.sektion--marke {
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.sektion--marke .sektion-kopf h2 {
+  color: var(--on-secondary);
+  font-size: clamp(2rem, 1.3rem + 3vw, 4.25rem);
+  line-height: 1;
+  letter-spacing: -0.025em;
+}
+
+.sektion--marke .sektion-kopf .text {
+  color: var(--on-secondary-muted);
+}
+
+.sektion--marke a {
+  color: var(--on-secondary);
+}
+
+.sektion--marke :focus-visible {
+  outline-color: var(--on-secondary);
+}
+
 .merkmale {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: clamp(2rem, 3vw, 3rem) clamp(1.5rem, 3vw, 3.5rem);
 }
 
 .merkmale > li {
-  display: grid;
-  grid-template-columns: 2.5rem minmax(0, 13rem) minmax(0, 1fr);
-  gap: 0.25rem 1.5rem;
-  align-items: baseline;
-  padding-block: 1.5rem;
-  border-top: 1px solid var(--outline-variant);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--on-secondary);
 }
 
-.merkmale > li:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.merkmale > li:last-child {
-  padding-bottom: 0;
-}
-
-.merkmal-symbol {
-  display: inline-flex;
-  grid-column: 1;
-  align-self: start;
-  color: var(--primary-text);
-}
-
-.merkmal-symbol .i {
-  width: 2rem;
-  height: 2rem;
+.merkmale img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  margin-bottom: 0.5rem;
+  border-radius: var(--r-sm);
+  object-fit: cover;
+  object-position: 50% 30%;
 }
 
 .merkmale .titel {
-  grid-column: 2;
-  color: var(--titel);
-  font-size: 1.375rem;
-  line-height: 1.75rem;
+  color: var(--on-secondary);
+  font-size: clamp(1.5rem, 0.9rem + 1vw, 2.25rem);
+  line-height: 1.05;
+  overflow-wrap: anywhere;
   font-weight: 800;
-}
-
-.merkmale > li:not(:has(.merkmal-symbol)) .titel {
-  grid-column: 1 / 3;
+  letter-spacing: -0.02em;
+  hyphens: auto;
 }
 
 .merkmale p {
-  grid-column: 3;
-  max-width: 52ch;
-  color: var(--on-surface-variant);
+  max-width: 36ch;
+  color: var(--on-secondary-muted);
+  font-size: 1.125rem;
+  line-height: 1.55;
 }
 
 /* Stufenkarten: das Foto trägt die Karte, das Alter steht als kleine Fahne im Bild, darunter Titel und Kurztext. Ein Link im Titel deckt die ganze Karte ab */
@@ -1975,10 +2023,15 @@ a.btn.w {
   font-weight: 800;
 }
 
-.sektion--terminliste a.termin:hover .titel {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
+/* Zeigen und Fokus: Die Zeile bekommt eine ruhige Fläche, sonst bewegt sich nichts ausser dem Pfeil. Die Fläche reicht seitlich über die Zeile hinaus, damit der Text nicht springt */
+.sektion--terminliste a.termin {
+  margin-inline: -1rem;
+  padding-inline: 1rem;
+  border-radius: var(--r-sm);
+}
+
+.sektion--terminliste a.termin:hover {
+  background: var(--surface-container);
 }
 
 .sektion--terminliste a.termin:focus-visible {
@@ -2140,21 +2193,6 @@ a.btn.w {
 }
 
 @media (max-width: 47.5em) {
-  .merkmale > li {
-    grid-template-columns: 2.5rem minmax(0, 1fr);
-    gap: 0.25rem 1rem;
-    padding-block: 1.25rem;
-  }
-
-  .merkmale p {
-    grid-column: 2;
-  }
-
-  .merkmale > li:not(:has(.merkmal-symbol)) .titel,
-  .merkmale > li:not(:has(.merkmal-symbol)) p {
-    grid-column: 1 / -1;
-  }
-
   .stufenkarten {
     grid-template-columns: 1fr;
   }
@@ -2422,7 +2460,8 @@ a.btn.w {
 
   /* Knöpfe und Flächen antworten auf Zeigen und Drücken */
   .btn,
-  .karten > li {
+  .karten > li,
+  a.termin {
     transition:
       background-color var(--dauer) var(--kurve),
       border-color var(--dauer) var(--kurve),
@@ -2444,6 +2483,20 @@ a.btn.w {
 
   .stufe--link:hover .stufe-bild img {
     scale: 1.05;
+  }
+
+  a {
+    transition: text-decoration-thickness var(--dauer) var(--kurve);
+  }
+
+  .verweis::after,
+  a.mehr::after {
+    transition: translate var(--dauer) var(--kurve);
+  }
+
+  .verweis:hover::after,
+  a.mehr:hover::after {
+    translate: 0.25rem 0;
   }
 
   .stufe-pfeil,
