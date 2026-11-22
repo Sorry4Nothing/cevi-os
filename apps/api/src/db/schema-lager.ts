@@ -6,6 +6,7 @@ import {
   date,
   index,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   text,
@@ -229,4 +230,26 @@ export const lagerBenachrichtigungEinstellung = pgTable(
     aktiv: boolean("aktiv").notNull(),
   },
   (t) => [primaryKey({ columns: [t.personId, t.art] })],
+);
+
+// Ergebnisse der Warteschlange für Offline-Änderungen (#367): eine Zeile je Operation, die eine Person mit ihrer clientOpId geschickt hat. Eine Wiederholung derselben clientOpId liefert das gespeicherte Ergebnis, statt noch einmal zu schreiben. Das Ergebnis trägt IDs und Versionen; bei einem Konflikt auch den Stand der Zeile in der Ansicht der Person. Der Eintrag entfällt nach 30 Tagen (lager/aufraeumen.ts)
+export const lagerClientOp = pgTable(
+  "lager_client_op",
+  {
+    lagerId: uuid("lager_id")
+      .notNull()
+      .references(() => lager.id, { onDelete: "cascade" }),
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    clientOpId: uuid("client_op_id").notNull(),
+    ergebnis: jsonb("ergebnis"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.lagerId, t.personId, t.clientOpId] }),
+    index("lager_client_op_erstellt_am_idx").on(t.erstelltAm),
+  ],
 );
