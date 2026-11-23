@@ -687,6 +687,13 @@
       "when": 1793555400000,
       "tag": "0134_website_freigabe_entfernt",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1793555800000,
+      "tag": "0138_laden_groesse_verfuegbar",
+      "breakpoints": true
     }
   ]
 }

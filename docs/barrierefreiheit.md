@@ -542,6 +542,23 @@ Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Ba
 - [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
 - [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
 
+## 39. Lädeli: Verfügbarkeit je Grösse (#629)
+
+Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/laedeli.js`, `laedeli.css`) und für Kachel, Artikelfenster, Warenkorb und Bestellübersicht der Website (`src/website/laden.ts`, `public/website/laden.js`, `laden.css`). Geprüft im Browser bei 390, 1440 px, Tag und Nacht.
+
+- [ ] **39.1** Der Zustand einer Grösse steht nie nur in der Farbe: Symbol (Haken oder Kreuz), Durchstreichung, gestrichelter Rand und das Wort «nicht verfügbar» (im Artikelblatt im Schalter, in der Artikelliste in der Spalte «Stand» direkt daneben, auf der Website in der Notiz unter der Wahl).
+- [ ] **39.2** Verwaltung: Jede Grösse ist ein Schalter (`role="switch"`, `aria-checked`, Name «S verfügbar, Cevianerpulli»), mindestens 44 × 44 px, mit sichtbarem Fokusring und Bedienung mit Enter und Leertaste. Nach dem Umschalten behält der Schalter den Fokus.
+- [ ] **39.3** Verwaltung: Das Umschalten in der Liste meldet im Toast «M ist bei «Cevianertshirt» als nicht verfügbar gemeldet.» mit «Rückgängig» (Statusregion, kein Fenster, keine Frist). Fehler stehen im Toast, der Schalter bleibt unverändert.
+- [ ] **39.4** Verwaltung am Handy (390 px): Jede Zeile der Artikelliste ist eine Karte; die Schalter sind ohne Seitwärtsscrollen erreichbar, «Grösse» und «Stand» tragen ihren Namen. Die Spaltenköpfe bleiben für Hilfstechnik im Dokument.
+- [ ] **39.5** Website: Eine gemeldete Grösse ist sichtbar, durchgestrichen, `aria-disabled="true"` und trägt für Hilfstechnik das Wort «nicht verfügbar»; sie bleibt fokussierbar, ein Klick wählt nichts aus und sagt «S ist nicht verfügbar.» in der Statusregion. Die sichtbare Notiz «S nicht verfügbar» steht in Kachel und Artikelfenster.
+- [ ] **39.6** Website: Eine entfallene Grösse im Warenkorb ist am Rand, am Symbol und am Satz in der Zeile erkennbar; das Band darüber ist eine Statusmeldung (`role="status"`, bei einer Serverantwort `alert`). «Zur Bestellübersicht» und «Bestellen» sind `aria-disabled` und sagen auf Klick, warum.
+- [ ] **39.7** Kontrast: Gemeldete Grössen (Text `--l-leise` und `--on-surface-variant` auf der Fläche) erreichen in Tag und Nacht mindestens 4.5:1; der gestrichelte Rand ist nicht das einzige Merkmal. Erzwungene Farben: Schalter und Knöpfe behalten einen Rand.
+- [ ] **39.8** Ohne Skript bleibt die Seite lesbar: durchgestrichene Grössen, Wort «nicht verfügbar» für Hilfstechnik, sichtbare Notiz.
+
+### Stand der Prüfung (#629)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

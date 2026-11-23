@@ -22024,7 +22024,7 @@ paths:
 
         Grenzen: 1 bis 20 Positionen, Menge 1 bis 10, derselbe Artikel in derselben Variante nur einmal (sonst 400), höchstens 5 offene oder bereitgestellte Bestellungen je Person (409 `BESTELL_LIMIT`), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 429 bei zu vielen Versuchen.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
 
         Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
       tags:
@@ -22060,6 +22060,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LadenKonflikt"
+        "422":
+          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenGroesseNichtVerfuegbar"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -22244,13 +22250,13 @@ paths:
       operationId: aendereAdminLadenArtikel
       summary: Artikel ändern
       description: |
-        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. Das Audit-Log hält nur die Namen der geänderten Felder fest.
+        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Das Audit-Log hält nur die Namen der geänderten Felder fest.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Bild (400).
+        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Verfügbarkeit je Grösse (422), Bild (400).
 
         Statuscodes: 204 bei Erfolg. 400, 403, 404, 422 wie beschrieben.
 
-        Datenbanklast: eine Abfrage für den Artikel, eine für das Bild (falls genannt), eine Transaktion mit Update und Audit-Eintrag.
+        Datenbanklast: eine Abfrage für den Artikel (mit Grössen und Meldungen), eine für das Bild (falls genannt), eine Transaktion mit Update und Audit-Eintrag.
       tags:
         - Lädeli
       parameters:
@@ -36271,8 +36277,10 @@ components:
         - mediumId
         - groessenart
         - varianten
+        - nichtVerfuegbar
         - hinweis
         - verfuegbar
+        - verfuegbarGesetzt
         - reihenfolge
       properties:
         id:
@@ -36301,12 +36309,21 @@ components:
           items:
             type: string
           description: Leer bei Einheitsgrösse, sonst mindestens zwei Einträge.
+        nichtVerfuegbar:
+          type: array
+          items:
+            type: string
+          description: Grössen aus `varianten`, die nicht zu haben sind (Verfügbarkeit je Grösse, kein Lagerbestand). Sie bleiben im Laden sichtbar, lassen sich aber nicht bestellen.
         hinweis:
           type:
             - string
             - "null"
         verfuegbar:
           type: boolean
+          description: Ob der Artikel zu haben ist. `false`, wenn die Verwaltung ihn ausgeschaltet hat (`verfuegbarGesetzt`) oder alle Grössen in `nichtVerfuegbar` stehen.
+        verfuegbarGesetzt:
+          type: boolean
+          description: Der Schalter des Artikels selbst, wie ihn die Verwaltung gesetzt hat, unabhängig von den Grössen.
         reihenfolge:
           type: integer
           minimum: 0
@@ -36546,14 +36563,49 @@ components:
           enum:
             - GROESSE_FEHLT
             - GROESSE_UNGUELTIG
+            - NICHT_VERFUEGBAR_UNGUELTIG
         feld:
           type: string
           enum:
             - groessenart
             - varianten
+            - nichtVerfuegbar
           description: Das Feld, bei dem die Meldung steht.
         message:
           type: string
+    LadenGroesseNichtVerfuegbar:
+      type: object
+      description: Eine bestellte Grösse ist nicht mehr zu haben (Statuscode 422 beim Bestellen). Die Bestellung ist ganz abgelehnt.
+      required:
+        - code
+        - feld
+        - message
+        - positionen
+      properties:
+        code:
+          type: string
+          enum:
+            - GROESSE_NICHT_VERFUEGBAR
+        feld:
+          type: string
+          enum:
+            - positionen
+        message:
+          type: string
+          description: Deutscher Text mit Artikel und Grösse für die Anzeige.
+        positionen:
+          type: array
+          items:
+            type: object
+            required:
+              - artikelId
+              - variante
+            properties:
+              artikelId:
+                type: string
+                format: uuid
+              variante:
+                type: string
     LadenArtikelAnlegen:
       type: object
       required:
@@ -36584,6 +36636,14 @@ components:
             minLength: 1
             maxLength: 40
           description: Nur bei `liste`; ohne Doppelte (Gross- und Kleinschreibung zählt nicht).
+        nichtVerfuegbar:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          description: Grössen aus `varianten`, die nicht zu haben sind; ohne Angabe sind alle verfügbar. Bei `einheit` nicht erlaubt (422 `NICHT_VERFUEGBAR_UNGUELTIG`).
         mediumId:
           type:
             - string
@@ -36622,6 +36682,14 @@ components:
             type: string
             minLength: 1
             maxLength: 40
+        nichtVerfuegbar:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          description: Ersetzt die Liste der nicht verfügbaren Grössen; jede muss in `varianten` (neu oder gespeichert) stehen.
         mediumId:
           type:
             - string
@@ -37126,7 +37194,7 @@ components:
           schema:
             $ref: "#/components/schemas/Fehler"
     LadenGroesse422:
-      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (`GROESSE_FEHLT`, `GROESSE_UNGUELTIG`); `feld` nennt das Feld.
+      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (`GROESSE_FEHLT`, `GROESSE_UNGUELTIG`), oder `nichtVerfuegbar` nennt eine Grösse, die nicht in der Liste steht (`NICHT_VERFUEGBAR_UNGUELTIG`); `feld` nennt das Feld.
       content:
         application/json:
           schema:

@@ -16,6 +16,8 @@ export type LadenArtikel = {
   preisRappen: number;
   mediumId: string | null;
   varianten: string[];
+  // Grössen aus «varianten», die nicht zu haben sind (#629)
+  nichtVerfuegbar: string[];
   hinweis: string | null;
   verfuegbar: boolean;
 };
@@ -101,11 +103,35 @@ export function rendereLaden(daten: Daten, ebene: number): HtmlKnoten | null {
                     el(
                       "ul",
                       { class: "laden-varianten", "aria-label": "Varianten" },
-                      ...a.varianten.map((v) => el("li", undefined, v)),
+                      // Eine Grösse, die nicht zu haben ist, steht durchgestrichen und mit Wort (nie nur Farbe); das Skript liest den Namen aus data-name
+                      ...a.varianten.map((v) =>
+                        a.nichtVerfuegbar.includes(v)
+                          ? el(
+                              "li",
+                              { class: "laden-variante--weg", "data-name": v },
+                              el("s", undefined, v),
+                              el(
+                                "span",
+                                { class: "nur-leser" },
+                                " nicht verfügbar",
+                              ),
+                            )
+                          : el("li", { "data-name": v }, v),
+                      ),
                     ),
                   ]
                 : []),
             ),
+            // Das Wort zur Durchstreichung: sichtbar, sobald eine Grösse fehlt, der Artikel aber noch zu haben ist
+            ...(a.verfuegbar && a.nichtVerfuegbar.length > 0
+              ? [
+                  el(
+                    "p",
+                    { class: "laden-weg-notiz" },
+                    `${a.nichtVerfuegbar.join(", ")} nicht verfügbar`,
+                  ),
+                ]
+              : []),
             ...(a.hinweis ? [el("p", { class: "hinweis" }, a.hinweis)] : []),
           ),
         ),

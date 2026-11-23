@@ -84,11 +84,49 @@ export function pruefeGroesse(
     : { fehler: GROESSE_UNGUELTIG };
 }
 
+// Verfügbarkeit je Grösse (#629): «nichtVerfuegbar» nennt die Grössen aus «varianten», die gerade nicht zu haben sind. Es gibt keinen Lagerbestand, nur diese Meldung je Grösse
+export const NICHT_VERFUEGBAR_UNGUELTIG = {
+  code: "NICHT_VERFUEGBAR_UNGUELTIG",
+  feld: "nichtVerfuegbar",
+  message:
+    "Nur Grössen aus der Liste lassen sich als nicht verfügbar melden. Prüfe die Schreibweise.",
+} as const;
+// Der Artikel ist bestellbar, wenn er verfügbar gesetzt ist und (bei einer Liste) mindestens eine Grösse zu haben ist
+export const artikelVerfuegbar = (
+  a: Pick<Artikel, "verfuegbar" | "varianten" | "nichtVerfuegbar">,
+) =>
+  a.verfuegbar &&
+  (a.varianten.length === 0 ||
+    a.varianten.some((v) => !a.nichtVerfuegbar.includes(v)));
+// Liefert den Fehler oder die Liste, die gespeichert wird (null: nichts zu ändern). groesse ist das Ergebnis von pruefeGroesse, bisher der gespeicherte Stand (beim Ändern). Wechselt die Liste der Grössen, ohne dass «nichtVerfuegbar» mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt
+export function pruefeNichtVerfuegbar(
+  b: { nichtVerfuegbar?: string[] },
+  groesse: { varianten: string[] | null },
+  bisher: { varianten: string[]; nichtVerfuegbar: string[] } | null,
+):
+  | { fehler: typeof NICHT_VERFUEGBAR_UNGUELTIG }
+  | { nichtVerfuegbar: string[] | null } {
+  const vorhanden = groesse.varianten ?? bisher?.varianten ?? [];
+  if (b.nichtVerfuegbar !== undefined) {
+    return b.nichtVerfuegbar.every((v) => vorhanden.includes(v))
+      ? { nichtVerfuegbar: b.nichtVerfuegbar }
+      : { fehler: NICHT_VERFUEGBAR_UNGUELTIG };
+  }
+  return groesse.varianten !== null && bisher
+    ? {
+        nichtVerfuegbar: bisher.nichtVerfuegbar.filter((v) =>
+          vorhanden.includes(v),
+        ),
+      }
+    : { nichtVerfuegbar: null };
+}
+
 const artikelFelder = {
   name: text(100),
   preisRappen: z.number().int().min(0).max(1_000_000),
   mediumId: z.uuid().nullable(),
   varianten: z.array(text(40)).max(MAX_VARIANTEN).refine(eindeutig),
+  nichtVerfuegbar: z.array(text(40)).max(MAX_VARIANTEN).refine(eindeutig),
   hinweis: text(200).nullable(),
   verfuegbar: z.boolean(),
 };
@@ -98,6 +136,7 @@ export const artikelAnlegenSchema = z.strictObject({
   groessenart: groessenart.optional(),
   mediumId: artikelFelder.mediumId.optional(),
   varianten: artikelFelder.varianten.optional(),
+  nichtVerfuegbar: artikelFelder.nichtVerfuegbar.optional(),
   hinweis: artikelFelder.hinweis.optional(),
   verfuegbar: artikelFelder.verfuegbar.optional(),
 });
@@ -158,8 +197,12 @@ export const artikelAnsicht = (a: Artikel) => ({
   groessenart:
     a.varianten.length > 0 ? ("liste" as const) : ("einheit" as const),
   varianten: a.varianten,
+  nichtVerfuegbar: a.nichtVerfuegbar,
   hinweis: a.hinweis,
-  verfuegbar: a.verfuegbar,
+  // Für Anzeige und Bestellung: nicht verfügbar ist auch ein Artikel, dessen Grössen alle nicht zu haben sind
+  verfuegbar: artikelVerfuegbar(a),
+  // Der Schalter des Artikels selbst, wie ihn die Verwaltung gesetzt hat
+  verfuegbarGesetzt: a.verfuegbar,
   reihenfolge: a.reihenfolge,
 });
 

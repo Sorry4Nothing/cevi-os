@@ -29,7 +29,14 @@ export const summeText = (rappen) =>
 const gleich = (a, b) =>
   a.id === b.id && (a.variante ?? null) === (b.variante ?? null);
 
-// Korb aus dem Speicher: nur Zeilen, die zu einem verfügbaren Artikel und seinen Varianten passen; Mengen innerhalb der Grenze, höchstens so viele Zeilen wie erlaubt
+// Verfügbarkeit je Grösse (#629): «nichtVerfuegbar» nennt die Grössen, die gerade nicht zu haben sind
+export const groesseWeg = (a, variante) =>
+  variante != null && (a?.nichtVerfuegbar ?? []).includes(variante);
+// Zeilen des Korbs, deren Grösse inzwischen nicht mehr zu haben ist
+export const weggefallen = (korb, artikel) =>
+  korb.filter((k) => groesseWeg(artikel.get(k.id), k.variante));
+
+// Korb aus dem Speicher: nur Zeilen, die zu einem verfügbaren Artikel und seinen Varianten passen (eine inzwischen nicht verfügbare Grösse bleibt stehen und wird in der Zeile gemeldet, siehe weggefallen); Mengen innerhalb der Grenze, höchstens so viele Zeilen wie erlaubt
 export function bereinige(roh, artikel, grenzen) {
   const korb = [];
   for (const z of Array.isArray(roh) ? roh : []) {
@@ -108,6 +115,7 @@ const MINUS = ["M5 12h14"];
 const TASCHE = ["M5 8h14l-1 12H6z", "M9 8V6a3 3 0 0 1 6 0v2"];
 const ZU = ["M6 6l12 12", "M18 6 6 18"];
 const HAKEN = ["m5 12 5 5 9-10"];
+const WARNUNG = ["M12 4 3 20h18z", "M12 10v4", "M12 17h.01"];
 const PFEIL = ["M5 12h14", "m13 6 6 6-6 6"];
 const ORT = [
   "M12 21s-6-5.6-6-11a6 6 0 0 1 12 0c0 5.4-6 11-6 11z",
@@ -306,19 +314,23 @@ export const werkzeugeView = (z) =>
 
 // Schnelles Hinzufügen in der Kachel: ein Streifen am unteren Rand mit den Varianten als Knöpfen (ohne Varianten ein Knopf). dazu: die eben hinzugefügte Variante («» ohne Variante), sonst undefined
 export function schnellView(a, dazu) {
-  const knopf = (text, variante, name) =>
-    h(
+  const knopf = (text, variante, name) => {
+    const weg = groesseWeg(a, variante);
+    return h(
       "button",
       {
         type: "button",
-        class: dazu === variante ? "dazu" : null,
+        class: weg ? "weg" : dazu === variante ? "dazu" : null,
         "data-aktion": "schnell",
         "data-variante": variante,
-        "aria-label": name,
+        "data-weg": weg ? "1" : null,
+        "aria-disabled": weg ? "true" : null,
+        "aria-label": weg ? `${a.name} in ${variante}, nicht verfügbar` : name,
       },
-      dazu === variante ? zeichen(...HAKEN) : null,
-      text,
+      dazu === variante && !weg ? zeichen(...HAKEN) : null,
+      weg ? h("s", {}, text) : text,
     );
+  };
   let notiz = null;
   if (dazu !== undefined)
     notiz = dazu ? `${dazu} im Warenkorb` : "Im Warenkorb";
@@ -430,24 +442,48 @@ export function artikelView(a, wahl, z) {
                     ? "laden-wahl-knoepfe laden-wahl-knoepfe--breit"
                     : "laden-wahl-knoepfe",
                 },
-                a.varianten.map((v, n) =>
-                  h(
+                a.varianten.map((v, n) => {
+                  const weg = groesseWeg(a, v);
+                  return h(
                     "button",
                     {
                       type: "button",
+                      class: weg ? "weg" : null,
                       "data-aktion": "variante",
                       "data-variante": v,
+                      "data-weg": weg ? "1" : null,
                       "data-f": `v${n}`,
+                      "aria-disabled": weg ? "true" : null,
                       "aria-pressed": v === wahl.variante ? "true" : "false",
                     },
-                    v,
-                  ),
-                ),
+                    // Durchgestrichen, dazu das Wort im Fenster (Notiz unter der Wahl) und für Hilfstechnik am Knopf
+                    weg
+                      ? [
+                          h("s", {}, v),
+                          h("span", { class: "nur-leser" }, " nicht verfügbar"),
+                        ]
+                      : v,
+                  );
+                }),
               ),
+              a.nichtVerfuegbar?.length > 0
+                ? h(
+                    "p",
+                    { class: "meta laden-wahl-notiz" },
+                    `${a.nichtVerfuegbar.join(", ")} nicht verfügbar`,
+                  )
+                : null,
             )
           : null,
         a.varianten.length > 0 && z.konto !== "an"
-          ? h("p", { class: "meta" }, `Grössen: ${a.varianten.join(", ")}`)
+          ? h(
+              "p",
+              { class: "meta" },
+              `Grössen: ${a.varianten.filter((v) => !groesseWeg(a, v)).join(", ")}`,
+              a.nichtVerfuegbar?.length > 0
+                ? ` · ${a.nichtVerfuegbar.join(", ")} nicht verfügbar`
+                : null,
+            )
           : null,
         z.konto === "aus"
           ? anmeldeView(z, a.id)
@@ -545,7 +581,8 @@ function zeilenView(z, { klein, f }) {
       weg: z.entfernt.zeile,
     });
   }
-  return h(
+  const wegZeilen = weggefallen(z.korb, z.artikel);
+  const liste = h(
     "ul",
     { class: klein ? "laden-zeilen laden-zeilen--klein" : "laden-zeilen" },
     zeilen.map(({ k, n, weg }) => {
@@ -575,9 +612,13 @@ function zeilenView(z, { klein, f }) {
       }
       const a = z.artikel.get(k.id);
       const mehrere = k.menge > 1 && a.preisRappen > 0;
+      const groesseFehlt = groesseWeg(a, k.variante);
       return h(
         "li",
-        { "data-zeile": String(n) },
+        {
+          "data-zeile": String(n),
+          class: groesseFehlt ? "laden-zeile--weg" : null,
+        },
         flaecheView(a, "laden-zeile-bild"),
         h(
           "div",
@@ -602,6 +643,14 @@ function zeilenView(z, { klein, f }) {
               .filter(Boolean)
               .join(" · "),
           ),
+          groesseFehlt
+            ? h(
+                "p",
+                { class: "laden-zeile-hinweis" },
+                zeichen(...WARNUNG),
+                `Die Grösse ${k.variante} ist nicht mehr verfügbar. Entferne die Zeile und wähle im Artikel eine andere Grösse.`,
+              )
+            : null,
           h(
             "div",
             { class: "laden-zeile-fuss" },
@@ -630,6 +679,17 @@ function zeilenView(z, { klein, f }) {
       );
     }),
   );
+  return [
+    wegZeilen.length > 0 && !z.meldung
+      ? bandView({
+          art: "wa",
+          symbol: "warnung",
+          titel: "Eine Grösse ist nicht mehr verfügbar.",
+          text: "Entferne die markierte Zeile oder wähle eine andere Grösse, dann lässt sich bestellen.",
+        })
+      : null,
+    liste,
+  ];
 }
 
 const reiheView = (name, wert, stark) =>
@@ -736,7 +796,10 @@ export function korbView(z) {
           class: "laden-knopf laden-knopf--haupt voll",
           "data-aktion": "uebersicht",
           "data-f": "uebersicht",
-          "aria-disabled": z.korb.length === 0 ? "true" : null,
+          "aria-disabled":
+            z.korb.length === 0 || weggefallen(z.korb, z.artikel).length > 0
+              ? "true"
+              : null,
         },
         "Zur Bestellübersicht",
         zeichen(...PFEIL),
@@ -853,7 +916,10 @@ export function uebersichtView(z) {
         class: "laden-knopf laden-knopf--bestellen",
         "data-aktion": "bestellen",
         "data-f": "bestellen",
-        "aria-disabled": leer || wartet ? "true" : null,
+        "aria-disabled":
+          leer || wartet || weggefallen(z.korb, z.artikel).length > 0
+            ? "true"
+            : null,
       },
       wartet ? h("span", { class: "lade" }) : null,
       z.konto === "unbekannt"
@@ -1070,6 +1136,7 @@ export function fehlerMeldung(r) {
   const bekannt = [
     "BESTELL_LIMIT",
     "ARTIKEL_NICHT_VERFUEGBAR",
+    "GROESSE_NICHT_VERFUEGBAR",
     "VARIANTE_UNGUELTIG",
     "UEBERGABE_UNBEKANNT",
     "PREIS_GEAENDERT",
@@ -1097,9 +1164,13 @@ export function liesArtikel(wurzel) {
           platz,
           name: li.querySelector(".name")?.textContent ?? "",
           preisRappen: Number(li.dataset.preis) || 0,
+          // data-name: Der Name ohne das Wort «nicht verfügbar» der Hilfstechnik
           varianten: [...li.querySelectorAll(".laden-varianten li")].map(
-            (v) => v.textContent,
+            (v) => v.dataset.name ?? v.textContent,
           ),
+          nichtVerfuegbar: [
+            ...li.querySelectorAll(".laden-varianten .laden-variante--weg"),
+          ].map((v) => v.dataset.name),
           hinweis: li.querySelector(".hinweis")?.textContent ?? null,
           verfuegbar: !li.classList.contains("laden-artikel--weg"),
           bild: img
@@ -1382,6 +1453,16 @@ function start(doc, wurzel) {
 
   async function bestelle() {
     if (z.senden === "sendet" || z.korb.length === 0) return;
+    if (weggefallen(z.korb, z.artikel).length > 0) {
+      z.meldung = {
+        art: "wa",
+        symbol: "warnung",
+        titel: "Eine Grösse ist nicht mehr verfügbar.",
+        text: "Entferne die markierte Zeile oder wähle eine andere Grösse.",
+      };
+      zeichneKorb();
+      return;
+    }
     z.senden = "sendet";
     z.meldung = null;
     z.entfernt = null;
@@ -1417,7 +1498,9 @@ function start(doc, wurzel) {
     } else {
       z.meldung = fehlerMeldung(r);
       // Preise, Verfügbarkeit oder Übergabe haben sich geändert: den Laden neu lesen, damit Korb und Summe wieder stimmen
-      if (r.status === 409 || r.status === 400) await pruefeKonto();
+      if (r.status === 409 || r.status === 400 || r.status === 422) {
+        await pruefeKonto();
+      }
     }
     zeichneKopf();
     zeichneKorb();
@@ -1449,8 +1532,20 @@ function start(doc, wurzel) {
       e.preventDefault();
       // «Variante wählen»: zur Wahl führen statt nichts tun
       if (knopf.dataset.aktion === "dazu" && wahl?.artikel.verfuegbar) {
-        fensterDlg.querySelector('[data-aktion="variante"]')?.focus();
+        fensterDlg
+          .querySelector('[data-aktion="variante"]:not([data-weg])')
+          ?.focus();
         sage("Wähle zuerst eine Variante.");
+      } else if (knopf.dataset.weg) {
+        sage(`${knopf.dataset.variante} ist nicht verfügbar.`);
+      } else if (
+        (knopf.dataset.aktion === "uebersicht" ||
+          knopf.dataset.aktion === "bestellen") &&
+        weggefallen(z.korb, z.artikel).length > 0
+      ) {
+        sage(
+          "Eine Grösse ist nicht mehr verfügbar. Entferne die markierte Zeile.",
+        );
       }
       return;
     }
