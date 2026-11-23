@@ -71,6 +71,7 @@ const ADMIN_TYPEN: Record<string, string> = {
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
   svg: "image/svg+xml",
+  woff2: "font/woff2",
 };
 
 describe("Verwaltung unter /admin", () => {
@@ -88,7 +89,13 @@ describe("Verwaltung unter /admin", () => {
       expect(antwort.headers.get("content-type")).toBe(
         ADMIN_TYPEN[datei.split(".").pop()!],
       );
-      expect(await antwort.text()).toBe(admin[datei]);
+      // Die Schrift der Vorschau liegt als Bytes vor
+      if (typeof admin[datei] === "string")
+        expect(await antwort.text()).toBe(admin[datei]);
+      else
+        expect(new Uint8Array(await antwort.arrayBuffer())).toEqual(
+          admin[datei],
+        );
       const csp = antwort.headers.get("content-security-policy")!;
       for (const regel of [
         "default-src 'none'",
@@ -145,7 +152,7 @@ describe("Verwaltung unter /admin", () => {
       );
       // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
       expect(
-        admin[datei].replaceAll("http://www.w3.org/2000/svg", ""),
+        String(admin[datei]).replaceAll("http://www.w3.org/2000/svg", ""),
       ).not.toMatch(/https?:\/\//);
     },
   );
