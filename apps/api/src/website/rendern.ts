@@ -63,7 +63,14 @@ export type WebsitePerson = { name: string; bild?: string };
 // Leitung oder Stufenleitung einer Stufe im Leitungsteam der Stufenseite (#610): dazu die Rolle als Text
 export type StufenMitglied = WebsitePerson & { funktion: string };
 // link: der Wert als Link (Eckdaten, #560)
-export type Fakt = { bezeichnung: string; wert: string; link?: string };
+// lang: ein längerer Text in Lesegrösse statt eines kurzen Werts; liste: seine Einträge, wenn er aus mehreren Dingen besteht (#645, «Mitnehmen»)
+export type Fakt = {
+  bezeichnung: string;
+  wert: string;
+  link?: string;
+  lang?: boolean;
+  liste?: string[];
+};
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
 export type TerminEintrag = {
   id: string;
@@ -380,9 +387,21 @@ const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
     ...fakten.map((f) =>
       el(
         "div",
-        { class: "fakt" },
+        { class: f.lang ? "fakt fakt--lang" : "fakt" },
         el("dt", undefined, f.bezeichnung),
-        el("dd", undefined, ...verlinke(f.link, [f.wert])),
+        el(
+          "dd",
+          undefined,
+          ...(f.liste
+            ? [
+                el(
+                  "ul",
+                  { class: "mitnehmen", role: "list" },
+                  ...f.liste.map((e) => el("li", undefined, e)),
+                ),
+              ]
+            : verlinke(f.link, [f.wert])),
+        ),
       ),
     ),
   );
