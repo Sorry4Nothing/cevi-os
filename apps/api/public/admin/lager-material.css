@@ -1,0 +1,596 @@
+/* Material und Infos im Lager-Arbeitsbereich (#674): Packliste, Einkauf, Notfall, Infos, Tagesseiten, Wetter. Klassen mit dem Vorsatz «lm-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung. */
+
+.lm-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lm-sektionen {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lm-kartenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.lm-kartenkopf h2,
+.lm-kartenkopf h3 {
+  margin: 0;
+}
+
+.lm-zahlen {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lm-text {
+  margin: 0;
+  max-width: 70ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lm-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+}
+
+/* Werkzeuge über dem Inhalt */
+.lm-werkzeuge .reihe {
+  align-items: center;
+}
+
+/* Reiter: zwei Seiten desselben Moduls als Links, die aktuelle ist gefüllt */
+.lm-reiter-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lm-reiter {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-full);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.lm-reiter:hover {
+  background: var(--surface-container);
+}
+
+.lm-reiter[aria-current="page"] {
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  border-color: transparent;
+}
+
+/* Listen mit Kästchen (Packliste) */
+.lm-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 2px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.lm-zeile:first-child {
+  border-top: 0;
+}
+
+.lm-zeile .wahl {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+/* Erledigt: durchgestrichen und leiser; das Kästchen trägt den Zustand ebenfalls */
+.lm-erledigt .wahl label,
+tr.lm-erledigt th label {
+  color: var(--leise);
+  text-decoration: line-through;
+}
+
+.lm-fortschritt {
+  width: 100%;
+  max-width: 28rem;
+  height: 0.75rem;
+  accent-color: var(--akzent);
+}
+
+.lm-fortschritt-text {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 800;
+}
+
+.lm-entfernte summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Tabellen des Einkaufs: feste Spalten, damit alle Abteilungen untereinander gleich laufen */
+.lm-tabelle {
+  table-layout: fixed;
+}
+
+.lm-tabelle th:nth-child(1) {
+  width: 40%;
+}
+
+.lm-tabelle th:nth-child(2) {
+  width: 14%;
+}
+
+.lm-tabelle th:nth-child(3) {
+  width: 18%;
+}
+
+.lm-tabelle th:nth-child(4) {
+  width: 20rem;
+}
+
+.lm-tabelle .lm-zeilenknoepfe {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
+/* Neue Zeile: Felder nebeneinander, der Knopf am Fuss der Felder */
+.lm-neuzeile {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.lm-neuzeile--einkauf {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+.lm-vorschlaege {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lm-vorschlaege:empty {
+  display: none;
+}
+
+/* Zeilen mit Knöpfen rechts */
+.lm-zeilenknoepfe {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+}
+
+.lm-vorlagenzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.lm-vorlagentext {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Konflikt: «Jemand war schneller» */
+.lm-konflikt {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.lm-konflikt[hidden] {
+  display: none;
+}
+
+.lm-vergleich {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 8px 0 0;
+}
+
+.lm-vergleich dt {
+  font-weight: 700;
+}
+
+.lm-vergleich dd {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Angaben als Liste von Beschriftung und Wert */
+.lm-angaben {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 4px 16px;
+  margin: 0;
+}
+
+.lm-angabe {
+  display: contents;
+}
+
+.lm-angabe dt {
+  font-weight: 700;
+}
+
+.lm-angabe dd {
+  margin: 0;
+}
+
+/* Notfall */
+.lm-notruf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-notruf-nummer {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 56px;
+  text-decoration: none;
+}
+
+.lm-notruf-nummer strong {
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-adresse {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.lm-kontaktliste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-kontakt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  min-width: 0;
+}
+
+.lm-kontakt-funktion {
+  flex: 0 1 12rem;
+}
+
+.lm-kontakt-name {
+  flex: 1 1 10rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lm-nummer {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--akzent);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-underline-offset: 0.2em;
+}
+
+.lm-ressortkontakte {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.lm-ressortkontakte h3,
+.lm-notfallinfo h3 {
+  margin: 0;
+}
+
+.lm-notfallinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.lm-linkliste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Infos */
+.lm-inforeihe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.lm-infokern {
+  flex: 1 1 18rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lm-info summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+  min-height: 44px;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.lm-info-titel {
+  overflow-wrap: anywhere;
+}
+
+.lm-info-auszug {
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lm-info[open] .lm-info-auszug {
+  display: none;
+}
+
+.lm-info-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 0 12px;
+}
+
+.lm-info-inhalt h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.lm-infoliste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-linkzeilen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lm-linkzeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+/* Tagesseiten */
+.lm-tagesraster {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lm-tage ul {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lm-tage a {
+  display: flex;
+  flex-direction: column;
+  min-height: 44px;
+  padding: 8px 12px;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  text-decoration: none;
+}
+
+.lm-tage a:hover {
+  background: var(--surface-container);
+}
+
+.lm-tage a[aria-current="page"] {
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+}
+
+.lm-tagesblatt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lm-tageskopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.lm-tageskopf h2 {
+  margin: 0;
+}
+
+.lm-tageskopf p {
+  margin: 0;
+}
+
+.lm-blockzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.lm-blocktext {
+  flex: 1 1 16rem;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.lm-aufgabe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.lm-ortform {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 900px) {
+  .lm-tagesraster {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .lm-tage ul {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .lm-tage a {
+    border: 1px solid var(--outline-variant);
+  }
+}
+
+@media (max-width: 640px) {
+  .lm-neuzeile,
+  .lm-neuzeile--einkauf,
+  .lm-linkzeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lm-vergleich,
+  .lm-angaben {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lm-notruf-nummer {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lm-reiter,
+  .lm-tage a {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}
+
+/* Drucken: nur der Inhalt des Moduls, schwarz auf weiss, ohne Bedienung */
+@media print {
+  .logozeile,
+  .leisten,
+  .sprung,
+  .rueckmeldung,
+  #seitenkopf,
+  .lg-leiste,
+  .lg-nav,
+  .lg-modulkopf,
+  .lm-nicht-drucken,
+  .filterleiste {
+    display: none !important;
+  }
+
+  .lg-arbeit,
+  .lm-tagesraster {
+    display: block;
+  }
+
+  .flaeche {
+    break-inside: avoid;
+    color: #000;
+    background: #fff;
+    border-color: #000;
+    box-shadow: none;
+  }
+
+  .lm-info:not([open]) .lm-info-inhalt {
+    display: flex;
+  }
+
+  .lm-notruf-nummer {
+    border: 2px solid #000;
+    color: #000;
+    background: #fff;
+  }
+}
