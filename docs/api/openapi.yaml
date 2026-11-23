@@ -1612,6 +1612,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/personen-wahl.js:
+    get:
+      operationId: getAdminPersonenWahlSkript
+      summary: Skript der Verwaltung – Personen und Kinder zuordnen, Datei wählen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/telefon.js:
+    get:
+      operationId: getAdminTelefonSkript
+      summary: Skript der Verwaltung – Telefonnummer schreiben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-detail.js:
     get:
       operationId: getAdminTagsDetailSkript

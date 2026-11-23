@@ -1,29 +1,15 @@
 import { anfrage, fehlertext } from "./api.js";
 import { flussOffen } from "./fluss.js";
+import { auswahl, chip, dialogFormular, el, feld, icon, knopf } from "./dom.js";
 import {
-  aktionenZelle,
-  auswahl,
-  avatar,
-  chip,
-  dialogFormular,
-  el,
-  feld,
-  knopf,
-  tabelle,
-} from "./dom.js";
-import { ansichtVonKnopf } from "./rueckgaengig.js";
-import {
-  aktionenKopfVerstecken,
   entferneFehler,
   feldFehler,
-  macheSortierbar,
   mitFehlertitel,
   pruefHinweis,
-  rundKnopf,
-  seitenleiste,
-  sortiere,
 } from "./liste-hilfen.js";
-import { leerKarte } from "./zustaende.js";
+import { kandidatenSuche, personZeile } from "./personen-wahl.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
+import { zurueckKlick } from "./verlauf.js";
 
 // Gruppe (= Tag der Abteilung): Dialoge zum Anlegen, Umbenennen, Löschen und für die Mitglieder, dazu die Detailseite A5 (#personen/gruppen/<id>)
 export const TYPEN = [
@@ -180,106 +166,16 @@ export function tagLoeschen({ tag, anzahl, ctx, neu, danach, ereignis }) {
   });
 }
 
-const rolleFeld = (typ, wert = "") =>
-  feld({
-    label: "Rolle (optional)",
-    hilfe:
-      typ === "stufe"
-        ? "Freier Text, höchstens 50 Zeichen. Die Rollen «Leitung» und «Stufenleitung» vergibst du bei der Person."
-        : "Freier Text, höchstens 50 Zeichen.",
-    wert,
-    maxlength: 50,
-  });
+// Die Rollen «leitung» und «stufenleitung» kommen aus den Stufenrollen der Personen und stehen als Rohwert in der Gruppe der Stufe
+const ROLLENNAME = { leitung: "Leitung", stufenleitung: "Stufenleitung" };
+const rolleText = (roh) => ROLLENNAME[roh] ?? roh ?? "";
 
-function mitgliedHinzufuegen({ tag, kandidaten, ctx, neu }) {
-  const person = mitFokus(
-    auswahl({
-      label: "Person",
-      optionen: [
-        ["", "Person wählen"],
-        ...kandidaten.map((p) => [p.id, p.name]),
-      ],
-      wert: "",
-    }),
-  );
-  const rolle = rolleFeld(tag.typ);
-  const zusammenfassung = el("div", { class: "pe-zusammenfassung" });
-  const dialog = dialogFormular({
-    titel: "Mitglied hinzufügen",
-    beschreibung: tag.name,
-    felder: [zusammenfassung, person.wurzel, rolle.wurzel],
-    ok: "Hinzufügen",
-    pruefe: () => {
-      zusammenfassung.replaceChildren();
-      entferneFehler(person);
-      if (person.eingabe.value) return false;
-      feldFehler(person, "Wähle eine Person.");
-      const hinweis = pruefHinweis([{ name: "Person", ...person }]);
-      zusammenfassung.append(hinweis);
-      hinweis.focus();
-      return true;
-    },
-    senden: async () => {
-      sperre(dialog, true);
-      try {
-        const text = rolle.eingabe.value.trim();
-        return await anfrage(
-          "PUT",
-          `/api/v1/admin/tags/${tag.id}/personen/${person.eingabe.value}`,
-          text ? { rolle: text } : {},
-        );
-      } finally {
-        sperre(dialog, false);
-      }
-    },
-    fehlertext: (f) => `Das Mitglied wurde nicht hinzugefügt. ${fehlertext(f)}`,
-    danach: () => {
-      neu();
-      ctx.melde("Mitglied ist hinzugefügt.");
-    },
-  });
-  dialog.classList.add("pe-dialog");
-}
-
-function rolleAendern({ tag, eintrag, name, ctx, neu }) {
-  const rolle = rolleFeld(tag.typ, eintrag.rolle ?? "");
-  dialogFormular({
-    titel: "Rolle ändern",
-    beschreibung: `${name} · ${tag.name}`,
-    felder: [rolle.wurzel],
-    ok: "Speichern",
-    senden: () =>
-      anfrage(
-        "PUT",
-        `/api/v1/admin/tags/${tag.id}/personen/${eintrag.userId}`,
-        { rolle: rolle.eingabe.value.trim() || null },
-      ),
-    danach: () => {
-      neu();
-      ctx.melde("Rolle ist gespeichert.");
-    },
-  });
-}
-
-// Mit «Rückgängig» (#578): Die Person kann man jederzeit wieder hinzufügen, trotzdem verschwindet die Zeile erst nach der Frist wirklich
-function entfernen({ tag, eintrag, name, ctx, neu, ereignis }) {
-  ctx.mitRueckgaengig({
-    text: `${name} aus «${tag.name}» entfernt`,
-    ansicht: ansichtVonKnopf(ereignis),
-    ausfuehren: () =>
-      anfrage(
-        "DELETE",
-        `/api/v1/admin/tags/${tag.id}/personen/${eintrag.userId}`,
-      ),
-    fehlertext,
-    danach: neu,
-  });
-}
-
-const zustand = { sort: { schluessel: "name", richtung: "auf" } };
+const rolleHilfe = (typ) =>
+  typ === "stufe"
+    ? "Freier Text, höchstens 50 Zeichen. Die Rollen «Leitung» und «Stufenleitung» vergibst du bei der Person."
+    : "Freier Text, höchstens 50 Zeichen.";
 
 export function zeigeDetail(bereich, ctx, id) {
-  zustand.sort = { schluessel: "name", richtung: "auf" };
   ctx.lade(
     mitFehlertitel("Die Mitglieder konnten nicht geladen werden.", async () => {
       const [tag, personen] = await Promise.all([
@@ -292,121 +188,296 @@ export function zeigeDetail(bereich, ctx, id) {
   );
 }
 
+// Gruppe mit Mitgliederliste (Muster «team-member-list»: Live-Filter, Entfernen mit Rückgängig) und Karte zum Hinzufügen (Muster «team-invite-card»)
+// Änderungen erscheinen sofort in der Liste; die Anfrage geht nach der Frist (ctx.mitRueckgaengig), bei einem Fehler kommt der alte Stand zurück
 function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   const bekannt = new Map(personen.map((p) => [p.id, p]));
-  const vergeben = new Set(tag.personen.map((e) => e.userId));
-  const kandidaten = personen.filter(
-    (p) => !p.deaktiviert && !vergeben.has(p.id),
-  );
-  ctx.titel(
-    tag.name,
-    `${typName(tag.typ)} · ${mitglieder(tag.verwendung.personen)}`,
-  );
-  // Nach Entfernen oder Ändern ist der Knopf, der den Dialog öffnete, durch das Neuzeichnen weg: Der Fokus gehört dann dem Titel
-  if (!flussOffen()) {
-    document.querySelector("h1")?.focus();
-  }
-  const hinzufuegen = () => mitgliedHinzufuegen({ tag, kandidaten, ctx, neu });
+  let mitgliederListe = tag.personen.map((e) => ({
+    userId: e.userId,
+    rolle: e.rolle ?? null,
+  }));
+  const kandidatenListe = () =>
+    personen
+      .filter(
+        (p) =>
+          !p.deaktiviert && !mitgliederListe.some((m) => m.userId === p.id),
+      )
+      .map((p) => ({
+        id: p.id,
+        name: p.name,
+        zusatz: p.ceviName ?? undefined,
+        bildUrl: p.bildUrl,
+      }));
+  const kopfZeile = () =>
+    ctx.titel(
+      tag.name,
+      `${typName(tag.typ)} · ${mitglieder(mitgliederListe.length)}`,
+    );
+  kopfZeile();
+  if (!flussOffen()) document.querySelector("h1")?.focus();
   ctx.kopfAktion(
     knopf("Umbenennen", {
       symbol: "bearbeiten",
       onclick: () => tagDialog({ tag, ctx, neu }),
     }),
-    kandidaten.length > 0 &&
-      knopf("Mitglied hinzufügen", {
-        art: "haupt",
-        symbol: "plus",
-        onclick: hinzufuegen,
-      }),
   );
-  if (tag.personen.length === 0) {
-    bereich.append(
-      leerKarte(
-        kandidaten.length > 0
-          ? "Die Gruppe hat noch keine Mitglieder. Füge die erste Person hinzu."
-          : "Die Gruppe hat noch keine Mitglieder. Es gibt auch keine aktive Person, die du hinzufügen könntest.",
-        kandidaten.length > 0
-          ? [
-              knopf("Mitglied hinzufügen", {
-                symbol: "plus",
-                onclick: hinzufuegen,
-              }),
-            ]
-          : [],
-      ),
-    );
-    return;
-  }
-  const eintraege = tag.personen.map((eintrag) => {
-    const person = bekannt.get(eintrag.userId);
-    const name = person?.name ?? "Unbekannte Person";
-    const zusatz = [person?.ceviName, person?.deaktiviert && "deaktiviert"]
+
+  // «Zurück» steht über dem Titel der Seite, im Kopf der Ansicht
+  const zurueck = el(
+    "a",
+    {
+      class: "knopf knopf--still knopf--klein pe-zurueck",
+      href: "#personen/gruppen",
+      onclick: zurueckKlick,
+    },
+    icon("zurueck"),
+    "Zurück",
+  );
+
+  const nameVon = (m) => bekannt.get(m.userId)?.name ?? "Unbekannte Person";
+  const zusatzVon = (m) => {
+    const p = bekannt.get(m.userId);
+    return [p?.ceviName, p?.deaktiviert && "deaktiviert"]
       .filter(Boolean)
       .join(" · ");
-    return {
-      name,
-      tr: el(
-        "tr",
-        {},
-        el(
-          "th",
-          { scope: "row" },
-          el(
-            "div",
-            { class: "wer" },
-            avatar(name, { hell: true, bildUrl: person?.bildUrl }),
-            el(
-              "div",
-              {},
-              el("span", { class: "name" }, name),
-              zusatz && el("span", { class: "klein leise" }, zusatz),
-            ),
-          ),
-        ),
-        el(
-          "td",
-          {},
-          el(
-            "ul",
-            { class: "chips" },
-            chip(eintrag.rolle ?? "ohne Funktion", undefined, false),
-          ),
-        ),
-        aktionenZelle(
-          knopf("Rolle ändern", {
-            klein: true,
-            symbol: "bearbeiten",
-            kontext: name,
-            onclick: () => rolleAendern({ tag, eintrag, name, ctx, neu }),
-          }),
-          rundKnopf("schliessen", `Entfernen: ${name}`, (e) =>
-            entfernen({ tag, eintrag, name, ctx, neu, ereignis: e }),
-          ),
-        ),
-      ),
-    };
-  });
-  const { wurzel, koerper } = tabelle({
-    beschriftung: `Mitglieder von «${tag.name}»`,
-    spalten: ["Name (Cevi-Name)", "Rolle", "Aktionen"],
-    zeilen: [],
-  });
-  const seiten = seitenleiste({ beiWechsel: () => zeichneZeilen() });
-  const zeichneZeilen = () => {
-    const sortiert = sortiere(eintraege, zustand.sort, (e) => e.name);
-    const [von, bis] = seiten.fenster(sortiert.length);
-    koerper.replaceChildren(...sortiert.slice(von, bis).map((e) => e.tr));
   };
-  macheSortierbar(
-    wurzel,
-    [{ index: 0, schluessel: "name", name: "Name (Cevi-Name)" }],
-    zustand.sort,
-    () => {
-      seiten.anfang();
-      zeichneZeilen();
-    },
+
+  const liste = el("ul", {
+    class: "pe-gewaehlt pe-mitglieder",
+    "aria-label": `Mitglieder von «${tag.name}»`,
+  });
+  const stand = el("p", { class: "klein leise", role: "status" });
+  const filterId = `mitglieder-filter-${tag.id}`;
+  const filter = el("input", {
+    class: "eingabe",
+    id: filterId,
+    type: "search",
+    placeholder: "Mitglieder filtern",
+    autocomplete: "off",
+    spellcheck: "false",
+    oninput: () => zeichneListe(),
+  });
+  const suche = kandidatenSuche({
+    beschriftung: "Person suchen",
+    kandidaten: kandidatenListe(),
+    leerText: "Es gibt keine aktive Person, die du hinzufügen könntest.",
+    beiWahl: (k) => hinzufuegen(k),
+  });
+  const mitgliederTitel = el("h2", { tabindex: "-1" }, "Mitglieder");
+  const leerText = el(
+    "p",
+    { class: "leise pe-keiner" },
+    "Die Gruppe hat noch keine Mitglieder. Suche eine Person und füge sie hinzu.",
   );
-  aktionenKopfVerstecken(wurzel);
-  zeichneZeilen();
-  bereich.append(wurzel, seiten.wurzel);
+  const keineTreffer = el(
+    "p",
+    { class: "leise pe-keiner", hidden: true },
+    "Kein Mitglied passt zum Filter.",
+  );
+  const filterFeld = el(
+    "div",
+    { class: "suche" },
+    el("label", { class: "nur-leser", for: filterId }, "Mitglieder filtern"),
+    icon("lupe"),
+    filter,
+  );
+
+  function rolleZelle(m, zeile) {
+    return el(
+      "div",
+      { class: "pe-rolle" },
+      el(
+        "ul",
+        { class: "chips" },
+        chip(m.rolle ? rolleText(m.rolle) : "ohne Funktion", undefined, false),
+      ),
+      knopf("Rolle ändern", {
+        klein: true,
+        art: "still",
+        symbol: "bearbeiten",
+        kontext: nameVon(m),
+        onclick: () => bearbeite(m, zeile),
+      }),
+    );
+  }
+
+  // Die Rolle wird in der Zeile bearbeitet: Eingabe mit Enter speichern, Escape bricht ab, kein eigenes Fenster
+  function bearbeite(m, zeile) {
+    const f = feld({
+      label: `Rolle von ${nameVon(m)}`,
+      wert: m.rolle ?? "",
+      maxlength: 50,
+      hilfe: rolleHilfe(tag.typ),
+    });
+    const speichern = knopf("Speichern", { klein: true, art: "haupt" });
+    const abbrechen = knopf("Abbrechen", { klein: true, art: "still" });
+    const fertig = () => {
+      zeichneListe();
+      liste.querySelector(`[data-id="${m.userId}"] .pe-rolle button`)?.focus();
+    };
+    const sende = async () => {
+      const neuerWert = f.eingabe.value.trim() || null;
+      speichern.disabled = abbrechen.disabled = true;
+      speichern.setAttribute("aria-busy", "true");
+      try {
+        await anfrage(
+          "PUT",
+          `/api/v1/admin/tags/${tag.id}/personen/${m.userId}`,
+          { rolle: neuerWert },
+        );
+        m.rolle = neuerWert;
+        ctx.melde("Rolle ist gespeichert.");
+        fertig();
+      } catch (fehler) {
+        speichern.disabled = abbrechen.disabled = false;
+        speichern.removeAttribute("aria-busy");
+        feldFehler(f, `Nicht gespeichert. ${fehlertext(fehler)}`);
+        f.eingabe.focus();
+      }
+    };
+    speichern.addEventListener("click", sende);
+    abbrechen.addEventListener("click", fertig);
+    f.eingabe.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        sende();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        fertig();
+      }
+    });
+    zeile
+      .querySelector(".pe-rolle")
+      .replaceWith(
+        el(
+          "div",
+          { class: "pe-rolle pe-rolle--offen" },
+          f.wurzel,
+          el("div", { class: "aktionen" }, speichern, abbrechen),
+        ),
+      );
+    f.eingabe.focus();
+  }
+
+  function zeichneListe() {
+    const frage = filter.value.trim().toLowerCase();
+    const sortiert = [...mitgliederListe].sort((a, b) =>
+      nameVon(a).localeCompare(nameVon(b), "de-CH"),
+    );
+    const treffer = sortiert.filter((m) =>
+      `${nameVon(m)} ${zusatzVon(m)} ${rolleText(m.rolle)}`
+        .toLowerCase()
+        .includes(frage),
+    );
+    liste.replaceChildren(
+      ...treffer.map((m) => {
+        const name = nameVon(m);
+        const zeile = personZeile({
+          id: m.userId,
+          name,
+          zusatz: zusatzVon(m),
+          bildUrl: bekannt.get(m.userId)?.bildUrl,
+        });
+        zeile.classList.add("pe-mitglied");
+        zeile.append(
+          rolleZelle(m, zeile),
+          knopf("Entfernen", {
+            klein: true,
+            art: "still",
+            symbol: "schliessen",
+            kontext: name,
+            onclick: () => entfernen(m),
+          }),
+        );
+        return zeile;
+      }),
+    );
+    stand.textContent =
+      mitgliederListe.length === 0
+        ? ""
+        : frage
+          ? `${treffer.length} von ${mitglieder(mitgliederListe.length)}`
+          : mitglieder(mitgliederListe.length);
+    leerText.hidden = mitgliederListe.length !== 0;
+    filterFeld.hidden = mitgliederListe.length === 0;
+    keineTreffer.hidden = !(frage && treffer.length === 0);
+    kopfZeile();
+    suche.setzeKandidaten(kandidatenListe());
+  }
+
+  function entfernen(m) {
+    let stelle = 0;
+    ctx.mitRueckgaengig({
+      text: `${nameVon(m)} aus «${tag.name}» entfernt`,
+      ansicht: {
+        weg: () => {
+          stelle = mitgliederListe.indexOf(m);
+          mitgliederListe = mitgliederListe.filter((x) => x !== m);
+          zeichneListe();
+          // Die Zeile mit dem Fokus ist weg: Der Fokus geht zur Überschrift der Karte, nicht ins Suchfeld (dort gilt Strg Z für den Text)
+          mitgliederTitel.focus();
+        },
+        zurueck: () => {
+          if (!mitgliederListe.includes(m)) {
+            mitgliederListe.splice(Math.max(0, stelle), 0, m);
+          }
+          zeichneListe();
+        },
+      },
+      ausfuehren: () =>
+        anfrage("DELETE", `/api/v1/admin/tags/${tag.id}/personen/${m.userId}`),
+      fehlertext,
+    });
+  }
+
+  function hinzufuegen(k) {
+    const m = { userId: k.id, rolle: null };
+    ctx.mitRueckgaengig({
+      text: `${k.name} zu «${tag.name}» hinzugefügt`,
+      ansicht: {
+        weg: () => {
+          mitgliederListe.push(m);
+          zeichneListe();
+        },
+        zurueck: () => {
+          mitgliederListe = mitgliederListe.filter((x) => x !== m);
+          zeichneListe();
+        },
+      },
+      ausfuehren: () =>
+        anfrage("PUT", `/api/v1/admin/tags/${tag.id}/personen/${k.id}`, {}),
+      fehlertext,
+    });
+  }
+
+  document.querySelector("#seitenkopf .kopf-text")?.prepend(zurueck);
+  bereich.append(
+    el(
+      "div",
+      { class: "pe-gruppe" },
+      el(
+        "section",
+        { class: "pe-karte" },
+        mitgliederTitel,
+        filterFeld,
+        stand,
+        leerText,
+        keineTreffer,
+        liste,
+      ),
+      el(
+        "section",
+        { class: "pe-karte" },
+        el("h2", {}, "Mitglieder hinzufügen"),
+        el(
+          "p",
+          { class: "leise" },
+          "Die Person ist sofort in der Gruppe. Eine Rolle setzt du danach in der Liste.",
+        ),
+        suche.wurzel,
+      ),
+    ),
+  );
+  zeichneListe();
 }
