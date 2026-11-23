@@ -25,7 +25,7 @@ import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 const name = z.string().trim().min(1).max(100);
 const kuerzel = z.string().trim().min(1).max(20);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({ name, kuerzel: kuerzel.optional() });
 const aendernSchema = z.strictObject({
   name: name.optional(),

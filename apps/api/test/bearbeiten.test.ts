@@ -196,7 +196,7 @@ describe("darfBearbeiten: Rollen", () => {
     await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
     expect(await darf(webmaster, objekt)).toBe(true);
     expect(await darf(webmaster, randomUUID(), welt.stufeBId)).toBe(true);
-    // Keine Admin-Rechte: Verwaltung bleibt 403, und der Admin-Status ist unverändert
+    // Keine Person der Abteilungsleitung-Rechte: Verwaltung bleibt 403, und die Abteilungsleitung-Status ist unverändert
     expect((await anfrage(webmaster, "GET", BASIS)).status).toBe(403);
     expect(
       (
@@ -331,7 +331,7 @@ describe("darfBearbeiten: Sonderrechte", () => {
     expect(await darf(person, objekt)).toBe(false);
   });
 
-  test("Rollenwechsel: Wer nicht mehr Admin ist, verliert das Recht; wer die Stufe verliert, die Stufenleitung", async () => {
+  test("Rollenwechsel: Wer nicht mehr Abteilungsleitung ist, verliert das Recht; wer die Stufe verliert, die Stufenleitung", async () => {
     const zweiter = await neuePerson("admin");
     const objekt = randomUUID();
     expect(await darf(zweiter, objekt)).toBe(true);

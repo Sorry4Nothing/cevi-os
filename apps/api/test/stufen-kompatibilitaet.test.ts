@@ -451,7 +451,7 @@ describe("Schreibende Routen halten die Daten in tag und person_tag", () => {
     expect(chats).toEqual([{ typ: "stufe" }]);
   });
 
-  test("Eine Zuordnung ohne Stufenrolle gibt keine Rechte, mit Rolle «leitung» (nur durch einen Admin) schon", async () => {
+  test("Eine Zuordnung ohne Stufenrolle gibt keine Rechte, mit Rolle «leitung» (nur durch eine Person der Abteilungsleitung) schon", async () => {
     const eltern = konten.get("elternA")!;
     const zuordnen = await aufruf(
       "admin",

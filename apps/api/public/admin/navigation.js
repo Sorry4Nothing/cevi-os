@@ -47,6 +47,8 @@ export const BEREICHE = [
         modul: "./rechte.js",
         untertitel:
           "Wer in der Abteilung was darf: Rollen, Gruppen und die Rechte jeder Person.",
+        // Die Abteilungsleitung und der Entwickler (er stellt die Rechte der Abteilungsleitung ein, #663)
+        zugang: "recht:rechte.verwalten|rechte.abteilungsleitung",
       },
       {
         schluessel: "kinder",

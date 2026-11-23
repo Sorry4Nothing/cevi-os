@@ -69,7 +69,10 @@ export async function darf(
   // Schatten: Der alte Weg und, was die Rollen zusätzlich geben, setzen durch; verglichen wird mit dem neuen Weg
   const satz = await ladeRechteSatz(db, person);
   const neu = satz.hat(recht, objekt);
-  const durchgesetzt = alt || satz.ausRollen(recht, objekt);
+  // Nimmt der Entwickler der Abteilungsleitung das Recht weg (#663), gibt der alte Weg («die Abteilungsleitung darf alles») nichts mehr: Dann zählen nur die übrigen Quellen der Person, also der neue Weg
+  const durchgesetzt = satz.alVerzichtet(recht)
+    ? neu
+    : alt || satz.ausRollen(recht, objekt);
   if (neu !== durchgesetzt) melde(recht, durchgesetzt, neu, objekt);
   return durchgesetzt;
 }

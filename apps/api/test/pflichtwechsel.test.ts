@@ -181,14 +181,14 @@ describe("Pflichtwechsel über change-password", () => {
     expect(alt.status).toBe(401);
   });
 
-  test("two-factor/enable eines Admins mit offenem Startpasswort nimmt das Startpasswort in Kleinbuchstaben an", async () => {
+  test("two-factor/enable eines die Abteilungsleitung mit offenem Startpasswort nimmt das Startpasswort in Kleinbuchstaben an", async () => {
     const startpasswort = erzeugeStartpasswort();
     const benutzername = `admin.offen.${randomUUID().slice(0, 8)}`;
     await auth.api.createUser({
       body: {
         email: `${randomUUID()}@example.org`,
         password: normalisiereStartpasswort(startpasswort),
-        name: "Admin mit offenem Startpasswort",
+        name: "Abteilungsleitung mit offenem Startpasswort",
         role: "admin",
         data: {
           username: benutzername,

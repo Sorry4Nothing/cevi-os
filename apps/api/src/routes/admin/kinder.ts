@@ -54,7 +54,7 @@ const elternFeld = z
   .max(10)
   .refine((ids) => new Set(ids).size === ids.length);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({
   vorname: text,
   nachname: text,

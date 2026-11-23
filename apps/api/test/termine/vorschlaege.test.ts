@@ -534,14 +534,14 @@ describe("POST /termin-vorschlaege", () => {
 });
 
 describe("Push an die Abteilungsleitung", () => {
-  test("nur aktive Admins der eigenen Abteilung, nicht die vorschlagende Person; fester Text ohne Titel und Namen", async () => {
+  test("nur aktive die Abteilungsleitung der eigenen Abteilung, nicht die vorschlagende Person; fester Text ohne Titel und Namen", async () => {
     const sl = await neuePerson("slA");
     const admin2 = await neuePerson("admin");
     const gebannt = await neuePerson("admin");
     const [tAdmin, tAdmin2, tOhne, tGebannt] = await Promise.all(
       [konten.admin, admin2, konten.adminOhneZweitenFaktor, gebannt].map(token),
     );
-    // Alle anderen, auch Leitung, Eltern und die Admins der Demo-Abteilung, haben ein Token und bekommen nichts
+    // Alle anderen, auch Leitung, Eltern und die die Abteilungsleitung der Demo-Abteilung, haben ein Token und bekommen nichts
     await Promise.all(
       [
         sl,
@@ -594,7 +594,7 @@ describe("Push an die Abteilungsleitung", () => {
     expect(alles).not.toContain(person!.name);
   });
 
-  test("schlägt die Abteilungsleitung selbst vor, geht der Push nur an die anderen Admins", async () => {
+  test("schlägt die Abteilungsleitung selbst vor, geht der Push nur an die anderen Personen der Abteilungsleitung", async () => {
     const eigener = await neuePerson("admin");
     const tEigener = await token(eigener);
     const tAnderer = await token(konten.admin);

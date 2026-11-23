@@ -130,7 +130,7 @@ describe("PUT /api/v1/programme/:id/teilnahmen/:kindId", () => {
     expect(alle).toHaveLength(1);
   });
 
-  test("Leitung der Stufe, SL und Admin korrigieren die Antwort", async () => {
+  test("Leitung der Stufe, SL und Abteilungsleitung korrigieren die Antwort", async () => {
     const p = await frisch();
     for (const rolle of ["leitendeA", "slA", "admin"] as const) {
       const res = await put(konten[rolle], p.id, welt.kindAId, {
@@ -151,7 +151,7 @@ describe("PUT /api/v1/programme/:id/teilnahmen/:kindId", () => {
     expect((await put(konten.slA, p.id, welt.kindBId)).status).toBe(403);
     expect((await put(konten.leitendeA, p.id, welt.kindAId)).status).toBe(204);
     expect((await put(konten.slB, p.id, welt.kindAId)).status).toBe(403);
-    // Ein Kind ausserhalb der Stufen des Programms lässt sich auch dem Admin nicht zuordnen
+    // Ein Kind ausserhalb der Stufen des Programms lässt sich auch der Abteilungsleitung nicht zuordnen
     expect((await put(konten.admin, p.id, welt.kindBId)).status).toBe(403);
     expect(
       await db.select().from(teilnahme).where(eq(teilnahme.programmId, p.id)),
@@ -304,7 +304,7 @@ describe("GET /api/v1/programme mit Teilnahme je Kind", () => {
     ]);
   });
 
-  test("gleich wie im Detail; Admin und Leitende ohne eigene Kinder: leer", async () => {
+  test("gleich wie im Detail; Abteilungsleitung und Leitende ohne eigene Kinder: leer", async () => {
     const p = await frisch();
     const detailKinder = (await detail(konten.elternA, p.id)).body.kinder;
     expect((await liste(konten.elternA))(p.id)).toEqual(detailKinder);

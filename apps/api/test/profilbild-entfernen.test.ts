@@ -106,7 +106,7 @@ describe("DELETE /api/v1/admin/personen/:id/bild", () => {
     });
   });
 
-  test("Entwickler ohne Admin-Recht mit zweitem Faktor: erlaubt, ohne Faktor 403 ZWEITER_FAKTOR_FEHLT", async () => {
+  test("Entwickler ohne Recht der Abteilungsleitung mit zweitem Faktor: erlaubt, ohne Faktor 403 ZWEITER_FAKTOR_FEHLT", async () => {
     await bildSetzen();
     const ohne = await entfernen(entwicklerOhneFaktor);
     expect(ohne.status).toBe(403);
@@ -123,7 +123,7 @@ describe("DELETE /api/v1/admin/personen/:id/bild", () => {
     expect(await eintraege()).toHaveLength(vorher);
   });
 
-  test("andere Personen 403, Admin ohne zweiten Faktor 403, Bild bleibt", async () => {
+  test("andere Personen 403, Abteilungsleitung ohne zweiten Faktor 403, Bild bleibt", async () => {
     await bildSetzen();
     expect((await entfernen(sl)).status).toBe(403);
     const ohne = await entfernen(adminOhneFaktor);

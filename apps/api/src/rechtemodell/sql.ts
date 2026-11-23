@@ -1,5 +1,6 @@
 import { inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import {
+  abteilungsleitungRecht,
   bearbeiter,
   gruppenRolle,
   gruppenRolleRecht,
@@ -18,6 +19,10 @@ import {
   RAUM_TEAM_STANDARD,
   STUFENROLLEN_STANDARD,
 } from "./standard.js";
+
+// Hat der Entwickler der Abteilungsleitung dieser Abteilung das Recht weggenommen? Dieselbe Frage wie RechteSatz.alVerzichtet, für Listen
+export const alVerzichtetSql = (abteilungId: string, recht: string): SQL =>
+  sql`exists (select 1 from ${abteilungsleitungRecht} where ${abteilungsleitungRecht.abteilungId} = ${abteilungId} and ${recht} = any(${abteilungsleitungRecht.ohne}))`;
 
 // Spalten der Tabelle, die die Liste abfragt; je nach Bezug des Rechts braucht es einige davon. Fehlt eine, trifft «eigene» nichts (fail-closed)
 export interface RechtSpalten {
@@ -49,7 +54,11 @@ export function rechtSql(
   const alles = teil === "alles";
 
   if (alles) {
-    if (person.admin && !e.nurEntwickler) return sql`${abteilung}`;
+    if (person.admin && !e.nurEntwickler) {
+      if (e.art !== "vergebbar") return sql`${abteilung}`;
+      // Die Abteilungsleitung hat jedes vergebbare Recht, ausser der Entwickler hat es ihr weggenommen (#663)
+      teile.push(sql`not ${alVerzichtetSql(person.abteilungId, recht)}`);
+    }
     if (e.entwickler) {
       teile.push(
         sql`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id})`,

@@ -233,7 +233,7 @@ describe("Rechte", () => {
     expect(zeile).toBeUndefined();
   });
 
-  test("Fremdabteilung und unbekannte Stufe: 404, vor dem Recht; ohne Sitzung 401; Admin ohne zweiten Faktor 403", async () => {
+  test("Fremdabteilung und unbekannte Stufe: 404, vor dem Recht; ohne Sitzung 401; Abteilungsleitung ohne zweiten Faktor 403", async () => {
     const tag = tagIn(6);
     expect(
       (await anfrage(demoAdmin, "PUT", url(welt.stufeAId, tag), FELDER)).status,

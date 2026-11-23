@@ -8,7 +8,7 @@ const methoden = (modul: string) =>
   [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]).sort();
 
 // Bereich «Räume» (#446, #447, A14 bis A16): «Räume» pflegt die Räume, «Anfragen» entscheidet über offene Raumanfragen
-describe("Admin-Panel: Räume und Raumanfragen", () => {
+describe("Panel der Abteilungsleitung: Räume und Raumanfragen", () => {
   const raeume = lies("termine-raeume.js");
   const anfragen = lies("termine-anfragen.js");
 

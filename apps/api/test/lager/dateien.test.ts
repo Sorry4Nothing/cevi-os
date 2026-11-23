@@ -439,7 +439,7 @@ describe("Anlegen: Rechte je Rolle", () => {
   });
 });
 
-describe("Hosts der Abteilung (Admin)", () => {
+describe("Hosts der Abteilung", () => {
   test("nur die Abteilungsleitung liest und ändert; Eingabe streng; Audit ohne Hosts", async () => {
     expect((await rufe("leitung", "GET", "/admin/hosts")).status).toBe(403);
     expect(

@@ -20,7 +20,7 @@ const gleich = (e: Record<LagerPersona, number>) => ({
   abgeschlossen: e,
 });
 
-// Verwaltung: nur die Abteilungsleitung. Die Lager-Rollen und ein Konto ohne Mitgliedschaft bekommen 403, die fremde Abteilung 404 (bei Objekten) oder 403 (Sammelroute: ein Konto ohne Admin-Recht)
+// Verwaltung: nur die Abteilungsleitung. Die Lager-Rollen und ein Konto ohne Mitgliedschaft bekommen 403, die fremde Abteilung 404 (bei Objekten) oder 403 (Sammelroute: ein Konto ohne Recht der Abteilungsleitung)
 const verwaltungSammel = (admin: number) =>
   status({ abteilungsleitung: admin }, 403);
 const verwaltungObjekt = (admin: number) =>

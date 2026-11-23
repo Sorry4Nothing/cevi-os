@@ -5,7 +5,7 @@ const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
 // Gruppentyp «Anlass» (#626) in der Verwaltung: Die Module rufen nur vorhandene Routen auf und kennen den Typ überall, wo Typen aufgelistet werden
-describe("Admin-Panel: Gruppentyp «Anlass»", () => {
+describe("Panel der Abteilungsleitung: Gruppentyp «Anlass»", () => {
   test("der Typ steht in der Typliste für Filter, Chips und Befehlspalette", () => {
     expect(lies("tags-detail.js")).toContain('["anlass", "Anlass"]');
     // Die Befehlspalette und die Personenliste nehmen den Namen aus typName()

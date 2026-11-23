@@ -32,7 +32,7 @@ const kuerzel = z.string().trim().min(1).max(20);
 const rolle = z.string().trim().min(1).max(50);
 const prioritaet = z.number().int().min(1).max(1000);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt. Der Typ eines Tags bleibt nach dem Anlegen fest.
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt. Der Typ eines Tags bleibt nach dem Anlegen fest.
 // Der Typ «anlass» verlangt den Anlass (anlassId), alle anderen Typen kennen ihn nicht (#626)
 const anlegenSchema = z
   .strictObject({

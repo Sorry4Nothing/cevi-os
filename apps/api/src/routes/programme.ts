@@ -50,7 +50,7 @@ import {
 type Antwort = "ja" | "nein" | "offen";
 
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
-// «alle=1» holt auch ausgeblendete (intern) Programme, nur für Admins; für alle anderen gilt es nicht
+// «alle=1» holt auch ausgeblendete (intern) Programme, nur für die Abteilungsleitung; für alle anderen gilt es nicht
 const fensterSchema = z.strictObject({
   von: tag,
   bis: tag,

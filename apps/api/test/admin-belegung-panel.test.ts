@@ -15,7 +15,7 @@ const sichtbar = (person: object) =>
   ]);
 
 // Unterseite «Belegung» im Bereich «Räume» (#628): Alle Leitenden sehen, wie die Räume belegt sind
-describe("Admin-Panel: Belegungsplan", () => {
+describe("Panel der Abteilungsleitung: Belegungsplan", () => {
   const modul = lies("termine-belegung.js");
   const css = lies("termine-belegung.css");
 

@@ -9,7 +9,7 @@ import { anzeigeNamenLager, nurEigenes } from "../../lager/zimmer.js";
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const MAX = 500;
 
-// Mitglieder des Lagers ohne Adminrecht (#520), für Namen und Auswahllisten der Apps (Schichtplan, Diensttausch, Gruppen, Einkäufer, Tageschef). Pro Person nur: ID, Anzeigename, Rolle und die Kürzel ihrer Ressorts (zugeordnet, Leitung oder Stellvertretung); nie Cevi-Name ohne Recht (Regel von anzeigeNamenLager), keine Telefonnummer, keine E-Mail.
+// Mitglieder des Lagers ohne Abteilungsleitung (#520), für Namen und Auswahllisten der Apps (Schichtplan, Diensttausch, Gruppen, Einkäufer, Tageschef). Pro Person nur: ID, Anzeigename, Rolle und die Kürzel ihrer Ressorts (zugeordnet, Leitung oder Stellvertretung); nie Cevi-Name ohne Recht (Regel von anzeigeNamenLager), keine Telefonnummer, keine E-Mail.
 // Wer sieht wen: Recht einteilung.lesen wie bei Zimmern, Gruppen und Schichtplan. Rollen, die dort alles sehen (Lagerleitung, Leitung, Lesen), sehen alle aktiven Mitglieder. Das Team ohne einteilung.bearbeiten sieht dort nur das Eigene (nurEigenes); hier sieht es darum nur sich selbst und die Mitglieder, die es heute schon in den Listen sieht: im selben Zimmer, in einer Gruppe oder im Schichtplan. Zwei Abfragen, unabhängig von der Zahl der Mitglieder
 export function erstelleMitgliederRouten({ db }: { db: Db }) {
   return new Hono<LagerEnv>().get(

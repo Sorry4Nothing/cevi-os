@@ -5,7 +5,7 @@ const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
 // Bereich «Personen» im neuen Aufbau (#594): Die Module nutzen die gemeinsamen Bausteine statt eigener Nachbauten
-describe("Admin-Panel: Personen, Gruppen, Kinder, Stufen, Import (#594)", () => {
+describe("Panel der Abteilungsleitung: Personen, Gruppen, Kinder, Stufen, Import (#594)", () => {
   test("Personenliste: Filterleiste, Rückgängig für Tags, Person als Seite", () => {
     const liste = lies("personen.js");
     expect(liste).toContain('from "./filterleiste.js"');

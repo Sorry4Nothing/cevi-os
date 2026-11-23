@@ -392,7 +392,7 @@ describe("POST /api/v1/admin/import", () => {
     const nachher = await zaehle();
     expect(nachher.audit - vorher.audit).toBe(2);
 
-    // Startpasswort nicht im Klartext gespeichert und nicht im Log; die Liste zeigt es dem Admin (verschlüsselt abgelegt)
+    // Startpasswort nicht im Klartext gespeichert und nicht im Log; die Liste zeigt es der Abteilungsleitung (verschlüsselt abgelegt)
     const konto = await db
       .select({ password: schema.account.password })
       .from(schema.account)

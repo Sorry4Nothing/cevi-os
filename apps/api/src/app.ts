@@ -180,7 +180,7 @@ export function erstelleApp({
   const kleinesLimit = bodyLimit({ maxSize: 64 * 1024 });
   // 500 Zeilen mit langen Namen passen nicht in 64 KB
   const importLimit = bodyLimit({ maxSize: 256 * 1024 });
-  // Admin und die Verwaltung der Website teilen die Handler und damit das Limit für Uploads je Person
+  // Abteilungsleitung und die Verwaltung der Website teilen die Handler und damit das Limit für Uploads je Person
   const medienHandler = erstelleMedienHandler({
     db,
     speicher: medienspeicher,

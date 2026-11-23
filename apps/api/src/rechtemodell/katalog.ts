@@ -477,6 +477,13 @@ export const RECHTE_KATALOG = {
     "Rechte und Rollen vergeben",
     "Rollen anlegen, ihre Rechte einstellen und Personen zuordnen. Wer Rechte vergibt, hat sie selbst: Das bleibt bei der Abteilungsleitung, damit sich niemand selbst mehr Rechte gibt.",
   ),
+  // Fest, nur der Entwickler (#663): Die Abteilungsleitung ist eine einstellbare Rolle wie jede andere; welche Rechte sie hat, stellt der Entwickler ein. Das Recht öffnet «Rollen und Rechte» für ihn, ohne ihm Personendaten zu geben
+  "rechte.abteilungsleitung": f(
+    "plattform",
+    "Rechte der Abteilungsleitung ändern",
+    "Die Rechte der Abteilungsleitung einstellen und «Rollen und Rechte» ohne Namen von Personen lesen. Das darf nur der Entwickler, nie die Abteilungsleitung selbst: Sie ändert ihre eigenen Rechte nicht.",
+    { nurEntwickler: true, entwickler: true },
+  ),
   "entwickler.vergeben": f(
     "plattform",
     "Entwickler vergeben",

@@ -8,7 +8,7 @@ const methoden = (modul: string) =>
   [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]).sort();
 
 // Die übrigen Unterseiten von «Termine» und «Anlässe» (A8, A11, A12, A13, A17 bis A19): Jede ruft nur ihre Routen auf
-describe("Admin-Panel: Termine und Anlässe", () => {
+describe("Panel der Abteilungsleitung: Termine und Anlässe", () => {
   test("Kalender liest nur die Termine der Abteilung", () => {
     const modul = lies("termine-kalender.js");
     expect(modul).toContain('"/api/v1/termine/alle"');

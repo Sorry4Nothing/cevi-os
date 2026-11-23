@@ -185,7 +185,7 @@ function zeichne(bereich, ctx, daten, neu) {
     );
   const rollenChips = (person) =>
     [
-      person.admin && chip("Admin", undefined, false),
+      person.admin && chip("Abteilungsleitung", undefined, false),
       ...person.rollen.map((r) =>
         chip(
           `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
@@ -333,7 +333,7 @@ function zeichne(bereich, ctx, daten, neu) {
   const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
   const tabellenBox = el("div", {}, ansichtBox, seiten.wurzel);
 
-  // Abschnitte nach Rolle (Leitende, Administration, Eltern, Weitere) oder nach Stufe; «keine» zeigt alle in einem Raster
+  // Abschnitte nach Rolle (Leitende, Abteilungsleitung, Eltern, Weitere) oder nach Stufe; «keine» zeigt alle in einem Raster
   const stufenRang = new Map(daten.stufen.map((s, i) => [s.id, i]));
   const kindStufe = new Map(daten.kinder.map((k) => [k.id, k.stufeId]));
   const stufeVon = (p) =>
@@ -348,7 +348,7 @@ function zeichne(bereich, ctx, daten, neu) {
       ? {
           gruppen: [
             { schluessel: "leitung", titel: "Leitende" },
-            { schluessel: "admin", titel: "Administration" },
+            { schluessel: "admin", titel: "Abteilungsleitung" },
             { schluessel: "eltern", titel: "Eltern" },
             { schluessel: "weitere", titel: "Weitere Personen" },
           ],
@@ -405,7 +405,7 @@ function zeichne(bereich, ctx, daten, neu) {
           ["alle", "Alle Rollen"],
           ["eltern", "Eltern"],
           ["leitung", "Leitung"],
-          ["admin", "Admin"],
+          ["admin", "Abteilungsleitung"],
         ],
         wert: zustand.filter.rolle,
       },

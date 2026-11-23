@@ -4,8 +4,8 @@ import { describe, expect, test } from "vitest";
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
-// Bereich «Anwesenheit» (#195): Er liest nur die vorhandene Route der Stufen; eine eigene Admin-Route gibt es nicht
-describe("Admin-Panel: Anwesenheit", () => {
+// Bereich «Anwesenheit» (#195): Er liest nur die vorhandene Route der Stufen; eine eigene Verwaltungsroute gibt es nicht
+describe("Panel der Abteilungsleitung: Anwesenheit", () => {
   test("Modul, Stilvorlage und Bereich sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/anwesenheit.css"');
     const navigation = lies("navigation.js");

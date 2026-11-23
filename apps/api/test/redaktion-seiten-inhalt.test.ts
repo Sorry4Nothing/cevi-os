@@ -670,7 +670,7 @@ describe("Verweisprüfung", () => {
     expect((await anfrage(admin, "DELETE", url)).status).toBe(204);
   });
 
-  test("Medium löschen: unbekannt und fremd bleiben 404, Nicht-Admins 403", async () => {
+  test("Medium löschen: unbekannt und fremd bleiben 404, alle anderen 403", async () => {
     const medium = await neuesMedium("oeffentlich");
     const url = `/api/v1/admin/medien/${medium}`;
     expect((await anfrage(demoAdmin, "DELETE", url)).status).toBe(404);
@@ -907,7 +907,7 @@ describe("Rechte", () => {
   test("Fremdabteilung und unbekannte Seiten sind 404, vor 403", async () => {
     for (const konto of [demoAdmin, demoEltern, admin]) {
       for (const id of [stufeSeite, randomUUID()]) {
-        // Der Admin kennt die Stufenseite; nur die unbekannte ID ist für ihn 404
+        // Die Abteilungsleitung kennt die Stufenseite; nur die unbekannte ID ist für ihn 404
         if (konto === admin && id === stufeSeite) continue;
         for (const [methode, pfad, body] of routen(id)) {
           const a = await anfrage(konto, methode, pfad, body);
@@ -967,7 +967,7 @@ describe("Rechte", () => {
     ).toBe(403);
   });
 
-  test("Admin ohne zweiten Faktor: 403 ZWEITER_FAKTOR_FEHLT", async () => {
+  test("Abteilungsleitung ohne zweiten Faktor: 403 ZWEITER_FAKTOR_FEHLT", async () => {
     const a = await anfrage(adminOhne, "GET", `${BASIS}/${stufeSeite}/entwurf`);
     expect(a.status).toBe(403);
     expect(await code(a)).toBe("ZWEITER_FAKTOR_FEHLT");

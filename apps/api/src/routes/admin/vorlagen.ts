@@ -16,7 +16,7 @@ import {
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 
-// Admin-Routen für Vorlagen (#376): Aufgaben- und Packlisten-Vorlagen der Abteilung. Nur die Abteilungsleitung (403), die Vorlage der eigenen Abteilung (fremd oder unbekannt 404, vor dem Recht). Die Lagerleitung wendet eine Vorlage im Lager an (POST /lager/{id}/vorlagen/{vorlageId}/anwenden), ändert sie aber nicht. Inhalt und Fristen: lager/vorlagen.ts. Das Audit-Log nennt Vorlage und Art, nie den Inhalt
+// Verwaltungsrouten für Vorlagen (#376): Aufgaben- und Packlisten-Vorlagen der Abteilung. Nur die Abteilungsleitung (403), die Vorlage der eigenen Abteilung (fremd oder unbekannt 404, vor dem Recht). Die Lagerleitung wendet eine Vorlage im Lager an (POST /lager/{id}/vorlagen/{vorlageId}/anwenden), ändert sie aber nicht. Inhalt und Fristen: lager/vorlagen.ts. Das Audit-Log nennt Vorlage und Art, nie den Inhalt
 const name = z.string().trim().min(1).max(100);
 const art = z.enum(VORLAGE_ARTEN);
 const inhalt = z.record(z.string(), z.unknown());

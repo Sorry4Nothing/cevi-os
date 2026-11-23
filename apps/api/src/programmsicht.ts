@@ -5,7 +5,7 @@ import { PROGRAMM_STUFEN_ROH } from "./termine/stufen-sicht.js";
 
 // Wer welches Programm sieht (SQL für die Listen). Steht nicht in rechte.ts: Das Recht «programm.alle_sehen» kommt aus dem Rechtemodell (#650), und rechte.ts darf es nicht importieren (Kreis über plattform.ts)
 
-// Admins und SL sehen jedes Programm der Abteilung, auch eines ohne Stufen-Tag: SL brauchen fremde Stufen für Abteilungsanlässe
+// Die Abteilungsleitung und SL sehen jedes Programm der Abteilung, auch eines ohne Stufen-Tag: SL brauchen fremde Stufen für Abteilungsanlässe
 const adminOderSl = (person: Person) =>
   person.admin || person.rollen.some((r) => r.typ === "stufenleitung");
 

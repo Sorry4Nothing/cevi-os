@@ -129,7 +129,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /support": { erwartet: alle(200) },
   "GET /favicon.ico": { erwartet: alle(200) },
   "GET /apple-touch-icon.png": { erwartet: alle(200) },
-  // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Verwaltungsrouten
   "GET /admin": { erwartet: alle(200) },
   "GET /admin/admin.css": { erwartet: alle(200) },
   "GET /admin/admin.js": { erwartet: alle(200) },
@@ -202,7 +202,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/bildwahl.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.js": { erwartet: alle(200) },
-  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Verwaltungsrouten
   "GET /admin/geruest.css": { erwartet: alle(200) },
   "GET /admin/komponenten.css": { erwartet: alle(200) },
   "GET /admin/fluss.css": { erwartet: alle(200) },
@@ -405,7 +405,7 @@ const MATRIX: Record<string, Zeile> = {
     url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
     // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
     body: () => ({ status: "ja" }),
-    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    // Zuständig sind die Abteilungsleitung, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
     erwartet: {
       ...alle(204),
       slB: 403,
@@ -418,7 +418,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Übersicht (#38): Admin sowie Leitung und SL der Stufe sehen die Liste, Eltern ihr Kind; slB sieht das Programm, hat aber kein Recht darauf. Die Inhalte je Rolle prüft test/teilnahmen-uebersicht.test.ts
+  // Übersicht (#38): Abteilungsleitung sowie Leitung und SL der Stufe sehen die Liste, Eltern ihr Kind; slB sieht das Programm, hat aber kein Recht darauf. Die Inhalte je Rolle prüft test/teilnahmen-uebersicht.test.ts
   "GET /api/v1/programme/:id/teilnahmen": {
     url: () => `/api/v1/programme/${programmId}/teilnahmen`,
     erwartet: {
@@ -433,7 +433,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Admin und SL anderer Stufen sehen es, haben aber kein Recht
+  // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Abteilungsleitung und SL anderer Stufen sehen es, haben aber kein Recht
   "PUT /api/v1/programme/:id/leitung": {
     url: () => `/api/v1/programme/${leitungProgrammId}/leitung`,
     body: () => ({ status: "ja" }),
@@ -452,8 +452,8 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
-  // Betriebszahlen (#143): nur Admins, wie die übrigen Admin-Routen; Inhalt in test/admin-system.test.ts
+  // Verwaltung (#18): nur die Abteilungsleitung, und ohne zweiten Faktor sperrt die Middleware (#23) jede Verwaltungsroute mit 403. Status in test/admin-personen.test.ts begründet
+  // Betriebszahlen (#143): nur die Abteilungsleitung, wie die übrigen Verwaltungsrouten; Inhalt in test/admin-system.test.ts
   "GET /api/v1/admin/system": {
     erwartet: {
       ...alle(403),
@@ -474,7 +474,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Ausgaben der Hintergrund-Abrufe (#267): nur Admins; Inhalt in test/admin-system.test.ts. Die Matrix-App hat keine Abrufe, darum antwortet der Knopf 501
+  // Ausgaben der Hintergrund-Abrufe (#267): nur die Abteilungsleitung; Inhalt in test/admin-system.test.ts. Die Matrix-App hat keine Abrufe, darum antwortet der Knopf 501
   "GET /api/v1/admin/system/syncs": {
     erwartet: {
       ...alle(403),
@@ -601,7 +601,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "DELETE /api/v1/admin/personen/:id": {
-    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Admin weg
+    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Abteilungsleitung weg
     urlJeAnfrage: async () =>
       `/api/v1/admin/personen/${await wegwerfPersonId()}`,
     erwartet: {
@@ -627,7 +627,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
+  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur die Abteilungsleitung. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
   "GET /api/v1/stufen": {
     erwartet: {
       ...alle(200),
@@ -636,7 +636,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Medienspeicher (#335): Hochladen, Liste und Löschen nur Admins; ein Medium mit Sichtbarkeit «angemeldet» liest jede Person der Abteilung mit Sitzung, fremde Abteilungen sehen es nicht. Öffentliche Medien (ohne Sitzung, auch für gesperrte Konten) und Typ, Grösse, Alt-Text und Ausfall des Speichers prüft test/medien.test.ts. Der Upload ist binär und fehlt darum in der Postman-Collection
+  // Medienspeicher (#335): Hochladen, Liste und Löschen nur die Abteilungsleitung; ein Medium mit Sichtbarkeit «angemeldet» liest jede Person der Abteilung mit Sitzung, fremde Abteilungen sehen es nicht. Öffentliche Medien (ohne Sitzung, auch für gesperrte Konten) und Typ, Grösse, Alt-Text und Ausfall des Speichers prüft test/medien.test.ts. Der Upload ist binär und fehlt darum in der Postman-Collection
   "POST /api/v1/admin/medien": {
     url: () => "/api/v1/admin/medien?sichtbarkeit=angemeldet&altText=Matrix",
     bild: true,
@@ -685,7 +685,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufenlogo (#212): Hochladen und Löschen nur Admins; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
+  // Stufenlogo (#212): Hochladen und Löschen nur die Abteilungsleitung; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
   "PUT /api/v1/admin/stufen/:id/logo": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
     bild: true,
@@ -722,7 +722,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
+  // Kontakte der Stufe (#39): Abteilungsleitung, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
   "GET /api/v1/stufen/:id/kontakte": {
     url: () => `/api/v1/stufen/${welt.stufeAId}/kontakte`,
     erwartet: {
@@ -737,7 +737,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Anwesenheit (#192): Admin sowie Leitende und SL der Stufe lesen und erfassen; Eltern und fremde Stufen haben kein Recht. Die Inhalte, die Frist und die Ziele prüft test/anwesenheit.test.ts
+  // Anwesenheit (#192): Abteilungsleitung sowie Leitende und SL der Stufe lesen und erfassen; Eltern und fremde Stufen haben kein Recht. Die Inhalte, die Frist und die Ziele prüft test/anwesenheit.test.ts
   "GET /api/v1/stufen/:id/anwesenheit": {
     url: () => `/api/v1/stufen/${welt.stufeAId}/anwesenheit`,
     erwartet: {
@@ -811,7 +811,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Ziel ist eine SL der Stufe A ohne Chat und ohne Abmeldung: Es bleiben die Kontakte der Stufe (Admin, Leitende und SL der Stufe, Eltern mit aktivem Kind darin) und die Kontakte der Programme der Stufe A (slB: Eine SL sieht jedes Programm, und «offen» bleibt Kontakt)
+  // Ziel ist eine SL der Stufe A ohne Chat und ohne Abmeldung: Es bleiben die Kontakte der Stufe (Abteilungsleitung, Leitende und SL der Stufe, Eltern mit aktivem Kind darin) und die Kontakte der Programme der Stufe A (slB: Eine SL sieht jedes Programm, und «offen» bleibt Kontakt)
   "GET /api/v1/personen/:id/bild": {
     url: () => `/api/v1/personen/${bildZielId}/bild`,
     erwartet: {
@@ -850,7 +850,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Reihenfolge der SL einer Stufe (#287): nur Admins; Wirkung und Fehler in test/admin-stufen.test.ts
+  // Reihenfolge der SL einer Stufe (#287): nur die Abteilungsleitung; Wirkung und Fehler in test/admin-stufen.test.ts
   "PUT /api/v1/admin/stufen/:id/stufenleitung": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}/stufenleitung`,
     body: () => ({ ids: [] }),
@@ -877,7 +877,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Mitteilung per Push (#240): nur Admins; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
+  // Mitteilung per Push (#240): nur die Abteilungsleitung; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
   "POST /api/v1/admin/mitteilungen": {
     body: () => ({ titel: "Matrix-Mitteilung", empfaenger: "alle" }),
     erwartet: {
@@ -889,7 +889,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Empfänger einer Mitteilung zählen (#625): nur Admins, nur Zahlen; Auflösung und Grenzen in test/admin-mitteilungen.test.ts
+  // Empfänger einer Mitteilung zählen (#625): nur die Abteilungsleitung, nur Zahlen; Auflösung und Grenzen in test/admin-mitteilungen.test.ts
   "POST /api/v1/admin/mitteilungen/vorschau": {
     body: () => ({ empfaenger: "alle" }),
     erwartet: {
@@ -912,7 +912,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/kinder": {
-    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Admin 400
+    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Abteilungsleitung 400
     body: (konto) => ({
       vorname: "Matrix",
       nachname: "Kind",
@@ -1161,7 +1161,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Lädeli (#566): Laden lesen, bestellen und eigene Bestellungen sehen kann jede angemeldete Person; Verwaltung nur Admins mit zweitem Faktor. Summen, Grenzen, Stand und Löschfrist prüft test/laden.test.ts
+  // Lädeli (#566): Laden lesen, bestellen und eigene Bestellungen sehen kann jede angemeldete Person; Verwaltung nur die Abteilungsleitung mit zweitem Faktor. Summen, Grenzen, Stand und Löschfrist prüft test/laden.test.ts
   "GET /api/v1/laden": {
     erwartet: {
       ...alle(200),
@@ -1318,7 +1318,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Tags (#331): nur Admins; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
+  // Tags (#331): nur die Abteilungsleitung; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
   "GET /api/v1/admin/tags": {
     erwartet: {
       ...alle(403),
@@ -1406,7 +1406,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Bearbeitungsrechte (#334): nur Admins; Wirkung der Rechte in test/bearbeiten.test.ts
+  // Bearbeitungsrechte (#334): nur die Abteilungsleitung; Wirkung der Rechte in test/bearbeiten.test.ts
   "GET /api/v1/admin/bearbeiter": {
     erwartet: {
       ...alle(403),
@@ -1833,7 +1833,16 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
+  // Die Rechte der Abteilungsleitung (#663): nur der Entwickler mit zweitem Faktor; die Matrix hat keine Person mit dieser Funktion, darum 403 fuer alle Angemeldeten, auch fuer die Abteilungsleitung (sie aendert ihre eigenen Rechte nie). Die Wirkung steht in test/rechte-abteilungsleitung.test.ts
+  "PATCH /api/v1/admin/rechte/abteilungsleitung": {
+    body: () => ({ version: 1, rechte: ["seiten.bearbeiten"] }),
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Seiten der Website (#348): Zugang für Abteilungsleitung, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
   "GET /api/v1/redaktion/seiten": {
     erwartet: {
       ...alle(403),
@@ -2020,7 +2029,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
+  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Die Abteilungsleitung schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
   "GET /api/v1/redaktion/seiten/:id/entwurf": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
     erwartet: {
@@ -2075,7 +2084,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/v1/redaktion/seiten/:id/veroeffentlichen": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/veroeffentlichen`,
-    // Der Admin veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
+    // Die Abteilungsleitung veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -2124,7 +2133,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/v1/redaktion/seiten/:id/zurueckziehen": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/zurueckziehen`,
-    // Der Admin zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
+    // Die Abteilungsleitung zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -2159,7 +2168,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Der Admin schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
+  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Die Abteilungsleitung schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
   "GET /api/v1/plattform/schalter": {
     erwartet: {
       ...alle(403),
@@ -2189,7 +2198,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Zugang zur Verwaltung (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Webmaster; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  // Zugang zur Verwaltung (#353): Panel-Abfrage, Medien und Auswahllisten für Abteilungsleitung, Stufenleitung und Webmaster; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
   "GET /api/v1/redaktion/ich": {
     // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
     erwartet: {
@@ -2299,7 +2308,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Die Abteilungsleitung und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
   "GET /api/v1/chats": {
     erwartet: {
       ...alle(200),
@@ -2308,7 +2317,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, die Abteilungsleitung und andere Abteilungen
   "POST /api/v1/chats/direkt": {
     body: (konto) => ({
       stufeId: welt.stufeAId,
@@ -2822,8 +2831,8 @@ describe("Vollständigkeit", () => {
 });
 
 describe("Sperre ohne zweiten Faktor (#23)", () => {
-  // Bewusst eine Schleife: Jede künftige Admin-Route erbt die Regel; ein leeres test.each ergäbe gar keinen Test
-  test("jede Admin-Route erwartet für «Admin ohne zweiten Faktor» 403", () => {
+  // Bewusst eine Schleife: Jede künftige Verwaltungsroute erbt die Regel; ein leeres test.each ergäbe gar keinen Test
+  test("jede Verwaltungsroute erwartet für «Abteilungsleitung ohne zweiten Faktor» 403", () => {
     let n = 0;
     for (const [schluessel, zeile] of Object.entries(MATRIX)) {
       if (!schluessel.split(" ")[1].startsWith("/api/v1/admin/")) continue;
@@ -2833,7 +2842,7 @@ describe("Sperre ohne zweiten Faktor (#23)", () => {
     expect(n).toBeGreaterThan(0);
   });
 
-  test("der Admin ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
+  test("die Abteilungsleitung ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
     const anfrageAn = (persona: Persona) =>
       app.request("/api/v1/admin/personen", {
         headers: standard[persona].headers,

@@ -743,6 +743,13 @@
       "when": 1793556700000,
       "tag": "0147_ort",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793556900000,
+      "tag": "0149_abteilungsleitung_rechte",
+      "breakpoints": true
     }
   ]
 }

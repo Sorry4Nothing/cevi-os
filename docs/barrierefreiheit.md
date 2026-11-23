@@ -869,3 +869,18 @@ Dieser Abschnitt gilt für den Server (`/api/v1/admin/personen`, `kinder`, `tags
 ### Stand der Prüfung (#650)
 
 Geprüft mit Tests gegen die API (`test/rechte-personen.test.ts`, Rechte-Matrix, OpenAPI). **Nicht geprüft:** jede Oberfläche, denn es gibt keine neue; Screenreader, Tastatur und Kontrast sind für die Punkte 49.1 bis 49.3 offen, bis eine Seite die Rechte zeigt (Rechte-Matrix, #651).
+
+## 53. Verwaltung: Zeile «Abteilungsleitung» in «Rollen und Rechte» (#663)
+
+Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`, `rechte-matrix.js`) und die Sicht des Entwicklers auf «Rollen und Rechte». Massstab WCAG 2.2 AA.
+
+- [ ] **53.1** Eine gesperrte Rolle (die Abteilungsleitung für sich selbst, alle Rollen für den Entwickler) zeigt in jeder Zelle Symbol, Wort und Zustand («Gesperrt: An», «Gesperrt: Aus») und für Leser den vollen Satz mit dem Grund («Diese Rechte setzt der Entwickler», «Nur lesen»). Der Zustand steht nie nur in Farbe oder Grau.
+- [ ] **53.2** Über der Tabelle steht eine sichtbare Erklärung mit Symbol («Diese Rechte setzt der Entwickler. Du kannst sie nicht ändern.»), nicht nur ein Tooltip; die Seite der Rolle erklärt es in Worten, auch auf dem Telefon in der Karte «Abteilungsleitung».
+- [ ] **53.3** Die Zeile «Abteilungsleitung» trägt die Marke «Eingebaut», kein Umbenennen, kein Löschen, keine Personenliste; die Spaltenüberschrift sagt «Jedes Konto der Abteilungsleitung» statt einer Zahl.
+- [ ] **53.4** Für den Entwickler zeigt die Seite nur den Reiter «Rollen»; die anderen Reiter fehlen ganz (kein totes Menü) und die Navigation führt ohne die Seiten der Personen. Es erscheinen keine Namen von Personen.
+- [ ] **53.5** Das Speichern der Rechte der Abteilungsleitung ist ein zweistufiger Knopf mit Klartext der Folge («Das ändert, was die Abteilungsleitung darf»), mit Escape und Ansage; die Vorschau sagt «Gilt für jedes Konto der Abteilungsleitung».
+- [ ] **53.6** Tastatur, Fokus, Zielgrösse 44 px, 200 % Zoom und 390 px wie Abschnitt 50; die gesperrte Zelle ist kein Tabstopp, weil sie nichts auslöst, ihr Text ist aber für Leser lesbar.
+
+### Stand der Prüfung (#663)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.

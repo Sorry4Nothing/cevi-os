@@ -4,7 +4,7 @@
 
 - `develop` ist der Integrationsbranch und der Default-Branch des Repos. Jede Änderung kommt per PR hierher.
 - `main` ist die Produktion. Ausgerollt wird nur von `main`.
-- Beide Branches sind geschützt: Änderungen nur per PR, auch für Admins; kein Force-Push, kein Löschen.
+- Beide Branches sind geschützt: Änderungen nur per PR, auch für die Abteilungsleitung; kein Force-Push, kein Löschen.
 - Die CI muss grün sein, bevor ein PR gemergt wird.
 
 ## Pro Issue

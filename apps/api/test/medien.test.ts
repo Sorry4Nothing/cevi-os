@@ -350,7 +350,7 @@ describe("Typ-Täuschung", () => {
 });
 
 describe("Rechte", () => {
-  test("nur Admins laden hoch, listen und löschen", async () => {
+  test("nur die Abteilungsleitung laden hoch, listen und löschen", async () => {
     const { speicher, objekte } = attrappe();
     const app = neueApp(speicher);
     const res = await hochladen({
@@ -444,7 +444,7 @@ describe("Rechte", () => {
     ).toBe(204);
   });
 
-  test("Liste und Löschen bleiben in der Abteilung des Admins", async () => {
+  test("Liste und Löschen bleiben in der Abteilung der Abteilungsleitung", async () => {
     const { speicher, objekte } = attrappe();
     const app = neueApp(speicher);
     const admin = (await legePersonaAn(welt, "admin")).headers;

@@ -19,8 +19,8 @@ import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
 import { erstelleVorlagenRouten } from "./vorlagen.js";
 import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
 
-// Namensraum der Website-Verwaltung für Personen mit Bearbeitungsrecht, nicht nur für Admins (der Pfadname stammt aus der Zeit vor #426). Jede Folgeroute hängt sich hier mit einer Zeile ein.
-// Eine Admin-Person braucht auch hier den zweiten Faktor (sonst umginge sie ihn über diesen Weg). Dasselbe gilt für jede Person mit einem erweiterten Recht (#423): Plattformrolle (Webmaster), Zeile in «bearbeiter», Team-Verantwortung. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne; alle anderen passen vorbei und behalten das 403 der Route.
+// Namensraum der Website-Verwaltung für Personen mit Bearbeitungsrecht, nicht nur für die Abteilungsleitung (der Pfadname stammt aus der Zeit vor #426). Jede Folgeroute hängt sich hier mit einer Zeile ein.
+// eine Person der Abteilungsleitung-Person braucht auch hier den zweiten Faktor (sonst umginge sie ihn über diesen Weg). Dasselbe gilt für jede Person mit einem erweiterten Recht (#423): Plattformrolle (Webmaster), Zeile in «bearbeiter», Team-Verantwortung. Nur die Stufenleitung an der eigenen Stufenseite arbeitet ohne; alle anderen passen vorbei und behalten das 403 der Route.
 // Wer hinein darf, regelt hatWebsiteZugang (website/seiten.ts), das Recht am einzelnen Objekt bearbeiten.ts, das an Medien, Weiterleitungen, Vorlagen und am Anlegen die Route mit hatPlattformRecht (plattform.ts).
 export function erstelleEditorRouten({
   db,

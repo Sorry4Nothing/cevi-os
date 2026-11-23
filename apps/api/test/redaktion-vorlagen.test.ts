@@ -102,7 +102,7 @@ async function ausVorlage(konto: PersonaKonto, body: Record<string, unknown>) {
   });
 }
 
-// Legt einen Tag über die Admin-API an: Hier läuft die Automatik
+// Legt einen Tag über die API der Abteilungsleitung an: Hier läuft die Automatik
 async function legeTagAn(typ: string, name: string, konto = admin) {
   const antwort = await anfrage(konto, "POST", TAGS, { typ, name });
   expect(antwort.status, JSON.stringify(await antwort.clone().json())).toBe(

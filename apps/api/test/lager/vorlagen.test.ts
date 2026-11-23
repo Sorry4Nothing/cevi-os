@@ -146,7 +146,7 @@ describe("Fristen relativ zum Lagerbeginn", () => {
   });
 });
 
-describe("Admin-Routen /admin/vorlagen", () => {
+describe("Verwaltungsrouten /admin/vorlagen", () => {
   test("anlegen, lesen, auflisten, ändern, löschen", async () => {
     const name = `Standardlager ${randomUUID()}`;
     const neu = await anfrage(admin(), "POST", "/api/v1/admin/vorlagen", {

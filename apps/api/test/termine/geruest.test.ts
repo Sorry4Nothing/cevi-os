@@ -57,7 +57,7 @@ describe("Gerüst der Termine: Register", () => {
   });
 });
 
-describe("Gerüst der Termine: Admin-Panel", () => {
+describe("Gerüst der Termine: Panel der Abteilungsleitung", () => {
   const dateien = readdirSync(panel).filter((d) => d.startsWith("termine"));
 
   test("jede Stilvorlage der Termine ist in index.html eingebunden", () => {

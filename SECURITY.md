@@ -1,6 +1,6 @@
 # Sicherheit
 
-Cevi OS verwaltet Daten von Kindern, Eltern und Leitenden einer Cevi-Abteilung. Schützenswert sind vor allem die Namen und Stufen der Kinder mit ihren Teilnahmen, Treffpunkte und Zeiten der Programme, die Chats, die Telefonnummern der Stufenleitung und die Konten mit Admin-Rechten. Wir nehmen Sicherheitslücken deshalb ernst.
+Cevi OS verwaltet Daten von Kindern, Eltern und Leitenden einer Cevi-Abteilung. Schützenswert sind vor allem die Namen und Stufen der Kinder mit ihren Teilnahmen, Treffpunkte und Zeiten der Programme, die Chats, die Telefonnummern der Stufenleitung und die Konten mit Rechten der Abteilungsleitung. Wir nehmen Sicherheitslücken deshalb ernst.
 
 ## Unterstützte Versionen
 

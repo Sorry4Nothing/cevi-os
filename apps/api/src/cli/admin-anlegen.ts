@@ -140,13 +140,13 @@ if (!argumente) {
     });
     // stdout erst nach dem Commit: Ein zurückgenommenes Startpasswort darf nie gedruckt sein
     if (neu) console.log(`Abteilung «${abteilungsname}» angelegt.`);
-    console.log(`Admin «${ergebnis.gespeichert}» angelegt.`);
+    console.log(`Abteilungsleitung «${ergebnis.gespeichert}» angelegt.`);
     console.log(`Startpasswort: ${ergebnis.startpasswort}`);
     console.log(
       "Nicht weiterleiten. Gilt 7 Tage und nur für die erste Anmeldung.",
     );
   } catch (fehler) {
-    console.error(`Admin nicht angelegt: ${beschreibe(fehler)}`);
+    console.error(`Abteilungsleitung nicht angelegt: ${beschreibe(fehler)}`);
     process.exitCode = 1;
   } finally {
     // Kein process.exit(): offene Verbindungen zeigten sich in Tests nur als Timeout

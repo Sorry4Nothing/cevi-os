@@ -70,7 +70,8 @@ const KONFLIKT = {
   },
   EIGENER_ZWEITER_FAKTOR: {
     code: "EIGENER_ZWEITER_FAKTOR",
-    message: "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
+    message:
+      "Den eigenen zweiten Faktor setzt eine andere Person der Abteilungsleitung zurück.",
   },
   KEIN_ZWEITER_FAKTOR: {
     code: "KEIN_ZWEITER_FAKTOR",
@@ -107,10 +108,10 @@ const elternteilVonFeld = z
   .max(50)
   .refine((kinder) => new Set(kinder).size === kinder.length);
 
-// Das eigene Konto eines Kindes (#644) gehört auf die Seite «Kinder», nie in die Personen: Hier erhielte es Rollen oder Adminrechte
+// Das eigene Konto eines Kindes (#644) gehört auf die Seite «Kinder», nie in die Personen: Hier erhielte es Rollen oder die Abteilungsleitung
 const keinKindKonto = keinKindKontoVon(user.id);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
@@ -289,7 +290,7 @@ export function erstellePersonenRouten({
       details,
     });
 
-  // Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
+  // Ziel gelistet und keine zweite aktive ID der Abteilungsleitung: die letzte Abteilungsleitung bleibt
   async function sperreLetztenAdmin(
     tx: Pick<Db, "select">,
     abteilungId: string,
@@ -712,7 +713,7 @@ export function erstellePersonenRouten({
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
       await schuetzeKonto(person, id);
-      // Vor jedem Aufruf: Ein Reset auf sich selbst meldete den Admin ab, bevor das Passwort notiert ist
+      // Vor jedem Aufruf: Ein Reset auf sich selbst meldete die Abteilungsleitung ab, bevor das Passwort notiert ist
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       return c.json({
         startpasswort: await setzeStartpasswortNeu(

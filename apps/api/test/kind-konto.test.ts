@@ -508,7 +508,7 @@ describe("Liste der Kinder: Zugang", () => {
     ).toEqual({ elternEinsicht: false });
   });
 
-  test("die Liste der Personen zeigt das Konto eines Kindes nie; es bekommt dort keine Rolle und kein Adminrecht", async () => {
+  test("die Liste der Personen zeigt das Konto eines Kindes nie; es bekommt dort keine Rolle und kein Abteilungsleitung", async () => {
     await einstellen();
     const kindId = await neuesKind();
     await legeKontoAn(kindId);
@@ -589,7 +589,7 @@ describe("Was das Konto eines Kindes sieht", () => {
     kontoB = await kindKonto(kindB);
   });
 
-  test("/ich: nur das eigene Kind, keine Rolle, kein Admin; Eltern anderer Kinder bleiben fremd", async () => {
+  test("/ich: nur das eigene Kind, keine Rolle, keine Abteilungsleitung; Eltern anderer Kinder bleiben fremd", async () => {
     const antwort = await app.request("/api/v1/ich", {
       headers: konto1.headers,
     });
@@ -838,7 +838,7 @@ describe("Was das Konto eines Kindes sieht", () => {
     await einstellen({ chat: "aus" });
   });
 
-  test("Verwaltung und fremde Daten: jede Admin-Route ist 403, nie 2xx; kein Profilbild, keine Telefonnummer", async () => {
+  test("Verwaltung und fremde Daten: jede Verwaltungsroute ist 403, nie 2xx; kein Profilbild, keine Telefonnummer", async () => {
     const lesend = [
       KINDER,
       `${KINDER}/konto-einstellung`,
@@ -1008,7 +1008,7 @@ describe("Sperren, Startpasswort, Entfernen und Löschen", () => {
     ).not.toBe("");
   });
 
-  test("Aktionen am Konto ohne Konto sind 404; fremde Kinder 404; Nicht-Admins 403", async () => {
+  test("Aktionen am Konto ohne Konto sind 404; fremde Kinder 404; alle anderen 403", async () => {
     const ohne = await neuesKind();
     for (const [methode, pfad] of [
       ["PATCH", "konto"],

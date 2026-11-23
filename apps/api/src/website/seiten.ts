@@ -130,7 +130,7 @@ async function hatWebsiteZugangAlt(db: Db, person: Person) {
 }
 
 // Hat die Person ein erweitertes Recht (#423)? Das sind die Abteilungsleitung, jede Plattformrolle mit einem Recht (und der Entwickler), eine Zeile in «bearbeiter» und die Verantwortung für ein Team. Einfach ist nur das Amt der Stufenleitung an der eigenen Stufenseite: Wer sonst nichts hat, braucht keinen zweiten Faktor.
-// Eine Abfrage für den alten Weg, eine für den Rechtesatz; sie entfallen für Admins und für Personen, die den zweiten Faktor schon haben (der Aufrufer prüft das zuerst). Seit #648 zählen auch die Rechte aus Plattform- und Gruppenrollen (im Modus «neu» alle Quellen des Satzes): Das Recht muss den zweiten Faktor verlangen, die Stufenleitung an der eigenen Stufenseite nicht
+// Eine Abfrage für den alten Weg, eine für den Rechtesatz; sie entfallen für die Abteilungsleitung und für Personen, die den zweiten Faktor schon haben (der Aufrufer prüft das zuerst). Seit #648 zählen auch die Rechte aus Plattform- und Gruppenrollen (im Modus «neu» alle Quellen des Satzes): Das Recht muss den zweiten Faktor verlangen, die Stufenleitung an der eigenen Stufenseite nicht
 export async function hatErweitertesRecht(db: Db, person: Person) {
   if (person.admin) return true;
   if (rechteModus() !== "neu" && (await hatErweitertesRechtAlt(db, person))) {

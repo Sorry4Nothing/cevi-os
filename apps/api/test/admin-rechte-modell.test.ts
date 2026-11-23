@@ -320,3 +320,72 @@ describe("Texte", () => {
     expect(alt.detail).toBe("Dazu: Seiten bearbeiten");
   });
 });
+
+describe("Die Abteilungsleitung als einstellbare Rolle (#663)", () => {
+  const al = (rechte: string[], aenderbar = false) =>
+    m.abteilungsleitungRolle({ version: 3, rechte, fest: [], aenderbar });
+  const eintrag = (id: string) => katalog.rechte.find((r) => r.id === id)!;
+
+  test("die Rolle hat keine Personen, ist eingebaut und nur für den Entwickler änderbar", () => {
+    const gesperrt = al(["seiten.bearbeiten"]);
+    expect(gesperrt).toMatchObject({
+      abteilungsleitung: true,
+      system: true,
+      personen: [],
+      gesperrt: true,
+      version: 3,
+    });
+    expect(gesperrt.rechte).toEqual([
+      { recht: "seiten.bearbeiten", geltung: "alle" },
+    ]);
+    expect(al([], true).gesperrt).toBe(false);
+  });
+
+  test("andere globale Rollen sind für den Entwickler gesperrt, sonst nicht", () => {
+    const r = {
+      id: "x",
+      name: "Rolle",
+      vorgabe: false,
+      version: 1,
+      rechte: [],
+      personen: [],
+    };
+    expect(m.globaleRolle(r).gesperrt).toBe(false);
+    expect(m.globaleRolle(r, true).gesperrt).toBe(true);
+  });
+
+  test("«Wer darf das?»: Nimmt der Entwickler ein Recht weg, steht die Abteilungsleitung nicht mehr dabei", () => {
+    const quellen = (rechte: string[]) => ({
+      eintrag: eintrag("seiten.bearbeiten"),
+      admin: [],
+      globale: [al(rechte)],
+      gruppen: [],
+    });
+    expect(
+      m
+        .werDarf(quellen(["seiten.bearbeiten"]))
+        .map((z: { art: string }) => z.art),
+    ).toContain("abteilungsleitung");
+    const ohne = m.werDarf(quellen([])).map((z: { art: string }) => z.art);
+    expect(ohne).not.toContain("abteilungsleitung");
+    // Die Systemrolle erscheint nie zusätzlich als Plattformrolle
+    expect(ohne).not.toContain("plattformrolle");
+  });
+
+  test("Verlauf: die Änderung der Rechte der Abteilungsleitung steht in Klartext", () => {
+    const text = m.verlaufText(
+      {
+        aktion: "abteilungsleitung_rechte_geaendert",
+        details: { hinzu: [], weg: ["seiten.bearbeiten"] },
+      },
+      {
+        recht: (id: string) => id,
+        gruppe: () => null,
+        rolle: () => null,
+        person: () => null,
+      },
+    );
+    expect(text.titel).toBe("Rechte der Abteilungsleitung geändert");
+    expect(text.detail).toBe("Weg: seiten.bearbeiten");
+  });
+});

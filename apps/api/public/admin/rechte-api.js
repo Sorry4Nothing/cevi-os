@@ -1,22 +1,30 @@
 import { anfrage } from "./api.js";
-import { globaleRolle, gruppenRolle } from "./rechte-modell.js";
+import {
+  abteilungsleitungRolle,
+  globaleRolle,
+  gruppenRolle,
+} from "./rechte-modell.js";
 
 // Aufrufe der Matrix-API (#643) und der Hilfsrouten für «Rollen und Rechte» (#651). Der Server prüft jede Anfrage: nur Abteilungsleitung mit zweitem Faktor, fremde Abteilung ist 404, Versionen gegen gleichzeitiges Ändern, Eskalation (wer vergibt, hat).
 
 export const BASIS = "/api/v1/admin/rechte";
 
-// Die Daten, die jede Ansicht braucht: Katalog, Gruppen (mit Zahlen), globale Rollen, Personen
+// Die Daten, die jede Ansicht braucht: Katalog, Gruppen (mit Zahlen), globale Rollen (die Abteilungsleitung zuerst), Personen. Der Entwickler (kein Recht «rechte.verwalten») sieht keine Personen und ändert nur die Rechte der Abteilungsleitung: Er bekommt die übrigen Rollen schreibgeschützt und keine Personenliste (#663)
 export async function ladeGrund() {
-  const [katalog, gruppen, globale, personen] = await Promise.all([
-    anfrage("GET", `${BASIS}/katalog`),
+  const katalog = await anfrage("GET", `${BASIS}/katalog`);
+  const verwaltet = katalog.ich?.rechteVerwalten === true;
+  const [gruppen, globale, personen] = await Promise.all([
     anfrage("GET", `${BASIS}/gruppen`),
     anfrage("GET", `${BASIS}/rollen`),
-    anfrage("GET", "/api/v1/admin/personen"),
+    verwaltet ? anfrage("GET", "/api/v1/admin/personen") : { personen: [] },
   ]);
   return {
     katalog,
     gruppen: gruppen.gruppen,
-    globale: globale.rollen.map(globaleRolle),
+    globale: [
+      abteilungsleitungRolle(globale.abteilungsleitung),
+      ...globale.rollen.map((r) => globaleRolle(r, !verwaltet)),
+    ],
     personen: personen.personen,
   };
 }
@@ -38,13 +46,15 @@ export async function ladeGruppe(tagId) {
 export const legeRolleAn = (tagId, felder) =>
   anfrage("POST", `${BASIS}/gruppen/${tagId}/rollen`, felder);
 export const aendereRolle = (rolle, felder) =>
-  rolle.art === "global"
-    ? anfrage("PATCH", `${BASIS}/rollen/${rolle.id}`, felder)
-    : anfrage(
-        "PATCH",
-        `${BASIS}/gruppen/${rolle.tagId}/rollen/${rolle.id}`,
-        felder,
-      );
+  rolle.abteilungsleitung
+    ? anfrage("PATCH", `${BASIS}/abteilungsleitung`, felder)
+    : rolle.art === "global"
+      ? anfrage("PATCH", `${BASIS}/rollen/${rolle.id}`, felder)
+      : anfrage(
+          "PATCH",
+          `${BASIS}/gruppen/${rolle.tagId}/rollen/${rolle.id}`,
+          felder,
+        );
 export const loescheRolle = (rolle) =>
   rolle.art === "global"
     ? anfrage("DELETE", `${BASIS}/rollen/${rolle.id}?version=${rolle.version}`)

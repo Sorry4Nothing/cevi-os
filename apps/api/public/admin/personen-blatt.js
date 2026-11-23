@@ -33,10 +33,10 @@ const ROLLEN = [
 export const rolleName = (roh) =>
   ROLLEN.find(([w]) => w === roh)?.[1] ?? roh ?? "";
 
-// Die Rollen einer Person im System, so wie die API sie kennt: Admin, Stufenrolle (Leitung), Elternteil
+// Die Rollen einer Person im System, so wie die API sie kennt: Abteilungsleitung, Stufenrolle (Leitung), Elternteil
 export function systemRollen(person) {
   return [
-    person.admin && "Admin",
+    person.admin && "Abteilungsleitung",
     person.rollen.some((r) => r.typ === "stufenleitung")
       ? "Stufenleitung"
       : person.rollen.length > 0 && "Leitung",
@@ -591,7 +591,7 @@ function profilKarte(person, { nameVon, ctx, neu }) {
     name.textContent = n.name || "Neue Person";
     zusatz.textContent = n.ceviName;
   };
-  // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides); diese Seite sehen nur Admins, also genügt hier die Admin-Rolle. Eine Stelle für die Anzeige
+  // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides); diese Seite sieht nur die Abteilungsleitung, also genügt hier ihre Rolle. Eine Stelle für die Anzeige
   const kannBildEntfernen = () =>
     ctx?.ich?.role === "admin" && !!person?.bildUrl;
   const hilfe = el("p", { class: "hilfe" });
@@ -703,7 +703,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       });
   const telefon = telefonFeld(person?.telefon);
   const admin = ankreuzen({
-    label: "Admin-Rechte (Abteilungsleitung)",
+    label: "Abteilungsleitung",
     gewaehlt: person?.admin ?? false,
   });
   const rollen = rollenFelder(daten.stufen, person?.rollen ?? []);
@@ -781,7 +781,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
     ),
     karte(
       "Rechte und Rollen",
-      "Admins brauchen einen zweiten Faktor, bevor sie die Verwaltung öffnen können. Die Rolle in einer Stufe bestimmt, was die Person in dieser Stufe sieht.",
+      "Die Abteilungsleitung braucht einen zweiten Faktor, bevor sie die Verwaltung öffnen kann. Die Rolle in einer Stufe bestimmt, was die Person in dieser Stufe sieht.",
       admin.wurzel,
       rollen.wurzel,
     ),

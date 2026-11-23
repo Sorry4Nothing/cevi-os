@@ -26,7 +26,7 @@ import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 
-// Admin-Routen des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
+// Verwaltungsrouten des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Abteilungsleitung (403), dann der Zustand (409)
 const datum = z.iso.date();
 const titel = z.string().trim().min(1).max(200);
 const ort = z.string().trim().min(1).max(200);
@@ -103,7 +103,7 @@ const zeitraumGueltig = (zeit: {
 export function erstelleAdminLagerRouten({ db }: { db: Db }) {
   type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Admin-Recht. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
+  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht der Abteilungsleitung. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
   async function ladeLager(
     d: Db | Tx,
     person: Person,

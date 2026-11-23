@@ -23,6 +23,7 @@ const segmentText = (wert, offeneGeltungen) =>
 
 // Spaltenkopf und Kartenkopf teilen sich die Angaben einer Rolle
 export function rolleKurz(rolle) {
+  if (rolle.abteilungsleitung) return "Jedes Konto der Abteilungsleitung";
   const n = rolle.personen.length;
   return `${n === 1 ? "1 Person" : `${n} Personen`}`;
 }
@@ -43,6 +44,28 @@ export function rechteRaster({ z, rollen, art, einzel = false }) {
     const offen = geltungenFuer(recht, rolle.art);
     const fest = rolle.fest.find((f) => f.recht === recht.id);
     const name = `${rolle.name}: ${recht.klartext}`;
+    // Gesperrt (#663): Die Person darf diese Rolle nicht ändern. Die Abteilungsleitung ändert ihre eigenen Rechte nie, der Entwickler nur die Zeile «Abteilungsleitung». Der Zustand steht mit Symbol und Wort da, nie nur als Farbe
+    if (rolle.gesperrt) {
+      const wert = basisWert(rolle, recht.id);
+      const text = wert === AUS ? "Aus" : segmentText(wert, offen);
+      steuerungen.push({ rolle, recht, aktualisiere: () => {} });
+      return el(
+        "span",
+        {
+          class: "rr-fest",
+          title: rolle.abteilungsleitung
+            ? "Diese Rechte setzt der Entwickler"
+            : "Nur lesen: Diese Rolle stellt die Abteilungsleitung ein",
+        },
+        icon("sperre"),
+        el("span", {}, `Gesperrt: ${text}`),
+        el(
+          "span",
+          { class: "nur-leser" },
+          `${name}: ${text}. ${rolle.abteilungsleitung ? "Diese Rechte setzt der Entwickler." : "Nur lesen."}`,
+        ),
+      );
+    }
     if (fest) {
       const knoten = el(
         "span",

@@ -89,7 +89,7 @@ const stufeZeile = async (id: string) =>
   (await db.select().from(schema.stufe).where(eq(schema.stufe.id, id)))[0];
 
 describe("POST /api/v1/admin/stufen", () => {
-  test("legt die Stufe in der Abteilung des Admins an, getrimmt", async () => {
+  test("legt die Stufe in der Abteilung der Abteilungsleitung an, getrimmt", async () => {
     const id = await legeStufeAn(admin, {
       name: "  Pfadi  ",
       kuerzel: " P ",
@@ -129,7 +129,7 @@ describe("POST /api/v1/admin/stufen", () => {
     await legeStufeAn(demoAdmin, { name: "Wolf" });
   });
 
-  test("der Demo-Admin legt in der Demo-Abteilung an", async () => {
+  test("der Demo-Abteilungsleitung legt in der Demo-Abteilung an", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const id = await legeStufeAn(demoAdmin);
     expect((await stufeZeile(id)).abteilungId).toBe(welt.demoAbteilungId);
@@ -279,7 +279,7 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
     ).toBe(400);
   });
 
-  test("unbekannte Stufe 404; der Demo-Admin auf eine Stufe der Testabteilung 404, ohne sie zu ändern", async () => {
+  test("unbekannte Stufe 404; der Demo-Abteilungsleitung auf eine Stufe der Testabteilung 404, ohne sie zu ändern", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     expect(
       (await anfrage(admin, "PATCH", `${BASIS}/${randomUUID()}`, { name: "X" }))
@@ -295,7 +295,7 @@ describe("PATCH /api/v1/admin/stufen/:id", () => {
     expect((await stufeZeile(welt.stufeAId)).name).toBe("Stufe A");
   });
 
-  test("kein Admin: 403 ohne Änderung", async () => {
+  test("keine Abteilungsleitung: 403 ohne Änderung", async () => {
     const sl = await legePersonaAn(welt, "slA");
     const id = await legeStufeAn(admin, { name: "Unverändert" });
     expect(
@@ -380,7 +380,7 @@ describe("DELETE /api/v1/admin/stufen/:id", () => {
     expect(await stufeZeile(id)).toBeDefined();
   });
 
-  test("kein Admin: 403, die Stufe bleibt", async () => {
+  test("keine Abteilungsleitung: 403, die Stufe bleibt", async () => {
     const id = await legeStufeAn();
     const sl = await legePersonaAn(welt, "slA");
     expect((await anfrage(sl, "DELETE", `${BASIS}/${id}`)).status).toBe(403);
@@ -400,7 +400,7 @@ describe("GET /api/v1/stufen", () => {
     return ((await antwort.json()) as { stufen: Eintrag[] }).stufen;
   };
 
-  test("liefert Eltern und Admin dieselben Stufen der eigenen Abteilung: id, name, kuerzel, logoUrl", async () => {
+  test("liefert Eltern und Abteilungsleitung dieselben Stufen der eigenen Abteilung: id, name, kuerzel, logoUrl", async () => {
     const eltern = await legePersonaAn(welt, "elternA");
     const [fuerEltern, fuerAdmin] = [await liste(eltern), await liste(admin)];
     expect(fuerEltern).toEqual(fuerAdmin);

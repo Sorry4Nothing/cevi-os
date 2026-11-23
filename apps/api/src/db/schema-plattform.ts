@@ -162,3 +162,26 @@ export const gruppenRolleRecht = pgTable(
     ),
   ],
 );
+
+// Die Rechte der Abteilungsleitung (#663): eine einstellbare Systemrolle je Abteilung. Gespeichert sind nur die Abzüge: Standard sind alle vergebbaren Rechte des Katalogs, «ohne» nimmt dem Konto mit der Rolle «admin» einzelne weg. Ein neues Recht im Katalog gilt für die Abteilungsleitung damit von selbst. Ohne Zeile gilt der Standard. Nur der Entwickler ändert die Zeile (Recht rechte.abteilungsleitung); die Abteilungsleitung ändert ihre eigenen Rechte nie. Ein Name, den der Katalog nicht (mehr) kennt, nimmt nichts weg.
+export const abteilungsleitungRecht = pgTable(
+  "abteilungsleitung_recht",
+  {
+    abteilungId: uuid("abteilung_id")
+      .primaryKey()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    ohne: text("ohne")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // Hochgezählt bei jeder Änderung: Die Matrix speichert nur auf dem Stand, den sie gelesen hat (409)
+    version: integer("version").notNull().default(1),
+    geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "abteilungsleitung_recht_ohne_check",
+      sql`cardinality(${t.ohne}) <= 200`,
+    ),
+  ],
+);

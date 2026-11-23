@@ -120,7 +120,7 @@ const auditZeilen = (zielId: string) =>
     .orderBy(schema.auditLog.erstelltAm);
 
 describe("POST /api/v1/admin/tags", () => {
-  test("legt den Tag in der Abteilung des Admins an, getrimmt, und schreibt das Audit-Log ohne Namen", async () => {
+  test("legt den Tag in der Abteilung der Abteilungsleitung an, getrimmt, und schreibt das Audit-Log ohne Namen", async () => {
     const id = await legeTagAn(admin, {
       typ: "funktion",
       name: "  Kasse Geheim  ",

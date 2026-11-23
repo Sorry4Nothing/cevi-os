@@ -143,10 +143,12 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/admin/laden/artikel/:p": "Artikel ändern",
   "PATCH /api/v1/admin/lager/:p": "Lager ändern, Status setzen",
   "PATCH /api/v1/admin/personen/:p":
-    "Name, Admin-Recht, Stufenrollen und Kinder einer Person ändern",
+    "Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern",
   "PATCH /api/v1/admin/plattform/rollen/:p":
     "Name oder Rechte einer Plattformrolle ändern",
   "PATCH /api/v1/admin/raeume/:p": "Raum ändern oder deaktivieren",
+  "PATCH /api/v1/admin/rechte/abteilungsleitung":
+    "Rechte der Abteilungsleitung ändern",
   "PATCH /api/v1/admin/rechte/gruppen/:p/rollen/:p":
     "Rolle einer Gruppe ändern",
   "PATCH /api/v1/admin/rechte/rollen/:p": "Globale Rolle ändern",

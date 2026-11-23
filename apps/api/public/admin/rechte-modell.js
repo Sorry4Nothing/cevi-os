@@ -72,8 +72,8 @@ export const istGross = (recht) => markenVon(recht).some((m) => m.gross);
 // Was im Code fest steht und sich in keiner Matrix ändern lässt, mit Grund. Quelle: docs/rechte.md; die Rechte der Art «fest» im Katalog kommen dazu
 export const FESTE_PUNKTE = [
   {
-    titel: "Die Abteilungsleitung hat immer alles",
-    text: "Sie lässt sich nicht aussperren und nicht einschränken. Ohne diese Regel könnte sich die Abteilung selbst den Zugang nehmen.",
+    titel: "Die Rechte der Abteilungsleitung stellt der Entwickler ein",
+    text: "Die Abteilungsleitung kann ihre eigenen Rechte weder erweitern noch einschränken. Sie stellt die Rechte aller anderen Rollen ein. Standard sind alle vergebbaren Rechte; die festen Rechte bleiben ihr immer, damit sich die Abteilung nicht aussperrt.",
   },
   {
     titel: "Wer Rechte vergibt, hat sie selbst",
@@ -116,8 +116,24 @@ export function geltungenFuer(recht, art) {
 
 // ---------- Rollen ----------
 
-// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen
-export const globaleRolle = (r) => ({
+// Die Systemrolle «Abteilungsleitung» (#663) in die Form der globalen Rolle bringen. Sie hat keine Personen: Jedes Konto der Abteilungsleitung trägt sie. gesperrt: Die Person darf sie nicht ändern (nur der Entwickler)
+export const abteilungsleitungRolle = (al) => ({
+  id: "abteilungsleitung",
+  art: "global",
+  abteilungsleitung: true,
+  name: "Abteilungsleitung",
+  beschreibung: null,
+  system: true,
+  schluessel: null,
+  version: al.version,
+  rechte: al.rechte.map((recht) => ({ recht, geltung: "alle" })),
+  fest: [],
+  personen: [],
+  gesperrt: al.aenderbar !== true,
+});
+
+// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Der Entwickler liest sie nur (er ändert nur die Zeile «Abteilungsleitung»)
+export const globaleRolle = (r, gesperrt = false) => ({
   id: r.id,
   art: "global",
   name: r.name,
@@ -128,6 +144,7 @@ export const globaleRolle = (r) => ({
   rechte: r.rechte.map((recht) => ({ recht, geltung: "alle" })),
   fest: [],
   personen: r.personen,
+  gesperrt,
 });
 
 export const gruppenRolle = (r, gruppe) => ({
@@ -352,7 +369,14 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
     });
     return zeilen;
   }
-  if (!eintrag.nurEntwickler) {
+  // Die Abteilungsleitung hat jedes feste Recht und, was der Entwickler ihr nicht wegnimmt (#663)
+  const al = globale.find((r) => r.abteilungsleitung);
+  const alHat =
+    !eintrag.nurEntwickler &&
+    (eintrag.art !== "vergebbar" ||
+      !al ||
+      al.rechte.some((x) => x.recht === eintrag.id));
+  if (alHat) {
     zeilen.push({
       art: "abteilungsleitung",
       titel: "Abteilungsleitung",
@@ -372,6 +396,7 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
     });
   }
   for (const r of globale) {
+    if (r.abteilungsleitung) continue;
     const z = r.rechte.find((x) => x.recht === eintrag.id);
     if (z) {
       zeilen.push({
@@ -501,6 +526,16 @@ export function verlaufText(z, nachschlagen) {
           .join(". "),
       };
     }
+    case "abteilungsleitung_rechte_geaendert":
+      return {
+        titel: "Rechte der Abteilungsleitung geändert",
+        detail: [
+          d.hinzu?.length && `Dazu: ${liste(d.hinzu)}`,
+          d.weg?.length && `Weg: ${liste(d.weg)}`,
+        ]
+          .filter(Boolean)
+          .join(". "),
+      };
     case "plattform_rolle_geloescht":
       return {
         titel: "Plattformrolle gelöscht",
