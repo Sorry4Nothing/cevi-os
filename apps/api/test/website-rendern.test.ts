@@ -477,13 +477,17 @@ describe("Aufbau und Barrierefreiheit", () => {
       ),
     );
     expect(html).toContain(
-      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Anmeldung</a> <span class="info">(PDF, 3.0 MB)</span></p>`,
+      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Anmeldung<span class="nur-sr"> (externe Seite)</span></a> <span class="info">(PDF, 3.0 MB)</span></p>`,
     );
     expect(html).toContain(
-      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Nur Link</a></p>`,
+      `<p class="datei karte"><a href="${link}" rel="noopener noreferrer">Nur Link<span class="nur-sr"> (externe Seite)</span></a></p>`,
     );
-    expect(html).toContain(`>Mit Typ</a> <span class="info">(Excel)</span>`);
-    expect(html).toContain(`>Mit Grösse</a> <span class="info">(1 KB)</span>`);
+    expect(html).toContain(
+      `>Mit Typ<span class="nur-sr"> (externe Seite)</span></a> <span class="info">(Excel)</span>`,
+    );
+    expect(html).toContain(
+      `>Mit Grösse<span class="nur-sr"> (externe Seite)</span></a> <span class="info">(1 KB)</span>`,
+    );
     // Nie das Medien-Muster, nie ein Download-Attribut, nie eingebettet
     expect(html).not.toContain("/api/v1/medien/");
     expect(html).not.toMatch(/\sdownload[\s>]/);

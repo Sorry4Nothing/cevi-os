@@ -324,7 +324,9 @@ describe("Termine: Ansichten (W5, W6)", () => {
     const aus = html(termine.reiterView({ tab: "alle", angemeldet: false }));
     expect(aus).toContain('aria-disabled="true"');
     expect(aus).toContain("Nur die Termine deiner Gruppen sehen?");
-    expect(aus).toContain('<a href="/anmelden?weiter=%2Ftermine">Anmelden<');
+    expect(aus).toContain(
+      '<a class="verweis" href="/anmelden?weiter=%2Ftermine">Anmelden</a>',
+    );
     const an = html(termine.reiterView({ tab: "mein", angemeldet: true }));
     expect(an).toContain('id="tm-reiter-mein" aria-selected="true"');
     expect(an).not.toContain("Melde dich an");

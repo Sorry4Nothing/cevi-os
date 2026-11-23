@@ -637,7 +637,11 @@ export function reiterView({ tab, angemeldet }) {
           "p",
           { class: "reiter-angebot" },
           "Nur die Termine deiner Gruppen sehen?",
-          h("a", { href: "/anmelden?weiter=%2Ftermine" }, "Anmelden", pfeil()),
+          h(
+            "a",
+            { class: "verweis", href: "/anmelden?weiter=%2Ftermine" },
+            "Anmelden",
+          ),
         )
       : null,
   );
