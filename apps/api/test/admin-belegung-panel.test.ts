@@ -85,7 +85,8 @@ describe("Admin-Panel: Belegungsplan", () => {
     expect(
       [...modul.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]),
     ).toEqual(["GET"]);
-    expect(modul).not.toMatch(/setInterval|setTimeout/);
+    // setTimeout nur für das Mattwerden der alten Ansicht nach 150 ms, kein Abfragen im Takt
+    expect(modul).not.toMatch(/setInterval/);
     expect(css.replace(/\/\*[\s\S]*?\*\//g, "")).not.toMatch(
       /#[0-9a-fA-F]{3,8}\b/,
     );
@@ -103,6 +104,15 @@ describe("Admin-Panel: Belegungsplan", () => {
     expect(modul).toContain('text: "Angefragt"');
     expect(css).toContain("prefers-reduced-motion: no-preference");
     expect(css).toContain("forced-colors: active");
+  });
+
+  test("Wechsel ohne Grössensprung, mit Bewegung nur auf Wunsch", () => {
+    expect(modul).toContain("prefers-reduced-motion: reduce");
+    // die alte Seite bleibt stehen, bis die neuen Daten da sind, und die Höhe gleitet
+    expect(modul).toContain("bl-seite--alt");
+    expect(modul).toContain("hoeheAlt");
+    expect(modul).toContain("wechselRichtung");
+    expect(css).toContain("bl-flaeche--wechsel");
   });
 
   test("Tastatur: Pfeile zwischen Blöcken, Escape schliesst die Karte", () => {

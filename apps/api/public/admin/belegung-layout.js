@@ -219,3 +219,12 @@ export function naechsterBlock(blocks, aktuell, richtung, raeumeReihenfolge) {
   });
   return bester === -1 ? aktuell : bester;
 }
+
+// Wie die Ansicht wechselt, für die Bewegung: «vor» (die Zeit geht weiter: neue Seite kommt von rechts), «zurueck» (von links) oder «blende» (gleicher Zeitraum oder andere Ansicht: Überblendung). Wochen vergleicht der Montag, Tage das Datum. von: { art, datum } oder null (erste Anzeige)
+export function wechselRichtung(von, nach) {
+  if (!von || von.art !== nach.art) return "blende";
+  const a = von.art === "woche" ? montagVon(von.datum) : von.datum;
+  const b = nach.art === "woche" ? montagVon(nach.datum) : nach.datum;
+  if (b > a) return "vor";
+  return b < a ? "zurueck" : "blende";
+}

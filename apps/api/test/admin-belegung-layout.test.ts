@@ -199,4 +199,25 @@ describe("Belegungsplan: Rechnen (belegung-layout.js)", () => {
     expect(l.naechsterBlock(blocks, 3, "unten", raeume)).toBe(4);
     expect(l.naechsterBlock(blocks, 0, "oben", raeume)).toBe(0);
   });
+
+  test("Richtung des Wechsels: vor, zurück oder Überblendung", () => {
+    const w = (datum: string) => ({ art: "woche", datum });
+    expect(l.wechselRichtung(null, w("2026-11-23"))).toBe("blende");
+    // innerhalb derselben Woche ist es derselbe Zeitraum
+    expect(l.wechselRichtung(w("2026-11-23"), w("2026-11-29"))).toBe("blende");
+    expect(l.wechselRichtung(w("2026-11-23"), w("2026-11-30"))).toBe("vor");
+    expect(l.wechselRichtung(w("2026-11-30"), w("2026-11-23"))).toBe("zurueck");
+    // über den Jahreswechsel
+    expect(l.wechselRichtung(w("2026-12-28"), w("2027-01-04"))).toBe("vor");
+    const t1 = (datum: string) => ({ art: "tag", datum });
+    expect(l.wechselRichtung(t1("2026-11-24"), t1("2026-11-25"))).toBe("vor");
+    expect(l.wechselRichtung(t1("2026-11-25"), t1("2026-11-24"))).toBe(
+      "zurueck",
+    );
+    expect(l.wechselRichtung(t1("2026-11-24"), t1("2026-11-24"))).toBe(
+      "blende",
+    );
+    // andere Ansicht: immer Überblendung
+    expect(l.wechselRichtung(w("2026-11-23"), t1("2026-11-30"))).toBe("blende");
+  });
 });

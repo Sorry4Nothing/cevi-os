@@ -661,9 +661,11 @@ Gilt für `termine-belegung.js`, `termine-belegung.css` und `belegung-layout.js`
 - [ ] **38.8** Adressen: `#raeume/belegung/woche|tag|liste/<Datum>[/<Raum>]`; ein Wechsel von Woche, Tag oder Liste legt einen Verlaufseintrag an (Zurück führt zur vorigen Ansicht), Raum und «Angefragte zeigen» ändern die Adresse nur.
 - [ ] **38.9** Navigation: Wer nur Leitende ist (keine Abteilungsleitung, kein Zugang zur Website), sieht nur den Bereich «Räume» mit der Seite «Belegung»; Räume und Anfragen bleiben bei der Abteilungsleitung, die Übersicht beim Zugang zur Website. Eltern bekommen unverändert die Seite «Kein Zugang». Die Prüfung steht auf dem Server (`GET /api/v1/raeume/belegung`: 403).
 
+- [ ] **38.10** Wechsel ohne Sprung: Beim Blättern, bei «Heute» und beim Wechsel von Woche, Tag und Liste bleibt die alte Ansicht stehen, bis die neuen Daten da sind (nach 150 ms wird sie matt); Kopf mit Zeitraum und Zahlen hat feste Höhe und Breite, die Fläche gleitet von der alten zur neuen Höhe, Woche und Tag behalten dieselbe Höhe auch ohne Buchung. Nur ohne «Bewegung reduzieren» gleitet die neue Seite in Richtung des Wechsels herein (vorwärts von rechts, zurück von links, 320 ms), Ansichtswechsel blenden über, Blöcke blenden gestaffelt ein, Titel und Zahlen blenden sanft; mit «Bewegung reduzieren» ersetzt die neue Seite die alte sofort. Die alte Seite ist während des Gleitens `aria-hidden` und `inert`; der Fokus bleibt auf dem Knopf, der den Wechsel auslöste. Ab 1280 px steht der Zweck als Kurztext unter dem Balken der Woche (abgeschnitten, nur Zierde: Beschriftung und Karte tragen den Text).
+
 ### Stand der Prüfung (#628)
 
-Im Browser (Chromium, headless) bei 390, 1440, 1920 und 2560 px in Tag und Nacht gesehen, Tastatur (Pfeile, Escape, Zurück) durchgespielt, Konten Abteilungsleitung, Stufenleitung und Eltern. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA), echtes Gerät, 400 % Zoom, Kontrastmessung mit dem Skript (die Farben sind die geprüften Tokens).
+Im Browser (Chromium, headless) bei 390, 1440, 1920 und 2560 px in Tag und Nacht gesehen, Höhen beim Wechsel gemessen (Woche zu Woche 491 und 490 px, Tag zu Tag 1009 px, Kopf 448 × 52 px), Tastatur (Pfeile, Escape, Zurück) durchgespielt, Konten Abteilungsleitung, Stufenleitung und Eltern. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA), echtes Gerät, 400 % Zoom, Kontrastmessung mit dem Skript (die Farben sind die geprüften Tokens).
 
 ## 40. Verwaltung: Bilder zuschneiden (#633)
 

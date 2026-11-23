@@ -13,6 +13,7 @@ import {
   ordneSpuren,
   plusTage,
   uhrzeit,
+  wechselRichtung,
   wochenTage,
   zuerichTeile,
 } from "./belegung-layout.js";
@@ -163,7 +164,11 @@ function baue(bereich, ctx, { zustand, heute, medien, holeWoche, erste }) {
     zustand.raumId = "";
   }
 
-  const titel = el("h2", { class: "bl-titel", "aria-live": "polite" });
+  const titel = el("h2", {
+    class: "bl-titel",
+    "aria-live": "polite",
+    tabindex: "-1",
+  });
   const zaehler = el("p", { class: "bl-zaehler klein leise" });
   const flaeche = el("div", { class: "bl-flaeche" });
   const detail = erstelleDetail();
@@ -179,39 +184,154 @@ function baue(bereich, ctx, { zustand, heute, medien, holeWoche, erste }) {
     neuerEintrag ? schiebeAdresse(adresse()) : ersetzeAdresse(adresse());
 
   let ladenNr = 0;
+  // Was gerade gezeigt wird (für die Richtung des Wechsels) und der laufende Übergang
+  let zuletzt = null;
+  let laufend = null;
+  const bewegt = () =>
+    !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
   async function zeichne({ neuerEintrag = false } = {}) {
     const nr = ++ladenNr;
     detail.verberge(true);
     const art = zustand.wirksam();
     const montag = montagVon(zustand.datum);
-    titel.textContent = periodenTitel(
-      art === "woche" ? "woche" : "tag",
-      zustand.datum,
-    );
     schreibeNavigation();
     merke(neuerEintrag);
-    let daten = erste;
-    if (montag !== montagVon(erste.von)) {
-      ersetze(flaeche, skelettFlaeche());
-      flaeche.setAttribute("aria-busy", "true");
-      try {
-        daten = await holeWoche(montag);
-      } catch (f) {
-        if (nr !== ladenNr) return;
-        flaeche.removeAttribute("aria-busy");
-        ersetze(
-          flaeche,
-          zustandsKarte(zustandsDaten(f), [nochmals(() => zeichne())]).wurzel,
-        );
-        return;
-      }
+    // Die alte Ansicht bleibt stehen, bis die neuen Daten da sind; erst nach 150 ms wird sie matt
+    const timer = window.setTimeout(
+      () => flaeche.classList.add("bl-flaeche--laedt"),
+      150,
+    );
+    flaeche.setAttribute("aria-busy", "true");
+    let daten;
+    try {
+      daten = await holeWoche(montag);
+    } catch (f) {
+      window.clearTimeout(timer);
       if (nr !== ladenNr) return;
+      flaeche.classList.remove("bl-flaeche--laedt");
+      flaeche.removeAttribute("aria-busy");
+      tausche(
+        el(
+          "div",
+          {},
+          zustandsKarte(zustandsDaten(f), [nochmals(() => zeichne())]).wurzel,
+        ),
+        "blende",
+      );
+      zuletzt = null;
+      return;
     }
+    window.clearTimeout(timer);
+    if (nr !== ladenNr) return;
+    flaeche.classList.remove("bl-flaeche--laedt");
     flaeche.removeAttribute("aria-busy");
-    zeigeDaten(daten, art, montag);
+    const jetzt = { art, datum: zustand.datum };
+    const modus = wechselRichtung(zuletzt, jetzt);
+    zuletzt = jetzt;
+    const seite = baueSeite(daten, art, montag);
+    setzeText(
+      titel,
+      periodenTitel(art === "woche" ? "woche" : "tag", zustand.datum),
+    );
+    setzeText(zaehler, seite.zaehler);
+    tausche(seite.knoten, modus);
   }
 
-  function zeigeDaten(daten, art, montag) {
+  // Text ersetzen und sanft einblenden, nur wenn er sich ändert
+  function setzeText(knoten, text) {
+    if (knoten.textContent === text) return;
+    const erstes = knoten.textContent === "";
+    knoten.textContent = text;
+    if (!erstes && bewegt()) {
+      knoten.animate(
+        [
+          { opacity: 0, transform: "translateY(6px)" },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: 240, easing: "cubic-bezier(0.2, 0.7, 0.2, 1)" },
+      );
+    }
+  }
+
+  // Die neue Seite an die Stelle der alten setzen: Höhe der Fläche gleitet von alt zu neu (kein Sprung), die alte Seite gleitet in Richtung des Wechsels hinaus, die neue herein, die Blöcke blenden gestaffelt ein. Bei «Bewegung reduzieren» ersetzt sie die alte sofort
+  function tausche(neu, modus) {
+    laufend?.beende();
+    neu.classList.add("bl-seite");
+    const alt = flaeche.querySelector(":scope > .bl-seite");
+    const hatFokus = alt?.contains(document.activeElement) === true;
+    const scrollY = window.scrollY;
+    if (!alt || !bewegt()) {
+      flaeche.replaceChildren(neu);
+      fuehreFokus(neu);
+      if (hatFokus) titel.focus();
+      return;
+    }
+    const hoeheAlt = flaeche.offsetHeight;
+    alt.classList.add("bl-seite--alt");
+    alt.setAttribute("aria-hidden", "true");
+    alt.inert = true;
+    flaeche.classList.add("bl-flaeche--wechsel");
+    fuehreFokus(neu);
+    flaeche.append(neu);
+    const hoeheNeu = flaeche.offsetHeight;
+    const weg = modus === "vor" ? -1 : modus === "zurueck" ? 1 : 0;
+    const kurve = "cubic-bezier(0.2, 0.7, 0.2, 1)";
+    const dauer = modus === "blende" ? 220 : 320;
+    const animationen = [
+      alt.animate(
+        [
+          { opacity: 1, transform: "none" },
+          { opacity: 0, transform: `translateX(${weg * 48}px)` },
+        ],
+        { duration: dauer, easing: kurve, fill: "forwards" },
+      ),
+      neu.animate(
+        [
+          {
+            opacity: modus === "blende" ? 0 : 0.2,
+            transform: `translateX(${-weg * 48}px)`,
+          },
+          { opacity: 1, transform: "none" },
+        ],
+        { duration: dauer, easing: kurve },
+      ),
+    ];
+    if (hoeheAlt !== hoeheNeu) {
+      animationen.push(
+        flaeche.animate(
+          [{ height: `${hoeheAlt}px` }, { height: `${hoeheNeu}px` }],
+          { duration: dauer, easing: kurve },
+        ),
+      );
+    }
+    [...neu.querySelectorAll(".bl-block")].slice(0, 120).forEach((b, i) => {
+      animationen.push(
+        b.animate([{ opacity: 0 }, { opacity: 1 }], {
+          duration: 220,
+          delay: Math.min(i * 9, 200),
+          easing: "ease-out",
+          fill: "backwards",
+        }),
+      );
+    });
+    if (window.scrollY !== scrollY) window.scrollTo(window.scrollX, scrollY);
+    let fertig = false;
+    const beende = () => {
+      if (fertig) return;
+      fertig = true;
+      for (const a of animationen) a.cancel();
+      alt.remove();
+      flaeche.classList.remove("bl-flaeche--wechsel");
+      laufend = null;
+      if (hatFokus) titel.focus();
+    };
+    laufend = { beende };
+    Promise.allSettled(animationen.map((a) => a.finished)).then(beende);
+  }
+
+  // Inhalt der Fläche für eine Woche und Ansicht samt Zahlen für die Zeile unter dem Titel
+  function baueSeite(daten, art, montag) {
     const sichtbar = daten.raeume.filter(
       (r) => !zustand.raumId || r.id === zustand.raumId,
     );
@@ -234,7 +354,7 @@ function baue(bereich, ctx, { zustand, heute, medien, holeWoche, erste }) {
         }
       }
     }
-    zaehler.textContent =
+    const zaehlerText =
       best + angef === 0
         ? "Kein Raum belegt."
         : `${zaehlwort(best, "Buchung", "Buchungen")} bestätigt${zustand.anfragen ? `, ${zaehlwort(angef, "Anfrage", "Anfragen")} offen` : ""}.`;
@@ -267,8 +387,7 @@ function baue(bereich, ctx, { zustand, heute, medien, holeWoche, erste }) {
         }),
       );
     }
-    ersetze(flaeche, inhalt);
-    fuehreFokus(flaeche);
+    return { knoten: el("div", {}, inhalt), zaehler: zaehlerText };
   }
 
   // Werkzeugleiste ------------------------------------------------------
@@ -699,12 +818,37 @@ function wochenAnsicht({ sichtbar, je, montag, heute, detail, wechsle }) {
             lage: (k) => {
               k.style.left = `${lage.links}%`;
               k.style.width = `${lage.breite}%`;
-              k.style.top = `calc(${(s.spur / s.spuren) * 100}% + 5px)`;
-              k.style.height = `calc(${(1 / s.spuren) * 100}% - 10px)`;
+              k.style.setProperty(
+                "--bl-top",
+                `calc(${(s.spur / s.spuren) * 100}% + 5px)`,
+              );
+              k.style.setProperty(
+                "--bl-hoehe",
+                `calc(${(1 / s.spuren) * 100}% - 10px)`,
+              );
             },
           });
         }),
       );
+      // Ab 1280 px steht der Zweck als Kurztext unter dem Balken (nur wo der Balken allein steht und Platz bleibt bis zum nächsten)
+      teile.forEach((teil, i) => {
+        if (spuren[i].spuren > 1) return;
+        const lage = lageAufAchse(teil.von, teil.bis, achse);
+        const folgt = teile[i + 1]
+          ? lageAufAchse(teile[i + 1].von, teile[i + 1].bis, achse).links
+          : 100;
+        const platz = Math.min(folgt, 100) - lage.links;
+        if (platz < 14) return;
+        const etikett = el(
+          "span",
+          { class: "bl-etikett", "aria-hidden": "true" },
+          teil.buchung.zweck,
+        );
+        etikett.style.left = `${lage.links}%`;
+        etikett.style.width = `${platz}%`;
+        zelle.append(etikett);
+        zelle.children[i].classList.add("bl-block--einzeln");
+      });
       if (tag === heute) zelle.append(jetztMarke("waagrecht", achse));
       zeile.append(zelle);
     }
@@ -767,11 +911,6 @@ function tagesAnsicht({ sichtbar, je, datum, heute, detail }) {
   );
   const alleTeile = [...teileJeRaum.values()].flat();
   const achse = achseFuer(alleTeile);
-  if (alleTeile.length === 0) {
-    return leerKarte(
-      `Am ${langerTag.format(mittag(datum))} ist kein Raum belegt. Alle Räume sind den ganzen Tag frei.`,
-    );
-  }
   const hoehe = (achse.laenge / 60) * STUNDE_PX;
   const gutter = el("div", { class: "bl-gutter", "aria-hidden": "true" });
   gutter.style.height = `${hoehe}px`;
@@ -863,6 +1002,16 @@ function tagesAnsicht({ sichtbar, je, datum, heute, detail }) {
     if (marke) koerper.append(marke);
   }
   raster.append(kopfzeile, koerper);
+  // Ohne Buchung bleibt der Plan so hoch wie sonst; der Satz liegt darüber
+  if (alleTeile.length === 0) {
+    raster.append(
+      el(
+        "p",
+        { class: "bl-leer-hinweis", role: "status" },
+        `Am ${langerTag.format(mittag(datum))} ist kein Raum belegt. Alle Räume sind den ganzen Tag frei.`,
+      ),
+    );
+  }
   return raster;
 }
 
