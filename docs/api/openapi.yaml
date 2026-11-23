@@ -607,6 +607,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/schrittfolge.js:
+    get:
+      operationId: getAdminSchrittfolgeSkript
+      summary: Skript der Verwaltung – Schrittfolge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/filterleiste.js:
     get:
       operationId: getAdminFilterleisteSkript

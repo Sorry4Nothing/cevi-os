@@ -66,14 +66,339 @@
   text-decoration: underline;
 }
 
-/* ===== System: Verlauf der letzten 24 Stunden ===== */
-.verlauf24 .ub-diagramm {
-  margin-top: 0;
-  padding-top: 0;
+/* ===== System: Anfragen, Fehler und Last (#606) ===== */
+/* Kennzahlen über dem Verlauf, wie in der Übersicht; Achsen und Streifen um die Säulen aus uebersicht-diagramme.js */
+.sv-bereich {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
-.verlauf24 .ub-lese {
+.sv-bereich > .zeile > h2 {
+  margin: 0;
+}
+
+.sv-kennzahlen {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.sv-kennzahlen .ub-kachel {
+  gap: 0.5rem;
+}
+
+@media (max-width: 1099px) {
+  .sv-kennzahlen {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .sv-kennzahlen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.sv-verlauf {
+  gap: 0.5rem;
+  padding: 1.5rem;
+}
+
+.sv-titel {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.sv-titel--streifen {
+  margin-top: 1rem;
+}
+
+/* Links Platz für die Werte der Achse */
+.sv-verlauf .ub-ablesen {
+  padding-left: 3rem;
+}
+
+.sv-flaeche {
+  position: relative;
+}
+
+.sv-flaeche svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: 100%;
+  height: clamp(8rem, 12vw, 14rem);
+  overflow: visible;
+}
+
+/* Die Säulen füllen die Höhe 64 des Rasters, oben 4, Boden 63: die Linien sitzen bei 6.25 %, 52.3 % und 98.4 % */
+.sv-gitter {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.sv-gitter--0,
+.sv-y--oben {
+  top: 6.25%;
+}
+
+.sv-gitter--1,
+.sv-y--mitte {
+  top: 52.3%;
+}
+
+.sv-gitter--2,
+.sv-y--unten {
+  top: 98.4%;
+}
+
+.sv-y {
+  position: absolute;
+  right: calc(100% + 0.5rem);
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-50%);
+}
+
+.sv-x {
+  display: grid;
+  margin-top: 0.375rem;
+}
+
+/* 24 Stunden oder 60 Minuten: drei Marken zu je einem Drittel, «jetzt» in den letzten drei Spalten */
+.sv-x--24 {
+  --schritt: 8;
+  grid-template-columns: repeat(24, minmax(0, 1fr));
+}
+
+.sv-x--60 {
+  --schritt: 20;
+  grid-template-columns: repeat(60, minmax(0, 1fr));
+}
+
+.sv-x-marke:nth-child(1) {
+  grid-column: 1 / span var(--schritt);
+}
+
+.sv-x-marke:nth-child(2) {
+  grid-column: calc(var(--schritt) + 1) / span var(--schritt);
+}
+
+.sv-x-marke:nth-child(3) {
+  grid-column: calc(var(--schritt) * 2 + 1) / span var(--schritt);
+}
+
+.sv-x-marke {
+  grid-row: 1;
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sv-x-marke--jetzt {
+  grid-column: -4 / -1;
+  justify-self: end;
+  font-weight: 700;
+}
+
+.sv-verlauf .ub-lese {
+  margin-top: 0.25rem;
+}
+
+.sv-streifen svg {
+  display: block;
+  width: 100%;
+  height: 2rem;
+  overflow: visible;
+}
+
+/* Die Höhe trägt den Zustand mit; die Farbe verstärkt nur */
+.sv-zelle--leer {
+  fill: var(--rand-leise);
+}
+
+.sv-zelle--ruhig {
+  fill: var(--rand);
+}
+
+.sv-zelle--vereinzelt {
+  fill: var(--wa);
+}
+
+.sv-zelle--erhoeht {
+  fill: var(--fe);
+}
+
+.sv-zeichen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sv-zeichen li {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.375rem;
+}
+
+.sv-schluessel {
+  display: inline-block;
+  width: 0.625rem;
+  border-radius: 1px;
+}
+
+.sv-schluessel--leer {
+  height: 2px;
+  background: var(--rand-leise);
+}
+
+.sv-schluessel--ruhig {
+  height: 5px;
+  background: var(--rand);
+}
+
+.sv-schluessel--vereinzelt {
+  height: 10px;
+  background: var(--wa);
+}
+
+.sv-schluessel--erhoeht {
+  height: 16px;
+  background: var(--fe);
+}
+
+/* Die Tabelle steckt in «Als Tabelle anzeigen»; der Schalter der Übersicht (.ub-tabelle ist sonst versteckt) gilt hier nicht */
+.sv-verlauf .ub-tabelle {
+  display: block;
+}
+
+.sv-verlauf .hilfe {
   margin-top: 0.5rem;
+}
+
+@media (max-width: 639px) {
+  .sv-verlauf {
+    padding: 1rem;
+  }
+
+  .sv-verlauf .ub-ablesen {
+    padding-left: 2.5rem;
+  }
+
+  /* Schmal bleiben der Anfang und «jetzt» */
+  .sv-x-marke:nth-last-child(2) {
+    display: none;
+  }
+}
+
+/* Letzte Fehler als Liste: feste Zeilenhöhe, Zeit als «vor 7 Minuten» (Vorlage: activity-feed) */
+.sv-fehler {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.sv-fehler > li {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.5rem 1.25rem;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.sv-fehler > li:first-child {
+  border-top: 0;
+}
+
+.sv-fehler .chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sv-fehler-route {
+  display: flex;
+  gap: 0.75rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sv-fehler-methode {
+  color: var(--leise);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.sv-fehler-zeit {
+  color: var(--leise);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+@media (max-width: 639px) {
+  .sv-fehler > li {
+    grid-template-columns: auto minmax(0, 1fr);
+    padding: 0.5rem 1rem;
+  }
+
+  .sv-fehler-zeit {
+    grid-column: 2;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sv-zelle {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: ub-wachsen 240ms ease-out;
+  }
+}
+
+@media (forced-colors: active) {
+  .sv-gitter {
+    border-top-color: GrayText;
+  }
+
+  .sv-zelle--leer,
+  .sv-zelle--ruhig {
+    fill: GrayText;
+  }
+
+  .sv-zelle--vereinzelt {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.5;
+  }
+
+  .sv-zelle--erhoeht {
+    fill: Highlight;
+  }
+
+  .sv-schluessel {
+    background: CanvasText;
+  }
+
+  .sv-schluessel--vereinzelt {
+    background: Canvas;
+    border: 1.5px solid CanvasText;
+  }
 }
 
 /* ===== Plattform: eine Zeile je Bereich ===== */

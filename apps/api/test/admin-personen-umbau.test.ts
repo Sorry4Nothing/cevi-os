@@ -60,12 +60,44 @@ describe("Admin-Panel: Personen, Gruppen, Kinder, Stufen, Import (#594)", () => 
     }
   });
 
-  test("Import: Schritte sind Seiten im Fluss mit Schrittleiste", () => {
+  test("Import: eine Schrittfolge mit Zustand je Schritt, Verlauf je Schritt und Zusammenfassung", () => {
     const quelle = lies("import.js");
-    expect(quelle).toContain("seitenSchritt");
-    expect(quelle).toContain("schrittLeiste");
-    expect(quelle).toContain('"aria-current"');
-    expect(quelle).toContain("oeffneFluss");
+    expect(quelle).toContain('from "./schrittfolge.js"');
+    // Browser-Zurück geht schrittweise zurück, die Eingaben bleiben im Schritt
+    expect(quelle).toContain("importSchritt");
+    expect(quelle).toContain('addEventListener("popstate"');
+    expect(quelle).toContain("zusammen:");
+    // Keine Seiten im Fluss und kein zweiter Import über «Zurück»
+    expect(quelle).not.toContain("oeffneFluss");
+    expect(quelle).toContain("zweiStufig");
+    const folge = lies("schrittfolge.js");
+    for (const zustand of ["offen", "aktuell", "erledigt", "fehler"]) {
+      expect(folge).toContain(`${zustand}:`);
+    }
+    expect(folge).toContain('"aria-current"');
+    expect(folge).toContain('role: "status"');
+    // Nie nur Farbe: Zahl, Haken oder Warnsymbol im Marker, Zustand im Namen des Schritts
+    expect(folge).toContain('icon("haken")');
+    expect(folge).toContain('icon("warnung")');
+    expect(folge).toContain("nur-leser");
+  });
+
+  test("Stufen: ruhige Karten ohne doppelte Angaben, Leitung als Sortierliste", () => {
+    const stufen = lies("stufen.js");
+    expect(stufen).toContain("st-leitung");
+    expect(stufen).not.toContain("Keine Stufenleitung");
+    expect(stufen).not.toContain("chip(");
+  });
+
+  test("Kinder: Zugang statt «ohne Eltern», Kind als Seite im Fluss", () => {
+    const kinder = lies("kinder.js");
+    expect(kinder).toContain("oeffneKind");
+    expect(kinder).toContain('from "./formularraster.js"');
+    expect(kinder).not.toContain("dialogFormular");
+    expect(kinder).toContain("Ohne Zugang");
+    expect(kinder).not.toContain("Ohne Eltern");
+    // Ein Kind ohne Elternteil ist ein Hinweis, keine Warnung
+    expect(kinder).not.toContain("hinweis--warn");
   });
 
   test("Website nach Rolle (#610): kein Schalter, nur ein Hinweis; Stufen werden zugewiesen, nicht vorab gezeigt", () => {
