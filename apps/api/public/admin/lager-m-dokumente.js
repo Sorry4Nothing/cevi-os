@@ -311,11 +311,7 @@ function dokumentTabelle({ ctx, lagerId, schreiben, dokumente, neu }) {
             el(
               "td",
               {},
-              eigen
-                ? d.teamSichtbar
-                  ? "Alle Mitglieder"
-                  : "Leitung"
-                : "–",
+              eigen ? (d.teamSichtbar ? "Alle Mitglieder" : "Leitung") : "–",
             ),
             el("td", { class: "lg-zahlen" }, datumKurz(d.erstelltAm)),
             schreiben &&
