@@ -67,3 +67,104 @@
 .ld-groesse .feld[hidden] {
   display: none;
 }
+
+/* Artikelliste: feste Spalten, damit Überschrift und Werte untereinander stehen (Zahlen rechts, Text links, Aktionen rechts). Gilt für beide Zeilenarten, mit und ohne Zusatzzeile */
+.ld-tabelle .tabelle {
+  table-layout: fixed;
+  min-width: 62rem;
+}
+
+.ld-tabelle th,
+.ld-tabelle td {
+  text-align: left;
+}
+
+.ld-tabelle th.zahl,
+.ld-tabelle td.zahl {
+  width: 7.5rem;
+  text-align: right;
+}
+
+.ld-tabelle th.ld-griffspalte,
+.ld-tabelle td.ld-griffzelle {
+  width: 4rem;
+  padding-inline: 8px;
+}
+
+.ld-tabelle th:nth-child(4) {
+  width: 11rem;
+}
+
+.ld-tabelle th:nth-child(5) {
+  width: 11rem;
+}
+
+.ld-tabelle th.rechts,
+.ld-tabelle td.rechts {
+  width: 14rem;
+  text-align: right;
+}
+
+/* Griff zum Ziehen: 44 px, mit Maus, Finger und Tastatur bedienbar */
+.ld-griff {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--leise);
+  cursor: grab;
+  touch-action: none;
+}
+
+.ld-griff:hover {
+  background: var(--leiste);
+  color: var(--text);
+}
+
+.ld-griff[aria-pressed="true"] {
+  background: var(--blau-f);
+  color: var(--akzent);
+}
+
+.ld-griff .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Die gehobene Zeile steht schon an ihrem neuen Platz; die Kante oben zeigt, wo sie landet */
+.ld-tabelle tr.ld-gehoben {
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 40%);
+}
+
+.ld-tabelle tr.ld-gehoben > * {
+  background: var(--blau-f);
+  box-shadow: inset 0 3px 0 var(--akzent);
+}
+
+body.ld-zieht {
+  cursor: grabbing;
+  user-select: none;
+}
+
+/* Beim Ziehen mit Maus oder Finger: Die Zeile folgt dem Zeiger, eine Kante an der Zielzeile zeigt, wo sie landet */
+.ld-tabelle tr.ld-gezogen {
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 40%);
+}
+
+.ld-tabelle tr.ld-gezogen > * {
+  background: var(--karte);
+}
+
+.ld-tabelle tr.ld-vor > * {
+  box-shadow: inset 0 3px 0 var(--akzent);
+}
+
+.ld-tabelle tr.ld-nach > * {
+  box-shadow: inset 0 -3px 0 var(--akzent);
+}

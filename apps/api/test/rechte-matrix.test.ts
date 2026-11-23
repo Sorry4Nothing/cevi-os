@@ -1018,6 +1018,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  "PUT /api/v1/admin/laden/artikel/reihenfolge": {
+    // Die Liste nennt einen Artikel der Testabteilung: In der Demo-Abteilung ist er unbekannt (404)
+    body: () => ({ ids: [ladenArtikelId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+    },
+  },
   "PATCH /api/v1/admin/laden/artikel/:id": {
     url: () => `/api/v1/admin/laden/artikel/${ladenArtikelId}`,
     body: () => ({ preisRappen: 150 }),

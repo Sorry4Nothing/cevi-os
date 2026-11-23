@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/schichtplan"
-order: 389000
+order: 390000
 method: GET
 url: "{{baseUrl}}{{pfad_L187}}"
 headers:

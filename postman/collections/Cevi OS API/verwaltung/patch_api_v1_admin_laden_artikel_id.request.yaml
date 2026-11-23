@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PATCH /api/v1/admin/laden/artikel/:id"
-order: 143000
+order: 144000
 method: PATCH
-url: "{{baseUrl}}/api/v1/admin/laden/artikel/01a2060a-6bb7-7539-b83b-b53a697eed31"
+url: "{{baseUrl}}/api/v1/admin/laden/artikel/01a20640-4b9e-727a-b5a0-71d645bcaa37"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

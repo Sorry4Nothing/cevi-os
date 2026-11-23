@@ -600,6 +600,68 @@ describe("Verwaltung", () => {
     expect((await lesen(einheit.id)).varianten).toEqual(["X", "Y", "Z"]);
   });
 
+  test("Reihenfolge: ein Aufruf setzt die Folge ohne Lücken, neue Artikel kommen ans Ende, Fremdes ist 404", async () => {
+    const [a, b, c] = [
+      await neuerArtikel(),
+      await neuerArtikel(),
+      await neuerArtikel(),
+    ];
+    const fremd = await neuerArtikel({ abteilungId: welt.demoAbteilungId });
+    const eigene = async () =>
+      (await json(await aufruf(admin, "GET", "/admin/laden/artikel"))).artikel;
+    const reihenfolge = async (ids: string[]) =>
+      (await eigene())
+        .filter((x: { id: string }) => ids.includes(x.id))
+        .map((x: { id: string }) => x.id);
+    const setze = (ids: string[], konto = admin) =>
+      aufruf(konto, "PUT", "/admin/laden/artikel/reihenfolge", { ids });
+    expect((await setze([c.id, a.id, b.id])).status).toBe(204);
+    expect(await reihenfolge([a.id, b.id, c.id])).toEqual([c.id, a.id, b.id]);
+    // Die genannten stehen vorn, ohne Lücken
+    const werte = (await eigene())
+      .filter((x: { id: string }) => [a.id, b.id, c.id].includes(x.id))
+      .map((x: { reihenfolge: number }) => x.reihenfolge);
+    expect(werte).toEqual([0, 1, 2]);
+    // Ein zweiter Aufruf mit anderer Folge
+    expect((await setze([b.id, c.id])).status).toBe(204);
+    expect(await reihenfolge([a.id, b.id, c.id])).toEqual([b.id, c.id, a.id]);
+    // Ein neuer Artikel kommt ans Ende
+    const neu = await json(
+      await aufruf(admin, "POST", "/admin/laden/artikel", {
+        name: "Neu am Ende",
+        preisRappen: 100,
+        groessenart: "einheit",
+      }),
+    );
+    expect(await reihenfolge([a.id, b.id, c.id, neu.id])).toEqual([
+      b.id,
+      c.id,
+      a.id,
+      neu.id,
+    ]);
+    // Fremde und unbekannte Artikel: 404; Doppelte, leere Liste, Zusatzfelder: 400; ohne Recht: 403
+    expect((await setze([a.id, fremd.id])).status).toBe(404);
+    expect((await setze([a.id, randomUUID()])).status).toBe(404);
+    expect((await setze([a.id, a.id])).status).toBe(400);
+    expect((await setze([])).status).toBe(400);
+    expect(
+      (
+        await aufruf(admin, "PUT", "/admin/laden/artikel/reihenfolge", {
+          ids: [a.id],
+          extra: 1,
+        })
+      ).status,
+    ).toBe(400);
+    expect((await setze([a.id], eltern)).status).toBe(403);
+    // Die Folge blieb nach den Fehlern unverändert
+    expect(await reihenfolge([a.id, b.id, c.id, neu.id])).toEqual([
+      b.id,
+      c.id,
+      a.id,
+      neu.id,
+    ]);
+  });
+
   test("Artikel und Bestellungen einer anderen Abteilung sind 404, auch für deren Abteilungsleitung", async () => {
     const a = await neuerArtikel();
     const { id } = await json(

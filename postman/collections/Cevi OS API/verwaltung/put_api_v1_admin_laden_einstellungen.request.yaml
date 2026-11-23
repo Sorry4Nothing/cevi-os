@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/admin/laden/einstellungen"
-order: 148000
+order: 149000
 method: PUT
 url: "{{baseUrl}}/api/v1/admin/laden/einstellungen"
 headers:
