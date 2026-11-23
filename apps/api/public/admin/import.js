@@ -19,7 +19,6 @@ import {
   auswahl,
   chip,
   el,
-  feld,
   filterGruppe,
   gruppe,
   icon,
@@ -28,6 +27,8 @@ import {
   seitenwahl,
   tabelle,
 } from "./dom.js";
+import { nachVerlauf, oeffneFluss, schliesseAlle } from "./fluss.js";
+import { dateiFeld } from "./personen-wahl.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { kachel } from "./system.js";
 
@@ -66,6 +67,113 @@ function zeigeFehler(knoten, text) {
   knoten.textContent = text;
   knoten.hidden = false;
   knoten.focus();
+}
+
+// Jeder weitere Schritt ist eine Seite im Fluss (Muster «stepper-form»): mit «Zurück», dem Fortschritt oben und dem Inhalt. Browser-Zurück und «Zurück» schliessen die Seite und zeigen den Schritt davor mit allen Eingaben.
+// fortschrittVon(name) liefert den Knoten mit der Schrittleiste; nummerVon(name) den Text «Schritt 2 von 4»
+function seitenSchritt(name, titel, { fortschrittVon, nummerVon }) {
+  const ueber = el("p", { class: "ueber" });
+  const ueberschrift = el(
+    "h1",
+    { class: "fluss-titel", tabindex: "-1" },
+    titel,
+  );
+  const inhalt = el("div", { class: "panel im-inhalt" });
+  let seite = null;
+  return {
+    name,
+    ueberschrift,
+    get wurzel() {
+      return seite;
+    },
+    setze: (...kinder) => inhalt.replaceChildren(...kinder.filter(Boolean)),
+    titel: (text) => {
+      ueberschrift.textContent = text;
+    },
+    get offen() {
+      return Boolean(seite?.open);
+    },
+    oeffne() {
+      ueber.textContent = nummerVon(name);
+      if (seite?.open) {
+        ueberschrift.focus();
+        return;
+      }
+      const zurueck = knopf("Zurück", {
+        art: "still",
+        klein: true,
+        symbol: "zurueck",
+        onclick: () => seite.versuchSchliessen(),
+      });
+      seite = el(
+        "section",
+        { class: "fluss-seite fluss-breit im-schritt" },
+        el(
+          "header",
+          { class: "fluss-kopf" },
+          zurueck,
+          el("div", { class: "fluss-titelblock" }, ueber, ueberschrift),
+        ),
+        fortschrittVon(name),
+        inhalt,
+      );
+      const eintrag = oeffneFluss(seite);
+      // Eingaben in einem Schritt sind keine ungespeicherte Arbeit: Zurück fragt nicht, die Eingaben bleiben im Schritt
+      seite.addEventListener("change", () => {
+        eintrag.schmutzig = false;
+      });
+      seite.addEventListener("input", () => {
+        eintrag.schmutzig = false;
+      });
+      ueberschrift.focus();
+    },
+    schliesse() {
+      if (seite?.open) seite.close();
+    },
+  };
+}
+
+// Schrittleiste: erledigte Schritte mit Haken und Zusammenfassung, der aktuelle markiert, die nächsten offen; Zustand nie nur über Farbe
+function schrittLeiste(liste, aktuell) {
+  const ort = liste.findIndex((x) => x.name === aktuell);
+  return el(
+    "ol",
+    { class: "im-schritte", "aria-label": "Schritte des Imports" },
+    liste.map((x, i) => {
+      const erledigt = i < ort;
+      return el(
+        "li",
+        {
+          class: [
+            "im-schritt-eintrag",
+            erledigt && "ist-erledigt",
+            i === ort && "ist-aktuell",
+          ]
+            .filter(Boolean)
+            .join(" "),
+          "aria-current": i === ort ? "step" : undefined,
+        },
+        el(
+          "span",
+          { class: "im-nr", "aria-hidden": "true" },
+          erledigt ? icon("haken") : String(i + 1),
+        ),
+        el(
+          "span",
+          { class: "im-text" },
+          el(
+            "span",
+            { class: "im-name" },
+            erledigt && el("span", { class: "nur-leser" }, "Erledigt: "),
+            x.titel,
+          ),
+          erledigt &&
+            x.zusammen() &&
+            el("span", { class: "klein leise" }, x.zusammen()),
+        ),
+      );
+    }),
+  );
 }
 
 // Abschnitt mit Überzeile und Überschrift (Fokusziel); setze() tauscht den Inhalt darunter
@@ -147,16 +255,52 @@ function zeichne(bereich, ctx, stufen, neu) {
     optionen: stufen.map((s) => [s.id, s.name, s.logoUrl ?? STANDARD_LOGO]),
     wert: stufen[0].id,
   });
-  const datei = feld({
+  const datei = dateiFeld({
     label: "CSV-Datei",
     hilfe: `Export aus der Cevi-Datenbank als CSV, höchstens 1 MB und ${MAX_ZEILEN} Zeilen. Die Datei wird nur in deinem Browser gelesen und nicht hochgeladen.`,
-    typ: "file",
     accept: ".csv,text/csv,text/plain",
   });
   const dateiStatus = el("p", { class: "hilfe", role: "status" });
   const dateiFehler = fehlerfeld();
+  // Schritte: Datei, Spalten, Rollen, Vorschau; sind Spalten und Rollen erkannt (Schnellweg), bleiben Datei und Vorschau
+  const schritteListe = () => [
+    {
+      name: "datei",
+      titel: "Datei",
+      zusammen: () =>
+        daten
+          ? `${zeilenText(daten.zeilen.length)}, Stufe ${stufen.find((x) => x.id === stufe.eingabe.value)?.name ?? ""}`
+          : "",
+    },
+    ...(schnell
+      ? []
+      : [
+          {
+            name: "spalten",
+            titel: "Spalten",
+            zusammen: () => (spalten ? spaltenText() : ""),
+          },
+          {
+            name: "rollen",
+            titel: "Rollen",
+            zusammen: () => rollenText(),
+          },
+        ]),
+    { name: "vorschau", titel: "Vorschau", zusammen: () => "" },
+  ];
+  const nummerVon = (name) => {
+    const liste = schritteListe();
+    return `Schritt ${liste.findIndex((x) => x.name === name) + 1} von ${liste.length}`;
+  };
+  const fortschrittVon = (name) => schrittLeiste(schritteListe(), name);
+  const hilfen = { fortschrittVon, nummerVon };
+
   const s1 = schritt(1, "Stufe und Datei");
+  const s1Leiste = el("div", { class: "im-leiste" });
+  const zeichneS1Leiste = () =>
+    s1Leiste.replaceChildren(fortschrittVon("datei"));
   s1.setze(
+    s1Leiste,
     el(
       "p",
       { class: "beschreibung" },
@@ -166,24 +310,21 @@ function zeichne(bereich, ctx, stufen, neu) {
     dateiStatus,
     dateiFehler,
   );
-  const s2 = schritt(2, "Spalten zuordnen");
-  const s3 = schritt(3, "Rollen zuordnen");
-  const s4 = schritt(4, "Vorschau");
-  for (const s of [s2, s3, s4]) s.wurzel.hidden = true;
+  const s2 = seitenSchritt("spalten", "Spalten zuordnen", hilfen);
+  const s3 = seitenSchritt("rollen", "Rollen zuordnen", hilfen);
+  const s4 = seitenSchritt("vorschau", "Vorschau", hilfen);
 
   // Im Schnellweg ist die Vorschau der zweite und letzte Schritt
   function setzeModus(istSchnell) {
     schnell = istSchnell;
-    s4.nummer(istSchnell ? 2 : 4);
-    s4.ueberschrift.textContent = istSchnell
-      ? "Vorschau und Import"
-      : "Vorschau";
+    s4.titel(istSchnell ? "Vorschau und Import" : "Vorschau");
+    zeichneS1Leiste();
   }
 
   function leereVorschau() {
     vorschauNr++;
     gesendet = null;
-    s4.wurzel.hidden = true;
+    s4.schliesse();
   }
 
   function leereFolge() {
@@ -191,17 +332,18 @@ function zeichne(bereich, ctx, stufen, neu) {
     daten = null;
     dateiStatus.textContent = "";
     dateiFehler.hidden = true;
-    s2.wurzel.hidden = s3.wurzel.hidden = true;
-    leereVorschau();
+    // Alle Schrittseiten schliessen: Die Eingaben gehören zur alten Datei
+    schliesseAlle();
+    vorschauNr++;
+    gesendet = null;
     setzeModus(false);
   }
 
-  // Klappt Schritt 2 und 3 auf, etwa wenn die erkannte Zuordnung nicht passt; die Vorschau gilt danach nicht mehr
-  function aendereZuordnung(fokus) {
-    setzeModus(false);
-    s2.wurzel.hidden = s3.wurzel.hidden = false;
+  // Öffnet die Spalten, etwa wenn die erkannte Zuordnung nicht passt; die Vorschau gilt danach nicht mehr
+  function aendereZuordnung() {
     leereVorschau();
-    if (fokus) s2.ueberschrift.focus();
+    setzeModus(false);
+    nachVerlauf(() => s2.oeffne());
   }
 
   async function schnellVorschau() {
@@ -258,11 +400,10 @@ function zeichne(bereich, ctx, stufen, neu) {
     dateiStatus.textContent = `Datei gelesen: ${zeilenText(daten.zeilen.length)}, Trennzeichen ${TRENNERNAME[daten.trenner] ?? daten.trenner}.`;
     zeichneSpalten();
     if (kannSchnellweg(daten.kopf, daten.zeilen)) {
-      s2.wurzel.hidden = s3.wurzel.hidden = true;
       setzeModus(true);
       await schnellVorschau();
     } else {
-      s2.ueberschrift.focus();
+      s2.oeffne();
     }
   });
 
@@ -309,7 +450,11 @@ function zeichne(bereich, ctx, stufen, neu) {
       const [v, n] = [nummer(spalten.vorname), nummer(spalten.nachname)];
       return v >= 0 && n >= 0 && v !== n;
     };
-    const erkannt = el("p", { class: "beschreibung", role: "status" });
+    const erkannt = el("p", {
+      class: "beschreibung",
+      role: "status",
+      tabindex: "-1",
+    });
     const beschreibe = () => {
       erkannt.textContent = vollstaendig()
         ? `Erkannt: ${spaltenText()}.`
@@ -330,8 +475,22 @@ function zeichne(bereich, ctx, stufen, neu) {
           Object.values(spalten).map((a) => a.wurzel),
         ),
       ),
+      el(
+        "div",
+        { class: "dialog-knoepfe" },
+        knopf("Weiter", {
+          art: "haupt",
+          symbol: "weiter",
+          onclick: () => {
+            if (!vollstaendig()) {
+              erkannt.focus();
+              return;
+            }
+            s3.oeffne();
+          },
+        }),
+      ),
     );
-    s2.wurzel.hidden = false;
     zeichneRollen();
   }
 
@@ -347,7 +506,7 @@ function zeichne(bereich, ctx, stufen, neu) {
         leereVorschau,
       );
       rollen = () => ({ arten: new Map(), einheit: wahl.wert() });
-      rollenText = () => `alle ${ARTNAME[wahl.wert()]}`;
+      rollenText = () => `alle als ${ARTNAME[wahl.wert()]}`;
       inhalt = [
         el(
           "p",
@@ -429,7 +588,6 @@ function zeichne(bereich, ctx, stufen, neu) {
       fehler,
       el("div", { class: "dialog-knoepfe" }, vorschauKnopf),
     );
-    s3.wurzel.hidden = false;
   }
 
   async function zeigeVorschau(fehler, taste) {
@@ -474,7 +632,6 @@ function zeichne(bereich, ctx, stufen, neu) {
       gesendet = zeilen;
       vorschauStufe = gewaehlteStufe;
       zeichneVorschau(antwort);
-      s4.ueberschrift.focus();
       return true;
     } catch (f) {
       if (nr === vorschauNr) {
@@ -640,7 +797,7 @@ function zeichne(bereich, ctx, stufen, neu) {
       wurzel,
       seiten.wurzel,
     );
-    s4.wurzel.hidden = false;
+    s4.oeffne();
   }
 
   // Der Import lässt sich nicht zurücknehmen (Konten, Startpasswörter): kein Rückgängig, sondern zwei Stufen im Knopf statt eines Popups (#578)
@@ -671,6 +828,8 @@ function zeichne(bereich, ctx, stufen, neu) {
   }
 
   function zeigeErgebnis(ergebnis) {
+    // Die Schrittseiten sind erledigt; das Ergebnis steht im Bereich selbst
+    schliesseAlle();
     const leitende = ergebnis.leitende;
     const ueberschrift = el("h2", { tabindex: "-1" }, "Import abgeschlossen");
     const rueck = el("p", { class: "hilfe", role: "status" });
@@ -770,6 +929,7 @@ function zeichne(bereich, ctx, stufen, neu) {
     ueberschrift.focus();
   }
 
+  zeichneS1Leiste();
   bereich.append(
     el(
       "p",
@@ -777,9 +937,6 @@ function zeichne(bereich, ctx, stufen, neu) {
       "Hier legst du Kinder und Leitende aus einem Export der Cevi-Datenbank an. Zuerst zeigt die Vorschau, was passieren würde. Eine Elternverknüpfung gehört nicht dazu.",
     ),
     s1.wurzel,
-    s2.wurzel,
-    s3.wurzel,
-    s4.wurzel,
   );
 }
 

@@ -402,6 +402,14 @@ a.pe-bearbeiten:hover {
     grid-row: 1 / span 4;
   }
 
+  .pe-profil > :not(.pe-bild) {
+    grid-column: 2;
+  }
+
+  .pe-profil > .hilfe {
+    grid-column: 1 / -1;
+  }
+
   .pe-bild .ava {
     width: 4.5rem;
     height: 4.5rem;
@@ -539,4 +547,105 @@ a.pe-bearbeiten:hover {
 
 .pe-wahlzeile > .wer {
   flex: 1 1 11rem;
+}
+
+/* ===== Import: Schrittleiste (Muster «stepper-form») ===== */
+.im-schritte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.im-schritt-eintrag {
+  display: flex;
+  flex: 1 1 11rem;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+  padding: 0.75rem;
+  color: var(--on-surface-variant);
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.im-schritt-eintrag.ist-aktuell {
+  color: var(--on-surface);
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.im-nr {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--on-surface);
+  background: var(--surface-container);
+  border-radius: var(--r-full);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ist-aktuell .im-nr {
+  color: var(--on-accent);
+  background: var(--accent);
+}
+
+.ist-erledigt .im-nr {
+  color: var(--on-success-container);
+  background: var(--success-container);
+}
+
+.im-nr .i {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.im-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.im-name {
+  font-weight: 700;
+}
+
+.im-text .klein {
+  overflow-wrap: anywhere;
+}
+
+.im-leiste {
+  margin-bottom: 1rem;
+}
+
+.im-schritt {
+  max-width: 64rem;
+}
+
+.im-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.auswahlleiste-formular [hidden] {
+  display: none;
+}
+
+/* Sortierknöpfe im Tabellenkopf erreichen die Zielgrösse von 44 px (Q7); der Rahmen schneidet die für Screenreader versteckte Kopfzeile ab, damit mobil nichts waagrecht überläuft (Q1) */
+.pe-sortieren {
+  min-width: 44px;
+  min-height: 44px;
+}
+
+.tabellenrahmen {
+  position: relative;
 }

@@ -198,6 +198,9 @@ export function startpasswortDialog(name, wert) {
   });
 }
 
+// Die Liste lädt neu und ersetzt dabei den Inhalt des Bereichs: Das Startpasswort erscheint erst danach, sonst wäre die Karte gleich wieder weg
+const nachLaden = (geladen, fn) => Promise.resolve(geladen).then(fn);
+
 // Aktionen ohne Frist (#578): Ein neues Startpasswort meldet die Person sofort ab und wird genau einmal angezeigt, der zweite Faktor und das Aktivieren sind ebenso nicht zurückzunehmen.
 // Statt eines Popups hat der Knopf zwei Stufen (zweiStufig); die Aktion läuft beim zweiten Klick und meldet Fehler als Hinweis
 async function direkt(ctx, aktion, danach) {
@@ -214,10 +217,12 @@ function neuesStartpasswort(person, ctx, neu, fertig) {
     ctx,
     () => anfrage("POST", `/api/v1/admin/personen/${person.id}/startpasswort`),
     (antwort) => {
-      neu();
+      const geladen = neu();
       ctx.melde(`Neues Startpasswort für «${person.name}» ist erzeugt.`);
       fertig();
-      startpasswortDialog(person.name, antwort.startpasswort);
+      nachLaden(geladen, () =>
+        startpasswortDialog(person.name, antwort.startpasswort),
+      );
     },
   );
 }
@@ -229,10 +234,12 @@ function umschalten(person, ctx, neu, fertig) {
       ctx,
       () => anfrage("POST", `/api/v1/admin/personen/${person.id}/aktivieren`),
       (antwort) => {
-        neu();
+        const geladen = neu();
         ctx.melde(`«${person.name}» ist aktiviert.`);
         fertig();
-        startpasswortDialog(person.name, antwort.startpasswort);
+        nachLaden(geladen, () =>
+          startpasswortDialog(person.name, antwort.startpasswort),
+        );
       },
     );
   }
@@ -674,8 +681,17 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       }
     }
     entferneFehler(telefon);
-    const tel = telefon.lies();
+    let tel = telefon.lies();
     if (tel === null) fehlt.push({ name: "Telefon", ...telefon });
+    // Der Server nimmt eine Nummer nur bei einer Stufenleitung an (src/routes/admin/personen.ts)
+    else if (tel && !rollen.wert().some((r) => r.typ === "stufenleitung")) {
+      feldFehler(
+        telefon,
+        "Eine Nummer gibt es nur bei der Rolle Stufenleitung. Wähle sie unter «Rechte und Rollen» oder lass das Feld leer.",
+      );
+      fehlt.push({ name: "Telefon", ...telefon });
+      tel = null;
+    }
     if (fehlt.length > 0) {
       const hinweis = pruefHinweis(fehlt);
       fehler.append(hinweis);
@@ -696,9 +712,11 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           elternteilVon: kinder.wert(),
         });
         seite.close();
-        neu();
+        const geladen = neu();
         ctx.melde(`Person «${antwort.benutzername}» ist erfasst.`);
-        startpasswortDialog(antwort.benutzername, antwort.startpasswort);
+        nachLaden(geladen, () =>
+          startpasswortDialog(antwort.benutzername, antwort.startpasswort),
+        );
         return;
       }
       await anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {

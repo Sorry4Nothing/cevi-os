@@ -263,6 +263,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     leerText: "Es gibt keine aktive Person, die du hinzufügen könntest.",
     beiWahl: (k) => hinzufuegen(k),
   });
+  const mitgliederTitel = el("h2", { tabindex: "-1" }, "Mitglieder");
   const leerText = el(
     "p",
     { class: "leise pe-keiner" },
@@ -414,8 +415,8 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           stelle = mitgliederListe.indexOf(m);
           mitgliederListe = mitgliederListe.filter((x) => x !== m);
           zeichneListe();
-          // Die Zeile mit dem Fokus ist weg: Der Fokus bleibt in der Karte
-          filter.focus();
+          // Die Zeile mit dem Fokus ist weg: Der Fokus geht zur Überschrift der Karte, nicht ins Suchfeld (dort gilt Strg Z für den Text)
+          mitgliederTitel.focus();
         },
         zurueck: () => {
           if (!mitgliederListe.includes(m)) {
@@ -458,7 +459,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
       el(
         "section",
         { class: "pe-karte" },
-        el("h2", {}, "Mitglieder"),
+        mitgliederTitel,
         filterFeld,
         stand,
         leerText,

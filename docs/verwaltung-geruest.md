@@ -25,32 +25,33 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
-| Datei                                 | Aufgabe                                                                                                      |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `index.html`                          | lädt die Stilvorlagen und `admin.js`                                                                         |
-| `admin.js`                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                             |
-| `navigation.js`                       | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                  |
-| `rahmen.js`                           | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                |
-| `lader.js`                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                              |
-| `zustaende.js`                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                        |
-| `platzhalter.js`                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                      |
-| `komponenten.js`                      | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                  |
-| `dom.js`                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …            |
-| `api.js`                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                         |
-| `tokens.css`                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)           |
-| `theme.js`                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                 |
-| `auswahl.js`, `auswahl.css`           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                              |
-| `fluss.js`, `fluss.css`, `verlauf.js` | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                           |
-| `rueckgaengig.js`, `toast.css`        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                  |
-| `admin.css`                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                     |
-| `geruest.css`                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
-| `komponenten.css`                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
-| `liste-hilfen.js`                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
-| `uebersicht.js`                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                       |
-| `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
-| `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
-| `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
-| `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
+| Datei                                                 | Aufgabe                                                                                                      |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `index.html`                                          | lädt die Stilvorlagen und `admin.js`                                                                         |
+| `admin.js`                                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                             |
+| `navigation.js`                                       | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                  |
+| `rahmen.js`                                           | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                |
+| `lader.js`                                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                              |
+| `zustaende.js`                                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                        |
+| `platzhalter.js`                                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                      |
+| `komponenten.js`                                      | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                  |
+| `dom.js`                                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …            |
+| `api.js`                                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                         |
+| `tokens.css`                                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)           |
+| `theme.js`                                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                 |
+| `auswahl.js`, `auswahl.css`                           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                              |
+| `fluss.js`, `fluss.css`, `verlauf.js`                 | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                           |
+| `rueckgaengig.js`, `toast.css`                        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                  |
+| `admin.css`                                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                     |
+| `geruest.css`                                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
+| `komponenten.css`                                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
+| `personen-blatt.js`, `personen-wahl.js`, `telefon.js` | Person als Seite, Zuordnen per Suche und Dateifeld, Telefonnummer (#594)                                     |
+| `liste-hilfen.js`                                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
+| `uebersicht.js`                                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                       |
+| `uebersicht-kacheln.js`                               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
+| `uebersicht-diagramme.js`                             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
+| `uebersicht.css`                                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
+| `<bereich>-*.js/css`                                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
 
@@ -249,6 +250,17 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 - Auswahlleiste (`.auswahlleiste`, `role="region"`) für Mehrfachauswahl, `.pe-wahl` für die Checkbox-Spalte.
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
+
+## Personen, Gruppen, Kinder, Stufen, Import (#594)
+
+Der Bereich «Personen» nutzt die Bausteine aus `werkzeuge.css` (Filterleiste, Sortierliste, Formularraster) und ein paar eigene in `personen-wahl.js`:
+
+- **Person** (`personen-blatt.js`, `oeffnePerson`): eine Seite im Fluss für Erfassen und Bearbeiten. `formularRaster` stellt die Karten links und das Profil mit dem Bild der Person rechts. Das Bild setzt die Person selbst in der App (`PUT /api/v1/ich/bild`); die Verwaltung zeigt es aus `bildUrl`. Telefon: `telefon.js` (`normalisiereTelefon`) schreibt Schweizer Nummern einheitlich; der Server (`src/telefon.ts`) prüft weiter, und eine Nummer gibt es nur bei der Rolle Stufenleitung.
+- **Personenliste** (`personen.js`): `filterleiste` mit Suche, Tag, Rolle, Konto; Auswahlleiste (`.auswahlleiste`) für «Tag setzen» und «Tag entziehen» mit `ctx.mitRueckgaengig`. Die Zeilen ändern sich sofort (`ansicht.weg`), die Anfragen gehen nach der Frist; `ansicht.zurueck` stellt den alten Stand her. Je Person ein Aufruf, höchstens fünf gleichzeitig (die API kennt nur die Einzelzuordnung).
+- **Zuordnen per Suche** (`personen-wahl.js`): `kandidatenSuche` (Suchfeld mit Treffern), `suchWahl` (Gewählte als Liste, dazu die Suche; für Kinder einer Person und Eltern eines Kindes), `personZeile`, `dateiFeld` (Knopf «Datei wählen» statt des Dateifelds des Browsers).
+- **Gruppe** (`tags-detail.js`, `zeigeDetail`): Mitgliederliste mit Live-Filter, Rolle in der Zeile ändern, Hinzufügen und Entfernen mit «Rückgängig» (Änderung sofort sichtbar, Anfrage nach der Frist). Die Rollen `leitung` und `stufenleitung` stehen im Klartext.
+- **Stufen** (`stufen.js`): Die Stufenleitung ist eine `sortierListe` in der Karte; `ctx.mitRueckgaengig` verzögert das `PUT …/stufenleitung`. Das Logo hat eine Vorschau neben dem Feld.
+- **Import** (`import.js`): Der Grundschritt (Stufe und Datei) steht im Bereich, Spalten, Rollen und Vorschau sind je eine Seite im Fluss (`seitenSchritt`) mit Schrittleiste (`schrittLeiste`). Browser-Zurück geht einen Schritt zurück und behält die Eingaben. Ein Neuladen verliert die Datei (sie liegt nur im Browser), darum haben die Schritte keine eigene Adresse.
 
 ## Seiten im Fluss statt Dialoge, Verlauf (#578)
 

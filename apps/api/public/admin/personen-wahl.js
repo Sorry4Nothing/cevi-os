@@ -235,12 +235,7 @@ export function dateiFeld({ label, hilfe, accept }) {
       "div",
       { class: "datei-zeile" },
       eingabe,
-      el(
-        "label",
-        { class: "knopf knopf--klein", for: id },
-        icon("ablage"),
-        "Datei wählen",
-      ),
+      el("label", { class: "knopf knopf--klein", for: id }, "Datei wählen"),
       name,
     ),
     hilfe && el("p", { class: "hilfe", id: hilfeId }, hilfe),
