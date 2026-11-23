@@ -29,6 +29,7 @@ import {
 import { dateiFeld } from "./personen-wahl.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { schrittfolge } from "./schrittfolge.js";
+import { ergaenzeZustand } from "./verlauf.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -877,11 +878,7 @@ function zeichne(bereich, ctx, stufen, neu) {
 
     // Zurück im Browser führt nicht in die Vorschau: Ein zweiter Import derselben Zeilen soll nicht möglich sein
     fertig = true;
-    window.history.replaceState(
-      { ...window.history.state, importSchritt: "ergebnis" },
-      "",
-      location.href,
-    );
+    ergaenzeZustand({ importSchritt: "ergebnis" });
     stand = "ergebnis";
     folge.schliesseAb("ergebnis");
     ctx.melde(
