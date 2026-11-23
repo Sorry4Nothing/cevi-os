@@ -1,5 +1,6 @@
 import { anfrage, fehlertext } from "./api.js";
 import { ankreuzen, el, feld, gruppe, icon } from "./dom.js";
+import { formularRaster } from "./formularraster.js";
 import { zweiStufig } from "./rueckgaengig.js";
 
 export function zeige(bereich, ctx) {
@@ -248,18 +249,12 @@ function zeichne(bereich, ctx, stufen) {
     );
   });
 
-  // Zwei Spalten ohne eigene Scrollbereiche: Das Formular ist kurz, zwei Rollbereiche würden hier stören; die Vorschau bleibt beim Scrollen stehen
+  // Zwei Spalten ohne eigene Scrollbereiche (Vorgabe des Formularrasters): Die Vorschau bleibt beim Scrollen stehen
   bereich.append(
-    el(
-      "div",
-      { class: "mt-raster" },
-      formular,
-      el(
-        "aside",
-        { class: "mt-vorschau panel", "aria-labelledby": "mt-vorschau-titel" },
-        el("h2", { id: "mt-vorschau-titel" }, "Vorschau"),
-        ...vorschau,
-      ),
-    ),
+    formularRaster({
+      felder: formular,
+      seite: vorschau,
+      seiteTitel: "Vorschau",
+    }),
   );
 }

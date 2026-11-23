@@ -281,15 +281,11 @@ function formular({ stufe, ctx, neu, zeile }) {
     titel: neuesDatum ? "Neues Datum" : "Angaben bearbeiten",
     beschreibung: `Stufe ${stufe.name}. Wirkt sofort, ohne Veröffentlichen.`,
     felder: [
-      el(
-        "div",
-        { class: "ws-frei" },
-        formularRaster({
-          felder: alle.map((f) => f.wurzel),
-          seiteTitel: "So steht es auf der Stufenseite",
-          seite: vorschau,
-        }),
-      ),
+      formularRaster({
+        felder: alle.map((f) => f.wurzel),
+        seiteTitel: "So steht es auf der Stufenseite",
+        seite: vorschau,
+      }),
     ],
     ok: "Speichern",
     senden: () => {

@@ -362,6 +362,167 @@
   }
 }
 
+/* Bereichsauswahl (nur schmal, Prinzip «Workspace-Switcher»): eine Zeile mit dem aktuellen Ort, die beim Öffnen zum Panel wächst. Sie ersetzt unter 960 px beide Leisten; am Computer ist sie verborgen */
+
+.bereichswahl {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .bereichsleiste,
+  .unterleiste {
+    display: none;
+  }
+
+  .bereichswahl {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: block;
+    border-top: 1px solid var(--outline-variant);
+    border-bottom: 1px solid var(--outline-variant);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+  }
+
+  .bereichswahl-zeile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: 3.25rem;
+    padding: 0 clamp(1rem, 4vw, 4.5rem);
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .bereichswahl-zeile:focus-visible,
+  .bereichswahl a:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .bereichswahl-text {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+    min-width: 0;
+    font-size: 1rem;
+  }
+
+  .bereichswahl-text b {
+    color: var(--titel);
+    font-weight: 800;
+  }
+
+  /* Die Unterseite steht leise hinter dem Bereich; der Trenner kommt aus dem Stil, nicht aus dem Text */
+  .bereichswahl-text b + span::before {
+    margin-right: 0.5rem;
+    color: var(--leise);
+    content: "/";
+  }
+
+  .bereichswahl-zeile > .i:last-child {
+    flex: none;
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .bereichswahl--offen .bereichswahl-zeile > .i:last-child {
+    transform: rotate(180deg);
+  }
+
+  /* Das Panel wächst aus der Zeile: Höhe von 0 auf die Höhe des Inhalts, das geschlossene ist inert (kein Fokus, nicht vorgelesen) */
+  .bereichswahl-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+  }
+
+  .bereichswahl--offen .bereichswahl-panel {
+    grid-template-rows: 1fr;
+    visibility: visible;
+  }
+
+  .bereichswahl-innen {
+    min-height: 0;
+    max-height: calc(100dvh - 8.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .bereichswahl ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .bereichswahl nav {
+    padding: 0 0 0.5rem;
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .bereichswahl a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0 clamp(1rem, 4vw, 4.5rem);
+    color: var(--on-surface);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .bereichswahl a > span:not(.pille-zaehler) {
+    flex: 1;
+  }
+
+  .bereichswahl a:hover {
+    background: var(--surface);
+  }
+
+  .bereichswahl a[aria-current="page"] {
+    box-shadow: inset 3px 0 0 var(--primary);
+    color: var(--titel);
+    font-weight: 800;
+  }
+
+  .bereichswahl-unter a {
+    min-height: 2.75rem;
+    padding-left: calc(clamp(1rem, 4vw, 4.5rem) + 2.25rem);
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  .bereichswahl-unter a[aria-current="page"] {
+    font-weight: 800;
+  }
+}
+
+@media (max-width: 960px) and (prefers-reduced-motion: no-preference) {
+  .bereichswahl-panel {
+    transition:
+      grid-template-rows var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .bereichswahl--offen .bereichswahl-panel {
+    transition-delay: 0s;
+  }
+}
+
+@media (forced-colors: active) {
+  .bereichswahl a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+  }
+}
+
 /* Zustand auf der ganzen Seite (A30): Überzeile in Monospace, Titel, Text, Knöpfe */
 
 .rahmenzustand {

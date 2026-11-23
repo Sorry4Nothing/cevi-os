@@ -3,7 +3,7 @@
 // Bereich:     { schluessel, name, symbol, start?, unter: [Unterseite] }
 // Unterseite:  { schluessel, name, modul, untertitel, zugang? }
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
-//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung) oder ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»). Die Anzeige folgt nur dem Server; jede Route prüft selbst.
+//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
@@ -101,7 +101,8 @@ export const BEREICHE = [
         name: "Einstellungen",
         modul: "./website-einstellungen.js",
         untertitel: "Name und Logo im Kopf der Website.",
-        zugang: "website",
+        // Die Route verlangt «Seiten veröffentlichen»; Stufenleitung und Bearbeitende ohne dieses Recht liefen sonst in ein 403
+        zugang: "recht:seiten.veroeffentlichen",
       },
     ],
   },
@@ -255,7 +256,7 @@ export const BEREICHE = [
       },
       {
         schluessel: "plattform",
-        name: "Plattform",
+        name: "Wartung und Sperre",
         modul: "./plattform.js",
         untertitel:
           "Wartungsmodus und Informationssperre für Bereiche schalten.",
@@ -273,6 +274,7 @@ export const BEREICHE = [
         modul: "./komponenten.js",
         untertitel:
           "Skeleton-Lader und Zustände aller Bausteine, Tag und Nacht.",
+        zugang: "entwickler",
       },
     ],
   },
@@ -302,13 +304,48 @@ export function neueAdresse(hash) {
   return hash;
 }
 
-// Darf die Person die Unterseite sehen? zugang: Antwort von GET /api/v1/redaktion/ich mit bereiche[]
-export function darfSehen(unterseite, { istAdmin, zugang }) {
-  if (istAdmin) return true;
+// Darf die Person die Unterseite sehen? zugang: Antwort von GET /api/v1/redaktion/ich mit bereiche[] und rechte[]; entwickler: true, wenn der Server den Namen der Abteilung für diese Person änderbar nennt (nameAenderbar)
+export function darfSehen(
+  unterseite,
+  { istAdmin, zugang, entwickler = false },
+) {
   const wer = unterseite.zugang ?? "admin";
+  // Die Abteilungsleitung sieht alles ausser dem, was nur der Entwickler darf
+  if (wer === "entwickler") return entwickler === true;
+  if (istAdmin) return true;
   if (wer === "admin") return false;
   if (wer === "alle") return true;
+  if (wer.startsWith("recht:")) {
+    return zugang?.rechte?.includes(wer.slice("recht:".length)) ?? false;
+  }
   return zugang?.bereiche.includes(wer) ?? false;
+}
+
+// Rolle unter dem Namen im Kopf, nur zur Anzeige (die Rechte entscheidet der Server): was die Person tatsächlich ist, nicht ein Sammelwort
+// profil: Antwort von GET /api/v1/ich (rollen, stufen) oder null; zugang: Antwort von GET /api/v1/redaktion/ich
+export function rolleVon({ istAdmin, entwickler = false, zugang, profil }) {
+  if (istAdmin) {
+    return entwickler ? "Entwickler · Abteilungsleitung" : "Abteilungsleitung";
+  }
+  const stufenName = new Map((profil?.stufen ?? []).map((s) => [s.id, s.name]));
+  const namen = (typ) =>
+    (profil?.rollen ?? [])
+      .filter((r) => r.typ === typ)
+      .map((r) => stufenName.get(r.stufeId))
+      .filter(Boolean);
+  const teile = [];
+  if (entwickler) teile.push("Entwickler");
+  const sl = namen("stufenleitung");
+  if (sl.length > 0) teile.push(`Stufenleitung ${sl.join(", ")}`);
+  const leitung = namen("leitung");
+  if (leitung.length > 0) teile.push(`Leitung ${leitung.join(", ")}`);
+  const rechte = zugang?.rechte ?? [];
+  if (rechte.some((r) => !r.startsWith("wartungsmodus."))) {
+    teile.push("Website-Redaktion");
+  } else if (rechte.length > 0) {
+    teile.push("Wartung der Website");
+  }
+  return teile.length > 0 ? teile.join(" · ") : "Konto mit Zugang";
 }
 
 // Bereiche mit nur den sichtbaren Unterseiten; ein Bereich ohne sichtbare Unterseite entfällt

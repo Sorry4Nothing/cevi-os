@@ -418,17 +418,28 @@
   }
 }
 
-/* Zwei Spalten, zwei Scrollbereiche: wie der Editor einer Seite */
+/* Vorgabe: keine eigenen Scrollbereiche. Die rechte Spalte (Bild, Vorschau) bleibt beim Scrollen der Seite stehen und ist nie höher als das Fenster */
 @media (min-width: 68.8125em) {
-  .formularraster {
+  .formularraster:not(.formularraster--scroll) .formularraster-seite {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* scroll: Zwei Spalten, zwei Scrollbereiche in Fensterhöhe, wie der Editor einer Seite */
+@media (min-width: 68.8125em) {
+  .formularraster--scroll {
     height: calc(100vh - 8.25rem);
     height: calc(100dvh - 8.25rem);
     min-height: 24rem;
     align-items: stretch;
   }
 
-  .formularraster-felder,
-  .formularraster-seite {
+  .formularraster--scroll .formularraster-felder,
+  .formularraster--scroll .formularraster-seite {
     min-height: 0;
     margin: -4px;
     padding: 4px;
@@ -437,7 +448,7 @@
     scrollbar-gutter: stable;
   }
 
-  .formularraster-seite {
+  .formularraster--scroll .formularraster-seite {
     margin: 0;
     padding: 1.5rem;
   }

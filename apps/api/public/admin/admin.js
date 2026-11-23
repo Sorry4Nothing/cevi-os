@@ -13,6 +13,7 @@ import {
   BEREICHE,
   loese,
   neueAdresse,
+  rolleVon,
   sichtbareBereiche as bereicheFuer,
 } from "./navigation.js";
 import {
@@ -20,6 +21,7 @@ import {
   erstelleRueckmeldungen,
   erstelleToasts,
   bindeThema,
+  ladeOeffentlicheMarke,
   logozeile,
   seitenkopf,
   setzeMarke,
@@ -42,8 +44,11 @@ const mitDarf = (daten, alle) => ({
   darf: (recht) => alle || daten.rechte.includes(recht),
 });
 const istAdmin = () => ich?.role === "admin";
+// Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
+let entwickler = false;
 // Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
-const sichtbareBereiche = () => bereicheFuer({ istAdmin: istAdmin(), zugang });
+const sichtbareBereiche = () =>
+  bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
 
 const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
 
@@ -299,6 +304,7 @@ async function pruefeKonto(nachAnmeldung = true) {
   }
   ich = sitzung.user;
   zugang = null;
+  entwickler = false;
   if (ich.mussPasswortAendern) {
     zeigeSperre(
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
@@ -315,7 +321,7 @@ async function pruefeKonto(nachAnmeldung = true) {
       { redigieren: true, bereiche: ["website"], verwalten: true, rechte: [] },
       true,
     );
-    zeigeVerwaltung();
+    await zeigeVerwaltung();
   } else {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
     zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
@@ -327,7 +333,7 @@ async function pruefeKonto(nachAnmeldung = true) {
       ]);
       return;
     }
-    zeigeVerwaltung();
+    await zeigeVerwaltung();
   }
 }
 
@@ -418,15 +424,26 @@ const zaehlerStand = new Map();
 let aktiv = null;
 let navigation = 0;
 
-function zeigeVerwaltung() {
-  const rolle = !istAdmin()
-    ? "Redaktion"
-    : ich.twoFactorEnabled
-      ? "Abteilungsleitung · zweiter Faktor aktiv"
-      : "Abteilungsleitung";
+async function zeigeVerwaltung() {
+  // Zwei Fragen vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo, Signal «nameAenderbar»; nur wer «Seiten veröffentlichen» darf, sonst 403) und für alle ohne Abteilungsleitung das eigene Profil (Rolle im Kopf)
+  const darfEinstellungen =
+    istAdmin() || zugang.rechte.includes("seiten.veroeffentlichen");
+  const [einstellungen, profil] = await Promise.all([
+    darfEinstellungen
+      ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)
+      : null,
+    istAdmin() ? null : anfrage("GET", "/api/v1/ich").catch(() => null),
+  ]);
+  entwickler = einstellungen?.nameAenderbar === true;
+  const rolle = rolleVon({
+    istAdmin: istAdmin(),
+    entwickler,
+    zugang,
+    profil,
+  });
   rueckmeldungen = erstelleRueckmeldungen();
-  // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt die Wortmarke «CEVI»
-  anfrage("GET", "/api/v1/redaktion/website").then(setzeMarke, () => {});
+  // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt, was die öffentliche Website zeigt, sonst die Wortmarke «CEVI»
+  if (einstellungen) setzeMarke(einstellungen);
   zaehlerStand.clear();
   aktiv = null;
   hinweisband.zeichne([]);
@@ -605,4 +622,6 @@ beiSitzungsende(() => {
   if (ich) zeigeSitzungAbgelaufen();
 });
 
+// Marke der Abteilung schon für die Anmeldung (öffentliche Website); nach der Anmeldung gehen die Einstellungen vor
+ladeOeffentlicheMarke();
 pruefeKonto(false).catch(zeigeStartFehler);

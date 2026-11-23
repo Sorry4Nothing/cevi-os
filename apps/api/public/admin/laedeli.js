@@ -906,27 +906,23 @@ async function artikelBlatt({ artikel, ctx, neu }) {
   const formular = el(
     "form",
     { class: "formular", novalidate: true, id: "ld-artikel-formular" },
-    el(
-      "div",
-      { class: "ws-frei" },
-      formularRaster({
-        felder: [
-          meldungsfeld,
-          name.wurzel,
-          preis.wurzel,
-          groesse.wurzel,
-          hinweis.wurzel,
-          verfuegbar.wurzel,
-        ],
-        seiteTitel: "Bild und Vorschau",
-        seite: [
-          bildPlatz,
-          el("div", { class: "ws-teilaktionen" }, waehlen, entfernen),
-          wahl.panel,
-          vorschau,
-        ],
-      }),
-    ),
+    formularRaster({
+      felder: [
+        meldungsfeld,
+        name.wurzel,
+        preis.wurzel,
+        groesse.wurzel,
+        hinweis.wurzel,
+        verfuegbar.wurzel,
+      ],
+      seiteTitel: "Bild und Vorschau",
+      seite: [
+        bildPlatz,
+        el("div", { class: "ws-teilaktionen" }, waehlen, entfernen),
+        wahl.panel,
+        vorschau,
+      ],
+    }),
   );
   zeigeBild();
   for (const f of [name, preis, varianten, hinweis]) {

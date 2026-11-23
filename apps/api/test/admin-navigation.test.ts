@@ -90,4 +90,81 @@ describe("Verwaltung: navigation.js", () => {
       "website",
     ]);
   });
+
+  const unterVon = (person: object, bereich: string) =>
+    (nav.sichtbareBereiche(person) as Bereich[])
+      .find((b) => b.schluessel === bereich)
+      ?.unter.map((u) => u.schluessel);
+
+  test("«Komponenten» sieht nur der Entwickler, auch nicht die Abteilungsleitung", () => {
+    expect(unterVon(admin, "system")).not.toContain("komponenten");
+    expect(unterVon({ ...admin, entwickler: true }, "system")).toContain(
+      "komponenten",
+    );
+    // Ohne Abteilungsleitung zählt allein das Signal «nameAenderbar»
+    expect(unterVon({ ...redaktion, entwickler: true }, "system")).toContain(
+      "komponenten",
+    );
+    expect(unterVon(redaktion, "system")).not.toContain("komponenten");
+  });
+
+  test("Einstellungen der Website nur mit dem Recht «Seiten veröffentlichen»", () => {
+    const stufenleitung = {
+      istAdmin: false,
+      zugang: { bereiche: ["website"], rechte: [] },
+    };
+    // Die Route der Einstellungen liefe für die Stufenleitung in ein 403
+    expect(unterVon(stufenleitung, "website")).toEqual([
+      "seiten",
+      "medien",
+      "stufenfakten",
+    ]);
+    const webmaster = {
+      istAdmin: false,
+      zugang: {
+        bereiche: ["website"],
+        rechte: ["seiten.bearbeiten", "seiten.veroeffentlichen"],
+      },
+    };
+    expect(unterVon(webmaster, "website")).toContain("einstellungen");
+    expect(unterVon(admin, "website")).toContain("einstellungen");
+  });
+
+  test("die Seite für Wartung und Sperre heisst nach ihrem Inhalt", () => {
+    const system = BEREICHE.find((b) => b.schluessel === "system")!;
+    expect(system.unter.find((u) => u.schluessel === "plattform")!.name).toBe(
+      "Wartung und Sperre",
+    );
+  });
+
+  test("rolleVon nennt die echte Rolle statt «Redaktion»", () => {
+    const profil = {
+      rollen: [{ stufeId: "s1", typ: "stufenleitung" }],
+      stufen: [{ id: "s1", name: "Pilami" }],
+    };
+    expect(nav.rolleVon({ istAdmin: true })).toBe("Abteilungsleitung");
+    expect(nav.rolleVon({ istAdmin: true, entwickler: true })).toBe(
+      "Entwickler · Abteilungsleitung",
+    );
+    expect(
+      nav.rolleVon({ istAdmin: false, zugang: { rechte: [] }, profil }),
+    ).toBe("Stufenleitung Pilami");
+    expect(
+      nav.rolleVon({
+        istAdmin: false,
+        zugang: { rechte: ["seiten.bearbeiten"] },
+        profil: null,
+      }),
+    ).toBe("Website-Redaktion");
+    expect(
+      nav.rolleVon({
+        istAdmin: false,
+        zugang: { rechte: ["wartungsmodus.website"] },
+        profil: { rollen: [], stufen: [] },
+      }),
+    ).toBe("Wartung der Website");
+    expect(nav.rolleVon({ istAdmin: false, zugang: { rechte: [] } })).toBe(
+      "Konto mit Zugang",
+    );
+  });
 });

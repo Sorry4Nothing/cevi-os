@@ -36,8 +36,45 @@ function erstelleMarke() {
   );
 }
 
+// Wer die Einstellungen der Website nicht lesen darf (Stufenleitung) und die Anmeldung haben keine eigene Quelle: Sie zeigen, was die öffentliche Website im Kopf zeigt. Gelesen wird die Startseite, die jede Person ohne Sitzung sieht; ein Fehler, die Wartungsseite oder ein anderer Aufbau lassen die Wortmarke «CEVI» stehen. Die Einstellungen gehen vor.
+let ausEinstellungen = false;
+const MEDIEN_ADRESSE = /^\/api\/v1\/medien\/[0-9a-f-]{36}$/;
+export async function ladeOeffentlicheMarke() {
+  try {
+    const antwort = await fetch("/", { credentials: "omit" });
+    if (!antwort.ok) return;
+    const dokument = new DOMParser().parseFromString(
+      await antwort.text(),
+      "text/html",
+    );
+    const marke = dokument.querySelector("header a.marke");
+    if (!marke || ausEinstellungen) return;
+    const bildId = (klasse) => {
+      const adresse = marke.querySelector(`img.${klasse}`)?.getAttribute("src");
+      return adresse && MEDIEN_ADRESSE.test(adresse)
+        ? adresse.split("/").pop()
+        : null;
+    };
+    const hell = bildId("logo--hell") ?? bildId("logo");
+    const name =
+      marke.querySelector(".nur-sr, span")?.textContent?.trim().slice(0, 100) ??
+      "";
+    markeDaten = {
+      name,
+      logoId: hell,
+      logoDunkelId: hell ? bildId("logo--dunkel") : null,
+    };
+    for (const alt of document.querySelectorAll("a.marke")) {
+      alt.replaceWith(erstelleMarke());
+    }
+  } catch {
+    // Keine öffentliche Quelle: die Wortmarke bleibt
+  }
+}
+
 // Setzt Name und Logo und ersetzt die Marke, wo sie schon steht; spätere Köpfe nutzen den gemerkten Stand
 export function setzeMarke({ name, logoMediumId, logoDunkelMediumId }) {
+  ausEinstellungen = true;
   markeDaten = {
     name: name ?? "",
     logoId: logoMediumId ?? null,
@@ -120,14 +157,189 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true }) {
   );
 }
 
+// Bereichsauswahl für schmale Bildschirme (Prinzip «Workspace-Switcher»: Die Zeile mit dem aktuellen Ort wächst beim Öffnen zum Panel mit allen Bereichen; der aktive Bereich zeigt seine Unterseiten). Ersetzt dort die beiden Leisten, die sonst über den Rand liefen. Am Computer ist sie verborgen (geruest.css).
+// Tastatur: Enter oder Leertaste öffnet, Pfeil runter und hoch gehen durch die Einträge, Esc schliesst und gibt den Fokus an die Zeile zurück, ein Klick daneben schliesst. Die Zeile trägt aria-expanded; das geschlossene Panel ist inert.
+let bereichswahlId = 0;
+function erstelleBereichswahl({
+  bereiche,
+  aktiv,
+  zaehlerStand,
+  offen,
+  beiWechsel,
+}) {
+  const id = `bereichswahl-${++bereichswahlId}`;
+  const summe = (b) =>
+    b.unter.reduce(
+      (n, u) => n + (zaehlerStand.get(`${b.schluessel}/${u.schluessel}`) ?? 0),
+      0,
+    );
+  const pille = (n) =>
+    n > 0 &&
+    el(
+      "span",
+      { class: "pille-zaehler" },
+      String(n),
+      el("span", { class: "nur-leser" }, " offen"),
+    );
+  const b = aktiv?.bereich;
+  const zeile = el(
+    "button",
+    {
+      type: "button",
+      class: "bereichswahl-zeile",
+      "aria-expanded": String(offen),
+      "aria-controls": id,
+    },
+    icon(b?.symbol ?? "uebersicht"),
+    el(
+      "span",
+      { class: "bereichswahl-text" },
+      el("span", { class: "nur-leser" }, "Bereich wechseln: "),
+      el("b", {}, b?.name ?? "Bereich wählen"),
+      b && b.unter.length > 1 && el("span", {}, aktiv.unter.name),
+    ),
+    b && pille(summe(b)),
+    icon("runter"),
+  );
+  const link = (href, inhalt, hier, klasse) =>
+    el(
+      "a",
+      {
+        href,
+        class: klasse,
+        ...(hier && { "aria-current": "page" }),
+      },
+      ...inhalt,
+    );
+  const liste = el(
+    "ul",
+    {},
+    bereiche.map((x) => {
+      const ziel = x.unter.find((u) => u.schluessel === x.start) ?? x.unter[0];
+      const hier = b?.schluessel === x.schluessel;
+      const unter = hier && x.unter.length > 1;
+      return el(
+        "li",
+        {},
+        link(
+          x.unter.length === 1
+            ? `#${x.schluessel}`
+            : `#${x.schluessel}/${ziel.schluessel}`,
+          [
+            icon(x.symbol),
+            el("span", {}, x.name),
+            hier ? false : pille(summe(x)),
+          ],
+          hier && !unter,
+          "bereichswahl-bereich",
+        ),
+        unter &&
+          el(
+            "ul",
+            { class: "bereichswahl-unter", "aria-label": x.name },
+            x.unter.map((u) =>
+              el(
+                "li",
+                {},
+                link(
+                  adresseVon(x, u),
+                  [
+                    el("span", {}, u.name),
+                    pille(
+                      zaehlerStand.get(`${x.schluessel}/${u.schluessel}`) ?? 0,
+                    ),
+                  ],
+                  aktiv.unter.schluessel === u.schluessel,
+                  "bereichswahl-seite",
+                ),
+              ),
+            ),
+          ),
+      );
+    }),
+  );
+  const panel = el(
+    "div",
+    { class: "bereichswahl-panel", id },
+    el(
+      "div",
+      { class: "bereichswahl-innen" },
+      el("nav", { "aria-label": "Bereiche und Seiten" }, liste),
+    ),
+  );
+  if (!offen) panel.inert = true;
+  const wurzel = el(
+    "div",
+    { class: `bereichswahl${offen ? " bereichswahl--offen" : ""}` },
+    zeile,
+    panel,
+  );
+  const setze = (neu, fokus = false) => {
+    beiWechsel(neu);
+    wurzel.classList.toggle("bereichswahl--offen", neu);
+    zeile.setAttribute("aria-expanded", String(neu));
+    panel.inert = !neu;
+    if (neu)
+      (
+        panel.querySelector("a[aria-current]") ?? panel.querySelector("a")
+      )?.focus({
+        preventScroll: true,
+      });
+    else if (fokus) zeile.focus();
+  };
+  zeile.addEventListener("click", () =>
+    setze(zeile.getAttribute("aria-expanded") !== "true"),
+  );
+  panel.addEventListener("click", (e) => {
+    if (e.target.closest("a")) setze(false);
+  });
+  wurzel.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && zeile.getAttribute("aria-expanded") === "true") {
+      e.preventDefault();
+      setze(false, true);
+      return;
+    }
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const links = [...panel.querySelectorAll("a")];
+    if (links.length === 0 || panel.inert) return;
+    e.preventDefault();
+    const jetzt = links.indexOf(document.activeElement);
+    const schritt = e.key === "ArrowDown" ? 1 : -1;
+    links[(jetzt + schritt + links.length) % links.length].focus();
+  });
+  return wurzel;
+}
+// Ein Klick ausserhalb schliesst die offene Auswahl (ein Listener für alle Zeichnungen)
+document.addEventListener("click", (e) => {
+  const offen = document.querySelector(".bereichswahl--offen");
+  if (offen && !offen.contains(e.target)) {
+    offen.querySelector(".bereichswahl-zeile")?.click();
+  }
+});
+
 // Bereichsleiste und Unterleiste in einem Halter; zeichne() baut sie neu, wenn sich Seite oder Zähler ändern
 // zaehlerStand: Map «bereich/unter» -> Anzahl; eine Zahl über 0 erscheint als rote Pille
 export function erstelleLeisten() {
   const wurzel = el("div", { class: "leisten" });
+  // Die Bereichsauswahl bleibt offen, wenn nur ein Zähler nachgeladen wird; mit jeder Navigation (anderer Ort) geht sie zu
+  let wahlOffen = false;
+  let letzterOrt = "";
   return {
     wurzel,
     zeichne({ bereiche, aktiv, zaehlerStand }) {
       leere(wurzel);
+      const ort = `${aktiv?.bereich.schluessel}/${aktiv?.unter.schluessel}`;
+      if (ort !== letzterOrt) wahlOffen = false;
+      letzterOrt = ort;
+      wurzel.append(
+        erstelleBereichswahl({
+          bereiche,
+          aktiv,
+          zaehlerStand,
+          offen: wahlOffen,
+          beiWechsel: (o) => (wahlOffen = o),
+        }),
+      );
       const hauptleiste = el(
         "nav",
         { class: "bereichsleiste", "aria-label": "Bereiche" },

@@ -223,28 +223,6 @@
 }
 
 /* ===== Mitteilungen ===== */
-.mt-raster {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
-  gap: 1.5rem;
-  align-items: start;
-}
-
-.mt-vorschau {
-  position: sticky;
-  top: 1rem;
-}
-
-@media (max-width: 68.75em) {
-  .mt-raster {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .mt-vorschau {
-    position: static;
-  }
-}
-
 .mt-auswahl {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));

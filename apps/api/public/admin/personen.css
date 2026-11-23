@@ -367,13 +367,6 @@ a.pe-bearbeiten:hover {
   padding: 0.5rem 0;
 }
 
-@media (min-width: 68.8125em) {
-  .pe-seite .formularraster-seite {
-    align-self: start;
-    max-height: 100%;
-  }
-}
-
 .pe-suchkarte .suche {
   flex: none;
 }
