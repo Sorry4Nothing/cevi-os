@@ -82,43 +82,26 @@ async function ladeAlles() {
   }
 }
 
-// Die Liste, solange sie lädt: Werkzeugzeile und eine Tabelle mit denselben fünf Spalten (G3 «Seitenbaum»)
+// Die Liste, solange sie lädt: Werkzeugzeile und ein Baum aus Zeilen in der Form der echten (G3 «Seitenbaum»)
 function skeletonListe() {
-  const zelle = (inhalt) => el("td", {}, inhalt);
   const zeile = (i) =>
     el(
-      "tr",
-      { "aria-hidden": "true" },
-      zelle(el("div", {}, sk("t", i % 2 ? 136 : 160), sk("t", 96))),
-      zelle(sk("r", 96)),
-      zelle(sk("r", 80)),
-      zelle(sk("t", 160)),
-      zelle(sk("r", 112)),
+      "div",
+      { class: `ws-zeile e${i % 3 === 1 ? 1 : 0}`, "aria-hidden": "true" },
+      el(
+        "div",
+        { class: "ws-baumfeld" },
+        sk("b", 24),
+        el("div", {}, sk("t", i % 2 ? 136 : 160), sk("t", 96)),
+      ),
+      el("div", { class: "ws-werte" }, sk("r", 96), sk("r", 80)),
+      el("div", { class: "ws-aktionen" }, sk("r", 112)),
     );
   return el(
     "div",
     { class: "sk-seitenliste" },
     el("div", { class: "werkzeuge" }, sk("r", 380), sk("r", 380)),
-    el(
-      "div",
-      { class: "box" },
-      el(
-        "table",
-        { class: "tabelle" },
-        el(
-          "thead",
-          {},
-          el(
-            "tr",
-            {},
-            ["Seite", "Status", "Sichtbarkeit", "Zuletzt geändert", ""].map(
-              () => el("th", { scope: "col" }, sk("t", 64)),
-            ),
-          ),
-        ),
-        el("tbody", {}, [0, 1, 2, 3, 4, 5].map(zeile)),
-      ),
-    ),
+    el("div", { class: "ws-baum" }, [0, 1, 2, 3, 4, 5].map(zeile)),
   );
 }
 
