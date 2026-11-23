@@ -75,28 +75,58 @@
 
 .ws-medienfuss {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 16px 0;
+}
+
+.ws-medienfuss p:empty {
+  display: none;
 }
 
 .ws-medienfuss [hidden] {
   display: none;
 }
 
-.auswahlleiste {
+/* Auswahlleiste: bleibt am unteren Rand des Fensters sichtbar, solange etwas gewählt ist */
+/* Der Platz hält die Leiste am unteren Rand: Sticky wirkt nur im Elternknoten, der die ganze Liste umfasst */
+.ws-auswahlplatz {
+  position: sticky;
+  bottom: 16px;
+  z-index: 4;
+}
+
+.ws-auswahlleiste {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  padding: 8px 8px 8px 16px;
+  margin-top: 16px;
+  padding: 8px 8px 8px 20px;
   color: var(--auf-blau-f);
   background: var(--blau-f);
+  border: 1px solid var(--rand);
   border-radius: 16px;
+  box-shadow: var(--schatten);
   font-weight: 700;
 }
 
 .ws-auswahlzahl {
   flex: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ws-auswahlleiste {
+    animation: ws-auswahl-ein var(--dauer) var(--kurve);
+  }
+}
+
+@keyframes ws-auswahl-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
 }
 
 /* Hochladen: Ablegefläche, gewählte Datei, Fortschritt */
@@ -257,4 +287,205 @@
 
 .ws-p100 {
   width: 100%;
+}
+
+/* Werkzeugzeile: Filterleiste links, Ansichtswahl rechts (#591) */
+.ws-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ws-werkzeuge[hidden] {
+  display: none;
+}
+
+.ws-werkzeuge .filterleiste {
+  flex: 1 1 28rem;
+  min-width: 0;
+}
+
+.ws-ansicht {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--leiste);
+  border-radius: 9999px;
+}
+
+.ws-ansicht-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--leise);
+  background: transparent;
+  border: 0;
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve);
+}
+
+.ws-ansicht-knopf:hover {
+  color: var(--text);
+}
+
+.ws-ansicht-knopf[aria-pressed="true"] {
+  color: var(--auf-blau);
+  background: var(--blau);
+}
+
+.ws-ansicht-knopf .i {
+  width: 18px;
+  height: 18px;
+  fill: currentcolor;
+  stroke: none;
+}
+
+.ws-ansicht-knopf:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+/* Karten, die noch laden: Die Formen pulsieren nur, wenn Bewegung erlaubt ist */
+.ws-platzhalter .sk,
+.medium.ws-platzhalter .bild {
+  background: var(--skeleton);
+}
+
+.medium.ws-platzhalter .bild {
+  display: block;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ws-platzhalter .sk,
+  .medium.ws-platzhalter .bild {
+    animation: sk-puls 1.6s ease-in-out infinite;
+  }
+}
+
+/* Ansicht «Liste»: dieselben Karten als Zeilen mit Bild, Text, Angaben und Aktion */
+.medien--liste {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+}
+
+.medien--liste .medium {
+  display: grid;
+  grid-template-columns: 2.75rem 6rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "wahl bild name aktion"
+    "wahl bild chips aktion"
+    "wahl bild meta aktion";
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 4px;
+  padding: 8px 16px 8px 8px;
+}
+
+.medien--liste .medium.gewaehlt {
+  padding: 7px 15px 7px 7px;
+}
+
+.medien--liste .medium .wahl {
+  position: static;
+  grid-area: wahl;
+  justify-self: center;
+}
+
+.medien--liste .medium .bild {
+  grid-area: bild;
+  aspect-ratio: 4 / 3;
+  width: 6rem;
+}
+
+.medien--liste .medium .name {
+  grid-area: name;
+}
+
+.medien--liste .medium .chips {
+  grid-area: chips;
+}
+
+.medien--liste .medium .ws-meta {
+  grid-area: meta;
+  margin: 0;
+}
+
+.medien--liste .medium .ws-alt {
+  grid-area: aktion;
+}
+
+.medien--liste .medium .hilfe {
+  grid-area: meta;
+}
+
+@media (max-width: 760px) {
+  .medien--liste .medium {
+    grid-template-columns: 2.75rem 4.5rem minmax(0, 1fr);
+    grid-template-areas:
+      "wahl bild name"
+      "wahl bild chips"
+      "wahl bild meta"
+      "aktion aktion aktion";
+    column-gap: 12px;
+  }
+
+  .medien--liste .medium .bild {
+    width: 4.5rem;
+  }
+
+  .medien--liste .medium .ws-alt {
+    justify-self: start;
+    margin-top: 4px;
+  }
+}
+
+/* Alt-Text ändern: das Bild gross neben dem Feld */
+.bild-box.ws-altbild {
+  align-self: stretch;
+  min-height: 12rem;
+  max-height: 28rem;
+  border-radius: 12px;
+}
+
+.ws-altbild > img {
+  max-height: 28rem;
+}
+
+/* Hochladen: Vorschau des gewählten Bildes */
+.ws-vorschau {
+  display: flex;
+  justify-content: center;
+}
+
+.ws-vorschau-leer {
+  width: 100%;
+  margin: 0;
+  padding: 32px 16px;
+  color: var(--leise);
+  background: var(--leiste);
+  border: 1px dashed var(--rand-leise);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.ws-vorschau .ws-leinwand {
+  width: 100%;
+  border-radius: 12px;
+}
+
+/* Schmal: Beim Alt-Text steht das Bild über dem Feld, damit man beschreibt, was man sieht */
+@media (max-width: 68.75em) {
+  .formularraster:has(.ws-altbild) .formularraster-seite {
+    order: -1;
+  }
 }

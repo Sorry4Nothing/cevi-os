@@ -8,6 +8,7 @@ import {
   knopf,
   seitenblatt,
 } from "./dom.js";
+import { zahlfeld } from "./datumsfeld.js";
 import { mitRueckgaengig } from "./rueckgaengig.js";
 import {
   entferneFeldFehler,
@@ -53,11 +54,29 @@ const ladeTags = () => {
   return tagsMerker;
 };
 
+// Offene Anfragen je Raum: eine Abfrage (bis 50 Anfragen); ohne Recht oder bei einem Fehler fehlt die Spalte. Die API zählt nicht je Raum, darum zählt der Browser; gibt es mehr als 50, steht «mindestens».
+const ladeOffene = () =>
+  anfrage("GET", "/api/v1/raeume/anfragen/offen?limit=50").then(
+    (a) => ({ je: zaehleJeRaum(a.anfragen), mindestens: a.weitere }),
+    () => null,
+  );
+export const zaehleJeRaum = (anfragen) => {
+  const je = new Map();
+  for (const a of anfragen) je.set(a.raumId, (je.get(a.raumId) ?? 0) + 1);
+  return je;
+};
+
 export function zeige(bereich, ctx) {
   tagsMerker = null;
   const lade = () =>
     ctx.lade(
-      () => anfrage("GET", `${BASIS}?limit=${SEITE}`),
+      async () => {
+        const [liste, offene] = await Promise.all([
+          anfrage("GET", `${BASIS}?limit=${SEITE}`),
+          ladeOffene(),
+        ]);
+        return { ...liste, offene };
+      },
       (erste) => zeichne(bereich, ctx, erste, lade),
       { fehlerTitel: "Die Räume konnten nicht geladen werden." },
     );
@@ -78,6 +97,7 @@ function zeichne(bereich, ctx, erste, neu) {
   let naechste = erste.naechste;
   let begriff = "";
   let richtung = "ascending";
+  const offene = erste.offene;
 
   const suche = suchfeld({
     label: "Raum suchen",
@@ -112,7 +132,23 @@ function zeichne(bereich, ctx, erste, neu) {
           ? el("ul", { class: "chips" }, chip(r.team.name, undefined, "tag"))
           : el("span", { class: "leise" }, "Kein Team"),
       ),
-      el("td", {}, r.kapazitaet === null ? "–" : String(r.kapazitaet)),
+      el(
+        "td",
+        { class: "tm-ziffern" },
+        r.kapazitaet === null ? "–" : String(r.kapazitaet),
+      ),
+      offene &&
+        el(
+          "td",
+          {},
+          (offene.je.get(r.id) ?? 0) > 0
+            ? el(
+                "a",
+                { class: "tm-tabellenlink", href: "#raeume/anfragen" },
+                `${offene.mindestens ? "Mindestens " : ""}${zaehlwort(offene.je.get(r.id), "offene Anfrage", "offene Anfragen")}`,
+              )
+            : el("span", { class: "leise" }, "keine"),
+        ),
       el(
         "td",
         { class: "rechts" },
@@ -137,13 +173,7 @@ function zeichne(bereich, ctx, erste, neu) {
       ersetze(
         liste,
         leerKarte(
-          "Es gibt noch keine Räume. Erfasse den ersten Raum, dann können Leitende ihn anfragen.",
-          [
-            knopf("Neuer Raum", {
-              symbol: "plus",
-              onclick: () => blatt({ ctx, neu }),
-            }),
-          ],
+          "Es gibt noch keine Räume. Erfasse oben den ersten Raum, dann können Leitende ihn anfragen.",
         ),
       );
       return;
@@ -169,7 +199,13 @@ function zeichne(bereich, ctx, erste, neu) {
     }
     const t = termineTabelle({
       beschriftung: "Räume",
-      spalten: ["Name", "Zuständiges Team", "Plätze", "Aktionen"],
+      spalten: [
+        "Name",
+        "Zuständiges Team",
+        "Plätze",
+        ...(offene ? ["Anfragen"] : []),
+        "Aktionen",
+      ],
       zeilen: treffer.map(zeile),
     });
     const kopf = t.wurzel.querySelector("th");
@@ -256,15 +292,12 @@ async function blatt({ raum, ctx, neu }) {
     ],
     wert: raum?.team?.id ?? "",
   });
-  const plaetze = feld({
+  const plaetze = zahlfeld({
     label: "Plätze (optional)",
     hilfe: "Wie viele Personen Platz haben, von 1 bis 1000.",
-    typ: "number",
-    wert: raum?.kapazitaet ?? "",
+    wert: raum?.kapazitaet === null ? "" : String(raum?.kapazitaet ?? ""),
     min: 1,
     max: 1000,
-    step: 1,
-    inputmode: "numeric",
   });
   const aktiv = ankreuzen({
     label: "Aktiv: Mitglieder sehen den Raum",

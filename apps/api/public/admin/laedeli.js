@@ -1,16 +1,20 @@
 import { anfrage, fehlertext } from "./api.js";
+import { splitKnopf } from "./aktionen.js";
+import { bildMitLader, bildwahl } from "./bildwahl.js";
 import {
   ankreuzen,
-  auswahl,
   chip,
   el,
   feld,
   filterGruppe,
+  icon,
   knopf,
   menue,
   seitenblatt,
   tabelle,
 } from "./dom.js";
+import { formularRaster } from "./formularraster.js";
+import { sk, skeletonTabelle } from "./lader.js";
 import { ansichtVon } from "./rueckgaengig.js";
 import {
   entferneFeldFehler,
@@ -109,6 +113,40 @@ export function zeige(bereich, ctx) {
 
 // ===== Bestellungen =====
 
+// Karten, solange die Bestellungen laden: Name, Summe, Schiene mit drei Schritten, Positionen, Aktion
+function skeletonBestellungen() {
+  const karte = () =>
+    el(
+      "div",
+      { class: "ld-bestellung" },
+      el(
+        "div",
+        { class: "ld-bestellung-kopf" },
+        el("div", {}, sk("t", 136), sk("t", 112)),
+        sk("t", 64),
+      ),
+      el(
+        "div",
+        { class: "sk-zeile" },
+        sk("k", 24),
+        sk("t", 64),
+        sk("k", 24),
+        sk("t", 64),
+        sk("k", 24),
+        sk("t", 80),
+      ),
+      sk("t", 200),
+      sk("t", 160),
+      sk("r", 136),
+    );
+  return el(
+    "div",
+    { class: "ld-skeleton" },
+    el("div", { class: "werkzeuge" }, sk("r", 380)),
+    el("div", { class: "ld-bestellungen" }, [karte(), karte(), karte()]),
+  );
+}
+
 function zeigeBestellungen(bereich, ctx) {
   let stand = "offen";
   const adresse = () =>
@@ -117,7 +155,10 @@ function zeigeBestellungen(bereich, ctx) {
     ctx.lade(
       () => anfrage("GET", adresse()),
       (erste) => zeichne(erste),
-      { fehlerTitel: "Die Bestellungen konnten nicht geladen werden." },
+      {
+        fehlerTitel: "Die Bestellungen konnten nicht geladen werden.",
+        skeleton: skeletonBestellungen,
+      },
     );
 
   function zeichne(erste) {
@@ -163,116 +204,149 @@ function zeigeBestellungen(bereich, ctx) {
       document.querySelector("h1")?.focus();
     }
     const wer = (b) => b.person.ceviName || b.person.name;
-    // Was in diesem Stand geht (WECHSEL in src/laden/laden.ts); fehlt ein Wechsel, fehlt der Knopf
-    function aktionen(b) {
-      const k = [];
+    // Was in diesem Stand geht (WECHSEL in src/laden/laden.ts); fehlt ein Wechsel, fehlt der Aktion die Stelle.
+    // Hauptaktion ist der nächste Schritt der Schiene; die übrigen Wechsel stehen im Menü daneben (geteilter Knopf)
+    function aktionen(b, karte) {
+      const uebergeben = () =>
+        ctx.mitRueckgaengig({
+          text: `Bestellung von ${wer(b)} über ${summeText(b.summeRappen)} als übergeben und bezahlt eingetragen`,
+          ansicht: ansichtVon(karte),
+          ausfuehren: () =>
+            anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
+              status: "uebergeben",
+            }),
+          fehlertext: meldungVon,
+          danach: async () => {
+            ersetze(bereich);
+            await lade();
+          },
+        });
+      const stornieren = () =>
+        ctx.mitRueckgaengig({
+          text: `Bestellung von ${wer(b)} storniert`,
+          ansicht: ansichtVon(karte),
+          ausfuehren: () =>
+            anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
+              status: "storniert",
+            }),
+          fehlertext: meldungVon,
+          danach: async () => {
+            ersetze(bereich);
+            await lade();
+          },
+        });
       if (b.status === "offen") {
-        k.push(
-          knopf("Bereit melden", {
-            klein: true,
-            kontext: wer(b),
-            onclick: () =>
-              setze(b, "bereit", `Bestellung von ${wer(b)} ist bereit.`),
-          }),
-        );
+        return splitKnopf({
+          text: "Bereit melden",
+          art: "blau",
+          kontext: wer(b),
+          onclick: () =>
+            setze(b, "bereit", `Bestellung von ${wer(b)} ist bereit.`),
+          eintraege: [
+            { text: "Übergeben", onclick: uebergeben },
+            { text: "Stornieren", onclick: stornieren, gefaehrlich: true },
+          ],
+        });
       }
       if (b.status === "bereit") {
-        k.push(
-          knopf("Zurück auf offen", {
-            klein: true,
-            kontext: wer(b),
-            onclick: () =>
-              setze(b, "offen", `Bestellung von ${wer(b)} ist wieder offen.`),
-          }),
-        );
+        return splitKnopf({
+          text: "Übergeben",
+          art: "blau",
+          symbol: "haken",
+          kontext: wer(b),
+          onclick: uebergeben,
+          eintraege: [
+            {
+              text: "Zurück auf offen",
+              onclick: () =>
+                setze(b, "offen", `Bestellung von ${wer(b)} ist wieder offen.`),
+            },
+            { text: "Stornieren", onclick: stornieren, gefaehrlich: true },
+          ],
+        });
       }
-      if (b.status === "offen" || b.status === "bereit") {
-        k.push(
-          knopf("Übergeben", {
-            klein: true,
-            symbol: "haken",
-            kontext: wer(b),
-            onclick: (e) =>
-              ctx.mitRueckgaengig({
-                text: `Bestellung von ${wer(b)} über ${summeText(b.summeRappen)} als übergeben und bezahlt eingetragen`,
-                ansicht: ansichtVon(e.currentTarget.closest("tr")),
-                ausfuehren: () =>
-                  anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
-                    status: "uebergeben",
-                  }),
-                fehlertext: meldungVon,
-                danach: async () => {
-                  ersetze(bereich);
-                  await lade();
-                },
-              }),
-          }),
-          knopf("Stornieren", {
-            klein: true,
-            art: "gefahr",
-            kontext: wer(b),
-            onclick: (e) =>
-              ctx.mitRueckgaengig({
-                text: `Bestellung von ${wer(b)} storniert`,
-                ansicht: ansichtVon(e.currentTarget.closest("tr")),
-                ausfuehren: () =>
-                  anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
-                    status: "storniert",
-                  }),
-                fehlertext: meldungVon,
-                danach: async () => {
-                  ersetze(bereich);
-                  await lade();
-                },
-              }),
-          }),
-        );
-      }
-      return k;
+      return null;
     }
 
-    function zeile(b) {
-      const s = STAND[b.status];
+    // Statusschiene: Offen, Bereit, Übergeben. Erledigte Schritte tragen einen Haken, der aktuelle ist gefüllt und «aktueller Schritt» für Screenreader; Zustand nie nur über Farbe
+    function schiene(b) {
+      if (b.status === "storniert") {
+        return el(
+          "ul",
+          { class: "chips" },
+          chip(STAND.storniert.text, STAND.storniert.art, "sperre"),
+        );
+      }
+      const schritte = [
+        ["offen", "Offen"],
+        ["bereit", "Bereit"],
+        ["uebergeben", "Übergeben"],
+      ];
+      const aktuell = schritte.findIndex(([w]) => w === b.status);
       return el(
-        "tr",
-        {},
-        el(
-          "th",
-          { scope: "row" },
-          el("span", { class: "name" }, wer(b)),
-          b.person.ceviName &&
-            el("span", { class: "klein leise ld-unter" }, b.person.name),
-          el("span", { class: "klein leise ld-unter" }, stempel(b.erstelltAm)),
-        ),
-        el(
-          "td",
-          {},
+        "ol",
+        { class: "ld-schiene", "aria-label": "Stand der Bestellung" },
+        schritte.map(([, text], i) =>
           el(
-            "ul",
-            { class: "ld-positionen" },
-            b.positionen.map((p) =>
-              el(
-                "li",
-                {},
-                `${p.menge} × ${p.name}`,
-                p.variante && el("span", { class: "leise" }, `, ${p.variante}`),
-              ),
+            "li",
+            {
+              class: `ld-schritt${i < aktuell ? " ld-schritt--erledigt" : ""}${i === aktuell ? " ld-schritt--jetzt" : ""}`,
+              "aria-current": i === aktuell ? "step" : undefined,
+            },
+            el(
+              "span",
+              { class: "ld-punkt", "aria-hidden": "true" },
+              i < aktuell ? icon("haken") : "",
             ),
+            el("span", { class: "ld-schritttext" }, text),
+            i < aktuell && el("span", { class: "nur-leser" }, " (erledigt)"),
           ),
-          el("span", { class: "klein leise ld-unter" }, b.uebergabe),
-        ),
-        el("td", { class: "zahl" }, summeText(b.summeRappen)),
-        el(
-          "td",
-          {},
-          el("ul", { class: "chips" }, chip(s.text, s.art, s.symbol)),
-        ),
-        el(
-          "td",
-          { class: "rechts" },
-          el("div", { class: "aktionen" }, aktionen(b)),
         ),
       );
+    }
+
+    function karte(b) {
+      const wurzel = el("article", {
+        class: "ld-bestellung",
+        "aria-label": `Bestellung von ${wer(b)}`,
+      });
+      const aktion = aktionen(b, wurzel);
+      wurzel.append(
+        el(
+          "header",
+          { class: "ld-bestellung-kopf" },
+          el(
+            "div",
+            {},
+            el("h3", { class: "ld-bestellung-name" }, wer(b)),
+            b.person.ceviName &&
+              el("span", { class: "klein leise ld-unter" }, b.person.name),
+            el(
+              "span",
+              { class: "klein leise ld-unter" },
+              stempel(b.erstelltAm),
+            ),
+          ),
+          el("p", { class: "ld-summe" }, summeText(b.summeRappen)),
+        ),
+        schiene(b),
+        el(
+          "ul",
+          { class: "ld-positionen" },
+          b.positionen.map((p) =>
+            el(
+              "li",
+              {},
+              `${p.menge} × ${p.name}`,
+              p.variante && el("span", { class: "leise" }, `, ${p.variante}`),
+            ),
+          ),
+        ),
+        el("p", { class: "klein leise ld-uebergabe" }, b.uebergabe),
+        aktion &&
+          el("div", { class: "ld-bestellung-aktion" }, aktion.wurzel ?? aktion),
+      );
+      return wurzel;
     }
 
     function zeichneListe() {
@@ -290,17 +364,7 @@ function zeigeBestellungen(bereich, ctx) {
       }
       ersetze(
         liste,
-        tabelle({
-          beschriftung: "Bestellungen",
-          spalten: [
-            "Wer und wann",
-            "Bestellt",
-            ["Summe", "zahl"],
-            "Stand",
-            "Aktionen",
-          ],
-          zeilen: bestellungen.map(zeile),
-        }).wurzel,
+        el("div", { class: "ld-bestellungen" }, bestellungen.map(karte)),
       );
     }
 
@@ -345,25 +409,16 @@ function zeigeBestellungen(bereich, ctx) {
 
 // ===== Artikel =====
 
-// Die Bilder für die Auswahl, höchstens einmal je Besuch der Seite und erst, wenn ein Blatt sie braucht
-let medienMerker = null;
-const ladeMedien = () => {
-  medienMerker ??= anfrage("GET", "/api/v1/redaktion/medien").then((a) =>
-    a.medien.filter(
-      (m) => m.sichtbarkeit === "oeffentlich" && m.mimeTyp.startsWith("image/"),
-    ),
-  );
-  medienMerker.catch(() => (medienMerker = null));
-  return medienMerker;
-};
-
 function zeigeArtikel(bereich, ctx) {
-  medienMerker = null;
   const lade = () =>
     ctx.lade(
       () => anfrage("GET", `${BASIS}/artikel`),
       (daten) => zeichne(daten.artikel),
-      { fehlerTitel: "Die Artikel konnten nicht geladen werden." },
+      {
+        fehlerTitel: "Die Artikel konnten nicht geladen werden.",
+        // Sechs Spalten wie die Liste: Griff, Artikel, Preis, Grösse, Stand, Aktionen
+        skeleton: () => skeletonTabelle({ spalten: 6, zeilen: 8 }),
+      },
     );
   const neu = async () => {
     ersetze(bereich);
@@ -690,13 +745,6 @@ function zeigeArtikel(bereich, ctx) {
 }
 
 async function artikelBlatt({ artikel, ctx, neu }) {
-  let medien;
-  try {
-    medien = await ladeMedien();
-  } catch (f) {
-    ctx.melde(meldungVon(f), "fehler");
-    return;
-  }
   const name = feld({
     label: "Name",
     hilfe: "Höchstens 100 Zeichen.",
@@ -710,28 +758,50 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     inputmode: "decimal",
     autocomplete: "off",
   });
-  const bild = auswahl({
-    label: "Bild",
-    optionen: [
-      ["", "Kein Bild"],
-      // Ein gewähltes Bild, das nicht unter den jüngsten 200 ist, bleibt wählbar
-      ...(artikel?.mediumId && !medien.some((m) => m.id === artikel.mediumId)
-        ? [
-            [
-              artikel.mediumId,
-              "Aktuelles Bild",
-              `/api/v1/medien/${artikel.mediumId}`,
-            ],
-          ]
-        : []),
-      ...medien.map((m) => [
-        m.id,
-        m.altText || "Bild ohne Beschreibung",
-        m.url,
-      ]),
-    ],
-    wert: artikel?.mediumId ?? "",
+  // Das Bild: gross neben den Feldern, gewählt aus der Medienbibliothek in der Seite selbst (nur öffentliche Bilder)
+  let mediumId = artikel?.mediumId ?? null;
+  const bildPlatz = el("div", { class: "ld-bildplatz" });
+  const waehlen = knopf("Bild wählen", { klein: true });
+  const entfernen = knopf("Bild entfernen", {
+    klein: true,
+    onclick: () => {
+      mediumId = null;
+      zeigeBild();
+      meldeAenderung();
+      waehlen.focus();
+    },
   });
+  const wahl = bildwahl({
+    ausloeser: waehlen,
+    gewaehlt: mediumId,
+    beiWahl: (m) => {
+      mediumId = m.id;
+      zeigeBild();
+      meldeAenderung();
+    },
+  });
+  function zeigeBild() {
+    bildPlatz.replaceChildren(
+      mediumId
+        ? bildMitLader(
+            el("img", {
+              src: `/api/v1/medien/${mediumId}`,
+              alt: "",
+              decoding: "async",
+            }),
+            "ld-grossbild",
+          )
+        : el("div", { class: "ld-grossbild ld-grossbild--leer" }, "Kein Bild"),
+    );
+    wahl.setze(mediumId);
+    waehlen.lastChild.textContent = mediumId
+      ? "Anderes Bild wählen"
+      : "Bild wählen";
+    entfernen.hidden = !mediumId;
+  }
+  // Eine Bildwahl ist keine Eingabe im Feld: Das Formular merkt sich trotzdem, dass etwas geändert ist (Rückfrage beim Verlassen)
+  const meldeAenderung = () =>
+    formular.dispatchEvent(new Event("change", { bubbles: true }));
   // Pflichtangabe «Grösse»: Einheitsgrösse oder eine Liste; ohne Wahl lässt sich nicht speichern
   const groesseName = `groesse-${Math.random().toString(36).slice(2)}`;
   const groesseRadio = (wert, titel, text) => {
@@ -795,17 +865,77 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     wert: "verfuegbar",
   });
   const meldungsfeld = el("div", {});
+  // Vorschau rechts: Name, Preis, Hinweis, Grössen und Stand wie in der Liste
+  const vorschau = el("div", { class: "ld-vorschau" });
+  const zeigeVorschau = () => {
+    const rappen = rappenAus(preis.eingabe.value);
+    const namen = liste.eingabe.checked
+      ? variantenAus(varianten.eingabe.value)
+      : [];
+    vorschau.replaceChildren(
+      el(
+        "p",
+        { class: "ld-vorschau-name" },
+        name.eingabe.value.trim() || "Ohne Namen",
+      ),
+      el(
+        "p",
+        { class: "ld-vorschau-preis" },
+        rappen === null ? "Preis fehlt" : preisText(rappen),
+      ),
+      hinweis.eingabe.value.trim() &&
+        el("p", { class: "klein leise" }, hinweis.eingabe.value.trim()),
+      el(
+        "p",
+        { class: "klein" },
+        namen.length > 0
+          ? namen.join(", ")
+          : einheit.eingabe.checked
+            ? "Einheitsgrösse"
+            : "Grösse noch offen",
+      ),
+      el(
+        "ul",
+        { class: "chips" },
+        verfuegbar.eingabe.checked
+          ? chip("Verfügbar", "ok")
+          : chip("Nicht verfügbar", "warn"),
+      ),
+    );
+  };
   const formular = el(
     "form",
     { class: "formular", novalidate: true, id: "ld-artikel-formular" },
-    meldungsfeld,
-    name.wurzel,
-    preis.wurzel,
-    bild.wurzel,
-    groesse.wurzel,
-    hinweis.wurzel,
-    verfuegbar.wurzel,
+    el(
+      "div",
+      { class: "ws-frei" },
+      formularRaster({
+        felder: [
+          meldungsfeld,
+          name.wurzel,
+          preis.wurzel,
+          groesse.wurzel,
+          hinweis.wurzel,
+          verfuegbar.wurzel,
+        ],
+        seiteTitel: "Bild und Vorschau",
+        seite: [
+          bildPlatz,
+          el("div", { class: "ws-teilaktionen" }, waehlen, entfernen),
+          wahl.panel,
+          vorschau,
+        ],
+      }),
+    ),
   );
+  zeigeBild();
+  for (const f of [name, preis, varianten, hinweis]) {
+    f.eingabe.addEventListener("input", zeigeVorschau);
+  }
+  for (const k of [einheit, liste, verfuegbar]) {
+    k.eingabe.addEventListener("change", zeigeVorschau);
+  }
+  zeigeVorschau();
   const speichern = knopf("Speichern", {
     art: "haupt",
     type: "submit",
@@ -906,7 +1036,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     const koerper = {
       name: wert,
       preisRappen: rappen,
-      mediumId: bild.eingabe.value || null,
+      mediumId,
       groessenart: art,
       ...(art === "liste" && { varianten: namen }),
       hinweis: hinweis.eingabe.value.trim() || null,

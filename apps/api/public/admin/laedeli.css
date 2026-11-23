@@ -168,3 +168,178 @@ body.ld-zieht {
 .ld-tabelle tr.ld-nach > * {
   box-shadow: inset 0 -3px 0 var(--akzent);
 }
+
+/* Bestellungen als Karten mit Statusschiene (#591) */
+.ld-bestellungen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.ld-bestellung {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.ld-bestellung[hidden] {
+  display: none;
+}
+
+.ld-bestellung-kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ld-bestellung-name {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.ld-summe {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ld-uebergabe {
+  margin: 0;
+}
+
+.ld-bestellung-aktion {
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+/* Schiene: drei Schritte, durch eine Linie verbunden. Erledigt = Haken, jetzt = gefüllt, noch offen = leerer Ring */
+.ld-schiene {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-schritt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+/* Die Linie läuft vom Punkt zum nächsten */
+.ld-schritt:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 11px;
+  left: 32px;
+  right: 8px;
+  height: 2px;
+  background: var(--rand-leise);
+}
+
+.ld-schritt--erledigt:not(:last-child)::after {
+  background: var(--akzent);
+}
+
+.ld-punkt {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  background: var(--karte);
+  border: 2px solid var(--rand);
+  border-radius: 9999px;
+}
+
+.ld-punkt .i {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+
+.ld-schritt--erledigt .ld-punkt {
+  color: var(--auf-akzent);
+  background: var(--akzent);
+  border-color: var(--akzent);
+}
+
+.ld-schritt--jetzt {
+  color: var(--text);
+  font-weight: 800;
+}
+
+.ld-schritt--jetzt .ld-punkt {
+  background: var(--blau);
+  border-color: var(--blau);
+  box-shadow: 0 0 0 4px var(--blau-f);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ld-punkt,
+  .ld-schritt::after {
+    transition:
+      background var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve);
+  }
+}
+
+.ld-skeleton .ld-bestellung {
+  min-height: 12rem;
+}
+
+/* Artikel: Bild gross neben den Feldern, darunter die Vorschau */
+.ld-grossbild {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+}
+
+.bild-box.ld-grossbild > img {
+  object-fit: contain;
+}
+
+.ld-grossbild--leer {
+  color: var(--leise);
+  background: var(--leiste);
+  border: 1px dashed var(--rand-leise);
+}
+
+.ld-vorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--leiste);
+  border-radius: 12px;
+}
+
+.ld-vorschau p {
+  margin: 0;
+}
+
+.ld-vorschau-name {
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.ld-vorschau-preis {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}

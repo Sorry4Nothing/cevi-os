@@ -27,10 +27,13 @@ describe("Admin-Panel: Räume und Raumanfragen", () => {
       "GET",
       "GET",
       "GET",
+      "GET",
       "PATCH",
       "POST",
     ]);
-    expect(raeume).not.toContain("/api/v1/raeume/anfragen");
+    // Nur lesen, für die Zahl der offenen Anfragen je Raum; entscheiden tut die Seite «Anfragen»
+    expect(raeume).toContain("/api/v1/raeume/anfragen/offen");
+    expect(raeume).not.toContain("/entscheid");
   });
 
   test("Anfragen: lesen die offenen und entscheiden nur über die Anfrage-Routen", () => {

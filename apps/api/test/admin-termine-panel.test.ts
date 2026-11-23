@@ -12,7 +12,8 @@ describe("Admin-Panel: Termine und Anlässe", () => {
   test("Kalender liest nur die Termine der Abteilung", () => {
     const modul = lies("termine-kalender.js");
     expect(modul).toContain('"/api/v1/termine/alle"');
-    expect(methoden(modul)).toEqual(["GET", "GET"]);
+    // Gruppen für den Filter, eine Seite des Monats, die Liste und «Weitere laden»; nie schreiben
+    expect(methoden(modul)).toEqual(["GET", "GET", "GET", "GET"]);
   });
 
   test("Ohne Kategorie liest nur die Warnliste", () => {
@@ -57,6 +58,7 @@ describe("Admin-Panel: Termine und Anlässe", () => {
     for (const datei of [
       "kalenderhilfen.js",
       "termine-kalender.js",
+      "termine-monat.js",
       "termine-warnliste.js",
       "termine-kategorien.js",
       "termine-outlook.js",

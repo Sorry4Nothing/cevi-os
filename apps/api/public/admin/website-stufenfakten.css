@@ -4,6 +4,39 @@
 }
 
 .ws-stufenfakten-kopf {
-  max-width: 24rem;
   margin: 1rem 0;
+}
+
+/* Vorschau im Formular: die Angaben als Liste, wie die Stufenseite sie ordnet */
+.ws-stufenvorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+}
+
+.ws-stufenvorschau-zeile {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 12px;
+}
+
+.ws-stufenvorschau dt {
+  color: var(--leise);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ws-stufenvorschau dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ws-stufenvorschau ul {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.ws-stufenvorschau .leise {
+  color: var(--leise);
 }
