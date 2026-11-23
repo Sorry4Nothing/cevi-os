@@ -7,9 +7,10 @@ let m: Modul;
 beforeAll(async () => {
   vi.stubGlobal("document", { addEventListener: () => {} });
   vi.stubGlobal("window", { addEventListener: () => {} });
-  m = (await import(
-    /* @vite-ignore */ "../public/admin/termine-monat.js"
-  )) as Modul;
+  // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
+  const lade = (name: string) =>
+    import(/* @vite-ignore */ `../public/admin/${name}`) as Promise<Modul>;
+  m = await lade("termine-monat.js");
   vi.unstubAllGlobals();
 });
 
