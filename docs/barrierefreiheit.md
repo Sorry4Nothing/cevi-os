@@ -10,6 +10,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Öffentliche Seiten der Website und Editor der Verwaltung (Web statt App): Abschnitt 11, im Browser geprüft.
 - Bereich «Termine» der Verwaltung (Web statt App): Abschnitt 12, im Browser geprüft.
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
+- Übersicht der Verwaltung (Web statt App): Abschnitt 14, im Browser geprüft.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
@@ -228,6 +229,26 @@ Dieser Abschnitt gilt für die drei Unterseiten des Bereichs «Lädeli» unter `
 - [ ] **13.6** «Artikel löschen» fragt nach und nennt, was geschieht (Bestellungen behalten ihre Positionen); danach liegt der Fokus auf der Überschrift.
 - [ ] **13.7** Einstellungen: Die Übergabearten haben eine sichtbare Beschriftung mit Hilfetext (1 bis 5, eine je Zeile), Fehler stehen beim Feld.
 - [ ] **13.8** Der Bereich ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar (die Tabelle scrollt in ihrem Rahmen), Kontrast und Ziele wie 12.11, Texte kurz, Schweizer Schreibweise, Knöpfe sind Verben.
+
+## 14. Verwaltung: Übersicht (#583)
+
+Dieser Abschnitt gilt für die Übersicht unter `/admin#uebersicht` (`apps/api/public/admin/uebersicht*.js`, `uebersicht.css`). Geprüft wird im Browser am PC und am Handy, mit je einem Konto der Abteilungsleitung, einer Stufenleitung und eines Webmasters; die Abschnitte 1 bis 4 und 7 gelten dafür sinngemäss (NVDA oder VoiceOver am Browser).
+
+- [ ] **14.1** Die Seite hat eine Überschriftenfolge (`h1` Übersicht, `h2` je Abschnitt «Jetzt zu tun», «Kennzahlen», «Kommendes und Stufen» (nur für Screenreader), «Zustand», `h3` je Kachel); jeder Abschnitt ist eine `section` mit `aria-labelledby`.
+- [ ] **14.2** Jede Aufgabenkachel ist ein Link mit einem Namen aus Zahl, Satz und Aktion («2 Terminvorschläge warten auf deinen Entscheid, Prüfen»); ohne Recht auf die Zielseite gibt es keinen Link, nur die Zahl. Störung und Sicherheit stehen als Wort mit Symbol, nie nur als Farbe.
+- [ ] **14.3** Jede Grafik ist ein Element mit `role="img"` und einem Satz, der alle Werte nennt; sie ist mit Tab erreichbar, zeigt einen sichtbaren Fokusring (3 px) und lässt sich mit Pfeiltasten, Pos1 und Ende ablesen. Der Text der Ablesung steht in einer höflichen Live-Region. Wer keinen Zeiger hat, verliert nichts.
+- [ ] **14.4** Der Schalter «Tabellen statt Diagramme» ist ein Knopf mit `aria-pressed` (der Zustand steht auch als Häkchen im Knopf); er tauscht alle Diagramme der Seite gegen Tabellen mit `caption`, `th scope`, Zahlen rechts. Die Wahl bleibt bei «Aktualisieren».
+- [ ] **14.5** Die Information liegt nie nur in der Farbe: Der aktuelle Zeitraum hat Akzent und steht in der Ablesung, der Fehleranteil der Anfragen hat Legende, Zahl und in erzwungenen Farben einen Umriss statt einer Füllung, Termine von heute tragen das Wort «Heute».
+- [ ] **14.6** Lädt: Skelett in der Form der Seite (`aria-hidden`), «Lädt …» in der Live-Region. Fehler einer einzelnen Kachel («Nicht geladen», «Nochmals versuchen») lassen den Rest stehen; ein Fehler der ganzen Seite zeigt die Zustandskarte mit «Nochmals versuchen». Leer steht als Satz («Gerade ist nichts offen.», «In den nächsten 8 Wochen steht nichts an.»).
+- [ ] **14.7** «Aktualisieren» im Seitenkopf behält den Fokus und lässt den alten Inhalt stehen, bis der neue da ist («Wird aktualisiert …»).
+- [ ] **14.8** Zeiten und Daten stehen in Schweizer Zeit mit Wochentag; das Datumsfeld der Liste «Kommendes» ist für Screenreader ein Satz («Samstag, 5. Dezember: …»), der Block daneben ist `aria-hidden`.
+- [ ] **14.9** Hell, Dunkel und erzwungene Farben: Text mindestens 4.5:1, Ränder von Bedienelementen und Marken 3:1; Hover und Fokus sind in jedem Modus erkennbar. Mit «Bewegung reduzieren» wachsen die Säulen nicht ein und nichts gleitet.
+- [ ] **14.10** 1440, 1024 und 390 Pixel sowie 320 Pixel und 200 Prozent Zoom: das Raster bricht um, nichts scrollt waagrecht, Zielgrössen mindestens 44 Pixel.
+- [ ] **14.11** Je Rolle zeigt die Seite nur ihre Kacheln (Abteilungsleitung alles, Webmaster Website und Medien, Stufenleitung die eigene Stufe); fehlt eine Kachel, bleibt keine Lücke, und eine Rolle ohne Teile bekommt einen Satz statt einer leeren Seite.
+
+### Stand der Prüfung (#583)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 14.1 bis 14.7 und 14.9 bis 14.11 (1440, 390 und 320 Pixel, Hell, Dunkel, erzwungene Farben, Tabellenansicht, Tastaturfolge mit Pfeiltasten in den Grafiken, je ein Konto der Abteilungsleitung, der Stufenleitung und des Webmasters). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack: 14.2, 14.3 und 14.8 nur an den Attributen), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
 
 ## Im PR angeben
 

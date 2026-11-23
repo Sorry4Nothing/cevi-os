@@ -95,13 +95,22 @@ function zeichne(bereich, ctx, daten, neuLaden) {
       }),
       zweispaltig.length > 0 &&
         el(
-          "div",
-          {
-            class:
-              "ub-zweispaltig" +
-              (zweispaltig.length === 1 ? " ub-zweispaltig--eine" : ""),
-          },
-          zweispaltig,
+          "section",
+          { class: "ub-abschnitt", "aria-labelledby": "ub-h-kommend" },
+          el(
+            "h2",
+            { id: "ub-h-kommend", class: "nur-leser" },
+            "Kommendes und Stufen",
+          ),
+          el(
+            "div",
+            {
+              class:
+                "ub-zweispaltig" +
+                (zweispaltig.length === 1 ? " ub-zweispaltig--eine" : ""),
+            },
+            zweispaltig,
+          ),
         ),
       zustand(daten, ctx, opt),
     ].filter(Boolean),

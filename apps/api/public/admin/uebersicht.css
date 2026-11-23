@@ -586,6 +586,23 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   }
 }
 
+/* Mittlere Breiten: zwei Spalten statt drei und einer einzelnen Kachel in der letzten Zeile */
+@media (max-width: 1099px) {
+  .ub-aufgaben,
+  .ub-raster,
+  .ub-raster--zustand {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .ub-aufgaben,
+  .ub-raster,
+  .ub-raster--zustand {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (max-width: 900px) {
   .ub-zweispaltig {
     grid-template-columns: minmax(0, 1fr);
