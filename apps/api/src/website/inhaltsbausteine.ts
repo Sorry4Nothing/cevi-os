@@ -50,7 +50,7 @@ export function rendereInhaltsBaustein(
 ): HtmlKnoten {
   const ebene = Math.min(3, letzte.ebene + 1);
   switch (b.typ) {
-    // Markup und Klassen wie die Porträtkarten aus #555 (website.css), dazu die Adresse
+    // Der Anzeigename (Cevi-Name oder Vorname) ist die Hauptzeile, Funktion und Adresse stehen klein darunter
     case "personen":
       return el(
         "ul",
@@ -58,16 +58,21 @@ export function rendereInhaltsBaustein(
         ...b.daten.eintraege.map((e) => {
           // Das Porträt trägt keinen Inhalt, den der Name daneben nicht nennt
           const bild = foto(e.mediumId, daten, e.name, true);
+          // Der Rahmen schneidet das Porträt zu, damit es beim Zeigen wachsen kann; «einblenden» ist die Bewegung der Grundlage (#555)
           return el(
             "li",
-            undefined,
-            bild && typeof bild === "object"
-              ? { ...bild, attr: { class: "portraet", ...bild.attr } }
-              : el(
-                  "span",
-                  { class: "portraet portraet--leer", "aria-hidden": "true" },
-                  initialen(e.name),
-                ),
+            { class: "einblenden" },
+            el(
+              "span",
+              { class: "portraet-rahmen" },
+              bild && typeof bild === "object"
+                ? { ...bild, attr: { class: "portraet", ...bild.attr } }
+                : el(
+                    "span",
+                    { class: "portraet portraet--leer", "aria-hidden": "true" },
+                    initialen(e.name),
+                  ),
+            ),
             el(`h${ebene}`, { class: "titel" }, e.name),
             ...(e.funktion ? [el("p", undefined, e.funktion)] : []),
             ...(e.email
@@ -90,7 +95,7 @@ export function rendereInhaltsBaustein(
           const bild = foto(e.mediumId, daten, e.name);
           return el(
             "li",
-            undefined,
+            { class: "einblenden" },
             el(
               "div",
               {

@@ -503,33 +503,6 @@ function galerieForm(k, b, reg, karussell = false) {
   });
 }
 
-// Symbole der Merkmalskacheln (#555); die Zeichnung steht im Renderer der Website
-const MERKMAL_SYMBOLE = [
-  ["gruppe", "Gruppe"],
-  ["zelt", "Zelt"],
-  ["kalender", "Kalender"],
-  ["stern", "Stern"],
-  ["herz", "Herz"],
-  ["ort", "Ort"],
-  ["sonne", "Sonne"],
-];
-
-// Auswahl für ein Feld eines Eintrags (Symbol); leer = kein Wert
-function teilWahl(k, b, reg, eintrag, schluessel, label, pfad, optionen) {
-  const f = waehler({
-    label,
-    optionen: [["", "Keines"], ...optionen],
-    wert: eintrag[schluessel] ?? "",
-  });
-  f.eingabe.addEventListener("change", () => {
-    if (f.eingabe.value === "") delete eintrag[schluessel];
-    else eintrag[schluessel] = f.eingabe.value;
-    k.aendere(b);
-  });
-  anmelden(reg, pfad, f);
-  return f.wurzel;
-}
-
 function kartenForm(k, b, reg) {
   const art = b.daten.darstellung;
   const darstellung = wahl(k, b, reg, "darstellung", "Darstellung", [
@@ -547,20 +520,22 @@ function kartenForm(k, b, reg) {
   });
   const hilfe = {
     merkmale:
-      "Zeilen mit Symbol, Titel und kurzem Text, ohne Link. Gut für «Das erwartet dich».",
+      "Wenige Stichworte mit kurzem Text in einem blauen Band, ohne Link, auf Wunsch je mit Foto. Gut für «Das erwartet dich».",
     stufen:
       "Karten mit Foto, einem Etikett im Bild und einem Link auf die ganze Karte. Gut für Stufen (Etikett: Alter) und für Artikel (Etikett: Preis).",
     personen:
       "Porträt, Name und Funktion, ohne Link. Ohne Bild stehen die Anfangsbuchstaben.",
     zeitstrahl:
-      "Ereignisse in ihrer Reihenfolge: Im Titel steht das Jahr oder Datum, im Text, was geschah.",
+      "Stationen einer Geschichte in ihrer Reihenfolge, in einem blauen Band: Im Titel steht das Jahr (kurz, es erscheint sehr gross), im Text, was geschah. Mit Foto stehen Bild und Text abwechselnd links und rechts.",
     zahlen:
       "Wenige grosse Zahlen mit kurzer Beschriftung: Im Titel steht die Zahl, im Text, was sie zählt.",
   }[art];
   const titelName =
     { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", personen: "Name" }[art] ??
     "Titel";
-  const mitBild = art === "stufen" || art === "personen";
+  const mitBild = ["stufen", "personen", "merkmale", "zeitstrahl"].includes(
+    art,
+  );
   const ohneLink = ["merkmale", "personen", "zeitstrahl", "zahlen"].includes(
     art,
   );
@@ -607,20 +582,6 @@ function kartenForm(k, b, reg) {
                 schluessel: "bild",
                 optional: true,
               }),
-            ]
-          : []),
-        ...(art === "merkmale"
-          ? [
-              teilWahl(
-                k,
-                b,
-                reg,
-                eintrag,
-                "symbol",
-                "Symbol (optional)",
-                `${pfad}.symbol`,
-                MERKMAL_SYMBOLE,
-              ),
             ]
           : []),
         teilEingabe(
@@ -1052,14 +1013,22 @@ export const TYPEN = {
       el(
         "p",
         { class: "hilfe" },
-        "Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+        "Ansprechpersonen mit Foto, Anzeigename, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
       ),
       eintraegeForm(k, b, reg, {
         name: "Person",
         max: MAX_PERSONEN,
         bild: true,
         felder: [
-          ["name", "Name", { maxlength: 100 }],
+          [
+            "name",
+            "Anzeigename",
+            {
+              maxlength: 100,
+              hilfe:
+                "Steht gross unter dem Bild, zum Beispiel der Cevi-Name, sonst der Vorname.",
+            },
+          ],
           [
             "funktion",
             "Funktion (optional)",

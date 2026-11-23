@@ -6,7 +6,13 @@ import {
   rendereInhaltsBaustein,
   STIL_INHALT,
 } from "./inhaltsbausteine.js";
-import { karussell, SKRIPT_KARUSSELL, STIL_KARUSSELL } from "./karussell.js";
+import {
+  karussell,
+  SKRIPT_KARUSSELL,
+  SKRIPT_LICHTKASTEN,
+  STIL_KARUSSELL,
+  STIL_LICHTKASTEN,
+} from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import {
   rendereLaden,
@@ -15,6 +21,7 @@ import {
   type LadenArtikel,
 } from "./laden.js";
 import { symbol } from "./symbole.js";
+import { zeichenLinks } from "./zeichen.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -115,6 +122,8 @@ export type Logo = {
 export type Kontext = {
   abteilung: string;
   logo?: Logo;
+  // Favicon (#558): Die Dateien liegen in der Ausgabe; der Wert ist ihre Fassung (Hex) für die Adressen. Fehlt er, trägt die Seite keine Einträge (Vorschau im Editor, Tests)
+  zeichen?: string;
   basisUrl: string;
   navigation: NavPunkt[];
   daten: Daten;
@@ -167,6 +176,12 @@ function href(ziel: string): Record<string, string> | null {
     : { href: ziel };
 }
 
+const EXTERN_HINWEIS: HtmlKnoten = el(
+  "span",
+  { class: "nur-sr" },
+  " (externe Seite)",
+);
+
 export function verlinke(
   ziel: string | undefined,
   innen: HtmlKnoten[],
@@ -174,7 +189,9 @@ export function verlinke(
 ): HtmlKnoten[] {
   const h = ziel === undefined ? null : href(ziel);
   if (h === null) return innen;
-  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen)];
+  // Ein Link auf eine fremde Seite sagt das auch Screenreadern; das sichtbare Zeichen zeichnet der Stil (a[rel~="noopener"])
+  const extern = h.rel === undefined ? [] : [EXTERN_HINWEIS];
+  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
 function textBlock(b: TextBlock): HtmlKnoten {
@@ -213,10 +230,16 @@ function bild(
     loading: "lazy",
     decoding: "async",
   });
+  // Das Bild ist ein Link auf die Bilddatei: Ohne Skript öffnet er sie, mit Skript (lichtkasten.js) die Grossansicht über der Seite (#559)
   return el(
     "figure",
     undefined,
-    img,
+    el(
+      "a",
+      { class: "gross", href: medienUrl(id) },
+      img,
+      el("span", { class: "nur-sr" }, "Bild gross ansehen"),
+    ),
     ...(unterschrift ? [el("figcaption", undefined, unterschrift)] : []),
   );
 }
@@ -399,7 +422,7 @@ function rendereBaustein(
       return bilder.length < 2 ? (bilder[0] ?? null) : karussell(bilder);
     }
     // «karten»: einfache Karte mit Titel, Text und Link; «liste»: eine Zeile je Eintrag mit Link am Titel;
-    // «merkmale» (#555): Kachel ohne Link mit Symbol, Titel und Text; «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
+    // «merkmale» (#555): ohne Link, grosser Titel und Text, optional ein Foto, in einem blauen Band (siehe rendereAbschnitte); «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
     case "karten": {
       const ebene = Math.min(3, letzte.ebene + 1);
       // Ein Eintrag, der auf eine Seite führt, die Besucher nicht sehen, entfällt (#560)
@@ -411,17 +434,30 @@ function rendereBaustein(
         return el(
           "ul",
           { class: "merkmale" },
-          ...eintraege.map((e) =>
-            el(
+          ...eintraege.map((e) => {
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            return el(
               "li",
               undefined,
-              ...(e.symbol
-                ? [el("span", { class: "merkmal-symbol" }, symbol(e.symbol))]
+              ...(e.bild && m?.mimeTyp.startsWith("image/")
+                ? [
+                    el("img", {
+                      src: medienUrl(e.bild),
+                      alt: m.altText ?? "",
+                      ...(m.breite &&
+                        m.hoehe && {
+                          width: String(m.breite),
+                          height: String(m.hoehe),
+                        }),
+                      loading: "lazy",
+                      decoding: "async",
+                    }),
+                  ]
                 : []),
               el(`h${ebene}`, { class: "titel" }, e.titel),
               ...(e.text ? [el("p", undefined, e.text)] : []),
-            ),
-          ),
+            );
+          }),
         );
       }
       // Die Reihenfolge trägt Bedeutung: eine geordnete Liste
@@ -429,14 +465,40 @@ function rendereBaustein(
         return el(
           "ol",
           { class: "zeitstrahl" },
-          ...eintraege.map((e) =>
-            el(
+          ...eintraege.map((e) => {
+            // Stationen einer Erzählung (#560): das Jahr gross, daneben der Text und, wenn gewählt, ein Foto. Der Alt-Text kommt vom Medium
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            const foto = e.bild && m?.mimeTyp.startsWith("image/") ? m : null;
+            return el(
               "li",
-              undefined,
-              el("p", { class: "jahr" }, e.titel),
-              ...(e.text ? [el("p", undefined, e.text)] : []),
-            ),
-          ),
+              { class: foto ? "station station--bild" : "station" },
+              ...(foto && e.bild
+                ? [
+                    el(
+                      "figure",
+                      { class: "station-bild" },
+                      el("img", {
+                        src: medienUrl(e.bild),
+                        alt: foto.altText ?? "",
+                        ...(foto.breite &&
+                          foto.hoehe && {
+                            width: String(foto.breite),
+                            height: String(foto.hoehe),
+                          }),
+                        loading: "lazy",
+                        decoding: "async",
+                      }),
+                    ),
+                  ]
+                : []),
+              el(
+                "div",
+                { class: "station-text" },
+                el("p", { class: "jahr" }, e.titel),
+                ...(e.text ? [el("p", undefined, e.text)] : []),
+              ),
+            );
+          }),
         );
       }
       if (b.daten.darstellung === "zahlen") {
@@ -515,7 +577,7 @@ function rendereBaustein(
       const knopf =
         b.daten.darstellung === "schaltflaeche"
           ? `btn ${letzte.schalter++ === 0 ? "p" : "s"} gross`
-          : undefined;
+          : "verweis";
       return el(
         "p",
         { class: "knopf" },
@@ -557,7 +619,7 @@ function rendereBaustein(
       return el(
         "p",
         undefined,
-        ...verlinke(b.daten.url, [b.daten.beschriftung]),
+        ...verlinke(b.daten.url, [b.daten.beschriftung], "verweis"),
       );
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
@@ -715,7 +777,7 @@ function monatKurz(tag: string) {
 }
 
 // Eine Zeile der Liste (Design W1): Datumsfeld, Titel, Zeit und Ort, Chips der Stufen. Ein Anlass führt auf seine Seite, ein Termin ohne Anlass ist keine Verknüpfung
-function terminZeile(t: TerminEintrag): HtmlKnoten {
+export function terminZeile(t: TerminEintrag): HtmlKnoten {
   const zeit = t.zeitVon
     ? `${t.zeitVon}${t.zeitBis ? `–${t.zeitBis}` : ""}`
     : "ganztägig";
@@ -852,10 +914,37 @@ function rendereEintraege(
   }));
 }
 
+const istKnopf = (k: HtmlKnoten | undefined, klasse: string) =>
+  typeof k === "object" && k.attr?.class === klasse;
+
+// Schaltflächen, die unmittelbar aufeinander folgen, bilden eine Gruppe in einer Zeile (#555): Hauptaktion und Nebenaktionen gehören sichtbar zusammen.
+// Eine einzelne Schaltfläche bleibt ein Absatz
+function gruppiereAktionen(knoten: HtmlKnoten[]): HtmlKnoten[] {
+  const aus: HtmlKnoten[] = [];
+  for (const k of knoten) {
+    const vor = aus.at(-1);
+    if (
+      typeof k === "object" &&
+      typeof vor === "object" &&
+      istKnopf(k, "knopf") &&
+      (istKnopf(vor, "knopf") || istKnopf(vor, AKTIONEN))
+    ) {
+      aus[aus.length - 1] = el(
+        "div",
+        { class: AKTIONEN },
+        ...(vor.kinder ?? []),
+        ...(k.kinder ?? []),
+      );
+    } else {
+      aus.push(k);
+    }
+  }
+  return aus;
+}
+const AKTIONEN = "knopfreihe aktionen";
+
 const alsHtml = (liste: Eintrag[]) =>
-  liste
-    .map((e) => e.knoten)
-    .filter((k) => k !== null)
+  gruppiereAktionen(liste.map((e) => e.knoten).filter((k) => k !== null))
     .map(serialisiere)
     .join("\n");
 
@@ -1047,14 +1136,27 @@ ${alsHtml(g.eintraege)}
           : g.eintraege;
       const mitKopf = !g.eigen && typ === "ueberschrift";
       const rest = liste.slice(1);
-      const breit = !g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b));
+      // Merkmale und der Zeitstrahl (#560) stehen in einem Band in der Markenfarbe über die ganze Breite; danach beginnt die Fläche neu
+      const marke =
+        !g.eigen &&
+        liste.some(
+          (e) =>
+            sichtbar(e) &&
+            e.b.typ === "karten" &&
+            (e.b.daten.darstellung === "merkmale" ||
+              e.b.daten.darstellung === "zeitstrahl"),
+        );
+      const breit =
+        marke || (!g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b)));
       const folge = !breit && vor.zeilen;
-      const ton = folge
-        ? vor.ton
-        : vor.ton === "flaeche"
-          ? "toenung"
-          : "flaeche";
-      vor = { ton, zeilen: !breit };
+      const ton = marke
+        ? "marke"
+        : folge
+          ? vor.ton
+          : vor.ton === "flaeche"
+            ? "toenung"
+            : "flaeche";
+      vor = marke ? { ton: "toenung", zeilen: false } : { ton, zeilen: !breit };
       const klassen = `sektion sektion--${ton}${folge ? " sektion--folge" : ""}`;
       if (g.eigen) {
         return `<section class="${klassen} sektion--${typ}">
@@ -1129,6 +1231,12 @@ const CSP_MIT_SKRIPT =
 export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
 export { SKRIPT_KARUSSELL };
+// Bausteine, deren Bilder sich gross öffnen lassen
+const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
+  "bild",
+  "galerie",
+  "karussell",
+]);
 // Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
 export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
@@ -1194,7 +1302,7 @@ export function rahmen(
 <meta name="color-scheme" content="light dark">
 <meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP_SEITE)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
-<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
+<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
 <link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
@@ -1221,7 +1329,18 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     sichtbar(erstes) &&
     typeof erstes.knoten === "object"
       ? serialisiere(
-          eifrig({ ...erstes.knoten!, attr: { class: "titelbild" } }),
+          eifrig({
+            ...erstes.knoten!,
+            attr: { class: "titelbild" },
+            // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
+            kinder: erstes.knoten!.kinder?.flatMap((kind) =>
+              typeof kind === "object" && kind.attr?.class === "gross"
+                ? (kind.kinder ?? []).filter(
+                    (x) => typeof x === "object" && x.tag === "img",
+                  )
+                : [kind],
+            ),
+          }),
         )
       : null;
   const uebrige = titelbild ? eintraege.slice(1) : eintraege;
@@ -1236,13 +1355,23 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         `<div class="hero hero--seite">${titelbild}\n<div class="seitenband seitenband--ueber-bild"><div class="wrap"><div class="fahne"><h1>${esc(s.dokument.titel)}</h1></div></div></div></div>`
       : `<div class="seitenband"><div class="wrap"><h1>${esc(s.dokument.titel)}</h1></div></div>`;
   const inhalt = `${kopf}\n${rendereAbschnitte(teaser ? teaser.rest : uebrige)}`;
-  const mitKarussell = eintraege.some(
+  // Skripte und Stile für Karussell und Grossansicht (#559)
+  const bilder = eintraege.some(
     (e) =>
       e.b.typ === "karussell" &&
       (!istOeffentlich(e.b) ||
         (typeof e.knoten === "object" &&
           e.knoten?.attr?.class === "karussell")),
-  );
+  )
+    ? {
+        zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+        stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
+      }
+    : // Grossansicht für Bild und Galerie (auch geschützte: Die Links kommen dann beim Nachladen)
+      s.dokument.bausteine.some((b) => BILD_BAUSTEINE.has(b.typ)) && {
+        zusatzSkripte: [SKRIPT_LICHTKASTEN],
+        stile: [STIL_LICHTKASTEN],
+      };
   // Der Laden (#566) bringt Stil und Skript nur mit, wenn er öffentlich auf der Seite steht und Artikel hat
   const mitLaden = eintraege.some(
     (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
@@ -1255,10 +1384,10 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     inhalt,
     vollbreit: true,
     // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
-    ...(mitKarussell && { zusatzSkripte: [SKRIPT_KARUSSELL] }),
-    // Der Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
+    // Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
+    zusatzSkripte: bilder ? bilder.zusatzSkripte : [],
     stile: [
-      ...(mitKarussell ? [STIL_KARUSSELL] : []),
+      ...(bilder ? bilder.stile : []),
       ...(s.dokument.bausteine.some(istInhaltsBaustein) ? [STIL_INHALT] : []),
       ...(mitLaden ? STILE_LADEN : []),
     ],
@@ -1370,8 +1499,8 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     skript: SKRIPT_GESCHUETZT,
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell findet Stil und Skript vor
-    zusatzSkripte: [SKRIPT_KARUSSELL],
-    stile: [STIL_KARUSSELL],
+    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

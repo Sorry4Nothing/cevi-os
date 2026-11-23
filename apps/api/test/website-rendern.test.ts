@@ -218,11 +218,17 @@ describe("XSS: jede Zeichenkette erscheint maskiert", () => {
         }),
       ),
     );
-    expect(html).toContain('<a href="/stufen/woelfe#info">Intern</a>');
     expect(html).toContain(
-      '<a href="https://example.org/x" rel="noopener noreferrer">Extern</a>',
+      '<a href="/stufen/woelfe#info" class="verweis">Intern</a>',
     );
-    expect(html).toContain('<a href="mailto:a@example.org">Mail</a>');
+    expect(html).toContain(
+      '<a href="https://example.org/x" rel="noopener noreferrer" class="verweis">Extern<span class="nur-sr"> (externe Seite)</span></a>',
+    );
+    // Nur der fremde Link trägt den Zusatz für Screenreader
+    expect(zaehle(html, "(externe Seite)")).toBe(1);
+    expect(html).toContain(
+      '<a href="mailto:a@example.org" class="verweis">Mail</a>',
+    );
   });
 });
 
@@ -608,6 +614,32 @@ describe("Fehlerseite, Sitemap, robots.txt", () => {
 });
 
 describe("Logo, Umschalter und Karussell (#550)", () => {
+  const huelleMit = () => rendereHuelle("/x", kontext());
+
+  test("Bild und Galerie (#559): Link zur Grossansicht, ihr Stil und Skript, aber nichts vom Karussell", () => {
+    const { ids, daten } = medien(2);
+    const html = seite(
+      dok(
+        "T",
+        // Ein Bild an erster Stelle wäre das Titelbild (ohne Link)
+        b("trenner", { art: "linie" }),
+        b("bild", { mediumId: ids[0]!, unterschrift: "Am See" }),
+        b("galerie", { bilder: [{ mediumId: ids[1]! }] }),
+      ),
+      daten,
+    );
+    expect(html).toContain(
+      `<figure><a class="gross" href="/api/v1/medien/${ids[0]}"><img src="/api/v1/medien/${ids[0]}" alt="Bild 1"`,
+    );
+    expect(html).toContain(
+      '<span class="nur-sr">Bild gross ansehen</span></a><figcaption>Am See</figcaption></figure>',
+    );
+    expect(zaehle(html, '<a class="gross"')).toBe(2);
+    expect(html).toContain('href="/website/lichtkasten.css"');
+    expect(html).toContain('src="/website/lichtkasten.js" defer');
+    expect(html).not.toContain("karussell");
+  });
+
   const medien = (n: number) => {
     const ids = Array.from({ length: n }, () => id());
     const daten: Daten = {
@@ -676,8 +708,21 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain(
       '<div class="karussell" role="group" aria-roledescription="Karussell" aria-label="Bilder">',
     );
-    // Der Streifen scrollt seitwärts und ist mit der Tastatur erreichbar
-    expect(html).toContain('<ul class="folien" tabindex="0">');
+    // Der Streifen scrollt seitwärts; mit der Tastatur erreichbar über die Links der Bilder
+    expect(html).toContain('<ul class="folien">');
+    // Jedes Bild ist ein Link auf die Bilddatei: ohne Skript öffnet er sie, mit Skript die Grossansicht
+    expect(html).toContain(
+      `<li class="folie"><figure><a class="gross" href="/api/v1/medien/${ids[1]}"><img src="/api/v1/medien/${ids[1]}" alt="Bild 2"`,
+    );
+    expect(zaehle(html, '<span class="nur-sr">Bild gross ansehen</span>')).toBe(
+      3,
+    );
+    expect(html).toContain(
+      '<link rel="stylesheet" href="/website/lichtkasten.css">',
+    );
+    expect(html).toContain(
+      '<script src="/website/lichtkasten.js" defer></script>',
+    );
     expect(zaehle(html, '<li class="folie">')).toBe(3);
     expect(html).toContain('alt="Bild 2"');
     // Platz für die Leiste des Skripts; ohne Skript steht dort die Anzahl
@@ -688,8 +733,8 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain(
       '<script src="/website/karussell.js" defer></script>',
     );
-    // Kein Inline-Skript, nur die zwei eigenen Dateien; keine Knöpfe ohne Skript
-    expect(zaehle(html, "<script")).toBe(2);
+    // Kein Inline-Skript, nur die eigenen Dateien (Thema, Grossansicht, Karussell); keine Knöpfe ohne Skript
+    expect(zaehle(html, "<script")).toBe(3);
     expect(html).not.toContain('class="k-knoepfe"');
   });
 
@@ -717,6 +762,8 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
   test("Seiten ohne Karussell laden weder seinen Stil noch sein Skript; die Hülle lädt beides immer", () => {
     const ohne = seite(dok("T", b("trenner", { art: "linie" })));
     expect(ohne).not.toContain("karussell");
+    expect(ohne).not.toContain("lichtkasten");
+    expect(huelleMit()).toContain('src="/website/lichtkasten.js" defer');
     const huelle = rendereHuelle("/x", kontext());
     expect(huelle).toContain('href="/website/karussell.css"');
     expect(huelle).toContain('src="/website/karussell.js" defer');

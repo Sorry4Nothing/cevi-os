@@ -192,7 +192,7 @@ describe("Renderer", () => {
     );
     expect(html).toMatch(
       new RegExp(
-        `<ul class="personen"><li><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
+        `<ul class="personen"><li class="einblenden"><span class="portraet-rahmen"><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*></span><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
       ),
     );
     // Das zweite Bild gibt es nicht (oder es ist nicht öffentlich): Initialen
@@ -223,14 +223,14 @@ describe("Renderer", () => {
       },
     );
     expect(html).toContain(
-      `<li><div class="artikel-bild"><img src="/api/v1/medien/${gleich}" alt=""`,
+      `<li class="einblenden"><div class="artikel-bild"><img src="/api/v1/medien/${gleich}" alt=""`,
     );
     expect(html).toContain('alt="Rotes Sackmesser"');
     expect(html).toContain(
       '<div class="artikel-text"><h2 class="name">Pulli</h2><p class="preis">CHF 40.–</p></div>',
     );
     expect(html).toContain(
-      '<li><div class="artikel-bild artikel-bild--leer"></div><div class="artikel-text"><h2 class="name">Ausweis</h2><p class="preis">gratis</p></div></li>',
+      '<li class="einblenden"><div class="artikel-bild artikel-bild--leer"></div><div class="artikel-text"><h2 class="name">Ausweis</h2><p class="preis">gratis</p></div></li>',
     );
     expect(html).not.toContain("<x-boese");
   });
@@ -263,6 +263,42 @@ describe("Renderer", () => {
     expect(seite(d)).not.toContain("Pulli");
     const [k] = rendereGeschuetzte(d, id(), keineDaten(), () => true);
     expect(JSON.stringify(k?.knoten)).toContain("Pulli");
+  });
+});
+
+describe("Zeitstrahl als Geschichte in Stationen", () => {
+  test("Station mit Foto und ohne; der Abschnitt ist das blaue Band über die ganze Breite", () => {
+    const foto = id();
+    const html = seite(
+      dok(
+        b("ueberschrift", { ebene: 2, text: "Geschichte" }),
+        b("karten", {
+          darstellung: "zeitstrahl",
+          eintraege: [
+            { titel: "2008", text: "Gründung.", bild: foto },
+            { titel: "2013", text: BOESE, bild: id() },
+            { titel: "2014" },
+          ],
+        }),
+      ),
+      { ...keineDaten(), medien: new Map([[foto, bildDaten("Gruppenbild")]]) },
+    );
+    expect(html).toContain(
+      '<section class="sektion sektion--marke sektion--breit">',
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<ol class="zeitstrahl"><li class="station station--bild"><figure class="station-bild"><img src="/api/v1/medien/${foto}" alt="Gruppenbild"[^>]*></figure><div class="station-text"><p class="jahr">2008</p><p>Gründung.</p></div></li>`,
+      ),
+    );
+    // Ein Bild, das es nicht gibt (oder das nicht öffentlich ist): Station ohne Foto
+    expect(html).toContain(
+      '<li class="station"><div class="station-text"><p class="jahr">2013</p><p>&lt;x-boese a=&quot;1&quot;&gt;</p></div></li>',
+    );
+    expect(html).toContain(
+      '<li class="station"><div class="station-text"><p class="jahr">2014</p></div></li>',
+    );
+    expect(html).not.toContain("<x-boese");
   });
 });
 
