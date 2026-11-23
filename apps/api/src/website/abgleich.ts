@@ -42,6 +42,7 @@ import {
   rendereServerfehler,
   rendereWartung,
   stimmungsbild,
+  type FehlerBild,
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
@@ -164,6 +165,26 @@ export async function ladeZeichen(
       ),
     );
   return z ?? null;
+}
+
+// Das Bild der Fehlerseiten (#567): wie das Zeichen nur ein öffentliches Bild der eigenen Abteilung; sonst undefined (dann gilt das Titelbild der Startseite)
+export async function ladeFehlerbild(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<FehlerBild | undefined> {
+  const [z] = await db
+    .select({ id: medium.id, breite: medium.breite, hoehe: medium.hoehe })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteFehlerbildMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z;
 }
 
 const logoDunkel = alias(medium, "logo_dunkel");
@@ -649,11 +670,13 @@ export async function erzeugeWebsite(
       FEHLERSEITE,
       rendereFehlerseite(
         kontext,
-        stimmungsbild(
-          [...dokumente].find(([id]) => oeffentlich.get(id)!.pfad === "/")?.[1]
-            .dok,
-          kontext.daten,
-        ),
+        (await ladeFehlerbild(db, abteilungId)) ??
+          stimmungsbild(
+            [...dokumente].find(
+              ([id]) => oeffentlich.get(id)!.pfad === "/",
+            )?.[1].dok,
+            kontext.daten,
+          ),
       ),
     ],
     [SERVERFEHLER, rendereServerfehler(kontext)],

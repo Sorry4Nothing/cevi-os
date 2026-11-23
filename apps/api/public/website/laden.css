@@ -1,0 +1,88 @@
+/* Ladezustände der Website (#567). Jede Seite lädt diese Datei nach website.css; Farben nur aus deren Tokens (--skeleton, --skeleton-highlight), in Tag und Nacht.
+   Teil 1: Bilder. Die Marken setzt bilder.js (klassisches Skript im <head>): Klasse «bilder» auf <html>, je Bild data-da oder data-fehlt.
+   Ohne Skript gilt nichts davon: Bilder erscheinen, wie der Browser sie zeichnet; ihr Platz ist durch width und height reserviert, nichts bleibt im Ladezustand. */
+
+:root {
+  /* Helligkeit einer flachen Fläche im Ton des Platzhalters: contrast(0) macht aus jedem Bild 50 % Grau, brightness() hebt es auf den Ton von --skeleton */
+  --bild-flach: 1.72;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bild-flach: 0.33;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bild-flach: 0.33;
+}
+
+@media screen {
+  /* Lädt: eine ruhige Fläche in der Form des Bildes. Der Inhalt bleibt verborgen (kein zeilenweiser Aufbau), bis das Bild ganz da ist.
+     Das Logo im Kopf ist klein und fast immer im Cache: Es bekommt keinen Platzhalter */
+  html.bilder img:not([data-da], [data-fehlt], .logo) {
+    background-color: var(--skeleton);
+    object-fit: none;
+    object-position: -9999px 0;
+  }
+
+  /* Geladen, Startzustand: das Bild als flache Fläche im Ton des Platzhalters; von dort blendet es zu sich selbst über */
+  html.bilder img[data-da="start"] {
+    filter: contrast(0) brightness(var(--bild-flach));
+  }
+
+  html.bilder img[data-da="neu"] {
+    transition: filter 0.5s var(--kurve);
+  }
+
+  /* Nicht geladen: ein Feld in der Form des Bildes mit gestricheltem Rand und dem Alt-Text; der Zustand hängt nicht an der Farbe */
+  html.bilder img[data-fehlt] {
+    padding: 0.75rem;
+    background: var(--surface-container);
+    outline: 1px dashed var(--outline);
+    outline-offset: -1px;
+    color: var(--on-surface-variant);
+    font-size: 0.875rem;
+    font-weight: 400;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+  }
+
+  /* Wo der Browser es kann (Chromium, Firefox), sagt das Feld, was los ist; der Alt-Text folgt */
+  html.bilder img[data-fehlt]::before {
+    content: "Bild nicht geladen. ";
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* Der Platzhalter schimmert ruhig, aber erst nach 0.4 s: Ein Bild, das schnell kommt, zeigt keine Bewegung */
+  html.bilder img:not([data-da], [data-fehlt], .logo) {
+    background-image: linear-gradient(
+      100deg,
+      transparent 30%,
+      var(--skeleton-highlight) 50%,
+      transparent 70%
+    );
+    background-repeat: no-repeat;
+    background-position: 200% 0;
+    background-size: 60% 100%;
+    animation: bild-schimmer 1.6s ease-in-out 0.4s infinite;
+  }
+
+  @keyframes bild-schimmer {
+    from {
+      background-position: -150% 0;
+    }
+
+    to {
+      background-position: 250% 0;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  html.bilder img:not([data-da], [data-fehlt], .logo) {
+    outline: 1px solid CanvasText;
+    outline-offset: -1px;
+  }
+}

@@ -109,6 +109,7 @@ ${fehlerBuehne({
   satz: "Du wirst gleich weitergeleitet. Geht es nicht von selbst, nimm den Knopf.",
   aktion: `<a class="btn p gross" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a>`,
   tafeln: [{ titel: "Neue Adresse", zusatz: "1 Klick", ziel: u.zielPfad }],
+  ort: ["Alte Adresse"],
 })}
 </main>
 </body>

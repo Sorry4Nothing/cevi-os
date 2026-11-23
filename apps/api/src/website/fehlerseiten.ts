@@ -12,8 +12,8 @@ import {
   type NavPunkt,
 } from "./rendern.js";
 
-// Fehler- und Wartungsseiten (#567). Die Idee: ein Wegweiser am Wanderweg. Links steht gross, was los ist, ein Satz und die Hauptaktion;
-// rechts ein Feld bis zum Fensterrand (auf der 404-Seite mit einem Foto), darin der Pfosten mit Tafeln, die auf zwei, drei sinnvolle Ziele zeigen.
+// Fehler- und Wartungsseiten (#567). Die Idee: ein Wegweiser am Wanderweg. Die Bühne ist ein Foto über die ganze Breite (404), links steht in der blauen Fahne,
+// was los ist, ein Satz und die Hauptaktion; rechts steht der Wegweiser im Bild: Pfosten, Standorttafel und Tafeln, die auf zwei, drei sinnvolle Ziele zeigen.
 // Die Seiten wiederholen das Menü nicht. 500.html und wartung.html tragen kein Bild und rufen nichts ab: Der Host liefert sie auch, wenn die API nicht antwortet.
 export const STIL_FEHLER = "/website/fehler.css";
 
@@ -28,8 +28,10 @@ type Buehne = {
   aktion: string;
   tafeln: Tafel[];
   code?: string;
-  // Fertig maskiertes <img> als Stimmungsbild hinter dem Wegweiser
+  // Fertig maskiertes <img class="irr-bild"> als Bühne hinter Fahne und Wegweiser
   bild?: string;
+  // Die Standorttafel oben am Pfosten: Name des «Orts» und klein die Höhe (der Code des Fehlers). Schmuck, aria-hidden
+  ort: [string, string?];
 };
 
 const tafelHtml = (t: Tafel) => {
@@ -47,36 +49,50 @@ export const fehlerBuehne = ({
   tafeln,
   code,
   bild,
-}: Buehne) => `<div class="irr">
-<div class="irr-text">
+  ort,
+}: Buehne) => {
+  // Mit Zielen ist die Liste eine Navigation, ein einzelnes Schild nicht
+  const liste = `<ul>\n${tafeln.map(tafelHtml).join("\n")}\n</ul>`;
+  return `<div class="irr">${bild ? `\n${bild}` : ""}
+<div class="wrap irr-in">
+<div class="fahne irr-text">
 <h1>${esc(titel)}</h1>
 <p class="irr-satz">${satz}</p>
-<div class="knopfreihe aktionen">${aktion}</div>${code ? `\n<p class="klein leise">${esc(code)}</p>` : ""}
+<div class="knopfreihe aktionen">${aktion}</div>${code ? `\n<p class="klein irr-code">${esc(code)}</p>` : ""}
 </div>
-<div class="irr-feld${bild ? " irr-feld--bild" : ""}">${bild ?? ""}
-<${tafeln.some((t) => t.ziel !== undefined) ? 'nav class="wegweiser" aria-label="Wohin jetzt?"' : 'div class="wegweiser"'}>
-<ul>
-${tafeln.map(tafelHtml).join("\n")}
-</ul>
-</${tafeln.some((t) => t.ziel !== undefined) ? "nav" : "div"}>
+<div class="wegweiser">
+<p class="ww-ort" aria-hidden="true"><strong>${esc(ort[0])}</strong>${ort[1] ? `<span>${esc(ort[1])}</span>` : ""}</p>
+${tafeln.some((t) => t.ziel !== undefined) ? `<nav aria-label="Wohin jetzt?">${liste}</nav>` : liste}
+</div>
 </div>
 </div>`;
+};
 
 // Ohne Skript: ein Link auf dieselbe Adresse lädt die Seite neu
 export const NOCHMALS = `<a class="btn p gross" href="">${serialisiere(symbol("nochmals"))}Nochmals versuchen</a>`;
 const START = `<a class="btn p gross" href="/">Zur Startseite</a>`;
 
-// Das Stimmungsbild der 404-Seite: das Titelbild der Startseite (ihr erster Baustein, wenn er ein öffentliches Bild ist). Sonst steht der Wegweiser auf der blauen Fläche
+// Das Bild der 404-Seite: ID und Grösse eines öffentlichen Bildes
+export type FehlerBild = {
+  id: string;
+  breite: number | null;
+  hoehe: number | null;
+};
+
+// Rückfall für das Bild der 404-Seite, wenn die Einstellungen keines nennen: das Titelbild der Startseite (ihr erster Baustein, wenn er ein öffentliches Bild ist). Sonst steht der Wegweiser auf der Fläche der Bühne
 export function stimmungsbild(
   start: Seitendokument | undefined,
   daten: Daten,
-): string | undefined {
+): FehlerBild | undefined {
   const erster = start?.bausteine[0];
   if (!erster || erster.typ !== "bild" || !istOeffentlich(erster)) {
     return undefined;
   }
-  const m = daten.medien.get(erster.daten.mediumId);
-  return m?.mimeTyp.startsWith("image/") ? erster.daten.mediumId : undefined;
+  const id = erster.daten.mediumId;
+  const m = daten.medien.get(id);
+  return m?.mimeTyp.startsWith("image/")
+    ? { id, breite: m.breite, hoehe: m.hoehe }
+    : undefined;
 }
 
 // Die erste Seite der Navigation, deren Adresse auf eines der Stücke endet (auch in Untermenüs)
@@ -108,9 +124,8 @@ function ziele(k: Kontext): Tafel[] {
 }
 
 // 404.html: der Host liefert sie bei unbekannten Adressen; sie verrät nichts über geschützte Seiten.
-// «bild» ist die ID eines öffentlichen Bildes (siehe stimmungsbild); es ist Schmuck und hat keinen Alt-Text
-export function rendereFehlerseite(k: Kontext, bild?: string): string {
-  const m = bild ? k.daten.medien.get(bild) : undefined;
+// «bild» ist ein öffentliches Bild (Einstellung der Website, sonst siehe stimmungsbild); es ist Schmuck und hat keinen Alt-Text
+export function rendereFehlerseite(k: Kontext, bild?: FehlerBild): string {
   return rahmen(k, {
     titel: "Seite nicht gefunden",
     aktuell: null,
@@ -123,10 +138,10 @@ export function rendereFehlerseite(k: Kontext, bild?: string): string {
       aktion: START,
       tafeln: ziele(k),
       code: "Fehler 404",
-      ...(bild &&
-        m && {
-          bild: `<img src="${medienUrl(bild)}" alt=""${m.breite && m.hoehe ? ` width="${m.breite}" height="${m.hoehe}"` : ""} decoding="async">`,
-        }),
+      ort: ["Nirgendwo", "404 m ü. M."],
+      ...(bild && {
+        bild: `<img class="irr-bild" src="${medienUrl(bild.id)}" alt=""${bild.breite && bild.hoehe ? ` width="${bild.breite}" height="${bild.hoehe}"` : ""} decoding="async">`,
+      }),
     }),
   });
 }
@@ -146,6 +161,7 @@ export function rendereServerfehler(k: Kontext): string {
       aktion: NOCHMALS,
       tafeln: [{ titel: "Zur Startseite", zusatz: "1 Klick", ziel: "/" }],
       code: "Fehler 500",
+      ort: ["Sackgasse", "500 m ü. M."],
     }),
   });
 }
@@ -165,6 +181,7 @@ export function rendereWartung(k: Kontext): string {
       aktion: NOCHMALS,
       tafeln: [{ titel: "Weg wird gerichtet", zusatz: "ein paar Minuten" }],
       code: "Fehler 503",
+      ort: ["Baustelle", "503 m ü. M."],
     }),
   });
 }

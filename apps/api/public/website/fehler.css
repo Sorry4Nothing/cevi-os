@@ -1,51 +1,46 @@
 /* Fehler- und Wartungsseiten (#567): 404.html, 500.html, wartung.html und die Rückfallseite einer Weiterleitung. Nur diese Seiten laden die Datei.
-   Die Idee ist ein Wegweiser am Wanderweg: links die Aussage mit der Hauptaktion, rechts ein Feld bis zum Fensterrand (auf der 404-Seite mit Foto),
-   darin ein Pfosten mit Tafeln, die auf die Ziele zeigen. Ohne Foto steht der Wegweiser auf der blauen Fläche. Farben nur aus den Tokens von website.css. */
+   Eine Szene: das Foto als Bühne über die ganze Breite (auf der 404-Seite), links die blaue Fahne der Website mit der Aussage und der Hauptaktion,
+   rechts steht ein Wegweiser im Bild, wie er am Wanderweg steht: ein Kantholz im Boden, Ortstafel und Bretter mit roter Spitze, mit Nägeln befestigt.
+   Der Wegweiser ist ein Gegenstand in der Szene: Seine Farben sind fest (Holz, Dunkelbraun, Cevi-Rot) und in Tag und Nacht gleich; alles andere kommt aus den Tokens von website.css. */
 
 .irr {
+  /* Farben des Wegweisers */
+  /* Kontrast der Schrift auf dem Brett: 7.8:1 (Ziel) und 6.7:1 (Zusatz) auf dem hellen Ende, 6.2:1 und 5.3:1 auf dem dunklen */
+  --ww-brett-hell: #dba965;
+  --ww-brett: #c9944a;
+  --ww-holz: #b98445;
+  --ww-holz-dunkel: #a06c34;
+  --ww-holz-kante: #6e4420;
+  --ww-tafel: #ffffff;
+  --ww-schrift: #2c1a0b;
+  --ww-zusatz: #3d2610;
+  --ww-spitze: #d50038;
+  position: relative;
   display: grid;
   /* Alles Wesentliche steht ohne Scrollen im Fenster: Die Bühne füllt es unter dem Kopf, höchstens 46rem */
   min-height: min(100svh - 7.5rem, 46rem);
-  background: var(--surface-container-low);
-}
-
-.irr-text {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1.25rem;
-  padding: clamp(2rem, 5vw, 4rem) var(--rand);
-}
-
-.irr-text h1 {
-  color: var(--titel);
-  font-size: clamp(2.75rem, 1.2rem + 5.4vw, 6.5rem);
-  font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-.irr-satz {
-  max-width: 34ch;
-  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
-  line-height: 1.5;
-}
-
-.irr-text .knopfreihe {
-  margin-top: 0.25rem;
-}
-
-/* Das Feld: Cevi-Blau bis zum Fensterrand, auf der 404-Seite liegt ein Foto darüber */
-.irr-feld {
-  position: relative;
-  display: flex;
-  min-height: 19rem;
   overflow: hidden;
-  background: var(--secondary);
+  /* Ohne Foto: Himmel und zwei Hügel in den Tönen der Website, damit der Wegweiser steht */
+  background:
+    radial-gradient(
+      ellipse 55% 22% at 78% 100%,
+      color-mix(
+          in srgb,
+          var(--outline-variant) 85%,
+          var(--surface-container-high)
+        )
+        98%,
+      transparent
+    ),
+    radial-gradient(
+      ellipse 70% 26% at 22% 108%,
+      var(--outline-variant) 98%,
+      transparent
+    ),
+    var(--surface-container-high);
 }
 
-.irr-feld > img {
+.irr-bild {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -54,179 +49,331 @@
   object-fit: cover;
 }
 
-/* Der Pfosten steht links im Feld und reicht bis zum Boden; die Tafeln hängen daran und zeigen nach rechts */
-.wegweiser {
+.irr-in {
   position: relative;
-  display: flex;
-  align-items: center;
-  width: min(100% - 3.5rem, 29rem);
-  margin-left: clamp(1rem, 4vw, 3.5rem);
-  padding: clamp(2rem, 6vh, 4rem) 0 clamp(3rem, 12vh, 7rem) 0.75rem;
+  display: grid;
+  gap: 2rem;
+  width: 100%;
+  padding-top: clamp(1.5rem, 4vh, 3rem);
 }
 
+/* Die Aussage in der Fahne der Website (website.css: .fahne läuft links bis zum Fensterrand) */
+.irr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-self: center;
+  margin-bottom: clamp(0rem, 4vh, 3rem);
+}
+
+.irr .fahne h1 {
+  max-width: 9.5ch;
+  font-size: clamp(2.5rem, 1.3rem + 4.2vw, 5rem);
+  line-height: 0.96;
+}
+
+.irr-satz {
+  max-width: 30ch;
+  font-size: clamp(1.0625rem, 1rem + 0.4vw, 1.3125rem);
+  line-height: 1.5;
+}
+
+.irr .fahne .knopfreihe {
+  margin-top: 0.5rem;
+}
+
+.irr-code {
+  color: var(--on-secondary-muted);
+}
+
+/* ===== Der Wegweiser aus Holz. Alle Masse in em: Die Schriftgrösse des Wegweisers bestimmt seine Grösse ===== */
+.wegweiser {
+  position: relative;
+  align-self: end;
+  justify-self: center;
+  width: fit-content;
+  max-width: 100%;
+  padding: 0.5em 0 clamp(3.5rem, 13vh, 8rem);
+  font-size: clamp(0.8125rem, 0.7rem + 0.55vw, 1.1875rem);
+}
+
+/* Der Pfosten: ein Kantholz mit Maserung und Licht von links. Er beginnt unter der Ortstafel und steht auf dem Boden der Bühne */
 .wegweiser::before {
   position: absolute;
-  top: clamp(1rem, 3vh, 2rem);
+  top: 1.3em;
   bottom: 0;
-  left: 0;
-  width: 0.75rem;
-  border-radius: 0.25rem 0.25rem 0 0;
-  background: var(--on-secondary);
-  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+  left: 1.9em;
+  width: 1.6em;
+  border-radius: 0.15em 0.15em 0 0;
+  background:
+    repeating-linear-gradient(
+      90deg,
+      rgb(60 30 5 / 14%) 0 1px,
+      transparent 1px 0.35em
+    ),
+    repeating-linear-gradient(
+      180deg,
+      transparent 0 1.7em,
+      rgb(60 30 5 / 10%) 1.7em 1.8em
+    ),
+    linear-gradient(
+      90deg,
+      var(--ww-holz-kante) 0 10%,
+      var(--ww-holz) 10% 52%,
+      var(--ww-holz-dunkel) 52% 84%,
+      var(--ww-holz-kante) 84% 100%
+    );
+  box-shadow:
+    0 0 0 1px rgb(40 20 0 / 45%),
+    0.5em 0 0.9em rgb(0 0 0 / 30%);
   content: "";
 }
 
-.wegweiser ul {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  width: 100%;
+/* Der Schatten am Fuss: Der Pfosten steht im Boden */
+.wegweiser::after {
+  position: absolute;
+  bottom: -0.6em;
+  left: -0.9em;
+  width: 8em;
+  height: 1.8em;
+  background: radial-gradient(closest-side, rgb(0 0 0 / 50%), transparent);
+  content: "";
+  pointer-events: none;
 }
 
-/* Wie am Wegweiser sind die Tafeln verschieden lang */
+.wegweiser ul {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875em;
+}
+
+/* Jede Tafel sitzt am Pfosten und zeigt in ihre eigene Richtung: leicht gedreht um die Nägel, verschieden weit herausgerückt */
+.wegweiser li {
+  width: fit-content;
+  max-width: 100%;
+  margin-left: 1.5em;
+  transform-origin: 1.4em 50%;
+  filter: drop-shadow(0 0.35em 0.4em rgb(0 0 0 / 40%));
+  rotate: -2deg;
+}
+
 .wegweiser li:nth-child(2) {
-  width: 84%;
+  margin-left: 1.2em;
+  rotate: 1.5deg;
 }
 
 .wegweiser li:nth-child(3) {
-  width: 93%;
+  rotate: -1deg;
 }
 
-/* Eine Tafel: Feld mit dem Ziel und rechts klein der «Weg» dahin, davor die rote Spitze */
+/* Eine Tafel: alle gleich hoch, die Spitze gehört zur Form. Ein Brett mit Maserung, hellem Rand oben und dunkler Kante unten. Vorn das Ziel, hinten klein der «Weg» dahin; die Spitze ist in Cevi-Rot aufgemalt */
 .tafel {
-  --spitze: 1.75rem;
+  --spitze: 1.5em;
   position: relative;
   display: flex;
-  flex-wrap: wrap;
   align-items: baseline;
   justify-content: space-between;
-  gap: 0.25rem 1rem;
-  min-height: 4rem;
-  margin-right: var(--spitze);
-  padding: 1.125rem 1.25rem;
-  background: var(--surface-container-low);
-  box-shadow: 0 1px 0 rgb(0 0 0 / 25%);
-  color: var(--on-surface);
+  gap: 1.25em;
+  min-width: 13em;
+  height: 3.75em;
+  padding: 0 calc(var(--spitze) + 2.25em) 0 3.4em;
+  background:
+    linear-gradient(
+      180deg,
+      rgb(255 255 255 / 26%) 0 0.1em,
+      transparent 0.1em calc(100% - 0.35em),
+      rgb(50 25 0 / 35%) calc(100% - 0.35em)
+    ),
+    repeating-linear-gradient(
+      178deg,
+      transparent 0 0.55em,
+      rgb(110 60 15 / 12%) 0.55em 0.62em,
+      transparent 0.62em 1.25em
+    ),
+    linear-gradient(90deg, var(--ww-brett-hell), var(--ww-brett));
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--spitze)) 0,
+    100% 50%,
+    calc(100% - var(--spitze)) 100%,
+    0 100%
+  );
+  color: var(--ww-schrift);
+  line-height: 3.5em;
   text-decoration: none;
+  white-space: nowrap;
 }
 
 a.tafel {
-  color: var(--on-surface);
+  color: var(--ww-schrift);
 }
 
+/* Die Spitze: ein roter Streifen, wie aufgemalt, mit derselben Kante unten */
 .tafel::after {
   position: absolute;
   top: 0;
+  right: 0;
   bottom: 0;
-  /* ein Pixel Überlappung: keine Naht bei gebrochenen Pixelwerten */
-  left: calc(100% - 1px);
-  width: var(--spitze);
-  background: var(--primary);
-  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  width: calc(var(--spitze) + 1.1em);
+  background: var(--ww-spitze);
+  box-shadow:
+    inset 0 0.1em rgb(255 255 255 / 22%),
+    inset 0 -0.35em rgb(0 0 0 / 22%);
+  content: "";
+}
+
+/* Zwei Nägel, wo die Tafel am Pfosten sitzt */
+.tafel::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 1.5em;
+  width: 0.5em;
+  background:
+    radial-gradient(
+        circle at 35% 30%,
+        #e6e9ed 0 0.06em,
+        #7a8088 0.13em,
+        #33373c 0.24em,
+        transparent 0.26em
+      )
+      0 20% / 100% 40% no-repeat,
+    radial-gradient(
+        circle at 35% 30%,
+        #e6e9ed 0 0.06em,
+        #7a8088 0.13em,
+        #33373c 0.24em,
+        transparent 0.26em
+      )
+      0 80% / 100% 40% no-repeat;
   content: "";
 }
 
 .tafel-ziel {
-  font-size: clamp(1.1875rem, 1rem + 0.5vw, 1.375rem);
+  font-size: 1.3125em;
   font-weight: 800;
-  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 .tafel-zusatz {
-  color: var(--on-surface-variant);
-  font-size: 0.9375rem;
+  color: var(--ww-zusatz);
+  font-size: 0.875em;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
-a.tafel:hover .tafel-ziel {
+a.tafel:hover .tafel-ziel,
+a.tafel:focus-visible .tafel-ziel {
   text-decoration: underline;
   text-decoration-thickness: 2px;
   text-underline-offset: 0.2em;
 }
 
-/* Der Fokus liegt im Feld der Tafel: auf Foto und Blau immer sichtbar */
+/* Der Fokus liegt als Rahmen in der Tafel (ihre Form schneidet alles ausserhalb ab): Dunkelbraun auf Holz, auf jedem Foto sichtbar */
 a.tafel:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: -5px;
+  outline: 3px solid var(--ww-schrift);
+  outline-offset: -0.4em;
   border-radius: 0;
 }
 
-/* Ein Schild ohne Ziel (Wartung) ist kein Link: grauer Keil statt roter Spitze */
-.tafel--schild::after {
-  background: var(--outline-variant);
+/* Ein Schild ohne Ziel (Wartung) ist kein Link: Spitze in dunklem Holz statt Rot */
+.tafel--schild {
+  --ww-spitze: var(--ww-holz-dunkel);
+}
+
+/* Die Ortstafel oben am Pfosten: wo man ist. Schmuck (aria-hidden); der Code steht auch in der Fahne */
+.ww-ort {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: fit-content;
+  min-width: 5.5em;
+  margin: 0 0 0.4em 0.6em;
+  padding: 0.45em 1em 0.5em;
+  border-radius: 0.25em;
+  background: var(--ww-schrift);
+  box-shadow: inset 0 0 0 0.125em var(--ww-tafel);
+  color: var(--ww-tafel);
+  line-height: 1.2;
+  text-align: center;
+  filter: drop-shadow(0 0.25em 0.375em rgb(0 0 0 / 30%));
+}
+
+.ww-ort strong {
+  font-size: 1.0625em;
+  font-weight: 800;
+}
+
+.ww-ort span {
+  font-size: 0.8125em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Schmal ist vom Wegfoto nur ein Streifen zu sehen: der Weg mit der Gruppe in der Ferne und die Hecke, davor steht der Wegweiser */
+@media (max-width: 64em) {
+  .irr-bild {
+    object-position: 62% 50%;
+  }
 }
 
 @media (min-width: 64.0625em) {
-  .irr {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  }
-
-  .irr-text {
-    padding-right: clamp(2rem, 4vw, 5rem);
+  .irr-in {
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    gap: var(--spalt);
   }
 }
 
 @media screen and (prefers-reduced-motion: no-preference) {
-  /* Ein Auftritt beim Laden: Die Tafeln schwenken vom Pfosten her ein, eine nach der anderen */
+  /* Ein Auftritt beim Laden: Die Tafeln schwenken eine nach der anderen in ihre Richtung */
   @keyframes tafel-schwenk {
     from {
       opacity: 0;
-      rotate: -7deg;
+      rotate: -14deg;
     }
   }
 
   .wegweiser li {
-    transform-origin: 0 50%;
-    animation: tafel-schwenk 0.6s var(--kurve) 0.15s both;
+    animation: tafel-schwenk 0.7s var(--kurve) 0.25s both;
+    transition: rotate var(--dauer-lang) var(--kurve);
   }
 
   .wegweiser li:nth-child(2) {
-    animation-delay: 0.23s;
+    animation-delay: 0.35s;
   }
 
   .wegweiser li:nth-child(3) {
-    animation-delay: 0.31s;
+    animation-delay: 0.45s;
   }
 
-  .irr-text {
-    animation: auf var(--dauer-lang) var(--kurve) both;
+  /* Zeigen und Fokus: Die Tafel richtet sich gerade */
+  .wegweiser li:has(a.tafel:hover),
+  .wegweiser li:has(a.tafel:focus-visible) {
+    rotate: 0deg;
   }
+}
 
-  /* Zeigen: Die Tafel rückt in ihre Richtung */
-  a.tafel {
-    transition: translate var(--dauer) var(--kurve);
+/* Nachts steht das Foto etwas dunkler im Fenster; der Wegweiser bleibt, wie er ist */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .irr-bild {
+    filter: brightness(0.82);
   }
+}
 
-  a.tafel:hover {
-    translate: 0.375rem 0;
-  }
+:root[data-theme="dark"] .irr-bild {
+  filter: brightness(0.82);
 }
 
 @media (forced-colors: active) {
-  .tafel {
+  .tafel,
+  .ww-ort {
     border: 1px solid CanvasText;
-  }
-
-  .tafel::after,
-  .wegweiser::before {
-    background: CanvasText;
+    clip-path: none;
   }
 }
 
-/* Ohne Foto (Serverfehler, Wartung, Weiterleitung): Das Feld ist schmaler, die Tafeln sind grösser, damit der Wegweiser es füllt */
-.irr-feld:not(.irr-feld--bild) .tafel {
-  min-height: 4.75rem;
-  padding-block: 1.375rem;
-}
-
-.irr-feld:not(.irr-feld--bild) .tafel-ziel {
-  font-size: clamp(1.25rem, 1rem + 0.9vw, 1.75rem);
-}
-
-@media (min-width: 64.0625em) {
-  .irr:not(:has(.irr-feld--bild)) {
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+@media print {
+  .irr-bild {
+    display: none;
   }
 }

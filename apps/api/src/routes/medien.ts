@@ -326,6 +326,7 @@ export function erstelleMedienHandler({
                 eq(abteilung.websiteLogoMediumId, id),
                 eq(abteilung.websiteLogoDunkelMediumId, id),
                 eq(abteilung.websiteZeichenMediumId, id),
+                eq(abteilung.websiteFehlerbildMediumId, id),
               ),
             ),
           );

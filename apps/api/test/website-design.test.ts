@@ -24,7 +24,8 @@ const CSS = readFileSync(
   "utf8",
 );
 
-const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
+const THEMA_SKRIPT =
+  '<script src="/website/theme.js"></script>\n<script src="/website/bilder.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
   id: id(),
@@ -292,7 +293,8 @@ describe("Fehler- und Wartungsseiten (#567)", () => {
     expect(html).toContain('href="/website/fehler.css"');
     expect(html).toContain("Fehler 404");
     // Die Ziele: die Seite der Gruppen (auch aus einem Untermenü) und die Termine; ohne E-Mail kein Kontakt
-    expect(html).toContain('<nav class="wegweiser" aria-label="Wohin jetzt?">');
+    expect(html).toContain('<nav aria-label="Wohin jetzt?">');
+    expect(html).toContain('<div class="wegweiser">');
     expect(html).toContain(
       '<a class="tafel" href="/mitmachen/gruppen"><span class="tafel-ziel">Unsere Gruppen</span>',
     );
@@ -321,12 +323,19 @@ describe("Fehler- und Wartungsseiten (#567)", () => {
         ],
       ]),
     };
-    const html = rendereFehlerseite({ ...k, daten }, id);
+    const html = rendereFehlerseite(
+      { ...k, daten },
+      {
+        id,
+        breite: 1600,
+        hoehe: 900,
+      },
+    );
     expect(html).toContain(
       '<a class="tafel" href="mailto:info@example.org"><span class="tafel-ziel">Schreib uns</span>',
     );
     expect(html).toContain(
-      `<div class="irr-feld irr-feld--bild"><img src="/api/v1/medien/${id}" alt="" width="1600" height="900" decoding="async">`,
+      `<img class="irr-bild" src="/api/v1/medien/${id}" alt="" width="1600" height="900" decoding="async">`,
     );
   });
 
@@ -360,7 +369,11 @@ describe("Fehler- und Wartungsseiten (#567)", () => {
           },
         ],
       }) as unknown as Parameters<typeof stimmungsbild>[0];
-    expect(stimmungsbild(bild("erbt"), daten)).toBe(id);
+    expect(stimmungsbild(bild("erbt"), daten)).toEqual({
+      id,
+      breite: 1,
+      hoehe: 1,
+    });
     expect(stimmungsbild(bild({ art: "angemeldet" }), daten)).toBeUndefined();
     expect(stimmungsbild(bild("erbt"), keineDaten())).toBeUndefined();
     expect(stimmungsbild(undefined, daten)).toBeUndefined();
@@ -423,8 +436,8 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    // Menü, theme.js und anmelden.js, alle eigene Dateien
-    expect(zaehle(html, "<script")).toBe(3);
+    // Menü, theme.js, bilder.js und anmelden.js, alle eigene Dateien
+    expect(zaehle(html, "<script")).toBe(4);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });

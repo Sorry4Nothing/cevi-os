@@ -1224,8 +1224,12 @@ const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
   "galerie",
   "karussell",
 ]);
-// Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
-export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
+// Ladezustände (#567): bilder.js markiert geladene Bilder (klassisch im <head>, damit kein Bild vor der Marke gezeichnet wird), laden.css trägt Platzhalter und Skelette
+export const SKRIPT_BILDER = "/website/bilder.js";
+export const STIL_LADEN = "/website/laden.css";
+// Die klassischen Skripte im <head> (Thema, Bilder), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
+export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
+<script src="${SKRIPT_BILDER}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 
@@ -1291,7 +1295,8 @@ export function rahmen(
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
-<link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
+<link rel="stylesheet" href="${STIL_KOPF}">
+<link rel="stylesheet" href="${STIL_LADEN}">${stileHtml}${skripte}${zusatz}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
