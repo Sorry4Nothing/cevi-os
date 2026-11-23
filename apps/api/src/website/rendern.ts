@@ -453,14 +453,40 @@ function rendereBaustein(
         return el(
           "ol",
           { class: "zeitstrahl" },
-          ...eintraege.map((e) =>
-            el(
+          ...eintraege.map((e) => {
+            // Stationen einer Erzählung (#560): das Jahr gross, daneben der Text und, wenn gewählt, ein Foto. Der Alt-Text kommt vom Medium
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            const foto = e.bild && m?.mimeTyp.startsWith("image/") ? m : null;
+            return el(
               "li",
-              undefined,
-              el("p", { class: "jahr" }, e.titel),
-              ...(e.text ? [el("p", undefined, e.text)] : []),
-            ),
-          ),
+              { class: foto ? "station station--bild" : "station" },
+              ...(foto && e.bild
+                ? [
+                    el(
+                      "figure",
+                      { class: "station-bild" },
+                      el("img", {
+                        src: medienUrl(e.bild),
+                        alt: foto.altText ?? "",
+                        ...(foto.breite &&
+                          foto.hoehe && {
+                            width: String(foto.breite),
+                            height: String(foto.hoehe),
+                          }),
+                        loading: "lazy",
+                        decoding: "async",
+                      }),
+                    ),
+                  ]
+                : []),
+              el(
+                "div",
+                { class: "station-text" },
+                el("p", { class: "jahr" }, e.titel),
+                ...(e.text ? [el("p", undefined, e.text)] : []),
+              ),
+            );
+          }),
         );
       }
       if (b.daten.darstellung === "zahlen") {
@@ -1097,14 +1123,15 @@ ${alsHtml(g.eintraege)}
           : g.eintraege;
       const mitKopf = !g.eigen && typ === "ueberschrift";
       const rest = liste.slice(1);
-      // Merkmale stehen in einem Band in der Markenfarbe über die ganze Breite; danach beginnt die Fläche neu
+      // Merkmale und der Zeitstrahl (#560) stehen in einem Band in der Markenfarbe über die ganze Breite; danach beginnt die Fläche neu
       const marke =
         !g.eigen &&
         liste.some(
           (e) =>
             sichtbar(e) &&
             e.b.typ === "karten" &&
-            e.b.daten.darstellung === "merkmale",
+            (e.b.daten.darstellung === "merkmale" ||
+              e.b.daten.darstellung === "zeitstrahl"),
         );
       const breit =
         marke || (!g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b)));

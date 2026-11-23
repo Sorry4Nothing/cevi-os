@@ -266,6 +266,42 @@ describe("Renderer", () => {
   });
 });
 
+describe("Zeitstrahl als Geschichte in Stationen", () => {
+  test("Station mit Foto und ohne; der Abschnitt ist das blaue Band über die ganze Breite", () => {
+    const foto = id();
+    const html = seite(
+      dok(
+        b("ueberschrift", { ebene: 2, text: "Geschichte" }),
+        b("karten", {
+          darstellung: "zeitstrahl",
+          eintraege: [
+            { titel: "2008", text: "Gründung.", bild: foto },
+            { titel: "2013", text: BOESE, bild: id() },
+            { titel: "2014" },
+          ],
+        }),
+      ),
+      { ...keineDaten(), medien: new Map([[foto, bildDaten("Gruppenbild")]]) },
+    );
+    expect(html).toContain(
+      '<section class="sektion sektion--marke sektion--breit">',
+    );
+    expect(html).toMatch(
+      new RegExp(
+        `<ol class="zeitstrahl"><li class="station station--bild"><figure class="station-bild"><img src="/api/v1/medien/${foto}" alt="Gruppenbild"[^>]*></figure><div class="station-text"><p class="jahr">2008</p><p>Gründung.</p></div></li>`,
+      ),
+    );
+    // Ein Bild, das es nicht gibt (oder das nicht öffentlich ist): Station ohne Foto
+    expect(html).toContain(
+      '<li class="station"><div class="station-text"><p class="jahr">2013</p><p>&lt;x-boese a=&quot;1&quot;&gt;</p></div></li>',
+    );
+    expect(html).toContain(
+      '<li class="station"><div class="station-text"><p class="jahr">2014</p></div></li>',
+    );
+    expect(html).not.toContain("<x-boese");
+  });
+});
+
 describe("Anker und verborgene Seiten", () => {
   test("Überschriften der Ebene 2 bekommen eine id aus ihrem Text; doppelte werden gezählt", () => {
     const html = seite(

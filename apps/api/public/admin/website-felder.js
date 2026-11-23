@@ -526,14 +526,16 @@ function kartenForm(k, b, reg) {
     personen:
       "Porträt, Name und Funktion, ohne Link. Ohne Bild stehen die Anfangsbuchstaben.",
     zeitstrahl:
-      "Ereignisse in ihrer Reihenfolge: Im Titel steht das Jahr oder Datum, im Text, was geschah.",
+      "Stationen einer Geschichte in ihrer Reihenfolge, in einem blauen Band: Im Titel steht das Jahr (kurz, es erscheint sehr gross), im Text, was geschah. Mit Foto stehen Bild und Text abwechselnd links und rechts.",
     zahlen:
       "Wenige grosse Zahlen mit kurzer Beschriftung: Im Titel steht die Zahl, im Text, was sie zählt.",
   }[art];
   const titelName =
     { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", personen: "Name" }[art] ??
     "Titel";
-  const mitBild = ["stufen", "personen", "merkmale"].includes(art);
+  const mitBild = ["stufen", "personen", "merkmale", "zeitstrahl"].includes(
+    art,
+  );
   const ohneLink = ["merkmale", "personen", "zeitstrahl", "zahlen"].includes(
     art,
   );
