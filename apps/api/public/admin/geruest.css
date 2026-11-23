@@ -8,9 +8,25 @@
   display: contents;
 }
 
-/* Drei Leisten, eine Höhe (#661): Logozeile, Bereichsleiste und Unterleiste sind je 3.5rem hoch, Linien eingerechnet; dieselbe Schrift (1rem), dieselben Innenabstände, derselbe Strich unter dem aktiven Punkt. Marke und Knöpfe der Logozeile (44 px) haben darin Platz. */
+/* Höhen der Leisten wie auf der Website (#667, Vorlage: website/kopf.css): Logozeile und Bereichsleiste sind ab 106 em je 4.5rem hoch (wie die eine Zeile des Kopfs der Website bei langen Titeln, kopf--weit), darunter 4rem und 3rem plus Linien (wie die zwei Zeilen der Website); die Unterleiste ist 44 px plus Linie hoch. Linien sind eingerechnet (border-box). Am Handy sind Logozeile und Bereichsauswahl je 4rem hoch (wie das Band der Website). --leiste-hoehe ist die Höhe der haftenden Leiste, für Abstände nach oben. */
 :root {
-  --leiste-hoehe: 3.5rem;
+  --logozeile-hoehe: 4rem;
+  --nav-hoehe: calc(3rem + 2px);
+  --unter-hoehe: calc(2.75rem + 1px);
+  --leiste-hoehe: var(--nav-hoehe);
+}
+
+@media (min-width: 106em) {
+  :root {
+    --logozeile-hoehe: 4.5rem;
+    --nav-hoehe: 4.5rem;
+  }
+}
+
+@media (max-width: 960px) {
+  :root {
+    --nav-hoehe: 4rem;
+  }
 }
 
 .breite {
@@ -28,7 +44,18 @@
 .bereichsleiste,
 .unterleiste {
   box-sizing: border-box;
-  height: var(--leiste-hoehe);
+}
+
+.logozeile {
+  height: var(--logozeile-hoehe);
+}
+
+.bereichsleiste {
+  height: var(--nav-hoehe);
+}
+
+.unterleiste {
+  height: var(--unter-hoehe);
 }
 
 .logozeile {
@@ -71,13 +98,14 @@
 
 .marke--logo {
   align-items: center;
-  min-height: var(--leiste-hoehe);
+  min-height: var(--logozeile-hoehe);
 }
 
+/* Logo wie auf der Website: 2.25rem am Computer, darunter 1.875rem */
 .logo {
   display: block;
   width: auto;
-  height: 1.875rem;
+  height: 2.25rem;
 }
 
 /* Nur eine Fassung: im dunklen Modus auf einem hellen Feld (--logo-grund ist am Tag durchsichtig) */
@@ -188,11 +216,14 @@
   overflow-wrap: anywhere;
 }
 
-/* «Abmelden»: ein Knopf mit Rand, nie so laut wie die Hauptaktion; beim Zeigen blau gefüllt wie «Anmelden» auf der Website */
+/* «Suchen» und «Abmelden»: Knöpfe mit Rand, nie so laut wie die Hauptaktion; Mass, Schrift und Zeigen wie «Anmelden» auf der Website (44 px hoch, 1rem, Gewicht 600, Innenabstand 0.875rem links und 1.125rem rechts) */
 .logozeile .knopf {
   min-height: 2.75rem;
+  padding: 0 1.125rem 0 0.875rem;
   border-color: var(--outline);
   border-radius: var(--r-full);
+  font-size: 1rem;
+  font-weight: 600;
   transition:
     background var(--dauer) var(--kurve),
     color var(--dauer) var(--kurve),
@@ -302,12 +333,8 @@
   white-space: nowrap;
 }
 
-.unterleiste a {
-  font-weight: 500;
-}
-
-.bereichsleiste a::before,
-.unterleiste a::before {
+/* Hauptnavigation wie .hauptnav der Website: roter Strich unter dem aktiven Punkt, wächst beim Zeigen von links */
+.bereichsleiste a::before {
   position: absolute;
   right: 0.75rem;
   bottom: -1px;
@@ -322,10 +349,7 @@
 
 .bereichsleiste a:hover::before,
 .bereichsleiste a:focus-visible::before,
-.bereichsleiste a[aria-current]::before,
-.unterleiste a:hover::before,
-.unterleiste a:focus-visible::before,
-.unterleiste a[aria-current="page"]::before {
+.bereichsleiste a[aria-current]::before {
   transform: scaleX(1);
 }
 
@@ -333,6 +357,40 @@
 .unterleiste a[aria-current="page"] {
   color: var(--titel);
   font-weight: 800;
+}
+
+/* Unterleiste wie .unterleiste der Website: leiser (0.9375rem, Gewicht 500), beim Zeigen unterstrichen, der aktive Punkt mit rotem Strich unten */
+.unterleiste a {
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.unterleiste a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.unterleiste a[aria-current="page"] {
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+/* Im schmalsten Fenster mit Leisten rücken die Punkte zusammen (wie .hauptnav unter 72 em) */
+@media (min-width: 961px) and (max-width: 71.99em) {
+  .bereichsleiste a {
+    padding-inline: 0.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .bereichsleiste ul {
+    margin-left: -0.5rem;
+  }
+
+  .bereichsleiste a::before {
+    right: 0.5rem;
+    left: 0.5rem;
+  }
 }
 
 /* Zähler: roter Kreis mit weisser Zahl, Zahl mittig (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1). Ein- und zweistellig immer rund; die Zahl steht über line-height und grid in der Mitte (mehr als 99 offene Punkte kommen nicht vor) */
@@ -394,6 +452,10 @@
     white-space: nowrap;
   }
 
+  .logo {
+    height: 1.875rem;
+  }
+
   .abmelden-text,
   .palette-knopf-text,
   .palette-kuerzel {
@@ -412,6 +474,7 @@
   }
 }
 
+/* Am Handy hat die Logozeile mehr Knöpfe als der Kopf der Website (Konto, Suche, «Abmelden», Umschalter): Das Logo ist darum etwas kleiner, damit alles in eine Zeile passt */
 @media (max-width: 760px) {
   .logo {
     height: 1.625rem;
@@ -438,7 +501,11 @@
   }
 
   .logozeile .breite {
-    column-gap: 0.5rem;
+    column-gap: 0.25rem;
+  }
+
+  .kopf-rechts {
+    gap: 0.25rem;
   }
 
   .marke b {

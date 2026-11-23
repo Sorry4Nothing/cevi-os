@@ -79,8 +79,10 @@ export function monatsZeitraum(monat) {
   return { von: wochen[0][0], bis: wochen.at(-1)[6] };
 }
 
-const gueltigerTag = (s) =>
+// Ein Datum, das es gibt: ein ungültiges Date (2026-13-45) wirft bei toISOString
+export const gueltigerTag = (s) =>
   /^\d{4}-\d{2}-\d{2}$/.test(s) &&
+  !Number.isNaN(new Date(`${s}T00:00:00Z`).getTime()) &&
   new Date(`${s}T00:00:00Z`).toISOString().slice(0, 10) === s;
 const gueltigerMonat = (s) =>
   /^\d{4}-(0[1-9]|1[0-2])$/.test(s) &&

@@ -107,11 +107,12 @@ async function erzeuge(id, art, { signal, beiFortschritt }) {
   return new Blob(teile, { type: "application/pdf" });
 }
 
-export function zeige(bereich, ctx, id) {
+// lager: im Arbeitsbereich schon geladen (GET /api/v1/lager/{id}); die Verwaltungsroute braucht ein Recht der Abteilung, das die Lagerleitung nicht hat
+export function zeige(bereich, ctx, id, lager = null) {
   for (const u of urls) window.URL.revokeObjectURL(u);
   urls = [];
   ctx.lade(
-    () => anfrage("GET", `${BASIS}/${id}`),
+    () => lager ?? anfrage("GET", `${BASIS}/${id}`),
     (lager) => {
       ctx.titel("Ausdrucke", `${lager.titel} · fertige Aushänge zum Drucken.`);
       const zeilen = AUSHAENGE.map(([art, name, text]) => {
@@ -236,7 +237,8 @@ export function zeige(bereich, ctx, id) {
       });
       haenge(
         bereich,
-        zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
+        !ctx.imRahmen &&
+          zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
         el(
           "div",
           { class: "hinweis hinweis--info", role: "status" },

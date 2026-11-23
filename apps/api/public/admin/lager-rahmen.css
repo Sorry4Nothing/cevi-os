@@ -1,0 +1,227 @@
+/* Arbeitsbereich eines Lagers (#672): Leiste oben, links die Navigation der Module, rechts das Modul. Klassen mit dem Vorsatz «lg-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung. */
+
+.lg-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.lg-leiste-luecke {
+  flex: 1 1 0;
+}
+
+.lg-kopfsuche {
+  flex: 0 1 280px;
+}
+
+.lg-arbeit {
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lg-haupt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lg-modulkopf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lg-modultitel {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.lg-moduluntertitel {
+  margin: 0;
+}
+
+.lg-moduluntertitel:empty {
+  display: none;
+}
+
+.lg-modul {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Navigation: Gruppen mit Überschrift, die Seite, auf der du bist, ist gefüllt und trägt aria-current */
+.lg-nav {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+}
+
+.lg-nav-knopf {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lg-nav-knopf .i {
+  width: 20px;
+  height: 20px;
+}
+
+.lg-nav-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lg-nav-gruppe {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lg-nav-kopf {
+  margin: 0;
+  padding: 4px 12px;
+  color: var(--leise);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lg-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.lg-nav a:hover {
+  background: var(--surface-container);
+}
+
+.lg-nav a[aria-current="page"] {
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  font-weight: 800;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-nav a {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}
+
+@media (max-width: 900px) {
+  .lg-arbeit {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .lg-nav {
+    position: static;
+  }
+
+  .lg-nav-knopf {
+    display: flex;
+  }
+
+  .lg-nav-liste {
+    display: none;
+  }
+
+  .lg-nav-liste[data-offen] {
+    display: flex;
+  }
+}
+
+/* Standardkarten der Module: Kopfzeile mit Titel und Aktion, darunter der Inhalt */
+.lg-kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.lg-kopfzeile h2,
+.lg-kopfzeile h3 {
+  margin: 0;
+}
+
+.lg-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 16px;
+}
+
+.lg-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+}
+
+.lg-zeile-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.lg-zeile a {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lg-datum {
+  min-width: 5.5rem;
+  color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}

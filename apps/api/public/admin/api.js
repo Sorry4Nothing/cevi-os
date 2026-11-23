@@ -23,6 +23,10 @@ export class ApiFehler extends Error {
 
 // Läuft die Sitzung während der Arbeit ab (401 auf einer Daten-Route), führt die Seite zurück zur Anmeldung
 let beiAbgelaufen = () => {};
+// Ob ein Teil der Adresse eine echte Kennung (UUID) ist: Nur sie geht in Pfade der API, nie «../», «?» oder Freitext
+export const kennungGueltig = (wert) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wert);
+
 export function beiSitzungsende(fn) {
   beiAbgelaufen = fn;
 }

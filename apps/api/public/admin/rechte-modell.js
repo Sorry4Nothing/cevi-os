@@ -1,3 +1,5 @@
+import { kennungGueltig } from "./api.js";
+
 // Rollen und Rechte (#651): reine Logik ohne DOM, damit sie sich ohne Browser prüfen lässt. Sie rechnet mit dem, was die Matrix-API (/api/v1/admin/rechte, #643) liefert: den Katalog, Rollen mit ihren Rechten und Personen. Entschieden wird auf dem Server: Eine Vorschau hier ist keine Berechtigung.
 // Eine Zuteilung ist { recht, geltung } mit geltung «alle» oder «eigene»; in der Matrix kommt «aus» dazu (kein Eintrag).
 
@@ -607,3 +609,22 @@ export const passtZurSuche = (zeile, suche) => {
 
 export const anzahlText = (n) =>
   n === 0 ? "Keine Person gefunden" : n === 1 ? "1 Person" : `${n} Personen`;
+
+// Ob die Adresse unter «Rollen und Rechte» etwas meint, das es gibt: bekannter Reiter, Kennungen als UUID (sie gehen in Pfade der API), keine überzähligen Teile
+export function adresseGueltig(reiter, rest) {
+  const [a, b, c] = rest;
+  if (reiter === "gruppen")
+    return (
+      rest.length === 0 ||
+      (kennungGueltig(a) &&
+        (rest.length === 1 ||
+          (rest.length === 3 && b === "rolle" && kennungGueltig(c))))
+    );
+  if (reiter === "rollen") return rest.length <= 1;
+  if (reiter === "uebersicht")
+    return (
+      rest.length === 0 ||
+      (rest.length <= 2 && ["person", "recht", "verlauf"].includes(a))
+    );
+  return false;
+}
