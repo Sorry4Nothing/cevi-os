@@ -550,7 +550,10 @@ function zeichneAnlass(bereich, ctx, pfad, a, neu) {
       "Anlassseite",
       el(
         "a",
-        { href: `#website/seiten/${a.seiteId}` },
+        {
+          class: "knopf knopf--klein",
+          href: `#website/seiten/${a.seiteId}`,
+        },
         "Im Bereich «Website» öffnen",
       ),
     ],
