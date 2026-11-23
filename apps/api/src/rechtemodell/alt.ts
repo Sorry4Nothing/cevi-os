@@ -62,6 +62,9 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
   "wartung.bereiche": async (db, person) =>
     person.admin || (await istEntwickler(db, person)),
   "protokoll.lesen": (db, person) => istEntwickler(db, person),
+  // Profilbild einer Person entfernen (#642): Abteilungsleitung oder Entwickler
+  "profilbild.entfernen": async (db, person) =>
+    person.admin || (await istEntwickler(db, person)),
   "entwickler.vergeben": async () => false,
 };
 

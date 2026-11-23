@@ -6,6 +6,7 @@ import { OBJEKT_TYPEN } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, bearbeiter, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 
@@ -59,6 +60,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
               and(
                 eq(user.id, userId),
                 eq(user.abteilungId, person.abteilungId),
+                keinKindKonto(user.id),
               ),
             )
         : await db

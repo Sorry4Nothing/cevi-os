@@ -7,7 +7,7 @@ import { TERMIN_BEGINN } from "../termine/sicht.js";
 // Die Termine für den Baustein «terminliste» (#549) und den öffentlichen Datenplan (#564). Der Abgleich holt sie beim Erzeugen der Dateien, nie beim Abruf einer Seite: höchstens drei Abfragen für alle Seiten und Bausteine, nie eine je Seite oder Termin.
 // Was die öffentliche Seite zeigt:
 // - ohne Gruppe: die kommenden Termine von Anlässen mit Sichtbarkeit «öffentlich»
-// - mit Gruppe: die kommenden Termine, die an der Gruppe hängen (dieselben Daten zeigt die Stufenseite schon über die Stufenfelder)
+// - mit Gruppe: die kommenden Termine, die an der Gruppe hängen (dieselben Daten zeigt die Stufenseite schon über die Samstagsangaben der Stufen)
 // Beides nur für Termine mit Sichtbarkeit «eltern» und Status «aktiv»; «intern» und «leitende» erscheinen nie. Ein Termin steht in der Datei, bis der Abgleich das nächste Mal läuft (beim Veröffentlichen, bei Ereignissen, alle 10 Minuten).
 
 type Zeile = {

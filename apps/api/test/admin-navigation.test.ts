@@ -200,7 +200,10 @@ describe("Zugang nach Rechten des Katalogs (#648)", () => {
     const sicht = (rechte: string[]) =>
       nav
         .sichtbareBereiche(person(rechte))
-        .map((b) => `${b.schluessel}:${b.unter.map((u) => u.schluessel)}`);
+        .map(
+          (b: { schluessel: string; unter: { schluessel: string }[] }) =>
+            `${b.schluessel}:${b.unter.map((u) => u.schluessel)}`,
+        );
     expect(sicht(["laden.einstellungen"])).toEqual(["laedeli:einstellungen"]);
     expect(sicht(["system.lesen", "zeitregeln.verwalten"])).toEqual([
       "system:system,zeitregeln",

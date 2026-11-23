@@ -576,7 +576,7 @@ function tagAbschnitt({ ursprung: alle, alleTags: tags }) {
 }
 
 // Das Profil rechts: Bild (oder Initialen), Name, Rolle und Zustand; beim Erfassen läuft die Vorschau mit dem Namen mit
-function profilKarte(person, { nameVon }) {
+function profilKarte(person, { nameVon, ctx, neu }) {
   const bild = el("div", { class: "pe-bild" });
   const name = el("p", { class: "pe-profil-name" });
   const zusatz = el("p", { class: "leise" });
@@ -591,7 +591,50 @@ function profilKarte(person, { nameVon }) {
     name.textContent = n.name || "Neue Person";
     zusatz.textContent = n.ceviName;
   };
+  // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides); diese Seite sehen nur Admins, also genügt hier die Admin-Rolle. Eine Stelle für die Anzeige
+  const kannBildEntfernen = () =>
+    ctx?.ich?.role === "admin" && !!person?.bildUrl;
+  const hilfe = el("p", { class: "hilfe" });
+  const entfernen = el("div", { class: "pe-bild-aktion" });
+  const zeichneHilfe = () => {
+    hilfe.textContent = person.bildUrl
+      ? "Die Person setzt das Profilbild selbst in der App oder in «Mein Konto». Du siehst es hier und in den Listen der Verwaltung. Als Abteilungsleitung kannst du es entfernen, die Person kann dann ein neues setzen."
+      : "Noch kein Profilbild. Die Person setzt es selbst in der App oder in «Mein Konto».";
+    entfernen.replaceChildren(
+      ...(kannBildEntfernen()
+        ? [
+            zweistufig(
+              knopf("Profilbild entfernen", {
+                klein: true,
+                art: "gefahr",
+                symbol: "papierkorb",
+              }),
+              "Wirklich entfernen?",
+              () =>
+                direkt(
+                  ctx,
+                  () =>
+                    anfrage(
+                      "DELETE",
+                      `/api/v1/admin/personen/${person.id}/bild`,
+                    ),
+                  () => {
+                    person.bildUrl = null;
+                    zeichneBild();
+                    zeichneHilfe();
+                    neu?.();
+                    ctx.melde(
+                      `Das Profilbild von «${person.name}» ist entfernt.`,
+                    );
+                  },
+                ),
+            ),
+          ]
+        : []),
+    );
+  };
   zeichneBild();
+  if (person) zeichneHilfe();
   return {
     zeichneBild,
     wurzel: el(
@@ -613,16 +656,9 @@ function profilKarte(person, { nameVon }) {
         : el(
             "p",
             { class: "klein leise" },
-            "Das Profilbild setzt die Person selbst in der App.",
+            "Das Profilbild setzt die Person selbst in der App oder in «Mein Konto».",
           ),
-      person &&
-        el(
-          "p",
-          { class: "hilfe" },
-          person.bildUrl
-            ? "Das Profilbild setzt die Person selbst in der App. Du siehst es hier und in den Listen der Verwaltung."
-            : "Noch kein Profilbild. Die Person setzt es selbst in der App.",
-        ),
+      person && [hilfe, entfernen],
     ),
   };
 }
@@ -688,7 +724,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       : `${vorname.eingabe.value.trim()} ${nachname.eingabe.value.trim()}`.trim(),
     ceviName: ceviName.eingabe.value.trim(),
   });
-  const profil = profilKarte(person, { nameVon });
+  const profil = profilKarte(person, { nameVon, ctx, neu });
   for (const f of [name, vorname, nachname, ceviName].filter(Boolean)) {
     f.eingabe.addEventListener("input", profil.zeichneBild);
   }

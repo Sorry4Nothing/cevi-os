@@ -722,6 +722,20 @@
       "when": 1793556100000,
       "tag": "0141_gruppenrollen_nachtragen",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1793556400000,
+      "tag": "0144_kind_konto",
+      "breakpoints": true
+    },
+    {
+      "idx": 145,
+      "version": "7",
+      "when": 1793556500000,
+      "tag": "0145_laden_einstellungen",
+      "breakpoints": true
     }
   ]
 }

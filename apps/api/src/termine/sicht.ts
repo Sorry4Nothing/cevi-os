@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { kind, kindEltern, personTag, tag } from "../db/schema.js";
+import { kind, kindZugang, personTag, tag } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 // Sicht der Termine (Epic #430, #435): Ein Termin gehört zu den Tags in programm_tag; die Person sieht ihn, wenn sie einen dieser Tags hat.
@@ -33,8 +33,8 @@ export async function ladeSichtTags(
         .select({ quelle: sql<string>`'kind'::text`, id: kind.stufeId })
         .from(kind)
         .innerJoin(
-          kindEltern,
-          and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+          kindZugang,
+          and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
         )
         .where(
           and(

@@ -268,7 +268,7 @@ describe("Quelltext der Bereiche (#593)", () => {
     expect(lager).toContain("Zum Aktivieren fehlt die Lagerleitung");
   });
 
-  test("Stufenfelder: 403 auf eine fremde Stufe führt zur eigenen Stufe", () => {
+  test("Samstagsangaben der Stufen: 403 auf eine fremde Stufe führt zur eigenen Stufe", () => {
     const stufenfakten = quelle("website-stufenfakten.js");
     expect(stufenfakten).toContain("f?.status === 403");
     expect(stufenfakten).toContain("keinRecht");

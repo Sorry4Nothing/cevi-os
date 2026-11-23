@@ -262,6 +262,9 @@ export function erstelleSeitenInhaltRouten({
             if (laden.ladenUebergabe) {
               daten.ladenUebergabe = laden.ladenUebergabe;
             }
+            if (laden.ladenEinstellung) {
+              daten.ladenEinstellung = laden.ladenEinstellung;
+            }
             daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
           }
           Object.assign(daten, termine, anlaesse, kontakt && { kontakt });

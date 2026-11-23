@@ -52,6 +52,7 @@ export const ROLLEN = {
   stufenleitung: "Stufenleitung",
   leitung: "Leitung",
   eltern: "Eltern",
+  teilnehmer: "Teilnehmer",
 };
 export const ARTEN = {
   aktion: ["Änderung", "bearbeiten"],

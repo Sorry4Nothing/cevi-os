@@ -301,7 +301,7 @@ Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 17.1 bis 17.4, 17.6 bis 17.7 und 17.9 bis 17.10 (320, 390, 720 und 1440 Pixel, Hell und Dunkel, Tastatur im Wochentag, Wartung und Sperre ein- und ausgeschaltet). Anmeldung (17.8) mit falscher Eingabe, 429 und falschem Code im Browser, der echte zweite Faktor und der Sitzungsablauf nur mit nachgestellten Antworten. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
 
-## 18. Verwaltung: Website-Medien, Einstellungen, Stufenfelder und Lädeli (#591)
+## 18. Verwaltung: Website-Medien, Einstellungen, Samstagsangaben der Stufen und Lädeli (#591)
 
 Dieser Abschnitt gilt für `#website/medien`, `#website/einstellungen`, `#website/stufenfakten` und `#laedeli/*` (`website-medien.js`, `website-einstellungen.js`, `website-stufenfakten.js`, `laedeli.js`, `bildwahl.js`). Er ergänzt den Abschnitt 13 für das Lädeli. Geprüft wird im Browser am PC und am Handy, Tag und Nacht.
 
@@ -310,13 +310,13 @@ Dieser Abschnitt gilt für `#website/medien`, `#website/einstellungen`, `#websit
 - [ ] **18.3** Vorschau der Einstellungen: Sie ist rein darstellend (`alt=""`, die Beschriftung steht darüber); «Nicht gespeichert» und «Alles gespeichert» stehen als Wort in einer Live-Region.
 - [ ] **18.4** Medien: Die Ansichtswahl besteht aus zwei Knöpfen mit `aria-pressed` (44 Pixel hoch); in der Liste hat jede Zeile die Auswahl, das Bild, den Namen mit Chips und die Aktion. Die Filterleiste meldet die Trefferzahl («5 von 24 Medien»); gesetzte Filter sind Chips mit Namen. Die Auswahlleiste ist eine Region «Auswahl» mit Zahl in einer Live-Region; «Löschen» bietet «Rückgängig» an.
 - [ ] **18.5** Ladezustände: Karten, Raster und Listen zeigen Platzhalter in der Form des Inhalts (`aria-hidden`) und «Lädt …» für Screenreader; das Pulsieren läuft nur mit erlaubter Bewegung. Fehlt ein Bild, steht ein Wort an seiner Stelle.
-- [ ] **18.6** Stufenfelder: Die Stufenpillen sind Knöpfe mit `aria-pressed`; Datum und Zeit lassen sich tippen und per Kalender wählen; ein Datum ohne Wahl nennt den Fehler beim Feld.
+- [ ] **18.6** Samstagsangaben der Stufen: Die Stufenpillen sind Knöpfe mit `aria-pressed`; Datum und Zeit lassen sich tippen und per Kalender wählen; ein Datum ohne Wahl nennt den Fehler beim Feld.
 - [ ] **18.7** Bestellungen: Die Schiene ist eine Liste «Stand der Bestellung» mit `aria-current="step"` am aktuellen Schritt; erledigte Schritte tragen Haken und für Screenreader «(erledigt)». Der geteilte Knopf ist mit Pfeiltasten bedienbar; «Übergeben» und «Stornieren» bieten «Rückgängig» an.
 - [ ] **18.8** Artikel: Das Bild steht gross neben den Feldern, die Vorschau nennt Name, Preis, Hinweis, Grössen und Stand; ein Wechsel des Bildes löst die Frage «Änderungen verwerfen?» beim Verlassen aus.
 
 ### Stand der Prüfung (#591)
 
-Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 18.1 bis 18.8 bei 1440, 1024, 720 und 390 Pixeln (kein waagrechter Überlauf, keine Bedienelemente unter 44 Pixeln Höhe ausser den Kontrollkästchen der Medienkarten), Tag und Nacht, Ablauf Einstellungen speichern, Artikel mit neuem Bild speichern, Bestellung bereit melden und zurück auf offen, Alt-Text speichern, Löschen mit «Rückgängig», Suche, Stufenfeld ändern. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, das Hochladen einer echten Datei (kein Speicher lokal).
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 18.1 bis 18.8 bei 1440, 1024, 720 und 390 Pixeln (kein waagrechter Überlauf, keine Bedienelemente unter 44 Pixeln Höhe ausser den Kontrollkästchen der Medienkarten), Tag und Nacht, Ablauf Einstellungen speichern, Artikel mit neuem Bild speichern, Bestellung bereit melden und zurück auf offen, Alt-Text speichern, Löschen mit «Rückgängig», Suche, Samstagsangaben ändern. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, das Hochladen einer echten Datei (kein Speicher lokal).
 
 ## 19. Verwaltung: Personen, Gruppen, Kinder, Stufen, Import (#594)
 
@@ -401,7 +401,7 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.4** Tastatur der Bereichsauswahl: Enter und Leertaste öffnen, der Fokus geht auf die aktuelle Seite, Pfeil hoch und runter wechseln die Einträge, Escape schliesst und gibt den Fokus an die Zeile zurück, ein Klick daneben schliesst. Die aktuelle Seite trägt `aria-current="page"` und einen Balken (nie nur Farbe); Zähler offener Dinge stehen als Zahl mit «offen».
 - [ ] **22.5** Mit «Bewegung reduzieren» öffnet und schliesst das Panel ohne Übergang; in erzwungenen Farben ist die aktuelle Seite unterstrichen.
 - [ ] **22.6** Die Wartungsseite heisst «Wartung und Sperre» (Menü und Überschrift), nicht «Plattform».
-- [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
+- [ ] **22.7** Zweispalter (Einstellungen, Samstagsangaben der Stufen, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Suche (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf. Alle Prüfpunkte der Suche stehen in Abschnitt 30.
 
 ## 25. Verwaltung: Kalender mit Umschalter, Anlässe mit Reitern (#608)
@@ -435,7 +435,7 @@ Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 23.1 (alle 33 Seiten der Navigation, 1440, 1920 und 2560 Pixel, Hell), 23.2 bis 23.5 und 23.7 (Übersicht in Hell und Dunkel bei 1440 und 2560 Pixeln, Zähler vermessen), 23.6 (Durchgang durch alle Seiten, Masse der Felder verglichen). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, Messung der Kontraste mit einem Werkzeug, Dunkel bei 1920 Pixeln auf allen Seiten.
 
-## 27. Verwaltung: System, Verlauf der Anfragen und Stufenfelder (#606)
+## 27. Verwaltung: System, Verlauf der Anfragen und Samstagsangaben der Stufen (#606)
 
 Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der letzten Fehler), `system.css` und den Einleitungstext in `website-stufenfakten.js`. Er ergänzt 17.6. Geprüft wird bei 390, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur.
 
@@ -446,7 +446,7 @@ Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der
 - [ ] **27.5** Alle Texte der Achsen erreichen 4.5:1 (Token `--leise` auf Karte), in Tag und Nacht; in erzwungenen Farben sind Fehler und «vereinzelt» umrandet, «erhöht» ist gefüllt.
 - [ ] **27.6** «Letzte Fehler» ist eine Liste: Status als Chip mit Wort und Zahl, Methode und Route, die Zeit als «vor 7 Minuten» in einem `time`-Element mit Datum im Titel. Die Tabelle mit allen Fehlern steht im Reiter «Anfragen».
 - [ ] **27.7** «Bewegung reduzieren»: Die Säulen und Zellen wachsen nur bei erlaubter Bewegung ein. 390 Pixel: Kennzahlen untereinander, die Achse zeigt Anfang und «jetzt», nichts scrollt waagrecht.
-- [ ] **27.8** Stufenfelder: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
+- [ ] **27.8** Samstagsangaben der Stufen: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
 
 ### Stand der Prüfung (#606)
 
@@ -647,6 +647,21 @@ Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Ba
 - [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
 - [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
 
+## 44. Verwaltung: Lädeli-Einstellungen und Profilbild entfernen (#642)
+
+Dieser Abschnitt gilt für «Lädeli, Einstellungen» (`laedeli.js`, `laedeli.css`), den Knopf «Profilbild entfernen» im Personenformular (`personen-blatt.js`) und für die Meldungen der Website zu den neuen Einstellungen (`public/website/laden.js`). Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **44.1** Formular: Jedes Feld hat eine sichtbare Beschriftung und eine Hilfe, die `aria-describedby` anbindet; die Schalter (Kontrollkästchen) haben ihre Hilfe unter der Zeile und verbunden. Zahlen stehen in Textfeldern mit `inputmode`, nicht in nativen Zahlenfeldern. Abschnitte haben Überschriften der Ebene 3.
+- [ ] **44.2** Fehler: Ungültige Eingaben stehen beim Feld (`role="alert"`, `aria-invalid`), oben nennt ein Hinweis jedes Feld mit einem Knopf, der es fokussiert; die Eingaben bleiben. Fehler beim Speichern stehen auf der Seite mit Fokus.
+- [ ] **44.3** Speichern: Die Speicherleiste unten erscheint erst bei einer Änderung, nennt sie als Text («noch nicht gespeichert») und hat «Verwerfen» und «Speichern» mit mindestens 44 Pixeln; «Gespeichert» kommt als Statusmeldung.
+- [ ] **44.4** Vorschau: Rechts steht, was die Besucher lesen, als Text in Blöcken mit Überschriften; sie ist Hilfe, nicht Pflicht, und sagt Änderungen nicht laufend an. Zustand («Ohne Schnell dazu», «Preis nach Anmeldung») steht als Wort, nie nur über Farbe.
+- [ ] **44.5** «Standardtext einsetzen» ist ein Knopf (44 Pixel) und nur da, wo der Text abweicht; nach dem Klick liegt der Fokus im Feld.
+- [ ] **44.6** Website: Hinweise bei geschlossenem Lädeli und zur Mindestbestellung stehen als Text mit `role="status"`, auch bei 390 Pixeln (nicht nur in der Notiz, die es erst ab 48 rem gibt); gesperrte Knöpfe tragen `aria-disabled` und bleiben fokussierbar; «Preis nach Anmeldung» ersetzt den Preis als Text; Bedingungen stehen als Absätze in der Bestellübersicht.
+- [ ] **44.7** Profilbild entfernen: zweistufiger Knopf («Wirklich entfernen?»), kein Popup; das Ergebnis steht als Statusmeldung («Das Profilbild von … ist entfernt»); der Knopf verschwindet, der Fokus bleibt auf der Seite (Initialen statt Bild). Zustand und Name stehen als Text.
+- [ ] **44.8** Reflow: kein waagrechter Seitenscroll von 390 bis 2560 Pixeln; die Vorschau steht ab 1100 Pixeln rechts, sonst unter dem Formular.
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 44.1 bis 44.4 und 44.7 bei 1440 und 390 Pixeln (Tag und Nacht für die Einstellungen), Ablauf Einstellungen ändern, Fehler bei ungültiger Zahl, Speichern, Profilbild entfernen in zwei Stufen, Lädeli mit Mindestbestellung, Besucher ohne Preise und Angemeldete mit Preisen. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, 44.5 und 44.8 nur nach Sicht, «Bewegung reduzieren».
+
 ## 41. Verwaltung: Protokoll (#637)
 
 Dieser Abschnitt gilt für `protokoll.js`, `protokoll-liste.js`, `protokoll-text.js` und `protokoll.css`. Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Die Seite zeigt dem Entwickler Kennzahlen, ein Säulendiagramm, eine Werkzeugleiste mit Filtern und die Einträge als Zeitleiste; ein Klick öffnet das Detail im Fluss.
@@ -723,6 +738,39 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 ### Stand der Prüfung (#629)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
+
+## 43. Verwaltung: Kind mit eigenem Konto (#644)
+
+Dieser Abschnitt gilt für `kinder.js`, `kinder-konto.js` und die Seiten «Eigenes Konto erstellen» und «Konten für Kinder». Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Alles sind Seiten im Fluss; Rückfragen stehen am Knopf (zweistufig), nie in einem Popup.
+
+- [ ] **43.1** Der Zugang eines Kindes steht als Wort mit Symbol (Kein Zugang, Eltern verknüpft, Eigenes Konto, Eltern und eigenes Konto), nie nur als Farbe; «Kein Zugang» ist ein ruhiger Hinweis, kein Fehler. Die Gruppierung «Zugang» und der Filter «Mit eigenem Konto» benennen dieselben Zustände.
+- [ ] **43.2** Auf der Karte «Eigenes Konto» hat jede Aktion einen Titel, einen Erklärsatz und einen Knopf mit Namen (44 Pixel hoch). Folgenreiche Aktionen (Konto übergeben, neues Startpasswort, sperren, entfernen) sind zweistufig: Der erste Klick stellt die Frage im Knopf und sagt sie als Zustandsmeldung an, der zweite führt aus, Escape nimmt zurück.
+- [ ] **43.3** «Eigenes Konto erstellen» hat beschriftete Felder (Benutzername mit Vorschlag und Hilfetext, Haken «Die Eltern sind informiert und einverstanden», Datumsfeld «Informiert am», Haken zur Einsicht der Eltern). Fehlt etwas, nennt eine Zusammenfassung «n Angaben prüfen» mit einem Knopf je Feld, und am Feld steht der Fehler als Text mit Symbol. Ein vergebener Benutzername steht am Feld.
+- [ ] **43.3a** Das Startpasswort erscheint genau einmal in der Karte im Fluss (Kopieren-Knopf, Zustandsmeldung «Kopiert.»), beim Schliessen ist der Text aus der Seite gelöscht; bei offenem Startpasswort lässt sich die Anzeige in der Karte «Eigenes Konto» wieder öffnen.
+- [ ] **43.4** «Konten für Kinder» (Einstellungen) hat beschriftete Felder, das eigene Auswahlfeld der Verwaltung für Chat und Mindestalter und Hilfetexte; der Satz, was ein Konto sieht, steht als Liste.
+- [ ] **43.5** Hell, Dunkel, «Bewegung reduzieren» und erzwungene Farben; Kontrast der Marken, Chips und Texte wie in den Tokens (4.5 : 1).
+- [ ] **43.6** 320, 390, 720, 1440, 1920 und 2560 Pixel: nichts scrollt waagrecht, die Aktionen der Karte brechen unter den Text.
+
+### Stand der Prüfung (#644)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Demo-Daten gesehen: 43.1 bis 43.3a bei 1440 Pixel Hell (Liste, Kind mit Konto, Erstellen mit Fehlerzusammenfassung und mit Startpasswort, Einstellungen), dazu das Konto eines Kindes in der Verwaltung («Kein Zugang», 403). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben, Kontrastwerte mit einem Messwerkzeug, Bewegung reduzieren, 2560 Pixel, der Ablauf der zweistufigen Knöpfe mit Tastatur.
+
+## 45. Website: Stufenseite, Tafel und «Mitnehmen» (#645)
+
+Gilt für die blaue Tafel `dl.fakten.karte` der Stufenfakten (`stufenfakten.ts`, `mitnehmen.ts`, `rendern.ts`, Stil in `website.css`). Geprüft im Browser (Chromium, headless) bei 195 (200 % von 390), 390, 720 (200 % von 1440), 1024, 1440 und 2560 Pixeln, Tag und Nacht, ohne Skript, mit erzwungenen Farben.
+
+- [ ] **45.1** Struktur: Die Tafel bleibt eine Definitionsliste (`dl` mit `div.fakt`, `dt`, `dd`). «Mitnehmen» ist darin eine echte Liste (`dd > ul.mitnehmen[role=list] > li`, die Rolle hält die Liste für Safari und VoiceOver trotz `list-style: none`); die Zahl der Einträge ist für Hilfstechnik hörbar, nicht nur sichtbar.
+- [ ] **45.2** Lesbarkeit: Die Einträge stehen in Lesegrösse (18 px, Zeilenhöhe 26 px) und normaler Stärke; kurze Fakten bleiben die einzigen fetten Werte. Ein langer Text in der Tafel hat nie die Wirkung einer Überschrift.
+- [ ] **45.3** Kontrast: Eintrag weiss auf `--secondary` 11.4:1, Beschriftung `--on-secondary-muted` 7.6:1 (gemessen, Tag und Nacht gleich). Der Haken hat die Farbe des Texts; Zustand und Bedeutung hängen nicht an der Farbe.
+- [ ] **45.4** Haken ohne Bild: Der Haken ist ein gezeichneter Rand (`li::before`), kein SVG und kein Bild; er ist dekorativ und wird nicht vorgelesen. In erzwungenen Farben nimmt er die Textfarbe des Systems.
+- [ ] **45.5** Reflow: einspaltig in der schmalen Tafel und am Handy, zweispaltig, sobald zwei Spalten à 11 rem Platz haben (Tafel über Seitenbreite, z. B. bei 200 % Zoom auf 1440 Pixeln); kein waagrechter Scroll durch die Tafel, lange Wörter brechen um (`overflow-wrap`, Silbentrennung `de`).
+- [ ] **45.6** Ohne Skript und mit strenger CSP: Die Liste ist statisches HTML, keine Inline-Stile, keine Bilder; sie steht auch im nachgeladenen, geschützten Baustein.
+- [ ] **45.7** Text bleibt Text: Freitext ohne Trenner, ein einzelnes Ding oder mehr als 30 Einträge stehen als Absatz im selben Stil (nichts geht verloren); Markup in Einträgen wird maskiert angezeigt.
+- [ ] **45.8** Keine Bewegung: Die Tafel hat keine Animation.
+
+### Stand der Prüfung (#645)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank) bei 195, 320, 390, 720, 1024, 1440 und 2560 Pixeln, Tag und Nacht, mit ausgeschaltetem Skript und in erzwungenen Farben geprüft; Randfälle (ein Ding, Satz ohne Komma, Zeilenumbrüche mit Aufzählungszeichen, Klammern, offene Klammer, 31 Einträge, Markup, sehr langes Wort). Kontrast mit eigener Berechnung. **Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack; die Ansage der Liste ist nicht gehört), Zoom 400 %.
 
 ## 48. Verwaltung: Zugang nach Rechten (#648)
 
