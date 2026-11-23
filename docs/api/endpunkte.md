@@ -77,8 +77,8 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-vorschau.css`             | Stilvorlage der Website für die Vorschau in der Verwaltung                           | **200** alle      |
 | `GET /admin/website-medien.js`                | Skript der Verwaltung – Bereich Website, Medien                                      | **200** alle      |
 | `GET /admin/website-medien.css`               | Stilvorlage der Verwaltung – Bereich Website, Medien                                 | **200** alle      |
-| `GET /admin/website-stufenfakten.js`          | Skript der Verwaltung – Bereich Website, Stufenfelder                                | **200** alle      |
-| `GET /admin/website-stufenfakten.css`         | Stilvorlage der Verwaltung – Bereich Website, Stufenfelder                           | **200** alle      |
+| `GET /admin/website-stufenfakten.js`          | Skript der Verwaltung – Bereich Website, Samstagsangaben der Stufen                  | **200** alle      |
+| `GET /admin/website-stufenfakten.css`         | Stilvorlage der Verwaltung – Bereich Website, Samstagsangaben der Stufen             | **200** alle      |
 | `GET /admin/website-einstellungen.js`         | Skript der Verwaltung – Bereich Website, Einstellungen                               | **200** alle      |
 | `GET /admin/geruest.css`                      | Stilvorlage der Verwaltung – Gerüst (Kopf, Leisten, Zustände)                        | **200** alle      |
 | `GET /admin/komponenten.css`                  | Stilvorlage der Verwaltung – Bausteine (Skeleton, Schalter, Pillen)                  | **200** alle      |

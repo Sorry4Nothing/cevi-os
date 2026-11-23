@@ -368,7 +368,7 @@ const neuerStand = (): Stand => ({
   anker: new Set(["inhalt", "h1"]),
 });
 
-// Die Tafel «auf einen Blick»: Stufenfelder und Eckdaten sehen gleich aus
+// Die Tafel «auf einen Blick»: Samstagsangaben der Stufen und Eckdaten sehen gleich aus
 const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
   el(
     "dl",
@@ -900,7 +900,7 @@ const alsHtml = (liste: Eintrag[]) =>
 
 const sichtbar = (e: Eintrag) => e.knoten !== null && istOeffentlich(e.b);
 
-// Stufenfelder und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
+// Samstagsangaben der Stufen und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
 // Ohne solche Bausteine davor oder am Handy steht alles untereinander in der Reihenfolge der Seite
 function ordneZweispaltig(eintraege: Eintrag[]): string {
   const fakten = eintraege.findIndex(

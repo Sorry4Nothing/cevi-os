@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
-// Oberfläche der Website-Medien, Stufenfelder, Einstellungen und des Lädelis (#591): Aufbau der Module und Stilvorlagen.
+// Oberfläche der Website-Medien, Samstagsangaben der Stufen, Einstellungen und des Lädelis (#591): Aufbau der Module und Stilvorlagen.
 // Die Verwaltung besteht aus Browser-Modulen ohne Build; geprüft wird, was sich ohne Browser prüfen lässt.
 const ordner = new URL("../public/admin/", import.meta.url);
 const lies = (datei: string) => readFileSync(new URL(datei, ordner), "utf8");

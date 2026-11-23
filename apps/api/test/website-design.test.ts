@@ -183,7 +183,7 @@ describe("Startseite und Stufenseite", () => {
     );
   });
 
-  test("Stufenseite: Text und Bild vor den Stufenfeldern stehen links, die Felder rechts", () => {
+  test("Stufenseite: Text und Bild vor den Samstagsangaben der Stufen stehen links, die Felder rechts", () => {
     const seiteId = id();
     const d: Daten = {
       ...daten,
@@ -221,7 +221,7 @@ describe("Startseite und Stufenseite", () => {
     );
   });
 
-  test("Stufenfelder ohne Text davor: keine zweite Spalte", () => {
+  test("Samstagsangaben der Stufen ohne Text davor: keine zweite Spalte", () => {
     const seiteId = id();
     const d: Daten = {
       ...keineDaten(),

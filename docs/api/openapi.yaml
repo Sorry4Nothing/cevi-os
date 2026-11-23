@@ -1735,7 +1735,7 @@ paths:
   /admin/website-stufenfakten.js:
     get:
       operationId: getAdminWebsiteStufenfaktenSkript
-      summary: Skript der Verwaltung – Bereich Website, Stufenfelder
+      summary: Skript der Verwaltung – Bereich Website, Samstagsangaben der Stufen
       tags:
         - Allgemein
       security: []
@@ -1750,7 +1750,7 @@ paths:
   /admin/website-stufenfakten.css:
     get:
       operationId: getAdminWebsiteStufenfaktenStilvorlage
-      summary: Stilvorlage der Verwaltung – Bereich Website, Stufenfelder
+      summary: Stilvorlage der Verwaltung – Bereich Website, Samstagsangaben der Stufen
       tags:
         - Allgemein
       security: []

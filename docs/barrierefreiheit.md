@@ -301,7 +301,7 @@ Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 17.1 bis 17.4, 17.6 bis 17.7 und 17.9 bis 17.10 (320, 390, 720 und 1440 Pixel, Hell und Dunkel, Tastatur im Wochentag, Wartung und Sperre ein- und ausgeschaltet). Anmeldung (17.8) mit falscher Eingabe, 429 und falschem Code im Browser, der echte zweite Faktor und der Sitzungsablauf nur mit nachgestellten Antworten. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
 
-## 18. Verwaltung: Website-Medien, Einstellungen, Stufenfelder und Lädeli (#591)
+## 18. Verwaltung: Website-Medien, Einstellungen, Samstagsangaben der Stufen und Lädeli (#591)
 
 Dieser Abschnitt gilt für `#website/medien`, `#website/einstellungen`, `#website/stufenfakten` und `#laedeli/*` (`website-medien.js`, `website-einstellungen.js`, `website-stufenfakten.js`, `laedeli.js`, `bildwahl.js`). Er ergänzt den Abschnitt 13 für das Lädeli. Geprüft wird im Browser am PC und am Handy, Tag und Nacht.
 
@@ -310,13 +310,13 @@ Dieser Abschnitt gilt für `#website/medien`, `#website/einstellungen`, `#websit
 - [ ] **18.3** Vorschau der Einstellungen: Sie ist rein darstellend (`alt=""`, die Beschriftung steht darüber); «Nicht gespeichert» und «Alles gespeichert» stehen als Wort in einer Live-Region.
 - [ ] **18.4** Medien: Die Ansichtswahl besteht aus zwei Knöpfen mit `aria-pressed` (44 Pixel hoch); in der Liste hat jede Zeile die Auswahl, das Bild, den Namen mit Chips und die Aktion. Die Filterleiste meldet die Trefferzahl («5 von 24 Medien»); gesetzte Filter sind Chips mit Namen. Die Auswahlleiste ist eine Region «Auswahl» mit Zahl in einer Live-Region; «Löschen» bietet «Rückgängig» an.
 - [ ] **18.5** Ladezustände: Karten, Raster und Listen zeigen Platzhalter in der Form des Inhalts (`aria-hidden`) und «Lädt …» für Screenreader; das Pulsieren läuft nur mit erlaubter Bewegung. Fehlt ein Bild, steht ein Wort an seiner Stelle.
-- [ ] **18.6** Stufenfelder: Die Stufenpillen sind Knöpfe mit `aria-pressed`; Datum und Zeit lassen sich tippen und per Kalender wählen; ein Datum ohne Wahl nennt den Fehler beim Feld.
+- [ ] **18.6** Samstagsangaben der Stufen: Die Stufenpillen sind Knöpfe mit `aria-pressed`; Datum und Zeit lassen sich tippen und per Kalender wählen; ein Datum ohne Wahl nennt den Fehler beim Feld.
 - [ ] **18.7** Bestellungen: Die Schiene ist eine Liste «Stand der Bestellung» mit `aria-current="step"` am aktuellen Schritt; erledigte Schritte tragen Haken und für Screenreader «(erledigt)». Der geteilte Knopf ist mit Pfeiltasten bedienbar; «Übergeben» und «Stornieren» bieten «Rückgängig» an.
 - [ ] **18.8** Artikel: Das Bild steht gross neben den Feldern, die Vorschau nennt Name, Preis, Hinweis, Grössen und Stand; ein Wechsel des Bildes löst die Frage «Änderungen verwerfen?» beim Verlassen aus.
 
 ### Stand der Prüfung (#591)
 
-Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 18.1 bis 18.8 bei 1440, 1024, 720 und 390 Pixeln (kein waagrechter Überlauf, keine Bedienelemente unter 44 Pixeln Höhe ausser den Kontrollkästchen der Medienkarten), Tag und Nacht, Ablauf Einstellungen speichern, Artikel mit neuem Bild speichern, Bestellung bereit melden und zurück auf offen, Alt-Text speichern, Löschen mit «Rückgängig», Suche, Stufenfeld ändern. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, das Hochladen einer echten Datei (kein Speicher lokal).
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 18.1 bis 18.8 bei 1440, 1024, 720 und 390 Pixeln (kein waagrechter Überlauf, keine Bedienelemente unter 44 Pixeln Höhe ausser den Kontrollkästchen der Medienkarten), Tag und Nacht, Ablauf Einstellungen speichern, Artikel mit neuem Bild speichern, Bestellung bereit melden und zurück auf offen, Alt-Text speichern, Löschen mit «Rückgängig», Suche, Samstagsangaben ändern. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, das Hochladen einer echten Datei (kein Speicher lokal).
 
 ## 19. Verwaltung: Personen, Gruppen, Kinder, Stufen, Import (#594)
 
@@ -401,7 +401,7 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.4** Tastatur der Bereichsauswahl: Enter und Leertaste öffnen, der Fokus geht auf die aktuelle Seite, Pfeil hoch und runter wechseln die Einträge, Escape schliesst und gibt den Fokus an die Zeile zurück, ein Klick daneben schliesst. Die aktuelle Seite trägt `aria-current="page"` und einen Balken (nie nur Farbe); Zähler offener Dinge stehen als Zahl mit «offen».
 - [ ] **22.5** Mit «Bewegung reduzieren» öffnet und schliesst das Panel ohne Übergang; in erzwungenen Farben ist die aktuelle Seite unterstrichen.
 - [ ] **22.6** Die Wartungsseite heisst «Wartung und Sperre» (Menü und Überschrift), nicht «Plattform».
-- [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
+- [ ] **22.7** Zweispalter (Einstellungen, Samstagsangaben der Stufen, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Suche (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf. Alle Prüfpunkte der Suche stehen in Abschnitt 30.
 
 ## 25. Verwaltung: Kalender mit Umschalter, Anlässe mit Reitern (#608)
@@ -435,7 +435,7 @@ Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 23.1 (alle 33 Seiten der Navigation, 1440, 1920 und 2560 Pixel, Hell), 23.2 bis 23.5 und 23.7 (Übersicht in Hell und Dunkel bei 1440 und 2560 Pixeln, Zähler vermessen), 23.6 (Durchgang durch alle Seiten, Masse der Felder verglichen). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, Messung der Kontraste mit einem Werkzeug, Dunkel bei 1920 Pixeln auf allen Seiten.
 
-## 27. Verwaltung: System, Verlauf der Anfragen und Stufenfelder (#606)
+## 27. Verwaltung: System, Verlauf der Anfragen und Samstagsangaben der Stufen (#606)
 
 Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der letzten Fehler), `system.css` und den Einleitungstext in `website-stufenfakten.js`. Er ergänzt 17.6. Geprüft wird bei 390, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur.
 
@@ -446,7 +446,7 @@ Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der
 - [ ] **27.5** Alle Texte der Achsen erreichen 4.5:1 (Token `--leise` auf Karte), in Tag und Nacht; in erzwungenen Farben sind Fehler und «vereinzelt» umrandet, «erhöht» ist gefüllt.
 - [ ] **27.6** «Letzte Fehler» ist eine Liste: Status als Chip mit Wort und Zahl, Methode und Route, die Zeit als «vor 7 Minuten» in einem `time`-Element mit Datum im Titel. Die Tabelle mit allen Fehlern steht im Reiter «Anfragen».
 - [ ] **27.7** «Bewegung reduzieren»: Die Säulen und Zellen wachsen nur bei erlaubter Bewegung ein. 390 Pixel: Kennzahlen untereinander, die Achse zeigt Anfang und «jetzt», nichts scrollt waagrecht.
-- [ ] **27.8** Stufenfelder: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
+- [ ] **27.8** Samstagsangaben der Stufen: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
 
 ### Stand der Prüfung (#606)
 
