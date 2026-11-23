@@ -277,6 +277,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/kinder-konto.js:
+    get:
+      operationId: getAdminKinderKontoSkript
+      summary: Skript der Verwaltung – Konto eines Kindes
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/mitteilungen.js:
     get:
       operationId: getAdminMitteilungenSkript

@@ -81,6 +81,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/termin-vorschlaege/:p": "Terminvorschlag zurückziehen",
   "GET /admin/anlass-anmeldungen.js":
     "Skript der Verwaltung – Bereich Anlässe, Reiter Anmeldungen eines Anlasses",
+  "GET /admin/kinder-konto.js": "Skript der Verwaltung – Konto eines Kindes",
   "GET /admin/kinder.js": "Skript der Verwaltung – Bereich Kinder",
   "GET /admin/lager-personenwahl.js":
     "Skript der Verwaltung – Bereich Lager, Personen für ein Lager wählen",
