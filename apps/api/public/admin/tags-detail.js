@@ -7,9 +7,18 @@ import {
   mitFehlertitel,
   pruefHinweis,
 } from "./liste-hilfen.js";
-import { kandidatenSuche, personZeile } from "./personen-wahl.js";
+import {
+  abschnitte,
+  ansichtsleiste,
+  gliedere,
+  mitgliedKarte,
+  mitgliedKopf,
+  zeichneAnsicht,
+} from "./mitglieder.js";
+import { kandidatenSuche } from "./personen-wahl.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { zurueckKlick } from "./verlauf.js";
+import { anlassKarte, anlassText, ladeFreieAnlaesse } from "./tags-anlass.js";
 
 // Gruppe (= Tag der Abteilung): Dialoge zum Anlegen, Umbenennen, Löschen und für die Mitglieder, dazu die Detailseite A5 (#personen/gruppen/<id>)
 export const TYPEN = [
@@ -17,6 +26,7 @@ export const TYPEN = [
   ["funktion", "Funktion"],
   ["team", "Team"],
   ["lager", "Lager"],
+  ["anlass", "Anlass"],
 ];
 export const typName = (typ) => TYPEN.find(([w]) => w === typ)?.[1] ?? typ;
 export const mitglieder = (n) => (n === 1 ? "1 Mitglied" : `${n} Mitglieder`);
@@ -33,23 +43,76 @@ export function sperre(dialog, an) {
     ?.setAttribute("aria-busy", String(an));
 }
 
-// Auswahlfeld mit sichtbarem Bedienelement für Fehler und Fokus
-const mitFokus = (a) => ({
-  ...a,
-  fokus: a.wurzel.querySelector(".auswahl-knopf"),
-});
+// Auswahlfeld mit sichtbarem Bedienelement für Fehler und Fokus.
+// dom.js baut das Feld vor dem Einsetzen: Dann findet auswahl.js das Label nicht, und Knopf und Liste hätten keinen Namen. Darum hier verknüpft
+const mitFokus = (a) => {
+  const knopf = a.wurzel.querySelector(".auswahl-knopf");
+  const label = a.wurzel.querySelector("label");
+  if (knopf && label && !knopf.hasAttribute("aria-labelledby")) {
+    knopf.setAttribute("aria-labelledby", label.id);
+    a.wurzel
+      .querySelector("[role=listbox]")
+      ?.setAttribute("aria-labelledby", label.id);
+  }
+  return { ...a, fokus: knopf };
+};
 
 // Neue Gruppe (A4) oder Umbenennen; danach(ergebnis) läuft nach dem Schliessen
-export function tagDialog({ tag, ctx, neu, danach }) {
-  const typ = tag
-    ? null
-    : mitFokus(
-        auswahl({
-          label: "Typ",
-          optionen: [["", "Bitte wählen"], ...TYPEN],
-          wert: "",
-        }),
+// anlass (nur beim Anlegen, #626): ein Anlass aus der Liste der Anlässe; dann entsteht eine Gruppe vom Typ «anlass» für ihn, ohne Auswahl von Typ und Anlass
+export function tagDialog({ tag, ctx, neu, danach, anlass }) {
+  const typ =
+    tag || anlass
+      ? null
+      : mitFokus(
+          auswahl({
+            label: "Typ",
+            optionen: [["", "Bitte wählen"], ...TYPEN],
+            wert: "",
+          }),
+        );
+  // Das Auswahlfeld für den Anlass erscheint erst beim Typ «Anlass»; die Liste kommt dann mit einer Abfrage
+  const anlassWahl =
+    tag || anlass
+      ? null
+      : mitFokus(
+          auswahl({
+            label: "Anlass",
+            optionen: [["", "Anlass wählen"]],
+            wert: "",
+          }),
+        );
+  const anlassHinweis = el("p", { class: "klein leise", role: "status" });
+  if (anlassWahl) {
+    anlassWahl.wurzel.hidden = true;
+    anlassWahl.wurzel.append(anlassHinweis);
+  }
+  let anlaesseGeladen = false;
+  async function ladeAnlaesse() {
+    if (anlaesseGeladen) return;
+    anlaesseGeladen = true;
+    anlassHinweis.textContent = "Die Anlässe werden geladen.";
+    try {
+      const frei = await ladeFreieAnlaesse();
+      anlassWahl.eingabe.replaceChildren(
+        el("option", { value: "" }, "Anlass wählen"),
+        ...frei.map((a) => el("option", { value: a.id }, anlassText(a))),
       );
+      anlassWahl.eingabe.value = "";
+      anlassHinweis.textContent =
+        frei.length === 0
+          ? "Es gibt keinen Anlass ohne Gruppe. Lege zuerst einen Anlass an."
+          : "Der Name gilt in der ganzen Abteilung nur einmal: Nimm den Anlass in den Namen auf.";
+    } catch (fehler) {
+      anlaesseGeladen = false;
+      anlassHinweis.textContent = `Die Anlässe konnten nicht geladen werden. ${fehlertext(fehler)} Wähle den Typ nochmals.`;
+    }
+  }
+  const istAnlassTyp = () => !!anlass || typ?.eingabe.value === "anlass";
+  typ?.eingabe.addEventListener("change", () => {
+    const an = typ.eingabe.value === "anlass";
+    anlassWahl.wurzel.hidden = !an;
+    if (an) ladeAnlaesse();
+  });
   const name = feld({
     label: "Name",
     wert: tag?.name ?? "",
@@ -70,16 +133,23 @@ export function tagDialog({ tag, ctx, neu, danach }) {
     titel: tag ? "Gruppe umbenennen" : "Neue Gruppe",
     beschreibung: tag
       ? `${tag.name} · ${typName(tag.typ)}. Der Typ lässt sich nicht ändern.`
-      : "Der Typ lässt sich später nicht mehr ändern.",
-    felder: [zusammenfassung, name.wurzel, typ?.wurzel, kuerzel.wurzel].filter(
-      Boolean,
-    ),
+      : anlass
+        ? `Gruppe zum Anlass «${anlass.titel}». Der Name gilt in der ganzen Abteilung nur einmal: Nimm den Anlass in den Namen auf.`
+        : "Der Typ lässt sich später nicht mehr ändern.",
+    felder: [
+      zusammenfassung,
+      name.wurzel,
+      typ?.wurzel,
+      anlassWahl?.wurzel,
+      kuerzel.wurzel,
+    ].filter(Boolean),
     ok: tag ? "Speichern" : "Erstellen",
     pruefe: () => {
       zusammenfassung.replaceChildren();
       const fehler = [];
       entferneFehler(name);
       if (typ) entferneFehler(typ);
+      if (anlassWahl) entferneFehler(anlassWahl);
       if (!name.eingabe.value.trim()) {
         feldFehler(name, "Gib einen Namen ein.");
         fehler.push({ name: "Name", ...name });
@@ -87,6 +157,10 @@ export function tagDialog({ tag, ctx, neu, danach }) {
       if (typ && !typ.eingabe.value) {
         feldFehler(typ, "Wähle einen Typ.");
         fehler.push({ name: "Typ", ...typ });
+      }
+      if (anlassWahl && istAnlassTyp() && !anlassWahl.eingabe.value) {
+        feldFehler(anlassWahl, "Wähle einen Anlass.");
+        fehler.push({ name: "Anlass", ...anlassWahl });
       }
       if (fehler.length === 0) return false;
       const hinweis = pruefHinweis(fehler);
@@ -101,9 +175,12 @@ export function tagDialog({ tag, ctx, neu, danach }) {
         const neuesKuerzel = kuerzel.eingabe.value.trim();
         if (!tag) {
           return await anfrage("POST", "/api/v1/admin/tags", {
-            typ: typ.eingabe.value,
+            typ: anlass ? "anlass" : typ.eingabe.value,
             name: neuerName,
             ...(neuesKuerzel && { kuerzel: neuesKuerzel }),
+            ...(anlass && { anlassId: anlass.id }),
+            ...(anlassWahl &&
+              istAnlassTyp() && { anlassId: anlassWahl.eingabe.value }),
           });
         }
         // Ein Kürzel lässt sich ändern, aber nicht leeren: Die API verlangt mindestens ein Zeichen
@@ -124,6 +201,10 @@ export function tagDialog({ tag, ctx, neu, danach }) {
           `Eine Gruppe «${name.eingabe.value.trim()}» gibt es schon. Wähle einen anderen Namen.`,
         );
         return `${nichtGespeichert} Der Name ist schon vergeben.`;
+      }
+      if (f.code === "ANLASS_HAT_GRUPPE" || f.code === "ANLASS_UNBEKANNT") {
+        if (anlassWahl) feldFehler(anlassWahl, "Wähle einen anderen Anlass.");
+        return `${nichtGespeichert} ${f.message}`;
       }
       return `${nichtGespeichert} ${fehlertext(f)} Deine Eingaben sind noch da, versuche es nochmals.`;
     },
@@ -244,9 +325,14 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
       .join(" · ");
   };
 
-  const liste = el("ul", {
-    class: "pe-gewaehlt pe-mitglieder",
-    "aria-label": `Mitglieder von «${tag.name}»`,
+  const liste = el("div", { class: "mg-ansicht" });
+  const ansicht = ansichtsleiste({
+    gruppierungen: [
+      ["keine", "Keine"],
+      ["funktion", "Funktion"],
+    ],
+    gruppierung: "keine",
+    beiAenderung: () => zeichneListe(true),
   });
   const stand = el("p", { class: "klein leise", role: "status" });
   const filterId = `mitglieder-filter-${tag.id}`;
@@ -284,7 +370,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     filter,
   );
 
-  function rolleZelle(m, zeile) {
+  function rolleZelle(m) {
     return el(
       "div",
       { class: "pe-rolle" },
@@ -300,13 +386,13 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
             art: "still",
             symbol: "bearbeiten",
             kontext: nameVon(m),
-            onclick: () => bearbeite(m, zeile),
+            onclick: () => bearbeite(m),
           }),
     );
   }
 
   // Die Rolle wird in der Zeile bearbeitet: Eingabe mit Enter speichern, Escape bricht ab, kein eigenes Fenster
-  function bearbeite(m, zeile) {
+  function bearbeite(m) {
     const f = feld({
       label: `Rolle von ${nameVon(m)}`,
       wert: m.rolle ?? "",
@@ -351,8 +437,8 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         fertig();
       }
     });
-    zeile
-      .querySelector(".pe-rolle")
+    liste
+      .querySelector(`[data-id="${m.userId}"] .pe-rolle`)
       .replaceWith(
         el(
           "div",
@@ -364,7 +450,43 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     f.eingabe.focus();
   }
 
-  function zeichneListe() {
+  const funktion = (m) => (m.rolle ? rolleText(m.rolle) : "");
+  // Die Funktionen mit Stufenrolle zuerst, die übrigen nach Name, «Ohne Funktion» zuletzt
+  const funktionsRang = (n) =>
+    n === "" ? 3 : ["Stufenleitung", "Leitung"].indexOf(n) + 1 || 2;
+  const entfernenKnopf = (m) =>
+    !istStufenrolle(tag, m) &&
+    knopf("Entfernen", {
+      klein: true,
+      art: "still",
+      symbol: "schliessen",
+      kontext: nameVon(m),
+      onclick: () => entfernen(m),
+    });
+  const kopfVon = (m, gross) =>
+    mitgliedKopf({
+      name: nameVon(m),
+      ceviName: zusatzVon(m),
+      bildUrl: bekannt.get(m.userId)?.bildUrl,
+      gross,
+    });
+  const karte = (m) =>
+    mitgliedKarte({
+      id: m.userId,
+      kopf: kopfVon(m, true),
+      rollen: rolleZelle(m),
+      aktionen: entfernenKnopf(m),
+    });
+  const zeile = (m) =>
+    el(
+      "li",
+      { class: "pe-mitglied", "data-id": m.userId },
+      kopfVon(m, false),
+      rolleZelle(m),
+      entfernenKnopf(m),
+    );
+
+  function zeichneListe(animiert = false) {
     const frage = filter.value.trim().toLowerCase();
     const sortiert = [...mitgliederListe].sort((a, b) =>
       nameVon(a).localeCompare(nameVon(b), "de-CH"),
@@ -374,31 +496,27 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         .toLowerCase()
         .includes(frage),
     );
-    liste.replaceChildren(
-      ...treffer.map((m) => {
-        const name = nameVon(m);
-        const zeile = personZeile({
-          id: m.userId,
-          name,
-          zusatz: zusatzVon(m),
-          bildUrl: bekannt.get(m.userId)?.bildUrl,
-        });
-        zeile.classList.add("pe-mitglied");
-        zeile.append(rolleZelle(m, zeile));
-        if (!istStufenrolle(tag, m)) {
-          zeile.append(
-            knopf("Entfernen", {
-              klein: true,
-              art: "still",
-              symbol: "schliessen",
-              kontext: name,
-              onclick: () => entfernen(m),
-            }),
-          );
-        }
-        return zeile;
-      }),
-    );
+    const { ansicht: art, gruppierung } = ansicht.stand();
+    const gruppen =
+      gruppierung === "funktion"
+        ? [...new Set(treffer.map(funktion))]
+            .sort(
+              (a, b) =>
+                funktionsRang(a) - funktionsRang(b) ||
+                a.localeCompare(b, "de-CH"),
+            )
+            .map((n) => ({ schluessel: n, titel: n || "Ohne Funktion" }))
+        : null;
+    const { geordnet, gesamt } = gliedere(treffer, gruppen, funktion);
+    zeichneAnsicht(liste, {
+      ansicht: art,
+      beschriftung: `Mitglieder von «${tag.name}»`,
+      abschnitte: abschnitte(geordnet, gruppen, funktion, gesamt),
+      karte,
+      zeile,
+      animiert,
+      ebene: "h3",
+    });
     stand.textContent =
       mitgliederListe.length === 0
         ? ""
@@ -407,6 +525,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           : mitglieder(mitgliederListe.length);
     leerText.hidden = mitgliederListe.length !== 0;
     filterFeld.hidden = mitgliederListe.length === 0;
+    ansicht.wurzel.hidden = mitgliederListe.length === 0;
     keineTreffer.hidden = !(frage && treffer.length === 0);
     kopfZeile();
     suche.setzeKandidaten(kandidatenListe());
@@ -458,6 +577,8 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   }
 
   document.querySelector("#seitenkopf .kopf-text")?.prepend(zurueck);
+  const anlassInfo = anlassKarte(tag);
+  if (anlassInfo) bereich.append(anlassInfo);
   bereich.append(
     el(
       "div",
@@ -470,6 +591,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         stand,
         leerText,
         keineTreffer,
+        ansicht.wurzel,
         liste,
       ),
       tag.typ === "stufe"
@@ -496,5 +618,5 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           ),
     ),
   );
-  zeichneListe();
+  zeichneListe(true);
 }

@@ -41,6 +41,13 @@ export const BEREICHE = [
           "Wer zu welcher Gruppe gehört, steuert, wer was sieht und bearbeiten darf.",
       },
       {
+        schluessel: "rechte",
+        name: "Rollen und Rechte",
+        modul: "./rechte.js",
+        untertitel:
+          "Wer in der Abteilung was darf: Rollen, Gruppen und die Rechte jeder Person.",
+      },
+      {
         schluessel: "kinder",
         name: "Kinder",
         modul: "./kinder.js",
@@ -233,7 +240,8 @@ export const BEREICHE = [
         schluessel: "mitteilungen",
         name: "Mitteilungen",
         modul: "./mitteilungen.js",
-        untertitel: "Push-Mitteilung an Eltern und Leitende senden.",
+        untertitel:
+          "Push-Mitteilung an Stufen, Teams und andere Gruppen senden.",
       },
     ],
   },
@@ -265,6 +273,22 @@ export const BEREICHE = [
     ],
   },
 ];
+
+// «Mein Konto» (#621) ist kein Bereich der Leiste: Der Name im Kopf öffnet die Seite (#konto). Jede Person mit Zugang sieht sie; sie zeigt nur die eigenen Daten
+export const KONTO = {
+  schluessel: "konto",
+  name: "Mein Konto",
+  modul: "./konto.js",
+  untertitel:
+    "Deine Angaben, deine Sicherheit und was die Website von dir zeigt.",
+  zugang: "alle",
+};
+export const KONTO_BEREICH = {
+  schluessel: "konto",
+  name: "Mein Konto",
+  symbol: "personen",
+  unter: [KONTO],
+};
 
 // Alte Adressen (vor dem Neuaufbau) und die neue Heimat der Ansichten: [alt, neu], verglichen mit dem Anfang des Hashs ohne «#»
 export const ALIASE = [
@@ -349,6 +373,13 @@ export function sichtbareBereiche(person) {
 // Hash -> { bereich, unter, pfad } oder null bei einem toten Link. Ohne Hash gilt die Übersicht.
 export function loese(hash, bereiche) {
   const [gesucht = "", zweiter, ...rest] = hash.replace(/^#/, "").split("/");
+  if (gesucht === KONTO.schluessel) {
+    return {
+      bereich: KONTO_BEREICH,
+      unter: KONTO,
+      pfad: zweiter === undefined ? [] : [zweiter, ...rest],
+    };
+  }
   const bereich = gesucht
     ? bereiche.find((b) => b.schluessel === gesucht)
     : bereiche[0];

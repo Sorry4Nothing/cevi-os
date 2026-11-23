@@ -1,0 +1,632 @@
+/* Rollen und Rechte (#623). Klassen mit Vorsatz rr-. Farben nur über Variablen aus tokens.css, keine style-Attribute; Bewegung nur unter prefers-reduced-motion: no-preference. */
+
+.rr-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.rr-skelett {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.rr-erklaerung {
+  max-width: 48rem;
+  margin: 0;
+}
+
+.rr-flaeche {
+  min-width: 0;
+}
+
+.rr-flaeche h2 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.rr-flaeche h3 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.rr-kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.rr-kopfzeile p {
+  margin: 0;
+}
+
+.rr-zf-hinweis {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rr-zf-hinweis .i {
+  width: 16px;
+  height: 16px;
+}
+
+.rr-zurueck {
+  align-self: flex-start;
+}
+
+.rr-liste {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+/* ===== Matrix: Rechte mal Rollen ===== */
+.rr-matrix-rahmen {
+  background: var(--karte);
+  border: 0;
+  border-radius: 0;
+}
+
+.rr-matrix {
+  width: 100%;
+  min-width: 40rem;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.rr-matrix th,
+.rr-matrix td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--rand-leise);
+  vertical-align: middle;
+  text-align: left;
+}
+
+.rr-matrix thead th {
+  border-top: 0;
+  border-bottom: 1px solid var(--rand-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  white-space: normal;
+}
+
+.rr-spalte {
+  min-width: 8.5rem;
+  text-align: center !important;
+}
+
+.rr-spalte > * {
+  display: block;
+}
+
+.rr-rollenname {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+span.rr-rollenname {
+  text-decoration: none;
+}
+
+.rr-rollenname .i {
+  width: 16px;
+  height: 16px;
+}
+
+.rr-recht-kopf,
+.rr-recht-titel {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 15rem;
+  background: var(--karte);
+}
+
+.rr-recht-titel {
+  font-weight: 400;
+}
+
+.rr-titel {
+  display: block;
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+}
+
+.rr-text {
+  display: block;
+  max-width: 32rem;
+  margin: 2px 0 6px;
+}
+
+.rr-marken {
+  margin: 0;
+}
+
+.rr-bereich th {
+  padding: 8px 16px;
+  background: var(--leiste);
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rr-zelle {
+  text-align: center !important;
+}
+
+.rr-zelle.ist-geaendert {
+  background: var(--wa-f);
+}
+
+/* Das Kästchen: ein echtes Kontrollkästchen über der ganzen Fläche (44 px), das sichtbare Zeichen daneben */
+.rr-box {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.rr-haken {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.rr-kasten {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--karte);
+  color: transparent;
+  border: 2px solid var(--rand);
+  border-radius: 7px;
+}
+
+.rr-kasten .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+
+.rr-haken:checked ~ .rr-kasten {
+  background: var(--akzent);
+  color: var(--auf-akzent);
+  border-color: var(--akzent);
+}
+
+.rr-haken:focus-visible ~ .rr-kasten {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.rr-geaendert {
+  display: block;
+  min-height: 1rem;
+  color: var(--wa);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+}
+
+.rr-geaendert:empty {
+  display: none;
+}
+
+.rr-zelle--fest {
+  color: var(--leise);
+}
+
+.rr-fest-zeichen {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
+  border-radius: 7px;
+}
+
+.rr-fest-zeichen .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 3;
+}
+
+/* ===== Karten (schmal) und Listen ===== */
+.rr-karten,
+.rr-gruppenliste,
+.rr-darf {
+  display: grid;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-gruppenliste {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+}
+
+.rr-karte > h2,
+.rr-kartenkopf h2 {
+  margin: 0;
+}
+
+.rr-karte {
+  align-items: flex-start;
+}
+
+.rr-kartenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  align-self: stretch;
+}
+
+.rr-kartenkopf a {
+  color: var(--text);
+}
+
+.rr-traegt-kurz {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.rr-traegt-kurz li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rr-traegt-kurz .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.rr-traegt {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-traegt-zeile {
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-traegt-zeile:first-child {
+  border-top: 0;
+}
+
+.rr-traegt-zeile p {
+  margin: 0;
+}
+
+.rr-offen {
+  border-style: dashed;
+}
+
+/* ===== Eine Rolle ===== */
+.rr-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rr-namenzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.rr-namenzeile .feld {
+  flex: 1 1 16rem;
+  max-width: 28rem;
+}
+
+.rr-rechteliste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-bereich-block h3 {
+  margin: 8px 0 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.rr-rechtzeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-rechtzeile.ist-geaendert {
+  margin-inline: -12px;
+  padding-inline: 12px;
+  background: var(--wa-f);
+  border-radius: 8px;
+}
+
+.rr-rechtinfo {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rr-rechtinfo p {
+  margin: 0;
+}
+
+.rr-gefahr {
+  border-color: var(--rand-leise);
+}
+
+.rr-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rr-block h3 {
+  margin: 8px 0 0;
+}
+
+.rr-personen {
+  margin: 0;
+}
+
+.rr-zeile-wahl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+}
+
+.rr-zeile-wahl .feld {
+  flex: 1 1 16rem;
+  max-width: 28rem;
+}
+
+.rr-frage {
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.rr-frage-knoepfe {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-verlassen {
+  flex-wrap: wrap;
+}
+
+/* ===== Was darf wer? ===== */
+.rr-personenliste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-personzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-height: 3.5rem;
+  padding: 8px 16px;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-personzeile:first-child {
+  border-top: 0;
+}
+
+.rr-personzeile[hidden] {
+  display: none;
+}
+
+.rr-personzeile .wer {
+  flex: 1 1 14rem;
+}
+
+.rr-personzeile .wer > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.rr-personlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+}
+
+.rr-person .wer {
+  align-items: center;
+}
+
+.rr-darfzeile {
+  align-items: stretch;
+}
+
+.rr-darfzeile h3 {
+  margin: 0;
+}
+
+.rr-quellen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-quelle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-quelle:first-child {
+  border-top: 0;
+}
+
+.rr-umfang {
+  flex: 1 1 14rem;
+  font-weight: 700;
+}
+
+.rr-quelle a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+/* ===== Leiste mit ungespeicherten Änderungen: haftet unten ===== */
+.rr-speicherleiste {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 24px;
+  padding: 12px 16px;
+  color: var(--inverse-on-surface);
+  background: var(--inverse-surface);
+  border-radius: 16px;
+}
+
+.rr-speicherleiste[hidden] {
+  display: none;
+}
+
+.rr-speicherzahl {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.rr-vorschau {
+  flex: 1 1 100%;
+  order: 3;
+  font-size: 0.875rem;
+}
+
+.rr-vorschau summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.rr-vorschau p {
+  margin: 0 0 4px;
+  color: inherit;
+}
+
+.rr-speicherknoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-speicherleiste .knopf:not(.knopf--haupt):not(.knopf--scharf) {
+  color: var(--inverse-on-surface);
+  background: transparent;
+  border-color: currentcolor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rr-speicherleiste:not([hidden]) {
+    animation: rr-hoch 0.24s var(--kurve) both;
+  }
+
+  .rr-kasten {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve);
+  }
+
+  @keyframes rr-hoch {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ===== Breit und schmal (zuletzt, damit es die display-Werte der Karten schlägt) ===== */
+@media (max-width: 47.99rem) {
+  .rr-nur-breit {
+    display: none;
+  }
+}
+
+@media (min-width: 48rem) {
+  .rr-nur-schmal {
+    display: none;
+  }
+}

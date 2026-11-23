@@ -90,6 +90,53 @@ beforeAll(async () => {
       status,
     });
   }
+  // Zwei Anlässe: ein kommender mit Frist in fünf Tagen und zwei Anmeldungen (eine von heute), einer mit Frist vor 30 Tagen
+  const [pk, pv] = await db
+    .insert(schema.programm)
+    .values([
+      {
+        abteilungId: a,
+        googleEventId: "uebersicht-anlass-kommend",
+        titel: "Anlass kommend",
+        ganztaegig: false,
+        beginn: tage(20),
+        ende: tage(20.1),
+      },
+      {
+        abteilungId: a,
+        googleEventId: "uebersicht-anlass-vorbei",
+        titel: "Anlass vorbei",
+        ganztaegig: false,
+        beginn: tage(-20),
+        ende: tage(-19.9),
+      },
+    ])
+    .returning({ id: schema.programm.id });
+  const [ak, av] = await db
+    .insert(schema.anlass)
+    .values(
+      [
+        { programmId: pk.id, frist: tage(5), anmeldungOffen: true },
+        { programmId: pv.id, frist: tage(-30), anmeldungOffen: false },
+      ].map((x) => ({
+        abteilungId: a,
+        anmeldungFuer: "person" as const,
+        sichtbarkeit: "oeffentlich" as const,
+        ...x,
+      })),
+    )
+    .returning({ id: schema.anlass.id });
+  await db.insert(schema.anlassAnmeldung).values([
+    { anlassId: ak.id, userId: eltern.id!, status: "angemeldet" as const },
+    { anlassId: ak.id, userId: slA.id!, status: "angemeldet" as const },
+    { anlassId: ak.id, userId: leitende.id!, status: "abgemeldet" as const },
+    {
+      anlassId: av.id,
+      userId: eltern.id!,
+      status: "angemeldet" as const,
+      erstelltAm: tage(-40),
+    },
+  ]);
   // Zwei Seiten: ein Entwurf der Stufe A und eine veröffentlichte Seite mit geändertem Entwurf
   await db.insert(schema.seite).values({
     abteilungId: a,
@@ -125,6 +172,8 @@ describe("GET /api/v1/admin/uebersicht", () => {
     expect(antwort.headers.get("cache-control")).toBe("private, no-store");
     const d = await antwort.json();
     expect(Object.keys(d).sort()).toEqual([
+      "aktivitaet",
+      "anlaesse",
       "aufgaben",
       "betrieb",
       "erzeugtAm",
@@ -137,7 +186,7 @@ describe("GET /api/v1/admin/uebersicht", () => {
     expect(d.fehlt).toEqual([]);
     expect(d.aufgaben).toMatchObject({
       terminVorschlaege: 2,
-      termineOhneKategorie: 1,
+      termineOhneKategorie: 2, // «Ohne Tag» und der kommende Anlass
       bestellungenOffen: 2,
       bestellungenBereit: 1,
       websiteEntwuerfe: 1,
@@ -145,11 +194,51 @@ describe("GET /api/v1/admin/uebersicht", () => {
       raumanfragen: 0,
       kalenderFehler: false,
     });
-    expect(d.kennzahlen.personen.verlauf).toHaveLength(8);
+    expect(d.kennzahlen.fenster).toBe(52);
+    expect(d.kennzahlen.personen.verlauf).toHaveLength(52);
+    expect(d.kennzahlen.anmeldungen.verlauf).toHaveLength(52);
     expect(d.kennzahlen.personen.verlauf.at(-1)).toBe(
       d.kennzahlen.personen.jetzt,
     );
+    expect(d.kennzahlen.bestellungen.verlauf).toHaveLength(52);
     expect(d.kennzahlen.bestellungen.verlauf.at(-1)).toBe(3);
+    // Der Verlauf der Personen steigt nie und endet bei der heutigen Zahl
+    const pv: number[] = d.kennzahlen.personen.verlauf;
+    expect(pv.every((w, i) => i === 0 || w >= pv[i - 1])).toBe(true);
+    expect(d.aktivitaet.letzteBestellungAm).toEqual(expect.any(String));
+    expect(d.aktivitaet.letzterVorschlagAm).toEqual(expect.any(String));
+    // Anlässe: Titel, Zeiten und Zahlen; abgemeldete zählen nicht, nie Personen
+    expect(d.anlaesse).toHaveLength(2);
+    expect(d.anlaesse[0]).toMatchObject({
+      titel: "Anlass kommend",
+      kommend: true,
+      angemeldet: 2,
+      neu7: 2,
+    });
+    expect(d.anlaesse[1]).toMatchObject({
+      titel: "Anlass vorbei",
+      kommend: false,
+      angemeldet: 1,
+      neu7: 0,
+    });
+    expect(Object.keys(d.anlaesse[0]).sort()).toEqual([
+      "angemeldet",
+      "beginn",
+      "frist",
+      "kommend",
+      "letzteAm",
+      "neu7",
+      "tagVon",
+      "titel",
+    ]);
+    // Die Anmeldungen der letzten 40 Tage stehen im Verlauf: zwei in der jüngsten Woche
+    expect(d.kennzahlen.anmeldungen.verlauf.at(-1)).toBe(2);
+    expect(
+      d.kennzahlen.anmeldungen.verlauf.reduce(
+        (s: number, w: number) => s + w,
+        0,
+      ),
+    ).toBe(3);
     expect(d.kommend.termineProWoche).toHaveLength(8);
     expect(d.kommend.termine.map((t: { titel: string }) => t.titel)).toContain(
       "Ohne Tag",
@@ -192,6 +281,8 @@ describe("GET /api/v1/admin/uebersicht", () => {
     expect(d.aufgaben).toEqual({ websiteEntwuerfe: 1, websiteAenderungen: 1 });
     expect(Object.keys(d.zustand).sort()).toEqual(["medien", "website"]);
     expect(d).not.toHaveProperty("kennzahlen");
+    expect(d).not.toHaveProperty("anlaesse");
+    expect(d).not.toHaveProperty("aktivitaet");
     expect(d).not.toHaveProperty("betrieb");
     expect(d).not.toHaveProperty("kinderJeStufe");
   });
@@ -202,6 +293,8 @@ describe("GET /api/v1/admin/uebersicht", () => {
     expect(d.kinderJeStufe).toHaveLength(1);
     expect(d.kommend.lager).toEqual([]);
     expect(d).not.toHaveProperty("betrieb");
+    expect(d).not.toHaveProperty("anlaesse");
+    expect(d).not.toHaveProperty("aktivitaet");
     expect(d.zustand.website.seiten).toBe(1);
   });
 

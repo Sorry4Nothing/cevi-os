@@ -17,6 +17,8 @@ import {
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+// Zyklus mit schema-anlass.ts, harmlos: Der Verweis steht nur in einer Funktion, die erst beim Aufbau des Fremdschlüssels läuft
+import { anlass } from "./schema-anlass.js";
 
 const id = () =>
   uuid("id")
@@ -228,10 +230,14 @@ export const tag = pgTable(
       .notNull()
       .references(() => abteilung.id, { onDelete: "restrict" }),
     typ: text("typ", {
-      enum: ["stufe", "funktion", "team", "lager"],
+      enum: ["stufe", "funktion", "team", "lager", "anlass"],
     }).notNull(),
     name: text("name").notNull(),
     kuerzel: text("kuerzel").notNull(),
+    // Nur bei Typ «anlass» (#626): der Anlass der Gruppe, zum Beispiel das OK. Fällt der Anlass weg, bleibt die Gruppe ohne Verknüpfung. Dass der Anlass zur Abteilung gehört und die Art «anlass» hat (kein Lager), prüft die Route
+    anlassId: uuid("anlass_id").references((): AnyPgColumn => anlass.id, {
+      onDelete: "set null",
+    }),
   },
   (t) => [
     // Über alle Typen und ohne Gross-/Kleinschreibung, wie stufe_name_pro_abteilung
@@ -242,8 +248,16 @@ export const tag = pgTable(
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check(
       "tag_typ_check",
-      sql`${t.typ} in ('stufe', 'funktion', 'team', 'lager')`,
+      sql`${t.typ} in ('stufe', 'funktion', 'team', 'lager', 'anlass')`,
     ),
+    check(
+      "tag_anlass_check",
+      sql`${t.typ} = 'anlass' or ${t.anlassId} is null`,
+    ),
+    // Höchstens eine Gruppe je Anlass
+    uniqueIndex("tag_anlass_eindeutig")
+      .on(t.anlassId)
+      .where(sql`${t.anlassId} is not null`),
   ],
 );
 

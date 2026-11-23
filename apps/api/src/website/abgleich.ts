@@ -1,5 +1,13 @@
 import { createHash } from "node:crypto";
-import { and, eq, inArray, isNotNull, isNull, sql as roh } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql as roh,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
@@ -297,6 +305,8 @@ export async function ladeDaten(
       .where(
         and(
           eq(tag.abteilungId, abteilungId),
+          // Gruppen eines Anlasses (zum Beispiel ein OK) erscheinen nie auf der Website (#626)
+          ne(tag.typ, "anlass"),
           inArray(
             personTag.userId,
             zeilen.map((z) => z.id),
@@ -324,7 +334,11 @@ export async function ladeDaten(
       .select({ id: tag.id, name: tag.name, typ: tag.typ })
       .from(tag)
       .where(
-        and(eq(tag.abteilungId, abteilungId), inArray(tag.id, [...tagIds])),
+        and(
+          eq(tag.abteilungId, abteilungId),
+          ne(tag.typ, "anlass"),
+          inArray(tag.id, [...tagIds]),
+        ),
       );
     stufenIds.push(...tags.filter((t) => t.typ === "stufe").map((t) => t.id));
     const mitglieder = await db
