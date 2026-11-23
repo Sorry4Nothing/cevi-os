@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/redaktion/seiten/:id/zurueckziehen"
-order: 187000
+order: 188000
 method: POST
 url: "{{baseUrl}}/api/v1/redaktion/seiten/{{seiteId}}/zurueckziehen"
 headers:

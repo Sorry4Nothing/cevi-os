@@ -126,6 +126,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /datenschutz": { erwartet: alle(200) },
   "GET /konto-loeschen": { erwartet: alle(200) },
   "GET /support": { erwartet: alle(200) },
+  "GET /favicon.ico": { erwartet: alle(200) },
+  "GET /apple-touch-icon.png": { erwartet: alle(200) },
   // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
   "GET /admin": { erwartet: alle(200) },
   "GET /admin/admin.css": { erwartet: alle(200) },
@@ -1023,6 +1025,18 @@ const MATRIX: Record<string, Zeile> = {
       demoAdmin: 201,
       deaktiviert: 401,
       ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/laden/artikel/reihenfolge": {
+    // Die Liste nennt einen Artikel der Testabteilung: In der Demo-Abteilung ist er unbekannt (404)
+    body: () => ({ ids: [ladenArtikelId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
     },
   },
   "PATCH /api/v1/admin/laden/artikel/:id": {

@@ -91,7 +91,6 @@ const artikelFelder = {
   varianten: z.array(text(40)).max(MAX_VARIANTEN).refine(eindeutig),
   hinweis: text(200).nullable(),
   verfuegbar: z.boolean(),
-  reihenfolge: z.number().int().min(0).max(9999),
 };
 export const artikelAnlegenSchema = z.strictObject({
   name: artikelFelder.name,
@@ -101,7 +100,14 @@ export const artikelAnlegenSchema = z.strictObject({
   varianten: artikelFelder.varianten.optional(),
   hinweis: artikelFelder.hinweis.optional(),
   verfuegbar: artikelFelder.verfuegbar.optional(),
-  reihenfolge: artikelFelder.reihenfolge.optional(),
+});
+// Die Reihenfolge der Artikel setzt nur die Liste: Ein Aufruf nennt die Artikel in der neuen Folge; der Server vergibt 0, 1, 2 … ohne Lücken. Artikel, die fehlen, folgen am Ende in ihrer bisherigen Folge
+export const reihenfolgeSchema = z.strictObject({
+  ids: z
+    .array(z.uuid())
+    .min(1)
+    .max(MAX_ARTIKEL)
+    .refine((l) => new Set(l).size === l.length),
 });
 // Ohne Schlüssel bleibt der Wert; null löscht Bild und Hinweis
 export const artikelAendernSchema = z.strictObject({

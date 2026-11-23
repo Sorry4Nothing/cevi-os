@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/vorlagen"
-order: 424000
+order: 425000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/vorlagen"
 headers:
@@ -19,7 +19,7 @@ body:
   content: |-
     {
       "art": "packliste",
-      "name": "Matrix f8301a7f-b905-4b34-b786-1712f7d86ebf",
+      "name": "Matrix faf6f193-cf0f-4f37-9699-c059588ab61b",
       "inhalt": {
         "punkte": [
           {

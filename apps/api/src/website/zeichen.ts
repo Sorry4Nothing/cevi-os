@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 // Favicon der Website (#558): das Zeichen der Abteilung als Tab-Symbol, Lesezeichen und Symbol auf dem Startbildschirm.
 // Der Abgleich schreibt die Dateien neben die Seiten (statisch, CSP bleibt 'self'); erzeugt werden sie aus einem quadratischen Bild der Medienbibliothek (abteilung.website_zeichen_medium_id) oder, ohne Wahl, aus dem Cevi-Zeichen der Plattform (bild-sharp.ts, kodiereZeichen).
 // Jedes Symbol steht auf einer weissen Tafel: So bleibt es im hellen und im dunklen Browser lesbar, ohne zweite Fassung.
@@ -18,6 +20,10 @@ export type ZeichenDateien = Record<
   (typeof ZEICHEN_DATEIEN)[number],
   Uint8Array
 >;
+
+// Die Fassung in den Adressen (?v=…): ein Stück des Hashes des Bildes. Abgleich, Hinweisseite der Sperre und Rückfallseiten bilden dieselbe Adresse
+export const zeichenVersion = (ico: Uint8Array) =>
+  createHash("sha256").update(ico).digest("hex").slice(0, 12);
 
 // Ein ICO mit genau einem Bild: Seit Windows Vista darf der Eintrag ein PNG sein. Kopf (6 Bytes), ein Verzeichniseintrag (16 Bytes), dann das PNG
 export function alsIco(png: Uint8Array, seite: number): Uint8Array {

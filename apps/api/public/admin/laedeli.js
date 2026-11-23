@@ -7,6 +7,7 @@ import {
   feld,
   filterGruppe,
   knopf,
+  menue,
   seitenblatt,
   tabelle,
 } from "./dom.js";
@@ -41,6 +42,26 @@ const TEXTE = {
     "Der Stand hat sich inzwischen geändert. Die Liste ist neu geladen.",
 };
 const meldungVon = (f) => TEXTE[f?.code] ?? fehlertext(f);
+
+// Griff zum Ziehen: sechs Punkte, eigenes Zeichen (Zierde, der Name steht im Knopf)
+function griffSymbol() {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "i");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  for (const x of [9, 15]) {
+    for (const y of [6, 12, 18]) {
+      const kreis = document.createElementNS(ns, "circle");
+      kreis.setAttribute("cx", String(x));
+      kreis.setAttribute("cy", String(y));
+      kreis.setAttribute("r", "1.6");
+      kreis.setAttribute("fill", "currentColor");
+      svg.append(kreis);
+    }
+  }
+  return svg;
+}
 
 // «CHF 40.–», «CHF 12.50», «gratis»: wie src/laden/laden.ts (preisText)
 export function preisText(rappen) {
@@ -371,92 +392,297 @@ function zeigeArtikel(bereich, ctx) {
       );
       return;
     }
+    // Die Folge der Liste: Ziehen am Griff (Maus, Finger), Tastatur am Griff (Leertaste greift, Pfeile bewegen, Leertaste setzt ab, Esc bricht ab) und «Nach oben», «Nach unten» im Menü. Nach dem Absetzen speichert ein Aufruf alle IDs
+    const ids0 = artikel.map((a) => a.id);
+    const nachId = new Map(artikel.map((a) => [a.id, a]));
+    const sage = el("p", { class: "nur-leser", role: "status" });
+    const ansage = (text) => {
+      sage.textContent = "";
+      sage.textContent = text;
+    };
+    const koerper = el("tbody", {});
+    const reihe = () => [...koerper.children];
+    const idsJetzt = () => reihe().map((tr) => tr.dataset.id);
+    const platzText = (id) =>
+      `Position ${idsJetzt().indexOf(id) + 1} von ${artikel.length}`;
+    // Eine laufende Zeigerbewegung (Maus, Finger)
+    let zug = null;
+
+    async function speichere(vorher, nachher) {
+      if (vorher.join() === nachher.join()) return;
+      try {
+        await anfrage("PUT", `${BASIS}/artikel/reihenfolge`, { ids: nachher });
+      } catch (f) {
+        ctx.melde(
+          `Die Reihenfolge ist nicht gespeichert. ${meldungVon(f)}`,
+          "fehler",
+        );
+        await neu();
+        return;
+      }
+      ctx.melde("Reihenfolge gespeichert.", "ok", {
+        text: "Rückgängig",
+        onclick: async () => {
+          try {
+            await anfrage("PUT", `${BASIS}/artikel/reihenfolge`, {
+              ids: vorher,
+            });
+            ctx.melde("Die alte Reihenfolge ist wieder da.");
+          } catch (f) {
+            ctx.melde(meldungVon(f), "fehler");
+          }
+          await neu();
+        },
+      });
+      await neu();
+    }
+    // Nach einem Wechsel zeichnet die Liste neu; der Griff behält den Fokus
+    const fokusAufGriff = (id) =>
+      document
+        .querySelector(`.ld-tabelle tr[data-id="${id}"] .ld-griff`)
+        ?.focus();
+    async function beendeUndSpeichere(id, vorher) {
+      await speichere(vorher, idsJetzt());
+      fokusAufGriff(id);
+    }
+    const stelleHer = (vorher) => {
+      for (const id of vorher) {
+        koerper.append(koerper.querySelector(`tr[data-id="${id}"]`));
+      }
+    };
+    // Eine Zeile um einen Platz schieben (Menü, Tastatur)
+    function schiebe(id, schritt) {
+      const zeilen = reihe();
+      const von = zeilen.findIndex((tr) => tr.dataset.id === id);
+      const nach = von + schritt;
+      if (nach < 0 || nach >= zeilen.length) return false;
+      if (schritt < 0) zeilen[nach].before(zeilen[von]);
+      else zeilen[nach].after(zeilen[von]);
+      return true;
+    }
+
+    function griff(a) {
+      let gegriffen = null;
+      // Das Verschieben der Zeile nimmt dem Griff kurz den Fokus: Das ist kein Absetzen
+      let bewegt = false;
+      const knopfGriff = el(
+        "button",
+        {
+          type: "button",
+          class: "ld-griff",
+          "aria-pressed": "false",
+          "aria-label": `Position ändern: ${a.name}`,
+          "aria-describedby": "ld-griff-hilfe",
+        },
+        griffSymbol(),
+      );
+      const zeile = () => knopfGriff.closest("tr");
+      const ende = (abbrechen) => {
+        if (!gegriffen) return;
+        const { vorher } = gegriffen;
+        gegriffen = null;
+        knopfGriff.setAttribute("aria-pressed", "false");
+        zeile().classList.remove("ld-gehoben");
+        if (abbrechen) {
+          stelleHer(vorher);
+          ansage("Abgebrochen. Die Reihenfolge ist unverändert.");
+          knopfGriff.focus();
+          return;
+        }
+        void beendeUndSpeichere(a.id, vorher);
+      };
+      // Tastatur
+      knopfGriff.addEventListener("keydown", (e) => {
+        if (e.key === " " || e.key === "Enter") {
+          e.preventDefault();
+          if (!gegriffen) {
+            gegriffen = { vorher: idsJetzt() };
+            knopfGriff.setAttribute("aria-pressed", "true");
+            zeile().classList.add("ld-gehoben");
+            ansage(
+              `${a.name} gegriffen. ${platzText(a.id)}. Pfeil hoch oder runter verschiebt, Leertaste setzt ab, Escape bricht ab.`,
+            );
+          } else {
+            ende(false);
+          }
+        } else if (e.key === "Escape" && gegriffen) {
+          e.preventDefault();
+          e.stopPropagation();
+          ende(true);
+        } else if (
+          gegriffen &&
+          (e.key === "ArrowUp" || e.key === "ArrowDown")
+        ) {
+          e.preventDefault();
+          bewegt = true;
+          if (schiebe(a.id, e.key === "ArrowUp" ? -1 : 1)) {
+            knopfGriff.focus();
+            ansage(platzText(a.id));
+          }
+          bewegt = false;
+        }
+      });
+      // Wer die Tastatur verlässt, ohne abzusetzen, setzt ab
+      knopfGriff.addEventListener("blur", () => {
+        if (gegriffen && !bewegt) ende(false);
+      });
+      // Maus und Finger: Die gezogene Zeile folgt dem Zeiger, eine Kante zeigt, wo sie landet; erst beim Loslassen wandert sie dorthin (sonst verlöre der Griff den Zeiger)
+      const markeLoeschen = () => {
+        for (const z of reihe()) z.classList.remove("ld-vor", "ld-nach");
+      };
+      knopfGriff.addEventListener("pointerdown", (e) => {
+        if (e.button !== 0 || gegriffen) return;
+        e.preventDefault();
+        knopfGriff.setPointerCapture(e.pointerId);
+        zug = { id: a.id, start: e.clientY, davor: undefined };
+        zeile().classList.add("ld-gezogen");
+        document.body.classList.add("ld-zieht");
+      });
+      knopfGriff.addEventListener("pointermove", (e) => {
+        if (!zug || zug.id !== a.id) return;
+        const mich = zeile();
+        mich.style.transform = `translateY(${e.clientY - zug.start}px)`;
+        const andere = reihe().filter((z) => z !== mich);
+        const davor = andere.find((z) => {
+          const r = z.getBoundingClientRect();
+          return e.clientY < r.top + r.height / 2;
+        });
+        markeLoeschen();
+        zug.davor = davor ?? null;
+        if (davor) davor.classList.add("ld-vor");
+        else andere.at(-1)?.classList.add("ld-nach");
+        // Am Rand des Fensters rollt die Seite mit
+        if (e.clientY < 70) window.scrollBy(0, -12);
+        else if (e.clientY > window.innerHeight - 70) window.scrollBy(0, 12);
+      });
+      const loslassen = (abbruch) => {
+        if (!zug || zug.id !== a.id) return;
+        const { davor } = zug;
+        const vorher = idsJetzt();
+        zug = null;
+        const mich = zeile();
+        mich.classList.remove("ld-gezogen");
+        mich.style.transform = "";
+        markeLoeschen();
+        document.body.classList.remove("ld-zieht");
+        if (abbruch || davor === undefined) return;
+        if (davor) davor.before(mich);
+        else koerper.append(mich);
+        ansage(platzText(a.id));
+        void beendeUndSpeichere(a.id, vorher);
+      };
+      knopfGriff.addEventListener("pointerup", () => loslassen(false));
+      knopfGriff.addEventListener("pointercancel", () => loslassen(true));
+      return knopfGriff;
+    }
+
+    const zeileVon = (a, n) =>
+      el(
+        "tr",
+        { class: a.verfuegbar ? undefined : "inaktiv", "data-id": a.id },
+        el("td", { class: "ld-griffzelle" }, griff(a)),
+        el(
+          "th",
+          { scope: "row" },
+          el(
+            "div",
+            { class: "ld-artikel" },
+            a.mediumId
+              ? el("img", {
+                  class: "ld-bild",
+                  src: `/api/v1/medien/${a.mediumId}`,
+                  alt: "",
+                  loading: "lazy",
+                })
+              : el("span", { class: "ld-bild ld-bild--leer" }),
+            el(
+              "span",
+              {},
+              el("span", { class: "name" }, a.name),
+              a.hinweis &&
+                el("span", { class: "klein leise ld-unter" }, a.hinweis),
+            ),
+          ),
+        ),
+        el("td", { class: "zahl" }, preisText(a.preisRappen)),
+        el(
+          "td",
+          {},
+          a.varianten.length > 0
+            ? a.varianten.join(", ")
+            : el("span", { class: "leise" }, "Einheitsgrösse"),
+        ),
+        el(
+          "td",
+          {},
+          el(
+            "ul",
+            { class: "chips" },
+            a.verfuegbar
+              ? chip("Verfügbar", "ok")
+              : chip("Nicht verfügbar", "warn"),
+          ),
+        ),
+        el(
+          "td",
+          { class: "rechts" },
+          el(
+            "div",
+            { class: "aktionen" },
+            knopf("Bearbeiten", {
+              klein: true,
+              symbol: "bearbeiten",
+              kontext: a.name,
+              onclick: () =>
+                artikelBlatt({ artikel: a, ctx, neu, anzahl: artikel.length }),
+            }),
+            menue(a.name, [
+              n > 0 && {
+                text: "Nach oben",
+                onclick: () => {
+                  schiebe(a.id, -1);
+                  void beendeUndSpeichere(a.id, ids0);
+                },
+              },
+              n < artikel.length - 1 && {
+                text: "Nach unten",
+                onclick: () => {
+                  schiebe(a.id, 1);
+                  void beendeUndSpeichere(a.id, ids0);
+                },
+              },
+            ]),
+          ),
+        ),
+      );
+    koerper.append(...ids0.map((id, n) => zeileVon(nachId.get(id), n)));
+
     const t = tabelle({
       beschriftung: "Artikel",
       spalten: [
+        [el("span", { class: "nur-leser" }, "Position"), "ld-griffspalte"],
         "Artikel",
         ["Preis", "zahl"],
         "Grösse",
         "Stand",
-        ["Reihenfolge", "zahl"],
-        "Aktionen",
+        ["Aktionen", "rechts"],
       ],
-      zeilen: artikel.map((a) =>
-        el(
-          "tr",
-          { class: a.verfuegbar ? undefined : "inaktiv" },
-          el(
-            "th",
-            { scope: "row" },
-            el(
-              "div",
-              { class: "ld-artikel" },
-              a.mediumId
-                ? el("img", {
-                    class: "ld-bild",
-                    src: `/api/v1/medien/${a.mediumId}`,
-                    alt: "",
-                    loading: "lazy",
-                  })
-                : el("span", { class: "ld-bild ld-bild--leer" }),
-              el(
-                "span",
-                {},
-                el("span", { class: "name" }, a.name),
-                a.hinweis &&
-                  el("span", { class: "klein leise ld-unter" }, a.hinweis),
-              ),
-            ),
-          ),
-          el("td", { class: "zahl" }, preisText(a.preisRappen)),
-          el(
-            "td",
-            {},
-            a.varianten.length > 0
-              ? a.varianten.join(", ")
-              : el("span", { class: "leise" }, "Einheitsgrösse"),
-          ),
-          el(
-            "td",
-            {},
-            el(
-              "ul",
-              { class: "chips" },
-              a.verfuegbar
-                ? chip("Verfügbar", "ok")
-                : chip("Nicht verfügbar", "warn"),
-            ),
-          ),
-          el("td", { class: "zahl" }, String(a.reihenfolge)),
-          el(
-            "td",
-            { class: "rechts" },
-            el(
-              "div",
-              { class: "aktionen" },
-              knopf("Bearbeiten", {
-                klein: true,
-                symbol: "bearbeiten",
-                kontext: a.name,
-                onclick: () =>
-                  artikelBlatt({
-                    artikel: a,
-                    ctx,
-                    neu,
-                    anzahl: artikel.length,
-                  }),
-              }),
-            ),
-          ),
-        ),
-      ),
+      zeilen: [],
     });
+    t.koerper.replaceWith(koerper);
+    t.wurzel.classList.add("ld-tabelle");
     bereich.append(
       el(
         "p",
         { class: "klein leise" },
-        `${zaehlwort(artikel.length, "Artikel", "Artikel")}. Änderungen erscheinen kurz darauf auf der Website.`,
+        `${zaehlwort(artikel.length, "Artikel", "Artikel")}. Ziehe einen Artikel am Griff an seinen Platz. Änderungen erscheinen kurz darauf auf der Website.`,
       ),
+      el(
+        "p",
+        { class: "nur-leser", id: "ld-griff-hilfe" },
+        "Leertaste greift den Artikel, Pfeil hoch und runter verschiebt ihn, Leertaste setzt ihn ab, Escape bricht ab.",
+      ),
+      sage,
       t.wurzel,
     );
   }
@@ -563,17 +789,6 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     wert: artikel?.hinweis ?? "",
     maxlength: 200,
   });
-  const reihenfolge = feld({
-    label: "Reihenfolge (optional)",
-    hilfe:
-      "Kleinere Zahlen stehen weiter vorn, von 0 bis 9999. Ohne Eingabe kommt ein neuer Artikel ans Ende.",
-    typ: "number",
-    wert: artikel?.reihenfolge ?? "",
-    min: 0,
-    max: 9999,
-    step: 1,
-    inputmode: "numeric",
-  });
   const verfuegbar = ankreuzen({
     label: "Verfügbar: Der Artikel lässt sich bestellen",
     gewaehlt: artikel?.verfuegbar ?? true,
@@ -589,7 +804,6 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     bild.wurzel,
     groesse.wurzel,
     hinweis.wurzel,
-    reihenfolge.wurzel,
     verfuegbar.wurzel,
   );
   const speichern = knopf("Speichern", {
@@ -627,7 +841,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     fusszeile: [loeschen, abbrechen, speichern],
   });
   const sperre = (an) => {
-    for (const f of [name, preis, varianten, hinweis, reihenfolge]) {
+    for (const f of [name, preis, varianten, hinweis]) {
       f.eingabe.readOnly = an;
     }
     einheit.eingabe.disabled = liste.eingabe.disabled = an;
@@ -683,14 +897,6 @@ async function artikelBlatt({ artikel, ctx, neu }) {
         );
       }
     }
-    const rohFolge = reihenfolge.eingabe.value.trim();
-    const folge = Number(rohFolge);
-    if (
-      rohFolge !== "" &&
-      !(Number.isInteger(folge) && folge >= 0 && folge <= 9999)
-    ) {
-      melde(reihenfolge, "Gib eine Zahl von 0 bis 9999 ein.", "Reihenfolge");
-    }
     if (fehler.length > 0) {
       const h = pruefHinweis(fehler);
       ersetze(meldungsfeld, h);
@@ -705,7 +911,6 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       ...(art === "liste" && { varianten: namen }),
       hinweis: hinweis.eingabe.value.trim() || null,
       verfuegbar: verfuegbar.eingabe.checked,
-      ...(rohFolge !== "" && { reihenfolge: folge }),
     };
     sperre(true);
     try {

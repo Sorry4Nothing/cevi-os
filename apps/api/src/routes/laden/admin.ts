@@ -1,4 +1,4 @@
-import { and, desc, eq, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, lt, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import {
   listeSchema,
   MAX_ARTIKEL,
   pruefeGroesse,
+  reihenfolgeSchema,
   STATUS,
   WECHSEL,
 } from "../../laden/laden.js";
@@ -104,8 +105,11 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
             await tx.execute(
               sql`select pg_advisory_xact_lock(hashtextextended(${"laden-artikel " + person.abteilungId}, 0))`,
             );
-            const [{ n }] = await tx
-              .select({ n: sql<number>`count(*)::int` })
+            const [{ n, hoechste }] = await tx
+              .select({
+                n: sql<number>`count(*)::int`,
+                hoechste: sql<number | null>`max(${ladenArtikel.reihenfolge})`,
+              })
               .from(ladenArtikel)
               .where(eq(ladenArtikel.abteilungId, person.abteilungId));
             if (n >= MAX_ARTIKEL) return null;
@@ -119,8 +123,8 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
                 varianten: groesse.varianten ?? [],
                 hinweis: b.hinweis ?? null,
                 verfuegbar: b.verfuegbar ?? true,
-                // Ohne Angabe ans Ende
-                reihenfolge: b.reihenfolge ?? Math.min(n * 10, 9999),
+                // Ein neuer Artikel kommt ans Ende
+                reihenfolge: Math.min((hoechste ?? -1) + 1, 9999),
               })
               .returning({ id: ladenArtikel.id });
             // Nur Kennungen, nie Namen
@@ -137,6 +141,54 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           if (id === null) return c.json(ARTIKEL_LIMIT, 409);
           geaendert(person.abteilungId);
           return c.json({ id }, 201);
+        },
+      )
+      // Die Reihenfolge der Liste: die Artikel in der neuen Folge, ein Aufruf für alle. Der Server vergibt 0, 1, 2 … ohne Lücken; was fehlt, folgt am Ende. Ein Artikel einer anderen Abteilung oder ein unbekannter ist 404. Eine Abfrage zum Lesen, ein Update mit CASE und ein Audit-Eintrag in einer Transaktion unter der Sperre der Abteilung
+      .put(
+        "/admin/laden/artikel/reihenfolge",
+        eingabe("json", reihenfolgeSchema),
+        async (c) => {
+          const person = c.get("person");
+          pruefeRecht(person);
+          const { ids } = c.req.valid("json");
+          const ok = await db.transaction(async (tx) => {
+            await tx.execute(
+              sql`select pg_advisory_xact_lock(hashtextextended(${"laden-artikel " + person.abteilungId}, 0))`,
+            );
+            const alle = (
+              await tx
+                .select({ id: ladenArtikel.id })
+                .from(ladenArtikel)
+                .where(eq(ladenArtikel.abteilungId, person.abteilungId))
+                .orderBy(asc(ladenArtikel.reihenfolge), asc(ladenArtikel.name))
+            ).map((a) => a.id);
+            const vorhanden = new Set(alle);
+            if (ids.some((id) => !vorhanden.has(id))) return false;
+            const genannt = new Set(ids);
+            const folge = [...ids, ...alle.filter((id) => !genannt.has(id))];
+            await tx
+              .update(ladenArtikel)
+              .set({
+                reihenfolge: sql`case ${ladenArtikel.id} ${sql.join(
+                  folge.map((id, i) => sql`when ${id}::uuid then ${i}::int`),
+                  sql` `,
+                )} end`,
+              })
+              .where(eq(ladenArtikel.abteilungId, person.abteilungId));
+            // Nur die Anzahl
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "laden_reihenfolge_geaendert",
+              zielTyp: "abteilung",
+              zielId: person.abteilungId,
+              details: { artikel: folge.length },
+            });
+            return true;
+          });
+          if (!ok) throw new HTTPException(404);
+          geaendert(person.abteilungId);
+          return c.body(null, 204);
         },
       )
       .patch(

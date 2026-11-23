@@ -6,6 +6,7 @@ import { istAusgabePfad } from "./ausgabe.js";
 import { fehlerBuehne, STIL_FEHLER } from "./fehlerseiten.js";
 import { CSP, esc, STYLESHEET_PFAD, TOKENS_PFAD } from "./rendern.js";
 import { RESERVIERTE_ADRESSEN } from "./seiten.js";
+import { zeichenLinks } from "./zeichen.js";
 
 // Weiterleitungen alter Adressen (#356). Ein Pfad ist relativ zur Website: Stücke aus a-z, 0-9 und «-», dahinter Endungen mit «.», höchstens 7 Stücke.
 // Das schliesst jeden offenen Redirect aus (kein Host, kein Schema, kein «//», «\», «..», Query oder Anker) und macht Pfade für Caddy und HTML ohne Maskieren sicher.
@@ -87,6 +88,7 @@ export function rendereWeiterleitungsseite(
   u: Umleitung,
   abteilung: string,
   basisUrl: string,
+  zeichen?: string,
 ): string {
   return `<!doctype html>
 <html lang="de-CH">
@@ -98,7 +100,7 @@ export function rendereWeiterleitungsseite(
 <meta name="referrer" content="no-referrer">
 <meta name="robots" content="noindex">
 <title>Seite umgezogen | ${esc(abteilung)}</title>
-<link rel="canonical" href="${esc(basisUrl + u.zielPfad)}">
+<link rel="canonical" href="${esc(basisUrl + u.zielPfad)}">${zeichen ? zeichenLinks(esc(zeichen)) : ""}
 <link rel="stylesheet" href="${TOKENS_PFAD}">
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
 <link rel="stylesheet" href="${STIL_FEHLER}">
@@ -127,6 +129,8 @@ export async function baueWeiterleitungen(
     abteilung: string;
     basisUrl: string;
     seiten: { pfad: string; tagId: string | null }[];
+    // Fassung des Favicons (zeichenVersion), wie auf jeder Seite der Website
+    zeichen?: string;
   },
 ): Promise<[string, string][]> {
   const eigene = await db
@@ -196,7 +200,7 @@ export async function baueWeiterleitungen(
     if (istAusgabePfad(datei(u.alterPfad))) {
       dateien.push([
         datei(u.alterPfad),
-        rendereWeiterleitungsseite(u, opt.abteilung, opt.basisUrl),
+        rendereWeiterleitungsseite(u, opt.abteilung, opt.basisUrl, opt.zeichen),
       ]);
     }
   }

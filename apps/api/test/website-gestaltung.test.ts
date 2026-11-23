@@ -480,6 +480,7 @@ describe("Verweise und Aktionen: ein Repertoire (#568)", () => {
       "termine.css",
       "inhalt.css",
       "kopf.css",
+      "fuss.css",
       "karussell.css",
       "auswahl.css",
     ]) {
@@ -555,6 +556,7 @@ describe("Scrollleisten (#572)", () => {
       "termine.css",
       "inhalt.css",
       "kopf.css",
+      "fuss.css",
       "karussell.css",
       "auswahl.css",
       "lichtkasten.css",

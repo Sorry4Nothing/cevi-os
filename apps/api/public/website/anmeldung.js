@@ -10,6 +10,7 @@ import {
   heute,
   icon,
   loginLink,
+  ladeAnsage,
   melde,
   skelett,
   sk,
@@ -168,7 +169,6 @@ export function kontoLadeKarte() {
         zeile("b70"),
       ),
     ),
-    h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );
 }
 
@@ -503,7 +503,9 @@ function start(doc, wurzel) {
   async function lade(fokus) {
     modus = "laedt";
     zeichne();
+    const stopp = ladeAnsage(doc, "Die Anmeldung wird geladen.");
     const r = await api(`/anlaesse/${id}`);
+    stopp();
     if (r.status === 200) {
       z.a = r.daten;
       z.wahl = Math.min(z.wahl, z.a.teilnehmende.length - 1);

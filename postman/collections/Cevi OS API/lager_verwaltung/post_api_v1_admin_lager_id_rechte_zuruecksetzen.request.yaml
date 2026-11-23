@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/lager/:id/rechte/zuruecksetzen"
-order: 374000
+order: 375000
 method: POST
 url: "{{baseUrl}}{{pfad_L172}}"
 headers:

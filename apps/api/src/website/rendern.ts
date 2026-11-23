@@ -14,6 +14,7 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
+import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
 import {
   rendereLaden,
   SKRIPT_LADEN,
@@ -682,88 +683,15 @@ function rendereBaustein(
             : []),
         ),
       );
-    // Kontaktkarte (#555): links die Frage und die Ansprechperson, rechts Telefon und E-Mail als grosse Flächen
+    // Kontaktkarte (#555, neu gestaltet in #580, kontakt.ts)
     case "kontaktkarte": {
-      const p = b.daten.personId
-        ? daten.personen.get(b.daten.personId)
-        : undefined;
-      const k = daten.kontakt;
-      const wege = [
-        k?.telefon
-          ? wegFlaeche(telefonZiel(k.telefon), "Telefon", k.telefon)
-          : null,
-        k?.email ? wegFlaeche(`mailto:${k.email}`, "E-Mail", k.email) : null,
-      ].filter((w) => w !== null);
-      if (!p && wege.length === 0) return null;
       const ebene = Math.min(2, letzte.ebene + 1);
+      const knoten = kontaktkarte(b.daten, daten, ebene);
+      if (knoten === null) return null;
       letzte.ebene = ebene;
-      return el(
-        "section",
-        { class: "kontaktkarte" },
-        el(
-          "div",
-          { class: "kontakt-text" },
-          el(
-            `h${ebene}`,
-            undefined,
-            b.daten.titel ?? "Fragen? Melde dich bei uns.",
-          ),
-          ...(p
-            ? [
-                el(
-                  "p",
-                  { class: "leise" },
-                  p.funktion ? `${p.name}, ${p.funktion}` : p.name,
-                ),
-              ]
-            : []),
-        ),
-        ...(wege.length > 0
-          ? [
-              el(
-                "ul",
-                { class: "wege" },
-                ...wege.map((w) => el("li", undefined, w)),
-              ),
-            ]
-          : []),
-      );
+      return knoten;
     }
   }
-}
-
-// Telefon und E-Mail aus der Konfiguration: als Link nur, wenn die Adresse eine erlaubte Art hat
-const kontaktLink = (ziel: string, text: string): HtmlKnoten =>
-  verlinke(ziel, [text])[0]!;
-
-// «043 543 96 82» wird zu tel:+41435439682 (Schweizer Nummern; mit «+» oder «00» am Anfang bleibt die Landesvorwahl)
-function telefonZiel(nummer: string): string {
-  const ziffern = nummer.replace(/[^\d+]/g, "");
-  const intl = ziffern.startsWith("+")
-    ? ziffern
-    : ziffern.startsWith("00")
-      ? `+${ziffern.slice(2)}`
-      : `+41${ziffern.replace(/^0/, "")}`;
-  return `tel:${intl}`;
-}
-
-const telefonLink = (nummer: string): HtmlKnoten =>
-  kontaktLink(telefonZiel(nummer), nummer);
-
-// Grosse Zeile der Kontaktkarte: Art und Wert in einem Link; null, wenn die Adresse keine erlaubte Art hat
-function wegFlaeche(
-  ziel: string,
-  art: string,
-  wert: string,
-): HtmlKnoten | null {
-  const h = href(ziel);
-  if (h === null) return null;
-  return el(
-    "a",
-    { ...h, class: "weg" },
-    el("span", { class: "weg-art" }, art),
-    el("span", { class: "weg-wert" }, wert),
-  );
 }
 
 const datumsformat = (o: Intl.DateTimeFormatOptions) =>
@@ -1203,46 +1131,18 @@ ${ordneZweispaltig(rumpf)}
 
 // Der Kopf (Marke, Navigation, Umschalter, Menü am Handy) steht in kopf.ts (#558)
 
-// Fuss (#555): Spalten für Name und Adresse, die Seiten der Website, Kontakt und Rechtliches, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
-const fuss = (k: Kontext) => {
-  const c = k.daten.kontakt ?? {};
-  const wege = [
-    c.telefon ? serialisiere(telefonLink(c.telefon)) : "",
-    c.email ? serialisiere(kontaktLink(`mailto:${c.email}`, c.email)) : "",
-  ].filter((w) => w !== "");
-  const recht = [
-    c.impressum ? `<a href="${esc(c.impressum)}">Impressum</a>` : "",
-    `<a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a>`,
-  ].filter((w) => w !== "");
-  const spalte = (titel: string, links: string[]) =>
-    links.length === 0
-      ? ""
-      : `
-<nav class="fuss-spalte" aria-label="${esc(titel)}"><h2>${esc(titel)}</h2><ul>${links.map((l) => `<li>${l}</li>`).join("")}</ul></nav>`;
-  return `<footer class="fuss">
-<div class="wrap"><div class="fuss-in">
-<div class="fuss-name"><strong>${esc(k.abteilung)}</strong>${c.adresse ? `<p>${esc(c.adresse)}</p>` : ""}</div>${spalte(
-    "Seiten",
-    k.navigation
-      .slice(0, 6)
-      .map((p) => `<a href="${esc(p.pfad)}">${esc(p.titel)}</a>`),
-  )}${spalte("Kontakt", wege)}${spalte("Rechtliches", recht)}
-</div>
-<p class="klein leise">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p></div>
-</footer>`;
-};
-
 // Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline.
 // Das Menü (menue.js) ist eine Verbesserung: ohne Skript öffnen sich die Untermenüs bei Hover und Fokus
 export const CSP =
   "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
-// Jede Seite lädt theme.js (#550), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
+// Jede Seite lädt theme.js (#550) und ladezustand.js (#574), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
 const CSP_SEITE =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
+export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };
 // Bausteine, deren Bilder sich gross öffnen lassen
 const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
@@ -1250,8 +1150,9 @@ const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
   "galerie",
   "karussell",
 ]);
-// Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
-export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
+// Die klassischen Skripte im <head> (Darstellung, Ladezustand der Bilder #574), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
+export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
+<script src="${SKRIPT_LADEZUSTAND}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 
@@ -1319,7 +1220,8 @@ export function rahmen(
 ${THEMA_SKRIPT_TAG}
 <link rel="stylesheet" href="${TOKENS_PFAD}">
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
-<link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
+<link rel="stylesheet" href="${STIL_KOPF}">
+<link rel="stylesheet" href="${STIL_FUSS}">${stileHtml}${skripte}${zusatz}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>

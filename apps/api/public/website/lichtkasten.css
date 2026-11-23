@@ -69,8 +69,11 @@ dialog.lichtkasten::backdrop {
   cursor: default;
 }
 
+/* Während das Bild lädt, steht an seiner Stelle das Skelett (website.css, Abschnitt «Ladezustände»), hier in einem Ton, der auf dem dunklen Grund nicht grell ist */
 .lk-figur img[data-laedt] {
-  opacity: 0;
+  /* Ohne Bild hat das Element keine Grösse: Das Skelett nimmt die Breite der Spalte, die Höhe folgt aus width und height des Bildes */
+  width: min(100%, 64rem);
+  background-color: color-mix(in srgb, var(--lk-text) 14%, transparent);
 }
 
 .lk-figur figcaption {

@@ -24,6 +24,8 @@ import {
 } from "../src/website/abgleich.js";
 import { dateisystemAusgabe, type Ausgabe } from "../src/website/ausgabe.js";
 import { meldeWebsiteEreignis } from "../src/website/ereignisse.js";
+import { erstelleWebsiteSperre } from "../src/website/sperre.js";
+import { zeichenVersion } from "../src/website/zeichen.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
 const sql = postgres(API_URL);
@@ -287,6 +289,72 @@ describe("Was ausgeliefert wird", () => {
       expect(html).not.toMatch(/unsafe-inline|unsafe-eval/);
       expect(html).not.toMatch(/<script(?![^>]* src=)/);
     }
+  });
+
+  test("Favicon überall (#581): jede erzeugte Seite und die Hinweisseite der Sperre tragen die Einträge, und jede Adresse zeigt auf eine Datei der Ausgabe", async () => {
+    await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });
+    await db.insert(schema.weiterleitung).values({
+      abteilungId,
+      alterPfad: "/alt",
+      zielPfad: "/start",
+      status: 301,
+    });
+    const dateien = [
+      "favicon.ico",
+      "website/zeichen-32.png",
+      "website/zeichen-192.png",
+      "apple-touch-icon.png",
+    ];
+    const zeichen = async () =>
+      Object.fromEntries(
+        dateien.map((d) => [d, new TextEncoder().encode(`${d}:test`)]),
+      ) as never;
+    await lauf({ zeichen });
+    const geprueft = async () => {
+      const html = Object.entries(await alle()).filter(([p]) =>
+        p.endsWith(".html"),
+      );
+      const links = (h: string) =>
+        [...h.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]*>/g)].map(
+          (m) => /href="\/([^"?]+)\?v=[0-9a-f]{12}"/.exec(m[0])?.[1],
+        );
+      for (const [pfad, h] of html) {
+        // Jede Seite hat drei Einträge, und jeder zeigt auf eine geschriebene Datei
+        expect(links(h), pfad).toHaveLength(3);
+        for (const datei of links(h)) {
+          expect(await ausgabe.liste(), pfad).toContain(datei);
+        }
+      }
+      return html.map(([p]) => p);
+    };
+    // Gefunden: Startseite, Anlass, Termine, 404, 500, Wartung, Anmeldung, Termine, Rückfallseite «Seite umgezogen»
+    expect(await geprueft()).toEqual(
+      expect.arrayContaining([
+        "index.html",
+        "404.html",
+        "500.html",
+        "wartung.html",
+        "anmelden/index.html",
+        "alt/index.html",
+      ]),
+    );
+
+    // Die Sperre leert die Ausgabe, behält aber das Favicon und trägt die Einträge auch auf ihrer Hinweisseite
+    await erstelleWebsiteSperre(ausgabe, abteilungId, zeichen).nimmVomNetz();
+    expect((await ausgabe.liste()).sort()).toEqual(
+      [
+        "404.html",
+        "gesperrt.css",
+        "index.html",
+        "weiterleitungen.caddy",
+        ...dateien,
+      ].sort(),
+    );
+    expect(await geprueft()).toEqual(["404.html", "index.html"]);
+    // Gleiche Adresse wie auf der Website: Der Browser holt nichts doppelt
+    expect(await lies("index.html")).toContain(
+      `href="/website/zeichen-32.png?v=${zeichenVersion(new TextEncoder().encode("favicon.ico:test"))}"`,
+    );
   });
 
   test("Favicon (#558): Dateien an der Wurzel und unter website/, Einträge auf jeder Seite; nur ein öffentliches Bild der Abteilung ist Quelle", async () => {
