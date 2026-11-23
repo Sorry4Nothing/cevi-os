@@ -40,10 +40,16 @@ const app = document.getElementById("app");
 let ich = null;
 // Antwort von GET /api/v1/redaktion/ich, mit darf(recht) für die Plattformrechte (Rolle Webmaster); nur für die Anzeige, jede Route prüft selbst
 let zugang = null;
+// «termine»: was die Person bei Terminen, Räumen und Anlässen darf (Signale aus GET /api/v1/redaktion/ich, #649); die Abteilungsleitung darf alles
+const ALLE_TERMINE = new Proxy({}, { get: () => true });
 const mitDarf = (daten, alle) => ({
   ...daten,
+  termine: alle ? ALLE_TERMINE : (daten.termine ?? {}),
   darf: (recht) => alle || daten.rechte.includes(recht),
 });
+// Hat die Person mit diesen Rechten etwas in der Verwaltung zu tun? Website, Belegung oder ein Recht bei Termine, Räumen und Anlässen
+const hatTerminRecht = (z) =>
+  Object.values(z.termine ?? {}).some((v) => v === true);
 const istAdmin = () => ich?.role === "admin";
 // Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
 let entwickler = false;
@@ -336,7 +342,11 @@ async function pruefeKonto(nachAnmeldung = true) {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
     zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
     // Leitende ohne Zugang zur Website sehen den Belegungsplan der Räume (#628)
-    if (zugang.bereiche.length === 0 && zugang.belegung !== true) {
+    if (
+      zugang.bereiche.length === 0 &&
+      zugang.belegung !== true &&
+      !hatTerminRecht(zugang)
+    ) {
       zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
         "403 · Kein Zugang",
         "sperre",

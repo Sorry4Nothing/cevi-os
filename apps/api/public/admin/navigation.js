@@ -3,7 +3,7 @@
 // Bereich:     { schluessel, name, symbol, start?, unter: [Unterseite] }
 // Unterseite:  { schluessel, name, modul, untertitel, zugang? }
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
-//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
+//   zugang     wer die Seite sehen darf (neu: «termine:<signal>», ein Signal aus `termine` in GET /api/v1/redaktion/ich, zum Beispiel «termine:raumAnfragen», #649): «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
@@ -132,6 +132,7 @@ export const BEREICHE = [
         name: "Vorschläge",
         modul: "./termine-vorschlaege.js",
         untertitel: "Termine, die Leitende vorgeschlagen haben.",
+        zugang: "termine:vorschlaegeEntscheiden",
       },
       {
         schluessel: "warnliste",
@@ -139,12 +140,14 @@ export const BEREICHE = [
         modul: "./termine-warnliste.js",
         untertitel:
           "Termine in Outlook, denen noch keine Gruppe zugeordnet ist.",
+        zugang: "termine:warnliste",
       },
       {
         schluessel: "kategorien",
         name: "Kategorien",
         modul: "./termine-kategorien.js",
         untertitel: "Welche Outlook-Kategorie zu welcher Gruppe gehört.",
+        zugang: "termine:kategorien",
       },
       {
         schluessel: "outlook",
@@ -172,12 +175,14 @@ export const BEREICHE = [
         name: "Räume",
         modul: "./termine-raeume.js",
         untertitel: "Räume der Abteilung und wer Anfragen bestätigt.",
+        zugang: "termine:raumListe",
       },
       {
         schluessel: "anfragen",
         name: "Anfragen",
         modul: "./termine-anfragen.js",
         untertitel: "Anfragen, die dein Team bestätigt oder ablehnt.",
+        zugang: "termine:raumAnfragen",
       },
     ],
   },
@@ -191,6 +196,7 @@ export const BEREICHE = [
         name: "Anlässe",
         modul: "./termine-anlaesse.js",
         untertitel: "Anlässe mit Anmeldung über das Konto.",
+        zugang: "termine:anlaesse",
       },
     ],
   },
@@ -347,6 +353,9 @@ export function darfSehen(
   if (wer === "admin") return false;
   if (wer === "alle") return true;
   if (wer === "belegung") return zugang?.belegung === true;
+  if (wer.startsWith("termine:")) {
+    return zugang?.termine?.[wer.slice("termine:".length)] === true;
+  }
   if (wer.startsWith("recht:")) {
     return zugang?.rechte?.includes(wer.slice("recht:".length)) ?? false;
   }

@@ -1582,3 +1582,11 @@ a.pe-bearbeiten:hover {
 .bild-box.st-foto > img {
   object-fit: cover;
 }
+
+/* Karte «Räume» in der Ansicht einer Gruppe (#649): Auswahl und Knopf stehen auf einer Linie */
+.tr-zuweisen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}

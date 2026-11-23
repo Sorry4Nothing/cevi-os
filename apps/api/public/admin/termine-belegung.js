@@ -105,7 +105,7 @@ export function zeige(bereich, ctx) {
       return this.kompakt ? "liste" : this.art;
     },
   };
-  if (ctx.ich.role === "admin") {
+  if (ctx.zugang.termine.raumAnfragen) {
     ctx.kopfAktion(
       el(
         "a",
@@ -146,7 +146,7 @@ function baue(bereich, ctx, { zustand, heute, medien, holeWoche, erste }) {
     bereich.append(
       leerKarte(
         "Es gibt noch keine Räume. Die Abteilungsleitung legt sie unter «Räume» an.",
-        ctx.ich.role === "admin"
+        ctx.zugang.termine.raumListe
           ? [
               el(
                 "a",
@@ -625,7 +625,7 @@ function hinweisKarte(ctx) {
       {},
       "Einen Raum fragst du in der Cevi-OS-App an. Das zuständige Team oder die Abteilungsleitung bestätigt die Anfrage. Erst dann erscheint die Zeit hier als bestätigt; bis dahin steht sie als angefragt da.",
     ),
-    ctx.ich.role === "admin" &&
+    ctx.zugang.termine.raumAnfragen &&
       el(
         "p",
         {},

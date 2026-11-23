@@ -21,6 +21,7 @@ import {
   type RechtId,
 } from "./katalog.js";
 import {
+  MITGLIED_OHNE_ZWEITEN_FAKTOR,
   MITGLIED_STANDARD,
   OHNE_ZWEITEN_FAKTOR,
   RAUM_TEAM_STANDARD,
@@ -292,6 +293,12 @@ export class RechteSatz {
   braucht2Faktor(recht: string, objekt?: Objekt) {
     if (!istRecht(recht)) return true;
     if (eintragVon(recht).risiko === "normal") return false;
+    // Nur Mitglieder ohne Rolle (oder allein der alte Weg im Schattenbetrieb): ohne zweiten Faktor wie bisher
+    if (MITGLIED_OHNE_ZWEITEN_FAKTOR.has(recht)) {
+      return !this.herkuenfte(recht, objekt).every(
+        (x) => x.art === "mitgliedschaft",
+      );
+    }
     if (!OHNE_ZWEITEN_FAKTOR.has(recht)) return true;
     const h = this.herkuenfte(recht, objekt);
     return !(h.length > 0 && h.every((x) => x.art === "stufenrolle"));

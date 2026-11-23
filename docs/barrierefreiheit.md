@@ -724,6 +724,22 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 47. Verwaltung: Termine, Anlässe und Räume nach Rechten (#649)
+
+Dieser Abschnitt gilt für die Stellen, die sich nach den Rechten der Person ändern: die Navigation der Bereiche «Räume», «Anlässe» und «Termine» (`navigation.js`, Signale `termine` aus `GET /api/v1/redaktion/ich`), den Anlass mit seinen Reitern (`termine-anlaesse.js`, `anlass-gemeinsam.js`), die Seite «Räume» (`termine-raeume.js`) und die Karte «Räume» in der Ansicht einer Gruppe (`tags-raeume.js`). Die Oberfläche blendet nur aus; der Server prüft jede Route.
+
+- [ ] **47.1** Was die Person nicht darf, erscheint nicht: Ein Eintrag der Navigation, ein Reiter oder ein Knopf, der in ein 403 liefe, wird nicht gezeigt (kein ausgegrauter Knopf, der nichts erklärt). Wer nur Anmeldungen sehen darf, sieht den Anlass ohne die Reiter «Zusatzfelder» und «Einstellungen» und ohne den Knopf «Anmeldung schliessen»; wer nur verwalten darf, sieht keine Namen und keine Zahlen der Rückmeldungen.
+- [ ] **47.2** Die Reiter eines Anlasses bleiben eine Navigation mit `aria-current="page"` auf dem aktiven Reiter. Öffnet jemand die Adresse eines Reiters, den er nicht sieht (`#anlaesse/<id>/felder`), zeigt die Seite die Übersicht, nie eine leere Fläche oder einen Fehler.
+- [ ] **47.3** Zuständiges Team im Raum-Formular: Wer das Team nicht zuweisen darf, sieht das Team als schreibgeschütztes Feld mit demselben Namen und Hilfetext, der sagt, wer es ändert («Das Team ändert, wer Räume einem Team zuweisen darf»). Der Wert ist per Tastatur lesbar (`readonly`, kein `disabled`).
+- [ ] **47.4** Karte «Räume» in der Ansicht einer Gruppe: Eine Überschrift der Ebene 2, ein Satz zur Wirkung, eine Liste der zugewiesenen Räume mit «Entziehen» (Name des Raums im Namen des Knopfs über `kontext`) und das eigene Auswahlfeld «Raum zuweisen» mit dem Knopf «Zuweisen». Die Zahl der zugewiesenen Räume steht in einer Statusregion (`role="status"`). Beide Änderungen laufen mit «Rückgängig» (acht Sekunden) und kommen bei einem Fehler an die alte Stelle zurück; es gibt kein Popup.
+- [ ] **47.5** Zustände der Karte: lädt («Räume werden geladen …»), Fehler (Hinweis mit `role="alert"`), leer («Dem Team ist noch kein Raum zugewiesen.»), alle Räume vergeben («Es gibt keinen weiteren Raum.»), mehr als 100 Räume (Hinweis, den Rest unter «Räume» zuweisen).
+- [ ] **47.6** Zielgrössen und Fokus wie überall in der Verwaltung: Knöpfe mindestens 44 Pixel hoch, Fokusring 3 Pixel, Tab-Reihenfolge wie die Leserichtung; bei 390 Pixeln ohne waagrechtes Scrollen (die Karte nutzt `pe-karte` und `liste-zeilen`). Keine neuen Farben, keine Animation.
+- [ ] **47.7** Die Meldungen stehen in der Schweizer Schreibweise, in kurzen Sätzen, ohne Fachwörter wie «Geltung» oder «eigene»; ein fehlender zweiter Faktor führt wie überall zur Einrichtung.
+
+### Stand der Prüfung (#649)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit drei Testkonten ohne Stufenrolle gesehen: Mitglied eines Teams mit Rolle (Seiten «Belegung», «Räume», «Anfragen» sichtbar, «Neuer Raum» fehlt, Team im Formular schreibgeschützt), OK-Mitglied «Kasse» (Anlass mit den Reitern «Übersicht» und «Anmeldungen»; die Adresse von «Zusatzfelder» zeigt die Übersicht) und OK-Leitung (alle vier Reiter, Einstellungen laden ohne Zugriff auf die Gruppenverwaltung). Die Karte «Räume» in der Gruppenansicht bei 1440 Pixeln hell und 390 Pixeln dunkel: Zuweisen und Entziehen mit «Rückgängig», Speichern nach der Frist, Auswahl mit Maus. 47.1 bis 47.5 damit geprüft. Nicht gesehen: Tastaturablauf der Karte (Tab, Pfeile in der Auswahl) durchgespielt nur mit der Maus, Zielgrössen nicht ausgemessen, Reduced Motion nicht geprüft; 47.6 und 47.7 ruhen auf den bestehenden Bausteinen. Screenreader nicht geprüft.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

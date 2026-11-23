@@ -1912,6 +1912,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/tags-raeume.js:
+    get:
+      operationId: getAdminTagsRaeumeSkript
+      summary: Skript der Verwaltung – Räume eines Teams in der Gruppenansicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-detail.js:
     get:
       operationId: getAdminTagsDetailSkript
@@ -21034,7 +21049,7 @@ paths:
       tags:
         - Termine
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
+        Recht `termine.warnliste` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
 
         Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
         Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
@@ -21087,7 +21102,7 @@ paths:
       operationId: listeKategorieZuordnungen
       summary: Zuordnungen von Outlook-Kategorien zu Tags
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Abweichungen der eigenen Abteilung, in denen eine Outlook-Kategorie einen Tag meint, der nicht genau so heisst. Sortiert nach Kategorie ohne Gross-/Kleinschreibung, höchstens 500, kein Seitenwechsel. Eine Abfrage (Zuordnung mit Name und Typ des Tags).
+        Recht `termine.kategorien_zuordnen` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Liefert die Abweichungen der eigenen Abteilung, in denen eine Outlook-Kategorie einen Tag meint, der nicht genau so heisst. Sortiert nach Kategorie ohne Gross-/Kleinschreibung, höchstens 500, kein Seitenwechsel. Eine Abfrage (Zuordnung mit Name und Typ des Tags).
 
         Statuscodes: 200 bei Erfolg. 403 für alle anderen.
       tags:
@@ -21113,7 +21128,7 @@ paths:
       operationId: setzeKategorieZuordnung
       summary: Kategorie einem Tag zuordnen
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Ordnet eine Outlook-Kategorie einem Tag der Abteilung zu. Gibt es die Kategorie schon (ohne Gross-/Kleinschreibung), ersetzt die neue Zeile die bisherige samt Schreibweise. Die Zuordnung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten), nicht in der Anfrage; die Termine werden hier nicht neu zugeordnet. Prüfprotokoll `kategorie_zugeordnet` mit der Tag-ID, nie dem Namen.
+        Recht `termine.kategorien_zuordnen` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Ordnet eine Outlook-Kategorie einem Tag der Abteilung zu. Gibt es die Kategorie schon (ohne Gross-/Kleinschreibung), ersetzt die neue Zeile die bisherige samt Schreibweise. Die Zuordnung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten), nicht in der Anfrage; die Termine werden hier nicht neu zugeordnet. Prüfprotokoll `kategorie_zugeordnet` mit der Tag-ID, nie dem Namen.
 
         Kategorie 1 bis 100 Zeichen, ohne Steuerzeichen, Leerzeichen am Rand fallen weg.
 
@@ -21162,7 +21177,7 @@ paths:
       operationId: loescheKategorieZuordnung
       summary: Zuordnung entfernen
       description: |
-        Nur die Abteilungsleitung. Entfernt die Zuordnung; die Kategorie gilt beim nächsten Kalender-Abgleich (bis 5 Minuten) wieder nur, wenn ein Tag genau so heisst. Prüfprotokoll `kategorie_entfernt` mit der Tag-ID.
+        Recht `termine.kategorien_zuordnen` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Entfernt die Zuordnung; die Kategorie gilt beim nächsten Kalender-Abgleich (bis 5 Minuten) wieder nur, wenn ein Tag genau so heisst. Prüfprotokoll `kategorie_entfernt` mit der Tag-ID.
 
         Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn die Zuordnung nicht besteht oder zu einer anderen Abteilung gehört.
       tags:
@@ -21791,7 +21806,7 @@ paths:
       operationId: listeAdminTerminVorschlaege
       summary: Terminvorschläge der Abteilung
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Vorschläge der eigenen Abteilung mit einem Status (Standard `offen`), neueste zuerst, in Seiten. `nach` ist die `naechste` der Vorseite. Zwei Abfragen je Seite, unabhängig von der Zahl der Vorschläge: die Zeilen mit dem Namen der vorschlagenden Person (Index auf Abteilung und Status), dann die Tags aller Zeilen.
+        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Liefert die Vorschläge der eigenen Abteilung mit einem Status (Standard `offen`), neueste zuerst, in Seiten. `nach` ist die `naechste` der Vorseite. Zwei Abfragen je Seite, unabhängig von der Zahl der Vorschläge: die Zeilen mit dem Namen der vorschlagenden Person (Index auf Abteilung und Status), dann die Tags aller Zeilen.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültigem `status`, `limit` oder `nach`. 401 ohne Anmeldung. 403 für alle anderen.
       tags:
@@ -21844,7 +21859,7 @@ paths:
       operationId: holeAdminTerminVorschlag
       summary: Ein Terminvorschlag mit den Kategorien für Outlook
       description: |
-        Nur die Abteilungsleitung. Liefert den Vorschlag der eigenen Abteilung und `kategorien`: die Namen, die in Outlook einzutragen sind (die zugeordnete Kategorie aus der Zuordnung Kategorie zu Tag, sonst der Name des Tags). Drei Abfragen: Vorschlag mit Namen, Tags, Zuordnungen. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
+        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Liefert den Vorschlag der eigenen Abteilung und `kategorien`: die Namen, die in Outlook einzutragen sind (die zugeordnete Kategorie aus der Zuordnung Kategorie zu Tag, sonst der Name des Tags). Drei Abfragen: Vorschlag mit Namen, Tags, Zuordnungen. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für alle anderen. 404 bei unbekanntem Vorschlag oder fremder Abteilung.
       tags:
@@ -21876,7 +21891,7 @@ paths:
       operationId: entscheideTerminVorschlag
       summary: Terminvorschlag freigeben oder ablehnen
       description: |
-        Nur die Abteilungsleitung, und nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS schreibt nie nach Outlook.
+        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS schreibt nie nach Outlook.
 
         Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
@@ -21918,7 +21933,7 @@ paths:
       operationId: meldeTerminVorschlagEingetragen
       summary: Vorschlag als in Outlook eingetragen melden
       description: |
-        Nur die Abteilungsleitung. Erlaubt ist nur der Übergang `freigegeben` zu `in_outlook_eingetragen`; sonst 409 `STATUS_UNGUELTIG`. Ohne Body, ohne Push. Der Abgleich übernimmt den Termin später aus Outlook. Das Protokoll hält nur die ID fest. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
+        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Erlaubt ist nur der Übergang `freigegeben` zu `in_outlook_eingetragen`; sonst 409 `STATUS_UNGUELTIG`. Ohne Body, ohne Push. Der Abgleich übernimmt den Termin später aus Outlook. Das Protokoll hält nur die ID fest. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für alle anderen. 404 bei unbekanntem Vorschlag oder fremder Abteilung. 409 `STATUS_UNGUELTIG`, wenn der Vorschlag nicht `freigegeben` ist.
       tags:
@@ -21953,9 +21968,9 @@ paths:
       operationId: listeAdminAnlaesse
       summary: Anlässe der Abteilung
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anlässe der eigenen Abteilung, neueste zuerst, in Seiten. Eine Abfrage je Seite: Anlass, Angaben des Termins, Zahl der Zusatzfelder und Zahl der Rückmeldungen (`anmeldungen.angemeldet`, `anmeldungen.abgemeldet`). `nach` ist die `naechste` der Vorseite.
+        Recht `anlass.verwalten`, `anlass.anmeldungen_sehen` oder `anlass.anmeldungen_exportieren` (erweitert: zweiter Faktor). Die Abteilungsleitung hat sie für jeden Anlass; eine Gruppenrolle, etwa im OK, für den Anlass ihrer Gruppe, und dann zeigt die Liste nur diesen. Liefert die Anlässe der eigenen Abteilung, neueste zuerst, in Seiten. Eine Abfrage je Seite: Anlass, Angaben des Termins, Zahl der Zusatzfelder und Zahl der Rückmeldungen (`anmeldungen.angemeldet`, `anmeldungen.abgemeldet`), dazu je Anlass `rechte` (was die Person daran darf; nur für die Anzeige). `nach` ist die `naechste` der Vorseite.
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen, mit Code `ZWEITER_FAKTOR_FEHLT`, wenn nur der zweite Faktor fehlt.
       tags:
         - Termine
       parameters:
@@ -21997,7 +22012,7 @@ paths:
       operationId: legeAdminAnlassAn
       summary: Anlass anlegen
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Macht aus einem Termin der Abteilung einen Anlass mit Anmeldung. Dabei entsteht in derselben Transaktion die Anlassseite der Website als Entwurf (Vorlage `anlass`, Sichtbarkeit wie der Anlass); scheitert die Seite, entsteht kein Anlass. Danach meldet der Server der Website, dass die Seite sich geändert hat. Die Art ist immer `anlass`; den Typ «Lager» legt das Lager-Modul an.
+        Recht `anlass.anlegen` (erweitert: zweiter Faktor), abteilungsweit; standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle mit der Geltung «alle» einstellbar. Macht aus einem Termin der Abteilung einen Anlass mit Anmeldung. Dabei entsteht in derselben Transaktion die Anlassseite der Website als Entwurf (Vorlage `anlass`, Sichtbarkeit wie der Anlass); scheitert die Seite, entsteht kein Anlass. Danach meldet der Server der Website, dass die Seite sich geändert hat. Die Art ist immer `anlass`; den Typ «Lager» legt das Lager-Modul an.
 
         Zusatzfelder: höchstens 20, Schlüssel `a-z0-9_` (1 bis 40 Zeichen, je Anlass eindeutig), Beschriftung 1 bis 100 Zeichen, Auswahl mit 2 bis 20 verschiedenen Optionen zu je 1 bis 100 Zeichen, bei den anderen Typen keine Optionen. Die Reihenfolge der Liste gilt. Die Anmeldung nimmt keine Gesundheitsdaten auf: Eine kleine Sperrliste von Wortstämmen (zum Beispiel Allergie, Krankheit, Medikament, Impfung) prüft Beschriftung und Optionen.
 
@@ -22033,14 +22048,41 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/anlaesse/gruppen:
+    get:
+      operationId: listeAdminAnlassGruppen
+      summary: Gruppen für die Sichtbarkeit eines Anlasses
+      description: |
+        Recht `anlass.verwalten` (irgendwo; erweitert: zweiter Faktor). Liefert die Gruppen der eigenen Abteilung mit Name und Typ, sonst nichts (keine Mitglieder, keine Zahlen), für die Sichtbarkeit «Bestimmte Gruppen» in den Einstellungen eines Anlasses. Damit liest ein OK die Gruppenverwaltung nicht.
+
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen, mit Code `ZWEITER_FAKTOR_FEHLT`, wenn nur der zweite Faktor fehlt.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Gruppen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAnlassGruppen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/anlaesse/{id}:
     get:
       operationId: leseAdminAnlass
       summary: Anlass mit Zusatzfeldern lesen
       description: |
-        Nur die Abteilungsleitung. Eine Abfrage liefert den Anlass, die Angaben des Termins und alle Zusatzfelder in der Reihenfolge der Anmeldung.
+        Eines der Rechte `anlass.verwalten`, `anlass.anmeldungen_sehen` oder `anlass.anmeldungen_exportieren` für diesen Anlass (erweitert: zweiter Faktor). Eine Abfrage liefert den Anlass, die Angaben des Termins, alle Zusatzfelder in der Reihenfolge der Anmeldung und `rechte`: was die Person an diesem Anlass darf (nur für die Anzeige; jede Route prüft selbst).
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen, mit Code `ZWEITER_FAKTOR_FEHLT`, wenn nur der zweite Faktor fehlt. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
       tags:
         - Termine
       parameters:
@@ -22067,7 +22109,7 @@ paths:
       operationId: aendereAdminAnlass
       summary: Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern
       description: |
-        Nur die Abteilungsleitung. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` lässt sich nur ändern, solange es keine Anmeldungen gibt.
+        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor); eine Gruppenrolle des OK mit «eigene» ändert den Anlass ihrer Gruppe. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` lässt sich nur ändern, solange es keine Anmeldungen gibt.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
       tags:
@@ -22102,7 +22144,7 @@ paths:
       operationId: loescheAdminAnlass
       summary: Anlass löschen
       description: |
-        Nur die Abteilungsleitung. Löscht den Anlass mit seinen Zusatzfeldern, aber nur ohne Anmeldungen. Die Anlassseite der Website bleibt.
+        Recht `anlass.anlegen` (nur «alle», erweitert: zweiter Faktor). Löscht den Anlass mit seinen Zusatzfeldern, aber nur ohne Anmeldungen. Die Anlassseite der Website bleibt.
 
         Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
       tags:
@@ -22130,7 +22172,7 @@ paths:
       operationId: setzeAdminAnlassFelder
       summary: Zusatzfelder eines Anlasses ersetzen
       description: |
-        Nur die Abteilungsleitung. Ersetzt die ganze Liste der Zusatzfelder; die Reihenfolge der Liste gilt. Regeln der Felder wie beim Anlegen. Schlüssel und Typ eines Feldes, zu dem es schon Antworten gibt, bleiben fest, und das Feld bleibt in der Liste.
+        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor). Ersetzt die ganze Liste der Zusatzfelder; die Reihenfolge der Liste gilt. Regeln der Felder wie beim Anlegen. Schlüssel und Typ eines Feldes, zu dem es schon Antworten gibt, bleiben fest, und das Feld bleibt in der Liste.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `FELD_GESUNDHEIT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `FELD_IN_BENUTZUNG` und den betroffenen `schluessel`.
       tags:
@@ -22286,7 +22328,7 @@ paths:
       operationId: listeAdminAnlassAnmeldungen
       summary: Anmeldungen eines Anlasses ansehen
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen des Anlasses in Seiten, zuletzt geänderte zuerst. Name und Telefon der Person (wer angemeldet hat) und die Angaben des Kindes liest der Server live aus dem Konto; die Anmeldung speichert nur die Antworten. `antworten` ist ein Objekt `Schlüssel des Feldes → Wert`; die Beschriftungen stehen beim Anlass (`GET /api/v1/admin/anlaesse/{id}`). Gesundheitsdaten gibt es nie: Die Felder eines Anlasses dürfen sie nicht verlangen.
+        Recht `anlass.anmeldungen_sehen` für diesen Anlass (erweitert: zweiter Faktor): die Abteilungsleitung, oder eine Gruppenrolle des OK mit «eigene» für den Anlass ihrer Gruppe. Liefert die Anmeldungen des Anlasses in Seiten, zuletzt geänderte zuerst. Name und Telefon der Person (wer angemeldet hat) und die Angaben des Kindes liest der Server live aus dem Konto; die Anmeldung speichert nur die Antworten. `antworten` ist ein Objekt `Schlüssel des Feldes → Wert`; die Beschriftungen stehen beim Anlass (`GET /api/v1/admin/anlaesse/{id}`). Gesundheitsdaten gibt es nie: Die Felder eines Anlasses dürfen sie nicht verlangen.
 
         `status` wählt, was die Liste zeigt: ohne Angabe die Angemeldeten, `abgemeldet` die Abgemeldeten (ohne Antworten), `alle` beide. `summe` zählt immer alle Anmeldungen des Anlasses je Status, unabhängig vom Filter und von der Seite. `nach` ist die `naechste` der Vorseite (ein undurchsichtiger Wert); eine Anmeldung, die sich zwischen zwei Seiten ändert, rückt in der Sortierung nach vorn und kann auf einer späteren Seite nicht mehr auftauchen.
 
@@ -22348,7 +22390,7 @@ paths:
       operationId: exportiereAdminAnlassAnmeldungen
       summary: Anmeldungen eines Anlasses als CSV-Datei exportieren
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anmeldungen als CSV-Datei: UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF (Annahme für Excel in der Schweiz). Die erste Zeile nennt die festen Spalten (Angemeldet von, Telefon, Kind Vorname, Kind Nachname, Kind Cevi-Name, Kind Stufe, Status, Geändert am) und dann die Beschriftungen der Zusatzfelder des Anlasses in deren Reihenfolge. Je Anmeldung folgt eine Zeile; Ja/Nein-Antworten stehen als «Ja» und «Nein».
+        Recht `anlass.anmeldungen_exportieren` für diesen Anlass (erweitert: zweiter Faktor): die Abteilungsleitung, oder eine Gruppenrolle des OK mit «eigene» für den Anlass ihrer Gruppe. Liefert die Anmeldungen als CSV-Datei: UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF (Annahme für Excel in der Schweiz). Die erste Zeile nennt die festen Spalten (Angemeldet von, Telefon, Kind Vorname, Kind Nachname, Kind Cevi-Name, Kind Stufe, Status, Geändert am) und dann die Beschriftungen der Zusatzfelder des Anlasses in deren Reihenfolge. Je Anmeldung folgt eine Zeile; Ja/Nein-Antworten stehen als «Ja» und «Nein».
 
         Schutz vor Formeln: Eine Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes `'` und gilt damit in Tabellenprogrammen als Text. Das trifft auch Telefonnummern mit `+`.
 
@@ -22454,7 +22496,7 @@ paths:
       operationId: leseRaumBelegung
       summary: Belegungsplan der Räume (nur Leitende)
       description: |
-        Wunsch des Nutzers, vom Nutzer zu bestätigen: Alle Leitenden sehen, wie die aktiven Räume ihrer Abteilung belegt sind. Gesehen wird sie von der Abteilungsleitung, von Personen mit der Rolle «leitung» oder «stufenleitung» an einer Stufe, von Verantwortlichen eines Teams und von wem das Team eines Raums trägt. Eltern, Kinder und Personen ohne Leitungsaufgabe bekommen 403; sie sehen weiter nur die Liste der Räume.
+        Wunsch des Nutzers, vom Nutzer zu bestätigen: Alle Leitenden sehen, wie die aktiven Räume ihrer Abteilung belegt sind. Gesehen wird sie mit dem Recht `raum.belegung` (kein zweiter Faktor): standardmässig von der Abteilungsleitung, von Personen mit der Rolle «leitung» oder «stufenleitung» an einer Stufe, von Verantwortlichen eines Teams und von wem das Team eines Raums trägt; zusätzlich von jeder Rolle, der die Abteilungsleitung das Recht gibt. Hat die Person das Recht nur für die Räume ihres Teams, kommen nur diese vor. Eltern, Kinder und Personen ohne das Recht bekommen 403; sie sehen weiter nur die Liste der Räume.
 
         Der Zeitraum gilt in Schweizer Zeit (`Europe/Zurich`): von `von` 00:00 bis zum Ende des Tages `bis`, beide Tage eingeschlossen, höchstens 31 Tage. Die Antwort enthält die bestätigten Buchungen und, solange `anfragen` nicht `nein` ist, die offenen Anfragen, die noch nicht vorbei sind (Status `angefragt`). Abgelehnte und stornierte Anfragen kommen nie vor. Je Buchung stehen Raum, Beginn, Ende, Zweck (Freitext, wie in der Anfrage) und die Person nur mit Cevi-Name, sonst Vorname; nie Nachname, Telefon oder E-Mail. Höchstens 500 Buchungen je Aufruf (`weitere: true`, wenn mehr da wären; Zeitraum verkleinern oder `raumId` setzen). Zwei Abfragen, unabhängig von der Zahl der Räume. Räume und Buchungen anderer Abteilungen kommen nie vor.
 
@@ -22602,7 +22644,7 @@ paths:
       operationId: listeOffeneRaumAnfragen
       summary: Offene Raumanfragen, über die ich entscheide
       description: |
-        Die offenen Anfragen (Status `angefragt`, Zeit noch nicht vorbei) der Räume, deren Team-Tag die Person trägt; bei Räumen ohne Team die Abteilungsleitung (Admin mit zweitem Faktor). Ohne die eigenen Anfragen, älteste zuerst, in Seiten. Wer über nichts entscheidet, bekommt eine leere Liste. Eine Abfrage je Seite. `nach` ist die `naechste` der Vorseite.
+        Die offenen Anfragen (Status `angefragt`, Zeit noch nicht vorbei) der Räume, für die die Person das Recht `raum.anfrage_entscheiden` hat: wer das Team-Tag des Raums trägt (ohne Rolle, wie bisher ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei Räumen ohne Team die Abteilungsleitung (mit zweitem Faktor). Ohne die eigenen Anfragen, älteste zuerst, in Seiten. Wer über nichts entscheidet, bekommt eine leere Liste. Eine Abfrage je Seite. `nach` ist die `naechste` der Vorseite.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 bei offenem Passwortwechsel.
       tags:
@@ -22675,7 +22717,7 @@ paths:
       operationId: entscheideRaumAnfrage
       summary: Eine Raumanfrage annehmen oder ablehnen
       description: |
-        Entscheiden darf, wer den Team-Tag des Raums trägt (eine Person genügt); bei einem Raum ohne Team die Abteilungsleitung (Admin mit zweitem Faktor). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push mit festem Text.
+        Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt, ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei einem Raum ohne Team die Abteilungsleitung (mit zweitem Faktor). Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push mit festem Text.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
       tags:
@@ -22716,7 +22758,7 @@ paths:
       operationId: listeAdminRaeume
       summary: Alle Räume der Abteilung verwalten
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert alle Räume der eigenen Abteilung, auch die inaktiven, nach Name ohne Gross-/Kleinschreibung, in Seiten. Eine Abfrage je Seite. `nach` ist die `naechste` der Vorseite.
+        Recht `raum.verwalten` oder `raum.team_zuweisen` (erweitert: zweiter Faktor). Die Abteilungsleitung sieht alle Räume der eigenen Abteilung, auch die inaktiven; eine Gruppenrolle mit `raum.verwalten` und «eigene» nur die Räume, deren Team die Gruppe ist. Nach Name ohne Gross-/Kleinschreibung, in Seiten; `teamId` zeigt nur die Räume eines Teams (die Ansicht der Gruppe). Je Seite eine Abfrage für die Teams der Räume und eine für die Seite. `nach` ist die `naechste` der Vorseite.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen.
       tags:
@@ -22740,6 +22782,13 @@ paths:
             type: string
             minLength: 1
             maxLength: 100
+        - name: teamId
+          in: query
+          required: false
+          description: Nur die Räume dieses Teams (die Ansicht der Gruppe, #649).
+          schema:
+            type: string
+            format: uuid
       responses:
         "200":
           description: Eine Seite der Räume.
@@ -22761,7 +22810,7 @@ paths:
       operationId: legeRaumAn
       summary: Raum anlegen
       description: |
-        Nur die Abteilungsleitung. Legt einen Raum der eigenen Abteilung an. Pflicht ist nur der Name (1 bis 100 Zeichen, je Abteilung eindeutig ohne Gross-/Kleinschreibung). Ort (bis 200), Beschreibung (bis 1000), Kapazität (1 bis 1000) und das zuständige Team (ein Tag der Abteilung) sind freiwillig; der Raum ist ohne Angabe aktiv.
+        Recht `raum.verwalten` für die ganze Abteilung (nur «alle», erweitert: zweiter Faktor); mit `teamId` zusätzlich `raum.team_zuweisen`. Legt einen Raum der eigenen Abteilung an. Pflicht ist nur der Name (1 bis 100 Zeichen, je Abteilung eindeutig ohne Gross-/Kleinschreibung). Ort (bis 200), Beschreibung (bis 1000), Kapazität (1 bis 1000) und das zuständige Team (ein Tag der Abteilung) sind freiwillig; der Raum ist ohne Angabe aktiv.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, mit Code `TEAM_UNBEKANNT`, wenn das Team nicht zur Abteilung gehört. 403 für alle anderen. 409 mit Code `RAUM_VORHANDEN`.
       tags:
@@ -22798,7 +22847,7 @@ paths:
       operationId: aendereRaum
       summary: Raum ändern oder deaktivieren
       description: |
-        Nur die Abteilungsleitung. Ohne Schlüssel bleibt der Wert; `null` leert Ort, Beschreibung, Kapazität und Team. `aktiv: false` blendet den Raum für die Mitglieder aus, ohne ihn zu löschen.
+        Recht `raum.verwalten` für diesen Raum («eigene» heisst: der Raum gehört zum Team der Gruppe); ein anderes `teamId` als das bisherige verlangt zusätzlich `raum.team_zuweisen`. Ohne Schlüssel bleibt der Wert; `null` leert Ort, Beschreibung, Kapazität und Team. `aktiv: false` blendet den Raum für die Mitglieder aus, ohne ihn zu löschen.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TEAM_UNBEKANNT`. 403 für alle anderen. 404, wenn der Raum nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `RAUM_VORHANDEN`.
       tags:
@@ -22833,7 +22882,7 @@ paths:
       operationId: loescheRaum
       summary: Raum endgültig löschen
       description: |
-        Nur die Abteilungsleitung. Löscht den Raum endgültig. Offene Raumanfragen und bestätigte Buchungen, die noch nicht vorbei sind, sperren das Löschen: Dann den Raum deaktivieren.
+        Recht `raum.verwalten` für diesen Raum (erweitert: zweiter Faktor). Löscht den Raum endgültig. Offene Raumanfragen und bestätigte Buchungen, die noch nicht vorbei sind, sperren das Löschen: Dann den Raum deaktivieren.
 
         Statuscodes: 204 bei Erfolg. 403 für alle anderen. 404, wenn der Raum nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANFRAGEN_OFFEN`.
       tags:
@@ -36522,6 +36571,54 @@ components:
         erstelltAm:
           type: string
           format: date-time
+    AdminAnlassGruppen:
+      type: object
+      required:
+        - tags
+      properties:
+        tags:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - typ
+              - name
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                type: string
+                enum:
+                  - stufe
+                  - funktion
+                  - team
+                  - lager
+                  - anlass
+              name:
+                type: string
+    AdminAnlassRechte:
+      type: object
+      description: Was die Person an diesem Anlass darf, nur für die Anzeige (Reiter und Knöpfe); jede Route prüft selbst.
+      required:
+        - verwalten
+        - anmeldungenSehen
+        - anmeldungenExportieren
+        - loeschen
+      properties:
+        verwalten:
+          type: boolean
+          description: Recht `anlass.verwalten` (mit zweitem Faktor, wenn die Person ihn hat).
+        anmeldungenSehen:
+          type: boolean
+          description: Recht `anlass.anmeldungen_sehen`.
+        anmeldungenExportieren:
+          type: boolean
+          description: Recht `anlass.anmeldungen_exportieren`.
+        loeschen:
+          type: boolean
+          description: Recht `anlass.anlegen` (gilt für Löschen).
     AdminAnlassListeneintrag:
       allOf:
         - $ref: "#/components/schemas/AdminAnlassKopf"
@@ -36529,7 +36626,10 @@ components:
           required:
             - anzahlFelder
             - anmeldungen
+            - rechte
           properties:
+            rechte:
+              $ref: "#/components/schemas/AdminAnlassRechte"
             anzahlFelder:
               type: integer
               minimum: 0
@@ -36572,7 +36672,10 @@ components:
         - type: object
           required:
             - felder
+            - rechte
           properties:
+            rechte:
+              $ref: "#/components/schemas/AdminAnlassRechte"
             felder:
               type: array
               items:
@@ -37427,6 +37530,7 @@ components:
         - bereiche
         - verwalten
         - belegung
+        - termine
         - rechte
       properties:
         redigieren:
@@ -37445,7 +37549,9 @@ components:
           description: Ob die Person Seiten anlegen und löschen darf (Plattformrecht `seiten.anlegen_loeschen`). Bleibt für Clients, die nur dieses Feld kennen; `rechte` ist genauer. Nur für die Anzeige; jede Route prüft selbst.
         belegung:
           type: boolean
-          description: "Ob die Person den Belegungsplan der Räume sehen darf (`GET /api/v1/raeume/belegung`): jede Leitung, also Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Verantwortliche eines Teams und wer das Team eines Raums trägt. Öffnet der Verwaltung die Tür auch ohne Zugang zur Website. Nur für die Anzeige; die Route prüft selbst."
+          description: "Ob die Person den Belegungsplan der Räume sehen darf (`GET /api/v1/raeume/belegung`, Recht `raum.belegung`): standardmässig jede Leitung, also Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Verantwortliche eines Teams und wer das Team eines Raums trägt; zusätzlich jede Rolle, der die Abteilungsleitung das Recht gibt. Öffnet der Verwaltung die Tür auch ohne Zugang zur Website. Nur für die Anzeige; die Route prüft selbst."
+        termine:
+          $ref: "#/components/schemas/RedaktionTermine"
         rechte:
           type: array
           description: "Die Plattformrechte der Person (Abteilungsleitung und Entwickler: alle), sortiert; leer ohne Plattformrecht. Stufenleitung, Rechte pro Seite und Team-Verantwortung stehen nicht darin, sie gelten je Seite. Nur für die Anzeige; jede Route prüft selbst."
@@ -37459,6 +37565,71 @@ components:
               - weiterleitungen.verwalten
               - vorlagen.nutzen
               - wartungsmodus.website
+    RedaktionTermine:
+      type: object
+      description: Was die Verwaltung bei Terminen, Räumen und Anlässen einblendet (#649). Jedes Feld heisst, dass die Person das Recht für mindestens einen Raum oder Anlass hat; Räume und Anlässe der eigenen Gruppen zählen. Nur für die Anzeige; jede Route prüft selbst.
+      required:
+        - raumBelegung
+        - raumAnfragen
+        - raumVerwalten
+        - raumZuweisen
+        - raumListe
+        - raumAnlegen
+        - anlaesse
+        - anlassVerwalten
+        - anlassAnlegen
+        - anmeldungenSehen
+        - anmeldungenExportieren
+        - vorschlagen
+        - vorschlaegeEntscheiden
+        - warnliste
+        - kategorien
+      properties:
+        raumBelegung:
+          type: boolean
+          description: Recht `raum.belegung`.
+        raumAnfragen:
+          type: boolean
+          description: Recht `raum.anfrage_entscheiden`; öffnet die Seite «Anfragen».
+        raumVerwalten:
+          type: boolean
+          description: Recht `raum.verwalten`.
+        raumZuweisen:
+          type: boolean
+          description: Recht `raum.team_zuweisen`.
+        raumListe:
+          type: boolean
+          description: Räume verwalten oder Teams zuweisen; öffnet die Seite «Räume» der Verwaltung.
+        raumAnlegen:
+          type: boolean
+          description: Recht `raum.verwalten` abteilungsweit (neue Räume anlegen).
+        anlaesse:
+          type: boolean
+          description: Eines der Rechte an Anlässen; öffnet den Bereich «Anlässe».
+        anlassVerwalten:
+          type: boolean
+          description: Recht `anlass.verwalten`.
+        anlassAnlegen:
+          type: boolean
+          description: Recht `anlass.anlegen`.
+        anmeldungenSehen:
+          type: boolean
+          description: Recht `anlass.anmeldungen_sehen`.
+        anmeldungenExportieren:
+          type: boolean
+          description: Recht `anlass.anmeldungen_exportieren`.
+        vorschlagen:
+          type: boolean
+          description: Recht `vorschlag.einreichen`.
+        vorschlaegeEntscheiden:
+          type: boolean
+          description: Recht `vorschlag.entscheiden`.
+        warnliste:
+          type: boolean
+          description: Recht `termine.warnliste`.
+        kategorien:
+          type: boolean
+          description: Recht `termine.kategorien_zuordnen`.
     PlattformSchalter:
       type: object
       required:

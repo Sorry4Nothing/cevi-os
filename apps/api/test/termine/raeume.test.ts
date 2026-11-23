@@ -473,7 +473,10 @@ describe("Abfragen je Aufruf", () => {
       return { r, n: abfragen.filter(betrifft).length };
     };
     expect((await zaehle(eltern, "GET", "/api/v1/raeume?limit=100")).n).toBe(1);
-    expect((await zaehle(leitung, "GET", `${BASIS}?limit=100`)).n).toBe(1);
+    // Die Liste der Verwaltung: die Teams der Räume, der RechteSatz und die Seite (nie je Zeile)
+    expect(
+      (await zaehle(leitung, "GET", `${BASIS}?limit=100`)).n,
+    ).toBeLessThanOrEqual(3);
     const neu = await zaehle(leitung, "POST", BASIS, {
       name: name(),
       teamId: team.id,
