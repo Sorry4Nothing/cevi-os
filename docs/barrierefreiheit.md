@@ -935,6 +935,44 @@ Gilt für die Website-Seiten `/termin` (`termin.js`) und `/konto` (`konto.js`) s
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank mit erfundenen Demo-Konten für Eltern, Stufenleitung und Entwickler) gesehen und bedient: 62.1 und 62.2 (Antwort setzen, Fokus bleibt), 62.3, 62.4 (auch der Pflichtwechsel mit Startpasswort bis zur Seite danach), 62.5 (Schalter, Telefon speichern), 62.6 nur die Darstellung der Frage in der Ansicht (Test), 62.7 (anfragen, zurückziehen, Fehlerzusammenfassung), 62.8 bei 1440 und 390 px, Hell und Dunkel, Ziele unter 44 px: keine gefunden. Per Test: Ansichten ohne Browser (`test/website-konto-termin.test.ts`, `test/admin-raeume-meine.test.ts`). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Kontrastmessung, 200 % Zoom per Browser-Einstellung, 2560 px, Windows-Hochkontrast, das Verhalten bei sehr langen Namen.
 
+## 59. Verwaltung: Lager, Sitzungen und Mitteilen (#673)
+
+Gilt für die Module Höcks, Protokolle, Pinnwand, Eingang, Erwähnungen und Dokumente im Arbeitsbereich des Lagers (`lager-m-*.js`, `lager-sm-*.js`, `lager-sitzungen.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **59.1** Jede Ansicht hat eine Überschrift der Ebene 2 (Titel des Moduls); Formulare sind Seiten im Fluss (Zurück, Escape, Browser-Zurück). Jeder Knopf in einer Zeile nennt den Gegenstand im Namen («Bearbeiten: Budget besprechen»).
+- [ ] **59.2** Zustand nie nur über Farbe: Status (Besprochen, Neu, Erledigt), «Wichtig», «Angeheftet», «Geschlossen» und «Anonym» tragen Wort und, wo sinnvoll, ein Symbol. Reaktionen sind Knöpfe mit `aria-pressed` und Zahl.
+- [ ] **59.3** Reihenfolgen (Traktanden) lassen sich mit Maus, Finger, Tastatur (Leertaste, Pfeile, Escape) und den Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); das Ändern geht mit «Rückgängig».
+- [ ] **59.4** Kästchen und Auswahlfelder sind die eigenen der Verwaltung; die Einzelwahl einer Umfrage ist eine Karte mit Rundknopf (`.wahlkarte`), die Mehrfachwahl `.wahl`. Das Ergebnis steht als Text («3 Stimmen (50 %)») und als `progress` mit Namen.
+- [ ] **59.5** Fehler stehen beim Formular mit `role="alert"`; ein Versionskonflikt öffnet eine Gruppe mit Titel, dem Stand des Servers als Liste und zwei Knöpfen, der Fokus liegt in ihr.
+- [ ] **59.6** Links zu Dateien am Ablageort öffnen in einem neuen Tab, sagen das für Screenreader («öffnet in neuem Tab») und tragen `rel="noopener noreferrer"`. Es werden nie Links ausserhalb von `https` angeboten.
+- [ ] **59.7** Anonyme Meldungen: Der Rückfragecode steht in einer Seite mit Titel und «Kopieren», nur einmal; weder Meldungstext noch Code stehen in der Adresse oder im Titel des Dokuments.
+- [ ] **59.8** Höck-Modus: Die Punkte sind Knöpfe mit `aria-current="step"`; Häkchen der Anwesenheit sind erreichbar und melden Fehler als Meldung. Die Zielgrösse ist 44 Pixel, auch in der Kartenliste am Handy.
+- [ ] **59.9** Hell, Dunkel, «Bewegung reduzieren», erzwungene Farben; 390 bis 2560 Pixel ohne waagrechtes Scrollen der Seite, Tabellen werden am Handy zu Karten.
+
+### Stand der Prüfung (#673)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Daten gesehen: alle sechs Module bei 1440 Pixel (Hell), Höck-Detail bei 390 Pixel (Dunkel), Höck-Modus (Dunkel), Formulare Höck, Traktandum, Beitrag, Protokoll, Dokument, Orte; Versionskonflikt (Box, «Meine Änderung übernehmen»), Abstimmen, Reagieren, anonymes Senden mit Code, Link-Prüfung (Host, Form). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Tastatur-Durchgang aller Ansichten, 200 Prozent Zoom, erzwungene Farben, Kontrastwerte mit Messwerkzeug, 320 und 2560 Pixel, Rollen unterhalb der Lagerleitung im Browser (die Navigation der Verwaltung öffnet den Lager-Bereich nur der Abteilungsleitung; die Rechte der Module sind über Quelltext und API geprüft).
+
+## 61. Verwaltung: Lager, Material und Infos (#674)
+
+Gilt für `lager-m-packliste.js`, `lager-m-einkauf.js`, `lager-m-notfall.js`, `lager-m-infos.js`, `lager-m-tagesseiten.js`, `lager-m-wetter.js`, `lager-m-hilfen.js` und `lager-material.css` im Arbeitsbereich eines Lagers. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **61.1** Jedes Modul steht nur in der Navigation, wenn die Rolle das Leserecht hat; Knöpfe zum Ändern fehlen ohne das Schreibrecht und in einem abgeschlossenen oder archivierten Lager. Sortierlisten (Griff, Pfeilknöpfe) erscheinen nur, wenn sich die Reihenfolge ändern lässt.
+- [ ] **61.2** Abhaken (Packliste, Einkauf) geschieht mit dem gemeinsamen Kästchen (`ankreuzen`, 44 Pixel, sichtbarer Fokus); der Zustand steht auch als Text («5 von 9 gepackt», durchgestrichen und «erledigt» im Stand), nie nur in Farbe. Der Stand ist eine Zustandsmeldung (`role="status"`).
+- [ ] **61.3** Reihenfolgen (Vorlage der Packliste, Infos, Notfall-Kontakte, Blöcke der Tagesseite) ändern sich per Ziehen am Griff, mit Leertaste und Pfeiltasten und mit den Knöpfen «Nach oben» und «Nach unten» (WCAG 2.5.7); jede Änderung wird angesagt und lässt sich mit «Rückgängig» zurücknehmen.
+- [ ] **61.4** Löschen und Entfernen laufen mit «Rückgängig» (Knopf und Strg Z), keine Rückfrage per Popup. Ändert jemand anderes dieselbe Zeile (409), zeigt das Formular die Konflikt-Box mit «Dein Wert» und «Server» und zwei Knöpfen («Meine Änderung übernehmen», «Stand des Servers übernehmen»); bei Aktionen in der Liste sagt eine Meldung, dass der Stand des Servers geladen ist.
+- [ ] **61.5** Tabellen (Einkauf, Wetter) haben Beschriftung und Spaltenköpfe; am Handy werden sie zur Kartenliste mit Spaltenname vor dem Wert. Formulare haben sichtbare Beschriftungen, Fehler stehen beim Feld (`role="alert"`) und setzen den Fokus.
+- [ ] **61.6** Notfall: Nummern sind Links (`tel:`) mit 44 Pixel Höhe und dem Zusatz «Anrufen» für Screenreader; sie stehen nie im Seitentitel, in der Adresse oder in einer Meldung. Externe Links (Kartenlink, Infos) nur mit https und mit dem Zusatz «öffnet in einem neuen Tab» für Screenreader.
+- [ ] **61.7** Infos: Abschnitte sind `details` mit `summary` (44 Pixel hoch, Tastatur); «Alle öffnen» und «Alle schliessen» sind Knöpfe. Drucken öffnet vorher alle Abschnitte.
+- [ ] **61.8** Tagesseiten: Die Tagesliste ist eine Navigation mit `aria-current="page"`; «Voriger Tag» und «Nächster Tag» nennen für Screenreader das Datum.
+- [ ] **61.9** Wetter: Warnungen sind Marken mit Symbol und Wort (Gewitter, Starke Böen, Hitze, Viel Regen); der Stand der Vorhersage steht als Text.
+- [ ] **61.10** Drucken (`window.print`): Das Druck-Stylesheet blendet Kopf, Navigation, Filter und Knöpfe aus (`lm-nicht-drucken`) und druckt schwarz auf weiss.
+- [ ] **61.11** Hell, Dunkel, «Bewegung reduzieren» (Übergänge nur unter `no-preference`), 390 bis 1920 Pixel ohne waagrechtes Scrollen der Seite.
+
+### Stand der Prüfung (#674)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Datenbank mit erfundenen Daten gesehen: alle sechs Module bei 1440 und 390 Pixel (Hell, Einkauf und Notfall auch Dunkel), die Abläufe Abhaken, eigener Punkt mit «Rückgängig» (Strg Z), Konflikt-Box mit «Meine Änderung übernehmen», Artikel anlegen und abhaken, «Zusammengezählt», Info bearbeiten und ungültigen Link ablehnen, Kontakt anlegen, Tag wechseln und Notiz speichern, Wetter laden; ein abgeschlossenes Lager ohne Änderungsknöpfe. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben, Kontrastwerte mit einem Messwerkzeug, Druckvorschau, Ziehen mit der Maus (nur Quelltext und Tastaturweg der Sortierliste), 320 und 2560 Pixel.
+
 ## 54. Verwaltung: Leisten wie die Website, ungültige Adressen (#667)
 
 Gilt für Logozeile, Bereichsleiste, Unterleiste und Bereichsauswahl (`geruest.css`) und für Adressen, die es nicht gibt (`admin.js` mit `ctx.nichtGefunden`, `rechte.js`, `tags.js`, `termine-anlaesse.js`, `termine-belegung.js`, `termine-monat.js`). Vorlage der Leisten: `public/website/kopf.css`.
