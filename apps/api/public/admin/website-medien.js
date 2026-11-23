@@ -5,7 +5,6 @@ import { filterleiste } from "./filterleiste.js";
 import { formularRaster } from "./formularraster.js";
 import { sk } from "./lader.js";
 import {
-  anzahlText,
   band,
   beschaeftigt,
   bei,
@@ -903,7 +902,7 @@ function zeichne(bereich, ctx, erste) {
       const art = d.type.replace("image/", "").toUpperCase() || "Datei";
       if (problem) {
         // Datei zeigen und den Grund; gewählt ist sie nicht
-        gewaehlteBox.append(dateiZeile(d, art, null));
+        gewaehlteBox.append(dateiZeile(d, art));
         gewaehlteBox.hidden = false;
         meldung.replaceChildren(band("fehler", problem));
         zone.hidden = false;
@@ -942,13 +941,13 @@ function zeichne(bereich, ctx, erste) {
       }
       gewaehltDatei = d;
       vorschauPlatz.replaceChildren(leinwand);
-      gewaehlteBox.append(dateiZeile(d, art, null));
+      gewaehlteBox.append(dateiZeile(d, art));
       gewaehlteBox.hidden = false;
       zone.hidden = true;
       pruefeBereit();
       alt.eingabe.focus();
     }
-    const dateiZeile = (d, art, leinwand) =>
+    const dateiZeile = (d, art) =>
       el(
         "div",
         { class: "medium ws-gewaehlt" },
