@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/protokolle/:protokollId"
-order: 361000
+order: 362000
 method: GET
 url: "{{baseUrl}}{{pfad_L159}}"
 headers:

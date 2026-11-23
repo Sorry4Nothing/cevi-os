@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/pinnwand/gesehen"
-order: 355000
+order: 356000
 method: PUT
 url: "{{baseUrl}}{{pfad_L153}}"
 headers:
@@ -19,6 +19,6 @@ body:
   content: |-
     {
       "beitragIds": [
-        "01a2060a-6dd8-739d-bc67-58ca3f1ed813"
+        "01a20640-5001-718b-8695-2e0065c90bfd"
       ]
     }

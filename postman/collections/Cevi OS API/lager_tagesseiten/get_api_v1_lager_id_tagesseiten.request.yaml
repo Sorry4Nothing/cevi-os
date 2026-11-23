@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/tagesseiten"
-order: 396000
+order: 397000
 method: GET
 url: "{{baseUrl}}{{pfad_L194}}"
 headers:

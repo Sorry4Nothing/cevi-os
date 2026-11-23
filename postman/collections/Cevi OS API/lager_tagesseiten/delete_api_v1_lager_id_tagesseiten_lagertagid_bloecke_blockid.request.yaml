@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/tagesseiten/:lagertagId/bloecke/:blockId"
-order: 402000
+order: 403000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L200}}"
 headers:

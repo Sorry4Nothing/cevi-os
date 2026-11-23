@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/packliste/punkte"
-order: 345000
+order: 346000
 method: POST
 url: "{{baseUrl}}{{pfad_L143}}"
 headers:

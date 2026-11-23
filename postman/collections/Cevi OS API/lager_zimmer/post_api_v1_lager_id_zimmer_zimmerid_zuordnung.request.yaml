@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zimmer/:zimmerId/zuordnung"
-order: 450000
+order: 451000
 method: POST
 url: "{{baseUrl}}{{pfad_L248}}"
 headers:
