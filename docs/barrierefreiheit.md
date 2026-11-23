@@ -917,3 +917,21 @@ Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`
 ### Stand der Prüfung (#663)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.
+
+## 59. Verwaltung: Lager, Sitzungen und Mitteilen (#673)
+
+Gilt für die Module Höcks, Protokolle, Pinnwand, Eingang, Erwähnungen und Dokumente im Arbeitsbereich des Lagers (`lager-m-*.js`, `lager-sm-*.js`, `lager-sitzungen.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **59.1** Jede Ansicht hat eine Überschrift der Ebene 2 (Titel des Moduls); Formulare sind Seiten im Fluss (Zurück, Escape, Browser-Zurück). Jeder Knopf in einer Zeile nennt den Gegenstand im Namen («Bearbeiten: Budget besprechen»).
+- [ ] **59.2** Zustand nie nur über Farbe: Status (Besprochen, Neu, Erledigt), «Wichtig», «Angeheftet», «Geschlossen» und «Anonym» tragen Wort und, wo sinnvoll, ein Symbol. Reaktionen sind Knöpfe mit `aria-pressed` und Zahl.
+- [ ] **59.3** Reihenfolgen (Traktanden) lassen sich mit Maus, Finger, Tastatur (Leertaste, Pfeile, Escape) und den Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); das Ändern geht mit «Rückgängig».
+- [ ] **59.4** Kästchen und Auswahlfelder sind die eigenen der Verwaltung; die Einzelwahl einer Umfrage ist eine Karte mit Rundknopf (`.wahlkarte`), die Mehrfachwahl `.wahl`. Das Ergebnis steht als Text («3 Stimmen (50 %)») und als `progress` mit Namen.
+- [ ] **59.5** Fehler stehen beim Formular mit `role="alert"`; ein Versionskonflikt öffnet eine Gruppe mit Titel, dem Stand des Servers als Liste und zwei Knöpfen, der Fokus liegt in ihr.
+- [ ] **59.6** Links zu Dateien am Ablageort öffnen in einem neuen Tab, sagen das für Screenreader («öffnet in neuem Tab») und tragen `rel="noopener noreferrer"`. Es werden nie Links ausserhalb von `https` angeboten.
+- [ ] **59.7** Anonyme Meldungen: Der Rückfragecode steht in einer Seite mit Titel und «Kopieren», nur einmal; weder Meldungstext noch Code stehen in der Adresse oder im Titel des Dokuments.
+- [ ] **59.8** Höck-Modus: Die Punkte sind Knöpfe mit `aria-current="step"`; Häkchen der Anwesenheit sind erreichbar und melden Fehler als Meldung. Die Zielgrösse ist 44 Pixel, auch in der Kartenliste am Handy.
+- [ ] **59.9** Hell, Dunkel, «Bewegung reduzieren», erzwungene Farben; 390 bis 2560 Pixel ohne waagrechtes Scrollen der Seite, Tabellen werden am Handy zu Karten.
+
+### Stand der Prüfung (#673)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Daten gesehen: alle sechs Module bei 1440 Pixel (Hell), Höck-Detail bei 390 Pixel (Dunkel), Höck-Modus (Dunkel), Formulare Höck, Traktandum, Beitrag, Protokoll, Dokument, Orte; Versionskonflikt (Box, «Meine Änderung übernehmen»), Abstimmen, Reagieren, anonymes Senden mit Code, Link-Prüfung (Host, Form). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Tastatur-Durchgang aller Ansichten, 200 Prozent Zoom, erzwungene Farben, Kontrastwerte mit Messwerkzeug, 320 und 2560 Pixel, Rollen unterhalb der Lagerleitung im Browser (die Navigation der Verwaltung öffnet den Lager-Bereich nur der Abteilungsleitung; die Rechte der Module sind über Quelltext und API geprüft).

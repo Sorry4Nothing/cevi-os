@@ -314,7 +314,7 @@ function dokumentTabelle({ ctx, lagerId, schreiben, dokumente, neu }) {
               eigen
                 ? d.teamSichtbar
                   ? "Alle Mitglieder"
-                  : "Nur Leitung"
+                  : "Leitung"
                 : "–",
             ),
             el("td", { class: "lg-zahlen" }, datumKurz(d.erstelltAm)),

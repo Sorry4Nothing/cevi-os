@@ -314,6 +314,21 @@ Der Bereich `#lager` nutzt die Querschnitt-Bausteine (`sortieren.js`, `filterlei
 
 Das Rechte-Modell ist nicht verändert: Die Rechte der Rollen heissen im Server weiter wie bisher; nur die Anzeige zeigt statt des Schlüssels einen Satz.
 
+### Lager: Sitzungen und Mitteilen (#673)
+
+Sechs Module im Arbeitsbereich des Lagers (Register `lager-module.js`, Adresse `#lager/lager/<id>/<modul>`; Dateien `lager-m-<modul>.js`, gemeinsam `lager-sm-gemeinsam.js` und `lager-sm-traktanden.js`, Stil `lager-sitzungen.css`, Vorsatz `lg-sm-`). Sie rufen nur die Routen des Lager-Backends (`/api/v1/lager/{id}/…`) und die Host-Einstellung der Abteilung; der Server prüft weiter alles. Die Oberfläche blendet aus, was die Rolle nicht darf (`darfSchreiben`, Rechte aus `GET /api/v1/lager/{id}`); ein geschlossenes Lager ist schreibgeschützt.
+
+| Modul (Adresse nach `…/<id>/`)             | Aufbau                                                                                                                                                                                                                                                   |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Höcks (`hoecks`, `hoecks/<id>`, `…/modus`) | Liste (Kommende, Vergangene, Alle) und «Punkte für den nächsten Höck»; Detail mit Angaben, Anwesenden (Häkchen), Kalenderdatei und Traktanden (`sortierListe`, Schnelleingabe, Formular mit Text, Entscheid, Links, Verantwortlichen, Dauer); Höck-Modus |
+| Protokolle (`protokolle`, `…/beschluesse`) | Protokoll = Verknüpfung auf eine Datei (Name und Link, `POST …/dateien`), Beschlüsse mit Höck und Protokoll; Filter, Tabelle, Kartenliste am Handy                                                                                                       |
+| Pinnwand (`pinnwand`)                      | Beiträge mit Empfängern (Rollen, Personen, Ressorts, Gruppen), Zeitfenster, Dateien; Umfrage, Reaktionen, «Gesehen» (Namen nur mit Recht)                                                                                                                |
+| Eingang (`eingang`, `eingang/eigene`)      | Alle Meldungen (Filter, Antworten, Ressort, «Als Traktandum» mit Zurücknehmen) und eigene Meldungen (auch anonym, Rückfragecode einmal, Antwort per Code)                                                                                                |
+| Erwähnungen (`erwaehnungen`)               | eigene Erwähnungen: abhaken, «Als Aufgabe» (zurücknehmbar), «Als Traktandum»                                                                                                                                                                             |
+| Dokumente (`dokumente`)                    | Dateien als Verknüpfung mit Stichworten und Sichtbarkeit; unten «Erlaubte Ablageorte» (`GET`/`PUT /api/v1/admin/lager-dateien/hosts`, nur wer das Lager verwalten darf)                                                                                  |
+
+Gemeinsame Regeln: Versionskonflikt (409 `VERSION_KONFLIKT`) zeigt im Formular den Stand des Servers mit «Meine Änderung übernehmen» und «Stand des Servers übernehmen»; Löschen und Ordnen laufen mit «Rückgängig»; Erwähnungen schreibt die Person als «@Name», der Server speichert die Marke `@{person:<id>}` und gleicht sie nach dem Speichern ab; Dateien sind nur Links (`https`), der Server ruft sie nie ab. Kein Polling: «Aktualisieren» im Kopf des Arbeitsbereichs lädt neu.
+
 ## Laden, Leer, Fehler
 
 `ctx.lade(laden, zeichnen, { skeleton })` (`lader.js`) macht, was G5 verlangt:
