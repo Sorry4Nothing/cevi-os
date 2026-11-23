@@ -314,7 +314,7 @@ export function erstelleApp({
       .route("/api/v1", erstelleLadenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
-      .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))
+      .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))

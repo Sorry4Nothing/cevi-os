@@ -10,7 +10,9 @@ import {
   integer,
   jsonb,
   pgTable,
+  pgView,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
@@ -329,7 +331,52 @@ export const kind = pgTable("kind", {
   stufeSeit: zeitpunkt("stufe_seit").notNull().defaultNow(),
   // Ohne Datum ist das Kind aktiv
   inaktivSeit: zeitpunkt("inaktiv_seit"),
+  // Das eigene Konto des Kindes (#644); ein Konto gehört zu höchstens einem Kind. Fällt das Konto weg, bleibt das Kind ohne Konto. Die Stufe steht nur im Kind, das Konto hat keine Stufenrolle
+  userId: uuid("user_id")
+    .unique()
+    .references(() => user.id, { onDelete: "set null" }),
+  kontoSeit: zeitpunkt("konto_seit"),
+  // Vermerk der Abteilung, dass die Eltern vom Konto wissen (Datum der Mitteilung); der Text der Einwilligung bleibt ausserhalb von Cevi OS
+  elternInformiertAm: date("eltern_informiert_am", { mode: "string" }),
+  // Sehen die verknüpften Eltern weiter, was das Kind sieht? Gilt nur, solange das Kind ein Konto hat (Sicht kind_zugang)
+  elternEinsicht: boolean("eltern_einsicht").notNull().default(true),
 });
+
+// Einstellungen der Konten für Kinder je Abteilung (#644). Ohne Zeile gelten die Vorgaben aus kind-konto.ts: Konten aus, Chat aus
+export const KIND_CHAT_ARTEN = ["aus", "lesen", "schreiben"] as const;
+export const kindKontoEinstellung = pgTable(
+  "kind_konto_einstellung",
+  {
+    abteilungId: uuid("abteilung_id")
+      .primaryKey()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    erlaubt: boolean("erlaubt").notNull().default(false),
+    chat: text("chat", { enum: KIND_CHAT_ARTEN }).notNull().default("aus"),
+    // Hinweis für die Abteilungsleitung beim Erstellen; Cevi OS kennt das Alter der Kinder nicht und prüft es nicht
+    mindestalter: smallint("mindestalter"),
+    elternEinsichtVorgabe: boolean("eltern_einsicht_vorgabe")
+      .notNull()
+      .default(true),
+  },
+  (t) => [
+    check(
+      "kind_konto_einstellung_chat_check",
+      sql`${t.chat} in ('aus', 'lesen', 'schreiben')`,
+    ),
+    check(
+      "kind_konto_einstellung_mindestalter_check",
+      sql`${t.mindestalter} is null or ${t.mindestalter} between 6 and 18`,
+    ),
+  ],
+);
+
+// Sicht (Migration 0144): Wer ein Kind sehen darf. Die verknüpften Eltern, solange das Kind kein Konto hat oder die Einsicht der Eltern gilt (eigen = false), und das eigene Konto (eigen = true). Jede Sichtregel für Eltern fragt diese Sicht statt kind_eltern
+export const kindZugang = pgView("kind_zugang", {
+  kindId: uuid("kind_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  erstelltAm: zeitpunkt("erstellt_am").notNull(),
+  eigen: boolean("eigen").notNull(),
+}).existing();
 
 export const kindEltern = pgTable(
   "kind_eltern",

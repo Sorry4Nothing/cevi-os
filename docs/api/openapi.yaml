@@ -25763,7 +25763,7 @@ components:
               enum: [person, anonym, cli, system]
             rollen:
               type: array
-              description: Funktionen zum Zeitpunkt (abteilungsleitung, stufenleitung, leitung, webmaster, plattformrolle, entwickler, eltern).
+              description: Funktionen zum Zeitpunkt (abteilungsleitung, stufenleitung, leitung, webmaster, plattformrolle, entwickler, eltern, teilnehmer).
               items:
                 type: string
         abteilungId:

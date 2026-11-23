@@ -31,6 +31,7 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { telefonSchema } from "../../telefon.js";
+import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
 import {
@@ -92,6 +93,9 @@ const elternteilVonFeld = z
   .max(50)
   .refine((kinder) => new Set(kinder).size === kinder.length);
 
+// Das eigene Konto eines Kindes (#644) gehört auf die Seite «Kinder», nie in die Personen: Hier erhielte es Rollen oder Adminrechte
+const keinKindKonto = keinKindKontoVon(user.id);
+
 // Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
 const anlegenSchema = z.strictObject({
   vorname: text(100),
@@ -127,7 +131,13 @@ export function erstellePersonenRouten({
     const [ziel] = await db
       .select({ id: user.id })
       .from(user)
-      .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      .where(
+        and(
+          eq(user.id, id),
+          eq(user.abteilungId, person.abteilungId),
+          keinKindKonto,
+        ),
+      );
     if (!ziel) throw new HTTPException(404);
     if (!person.admin) throw new HTTPException(403);
     return ziel;
@@ -247,7 +257,7 @@ export function erstellePersonenRouten({
             })
             .from(user)
             .leftJoin(profilbild, eq(profilbild.userId, user.id))
-            .where(eq(user.abteilungId, abteilungId))
+            .where(and(eq(user.abteilungId, abteilungId), keinKindKonto))
             .orderBy(asc(user.name), asc(user.id)),
           db
             .select({

@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import {
   auditLog,
   lager,
@@ -354,7 +355,11 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
               .select({ id: user.id })
               .from(user)
               .where(
-                and(eq(user.id, personId), aktivesKonto(person.abteilungId)),
+                and(
+                  eq(user.id, personId),
+                  aktivesKonto(person.abteilungId),
+                  keinKindKonto(user.id),
+                ),
               );
             if (!konto) throw new HTTPException(404);
             const vorher = await mitgliedZeile(tx, id, personId);

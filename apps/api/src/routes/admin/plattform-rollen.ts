@@ -18,6 +18,7 @@ import {
   plattformRechteVon,
   type PlattformRecht,
 } from "../../plattform.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 
 // Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Nur die Abteilungsleitung (zweiter Faktor wie überall unter /admin).
@@ -103,7 +104,11 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       .select({ id: user.id })
       .from(user)
       .where(
-        and(eq(user.id, userId), eq(user.abteilungId, person.abteilungId)),
+        and(
+          eq(user.id, userId),
+          eq(user.abteilungId, person.abteilungId),
+          keinKindKonto(user.id),
+        ),
       );
     if (!ziel) throw new HTTPException(404);
   }

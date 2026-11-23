@@ -13,6 +13,7 @@ import {
   user,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
@@ -331,7 +332,11 @@ export function erstelleTagRouten({ db }: { db: Db }) {
           .select({ id: user.id })
           .from(user)
           .where(
-            and(eq(user.id, userId), eq(user.abteilungId, person.abteilungId)),
+            and(
+              eq(user.id, userId),
+              eq(user.abteilungId, person.abteilungId),
+              keinKindKonto(user.id),
+            ),
           );
         if (!ziel) throw new HTTPException(404);
         await db.transaction(async (tx) => {

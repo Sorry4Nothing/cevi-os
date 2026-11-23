@@ -56,6 +56,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  kinderkonto: {
+    titel: "Konto eines Kindes",
+    zweck:
+      "Ein Kind meldet sich mit einem eigenen Konto an und sieht die Programme, die Leitung und, wenn die Abteilung es erlaubt, den Gruppenchat seiner Stufe. Die Abteilungsleitung erstellt das Konto und vermerkt, dass die Eltern informiert sind. Das Konto kennt nur das eigene Kind: nie andere Kinder, Eltern oder Telefonnummern.",
+    frist:
+      "Bis die Leitung das Konto entfernt oder sperrt oder das Kind gelöscht wird; mit dem Kind verschwindet auch das Konto.",
+    apple: ["Contact Info: Name", "Identifiers: User ID"],
+    google: ["Personal info: Name", "Personal info: User IDs"],
+  },
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
@@ -525,6 +534,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "stufe_id",
       "stufe_seit",
       "inaktiv_seit",
+    ],
+    kinderkonto: [
+      "user_id",
+      "konto_seit",
+      "eltern_informiert_am",
+      "eltern_einsicht",
+    ],
+  },
+  kind_konto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "erlaubt",
+      "chat",
+      "mindestalter",
+      "eltern_einsicht_vorgabe",
     ],
   },
   kind_eltern: { kinder: ["kind_id", "user_id", "erstellt_am"] },

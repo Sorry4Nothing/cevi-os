@@ -708,6 +708,13 @@
       "when": 1793555900000,
       "tag": "0139_aktivitaet",
       "breakpoints": true
+    },
+    {
+      "idx": 144,
+      "version": "7",
+      "when": 1793556400000,
+      "tag": "0144_kind_konto",
+      "breakpoints": true
     }
   ]
 }
