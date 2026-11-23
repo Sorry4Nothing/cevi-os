@@ -1,4 +1,5 @@
 import { anfrage, fehlertext } from "./api.js";
+import { bildMitLader } from "./bildwahl.js";
 import {
   STANDARD_LOGO,
   ankreuzen,
@@ -27,10 +28,43 @@ export function zeige(bereich, ctx) {
         stufen: stufen.stufen,
         kinder: kinder?.kinder ?? null,
         personen: personen?.personen ?? null,
+        titelbilder: await ladeTitelbilder(stufen.stufen),
       };
     },
     (daten, neu) => zeichne(bereich, ctx, daten, neu),
   );
+}
+
+// Das Bild einer Stufe ist das erste Bild ihrer Seite auf der Website (ihr Titelbild). Die Seitenliste ist ein Abruf, dazu je Stufe mit Seite der Entwurf; fehlt das Recht oder die Seite, bleibt es beim Buchstaben. Nur das Lesen, nichts wird gespeichert.
+// Liefert Map: Stufe-ID -> Adresse des Bildes
+export async function ladeTitelbilder(stufen) {
+  const bilder = new Map();
+  try {
+    const { seiten } = await anfrage("GET", "/api/v1/redaktion/seiten");
+    await Promise.all(
+      stufen.map(async (s) => {
+        const seite = seiten.find((x) => x.tagId === s.id);
+        if (!seite) return;
+        const { dokument } = await anfrage(
+          "GET",
+          `/api/v1/redaktion/seiten/${seite.id}/entwurf`,
+        );
+        const id = titelbildId(dokument);
+        if (id) bilder.set(s.id, `/api/v1/medien/${id}`);
+      }),
+    );
+  } catch {
+    // Beiwerk: ohne Recht oder bei einem Fehler stehen die Buchstaben
+  }
+  return bilder;
+}
+
+// Der erste Bildbaustein eines Dokuments: seine Medien-ID oder null (reine Funktion)
+export function titelbildId(dokument) {
+  const baustein = dokument?.bausteine?.find((b) => b.typ === "bild");
+  return typeof baustein?.daten?.mediumId === "string"
+    ? baustein.daten.mediumId
+    : null;
 }
 
 function felder(stufe) {
@@ -180,7 +214,7 @@ function kennzeichen(stufe) {
       );
 }
 
-function karte(stufe, anzahl, sl, ctx, neu) {
+function karte(stufe, anzahl, sl, ctx, neu, titelbild) {
   const leitung =
     sl.length === 0
       ? el("p", { class: "leise" }, "Noch niemand eingetragen.")
@@ -197,6 +231,17 @@ function karte(stufe, anzahl, sl, ctx, neu) {
   return el(
     "li",
     { class: "karte stufe-karte" },
+    // Das hinterlegte Bild der Stufe (Titelbild ihrer Seite), mit ruhigem Platzhalter bis es da ist
+    titelbild &&
+      bildMitLader(
+        el("img", {
+          src: titelbild,
+          alt: "",
+          loading: "lazy",
+          decoding: "async",
+        }),
+        "st-foto",
+      ),
     el(
       "div",
       { class: "st-kopf" },
@@ -234,7 +279,7 @@ function karte(stufe, anzahl, sl, ctx, neu) {
   );
 }
 
-function zeichne(bereich, ctx, { stufen, kinder, personen }, neu) {
+function zeichne(bereich, ctx, { stufen, kinder, personen, titelbilder }, neu) {
   ctx.kopfAktion(
     knopf("Stufe anlegen", {
       art: "haupt",
@@ -258,7 +303,14 @@ function zeichne(bereich, ctx, { stufen, kinder, personen }, neu) {
       "ul",
       { class: "st-liste", "aria-label": "Stufen" },
       stufen.map((stufe) =>
-        karte(stufe, anzahl(stufe), stufenleitung(personen, stufe), ctx, neu),
+        karte(
+          stufe,
+          anzahl(stufe),
+          stufenleitung(personen, stufe),
+          ctx,
+          neu,
+          titelbilder.get(stufe.id),
+        ),
       ),
     ),
   );

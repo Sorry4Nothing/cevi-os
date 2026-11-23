@@ -551,7 +551,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellung» in `personen.css` (Klassenvorsatz `mg-`) auf den Seiten «Personen», «Kinder», dem Detail einer Gruppe und der Stufenleitung auf «Stufen». Geprüft wird im Browser bei 390, 720, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
 
 - [ ] **33.1** Umschalter «Karten | Liste» und «Gruppieren»: je eine Gruppe von Auswahlknöpfen (`role="radiogroup"`, benannt durch «Ansicht» und «Gruppieren nach»). Pfeiltasten wechseln, Tab verlässt die Gruppe, der Fokus ist sichtbar (3 Pixel). Jede Option ist 44 Pixel hoch. Die gewählte Option trägt Rand und Fläche, nie nur eine Farbe. Der Schieber gleitet nur ohne «Bewegung reduzieren».
-- [ ] **33.2** Die Wahl der Ansicht bleibt im Browser (`localStorage`, nur «karten» oder «liste»); ohne Speicher gilt «karten». Die Gruppierung gilt für die Sitzung.
+- [ ] **33.2** Die Wahl der Ansicht (nur «karten» oder «liste») gilt, solange die Seite offen ist, und wird nicht im Browser gespeichert; nach dem Neuladen gilt «karten». Die Gruppierung gilt ebenso für die Sitzung.
 - [ ] **33.3** Abschnitte: Jeder Abschnitt hat eine Überschrift (Ebene 2, im Detail einer Gruppe Ebene 3) mit der Zahl der Treffer, das Raster oder die Tabelle trägt den Namen des Abschnitts. Die Zahl zählt alle Treffer, nicht nur die der Seite.
 - [ ] **33.4** Karte: Bild oder Initialen, Name, Cevi-Name, Rollen und Tags als Chips mit Wort (höchstens drei, der Rest als «+n weitere» mit Aufzählung im Titel), darunter «Bearbeiten». Der Name der Person steht im Namen jedes Knopfs (`kontext`, `aria-label`). Konto und Zugang sind ruhige Marken mit Symbol und Wort (`Konto aktiv`, `Eltern verknüpft`, `Kein Zugang`, `Zweiter Faktor`); was Aufmerksamkeit verlangt (Startpasswort offen, abgelaufen, deaktiviert, Inaktiv, Telefon fehlt) bleibt ein Chip mit Symbol.
 - [ ] **33.5** Kontrast: Marken (`--leise`, `--ok`) und Chips erreichen 4.5:1 auf Karte und Fläche in Tag und Nacht; Rand von Karte und Umschalter mindestens 3:1 zu `--outline` beim Zeigen und beim Wählen.
@@ -560,6 +560,8 @@ Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellun
 - [ ] **33.8** Bewegung: Das gestaffelte Einblenden der Karten läuft nur beim Wechsel von Ansicht oder Gruppierung und nur ohne «Bewegung reduzieren»; beim Tippen im Filter bewegt sich nichts.
 - [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
 - [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
+
+- [ ] **33.11** Stufenkarte: Das hinterlegte Bild (erstes Bild der Stufenseite auf der Website) steht oben in der Karte mit leerem `alt` (Zierde, der Name der Stufe steht darunter als Überschrift); bis es geladen ist, steht ein ruhiger Platzhalter, fehlt die Datei, das Wort «Vorschau fehlt». Ohne Seite, ohne Bild oder ohne Recht bleibt die Karte wie vorher mit dem Buchstaben. Abfragen: die Seitenliste und je Stufe mit Seite der Entwurf, nur lesend.
 
 ### Stand der Prüfung (#624)
 
