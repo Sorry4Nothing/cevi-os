@@ -257,21 +257,54 @@ describe("Termine: Ansichten (W5, W6)", () => {
       "Weitere Termine laden",
     );
   });
-  test("Monat: Raster mit Montag zuerst, heute markiert, Termine als Eintrag und Punkt", () => {
+  test("Monat: Raster mit Montag zuerst, jeder Tag eine Schaltfläche mit Namen, heute markiert, Termine als Titel und Punkt", () => {
     const m = html(termine.monatView("2027-02", [termin()], "2027-02-01"));
-    // 1. Februar 2027 ist ein Montag: keine leere Zelle davor
-    expect(m).not.toContain("zelle leer");
-    expect(m).toContain('aria-current="date"');
-    expect(m).toContain("Samstag, ");
+    // 1. Februar 2027 ist ein Montag: Die erste Zelle ist der Erste
+    expect(m).toContain(
+      'role="group" aria-label="Tage im Februar 2027"><button type="button" class="kal-tag heute"',
+    );
+    expect(m).toContain(
+      'aria-current="date" aria-label="Montag, 1. Februar, heute"',
+    );
+    expect(m).toContain('aria-label="Samstag, 6. Februar, 1 Termin"');
     expect(m).toContain('<span class="eintrag">Waldspiel</span>');
-    expect(m).toContain("1 Termin");
+    expect(m).toContain('<span class="punkt"></span>');
     expect(m).toContain('aria-label="Vorheriger Monat"');
-    // Mobil: die Liste unter dem Raster
-    expect(m).toContain("Termine im Februar");
-    // März 2027 beginnt an einem Montag, April an einem Donnerstag: drei leere Zellen davor, zwei füllen die letzte Woche
+    // Genau ein Tag ist gewählt und steht in der Tab-Reihenfolge: heute hat keinen Termin, also der nächste Tag mit einem
+    expect(m.match(/aria-pressed="true"/g)).toHaveLength(1);
+    expect(m.match(/class="kal-tag[^>]*tabindex="0"/g)).toHaveLength(1);
+    expect(m).toContain(
+      'aria-pressed="true" aria-label="Samstag, 6. Februar, 1 Termin" tabindex="0"',
+    );
+    // Sechs Wochen: April 2027 hat 30 Tage, zwölf Zellen bleiben leer
+    const april = html(termine.monatView("2027-04", [], "2027-02-01"));
+    expect(april.match(/class="kal-leer"/g)).toHaveLength(12);
+    expect(april.match(/class="kal-tag[ "]/g)).toHaveLength(30);
+    expect(april).toContain("Keine Termine an diesem Tag.");
+    // Der gewünschte Tag gewinnt
     expect(
-      html(termine.monatView("2027-04", [], "2027-02-01")).match(/zelle leer/g),
-    ).toHaveLength(5);
+      html(
+        termine.monatView("2027-02", [termin()], "2027-02-01", {
+          tag: "2027-02-10",
+        }),
+      ),
+    ).toContain('<h3 id="tm-tag-titel">Mittwoch, 10. Februar</h3>');
+  });
+  test("Monat: Tasten im Raster", () => {
+    const z = termine.fokusZiel;
+    // 10. Februar 2027 ist ein Mittwoch
+    expect(z("2027-02-10", "ArrowLeft")).toBe("2027-02-09");
+    expect(z("2027-02-10", "ArrowDown")).toBe("2027-02-17");
+    expect(z("2027-02-10", "Home")).toBe("2027-02-08");
+    expect(z("2027-02-10", "End")).toBe("2027-02-14");
+    expect(z("2027-02-28", "ArrowRight")).toBe("2027-03-01");
+    // Bild ab: gleicher Tag im nächsten Monat, höchstens dessen letzter
+    expect(z("2027-01-31", "PageDown")).toBe("2027-02-28");
+    expect(z("2027-02-10", "PageUp", true)).toBe("2026-02-10");
+    expect(z("2027-02-10", "a")).toBeNull();
+    expect(termine.abstandText("2027-02-01", "2027-02-01")).toBe("Heute");
+    expect(termine.abstandText("2027-02-01", "2027-02-02")).toBe("Morgen");
+    expect(termine.abstandText("2027-02-10", "2027-02-07")).toBe("Vor 3 Tagen");
   });
   test("Mehrtägiger Termin erscheint an jedem Tag", () => {
     const t = termin({
@@ -290,10 +323,8 @@ describe("Termine: Ansichten (W5, W6)", () => {
   test("Reiter: ohne Sitzung ist «Mein Kalender» gesperrt und der Hinweis steht da", () => {
     const aus = html(termine.reiterView({ tab: "alle", angemeldet: false }));
     expect(aus).toContain('aria-disabled="true"');
-    expect(aus).toContain("Du siehst den öffentlichen Datenplan.");
-    expect(aus).toContain(
-      '<a href="/anmelden?weiter=%2Ftermine">melde dich an</a>',
-    );
+    expect(aus).toContain("Nur die Termine deiner Gruppen sehen?");
+    expect(aus).toContain('<a href="/anmelden?weiter=%2Ftermine">Anmelden<');
     const an = html(termine.reiterView({ tab: "mein", angemeldet: true }));
     expect(an).toContain('id="tm-reiter-mein" aria-selected="true"');
     expect(an).not.toContain("Melde dich an");
@@ -941,19 +972,25 @@ describe("Termine: öffentlicher Datenplan aus der Datei (#564)", () => {
       'aria-label="Vorheriger Monat" aria-disabled="true"',
     );
     expect(anfang).not.toContain('aria-label="Nächster Monat" aria-disabled');
-    expect(anfang).toContain("Termine im Februar");
+    expect(anfang).toContain("1 Termin in diesem Monat");
     const ende = html(
       termine.monatView("2028-02", [], "2027-02-01", { fenster }),
     );
     expect(ende).toContain('aria-label="Nächster Monat" aria-disabled="true"');
-    expect(ende).toContain("Im Februar stehen keine Termine an.");
+    expect(ende).toContain("Keine Termine in diesem Monat");
   });
-  test("Monat: höchstens drei Titel je Tag, der Rest als Zahl", () => {
+  test("Monat: ein Titel je Tag, der Rest als Zahl; das Tagesfeld nennt alle mit Zeit und Ort", () => {
     const viele = [1, 2, 3, 4, 5].map((n) =>
       termine.ausPlan(eintrag({ titel: `Programm ${n}` })),
     );
     const aus = html(termine.monatView("2027-02", viele, "2027-02-01"));
-    expect(aus).toContain("+ 2 weitere");
-    expect(aus).toContain("5 Termine");
+    expect(aus).toContain("+ 4 weitere");
+    expect(aus).toContain('aria-label="Samstag, 6. Februar, 5 Termine"');
+    // Ohne Wunsch ist der nächste Tag mit Terminen gewählt
+    expect(aus).toContain('<h3 id="tm-tag-titel">Samstag, 6. Februar</h3>');
+    expect(aus).toContain("In 5 Tagen");
+    expect(aus.match(/class="kal-termin"/g)).toHaveLength(5);
+    expect(aus).toContain("14:00–17:00");
+    expect(aus).toContain("Treffpunkt");
   });
 });
