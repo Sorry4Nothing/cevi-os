@@ -68,6 +68,8 @@ const schema = z.object({
     "Oetwilerstrasse 35, 8634 Hombrechtikon",
   ),
   KONTAKT_EMAIL: mitVorgabe(z.email(), "cevi-al@cevi-staefa-hombi.ch"),
+  // Rechtemodell (#643): welcher Weg Rechte durchsetzt. «schatten» (Vorgabe): der alte Weg und die Rollen der Gruppen, verglichen mit dem neuen; «alt»: nur der alte (Notschalter); «neu»: nur der neue
+  RECHTE_MODELL: freiwillig(z.enum(["alt", "schatten", "neu"])),
   // Aktivitätsprotokoll (#637): Aufbewahrung in Tagen (die Datenbank löscht nie vor 7) und Obergrenze der Zeilen (nie unter 10000); darüber löscht der nächtliche Lauf die ältesten
   PROTOKOLL_TAGE: freiwillig(z.coerce.number().int().min(7).max(365)),
   PROTOKOLL_MAX_ZEILEN: freiwillig(

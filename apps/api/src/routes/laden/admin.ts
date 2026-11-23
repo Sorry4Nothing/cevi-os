@@ -32,6 +32,7 @@ import {
   WECHSEL,
 } from "../../laden/laden.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { bestellungAnsicht, ladePositionen } from "./bestellungen.js";
 import type { LadenEnv } from "./index.js";
@@ -374,7 +375,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
       // Alle Einstellungen des Lädelis mit den Vorgaben daneben (für «Standard wiederherstellen» und die Hinweise der Verwaltung)
       .get("/admin/laden/einstellungen", async (c) => {
         const person = c.get("person");
-        pruefeRecht(person);
+        await verlange(db, person, "laden.einstellungen");
         return c.json({
           ...(await ladeEinstellung(db, person.abteilungId)),
           vorgaben: EINSTELLUNG_VORGABE,
@@ -386,7 +387,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         eingabe("json", einstellungSchema),
         async (c) => {
           const person = c.get("person");
-          pruefeRecht(person);
+          await verlange(db, person, "laden.einstellungen");
           const aenderung = c.req.valid("json");
           await db.transaction(async (tx) => {
             const neu: LadenEinstellung = {

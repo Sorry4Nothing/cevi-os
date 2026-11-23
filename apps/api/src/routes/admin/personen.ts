@@ -1,6 +1,6 @@
 import { isAPIError } from "better-auth/api";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { Hono, type Context } from "hono";
+import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import {
@@ -30,7 +30,7 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { verlangeEntwickler } from "../../plattform.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { telefonSchema } from "../../telefon.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
@@ -132,15 +132,6 @@ export function erstellePersonenRouten({
     if (!ziel) throw new HTTPException(404);
     if (!person.admin) throw new HTTPException(403);
     return ziel;
-  }
-
-  // Wer ein fremdes Profilbild entfernen darf: Abteilungsleitung (den zweiten Faktor verlangt schon die Sperre aller Admin-Routen) und Entwickler (mit zweitem Faktor, wie das Protokoll). Die einzige Stelle dieser Regel
-  const nurEntwickler = verlangeEntwickler(db);
-  async function pruefeBildRecht(
-    c: Context<{ Variables: { person: Person } }>,
-  ) {
-    if (c.get("person").admin) return undefined;
-    return nurEntwickler(c, async () => {});
   }
 
   // Fremde wie unbekannte Stufen- und Kind-IDs sind eine ungültige Eingabe, vor jedem Schreibzugriff geprüft
@@ -561,8 +552,8 @@ export function erstellePersonenRouten({
         .from(user)
         .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
       if (!ziel) throw new HTTPException(404);
-      const verweigert = await pruefeBildRecht(c);
-      if (verweigert) return verweigert;
+      // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
+      await verlange(db, person, "profilbild.entfernen");
       const entfernt = await db.transaction(async (tx) => {
         const weg = await tx
           .delete(profilbild)

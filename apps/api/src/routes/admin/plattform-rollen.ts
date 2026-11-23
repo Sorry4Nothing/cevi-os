@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -19,6 +19,8 @@ import {
   type PlattformRecht,
 } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { pruefeEigeneRechte as pruefeEigeneRechteModell } from "../../rechtemodell/eskalation.js";
+import { istRecht, type RechtId } from "../../rechtemodell/katalog.js";
 
 // Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Nur die Abteilungsleitung (zweiter Faktor wie überall unter /admin).
 // Der Entwickler ist nie hier: Ihn vergibt und entzieht nur die Kommandozeile. Die festen Rechte von Entwickler und Abteilungsleitung stehen im Code und nicht in der Datenbank, sie lassen sich darum nicht ändern.
@@ -232,16 +234,28 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
               .from(plattformRolle)
               .where(eq(plattformRolle.id, rolle.id))
               .for("no key update");
-            if (aenderung.name !== undefined) {
-              await tx
-                .update(plattformRolle)
-                .set({ name: aenderung.name })
-                .where(eq(plattformRolle.id, rolle.id));
-            }
+            // Jede Änderung zählt die Version hoch: Die Matrix (rechte-matrix.ts) speichert nur auf dem Stand, den sie gelesen hat (#643)
+            await tx
+              .update(plattformRolle)
+              .set({
+                ...(aenderung.name === undefined
+                  ? {}
+                  : { name: aenderung.name }),
+                version: sql`${plattformRolle.version} + 1`,
+              })
+              .where(eq(plattformRolle.id, rolle.id));
             if (aenderung.rechte !== undefined) {
+              // Nur die Rechte dieses Katalogs ersetzen: Rechte, die die Matrix der Rolle zusätzlich gibt (Mitteilungen, Räume, Lädeli ...), bleiben
               await tx
                 .delete(plattformRolleRecht)
-                .where(eq(plattformRolleRecht.rolleId, rolle.id));
+                .where(
+                  and(
+                    eq(plattformRolleRecht.rolleId, rolle.id),
+                    inArray(plattformRolleRecht.recht, [
+                      ...PLATTFORM_RECHT_NAMEN,
+                    ]),
+                  ),
+                );
               if (nachher.length > 0) {
                 await tx
                   .insert(plattformRolleRecht)
@@ -300,7 +314,18 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       const rolle = await ladeRolle(person, id);
       await ladeZiel(person, userId);
       nurAbteilungsleitung(person);
-      await pruefeEigeneRechte(person, rolle.rechte);
+      // Die Rechte dieses Katalogs wie bisher; die übrigen, die die Matrix der Rolle gibt, prüft der Eskalationsschutz des Rechtemodells (#643)
+      await pruefeEigeneRechte(person, imKatalog(rolle.rechte));
+      await pruefeEigeneRechteModell(
+        db,
+        person,
+        rolle.rechte
+          .filter((r) => istRecht(r) && !istPlattformRecht(r))
+          .map((recht) => ({
+            recht: recht as RechtId,
+            geltung: "alle" as const,
+          })),
+      );
       await db.transaction(async (tx) => {
         const neu = await tx
           .insert(personPlattformRolle)

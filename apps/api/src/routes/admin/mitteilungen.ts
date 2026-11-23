@@ -6,6 +6,7 @@ import { TEAM_ROLLE } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import {
   auditLog,
+  gruppenRolle,
   kind,
   kindEltern,
   personTag,
@@ -16,12 +17,16 @@ import {
 import { eingabe } from "../../eingabe.js";
 import { sendePush, type Fcm } from "../../push.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 
 // Höchstens so viele Mitteilungen pro Abteilung und Stunde: Ein gekapertes Konto soll nicht beliebig oft alle Geräte anstossen
 const MITTEILUNGEN_PRO_STUNDE = 10;
 
 // Höchstens so viele Ziele je Mitteilung: Die Auflösung braucht höchstens vier Abfragen, unabhängig von der Zahl, aber die Eingabe bleibt überschaubar
 const MAX_ZIELE = 30;
+
+// Das Recht aus dem Rechtekatalog (rechtemodell/katalog.ts): Gruppen und Rollen als Ziele, je Gruppe oder abteilungsweit
+const MITTEILUNG_SENDEN = "mitteilung.senden";
 
 // Rollen einer Stufe. Eltern sind die Teilnehmenden: Kinder haben kein Konto
 const STUFEN_ROLLEN = ["stufenleitung", "leitung", "eltern"] as const;
@@ -92,7 +97,7 @@ type Aufloesung = {
 
 // Löst die Wahl in Konten auf: aktive Konten der Abteilung mit eingeschalteter Option «Mitteilungen» (push_programme). Fremde oder unbekannte Gruppen und Rollen, die nicht zum Typ der Gruppe passen, sind 400. Die Abfragen nehmen alle Ziele zusammen, nie eine je Ziel
 async function loeseAuf(
-  tx: Pick<Db, "select">,
+  tx: Pick<Db, "select" | "execute">,
   person: Person,
   wahl: Auswahl,
 ): Promise<Aufloesung> {
@@ -104,6 +109,17 @@ async function loeseAuf(
   const rollen = new Set(wahl.rollen ?? STUFEN_ROLLEN);
   const alleRollen = rollen.size === STUFEN_ROLLEN.length;
 
+  // Alle Konten oder alle Stufen erreicht nur, wer das Recht abteilungsweit hat; ein Recht für die eigene Gruppe reicht dafür nie (#643)
+  if (wahl.empfaenger === "alle") {
+    if (
+      !(await darf(tx, person, MITTEILUNG_SENDEN, {
+        abteilungId: person.abteilungId,
+        abteilungsweit: true,
+      }))
+    ) {
+      throw new HTTPException(403);
+    }
+  }
   if (wahl.empfaenger === "alle" && alleRollen) {
     const zeilen = await tx.select({ id: user.id }).from(user).where(mitOption);
     return {
@@ -159,6 +175,17 @@ async function loeseAuf(
       throw new HTTPException(400);
     }
   }
+  // Erst wenn jede Gruppe der Abteilung gehört (sonst 400), das Recht je Gruppe (#643): «alle» gilt für jede, «eigene» nur für die Gruppe der Rolle
+  for (const ziel of ziele) {
+    if (
+      !(await darf(tx, person, MITTEILUNG_SENDEN, {
+        abteilungId: person.abteilungId,
+        tagId: ziel.gruppeId,
+      }))
+    ) {
+      throw new HTTPException(403);
+    }
+  }
   const mit = (...arten: Rolle[]) => [
     ...new Set(
       ziele
@@ -204,15 +231,25 @@ async function loeseAuf(
       .select({
         gruppeId: personTag.tagId,
         rolle: personTag.rolle,
+        // Das Kennzeichen «Verantwortliche/r» der Gruppenrolle (#643); die Rolle muss zur Gruppe gehören
+        kennzeichen: gruppenRolle.verantwortlich,
         id: user.id,
       })
       .from(personTag)
       .innerJoin(user, and(eq(user.id, personTag.userId), mitOption))
+      .leftJoin(
+        gruppenRolle,
+        and(
+          eq(gruppenRolle.id, personTag.rolleId),
+          eq(gruppenRolle.tagId, personTag.tagId),
+        ),
+      )
       .where(inArray(personTag.tagId, gruppenMitglieder));
     for (const z of zeilen) {
       const rollenDesZiels = ziel.get(z.gruppeId)!.rollen;
-      // Wie bei den Teams: Die Rolle «verantwortlich» steht als Text an der Zuordnung
-      const verantwortlich = z.rolle?.toLowerCase() === TEAM_ROLLE;
+      // Verantwortlich ist, wessen Rolle so gekennzeichnet ist, und wie bisher, wer den Text «verantwortlich» trägt
+      const verantwortlich =
+        z.kennzeichen === true || z.rolle?.toLowerCase() === TEAM_ROLLE;
       if (
         rollenDesZiels.includes("alle") ||
         (rollenDesZiels.includes("verantwortliche") && verantwortlich)
@@ -256,14 +293,15 @@ export function erstelleMitteilungenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   return new Hono<{ Variables: { person: Person } }>()
     .post("/vorschau", eingabe("json", vorschauSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      // Die Tür: das Recht irgendwo, mit zweitem Faktor; welche Ziele, prüft die Auflösung (#643)
+      await verlange(db, person, MITTEILUNG_SENDEN);
       // Nur Zahlen, nie Namen. Kein Audit-Eintrag und kein Versand, auch ohne Push-Dienst
       const { ids, jeZiel } = await loeseAuf(db, person, c.req.valid("json"));
       return c.json({ empfaenger: ids.size, ziele: jeZiel });
     })
     .post("/", eingabe("json", sendenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, MITTEILUNG_SENDEN);
       if (!fcm) return c.json(PUSH_NICHT_EINGERICHTET, 503);
       const { titel, beschreibung, ...wahl } = c.req.valid("json");
 

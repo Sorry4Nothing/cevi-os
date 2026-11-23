@@ -647,6 +647,21 @@ Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Ba
 - [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
 - [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
 
+## 44. Verwaltung: Lädeli-Einstellungen und Profilbild entfernen (#642)
+
+Dieser Abschnitt gilt für «Lädeli, Einstellungen» (`laedeli.js`, `laedeli.css`), den Knopf «Profilbild entfernen» im Personenformular (`personen-blatt.js`) und für die Meldungen der Website zu den neuen Einstellungen (`public/website/laden.js`). Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **44.1** Formular: Jedes Feld hat eine sichtbare Beschriftung und eine Hilfe, die `aria-describedby` anbindet; die Schalter (Kontrollkästchen) haben ihre Hilfe unter der Zeile und verbunden. Zahlen stehen in Textfeldern mit `inputmode`, nicht in nativen Zahlenfeldern. Abschnitte haben Überschriften der Ebene 3.
+- [ ] **44.2** Fehler: Ungültige Eingaben stehen beim Feld (`role="alert"`, `aria-invalid`), oben nennt ein Hinweis jedes Feld mit einem Knopf, der es fokussiert; die Eingaben bleiben. Fehler beim Speichern stehen auf der Seite mit Fokus.
+- [ ] **44.3** Speichern: Die Speicherleiste unten erscheint erst bei einer Änderung, nennt sie als Text («noch nicht gespeichert») und hat «Verwerfen» und «Speichern» mit mindestens 44 Pixeln; «Gespeichert» kommt als Statusmeldung.
+- [ ] **44.4** Vorschau: Rechts steht, was die Besucher lesen, als Text in Blöcken mit Überschriften; sie ist Hilfe, nicht Pflicht, und sagt Änderungen nicht laufend an. Zustand («Ohne Schnell dazu», «Preis nach Anmeldung») steht als Wort, nie nur über Farbe.
+- [ ] **44.5** «Standardtext einsetzen» ist ein Knopf (44 Pixel) und nur da, wo der Text abweicht; nach dem Klick liegt der Fokus im Feld.
+- [ ] **44.6** Website: Hinweise bei geschlossenem Lädeli und zur Mindestbestellung stehen als Text mit `role="status"`, auch bei 390 Pixeln (nicht nur in der Notiz, die es erst ab 48 rem gibt); gesperrte Knöpfe tragen `aria-disabled` und bleiben fokussierbar; «Preis nach Anmeldung» ersetzt den Preis als Text; Bedingungen stehen als Absätze in der Bestellübersicht.
+- [ ] **44.7** Profilbild entfernen: zweistufiger Knopf («Wirklich entfernen?»), kein Popup; das Ergebnis steht als Statusmeldung («Das Profilbild von … ist entfernt»); der Knopf verschwindet, der Fokus bleibt auf der Seite (Initialen statt Bild). Zustand und Name stehen als Text.
+- [ ] **44.8** Reflow: kein waagrechter Seitenscroll von 390 bis 2560 Pixeln; die Vorschau steht ab 1100 Pixeln rechts, sonst unter dem Formular.
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 44.1 bis 44.4 und 44.7 bei 1440 und 390 Pixeln (Tag und Nacht für die Einstellungen), Ablauf Einstellungen ändern, Fehler bei ungültiger Zahl, Speichern, Profilbild entfernen in zwei Stufen, Lädeli mit Mindestbestellung, Besucher ohne Preise und Angemeldete mit Preisen. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, 44.5 und 44.8 nur nach Sicht, «Bewegung reduzieren».
+
 ## 41. Verwaltung: Protokoll (#637)
 
 Dieser Abschnitt gilt für `protokoll.js`, `protokoll-liste.js`, `protokoll-text.js` und `protokoll.css`. Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Die Seite zeigt dem Entwickler Kennzahlen, ein Säulendiagramm, eine Werkzeugleiste mit Filtern und die Einträge als Zeitleiste; ein Klick öffnet das Detail im Fluss.

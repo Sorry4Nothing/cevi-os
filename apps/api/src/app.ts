@@ -31,10 +31,16 @@ import {
   ZEICHEN_ICO,
   type ZeichenDateien,
 } from "./website/zeichen.js";
-import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
+import {
+  personAusSitzung,
+  zweiterFaktorFehlt,
+  zweiterFaktorPflicht,
+} from "./rechte.js";
+import { ZweiterFaktorFehlt } from "./rechtemodell/darf.js";
 import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
 import { erstellePlattformRollenRouten } from "./routes/admin/plattform-rollen.js";
 import { erstelleRechteRouten } from "./routes/admin/rechte.js";
+import { erstelleRechteMatrixRouten } from "./routes/admin/rechte-matrix.js";
 import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
@@ -326,6 +332,8 @@ export function erstelleApp({
       )
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
       .route("/api/v1/admin/rechte", erstelleRechteRouten({ db }))
+      // Matrix-API (#643): Katalog, Gruppenrollen, globale Rollen, Vorschau, «Was darf wer?», Änderungen
+      .route("/api/v1/admin/rechte", erstelleRechteMatrixRouten({ db }))
       .route(
         "/api/v1/admin/plattform/rollen",
         erstellePlattformRollenRouten({ db }),
@@ -413,6 +421,15 @@ export function erstelleApp({
         // Konfliktantwort des Lager-Sync (409 VERSION_KONFLIKT) mit dem Stand der Zeile im Body
         if (fehler instanceof LagerAntwortFehler) {
           return c.json(fehler.body, fehler.status);
+        }
+        // 403 mit dem Code für die App: Das Recht ist da, der zweite Faktor fehlt (#643)
+        if (fehler instanceof ZweiterFaktorFehlt) {
+          return c.json(
+            zweiterFaktorFehlt(
+              "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+            ),
+            403,
+          );
         }
         if (fehler instanceof HTTPException) {
           return c.json(
