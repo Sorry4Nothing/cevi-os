@@ -1,5 +1,5 @@
 // Kacheln der Übersicht (#583): jede Kachel eine Funktion, die aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten baut. Fehlt ein Teil in der Antwort, fehlt die Kachel (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Kachel für sich «Nochmals versuchen», der Rest bleibt stehen.
-// Vorlagen für Aufbau und Zustände (nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben nach dem, was sie von dir brauchen), «onboarding-checklist» (erledigt zusammenfassen), «status-footer» (Streifen mit Ablesung), «clinic-dashboard» (Tagesschiene), «billing-usage» (Messwerte mit Zustand).
+// Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben nach dem, was sie von dir brauchen), «status-footer» (Streifen mit Ablesung per Zeiger und Pfeiltasten), «clinic-dashboard» (Tagesschiene für das Kommende).
 import { chip, el, icon, knopf } from "./dom.js";
 import { BEREICHE, darfSehen } from "./navigation.js";
 import {
