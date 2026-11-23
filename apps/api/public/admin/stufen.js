@@ -2,7 +2,7 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   STANDARD_LOGO,
   ankreuzen,
-  chip,
+  avatar,
   dialogFormular,
   el,
   feld,
@@ -154,7 +154,12 @@ function leitungsListe(stufe, sl, ctx) {
     eintraege: sl.map((p) => ({
       id: p.id,
       text: p.name,
-      inhalt: el("span", { class: "name" }, p.name),
+      inhalt: el(
+        "span",
+        { class: "st-person" },
+        avatar(p.name, { hell: true }),
+        el("span", { class: "name" }, p.name),
+      ),
     })),
     aktionstext: `Reihenfolge der Stufenleitung von ${stufe.name} geändert`,
     mitRueckgaengig: ctx.mitRueckgaengig,
@@ -165,64 +170,59 @@ function leitungsListe(stufe, sl, ctx) {
   });
 }
 
+// Ohne eigenes Logo steht der Anfangsbuchstabe im Kasten; das Cevi-Logo gilt für die Stufe weiter überall dort, wo sie angezeigt wird, nur sechsmal dasselbe Zeichen untereinander sagt in der Verwaltung nichts
+function kennzeichen(stufe) {
+  return stufe.logoUrl
+    ? el("img", { class: "st-logo", src: stufe.logoUrl, alt: "" })
+    : el(
+        "span",
+        { class: "st-logo st-logo--buchstabe", "aria-hidden": "true" },
+        Array.from(stufe.name)[0]?.toLocaleUpperCase("de-CH") ?? "?",
+      );
+}
+
 function karte(stufe, anzahl, sl, ctx, neu) {
-  const bild = el("img", {
-    class: "stufe-logo",
-    src: stufe.logoUrl ?? STANDARD_LOGO,
-    // Dekorativ: Der Name daneben nennt schon alles
-    alt: "",
-  });
+  const leitung =
+    sl.length === 0
+      ? el("p", { class: "leise" }, "Noch niemand eingetragen.")
+      : sl.length === 1
+        ? el(
+            "p",
+            { class: "st-person" },
+            avatar(sl[0].name, { hell: true }),
+            el("span", { class: "name" }, sl[0].name),
+          )
+        : [
+            leitungsListe(stufe, sl, ctx).wurzel,
+            el(
+              "p",
+              { class: "klein leise" },
+              "Die erste Person ist der Hauptkontakt. Ordne sie per Ziehen oder mit den Pfeilen.",
+            ),
+          ];
   return el(
     "li",
     { class: "karte stufe-karte" },
     el(
       "div",
-      { class: "stufe-kopf" },
-      bild,
+      { class: "st-kopf" },
+      kennzeichen(stufe),
       el(
         "div",
-        { class: "stufe-text" },
+        { class: "st-text" },
         el("h2", { class: "name" }, stufe.name),
-        el(
-          "ul",
-          { class: "chips" },
-          anzahl !== null &&
-            chip(
-              anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`,
-              undefined,
-              false,
-            ),
-          chip(
-            sl.length === 0
-              ? "Keine Stufenleitung"
-              : sl.length === 1
-                ? "1 Stufenleitung"
-                : `${sl.length} Stufenleitende`,
-            sl.length === 0 ? "warn" : undefined,
-            sl.length === 0 ? undefined : false,
+        anzahl !== null &&
+          el(
+            "p",
+            { class: "leise" },
+            anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`,
           ),
-        ),
       ),
     ),
-    sl.length > 0 &&
-      el(
-        "div",
-        { class: "stufe-sl" },
-        el("h3", {}, "Stufenleitung"),
-        sl.length > 1
-          ? [
-              el(
-                "p",
-                { class: "klein leise" },
-                "Die erste Person ist der Hauptkontakt. Ordne sie per Ziehen oder mit den Pfeilen.",
-              ),
-              leitungsListe(stufe, sl, ctx).wurzel,
-            ]
-          : el("p", {}, sl[0].name),
-      ),
+    el("div", { class: "st-leitung" }, el("h3", {}, "Stufenleitung"), leitung),
     el(
       "div",
-      { class: "stufe-aktionen" },
+      { class: "st-aktionen" },
       knopf("Bearbeiten", {
         klein: true,
         symbol: "bearbeiten",
@@ -262,7 +262,7 @@ function zeichne(bereich, ctx, { stufen, kinder, personen }, neu) {
     ),
     el(
       "ul",
-      { class: "stufenliste", "aria-label": "Stufen" },
+      { class: "st-liste", "aria-label": "Stufen" },
       stufen.map((stufe) =>
         karte(stufe, anzahl(stufe), stufenleitung(personen, stufe), ctx, neu),
       ),

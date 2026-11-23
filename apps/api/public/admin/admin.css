@@ -1790,49 +1790,6 @@ dialog.blatt[open] {
 
 /* Stufen und Kinder */
 
-.stufenliste {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stufe-karte {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 16px;
-}
-
-.stufe-kopf {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-
-.stufe-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.stufe-logo {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-
-.stufe-text {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
 .eltern-zeile {
   display: flex;
   flex-wrap: wrap;

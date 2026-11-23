@@ -420,6 +420,55 @@ Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 23.1 (alle 33 Seiten der Navigation, 1440, 1920 und 2560 Pixel, Hell), 23.2 bis 23.5 und 23.7 (Übersicht in Hell und Dunkel bei 1440 und 2560 Pixeln, Zähler vermessen), 23.6 (Durchgang durch alle Seiten, Masse der Felder verglichen). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, Messung der Kontraste mit einem Werkzeug, Dunkel bei 1920 Pixeln auf allen Seiten.
 
+## 27. Verwaltung: System, Verlauf der Anfragen und Stufenfelder (#606)
+
+Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der letzten Fehler), `system.css` und den Einleitungstext in `website-stufenfakten.js`. Er ergänzt 17.6. Geprüft wird bei 390, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **27.1** Der Umschalter «Letzte Stunde» und «Letzte 24 Stunden» ist eine Gruppe mit Namen («Zeitraum»); der gewählte Knopf trägt `aria-pressed`. Nach dem Wechsel liegt der Fokus auf dem gewählten Knopf, nicht im Nichts.
+- [ ] **27.2** Jede Kennzahl nennt Titel, Zahl und Veränderung als Text («Stunde davor: 380 (+8 %)»). «Erhöht» bei den Serverfehlern steht als Chip mit Wort, nie nur als Farbe. Ohne Vergleichsgrundlage (die API läuft erst kurz) steht der Satz «Noch kein Vergleich», nie eine erfundene Zahl. Einen Vergleich mit dem Vortag gibt es nicht: Die API behält nur 24 Stunden.
+- [ ] **27.3** Die Säulen haben einen Satz mit allen Werten (`role="img"`), eine Ablesung mit Zeiger und Pfeiltasten (Text darunter, `aria-live`) und eine Tabelle («Als Tabelle anzeigen», auch bei den Serverfehlern in der Spalte «Anteil 5xx»). Achsenwerte (0, Mitte, Höchstwert) und Zeitmarken sind Zierde; der Satz nennt alle Werte.
+- [ ] **27.4** Der Streifen «Serverfehler je Stunde» zeigt den Zustand nicht nur über die Farbe: Die Höhe trägt ihn mit (leer 2, ruhig 5, vereinzelt 10, erhöht 16), Legende und Ablesung nennen das Wort («keine Serverfehler», «vereinzelte Serverfehler», «Serverfehler erhöht» mit Zahl und Anteil). Er ist mit Tab erreichbar und mit Pfeiltasten lesbar.
+- [ ] **27.5** Alle Texte der Achsen erreichen 4.5:1 (Token `--leise` auf Karte), in Tag und Nacht; in erzwungenen Farben sind Fehler und «vereinzelt» umrandet, «erhöht» ist gefüllt.
+- [ ] **27.6** «Letzte Fehler» ist eine Liste: Status als Chip mit Wort und Zahl, Methode und Route, die Zeit als «vor 7 Minuten» in einem `time`-Element mit Datum im Titel. Die Tabelle mit allen Fehlern steht im Reiter «Anfragen».
+- [ ] **27.7** «Bewegung reduzieren»: Die Säulen und Zellen wachsen nur bei erlaubter Bewegung ein. 390 Pixel: Kennzahlen untereinander, die Achse zeigt Anfang und «jetzt», nichts scrollt waagrecht.
+- [ ] **27.8** Stufenfelder: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
+
+### Stand der Prüfung (#606)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 27.1 bis 27.4 und 27.6 bis 27.8 bei 390, 1440 und 1920 Pixeln, Hell und Dunkel, Tastatur (Umschalter, Ablesung, Streifen, Tabelle). Die Verläufe über 24 Stunden mit nachgestellten Antworten der API (Beispieldaten), denn die Zahlen der API leben nur im Arbeitsspeicher und fangen nach jedem Neustart bei null an; die echten Zahlen der Kopie zeigen nur die letzten Minuten. **Nicht geprüft:** Screenreader (NVDA, VoiceOver), 200 Prozent Zoom am Gerät, 2560 Pixel, Kontrastwerte mit einem Messwerkzeug, erzwungene Farben im Browser.
+
+## 24. Verwaltung: Import-Schritte, Stufen und Kinder (#604)
+
+Dieser Abschnitt gilt für `schrittfolge.js` und `import.js` (Schrittfolge nach dem Muster «stepper-form», eigener Bau), `stufen.js` (Stufenkarten) und `kinder.js` (Liste und Seite «Kind»). Geprüft wird im Browser mit der Abteilungsleitung bei 320 bis 2560 Pixeln, Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
+
+- [ ] **24.1** Jeder Schritt der Schrittfolge hat einen von vier Zuständen: offen, aktuell, erledigt, Fehler. Der Zustand steht nie nur in der Farbe: Der Marker trägt die Nummer, den Haken oder das Warnsymbol, die Überschrift des Schritts nennt den Zustand für Screenreader («Spalten, erledigt»), ein Fehler trägt zusätzlich den Chip «Fehler».
+- [ ] **24.2** Der aktuelle Schritt hat `aria-current="step"`; beim Wechsel geht der Fokus auf seine Überschrift. Die Zeile «Schritt 2 von 4: Spalten» ist eine Statusregion, der Balken darüber ist nur Zierde (`aria-hidden`).
+- [ ] **24.3** Erledigte Schritte zeigen eine Zusammenfassung in einem Satz und den Knopf «Ändern» (44 Pixel, der Name nennt den Schritt: «Spalten ändern»). Offene Schritte zeigen nur Name und kurzen Hinweis, nichts ist verborgen, was eine Eingabe braucht.
+- [ ] **24.4** Browser-Zurück und -Vor gehen einen Schritt, die Eingaben bleiben. Ein Eintrag aus einem früheren Besuch führt nie weiter als die Eingaben reichen. Nach dem Import führt «Zurück» nicht in die Vorschau: ein zweiter Import derselben Zeilen ist so nicht möglich.
+- [ ] **24.5** Ein Fehler steht im Schritt, in dem er entstand, als Meldung mit `role="alert"` und nimmt den Fokus. Eingaben bleiben erhalten; «Weiter» versucht es nochmals.
+- [ ] **24.6** Vorschau: Die Filter zeigen die Zahl je Zustand und «Zu prüfen» für Doppelte und Ungültige; jede Zeile nennt ihren Zustand als Wort mit Symbol und den Grund. Zeilen mit Warnung oder Fehler tragen zusätzlich einen Balken am Rand. Schmal steht jede Zeile als Karte; leere Zellen («Art», «Benutzername») fallen dort weg.
+- [ ] **24.7** Der Import bleibt ein Knopf mit zwei Stufen («Wirklich 10 Kinder und 2 Leitende anlegen?»), kein Popup. Die Startpasswörter erscheinen nur im letzten Schritt und werden beim Verlassen gelöscht.
+- [ ] **24.8** Bewegung (Einblenden des Schritts, Marker, Linie) nur unter `prefers-reduced-motion: no-preference`; sonst wechselt alles ohne Übergang.
+- [ ] **24.9** Stufen: Die Karten sind gleich hoch, die Aktionen stehen unten. Ohne eigenes Logo steht der Anfangsbuchstabe im Kasten (Zierde, `aria-hidden`); der Name steht als Überschrift. Die Stufenleitung steht einmal (Liste oder Name), nicht zusätzlich als Zähler; ohne Leitung steht ein ruhiger Satz, kein Warn-Chip.
+- [ ] **24.10** Stufenleitung umsortieren geht per Ziehen am Griff, mit Tastatur und mit den Knöpfen «Nach oben» und «Nach unten» (WCAG 2.5.7); die Änderung wird angesagt und lässt sich zurücknehmen.
+- [ ] **24.11** Kinder: Die Spalte heisst «Zugang», der Filter «Ohne Zugang». Ein Kind ohne verknüpften Elternteil ist ein Hinweis (Text «hat keinen Zugang: Ohne verknüpften Elternteil kann niemand es in der App sehen»), keine Warnung und kein Fehler. In der Liste steht dafür ruhiger Text statt eines Chips je Zeile.
+- [ ] **24.12** «Kind» ist wie die Person eine Seite im Fluss mit eigener Adresse im Verlauf (Karten «Angaben», «Stufe», «Eltern und Zugang», rechts das Kind mit Zustand); Speichern und Abbrechen stehen in der Leiste unten, ungespeicherte Eingaben fragt der Fluss ab.
+
+## 28. Website: Kontaktkarte und Fuss (#605)
+
+Gilt für die Kontaktkarte am Ende der Startseite und für den Fuss jeder Seite (`src/website/kontakt.ts`, `public/website/fuss.css`). Vorbereitung: Startseite mit Kontaktkarte öffnen, einmal mit und einmal ohne `KONTAKT_TELEFON`; Tag und Nacht, 320, 390, 768, 1024, 1440 und 2560 px.
+
+- [ ] **28.1** Die Kontaktkarte ist ein `section` mit einer Überschrift (`h2`); die Gruppe «Weitere Informationen» hat eine Überschrift eine Ebene tiefer. Die Angaben stehen in `address` als Liste (E-Mail, Telefon, Anschrift).
+- [ ] **28.2** Die Symbole der Zeilen (E-Mail, Telefon, Ort) sind `aria-hidden`; die Art («E-Mail», «Telefon», «Anschrift») steht als sichtbarer Text in derselben Zeile, ein Screenreader liest Art und Wert zusammen als Link.
+- [ ] **28.3** E-Mail und Telefon sind Links über die ganze Zeile (mindestens 44 px, tatsächlich 80 px hoch); «E-Mail schreiben», «Anrufen», «Nach oben», die Verweise und jede Zeile des Fusses sind mindestens 44 px hoch (gemessen bei 320 bis 2560 px). Die Anschrift ist kein Link.
+- [ ] **28.4** Fehlt die Telefonnummer, fehlen «Anrufen» und die Zeile Telefon ohne Lücke und ohne leeren Link; ohne Bild steht rechts eine getönte Fläche mit den Angaben; ohne Angaben und Person entfällt die Karte.
+- [ ] **28.5** Tastatur: Alle Links der Karte und des Fusses sind in Leserichtung erreichbar (Karte: Knöpfe, E-Mail, Telefon, Verweise; Fuss: Marke, Bereiche, Kontakt, Rechtliches, «Nach oben»), der Fokusring ist überall sichtbar (auf Blau in Weiss) und wird nie verdeckt.
+- [ ] **28.6** Kontrast hell und dunkel: Text mindestens 4.5:1 (Arten und Verweise auf getönter Fläche, Kontaktzeilen, Fuss auf Blau mit gedämpftem Weiss), Symbol-Kacheln und Pfeile mindestens 3:1; Zustand (Hover) nie nur über Farbe, die Zeile ist ein Link mit Pfeil.
+- [ ] **28.7** Der Fuss hat sichtbare Überschriften für Bereiche, Kontakt und Rechtliches; die beiden Navigationen («Bereiche», «Rechtliches») tragen `aria-labelledby`, es gibt genau ein `footer`.
+- [ ] **28.8** Bewegung nur ohne «Bewegung reduzieren»: Hintergrund der Zeile, Pfeile der Kontaktzeilen und der Bereiche, Pfeil von «Nach oben»; ohne Bewegung bleibt alles sichtbar und benutzbar.
+- [ ] **28.9** Reflow: bei 320 px und bei 200 Prozent Zoom kein seitliches Scrollen; die lange E-Mail-Adresse bricht um, statt abzuschneiden; das Bild hat ein `alt` (Alt-Text des Mediums) oder ist Zierde.
+- [ ] **28.10** Erzwungene Farben: der Fuss hat eine Kante, Text und Links bleiben lesbar; der Pfeil der Bereiche ist redundant (die ganze Zeile ist der Link).
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
