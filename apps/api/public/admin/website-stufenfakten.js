@@ -112,8 +112,8 @@ function zeichne(bereich, ctx, daten, neu) {
   bereich.append(
     el(
       "p",
-      { class: "hilfe" },
-      "Diese Angaben zeigt die Stufenseite für das nächste Datum. Sie wirken sofort, ohne Veröffentlichen.",
+      { class: "hilfe ws-stufenfakten-einleitung" },
+      "Hier trägst du für jede Stufe ein, wann und wo das nächste Treffen ist: Treffzeit, Treffpunkt, Schlusszeit, Schlussort und was die Kinder mitnehmen. Die Stufenseite auf der Website zeigt die Tafel zum nächsten Datum ab heute. Was du hier änderst, ist sofort sichtbar. Du musst nichts veröffentlichen.",
     ),
     el("div", { class: "ws-stufenfakten-kopf" }, stufenwahl.wurzel),
   );
