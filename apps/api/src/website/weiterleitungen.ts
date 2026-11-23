@@ -103,7 +103,7 @@ export function rendereWeiterleitungsseite(
 <body>
 <main id="inhalt">
 <h1>Diese Seite ist umgezogen</h1>
-<p><a href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a></p>
+<p><a class="verweis" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a></p>
 </main>
 </body>
 </html>

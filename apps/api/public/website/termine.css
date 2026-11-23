@@ -116,15 +116,6 @@
 .tm *::after {
   box-sizing: border-box;
 }
-.tm a {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-}
-.tm a:hover {
-  text-decoration-thickness: 2px;
-}
 .tm :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -230,65 +221,6 @@
 }
 
 /* Knöpfe */
-.tm .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 24px;
-  border-radius: var(--r-full);
-  border: 1px solid transparent;
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1.25;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  background: transparent;
-  color: var(--on-surface);
-}
-@media (max-width: 720px) {
-  .tm .btn {
-    text-align: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-}
-.tm a.btn {
-  text-decoration: none;
-}
-.tm .btn.p,
-.tm a.btn.p {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-.tm .btn.p:hover {
-  filter: brightness(1.1);
-}
-.tm .btn.s,
-.tm a.btn.s {
-  border-color: var(--outline);
-  color: var(--on-surface);
-}
-.tm .btn.s:hover {
-  background: var(--surface-container);
-}
-.tm .btn.t,
-.tm a.btn.t {
-  color: var(--accent);
-  padding: 0 12px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.tm .btn.gross {
-  min-height: 56px;
-  padding: 0 32px;
-  font-size: 1.0625rem;
-}
-.tm .btn.voll {
-  width: 100%;
-}
 .tm .btn[aria-disabled="true"] {
   background: var(--surface-container-high);
   color: var(--on-surface-variant);
@@ -1500,32 +1432,6 @@
   font-size: 0.9375rem;
   line-height: 1.4;
   color: var(--on-surface-variant);
-}
-.tm .reiter-angebot a {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  font-weight: 800;
-  text-decoration: none;
-}
-.tm .reiter-angebot a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-}
-.tm .reiter-angebot .termin-pfeil {
-  width: 1.25rem;
-  height: 1.25rem;
-  color: inherit;
-}
-.tm .reiter-angebot .i {
-  width: 1.25rem;
-  height: 1.25rem;
-}
-.tm .reiter-angebot .i .f {
-  fill: currentcolor;
-  stroke: none;
 }
 /* Zeile mit Link: Pfeil am Ende (Form und Bewegung aus website.css) */
 .tm .plan a.termin {

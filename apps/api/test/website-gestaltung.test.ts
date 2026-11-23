@@ -348,7 +348,7 @@ describe("Aufruf zum Handeln", () => {
       ),
     );
     expect(html).toContain(
-      '<div class="aufruf"><div class="aufruf-text"><h2>Schnuppern im Cevi</h2><p>Jederzeit möglich.</p></div><a href="/mitmachen/anmeldung" class="btn w gross">Zur Anmeldung<svg',
+      '<div class="aufruf"><div class="aufruf-text"><h2>Schnuppern im Cevi</h2><p>Jederzeit möglich.</p></div><a href="/mitmachen/anmeldung" class="btn w gross">Zur Anmeldung</a></div>',
     );
   });
 
@@ -468,5 +468,49 @@ describe("Umschalter Hell und Dunkel (theme.js)", () => {
   test("ein unbekannter gespeicherter Wert wird ignoriert", () => {
     const l = lauf({ gespeichert: "system", systemDunkel: false });
     expect(l.wurzel.attr.has("data-theme")).toBe(false);
+  });
+});
+
+describe("Verweise und Aktionen: ein Repertoire (#568)", () => {
+  const stil = (name: string) =>
+    readFileSync(new URL(`../public/website/${name}`, import.meta.url), "utf8");
+
+  test("Links und Knöpfe sind nur in website.css gestaltet; die anderen Stilvorlagen legen keine eigene Fassung an", () => {
+    for (const name of [
+      "termine.css",
+      "inhalt.css",
+      "kopf.css",
+      "karussell.css",
+      "auswahl.css",
+    ]) {
+      const css = stil(name);
+      // Weder der nackte Link noch die Knopfarten bekommen dort eigene Farben oder Formen
+      expect(css, name).not.toMatch(/^(\.tm )?a(:hover)? \{/m);
+      expect(css, name).not.toMatch(
+        /^(\.tm )?a?\.btn(\.[pst]|\.gross)?(:hover)? \{/m,
+      );
+    }
+  });
+
+  test("ein Pfeil für Verweise, ein Zeichen für fremde Seiten, Knöpfe ohne Pfeil", () => {
+    const css = stil("website.css");
+    expect(css).toContain(".verweis:not([rel])::after,\na.mehr::after {");
+    expect(css).toContain('a[rel~="noopener"]:not(.btn)::after {');
+    const html = seite(
+      dok(
+        "T",
+        b("hinweis", {
+          text: "Anmeldung offen",
+          link: { beschriftung: "Zum Lager", ziel: "/lager" },
+        }),
+        b("aufruf", { titel: "Los", beschriftung: "Anmelden", ziel: "/los" }),
+        b("datei", { titel: "Plan", link: "https://example.sharepoint.com/x" }),
+      ),
+    );
+    expect(html).toContain('<a href="/lager" class="verweis">Zum Lager</a>');
+    expect(html).toContain('<a href="/los" class="btn w gross">Anmelden</a>');
+    expect(html).toContain(
+      'rel="noopener noreferrer">Plan<span class="nur-sr"> (externe Seite)</span></a>',
+    );
   });
 });

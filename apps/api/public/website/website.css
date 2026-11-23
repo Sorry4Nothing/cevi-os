@@ -179,11 +179,6 @@ a:hover {
   text-decoration-thickness: 3px;
 }
 
-.lesetext a,
-.text a {
-  font-weight: 600;
-}
-
 a[rel~="noopener"]:not(.btn)::after {
   display: inline-block;
   width: 0.6em;
@@ -218,15 +213,30 @@ a.mehr:hover {
   text-underline-offset: 0.25em;
 }
 
+/* Der Pfeil eines Verweises: dieselbe Form wie das Symbol «pfeil» (Linie und gefülltes Dreieck), immer hinter dem Wort */
 .verweis:not([rel])::after,
 a.mehr::after {
   flex: none;
-  width: 1em;
-  height: 0.75em;
+  width: 0.925em;
+  height: 0.6em;
   margin-left: 0.5em;
   background: currentcolor;
-  clip-path: polygon(0 42%, 55% 42%, 55% 8%, 100% 50%, 55% 92%, 55% 58%, 0 58%);
+  clip-path: polygon(
+    0 41.7%,
+    59.5% 41.7%,
+    59.5% 0,
+    100% 50%,
+    59.5% 100%,
+    59.5% 58.3%,
+    0 58.3%
+  );
   content: "";
+}
+
+/* Ein Link ohne eigene Klasse in einem Satz, einer Angabe oder einer Adresse ist ein Textlink: überall gleich kräftig (auch Mailadresse und Telefon).
+   Ohne Gewicht in der Rangfolge (:where), damit Bausteine mit eigener Regel vorgehen */
+:where(main :is(p, dd, li, .adresse) > a:not([class])) {
+  font-weight: 600;
 }
 
 :focus-visible {
@@ -637,6 +647,12 @@ figcaption {
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+  background: transparent;
+  color: var(--on-surface);
+}
+
+a.btn {
+  color: var(--on-surface);
 }
 
 .btn.gross {
@@ -1624,14 +1640,6 @@ div.termin {
   display: inline;
 }
 
-.hinweisband .hinweis-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  font-weight: 700;
-}
-
 /* Merkmale: ein Band in der Markenfarbe über die ganze Breite. Wenige Stichworte nebeneinander, gross gesetzt, darunter ein kurzer Text; ohne Symbol, ohne Link, auf Wunsch je mit Foto */
 .sektion--marke {
   background: var(--secondary);
@@ -2500,17 +2508,13 @@ a.btn.w {
   }
 
   .stufe-pfeil,
-  .termin-pfeil,
-  .btn .i,
-  .hinweis-link .i {
+  .termin-pfeil {
     transition: translate var(--dauer) var(--kurve);
   }
 
   .stufe--link:hover .stufe-pfeil,
-  a.termin:hover .termin-pfeil,
-  .btn:hover .i,
-  .hinweis-link:hover .i {
-    translate: 0.3125rem 0;
+  a.termin:hover .termin-pfeil {
+    translate: 0.25rem 0;
   }
 
   /* Hell und Dunkel blenden ineinander über (theme.js startet den Wechsel als View Transition) */

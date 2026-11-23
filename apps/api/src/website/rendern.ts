@@ -513,11 +513,7 @@ function rendereBaustein(
           el(`h${ebene}`, undefined, b.daten.titel),
           ...(b.daten.text ? [el("p", undefined, b.daten.text)] : []),
         ),
-        ...verlinke(
-          b.daten.ziel,
-          [b.daten.beschriftung, symbol("pfeil")],
-          "btn w gross",
-        ),
+        ...verlinke(b.daten.ziel, [b.daten.beschriftung], "btn w gross"),
       );
     }
     case "schaltflaeche": {
@@ -542,7 +538,12 @@ function rendereBaustein(
       return el(
         "p",
         { class: "datei karte" },
-        el("a", { href: l.link, rel: "noopener noreferrer" }, b.daten.titel),
+        el(
+          "a",
+          { href: l.link, rel: "noopener noreferrer" },
+          b.daten.titel,
+          EXTERN_HINWEIS,
+        ),
         ...(info.length > 0
           ? [" ", el("span", { class: "info" }, `(${info.join(", ")})`)]
           : []),
@@ -610,8 +611,8 @@ function rendereBaustein(
           ...(b.daten.link
             ? verlinke(
                 b.daten.link.ziel,
-                [b.daten.link.beschriftung, symbol("pfeil")],
-                "hinweis-link",
+                [b.daten.link.beschriftung],
+                "verweis",
               )
             : []),
         ),

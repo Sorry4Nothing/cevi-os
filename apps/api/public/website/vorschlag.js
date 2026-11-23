@@ -381,7 +381,7 @@ export const erfolgView = () =>
         { type: "button", class: "btn s", "data-aktion": "neu" },
         "Weiteren Termin vorschlagen",
       ),
-      h("a", { href: "/termine/" }, "Zu den Terminen"),
+      h("a", { class: "verweis", href: "/termine/" }, "Zu den Terminen"),
     ),
   });
 
