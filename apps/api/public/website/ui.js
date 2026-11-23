@@ -51,3 +51,25 @@ export function band(art, titel, text, symbolName) {
   if (text) inhalt.append(text);
   return el("div", `band${art ? ` ${art}` : ""}`, symbol(symbolName), inhalt);
 }
+
+// --- Ladezustände (#574). Der Stil steht in website.css (Abschnitt «Ladezustände»): .skelett, .sk mit Breite und Höhe, Bilder über ladezustand.js.
+// Ein Skelett in der Form des späteren Inhalts. Jedes Argument beschreibt ein Teil über Klassen, z. B. skelett("t h24 b40", "t b90", "r h48 bpx160").
+// Es ist für Hilfstechnik verborgen: Der Bereich trägt aria-busy, die Ansage steht in einer Statusregion. Es erscheint erst nach 150 ms (Stil).
+export function skelett(...teile) {
+  const s = el("div", "skelett", ...teile.map((k) => el("span", `sk ${k}`)));
+  s.setAttribute("aria-hidden", "true");
+  return s;
+}
+
+// Nichts bleibt für immer im Ladezustand: Nach dieser Frist gilt ein Abruf als gescheitert (der Aufrufer zeigt dann seinen Fehlerzustand mit «Nochmals versuchen»)
+export const FRIST_MS = 15000;
+
+// fetch mit Frist; bricht ab, wenn die Frist abläuft oder das übergebene signal abbricht. Wirft wie fetch (der Aufrufer fängt es ab)
+export function holeMitFrist(url, optionen = {}, frist = FRIST_MS) {
+  const abbruch = new AbortController();
+  const aus = setTimeout(() => abbruch.abort(), frist);
+  optionen.signal?.addEventListener("abort", () => abbruch.abort());
+  return fetch(url, { ...optionen, signal: abbruch.signal }).finally(() =>
+    clearTimeout(aus),
+  );
+}

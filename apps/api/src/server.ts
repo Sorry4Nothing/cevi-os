@@ -180,8 +180,8 @@ if (
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
   );
-  // Die Dateien neben website.css (#354, #530): alle .js, die weiteren Stylesheets (website.css geht als «stylesheet» mit), die Schrift (Bytes) und ihre Lizenz
-  const textEndung = /\.(js|css|txt)$/;
+  // Die Dateien neben website.css (#354, #530): alle .js, das Zeichen für fehlende Bilder (.svg), die weiteren Stylesheets (website.css geht als «stylesheet» mit), die Schrift (Bytes) und ihre Lizenz
+  const textEndung = /\.(js|css|txt|svg)$/;
   const skripte = Object.fromEntries(
     readdirSync(new URL("../public/website/", import.meta.url))
       .filter(

@@ -248,14 +248,13 @@ export function listeLadeView() {
     h("span", { class: "sk h24 b40", "aria-hidden": "true" }),
     h(
       "div",
-      { class: "skel" },
+      { class: "skelett" },
       h("ul", { class: "termine" }, [
         zeile("b50", "b70"),
         zeile("b40", "b60"),
         zeile("b50", "b70"),
         zeile("b40", "b60"),
       ]),
-      h("span", { class: "schimmer" }),
     ),
     h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );
@@ -594,11 +593,10 @@ export function monatLadeView(monat) {
     ),
     h(
       "div",
-      { class: "skel" },
+      { class: "skelett" },
       h("span", { class: "sk h56 b100" }),
       h("span", { class: "sk h56 b100 mt" }),
       h("span", { class: "sk h56 b100 mt" }),
-      h("span", { class: "schimmer" }),
     ),
     h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );

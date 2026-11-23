@@ -249,12 +249,11 @@ export function formularView(s) {
           h("span", { class: "legende" }, "Gruppen"),
           h(
             "div",
-            { class: "skel pillen", "aria-hidden": "true" },
+            { class: "skelett pillen", "aria-hidden": "true" },
             sk("r h48 bpx70"),
             sk("r h48 bpx70"),
             sk("r h48 bpx70"),
             sk("r h48 bpx160"),
-            h("span", { class: "schimmer" }),
           ),
           h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
         )
