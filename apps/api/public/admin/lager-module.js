@@ -36,6 +36,44 @@ export const MODULE = [
     gruppe: "Planen",
     laden: () => import("./lager-m-todos.js"),
   },
+  {
+    schluessel: "heute",
+    titel: "Heute",
+    gruppe: "Start",
+    laden: () => import("./lager-m-heute.js"),
+  },
+  {
+    schluessel: "woche",
+    titel: "Meine Woche",
+    gruppe: "Start",
+    laden: () => import("./lager-m-woche.js"),
+  },
+  {
+    schluessel: "check",
+    titel: "Sind wir bereit?",
+    gruppe: "Start",
+    recht: "check.lesen",
+    laden: () => import("./lager-m-check.js"),
+  },
+  {
+    schluessel: "suche",
+    titel: "Suche",
+    gruppe: "Start",
+    laden: () => import("./lager-m-suche.js"),
+  },
+  {
+    schluessel: "ressorts",
+    titel: "Ressorts",
+    gruppe: "Lager",
+    recht: "ressorts.lesen",
+    laden: () => import("./lager-m-ressorts.js"),
+  },
+  {
+    schluessel: "benachrichtigungen",
+    titel: "Benachrichtigungen",
+    gruppe: "Lager",
+    laden: () => import("./lager-m-benachrichtigungen.js"),
+  },
 ];
 
 // Ein Suchbegriff aus dem Feld im Kopf des Arbeitsbereichs geht nie in die Adresse (er kann einen Namen enthalten); das Modul «Suche» holt ihn hier ab
