@@ -1792,6 +1792,111 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/rechte.js:
+    get:
+      operationId: getAdminRechteSkript
+      summary: Skript der Verwaltung – Rollen und Rechte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte.css:
+    get:
+      operationId: getAdminRechteStilvorlage
+      summary: Stilvorlage der Verwaltung – Rollen und Rechte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/rechte-rollen.js:
+    get:
+      operationId: getAdminRechteRollenSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter Rollen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-gruppen.js:
+    get:
+      operationId: getAdminRechteGruppenSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter Gruppen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-uebersicht.js:
+    get:
+      operationId: getAdminRechteUebersichtSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter «Was darf wer»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-gemeinsam.js:
+    get:
+      operationId: getAdminRechteGemeinsamSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, gemeinsame Bausteine
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-logik.js:
+    get:
+      operationId: getAdminRechteLogikSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/import.js:
     get:
       operationId: getAdminImportSkript
@@ -5187,6 +5292,35 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/zuordnungen:
+    get:
+      operationId: listeAdminRechteZuordnungen
+      summary: Zuordnungen für «Rollen und Rechte»
+      description: |
+        Nur Admins, nur lesen (#623). Fasst vorhandene Zeilen der eigenen Abteilung zusammen, damit die Seite «Rollen und Rechte» der Verwaltung nicht je Gruppe und je Lager einzeln fragen muss: Gruppen mit ihren Mitgliedern und deren Rolle (bei einem Team gibt die Rolle «verantwortlich» das Recht an der Seite des Teams), Lager mit ihren Mitgliedern und Rollen, Räume mit dem Team, das über Anfragen entscheidet, Sonderrechte an Seiten (`bearbeiter`) und die Seiten mit Titel. Es gibt kein neues Recht: Die Antwort erlaubt nichts, sie zeigt, was heute gilt. Plattformrollen kommen aus `/api/v1/admin/plattform/rollen`, Personen aus `/api/v1/admin/personen`.
+
+        Nur Kennungen und Namen von Gruppen, Lagern, Räumen und Seiten sowie Rollenwerte; nie Namen oder Kontaktdaten von Personen. Sieben Abfragen je Aufruf, jede auf die Abteilung der Sitzung gefiltert.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zuordnungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRechteZuordnungen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -24425,6 +24559,156 @@ components:
                   - string
                   - "null"
                 format: uuid
+    AdminRechteZuordnungen:
+      type: object
+      required:
+        - gruppen
+        - lager
+        - raeume
+        - sonderrechte
+        - seiten
+      properties:
+        gruppen:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - typ
+              - name
+              - mitglieder
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                type: string
+                enum:
+                  - stufe
+                  - funktion
+                  - team
+                  - lager
+              name:
+                type: string
+              mitglieder:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - userId
+                    - rolle
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                    rolle:
+                      type:
+                        - string
+                        - "null"
+                      description: Freitext; bei einem Team gibt der Wert «verantwortlich» (Gross- und Kleinschreibung egal) das Recht an der Seite des Teams.
+        lager:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+              - status
+              - mitglieder
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+              status:
+                type: string
+                enum:
+                  - entwurf
+                  - aktiv
+                  - abgeschlossen
+                  - archiviert
+              mitglieder:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - userId
+                    - rolle
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                    rolle:
+                      type: string
+                      enum:
+                        - lagerleitung
+                        - leitung
+                        - team
+                        - lesen
+        raeume:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - teamTagId
+              - aktiv
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              teamTagId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+                description: Die Gruppe, deren Mitglieder über Anfragen für den Raum entscheiden.
+              aktiv:
+                type: boolean
+        sonderrechte:
+          type: array
+          description: Zeilen aus `bearbeiter` für Seiten der Abteilung.
+          items:
+            type: object
+            required:
+              - id
+              - seiteId
+              - userId
+              - tagId
+            properties:
+              id:
+                type: string
+                format: uuid
+              seiteId:
+                type: string
+                format: uuid
+              userId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+              tagId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+        seiten:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
     AdminAngelegt:
       type: object
       required:

@@ -6,17 +6,18 @@ Stand: 23.11.2026, Branch `develop` (ohne das Lädeli aus #566, siehe Abschnitt 
 
 Wo etwas entschieden wird:
 
-| Frage                                           | Ort im Code                                                                                 |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Wer ist die Person, welche Stufenrollen hat sie | `apps/api/src/rechte.ts` (`personAusSitzung`, `Person`, `hatRolle`)                         |
-| Plattformrechte, Entwickler, Webmaster          | `apps/api/src/plattform.ts` (`PLATTFORM_RECHTE`, `hatPlattformRecht`, `istEntwickler`)      |
-| Recht an einer Seite (Stufe, Team, Sonderrecht) | `apps/api/src/bearbeiten.ts` (`darfBearbeiten`, `bearbeitbar`)                              |
-| Zugang zur Website-Verwaltung                   | `apps/api/src/website/seiten.ts` (`hatWebsiteZugang`, `hatErweitertesRecht`)                |
-| Rollen und Rechte im Lager                      | `apps/api/src/lager/rechte-katalog.ts`, `lager/policy.ts` (`lagerZugriff`, `darf`)          |
-| Sichtbarkeit von Inhalten                       | `apps/api/src/sichtbarkeit.ts`, `termine/sicht.ts`, `termine/anlass-sicht.ts`               |
-| Wartungsmodus und Informationssperre            | `apps/api/src/bereichsschalter.ts`, `routes/plattform.ts`                                   |
-| Zweiter Faktor                                  | `rechte.ts` (`zweiterFaktorPflicht`), `plattform.ts`, `lager/policy.ts`, `app.ts`           |
-| Beweis, was jede Route antwortet                | `apps/api/test/rechte-matrix.test.ts`, `test/lager/matrix/*.ts`, `test/termine/matrix/*.ts` |
+| Frage                                              | Ort im Code                                                                                                               |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Wer ist die Person, welche Stufenrollen hat sie    | `apps/api/src/rechte.ts` (`personAusSitzung`, `Person`, `hatRolle`)                                                       |
+| Plattformrechte, Entwickler, Webmaster             | `apps/api/src/plattform.ts` (`PLATTFORM_RECHTE`, `hatPlattformRecht`, `istEntwickler`)                                    |
+| Recht an einer Seite (Stufe, Team, Sonderrecht)    | `apps/api/src/bearbeiten.ts` (`darfBearbeiten`, `bearbeitbar`)                                                            |
+| Zugang zur Website-Verwaltung                      | `apps/api/src/website/seiten.ts` (`hatWebsiteZugang`, `hatErweitertesRecht`)                                              |
+| Rollen und Rechte im Lager                         | `apps/api/src/lager/rechte-katalog.ts`, `lager/policy.ts` (`lagerZugriff`, `darf`)                                        |
+| Sichtbarkeit von Inhalten                          | `apps/api/src/sichtbarkeit.ts`, `termine/sicht.ts`, `termine/anlass-sicht.ts`                                             |
+| Wartungsmodus und Informationssperre               | `apps/api/src/bereichsschalter.ts`, `routes/plattform.ts`                                                                 |
+| Zweiter Faktor                                     | `rechte.ts` (`zweiterFaktorPflicht`), `plattform.ts`, `lager/policy.ts`, `app.ts`                                         |
+| Oberfläche für Rollen, Gruppen und «Was darf wer?» | `apps/api/public/admin/rechte*.js`, `apps/api/src/routes/admin/rechte.ts` (Verwaltung, Personen, Rollen und Rechte; #623) |
+| Beweis, was jede Route antwortet                   | `apps/api/test/rechte-matrix.test.ts`, `test/lager/matrix/*.ts`, `test/termine/matrix/*.ts`                               |
 
 ## 1. Begriffe und Rollen
 
@@ -125,6 +126,7 @@ Beleg: **M** = `apps/api/test/rechte-matrix.test.ts` (Schlüssel der Zeile), **L
 | Push-Mitteilung an Gruppen senden                                                                                  | –               | –                        | –             | –             | –             | ja, ZF        | M: `POST /api/v1/admin/mitteilungen`                              |
 | Zeitregeln, Betriebszahlen, Kalender-Abgleich                                                                      | –               | –                        | –             | –             | –             | ja, ZF        | M: `/api/v1/admin/zeitregeln*`, `/admin/system*`                  |
 | Plattformrollen anlegen, Rechte einstellen, zuweisen                                                               | –               | –                        | –             | –             | –             | ja, ZF        | M: `/api/v1/admin/plattform/rollen*`                              |
+| Zuordnungen für «Rollen und Rechte» lesen (Gruppen, Lager, Räume, Sonderrechte)                                    | –               | –                        | –             | –             | –             | ja, ZF        | M: `GET /api/v1/admin/rechte/zuordnungen`                         |
 | Sonderrechte an Seiten vergeben (`bearbeiter`)                                                                     | –               | –                        | –             | –             | –             | ja, ZF        | M: `/api/v1/admin/bearbeiter*`                                    |
 | Medien über die Admin-Routen hochladen, auflisten, löschen                                                         | –               | –                        | –             | –             | –             | ja, ZF        | M: `/api/v1/admin/medien*` (zweiter Weg zu den Medien, siehe 4.4) |
 | Medium lesen                                                                                                       | nur öffentliche | ja (Sichtbarkeit)        | ja            | ja            | ja            | ja            | M: `GET /api/v1/medien/:id`, `test/medien.test.ts`                |
@@ -276,7 +278,8 @@ Neue Route oder geänderte Regel:
 4. **Matrixzeile:** `apps/api/test/rechte-matrix.test.ts` (Hauptmatrix), `test/lager/matrix/<modul>.ts` oder `test/termine/matrix/<modul>.ts`. Werte als Literale, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet. Die Tests prüfen, dass jede Route eine Zeile hat und jede Zeile eine Route.
 5. **Vertrag:** `docs/api/openapi.yaml` ergänzen (Antworten 401, 403, 404, 409 und, wo es gilt, `ZWEITER_FAKTOR_FEHLT`). Der Test `openapi.test.ts` hält Routen und Vertrag zusammen.
 6. **Dokumente:** `docs/api/endpunkte.md` und die Postman-Collection neu erzeugen (`docs/api/postman.md`). Diese Seite nachführen, wenn sich Rollen, Rechte oder Grundregeln ändern.
-7. **Bedrohungsmodell und Checkliste:** `~/.claude/security/security-checklist.md` für den Änderungstyp durchgehen, im PR Abweichungen von SR-Anforderungen nennen.
+7. **Oberfläche:** Wer ein Plattformrecht ergänzt, trägt Klartext, Bereich und Wirkung in `RECHT_INFO` (`apps/api/public/admin/rechte-logik.js`) ein; `admin-rechte.test.ts` schlägt sonst fehl. Ohne Eintrag erscheint das Recht unter «Weitere» mit dem Text des Servers.
+8. **Bedrohungsmodell und Checkliste:** `~/.claude/security/security-checklist.md` für den Änderungstyp durchgehen, im PR Abweichungen von SR-Anforderungen nennen.
 
 Prüfen:
 
@@ -306,6 +309,10 @@ Hier steht, wo Code, Tests und Kommentare nicht zusammenpassen oder nichts entsc
 9. **Kein Selbstbedienungsweg für Datenschutzrechte.** Konto löschen und Daten löschen laufen nur auf Anfrage bei der Leitung (Seite «Konto löschen»); es gibt keine Route für Auskunft oder Export einer Person. Entscheid und rechtliche Prüfung offen (J+S-Frist 10 Jahre gegen Löschung nach 6 Monaten, Datenschutzerklärung #548).
 10. **Entwickler ist kein Admin.** Er hat jedes Recht des Plattformkatalogs, aber keine Routen unter `/api/v1/admin/*` (dort 403, die Routen prüfen `person.admin`) und sieht keine Admin-Daten. Das ist gewollt (Kommentar in `plattform.ts`), steht aber in keinem Entscheid; bitte bestätigen.
 11. **Lager-Mitglieder sind beliebige Konten.** Jedes Konto der Abteilung (auch Eltern) kann Mitglied eines Lagers sein; das Konto der Lagerleitung braucht für das Ändern der Rechte den zweiten Faktor, sonst nichts Besonderes. Offen, ob Eltern Lager-Mitglieder sein sollen.
+
+12. **Rechte an einer Gruppe lassen sich nicht einstellen (offen, Entscheid #585).** Die Seite «Rollen und Rechte» zeigt ehrlich, was Gruppen heute tragen: Verantwortliche eines Teams (Seite des Teams), Raumanfragen des Teams, Terminvorschläge, Sonderrechte an einzelnen Seiten. Ein Recht aus dem Katalog (zum Beispiel «Medien verwalten») kann eine Gruppe wie «Mat» nicht tragen; Plattformrollen gelten für Personen. Es gibt auch keine Rollen in der Gruppe ausser dem Freitext «verantwortlich» und keine Geltung «nur eigene Objekte». Das ist der Umbau aus dem Entwurf (Vorlage je Gruppentyp, `plattform_rolle` mit Gruppenart); er ist nicht entschieden und nicht gebaut.
+13. **Kein Verlauf der Rechteänderungen in der Oberfläche.** Die Änderungen stehen im Audit-Log, aber keine Route liest es. Die Seite zeigt darum keinen Verlauf. Entscheid: Eine lesende Route für die Abteilungsleitung (nur Aktion, Zeit, Kennungen) oder weiter nur die Datenbank.
+14. **Gleichzeitige Änderung einer Rolle.** `PATCH …/rollen/{id}` ersetzt die Rechte als Ganzes, ohne Versionsnummer. Die Oberfläche liest vor dem Speichern den Stand noch einmal und bricht bei einer Änderung ab; ein Rest bleibt, wenn zwei Personen im selben Augenblick speichern.
 
 ## Anhang A: Rechte des Lagers
 

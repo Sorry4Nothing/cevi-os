@@ -243,6 +243,13 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-vorlagen.js": { erwartet: alle(200) },
   "GET /admin/lager-personenwahl.js": { erwartet: alle(200) },
   "GET /admin/lager-rechte.js": { erwartet: alle(200) },
+  "GET /admin/rechte.js": { erwartet: alle(200) },
+  "GET /admin/rechte.css": { erwartet: alle(200) },
+  "GET /admin/rechte-rollen.js": { erwartet: alle(200) },
+  "GET /admin/rechte-gruppen.js": { erwartet: alle(200) },
+  "GET /admin/rechte-uebersicht.js": { erwartet: alle(200) },
+  "GET /admin/rechte-gemeinsam.js": { erwartet: alle(200) },
+  "GET /admin/rechte-logik.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -1241,6 +1248,17 @@ const MATRIX: Record<string, Zeile> = {
   },
   // Bearbeitungsrechte (#334): nur Admins; Wirkung der Rechte in test/bearbeiten.test.ts
   "GET /api/v1/admin/bearbeiter": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Zuordnungen für «Rollen und Rechte» (#623): nur lesen, nur Abteilungsleitung; Wirkung in test/admin-rechte.test.ts
+  "GET /api/v1/admin/rechte/zuordnungen": {
     erwartet: {
       ...alle(403),
       admin: 200,
