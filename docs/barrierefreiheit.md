@@ -404,23 +404,6 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Suche (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf. Alle Prüfpunkte der Suche stehen in Abschnitt 30.
 
-## 30. Verwaltung: Suche mit reichen Treffern (#611)
-
-Dieser Abschnitt gilt für `befehlspalette.js` und den Block «Suche» in `geruest.css`. Geprüft wird im Browser mit je einem Konto der Abteilungsleitung, eines Webmasters und einer Stufenleitung, bei 390, 720 (entspricht 200 % Zoom bei 1440), 1024, 1440 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
-
-- [ ] **30.1** Öffnen und Schliessen: Strg oder Cmd + K und der Knopf «Suchen» öffnen die Suche, der Fokus liegt im Feld. Escape, die Schaltfläche «Suche schliessen» und ein Klick neben die Karte schliessen sie, der Fokus kehrt an den Auslöser zurück. Sie ist die einzige Überlagerung der Verwaltung.
-- [ ] **30.2** Aufbau für Screenreader: Feld mit `role="combobox"` (`aria-controls`, `aria-activedescendant`), Treffer als `role="listbox"` mit Gruppen (`role="group"`, benannt durch die Gruppenzeile) und Optionen. Die Zahl der Treffer steht in einer Statusregion (nur mit Frage). Jede Zeile trägt ihre Angaben als Text: Name, Cevi-Name, Rollen, Tags, Konto-Zustand; Zustände sind Chips mit Wort und Symbol, nie nur Farbe.
-- [ ] **30.3** Tastatur: Pfeil hoch und runter wählen (rund herum), Bild auf und Bild ab springen zur ersten Zeile der vorigen oder nächsten Gruppe, Strg + Pos1 und Strg + Ende zur ersten und letzten Zeile, Enter öffnet. Tab erreicht die Reiter, Pfeil links und rechts wechseln sie, Pfeil runter geht zurück ins Feld, ein Buchstabe im Reiter geht ins Feld.
-- [ ] **30.4** Reiter «Alle», «Seiten», «Personen», «Gruppen», «Termine», «Anlässe», «Website», «Lager» (je nach Recht) tragen die Zahl der Treffer; solange eine Quelle lädt, steht «…» statt einer täuschenden Null. Jeder Reiter ist 44 Pixel hoch; auf schmalen Bildschirmen scrollt die Leiste waagrecht und bleibt per Tab erreichbar.
-- [ ] **30.5** Treffer im Text sind getönt und fett (`mark`), nie nur farbig; in erzwungenen Farben tragen sie einen Rand. Umlaute und Grossschreibung zählen nicht («uebersicht» findet «Übersicht»).
-- [ ] **30.6** Leerzustand: Ohne Frage steht ein Satz, was sich finden lässt («Tippe einen Namen oder Cevi-Namen, eine Seite, …»), darunter «Zuletzt benutzt», die Aktionen und die ersten Seiten. Ohne Treffer steht «Nichts gefunden für «…»» mit demselben Satz. Während Quellen laden, stehen «Lade Personen …» und ruhige Platzhalter; scheitert eine, steht ein Hinweis mit Symbol (`role="alert"`), und die übrigen Gruppen bleiben benutzbar.
-- [ ] **30.7** Breite: Die Karte ist so breit wie der Inhalt der Website (bis 105 rem, Seitenrand `clamp(1rem, 4vw, 4.5rem)`), mobil volle Breite abzüglich des Rands. Kein waagrechter Seitenscroll bei 390, 720, 1024, 1440 und 2560 Pixeln. Eine Zeile hat fünf Felder (Bild oder Symbol, Titel mit Zusatz, Angabe, Chips, Zustand) in festen Spalten; unter 56 rem stehen sie untereinander.
-- [ ] **30.8** Zielgrössen: Reiter und Schaltflächen sind mindestens 44 Pixel hoch, Zeilen mindestens 48 Pixel. Die Tastenhilfe im Fuss entfällt auf Geräten ohne Tastatur und schmal.
-- [ ] **30.9** Bewegung: Das Einblenden der Karte und das Pulsieren der Platzhalter laufen nur ohne «Bewegung reduzieren». Die Liste scrollt nicht weich.
-- [ ] **30.10** Bilder: Das Profilbild lädt erst, wenn die Zeile sichtbar wird (`loading="lazy"`); bis dahin und bei einem Fehler stehen die Initialen im Kreis.
-- [ ] **30.11** Rechte und Daten: Eine Gruppe erscheint nur, wenn die Navigation der Person die zugehörige Seite zeigt (Stufenleitung und Webmaster: nur Seiten der Verwaltung und Website-Seiten). Kinder kommen nie vor. Im Speicher stehen nur Name, Cevi-Name, Benutzername, Bild, Rollen, Tags und Konto-Zustand einer Person, nie Startpasswort, Telefon oder Kinder.
-- [ ] **30.12** Last: Beim Öffnen läuft höchstens eine Abfrage je Quelle, nie eine je Tastendruck; das Ergebnis gilt fünf Minuten, hat die Liste «Personen» ihre Daten schon, fragt die Suche dort nicht nochmals.
-
 ## 23. Verwaltung: Breite, Übersicht, Zähler, Auswahlfelder (#607)
 
 Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.js`) und die Übersicht (`uebersicht*.js`, `uebersicht.css`). Die Abschnitte 15, 16 und 22 gelten weiter.
@@ -485,6 +468,23 @@ Gilt für die Kontaktkarte am Ende der Startseite und für den Fuss jeder Seite 
 - [ ] **28.8** Bewegung nur ohne «Bewegung reduzieren»: Hintergrund der Zeile, Pfeile der Kontaktzeilen und der Bereiche, Pfeil von «Nach oben»; ohne Bewegung bleibt alles sichtbar und benutzbar.
 - [ ] **28.9** Reflow: bei 320 px und bei 200 Prozent Zoom kein seitliches Scrollen; die lange E-Mail-Adresse bricht um, statt abzuschneiden; das Bild hat ein `alt` (Alt-Text des Mediums) oder ist Zierde.
 - [ ] **28.10** Erzwungene Farben: der Fuss hat eine Kante, Text und Links bleiben lesbar; der Pfeil der Bereiche ist redundant (die ganze Zeile ist der Link).
+
+## 30. Verwaltung: Suche mit reichen Treffern (#611)
+
+Dieser Abschnitt gilt für `befehlspalette.js` und den Block «Suche» in `geruest.css`. Geprüft wird im Browser mit je einem Konto der Abteilungsleitung, eines Webmasters und einer Stufenleitung, bei 390, 720 (entspricht 200 % Zoom bei 1440), 1024, 1440 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
+
+- [ ] **30.1** Öffnen und Schliessen: Strg oder Cmd + K und der Knopf «Suchen» öffnen die Suche, der Fokus liegt im Feld. Escape, die Schaltfläche «Suche schliessen» und ein Klick neben die Karte schliessen sie, der Fokus kehrt an den Auslöser zurück. Sie ist die einzige Überlagerung der Verwaltung.
+- [ ] **30.2** Aufbau für Screenreader: Feld mit `role="combobox"` (`aria-controls`, `aria-activedescendant`), Treffer als `role="listbox"` mit Gruppen (`role="group"`, benannt durch die Gruppenzeile) und Optionen. Die Zahl der Treffer steht in einer Statusregion (nur mit Frage). Jede Zeile trägt ihre Angaben als Text: Name, Cevi-Name, Rollen, Tags, Konto-Zustand; Zustände sind Chips mit Wort und Symbol, nie nur Farbe.
+- [ ] **30.3** Tastatur: Pfeil hoch und runter wählen (rund herum), Bild auf und Bild ab springen zur ersten Zeile der vorigen oder nächsten Gruppe, Strg + Pos1 und Strg + Ende zur ersten und letzten Zeile, Enter öffnet. Tab erreicht die Reiter, Pfeil links und rechts wechseln sie, Pfeil runter geht zurück ins Feld, ein Buchstabe im Reiter geht ins Feld.
+- [ ] **30.4** Reiter «Alle», «Seiten», «Personen», «Gruppen», «Termine», «Anlässe», «Website», «Lager» (je nach Recht) tragen die Zahl der Treffer; solange eine Quelle lädt, steht «…» statt einer täuschenden Null. Jeder Reiter ist 44 Pixel hoch; auf schmalen Bildschirmen scrollt die Leiste waagrecht und bleibt per Tab erreichbar.
+- [ ] **30.5** Treffer im Text sind getönt und fett (`mark`), nie nur farbig; in erzwungenen Farben tragen sie einen Rand. Umlaute und Grossschreibung zählen nicht («uebersicht» findet «Übersicht»).
+- [ ] **30.6** Leerzustand: Ohne Frage steht ein Satz, was sich finden lässt («Tippe einen Namen oder Cevi-Namen, eine Seite, …»), darunter «Zuletzt benutzt», die Aktionen und die ersten Seiten. Ohne Treffer steht «Nichts gefunden für «…»» mit demselben Satz. Während Quellen laden, stehen «Lade Personen …» und ruhige Platzhalter; scheitert eine, steht ein Hinweis mit Symbol (`role="alert"`), und die übrigen Gruppen bleiben benutzbar.
+- [ ] **30.7** Breite: Die Karte ist so breit wie der Inhalt der Website (bis 105 rem, Seitenrand `clamp(1rem, 4vw, 4.5rem)`), mobil volle Breite abzüglich des Rands. Kein waagrechter Seitenscroll bei 390, 720, 1024, 1440 und 2560 Pixeln. Eine Zeile hat fünf Felder (Bild oder Symbol, Titel mit Zusatz, Angabe, Chips, Zustand) in festen Spalten; unter 56 rem stehen sie untereinander.
+- [ ] **30.8** Zielgrössen: Reiter und Schaltflächen sind mindestens 44 Pixel hoch, Zeilen mindestens 48 Pixel. Die Tastenhilfe im Fuss entfällt auf Geräten ohne Tastatur und schmal.
+- [ ] **30.9** Bewegung: Das Einblenden der Karte und das Pulsieren der Platzhalter laufen nur ohne «Bewegung reduzieren». Die Liste scrollt nicht weich.
+- [ ] **30.10** Bilder: Das Profilbild lädt erst, wenn die Zeile sichtbar wird (`loading="lazy"`); bis dahin und bei einem Fehler stehen die Initialen im Kreis.
+- [ ] **30.11** Rechte und Daten: Eine Gruppe erscheint nur, wenn die Navigation der Person die zugehörige Seite zeigt (Stufenleitung und Webmaster: nur Seiten der Verwaltung und Website-Seiten). Kinder kommen nie vor. Im Speicher stehen nur Name, Cevi-Name, Benutzername, Bild, Rollen, Tags und Konto-Zustand einer Person, nie Startpasswort, Telefon oder Kinder.
+- [ ] **30.12** Last: Beim Öffnen läuft höchstens eine Abfrage je Quelle, nie eine je Tastendruck; das Ergebnis gilt fünf Minuten, hat die Liste «Personen» ihre Daten schon, fragt die Suche dort nicht nochmals.
 
 ## Im PR angeben
 

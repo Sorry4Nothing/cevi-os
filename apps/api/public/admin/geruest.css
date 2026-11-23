@@ -563,13 +563,13 @@
   }
 }
 
-/* Suche (befehlspalette.js, Strg oder Cmd + K): eine Karte oben, so breit wie der Inhalt der Website (105 rem, Seitenrand wie --rand dort), über abgedunkeltem Grund. Oben das Feld, darunter Reiter mit Zahlen und die Treffer in Gruppen; jede Zeile trägt die Angaben, an denen man den Treffer erkennt (Aufbau nach Kokonut «Action Search Bar» und «Team Member List», eigene Klassen). */
+/* Suche (befehlspalette.js, Strg oder Cmd + K): eine Karte oben, so breit wie der Inhalt der Website (--seitenbreite und --seitenrand, die Werte von .wrap), über abgedunkeltem Grund. Oben das Feld, darunter Reiter mit Zahlen und die Treffer in Gruppen; jede Zeile trägt die Angaben, an denen man den Treffer erkennt (Aufbau nach Kokonut «Action Search Bar» und «Team Member List», eigene Klassen). */
 
 .palette {
-  --palette-rand: clamp(1rem, 4vw, 4.5rem);
+  --palette-rand: var(--seitenrand);
   --palette-oben: clamp(0.75rem, 7vh, 4.5rem);
   width: 100%;
-  max-width: min(105rem, 100%);
+  max-width: min(var(--seitenbreite), 100%);
   max-height: none;
   margin: 0 auto auto;
   padding: var(--palette-oben) var(--palette-rand) 0;
