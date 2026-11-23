@@ -381,33 +381,20 @@ function aktionen(lager, hatLeitung, ctx, neu) {
       ),
   };
   if (lager.status === "entwurf") {
-    // Ohne Lagerleitung endet «Aktivieren» im Fehler: Der Knopf führt stattdessen dorthin, wo man sie festlegt
-    if (!hatLeitung)
-      return [
-        el(
-          "a",
-          {
-            class: "knopf knopf--haupt",
-            href: `${ADRESSE}/${lager.id}/mitglieder`,
-          },
-          symbol("personen"),
-          "Lagerleitung festlegen",
-        ),
-        knopfMit("Archivieren", {
-          symbol: "archiv",
-          onclick: archivieren.onclick,
-        }),
-      ];
-    return [
-      splitKnopf({
-        text: "Aktivieren",
-        art: "haupt",
-        symbol: "haken",
-        onclick: () =>
-          wechsle(lager, "aktiv", `«${lager.titel}» ist aktiv.`, ctx, neu),
-        eintraege: [archivieren],
-      }),
-    ];
+    // Ohne Lagerleitung antwortet der Server mit 409: Der Knopf ist gesperrt, der Grund steht im Hinweis darunter (aria-describedby) mit dem Weg zu den Mitgliedern
+    const aktivieren = splitKnopf({
+      text: "Aktivieren",
+      art: "haupt",
+      symbol: "haken",
+      onclick: () =>
+        wechsle(lager, "aktiv", `«${lager.titel}» ist aktiv.`, ctx, neu),
+      eintraege: [archivieren],
+    });
+    if (!hatLeitung) {
+      aktivieren.haupt.disabled = true;
+      aktivieren.haupt.setAttribute("aria-describedby", "lg-ohne-leitung");
+    }
+    return [aktivieren];
   }
   if (lager.status === "aktiv")
     return [
@@ -475,11 +462,19 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
     lager.status === "entwurf" && rolle("lagerleitung") === 0
       ? el(
           "div",
-          { class: "hinweis hinweis--warn", role: "status" },
+          { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
           el(
             "span",
             {},
             "Zum Aktivieren fehlt die Lagerleitung. Ein aktives Lager braucht mindestens eine Person mit dieser Rolle.",
+          ),
+          el(
+            "a",
+            {
+              class: "knopf knopf--klein",
+              href: `${ADRESSE}/${lager.id}/mitglieder`,
+            },
+            "Mitglieder öffnen",
           ),
         )
       : lager.status === "abgeschlossen"

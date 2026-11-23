@@ -274,6 +274,25 @@ Dieser Abschnitt gilt für die Übersicht unter `/admin#uebersicht` (`apps/api/p
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 16.1 bis 16.7 und 16.9 bis 16.11 (1440, 390 und 320 Pixel, Hell, Dunkel, erzwungene Farben, Tabellenansicht, Tastaturfolge mit Pfeiltasten in den Grafiken, je ein Konto der Abteilungsleitung, der Stufenleitung und des Webmasters). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack: 14.2, 14.3 und 14.8 nur an den Attributen), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
 
+## 18. Verwaltung: Bereich «Lager» (#592)
+
+Dieser Abschnitt gilt für `#lager/…` (`lager*.js`, `lager.css`). Geprüft wird im Browser am PC und am Handy, in Tag und Nacht, mit Tastatur; die Abschnitte 1 bis 6 und 14 und 15 gelten sinngemäss.
+
+- [ ] **18.1** Assistent «Neues Lager»: jeder Schritt hat eine Adresse, Browser-Zurück geht einen Schritt zurück und behält die Eingaben; die Zeitleiste ist eine nummerierte Liste (`aria-current="step"` am aktuellen Schritt), erledigte Schritte nennen «erledigt» und bieten «Ändern»; der Fokus liegt nach jedem Schrittwechsel auf dem Namen des Schritts.
+- [ ] **18.2** Fehler im ersten Schritt: Zusammenfassung («3 Angaben prüfen», Knöpfe springen ins Feld), Fehler beim Feld mit Text (`role="alert"`, `aria-invalid`), nie nur Farbe. Beginn und Ende sind eigene Datumsfelder (Tippen und Kalender, Format TT.MM.JJJJ).
+- [ ] **18.3** Personenwahl: Suchfeld mit Namen, Kästchen je Person mit Gesicht (Initialen) und Name, die Gewählten als Chips mit «Entfernen: Name» (44 Pixel), eine Statusregion nennt Trefferzahl und Ergebnis («2 Personen als Lagerleitung hinzugefügt»); der Knopf nennt die Zahl.
+- [ ] **18.4** Mitgliederliste: die Rolle ändert sich im Auswahlfeld jeder Zeile (Label «Rolle von Name» für Screenreader), die Änderung und das Entfernen laufen mit «Rückgängig» (Abschnitt 14); am Handy ist jede Zeile eine Karte mit Spaltennamen vor dem Wert, ohne Seitenscroll.
+- [ ] **18.5** Rechte der Rollen: Gruppen mit Überschrift (`h2`), je Recht ein Satz und drei Kästchen mit Namen «Leitung», «Team», «Lesen» (für Screenreader mit dem Satz des Rechts); kein technischer Schlüssel sichtbar; geänderte Zeilen tragen einen Balken und den Text «Geändert, noch nicht gespeichert»; die Leiste «N Änderungen» ist eine Region mit Statusansage, Speichern und Verwerfen sind Knöpfe; beim Neuladen mit offenen Änderungen fragt der Browser.
+- [ ] **18.6** Aktivieren ohne Lagerleitung wird vorab erklärt (Knopf gesperrt, `aria-describedby` auf den Hinweis, Link «Mitglieder öffnen») statt mit einem Fehler zu enden. Aktivieren, Abschliessen, Archivieren und Wiederherstellen melden das Ergebnis mit «Rückgängig» und bleiben stehen, bis man sie schliesst.
+- [ ] **18.7** Geteilter Knopf: Pfeiltasten, Pos1, Ende, Escape, Fokus zurück zum Pfeil (`aria-haspopup="menu"`, `aria-expanded`); Löschen als Karte am Ort: Fokus im Namensfeld, Escape bricht ab, «Endgültig löschen» wird erst mit dem richtigen Namen frei, die Frage steht in einer Statusregion.
+- [ ] **18.8** Ausdrucke: je Zeile Name, Beschreibung, Dateiname, Typ «PDF»; beim Erstellen ein `progress`-Element mit Namen (unbestimmt, solange der Server keine Länge nennt) und «Abbrechen»; danach «Herunterladen» mit Dateiname und Grösse im Namen; Fehler mit Text und «Nochmals versuchen».
+- [ ] **18.9** Vorlagen-Editor: Sortierliste mit Griff (Leertaste nimmt auf, Pfeile bewegen, Leertaste legt ab, Escape bricht ab) und Knöpfen «Nach oben» und «Nach unten» als Alternative ohne Ziehen (WCAG 2.5.7), Ansage der Position, «Entfernen» mit «Rückgängig» in der Zeile darunter; ungespeicherte Eingaben fragt die Seite im Fluss ab.
+- [ ] **18.10** 1440, 1024, 390 Pixel, Hell und Dunkel: nichts scrollt waagrecht, Ziele mindestens 44 Pixel, Kontrast mindestens 4.5:1, kein Popup.
+
+### Stand der Prüfung (#592)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 18.1 bis 18.9 (Menü und Karte, Tastatur am Griff, Entfernen, Rückgängig) und 18.10 (1440 und 390 Pixel, Hell und Dunkel, ohne Seitenüberlauf). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack: nur an den Attributen), Ziehen mit Maus und Finger am Handy, 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug, 1024 Pixel von Hand.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

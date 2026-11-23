@@ -115,7 +115,8 @@ describe("Lager: Assistent, Mitglieder, Rechte (Quelltext)", () => {
     expect(m).toContain("ctx.mitRueckgaengig");
     expect(m).toContain("Rolle von ${m.name}");
     const l = quelle("lager.js");
-    expect(l).toContain("Lagerleitung festlegen");
+    expect(l).toContain("lg-ohne-leitung");
+    expect(l).toContain("Mitglieder öffnen");
     expect(l).toContain("splitKnopf");
   });
 });

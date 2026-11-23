@@ -50,6 +50,8 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
 | `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
 | `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
+| `lager-personenwahl.js`               | Personen für ein Lager wählen (Suche, Gesichter, Rolle, mehrere auf einmal; Assistent und Mitglieder)        |
+| `lager-rechte.js`                     | Rechte der Rollen eines Lagers in Klartext (Bereiche, Filter, Leiste mit Änderungen)                         |
 | `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
@@ -136,6 +138,22 @@ Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und w
 - **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`), eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`) und eine Entsprechung als Tabelle; der Schalter «Tabellen statt Diagramme» tauscht beide für die ganze Seite. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
 - **Neue Kachel:** eine Funktion in `uebersicht-kacheln.js`, die aus der Antwort einen Knoten baut (`kachel({ titel, inhalt })`) und `null` liefert, wenn der Teil fehlt; ein Eintrag in `zeichne` von `uebersicht.js`. Der Teil gehört zuerst in die Route (`routes/admin/uebersicht.ts`) mit seinem eigenen Recht, Eintrag in OpenAPI und Test.
 - **Zähler der Unterleiste** (Vorschläge, Ohne Kategorie, Anfragen) kommen aus denselben Zahlen (`ctx.zaehler`), ohne eigene Abfrage; sie sind jetzt exakt statt «100+».
+
+## Lager (#592)
+
+Der Bereich `#lager` nutzt die Querschnitt-Bausteine (`sortieren.js`, `filterleiste.js`, `datumsfeld.js`, `aktionen.js`) und trägt sonst nur eigene Klassen mit dem Vorsatz `lg-` (`lager.css`). Funktion, Routen und Rechte sind unverändert; der Server prüft weiter alles.
+
+| Ansicht (Adresse)                         | Aufbau                                                                                                                                                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Liste (`#lager/lager`)                    | `filterleiste` (Suche, Status, Trefferzahl), sortierbare Tabelle (am Handy Kartenliste, `kartenTabelle`)                                                                                                                                      |
+| Detail (`…/<id>`)                         | Hauptaktion je Status als geteilter Knopf (Aktivieren, Abschliessen; Archivieren im Menü), Statuswechsel sofort mit «Rückgängig» in der Meldung; Löschen als `bestaetigungAmOrt` mit Namenseingabe in der Fläche unten                        |
+| Neues Lager (`…/neu`, `…/neu/<schritt>`)  | vier Schritte mit eigener Adresse (`grunddaten`, `vorlage`, `mitglieder`, `pruefen`), senkrechte Zeitleiste, erledigte Schritte als Zeile mit «Ändern»; die Eingaben liegen im Modul (`entwurf`), Zurück im Browser geht einen Schritt zurück |
+| Mitglieder (`…/<id>/mitglieder`)          | `personenWahl` (Suche mit Gesichtern, mehrere Personen, eine Rolle für alle), Liste mit Rolle am Ort ändern und Entfernen, beides über `ctx.mitRueckgaengig`                                                                                  |
+| Rechte (`…/<id>/rechte`)                  | nach Bereichen gruppiert in Klartext (`BEREICHE`, `KLARTEXT` in `lager-rechte.js`), Filter Lesen/Ändern und «Weicht ab», Leiste «N Änderungen» mit Verwerfen und Speichern                                                                    |
+| Ausdrucke (`…/<id>/ausdrucke`)            | je Aushang Dateiname, Typ, Grösse, Fortschritt (`progress`), Abbrechen, Herunterladen                                                                                                                                                         |
+| Vorlagen (`#lager/vorlagen[/packlisten]`) | Liste je Art; Anlegen und Bearbeiten als Seite im Fluss mit `sortierListe` (Griff, Tastatur, Pfeilknöpfe), Titel am Ort, Einfügen mehrerer Zeilen auf einmal                                                                                  |
+
+Das Rechte-Modell ist nicht verändert: Die Rechte der Rollen heissen im Server weiter wie bisher; nur die Anzeige zeigt statt des Schlüssels einen Satz.
 
 ## Laden, Leer, Fehler
 
