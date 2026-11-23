@@ -404,6 +404,23 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Befehlspalette (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf und im Hinweis. «Neue Person» erscheint nur mit dem Recht, Personen erscheinen nur, wenn ihre Liste schon geladen ist.
 
+## 24. Verwaltung: Import-Schritte, Stufen und Kinder (#604)
+
+Dieser Abschnitt gilt für `schrittfolge.js` und `import.js` (Schrittfolge nach dem Muster «stepper-form», eigener Bau), `stufen.js` (Stufenkarten) und `kinder.js` (Liste und Seite «Kind»). Geprüft wird im Browser mit der Abteilungsleitung bei 320 bis 2560 Pixeln, Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
+
+- [ ] **24.1** Jeder Schritt der Schrittfolge hat einen von vier Zuständen: offen, aktuell, erledigt, Fehler. Der Zustand steht nie nur in der Farbe: Der Marker trägt die Nummer, den Haken oder das Warnsymbol, die Überschrift des Schritts nennt den Zustand für Screenreader («Spalten, erledigt»), ein Fehler trägt zusätzlich den Chip «Fehler».
+- [ ] **24.2** Der aktuelle Schritt hat `aria-current="step"`; beim Wechsel geht der Fokus auf seine Überschrift. Die Zeile «Schritt 2 von 4: Spalten» ist eine Statusregion, der Balken darüber ist nur Zierde (`aria-hidden`).
+- [ ] **24.3** Erledigte Schritte zeigen eine Zusammenfassung in einem Satz und den Knopf «Ändern» (44 Pixel, der Name nennt den Schritt: «Spalten ändern»). Offene Schritte zeigen nur Name und kurzen Hinweis, nichts ist verborgen, was eine Eingabe braucht.
+- [ ] **24.4** Browser-Zurück und -Vor gehen einen Schritt, die Eingaben bleiben. Ein Eintrag aus einem früheren Besuch führt nie weiter als die Eingaben reichen. Nach dem Import führt «Zurück» nicht in die Vorschau: ein zweiter Import derselben Zeilen ist so nicht möglich.
+- [ ] **24.5** Ein Fehler steht im Schritt, in dem er entstand, als Meldung mit `role="alert"` und nimmt den Fokus. Eingaben bleiben erhalten; «Weiter» versucht es nochmals.
+- [ ] **24.6** Vorschau: Die Filter zeigen die Zahl je Zustand und «Zu prüfen» für Doppelte und Ungültige; jede Zeile nennt ihren Zustand als Wort mit Symbol und den Grund. Zeilen mit Warnung oder Fehler tragen zusätzlich einen Balken am Rand. Schmal steht jede Zeile als Karte; leere Zellen («Art», «Benutzername») fallen dort weg.
+- [ ] **24.7** Der Import bleibt ein Knopf mit zwei Stufen («Wirklich 10 Kinder und 2 Leitende anlegen?»), kein Popup. Die Startpasswörter erscheinen nur im letzten Schritt und werden beim Verlassen gelöscht.
+- [ ] **24.8** Bewegung (Einblenden des Schritts, Marker, Linie) nur unter `prefers-reduced-motion: no-preference`; sonst wechselt alles ohne Übergang.
+- [ ] **24.9** Stufen: Die Karten sind gleich hoch, die Aktionen stehen unten. Ohne eigenes Logo steht der Anfangsbuchstabe im Kasten (Zierde, `aria-hidden`); der Name steht als Überschrift. Die Stufenleitung steht einmal (Liste oder Name), nicht zusätzlich als Zähler; ohne Leitung steht ein ruhiger Satz, kein Warn-Chip.
+- [ ] **24.10** Stufenleitung umsortieren geht per Ziehen am Griff, mit Tastatur und mit den Knöpfen «Nach oben» und «Nach unten» (WCAG 2.5.7); die Änderung wird angesagt und lässt sich zurücknehmen.
+- [ ] **24.11** Kinder: Die Spalte heisst «Zugang», der Filter «Ohne Zugang». Ein Kind ohne verknüpften Elternteil ist ein Hinweis (Text «hat keinen Zugang: Ohne verknüpften Elternteil kann niemand es in der App sehen»), keine Warnung und kein Fehler. In der Liste steht dafür ruhiger Text statt eines Chips je Zeile.
+- [ ] **24.12** «Kind» ist wie die Person eine Seite im Fluss mit eigener Adresse im Verlauf (Karten «Angaben», «Stufe», «Eltern und Zugang», rechts das Kind mit Zustand); Speichern und Abbrechen stehen in der Leiste unten, ungespeicherte Eingaben fragt der Fluss ab.
+
 ## 27. Verwaltung: System, Verlauf der Anfragen und Stufenfelder (#606)
 
 Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der letzten Fehler), `system.css` und den Einleitungstext in `website-stufenfakten.js`. Er ergänzt 17.6. Geprüft wird bei 390, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur.
