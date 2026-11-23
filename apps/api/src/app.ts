@@ -1,4 +1,5 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
+import { etag } from "hono/etag";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
 import { requestId } from "hono/request-id";
@@ -20,6 +21,11 @@ import type { MedienKodierer } from "./medien.js";
 import type { Medienspeicher } from "./medien-speicher.js";
 import type { Fcm } from "./push.js";
 import { erstelleMetriken } from "./metriken.js";
+import {
+  ZEICHEN_APPLE,
+  ZEICHEN_ICO,
+  type ZeichenDateien,
+} from "./website/zeichen.js";
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
 import { erstellePlattformRollenRouten } from "./routes/admin/plattform-rollen.js";
@@ -78,6 +84,13 @@ const SICHERHEITS_KOPFZEILEN = {
 
 // Lesende Methoden ändern nichts; der Origin zählt nur bei den übrigen (#221)
 const LESEND = new Set(["GET", "HEAD", "OPTIONS"]);
+
+// Das Favicon ändert sich mit der Wahl der Abteilung: Browser fragen mit dem ETag nach, statt es zu behalten
+const zeichenAntwort = (c: Context, daten: Uint8Array, typ: string) =>
+  c.body(daten as Uint8Array<ArrayBuffer>, 200, {
+    "Content-Type": typ,
+    "Cache-Control": "no-cache",
+  });
 
 // Drei Zahlen statt semver: Die App schickt ihre Version als x.y.z
 function istVeraltet(version: string, minimum: string) {
@@ -138,6 +151,8 @@ export function erstelleApp({
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
+    // Favicon der Abteilung für /favicon.ico und /apple-touch-icon.png (#581)
+    zeichen: { holen: () => Promise<ZeichenDateien> };
     datenschutz: string;
     kontoLoeschen: string;
     support: string;
@@ -349,6 +364,21 @@ export function erstelleApp({
       .get("/datenschutz", (c) => c.html(seiten.datenschutz))
       .get("/konto-loeschen", (c) => c.html(seiten.kontoLoeschen))
       .get("/support", (c) => c.html(seiten.support))
+      // Favicon für Verwaltung und Plattformseiten (#581): dieselben Dateien, die der Abgleich neben die Website schreibt; im Speicher, ohne Datenbank. Mit der Website am selben Host liefert der Edge sie statisch aus
+      .get("/favicon.ico", etag(), async (c) =>
+        zeichenAntwort(
+          c,
+          (await seiten.zeichen.holen())[ZEICHEN_ICO],
+          "image/x-icon",
+        ),
+      )
+      .get("/apple-touch-icon.png", etag(), async (c) =>
+        zeichenAntwort(
+          c,
+          (await seiten.zeichen.holen())[ZEICHEN_APPLE],
+          "image/png",
+        ),
+      )
       // Verwaltung im Browser (#141): nur die statische Hülle, Daten kommen über /api/v1/admin/*
       .route("/admin", erstelleAdminSeiten(seiten.admin))
       // Eigene Routen statt Dateien, damit der Content-Type JSON ist; die Inhalte folgen in #24

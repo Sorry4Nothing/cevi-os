@@ -59,6 +59,43 @@ paths:
             text/html:
               schema:
                 type: string
+  /favicon.ico:
+    get:
+      operationId: getFavicon
+      summary: Favicon der Abteilung
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Das Zeichen der Abteilung (Website, Einstellungen), sonst das Cevi-Zeichen der Plattform, als 32-px-Symbol für
+        die Verwaltung und die Seiten der Plattform (`/datenschutz`, `/support`, `/konto-loeschen`). Dieselben Dateien
+        schreibt der Abgleich neben die Seiten der Website. Ohne Anmeldung, ohne Datenbankabfrage je Aufruf (die Dateien
+        liegen im Speicher), mit `ETag`. Liegt die Website am selben Host, liefert der Edge die Datei statisch aus.
+      responses:
+        "200":
+          description: Symbol (`image/x-icon`, ein PNG im ICO-Rahmen).
+          content:
+            image/x-icon:
+              schema:
+                type: string
+                format: binary
+  /apple-touch-icon.png:
+    get:
+      operationId: getAppleTouchIcon
+      summary: Symbol der Abteilung für den Startbildschirm
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Wie `GET /favicon.ico`, als 180-px-PNG ohne Transparenz für iOS.
+      responses:
+        "200":
+          description: Symbol (`image/png`).
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
   /konto-loeschen:
     get:
       operationId: getKontoLoeschenSeite
@@ -198,7 +235,7 @@ paths:
   /admin/favicon.svg:
     get:
       operationId: getAdminFavicon
-      summary: Symbol der Verwaltung im Browser-Tab
+      summary: Cevi-Zeichen der Plattform
       tags:
         - Allgemein
       security: []

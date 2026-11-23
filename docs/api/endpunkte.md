@@ -14,13 +14,15 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /datenschutz`                            | Datenschutzerklärung als HTML-Seite                                                  | **200** alle      |
 | `GET /konto-loeschen`                         | Hinweis zum Löschen des Kontos als HTML-Seite                                        | **200** alle      |
 | `GET /support`                                | Support-Seite als HTML-Seite                                                         | **200** alle      |
+| `GET /favicon.ico`                            | Favicon der Abteilung (32 px) für Verwaltung und Plattformseiten                     | **200** alle      |
+| `GET /apple-touch-icon.png`                   | Symbol der Abteilung für den Startbildschirm (180 px)                                | **200** alle      |
 | `GET /admin`                                  | Verwaltung im Browser als HTML-Seite                                                 | **200** alle      |
 | `GET /admin/admin.css`                        | Stilvorlage der Verwaltung                                                           | **200** alle      |
 | `GET /admin/admin.js`                         | Hauptskript der Verwaltung (Anmeldung und Navigation)                                | **200** alle      |
 | `GET /admin/archivo-latin.woff2`              | Schrift der Website für die Vorschau im Editor                                       | **200** alle      |
 | `GET /admin/api.js`                           | Skript der Verwaltung – Aufrufe gegen die API                                        | **200** alle      |
 | `GET /admin/dom.js`                           | Skript der Verwaltung – Bausteine der Oberfläche                                     | **200** alle      |
-| `GET /admin/favicon.svg`                      | Symbol der Verwaltung im Browser-Tab                                                 | **200** alle      |
+| `GET /admin/favicon.svg`                      | Cevi-Zeichen der Plattform (Standard des Favicons, Ersatzbild in Listen)             | **200** alle      |
 | `GET /admin/hintergrund.svg`                  | Logo als Hintergrund der Verwaltung                                                  | **200** alle      |
 | `GET /admin/kinder.js`                        | Skript der Verwaltung – Bereich Kinder                                               | **200** alle      |
 | `GET /admin/mitteilungen.js`                  | Skript der Verwaltung – Bereich Mitteilungen                                         | **200** alle      |

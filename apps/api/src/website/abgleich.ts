@@ -49,6 +49,7 @@ import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
   ZEICHEN_DATEIEN,
   ZEICHEN_ICO,
+  zeichenVersion,
   type ZeichenDateien,
 } from "./zeichen.js";
 import {
@@ -591,7 +592,7 @@ export async function erzeugeWebsite(
   const kontext: Kontext = {
     abteilung: abt.name,
     logo: await ladeLogo(db, abteilungId),
-    ...(zeichen && { zeichen: sha256(zeichen[ZEICHEN_ICO]).slice(0, 12) }),
+    ...(zeichen && { zeichen: zeichenVersion(zeichen[ZEICHEN_ICO]) }),
     basisUrl,
     navigation: baueNavigation(
       zeilen,
@@ -609,6 +610,7 @@ export async function erzeugeWebsite(
     abteilungId,
     abteilung: abt.name,
     basisUrl,
+    zeichen: kontext.zeichen,
     seiten: [...sichtbar.keys()].map((id) => ({
       pfad: oeffentlich.get(id)!.pfad,
       tagId: zeilen.find((z) => z.id === id)!.tagId,

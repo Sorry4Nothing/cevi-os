@@ -204,6 +204,10 @@ Die Verwaltung zeigt schlichte Scrollleisten: schmal, runder Griff in der Randfa
 - Mit Finger oder Stift (`pointer: coarse`) und in erzwungenen Farben bleibt die Leiste des Systems.
 - Ein neuer Scrollbereich braucht nichts ausser `overflow: auto`.
 
+## Favicon (#581)
+
+Die Verwaltung zeigt im Tab dasselbe Zeichen wie die Website der Abteilung, nicht ihr eigenes Symbol. `index.html` trägt zwei Einträge: `<link rel="icon" href="/favicon.ico">` und `<link rel="apple-touch-icon" href="/apple-touch-icon.png">`. Die API liefert beide Adressen selbst (`app.ts`, ohne Anmeldung, mit `ETag`, ohne Datenbankabfrage je Aufruf): `seiten.zeichen` hält die Dateien im Speicher, `server.ts` füllt sie beim Start und nach jedem Abgleich mit dem gewählten Zeichen der Abteilung, sonst mit dem Cevi-Zeichen (`admin/favicon.svg`). Weil eine Instanz genau eine Abteilung trägt, ist das Zeichen schon vor der Anmeldung das der Abteilung (es ist öffentlich); ohne Wahl ist es das Cevi-Zeichen. Die CSP der Verwaltung (`img-src 'self' data:`) erlaubt beide Adressen. `admin/favicon.svg` bleibt als Quelle des Cevi-Zeichens und als Ersatzbild in Listen (`STANDARD_LOGO`). Ein neuer Einstieg (weitere HTML-Seite der Verwaltung oder der Plattform) braucht dieselben zwei Einträge; der Test in `test/seiten.test.ts` prüft sie für `/admin`, `/datenschutz`, `/support` und `/konto-loeschen`.
+
 ## Lokal prüfen
 
 Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/seiten.ts`). Nach jeder Änderung an einer Datei dort den Server neu starten, sonst zeigt der Browser die alte Fassung. Eigener Dev-Server und Datenbank wie in der Regel für UI-Arbeit; der zweite Faktor lässt sich in Playwright umgehen, indem `GET /api/auth/get-session` und die Daten-Routen mit `page.route` beantwortet werden (siehe die Antwortformen in `docs/api/openapi.yaml`). Prüfe jede Ansicht bei 1280, 1024 und 390 px in Tag und Nacht (`emulateMedia({ colorScheme })`), mit Tastatur und mit `reducedMotion: "reduce"`.
