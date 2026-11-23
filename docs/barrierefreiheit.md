@@ -1001,3 +1001,22 @@ Gilt für alle Kästchen (`input[type="checkbox"]`) der Verwaltung, vor allem im
 ### Stand der Prüfung (#668)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank mit erfundenen Bildern) bei 1440 und 390 px, Tag und Nacht: 55.1 bis 55.3, 55.5 und 55.6; Tastatur (Tab, Leertaste, Fokusring) in der Personenwahl. Gemessen: Rand des leeren Kästchens 4.5 : 1 (Tag) und 4.7 : 1 (Nacht). Offen: Der Rand des angekreuzten Kästchens hat in der Nacht zum Grund nur 1.3 : 1; der Haken (Weiss auf Marineblau) trägt die Information, das Kästchen sieht in der ganzen Verwaltung gleich aus. Nicht geprüft: Screenreader, 200 % Zoom per Browser-Einstellung, 2560 px, `forced-colors` im echten Kontrast-Thema (55.4 nur nach dem Quelltext).
+
+## 57. Verwaltung: Lager-Arbeitsbereich (#672)
+
+Gilt für `lager-rahmen.js`, `lager-module.js`, `lager-detail.js`, `lager-konflikt.js`, `lager-ereignisse.js`, `lager-start-teile.js`, `lager-m-heute.js`, `lager-m-woche.js`, `lager-m-check.js`, `lager-m-suche.js`, `lager-m-ressorts.js`, `lager-m-benachrichtigungen.js` und `lager-rahmen.css`. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6 und 9 gelten sinngemäss. Die Module der weiteren Lager-Issues nutzen denselben Rahmen und weisen ihre Punkte in eigenen Abschnitten nach.
+
+- [ ] **57.1** Die Navigation der Module ist ein `nav` mit Namen («Bereiche von «Lager»»), Gruppen mit Überschrift (Ebene 2) und Listen; die Seite, auf der du bist, trägt `aria-current="page"` und ist zusätzlich gefüllt und fett (nie nur Farbe). Jeder Eintrag ist 44 px hoch und hat einen sichtbaren Fokus.
+- [ ] **57.2** Unter 900 px klappt die Navigation hinter einem Knopf auf, der den aktuellen Bereich nennt (`aria-expanded`, `aria-controls`); über 900 px steht sie links und bleibt beim Scrollen sichtbar.
+- [ ] **57.3** Die Navigation zeigt nur Module, für die die Rolle im Lager das Leserecht hat; ein Modul ohne Recht, das über die Adresse erreicht wird, zeigt eine Zustandskarte «Dieser Bereich ist für dich nicht freigegeben» mit Fehlernummer, nicht eine leere Seite. Ein ungültiger Modulname zeigt «Diesen Bereich gibt es nicht».
+- [ ] **57.4** Seitentitel (Ebene 1) ist der Name des Lagers, der Titel des Moduls steht als Ebene 2, Karten darin als Ebene 3. Status (Chip mit Wort und Symbol) und Hinweis «schreibgeschützt» stehen im Kopf; ein geschlossenes Lager blendet Schreib-Knöpfe aus und sagt es in Worten.
+- [ ] **57.5** Das Suchfeld im Kopf hat ein Label (nur für Screenreader), die Suche ein eigenes Formular mit `role="search"`; Treffer, Anzahl und Fehler stehen in `role="status"` beziehungsweise `role="alert"`. Der Suchbegriff steht nie in der Adresse.
+- [ ] **57.6** Zustände nie nur über Farbe: Check (Bereit, Mit Hinweisen, Nicht bereit; Offen, Hinweis), Fristen («Überfällig seit …»), Gelesen und Neu, Besetzung («1 von 2») tragen Wort und Symbol.
+- [ ] **57.7** Kästchen und Schalter sind die eigenen (`.wahl`, `role="switch"` mit `aria-checked` und Name); Aufgaben und Check-Punkte lassen sich per Tastatur abhaken, das Löschen geht über «Rückgängig», die Reihenfolge der Ressorts per Ziehen, mit Tastatur (Leertaste, Pfeiltasten) und mit Hoch/Runter-Knöpfen.
+- [ ] **57.8** Ein Versionskonflikt (409) zeigt am Ort der Zeile, was jetzt auf dem Server steht, und lässt wählen («Meine Änderung übernehmen», «Stand des Servers übernehmen»); in Formularen steht der Stand im Fehlertext. Es wird nie still überschrieben.
+- [ ] **57.9** Der Hinweis «Es gibt Neues im Lager» (Event-Stream) ist `role="status"` und nimmt den Fokus nicht; die Seite lädt nur auf Knopfdruck neu. Kein Takt, kein Polling.
+- [ ] **57.10** Lade-, Leer- und Fehlerzustände sind vorhanden (Skeleton, Leerkarte, Zustandskarte mit «Nochmals versuchen»); Bewegung nur unter `prefers-reduced-motion: no-preference`; 390 bis 1920 px ohne waagrechtes Scrollen; Hell und Dunkel.
+
+### Stand der Prüfung (#672)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung gesehen: 57.1 bis 57.4, 57.6, 57.10 bei 1440 und 390 px, Hell und Dunkel (Heute, Check, Ressorts mit Detail und Notiz, Benachrichtigungen). Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), Kontrast-Thema, 200 % Zoom per Browser-Einstellung, 2560 px, 57.5 bis 57.9 nur teilweise mit der Tastatur.
