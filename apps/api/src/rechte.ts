@@ -66,9 +66,14 @@ export function personAusSitzung(
       throw new HTTPException(403);
     }
     // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
-    const [rollen, [eigenesKind]] = await Promise.all([
+    // Eine Abfrage für beides (Rollen und eigenes Kind): jede Anfrage zahlt sie, und die Tests der Datenbanklast zählen sie. Die Zeile mit kindId ist das eigene Konto eines Kindes (user_id ist eindeutig, höchstens eine)
+    const zeilen = await unionAll(
       db
-        .select({ stufeId: rolle.stufeId, typ: rolle.typ })
+        .select({
+          stufeId: sql<string | null>`${rolle.stufeId}`.as("stufe_id"),
+          typ: sql<string | null>`${rolle.typ}`.as("typ"),
+          kindId: sql<string | null>`null::uuid`.as("kind_id"),
+        })
         .from(rolle)
         .innerJoin(
           stufe,
@@ -78,9 +83,12 @@ export function personAusSitzung(
           ),
         )
         .where(eq(rolle.userId, sitzung.user.id)),
-      // Die Spalte user_id ist eindeutig: höchstens eine Zeile
       db
-        .select({ id: kind.id })
+        .select({
+          stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
+          typ: sql<string | null>`null::text`.as("typ"),
+          kindId: sql<string | null>`${kind.id}`.as("kind_id"),
+        })
         .from(kind)
         .where(
           and(
@@ -88,14 +96,20 @@ export function personAusSitzung(
             eq(kind.abteilungId, sitzung.user.abteilungId),
           ),
         ),
-    ]);
+    );
+    const rollen = zeilen.flatMap((z) =>
+      z.stufeId && z.typ
+        ? [{ stufeId: z.stufeId, typ: z.typ as "leitung" | "stufenleitung" }]
+        : [],
+    );
+    const eigenesKind = zeilen.find((z) => z.kindId)?.kindId;
     c.set("person", {
       id: sitzung.user.id,
       abteilungId: sitzung.user.abteilungId,
       admin: sitzung.user.role === "admin",
       zweiterFaktor: sitzung.user.twoFactorEnabled === true,
       rollen,
-      ...(eigenesKind && { kindId: eigenesKind.id }),
+      ...(eigenesKind && { kindId: eigenesKind }),
     });
     // Nie aus der Anfrage: Das Push-Token hängt an der Sitzung, die better-auth aus dem Cookie liest
     c.set("sitzungId", sitzung.session.id);

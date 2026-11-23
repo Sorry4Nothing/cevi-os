@@ -15,6 +15,9 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/admin/plattform/rollen/:p/personen/:p":
     "Plattformrolle einer Person entziehen",
   "DELETE /api/v1/admin/raeume/:p": "Raum endgültig löschen",
+  "DELETE /api/v1/admin/rechte/gruppen/:p/rollen/:p":
+    "Rolle einer Gruppe löschen",
+  "DELETE /api/v1/admin/rechte/rollen/:p": "Globale Rolle löschen",
   "DELETE /api/v1/admin/stufen/:p": "Stufe löschen",
   "DELETE /api/v1/admin/stufen/:p/logo": "Logo einer Stufe löschen",
   "DELETE /api/v1/admin/tags/:p": "Tag löschen",
@@ -118,6 +121,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Gefilterten Ausschnitt des Protokolls als CSV",
   "GET /api/v1/admin/protokoll/verlauf":
     "Zahl der Einträge und Fehler je Stunde oder Tag, dazu die Bereiche",
+  "GET /api/v1/admin/rechte/personen/:p": "Was darf diese Person, und woher?",
   "GET /api/v1/laden/bestellungen/meine": "Eigene Bestellungen im Lädeli",
   "GET /api/v1/lager/:p/adressbuch": "Adressbuch des Lagers auflisten",
   "GET /api/v1/lager/:p/adressbuch/:p": "Kontakt im Adressbuch lesen",
@@ -141,6 +145,9 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/admin/plattform/rollen/:p":
     "Name oder Rechte einer Plattformrolle ändern",
   "PATCH /api/v1/admin/raeume/:p": "Raum ändern oder deaktivieren",
+  "PATCH /api/v1/admin/rechte/gruppen/:p/rollen/:p":
+    "Rolle einer Gruppe ändern",
+  "PATCH /api/v1/admin/rechte/rollen/:p": "Globale Rolle ändern",
   "PATCH /api/v1/admin/stufen/:p": "Stufe ändern",
   "PATCH /api/v1/admin/tags/:p": "Tag umbenennen",
   "PATCH /api/v1/admin/vorlagen/:p": "Vorlage ändern",
@@ -232,6 +239,11 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Zweiten Faktor einer Person zurücksetzen",
   "POST /api/v1/admin/plattform/rollen": "Plattformrolle anlegen",
   "POST /api/v1/admin/raeume": "Raum anlegen",
+  "POST /api/v1/admin/rechte/gruppen/:p/rollen":
+    "Rolle in einer Gruppe anlegen",
+  "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau":
+    "Vorschau, wer betroffen ist",
+  "POST /api/v1/admin/rechte/rollen": "Globale Rolle anlegen",
   "POST /api/v1/admin/stufen": "Stufe anlegen",
   "POST /api/v1/admin/system/syncs/kalender": "Kalender-Sync anstossen",
   "POST /api/v1/admin/tags": "Tag anlegen",
@@ -358,6 +370,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PUT /api/v1/admin/lager/:p/rechte": "Rechte der Rollen ändern",
   "PUT /api/v1/admin/plattform/rollen/:p/personen/:p":
     "Plattformrolle einer Person zuweisen",
+  "PUT /api/v1/admin/rechte/gruppen/:p/personen/:p/rolle":
+    "Einer Person in der Gruppe eine Rolle zuordnen",
   "PUT /api/v1/admin/stufen/:p/logo": "Logo einer Stufe hochladen",
   "PUT /api/v1/admin/stufen/:p/stufenleitung":
     "Reihenfolge der Stufenleitung festlegen",

@@ -461,7 +461,9 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
       }) as unknown as Db;
       const zaehlApp = erstelleApp({ ...optionen, db: zaehlend });
       const betrifft = (q: string) =>
-        /programm|person_tag|"kind"|leitung_anmeldung/.test(q);
+        // Die Abfrage der Sitzung (Rollen und eigenes Kind, #644) zählt nicht mit
+        /programm|person_tag|"kind"|leitung_anmeldung/.test(q) &&
+        !q.includes("null::uuid");
       // Eine weitere Seite Termine, damit je Zeile gezählt auffiele
       for (let i = 0; i < 5; i++) {
         await termin({

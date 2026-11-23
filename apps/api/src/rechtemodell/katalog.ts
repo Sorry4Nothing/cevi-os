@@ -359,6 +359,18 @@ export const RECHTE_KATALOG = {
     "Konten löschen",
     "Konten löschen und Daten einer Person vergessen. Das lässt sich nicht rückgängig machen.",
   ),
+  // Konten von Kindern (#644): Erstellen, Übergeben, Sperren, Entfernen und die Einstellungen der Abteilung. Fest, weil es Kinderdaten und die Aufsicht der Eltern betrifft
+  "kinder.konto_verwalten": f(
+    "personen",
+    "Konten von Kindern verwalten",
+    "Einem Kind ein eigenes Konto erstellen, übergeben, sperren oder entfernen und einstellen, ob Kinder Konten haben und im Chat schreiben dürfen. Das betrifft Kinder und die Aufsicht der Eltern: Das bleibt bei der Abteilungsleitung.",
+  ),
+  // Was das Konto eines Kindes sieht, folgt aus dem Kind (Sicht kind_zugang), nicht aus einer Rolle
+  "kinder.konto_sehen": s(
+    "personen",
+    "Eigenes Kind sehen (Konto eines Kindes)",
+    "Das Konto eines Kindes sieht die Programme und die Leitung der eigenen Stufe, die eigene Anmeldung und je nach Einstellung den Gruppenchat. Nie andere Kinder, Eltern, Telefonnummern oder die Verwaltung. Das folgt aus dem Kind und lässt sich nicht einstellen.",
+  ),
   "protokoll.lesen": f(
     "plattform",
     "Protokoll lesen",

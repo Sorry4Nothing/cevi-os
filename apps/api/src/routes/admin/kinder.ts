@@ -34,6 +34,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import { ladeKindKontoEinstellung, zugangVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import type { Person } from "../../rechte.js";
 import {
   entschluesseleStartpasswort,
@@ -133,7 +134,8 @@ export function erstelleKinderRouten({
   auth: ReturnType<typeof erstelleAuth>;
 }) {
   // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht
-  async function ladeZiel(person: Person, id: string) {
+  const KONTO_RECHT = "kinder.konto_verwalten";
+  async function ladeZiel(person: Person, id: string, konto = false) {
     const [ziel] = await db
       .select({
         stufeId: kind.stufeId,
@@ -146,7 +148,9 @@ export function erstelleKinderRouten({
       .from(kind)
       .where(and(eq(kind.id, id), eq(kind.abteilungId, person.abteilungId)));
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    // Konten von Kindern prüft der Rechtekatalog (fest: nur die Abteilungsleitung); der Rest der Seite bleibt an der Abteilungsleitung
+    if (konto) await verlange(db, person, KONTO_RECHT);
+    else if (!person.admin) throw new HTTPException(403);
     return ziel;
   }
 
@@ -222,7 +226,7 @@ export function erstelleKinderRouten({
 
   // Das Konto des Kindes oder 404: Die Aktionen am Konto gibt es nur, wenn es eines gibt
   async function ladeKonto(person: Person, id: string) {
-    const ziel = await ladeZiel(person, id);
+    const ziel = await ladeZiel(person, id, true);
     if (!ziel.userId) throw new HTTPException(404);
     return { ...ziel, userId: ziel.userId };
   }
@@ -364,7 +368,7 @@ export function erstelleKinderRouten({
       })
       .get("/konto-einstellung", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, KONTO_RECHT);
         return c.json(await ladeKindKontoEinstellung(db, person.abteilungId));
       })
       .put(
@@ -372,7 +376,7 @@ export function erstelleKinderRouten({
         eingabe("json", einstellungSchema),
         async (c) => {
           const person = c.get("person");
-          if (!person.admin) throw new HTTPException(403);
+          await verlange(db, person, KONTO_RECHT);
           const werte = c.req.valid("json");
           await db.transaction(async (tx) => {
             await tx
@@ -478,7 +482,7 @@ export function erstelleKinderRouten({
           const person = c.get("person");
           const { id } = c.req.valid("param");
           const eingaben = c.req.valid("json");
-          const ziel = await ladeZiel(person, id);
+          const ziel = await ladeZiel(person, id, true);
           const einstellung = await ladeKindKontoEinstellung(
             db,
             person.abteilungId,
