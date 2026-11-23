@@ -652,6 +652,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/befehlspalette.js:
+    get:
+      operationId: getAdminBefehlspaletteSkript
+      summary: Skript der Verwaltung – Befehlspalette
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/formularraster.js:
     get:
       operationId: getAdminFormularrasterSkript

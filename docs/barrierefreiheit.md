@@ -10,7 +10,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Öffentliche Seiten der Website und Editor der Verwaltung (Web statt App): Abschnitt 11, im Browser geprüft.
 - Bereich «Termine» der Verwaltung (Web statt App): Abschnitt 12, im Browser geprüft.
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
-- Übersicht der Verwaltung (Web statt App): Abschnitt 14, im Browser geprüft.
+- Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
@@ -254,8 +254,8 @@ Dieser Abschnitt gilt für jede Aktion der Verwaltung, die früher eine Rückfra
 
 Die Verwaltung teilt Tokens, Kopf und Bausteine mit der Website (Beschreibung in [verwaltung-geruest.md](verwaltung-geruest.md)). Geprüft in Tag und Nacht, bei 1440 und 390 Pixeln, mit Tastatur.
 
-- [ ] **15.1** Kopf: Marke (Logo oder Wortmarke), «Verwaltung», Konto, Umschalter und «Abmelden» stehen in einer Zeile; darunter die Bereichsleiste mit dem roten Strich unter dem aktuellen Bereich (`aria-current`) und die Unterleiste. Ziele mindestens 44 Pixel, Fokusring sichtbar, Reihenfolge Marke, Bereiche, Unterseiten, Konto.
-- [ ] **15.2** Name und Logo der Abteilung kommen aus den Einstellungen der Website; fehlt das Recht oder das Logo, steht die Wortmarke. Das Logo hat leeren Alt-Text, der Name steht für Screenreader im Link; ein Logo ohne dunkle Fassung steht in der Nacht auf hellem Feld (Kontrast).
+- [ ] **15.1** Kopf: Marke (Logo oder Wortmarke), «Verwaltung», Konto, Umschalter und «Abmelden» stehen in einer Zeile; darunter die Bereichsleiste mit dem roten Strich unter dem aktuellen Bereich (`aria-current`) und die Unterleiste (unter 960 Pixeln die Bereichsauswahl, Abschnitt 22). Ziele mindestens 44 Pixel, Fokusring sichtbar, Reihenfolge Marke, Bereiche, Unterseiten, Konto.
+- [ ] **15.2** Name und Logo der Abteilung kommen aus den Einstellungen der Website, ohne Recht darauf und vor der Anmeldung aus dem Kopf der öffentlichen Website; gibt es beides nicht oder kein Logo, steht die Wortmarke. Das Logo hat leeren Alt-Text, der Name steht für Screenreader im Link; ein Logo ohne dunkle Fassung steht in der Nacht auf hellem Feld (Kontrast).
 - [ ] **15.3** Umschalter Hell/Dunkel: Gruppe «Darstellung», zwei Knöpfe mit Namen («Hell», «Dunkel»), `aria-pressed` zeigt die Wahl, die gewählte Seite ist gefüllt und hat einen Ring (nie nur Farbe); die Wahl bleibt nach Neuladen und gilt auch auf der Anmeldeseite.
 - [ ] **15.4** Auswahlfelder: Pfeiltasten, Pos1, Ende, Bild auf/ab, Tippen zum Springen, Eingabe oder Leertaste wählt, Escape schliesst nur die Liste; der Name steht im Knopf (`aria-labelledby`), die gewählte Option trägt einen Haken und `aria-selected`; die Liste klappt nach oben, wenn unten der Platz fehlt; gesperrte Felder sind gesperrt. Ohne Skript bleibt das Feld des Browsers.
 - [ ] **15.5** Scrollbereiche: Im Editor scrollen die zwei Spalten für sich, nichts wird abgeschnitten (Fokusring sichtbar am Rand), die Seite springt nicht, wenn eine Leiste erscheint; die Leisten sind mit Maus erreichbar und mit Tastatur (Bereich fokussierbar, wenn er scrollt). Bei 200 Prozent Zoom und 320 Pixeln Breite wird daraus eine Spalte ohne Seitenscroll in zwei Richtungen.
@@ -390,6 +390,19 @@ Dieser Abschnitt gilt für `#website/seiten` und den Editor (`website-seiten.js`
 ### Stand der Prüfung (#595)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 21.1 bis 21.9 und 21.11 bis 21.15 (Tastatur, Ziehen mit der Maus, Rückgängig, Weiterleitungs-Hinweis), Tag und Nacht, 1440, 1024 und 390 Pixel (Messung: kein Seitenüberlauf, keine Ziele unter 44 Pixel). **Nicht geprüft:** Screenreader (NVDA, VoiceOver), Ziehen mit dem Finger, 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug, erzwungene Farben.
+
+## 22. Verwaltung: Navigation, Bereichsauswahl, Rolle im Kopf und Befehlspalette (#602)
+
+Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl, Befehlspalette), `geruest.css` und die Rolle im Kopf (`admin.js`). Geprüft wird im Browser mit je einem Konto der Abteilungsleitung, des Entwicklers, eines Webmasters und einer Stufenleitung, bei 1440, 960 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **22.1** Jeder Eintrag des Menüs führt zu einer Seite, die die Person öffnen darf: Die Stufenleitung sieht «Einstellungen» der Website nicht, «Komponenten» sieht nur der Entwickler. Das Menü ist nur Anzeige; der Server prüft jede Route.
+- [ ] **22.2** Der Kopf nennt die Rolle der Person («Abteilungsleitung», «Stufenleitung Pilami», «Website-Redaktion», «Wartung der Website»), nie das Sammelwort «Redaktion».
+- [ ] **22.3** Unter 960 Pixeln ersetzt die Bereichsauswahl beide Leisten. Die Zeile ist ein Knopf mit `aria-expanded` und `aria-controls`, 52 Pixel hoch, und nennt Bereich und Seite als Text; das Panel wächst aus der Zeile, das geschlossene Panel ist `inert` (kein Fokus, wird nicht vorgelesen).
+- [ ] **22.4** Tastatur der Bereichsauswahl: Enter und Leertaste öffnen, der Fokus geht auf die aktuelle Seite, Pfeil hoch und runter wechseln die Einträge, Escape schliesst und gibt den Fokus an die Zeile zurück, ein Klick daneben schliesst. Die aktuelle Seite trägt `aria-current="page"` und einen Balken (nie nur Farbe); Zähler offener Dinge stehen als Zahl mit «offen».
+- [ ] **22.5** Mit «Bewegung reduzieren» öffnet und schliesst das Panel ohne Übergang; in erzwungenen Farben ist die aktuelle Seite unterstrichen.
+- [ ] **22.6** Die Wartungsseite heisst «Wartung und Sperre» (Menü und Überschrift), nicht «Plattform».
+- [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
+- [ ] **22.8** Befehlspalette (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf und im Hinweis. «Neue Person» erscheint nur mit dem Recht, Personen erscheinen nur, wenn ihre Liste schon geladen ist.
 
 ## Im PR angeben
 

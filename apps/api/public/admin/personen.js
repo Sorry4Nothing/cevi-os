@@ -25,6 +25,7 @@ import {
   oeffnePerson,
   systemRollen,
 } from "./personen-blatt.js";
+import { meldePersonen, nimmWunsch } from "./befehlspalette.js";
 import { typName } from "./tags-detail.js";
 import { leerKarte } from "./zustaende.js";
 
@@ -38,13 +39,22 @@ const zustand = {
 };
 
 export function zeige(bereich, ctx) {
-  zustand.frage = "";
+  // Wunsch der Befehlspalette: «Neue Person» öffnet das Formular, eine Person setzt die Suche
+  const wunsch = nimmWunsch();
+  zustand.frage = wunsch?.art === "person" ? wunsch.frage : "";
   zustand.filter = { tag: "", rolle: "alle", konto: "alle" };
   zustand.sort = { schluessel: "name", richtung: "auf" };
   zustand.fokus = null;
   ctx.lade(
     mitFehlertitel("Die Personen konnten nicht geladen werden.", ladeDaten),
-    (daten, neu) => zeichne(bereich, ctx, daten, neu),
+    (daten, neu) => {
+      meldePersonen(daten.personen);
+      zeichne(bereich, ctx, daten, neu);
+      if (wunsch?.art === "neu") {
+        wunsch.art = "erledigt";
+        document.querySelector("#seitenkopf .kopf-aktion button")?.click();
+      }
+    },
     { skeleton: "tabelle" },
   );
 }

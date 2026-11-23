@@ -5,6 +5,12 @@
   text-decoration: none;
 }
 
+/* Namen der Lager in der Liste: Trefferfläche 44 px hoch, ohne die Zeile zu vergrössern */
+a.name.lg-name {
+  padding-block: 11px;
+  margin-block: -11px;
+}
+
 .lg-name:hover {
   text-decoration: underline;
 }

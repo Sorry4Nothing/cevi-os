@@ -43,7 +43,7 @@ export async function ladeOeffentlicheMarke() {
   try {
     const antwort = await fetch("/", { credentials: "omit" });
     if (!antwort.ok) return;
-    const dokument = new DOMParser().parseFromString(
+    const dokument = new window.DOMParser().parseFromString(
       await antwort.text(),
       "text/html",
     );
@@ -119,7 +119,7 @@ export const bindeThema = () => window.ceviThema?.binde();
 
 // Logozeile: Marke, «Verwaltung», Konto mit Rolle, Umschalter und «Abmelden»
 // konto: { name, rolle } (rolle: Text unter dem Namen)
-export function logozeile({ konto, beiAbmelden, sichtbar = true }) {
+export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
   return el(
     "div",
     { class: "logozeile" },
@@ -144,6 +144,7 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true }) {
               el("p", { class: "mini leise" }, konto.rolle),
             ),
           ),
+        sichtbar && konto && suche?.(),
         themaSchalter(),
         sichtbar &&
           konto &&

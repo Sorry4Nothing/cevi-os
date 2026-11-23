@@ -217,8 +217,8 @@ th[aria-sort] .tm-sortknopf {
 /* Link in einer Tabellenzelle: Trefferfläche 44 px hoch, ohne die Zeile zu vergrössern */
 .tm-tabellenlink {
   display: inline-block;
-  padding-block: 11px;
-  margin-block: -11px;
+  padding-block: 12px;
+  margin-block: -12px;
 }
 
 /* ---------- Kalender: Monatsansicht (#590, termine-monat.js) ---------- */

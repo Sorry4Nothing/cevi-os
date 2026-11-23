@@ -7,6 +7,7 @@ import {
 } from "./api.js";
 import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
 import { schliesseAlle } from "./fluss.js";
+import { erstellePalette } from "./befehlspalette.js";
 import { erstelleHinweisband } from "./hinweisband.js";
 import { erstelleLader } from "./lader.js";
 import {
@@ -49,6 +50,12 @@ let entwickler = false;
 // Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
 const sichtbareBereiche = () =>
   bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
+
+// Befehlspalette (Strg oder Cmd + K): Seiten, «Neue Person» und geladene Personen, nur im Rahmen dessen, was die Navigation der Person zeigt
+const palette = erstellePalette({
+  bereiche: () => sichtbareBereiche(),
+  bereit: () => ich !== null && document.getElementById("bereich") !== null,
+});
 
 const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
 
@@ -458,6 +465,7 @@ async function zeigeVerwaltung() {
         logozeile({
           konto: { name: ich.name, rolle },
           beiAbmelden: abmelden,
+          suche: palette.knopf,
         }),
         leisten.wurzel,
       ),
