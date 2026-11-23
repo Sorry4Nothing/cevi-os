@@ -14,6 +14,7 @@ const artikel = (extra: Record<string, unknown> = {}) => ({
   name: "Foulard",
   preisRappen: 2500,
   varianten: [] as string[],
+  nichtVerfuegbar: [] as string[],
   hinweis: "Aus Baumwolle",
   verfuegbar: true,
   bild: null,
@@ -49,6 +50,77 @@ describe("Artikelfenster", () => {
     const s = html(laden.artikelView(a, wahl(a), zustand("aus", a)));
     expect(s).toContain("Grössen: S, M");
     expect(s).not.toContain('data-aktion="variante"');
+  });
+
+  test("nicht verfügbare Grössen (#629): sichtbar, durchgestrichen, nicht anwählbar, mit Wort; Besucher lesen sie im Text", () => {
+    const a = artikel({ varianten: ["S", "M", "L"], nichtVerfuegbar: ["S"] });
+    const an = html(laden.artikelView(a, wahl(a), zustand("an", a)));
+    const knopf = (s: string, v: string) =>
+      s.match(
+        new RegExp(`<button[^>]*data-variante="${v}"[^>]*>.*?</button>`),
+      )![0];
+    expect(knopf(an, "S")).toContain('aria-disabled="true"');
+    expect(knopf(an, "S")).toContain("<s>S</s>");
+    expect(knopf(an, "S")).toContain("nicht verfügbar");
+    expect(an).toContain("S nicht verfügbar");
+    expect(knopf(an, "M")).not.toContain("aria-disabled");
+    const aus = html(laden.artikelView(a, wahl(a), zustand("aus", a)));
+    expect(aus).toContain("Grössen: M, L");
+    expect(aus).toContain("S nicht verfügbar");
+    // Schnell dazu: dieselbe Regel in der Kachel
+    const schnell = html(laden.schnellView(a, undefined));
+    expect(schnell.match(/aria-disabled="true"/g)).toHaveLength(1);
+    expect(schnell).toContain("<s>S</s>");
+  });
+
+  test("Warenkorb: eine Zeile mit einer inzwischen nicht verfügbaren Grösse wird gemeldet und sperrt das Bestellen", () => {
+    const a = artikel({ varianten: ["S", "M"], nichtVerfuegbar: ["S"] });
+    const z = {
+      ...zustand("an", a),
+      korb: [{ id: a.id, variante: "S", menge: 1 }],
+    };
+    expect(laden.weggefallen(z.korb, z.artikel)).toHaveLength(1);
+    const gesperrt = (s: string, aktion: string) =>
+      new RegExp(
+        `data-aktion="${aktion}"[^>]*aria-disabled="true"|aria-disabled="true"[^>]*data-aktion="${aktion}"`,
+      ).test(s);
+    const korb = html(tm.h("div", {}, laden.korbView(z)));
+    expect(korb).toContain("Die Grösse S ist nicht mehr verfügbar");
+    expect(korb).toContain("laden-zeile--weg");
+    expect(gesperrt(korb, "uebersicht")).toBe(true);
+    expect(
+      gesperrt(html(tm.h("div", {}, laden.uebersichtView(z))), "bestellen"),
+    ).toBe(true);
+    // Ohne betroffene Zeile bleibt alles bedienbar
+    const ok = { ...z, korb: [{ id: a.id, variante: "M", menge: 1 }] };
+    expect(laden.weggefallen(ok.korb, ok.artikel)).toHaveLength(0);
+    expect(
+      gesperrt(html(tm.h("div", {}, laden.korbView(ok))), "uebersicht"),
+    ).toBe(false);
+  });
+
+  test("liesArtikel liest Name und nicht verfügbare Grössen aus dem Markup des Servers", () => {
+    const li = (klasse: string, name: string, extra = "") => ({
+      className: klasse,
+      dataset: { name },
+      textContent: `${name}${extra}`,
+    });
+    const eintrag = {
+      dataset: { id: "x", preis: "100" },
+      classList: { contains: () => false },
+      querySelector: () => null,
+      querySelectorAll: (sel: string) =>
+        sel === ".laden-varianten li"
+          ? [li("", "S", " nicht verfügbar"), li("", "M")]
+          : sel.includes("laden-variante--weg")
+            ? [li("laden-variante--weg", "S", " nicht verfügbar")]
+            : [],
+    };
+    const karte = laden.liesArtikel({ querySelectorAll: () => [eintrag] });
+    expect(karte.get("x")).toMatchObject({
+      varianten: ["S", "M"],
+      nichtVerfuegbar: ["S"],
+    });
   });
 
   test("angemeldet: Menge und «In den Warenkorb», kein Anmelde-Hinweis", () => {

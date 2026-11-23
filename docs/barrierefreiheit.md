@@ -580,7 +580,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellung» in `personen.css` (Klassenvorsatz `mg-`) auf den Seiten «Personen», «Kinder», dem Detail einer Gruppe und der Stufenleitung auf «Stufen». Geprüft wird im Browser bei 390, 720, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
 
 - [ ] **33.1** Umschalter «Karten | Liste» und «Gruppieren»: je eine Gruppe von Auswahlknöpfen (`role="radiogroup"`, benannt durch «Ansicht» und «Gruppieren nach»). Pfeiltasten wechseln, Tab verlässt die Gruppe, der Fokus ist sichtbar (3 Pixel). Jede Option ist 44 Pixel hoch. Die gewählte Option trägt Rand und Fläche, nie nur eine Farbe. Der Schieber gleitet nur ohne «Bewegung reduzieren».
-- [ ] **33.2** Die Wahl der Ansicht bleibt im Browser (`localStorage`, nur «karten» oder «liste»); ohne Speicher gilt «karten». Die Gruppierung gilt für die Sitzung.
+- [ ] **33.2** Die Wahl der Ansicht (nur «karten» oder «liste») gilt, solange die Seite offen ist, und wird nicht im Browser gespeichert; nach dem Neuladen gilt «karten». Die Gruppierung gilt ebenso für die Sitzung.
 - [ ] **33.3** Abschnitte: Jeder Abschnitt hat eine Überschrift (Ebene 2, im Detail einer Gruppe Ebene 3) mit der Zahl der Treffer, das Raster oder die Tabelle trägt den Namen des Abschnitts. Die Zahl zählt alle Treffer, nicht nur die der Seite.
 - [ ] **33.4** Karte: Bild oder Initialen, Name, Cevi-Name, Rollen und Tags als Chips mit Wort (höchstens drei, der Rest als «+n weitere» mit Aufzählung im Titel), darunter «Bearbeiten». Der Name der Person steht im Namen jedes Knopfs (`kontext`, `aria-label`). Konto und Zugang sind ruhige Marken mit Symbol und Wort (`Konto aktiv`, `Eltern verknüpft`, `Kein Zugang`, `Zweiter Faktor`); was Aufmerksamkeit verlangt (Startpasswort offen, abgelaufen, deaktiviert, Inaktiv, Telefon fehlt) bleibt ein Chip mit Symbol.
 - [ ] **33.5** Kontrast: Marken (`--leise`, `--ok`) und Chips erreichen 4.5:1 auf Karte und Fläche in Tag und Nacht; Rand von Karte und Umschalter mindestens 3:1 zu `--outline` beim Zeigen und beim Wählen.
@@ -589,6 +589,8 @@ Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellun
 - [ ] **33.8** Bewegung: Das gestaffelte Einblenden der Karten läuft nur beim Wechsel von Ansicht oder Gruppierung und nur ohne «Bewegung reduzieren»; beim Tippen im Filter bewegt sich nichts.
 - [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
 - [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
+
+- [ ] **33.11** Stufenkarte: Das hinterlegte Bild (erstes Bild der Stufenseite auf der Website) steht oben in der Karte mit leerem `alt` (Zierde, der Name der Stufe steht darunter als Überschrift); bis es geladen ist, steht ein ruhiger Platzhalter, fehlt die Datei, das Wort «Vorschau fehlt». Ohne Seite, ohne Bild oder ohne Recht bleibt die Karte wie vorher mit dem Buchstaben. Abfragen: die Seitenliste und je Stufe mit Seite der Entwurf, nur lesend.
 
 ### Stand der Prüfung (#624)
 
@@ -662,6 +664,23 @@ Gilt für `termine-belegung.js`, `termine-belegung.css` und `belegung-layout.js`
 ### Stand der Prüfung (#628)
 
 Im Browser (Chromium, headless) bei 390, 1440, 1920 und 2560 px in Tag und Nacht gesehen, Tastatur (Pfeile, Escape, Zurück) durchgespielt, Konten Abteilungsleitung, Stufenleitung und Eltern. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA), echtes Gerät, 400 % Zoom, Kontrastmessung mit dem Skript (die Farben sind die geprüften Tokens).
+
+## 39. Lädeli: Verfügbarkeit je Grösse (#629)
+
+Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/laedeli.js`, `laedeli.css`) und für Kachel, Artikelfenster, Warenkorb und Bestellübersicht der Website (`src/website/laden.ts`, `public/website/laden.js`, `laden.css`). Geprüft im Browser bei 390, 1440 px, Tag und Nacht.
+
+- [ ] **39.1** Der Zustand einer Grösse steht nie nur in der Farbe: Symbol (Haken oder Kreuz), Durchstreichung, gestrichelter Rand und das Wort «nicht verfügbar» (im Artikelblatt im Schalter, in der Artikelliste in der Spalte «Stand» direkt daneben, auf der Website in der Notiz unter der Wahl).
+- [ ] **39.2** Verwaltung: Jede Grösse ist ein Schalter (`role="switch"`, `aria-checked`, Name «S verfügbar, Cevianerpulli»), mindestens 44 × 44 px, mit sichtbarem Fokusring und Bedienung mit Enter und Leertaste. Nach dem Umschalten behält der Schalter den Fokus.
+- [ ] **39.3** Verwaltung: Das Umschalten in der Liste meldet im Toast «M ist bei «Cevianertshirt» als nicht verfügbar gemeldet.» mit «Rückgängig» (Statusregion, kein Fenster, keine Frist). Fehler stehen im Toast, der Schalter bleibt unverändert.
+- [ ] **39.4** Verwaltung am Handy (390 px): Jede Zeile der Artikelliste ist eine Karte; die Schalter sind ohne Seitwärtsscrollen erreichbar, «Grösse» und «Stand» tragen ihren Namen. Die Spaltenköpfe bleiben für Hilfstechnik im Dokument.
+- [ ] **39.5** Website: Eine gemeldete Grösse ist sichtbar, durchgestrichen, `aria-disabled="true"` und trägt für Hilfstechnik das Wort «nicht verfügbar»; sie bleibt fokussierbar, ein Klick wählt nichts aus und sagt «S ist nicht verfügbar.» in der Statusregion. Die sichtbare Notiz «S nicht verfügbar» steht in Kachel und Artikelfenster.
+- [ ] **39.6** Website: Eine entfallene Grösse im Warenkorb ist am Rand, am Symbol und am Satz in der Zeile erkennbar; das Band darüber ist eine Statusmeldung (`role="status"`, bei einer Serverantwort `alert`). «Zur Bestellübersicht» und «Bestellen» sind `aria-disabled` und sagen auf Klick, warum.
+- [ ] **39.7** Kontrast: Gemeldete Grössen (Text `--l-leise` und `--on-surface-variant` auf der Fläche) erreichen in Tag und Nacht mindestens 4.5:1; der gestrichelte Rand ist nicht das einzige Merkmal. Erzwungene Farben: Schalter und Knöpfe behalten einen Rand.
+- [ ] **39.8** Ohne Skript bleibt die Seite lesbar: durchgestrichene Grössen, Wort «nicht verfügbar» für Hilfstechnik, sichtbare Notiz.
+
+### Stand der Prüfung (#629)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
 ## Im PR angeben
 

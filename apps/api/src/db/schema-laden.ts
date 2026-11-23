@@ -35,6 +35,11 @@ export const ladenArtikel = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    // Grössen aus «varianten», die gerade nicht zu haben sind (#629). Leer: alle Grössen verfügbar
+    nichtVerfuegbar: text("nicht_verfuegbar")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     hinweis: text("hinweis"),
     verfuegbar: boolean("verfuegbar").notNull().default(true),
     reihenfolge: integer("reihenfolge").notNull().default(0),
@@ -55,6 +60,10 @@ export const ladenArtikel = pgTable(
     check(
       "laden_artikel_varianten_check",
       sql`cardinality(${t.varianten}) <= 20`,
+    ),
+    check(
+      "laden_artikel_nicht_verfuegbar_check",
+      sql`${t.nichtVerfuegbar} <@ ${t.varianten}`,
     ),
     check(
       "laden_artikel_hinweis_check",

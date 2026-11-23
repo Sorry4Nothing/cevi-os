@@ -12,6 +12,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import {
   artikelAnsicht,
+  artikelVerfuegbar,
   bestellenSchema,
   ladeArtikel,
   ladeUebergabearten,
@@ -42,6 +43,18 @@ const VARIANTE_UNGUELTIG = {
   code: "VARIANTE_UNGUELTIG",
   message: "Mindestens eine Variante gibt es bei diesem Artikel nicht.",
 } as const;
+// 422 mit Feld und den betroffenen Positionen; die Meldung nennt Artikel und Grösse (laden/laden.ts: nichtVerfuegbar)
+const groesseNichtVerfuegbar = (
+  weg: { artikelId: string; name: string; variante: string }[],
+) => ({
+  code: "GROESSE_NICHT_VERFUEGBAR",
+  feld: "positionen",
+  message:
+    weg.length === 1
+      ? `Die Grösse ${weg[0]!.variante} von «${weg[0]!.name}» ist nicht mehr verfügbar. Wähle eine andere Grösse.`
+      : `Diese Grössen sind nicht mehr verfügbar: ${weg.map((w) => `${w.name} in ${w.variante}`).join(", ")}. Wähle andere Grössen.`,
+  positionen: weg.map(({ artikelId, variante }) => ({ artikelId, variante })),
+});
 const UEBERGABE_UNBEKANNT = {
   code: "UEBERGABE_UNBEKANNT",
   message: "Diese Übergabe gibt es nicht mehr. Wähle eine andere.",
@@ -195,7 +208,10 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
                   .for("share")
               ).map((a) => [a.id, a]),
             );
-            const fehlen = ids.filter((id) => !artikel.get(id)?.verfuegbar);
+            const fehlen = ids.filter((id) => {
+              const a = artikel.get(id);
+              return !a || !artikelVerfuegbar(a);
+            });
             if (fehlen.length > 0) return { fehlen };
             for (const p of b.positionen) {
               const a = artikel.get(p.artikelId)!;
@@ -209,6 +225,20 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
                 return "variante" as const;
               }
             }
+            // Eine Grösse, die nicht zu haben ist, lehnt die ganze Bestellung ab: Nichts wird teilweise angelegt
+            const weg = b.positionen.flatMap((p) => {
+              const a = artikel.get(p.artikelId)!;
+              return p.variante && a.nichtVerfuegbar.includes(p.variante)
+                ? [
+                    {
+                      artikelId: a.id,
+                      name: a.name,
+                      variante: p.variante,
+                    },
+                  ]
+                : [];
+            });
+            if (weg.length > 0) return { weg };
             const arten = await ladeUebergabearten(tx, person.abteilungId);
             if (!arten.includes(b.uebergabe)) return "uebergabe" as const;
             const summeRappen = b.positionen.reduce(
@@ -257,6 +287,9 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
           if (ergebnis === "limit") return c.json(BESTELL_LIMIT, 409);
           if (ergebnis === "variante") return c.json(VARIANTE_UNGUELTIG, 400);
           if (ergebnis === "uebergabe") return c.json(UEBERGABE_UNBEKANNT, 400);
+          if ("weg" in ergebnis) {
+            return c.json(groesseNichtVerfuegbar(ergebnis.weg!), 422);
+          }
           if ("fehlen" in ergebnis) {
             return c.json(
               { ...ARTIKEL_NICHT_VERFUEGBAR, artikelIds: ergebnis.fehlen },

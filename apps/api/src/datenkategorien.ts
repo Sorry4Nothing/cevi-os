@@ -582,6 +582,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "preis_rappen",
       "medium_id",
       "varianten",
+      "nicht_verfuegbar",
       "hinweis",
       "verfuegbar",
       "reihenfolge",
