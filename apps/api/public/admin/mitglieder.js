@@ -6,7 +6,6 @@ import { avatar, el, icon, neueId, tabelle } from "./dom.js";
 import { sk } from "./lader.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const ANSICHT_SCHLUESSEL = "cevi-mitglieder-ansicht";
 
 // Eigene Symbole für den Umschalter: Karten (vier Felder) und Liste (drei Zeilen)
 const FORMEN = {
@@ -32,23 +31,15 @@ function form(name) {
   return knoten;
 }
 
-// Die gewählte Ansicht bleibt im Browser, auf allen drei Seiten gleich. Ohne Speicher (privates Fenster) oder bei einem fremden Wert gilt «karten».
+// Die gewählte Ansicht gilt auf allen drei Seiten gleich, solange die Seite offen ist (kein Browser-Speicher: nach dem Neuladen gilt «karten»).
+let gewaehlteAnsicht = "karten";
+
 export function gespeicherteAnsicht() {
-  try {
-    const wert = globalThis.localStorage?.getItem(ANSICHT_SCHLUESSEL);
-    if (wert === "karten" || wert === "liste") return wert;
-  } catch {
-    // ohne Speicher gilt die Vorgabe
-  }
-  return "karten";
+  return gewaehlteAnsicht;
 }
 
 function speichereAnsicht(wert) {
-  try {
-    globalThis.localStorage?.setItem(ANSICHT_SCHLUESSEL, wert);
-  } catch {
-    // die Wahl gilt dann nur für diese Sitzung
-  }
+  if (wert === "karten" || wert === "liste") gewaehlteAnsicht = wert;
 }
 
 // Umschalter aus Auswahlknöpfen (radiogroup, Pfeiltasten wechseln): Der Schieber gleitet unter die gewählte Option. Ohne Messung (Seite noch unsichtbar) färbt die gewählte Option sich selbst.
