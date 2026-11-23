@@ -9,7 +9,6 @@ import { ZONE, uhr, zaehlwort } from "./kalenderhilfen.js";
 /* ---------- Reine Funktionen ---------- */
 
 const tagFormat = new Intl.DateTimeFormat("sv-SE", { timeZone: ZONE });
-const TAG_MS = 86_400_000;
 // Der Kalender zeigt höchstens so viele Tage eines Termins an (Schutz vor Fehldaten)
 const MAX_TAGE = 62;
 

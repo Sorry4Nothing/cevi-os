@@ -347,7 +347,7 @@ th[aria-sort] .tm-sortknopf {
 .tm-tag--gewaehlt,
 .tm-tag--gewaehlt:hover {
   background: var(--secondary-container);
-  box-shadow: inset 0 0 0 2px var(--secondary);
+  box-shadow: inset 0 0 0 2px var(--focus);
 }
 
 .tm-tagzahl {
@@ -437,7 +437,7 @@ th[aria-sort] .tm-sortknopf {
 .tm-punkt {
   width: 8px;
   height: 8px;
-  background: var(--secondary);
+  background: var(--focus);
   border-radius: 50%;
 }
 
@@ -535,7 +535,7 @@ th[aria-sort] .tm-sortknopf {
   gap: 2px;
   padding: 12px 0 12px 12px;
   border-top: 1px solid var(--outline-variant);
-  border-left: 4px solid var(--secondary);
+  border-left: 4px solid var(--focus);
 }
 
 .tm-eintrag p {
@@ -714,7 +714,7 @@ th[aria-sort] .tm-sortknopf {
 }
 
 .tm-balken-fuell--ja {
-  fill: var(--secondary);
+  fill: var(--focus);
 }
 
 /* Abgemeldet ist keine Warnung: ruhiges Grau, die Beschriftung trägt die Bedeutung */
@@ -834,5 +834,30 @@ th[aria-sort] .tm-sortknopf {
       opacity: 1;
       transform: none;
     }
+  }
+}
+
+/* Raumanfragen: Liste und Detail nebeneinander, schmal untereinander */
+.tm-anfragen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 70rem) {
+  .tm-anfragen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tm-anfragen > .flaeche {
+  position: sticky;
+  top: 8rem;
+}
+
+@media (max-width: 70rem) {
+  .tm-anfragen > .flaeche {
+    position: static;
   }
 }
