@@ -367,7 +367,10 @@ describe("Aufbau und Barrierefreiheit", () => {
       html
         .replace('<script src="/website/theme.js"></script>', "")
         .replace('<script src="/website/ladezustand.js"></script>', "")
-        .replace('<script type="module" src="/website/konto-menue.js"></script>', ""),
+        .replace(
+          '<script type="module" src="/website/konto-menue.js"></script>',
+          "",
+        ),
     ).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
     expect(html).toContain("script-src &#39;self&#39;");
     expect(html).toContain("connect-src &#39;self&#39;");

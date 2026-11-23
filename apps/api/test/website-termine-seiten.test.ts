@@ -54,7 +54,9 @@ describe("Seiten für Termine und Anlässe", () => {
       expect(skripte).toHaveLength(4);
       expect(skripte[0][1]).toBe(' src="/website/theme.js"');
       expect(skripte[1][1]).toBe(' src="/website/ladezustand.js"');
-      expect(skripte[2][1]).toBe(' type="module" src="/website/konto-menue.js"');
+      expect(skripte[2][1]).toBe(
+        ' type="module" src="/website/konto-menue.js"',
+      );
       expect(skripte[3][1]).toMatch(
         /^ type="module" src="\/website\/[a-z-]+\.js"$/,
       );
