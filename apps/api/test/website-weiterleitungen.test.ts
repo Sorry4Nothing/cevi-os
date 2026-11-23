@@ -100,7 +100,7 @@ describe("Rückfallseite", () => {
     expect(html).toContain(
       '<meta http-equiv="refresh" content="0; url=/stufen/woelfe">',
     );
-    expect(html).toContain('<a href="/stufen/woelfe">');
+    expect(html).toContain('<a class="verweis" href="/stufen/woelfe">');
     expect(html).toContain("<h1>");
     expect(html).toContain("<title>Seite umgezogen | ");
     expect(html).toContain(
@@ -231,7 +231,7 @@ describe("Auslieferung der Weiterleitungen", () => {
 
     const seiteAlt = await lies("alte-seite/index.html");
     expect(seiteAlt).toContain('http-equiv="refresh" content="0; url=/neu"');
-    expect(seiteAlt).toContain('<a href="/neu">');
+    expect(seiteAlt).toContain('<a class="verweis" href="/neu">');
     expect(seiteAlt).not.toContain("<script");
     expect(await lies("ordner/alt.html/index.html")).toContain('url=/"');
   });

@@ -139,9 +139,29 @@ Die Seiten nutzen die ganze Breite: Jeder Abschnitt (`section.sektion`) hat eine
 
 Tokens der Gestaltung in `:root`: `--rand` (Seitenrand), `--abstand` (über und unter einem Abschnitt), `--spalt` (zwischen Titelschiene und Inhalt), `--titel` (Farbe der Titel: blau am Tag, hell in der Nacht), `--karte` (Fläche einer Karte).
 
-### Links
+### Verweise und Aktionen (#568)
 
-Ein Linkbild für die ganze Website: Ein Link im Text ist blau (`--accent`, in der Nacht hellblau) und unterstrichen, nie nur farbig; beim Zeigen wird der Strich dicker. Rot bleibt der einen Hauptaktion. Ein Link auf eine fremde Seite (`rel="noopener noreferrer"`) trägt hinten einen kleinen Pfeil nach oben rechts (im Stil gezeichnet, nach der Logik des Symbolsatzes) und für Screenreader den Zusatz «(externe Seite)», den der Renderer ergänzt. Ein Verweis, der allein steht (`.verweis`: Schaltfläche in der Darstellung «Link», Videolink; `a.mehr` in Karten), ist fett, ohne Strich und trägt einen Pfeil; beim Zeigen kommt der Strich dazu und der Pfeil rückt vor. Termin-Zeilen bekommen beim Zeigen eine ruhige Fläche als eigene Schicht hinter der Zeile (gleicher Abstand rundum, die Trennlinien bleiben frei), der Text bewegt sich nicht.
+Ein festes Repertoire gilt auf jeder Seite, in jedem Baustein und in jedem Skript. Wer einen Link oder Knopf braucht, nimmt eine dieser sechs Formen und erfindet keine neue.
+
+| Form          | Wann                                                                                                                          | Aussehen                                                                                                                                                                 | Markup                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| Hauptaktion   | Das Eine, was die Seite oder der Abschnitt von der Person will (anmelden, absenden, zur Anmeldung). Höchstens eine je Ansicht | Gefüllter roter Knopf, Verb als Beschriftung, kein Pfeil                                                                                                                 | `.btn.p` (mit `.gross` im Inhalt); auf Rot `.btn.w`                              |
+| Nebenaktion   | Eine zweite Möglichkeit neben der Hauptaktion oder eine Aktion ohne Vorrang («Alle Termine», «Abbrechen», «Zum Anlass»)       | Knopf mit Rand, gleiche Form und Höhe wie die Hauptaktion, kein Pfeil; in Formularen auch als Textknopf                                                                  | `.btn.s`, Textknopf `.btn.t`                                                     |
+| Verweis       | Ein Link, der allein steht und auf eine andere Seite führt («Mehr zu …», «Zur Zopfbackaktion», «Anmelden» im Datenplan)       | Fett, blau (`--accent`), ohne Strich, dahinter der Pfeil; beim Zeigen kommt der Strich dazu und der Pfeil rückt vor. In einer Aktionsgruppe ein Knopf mit Rand und Pfeil | `a.verweis`; in Karten `a.mehr`                                                  |
+| Textlink      | Ein Link in einem Satz, einer Angabe (Eckdaten) oder einer Liste                                                              | Blau (`--accent`), unterstrichen, Gewicht 600; beim Zeigen wird der Strich dicker. Auf Blau und Rot weiss                                                                | `a` ohne Klasse                                                                  |
+| Externer Link | Jeder Link auf eine fremde Seite, als Textlink oder Verweis                                                                   | Wie oben, dahinter ein kleiner Pfeil nach oben rechts statt des Verweis-Pfeils; für Screenreader der Zusatz «(externe Seite)»                                            | `rel="noopener noreferrer"` (setzt `verlinke()`), das Zeichen kommt aus dem Stil |
+| Kontaktlink   | Mailadresse und Telefonnummer                                                                                                 | Ein Textlink, überall gleich; die Adresse oder Nummer ist der Linktext. Nur in der Kontaktkarte gross gesetzt (`.weg`)                                                   | `a` mit `mailto:` oder `tel:`                                                    |
+
+Regeln dazu:
+
+- **Ein Pfeil:** Linie und gefülltes Dreieck nach rechts, immer hinter dem Wort. Verweise zeichnen ihn im Stil (`::after`), Zeilen und Karten, die als Ganzes ein Link sind (Termin-Zeile, Bildkarte), tragen dasselbe Zeichen als Symbol `pfeil` am rechten Rand. Knöpfe tragen nie einen Pfeil.
+- **Ein Zeichen für extern:** der kleine Pfeil nach oben rechts am Attribut `rel`. Ein fremder Link entsteht im Renderer nur über `verlinke()` (oder mit `EXTERN_HINWEIS` beim Baustein «Datei»); Skripte erzeugen keine fremden Links.
+- **Zustände:** Zeigen ändert bei Knöpfen die Fläche, bei Links den Strich; Drücken verkleinert Knöpfe leicht; der Fokus ist überall derselbe Ring (`:focus-visible`, 3 px, auf Blau und Rot hell). Tag und Nacht nur über Tokens.
+- **Aktionsgruppe:** Schaltflächen, die aufeinander folgen, stehen in einer Zeile (`.knopfreihe.aktionen`), alle in derselben Form und Höhe.
+- **Eine Quelle:** Die Regeln für `a` und `.btn` stehen nur in `website.css`. `termine.css`, `inhalt.css`, `kopf.css`, `karussell.css` und `auswahl.css` legen keine eigene Fassung davon an; sie regeln nur, was ihrem Baustein eigen ist (Reiter, Auswahlfeld, Pfeile des Karussells, Navigation).
+- Bedienelemente, die keine Verweise sind, gehören nicht zum Repertoire: Reiter und Umschalter (`aria-pressed`, `aria-selected`), das Auswahlfeld, die Knöpfe des Karussells, die Navigation im Kopf.
+
+Termin-Zeilen bekommen beim Zeigen eine ruhige Fläche als eigene Schicht hinter der Zeile (gleicher Abstand rundum, die Trennlinien bleiben frei), der Text bewegt sich nicht.
 
 ### Bewegung
 
