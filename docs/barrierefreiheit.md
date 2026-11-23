@@ -659,6 +659,7 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 - [ ] **39.6** Website: Eine entfallene Grösse im Warenkorb ist am Rand, am Symbol und am Satz in der Zeile erkennbar; das Band darüber ist eine Statusmeldung (`role="status"`, bei einer Serverantwort `alert`). «Zur Bestellübersicht» und «Bestellen» sind `aria-disabled` und sagen auf Klick, warum.
 - [ ] **39.7** Kontrast: Gemeldete Grössen (Text `--l-leise` und `--on-surface-variant` auf der Fläche) erreichen in Tag und Nacht mindestens 4.5:1; der gestrichelte Rand ist nicht das einzige Merkmal. Erzwungene Farben: Schalter und Knöpfe behalten einen Rand.
 - [ ] **39.8** Ohne Skript bleibt die Seite lesbar: durchgestrichene Grössen, Wort «nicht verfügbar» für Hilfstechnik, sichtbare Notiz.
+- [ ] **39.9** Verwaltung: Mit Grössen gibt es nur eine Verfügbarkeit (die Schalter je Grösse) und die Hinweiszeile «Der Artikel ist bestellbar, solange mindestens eine Grösse verfügbar ist.»; bei Einheitsgrösse nur die Checkbox. Ein älterer Artikel mit Grössen und ausgeschaltetem Artikel zeigt alle Grössen als nicht verfügbar und erklärt es in der Hinweiszeile.
 
 ### Stand der Prüfung (#629)
 

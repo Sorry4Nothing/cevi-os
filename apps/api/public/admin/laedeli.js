@@ -107,12 +107,19 @@ export const variantenAus = (text) => [
 ];
 
 // Verfügbarkeit je Grösse (#629): «nichtVerfuegbar» nennt die Grössen, die nicht zu haben sind. Stand eines Artikels: aus (Schalter des Artikels), keine (alle Grössen weg), teilweise oder ganz
+// Bei einem Artikel mit Grössen ergibt sich alles aus den Grössen. Ein älterer Artikel mit Grössen, dessen Schalter «verfügbar» aus ist, zählt als «alle Grössen nicht verfügbar» (bleibt also nicht bestellbar und ist auflösbar: eine Grösse einschalten)
+export function wegVon(a) {
+  return a.varianten.length > 0 &&
+    (a.verfuegbarGesetzt ?? a.verfuegbar) === false
+    ? [...a.varianten]
+    : (a.nichtVerfuegbar ?? []);
+}
 export function standVon(a) {
-  const weg = a.nichtVerfuegbar ?? [];
-  if (!(a.verfuegbarGesetzt ?? a.verfuegbar)) return { art: "aus", weg };
-  if (a.varianten.length > 0 && a.varianten.every((v) => weg.includes(v))) {
-    return { art: "keine", weg };
+  const weg = wegVon(a);
+  if (a.varianten.length === 0) {
+    return { art: (a.verfuegbarGesetzt ?? a.verfuegbar) ? "ganz" : "aus", weg };
   }
+  if (a.varianten.every((v) => weg.includes(v))) return { art: "keine", weg };
   return { art: weg.length > 0 ? "teilweise" : "ganz", weg };
 }
 export function standChips(a) {
@@ -756,7 +763,7 @@ function zeigeArtikel(bereich, ctx) {
       a.varianten.length > 0
         ? groessenSchalter({
             namen: a.varianten,
-            weg: a.nichtVerfuegbar ?? [],
+            weg: wegVon(a),
             name: a.name,
             kompakt: true,
             beiUmschalten: (v, aus) => schalte(a, v, aus),
@@ -780,20 +787,20 @@ function zeigeArtikel(bereich, ctx) {
         : `${v} ist bei «${a.name}» wieder verfügbar.`;
     let beschaeftigt = false;
     async function setzeWeg(a, liste, fokusName) {
+      // Mit Grössen gibt es keinen zweiten Schalter am Artikel: Er gilt als gesetzt, die Grössen entscheiden
       await anfrage("PATCH", `${BASIS}/artikel/${a.id}`, {
         nichtVerfuegbar: liste,
+        verfuegbar: true,
       });
       a.nichtVerfuegbar = liste;
-      a.verfuegbar =
-        (a.verfuegbarGesetzt ?? true) &&
-        (a.varianten.length === 0 ||
-          a.varianten.some((x) => !liste.includes(x)));
+      a.verfuegbarGesetzt = true;
+      a.verfuegbar = a.varianten.some((x) => !liste.includes(x));
       zeichneZellen(a, fokusName);
     }
     async function schalte(a, v, aus) {
       if (beschaeftigt) return;
       beschaeftigt = true;
-      const vorher = [...(a.nichtVerfuegbar ?? [])];
+      const vorher = [...wegVon(a)];
       const nachher = aus
         ? [...vorher, v].filter((x, i, l) => l.indexOf(x) === i)
         : vorher.filter((x) => x !== v);
@@ -1028,7 +1035,8 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     autocomplete: "off",
   });
   // Verfügbarkeit je Grösse (#629): ein Schalter je Grösse der Liste; ausgeschaltete Grössen bleiben sichtbar, lassen sich aber nicht bestellen
-  const weg = new Set(artikel?.nichtVerfuegbar ?? []);
+  // Ein älterer Artikel mit Grössen und ausgeschaltetem Artikel-Schalter beginnt mit «alle Grössen nicht verfügbar»; beim Speichern wird das so festgehalten
+  const weg = new Set(artikel ? wegVon(artikel) : []);
   const schalterOrt = el("div", { class: "ld-gschalter-ort" });
   const gwahl = el(
     "div",
@@ -1049,6 +1057,8 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     liste.eingabe.checked ? variantenAus(varianten.eingabe.value) : [];
   function zeichneSchalter(fokusName) {
     const namen = aktuelleNamen();
+    // Ein bisher ausgeschalteter Einheitsartikel, der eine Liste bekommt, bleibt nicht verfügbar: Alle Grössen beginnen als nicht verfügbar
+    if (!verfuegbar.eingabe.checked) for (const v of namen) weg.add(v);
     gwahl.hidden = namen.length < 2;
     schalterOrt.replaceChildren(
       groessenSchalter({
@@ -1057,6 +1067,8 @@ async function artikelBlatt({ artikel, ctx, neu }) {
         beiUmschalten: (v, aus) => {
           if (aus) weg.add(v);
           else weg.delete(v);
+          // Wer eine Grösse bedient, hat den Stand des Artikels damit entschieden
+          verfuegbar.eingabe.checked = true;
           zeichneSchalter(v);
           meldeAenderung();
           zeigeVorschau();
@@ -1084,9 +1096,11 @@ async function artikelBlatt({ artikel, ctx, neu }) {
   function aktualisiereGroesse() {
     varianten.wurzel.hidden = !liste.eingabe.checked;
     gwahl.hidden = true;
+    // Mit Grössen entscheiden allein die Grössen; ohne Liste bleibt die Checkbox die einzige Einstellung
+    verfuegbar.wurzel.hidden = liste.eingabe.checked;
+    artikelHinweis.hidden = !liste.eingabe.checked;
     if (bereit) zeichneSchalter();
   }
-  aktualisiereGroesse();
   const hinweis = feld({
     label: "Hinweis (optional)",
     hilfe: "Steht unter dem Preis, höchstens 200 Zeichen.",
@@ -1098,6 +1112,15 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     gewaehlt: artikel?.verfuegbarGesetzt ?? artikel?.verfuegbar ?? true,
     wert: "verfuegbar",
   });
+  const artikelHinweis = el(
+    "p",
+    { class: "klein leise" },
+    "Der Artikel ist bestellbar, solange mindestens eine Grösse verfügbar ist.",
+    artikel?.varianten.length > 0 && artikel.verfuegbarGesetzt === false
+      ? " Er war bisher als nicht verfügbar gesetzt: Darum sind alle Grössen als nicht verfügbar gemeldet. Schalte eine Grösse ein, damit er wieder bestellbar ist."
+      : null,
+  );
+  aktualisiereGroesse();
   const meldungsfeld = el("div", {});
   // Vorschau rechts: Name, Preis, Hinweis, Grössen und Stand wie in der Liste
   const vorschau = el("div", { class: "ld-vorschau" });
@@ -1134,7 +1157,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
   const vorschauStand = () => {
     const namen = aktuelleNamen();
     const stand = standChips({
-      verfuegbarGesetzt: verfuegbar.eingabe.checked,
+      verfuegbarGesetzt: namen.length > 0 || verfuegbar.eingabe.checked,
       varianten: namen,
       nichtVerfuegbar: namen.filter((v) => weg.has(v)),
     });
@@ -1151,6 +1174,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
         groesse.wurzel,
         hinweis.wurzel,
         verfuegbar.wurzel,
+        artikelHinweis,
       ],
       seiteTitel: "Bild und Vorschau",
       seite: [
@@ -1279,7 +1303,8 @@ async function artikelBlatt({ artikel, ctx, neu }) {
         nichtVerfuegbar: namen.filter((v) => weg.has(v)),
       }),
       hinweis: hinweis.eingabe.value.trim() || null,
-      verfuegbar: verfuegbar.eingabe.checked,
+      // Mit Grössen entscheiden die Grössen
+      verfuegbar: art === "liste" ? true : verfuegbar.eingabe.checked,
     };
     sperre(true);
     try {
