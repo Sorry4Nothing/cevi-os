@@ -299,7 +299,7 @@ export function kandidaten({ bereiche, daten = {} }) {
           [a.zeitText, 1],
           [a.status.text, 1],
         ],
-        adresse: `#anlaesse/anlaesse/${a.id}`,
+        adresse: `#anlaesse/${a.id}`,
       });
     }
   }

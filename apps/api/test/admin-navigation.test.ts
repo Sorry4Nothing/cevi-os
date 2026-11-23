@@ -63,9 +63,11 @@ describe("Verwaltung: navigation.js", () => {
 
   test("alte Adressen führen zur neuen Heimat", () => {
     expect(nav.neueAdresse("#tags")).toBe("#personen/gruppen");
-    expect(nav.neueAdresse("#termine/anlaesse/42")).toBe(
-      "#anlaesse/anlaesse/42",
+    expect(nav.neueAdresse("#termine/anlaesse/42")).toBe("#anlaesse/42");
+    expect(nav.neueAdresse("#anlaesse/anlaesse/42/felder")).toBe(
+      "#anlaesse/42/felder",
     );
+    expect(nav.neueAdresse("#anlaesse/anlaesse")).toBe("#anlaesse");
     expect(nav.neueAdresse("#termine/raeume")).toBe("#raeume/raeume");
     expect(nav.neueAdresse("#personen/personen")).toBe("#personen/personen");
     for (const [, neu] of nav.ALIASE as [string, string][]) {
@@ -110,10 +112,8 @@ describe("Verwaltung: navigation.js", () => {
   });
 
   test("Die alte Adresse der Anmeldungen führt zum Anlass, ohne Kennung zur Liste (#607)", () => {
-    expect(nav.neueAdresse("#anlaesse/anmeldungen")).toBe("#anlaesse/anlaesse");
-    expect(nav.neueAdresse("#anlaesse/anmeldungen/abc")).toBe(
-      "#anlaesse/anlaesse/abc",
-    );
+    expect(nav.neueAdresse("#anlaesse/anmeldungen")).toBe("#anlaesse");
+    expect(nav.neueAdresse("#anlaesse/anmeldungen/abc")).toBe("#anlaesse/abc");
   });
 
   test("Einstellungen der Website nur mit dem Recht «Seiten veröffentlichen»", () => {

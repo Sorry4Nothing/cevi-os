@@ -660,7 +660,7 @@ export function monatsAnsicht({
           "a",
           {
             class: "tm-eintrag-link",
-            href: `#anlaesse/anlaesse/${t.anlass.id}`,
+            href: `#anlaesse/${t.anlass.id}`,
           },
           "Anlass öffnen",
         ),

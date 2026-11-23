@@ -290,7 +290,7 @@ describe("Kandidaten und Treffer", () => {
     expect(adressen["person-p1"]).toBe("#personen/personen");
     expect(adressen["tag-t1"]).toBe("#personen/gruppen/t1");
     expect(adressen["termin-m1"]).toBe("#termine/kalender/2026-12-05");
-    expect(adressen["anlass-a1"]).toBe("#anlaesse/anlaesse/a1");
+    expect(adressen["anlass-a1"]).toBe("#anlaesse/a1");
     expect(adressen["webseite-s1"]).toBe("#website/seiten/s1");
     expect(adressen["lager-l1"]).toBe("#lager/lager/l1");
     expect(adressen["aktion-lager-neu"]).toBe("#lager/lager/neu");

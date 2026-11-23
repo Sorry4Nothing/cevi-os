@@ -45,7 +45,7 @@ import { zeigeAnmeldungen } from "./anlass-anmeldungen.js";
 import { zeichneFelder } from "./anlass-felder.js";
 
 // Bereich «Anlässe» (A17, A18, #445, Epic #430; neu gestaltet in #608): Anlässe anlegen und verwalten. Ein Anlass hat vier Reiter: Übersicht, Anmeldungen, Zusatzfelder, Einstellungen. Anmeldungen erreicht man nur über den Anlass; die alten Adressen #anlaesse/anmeldungen[/<id>] leiten hierher.
-// Adressen: #anlaesse/anlaesse (Liste) · …/<id> (Übersicht) · …/<id>/anmeldungen · …/<id>/felder · …/<id>/einstellungen. Hat der Bereich nur noch eine Unterseite, steht «anlaesse» einmal weniger in der Adresse; das Modul liest beide Formen.
+// Adressen: #anlaesse (Liste) · #anlaesse/<id> (Übersicht) · …/<id>/anmeldungen · …/<id>/felder · …/<id>/einstellungen. Die alte Form #anlaesse/anlaesse/… schreibt navigation.js um; das Modul liest sie zur Sicherheit auch.
 // Abfragen: Liste beim Öffnen 1 (und je «Weitere laden» 1; Zusatzfelder und Rückmeldungen je Anlass zählt die Abfrage der Seite mit); Anlass beim Öffnen 2 (Anlass, die letzten 5 Anmeldungen mit den Summen; 30 Sekunden im Speicher, damit der Wechsel zwischen Reitern nicht nochmals fragt); Reiter «Anmeldungen» 1 mehr, «Einstellungen» 1 mehr (Gruppen); «Anlass anlegen» holt beim Öffnen des Formulars 2 (Termine, Gruppen). Kein Polling, kein Abruf je Zeile. Die Rechte prüft der Server (nur Abteilungsleitung).
 // Lücken gegenüber dem Design: Die Seite des Anlasses steht als Verweis in den Angaben, nicht mit ihrem Pfad; beim Konflikt der Zusatzfelder fehlt der Name der Person, die geändert hat.
 

@@ -13,7 +13,7 @@ import { skeletonTabelle } from "./lader.js";
 import { leerKarte } from "./zustaende.js";
 
 // Reiter «Anmeldungen» eines Anlasses (A19, #445, Epic #430): Wer sich angemeldet hat, mit den Antworten auf die Zusatzfelder, und der Export als CSV. Anmeldungen gibt es nur über den Anlass (der Rahmen in termine-anlaesse.js); die alten Adressen #anlaesse/anmeldungen/<id> leiten dorthin.
-// Adresse: #anlaesse/anlaesse/<id>/anmeldungen
+// Adresse: #anlaesse/<id>/anmeldungen
 // Abfragen: beim Öffnen 1 (erste Seite mit 50 Anmeldungen und den Summen), danach 1 je Wechsel des Stands oder «Weitere laden»; Export 1 je Klick (alle Zeilen, ohne Zwischenspeicher). Suche läuft im Browser. Kein Polling. Die Rechte prüft der Server (nur Abteilungsleitung).
 // Abweichungen vom Design: Der Stand heisst «Angemeldet» und «Abgemeldet» (die API kennt kein «Offen»); der Export kennt nur CSV, denn Excel-Dateien sind gestrichen; die Zahl der Zeilen je Seite ist fest (50, «Weitere laden»).
 

@@ -58,7 +58,12 @@ function ziel(ctx, [bereich, unter]) {
     istAdmin: ctx.ich.role === "admin",
     zugang: ctx.zugang,
   });
-  return ok ? `#${bereich}/${unter}` : null;
+  // Hat der Bereich nur eine Unterseite, steht sie nicht in der Adresse (#anlaesse)
+  return ok
+    ? b.unter.length === 1
+      ? `#${bereich}`
+      : `#${bereich}/${unter}`
+    : null;
 }
 
 let zaehlerId = 0;

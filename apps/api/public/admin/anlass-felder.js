@@ -21,7 +21,7 @@ import {
 import { meldungVon, vergiss } from "./anlass-gemeinsam.js";
 
 // Reiter «Zusatzfelder» eines Anlasses (A18, #445): Was die Anmeldung zusätzlich fragt. Die Felder kommen mit dem Anlass (der Rahmen in termine-anlaesse.js hat ihn geladen); Speichern holt vorher den Stand des Servers (Konflikt) und schreibt dann alle Felder.
-// Adresse: #anlaesse/anlaesse/<id>/felder
+// Adresse: #anlaesse/<id>/felder
 // Abfragen: keine beim Öffnen (der Anlass ist schon da); «Speichern» 2 (Abgleich mit dem Stand auf dem Server, dann Speichern). Kein Polling. Die Rechte prüft der Server (nur Abteilungsleitung).
 // Lücke gegenüber dem Design: Beim Konflikt fehlt der Name der Person, die geändert hat.
 

@@ -8,9 +8,9 @@ import { ladeSeite } from "./anlass-anmeldungen.js";
 
 export const BASIS = "/api/v1/admin/anlaesse";
 
-// Adresse eines Anlasses; die Liste und die Reiter. «#anlaesse/anlaesse/…» gilt, solange der Bereich zwei Unterseiten hat, und danach weiter (das Modul liest sie in beiden Formen)
+// Adresse eines Anlasses; die Liste und die Reiter. Der Bereich hat nur eine Unterseite: Liste #anlaesse, Anlass #anlaesse/<id>, Reiter #anlaesse/<id>/felder. Das Modul liest auch die alte Form #anlaesse/anlaesse/… (die ALIASE in navigation.js schreiben sie um)
 export const adresse = (id, reiter) =>
-  `#anlaesse/anlaesse${id ? `/${id}` : ""}${reiter ? `/${reiter}` : ""}`;
+  `#anlaesse${id ? `/${id}` : ""}${reiter ? `/${reiter}` : ""}`;
 
 // Anlass im Speicher: Der Wechsel zwischen den Reitern fragt nicht jedes Mal neu (30 Sekunden); wer etwas ändert, ruft vergiss(id)
 const FRIST_MS = 30_000;

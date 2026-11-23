@@ -275,9 +275,11 @@ export const ALIASE = [
   ["anwesenheit", "personen/anwesenheit"],
   ["zeitregeln", "system/zeitregeln"],
   ["plattform", "system/plattform"],
-  ["termine/anlaesse", "anlaesse/anlaesse"],
+  // Der Bereich Anlässe hat nur eine Unterseite: Die Liste liegt unter #anlaesse, ein Anlass unter #anlaesse/<id> (#608)
+  ["termine/anlaesse", "anlaesse"],
+  ["anlaesse/anlaesse", "anlaesse"],
   // Anmeldungen sind kein eigener Punkt mehr: Sie gehören zum Anlass (#607); die Adresse mit Kennung führt zum Anlass, ohne Kennung zur Liste
-  ["anlaesse/anmeldungen", "anlaesse/anlaesse"],
+  ["anlaesse/anmeldungen", "anlaesse"],
   ["termine/raeume", "raeume/raeume"],
 ];
 
