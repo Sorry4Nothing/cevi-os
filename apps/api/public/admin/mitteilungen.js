@@ -75,23 +75,89 @@ function zeichne(bereich, ctx, stufen) {
   const formular = el(
     "form",
     { class: "formular karte mitteilung", novalidate: true },
-    el(
-      "p",
-      { class: "hinweis" },
-      "Die Mitteilung geht als Push an die Geräte der gewählten Gruppe. Bei einer Stufe erreicht sie die gewählten Rollen: die Stufenleitung, die Leitenden und die Eltern aktiver Kinder. Sind alle Rollen gewählt, bekommst du sie auch. Wer «Mitteilungen» in der App ausgeschaltet hat, bekommt sie nicht.",
-    ),
     titel.wurzel,
     beschreibung.wurzel,
-    gruppe("Empfänger", [alle.wurzel, ...boxen.map((b) => b.wurzel)], {
-      scrollen: true,
-    }),
+    gruppe("Empfänger", [
+      alle.wurzel,
+      el(
+        "div",
+        { class: "mt-auswahl" },
+        boxen.map((b) => b.wurzel),
+      ),
+    ]),
     gruppe(
       "Rollen",
-      rollen.map((r) => r.wurzel),
+      el(
+        "div",
+        { class: "mt-auswahl" },
+        rollen.map((r) => r.wurzel),
+      ),
     ),
     fehler,
     el("div", { class: "dialog-knoepfe" }, senden),
   );
+
+  // Vorschau: So sieht der Push aus, und an wen er geht. Sie wächst mit den Eingaben mit und ersetzt den langen Hinweistext über dem Formular.
+  const vorschauTitel = el("p", { class: "mt-push-titel" });
+  const vorschauText = el("p", { class: "mt-push-text" });
+  const vorschauWer = el("dd");
+  const vorschauRollen = el("dd");
+  const zeichneVorschau = () => {
+    const t = titel.eingabe.value.trim();
+    const b = beschreibung.eingabe.value.trim();
+    vorschauTitel.textContent = t || "Titel der Mitteilung";
+    vorschauTitel.classList.toggle("mt-push-leer", !t);
+    vorschauText.textContent = b;
+    vorschauText.hidden = !b;
+    const stufenNamen = boxen
+      .filter((x) => x.eingabe.checked)
+      .map((x) => stufen.find((s) => s.id === x.eingabe.value).name);
+    vorschauWer.textContent = alle.eingabe.checked
+      ? "Alle aktiven Konten der Abteilung"
+      : stufenNamen.length > 0
+        ? stufenNamen.join(", ")
+        : "Noch niemand gewählt";
+    const gewaehlt = rollen.filter((r) => r.eingabe.checked);
+    vorschauRollen.textContent =
+      gewaehlt.length === rollen.length
+        ? "Alle Rollen"
+        : gewaehlt.length > 0
+          ? gewaehlt
+              .map((r) => r.label.replace(" (Teilnehmende)", ""))
+              .join(", ")
+          : "Keine Rolle gewählt";
+  };
+  for (const eingabe of [
+    titel.eingabe,
+    beschreibung.eingabe,
+    alle.eingabe,
+    ...boxen.map((x) => x.eingabe),
+    ...rollen.map((r) => r.eingabe),
+  ]) {
+    eingabe.addEventListener("input", zeichneVorschau);
+    eingabe.addEventListener("change", zeichneVorschau);
+  }
+  zeichneVorschau();
+  const vorschau = [
+    el(
+      "div",
+      { class: "mt-push", "aria-hidden": "true" },
+      el("p", { class: "mt-push-app" }, "Cevi OS"),
+      vorschauTitel,
+      vorschauText,
+    ),
+    el(
+      "dl",
+      { class: "werte" },
+      el("div", {}, el("dt", {}, "Geht an"), vorschauWer),
+      el("div", {}, el("dt", {}, "Rollen"), vorschauRollen),
+    ),
+    el(
+      "p",
+      { class: "hilfe" },
+      "Die Mitteilung geht als Push an die Geräte der gewählten Gruppe. Bei einer Stufe erreicht sie die gewählten Rollen: die Stufenleitung, die Leitenden und die Eltern aktiver Kinder. Sind alle Rollen gewählt, bekommst du sie auch. Wer «Mitteilungen» in der App ausgeschaltet hat, bekommt sie nicht.",
+    ),
+  ];
   // Eine gesendete Mitteilung lässt sich nicht zurückholen und trifft sofort andere: kein Rückgängig mit Frist, sondern zwei Stufen im Knopf statt eines Popups (#578)
   const zweiter = zweiStufig(senden);
 
@@ -169,6 +235,7 @@ function zeichne(bereich, ctx, stufen) {
           alle.eingabe.checked = false;
           for (const b of boxen) b.eingabe.checked = false;
           sperre();
+          zeichneVorschau();
           ctx.melde(`Mitteilung gesendet an ${ANZAHL(ergebnis.empfaenger)}.`);
         } catch (f) {
           zeigeFehler(fehlertext(f));
@@ -181,5 +248,18 @@ function zeichne(bereich, ctx, stufen) {
     );
   });
 
-  bereich.append(formular);
+  // Zwei Spalten ohne eigene Scrollbereiche: Das Formular ist kurz, zwei Rollbereiche würden hier stören; die Vorschau bleibt beim Scrollen stehen
+  bereich.append(
+    el(
+      "div",
+      { class: "mt-raster" },
+      formular,
+      el(
+        "aside",
+        { class: "mt-vorschau panel", "aria-labelledby": "mt-vorschau-titel" },
+        el("h2", { id: "mt-vorschau-titel" }, "Vorschau"),
+        ...vorschau,
+      ),
+    ),
+  );
 }

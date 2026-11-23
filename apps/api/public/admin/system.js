@@ -1,4 +1,5 @@
 import { anfrage, fehlertext } from "./api.js";
+import { fmt, saeulen, wertetabelle } from "./uebersicht-diagramme.js";
 import {
   auswahl,
   chip,
@@ -73,11 +74,11 @@ async function ladeSeite() {
   return { ...betrieb, abrufe };
 }
 
-// Lädt alle 15 Sekunden neu, solange der Bereich auf der Seite steht und der Reiter sichtbar ist; ein Fehler lässt die alten Zahlen stehen
-export function laufend(bereich, laden, zeichnen, fehlerFeld, sekunden = 15) {
+// Lädt neu, wenn die Person «Aktualisieren» wählt, nie im Takt: kein Polling, damit die Datenbank nicht im Hintergrund belastet wird (#593). Ein Fehler lässt die alten Zahlen stehen; liefert, ob es geklappt hat
+export function aufWunsch(bereich, laden, zeichnen, fehlerFeld) {
   let laeuft = false;
-  async function lauf() {
-    if (laeuft || document.hidden) return false;
+  return async function lauf() {
+    if (laeuft) return false;
     laeuft = true;
     try {
       zeichnen(await laden());
@@ -91,21 +92,7 @@ export function laufend(bereich, laden, zeichnen, fehlerFeld, sekunden = 15) {
     } finally {
       laeuft = false;
     }
-  }
-  const takt = setInterval(() => {
-    if (!bereich.isConnected) stoppe();
-    else lauf();
-  }, sekunden * 1000);
-  const sichtbar = () => {
-    if (!document.hidden && bereich.isConnected) lauf();
   };
-  function stoppe() {
-    clearInterval(takt);
-    document.removeEventListener("visibilitychange", sichtbar);
-  }
-  document.addEventListener("visibilitychange", sichtbar);
-  // Für «Aktualisieren» von Hand: liefert, ob es geklappt hat
-  return lauf;
 }
 
 // Beim Neuzeichnen bleibt der Fokus auf dem Element mit demselben data-fokus, sonst verlöre ihn die Tastatur alle 15 Sekunden
@@ -717,6 +704,84 @@ function zeichneAbrufe(ziel, d, starten, laeuft) {
   );
 }
 
+// Verlauf der Anfragen der letzten 24 Stunden als Säulen je Stunde, der Fehleranteil als zweiter Teil (Muster: «event-timeline» und «dither-area-chart» aus Kokonut UI Pro, ohne Dither; die Säulen sind dieselben wie in der Übersicht). Die Tabelle dahinter nennt dieselben Zahlen.
+function verlaufKarte(a) {
+  const stunden = a.stunden;
+  const summe = stunden.reduce((n, x) => n + x.anzahl, 0);
+  const fehler = stunden.reduce((n, x) => n + x.fehler4xx + x.fehler5xx, 0);
+  const name = (x) => `Ab ${minutenName(x.ab)} Uhr`;
+  const id = neueId("verlauf24");
+  const zusammen =
+    summe === 0
+      ? "Noch keine Anfragen gezählt."
+      : `${fmt(summe)} Anfragen, davon ${fmt(fehler)} mit Fehler.`;
+  return el(
+    "section",
+    { class: "panel verlauf24", "aria-labelledby": id },
+    el(
+      "div",
+      { class: "zeile" },
+      el("h2", { id }, "Anfragen der letzten 24 Stunden"),
+      el("p", { class: "klein leise" }, zusammen),
+    ),
+    summe === 0
+      ? el(
+          "p",
+          { class: "leer leer--klein" },
+          "Seit dem Start sind keine Anfragen gezählt worden.",
+        )
+      : [
+          el(
+            "div",
+            { class: "ub-diagramm" },
+            saeulen({
+              titel: "Anfragen je Stunde",
+              einheit: "Anfragen",
+              fehlerName: "mit Fehler",
+              weit: true,
+              hoehe: 48,
+              punkte: stunden.map((x) => ({
+                name: name(x),
+                wert: x.anzahl,
+                fehler: x.fehler4xx + x.fehler5xx,
+              })),
+            }),
+          ),
+          el(
+            "p",
+            { class: "ub-legende klein leise" },
+            el("span", {
+              class: "ub-schluessel ub-schluessel--ok",
+              "aria-hidden": "true",
+            }),
+            "Anfragen ",
+            el("span", {
+              class: "ub-schluessel ub-schluessel--fehler",
+              "aria-hidden": "true",
+            }),
+            "davon mit Fehler",
+          ),
+          el("p", { class: "hilfe" }, hinweisSeitStart(a)),
+          el(
+            "details",
+            { class: "diagramm-tabelle" },
+            el("summary", {}, "Als Tabelle anzeigen"),
+            wertetabelle({
+              beschriftung: "Anfragen je Stunde, die letzten 24 Stunden",
+              spalten: ["Stunde", "Anfragen", "mit Fehler"],
+              zeilen: [...stunden]
+                .reverse()
+                .map((x) => [
+                  name(x),
+                  fmt(x.anzahl),
+                  fmt(x.fehler4xx + x.fehler5xx),
+                ]),
+            }),
+          ),
+        ],
+  );
+}
+
 function zeichneSeite(bereich, daten, ctx) {
   let anfragen;
   let sortierung = "anzahl";
@@ -731,6 +796,7 @@ function zeichneSeite(bereich, daten, ctx) {
   const stand = el("p", { class: "meta stand" });
   const lageFeld = el("div", { class: "hinweis", role: "status" });
   const kacheln = el("div", { class: "kacheln" });
+  const verlauf24 = el("div", {});
   const kurzFehler = el("div", {});
   const panels = el("div", { class: "raster raster--2" });
   const hinweisStart = el("p", { class: "hinweis" });
@@ -899,12 +965,13 @@ function zeichneSeite(bereich, daten, ctx) {
     anfragen = a;
     setzeText(
       stand,
-      `Stand ${UHR_SEKUNDEN.format(new Date())}, wird alle 15 Sekunden aktualisiert.`,
+      `Stand ${UHR_SEKUNDEN.format(new Date())}. Neue Zahlen holst du mit «Aktualisieren».`,
     );
     const [art, text] = lage(s, a);
     lageFeld.className = `hinweis hinweis--${art}`;
     setzeText(lageFeld, text);
     ersetze(kacheln, ...systemKacheln(s, a));
+    ersetze(verlauf24, verlaufKarte(a));
     ersetze(kurzFehler, fehlerTabelle(a.letzteFehler, 8));
     ersetze(panels, ...systemPanels(s));
     setzeText(hinweisStart, hinweisSeitStart(a));
@@ -935,6 +1002,7 @@ function zeichneSeite(bereich, daten, ctx) {
       inhalt: [
         lageFeld,
         kacheln,
+        verlauf24,
         el(
           "section",
           { class: "spalte", "aria-labelledby": `${basis}-fehler-kurz` },
@@ -1035,7 +1103,7 @@ function zeichneSeite(bereich, daten, ctx) {
   }
   zeichneAbrufeNeu(daten.abrufe);
 
-  const nachladen = laufend(
+  const nachladen = aufWunsch(
     bereich,
     ladeSeite,
     (neu) => {
