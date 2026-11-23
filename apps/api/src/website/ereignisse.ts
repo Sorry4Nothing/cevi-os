@@ -10,7 +10,9 @@ export type WebsiteEreignis = {
     | "version_zurueckgezogen"
     | "seite_geloescht"
     | "weiterleitung_geaendert"
-    | "einstellungen_geaendert";
+    | "einstellungen_geaendert"
+    // Artikel des Lädelis (#566): Seiten mit dem Baustein «laden» entstehen neu
+    | "laden_geaendert";
   abteilungId: string;
   // Bei Weiterleitungen (#356) leer: Sie gehören keiner Seite
   seiteId?: string;

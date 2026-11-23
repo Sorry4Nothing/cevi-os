@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/redaktion/weiterleitungen/:id"
-order: 128000
+order: 175000
 method: DELETE
-url: "{{baseUrl}}/api/v1/redaktion/weiterleitungen/{{ziel_133}}"
+url: "{{baseUrl}}/api/v1/redaktion/weiterleitungen/{{ziel_180}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

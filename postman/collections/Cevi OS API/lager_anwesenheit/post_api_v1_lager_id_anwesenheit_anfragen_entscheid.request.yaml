@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/anwesenheit/anfragen/entscheid"
-order: 173000
+order: 220000
 method: POST
 url: "{{baseUrl}}{{pfad_L17}}"
 headers:
@@ -21,7 +21,7 @@ body:
       "entscheid": "angenommen",
       "anfragen": [
         {
-          "id": "708a0492-3107-4d38-a993-58cbd1715dba",
+          "id": "a5aae72d-2d27-4a57-9a4a-c33091a4b2e1",
           "version": 1
         }
       ]

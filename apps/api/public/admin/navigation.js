@@ -184,6 +184,32 @@ export const BEREICHE = [
     ],
   },
   {
+    schluessel: "laedeli",
+    name: "Lädeli",
+    symbol: "tag",
+    start: "bestellungen",
+    unter: [
+      {
+        schluessel: "bestellungen",
+        name: "Bestellungen",
+        modul: "./laedeli.js",
+        untertitel: "Bestellungen der Website und ihr Stand.",
+      },
+      {
+        schluessel: "artikel",
+        name: "Artikel",
+        modul: "./laedeli.js",
+        untertitel: "Was das Lädeli anbietet, mit Preis und Varianten.",
+      },
+      {
+        schluessel: "einstellungen",
+        name: "Einstellungen",
+        modul: "./laedeli.js",
+        untertitel: "Wie Bestellungen übergeben werden.",
+      },
+    ],
+  },
+  {
     schluessel: "lager",
     name: "Lager",
     symbol: "haken",

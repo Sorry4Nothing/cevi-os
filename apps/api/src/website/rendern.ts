@@ -14,6 +14,12 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
+import {
+  rendereLaden,
+  SKRIPT_LADEN,
+  STILE_LADEN,
+  type LadenArtikel,
+} from "./laden.js";
 import { symbol } from "./symbole.js";
 import { zeichenLinks } from "./zeichen.js";
 
@@ -47,6 +53,8 @@ export type MedienDaten = {
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
+// Freigegebene Person für den Baustein «personen» (#560): Anzeigename und, falls vorhanden, die Adresse des Profilbilds in der Ausgabe
+export type WebsitePerson = { name: string; bild?: string };
 // link: der Wert als Link (Eckdaten, #560)
 export type Fakt = { bezeichnung: string; wert: string; link?: string };
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
@@ -81,6 +89,10 @@ export type Daten = {
   medien: ReadonlyMap<string, MedienDaten>;
   personen: ReadonlyMap<string, Mitglied>;
   teams: ReadonlyMap<string, { name: string; mitglieder: Mitglied[] }>;
+  // Freigegebene Personen für den Baustein «personen» (#560), nach ID; wer fehlt, erscheint nicht
+  websitePersonen: ReadonlyMap<string, WebsitePerson>;
+  // Profilbilder dazu als Dateien der Ausgabe [Pfad, Bytes]; schreibt nur der Abgleich
+  personenDateien?: [string, Uint8Array][];
   stufenfakten: ReadonlyMap<string, Fakt[]>;
   // Je Baustein «terminliste» (nach der ID des Bausteins) die kommenden Termine; fehlt der Eintrag, wurde nichts geladen und der Baustein entfällt
   termine: ReadonlyMap<string, TerminEintrag[]>;
@@ -90,14 +102,21 @@ export type Daten = {
   anlaesse: ReadonlyMap<string, string>;
   // Adressen von Seiten des Baums, die Besucher nicht sehen (#560): Karten und Listeneinträge mit einem Link dorthin entfallen
   verborgen?: ReadonlySet<string>;
+  // Die Artikel des Lädelis (#566) in ihrer Reihenfolge, nach ID; leer, wenn keine Seite den Baustein «laden» hat
+  laden: ReadonlyMap<string, LadenArtikel>;
+  // Die Übergabearten des Lädelis in ihrer Reihenfolge (der Name ist der Schlüssel)
+  ladenUebergabe: ReadonlyMap<string, true>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
   personen: new Map(),
   teams: new Map(),
+  websitePersonen: new Map(),
   stufenfakten: new Map(),
   termine: new Map(),
   anlaesse: new Map(),
+  laden: new Map(),
+  ladenUebergabe: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -227,7 +246,7 @@ function bild(
     undefined,
     el(
       "a",
-      { class: "gross", href: medienUrl(id) },
+      { class: "bildgross", href: medienUrl(id) },
       img,
       el("span", { class: "nur-sr" }, "Bild gross ansehen"),
     ),
@@ -365,6 +384,9 @@ function rendereBaustein(
 ): HtmlKnoten | null {
   if (istInhaltsBaustein(b)) {
     return rendereInhaltsBaustein(b, daten, letzte);
+  }
+  if (b.typ === "laden") {
+    return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   switch (b.typ) {
     case "ueberschrift": {
@@ -1065,6 +1087,7 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
 ]);
 const istBreit = (b: Baustein) =>
   b.typ === "artikel" ||
+  b.typ === "laden" ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
   (b.typ === "karten" &&
@@ -1253,7 +1276,8 @@ export function rahmen(
     // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»), ausser bei «vollbreit»
     inhalt: string;
     robots?: string;
-    skript?: string;
+    // Ein Modul oder mehrere; mit Skript erlaubt die CSP Abrufe an die eigene Herkunft
+    skript?: string | string[];
     // Weitere Skripte der eigenen Herkunft ohne Abrufe (zum Beispiel das Karussell), mit defer
     zusatzSkripte?: string[];
     // Weitere Stylesheets der Website (Pfade unter /website/), nach dem Grundstil
@@ -1270,7 +1294,7 @@ export function rahmen(
   const menue = !nurMarke && k.navigation.length > 0;
   const skripte = [
     ...(menue ? [SKRIPT_MENUE] : []),
-    ...(skript ? [skript] : []),
+    ...(skript ? [skript].flat() : []),
   ]
     .map((pfad) => `\n<script type="module" src="${pfad}"></script>`)
     .join("");
@@ -1323,7 +1347,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
             attr: { class: "titelbild" },
             // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
             kinder: erstes.knoten!.kinder?.flatMap((kind) =>
-              typeof kind === "object" && kind.attr?.class === "gross"
+              typeof kind === "object" && kind.attr?.class === "bildgross"
                 ? (kind.kinder ?? []).filter(
                     (x) => typeof x === "object" && x.tag === "img",
                   )
@@ -1361,6 +1385,11 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         zusatzSkripte: [SKRIPT_LICHTKASTEN],
         stile: [STIL_LICHTKASTEN],
       };
+  // Der Laden (#566) bringt Stil und Skript nur mit, wenn er öffentlich auf der Seite steht und Artikel hat
+  const mitLaden = eintraege.some(
+    (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
+  );
+  const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
@@ -1373,80 +1402,20 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     stile: [
       ...(bilder ? bilder.stile : []),
       ...(s.dokument.bausteine.some(istInhaltsBaustein) ? [STIL_INHALT] : []),
+      ...(mitLaden ? STILE_LADEN : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...(!s.dokument.bausteine.every(istOeffentlich) && {
-      skript: SKRIPT_GESCHUETZT,
-      hauptAttr: ` data-pfad="${esc(s.pfad)}"`,
+    ...((geschuetzt || mitLaden) && {
+      skript: [
+        ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
+        ...(mitLaden ? [SKRIPT_LADEN] : []),
+      ],
     }),
+    ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
   });
 }
 
-// Fehler- und Wartungsseiten (Design W4): ein grosser Satz, was nun geht, kein Fachwort. Ohne Skript: «Nochmals versuchen» ist ein Link auf dieselbe Adresse
-const fehlerKopf = (
-  titel: string,
-  text: string,
-  nachher: string,
-  code: string,
-) => `<div class="seitenkopf seitenkopf--fehler">
-<h1>${esc(titel)}</h1>
-<p class="unter">${esc(text)}</p>
-${nachher}
-<p class="klein leise">${esc(code)}</p>
-</div>`;
-
-const nochmals = `<a class="btn p gross" href="">${serialisiere(symbol("nochmals"))}Nochmals versuchen</a>`;
-
-// 404.html: der Host liefert sie bei unbekannten Adressen; sie verrät nichts über geschützte Seiten
-export function rendereFehlerseite(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Seite nicht gefunden",
-    aktuell: null,
-    robots: "noindex",
-    inhalt: fehlerKopf(
-      "Diese Seite gibt es nicht.",
-      "Vielleicht ist der Link alt oder hat einen Tippfehler. Von hier aus kommst du weiter:",
-      `<div class="knopfreihe"><a class="btn p gross" href="/">Zur Startseite</a></div>${
-        k.navigation.length > 0
-          ? `\n<nav aria-label="Hauptpunkte" class="hauptpunkte"><ul>${k.navigation.map((p) => `<li><a href="${esc(p.pfad)}">${esc(p.titel)}</a></li>`).join("")}</ul></nav>`
-          : ""
-      }`,
-      "Fehler 404",
-    ),
-  });
-}
-
-// 500.html: der Host liefert sie, wenn die Website selbst nicht antwortet
-export function rendereServerfehler(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Fehler",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Bei uns ist etwas schiefgegangen.",
-      "Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}<a class="btn s gross" href="/">Zur Startseite</a></div>`,
-      "Fehler 500",
-    ),
-  });
-}
-
-// wartung.html: der Host liefert sie mit dem Status 503, wenn die Website gewartet wird
-export function rendereWartung(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Wartung",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Wir sind gleich wieder da.",
-      "Die Website wird gerade aktualisiert. Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}</div>`,
-      "Fehler 503",
-    ),
-  });
-}
+// Fehler- und Wartungsseiten stehen in fehlerseiten.ts (#567)
 
 // Nur öffentliche Seiten: Der Aufrufer übergibt nur diese
 export function rendereSitemap(

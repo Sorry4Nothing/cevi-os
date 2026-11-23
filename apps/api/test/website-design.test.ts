@@ -5,15 +5,18 @@ import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
   rendereSeite,
-  rendereServerfehler,
-  rendereWartung,
   type Daten,
   type Kontext,
 } from "../src/website/rendern.js";
-import { HINWEISSEITE } from "../src/website/sperre.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+  stimmungsbild,
+} from "../src/website/fehlerseiten.js";
+import { HINWEIS_STIL, HINWEISSEITE } from "../src/website/sperre.js";
 
 // Design «Cevi Web» (#529): Hülle, Seitentypen, Fehlerseiten, Stilvorlage
 const CSS = readFileSync(
@@ -263,42 +266,155 @@ describe("Geschützter Baustein und Hülle (W10)", () => {
   });
 });
 
-describe("Fehler- und Wartungsseiten (W4)", () => {
-  test("404: ein H1, Weg zur Startseite, die Hauptpunkte, noindex", () => {
-    const html = rendereFehlerseite(kontext());
-    expect(zaehle(html, "<h1")).toBe(1);
-    expect(html).toContain("Diese Seite gibt es nicht.");
-    expect(html).toContain(
-      '<a class="btn p gross" href="/">Zur Startseite</a>',
-    );
-    expect(html).toContain('<nav aria-label="Hauptpunkte"');
-    expect(html).toContain("Fehler 404");
+describe("Fehler- und Wartungsseiten (#567)", () => {
+  const mitSeiten = (): Kontext => ({
+    ...kontext(),
+    navigation: [
+      { pfad: "/", titel: "Start", kinder: [] },
+      {
+        pfad: "/mitmachen",
+        titel: "Mitmachen",
+        kinder: [
+          { pfad: "/mitmachen/gruppen", titel: "Unsere Gruppen", kinder: [] },
+        ],
+      },
+    ],
   });
 
-  test("500: ohne Skript, «Nochmals versuchen» ist ein Link auf dieselbe Adresse, nur das Logo im Kopf", () => {
+  test("404: ein H1, die Hauptaktion zur Startseite, Tafeln als Ziele statt des Menüs, noindex", () => {
+    const html = rendereFehlerseite(mitSeiten());
+    expect(zaehle(html, "<h1")).toBe(1);
+    expect(html).toContain("<h1>Falsch abgebogen.</h1>");
+    expect(html).toContain("Diese Seite gibt es nicht.");
+    expect(html).toContain(
+      '<div class="knopfreihe aktionen"><a class="btn p gross" href="/">Zur Startseite</a></div>',
+    );
+    expect(html).not.toContain("Hauptpunkte");
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    expect(html).toContain('href="/website/fehler.css"');
+    expect(html).toContain("Fehler 404");
+    // Die Ziele: die Seite der Gruppen (auch aus einem Untermenü) und die Termine; ohne E-Mail kein Kontakt
+    expect(html).toContain('<nav aria-label="Wohin jetzt?">');
+    expect(html).toContain('<div class="wegweiser">');
+    expect(html).toContain(
+      '<a class="tafel" href="/mitmachen/gruppen"><span class="tafel-ziel">Unsere Gruppen</span>',
+    );
+    expect(html).toContain('<a class="tafel" href="/termine">');
+    expect(zaehle(html, 'class="tafel"')).toBe(2);
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("<img");
+  });
+
+  test("404: mit E-Mail der Abteilung eine Tafel «Schreib uns», mit Stimmungsbild ein Bild ohne Alt-Text", () => {
+    const k = mitSeiten();
+    const id = "00000000-0000-7000-8000-000000000001";
+    const daten = {
+      ...keineDaten(),
+      kontakt: { email: "info@example.org" },
+      medien: new Map([
+        [
+          id,
+          {
+            mimeTyp: "image/webp",
+            groesse: 1,
+            breite: 1600,
+            hoehe: 900,
+            altText: "Gruppe unterwegs",
+          },
+        ],
+      ]),
+    };
+    const html = rendereFehlerseite(
+      { ...k, daten },
+      {
+        id,
+        breite: 1600,
+        hoehe: 900,
+      },
+    );
+    expect(html).toContain(
+      '<a class="tafel" href="mailto:info@example.org"><span class="tafel-ziel">Schreib uns</span>',
+    );
+    expect(html).toContain(
+      `<img class="irr-bild" src="/api/v1/medien/${id}" alt="" width="1600" height="900" decoding="async">`,
+    );
+  });
+
+  test("Stimmungsbild: der erste Baustein der Startseite, wenn er ein öffentliches Bild ist", () => {
+    const id = "00000000-0000-7000-8000-000000000001";
+    const daten = {
+      ...keineDaten(),
+      medien: new Map([
+        [
+          id,
+          {
+            mimeTyp: "image/webp",
+            groesse: 1,
+            breite: 1,
+            hoehe: 1,
+            altText: null,
+          },
+        ],
+      ]),
+    };
+    const bild = (sichtbarkeit: "erbt" | { art: "angemeldet" }) =>
+      ({
+        titel: "Start",
+        bausteine: [
+          {
+            id: "00000000-0000-7000-8000-00000000000a",
+            typ: "bild",
+            sichtbarkeit,
+            tags: [],
+            daten: { mediumId: id },
+          },
+        ],
+      }) as unknown as Parameters<typeof stimmungsbild>[0];
+    expect(stimmungsbild(bild("erbt"), daten)).toEqual({
+      id,
+      breite: 1,
+      hoehe: 1,
+    });
+    expect(stimmungsbild(bild({ art: "angemeldet" }), daten)).toBeUndefined();
+    expect(stimmungsbild(bild("erbt"), keineDaten())).toBeUndefined();
+    expect(stimmungsbild(undefined, daten)).toBeUndefined();
+  });
+
+  test("500: ohne Skript und ohne Bild, «Nochmals versuchen» ist ein Link auf dieselbe Adresse, nur das Logo im Kopf", () => {
     const html = rendereServerfehler(kontext());
     expect(zaehle(html, "<h1")).toBe(1);
-    expect(html).toContain("Bei uns ist etwas schiefgegangen.");
+    expect(html).toContain("Bei uns ist etwas schiefgegangen");
     expect(html).toContain('href="">');
     expect(html).toContain("Nochmals versuchen");
+    expect(html).toContain('<a class="tafel" href="/">');
     expect(html).toContain("Fehler 500");
     expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(/<script/);
+    expect(html).not.toContain("/api/");
     expect(html).not.toContain('class="leiste"');
     expect(html).toContain('<meta name="robots" content="noindex">');
   });
 
-  test("Wartung: «Wir sind gleich wieder da.», Fehler 503", () => {
+  test("Wartung: «Wir sind gleich wieder da.», ein Schild ohne Link, Fehler 503", () => {
     const html = rendereWartung(kontext());
     expect(zaehle(html, "<h1")).toBe(1);
     expect(html).toContain("Wir sind gleich wieder da.");
+    expect(html).toContain('<span class="tafel tafel--schild">');
+    expect(html).toContain('<div class="wegweiser">');
     expect(html).toContain("Fehler 503");
+    expect(html).not.toContain("/api/");
     expect(html).not.toContain('class="leiste"');
   });
 
-  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript und fremde Adresse", () => {
-    expect(HINWEISSEITE).toContain("prefers-color-scheme: dark");
+  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript, Inline-Stil und fremde Adresse", () => {
+    expect(HINWEIS_STIL).toContain("prefers-color-scheme: dark");
     expect(HINWEISSEITE).toContain("Vorübergehend nicht erreichbar");
-    expect(HINWEISSEITE).not.toMatch(/<script|https?:\/\//);
+    expect(HINWEISSEITE).toContain(
+      '<link rel="stylesheet" href="/gesperrt.css">',
+    );
+    expect(HINWEISSEITE).toContain('<a href="">Nochmals versuchen</a>');
+    expect(HINWEISSEITE + HINWEIS_STIL).not.toMatch(
+      /<script|<style|style=|https?:\/\//,
+    );
   });
 });
 

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/anlaesse/:id"
-order: 402000
+order: 454000
 method: GET
 url: "{{baseUrl}}{{pfad_T2}}"
 headers:

@@ -448,17 +448,6 @@ figcaption,
   margin-top: 0.75rem;
 }
 
-.seitenkopf--fehler {
-  gap: 1rem;
-  padding-top: 6rem;
-}
-
-.hauptpunkte ul {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
 .inhalt {
   display: flex;
   flex-direction: column;

@@ -202,6 +202,34 @@ Die Seite und jeder innere Scrollbereich (Tagesfeld der Termine, Auswahlliste, M
 - **Karussell:** Mit Skript hat der Streifen keine Leiste (Pfeile, Ziehen, Wischen und die Fortschrittsanzeige übernehmen); ohne Skript (`scripting: none`) zeigt er die waagrechte Leiste.
 - Eigene Scrollbereiche brauchen nichts: `overflow: auto` genügt, die Leiste kommt von der Regel für alle Elemente.
 
+## Lädeli (#566)
+
+Der Baustein «laden» (`src/website/laden.ts`, Stil `laden.css`, Verhalten `laden.js`) ist ein Laden: Raster, Artikelfenster, Warenkorb, Bestellübersicht. Er nutzt die Tokens der Website (Farben, Schrift, Bewegung) und kein Bibliotheksteil. Ein Muster eines Ladens diente als Vorlage für Aufbau und Abfolge; Code und Bilder stammen nicht daraus.
+
+**Wer was sieht.** Ohne Anmeldung ist der Laden ein Katalog: Raster, Preise, Artikelfenster mit grossem Foto, Name, Preis, Beschreibung und, wo es sie gibt, den Grössen als Text. Statt der Bedienelemente steht ein ruhiger Hinweis mit dem Knopf «Zum Bestellen anmelden» (im Kopf des Ladens und im Artikelfenster); nach der Anmeldung öffnet sich der Artikel wieder. Es gibt für Besucher keinen Warenkorb, kein «Schnell dazu» und kein Plus, und im Browser entsteht nichts im `localStorage`. Mit Anmeldung kommen Warenkorb-Knopf, schwebender Knopf mit Summe, schnelles Hinzufügen, Menge, Warenkorb-Blatt, Bestellübersicht und «Deine Bestellungen» dazu. Das Skript fragt beim Öffnen einmal `GET /api/v1/laden`: 200 heisst angemeldet, 401 nicht. Bis die Antwort da ist, bleiben die Bedienelemente verborgen, damit nichts flackert.
+
+**Schnelles Hinzufügen.** Mit der Maus erscheint der Streifen am unteren Rand der Kachel beim Zeigen, mit der Tastatur beim Fokus auf der Kachel. Das runde Plus in der Ecke gibt es nur auf Geräten ohne Zeigen (`@media (hover: none)`, also Touch): Dort öffnet es den Streifen. Bei Einheitsgrösse hat der Streifen einen Knopf «In den Warenkorb», bei einer Liste je Grösse einen (ab sieben «Variante wählen» zum Artikelfenster).
+
+**Grösse.** Jeder Artikel ist ausdrücklich «Einheitsgrösse» (keine Wahl im Laden) oder hat eine Liste mit mindestens zwei Grössen; die Verwaltung verlangt die Angabe.
+
+| Merkmal der Vorlage                                 | Übernommen | Grund                                                                                                                |
+| --------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Raster mit 2 bis 4 Spalten und Dichte-Umschalter    | ja         | Wer viele Artikel sieht, wählt die Dichte; Standard 2 am Handy, 3 ab 40 rem, 4 ab 75 rem                             |
+| Kachel im Format 4:5 mit unbeschnittenem Foto       | ja         | Die Fotos der Artikel haben verschiedene Formate; nichts wird abgeschnitten                                          |
+| Schnelles Hinzufügen in der Kachel                  | ja         | Mehrere Artikel nacheinander, ohne jedes Mal ein Fenster zu öffnen; nur nach Anmeldung                               |
+| Artikelfenster mit grossem Foto, Variante und Menge | ja         | Foto, Preis und Wahl an einem Ort; als `dialog` mit Tastatur und Fokusrückgabe                                       |
+| Warenkorb als Blatt von rechts                      | ja         | Der Laden bleibt dahinter sichtbar; Menge ändern, Entfernen und Rückgängig                                           |
+| Bestellübersicht mit Summe und einer Hauptaktion    | ja         | Ein klarer letzter Schritt; die Summe prüft der Server                                                               |
+| Gezeichnete Kleidungsstücke als Vorschau            | nein       | Wir haben Fotos der echten Artikel; Zeichnungen würden sie ersetzen                                                  |
+| Farbwechsel am Artikel                              | nein       | Ein Artikel hat bei uns keine Farbfotos je Variante; Farben sind Varianten im Text                                   |
+| Kategorie-Tabs                                      | nein       | 21 Artikel; Sortierung genügt, Kategorien wären erfunden                                                             |
+| Grössentabelle                                      | nein       | Die Abteilung kennt die Masse nicht; bei Bedarf steht ein Hinweis am Artikel                                         |
+| Lagerhinweis («nur noch 3»)                         | nein       | Es gibt keinen Lagerbestand, ein Artikel ist verfügbar oder nicht                                                    |
+| Versand und Lieferadresse                           | nein       | Es gibt nur Übergabe; keine Adressen von Kindern oder Eltern speichern                                               |
+| Promo-Code                                          | nein       | Es gibt keine Aktionen und keine Zahlung im System                                                                   |
+| Steuer in der Übersicht                             | nein       | Preise sind Endpreise; bezahlt wird bei der Übergabe                                                                 |
+| Ablaufende Rückgängig-Frist beim Entfernen          | nein       | Eine Frist, die von selbst abläuft, verletzt WCAG 2.2.1; «Rückgängig» bleibt stehen, bis sich der Korb wieder ändert |
+
 ## Neuer Seitentyp
 
 1. Inhalt in `rahmen(k, { titel, aktuell, inhalt, … })` übergeben. `inhalt` ist fertiges Markup, das in `.wrap` steht. `titel` landet im `<title>` («Titel | Abteilung»), den `h1` schreibt der Seitentyp.
@@ -215,15 +243,27 @@ Die Seiten für Termine und Anlässe (Boards W3, W5 bis W8) bauen auf `.termine`
 
 ## Seitentypen und Fehlerseiten
 
-| Datei                                   | Funktion                     | Design     | Inhalt                                                                                           |
-| --------------------------------------- | ---------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| `<adresse>/index.html`, `index.html`    | `rendereSeite`               | W1, W2, W4 | Titel, Bausteine; Startseite mit Teaser; Stufenfakten neben dem Text davor                       |
-| `<adresse>/index.html` (ganz geschützt) | `rendereHuelle`              | W10        | Titel «Geschützte Seite», Hinweis und Link «Anmelden»; das Skript ersetzt sie nach der Anmeldung |
-| `anmelden/index.html`                   | `rendereAnmeldung`           | W9         | Formular, zweiter Faktor, Zustände durch `anmelden.js`                                           |
-| `404.html`                              | `rendereFehlerseite`         | W4         | «Diese Seite gibt es nicht.», Link zur Startseite, Hauptpunkte                                   |
-| `500.html`                              | `rendereServerfehler`        | W4         | «Bei uns ist etwas schiefgegangen.», Link «Nochmals versuchen» (dieselbe Adresse)                |
-| `wartung.html`                          | `rendereWartung`             | W4         | «Wir sind gleich wieder da.»                                                                     |
-| `index.html`/`404.html` bei Sperre      | `HINWEISSEITE` (`sperre.ts`) | –          | Neutrale Seite mit Inline-Stil (die Stilvorlage ist dann gelöscht)                               |
+| Datei                                   | Funktion                                 | Design     | Inhalt                                                                                                               |
+| --------------------------------------- | ---------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| `<adresse>/index.html`, `index.html`    | `rendereSeite`                           | W1, W2, W4 | Titel, Bausteine; Startseite mit Teaser; Stufenfakten neben dem Text davor                                           |
+| `<adresse>/index.html` (ganz geschützt) | `rendereHuelle`                          | W10        | Titel «Geschützte Seite», Hinweis und Link «Anmelden»; das Skript ersetzt sie nach der Anmeldung                     |
+| `anmelden/index.html`                   | `rendereAnmeldung`                       | W9         | Formular, zweiter Faktor, Zustände durch `anmelden.js`                                                               |
+| `404.html`                              | `rendereFehlerseite` (`fehlerseiten.ts`) | #567       | «Falsch abgebogen.», Knopf «Zur Startseite», Wegweiser mit den Zielen Gruppen, Termine und Kontakt, Stimmungsbild    |
+| `500.html`                              | `rendereServerfehler`                    | #567       | «Hier geht es gerade nicht weiter.», Link «Nochmals versuchen» (dieselbe Adresse), Tafel «Zur Startseite»; ohne Bild |
+| `wartung.html`                          | `rendereWartung`                         | #567       | «Wir sind gleich wieder da.», «Nochmals versuchen», ein Schild ohne Link; ohne Bild                                  |
+| `<alte-adresse>/index.html`             | `rendereWeiterleitungsseite`             | #567       | «Diese Seite ist umgezogen.», Knopf und Tafel zur neuen Adresse, `meta refresh`                                      |
+| `index.html`/`404.html` bei Sperre      | `HINWEISSEITE` (`sperre.ts`)             | #567       | Neutrale Seite mit eigener Stildatei `gesperrt.css` (die Stilvorlage ist dann gelöscht)                              |
+
+### Fehlerseiten (#567)
+
+Die Idee ist ein Wegweiser am Wanderweg (`fehlerBuehne` in `src/website/fehlerseiten.ts`, Stil `website/fehler.css`, nur auf diesen Seiten geladen). Links steht gross die Aussage, ein Satz, die Hauptaktion als Knopf und klein der Code. Rechts steht im Bild ein Wegweiser aus Holz: ein Kantholz mit Maserung und Ortstafel («Nirgendwo, 404 m ü. M.») trägt Bretter mit aufgemalter roter Spitze, mit Nägeln befestigt, leicht in verschiedene Richtungen gedreht und mit Schatten und dunkler Kante; sie zeigen auf zwei, drei Ziele, und rechts auf dem Brett steht klein der «Weg» dahin («1 Klick», «1 Mail»). Der Wegweiser ist ein Gegenstand in der Szene: Seine Farben (Holz, Dunkelbraun, Cevi-Rot) sind fest und in Tag und Nacht gleich, die Schrift hat auf dem Holz mindestens 5.3:1. Verworfen wurde ein Wegweiser aus verzinktem Rohr mit weissen, emaillierten Tafeln (Entwurf «Metall»): Er wirkt kühler, ist als Gegenstand weniger greifbar und hebt sich auf dem Grün der Hecke weniger ab. Alles Wesentliche steht ohne Scrollen im Fenster (geprüft bei 1440 × 650). Das Menü wiederholen die Seiten nicht: Es steht im Kopf.
+
+- **Ziele der 404-Seite** (`ziele`): die Seite der Gruppen (die erste Seite der Navigation, deren Adresse auf `gruppen` oder `stufen` endet, mit ihrem Titel), die Termine (feste Seite `/termine`) und der Kontakt (Seite mit der Adresse `kontakt`, sonst die E-Mail der Abteilung als «Schreib uns»). Was es nicht gibt, fehlt.
+- **Bild der 404-Seite** (`ladeFehlerbild`, `stimmungsbild`): ein öffentliches Bild, das die Einstellungen der Website nennen (Website, Einstellungen, «Bild für die Fehlerseiten», Spalte `abteilung.website_fehlerbild_medium_id`, Migration 0133, Feld `fehlerbildMediumId`). Gewählt ist ein Wegfoto im Querformat (die Gruppe von hinten auf einem Feldweg, Wiese und Wald, keine Gesichter), denn der Wegweiser verdeckt die rechte Hälfte und die Fahne die linke. Ohne Wahl gilt das Titelbild der Startseite (ihr erster Baustein, wenn er ein öffentliches Bild ist). Es ist Schmuck (leerer Alt-Text), füllt die Bühne über die ganze Breite (`object-fit: cover`; schmal zeigt `object-position` den Weg mit der Hecke) und steht nachts etwas abgedunkelt. Ohne Bild steht der Wegweiser vor Himmel und zwei Hügeln in den Tönen der Website.
+- **Ohne Bild und ohne Abruf:** `500.html` und `wartung.html` haben kein Foto, kein Skript ausser `theme.js` und keinen Verweis auf die API ausser dem Logo im Kopf (fehlt es, steht sein Alt-Text). Die Wartungsseite trägt ein Schild ohne Link (Spitze in dunklem Holz statt Rot, `span` statt `a`).
+- Die Rückfallseite einer Weiterleitung hat keinen Kopf: nur die Bühne. Die Hinweisseite der Informationssperre steht allein (eigene Datei `gesperrt.css` mit den Farben in Tag und Nacht, geschrieben und gelöscht von `sperre.ts`; die Schrift bleibt bei einer Sperre liegen) und trägt dieselbe Handschrift. Ein Inline-Stil bliebe unter der CSP des Hosts (`style-src 'self'`) wirkungslos.
+- Knöpfe sind `.btn` in einer `.knopfreihe.aktionen`; die Tafeln (`.tafel`) gibt es nur hier. Der Fokus einer Tafel liegt als dunkelbrauner Rahmen im Brett (ihre Form schneidet alles ausserhalb ab), damit er auf jedem Foto sichtbar ist.
+- Bewegung: ein Auftritt beim Laden (die Bretter schwenken vom Pfosten her ein), beim Zeigen rückt eine Tafel in ihre Richtung; nichts davon bei «Bewegung reduzieren».
 
 Geschützte Bausteine tragen im statischen HTML einen Platzhalter mit dem Hinweis «Nur angemeldet sichtbar» und dem Link «Anmelden» (nie Typ oder Inhalt). `geschuetzt.js` tauscht ihn nach der Anmeldung aus und zeigt dabei die Zustände Laden (Skeleton), Fehler, nicht angemeldet und kein Zugriff.
 
@@ -250,5 +290,5 @@ Das erste Bild einer Seite ist ihr Titelbild und geht bis zum Fensterrand; der S
 ## Hinweise für den Betrieb
 
 - Der Host liefert `500.html` bei 5xx-Fehlern der Website und `wartung.html` mit Status 503 (Vorschlag im Abschnitt «Vorschlag für den Edge-Caddy» in [website-auslieferung.md](website-auslieferung.md)).
-- Die Vorschau im Editor nutzt dieselbe Stilvorlage (`/admin/website-vorschau.css` ist `website.css`).
+- Die Vorschau im Editor nutzt dieselben Stile wie die Website: `/admin/website-vorschau.css` ist `website.css`, `kopf.css`, `lichtkasten.css`, `karussell.css` und die Stile der Inhaltsbausteine hintereinander, die Schrift Archivo liefert die Verwaltung selbst (`/admin/archivo-latin.woff2`). Die Vorschau ist immer hell, zeigt Termin-Liste, «Zur Anmeldung» und Kontakt (Telefon, E-Mail, Adresse aus der Konfiguration) wie die Website und hat weder Menü noch Skripte. Das Titelbild der Seite stellt der Editor als eigene Fläche «Titelbild» über der Bausteinliste ein; es ist der Baustein «Bild» zuoberst.
 - Nach einer Änderung an Renderer oder Stilvorlage schreibt der Abgleich alle Dateien beim nächsten Lauf neu (der Hash ändert sich).

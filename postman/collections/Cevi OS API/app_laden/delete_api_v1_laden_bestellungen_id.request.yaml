@@ -1,0 +1,14 @@
+$kind: http-request
+name: "DELETE /api/v1/laden/bestellungen/:id"
+order: 140000
+method: DELETE
+url: "{{baseUrl}}/api/v1/laden/bestellungen/01a2060a-6bbe-7974-b3b1-d53345883676"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

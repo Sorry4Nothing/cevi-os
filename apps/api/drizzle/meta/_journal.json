@@ -659,6 +659,27 @@
       "when": 1793555000000,
       "tag": "0130_website_zeichen",
       "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793555100000,
+      "tag": "0131_laden",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793555200000,
+      "tag": "0132_website_freigabe",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1793555300000,
+      "tag": "0133_website_fehlerbild",
+      "breakpoints": true
     }
   ]
 }

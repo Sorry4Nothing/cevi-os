@@ -284,6 +284,7 @@ describe("GET /api/v1/admin/personen", () => {
       "startpasswort",
       "startpasswortGueltigBis",
       "telefon",
+      "websiteFreigabe",
       "zweiterFaktor",
     ]);
     expect(person).toMatchObject({
@@ -783,5 +784,63 @@ describe("Schutz des letzten Admins", () => {
     expect(await aktiveAdminIds(db, eigene.testabteilungId)).toEqual([
       ersterAdmin.id,
     ]);
+  });
+});
+
+describe("Freigabe für die Website (#560)", () => {
+  const freigabeInListe = async (id: string) =>
+    (
+      (await (await anfrage(admin, "GET")).json()) as {
+        personen: { id: string; websiteFreigabe: boolean }[];
+      }
+    ).personen.find((p) => p.id === id)!.websiteFreigabe;
+
+  test("die Abteilungsleitung setzt und widerruft; die Liste nennt den Stand, das Audit-Log den Wechsel ohne Personendaten", async () => {
+    const ziel = await legePersonaAn(welt, "elternA");
+    expect(await freigabeInListe(ziel.id!)).toBe(false);
+    const patch = (websiteFreigabe: boolean) =>
+      anfrage(admin, "PATCH", `/${ziel.id}`, { websiteFreigabe });
+
+    expect((await patch(true)).status).toBe(204);
+    expect(await freigabeInListe(ziel.id!)).toBe(true);
+    expect((await patch(true)).status).toBe(204);
+    expect((await patch(false)).status).toBe(204);
+    expect(await freigabeInListe(ziel.id!)).toBe(false);
+
+    const eintraege = await db
+      .select({
+        aktion: schema.auditLog.aktion,
+        akteurId: schema.auditLog.akteurId,
+        details: schema.auditLog.details,
+      })
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.zielId, ziel.id!));
+    // Die zweite Freigabe war kein Wechsel
+    expect(eintraege).toEqual([
+      {
+        aktion: "website_freigabe_geaendert",
+        akteurId: admin.id,
+        details: { websiteFreigabe: true },
+      },
+      {
+        aktion: "website_freigabe_geaendert",
+        akteurId: admin.id,
+        details: { websiteFreigabe: false },
+      },
+    ]);
+  });
+
+  test("ohne Admin-Recht ein 403, ein Wert, der kein Wahrheitswert ist, ein 400", async () => {
+    const ziel = await legePersonaAn(welt, "elternA");
+    const sl = await legePersonaAn(welt, "slA");
+    expect(
+      (await anfrage(sl, "PATCH", `/${ziel.id}`, { websiteFreigabe: true }))
+        .status,
+    ).toBe(403);
+    expect(
+      (await anfrage(admin, "PATCH", `/${ziel.id}`, { websiteFreigabe: "ja" }))
+        .status,
+    ).toBe(400);
+    expect(await freigabeInListe(ziel.id!)).toBe(false);
   });
 });

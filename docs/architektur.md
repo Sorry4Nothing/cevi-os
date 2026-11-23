@@ -142,3 +142,16 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | FCM             | Gerät                               | über APNs (Apple) und Google | Pushes zustellen                                                                                                 |
 
 Wie Cevi OS die Daten schützt und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).
+
+## Lädeli (#566)
+
+Das Lädeli ist ein eigener kleiner Bereich neben Website, Terminen und Lager: Artikel der Abteilung, Bestellungen angemeldeter Personen, keine Zahlung, kein Lagerbestand.
+
+- Tabellen (Migration 0131): `laden_artikel` (Name, Preis in Rappen, Bild aus der Medienbibliothek, Varianten als freie Liste, Hinweis, verfügbar, Reihenfolge), `laden_einstellung` (Übergabearten je Abteilung; ohne Zeile gilt «Abholung im Lädeli»), `laden_bestellung` (Person, Stand `offen`, `bereit`, `uebergeben`, `storniert`, Übergabe als Text, Summe, Abschlusszeit) und `laden_bestellposition` (Name, Variante, Menge, Einzelpreis als Stand beim Bestellen).
+- Regeln an einer Stelle: `src/laden/laden.ts` (Schemas, Grenzen, Übergänge des Stands, `darfLadenVerwalten`, Löschlauf, Datenquelle der Website).
+- Routen unter `/api/v1` (`src/routes/laden/`), für Website und Apps dieselben: `GET /laden` (Artikel, Übergabearten, Grenzen), `POST /laden/bestellungen`, `GET /laden/bestellungen/meine`, `DELETE /laden/bestellungen/{id}` (eigene offene stornieren); Verwaltung mit zweitem Faktor: `/admin/laden/artikel`, `/admin/laden/artikel/{id}`, `/admin/laden/bestellungen`, `/admin/laden/bestellungen/{id}/status`, `/admin/laden/einstellungen`.
+- Preise und Summen rechnet nur der Server; die Anfrage nennt Artikel, Variante und Menge.
+- Website: Baustein `laden` (`src/website/laden.ts`, `public/website/laden.js`, `laden.css`), siehe [website-auslieferung.md](website-auslieferung.md). Verwaltung: Bereich «Lädeli» (`public/admin/laedeli.js`) mit den Unterseiten «Bestellungen» (Stand setzen: offen, bereit, übergeben, storniert), «Artikel» (anlegen, ändern, löschen) und «Einstellungen» (Übergabearten, 1 bis 5, vorbelegt «Abholung im Lädeli»). Nur die Abteilungsleitung mit zweitem Faktor (`darfLadenVerwalten`).
+- Grösse ist Pflicht (ohne Migration): Ein Artikel ist ausdrücklich «Einheitsgrösse» (leere Liste `varianten`, keine Wahl im Laden) oder hat eine Liste mit mindestens zwei Grössen. Die Route verlangt `groessenart` (`einheit` oder `liste`), sonst 422 `GROESSE_FEHLT` oder `GROESSE_UNGUELTIG` mit dem Feld; die Antwort nennt `groessenart`, abgeleitet aus der Liste.
+- Bestellen nur mit Anmeldung: Besucher sehen Raster, Preise und das Artikelfenster; Warenkorb, schnelles Hinzufügen und Bestellübersicht erscheinen erst, wenn `GET /laden` mit Sitzung antwortet (ohne Sitzung 401, dann nur der Hinweis «Zum Bestellen anmelden»). Der Warenkorb liegt im Browser (`localStorage`) und entsteht nur nach Anmeldung.
+- Aufbewahrung: täglicher Lauf `laden_bestellungen` (180 Tage nach Übergabe oder Stornieren, nie abgeschlossene nach 365 Tagen).

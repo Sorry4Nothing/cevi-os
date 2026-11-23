@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -34,6 +34,12 @@ export const listeSchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
   suche: z.string().trim().min(1).max(100).optional(),
+  // Nur diese Medien (#570): Der Editor holt so die Angaben zu den Bildern einer Seite, auch wenn sie nicht unter den jüngsten sind
+  ids: z
+    .string()
+    .transform((s) => s.split(","))
+    .pipe(z.array(z.uuid()).min(1).max(100))
+    .optional(),
 });
 const LISTE_STANDARD = 200;
 // LIKE kennt % und _ als Platzhalter, \ als Maskierung: Die Eingabe der Nutzer ist nur Text
@@ -252,6 +258,7 @@ export function erstelleMedienHandler({
             q.suche === undefined
               ? undefined
               : ilike(medium.altText, `%${likeText(q.suche)}%`),
+            q.ids === undefined ? undefined : inArray(medium.id, q.ids),
           ),
         )
         .orderBy(desc(medium.erstelltAm), desc(medium.id))
@@ -326,6 +333,7 @@ export function erstelleMedienHandler({
                 eq(abteilung.websiteLogoMediumId, id),
                 eq(abteilung.websiteLogoDunkelMediumId, id),
                 eq(abteilung.websiteZeichenMediumId, id),
+                eq(abteilung.websiteFehlerbildMediumId, id),
               ),
             ),
           );

@@ -42,9 +42,9 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch. Nur mit einer Freigabe der Person (oder der Abteilungsleitung) zeigt die öffentliche Website das Bild zusammen mit dem Anzeigenamen.",
     frist:
-      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild.",
+      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Die Freigabe für die Website gilt, bis sie widerrufen wird; die Website vergisst die Person beim nächsten Abgleich, kurz nach dem Widerruf.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
@@ -105,6 +105,15 @@ export const KATEGORIEN = {
       "180 Tage nach dem Ende der angefragten Zeit, mit dem Konto der anfragenden Person früher. Wird das Konto der entscheidenden Person gelöscht, verschwindet nur die Angabe, wer entschieden hat. Auf Anfrage löscht die Leitung Daten.",
     apple: ["User Content: Other User Content"],
     google: ["App activity: Other user-generated content"],
+  },
+  laedeli: {
+    titel: "Bestellungen im Lädeli",
+    zweck:
+      "Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe. Der Warenkorb entsteht erst nach der Anmeldung und liegt bis zum Absenden nur im Browser der Person.",
+    frist:
+      "180 Tage nachdem die Bestellung übergeben oder storniert ist; eine Bestellung, die nie abgeschlossen wurde, ein Jahr nach der letzten Änderung. Mit dem Konto der bestellenden Person früher. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Purchases: Purchase History"],
+    google: ["Financial info: Purchase history"],
   },
   chat: {
     titel: "Chats",
@@ -378,6 +387,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "website_logo_medium_id",
       "website_logo_dunkel_medium_id",
       "website_zeichen_medium_id",
+      "website_fehlerbild_medium_id",
     ],
   },
   account: {
@@ -561,6 +571,46 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "entschieden_am",
       "begruendung",
       "erstellt_am",
+    ],
+  },
+  // Lädeli (#566): Artikel und Übergabearten sind Angaben der Abteilung ohne Personendaten; Bestellung und Positionen gehören der bestellenden Person (user_id)
+  laden_artikel: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "name",
+      "preis_rappen",
+      "medium_id",
+      "varianten",
+      "hinweis",
+      "verfuegbar",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  laden_einstellung: { abteilung: ["abteilung_id", "uebergabearten"] },
+  laden_bestellung: {
+    laedeli: [
+      "id",
+      "abteilung_id",
+      "user_id",
+      "status",
+      "uebergabe",
+      "summe_rappen",
+      "erstellt_am",
+      "geaendert_am",
+      "abgeschlossen_am",
+    ],
+  },
+  laden_bestellposition: {
+    laedeli: [
+      "id",
+      "bestellung_id",
+      "artikel_id",
+      "name",
+      "variante",
+      "menge",
+      "einzelpreis_rappen",
     ],
   },
   // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid
@@ -1343,6 +1393,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "deaktiviert_am",
       "datenschutz_gelesen_am",
     ],
+    profilbild: ["website_freigabe_am"],
     telefon: ["telefon"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },

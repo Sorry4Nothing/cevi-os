@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { tag, weiterleitung } from "../db/schema.js";
 import { istAusgabePfad } from "./ausgabe.js";
+import { fehlerBuehne, STIL_FEHLER } from "./fehlerseiten.js";
 import { CSP, esc, STYLESHEET_PFAD } from "./rendern.js";
 import { RESERVIERTE_ADRESSEN } from "./seiten.js";
 
@@ -99,11 +100,17 @@ export function rendereWeiterleitungsseite(
 <title>Seite umgezogen | ${esc(abteilung)}</title>
 <link rel="canonical" href="${esc(basisUrl + u.zielPfad)}">
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
+<link rel="stylesheet" href="${STIL_FEHLER}">
 </head>
 <body>
 <main id="inhalt">
-<h1>Diese Seite ist umgezogen</h1>
-<p><a class="verweis" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a></p>
+${fehlerBuehne({
+  titel: "Diese Seite ist umgezogen.",
+  satz: "Du wirst gleich weitergeleitet. Geht es nicht von selbst, nimm den Knopf.",
+  aktion: `<a class="btn p gross" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a>`,
+  tafeln: [{ titel: "Neue Adresse", zusatz: "1 Klick", ziel: u.zielPfad }],
+  ort: ["Alte Adresse"],
+})}
 </main>
 </body>
 </html>

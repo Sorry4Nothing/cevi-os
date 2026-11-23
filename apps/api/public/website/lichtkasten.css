@@ -1,8 +1,8 @@
-/* Grossansicht für Bilder (#559): der Link ums Bild («a.gross») und der Dialog, den lichtkasten.js daraus öffnet.
+/* Grossansicht für Bilder (#559): der Link ums Bild («a.bildgross») und der Dialog, den lichtkasten.js daraus öffnet.
    Der Dialog ist in Tag und Nacht dunkel: Ein Foto wirkt auf dunklem Grund, und die Seite dahinter tritt zurück. Die Farben stehen darum fest hier und folgen nicht den Tokens der Flächen. */
 
 /* Der Link nimmt die Form des Bildes an; die Lupe als Zeiger sagt, was der Klick tut */
-a.gross {
+a.bildgross {
   display: block;
   border-radius: var(--r-md);
   color: inherit;
@@ -10,7 +10,7 @@ a.gross {
   cursor: zoom-in;
 }
 
-a.gross:focus-visible {
+a.bildgross:focus-visible {
   outline-offset: -3px;
 }
 

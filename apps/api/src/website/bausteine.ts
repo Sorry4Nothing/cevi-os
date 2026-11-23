@@ -310,7 +310,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       personId: z.uuid().optional(),
     }),
   ),
-  // Personen (#560): von Hand gepflegte Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Anders als «leitungsteam» braucht es kein Konto.
+  // Personen (#560): echte Personen der Plattform. Name (Cevi-Name, sonst Vorname) und Bild (das Profilbild) kommen von der Person und erscheinen nur mit ihrer Freigabe; Funktion und Funktionsadresse sind Angaben der Seite.
   // Es gibt bewusst kein Feld für eine Telefonnummer: auf die Website gehört die Funktionsadresse
   baustein(
     "personen",
@@ -318,10 +318,9 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       eintraege: z
         .array(
           z.strictObject({
-            name: kurztext(MAX_KURZTEXT),
+            personId: z.uuid(),
             funktion: kurztext(MAX_KURZTEXT).optional(),
             email: z.email().max(254).optional(),
-            mediumId: mediumId.optional(),
           }),
         )
         .min(1)
@@ -345,6 +344,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
         .max(MAX_ARTIKEL),
     }),
   ),
+  // Lädeli (#566): das Raster der Artikel der Abteilung mit Warenkorb und Bestellung für angemeldete Personen. Der Baustein hat keine eigenen Daten: Die Artikel pflegt die Verwaltung unter «Lädeli»
+  baustein("laden", z.strictObject({})),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

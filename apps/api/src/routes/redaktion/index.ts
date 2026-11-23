@@ -6,6 +6,7 @@ import {
   type Person,
 } from "../../rechte.js";
 import { hatErweitertesRecht } from "../../website/seiten.js";
+import type { Kontakt } from "../../website/rendern.js";
 import type { MedienHandler } from "../medien.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
 import { erstelleEckdatenRouten } from "./eckdaten.js";
@@ -23,9 +24,12 @@ import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
 export function erstelleEditorRouten({
   db,
   medien,
+  kontakt,
 }: {
   db: Db;
   medien: MedienHandler;
+  // Angaben der Abteilung für die Vorschau im Editor (Kontaktkarte, Fuss)
+  kontakt?: Kontakt;
 }) {
   return new Hono<{ Variables: { person: Person } }>()
     .use(zweiterFaktorPflicht)
@@ -44,7 +48,7 @@ export function erstelleEditorRouten({
     .route("/ich", erstelleEditorIchRouten({ db }))
     .route("/website", erstelleWebsiteEinstellungsRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
-    .route("/seiten", erstelleSeitenInhaltRouten({ db }))
+    .route("/seiten", erstelleSeitenInhaltRouten({ db, kontakt }))
     .route("/stufen", erstelleEckdatenRouten({ db }))
     .route("/medien", erstelleEditorMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))

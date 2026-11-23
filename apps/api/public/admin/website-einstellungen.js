@@ -3,7 +3,7 @@ import { el, feld, knopf } from "./dom.js";
 import { bildDialog } from "./website-bausteine.js";
 import { band, keinRecht } from "./website-dialoge.js";
 
-// Einstellungen der Website (#550, #558): der Name der Abteilung und ihr Logo im Kopf jeder Seite, dazu eine Fassung des Logos für den dunklen Modus und das Zeichen für den Browser-Tab (Favicon).
+// Einstellungen der Website (#550, #558, #567): der Name der Abteilung und ihr Logo im Kopf jeder Seite, dazu eine Fassung des Logos für den dunklen Modus, das Zeichen für den Browser-Tab (Favicon) und das Bild der Fehlerseiten.
 // Adresse: #website/einstellungen. Das Logo ist ein öffentliches Bild der Medienbibliothek; die Seiten der Website werden nach dem Speichern neu erzeugt.
 const API = "/api/v1/redaktion/website";
 const MAX_NAME = 100;
@@ -15,7 +15,7 @@ const FEHLER = {
     "Das Logo erscheint im Kopf jeder Seite und muss ein öffentliches Bild sein. Wähle ein öffentliches Bild.",
 };
 
-// Die drei Bilder der Website: Feld der API, Texte und die Klasse der Vorschau (das dunkle Logo steht auf dunklem Grund, das Zeichen ist quadratisch)
+// Die Bilder der Website: Feld der API, Texte und die Klasse der Vorschau (das dunkle Logo steht auf dunklem Grund, das Zeichen ist quadratisch, das Bild der Fehlerseiten breit)
 const BILDER = [
   {
     feld: "logoMediumId",
@@ -52,6 +52,18 @@ const BILDER = [
     entfernen: "Zeichen entfernen",
     alt: "Das gewählte Zeichen",
     klasse: "ws-logovorschau--zeichen",
+  },
+  {
+    feld: "fehlerbildMediumId",
+    titel: "Bild für die Fehlerseiten (optional)",
+    hilfe:
+      "Ein öffentliches Bild im Querformat, am besten ein Weg mit Wiese oder Wald und ohne Gesichter. Rechts im Bild steht der Wegweiser der Seite «nicht gefunden»; er verdeckt etwa die rechte Hälfte, links liegt die Aussage der Seite darüber. Das Bild muss die Ränder aushalten: Es wird auf die ganze Breite des Fensters zugeschnitten.",
+    ohne: "Kein eigenes Bild: Die Fehlerseite zeigt das Titelbild der Startseite.",
+    waehlen: "Bild wählen",
+    anders: "Anderes Bild wählen",
+    entfernen: "Bild entfernen",
+    alt: "Das gewählte Bild für die Fehlerseiten",
+    klasse: "ws-logovorschau--breit",
   },
 ];
 
@@ -97,7 +109,7 @@ function zeichne(bereich, ctx, stand) {
       : "Erscheint im Kopf und im Fuss der Website. Den Namen ändert nur der Entwickler.",
   });
 
-  // Eine Auswahl je Bild (Logo, Fassung für den dunklen Modus, Zeichen), jede mit ihrer Vorschau
+  // Eine Auswahl je Bild (Logo, Fassung für den dunklen Modus, Zeichen, Bild der Fehlerseiten), jede mit ihrer Vorschau
   const bildWahl = (b) => {
     const vorschau = el("div", { class: "ws-logo" });
     const zeichneBild = () => {

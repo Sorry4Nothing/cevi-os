@@ -21,13 +21,11 @@ import {
   type Seitendokument,
 } from "./dokument.js";
 import { aufWebsiteEreignis } from "./ereignisse.js";
+import { ladeWebsitePersonen, PERSON_DATEI, personenIn } from "./personen.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
-  rendereServerfehler,
-  rendereWartung,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -40,6 +38,13 @@ import {
   type Mitglied,
   type NavPunkt,
 } from "./rendern.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+  stimmungsbild,
+  type FehlerBild,
+} from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
   ZEICHEN_DATEIEN,
@@ -161,6 +166,26 @@ export async function ladeZeichen(
       ),
     );
   return z ?? null;
+}
+
+// Das Bild der Fehlerseiten (#567): wie das Zeichen nur ein öffentliches Bild der eigenen Abteilung; sonst undefined (dann gilt das Titelbild der Startseite)
+export async function ladeFehlerbild(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<FehlerBild | undefined> {
+  const [z] = await db
+    .select({ id: medium.id, breite: medium.breite, hoehe: medium.hoehe })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteFehlerbildMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z;
 }
 
 const logoDunkel = alias(medium, "logo_dunkel");
@@ -326,7 +351,20 @@ export async function ladeDaten(
       });
     }
   }
-  return { ...keineDaten(), medien, personen, teams };
+  // Freigegebene Personen und ihre Profilbilder für den Baustein «personen» (#560)
+  const frei = await ladeWebsitePersonen(
+    db,
+    abteilungId,
+    personenIn(dokumente),
+  );
+  return {
+    ...keineDaten(),
+    medien,
+    personen,
+    teams,
+    websitePersonen: frei.personen,
+    personenDateien: frei.dateien,
+  };
 }
 
 // Pfad im Netz und Datei: die Seite «start» der obersten Ebene ist «/»; null, wenn die Adresse nie ausgeliefert wird
@@ -589,6 +627,7 @@ export async function erzeugeWebsite(
     DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...(zeichen ? ZEICHEN_DATEIEN : []),
+    ...(daten.personenDateien ?? []).map(([pfad]) => pfad),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
   ]);
@@ -642,7 +681,19 @@ export async function erzeugeWebsite(
       ),
     ],
     [ROBOTS, rendereRobots(basisUrl)],
-    [FEHLERSEITE, rendereFehlerseite(kontext)],
+    [
+      FEHLERSEITE,
+      rendereFehlerseite(
+        kontext,
+        (await ladeFehlerbild(db, abteilungId)) ??
+          stimmungsbild(
+            [...dokumente].find(
+              ([id]) => oeffentlich.get(id)!.pfad === "/",
+            )?.[1].dok,
+            kontext.daten,
+          ),
+      ),
+    ],
     [SERVERFEHLER, rendereServerfehler(kontext)],
     [WARTUNG, rendereWartung(kontext)],
     [STYLESHEET, opt.stylesheet],
@@ -659,6 +710,7 @@ export async function erzeugeWebsite(
     ...(zeichen
       ? ZEICHEN_DATEIEN.map((d): [string, Uint8Array] => [d, zeichen[d]])
       : []),
+    ...(daten.personenDateien ?? []),
     ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {
@@ -678,7 +730,11 @@ export async function erzeugeWebsite(
   for (const datei of vorhanden) {
     if (
       soll.has(datei) ||
-      !(SEITENDATEI.test(datei) || datei === CADDY_DATEI)
+      !(
+        SEITENDATEI.test(datei) ||
+        datei === CADDY_DATEI ||
+        PERSON_DATEI.test(datei)
+      )
     ) {
       continue;
     }

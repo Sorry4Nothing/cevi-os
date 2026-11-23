@@ -22,6 +22,7 @@ describe("Verwaltung: navigation.js", () => {
       "Termine",
       "Räume",
       "Anlässe",
+      "Lädeli",
       "Lager",
       "Mitteilungen",
       "System",

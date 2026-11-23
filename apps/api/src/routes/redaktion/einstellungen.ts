@@ -21,6 +21,8 @@ const aendernSchema = z
     logoDunkelMediumId: z.uuid().nullable(),
     // Quadratisches Zeichen für das Favicon (#558, null = das Cevi-Zeichen der Plattform)
     zeichenMediumId: z.uuid().nullable(),
+    // Bild hinter dem Wegweiser der Fehlerseiten (#567, null = das Titelbild der Startseite)
+    fehlerbildMediumId: z.uuid().nullable(),
   })
   .partial()
   .refine((f) => Object.keys(f).length > 0);
@@ -46,6 +48,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
         logoMediumId: abteilung.websiteLogoMediumId,
         logoDunkelMediumId: abteilung.websiteLogoDunkelMediumId,
         zeichenMediumId: abteilung.websiteZeichenMediumId,
+        fehlerbildMediumId: abteilung.websiteFehlerbildMediumId,
       })
       .from(abteilung)
       .where(eq(abteilung.id, person.abteilungId));
@@ -72,6 +75,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
           f.logoMediumId,
           f.logoDunkelMediumId,
           f.zeichenMediumId,
+          f.fehlerbildMediumId,
         ]) {
           if (!mediumId) continue;
           // FOR SHARE: Ein gleichzeitiges Löschen des Mediums wartet und sieht danach den Verweis
@@ -106,6 +110,9 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             }),
             ...(f.zeichenMediumId !== undefined && {
               websiteZeichenMediumId: f.zeichenMediumId,
+            }),
+            ...(f.fehlerbildMediumId !== undefined && {
+              websiteFehlerbildMediumId: f.fehlerbildMediumId,
             }),
           })
           .where(eq(abteilung.id, person.abteilungId));

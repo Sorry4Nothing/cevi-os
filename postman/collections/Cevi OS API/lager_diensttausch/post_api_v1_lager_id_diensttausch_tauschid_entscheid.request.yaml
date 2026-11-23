@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/diensttausch/:tauschId/entscheid"
-order: 214000
+order: 261000
 method: POST
 url: "{{baseUrl}}{{pfad_L58}}"
 headers:

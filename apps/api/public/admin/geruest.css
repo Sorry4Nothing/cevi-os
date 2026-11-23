@@ -246,7 +246,17 @@
   font-weight: 700;
 }
 
-/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen»; nichts verschwindet von selbst */
+/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen». Erfolg und Info gehen nach 6 Sekunden von selbst (rahmen.js), Warnung und Fehler bleiben */
+
+.rueckmeldung .hinweis--geht {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rueckmeldung .hinweis--geht {
+    transition: opacity 0.3s ease-in;
+  }
+}
 
 .rueckmeldung {
   display: flex;

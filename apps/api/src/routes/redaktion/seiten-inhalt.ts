@@ -10,8 +10,19 @@ import type { Person } from "../../rechte.js";
 import { ladeDaten, ladeLogo } from "../../website/abgleich.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
-import { CSP, rendereSeite, STYLESHEET_PFAD } from "../../website/rendern.js";
+import {
+  CSP,
+  rendereSeite,
+  STARTSEITE,
+  STYLESHEET_PFAD,
+  type Kontakt,
+} from "../../website/rendern.js";
+import { ladeLadenDaten } from "../../laden/laden.js";
 import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
+import {
+  ladeAnlassSeiten,
+  ladeTerminlisten,
+} from "../../website/termine-liste.js";
 import { pruefeVerweise } from "../../website/verweise.js";
 
 const pfad = () => z.strictObject({ id: z.uuid() });
@@ -67,7 +78,14 @@ class Abbruch extends Error {
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
+export function erstelleSeitenInhaltRouten({
+  db,
+  kontakt,
+}: {
+  db: Db;
+  // Telefon, E-Mail und Adresse der Abteilung aus der Konfiguration: Die Vorschau zeigt Kontaktkarte und Fuss wie die Website
+  kontakt?: Kontakt;
+}) {
   // shortcut: Zähler im Arbeitsspeicher wie beim Upload der Medien, ein Neustart setzt ihn zurück und mehrere Instanzen zählen getrennt; in die Datenbank, sobald die API auf mehr als einer Instanz läuft
   const versuche = new Map<string, number[]>();
   const zuViele = (id: string) => {
@@ -215,18 +233,47 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
               sichtbarkeit: "erbt" as const,
             })),
           };
-          const [daten, fakten, [abt], logo] = await Promise.all([
-            ladeDaten(db, person.abteilungId, [dokument], false),
-            ladeStufenfaktenGemerkt(db, person.abteilungId, id),
-            db
-              .select({ name: abteilung.name })
-              .from(abteilung)
-              .where(eq(abteilung.id, person.abteilungId)),
-            ladeLogo(db, person.abteilungId),
-          ]);
+          // Termin-Liste und «Zur Anmeldung» (#570) aus denselben Quellen wie der Abgleich; die Termine nur, wenn die Seite eine Liste hat (dann drei Abfragen mehr, sonst eine)
+          const [daten, laden, fakten, termine, anlaesse, [abt], logo] =
+            await Promise.all([
+              ladeDaten(db, person.abteilungId, [dokument], false),
+              // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
+              ladeLadenDaten(
+                db,
+                person.abteilungId,
+                [id],
+                new Map([[id, dokument]]),
+              ),
+              ladeStufenfaktenGemerkt(db, person.abteilungId, id),
+              dokument.bausteine.some((b) => b.typ === "terminliste")
+                ? ladeTerminlisten(
+                    db,
+                    person.abteilungId,
+                    [id],
+                    new Map([[id, dokument]]),
+                  )
+                : {},
+              ladeAnlassSeiten(db, person.abteilungId, [id]),
+              db
+                .select({ name: abteilung.name })
+                .from(abteilung)
+                .where(eq(abteilung.id, person.abteilungId)),
+              ladeLogo(db, person.abteilungId),
+            ]);
           if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
+          if (laden.laden) {
+            daten.laden = laden.laden;
+            if (laden.ladenUebergabe) {
+              daten.ladenUebergabe = laden.ladenUebergabe;
+            }
+            daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
+          }
+          Object.assign(daten, termine, anlaesse, kontakt && { kontakt });
+          // Die Startseite hat einen eigenen Einstieg (Titelkarte im Bild): Die Vorschau zeigt ihn nur unter ihrer Adresse
+          const start =
+            z.seite.elternId === null && z.seite.adresse === STARTSEITE;
           const seitenHtml = rendereSeite(
-            { id, pfad: "/vorschau", dokument },
+            { id, pfad: start ? "/" : "/vorschau", dokument },
             {
               abteilung: abt?.name ?? "",
               ...(logo && { logo }),
@@ -237,7 +284,12 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
           );
           // Der Stil kommt aus der Verwaltung (seiten.ts), nicht von der Website
           // Und ohne Skripte (Thema, Karussell): Die Vorschau läuft unter der CSP der Verwaltung, der Umschalter bleibt verborgen und das Karussell ein Bildstreifen ohne Knöpfe
+          // Immer hell (#570): So sehen die meisten Besucher die Seite, auch wenn das Gerät der Redaktion dunkel ist
           const html = seitenHtml
+            .replace(
+              '<html lang="de-CH">',
+              '<html lang="de-CH" data-theme="light">',
+            )
             .replace(
               `href="${STYLESHEET_PFAD}"`,
               'href="/admin/website-vorschau.css"',

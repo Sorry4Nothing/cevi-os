@@ -296,8 +296,15 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
   bei(uebernehmen, async () => {
     const fehler = typ
       .pruefe(arbeit.daten, kk)
+      // Ein geleerter Alt-Text: Das Medium nähme ihn nicht an
+      .concat(
+        [...alt]
+          .filter(([, text]) => !text.trim())
+          .map(([id]) => [`alt.${id}`, "fehlt."]),
+      )
+      .filter(([pfad], i, alle) => alle.findIndex((x) => x[0] === pfad) === i)
       .map(([pfad, text]) =>
-        pfad === "alt"
+        pfad.startsWith("alt.")
           ? [
               pfad,
               "Gib einen Alt-Text ein. Ohne ihn kannst du das Bild nicht übernehmen.",
