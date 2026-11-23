@@ -72,8 +72,6 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
   // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
   ceviName: text("cevi_name"),
-  // Freigabe für die öffentliche Website (#560): seit wann Anzeigename und Profilbild dort erscheinen dürfen; null = nicht freigegeben (Vorgabe)
-  websiteFreigabeAm: zeitpunkt("website_freigabe_am"),
   role: text("role"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),

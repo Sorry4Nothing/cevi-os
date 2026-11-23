@@ -404,6 +404,17 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Befehlspalette (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf und im Hinweis. «Neue Person» erscheint nur mit dem Recht, Personen erscheinen nur, wenn ihre Liste schon geladen ist.
 
+## 29. Verwaltung: Person, Stufen zuweisen und Website nach Rolle (#610)
+
+Dieser Abschnitt gilt für das Personenformular (`personen-blatt.js`, `personen.css`) und die Gruppe einer Stufe (`tags-detail.js`). Geprüft wird im Browser mit der Abteilungsleitung, bei 1440 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **29.1** «Rechte und Rollen»: Stufen stehen nicht vorab da. Die Karte zeigt nur zugewiesene Stufen als Zeilen (Stufe als Chip mit Text, Rolle als Segment mit Radioknöpfen in einer `radiogroup` mit Namen «Rolle in <Stufe>», «Entfernen»). Eine Person hat keine, eine oder mehrere Stufen; eine Stufe nur einmal.
+- [ ] **29.2** «Stufe hinzufügen»: Auswahl «Stufe» und «Rolle in der Stufe» (eigene Auswahlfelder, Tastatur), dazu der Knopf. Fehlt eine Angabe, steht die Meldung am Feld («Wähle eine Stufe.», «Wähle eine Rolle.»), das Feld hat `aria-invalid` und den Fokus. Die Rolle hat keine Vorgabe: Es wird nie still eine Rolle mit Rechten gesetzt. «Teilnehmer» gibt es nicht, weil das Rechtemodell für Personen mit Konto nur Leitung und Stufenleitung kennt.
+- [ ] **29.3** «Entfernen» streicht die Zeile durch und schreibt «wird beim Speichern entfernt» (nie nur Farbe); der Knopf heisst dann «Rückgängig». Eine Stufe, die erst neu dazukam, ist mit dem Entfernen weg. Jede Änderung steht in einer Statusregion (`role="status"`), der Fokus bleibt bei der Zeile oder geht zur Auswahl; nichts gilt vor «Speichern», das Formular fragt beim Verlassen.
+- [ ] **29.4** Der Hinweis zur Website ist reiner Text ohne Auswahl und nennt die Rolle («Wer Leitung oder Stufenleitung einer Stufe ist, erscheint mit Name und Profilbild auf der Seite der Stufe. Das ist keine Auswahl, es folgt der Rolle.») und die betroffenen Stufen; er ändert sich mit den Zeilen. Es gibt keinen Schalter «auf der Website zeigen» mehr, weder hier noch in «Mein Profil».
+- [ ] **29.5** «Gruppen und Tags» bietet keine Stufen an. Stufen der Person stehen darunter als Hinweiszeile («Stufe X: über «Rechte und Rollen» (Stufenleitung).»); eine Zuordnung ohne Rolle sagt das und nennt, wo man sie entfernt. In der Gruppe einer Stufe lassen sich Leitung und Stufenleitung nicht ändern oder entfernen («Bei der Person ändern»); Mitglieder fügt man dort nicht hinzu, die Karte verweist auf die Person.
+- [ ] **29.6** Mit «Bewegung reduzieren» erscheinen neue Zeilen ohne Übergang; sonst blenden sie kurz ein (`--dauer`, `--kurve`). Bei 390 Pixeln stehen Auswahl, Auswahl und Knopf untereinander, Ziele sind mindestens 44 Pixel hoch, nichts scrollt waagrecht; bei 200 % Zoom bleibt jede Zeile lesbar.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

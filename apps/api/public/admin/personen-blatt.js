@@ -69,56 +69,190 @@ export function kontoChips(person) {
 export const fehltTelefon = (person) =>
   person.rollen.some((r) => r.typ === "stufenleitung") && !person.telefon;
 
-// Rollen-Editor: eine Gruppe von Optionsknöpfen je Stufe
+// Stufen der Person (Muster «team-invite-card» und «team-member-list»): Die Person bekommt Stufen zugewiesen, nicht alle Stufen stehen vorab da.
+// Jede Zeile hat die Stufe, die Rolle in dieser Stufe (Leitung oder Stufenleitung) und «Entfernen» (die Zeile bleibt markiert, «Rückgängig» holt sie zurück).
+// Die Änderungen gelten mit «Speichern»; wert() ist die Liste, die die API erwartet (sie ersetzt alle Stufenrollen der Person)
+// «Teilnehmer» fehlt mit Absicht: Das Rechtemodell kennt für Personen mit Konto nur Leitung und Stufenleitung (Kinder sind ein eigener Datensatz)
+const ROLLEN_ZUWEISEN = ROLLEN.filter(([wert]) => wert);
+
+// Aufzählung für Texte: «Biber», «Biber und Wolf», «Biber, Wolf und Pfadi»
+const aufzaehlung = (namen) =>
+  namen.length < 2
+    ? namen.join("")
+    : `${namen.slice(0, -1).join(", ")} und ${namen.at(-1)}`;
+
 export function rollenFelder(stufen, rollen) {
-  const aktuell = new Map(rollen.map((r) => [r.stufeId, r.typ]));
-  const zeilen = stufen.map((stufe) => {
-    const name = neueId("rolle");
-    const gewaehlt = aktuell.get(stufe.id) ?? "";
-    const optionen = ROLLEN.map(([wert, text]) => {
-      const id = neueId("rolle-option");
-      return {
-        wert,
-        eingabe: el("input", {
-          type: "radio",
-          id,
-          name,
-          value: wert,
-          checked: wert === gewaehlt,
-        }),
-        label: el("label", { for: id }, icon("haken"), text),
-      };
+  // stufeId -> { typ, weg }; die Reihenfolge der Zeilen ist die der Stufen
+  const zugewiesen = new Map(
+    rollen.map((r) => [r.stufeId, { typ: r.typ, weg: false }]),
+  );
+  const stufenName = (id) =>
+    stufen.find((s) => s.id === id)?.name ?? "Unbekannte Stufe";
+  const wurzel = el("div", { class: "pe-stufenzuweisung" });
+  const aktiv = () => stufen.filter((s) => zugewiesen.get(s.id)?.weg === false);
+  const meldung = el("p", { class: "klein leise", role: "status" });
+  const hinweis = el("p", { class: "hilfe" });
+  const aendere = () =>
+    wurzel.dispatchEvent(new Event("change", { bubbles: true }));
+
+  // Was die Website daraus macht (Regel des Nutzers, #610): Es folgt der Rolle, die Person und die Verwaltung wählen es nicht
+  const zeigeHinweis = () => {
+    const namen = aktiv().map((s) => s.name);
+    hinweis.textContent =
+      namen.length === 0
+        ? "Ohne Stufe erscheint die Person nicht auf der öffentlichen Website. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint dort mit Name und Profilbild, auf der Seite der Stufe. Das ist keine Auswahl, es folgt der Rolle."
+        : `Mit dieser Rolle erscheint die Person auf der öffentlichen Website mit Name und Profilbild, auf der Seite von ${aufzaehlung(namen)}. Das ist keine Auswahl, es folgt der Rolle. Das Profilbild setzt die Person selbst.`;
+  };
+
+  const zeichne = (fokusId, art = "knopf") => {
+    const zeilen = stufen
+      .filter((s) => zugewiesen.has(s.id))
+      .map((s) => {
+        const z = zugewiesen.get(s.id);
+        const name = neueId("stufenrolle");
+        const optionen = ROLLEN_ZUWEISEN.map(([wert, text]) => {
+          const id = neueId("stufenrolle-option");
+          return [
+            el("input", {
+              type: "radio",
+              id,
+              name,
+              value: wert,
+              checked: wert === z.typ,
+              disabled: z.weg,
+              onchange: () => {
+                z.typ = wert;
+                aendere();
+              },
+            }),
+            el("label", { for: id }, icon("haken"), text),
+          ];
+        });
+        return el(
+          "li",
+          {
+            "data-stufe": s.id,
+            class: z.weg
+              ? "pe-stufenzeile pe-stufenzeile--weg"
+              : "pe-stufenzeile",
+          },
+          el("ul", { class: "chips" }, chip(s.name, "stufe", "tag")),
+          el(
+            "div",
+            {
+              class: "seg",
+              role: "radiogroup",
+              "aria-label": `Rolle in ${s.name}`,
+            },
+            optionen.flat(),
+          ),
+          z.weg &&
+            el(
+              "span",
+              { class: "klein leise" },
+              "wird beim Speichern entfernt",
+            ),
+          knopf(z.weg ? "Rückgängig" : "Entfernen", {
+            klein: true,
+            art: "still",
+            symbol: z.weg ? "zurueck" : "schliessen",
+            kontext: s.name,
+            onclick: () => {
+              if (z.weg) z.weg = false;
+              // Eine Stufe, die erst neu dazukam, ist mit dem Entfernen wieder weg
+              else if (!rollen.some((r) => r.stufeId === s.id)) {
+                zugewiesen.delete(s.id);
+              } else z.weg = true;
+              meldung.textContent = `${s.name}: ${z.weg || !zugewiesen.has(s.id) ? "wird entfernt" : "bleibt"}.`;
+              zeichne(s.id);
+              aendere();
+            },
+          }),
+        );
+      });
+
+    const frei = stufen.filter((s) => !zugewiesen.has(s.id));
+    const stufe = auswahl({
+      label: "Stufe",
+      optionen: [["", "Stufe wählen"], ...frei.map((s) => [s.id, s.name])],
+      wert: "",
     });
-    return {
-      stufe,
-      optionen,
-      wurzel: el(
-        "fieldset",
-        { class: "rolle" },
-        el("legend", {}, stufe.name),
-        el(
-          "div",
-          { class: "seg" },
-          optionen.flatMap((o) => [o.eingabe, o.label]),
-        ),
-      ),
-    };
-  });
+    const rolle = auswahl({
+      label: "Rolle in der Stufe",
+      optionen: [["", "Rolle wählen"], ...ROLLEN_ZUWEISEN],
+      wert: "",
+    });
+    const knopfStufe = () => stufe.wurzel.querySelector(".auswahl-knopf");
+    const knopfRolle = () => rolle.wurzel.querySelector(".auswahl-knopf");
+    const hinzufuegen = knopf("Stufe hinzufügen", {
+      symbol: "plus",
+      onclick: () => {
+        entferneFehler({ ...stufe, fokus: knopfStufe() });
+        entferneFehler({ ...rolle, fokus: knopfRolle() });
+        const id = stufe.eingabe.value;
+        const typ = rolle.eingabe.value;
+        if (!id) {
+          feldFehler({ ...stufe, fokus: knopfStufe() }, "Wähle eine Stufe.");
+          knopfStufe().focus();
+          return;
+        }
+        if (!typ) {
+          feldFehler({ ...rolle, fokus: knopfRolle() }, "Wähle eine Rolle.");
+          knopfRolle().focus();
+          return;
+        }
+        zugewiesen.set(id, { typ, weg: false });
+        meldung.textContent = `${stufenName(id)} ist hinzugefügt. Sie gilt mit «Speichern».`;
+        zeichne(id, "rolle");
+        aendere();
+      },
+    });
+
+    wurzel.replaceChildren(
+      el("h3", { class: "pe-teiltitel" }, "Stufen und Rollen"),
+      zeilen.length > 0
+        ? el(
+            "ul",
+            {
+              class: "liste-zeilen pe-stufenzeilen",
+              "aria-label": "Stufen der Person",
+            },
+            zeilen,
+          )
+        : el("p", { class: "leise" }, "Die Person hat keine Stufe."),
+      stufen.length === 0
+        ? el("p", { class: "hilfe" }, "Es gibt noch keine Stufen.")
+        : frei.length > 0
+          ? el(
+              "div",
+              { class: "pe-tag-neu pe-stufe-neu" },
+              stufe.wurzel,
+              rolle.wurzel,
+              hinzufuegen,
+            )
+          : el("p", { class: "hilfe" }, "Die Person hat schon alle Stufen."),
+      meldung,
+      hinweis,
+    );
+    zeigeHinweis();
+    // Nach dem Entfernen oder Hinzufügen bleibt der Fokus bei der betroffenen Zeile
+    if (fokusId) {
+      const zeile = wurzel.querySelector(`[data-stufe="${fokusId}"]`);
+      const ziel = zeile?.querySelector(
+        art === "knopf" ? "button" : "input:checked",
+      );
+      // Die Zeile ist weg (neu und wieder entfernt): Der Fokus geht zur Auswahl für die nächste Stufe
+      (ziel ?? wurzel.querySelector(".auswahl-knopf"))?.focus();
+    }
+  };
+  zeichne();
   return {
-    wurzel: el(
-      "div",
-      { class: "pe-rollenraster" },
-      zeilen.length
-        ? zeilen.map((z) => z.wurzel)
-        : el("p", { class: "hilfe" }, "Es gibt noch keine Stufen."),
-    ),
+    wurzel,
+    // Was die API erwartet: nur zugewiesene Stufen ohne die markierten
     wert: () =>
-      zeilen
-        .map((z) => ({
-          stufeId: z.stufe.id,
-          typ: z.optionen.find((o) => o.eingabe.checked)?.wert ?? "",
-        }))
-        .filter((r) => r.typ),
+      stufen
+        .filter((s) => zugewiesen.get(s.id)?.weg === false)
+        .map((s) => ({ stufeId: s.id, typ: zugewiesen.get(s.id).typ })),
   };
 }
 
@@ -295,9 +429,13 @@ function karte(titel, text, ...inhalt) {
   );
 }
 
-// Tags der Person: Änderungen sammeln sich und gelten mit «Speichern»
+// Tags der Person (Funktion, Team, Lager): Änderungen sammeln sich und gelten mit «Speichern»
+// Stufen setzt man nicht hier: Sie entstehen über «Stufen und Rollen» (die Stufenrolle ist die Zuordnung zur Stufe). Hier stehen sie nur als Hinweis
 // ursprung: [{ tag, rolle }]; aenderungen: Map tagId -> { art: "neu" | "weg", rolle? }
-function tagAbschnitt({ ursprung, alleTags }) {
+function tagAbschnitt({ ursprung: alle, alleTags: tags }) {
+  const ursprung = alle.filter(({ tag }) => tag.typ !== "stufe");
+  const alleTags = tags.filter((t) => t.typ !== "stufe");
+  const stufen = alle.filter(({ tag }) => tag.typ === "stufe");
   const aenderungen = new Map();
   const wurzel = el("div", { class: "pe-tags" });
   const vorhandene = () => {
@@ -392,23 +530,47 @@ function tagAbschnitt({ ursprung, alleTags }) {
       },
     });
     wurzel.replaceChildren(
-      zeilen.length > 0
-        ? el("ul", { class: "liste-zeilen pe-tagzeilen" }, zeilen)
-        : el("p", { class: "leise" }, "Die Person trägt keinen Tag."),
-      frei.length > 0
-        ? el(
-            "div",
-            { class: "pe-tag-neu" },
-            tag.wurzel,
-            rolle.wurzel,
-            hinzufuegen,
-          )
-        : el("p", { class: "hilfe" }, "Die Person trägt schon alle Tags."),
+      ...[
+        zeilen.length > 0
+          ? el("ul", { class: "liste-zeilen pe-tagzeilen" }, zeilen)
+          : alleTags.length > 0 &&
+            el("p", { class: "leise" }, "Die Person trägt keinen Tag."),
+        frei.length > 0
+          ? el(
+              "div",
+              { class: "pe-tag-neu" },
+              tag.wurzel,
+              rolle.wurzel,
+              hinzufuegen,
+            )
+          : el(
+              "p",
+              { class: "hilfe" },
+              alleTags.length === 0
+                ? "Es gibt noch keine Funktion, kein Team und kein Lager."
+                : "Die Person trägt schon alle Tags.",
+            ),
+      ].filter(Boolean),
     );
   };
   zeichne();
+  const hinweise =
+    stufen.length > 0 &&
+    el(
+      "ul",
+      { class: "pe-stufenhinweis klein leise" },
+      stufen.map(({ tag, rolle }) =>
+        el(
+          "li",
+          {},
+          ROLLEN.some(([wert]) => wert && wert === rolle)
+            ? `Stufe ${tag.name}: über «Rechte und Rollen» (${rolleName(rolle)}).`
+            : `Stufe ${tag.name}: Zuordnung ohne Rolle. Entfernen kannst du sie unter «Gruppen und Tags».`,
+        ),
+      ),
+    );
   return {
-    wurzel,
+    wurzel: el("div", {}, wurzel, hinweise),
     aenderungen: () => [...aenderungen],
   };
 }
@@ -504,10 +666,6 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         required: true,
       });
   const telefon = telefonFeld(person?.telefon);
-  const websiteFreigabe = ankreuzen({
-    label: "Name und Profilbild auf der Website zeigen",
-    gewaehlt: person?.websiteFreigabe ?? false,
-  });
   const admin = ankreuzen({
     label: "Admin-Rechte (Abteilungsleitung)",
     gewaehlt: person?.admin ?? false,
@@ -584,27 +742,17 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           )
         : benutzername.wurzel,
       telefon.wurzel,
-      el(
-        "div",
-        { class: "pe-wahlfeld" },
-        websiteFreigabe.wurzel,
-        el(
-          "p",
-          { class: "hilfe" },
-          "Die öffentliche Website zeigt den Cevi-Namen (sonst den Vornamen) und das Profilbild, aber nur mit dieser Freigabe. Die Person kann sie auch selbst setzen und widerrufen. Bei Minderjährigen braucht es das Einverständnis der Eltern.",
-        ),
-      ),
     ),
     karte(
       "Rechte und Rollen",
-      "Admins brauchen einen zweiten Faktor, bevor sie die Verwaltung öffnen können. Die Stufenrolle bestimmt, was die Person in ihrer Stufe sieht.",
+      "Admins brauchen einen zweiten Faktor, bevor sie die Verwaltung öffnen können. Die Rolle in einer Stufe bestimmt, was die Person in dieser Stufe sieht.",
       admin.wurzel,
       rollen.wurzel,
     ),
     tags
       ? karte(
           "Gruppen und Tags",
-          "Sie steuern, wer was sieht und bearbeiten darf.",
+          "Funktionen, Teams und Lager steuern, wer was sieht und bearbeiten darf. Stufen weist du oben unter «Rechte und Rollen» zu.",
           tags.wurzel,
         )
       : karte(
@@ -723,7 +871,6 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
         telefon: tel,
-        websiteFreigabe: websiteFreigabe.eingabe.checked,
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),

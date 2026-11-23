@@ -169,6 +169,8 @@ export function tagLoeschen({ tag, anzahl, ctx, neu, danach, ereignis }) {
 // Die Rollen «leitung» und «stufenleitung» kommen aus den Stufenrollen der Personen und stehen als Rohwert in der Gruppe der Stufe
 const ROLLENNAME = { leitung: "Leitung", stufenleitung: "Stufenleitung" };
 const rolleText = (roh) => ROLLENNAME[roh] ?? roh ?? "";
+// Wer in einer Stufe Leitung oder Stufenleitung ist, hat die Zuordnung und die Rolle bei der Person bekommen (Rechte und Rollen); hier lässt sie sich nicht ändern, sonst fiele die Stufenrolle still weg
+const istStufenrolle = (tag, m) => tag.typ === "stufe" && m.rolle in ROLLENNAME;
 
 const rolleHilfe = (typ) =>
   typ === "stufe"
@@ -291,13 +293,15 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         { class: "chips" },
         chip(m.rolle ? rolleText(m.rolle) : "ohne Funktion", undefined, false),
       ),
-      knopf("Rolle ändern", {
-        klein: true,
-        art: "still",
-        symbol: "bearbeiten",
-        kontext: nameVon(m),
-        onclick: () => bearbeite(m, zeile),
-      }),
+      istStufenrolle(tag, m)
+        ? el("span", { class: "klein leise" }, "Bei der Person ändern")
+        : knopf("Rolle ändern", {
+            klein: true,
+            art: "still",
+            symbol: "bearbeiten",
+            kontext: nameVon(m),
+            onclick: () => bearbeite(m, zeile),
+          }),
     );
   }
 
@@ -380,16 +384,18 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           bildUrl: bekannt.get(m.userId)?.bildUrl,
         });
         zeile.classList.add("pe-mitglied");
-        zeile.append(
-          rolleZelle(m, zeile),
-          knopf("Entfernen", {
-            klein: true,
-            art: "still",
-            symbol: "schliessen",
-            kontext: name,
-            onclick: () => entfernen(m),
-          }),
-        );
+        zeile.append(rolleZelle(m, zeile));
+        if (!istStufenrolle(tag, m)) {
+          zeile.append(
+            knopf("Entfernen", {
+              klein: true,
+              art: "still",
+              symbol: "schliessen",
+              kontext: name,
+              onclick: () => entfernen(m),
+            }),
+          );
+        }
         return zeile;
       }),
     );
@@ -466,17 +472,28 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         keineTreffer,
         liste,
       ),
-      el(
-        "section",
-        { class: "pe-karte" },
-        el("h2", {}, "Mitglieder hinzufügen"),
-        el(
-          "p",
-          { class: "leise" },
-          "Die Person ist sofort in der Gruppe. Eine Rolle setzt du danach in der Liste.",
-        ),
-        suche.wurzel,
-      ),
+      tag.typ === "stufe"
+        ? el(
+            "section",
+            { class: "pe-karte" },
+            el("h2", {}, "Mitglieder hinzufügen"),
+            el(
+              "p",
+              { class: "leise" },
+              "Eine Person weist du der Stufe bei der Person zu: Öffne sie unter «Personen» und wähle bei «Rechte und Rollen» die Stufe und die Rolle. Leitung und Stufenleitung lassen sich nur dort ändern.",
+            ),
+          )
+        : el(
+            "section",
+            { class: "pe-karte" },
+            el("h2", {}, "Mitglieder hinzufügen"),
+            el(
+              "p",
+              { class: "leise" },
+              "Die Person ist sofort in der Gruppe. Eine Rolle setzt du danach in der Liste.",
+            ),
+            suche.wurzel,
+          ),
     ),
   );
   zeichneListe();

@@ -42,9 +42,9 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch. Nur mit einer Freigabe der Person (oder der Abteilungsleitung) zeigt die öffentliche Website das Bild zusammen mit dem Anzeigenamen.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung kann es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
     frist:
-      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Die Freigabe für die Website gilt, bis sie widerrufen wird; die Website vergisst die Person beim nächsten Abgleich, kurz nach dem Widerruf.",
+      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Auf der Website steht das Bild, solange die Person die Rolle trägt und das Bild besteht; die Website vergisst es beim nächsten Abgleich, kurz nachdem die Rolle oder das Bild wegfällt.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
@@ -1393,7 +1393,6 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "deaktiviert_am",
       "datenschutz_gelesen_am",
     ],
-    profilbild: ["website_freigabe_am"],
     telefon: ["telefon"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },

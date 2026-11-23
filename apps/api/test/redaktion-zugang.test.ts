@@ -375,16 +375,17 @@ describe("Auswahllisten", () => {
       id: slA.id,
       anzeigename: "Flink",
       funktion: "stufenleitung",
-      websiteFreigabe: false,
+      // Stufenleitung: eine Rolle mit Aussenwirkung (#610)
+      aufWebsite: true,
     });
     // Wer den Tag nicht trägt, steht nicht in der Liste
     expect(personen.map((p) => p.id)).not.toContain(slB.id);
     for (const p of personen) {
       expect(Object.keys(p).sort()).toEqual([
         "anzeigename",
+        "aufWebsite",
         "funktion",
         "id",
-        "websiteFreigabe",
       ]);
     }
     expect(text).not.toContain("+41791234567");

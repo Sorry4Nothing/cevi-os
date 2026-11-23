@@ -162,6 +162,49 @@ td.pe-zahl {
   margin-top: 26px;
 }
 
+/* Stufen der Person: Zeile mit Stufe, Rolle und Entfernen (Muster «team-member-list»), darunter die Auswahl für die nächste Stufe (Muster «team-invite-card») */
+.pe-stufenzuweisung {
+  display: grid;
+  gap: 12px;
+}
+
+.pe-teiltitel {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.pe-stufenzeile > .knopf {
+  margin-left: auto;
+}
+
+/* Entfernt wird erst mit «Speichern»: durchgestrichen und mit Text, nie nur über Farbe */
+.pe-stufenzeile--weg .chips {
+  text-decoration: line-through;
+}
+
+.pe-stufe-neu > .feld {
+  flex: 1 1 200px;
+}
+
+.pe-stufenhinweis {
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pe-stufenzeile {
+    animation: pe-stufe-ein var(--dauer) var(--kurve);
+  }
+
+  @keyframes pe-stufe-ein {
+    from {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+}
+
 .pe-gueltig {
   display: block;
 }

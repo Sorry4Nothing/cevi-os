@@ -1130,7 +1130,7 @@ describe("Sperre und Auslöser", () => {
   });
 });
 
-describe("Personen mit Profilbild (#560)", () => {
+describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
   const BILD = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
   const person = async (
     name: string,
@@ -1153,6 +1153,19 @@ describe("Personen mit Profilbild (#560)", () => {
     }
     return u!.id;
   };
+  const tagNeu = async (
+    typ: "stufe" | "team",
+    name: string,
+    abt: string = abteilungId,
+  ) =>
+    (
+      await db
+        .insert(schema.tag)
+        .values({ abteilungId: abt, typ, name, kuerzel: name.slice(0, 2) })
+        .returning()
+    )[0]!.id;
+  const rolle = (userId: string, tagId: string, rolle: string | null) =>
+    db.insert(schema.personTag).values({ userId, tagId, rolle });
   const baustein = (...ids: string[]) => ({
     id: randomUUID(),
     typ: "personen",
@@ -1162,28 +1175,44 @@ describe("Personen mit Profilbild (#560)", () => {
   });
   const bilder = async () =>
     (await ausgabe.liste()).filter((p) => p.startsWith("website/person-"));
+  const neuLaufen = async (seiteId: string) => {
+    await db
+      .update(schema.seite)
+      .set({ ausgabeHash: null })
+      .where(eq(schema.seite.id, seiteId));
+    await lauf();
+  };
 
-  test("freigegebene Personen erscheinen mit Anzeigename und Profilbild als Datei; alle anderen gar nicht", async () => {
-    const jetzt = new Date();
-    const mitCeviName = await person("Anna Muster", {
-      ceviName: "Flink",
-      websiteFreigabeAm: jetzt,
-    });
-    const nurVorname = await person(
-      "Beat Beispiel",
-      { websiteFreigabeAm: jetzt },
-      false,
-    );
-    const ohneFreigabe = await person("Clara Geheim", { ceviName: "Nebel" });
+  test("Stufenleitung und Leitung erscheinen ohne Freigabe mit Anzeigename und Profilbild als Datei; wer keine Rolle hat, gar nicht", async () => {
+    const stufe = await tagNeu("stufe", "Biber");
+    const team = await tagNeu("team", "Küchenteam");
+    const mitCeviName = await person("Anna Muster", { ceviName: "Flink" });
+    const nurVorname = await person("Beat Beispiel", {}, false);
+    await rolle(mitCeviName, stufe, "stufenleitung");
+    await rolle(nurVorname, stufe, "leitung");
+    // Keine Rolle mit Aussenwirkung: ohne Rolle, mit Freitext-Rolle an einem Team (auch «Stufenleitung»), ohne Stufenrolle an der Stufe, deaktiviert
+    const ohneRolle = await person("Clara Geheim", { ceviName: "Nebel" });
+    const nurTeam = await person("Emil Teamer", { ceviName: "Pfanne" });
+    await rolle(nurTeam, team, "Stufenleitung");
+    const nurTag = await person("Fiona Tagger", { ceviName: "Stempel" });
+    await rolle(nurTag, stufe, null);
     const deaktiviert = await person("Dora Weg", {
-      websiteFreigabeAm: jetzt,
-      deaktiviertAm: jetzt,
+      ceviName: "Entfernt",
+      deaktiviertAm: new Date(),
     });
-    const s = await seite({
+    await rolle(deaktiviert, stufe, "stufenleitung");
+    await seite({
       adresse: "team",
       inhalt: dok(
         "Team",
-        baustein(mitCeviName, nurVorname, ohneFreigabe, deaktiviert),
+        baustein(
+          mitCeviName,
+          nurVorname,
+          ohneRolle,
+          nurTeam,
+          nurTag,
+          deaktiviert,
+        ),
       ),
     });
     await lauf();
@@ -1197,7 +1226,10 @@ describe("Personen mit Profilbild (#560)", () => {
       "Beispiel",
       "Nebel",
       "Clara",
+      "Pfanne",
+      "Stempel",
       "Dora",
+      "Entfernt",
     ]) {
       expect(html).not.toContain(nein);
     }
@@ -1210,24 +1242,35 @@ describe("Personen mit Profilbild (#560)", () => {
     expect(new Uint8Array(await readFile(join(wurzel, dateien[0]!)))).toEqual(
       BILD,
     );
+    // Keine E-Mail, kein Telefon: Die Seite nennt nur Name, Bild und Funktion
+    expect(html).not.toContain("@example.org");
+    expect(html).not.toContain("mailto:");
+  });
 
-    // Widerruf: Name und Datei sind beim nächsten Lauf weg
-    await db
-      .update(schema.user)
-      .set({ websiteFreigabeAm: null })
-      .where(eq(schema.user.id, mitCeviName));
-    await db
-      .update(schema.seite)
-      .set({ ausgabeHash: null })
-      .where(eq(schema.seite.id, s));
+  test("Die Rolle fällt weg: Name und Datei sind beim nächsten Lauf weg", async () => {
+    const stufe = await tagNeu("stufe", "Wolf");
+    const sl = await person("Anna Muster", { ceviName: "Flink" });
+    await rolle(sl, stufe, "stufenleitung");
+    const s = await seite({
+      adresse: "team",
+      inhalt: dok("Team", baustein(sl)),
+    });
     await lauf();
+    expect(await lies("team/index.html")).toContain("Flink");
+    expect(await bilder()).toHaveLength(1);
+
+    await db.delete(schema.personTag).where(eq(schema.personTag.userId, sl));
+    await neuLaufen(s);
     expect(await lies("team/index.html")).not.toContain("Flink");
     expect(await bilder()).toEqual([]);
   });
 
   test("Konto gelöscht oder deaktiviert: Name und Datei fehlen beim nächsten Lauf", async () => {
-    const a = await person("Eva Eins", { websiteFreigabeAm: new Date() });
-    const b = await person("Fritz Zwei", { websiteFreigabeAm: new Date() });
+    const stufe = await tagNeu("stufe", "Biber");
+    const a = await person("Eva Eins");
+    const b = await person("Fritz Zwei");
+    await rolle(a, stufe, "stufenleitung");
+    await rolle(b, stufe, "leitung");
     await seite({ adresse: "team", inhalt: dok("Team", baustein(a, b)) });
     await lauf();
     expect(await bilder()).toHaveLength(1); // beide Bilder sind gleich: eine Datei
@@ -1244,7 +1287,7 @@ describe("Personen mit Profilbild (#560)", () => {
     expect(await bilder()).toEqual([]);
   });
 
-  test("eine Person einer anderen Abteilung erscheint nie", async () => {
+  test("eine Person einer anderen Abteilung erscheint nie, auch nicht mit Stufenrolle dort", async () => {
     const [fremde] = await db
       .insert(schema.abteilung)
       .values({ name: "Fremde Abteilung" })
@@ -1255,12 +1298,76 @@ describe("Personen mit Profilbild (#560)", () => {
         name: "Gustav Fremd",
         email: `${randomUUID()}@example.org`,
         abteilungId: fremde!.id,
-        websiteFreigabeAm: new Date(),
       })
       .returning();
+    await rolle(
+      u!.id,
+      await tagNeu("stufe", "Fremd", fremde!.id),
+      "stufenleitung",
+    );
     await seite({ adresse: "team", inhalt: dok("Team", baustein(u!.id)) });
     await lauf();
     expect(await lies("team/index.html")).not.toContain("Gustav");
     expect(await bilder()).toEqual([]);
+  });
+
+  test("Kinder erscheinen nie: weder als Person noch im Leitungsteam der Stufe", async () => {
+    const stufe = await tagNeu("stufe", "Biber");
+    const [k] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId,
+        vorname: "Kai",
+        nachname: "Kindlein",
+        ceviName: "Wirbel",
+        stufeId: stufe,
+      })
+      .returning();
+    await seite({
+      adresse: "team",
+      inhalt: dok("Team", baustein(k!.id), {
+        id: randomUUID(),
+        typ: "leitungsteam",
+        daten: { tagId: stufe },
+      }),
+    });
+    await lauf();
+    const html = await lies("team/index.html");
+    for (const nein of ["Kai", "Kindlein", "Wirbel"]) {
+      expect(html).not.toContain(nein);
+    }
+    expect(await bilder()).toEqual([]);
+  });
+
+  test("Leitungsteam einer Stufe: Stufenleitung vor Leitung, mit Bild, nur Personen mit Stufenrolle; ein Team bleibt die einfache Liste", async () => {
+    const stufe = await tagNeu("stufe", "Pfadi");
+    const team = await tagNeu("team", "Leitungsrunde");
+    const sl = await person("Anna Muster", { ceviName: "Flink" });
+    const l = await person("Beat Beispiel", { ceviName: "Wolke" }, false);
+    const ohne = await person("Clara Geheim", { ceviName: "Nebel" });
+    await rolle(l, stufe, "leitung");
+    await rolle(sl, stufe, "stufenleitung");
+    await rolle(ohne, stufe, null);
+    await rolle(sl, team, "Co-Leitung");
+    await seite({
+      adresse: "team",
+      inhalt: dok(
+        "Team",
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: stufe } },
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: team } },
+      ),
+    });
+    await lauf();
+    const html = await lies("team/index.html");
+    // Porträts der Stufe: Stufenleitung zuerst, mit der Rolle als Funktion
+    expect(html).toContain('<h2 class="titel">Flink</h2><p>Stufenleitung</p>');
+    expect(html).toContain('<h2 class="titel">Wolke</h2><p>Leitung</p>');
+    expect(html.indexOf("Flink")).toBeLessThan(html.indexOf("Wolke"));
+    expect(html).not.toContain("Nebel");
+    expect(await bilder()).toHaveLength(1);
+    // Das Team bleibt die Liste mit Cevi-Namen und Funktion, ohne Bild
+    expect(html).toContain(
+      '<span class="name">Flink</span><span class="funktion">Co-Leitung</span>',
+    );
   });
 });
