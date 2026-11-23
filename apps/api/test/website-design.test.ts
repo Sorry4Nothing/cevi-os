@@ -88,7 +88,7 @@ describe("Hülle", () => {
     expect(html).toContain('<details class="menue-mobil">');
     // Einzige Skripte: das Menü und das Konto-Menü (Verbesserungen) und theme.js, nie inline
     expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(
-      /<script(?![^>]* src="\/website\/(?:menue|konto)\.js")|style=|<style/i,
+      /<script(?![^>]* src="\/website\/(?:menue|konto-menue)\.js")|style=|<style/i,
     );
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
   });

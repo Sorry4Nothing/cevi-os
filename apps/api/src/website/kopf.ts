@@ -59,12 +59,12 @@ const themaSchalter = () =>
       `<button type="button" data-thema="${wert}" aria-pressed="false" aria-label="${name}">${serialisiere(symbol(icon))}</button>`,
   ).join("")}</div>`;
 
-// Das Konto-Menü für Angemeldete (#669): eine Vorlage, die konto.js nach dem Laden anstelle von «Anmelden» einsetzt, sobald GET /api/v1/website/konto eine Sitzung bestätigt.
+// Das Konto-Menü für Angemeldete (#669): eine Vorlage, die konto-menue.js nach dem Laden anstelle von «Anmelden» einsetzt, sobald GET /api/v1/website/konto eine Sitzung bestätigt.
 // Die Seite bleibt für alle gleich und trägt nichts über eine Person (kein Name, kein Bild, kein Zugang): Die Vorlage hat nur leere Felder (data-konto) und feste Texte; das Bild legt das Skript an. Ein template ist inert, ohne Skript sieht und hört niemand es.
-// Aufbau wie ein Offenlegungsmenü (details mit Links und einem Knopf, kein ARIA-«menu»); am Computer klappt es auf, im Menü am Handy steht es ausgeklappt in der Liste (konto.js setzt open).
+// Aufbau wie ein Offenlegungsmenü (details mit Links und einem Knopf, kein ARIA-«menu»); am Computer klappt es auf, im Menü am Handy steht es ausgeklappt in der Liste (konto-menue.js setzt open).
 const kontoVorlage = () => {
   const ava = `<span class="konto-ava" aria-hidden="true"><span data-konto="initialen"></span></span>`;
-  return `<template id="konto-vorlage"><details class="konto-menue"><summary class="konto-knopf">${ava}<span class="konto-name"><span class="nur-sr">Konto: </span><span data-konto="name"></span></span>${serialisiere(symbol("dreieck"))}</summary><div class="konto-tafel"><div class="konto-kopf">${ava}<p><strong data-konto="name"></strong><span>Angemeldet</span></p></div><ul class="konto-liste"><li data-konto="verwaltung"><a href="/admin">${serialisiere(symbol("verwaltung"))}Verwaltung</a></li><li data-konto="verwaltung"><a href="/admin#konto">${serialisiere(symbol("person"))}Mein Konto</a></li><li><button type="button" data-konto="abmelden">${serialisiere(symbol("abmelden"))}Abmelden</button></li></ul><p class="konto-meldung" role="status"></p></div></details></template>`;
+  return `<template id="konto-vorlage"><details class="konto-menue"><summary class="konto-knopf">${ava}<span class="konto-name"><span class="nur-sr">Konto: </span><span data-konto="name"></span></span>${serialisiere(symbol("dreieck"))}</summary><div class="konto-tafel"><div class="konto-kopf">${ava}<p><strong data-konto="name"></strong><span>Angemeldet</span></p></div><ul class="konto-liste"><li data-konto="verwaltung"><a href="/admin">${serialisiere(symbol("verwaltung"))}Verwaltung</a></li><li><a href="/konto">${serialisiere(symbol("person"))}Mein Konto</a></li><li><button type="button" data-konto="abmelden">${serialisiere(symbol("abmelden"))}Abmelden</button></li></ul><p class="konto-meldung" role="status"></p></div></details></template>`;
 };
 
 // Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke.

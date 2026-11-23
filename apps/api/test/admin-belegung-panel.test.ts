@@ -29,28 +29,29 @@ describe("Panel der Abteilungsleitung: Belegungsplan", () => {
       "belegung",
       "raeume",
       "anfragen",
+      "meine",
     ]);
     expect(raeume.unter[0]!.zugang).toBe("belegung");
     expect(modul).toContain('from "./belegung-layout.js"');
   });
 
-  test("Leitende sehen nur die Belegung; Räume und Anfragen bleiben bei der Abteilungsleitung", () => {
+  test("Leitende sehen die Belegung und «Meine Anfragen» (#671); Räume und Anfragen bleiben bei der Abteilungsleitung", () => {
     const leitung = {
       istAdmin: false,
       zugang: { bereiche: [], belegung: true },
     };
-    expect(sichtbar(leitung)).toEqual([["raeume", ["belegung"]]]);
-    // Mit Zugang zur Website kommen deren Bereiche dazu, die Räume bleiben bei der Belegung
+    expect(sichtbar(leitung)).toEqual([["raeume", ["belegung", "meine"]]]);
+    // Mit Zugang zur Website kommen deren Bereiche dazu, die Räume bleiben bei Belegung und eigenen Anfragen
     const sl = {
       istAdmin: false,
       zugang: { bereiche: ["website"], rechte: [], belegung: true },
     };
     const raumBereich = sichtbar(sl).find(([b]) => b === "raeume");
-    expect(raumBereich).toEqual(["raeume", ["belegung"]]);
+    expect(raumBereich).toEqual(["raeume", ["belegung", "meine"]]);
     const admin = sichtbar({ istAdmin: true, zugang: null });
     expect(admin.find(([b]) => b === "raeume")).toEqual([
       "raeume",
-      ["belegung", "raeume", "anfragen"],
+      ["belegung", "raeume", "anfragen", "meine"],
     ]);
   });
 

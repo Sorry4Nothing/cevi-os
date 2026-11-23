@@ -117,14 +117,16 @@ Archivo liegt als eigene Datei im Repo (`apps/api/public/website/archivo-latin.w
 
 ## Termine und Anlässe
 
-Vier erzeugte Dateien (`src/website/termine-seiten.ts`, Design W3, W5 bis W8) zeigen Daten, die von der Sitzung der Person abhängen. Sie enthalten selbst nichts davon (Ausnahme: der öffentliche Datenplan auf `/termine`, siehe unten): Der Browser holt es mit den Routen der API (`credentials: same-origin`, nie `X-App-Version`), das Skript baut die Ansicht ohne `innerHTML`.
+Sechs erzeugte Dateien (`src/website/termine-seiten.ts`, Design W3, W5 bis W8, dazu `/termin` und `/konto`, #671) zeigen Daten, die von der Sitzung der Person abhängen. Sie enthalten selbst nichts davon (Ausnahme: der öffentliche Datenplan auf `/termine`, siehe unten): Der Browser holt es mit den Routen der API (`credentials: same-origin`, nie `X-App-Version`), das Skript baut die Ansicht ohne `innerHTML`.
 
-| Adresse                     | Datei                            | Skript         | Routen                                                                                                                  |
-| --------------------------- | -------------------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `/termine`                  | `termine/index.html`             | `termine.js`   | `GET /termine/alle`, `GET /termine/mein`, `GET/POST /ich/kalender-link`; ohne Sitzung die Datei `/termine/termine.json` |
-| `/termine/vorschlagen`      | `termine/vorschlagen/index.html` | `vorschlag.js` | `GET /termin-vorschlaege/optionen`, `POST /termin-vorschlaege`                                                          |
-| `/anlass?id=<ID>`           | `anlass/index.html`              | `anlass.js`    | `GET /anlaesse/{id}`                                                                                                    |
-| `/anlass/anmeldung?id=<ID>` | `anlass/anmeldung/index.html`    | `anmeldung.js` | `GET /anlaesse/{id}`, `PUT` und `DELETE /anlaesse/{id}/anmeldung`                                                       |
+| Adresse                     | Datei                            | Skript         | Routen                                                                                                                                 |
+| --------------------------- | -------------------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `/termine`                  | `termine/index.html`             | `termine.js`   | `GET /termine/alle`, `GET /termine/mein`, `GET/POST /ich/kalender-link`; ohne Sitzung die Datei `/termine/termine.json`                |
+| `/termine/vorschlagen`      | `termine/vorschlagen/index.html` | `vorschlag.js` | `GET /termin-vorschlaege/optionen`, `POST /termin-vorschlaege`                                                                         |
+| `/anlass?id=<ID>`           | `anlass/index.html`              | `anlass.js`    | `GET /anlaesse/{id}`                                                                                                                   |
+| `/anlass/anmeldung?id=<ID>` | `anlass/anmeldung/index.html`    | `anmeldung.js` | `GET /anlaesse/{id}`, `PUT` und `DELETE /anlaesse/{id}/anmeldung`                                                                      |
+| `/termin?id=<ID>`           | `termin/index.html`              | `termin.js`    | `GET /termine/{id}`, `GET /programme/{id}/kontakte` und `/teilnahmen`, `PUT /programme/{id}/teilnahmen/{kindId}` und `/leitung` (#671) |
+| `/konto`                    | `konto/index.html`               | `konto.js`     | `GET` und `PATCH /ich`, `POST /ich/datenschutz`, `POST /api/auth/change-password`, `/revoke-sessions`, `/sign-out` (#671)              |
 
 - **Gemeinsames:** `tm.js` (Ansichten als Beschreibung statt HTML, Zeit in Zürich, Rückfrage-Dialog), `termine.css` (nur unter `.tm`, mit eigenen Tokens in Tag und Nacht). Die Ansichten sind reine Funktionen und mit `test/website-termine-skripte.test.ts` ohne Browser getestet.
 - **Auswahlfelder (#564):** `auswahl.js` wertet jedes `<select>` der Website zu einem eigenen Auswahlfeld auf (Schaltfläche mit `role="combobox"` und Liste mit `role="listbox"` nach dem Muster «Select-Only Combobox»: Pfeiltasten, Pos1, Ende, Bild auf/ab, Eingabe, Leertaste, Escape, Tab, Tippen zum Springen; klappt nach oben oder richtet sich rechts aus, wenn der Platz fehlt). Das `<select>` bleibt im Dokument, hält den Wert, geht mit dem Formular mit und meldet `change`; ohne Skript ist es das Feld des Browsers. `data-nativ` am `<select>` lässt eines aus. Ein Skript, das ein `<select>` einsetzt, importiert `./auswahl.js`; die Seite lädt `auswahl.css`.
@@ -238,3 +240,7 @@ Ohne Caddy: `WEBSITE_AUSGABE_PFAD` auf ein lokales Verzeichnis setzen und es mit
 - Ob Telefon, E-Mail und Foto von Leitenden erscheinen dürfen, entscheidet der Nutzer (Plan, Frage 2); bis dahin nur Cevi-Name und Funktion.
 - Ob die Termin-Liste ohne Gruppe auch Termine ohne öffentlichen Anlass zeigen darf (zum Beispiel die Samstage), entscheidet der Nutzer; bis dahin nur Termine öffentlicher Anlässe (siehe oben).
 - Die Datei `weiterleitungen.caddy` und der Caddy-Vorschlag sind nicht gegen einen laufenden Caddy geprüft.
+
+### Termin und Mein Konto (#671)
+
+Beide Seiten sind wie die Seiten der Termine leere Hüllen mit `noindex`, ohne Daten im HTML; Kinder, Telefon und Antworten kommen erst nach der Anmeldung aus der API. Die Liste der Termine führt für Angemeldete auch dann auf `/termin?id=`, wenn der Termin keinen Anlass hat (der öffentliche Datenplan hat keine IDs, dort bleibt die Zeile ohne Link). Die Adressen `termin` und `konto` sind reserviert (`RESERVIERTE_ADRESSEN`). `/konto` verlangt beim Startpasswort zuerst den Wechsel (die API sperrt bis dahin alles ausser `GET /ich`), dann die Kenntnisnahme des Datenschutzes. Nicht enthalten: Profilbild ändern, Chat, Web-Push. Stand und Lücken: [Gleichstand Web und App](web-app-gleichstand.md).

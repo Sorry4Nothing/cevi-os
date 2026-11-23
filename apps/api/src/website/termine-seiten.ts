@@ -54,6 +54,21 @@ const SEITEN: Definition[] = [
     skript: "anmeldung",
     kopf: "einfach",
   },
+  // Termin mit Antwort je Kind und Mein Konto für Angemeldete (#671); beide füllt das Skript nach der Anmeldung aus der API
+  {
+    datei: "termin/index.html",
+    titel: "Termin",
+    seite: "termin",
+    skript: "termin",
+    kopf: "anlass",
+  },
+  {
+    datei: "konto/index.html",
+    titel: "Mein Konto",
+    seite: "konto",
+    skript: "konto",
+    kopf: "einfach",
+  },
 ];
 
 export const DATENPLAN_DATEI = "termine/termine.json";

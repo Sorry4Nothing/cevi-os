@@ -361,13 +361,13 @@ describe("Aufbau und Barrierefreiheit", () => {
     expect(html).toContain('<script src="/website/ladezustand.js"></script>');
     // Und das Konto-Menü im Kopf (#669): ein Modul der eigenen Herkunft, das nach dem Laden fragt, wer angemeldet ist
     expect(html).toContain(
-      '<script type="module" src="/website/konto.js"></script>',
+      '<script type="module" src="/website/konto-menue.js"></script>',
     );
     expect(
       html
         .replace('<script src="/website/theme.js"></script>', "")
         .replace('<script src="/website/ladezustand.js"></script>', "")
-        .replace('<script type="module" src="/website/konto.js"></script>', ""),
+        .replace('<script type="module" src="/website/konto-menue.js"></script>', ""),
     ).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
     expect(html).toContain("script-src &#39;self&#39;");
     expect(html).toContain("connect-src &#39;self&#39;");

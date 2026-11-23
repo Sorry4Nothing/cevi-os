@@ -623,7 +623,17 @@ function hinweisKarte(ctx) {
     el(
       "p",
       {},
-      "Einen Raum fragst du in der Cevi-OS-App an. Das zuständige Team oder die Abteilungsleitung bestätigt die Anfrage. Erst dann erscheint die Zeit hier als bestätigt; bis dahin steht sie als angefragt da.",
+      "Einen Raum fragst du unter «Meine Anfragen» an, in der Verwaltung oder in der Cevi-OS-App. Das zuständige Team oder die Abteilungsleitung bestätigt die Anfrage. Erst dann erscheint die Zeit hier als bestätigt; bis dahin steht sie als angefragt da.",
+    ),
+    el(
+      "p",
+      {},
+      el(
+        "a",
+        { class: "knopf knopf--klein", href: "#raeume/meine" },
+        icon("kalender"),
+        "Raum anfragen",
+      ),
     ),
     ctx.zugang.termine.raumAnfragen &&
       el(

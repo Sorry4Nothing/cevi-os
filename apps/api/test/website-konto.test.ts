@@ -18,7 +18,7 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 
-// Konto-Menü im Kopf der Website (#669): Route, Vorlage im statischen HTML und Verhalten von konto.js
+// Konto-Menü im Kopf der Website (#669): Route, Vorlage im statischen HTML und Verhalten von konto-menue.js
 bereiteAuthTestsVor();
 
 const sql = postgres(API_URL);
@@ -161,7 +161,9 @@ describe("Kopf: Vorlage im statischen HTML (#669)", () => {
     expect(vorlage).toContain(">Mein Konto</a>");
     expect(vorlage).toContain(">Abmelden</button>");
     expect(vorlage).toContain('href="/admin"');
-    expect(vorlage).toContain('href="/admin#konto"');
+    // «Mein Konto» ist die Seite /konto der Website (#671), für jede Person; nur «Verwaltung» hängt am Zugang
+    expect(vorlage).toContain('<li><a href="/konto">');
+    expect(vorlage.match(/data-konto="verwaltung"/g)).toHaveLength(1);
     expect(vorlage).not.toMatch(/<script|<img|style=|\son[a-z]+=/i);
     // Aufbau eines Offenlegungsmenüs, kein ARIA-«menu»
     expect(vorlage).toContain('<details class="konto-menue">');
@@ -176,25 +178,25 @@ describe("Kopf: Vorlage im statischen HTML (#669)", () => {
       inhalt: "<p>x</p>",
       nurMarke: true,
     });
-    expect(seite).not.toContain("konto.js");
+    expect(seite).not.toContain("konto-menue.js");
     expect(seite).not.toContain("connect-src");
   });
 
-  test("jede Seite mit Kopf lädt konto.js als Modul der eigenen Herkunft und darf nur dorthin verbinden", () => {
+  test("jede Seite mit Kopf lädt konto-menue.js als Modul der eigenen Herkunft und darf nur dorthin verbinden", () => {
     const seite = rahmen(k, {
       titel: "Start",
       aktuell: "/",
       inhalt: "<p>x</p>",
     });
     expect(seite).toContain(
-      '<script type="module" src="/website/konto.js"></script>',
+      '<script type="module" src="/website/konto-menue.js"></script>',
     );
     expect(seite).toContain("connect-src &#39;self&#39;");
     expect(seite).not.toMatch(/<script(?![^>]* src=)/);
   });
 });
 
-// konto.js in einer kleinsten Umgebung: Element mit Attributen, Kindern und Ereignissen
+// konto-menue.js in einer kleinsten Umgebung: Element mit Attributen, Kindern und Ereignissen
 interface Elem {
   tag: string;
   attr: Map<string, string>;
@@ -227,7 +229,7 @@ function lauf(opt: {
   imMenue?: boolean;
 }) {
   const skript = readFileSync(
-    new URL("../public/website/konto.js", import.meta.url),
+    new URL("../public/website/konto-menue.js", import.meta.url),
     "utf8",
   );
   const aufrufe: { url: string; opt?: Record<string, unknown> }[] = [];
@@ -331,7 +333,7 @@ const ok = (daten: unknown) => async () => ({
   json: async () => daten,
 });
 
-describe("konto.js: Verhalten", () => {
+describe("konto-menue.js: Verhalten", () => {
   test("gültige Sitzung: tauscht «Anmelden» gegen das Menü, setzt Name und Initiale, löscht den Merker nicht", async () => {
     const l = lauf({
       antwort: ok({ name: "Funke", bildUrl: null, verwaltung: true }),
@@ -435,7 +437,7 @@ describe("konto.js: Verhalten", () => {
   test("nur der eigene Ursprung: kein innerHTML, keine fremde Adresse, kein localStorage, keine Daten in Cookies", () => {
     // Ohne die Kommentare, die diese Namen erwähnen
     const skript = readFileSync(
-      new URL("../public/website/konto.js", import.meta.url),
+      new URL("../public/website/konto-menue.js", import.meta.url),
       "utf8",
     ).replace(/^\s*\/\/.*$/gm, "");
     expect(skript).not.toMatch(

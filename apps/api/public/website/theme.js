@@ -43,7 +43,7 @@
 
   wende(lies());
 
-  // Merker von konto.js (#669): Gab es in diesem Tab eine Sitzung, verbirgt kopf.css «Anmelden», bis die Antwort da ist, damit der Knopf nicht kurz aufblitzt. Kein Name, nur «ja»
+  // Merker von konto-menue.js (#669): Gab es in diesem Tab eine Sitzung, verbirgt kopf.css «Anmelden», bis die Antwort da ist, damit der Knopf nicht kurz aufblitzt. Kein Name, nur «ja»
   try {
     if (window.sessionStorage.getItem("cevi-konto") === "1") {
       wurzel.setAttribute("data-konto", "erwartet");

@@ -1191,7 +1191,7 @@ const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
 // Konto-Menü im Kopf (#669): fragt nach dem Laden GET /api/v1/website/konto und tauscht «Anmelden» bei gültiger Sitzung aus; darum darf jede Seite mit Kopf verbinden (nur zur eigenen Herkunft)
-export const SKRIPT_KONTO = "/website/konto.js";
+export const SKRIPT_KONTO = "/website/konto-menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
 export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };

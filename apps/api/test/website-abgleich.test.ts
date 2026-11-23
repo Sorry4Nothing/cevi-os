@@ -270,7 +270,7 @@ describe("Was ausgeliefert wird", () => {
     const d = await alle();
     expect(d["website/geschuetzt.js"]).toBe("// a");
     expect(d["website/knoten.js"]).toBe("// b");
-    // Das Menü (menue.js) ist auf jeder Seite mit Navigation, theme.js (#550) auf jeder Seite; ohne Platzhalter braucht die Seite das Skript für geschützte Bausteine nicht. Verbinden darf sie wegen des Konto-Menüs im Kopf (konto.js, #669), nur zur eigenen Herkunft
+    // Das Menü (menue.js) ist auf jeder Seite mit Navigation, theme.js (#550) auf jeder Seite; ohne Platzhalter braucht die Seite das Skript für geschützte Bausteine nicht. Verbinden darf sie wegen des Konto-Menüs im Kopf (konto-menue.js, #669), nur zur eigenen Herkunft
     expect(d["offen/index.html"]).not.toContain("geschuetzt.js");
     expect(d["offen/index.html"]).toContain("connect-src &#39;self&#39;");
     expect(d["offen/index.html"]).toContain(

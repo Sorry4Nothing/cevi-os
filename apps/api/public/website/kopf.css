@@ -711,7 +711,7 @@ html {
 }
 
 /* ===== Konto-Menü für Angemeldete (#669) =====
-   Markup: die Vorlage in src/website/kopf.ts, eingesetzt von konto.js anstelle von «Anmelden». Am Computer ein Knopf mit Bild und Namen, der eine Tafel aufklappt (details);
+   Markup: die Vorlage in src/website/kopf.ts, eingesetzt von konto-menue.js anstelle von «Anmelden». Am Computer ein Knopf mit Bild und Namen, der eine Tafel aufklappt (details);
    im Menü am Handy steht dieselbe Liste ausgeklappt (--liste). Bis die Antwort da ist, verbirgt ein Merker (data-konto, theme.js) den Knopf «Anmelden», ohne dass der Platz wegfällt. */
 html[data-konto="erwartet"] .kopf a.anmelden {
   /* Ohne Antwort holt theme.js den Merker nach zwei Sekunden weg */

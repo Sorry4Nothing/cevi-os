@@ -918,6 +918,61 @@ Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.
 
+## 62. Website und Verwaltung: Gleichstand mit der App ausserhalb des Lagers (#671)
+
+Gilt für die Website-Seiten `/termin` (`termin.js`) und `/konto` (`konto.js`) sowie für «Meine Anfragen» der Räume in der Verwaltung (`raeume-meine.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 10 gelten, ebenso die Abschnitte 11 (Website), 12 (Verwaltung, Termine) und 31 (Raumanfragen).
+
+- [ ] **62.1** Antworten Ja oder Nein (`/termin`) sind eine Gruppe von Knöpfen mit `aria-pressed`, benannt nach der Person (`aria-labelledby` auf den Namen); ohne Antwort steht «Noch keine Antwort» als Text. Ist der Termin abgesagt oder begonnen, gibt es keine Knöpfe, die Antwort steht als Wort («Ja», «Nein», «Noch keine Antwort») mit der Erklärung «Antworten ist nicht mehr möglich».
+- [ ] **62.2** Beim Speichern einer Antwort sind die Knöpfe `aria-disabled` und `aria-busy`; das Ergebnis kommt als Ansage in der Statusregion («Gespeichert: Ja.») und der Fokus bleibt auf dem gedrückten Knopf. Ein Fehler steht als Band mit `role="alert"` über der Liste, die Auswahl bleibt unverändert.
+- [ ] **62.3** Die Zusagen für Leitende («Antworten») nennen Zahlen und Namen als Text mit Wort («Ja», «Noch keine Antwort»); Farbe verstärkt nur. Telefonnummern sind echte Links (`tel:`), Name und Nummer stehen in einer Zeile oder umbrechen ohne waagrechtes Scrollen.
+- [ ] **62.4** `/konto`: Beim Startpasswort steht nur die Karte «Wähle dein Passwort» mit Erklärung; Felder haben sichtbare Beschriftungen, `autocomplete` (`current-password`, `new-password`), Einfügen ist erlaubt (WCAG 3.3.8), Fehler stehen beim Feld mit Symbol und Text (`aria-describedby`, `aria-invalid`), der Fokus geht auf das erste fehlerhafte Feld. «Passwörter anzeigen» ist ein Knopf mit `aria-pressed`. Das Passwort wird nach dem Senden geleert.
+- [ ] **62.5** Mitteilungsschalter: je eine Gruppe «Ein/Aus» mit `aria-pressed` und sichtbarem Text, Zustand nie nur über Farbe; der Hinweis sagt, dass sie für die App gelten.
+- [ ] **62.6** «Überall abmelden» fragt in der Zeile nach («Alle anderen Geräte abmelden?» mit «Ja, überall abmelden» und «Abbrechen», Ansage per `role="status"`, Fokus auf dem ersten Knopf der Frage); kein Dialog des Browsers.
+- [ ] **62.7** «Meine Anfragen» (Verwaltung): Das Formular ist eine Seite im Fluss mit Zurück; Fehler stehen beim Feld und in einer Zusammenfassung mit Sprungmarken; Datum und Uhrzeit sind die eigenen Felder (Tippen und Kalender); der Status steht als Wort mit Symbol; «Zurückziehen» ist zweistufig mit Ansage, der Fokus geht danach an die Überschrift.
+- [ ] **62.8** Alle Seiten: Zielgrösse 44 px, sichtbarer Fokus, Hell und Dunkel, 390 bis 1440 px ohne waagrechtes Scrollen, kein Inline-Skript und kein `style`-Attribut (CSP), Bewegung nur unter `no-preference`. Ohne Anmeldung zeigt jede Seite «Melde dich an» mit Weg zurück zur Seite (nur ein Pfad der eigenen Website, `sicheresZiel`).
+
+### Stand der Prüfung (#671)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank mit erfundenen Demo-Konten für Eltern, Stufenleitung und Entwickler) gesehen und bedient: 62.1 und 62.2 (Antwort setzen, Fokus bleibt), 62.3, 62.4 (auch der Pflichtwechsel mit Startpasswort bis zur Seite danach), 62.5 (Schalter, Telefon speichern), 62.6 nur die Darstellung der Frage in der Ansicht (Test), 62.7 (anfragen, zurückziehen, Fehlerzusammenfassung), 62.8 bei 1440 und 390 px, Hell und Dunkel, Ziele unter 44 px: keine gefunden. Per Test: Ansichten ohne Browser (`test/website-konto-termin.test.ts`, `test/admin-raeume-meine.test.ts`). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Kontrastmessung, 200 % Zoom per Browser-Einstellung, 2560 px, Windows-Hochkontrast, das Verhalten bei sehr langen Namen.
+
+## 59. Verwaltung: Lager, Sitzungen und Mitteilen (#673)
+
+Gilt für die Module Höcks, Protokolle, Pinnwand, Eingang, Erwähnungen und Dokumente im Arbeitsbereich des Lagers (`lager-m-*.js`, `lager-sm-*.js`, `lager-sitzungen.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **59.1** Jede Ansicht hat eine Überschrift der Ebene 2 (Titel des Moduls); Formulare sind Seiten im Fluss (Zurück, Escape, Browser-Zurück). Jeder Knopf in einer Zeile nennt den Gegenstand im Namen («Bearbeiten: Budget besprechen»).
+- [ ] **59.2** Zustand nie nur über Farbe: Status (Besprochen, Neu, Erledigt), «Wichtig», «Angeheftet», «Geschlossen» und «Anonym» tragen Wort und, wo sinnvoll, ein Symbol. Reaktionen sind Knöpfe mit `aria-pressed` und Zahl.
+- [ ] **59.3** Reihenfolgen (Traktanden) lassen sich mit Maus, Finger, Tastatur (Leertaste, Pfeile, Escape) und den Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); das Ändern geht mit «Rückgängig».
+- [ ] **59.4** Kästchen und Auswahlfelder sind die eigenen der Verwaltung; die Einzelwahl einer Umfrage ist eine Karte mit Rundknopf (`.wahlkarte`), die Mehrfachwahl `.wahl`. Das Ergebnis steht als Text («3 Stimmen (50 %)») und als `progress` mit Namen.
+- [ ] **59.5** Fehler stehen beim Formular mit `role="alert"`; ein Versionskonflikt öffnet eine Gruppe mit Titel, dem Stand des Servers als Liste und zwei Knöpfen, der Fokus liegt in ihr.
+- [ ] **59.6** Links zu Dateien am Ablageort öffnen in einem neuen Tab, sagen das für Screenreader («öffnet in neuem Tab») und tragen `rel="noopener noreferrer"`. Es werden nie Links ausserhalb von `https` angeboten.
+- [ ] **59.7** Anonyme Meldungen: Der Rückfragecode steht in einer Seite mit Titel und «Kopieren», nur einmal; weder Meldungstext noch Code stehen in der Adresse oder im Titel des Dokuments.
+- [ ] **59.8** Höck-Modus: Die Punkte sind Knöpfe mit `aria-current="step"`; Häkchen der Anwesenheit sind erreichbar und melden Fehler als Meldung. Die Zielgrösse ist 44 Pixel, auch in der Kartenliste am Handy.
+- [ ] **59.9** Hell, Dunkel, «Bewegung reduzieren», erzwungene Farben; 390 bis 2560 Pixel ohne waagrechtes Scrollen der Seite, Tabellen werden am Handy zu Karten.
+
+### Stand der Prüfung (#673)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Daten gesehen: alle sechs Module bei 1440 Pixel (Hell), Höck-Detail bei 390 Pixel (Dunkel), Höck-Modus (Dunkel), Formulare Höck, Traktandum, Beitrag, Protokoll, Dokument, Orte; Versionskonflikt (Box, «Meine Änderung übernehmen»), Abstimmen, Reagieren, anonymes Senden mit Code, Link-Prüfung (Host, Form). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Tastatur-Durchgang aller Ansichten, 200 Prozent Zoom, erzwungene Farben, Kontrastwerte mit Messwerkzeug, 320 und 2560 Pixel, Rollen unterhalb der Lagerleitung im Browser (die Navigation der Verwaltung öffnet den Lager-Bereich nur der Abteilungsleitung; die Rechte der Module sind über Quelltext und API geprüft).
+
+## 61. Verwaltung: Lager, Material und Infos (#674)
+
+Gilt für `lager-m-packliste.js`, `lager-m-einkauf.js`, `lager-m-notfall.js`, `lager-m-infos.js`, `lager-m-tagesseiten.js`, `lager-m-wetter.js`, `lager-m-hilfen.js` und `lager-material.css` im Arbeitsbereich eines Lagers. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss.
+
+- [ ] **61.1** Jedes Modul steht nur in der Navigation, wenn die Rolle das Leserecht hat; Knöpfe zum Ändern fehlen ohne das Schreibrecht und in einem abgeschlossenen oder archivierten Lager. Sortierlisten (Griff, Pfeilknöpfe) erscheinen nur, wenn sich die Reihenfolge ändern lässt.
+- [ ] **61.2** Abhaken (Packliste, Einkauf) geschieht mit dem gemeinsamen Kästchen (`ankreuzen`, 44 Pixel, sichtbarer Fokus); der Zustand steht auch als Text («5 von 9 gepackt», durchgestrichen und «erledigt» im Stand), nie nur in Farbe. Der Stand ist eine Zustandsmeldung (`role="status"`).
+- [ ] **61.3** Reihenfolgen (Vorlage der Packliste, Infos, Notfall-Kontakte, Blöcke der Tagesseite) ändern sich per Ziehen am Griff, mit Leertaste und Pfeiltasten und mit den Knöpfen «Nach oben» und «Nach unten» (WCAG 2.5.7); jede Änderung wird angesagt und lässt sich mit «Rückgängig» zurücknehmen.
+- [ ] **61.4** Löschen und Entfernen laufen mit «Rückgängig» (Knopf und Strg Z), keine Rückfrage per Popup. Ändert jemand anderes dieselbe Zeile (409), zeigt das Formular die Konflikt-Box mit «Dein Wert» und «Server» und zwei Knöpfen («Meine Änderung übernehmen», «Stand des Servers übernehmen»); bei Aktionen in der Liste sagt eine Meldung, dass der Stand des Servers geladen ist.
+- [ ] **61.5** Tabellen (Einkauf, Wetter) haben Beschriftung und Spaltenköpfe; am Handy werden sie zur Kartenliste mit Spaltenname vor dem Wert. Formulare haben sichtbare Beschriftungen, Fehler stehen beim Feld (`role="alert"`) und setzen den Fokus.
+- [ ] **61.6** Notfall: Nummern sind Links (`tel:`) mit 44 Pixel Höhe und dem Zusatz «Anrufen» für Screenreader; sie stehen nie im Seitentitel, in der Adresse oder in einer Meldung. Externe Links (Kartenlink, Infos) nur mit https und mit dem Zusatz «öffnet in einem neuen Tab» für Screenreader.
+- [ ] **61.7** Infos: Abschnitte sind `details` mit `summary` (44 Pixel hoch, Tastatur); «Alle öffnen» und «Alle schliessen» sind Knöpfe. Drucken öffnet vorher alle Abschnitte.
+- [ ] **61.8** Tagesseiten: Die Tagesliste ist eine Navigation mit `aria-current="page"`; «Voriger Tag» und «Nächster Tag» nennen für Screenreader das Datum.
+- [ ] **61.9** Wetter: Warnungen sind Marken mit Symbol und Wort (Gewitter, Starke Böen, Hitze, Viel Regen); der Stand der Vorhersage steht als Text.
+- [ ] **61.10** Drucken (`window.print`): Das Druck-Stylesheet blendet Kopf, Navigation, Filter und Knöpfe aus (`lm-nicht-drucken`) und druckt schwarz auf weiss.
+- [ ] **61.11** Hell, Dunkel, «Bewegung reduzieren» (Übergänge nur unter `no-preference`), 390 bis 1920 Pixel ohne waagrechtes Scrollen der Seite.
+
+### Stand der Prüfung (#674)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Datenbank mit erfundenen Daten gesehen: alle sechs Module bei 1440 und 390 Pixel (Hell, Einkauf und Notfall auch Dunkel), die Abläufe Abhaken, eigener Punkt mit «Rückgängig» (Strg Z), Konflikt-Box mit «Meine Änderung übernehmen», Artikel anlegen und abhaken, «Zusammengezählt», Info bearbeiten und ungültigen Link ablehnen, Kontakt anlegen, Tag wechseln und Notiz speichern, Wetter laden; ein abgeschlossenes Lager ohne Änderungsknöpfe. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben, Kontrastwerte mit einem Messwerkzeug, Druckvorschau, Ziehen mit der Maus (nur Quelltext und Tastaturweg der Sortierliste), 320 und 2560 Pixel.
+
 ## 54. Verwaltung: Leisten wie die Website, ungültige Adressen (#667)
 
 Gilt für Logozeile, Bereichsleiste, Unterleiste und Bereichsauswahl (`geruest.css`) und für Adressen, die es nicht gibt (`admin.js` mit `ctx.nichtGefunden`, `rechte.js`, `tags.js`, `termine-anlaesse.js`, `termine-belegung.js`, `termine-monat.js`). Vorlage der Leisten: `public/website/kopf.css`.
@@ -949,11 +1004,11 @@ Geprüft im Browser (headless, Kopie der Demo-Datenbank mit erfundenen Bildern) 
 
 ## 56. Website und Verwaltung: Konto-Menü und «Zur Website» (#669)
 
-Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/website/kopf.ts`, `public/website/konto.js`, Stil im Abschnitt «Konto-Menü» von `kopf.css`) und für den Link «Zur Website» in der Logozeile der Verwaltung (`rahmen.js`, `geruest.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/website/kopf.ts`, `public/website/konto-menue.js`, Stil im Abschnitt «Konto-Menü» von `kopf.css`) und für den Link «Zur Website» in der Logozeile der Verwaltung (`rahmen.js`, `geruest.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
 
 - [ ] **56.1** Ohne Skript, ohne Sitzung (401) und bei jedem Fehler bleibt «Anmelden» stehen; die Seite ist für alle gleich und trägt nichts über eine Person. Mit Sitzung ersetzt das Menü den Knopf, am Computer im Band, am Handy als ausgeklappte Liste im Menü.
 - [ ] **56.2** Der Knopf des Menüs (`summary`) zeigt Bild oder Initiale und den Anzeigenamen (Cevi-Name, sonst Vorname; nie Benutzername, Telefon, E-Mail); sein Name für Screenreader beginnt mit «Konto: » und enthält den sichtbaren Namen. Das Bild ist dekorativ (`alt=""`), bei einem Fehler bleibt die Initiale. Das Bild lädt nur das eigene Profilbild.
-- [ ] **56.3** Aufbau als Offenlegungsmenü: `details` mit Links («Verwaltung», «Mein Konto», nur mit Zugang zur Verwaltung) und einem Knopf «Abmelden», jeder Eintrag mit Symbol und Wort, kein ARIA-«menu». Zustand «offen» steht in Farbe, Dreieck (gedreht) und im Zustand des `details`.
+- [ ] **56.3** Aufbau als Offenlegungsmenü: `details` mit Links («Verwaltung» nur mit Zugang zur Verwaltung, «Mein Konto» für alle zur Seite `/konto` der Website) und einem Knopf «Abmelden», jeder Eintrag mit Symbol und Wort, kein ARIA-«menu». Zustand «offen» steht in Farbe, Dreieck (gedreht) und im Zustand des `details`.
 - [ ] **56.4** Tastatur: Tab und Umschalt-Tab gehen durch das Menü, Enter und Leertaste öffnen und lösen aus, Pfeil runter und hoch gehen durch die Einträge (und öffnen vom Knopf aus), Pos1 und Ende springen, Esc schliesst und gibt den Fokus an den Knopf zurück, Verlassen mit Tab und ein Klick daneben schliessen. Der Fokus ist sichtbar (Ring 3 Pixel, 3 : 1).
 - [ ] **56.5** Alle Ziele mindestens 44 Pixel hoch (Knopf, Einträge, «Zur Website» in der Logozeile der Verwaltung, 44 × 44 Pixel als Symbol).
 - [ ] **56.6** «Abmelden» zeigt «aria-busy», gibt bei einem Fehler eine Meldung als `role="status"` («Abmelden hat nicht geklappt. Versuche es nochmals.») und lädt bei Erfolg die Seite neu: Geschützte Inhalte verschwinden, der Kopf zeigt wieder «Anmelden».

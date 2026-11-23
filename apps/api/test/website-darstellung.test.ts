@@ -524,7 +524,7 @@ describe("Navigation in einer Zeile", () => {
     expect(html).toMatch(
       /script-src &#39;self&#39;; style-src &#39;self&#39;; font-src &#39;self&#39;/,
     );
-    // Verbinden darf der Kopf wegen des Konto-Menüs (konto.js, #669), nur zur eigenen Herkunft
+    // Verbinden darf der Kopf wegen des Konto-Menüs (konto-menue.js, #669), nur zur eigenen Herkunft
     expect(html).toContain("connect-src &#39;self&#39;");
     expect(html).not.toMatch(/<script(?![^>]* src=)/);
   });

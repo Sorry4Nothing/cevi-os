@@ -185,7 +185,8 @@ export async function api(pfad, { methode = "GET", body } = {}) {
   try {
     // Mit Frist: Nichts bleibt für immer im Ladezustand (Abrufe 15 s, Änderungen 30 s)
     antwort = await holeMitFrist(
-      `/api/v1${pfad}`,
+      // Pfade der Anmeldung («/api/auth/…») stehen vollständig da, alle anderen sind Routen von «/api/v1»
+      pfad.startsWith("/api/") ? pfad : `/api/v1${pfad}`,
       {
         method: methode,
         credentials: "same-origin",
