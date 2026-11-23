@@ -20,13 +20,13 @@ import { bausteinSchema } from "../src/website/bausteine.js";
 import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
-  rendereFehlerseite,
   rendereSeite,
   type Daten,
   type Kontext,
   type NavPunkt,
   type TerminEintrag,
 } from "../src/website/rendern.js";
+import { rendereFehlerseite } from "../src/website/fehlerseiten.js";
 import {
   DATENPLAN,
   ladeDatenplan,

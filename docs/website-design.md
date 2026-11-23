@@ -165,15 +165,24 @@ Die Seiten für Termine und Anlässe (Boards W3, W5 bis W8) bauen auf `.termine`
 
 ## Seitentypen und Fehlerseiten
 
-| Datei                                   | Funktion                     | Design     | Inhalt                                                                                           |
-| --------------------------------------- | ---------------------------- | ---------- | ------------------------------------------------------------------------------------------------ |
-| `<adresse>/index.html`, `index.html`    | `rendereSeite`               | W1, W2, W4 | Titel, Bausteine; Startseite mit Teaser; Stufenfakten neben dem Text davor                       |
-| `<adresse>/index.html` (ganz geschützt) | `rendereHuelle`              | W10        | Titel «Geschützte Seite», Hinweis und Link «Anmelden»; das Skript ersetzt sie nach der Anmeldung |
-| `anmelden/index.html`                   | `rendereAnmeldung`           | W9         | Formular, zweiter Faktor, Zustände durch `anmelden.js`                                           |
-| `404.html`                              | `rendereFehlerseite`         | W4         | «Diese Seite gibt es nicht.», Link zur Startseite, Hauptpunkte                                   |
-| `500.html`                              | `rendereServerfehler`        | W4         | «Bei uns ist etwas schiefgegangen.», Link «Nochmals versuchen» (dieselbe Adresse)                |
-| `wartung.html`                          | `rendereWartung`             | W4         | «Wir sind gleich wieder da.»                                                                     |
-| `index.html`/`404.html` bei Sperre      | `HINWEISSEITE` (`sperre.ts`) | –          | Neutrale Seite mit Inline-Stil (die Stilvorlage ist dann gelöscht)                               |
+| Datei                                   | Funktion                                 | Design     | Inhalt                                                                                                              |
+| --------------------------------------- | ---------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------- |
+| `<adresse>/index.html`, `index.html`    | `rendereSeite`                           | W1, W2, W4 | Titel, Bausteine; Startseite mit Teaser; Stufenfakten neben dem Text davor                                          |
+| `<adresse>/index.html` (ganz geschützt) | `rendereHuelle`                          | W10        | Titel «Geschützte Seite», Hinweis und Link «Anmelden»; das Skript ersetzt sie nach der Anmeldung                    |
+| `anmelden/index.html`                   | `rendereAnmeldung`                       | W9         | Formular, zweiter Faktor, Zustände durch `anmelden.js`                                                              |
+| `404.html`                              | `rendereFehlerseite` (`fehlerseiten.ts`) | #567       | «Diese Seite gibt es nicht.», Knöpfe «Zur Startseite» und «Termine ansehen», E-Mail der Abteilung für kaputte Links |
+| `500.html`                              | `rendereServerfehler`                    | #567       | «Bei uns ist etwas schiefgegangen.», Link «Nochmals versuchen» (dieselbe Adresse), «Zur Startseite»                 |
+| `wartung.html`                          | `rendereWartung`                         | #567       | «Wir sind gleich wieder da.», «Nochmals versuchen»                                                                  |
+| `<alte-adresse>/index.html`             | `rendereWeiterleitungsseite`             | #567       | «Diese Seite ist umgezogen», Knopf «Weiter zur neuen Adresse», `meta refresh`                                       |
+| `index.html`/`404.html` bei Sperre      | `HINWEISSEITE` (`sperre.ts`)             | #567       | Neutrale Seite mit eigener Stildatei `gesperrt.css` (die Stilvorlage ist dann gelöscht)                             |
+
+### Fehlerseiten (#567)
+
+Die Fehlerseiten haben die Anlage des Kopfs der Startseite (`fehlerBuehne` in `src/website/fehlerseiten.ts`, Stil `website/fehler.css`, nur auf diesen Seiten geladen): Wo dort das Titelbild steht, steht ein getöntes Feld bis zum Fensterrand mit der Nummer des Fehlers in Archivo 900 (Schmuck, `aria-hidden`), die blaue Fahne mit dem Satz und den Knöpfen ragt von links hinein, daneben steht in einem bis zwei Sätzen, was nun geht, und klein der Code. Sie wiederholen das Menü nicht: Es steht im Kopf. Die 404-Seite nennt die zwei Wege, die fast immer weiterhelfen (Startseite, Termine), und die E-Mail der Abteilung (`KONTAKT_EMAIL`), wenn es sie gibt.
+
+- Kein Bild, kein Abruf, kein Skript ausser `theme.js`: `500.html` und `wartung.html` stehen auch, wenn die API nicht antwortet (nur das Logo im Kopf ist ein Bild der API; fehlt es, steht sein Alt-Text).
+- Die Rückfallseite einer Weiterleitung und die Hinweisseite der Informationssperre haben keinen Kopf und kein Feld: nur die Fahne mit Satz und Knopf. Die Hinweisseite steht allein (eigene Datei `gesperrt.css` mit den Farben in Tag und Nacht, geschrieben und gelöscht von `sperre.ts`); die Schrift bleibt bei einer Sperre liegen. Ein Inline-Stil bliebe unter der CSP des Hosts (`style-src 'self'`) wirkungslos.
+- Bewegung: ein Auftritt beim Laden (Ziffern setzen sich, Fahne von links), nichts bei «Bewegung reduzieren».
 
 Geschützte Bausteine tragen im statischen HTML einen Platzhalter mit dem Hinweis «Nur angemeldet sichtbar» und dem Link «Anmelden» (nie Typ oder Inhalt). `geschuetzt.js` tauscht ihn nach der Anmeldung aus und zeigt dabei die Zustände Laden (Skeleton), Fehler, nicht angemeldet und kein Zugriff.
 

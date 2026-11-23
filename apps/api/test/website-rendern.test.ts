@@ -7,7 +7,6 @@ import {
 import {
   esc,
   keineDaten,
-  rendereFehlerseite,
   rendereHuelle,
   rendereRobots,
   rendereSeite,
@@ -15,6 +14,7 @@ import {
   type Daten,
   type Kontext,
 } from "../src/website/rendern.js";
+import { rendereFehlerseite } from "../src/website/fehlerseiten.js";
 
 // Ein Muster, das in jedem Feld auffällt: Ein ungeprüftes «<» würde ein Element «x-boese» öffnen, «"» und «'» Attribute sprengen
 const BOESE = `<x-boese a="1" b='2'>&amp;`;

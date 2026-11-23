@@ -24,10 +24,7 @@ import { aufWebsiteEreignis } from "./ereignisse.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
-  rendereServerfehler,
-  rendereWartung,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -40,6 +37,11 @@ import {
   type Mitglied,
   type NavPunkt,
 } from "./rendern.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+} from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
   DATENPLAN_DATEI,

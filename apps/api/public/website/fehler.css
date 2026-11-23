@@ -1,0 +1,96 @@
+/* Fehler- und Wartungsseiten (#567): 404.html, 500.html, wartung.html und die Rückfallseite einer Weiterleitung. Nur diese Seiten laden die Datei.
+   Die Anlage ist die des Kopfs der Startseite (website.css: .hero, .teaser, .fahne): Wo dort das Titelbild steht, steht hier ein Feld mit der Nummer des Fehlers.
+   Kein Bild und kein Abruf: Die Seiten stehen auch, wenn die API nicht antwortet. Farben nur aus den Tokens von website.css. */
+
+.fehler {
+  /* Die Seite füllt das Fenster über dem Fuss, auch wenn wenig Text da ist */
+  min-height: min(70vh, 48rem);
+  padding-bottom: var(--abstand);
+}
+
+/* Das Feld: getönte Fläche bis zum Fensterrand, darin die Ziffern rechts, unten angeschnitten */
+.fehler-feld {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  height: clamp(13rem, 36vw, 30rem);
+  padding-inline: var(--rand);
+  overflow: hidden;
+  background: var(--surface-container-high);
+}
+
+.fehler-zeichen {
+  display: block;
+  margin-bottom: -0.085em;
+  color: var(--primary);
+  font-size: clamp(8rem, 31vw, 30rem);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.74;
+  letter-spacing: -0.045em;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.fehler .fahne h1 {
+  max-width: 13ch;
+  font-size: clamp(2.125rem, 1.4rem + 3vw, 4.25rem);
+  line-height: 1.02;
+}
+
+.fehler-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Eine Adresse bricht als Ganzes auf die nächste Zeile, erst in sehr schmalen Fenstern in sich */
+.fehler-text a {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* Schmal: Die Fahne steht fast ganz unter dem Feld, damit die Ziffern lesbar bleiben */
+@media (max-width: 64em) {
+  .fehler .teaser--ueber-bild {
+    --ueberstand: 2rem;
+  }
+
+  .fehler-feld {
+    align-items: center;
+    height: clamp(11rem, 44vw, 22rem);
+    padding-bottom: 2rem;
+  }
+
+  .fehler-zeichen {
+    margin-bottom: 0;
+    line-height: 0.9;
+    font-size: clamp(7rem, 36vw, 18rem);
+  }
+}
+
+/* Ohne Feld (Website vom Netz, Weiterleitung): die Fahne steht frei auf der Fläche */
+.fehler--ohne {
+  padding-top: clamp(3rem, 12vh, 8rem);
+}
+
+@media (min-width: 64.0625em) {
+  .fehler--ohne .teaser-text {
+    padding-top: clamp(1.5rem, 1rem + 2vw, 3rem);
+  }
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  /* Ein Auftritt beim Laden, wie auf der Startseite: Die Ziffern setzen sich, die Fahne kommt von links (website.css), der Text folgt */
+  .fehler-zeichen {
+    transform-origin: 100% 100%;
+    animation: bild-ein 1.2s var(--kurve) both;
+  }
+}
+
+@media (forced-colors: active) {
+  .fehler-feld {
+    border-bottom: 1px solid CanvasText;
+  }
+}

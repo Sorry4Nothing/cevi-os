@@ -13,22 +13,22 @@ Die öffentlichen Seiten der Website sind fertige HTML-Dateien (#351). Besucher 
 
 Erzeugt werden:
 
-| Datei                                                    | Inhalt                                                                                                                                                                  |
-| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<adresse>/index.html`                                   | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/`                                  |
-| `sitemap.xml`                                            | nur öffentliche Seiten mit Datei                                                                                                                                        |
-| `robots.txt`                                             | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden                                                |
-| `404.html`                                               | Fehlerseite mit den Hauptpunkten (Design W4)                                                                                                                            |
-| `500.html`, `wartung.html`                               | Seiten für Serverfehler und Wartung (Design W4); der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                                                 |
-| `website/website.css`                                    | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))                                              |
-| `website/*.js`                                           | die Skripte aus `apps/api/public/website/` (#354, #529, #549): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`, `menue.js`                            |
-| `website/archivo-latin.woff2`, `website/archivo-ofl.txt` | die Schrift Archivo (variabel, 400 bis 900, Teilmenge «latin», SIL OFL 1.1) und ihre Lizenz; Bytes, nicht als Text geschrieben (#549)                                   |
-| `anmelden/index.html`                                    | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                                                            |
-| `termine/…`, `anlass/…`                                  | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript                                        |
-| `website/*.css`                                          | ausser `website.css` die Stile dieser Seiten (`termine.css`, `karussell.css`) und der Stil des Kopfs (`kopf.css`, #558); wie die Skripte aus `apps/api/public/website/` |
-| `weiterleitungen.caddy`                                  | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden                                            |
-| `<alte-adresse>/index.html`                              | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                                                       |
-| `<adresse>/index.html`                                   | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                                                        |
+| Datei                                                    | Inhalt                                                                                                                                                                                                         |
+| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<adresse>/index.html`                                   | eine öffentliche, veröffentlichte Seite; die Seite mit der Adresse `start` auf der obersten Ebene ist `index.html` und die Adresse `/`                                                                         |
+| `sitemap.xml`                                            | nur öffentliche Seiten mit Datei                                                                                                                                                                               |
+| `robots.txt`                                             | sperrt `/api/` und `/admin` und nennt die Sitemap; keine einzelne Seite, damit geschützte Adressen nicht verraten werden                                                                                       |
+| `404.html`                                               | Fehlerseite für unbekannte Adressen (#567, siehe [website-design.md](website-design.md), «Fehlerseiten»)                                                                                                       |
+| `500.html`, `wartung.html`                               | Seiten für Serverfehler und Wartung (#567), ohne Bild und ohne Abruf; der Host liefert sie bei 5xx und 503 (Vorschlag unten)                                                                                   |
+| `website/website.css`                                    | Stil nach dem Design «Cevi Web» aus `apps/api/public/website/website.css` (Aufbau: [website-design.md](website-design.md))                                                                                     |
+| `website/*.js`                                           | die Skripte aus `apps/api/public/website/` (#354, #529, #549): `geschuetzt.js`, `knoten.js`, `weiter.js`, `anmelden.js`, `ui.js`, `menue.js`                                                                   |
+| `website/archivo-latin.woff2`, `website/archivo-ofl.txt` | die Schrift Archivo (variabel, 400 bis 900, Teilmenge «latin», SIL OFL 1.1) und ihre Lizenz; Bytes, nicht als Text geschrieben (#549)                                                                          |
+| `anmelden/index.html`                                    | die Anmeldeseite (#354), Adresse `/anmelden`                                                                                                                                                                   |
+| `termine/…`, `anlass/…`                                  | die Seiten für Termine, Terminvorschlag, Anlass und Anlass-Anmeldung (#530, siehe «Termine und Anlässe»), ohne Daten, mit Skript                                                                               |
+| `website/*.css`                                          | ausser `website.css` die Stile dieser Seiten (`termine.css`, `karussell.css`), der Stil des Kopfs (`kopf.css`, #558) und der Fehlerseiten (`fehler.css`, #567); wie die Skripte aus `apps/api/public/website/` |
+| `weiterleitungen.caddy`                                  | Weiterleitungen alter Adressen als `redir`-Zeilen (#356); nur wenn es Weiterleitungen gibt, ein Vorschlag, nicht eingebunden                                                                                   |
+| `<alte-adresse>/index.html`                              | Rückfallseite je alter Adresse (#356): `meta refresh` und Link, kein Skript, für einen Host ohne die Caddy-Zeilen                                                                                              |
+| `<adresse>/index.html`                                   | auch für ganz geschützte Seiten mit veröffentlichter Version: nur eine Hülle ohne Titel und Inhalt (siehe unten)                                                                                               |
 
 ## Was nie im HTML steht
 
@@ -117,7 +117,7 @@ Vier erzeugte Dateien (`src/website/termine-seiten.ts`, Design W3, W5 bis W8) ze
 ## Wartungsmodus und Informationssperre
 
 - **Wartungsmodus** des Bereichs `website`: Alle schreibenden Anfragen der Website-Verwaltung antworten 503 `IN_WARTUNG` (kein Speichern, kein Veröffentlichen); die erzeugten Dateien bleiben stehen, und der Abgleich läuft weiter.
-- **Informationssperre** des Bereichs `website` oder `alles`: Die Routen antworten 423 `GESPERRT`. Mit dem Wunsch «Öffentliche Website vom Netz nehmen» löscht der Server alle Dateien in `WEBSITE_AUSGABE_PFAD` ausser `weiterleitungen.caddy` und schreibt eine neutrale Hinweisseite (`index.html`, `404.html`); der Abgleich erzeugt in dieser Zeit nichts. Beim Aufheben löscht er die Hinweisseiten und löst den Abgleich aus. Ablauf und Rechte: `docs/betrieb.md`, «Wartungsmodus» und «Informationssperre».
+- **Informationssperre** des Bereichs `website` oder `alles`: Die Routen antworten 423 `GESPERRT`. Mit dem Wunsch «Öffentliche Website vom Netz nehmen» löscht der Server alle Dateien in `WEBSITE_AUSGABE_PFAD` ausser `weiterleitungen.caddy` und der Schrift (`website/archivo-latin.woff2` mit ihrer Lizenz) und schreibt eine neutrale Hinweisseite (`index.html`, `404.html`, dazu ihr Stil `gesperrt.css`); der Abgleich erzeugt in dieser Zeit nichts. Beim Aufheben löscht er die Hinweisseiten und löst den Abgleich aus. Ablauf und Rechte: `docs/betrieb.md`, «Wartungsmodus» und «Informationssperre».
 
 ## Neuaufbau und Backup
 
@@ -204,7 +204,7 @@ Warum so:
 - **Sicherheits-Header:** Wie bei der API (HSTS, `nosniff`, kein Referrer, kein `Server`). Die CSP gilt für die erzeugten Seiten und deckt sich mit dem Meta-CSP des Renderers; sie ist strenger als die Seiten brauchen. Für #354 (Skript zum Nachladen geschützter Bausteine, Anmeldeseite) braucht sie `script-src 'self'` und `connect-src 'self'`: im Vorschlag unten enthalten.
 - **Cache:** `no-cache` heisst nicht «nie speichern», sondern «vor jeder Verwendung nachfragen». Das ist günstig (Antwort 304) und zeigt eine neu veröffentlichte Seite sofort. Das Stylesheet darf eine Stunde liegen bleiben. Hinter einem CDN könnten die Seiten länger liegen, dann müsste der Abgleich es benachrichtigen; das ist hier nicht vorgesehen.
 - **Pfad-Hygiene:** Die API-Pfade stehen vor den Dateien, damit eine Seite nie eine API-Adresse überdeckt. Die Liste in `@api` entspricht `RESERVIERTE_ADRESSEN` in `src/website/seiten.ts`; kommt dort eine Adresse dazu, muss sie hier mit.
-- **Unbekannte Adressen:** `404.html` mit der Navigation und dem Status 404. Ganz geschützte Seiten mit veröffentlichter Version liefern die Hülle (Status 200); unbekannte Adressen die `404.html`.
+- **Unbekannte Adressen:** `404.html` mit dem Status 404. Ganz geschützte Seiten mit veröffentlichter Version liefern die Hülle (Status 200); unbekannte Adressen die `404.html`.
 
 ## Entwicklung und Testadresse
 

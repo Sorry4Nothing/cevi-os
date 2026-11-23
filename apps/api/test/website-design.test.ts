@@ -5,15 +5,17 @@ import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
   rendereSeite,
-  rendereServerfehler,
-  rendereWartung,
   type Daten,
   type Kontext,
 } from "../src/website/rendern.js";
-import { HINWEISSEITE } from "../src/website/sperre.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+} from "../src/website/fehlerseiten.js";
+import { HINWEIS_STIL, HINWEISSEITE } from "../src/website/sperre.js";
 
 // Design «Cevi Web» (#529): Hülle, Seitentypen, Fehlerseiten, Stilvorlage
 const CSS = readFileSync(
@@ -262,15 +264,30 @@ describe("Geschützter Baustein und Hülle (W10)", () => {
 });
 
 describe("Fehler- und Wartungsseiten (W4)", () => {
-  test("404: ein H1, Weg zur Startseite, die Hauptpunkte, noindex", () => {
+  test("404: ein H1, Wege zur Startseite und zu den Terminen, das Menü nicht ein zweites Mal, noindex", () => {
     const html = rendereFehlerseite(kontext());
     expect(zaehle(html, "<h1")).toBe(1);
     expect(html).toContain("Diese Seite gibt es nicht.");
     expect(html).toContain(
       '<a class="btn p gross" href="/">Zur Startseite</a>',
     );
-    expect(html).toContain('<nav aria-label="Hauptpunkte"');
+    expect(html).toContain('<a class="btn s gross" href="/termine">');
+    expect(html).not.toContain("Hauptpunkte");
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    // Das Feld mit den Ziffern ist Schmuck; der Stil der Fehlerseiten lädt nur hier
+    expect(html).toContain(
+      '<div class="fehler-feld" aria-hidden="true"><span class="fehler-zeichen">404</span></div>',
+    );
+    expect(html).toContain('href="/website/fehler.css"');
     expect(html).toContain("Fehler 404");
+    expect(html).not.toContain("mailto:");
+    // Mit einer Adresse der Abteilung: wem man einen kaputten Link meldet
+    expect(
+      rendereFehlerseite({
+        ...kontext(),
+        daten: { ...keineDaten(), kontakt: { email: "info@example.org" } },
+      }),
+    ).toContain('<a href="mailto:info@example.org">info@example.org</a>');
   });
 
   test("500: ohne Skript, «Nochmals versuchen» ist ein Link auf dieselbe Adresse, nur das Logo im Kopf", () => {
@@ -293,10 +310,16 @@ describe("Fehler- und Wartungsseiten (W4)", () => {
     expect(html).not.toContain('class="leiste"');
   });
 
-  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript und fremde Adresse", () => {
-    expect(HINWEISSEITE).toContain("prefers-color-scheme: dark");
+  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript, Inline-Stil und fremde Adresse", () => {
+    expect(HINWEIS_STIL).toContain("prefers-color-scheme: dark");
     expect(HINWEISSEITE).toContain("Vorübergehend nicht erreichbar");
-    expect(HINWEISSEITE).not.toMatch(/<script|https?:\/\//);
+    expect(HINWEISSEITE).toContain(
+      '<link rel="stylesheet" href="/gesperrt.css">',
+    );
+    expect(HINWEISSEITE).toContain('<a href="">Nochmals versuchen</a>');
+    expect(HINWEISSEITE + HINWEIS_STIL).not.toMatch(
+      /<script|<style|style=|https?:\/\//,
+    );
   });
 });
 
