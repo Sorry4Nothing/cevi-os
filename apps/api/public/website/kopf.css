@@ -710,6 +710,243 @@ html {
   }
 }
 
+/* ===== Konto-Menü für Angemeldete (#669) =====
+   Markup: die Vorlage in src/website/kopf.ts, eingesetzt von konto-menue.js anstelle von «Anmelden». Am Computer ein Knopf mit Bild und Namen, der eine Tafel aufklappt (details);
+   im Menü am Handy steht dieselbe Liste ausgeklappt (--liste). Bis die Antwort da ist, verbirgt ein Merker (data-konto, theme.js) den Knopf «Anmelden», ohne dass der Platz wegfällt. */
+html[data-konto="erwartet"] .kopf a.anmelden {
+  /* Ohne Antwort holt theme.js den Merker nach zwei Sekunden weg */
+  visibility: hidden;
+}
+
+.kopf-rechts > .konto-menue {
+  display: none;
+  position: relative;
+}
+
+.konto-knopf {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+}
+
+.konto-knopf::-webkit-details-marker {
+  display: none;
+}
+
+.konto-knopf:hover,
+.konto-menue[open] > .konto-knopf {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.konto-knopf .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Bild oder Initiale: ein Kreis in der Fläche der Navigation, das Bild liegt darüber und erscheint erst, wenn es geladen ist */
+.konto-ava {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.125rem;
+  height: 2.125rem;
+  overflow: hidden;
+  border-radius: var(--r-full);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.konto-ava img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.konto-name {
+  max-width: 6.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.konto-tafel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 16rem;
+  max-width: calc(100vw - 2 * var(--rand));
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.konto-kopf {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.konto-kopf .konto-ava {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1.125rem;
+}
+
+.konto-kopf p {
+  min-width: 0;
+}
+
+.konto-kopf p strong,
+.konto-kopf p span {
+  display: block;
+}
+
+.konto-kopf p strong {
+  color: var(--titel);
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.konto-kopf p span {
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.konto-liste {
+  margin-top: 0.5rem;
+}
+
+.konto-liste a,
+.konto-liste button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--on-surface);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.konto-liste a:hover,
+.konto-liste button:hover {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.konto-liste [aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.konto-meldung {
+  padding: 0.5rem 0.75rem 0.25rem;
+  color: var(--on-error-container);
+  font-size: 0.9375rem;
+}
+
+.konto-meldung:empty {
+  display: none;
+}
+
+/* Im Menü am Handy: ausgeklappt in der Liste, ohne Knopf, ohne Rahmen. Der Umschalter steht darunter */
+.konto-menue--liste {
+  flex: 1 0 100%;
+}
+
+.konto-menue--liste > .konto-knopf {
+  display: none;
+}
+
+.konto-menue--liste > .konto-tafel {
+  position: static;
+  width: auto;
+  max-width: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.konto-menue--liste .konto-kopf {
+  padding-inline: 0;
+}
+
+@media (min-width: 64em) {
+  .kopf-rechts > .konto-menue {
+    display: block;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .konto-knopf {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve);
+  }
+
+  .konto-knopf .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .konto-menue[open] > .konto-knopf .i {
+    transform: rotate(180deg);
+  }
+
+  .konto-liste a,
+  .konto-liste button {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve);
+  }
+
+  .konto-menue:not(.konto-menue--liste)[open] > .konto-tafel {
+    animation: tafel-auf var(--dauer) var(--kurve) both;
+  }
+}
+
+@media (forced-colors: active) {
+  .konto-tafel {
+    border: 1px solid CanvasText;
+  }
+
+  .konto-ava {
+    border: 1px solid ButtonText;
+  }
+}
+
 /* ===== Bewegung: kurz, eine Kurve; nur am Bildschirm und ohne «Bewegung reduzieren» ===== */
 @media (prefers-reduced-motion: no-preference) {
   .hauptnav > ul > li > a::before,

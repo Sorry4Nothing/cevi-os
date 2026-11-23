@@ -302,6 +302,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | Route                        | Zweck                                                  | Status je Persona                                                                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/v1/website/inhalt` | Geschützte Bausteine einer Seite der Website nachladen | **401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern |
+| `GET /api/v1/website/konto`  | Konto-Menü im Kopf der Website                         | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
 
 ## App: push-token
 

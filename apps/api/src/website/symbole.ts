@@ -107,6 +107,17 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "path", attr: { d: "M7 2.5h10v19H7z" } },
     { tag: "path", attr: { d: "M10.5 18.5h3" } },
   ],
+  // Konto-Menü im Kopf (#669): «Abmelden» (Tür mit Pfeil) und «Verwaltung» (vier Felder)
+  abmelden: [
+    { tag: "path", attr: { d: "M14 4h5v16h-5" } },
+    { tag: "path", attr: { d: "M10 8l-4 4 4 4M6 12h10" } },
+  ],
+  verwaltung: [
+    {
+      tag: "path",
+      attr: { d: "M3 3h8v10H3zM13 3h8v6h-8zM13 12h8v9h-8zM3 16h8v5H3z" },
+    },
+  ],
   // Kleines Dreieck nach unten: zeigt ein Untermenü an (Kopf, #558)
   dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   pfeil: [
