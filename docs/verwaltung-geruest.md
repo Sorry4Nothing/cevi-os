@@ -23,7 +23,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 
 `.kopfzeile` und `.leisten` sind `display: contents`: Logozeile, Bereichsleiste und Unterleiste sind Geschwister im Gerüst, damit nur die Zeile der Navigation haftet.
 
-**Eine Höhe für alle Leisten (#661):** `--leiste-hoehe` (3.5rem, Linien eingerechnet, `box-sizing: border-box`) gilt für Logozeile, Bereichsleiste, Unterleiste und, unter 960 px, die Zeile der Bereichsauswahl. Bereichs- und Unterleiste teilen eine Regel für Schrift (1 rem), Innenabstand (0.75 rem) und den roten Strich (`a::before`, 3 px auf der Linie); sie unterscheiden sich nur im Gewicht (600 und 500) und in der Fläche. Unter 960 px bleibt die Logozeile eine Zeile: Suche und «Abmelden» zeigen nur das Symbol (`.abmelden-text`, `.palette-knopf-text` sind nur für Screenreader sichtbar), «Verwaltung» entfällt, unter 520 px bleibt von der Marke das Wort «CEVI». Neue Leisten oder Bänder im Kopf nehmen `--leiste-hoehe` und bauen keine eigene Höhe.
+**Höhen wie auf der Website (#667, vorher #661 eine Höhe für alle):** Die Tokens `--logozeile-hoehe`, `--nav-hoehe` und `--unter-hoehe` (Linien eingerechnet, `box-sizing: border-box`) folgen `website/kopf.css`: Logozeile 64 px und Bereichsleiste 50 px (3rem plus Linien), ab 106 em beide 72 px (die eine Zeile des Kopfs der Website), Unterleiste 45 px (44 plus Linie); unter 960 px sind Logozeile und Zeile der Bereichsauswahl je 64 px. `--leiste-hoehe` ist die Höhe der haftenden Leiste (Bereichsleiste oder Bereichsauswahl) für Abstände nach oben. Die Hauptnavigation hat dieselbe Schrift und denselben roten Strich wie `.hauptnav`, die Unterleiste dieselbe wie `.unterleiste` der Website (leiser, beim Zeigen unterstrichen, aktiv mit Strich unten); Logo (36 px), «Suchen» und «Abmelden» (44 px, 1 rem, Gewicht 600) wie «Anmelden». Unter 960 px bleibt die Logozeile eine Zeile: Suche und «Abmelden» zeigen nur das Symbol (`.abmelden-text`, `.palette-knopf-text` sind nur für Screenreader sichtbar), «Verwaltung» entfällt, unter 520 px bleibt von der Marke das Wort «CEVI». Neue Leisten oder Bänder im Kopf nehmen diese Tokens und bauen keine eigene Höhe.
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
@@ -164,6 +164,7 @@ ctx = {
   erstelleLader(container), // eigener Lader für einen Unter-Container
   kopfAktion(...knoten),    // Hauptaktion rechts im Seitenkopf (genau eine rote je Ansicht)
   titel(text, untertitel),  // Titel und Untertitel ersetzen, z. B. mit dem Namen eines geöffneten Eintrags
+  nichtGefunden(),          // Adresse, die es nicht gibt (unbekannter Reiter, Kennung ohne UUID): «Diese Seite gibt es nicht», ohne Anfrage an den Server (#667)
   zaehler(unterSchluessel, n), // Zähler der Unterleiste; nur melden, wenn du die Zahl ohnehin geladen hast
 }
 ```
@@ -424,6 +425,7 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Schalter           | `button.schalter[role=switch][aria-checked]`, Zeile `div.schalterzeile`                      | `schalter`                              |
 | Wahlkarte          | `label.wahlkarte > input[type=radio] + div(strong, span)`                                    | `wahlkarte`                             |
 | Feld               | `feld({ label, hilfe, wert })`, `auswahl`, `ankreuzen`, `gruppe`, `codefeld`                 | `feld`, `eingabe`                       |
+| Kästchen           | `ankreuzen`; jedes `input[type=checkbox]` hat die Gestaltung aus `admin.css` (#668)          | `wahl`                                  |
 | Dialog             | `dialogFormular({...})`; Rückfragen: `ctx.mitRueckgaengig({...})` (Toast), `zweistufig(...)` | `dialog`                                |
 | Seitenblatt        | `seitenblatt({ titel, untertitel, inhalt, fusszeile })` (ohne Radius, 600 px)                | `blatt`                                 |
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |

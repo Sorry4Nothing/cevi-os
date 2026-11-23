@@ -1424,7 +1424,7 @@ fieldset .feld .aw {
   overflow-y: auto;
 }
 
-/* Ankreuzfeld: Haken statt nur Farbe */
+/* Ankreuzfeld: Haken statt nur Farbe. Gilt für jedes Kästchen der Verwaltung, auch in Zeilen, die als Ganzes ein label sind (#668); ein rohes Browser-Kästchen gibt es nicht */
 .wahl {
   display: flex;
   align-items: center;
@@ -1432,7 +1432,8 @@ fieldset .feld .aw {
   min-height: 48px;
 }
 
-.wahl input {
+.wahl input,
+input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   display: inline-grid;
@@ -1447,7 +1448,8 @@ fieldset .feld .aw {
   cursor: pointer;
 }
 
-.wahl input::after {
+.wahl input::after,
+input[type="checkbox"]::after {
   content: "";
   width: 12px;
   height: 7px;
@@ -1458,22 +1460,77 @@ fieldset .feld .aw {
   transform: rotate(-45deg);
 }
 
-.wahl input:checked {
+.wahl input:checked,
+input[type="checkbox"]:checked {
   background: var(--blau);
   border-color: var(--blau);
 }
 
-.wahl input:checked::after {
+.wahl input:checked::after,
+input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-.wahl input:disabled {
+/* Hover: Der Rand wird kräftig, auch wenn die ganze Zeile das label ist */
+.wahl:hover input:not(:checked, :disabled),
+label:hover > input[type="checkbox"]:not(:checked, :disabled),
+input[type="checkbox"]:not(:checked, :disabled):hover {
+  border-color: var(--blau);
+}
+
+.wahl input:disabled,
+input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
 .wahl label {
   cursor: pointer;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wahl input,
+  input[type="checkbox"] {
+    transition:
+      background-color var(--dauer, 0.2s) ease,
+      border-color var(--dauer, 0.2s) ease;
+  }
+
+  .wahl input::after,
+  input[type="checkbox"]::after {
+    transition:
+      opacity var(--dauer, 0.2s) ease,
+      transform var(--dauer, 0.2s) ease;
+  }
+
+  .wahl input:not(:checked)::after,
+  input[type="checkbox"]:not(:checked)::after {
+    transform: rotate(-45deg) scale(0.6);
+  }
+}
+
+@media (forced-colors: active) {
+  .wahl input,
+  input[type="checkbox"] {
+    border-color: ButtonText;
+  }
+
+  .wahl input:checked,
+  input[type="checkbox"]:checked {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .wahl input:checked::after,
+  input[type="checkbox"]:checked::after {
+    border-color: HighlightText;
+  }
+
+  .wahl input:disabled,
+  input[type="checkbox"]:disabled {
+    border-color: GrayText;
+  }
 }
 
 .seitenwahl {

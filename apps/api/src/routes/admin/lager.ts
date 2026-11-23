@@ -9,8 +9,10 @@ import {
   lager,
   lagerMitglied,
   medium,
+  profilbild,
   user,
 } from "../../db/schema.js";
+import { bildUrl } from "../../bild.js";
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { ereignisverteiler } from "../../lager/ereignisse.js";
@@ -338,10 +340,12 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           personId: lagerMitglied.personId,
           name: user.name,
           ceviName: user.ceviName,
+          bildUrl,
           rolle: lagerMitglied.rolle,
         })
         .from(lagerMitglied)
         .innerJoin(user, eq(user.id, lagerMitglied.personId))
+        .leftJoin(profilbild, eq(profilbild.userId, user.id))
         .where(eq(lagerMitglied.lagerId, ziel.id))
         .orderBy(asc(user.name), asc(user.id));
       return c.json({ mitglieder });
