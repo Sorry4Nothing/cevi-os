@@ -1,6 +1,8 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import type { Db } from "../db/client.js";
-import { programmEckdaten, seite, tag } from "../db/schema.js";
+import { ort, programmEckdaten, seite, tag } from "../db/schema.js";
+import { kartenLink } from "../karten-standort.js";
 import type { Datenquelle } from "./abgleich.js";
 import { teileMitnehmen } from "./mitnehmen.js";
 import type { Fakt } from "./rendern.js";
@@ -16,6 +18,11 @@ export type Eckdatenzeile = {
   schlussZeit: string | null;
   schlussOrt: string | null;
   mitnehmen: string | null;
+  // Aus dem Ort der Bibliothek (#646), wenn die Angabe einen wählt: Adresszeile und der Link zur Karte. Ohne Ort (Freitext, gelöscht) fehlen beide
+  treffpunktZusatz?: string | null;
+  treffpunktKarte?: string | null;
+  schlussOrtZusatz?: string | null;
+  schlussOrtKarte?: string | null;
 };
 
 // Zeiten HH:MM und Datum JJJJ-MM-TT, wie die Datenbank sie führt
@@ -54,10 +61,24 @@ export function faktenAus(z: Eckdatenzeile): Fakt[] {
   const mit = (bezeichnung: string, wert: string | null) => {
     if (wert !== null && wert.trim() !== "") fakten.push({ bezeichnung, wert });
   };
+  const mitOrt = (
+    bezeichnung: string,
+    wert: string | null,
+    zusatz?: string | null,
+    karte?: string | null,
+  ) => {
+    if (wert === null || wert.trim() === "") return;
+    fakten.push({
+      bezeichnung,
+      wert,
+      ...(zusatz && { zusatz }),
+      ...(karte && { karte }),
+    });
+  };
   mit("Treffzeit", z.treffZeit && `${z.treffZeit} Uhr`);
-  mit("Treffpunkt", z.treffpunkt);
+  mitOrt("Treffpunkt", z.treffpunkt, z.treffpunktZusatz, z.treffpunktKarte);
   mit("Schlusszeit", z.schlussZeit && `${z.schlussZeit} Uhr`);
-  mit("Schlussort", z.schlussOrt);
+  mitOrt("Schlussort", z.schlussOrt, z.schlussOrtZusatz, z.schlussOrtKarte);
   // Mitnehmen ist ein längerer Text: als Liste, wenn es mehrere Dinge sind (#645)
   if (z.mitnehmen !== null && z.mitnehmen.trim() !== "") {
     const liste = teileMitnehmen(z.mitnehmen);
@@ -80,6 +101,9 @@ export const ladeStufenfakten: Datenquelle = async (
 ) => {
   const stufenfakten = new Map<string, Fakt[]>();
   if (seitenIds.length === 0) return { stufenfakten };
+  // Der Ort der Bibliothek je Angabe (#646): nur ein Ort dieser Abteilung gibt Adresszeile und Karte her
+  const treffOrt = alias(ort, "treff_ort");
+  const schlussOrt = alias(ort, "schluss_ort_bib");
   const zeilen = await db
     .selectDistinctOn([seite.id], {
       seiteId: seite.id,
@@ -89,10 +113,34 @@ export const ladeStufenfakten: Datenquelle = async (
       schlussZeit: programmEckdaten.schlussZeit,
       schlussOrt: programmEckdaten.schlussOrt,
       mitnehmen: programmEckdaten.mitnehmen,
+      treffBeschreibung: treffOrt.beschreibung,
+      treffAdresse: treffOrt.karteAdresse,
+      treffBreite: treffOrt.breite,
+      treffLaenge: treffOrt.laenge,
+      treffUrl: treffOrt.karteUrl,
+      schlussBeschreibung: schlussOrt.beschreibung,
+      schlussAdresse: schlussOrt.karteAdresse,
+      schlussBreite: schlussOrt.breite,
+      schlussLaenge: schlussOrt.laenge,
+      schlussUrl: schlussOrt.karteUrl,
     })
     .from(seite)
     .innerJoin(tag, and(eq(tag.id, seite.tagId), eq(tag.typ, "stufe")))
     .innerJoin(programmEckdaten, eq(programmEckdaten.stufeId, tag.id))
+    .leftJoin(
+      treffOrt,
+      and(
+        eq(treffOrt.id, programmEckdaten.treffpunktOrtId),
+        eq(treffOrt.abteilungId, abteilungId),
+      ),
+    )
+    .leftJoin(
+      schlussOrt,
+      and(
+        eq(schlussOrt.id, programmEckdaten.schlussOrtId),
+        eq(schlussOrt.abteilungId, abteilungId),
+      ),
+    )
     .where(
       and(
         eq(seite.abteilungId, abteilungId),
@@ -101,7 +149,28 @@ export const ladeStufenfakten: Datenquelle = async (
       ),
     )
     .orderBy(seite.id, asc(programmEckdaten.tag));
-  for (const z of zeilen) stufenfakten.set(z.seiteId, faktenAus(z));
+  for (const z of zeilen) {
+    stufenfakten.set(
+      z.seiteId,
+      faktenAus({
+        ...z,
+        treffpunktZusatz: z.treffBeschreibung,
+        treffpunktKarte: kartenLink({
+          adresse: z.treffAdresse,
+          breite: z.treffBreite,
+          laenge: z.treffLaenge,
+          url: z.treffUrl,
+        }),
+        schlussOrtZusatz: z.schlussBeschreibung,
+        schlussOrtKarte: kartenLink({
+          adresse: z.schlussAdresse,
+          breite: z.schlussBreite,
+          laenge: z.schlussLaenge,
+          url: z.schlussUrl,
+        }),
+      }),
+    );
+  }
   return { stufenfakten };
 };
 

@@ -64,10 +64,13 @@ export type WebsitePerson = { name: string; bild?: string };
 export type StufenMitglied = WebsitePerson & { funktion: string };
 // link: der Wert als Link (Eckdaten, #560)
 // lang: ein längerer Text in Lesegrösse statt eines kurzen Werts; liste: seine Einträge, wenn er aus mehreren Dingen besteht (#645, «Mitnehmen»)
+// zusatz: Adresszeile unter dem Wert; karte: Adresse bei Google Maps, die der Server selbst gebaut hat (Orte, #646); sie wird als Verweis «Auf Google Maps ansehen» ausgegeben
 export type Fakt = {
   bezeichnung: string;
   wert: string;
   link?: string;
+  zusatz?: string;
+  karte?: string;
   lang?: boolean;
   liste?: string[];
 };
@@ -401,6 +404,17 @@ const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
                 ),
               ]
             : verlinke(f.link, [f.wert])),
+          ...(f.zusatz ? [el("span", { class: "fakt-zusatz" }, f.zusatz)] : []),
+          // Nur ein Link: kein Skript, keine Karte, keine Verbindung zu Google vor dem Klick
+          ...(f.karte
+            ? [
+                el(
+                  "p",
+                  { class: "fakt-karte" },
+                  ...verlinke(f.karte, ["Auf Google Maps ansehen"]),
+                ),
+              ]
+            : []),
         ),
       ),
     ),
