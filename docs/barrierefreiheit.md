@@ -530,6 +530,18 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
 
+## 31. Website: «Nach oben» und Aufruf, Verwaltung: Kalender-Standard und Raumanfragen (#622)
+
+Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Band «Aufruf» (`public/website/website.css`), den Kalender (`termine-kalender.js`) und die Raumanfragen (`termine-anfragen.js`). Geprüft im Browser bei 390, 1024, 1440, 1920, 2560 und 2764 px, Tag und Nacht.
+
+- [ ] **31.1** «Nach oben» ist ein Verweis (`a.verweis`), kein Knopf mit Pfeil: fett, ohne Strich, der Pfeil zeigt nach oben und steht hinter dem Wort (16 × 24 px, wie die Pfeile der Bereiche). Das Ziel ist mindestens 44 px hoch (gemessen 44 px).
+- [ ] **31.2** «Nach oben» endet auf der rechten Linie der Spalte (gleiche Kante wie die Pfeile der Bereiche und der Kopf); gemessen bei 1440 px: rechte Kante 1368 px wie «Bereiche», bei 2764 px 2143 px, links und rechts gleicher Rand. Am Handy steht es rechtsbündig in der Zeile von «©», ohne Umbruch.
+- [ ] **31.3** Zustände: Zeigen unterstreicht das Wort und macht den Pfeil hell, Fokus zeigt den Ring (auf Blau in Weiss, nie verdeckt); Zustand nie nur über Farbe (Strich, Ring). Pfeil und Verschiebung nach oben nur ohne «Bewegung reduzieren». Der Pfeil allein ist dekorativ (`::after`), der Linktext «Nach oben» trägt die Bedeutung. Im Druck entfällt der Verweis.
+- [ ] **31.4** Aufruf (rotes Band «Schnuppern im Cevi»): Text und weisse Schaltfläche stehen auf einer Mittellinie, die Ränder sind die der Spalte (`.wrap`), links wie rechts gleich; bei Umbruch (Handy) stehen sie untereinander, linksbündig. Die Schaltfläche behält 56 px Höhe.
+- [ ] **31.5** Kalender: Beim Öffnen von `#termine/kalender` ist «Alle Termine» gedrückt (`aria-pressed="true"`), «Meine Termine» nur über den Knopf oder die Adresse `#termine/kalender/meine/…`; genau ein Knopf der Gruppe ist gedrückt, der gedrückte hat Hintergrund und kräftige Schrift. Die Navigation «Kalender» führt immer zu «Alle Termine».
+- [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
+- [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
