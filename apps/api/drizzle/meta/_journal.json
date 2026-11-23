@@ -743,6 +743,13 @@
       "when": 1793556700000,
       "tag": "0147_ort",
       "breakpoints": true
+    },
+    {
+      "idx": 148,
+      "version": "7",
+      "when": 1793556800000,
+      "tag": "0148_aenderungsprotokoll",
+      "breakpoints": true
     }
   ]
 }

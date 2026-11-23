@@ -2,21 +2,38 @@ import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { AKTIVITAET_TITEL } from "../../aktivitaet-titel.js";
+import {
+  beschreibungVon,
+  katalogVon,
+  type AenderungsDetails,
+} from "../../aktivitaet-beschreibung.js";
 import type { Db } from "../../db/client.js";
 import { aktivitaet, auditLog } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { verlangeEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 
-// Aktivitätsprotokoll (#637): Was in Cevi OS geschrieben oder geändert wird, mit Benutzerstempel. Nur der Entwickler liest es (Zeile in plattform_entwickler, mit zweitem Faktor); auch die Abteilungsleitung bekommt 403, wenn sie nicht zugleich Entwickler ist. Das ist die einzige Erweiterung des Rechte-Modells: «Entwickler darf das Protokoll lesen». Der Server prüft, die Oberfläche blendet die Seite nur aus.
+// Änderungsprotokoll (#637, #662): Wer hat wann was geändert? Nur der Entwickler liest es (Zeile in plattform_entwickler, mit zweitem Faktor); auch die Abteilungsleitung bekommt 403, wenn sie nicht zugleich Entwickler ist. Das ist die einzige Erweiterung des Rechte-Modells: «Entwickler darf das Protokoll lesen». Der Server prüft, die Oberfläche blendet die Seite nur aus.
+// Standardmässig stehen hier die Änderungen (Art «aktion» und «audit») und die Systemereignisse mit Wirkung; Sicherheitsereignisse (fehlgeschlagene Anmeldung, Begrenzung) erscheinen nur mit art=sicherheit. Lesende Zugriffe, abgelehnte Anfragen und der Erfolg beim Anmelden gibt es nicht mehr.
 // Jede Antwort ist auf die Abteilung der Sitzung begrenzt; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler dieser Plattform. Es gibt keine Route, die schreibt oder löscht; die Frist räumt die Datenbank auf (aktivitaet_aufraeumen).
-// Abfragen je Aufruf: Liste und Detail eine, Verlauf drei (Summe und Säulen, Bereiche), Export eine plus eine Audit-Zeile.
+// Abfragen je Aufruf: Liste und Detail eine, Verlauf vier (Säulen, Bereiche, Kennzahlen), Export eine plus eine Audit-Zeile.
 
 const MAX_LIMIT = 100;
 const EXPORT_MAX = 5000;
 const UUID = z.uuid();
 const TAG = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+export const GRUPPEN = [
+  "angelegt",
+  "geaendert",
+  "geloescht",
+  "zugeordnet",
+  "entzogen",
+  "veroeffentlicht",
+  "zurueckgezogen",
+  "status",
+  "gesendet",
+  "entschieden",
+] as const;
 
 const filterFelder = {
   // Tage nach Schweizer Zeit; bis ist inklusiv
@@ -25,15 +42,19 @@ const filterFelder = {
   // Eine Kennung (UUID) oder ein Teil des Namens zum Zeitpunkt
   benutzer: z.string().trim().min(1).max(100).optional(),
   bereich: z.string().trim().min(1).max(60).optional(),
-  art: z.enum(["aktion", "anmeldung", "audit", "zugriff", "system"]).optional(),
-  ergebnis: z.enum(["erfolg", "fehler"]).optional(),
+  // aenderung (Vorgabe): Änderungen und Systemereignisse; sicherheit: nur Sicherheitsereignisse
+  art: z
+    .enum(["aenderung", "aktion", "audit", "system", "sicherheit"])
+    .optional(),
+  // Was geschah: angelegt, geändert, gelöscht, zugeordnet …
+  gruppe: z.enum(GRUPPEN).optional(),
   objekt: UUID.optional(),
   // Alle Zeilen einer Anfrage (die Kennung steht in jeder Zeile und im Log der API)
   anfrage: z
     .string()
     .regex(/^[0-9A-Za-z-]{1,64}$/)
     .optional(),
-  // Freitext über Aktion, Bereich und Fehlercode
+  // Freitext über den Satz, den Namen des Objekts, die Route, den Bereich und den Fehlercode
   q: z.string().trim().min(1).max(100).optional(),
 };
 const listeSchema = z.strictObject({
@@ -53,13 +74,26 @@ type Filter = z.infer<typeof exportSchema>;
 // LIKE-Zeichen in der Eingabe sind Text
 const maskiere = (text: string) => text.replace(/[\\%_]/g, "\\$&");
 
-function bedingungen(person: Pick<Person, "abteilungId">, f: Filter) {
+// Die Art: ohne Angabe alles ausser den Sicherheitsereignissen
+function artBedingung(art: Filter["art"]): SQL {
+  if (art === undefined || art === "aenderung") {
+    return sql`${aktivitaet.art} <> 'sicherheit'`;
+  }
+  return eq(aktivitaet.art, art);
+}
+
+function bedingungen(
+  person: Pick<Person, "abteilungId">,
+  f: Filter,
+  { mitArt = true }: { mitArt?: boolean } = {},
+) {
   const b: (SQL | undefined)[] = [
     or(
       eq(aktivitaet.abteilungId, person.abteilungId),
       isNull(aktivitaet.abteilungId),
     ),
   ];
+  if (mitArt) b.push(artBedingung(f.art));
   if (f.von) {
     b.push(
       sql`${aktivitaet.zeit} >= (${f.von}::date)::timestamp at time zone 'Europe/Zurich'`,
@@ -78,14 +112,15 @@ function bedingungen(person: Pick<Person, "abteilungId">, f: Filter) {
     );
   }
   if (f.bereich) b.push(eq(aktivitaet.bereich, f.bereich));
-  if (f.art) b.push(eq(aktivitaet.art, f.art));
-  if (f.ergebnis) b.push(eq(aktivitaet.ergebnis, f.ergebnis));
+  if (f.gruppe) b.push(eq(aktivitaet.gruppe, f.gruppe));
   if (f.objekt) b.push(eq(aktivitaet.objektId, f.objekt));
   if (f.anfrage) b.push(eq(aktivitaet.anfrageId, f.anfrage));
   if (f.q) {
     const muster = `%${maskiere(f.q)}%`;
     b.push(
       or(
+        ilike(aktivitaet.beschreibung, muster),
+        ilike(aktivitaet.objektName, muster),
         ilike(aktivitaet.aktion, muster),
         ilike(aktivitaet.bereich, muster),
         ilike(aktivitaet.fehlerCode, muster),
@@ -95,28 +130,24 @@ function bedingungen(person: Pick<Person, "abteilungId">, f: Filter) {
   return and(...b);
 }
 
-// Der Klartext: aus dem Katalog der API (aktivitaet-titel.ts), sonst die Methode als Verb
-const VERB: Record<string, string> = {
-  POST: "Anlegen oder auslösen",
-  PUT: "Ersetzen",
-  PATCH: "Ändern",
-  DELETE: "Löschen",
-  GET: "Lesen",
-};
+// Der Titel: die Zusammenfassung der Route in der API; für Systemzeilen der Name, für Audit-Zeilen der lesbare Name
 export function titelVon(aktion: string, art: string) {
   if (art === "system") return aktion;
-  const [methode = "", ...rest] = aktion.split(" ");
-  const route = rest.join(" ");
-  const schluessel = `${methode} ${route.replace(/:[A-Za-z0-9_]+/g, ":p")}`;
-  return (
-    AKTIVITAET_TITEL[schluessel] ??
-    (art === "audit"
-      ? aktion.replace(/_/g, " ")
-      : `${VERB[methode] ?? methode}: ${route}`)
-  );
+  if (art === "audit") return aktion.replace(/_/g, " ");
+  return katalogVon(aktion)?.titel ?? aktion;
 }
 
 type Zeile = typeof aktivitaet.$inferSelect;
+
+// Was die Verwaltung von den Angaben zur Änderung sieht: Elternobjekt, Namen von Rechten, einfache Werte, vorher und nachher. Der Satz steht in «beschreibung»
+function aenderungVon(a: AenderungsDetails | null) {
+  if (!a) return null;
+  const rest: Partial<AenderungsDetails> = { ...a };
+  delete rest.text;
+  delete rest.direkt;
+  return Object.keys(rest).length > 0 ? rest : null;
+}
+
 const ansicht = (z: Zeile) => ({
   id: z.id,
   zeit: z.zeit,
@@ -132,10 +163,25 @@ const ansicht = (z: Zeile) => ({
   methode: z.methode,
   aktion: z.aktion,
   titel: titelVon(z.aktion, z.art),
+  // Der Satz zur Änderung; bei Zeilen aus der Zeit davor wird er aus der Route und dem Katalog gebildet
+  beschreibung:
+    z.beschreibung ??
+    beschreibungVon({
+      art: z.art,
+      aktion: z.aktion,
+      objektTyp: z.objektTyp,
+      objektName: z.objektName,
+      anzahl: z.anzahl,
+      aenderung: z.aenderung,
+    }),
   bereich: z.bereich,
+  gruppe: z.gruppe,
   objekt:
-    z.objektTyp || z.objektId ? { typ: z.objektTyp, id: z.objektId } : null,
+    z.objektTyp || z.objektId
+      ? { typ: z.objektTyp, id: z.objektId, name: z.objektName }
+      : null,
   felder: z.felder,
+  aenderung: aenderungVon(z.aenderung),
   status: z.status,
   ergebnis: z.ergebnis,
   fehlerCode: z.fehlerCode,
@@ -169,6 +215,9 @@ const csvZelle = (wert: unknown) => {
   const sicher = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
   return /[",;\n\r]/.test(sicher) ? `"${sicher.replace(/"/g, '""')}"` : sicher;
 };
+
+// Gewicht einer Zeile in den Zahlen: eine Sicherheitszeile steht für ihre Ereignisse, alles andere für eines
+const gewicht = sql`case when ${aktivitaet.art} = 'sicherheit' then coalesce(${aktivitaet.anzahl}, 1) else 1 end`;
 
 export function erstelleProtokollRouten({ db }: { db: Db }) {
   // Der Entwickler wird nur einmal je Anfrage gefragt; die Middleware prüft ihn samt zweitem Faktor, bevor eine Route läuft
@@ -205,7 +254,7 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
             zeilen.length > limit ? schreibeCursor(seite[limit - 1]!) : null,
         });
       })
-      // Säulen und Bereiche für die Diagramme: Zahl der Zeilen und der Fehler je Stunde oder Tag nach Schweizer Zeit, lückenlos. Höchstens 7 Tage mit Stunden, 92 Tage mit Tagen
+      // Säulen, Bereiche und Kennzahlen: Zahl der Änderungen je Stunde oder Tag nach Schweizer Zeit, lückenlos. Höchstens 7 Tage mit Stunden, 92 Tage mit Tagen. Kennzahlen: Änderungen heute und in den letzten 7 Tagen (Zeitraum der Auswahl ausgenommen), Personen im Zeitraum, Sicherheitsereignisse der letzten 7 Tage
       .get(
         "/verlauf",
         nurEntwickler,
@@ -235,14 +284,22 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
           }
           if (von > bis) throw new HTTPException(400);
           const bedingung = bedingungen(person, { ...filter, von, bis });
-          const [punkte, bereiche] = await Promise.all([
-            db.execute<{
-              start: string;
-              gesamt: number;
-              fehler: number;
-            }>(sql`
+          // Kennzahlen: ohne Zeitraum der Auswahl, damit «heute» heute bleibt
+          const ohneZeit = bedingungen(person, {
+            ...filter,
+            von: undefined,
+            bis: undefined,
+          });
+          const ohneArt = bedingungen(
+            person,
+            { ...filter, von: undefined, bis: undefined },
+            { mitArt: false },
+          );
+          const tagStart = sql`(${heute}::date)::timestamp at time zone 'Europe/Zurich'`;
+          const [punkte, bereiche, kennzahlen, sicherheit] = await Promise.all([
+            db.execute<{ start: string; gesamt: number }>(sql`
             select to_char(g.start, 'YYYY-MM-DD"T"HH24:MI') as start,
-                   coalesce(z.gesamt, 0)::int as gesamt, coalesce(z.fehler, 0)::int as fehler
+                   coalesce(z.gesamt, 0)::int as gesamt
             from generate_series(
               date_trunc(${einheit === "stunde" ? "hour" : "day"}, ${von}::date::timestamp),
               date_trunc(${einheit === "stunde" ? "hour" : "day"}, (${bis}::date + 1)::timestamp - interval '1 second'),
@@ -250,36 +307,50 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
             ) as g(start)
             left join (
               select date_trunc(${einheit === "stunde" ? "hour" : "day"}, ${aktivitaet.zeit} at time zone 'Europe/Zurich') as start,
-                     count(*) as gesamt, count(*) filter (where ${aktivitaet.ergebnis} = 'fehler') as fehler
+                     sum(${gewicht}) as gesamt
               from ${aktivitaet} where ${bedingung} group by 1
             ) z on z.start = g.start
             order by g.start`),
             db
               .select({
                 bereich: aktivitaet.bereich,
-                gesamt: sql<number>`count(*)::int`,
-                fehler: sql<number>`(count(*) filter (where ${aktivitaet.ergebnis} = 'fehler'))::int`,
+                gesamt: sql<number>`sum(${gewicht})::int`,
               })
               .from(aktivitaet)
               .where(bedingung)
               .groupBy(aktivitaet.bereich)
-              .orderBy(desc(sql`count(*)`), aktivitaet.bereich)
+              .orderBy(desc(sql`sum(${gewicht})`), aktivitaet.bereich)
               .limit(30),
+            db.execute<{ heute: number; sieben: number; personen: number }>(sql`
+            select coalesce(sum(${gewicht}) filter (where ${aktivitaet.zeit} >= ${tagStart}), 0)::int as heute,
+                   coalesce(sum(${gewicht}) filter (where ${aktivitaet.zeit} >= ${tagStart} - interval '6 days'), 0)::int as sieben,
+                   (select count(distinct ${aktivitaet.userId})::int from ${aktivitaet} where ${bedingung}) as personen
+            from ${aktivitaet} where ${ohneZeit} and ${aktivitaet.zeit} >= ${tagStart} - interval '6 days'`),
+            // Sicherheitsereignisse der letzten 7 Tage; bei der Ansicht «Sicherheit» sind es die Säulen selbst
+            db.execute<{ sicherheit: number }>(sql`
+            select coalesce(sum(${gewicht}), 0)::int as sicherheit
+            from ${aktivitaet} where ${ohneArt} and ${aktivitaet.art} = 'sicherheit' and ${aktivitaet.zeit} >= ${tagStart} - interval '6 days'`),
           ]);
           const liste = [...punkte];
           const gesamt = liste.reduce((s, p) => s + p.gesamt, 0);
-          const fehler = liste.reduce((s, p) => s + p.fehler, 0);
+          const k = kennzahlen[0];
           return c.json({
             einheit,
             von,
             bis,
             punkte: liste,
             bereiche,
-            summe: { gesamt, fehler },
+            summe: {
+              gesamt,
+              heute: k?.heute ?? 0,
+              sieben: k?.sieben ?? 0,
+              personen: k?.personen ?? 0,
+              sicherheit: sicherheit[0]?.sicherheit ?? 0,
+            },
           });
         },
       )
-      // CSV des gefilterten Ausschnitts, höchstens 5000 Zeilen; ohne Namen und Herkunft (die Kennung der Person genügt, den Namen zeigt die Verwaltung). Der Export steht selbst im Audit-Log
+      // CSV des gefilterten Ausschnitts, höchstens 5000 Zeilen; ohne Namen von Personen und Herkunft (die Kennung der Person genügt, den Namen zeigt die Verwaltung). Der Export steht selbst im Audit-Log
       .get(
         "/export.csv",
         nurEntwickler,
@@ -307,39 +378,42 @@ export function erstelleProtokollRouten({ db }: { db: Db }) {
             "art",
             "benutzer_id",
             "rollen",
+            "beschreibung",
             "aktion",
-            "titel",
+            "gruppe",
             "bereich",
             "objekt_typ",
             "objekt_id",
-            "status",
-            "ergebnis",
+            "objekt_name",
+            "felder",
+            "anzahl",
             "fehler_code",
-            "dauer_ms",
             "anfrage_id",
           ];
           const text = [
             kopf.join(","),
-            ...zeilen.map((z) =>
-              [
+            ...zeilen.map((z) => {
+              const a = ansicht(z);
+              return [
                 z.zeit.toISOString(),
                 z.art,
                 z.userId,
                 z.rollen.join(" "),
+                a.beschreibung,
                 z.aktion,
-                titelVon(z.aktion, z.art),
+                z.gruppe,
                 z.bereich,
                 z.objektTyp,
                 z.objektId,
-                z.status,
-                z.ergebnis,
+                z.objektName,
+                z.felder?.join(" "),
+                z.anzahl,
                 z.fehlerCode,
-                z.dauerMs,
                 z.anfrageId,
               ]
                 .map(csvZelle)
-                .join(","),
-            ),
+                .join(",");
+            }),
           ].join("\r\n");
           return c.body(text, 200, {
             "Content-Type": "text/csv; charset=utf-8",

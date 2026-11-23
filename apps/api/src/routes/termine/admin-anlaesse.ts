@@ -10,6 +10,7 @@ import {
   programm,
   tag,
 } from "../../db/schema.js";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import { eingabe } from "../../eingabe.js";
 import {
   sichtbarkeitAusSpalten,
@@ -154,6 +155,7 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
       .select({
         id: anlass.id,
         anmeldungFuer: anlass.anmeldungFuer,
+        anmeldungOffen: anlass.anmeldungOffen,
         seiteId: anlass.seiteId,
       })
       .from(anlass)
@@ -402,6 +404,16 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
             // Ohne Schlüssel wirft Drizzle bei set({}): kein Schreibzugriff
             if (Object.keys(aenderung).length === 0) return null;
             await tx.update(anlass).set(aenderung).where(eq(anlass.id, id));
+            // Für das Änderungsprotokoll: Offen oder zu, vorher und nachher
+            if (
+              b.anmeldungOffen !== undefined &&
+              b.anmeldungOffen !== ziel.anmeldungOffen
+            ) {
+              meldeAenderung(c, {
+                vorher: { anmeldungOffen: ziel.anmeldungOffen },
+                nachher: { anmeldungOffen: b.anmeldungOffen },
+              });
+            }
             // Welche Angaben, nie die Werte
             await tx.insert(auditLog).values({
               abteilungId: person.abteilungId,

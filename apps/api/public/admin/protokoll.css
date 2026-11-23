@@ -1,10 +1,14 @@
-/* Protokoll (#637). Klassen mit Vorsatz pl-. Farben nur über Variablen aus admin.css und tokens.css, keine style-Attribute; Bewegung nur unter prefers-reduced-motion: no-preference. */
+/* Änderungsprotokoll (#637, #662). Klassen mit Vorsatz pl-. Farben nur über Variablen aus admin.css und tokens.css, keine style-Attribute; Bewegung nur unter prefers-reduced-motion: no-preference. */
 
 .pl-seite {
   display: flex;
   flex-direction: column;
   gap: 24px;
   margin-top: 8px;
+}
+
+.pl-reiter {
+  display: flex;
 }
 
 .pl-erklaerung {
@@ -18,7 +22,7 @@
   gap: 12px;
 }
 
-/* ===== Aktivität: Säulen, Legende, Tabelle ===== */
+/* ===== Verlauf über die Zeit: Säulen und Tabelle ===== */
 .pl-flaeche {
   min-width: 0;
 }
@@ -42,27 +46,6 @@
   line-height: 1.5rem;
 }
 
-.pl-legende {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  margin: 0;
-}
-
-.pl-punkt {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  background: var(--akzent);
-  border-radius: 3px;
-}
-
-.pl-punkt--fehler {
-  margin-left: 12px;
-  background: var(--fe);
-}
-
 .pl-tabelle summary {
   display: flex;
   align-items: center;
@@ -72,7 +55,8 @@
   font-weight: 700;
 }
 
-.pl-tabelle summary:focus-visible {
+.pl-tabelle summary:focus-visible,
+.pl-technik summary:focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
@@ -110,6 +94,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
   gap: 12px;
+}
+
+.pl-zeile-felder > [hidden] {
+  display: none;
 }
 
 .pl-gesetzt {
@@ -214,28 +202,12 @@
 }
 
 .pl-person {
-  position: relative;
   display: flex;
 }
 
-.pl-art {
-  position: absolute;
-  right: -6px;
-  bottom: -6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.pl-person .ava .i {
   width: 20px;
   height: 20px;
-  background: var(--erhoben);
-  color: var(--text);
-  border: 2px solid var(--karte);
-  border-radius: 9999px;
-}
-
-.pl-art .i {
-  width: 12px;
-  height: 12px;
 }
 
 .pl-haupt {
@@ -245,15 +217,26 @@
   min-width: 0;
 }
 
+/* Der Satz zur Änderung ist die Hauptzeile */
+.pl-satz {
+  max-width: 60ch;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .pl-wer {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 8px;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .pl-name {
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .pl-rolle {
@@ -263,14 +246,11 @@
   font-weight: 600;
 }
 
-.pl-titel {
-  overflow-wrap: anywhere;
-}
-
 .pl-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 2px 12px;
+  align-items: center;
+  gap: 4px 16px;
   color: var(--leise);
   font-size: 0.8125rem;
   line-height: 1.25rem;
@@ -282,11 +262,48 @@
   font-size: 0.8125rem;
 }
 
+.pl-felder {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
+
+.pl-felder-name {
+  margin-right: 2px;
+}
+
+/* Feldnamen und Namen von Rechten: kleine Marken mit Rand, Schrift fest breit */
+.pl-feld {
+  display: inline-block;
+  padding: 0 6px;
+  border: 1px solid var(--rand);
+  border-radius: 6px;
+  color: var(--text);
+  background: var(--erhoben);
+  line-height: 1.25rem;
+}
+
+.pl-feld--rest {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.pl-rechte,
+.pl-wechsel {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
 .pl-rechts {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+}
+
+.pl-marke {
+  white-space: nowrap;
 }
 
 .pl-zeit {
@@ -321,7 +338,19 @@
 
 /* ===== Detail ===== */
 .pl-detail-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-bottom: 16px;
+}
+
+.pl-abschnitt {
+  margin-bottom: 24px;
+}
+
+.pl-abschnitt h3 {
+  margin-bottom: 4px;
+  font-size: 1rem;
 }
 
 .pl-detail {
@@ -348,6 +377,33 @@
   overflow-wrap: anywhere;
 }
 
+.pl-namen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pl-namen--spalte {
+  flex-direction: column;
+  gap: 4px;
+}
+
+.pl-technik {
+  margin-bottom: 24px;
+}
+
+.pl-technik summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--akzent);
+  font-weight: 700;
+}
+
 .pl-wege {
   margin: 24px 0 16px;
 }
@@ -361,6 +417,7 @@
 @media (max-width: 40rem) {
   .pl-zeile {
     grid-template-columns: auto minmax(0, 1fr);
+    padding: 12px;
   }
 
   .pl-rechts {
@@ -390,6 +447,14 @@
   }
 }
 
+/* Auf sehr breiten Bildschirmen bleibt die Zeile lesbar: Satz und Meta wachsen nicht über die Mitte hinaus */
+@media (min-width: 100rem) {
+  .pl-liste-bereich,
+  .pl-zeile {
+    max-width: 96rem;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .pl-zeile {
     transition:
@@ -406,7 +471,7 @@
   }
 }
 
-/* Erzwungene Farben: Der Fehlerrand bleibt als Linie sichtbar */
+/* Erzwungene Farben: Der Rand der Sicherheitszeile und die Spur bleiben als Linie sichtbar */
 @media (forced-colors: active) {
   .pl-zeile--fehler {
     border-left-color: CanvasText;
@@ -414,5 +479,9 @@
 
   .pl-liste::before {
     background: CanvasText;
+  }
+
+  .pl-feld {
+    border-color: CanvasText;
   }
 }

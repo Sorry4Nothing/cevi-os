@@ -3,21 +3,23 @@ import {
   check,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+import type { AenderungsDetails } from "../aktivitaet-beschreibung.js";
 
-// Aktivitätsprotokoll (#637): was in Cevi OS geschrieben oder geändert wird, mit Benutzerstempel; nur der Entwickler liest es (GET /api/v1/admin/protokoll).
+// Änderungsprotokoll (#637, #662): was in Cevi OS geändert wurde (nur Erfolgreiches), mit Benutzerstempel, Satz und Feldern; dazu Sicherheitsereignisse (fehlgeschlagene Anmeldung, Begrenzung) als eigene Art, je Konto und Stunde zusammengezogen. Nur der Entwickler liest es (GET /api/v1/admin/protokoll).
 // Nur anfügen: Die API-Rolle darf nicht ändern und nicht löschen; die Löschung nach der Frist macht die Funktion aktivitaet_aufraeumen() (Migration 0139).
 // Nie hinein: Inhalte von Anfragen und Antworten, Passwörter, Tokens, Cookies, Push-Texte, Namen von Kindern. user_id und abteilung_id ohne Fremdschlüssel, damit das Protokoll Löschungen übersteht
+// aktion: Änderung durch eine Anfrage; audit: Änderung ohne Anfrage (Kommandozeile, System); system: Ereignis mit Wirkung (Start, Versand); sicherheit: kein Eingriff in Daten, aber ein Hinweis auf Angriffe
 export const AKTIVITAET_ARTEN = [
   "aktion",
-  "anmeldung",
   "audit",
-  "zugriff",
   "system",
+  "sicherheit",
 ] as const;
 export const AKTIVITAET_AKTEURE = [
   "person",
@@ -54,8 +56,16 @@ export const aktivitaet = pgTable(
     bereich: text("bereich").notNull(),
     objektTyp: text("objekt_typ"),
     objektId: uuid("objekt_id"),
+    // Gruppe der Aktion (angelegt, geaendert, geloescht …) für den Filter; aus dem Katalog der Routen
+    gruppe: text("gruppe"),
+    // Name des Objekts zum Zeitpunkt, nur aus Tabellen ohne Personendaten (Anlass, Lager, Tag, Rolle …); nie Personen, Kinder oder Inhalte
+    objektName: text("objekt_name"),
+    // Der Satz zur Änderung («Rolle «Kasse» der Gruppe «OK Kirmes» geändert»), so wie er zur Zeit der Änderung lautete
+    beschreibung: text("beschreibung"),
     // Nur Namen von Feldern, nie Werte
     felder: text("felder").array(),
+    // Angaben zur Änderung ohne Inhalte: Elternobjekt, Namen von Rechten, die dazukamen oder wegfielen, einfache Statuswerte vorher und nachher (AenderungsDetails in aktivitaet-beschreibung.ts)
+    aenderung: jsonb("aenderung").$type<AenderungsDetails>(),
     status: integer("status"),
     ergebnis: text("ergebnis", { enum: AKTIVITAET_ERGEBNISSE }).notNull(),
     fehlerCode: text("fehler_code"),
@@ -78,7 +88,7 @@ export const aktivitaet = pgTable(
       .where(sql`${t.objektId} is not null`),
     check(
       "aktivitaet_art_check",
-      sql`${t.art} in ('aktion', 'anmeldung', 'audit', 'zugriff', 'system')`,
+      sql`${t.art} in ('aktion', 'audit', 'system', 'sicherheit')`,
     ),
     check(
       "aktivitaet_akteur_check",
@@ -91,7 +101,11 @@ export const aktivitaet = pgTable(
     // Die Grenzen fangen einen Fehler im Code ab, bevor die Tabelle mit langem Text wächst
     check(
       "aktivitaet_laenge_check",
-      sql`char_length(${t.aktion}) <= 200 and char_length(${t.bereich}) <= 60 and (${t.name} is null or char_length(${t.name}) <= 120) and (${t.fehlerCode} is null or char_length(${t.fehlerCode}) <= 60) and (${t.herkunft} is null or char_length(${t.herkunft}) <= 32) and (${t.geraet} is null or char_length(${t.geraet}) <= 40) and (${t.anfrageId} is null or char_length(${t.anfrageId}) <= 64)`,
+      sql`char_length(${t.aktion}) <= 200 and char_length(${t.bereich}) <= 60 and (${t.name} is null or char_length(${t.name}) <= 120) and (${t.fehlerCode} is null or char_length(${t.fehlerCode}) <= 60) and (${t.herkunft} is null or char_length(${t.herkunft}) <= 32) and (${t.geraet} is null or char_length(${t.geraet}) <= 40) and (${t.anfrageId} is null or char_length(${t.anfrageId}) <= 64) and (${t.gruppe} is null or char_length(${t.gruppe}) <= 30) and (${t.objektName} is null or char_length(${t.objektName}) <= 120) and (${t.beschreibung} is null or char_length(${t.beschreibung}) <= 300)`,
+    ),
+    check(
+      "aktivitaet_aenderung_check",
+      sql`${t.aenderung} is null or (jsonb_typeof(${t.aenderung}) = 'object' and char_length(${t.aenderung}::text) <= 4000)`,
     ),
   ],
 );

@@ -10,6 +10,7 @@ import {
   ladenEinstellung,
   user,
 } from "../../db/schema.js";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import { eingabe } from "../../eingabe.js";
 import {
   artikelAendernSchema,
@@ -74,6 +75,7 @@ const ladeEinenArtikel = async (db: Db, abteilungId: string, id: string) =>
         id: ladenArtikel.id,
         varianten: ladenArtikel.varianten,
         nichtVerfuegbar: ladenArtikel.nichtVerfuegbar,
+        verfuegbar: ladenArtikel.verfuegbar,
       })
       .from(ladenArtikel)
       .where(
@@ -248,6 +250,27 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
               details: { felder },
             });
           });
+          // Für das Änderungsprotokoll: Verfügbar je Grösse, vorher und nachher (nur die Namen der Grössen)
+          const vorher: Record<string, unknown> = {};
+          const nachher: Record<string, unknown> = {};
+          if (
+            b.verfuegbar !== undefined &&
+            b.verfuegbar !== bisher.verfuegbar
+          ) {
+            vorher.verfuegbar = bisher.verfuegbar;
+            nachher.verfuegbar = b.verfuegbar;
+          }
+          if (
+            b.nichtVerfuegbar &&
+            b.nichtVerfuegbar.join(",") !== bisher.nichtVerfuegbar.join(",")
+          ) {
+            vorher.nichtVerfuegbar =
+              bisher.nichtVerfuegbar.join(",") || "keine";
+            nachher.nichtVerfuegbar = b.nichtVerfuegbar.join(",") || "keine";
+          }
+          if (Object.keys(nachher).length > 0) {
+            meldeAenderung(c, { vorher, nachher });
+          }
           geaendert(person.abteilungId);
           return c.body(null, 204);
         },

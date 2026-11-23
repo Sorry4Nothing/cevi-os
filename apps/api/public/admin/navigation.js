@@ -296,8 +296,7 @@ export const BEREICHE = [
         schluessel: "protokoll",
         name: "Protokoll",
         modul: "./protokoll.js",
-        untertitel:
-          "Was wer wann geändert hat: alle Aktionen mit Benutzer, Zeit und Ergebnis.",
+        untertitel: "Änderungen: Wer hat wann was geändert.",
         zugang: "entwickler",
       },
     ],

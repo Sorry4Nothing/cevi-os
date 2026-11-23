@@ -1,12 +1,12 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
 import { datumsfeld } from "./datumsfeld.js";
 import { auswahl, el, feld, filterGruppe, icon, knopf, neueId } from "./dom.js";
-import { kachel, prozent, zahl } from "./system.js";
-import { rangBalken, saeulen, wertetabelle } from "./uebersicht-diagramme.js";
+import { kachel, zahl } from "./system.js";
+import { saeulen, wertetabelle } from "./uebersicht-diagramme.js";
 import { zeichneZeitleiste, zeigeDetail } from "./protokoll-liste.js";
-import { ARTEN } from "./protokoll-text.js";
+import { GRUPPEN, GRUPPEN_OPTIONEN, bereichText } from "./protokoll-text.js";
 
-// Protokoll (#637), nur für den Entwickler: alles, was in Cevi OS geschrieben oder geändert wird, mit Benutzerstempel. Die Seite zeigt, was GET /api/v1/admin/protokoll liefert; ob jemand sie sehen darf, entscheidet der Server (403). Kein Polling: Neue Einträge holt «Aktualisieren». Die Aufbewahrung ist begrenzt (Vorgabe 90 Tage).
+// Änderungsprotokoll (#637, #662), nur für den Entwickler: Wer hat wann was geändert? Die Seite zeigt, was GET /api/v1/admin/protokoll liefert; ob jemand sie sehen darf, entscheidet der Server (403). Zwei Reiter: «Änderungen» (Vorgabe) und «Sicherheit» (fehlgeschlagene Anmeldungen, Begrenzung). Kein Polling: Neue Einträge holt «Aktualisieren». Die Aufbewahrung ist begrenzt (Vorgabe 90 Tage).
 // Vorlagen von Kokonut UI Pro: «Filter Toolbar» (Suche, Filter als Sätze in Chips, Trefferzahl), «Activity Feed» und «Event Timeline» (Zeitleiste), «Date Range Picker» (zwei Datumsfelder), «Version History» (Detail mit allen Angaben). Eigenes HTML und CSS.
 
 const SEITE = 50;
@@ -17,31 +17,26 @@ const LEER = {
   benutzer: "",
   q: "",
   bereich: "",
-  art: "",
-  ergebnis: "",
+  gruppe: "",
   objekt: "",
   anfrage: "",
 };
-const ART_OPTIONEN = [
-  ["", "Alle Arten"],
-  ...Object.entries(ARTEN).map(([w, [text]]) => [w, text]),
-];
-const ERGEBNIS_OPTIONEN = [
-  ["", "Alle Ergebnisse"],
-  ["erfolg", "Erfolgreich"],
-  ["fehler", "Fehlgeschlagen"],
-];
-// Wie die Chips der gesetzten Filter lesen: «Ergebnis ist Fehlgeschlagen»
+// Wie die Chips der gesetzten Filter lesen: «Aktion: Gelöscht»
 const FILTER_NAMEN = {
   von: "Ab",
   bis: "Bis",
-  benutzer: "Benutzer",
-  q: "Aktion enthält",
+  benutzer: "Person",
+  q: "Suche",
   bereich: "Bereich",
-  art: "Art",
-  ergebnis: "Ergebnis",
+  gruppe: "Aktion",
   objekt: "Objekt",
   anfrage: "Anfrage",
+};
+const ERKLAERUNG = {
+  aenderungen:
+    "Hier steht, was geändert wurde: von wem, wann und was. Klicks, Ansichten, abgelehnte Anfragen und Alltagseingaben wie Haken oder Chat stehen nicht darin; Fehlanmeldungen findest du im Reiter «Sicherheit». Inhalte, Passwörter und Namen von Kindern werden nie gespeichert.",
+  sicherheit:
+    "Das sind keine Änderungen, sondern Hinweise auf mögliche Angriffe: fehlgeschlagene Anmeldungen, falsche Codes beim zweiten Faktor und gesperrte Anfragen. Gleiche Ereignisse eines Kontos stehen pro Stunde in einer Zeile mit Zahl. Fehler im Betrieb stehen im Betriebs-Log, nicht hier.",
 };
 
 function abfrage(filter, extra = {}) {
@@ -58,6 +53,7 @@ const datumDe = (tag) =>
 const tageZwischen = (von, bis) =>
   (Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) /
   86_400_000;
+const istKennung = (v) => /^[0-9a-f-]{36}$/i.test(v);
 
 // Beschriftung einer Säule: «14 Uhr» je Stunde, «Mo 23.11.» je Tag
 function saeulenName(start, einheit) {
@@ -72,11 +68,14 @@ function saeulenName(start, einheit) {
 
 export function zeige(bereich, ctx) {
   const filter = { ...LEER };
+  let reiter = "aenderungen";
   let einheit = "tag";
   let eintraege = [];
   let naechste = null;
   let lauf = 0;
+  const sicherheit = () => reiter === "sicherheit";
 
+  const erklaerung = el("p", { class: "beschreibung pl-erklaerung" });
   const verlaufFeld = el("div", { class: "pl-verlauf" });
   const kacheln = el("div", { class: "pl-kacheln" });
   const chips = el("ul", {
@@ -89,22 +88,38 @@ export function zeige(bereich, ctx) {
   const mehrFeld = el("div", { class: "pl-mehr" });
   const stand = el("p", { class: "meta stand" });
 
+  // ---- Reiter ----
+  const reiterWahl = filterGruppe({
+    beschriftung: "Art der Einträge",
+    eintraege: [
+      { text: "Änderungen", wert: "aenderungen" },
+      { text: "Sicherheit", wert: "sicherheit" },
+    ],
+    wert: reiter,
+    beiAenderung: (wert) => {
+      reiter = wert;
+      filter.gruppe = "";
+      zeigeFilterInFeldern();
+      neuLaden();
+    },
+  });
+
   // ---- Werkzeugleiste ----
   const von = datumsfeld({ label: "Von" });
   const bis = datumsfeld({ label: "Bis" });
   const benutzer = feld({
-    label: "Benutzer",
+    label: "Person",
     typ: "search",
     autocomplete: "off",
     spellcheck: "false",
     placeholder: "Name oder Kennung",
   });
-  const aktion = feld({
-    label: "Aktion",
+  const suche = feld({
+    label: "Suche",
     typ: "search",
     autocomplete: "off",
     spellcheck: "false",
-    placeholder: "z. B. personen oder 403",
+    placeholder: "z. B. Rolle, Kasse oder Lädeli",
   });
   const bereichWahl = {
     aktuell: auswahl({
@@ -113,10 +128,9 @@ export function zeige(bereich, ctx) {
       wert: "",
     }),
   };
-  const artWahl = auswahl({ label: "Art", optionen: ART_OPTIONEN, wert: "" });
-  const ergebnisWahl = auswahl({
-    label: "Ergebnis",
-    optionen: ERGEBNIS_OPTIONEN,
+  const aktionWahl = auswahl({
+    label: "Aktion",
+    optionen: GRUPPEN_OPTIONEN,
     wert: "",
   });
   const werkzeuge = el("div", { class: "pl-werkzeuge" });
@@ -133,19 +147,17 @@ export function zeige(bereich, ctx) {
 
   let bekannteBereiche = [];
   function baueBereichWahl() {
+    const alle = new Set(bekannteBereiche);
+    if (filter.bereich) alle.add(filter.bereich);
     const optionen = [
       ["", "Alle Bereiche"],
-      ...bekannteBereiche.map((b) => [b, b]),
+      ...[...alle]
+        .map((b) => [b, bereichText(b)])
+        .sort((a, b) => a[1].localeCompare(b[1], "de-CH")),
     ];
-    if (filter.bereich && !bekannteBereiche.includes(filter.bereich)) {
-      optionen.push([filter.bereich, filter.bereich]);
-    }
-    const neu = auswahl({
-      label: "Bereich",
-      optionen,
-      wert: filter.bereich,
-    });
+    const neu = auswahl({ label: "Bereich", optionen, wert: filter.bereich });
     neu.eingabe.addEventListener("change", () => {
+      if (filter.bereich === neu.eingabe.value) return;
       filter.bereich = neu.eingabe.value;
       neuLaden();
     });
@@ -156,15 +168,14 @@ export function zeige(bereich, ctx) {
   function zeigeFilterInFeldern() {
     von.eingabe.value = filter.von;
     bis.eingabe.value = filter.bis;
-    benutzer.eingabe.value = /^[0-9a-f-]{36}$/i.test(filter.benutzer)
-      ? ""
-      : filter.benutzer;
-    aktion.eingabe.value = filter.q;
-    artWahl.eingabe.value = filter.art;
-    artWahl.eingabe.dispatchEvent(new Event("change"));
-    ergebnisWahl.eingabe.value = filter.ergebnis;
-    ergebnisWahl.eingabe.dispatchEvent(new Event("change"));
+    benutzer.eingabe.value = istKennung(filter.benutzer) ? "" : filter.benutzer;
+    suche.eingabe.value = filter.q;
+    aktionWahl.eingabe.value = filter.gruppe;
+    aktionWahl.eingabe.dispatchEvent(new Event("change"));
+    // Die Aktion gibt es nur bei Änderungen
+    aktionWahl.wurzel.hidden = sicherheit();
     baueBereichWahl();
+    reiterWahl.setze(reiter);
   }
 
   // Text mit Verzögerung, damit nicht jeder Buchstabe eine Abfrage auslöst
@@ -187,20 +198,15 @@ export function zeige(bereich, ctx) {
       neuLaden();
     }),
   );
-  aktion.eingabe.addEventListener("input", () =>
+  suche.eingabe.addEventListener("input", () =>
     verzoegert(() => {
-      filter.q = aktion.eingabe.value.trim();
+      filter.q = suche.eingabe.value.trim();
       neuLaden();
     }),
   );
-  artWahl.eingabe.addEventListener("change", () => {
-    if (filter.art === artWahl.eingabe.value) return;
-    filter.art = artWahl.eingabe.value;
-    neuLaden();
-  });
-  ergebnisWahl.eingabe.addEventListener("change", () => {
-    if (filter.ergebnis === ergebnisWahl.eingabe.value) return;
-    filter.ergebnis = ergebnisWahl.eingabe.value;
+  aktionWahl.eingabe.addEventListener("change", () => {
+    if (filter.gruppe === aktionWahl.eingabe.value) return;
+    filter.gruppe = aktionWahl.eingabe.value;
     neuLaden();
   });
 
@@ -211,31 +217,28 @@ export function zeige(bereich, ctx) {
       von.wurzel,
       bis.wurzel,
       benutzer.wurzel,
-      aktion.wurzel,
+      suche.wurzel,
     ),
     el(
       "div",
       { class: "pl-zeile-felder" },
       bereichWahl.aktuell.wurzel,
-      artWahl.wurzel,
-      ergebnisWahl.wurzel,
+      aktionWahl.wurzel,
     ),
   );
 
+  function chipText(k, v) {
+    if (k === "gruppe") return GRUPPEN[v]?.[0] ?? v;
+    if (k === "bereich") return bereichText(v);
+    if (k === "von" || k === "bis") return datumDe(v);
+    if (istKennung(v)) return `${v.slice(0, 8)} …`;
+    return v;
+  }
   function zeichneChips() {
     const gesetzt = Object.entries(filter).filter(([, v]) => v !== "");
     chips.replaceChildren(
       ...gesetzt.map(([k, v]) => {
-        const text =
-          k === "ergebnis"
-            ? v === "erfolg"
-              ? "Erfolgreich"
-              : "Fehlgeschlagen"
-            : k === "art"
-              ? (ARTEN[v]?.[0] ?? v)
-              : /^[0-9a-f-]{36}$/i.test(v)
-                ? `${v.slice(0, 8)} …`
-                : v;
+        const text = chipText(k, v);
         return el(
           "li",
           {},
@@ -265,7 +268,6 @@ export function zeige(bereich, ctx) {
   function filterVonDetail(teil) {
     Object.assign(filter, LEER, teil);
     zeigeFilterInFeldern();
-    document.querySelector(".fluss-seite")?.close?.();
     neuLaden();
   }
   const oeffneDetail = (e, ausloeser) => {
@@ -280,8 +282,12 @@ export function zeige(bereich, ctx) {
   };
 
   // ---- Daten ----
+  const artParam = () => (sicherheit() ? { art: "sicherheit" } : {});
   async function holeListe(nach) {
-    return anfrage("GET", `${BASIS}${abfrage(filter, { limit: SEITE, nach })}`);
+    return anfrage(
+      "GET",
+      `${BASIS}${abfrage(filter, { ...artParam(), limit: SEITE, nach })}`,
+    );
   }
   async function holeVerlauf() {
     const lang =
@@ -289,32 +295,57 @@ export function zeige(bereich, ctx) {
     const e = lang ? "tag" : einheit;
     return anfrage(
       "GET",
-      `${BASIS}/verlauf${abfrage(filter, { einheit: e })}`,
+      `${BASIS}/verlauf${abfrage(filter, { ...artParam(), einheit: e })}`,
     ).then((d) => ({ ...d, einheit: e }));
   }
 
   function zeichneKacheln(v) {
-    const quote = v.summe.gesamt > 0 ? v.summe.fehler / v.summe.gesamt : 0;
+    const s = v.summe;
+    if (sicherheit()) {
+      kacheln.replaceChildren(
+        kachel({
+          titel: "Ereignisse im Zeitraum",
+          wert: zahl(s.gesamt),
+          hinweis: `${datumDe(v.von)} bis ${datumDe(v.bis)}`,
+        }),
+        kachel({ titel: "Heute", wert: zahl(s.heute) }),
+        kachel({ titel: "Letzte 7 Tage", wert: zahl(s.sieben) }),
+        kachel({
+          titel: "Betroffene Konten",
+          wert: zahl(s.personen),
+          hinweis: "Fehlversuche ohne Konto zählen nicht mit",
+        }),
+      );
+      return;
+    }
     kacheln.replaceChildren(
+      kachel({ titel: "Änderungen heute", wert: zahl(s.heute) }),
+      kachel({ titel: "Letzte 7 Tage", wert: zahl(s.sieben) }),
       kachel({
-        titel: "Einträge im Zeitraum",
-        wert: zahl(v.summe.gesamt),
+        titel: "Beteiligte Personen",
+        wert: zahl(s.personen),
         hinweis: `${datumDe(v.von)} bis ${datumDe(v.bis)}`,
       }),
       kachel({
-        titel: "Fehlgeschlagen",
-        wert: zahl(v.summe.fehler),
-        hinweis: `${prozent(quote)} der Einträge`,
-        status: v.summe.fehler === 0 ? "ok" : quote > 0.2 ? "fehler" : "warn",
-        zustand:
-          v.summe.fehler === 0 ? "Keine" : quote > 0.2 ? "Viele" : "Einzelne",
-      }),
-      kachel({
-        titel: "Bereiche",
-        wert: zahl(v.bereiche.length),
-        hinweis: v.bereiche[0]
-          ? `Am meisten: ${v.bereiche[0].bereich}`
-          : "Keine Aktivität",
+        titel: "Sicherheit, 7 Tage",
+        wert: zahl(s.sicherheit),
+        hinweis: "Fehlgeschlagene Anmeldungen und gesperrte Anfragen",
+        status: s.sicherheit === 0 ? "ok" : "warn",
+        zustand: s.sicherheit === 0 ? "Ruhig" : "Auffällig",
+        link:
+          s.sicherheit > 0
+            ? knopf("Ansehen", {
+                art: "still",
+                klein: true,
+                symbol: "schild",
+                onclick: () => {
+                  reiter = "sicherheit";
+                  filter.gruppe = "";
+                  zeigeFilterInFeldern();
+                  neuLaden();
+                },
+              })
+            : undefined,
       }),
     );
   }
@@ -323,10 +354,10 @@ export function zeige(bereich, ctx) {
     bekannteBereiche = [
       ...new Set([...bekannteBereiche, ...v.bereiche.map((b) => b.bereich)]),
     ].sort();
+    const wort = sicherheit() ? "Sicherheitsereignisse" : "Änderungen";
     const punkte = v.punkte.map((p) => ({
       name: saeulenName(p.start, v.einheit),
       wert: p.gesamt,
-      fehler: p.fehler,
     }));
     const umschalter = filterGruppe({
       beschriftung: "Auflösung der Säulen",
@@ -348,55 +379,57 @@ export function zeige(bereich, ctx) {
         ? el(
             "p",
             { class: "leer leer--klein" },
-            "In diesem Zeitraum gibt es keine Einträge.",
+            sicherheit()
+              ? "Im gewählten Zeitraum gibt es keine Sicherheitsereignisse."
+              : "Im gewählten Zeitraum gibt es keine Änderungen.",
           )
         : saeulen({
             punkte,
-            titel: "Einträge im Protokoll",
-            einheit: "Einträge",
-            fehlerName: "fehlgeschlagen",
+            titel: `${wort} im Protokoll`,
+            einheit: wort,
             hoehe: 80,
             weit: true,
           });
     verlaufFeld.replaceChildren(
-      el(
-        "div",
-        { class: "pl-verlauf-kopf" },
-        el("h2", {}, "Aktivität"),
-        umschalter.wurzel,
-      ),
-      grafik,
-      el(
-        "p",
-        { class: "klein leise pl-legende" },
-        el("span", { class: "pl-punkt" }),
-        " Erfolgreich ",
-        el("span", { class: "pl-punkt pl-punkt--fehler" }),
-        " Fehlgeschlagen",
-      ),
-      v.bereiche.length > 0 &&
+      ...[
         el(
-          "details",
-          { class: "pl-tabelle" },
-          el("summary", {}, "Bereiche und Zahlen als Tabelle"),
-          rangBalken({
-            zeilen: v.bereiche.slice(0, 8).map((b) => ({
-              name: b.bereich,
-              wert: b.gesamt,
-            })),
-            einheit: "Einträge",
-          }),
-          wertetabelle({
-            beschriftung: "Einträge je Zeitraum",
-            spalten: ["Zeitraum", "Einträge", "Fehlgeschlagen"],
-            zeilen: punkte.map((p) => [p.name, zahl(p.wert), zahl(p.fehler)]),
-          }),
+          "div",
+          { class: "pl-verlauf-kopf" },
+          el(
+            "h2",
+            {},
+            `${wort} je ${v.einheit === "stunde" ? "Stunde" : "Tag"}`,
+          ),
+          umschalter.wurzel,
         ),
+        grafik,
+        v.summe.gesamt > 0 &&
+          el(
+            "details",
+            { class: "pl-tabelle" },
+            el("summary", {}, "Zahlen als Tabelle"),
+            wertetabelle({
+              beschriftung: `${wort} je Zeitraum`,
+              spalten: ["Zeitraum", wort],
+              zeilen: punkte.map((p) => [p.name, zahl(p.wert)]),
+            }),
+            v.bereiche.length > 0 &&
+              wertetabelle({
+                beschriftung: `${wort} je Bereich`,
+                spalten: ["Bereich", wort],
+                zeilen: v.bereiche.map((b) => [
+                  bereichText(b.bereich),
+                  zahl(b.gesamt),
+                ]),
+              }),
+          ),
+      ].filter(Boolean),
     );
   }
 
   function zeichneListe() {
     if (eintraege.length === 0) {
+      const gefiltert = Object.values(filter).some((x) => x !== "");
       listeFeld.replaceChildren(
         el(
           "div",
@@ -404,11 +437,15 @@ export function zeige(bereich, ctx) {
           el(
             "p",
             { class: "zustand-satz" },
-            Object.values(filter).some((v) => v !== "")
-              ? "Kein Eintrag passt zu diesen Filtern."
-              : "Das Protokoll ist noch leer. Eintragungen entstehen mit der nächsten Aktion.",
+            gefiltert
+              ? sicherheit()
+                ? "Kein Sicherheitsereignis passt zu diesen Filtern."
+                : "Keine Änderung passt zu diesen Filtern."
+              : sicherheit()
+                ? "Keine Sicherheitsereignisse im Zeitraum."
+                : "Im gewählten Zeitraum gibt es keine Änderungen.",
           ),
-          Object.values(filter).some((v) => v !== "") &&
+          gefiltert &&
             el(
               "div",
               { class: "reihe" },
@@ -451,6 +488,9 @@ export function zeige(bereich, ctx) {
     }
   }
 
+  const standText = () =>
+    `Stand ${new Intl.DateTimeFormat("de-CH", { timeStyle: "medium", timeZone: "Europe/Zurich" }).format(new Date())}. Neue Einträge holst du mit «Aktualisieren».`;
+
   // Lädt Liste und Verlauf neu (nach einem Filter oder «Aktualisieren»); der alte Stand bleibt stehen, bis der neue da ist
   async function neuLaden({ nurVerlauf = false } = {}) {
     const meine = ++lauf;
@@ -465,11 +505,12 @@ export function zeige(bereich, ctx) {
         eintraege = d.eintraege;
         naechste = d.naechste;
       }
+      erklaerung.textContent = ERKLAERUNG[reiter];
       zeichneKacheln(v);
       zeichneVerlauf(v);
       zeichneListe();
       if (!nurVerlauf) baueBereichWahl();
-      stand.textContent = `Stand ${new Intl.DateTimeFormat("de-CH", { timeStyle: "medium", timeZone: "Europe/Zurich" }).format(new Date())}. Neue Einträge holst du mit «Aktualisieren».`;
+      stand.textContent = standText();
       fehlerFeld.textContent = "";
     } catch (f) {
       if (meine !== lauf) return;
@@ -515,7 +556,7 @@ export function zeige(bereich, ctx) {
         "p",
         { class: "klein leise", role: "status" },
         info ||
-          "Höchstens 5000 Einträge des gefilterten Ausschnitts, ohne Namen und Herkunft. Der Export steht selbst im Protokoll.",
+          "Nur der gefilterte Ausschnitt, höchstens 5000 Einträge, ohne Namen von Personen und Herkunft. Der Export steht im Audit-Log.",
       ),
     );
     exportFeld.replaceChildren(...knoten);
@@ -526,7 +567,7 @@ export function zeige(bereich, ctx) {
     zeichneExport("laeuft");
     try {
       const antwort = await fetch(
-        `${BASIS}/export.csv${abfrage(filter, { limit: undefined, nach: undefined })}`,
+        `${BASIS}/export.csv${abfrage(filter, artParam())}`,
         {
           credentials: "same-origin",
           cache: "no-store",
@@ -557,16 +598,13 @@ export function zeige(bereich, ctx) {
   const seite = el(
     "div",
     { class: "pl-seite" },
-    el(
-      "p",
-      { class: "beschreibung pl-erklaerung" },
-      "Alles, was in Cevi OS geschrieben oder geändert wird, mit Person, Funktion, Zeit und Ergebnis. Nur du als Entwickler siehst diese Seite. Inhalte, Passwörter und Namen von Kindern werden nie gespeichert; die Einträge werden nach der Aufbewahrungsfrist gelöscht.",
-    ),
+    el("div", { class: "pl-reiter" }, reiterWahl.wurzel),
+    erklaerung,
     el("div", { class: "stand-zeile" }, stand, fehlerFeld),
     kacheln,
     el(
       "section",
-      { class: "flaeche pl-flaeche", "aria-label": "Aktivität" },
+      { class: "flaeche pl-flaeche", "aria-label": "Verlauf über die Zeit" },
       verlaufFeld,
     ),
     el(
@@ -590,12 +628,13 @@ export function zeige(bereich, ctx) {
     eintraege = d.eintraege;
     naechste = d.naechste;
     bekannteBereiche = [...new Set(v.bereiche.map((b) => b.bereich))].sort();
+    erklaerung.textContent = ERKLAERUNG[reiter];
     zeichneKacheln(v);
     zeichneVerlauf(v);
     zeichneListe();
     baueBereichWahl();
     zeichneExport();
-    stand.textContent = `Stand ${new Intl.DateTimeFormat("de-CH", { timeStyle: "medium", timeZone: "Europe/Zurich" }).format(new Date())}. Neue Einträge holst du mit «Aktualisieren».`;
+    stand.textContent = standText();
     bereich.append(seite);
   }
 

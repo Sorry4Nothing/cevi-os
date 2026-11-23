@@ -4357,15 +4357,17 @@ paths:
   /api/v1/admin/protokoll:
     get:
       operationId: listeProtokoll
-      summary: Aktivitätsprotokoll lesen (neu zuerst, mit Filtern)
+      summary: Änderungsprotokoll lesen (neu zuerst, mit Filtern)
       description: |
-        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Der Zugriff steht selbst im Protokoll (Art `zugriff`). Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
+        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Das Lesen erzeugt keine Zeile. Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
 
-        Das Protokoll hält jede schreibende Anfrage gegen die API (POST, PUT, PATCH, DELETE, auch abgewiesene), Anmeldeereignisse, die Zeilen des Audit-Logs, Systemereignisse (Start, Läufe im Hintergrund, Push-Versand mit Zahl) und lesende Zugriffe auf Kinder- und Exportdaten. Es speichert nie Inhalte von Anfragen oder Antworten, Passwörter, Tokens, Cookies, Push-Texte oder Namen von Kindern; bei geänderten Feldern nur deren Namen. Die Herkunft ist ein gekürzter Hash der IP mit einem Tagessalz.
+        Das Protokoll hält, was geändert wurde: jede erfolgreiche schreibende Anfrage (2xx bei POST, PUT, PATCH, DELETE), ausser Vorschau- und Prüfrouten, Anmelden und Alltagseingaben (Haken, Reaktionen, Lesemarken, Chat, eigene Einstellungen, Selbstbedienung der Eltern); dazu Änderungen ohne Anfrage (Kommandozeile, System) und wenige Systemereignisse mit Wirkung (Start, Update der Datenbank, Erinnerungen per Push mit Zahl). Nicht erfasst sind lesende Zugriffe, abgelehnte oder fehlgeschlagene Anfragen (401, 403, 404, 409, 422, Validierungsfehler) und der Erfolg beim Anmelden. Fehlgeschlagene Anmeldungen, ein falscher zweiter Faktor und die Begrenzung (429) sind keine Änderungen: Sie stehen als Art `sicherheit`, je Konto oder Herkunft, Ereignis und Stunde zu einer Zeile mit `anzahl` zusammengezogen, und nur mit `art=sicherheit`.
+
+        Jeder Eintrag trägt einen Satz (`beschreibung`, zum Beispiel «Rolle «Kasse» der Gruppe «OK Kirmes» geändert»), das Objekt (Typ, Kennung und, wenn die Tabelle keine Personendaten trägt, der Name), die Namen der Felder der Anfrage, bei Rechten die Namen der Rechte, die dazukamen oder wegfielen, und bei einfachen Statuswerten Vorher und Nachher. Es speichert nie Inhalte von Anfragen oder Antworten, Passwörter, Tokens, Cookies, Push-Texte oder Namen von Kindern. Die Herkunft ist ein gekürzter Hash der IP mit einem Tagessalz.
 
         Seitenbildung mit Cursor: `naechste` in `nach` der nächsten Anfrage. Höchstens 100 Zeilen je Seite.
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültigem Filter oder Cursor. 401. 403 für alle ausser dem Entwickler (Code `ZWEITER_FAKTOR_FEHLT` ohne zweiten Faktor). 426.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültigem Filter oder Cursor (auch der entfallene Filter `ergebnis`). 401. 403 für alle ausser dem Entwickler (Code `ZWEITER_FAKTOR_FEHLT` ohne zweiten Faktor). 426.
       tags:
         - Verwaltung
       parameters:
@@ -4395,7 +4397,7 @@ paths:
         - name: bereich
           in: query
           required: false
-          description: Bereich der Aktion, zum Beispiel `personen`, `website`, `lager`, `anmeldung`.
+          description: Bereich der Änderung, zum Beispiel `personen`, `website`, `lager`, `rechte`.
           schema:
             type: string
             minLength: 1
@@ -4403,14 +4405,16 @@ paths:
         - name: art
           in: query
           required: false
-          schema:
-            $ref: "#/components/schemas/ProtokollArt"
-        - name: ergebnis
-          in: query
-          required: false
+          description: Ohne Angabe (oder `aenderung`) stehen die Änderungen und die Ereignisse des Systems da, nie die Sicherheitsereignisse. `sicherheit` zeigt nur diese.
           schema:
             type: string
-            enum: [erfolg, fehler]
+            enum: [aenderung, aktion, audit, system, sicherheit]
+        - name: gruppe
+          in: query
+          required: false
+          description: Was geschah, zum Beispiel `angelegt`, `geaendert`, `geloescht`, `zugeordnet`, `entzogen`, `veroeffentlicht`, `zurueckgezogen`, `status`, `gesendet`, `entschieden`.
+          schema:
+            $ref: "#/components/schemas/ProtokollGruppe"
         - name: objekt
           in: query
           required: false
@@ -4428,7 +4432,7 @@ paths:
         - name: q
           in: query
           required: false
-          description: Freitext über Aktion, Bereich und Fehlercode.
+          description: Freitext über den Satz zur Änderung, den Namen des Objekts, die Route, den Bereich und den Fehlercode.
           schema:
             type: string
             minLength: 1
@@ -4468,11 +4472,11 @@ paths:
   /api/v1/admin/protokoll/verlauf:
     get:
       operationId: holeProtokollVerlauf
-      summary: Zahl der Einträge und Fehler je Stunde oder Tag, dazu die Bereiche
+      summary: Zahl der Änderungen je Stunde oder Tag, dazu die Bereiche und Kennzahlen
       description: |
-        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Der Zugriff steht selbst im Protokoll (Art `zugriff`). Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
+        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Das Lesen erzeugt keine Zeile. Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
 
-        Lückenlose Säulen nach Schweizer Zeit für den Zeitraum und die Filter. Ohne `von` und `bis`: bei `tag` die letzten 30 Tage, bei `stunde` heute und gestern. Höchstens 7 Tage mit `stunde`, 92 Tage mit `tag` (sonst 400). `bereiche` nennt bis zu 30 Bereiche mit Zahl, grösste zuerst. Drei Abfragen je Aufruf.
+        Lückenlose Säulen nach Schweizer Zeit für den Zeitraum und die Filter. Ohne `von` und `bis`: bei `tag` die letzten 30 Tage, bei `stunde` heute und gestern. Höchstens 7 Tage mit `stunde`, 92 Tage mit `tag` (sonst 400). `bereiche` nennt bis zu 30 Bereiche mit Zahl, grösste zuerst. `summe` zählt im Zeitraum (`gesamt`, `personen`) und ohne Zeitraum der Auswahl heute und in den letzten 7 Tagen (`heute`, `sieben`) sowie die Sicherheitsereignisse der letzten 7 Tage (`sicherheit`). Eine Sicherheitszeile zählt mit ihrer `anzahl`. Vier Abfragen je Aufruf.
 
         Statuscodes: 200 bei Erfolg. 400. 401. 403 für alle ausser dem Entwickler. 426.
       tags:
@@ -4504,7 +4508,7 @@ paths:
         - name: bereich
           in: query
           required: false
-          description: Bereich der Aktion, zum Beispiel `personen`, `website`, `lager`, `anmeldung`.
+          description: Bereich der Änderung, zum Beispiel `personen`, `website`, `lager`, `rechte`.
           schema:
             type: string
             minLength: 1
@@ -4512,14 +4516,16 @@ paths:
         - name: art
           in: query
           required: false
-          schema:
-            $ref: "#/components/schemas/ProtokollArt"
-        - name: ergebnis
-          in: query
-          required: false
+          description: Ohne Angabe (oder `aenderung`) stehen die Änderungen und die Ereignisse des Systems da, nie die Sicherheitsereignisse. `sicherheit` zeigt nur diese.
           schema:
             type: string
-            enum: [erfolg, fehler]
+            enum: [aenderung, aktion, audit, system, sicherheit]
+        - name: gruppe
+          in: query
+          required: false
+          description: Was geschah, zum Beispiel `angelegt`, `geaendert`, `geloescht`, `zugeordnet`, `entzogen`, `veroeffentlicht`, `zurueckgezogen`, `status`, `gesendet`, `entschieden`.
+          schema:
+            $ref: "#/components/schemas/ProtokollGruppe"
         - name: objekt
           in: query
           required: false
@@ -4537,7 +4543,7 @@ paths:
         - name: q
           in: query
           required: false
-          description: Freitext über Aktion, Bereich und Fehlercode.
+          description: Freitext über den Satz zur Änderung, den Namen des Objekts, die Route, den Bereich und den Fehlercode.
           schema:
             type: string
             minLength: 1
@@ -4571,9 +4577,9 @@ paths:
       operationId: exportiereProtokoll
       summary: Gefilterten Ausschnitt des Protokolls als CSV
       description: |
-        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Der Zugriff steht selbst im Protokoll (Art `zugriff`). Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
+        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Das Lesen erzeugt keine Zeile. Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
 
-        Höchstens 5000 Zeilen, neu zuerst, mit denselben Filtern wie die Liste. Ohne Namen und ohne Herkunft (nur die Kennung der Person); Zellen, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein Hochkomma. Der Export steht im Audit-Log (`protokoll_exportiert`, nur die Zahl der Zeilen).
+        Höchstens 5000 Zeilen, neu zuerst, mit denselben Filtern wie die Liste. Mit dem Satz zur Änderung, ohne Namen von Personen und ohne Herkunft (nur die Kennung der Person); Zellen, die mit `=`, `+`, `-` oder `@` beginnen, bekommen ein Hochkomma. Der Export steht im Audit-Log (`protokoll_exportiert`, nur die Zahl der Zeilen).
 
         Statuscodes: 200 bei Erfolg. 400. 401. 403 für alle ausser dem Entwickler. 426.
       tags:
@@ -4605,7 +4611,7 @@ paths:
         - name: bereich
           in: query
           required: false
-          description: Bereich der Aktion, zum Beispiel `personen`, `website`, `lager`, `anmeldung`.
+          description: Bereich der Änderung, zum Beispiel `personen`, `website`, `lager`, `rechte`.
           schema:
             type: string
             minLength: 1
@@ -4613,14 +4619,16 @@ paths:
         - name: art
           in: query
           required: false
-          schema:
-            $ref: "#/components/schemas/ProtokollArt"
-        - name: ergebnis
-          in: query
-          required: false
+          description: Ohne Angabe (oder `aenderung`) stehen die Änderungen und die Ereignisse des Systems da, nie die Sicherheitsereignisse. `sicherheit` zeigt nur diese.
           schema:
             type: string
-            enum: [erfolg, fehler]
+            enum: [aenderung, aktion, audit, system, sicherheit]
+        - name: gruppe
+          in: query
+          required: false
+          description: Was geschah, zum Beispiel `angelegt`, `geaendert`, `geloescht`, `zugeordnet`, `entzogen`, `veroeffentlicht`, `zurueckgezogen`, `status`, `gesendet`, `entschieden`.
+          schema:
+            $ref: "#/components/schemas/ProtokollGruppe"
         - name: objekt
           in: query
           required: false
@@ -4638,7 +4646,7 @@ paths:
         - name: q
           in: query
           required: false
-          description: Freitext über Aktion, Bereich und Fehlercode.
+          description: Freitext über den Satz zur Änderung, den Namen des Objekts, die Route, den Bereich und den Fehlercode.
           schema:
             type: string
             minLength: 1
@@ -4665,7 +4673,7 @@ paths:
       operationId: holeProtokollEintrag
       summary: Einen Eintrag des Protokolls lesen
       description: |
-        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Der Zugriff steht selbst im Protokoll (Art `zugriff`). Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
+        Nur der Entwickler (Zeile in `plattform_entwickler`) mit zweitem Faktor: jede andere Person bekommt 403, auch die Abteilungsleitung ohne diese Funktion. Das Lesen erzeugt keine Zeile. Begrenzt auf die Abteilung der Sitzung; Zeilen ohne Abteilung (Anmeldeversuche ohne Konto, Systemereignisse) sieht jeder Entwickler.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Kennung. 401. 403 für alle ausser dem Entwickler. 404, wenn es den Eintrag nicht gibt oder er zu einer anderen Abteilung gehört. 426.
       tags:
@@ -27063,11 +27071,38 @@ components:
           $ref: "#/components/schemas/AdminKindKontoEinstellung"
     ProtokollArt:
       type: string
-      enum: [aktion, anmeldung, audit, zugriff, system]
-      description: Aktion = schreibende Anfrage, Anmeldung = Anmeldeereignis, Audit = Zeile des Audit-Logs, Zugriff = lesender Zugriff auf Kinder- oder Exportdaten, System = Ereignis ohne Person.
+      enum: [aktion, audit, system, sicherheit]
+      description: Aktion = erfolgreiche Änderung durch eine Anfrage, Audit = Änderung ohne Anfrage (Kommandozeile, System), System = Ereignis ohne Person mit Wirkung, Sicherheit = fehlgeschlagene Anmeldung, falscher zweiter Faktor oder Begrenzung (kein Eingriff in Daten).
+    ProtokollGruppe:
+      type: string
+      enum:
+        [
+          angelegt,
+          geaendert,
+          geloescht,
+          zugeordnet,
+          entzogen,
+          veroeffentlicht,
+          zurueckgezogen,
+          status,
+          gesendet,
+          entschieden,
+        ]
+      description: Gruppe der Aktion, aus dem Katalog der Routen. Fehlt bei Audit-, System- und Sicherheitszeilen.
     ProtokollEintrag:
       type: object
-      required: [id, zeit, art, benutzer, aktion, titel, bereich, ergebnis]
+      required:
+        [
+          id,
+          zeit,
+          art,
+          benutzer,
+          aktion,
+          titel,
+          beschreibung,
+          bereich,
+          ergebnis,
+        ]
       properties:
         id:
           type: string
@@ -27106,9 +27141,16 @@ components:
           description: Routenmuster wie `PATCH /api/v1/admin/personen/:id` (nie der echte Pfad) oder der Name des Ereignisses.
         titel:
           type: string
-          description: Klartext zur Aktion.
+          description: Zusammenfassung der Route in dieser API, zum Beispiel «Rolle einer Gruppe ändern».
+        beschreibung:
+          type: string
+          description: Der Satz zur Änderung, so wie er zur Zeit der Änderung lautete, zum Beispiel «Rolle «Kasse» der Gruppe «OK Kirmes» geändert». Der Name des Objekts steht nur, wenn die Tabelle keine Personendaten trägt.
         bereich:
           type: string
+        gruppe:
+          oneOf:
+            - $ref: "#/components/schemas/ProtokollGruppe"
+            - type: "null"
         objekt:
           type: [object, "null"]
           properties:
@@ -27117,11 +27159,58 @@ components:
             id:
               type: [string, "null"]
               format: uuid
+            name:
+              type: [string, "null"]
+              description: Name des Objekts zum Zeitpunkt; nie bei Personen, Kindern oder Inhalten.
         felder:
           type: [array, "null"]
           description: Nur Namen der Felder der Anfrage, nie Werte.
           items:
             type: string
+        aenderung:
+          type: [object, "null"]
+          description: Angaben zur Änderung ohne Inhalte.
+          properties:
+            eltern:
+              type: object
+              description: Das übergeordnete Objekt (die Gruppe einer Rolle, das Lager einer Aufgabe).
+              properties:
+                typ:
+                  type: string
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+            audit:
+              type: string
+              description: Name der Audit-Aktion derselben Anfrage, zum Beispiel `gruppen_rolle_geaendert`.
+            hinzu:
+              type: array
+              description: Namen der Rechte, die dazukamen.
+              items:
+                type: string
+            weg:
+              type: array
+              description: Namen der Rechte, die wegfielen.
+              items:
+                type: string
+            werte:
+              type: object
+              description: Einfache Angaben (Status, Art, Zahl, Ja/Nein), nie Texte.
+              additionalProperties:
+                oneOf:
+                  - type: string
+                  - type: number
+                  - type: boolean
+            vorher:
+              type: object
+              description: Einfache Statuswerte vor der Änderung.
+              additionalProperties: true
+            nachher:
+              type: object
+              description: Einfache Statuswerte nach der Änderung.
+              additionalProperties: true
         status:
           type: [integer, "null"]
         ergebnis:
@@ -27141,7 +27230,7 @@ components:
           type: [string, "null"]
         anzahl:
           type: [integer, "null"]
-          description: Zahl bei Systemereignissen.
+          description: Zahl bei Systemereignissen (Geräte, Erinnerungen) und bei Sicherheitsereignissen (so oft in dieser Stunde).
     ProtokollListe:
       type: object
       required: [eintraege, weitere, naechste]
@@ -27170,35 +27259,42 @@ components:
           type: array
           items:
             type: object
-            required: [start, gesamt, fehler]
+            required: [start, gesamt]
             properties:
               start:
                 type: string
                 description: Beginn der Säule in Schweizer Zeit, `JJJJ-MM-TTTHH:MM`.
               gesamt:
                 type: integer
-              fehler:
-                type: integer
         bereiche:
           type: array
           items:
             type: object
-            required: [bereich, gesamt, fehler]
+            required: [bereich, gesamt]
             properties:
               bereich:
                 type: string
               gesamt:
                 type: integer
-              fehler:
-                type: integer
         summe:
           type: object
-          required: [gesamt, fehler]
+          required: [gesamt, heute, sieben, personen, sicherheit]
           properties:
             gesamt:
               type: integer
-            fehler:
+              description: Im gewählten Zeitraum.
+            heute:
               type: integer
+              description: Heute (Schweizer Zeit), unabhängig vom Zeitraum der Auswahl.
+            sieben:
+              type: integer
+              description: In den letzten 7 Tagen einschliesslich heute.
+            personen:
+              type: integer
+              description: Verschiedene Personen im gewählten Zeitraum.
+            sicherheit:
+              type: integer
+              description: Sicherheitsereignisse der letzten 7 Tage (mit ihrer `anzahl`).
     AdminSystem:
       type: object
       additionalProperties: false

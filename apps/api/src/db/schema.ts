@@ -763,20 +763,25 @@ export const zeitregelGesendet = pgTable(
 );
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
-export const auditLog = pgTable("audit_log", {
-  id: id(),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  // UUID einer Person, «cli» für die Kommandozeile, die kein Konto hat, oder «system» für die automatische Zuordnung des Kalender-Syncs
-  akteurId: text("akteur_id").notNull(),
-  aktion: text("aktion").notNull(),
-  zielTyp: text("ziel_typ").notNull(),
-  zielId: uuid("ziel_id").notNull(),
-  // Ohne Personendaten
-  details: jsonb("details"),
-  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // UUID einer Person, «cli» für die Kommandozeile, die kein Konto hat, oder «system» für die automatische Zuordnung des Kalender-Syncs
+    akteurId: text("akteur_id").notNull(),
+    aktion: text("aktion").notNull(),
+    zielTyp: text("ziel_typ").notNull(),
+    zielId: uuid("ziel_id").notNull(),
+    // Ohne Personendaten
+    details: jsonb("details"),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  // Das Änderungsprotokoll (#662) sucht die Audit-Angaben einer Anfrage nach Zeit
+  (t) => [index("audit_log_erstellt_am_idx").on(t.erstelltAm)],
+);
 
 // Das Profilbild einer Person (#173): höchstens eines, vom Server auf 256 × 256 JPEG neu kodiert; die Zeile geht mit dem Konto
 export const profilbild = pgTable(

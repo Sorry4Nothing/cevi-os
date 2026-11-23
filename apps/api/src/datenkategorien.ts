@@ -159,9 +159,9 @@ export const KATEGORIEN = {
     google: [],
   },
   aktivitaet: {
-    titel: "Aktivitätsprotokoll",
+    titel: "Änderungsprotokoll",
     zweck:
-      "Sicherheit und Nachvollziehbarkeit: Der Entwickler der Plattform sieht, welche Person wann welche Aktion ausgeführt hat und mit welchem Ergebnis, auch bei Fehlversuchen und Anmeldungen. Gespeichert sind Zeit, Name und Funktionen der Person zu diesem Zeitpunkt, die Aktion, das betroffene Objekt nur als Kennung, die Namen (nie die Werte) der geänderten Felder, das Ergebnis und ein Hash der IP-Adresse, der täglich wechselt und danach keiner Adresse mehr zuzuordnen ist. Nie gespeichert sind Inhalte von Anfragen, Passwörter, Texte von Mitteilungen oder Namen von Kindern.",
+      "Nachvollziehbarkeit und Sicherheit: Der Entwickler der Plattform sieht, welche Person wann was geändert hat, zum Beispiel eine Rolle, einen Anlass oder eine Seite. Gespeichert sind Zeit, Name und Funktionen der Person zu diesem Zeitpunkt, ein Satz zur Änderung, das betroffene Objekt als Kennung und, wenn es keine Person betrifft, mit seinem Namen (Anlass, Gruppe, Rolle), die Namen (nie die Werte) der geänderten Felder und der Rechte, die dazukamen oder wegfielen, einfache Statuswerte vorher und nachher und ein Hash der IP-Adresse, der täglich wechselt und danach keiner Adresse mehr zuzuordnen ist. Nicht erfasst sind lesende Zugriffe, abgelehnte Anfragen, Anmeldungen und Eingaben im Alltag (Haken, Chat). Fehlgeschlagene Anmeldungen und Begrenzungen stehen getrennt als Sicherheitsereignisse, je Konto und Stunde zusammengezogen. Nie gespeichert sind Inhalte von Anfragen, Passwörter, Texte von Mitteilungen oder Namen von Kindern.",
     frist:
       "Neunzig Tage, danach löscht ein nächtlicher Lauf die Einträge; die Abteilung kann die Frist im Betrieb zwischen 7 und 365 Tagen einstellen. Über einer festen Obergrenze an Einträgen fallen die ältesten früher weg. Wird ein Konto gelöscht, verlieren die Einträge der Person sofort Kennung, Namen und Funktionen.",
     apple: ["Contact Info: Name", "Identifiers: User ID"],
@@ -440,7 +440,11 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "bereich",
       "objekt_typ",
       "objekt_id",
+      "gruppe",
+      "objekt_name",
+      "beschreibung",
       "felder",
+      "aenderung",
       "status",
       "ergebnis",
       "fehler_code",

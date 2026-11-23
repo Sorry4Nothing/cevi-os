@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -16,10 +16,20 @@ import {
   loescheAlteAktivitaet,
   systemzeileAus,
 } from "../src/aktivitaet.js";
+import { Hono } from "hono";
 import {
-  objektVon,
+  beschreibungVon,
+  sicherDetails,
+} from "../src/aktivitaet-beschreibung.js";
+import {
+  aktivitaetMiddleware,
   bereichVon,
   geraetVon,
+  meldeAenderung,
+  objektVon,
+  type AktivitaetEintrag,
+  type AktivitaetSenke,
+  type AktivitaetVariablen,
 } from "../src/aktivitaet-middleware.js";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
@@ -145,39 +155,370 @@ describe("Hilfsfunktionen", () => {
     expect(geraetVon(undefined)).toBeUndefined();
   });
 
-  test("Systemzeile: Nullläufe bleiben weg, Zahl und Code kommen mit", async () => {
+  test("Systemzeile: nur Ereignisse mit Wirkung; Nullläufe, Fehler, Aufräumläufe und Chat bleiben weg", async () => {
     const eigene = erstelleAktivitaetsprotokoll(db, { taktMs: null });
-    const name = `testlauf_${randomUUID().slice(0, 8)}`;
-    systemzeileAus(eigene, { ereignis: name, geloescht: 0 });
-    systemzeileAus(eigene, { ereignis: `${name}_a`, geloescht: 7, token: "x" });
+    systemzeileAus(eigene, { ereignis: "lager_fristen", erinnert: 0 });
+    systemzeileAus(eigene, { ereignis: "lager_fristen", erinnert: 4, x: "y" });
+    systemzeileAus(eigene, { ereignis: "lager_fristen", code: "ECONN" });
     systemzeileAus(eigene, {
-      ereignis: `${name}_b`,
-      code: "ECONN",
-      geloescht: 0,
+      ereignis: "push_versand",
+      typ: "chat",
+      gesendet: 9,
     });
+    systemzeileAus(eigene, {
+      ereignis: "push_versand",
+      typ: "programm",
+      gesendet: 12,
+      token: "geheim",
+    });
+    systemzeileAus(eigene, { ereignis: "sitzungen", geloescht: 5 });
     systemzeileAus(eigene, { ereignis: "health", code: "x" });
+    expect(eigene.zaehler().puffer).toBe(2);
+    const marke = Date.now();
     await eigene.leere();
     const zeilen = await db
       .select()
       .from(schema.aktivitaet)
-      .where(sql`${schema.aktivitaet.aktion} like ${`${name}%`}`);
-    expect(zeilen.map((z) => z.aktion).sort()).toEqual([
-      `${name}_a`,
-      `${name}_b`,
+      .where(
+        and(
+          eq(schema.aktivitaet.art, "system"),
+          gte(schema.aktivitaet.zeit, new Date(marke - 5000)),
+          inArray(schema.aktivitaet.aktion, [
+            "lager_fristen",
+            "push_versand:programm",
+          ]),
+        ),
+      );
+    expect(zeilen.map((z) => [z.aktion, z.anzahl]).sort()).toEqual([
+      ["lager_fristen", 4],
+      ["push_versand:programm", 12],
     ]);
-    const a = zeilen.find((z) => z.aktion === `${name}_a`)!;
-    expect(a).toMatchObject({ art: "system", anzahl: 7, ergebnis: "erfolg" });
-    expect(JSON.stringify(a)).not.toContain('"x"');
-    expect(zeilen.find((z) => z.aktion === `${name}_b`)).toMatchObject({
-      ergebnis: "fehler",
-      fehlerCode: "ECONN",
-    });
+    expect(JSON.stringify(zeilen)).not.toContain("geheim");
+    expect(
+      zeilen.find((z) => z.aktion === "push_versand:programm")?.beschreibung,
+    ).toBe("Programm-Erinnerungen per Push versendet (12 Geräte)");
     eigene.stopp();
+  });
+
+  test("Satz: Katalog, Name des Objekts, Elternobjekt; ohne Namen allgemein", () => {
+    const direkt = {
+      art: "aktion",
+      aktion: "PATCH /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId",
+      objektTyp: "rollen",
+      objektName: "Kasse",
+      aenderung: {
+        direkt: true,
+        eltern: { typ: "gruppen", id: randomUUID(), name: "OK Kirmes" },
+      },
+    };
+    expect(beschreibungVon(direkt)).toBe(
+      "Rolle «Kasse» der Gruppe «OK Kirmes» geändert",
+    );
+    expect(
+      beschreibungVon({
+        ...direkt,
+        objektName: null,
+        aenderung: { direkt: true },
+      }),
+    ).toBe("Rolle einer Gruppe geändert");
+    // Unteraktion: der Katalog, der Ort in Klammern
+    expect(
+      beschreibungVon({
+        art: "aktion",
+        aktion: "PUT /api/v1/lager/:id/rechte",
+        objektTyp: "lager",
+        objektName: "Sommerlager",
+      }),
+    ).toBe("Rechte der Lagerrollen geändert (Lager «Sommerlager»)");
+    // Der Satz der Route geht vor
+    expect(
+      beschreibungVon({
+        art: "aktion",
+        aktion: "PATCH /api/v1/admin/tags/:id",
+        aenderung: { text: "Eigener Satz" },
+      }),
+    ).toBe("Eigener Satz");
+    expect(
+      beschreibungVon({
+        art: "sicherheit",
+        aktion: "POST /api/auth/sign-in/username",
+        anzahl: 5,
+      }),
+    ).toBe("Anmeldung fehlgeschlagen, 5-mal");
+    expect(
+      beschreibungVon({ art: "audit", aktion: "entwickler_vergeben" }),
+    ).toBe("Entwickler-Recht vergeben");
+  });
+
+  test("Details aus dem Audit-Log: Namen von Rechten und einfache Werte, nie Namen, Texte oder Kennungen", () => {
+    const aus = sicherDetails({
+      hinzu: [{ recht: "anlass.bearbeiten", geltung: "alle" }, "lager.sehen"],
+      weg: ["raum.verwalten", "mit Leerzeichen"],
+      status: "abgeschlossen",
+      anzahl: 3,
+      ja: true,
+      name: "Kasse",
+      titel: "Sola",
+      notiz: "keinleerzeichen",
+      telefon: "0791234567",
+      tagId: randomUUID(),
+      text: "Hallo Welt",
+      lang: "x".repeat(100),
+    });
+    expect(aus).toEqual({
+      hinzu: ["anlass.bearbeiten", "lager.sehen"],
+      weg: ["raum.verwalten"],
+      werte: { status: "abgeschlossen", anzahl: 3, ja: true },
+    });
   });
 });
 
-describe("Middleware", () => {
-  test("eine Schreibaktion: Benutzerstempel, Muster, Feldnamen, keine Inhalte", async () => {
+describe("Middleware: nur, was etwas geändert hat", () => {
+  // Eine kleine App mit der echten Middleware und einer Senke, die mitschreibt: ohne Datenbank, mit jeder Antwort, die eine Route geben kann
+  type Gesammelt = { eintraege: AktivitaetEintrag[]; namenAbfragen: unknown[] };
+  function kleineApp(namen?: Record<string, string>) {
+    const g: Gesammelt = { eintraege: [], namenAbfragen: [] };
+    const offen: Promise<unknown>[] = [];
+    const senke: AktivitaetSenke = {
+      erfasse: (e) => void g.eintraege.push(e),
+      herkunft: () => "abcdef123456",
+      erwarte: (p) => void offen.push(p),
+      ...(namen && {
+        namen: (abfrage) => {
+          g.namenAbfragen.push(abfrage);
+          return Promise.resolve(namen);
+        },
+      }),
+    };
+    const k = new Hono<{ Variables: AktivitaetVariablen }>();
+    k.use(async (c, next) => {
+      c.set("nutzerId", "11111111-1111-4111-8111-111111111111");
+      await next();
+    });
+    k.use(aktivitaetMiddleware(senke));
+    return {
+      k,
+      g,
+      fertig: async () => {
+        await Promise.allSettled(offen);
+        return g.eintraege;
+      },
+    };
+  }
+  const json = (body: unknown) => ({
+    method: "PATCH",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const ID = "22222222-2222-4222-8222-222222222222";
+
+  test("2xx bei einer schreibenden Anfrage: eine Zeile mit Gruppe, Objekt, Feldnamen, direkt", async () => {
+    const { k, fertig } = kleineApp();
+    k.patch("/api/v1/admin/tags/:id", (c) => c.body(null, 204));
+    const antwort = await k.request(`/api/v1/admin/tags/${ID}`, {
+      ...json({ name: "Geheimer Name" }),
+      headers: {
+        "content-type": "application/json",
+        "content-length": "25",
+      },
+    });
+    expect(antwort.status).toBe(204);
+    const [z, ...rest] = await fertig();
+    expect(rest).toEqual([]);
+    expect(z).toMatchObject({
+      art: "aktion",
+      aktion: "PATCH /api/v1/admin/tags/:id",
+      gruppe: "geaendert",
+      bereich: "tags",
+      objektTyp: "tags",
+      objektId: ID,
+      felder: ["name"],
+      aenderung: { direkt: true },
+      ergebnis: "erfolg",
+    });
+    expect(JSON.stringify(z)).not.toContain("Geheimer");
+  });
+
+  test("abgelehnt oder fehlgeschlagen (400, 401, 403, 404, 409, 422, 500): keine Zeile", async () => {
+    const { k, fertig } = kleineApp();
+    for (const status of [400, 401, 403, 404, 409, 422, 500] as const) {
+      k.patch(`/api/v1/admin/tags/:id/s${status}`, (c) =>
+        c.json({ code: "X" }, status),
+      );
+    }
+    for (const status of [400, 401, 403, 404, 409, 422, 500]) {
+      const antwort = await k.request(
+        `/api/v1/admin/tags/${ID}/s${status}`,
+        json({ name: "a" }),
+      );
+      expect(antwort.status).toBe(status);
+    }
+    expect(await fertig()).toEqual([]);
+  });
+
+  test("lesende Anfragen und unbekannte Routen: keine Zeile, auch nicht bei Kinderdaten", async () => {
+    const { k, fertig } = kleineApp();
+    k.get("/api/v1/admin/kinder", (c) => c.json([]));
+    expect((await k.request("/api/v1/admin/kinder")).status).toBe(200);
+    expect(
+      (await k.request("/api/v1/gibtsnicht", { method: "POST" })).status,
+    ).toBe(404);
+    expect(await fertig()).toEqual([]);
+  });
+
+  test("Vorschau, Anmelden und Alltagseingaben stehen im Katalog als «nicht»: keine Zeile bei Erfolg", async () => {
+    const { k, fertig } = kleineApp();
+    k.post("/api/v1/admin/mitteilungen/vorschau", (c) => c.json({ n: 3 }));
+    k.post("/api/auth/sign-in/username", (c) => c.json({ ok: true }));
+    k.post("/api/auth/sign-out", (c) => c.json({ ok: true }));
+    k.put("/api/v1/lager/:id/reaktionen/:a/:b", (c) => c.body(null, 204));
+    for (const [methode, pfad] of [
+      ["POST", "/api/v1/admin/mitteilungen/vorschau"],
+      ["POST", "/api/auth/sign-in/username"],
+      ["POST", "/api/auth/sign-out"],
+      ["PUT", `/api/v1/lager/${ID}/reaktionen/${ID}/${ID}`],
+    ] as const) {
+      expect((await k.request(pfad, { method: methode })).status).toBeLessThan(
+        300,
+      );
+    }
+    expect(await fertig()).toEqual([]);
+  });
+
+  test("PATCH ohne Felder und keine: true der Route sind Nullläufe: keine Zeile", async () => {
+    const { k, fertig } = kleineApp();
+    k.patch("/api/v1/admin/tags/:id", (c) => c.body(null, 204));
+    k.post("/api/v1/lager/:id/zeitplan/meilensteine/:m/verschieben", (c) => {
+      meldeAenderung(c, { keine: true });
+      return c.json({ trocken: true });
+    });
+    const leer = await k.request(`/api/v1/admin/tags/${ID}`, {
+      ...json({}),
+      headers: { "content-type": "application/json", "content-length": "2" },
+    });
+    expect(leer.status).toBe(204);
+    const trocken = await k.request(
+      `/api/v1/lager/${ID}/zeitplan/meilensteine/${ID}/verschieben`,
+      { method: "POST" },
+    );
+    expect(trocken.status).toBe(200);
+    expect(await fertig()).toEqual([]);
+  });
+
+  test("Sicherheit: fehlgeschlagene Anmeldung mit innerem Grund, falscher zweiter Faktor, Begrenzung (429) auf jeder Route", async () => {
+    const { k, fertig } = kleineApp();
+    k.post("/api/auth/sign-in/username", (c) => {
+      c.set("aktivitaetCode", "FALSCHES_PASSWORT");
+      return c.json({ code: "ANMELDUNG_FEHLGESCHLAGEN" }, 401);
+    });
+    k.post("/api/auth/two-factor/verify-totp", (c) =>
+      c.json({ code: "INVALID_CODE" }, 401),
+    );
+    k.get("/api/v1/irgendwas", (c) => c.json({ code: "ZU_VIELE" }, 429));
+    await k.request("/api/auth/sign-in/username", { method: "POST" });
+    await k.request("/api/auth/two-factor/verify-totp", { method: "POST" });
+    await k.request("/api/v1/irgendwas");
+    const z = await fertig();
+    expect(
+      z.map((e) => [e.art, e.aktion, e.fehlerCode, e.anzahl, e.status]),
+    ).toEqual([
+      [
+        "sicherheit",
+        "POST /api/auth/sign-in/username",
+        "FALSCHES_PASSWORT",
+        1,
+        401,
+      ],
+      [
+        "sicherheit",
+        "POST /api/auth/two-factor/verify-totp",
+        "INVALID_CODE",
+        1,
+        401,
+      ],
+      ["sicherheit", "(begrenzt)", "ZU_VIELE", 1, 429],
+    ]);
+  });
+
+  test("angelegt: Kennung und Typ des neuen Objekts aus der Antwort, das Elternobjekt aus dem Pfad", async () => {
+    const neu = "33333333-3333-4333-8333-333333333333";
+    const { k, fertig } = kleineApp();
+    k.post("/api/v1/admin/tags", (c) => c.json({ id: neu }, 201));
+    k.post("/api/v1/admin/rechte/gruppen/:tagId/rollen", (c) =>
+      c.json({ id: neu, version: 1 }, 201),
+    );
+    await k.request("/api/v1/admin/tags", { method: "POST" });
+    await k.request(`/api/v1/admin/rechte/gruppen/${ID}/rollen`, {
+      method: "POST",
+    });
+    const [tag, rolle] = await fertig();
+    expect(tag).toMatchObject({
+      gruppe: "angelegt",
+      objektTyp: "tags",
+      objektId: neu,
+      aenderung: { direkt: true },
+    });
+    expect(rolle).toMatchObject({
+      gruppe: "angelegt",
+      objektTyp: "rollen",
+      objektId: neu,
+      aenderung: { direkt: true, eltern: { typ: "gruppen", id: ID } },
+    });
+  });
+
+  test("Löschen: der Name wird vor dem Löschen gelesen, Objekt und Elternobjekt", async () => {
+    const rolle = "44444444-4444-4444-8444-444444444444";
+    const { k, g, fertig } = kleineApp({ [ID]: "OK Kirmes", [rolle]: "Kasse" });
+    k.delete("/api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId", (c) =>
+      c.body(null, 204),
+    );
+    await k.request(`/api/v1/admin/rechte/gruppen/${ID}/rollen/${rolle}`, {
+      method: "DELETE",
+    });
+    expect(g.namenAbfragen).toEqual([
+      [
+        { typ: "gruppen", id: ID, elternTyp: undefined },
+        { typ: "rollen", id: rolle, elternTyp: "gruppen" },
+      ],
+    ]);
+    const [z] = await fertig();
+    expect(z).toMatchObject({
+      gruppe: "geloescht",
+      objektTyp: "rollen",
+      objektId: rolle,
+      objektName: "Kasse",
+      aenderung: { eltern: { typ: "gruppen", id: ID, name: "OK Kirmes" } },
+    });
+  });
+
+  test("Hinweis der Route: Rechte, vorher und nachher, nur sichere Werte", async () => {
+    const { k, fertig } = kleineApp();
+    k.patch("/api/v1/admin/raeume/:id", (c) => {
+      meldeAenderung(c, {
+        hinzu: ["raum.verwalten"],
+        weg: ["raum.team_zuweisen"],
+        vorher: { aktiv: true, name: "Geheim", notiz: "x" },
+        nachher: { aktiv: false },
+      });
+      return c.body(null, 204);
+    });
+    await k.request(`/api/v1/admin/raeume/${ID}`, {
+      ...json({ aktiv: false }),
+      headers: { "content-type": "application/json", "content-length": "16" },
+    });
+    const [z] = await fertig();
+    expect(z!.aenderung).toMatchObject({
+      hinzu: ["raum.verwalten"],
+      weg: ["raum.team_zuweisen"],
+      vorher: { aktiv: true },
+      nachher: { aktiv: false },
+    });
+    expect(JSON.stringify(z)).not.toContain("Geheim");
+  });
+});
+
+describe("Änderungsprotokoll mit Datenbank", () => {
+  test("eine Schreibaktion: Benutzerstempel, Muster, Feldnamen, Satz, keine Inhalte; das Audit-Log spiegelt Personen nicht doppelt", async () => {
     const benutzername = `person.${randomUUID().slice(0, 8)}`;
     const antwort = await anfrage(admin, "POST", "/api/v1/admin/personen", {
       vorname: "Geheimvorname",
@@ -189,15 +530,17 @@ describe("Middleware", () => {
     });
     expect(antwort.status).toBe(201);
     const zeilen = await zeilenVon(admin.id!);
-    const z = zeilen.find((r) => r.art === "aktion")!;
+    const z = zeilen.find((r) => r.aktion === "POST /api/v1/admin/personen")!;
     expect(z).toMatchObject({
-      aktion: "POST /api/v1/admin/personen",
+      art: "aktion",
       methode: "POST",
       bereich: "personen",
+      gruppe: "angelegt",
       status: 201,
       ergebnis: "erfolg",
       akteur: "person",
       abteilungId: welt.testabteilungId,
+      beschreibung: "Person angelegt",
       felder: [
         "admin",
         "benutzername",
@@ -211,109 +554,114 @@ describe("Middleware", () => {
     expect(z.name).toBeTruthy();
     expect(z.dauerMs).toBeGreaterThanOrEqual(0);
     expect(z.anfrageId).toBeTruthy();
+    // Aus dem Audit-Log derselben Anfrage: sein Name, aber keine zweite Zeile
+    expect(z.aenderung).toMatchObject({ audit: "person_angelegt" });
+    expect(zeilen.filter((r) => r.art === "audit")).toHaveLength(0);
     // Nichts vom Inhalt: weder Namen noch Benutzername noch Passwort
     const alles = JSON.stringify(zeilen);
     for (const geheim of ["Geheimvorname", "Geheimnachname", benutzername]) {
       expect(alles).not.toContain(geheim);
     }
-    // Die bestehende Audit-Zeile erscheint zusätzlich als Zeile «audit»
-    expect(
-      zeilen.some((r) => r.art === "audit" && r.aktion === "person_angelegt"),
-    ).toBe(true);
   });
 
-  test("Fehlerfall: Status, Code und Objekt aus dem Pfad", async () => {
-    const id = randomUUID();
-    const antwort = await anfrage(
-      admin,
-      "PATCH",
-      `/api/v1/admin/personen/${id}`,
-      {
-        admin: true,
-      },
-    );
-    expect(antwort.status).toBe(404);
-    const z = (await zeilenVon(admin.id!)).find(
-      (r) => r.aktion === "PATCH /api/v1/admin/personen/:id",
-    );
-    expect(z).toMatchObject({
-      aktion: "PATCH /api/v1/admin/personen/:id",
-      status: 404,
-      ergebnis: "fehler",
-      fehlerCode: "NICHT_GEFUNDEN",
-      objektTyp: "personen",
-      objektId: id,
-      felder: ["admin"],
+  test("Tag anlegen, umbenennen, löschen: der Name steht im Satz, auch nach dem Löschen", async () => {
+    const name = `OK ${randomUUID().slice(0, 6)}`;
+    const neu = await anfrage(admin, "POST", "/api/v1/admin/tags", {
+      typ: "team",
+      name,
     });
+    expect(neu.status).toBe(201);
+    const { id } = (await neu.json()) as { id: string };
+    const neuerName = `${name} neu`;
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/api/v1/admin/tags/${id}`, {
+          name: neuerName,
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (await anfrage(admin, "DELETE", `/api/v1/admin/tags/${id}`)).status,
+    ).toBe(204);
+    const sätze = (await zeilenVon(admin.id!))
+      .filter((z) => z.objektId === id)
+      .map((z) => [z.gruppe, z.beschreibung])
+      .reverse();
+    expect(sätze).toEqual([
+      ["angelegt", `Tag «${name}» angelegt`],
+      ["geaendert", `Tag «${neuerName}» umbenannt`],
+      ["geloescht", `Tag «${neuerName}» gelöscht`],
+    ]);
   });
 
-  test("ohne Anmeldung: anonym, mit gekürztem Hash der IP statt der IP", async () => {
+  test("Fehlschläge stehen nicht im Protokoll: 404, 403 und 401", async () => {
+    const vorher = (await zeilenVon(admin.id!)).length;
+    const id = randomUUID();
+    expect(
+      (
+        await anfrage(admin, "PATCH", `/api/v1/admin/personen/${id}`, {
+          admin: true,
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await anfrage(sl, "POST", "/api/v1/admin/tags", {
+          typ: "team",
+          name: "x",
+        })
+      ).status,
+    ).toBe(403);
     const ip = zufallsIp();
-    const antwort = await app.request("/api/v1/admin/personen", {
+    const ohne = await app.request("/api/v1/admin/personen", {
       method: "POST",
       headers: {
         "x-forwarded-for": ip,
         "content-type": "application/json",
         "content-length": "7",
-        "user-agent": "Mozilla/5.0 Firefox/120.0",
       },
       body: JSON.stringify({ a: 1 }),
     });
-    expect(antwort.status).toBe(401);
+    expect(ohne.status).toBe(401);
     await protokoll.leere();
-    const zeilen = await db
-      .select()
+    expect((await zeilenVon(admin.id!)).length).toBe(vorher);
+    const [{ n }] = await db
+      .select({ n: sql<number>`count(*)::int` })
       .from(schema.aktivitaet)
-      .where(
-        and(
-          eq(schema.aktivitaet.status, 401),
-          eq(schema.aktivitaet.herkunft, protokoll.herkunft(ip)!),
-        ),
-      );
-    expect(zeilen).toHaveLength(1);
-    expect(zeilen[0]).toMatchObject({
-      akteur: "anonym",
-      userId: null,
-      geraet: "Firefox",
-      fehlerCode: "NICHT_ANGEMELDET",
-    });
-    expect(zeilen[0]!.herkunft).toMatch(/^[0-9a-f]{12}$/);
-    expect(JSON.stringify(zeilen)).not.toContain(ip);
+      .where(eq(schema.aktivitaet.herkunft, protokoll.herkunft(ip)!));
+    expect(n).toBe(0);
   });
 
-  test("lesende Anfragen: nur der Zugriff auf Kinder- und Exportdaten", async () => {
+  test("lesende Anfragen und der Alltag: keine Zeile", async () => {
     const vorher = (await zeilenVon(admin.id!)).length;
     expect((await anfrage(admin, "GET", "/api/v1/ich")).status).toBe(200);
-    expect((await zeilenVon(admin.id!)).length).toBe(vorher);
     expect((await anfrage(admin, "GET", "/api/v1/admin/kinder")).status).toBe(
       200,
     );
-    const z = (await zeilenVon(admin.id!)).find(
-      (r) => r.aktion === "GET /api/v1/admin/kinder",
+    expect((await anfrage(admin, "GET", "/api/v1/admin/personen")).status).toBe(
+      200,
     );
-    expect(z).toMatchObject({
-      art: "zugriff",
-      aktion: "GET /api/v1/admin/kinder",
-      ergebnis: "erfolg",
-    });
+    expect((await zeilenVon(admin.id!)).length).toBe(vorher);
   });
 
-  test("Anmeldung: Erfolg mit Person, Fehlschlag mit Konto und innerem Grund, Abmelden", async () => {
+  test("Anmeldung: falsche Passwörter eines Kontos in einer Stunde werden eine Zeile mit Zahl, Erfolg und Abmelden stehen nirgends", async () => {
     const konto = await legePersonaAn(welt, "leitendeA");
     const kopf = () => ({
       "expo-origin": APP,
       "content-type": "application/json",
       "x-forwarded-for": zufallsIp(),
     });
-    const falsch = await app.request("/api/auth/sign-in/username", {
-      method: "POST",
-      headers: kopf(),
-      body: JSON.stringify({
-        username: konto.benutzername,
-        password: "falsch-falsch-1",
-      }),
-    });
-    expect(falsch.status).toBe(401);
+    for (let i = 0; i < 3; i++) {
+      const falsch = await app.request("/api/auth/sign-in/username", {
+        method: "POST",
+        headers: kopf(),
+        body: JSON.stringify({
+          username: konto.benutzername,
+          password: "falsch-falsch-1",
+        }),
+      });
+      expect(falsch.status).toBe(401);
+    }
     const ok = await app.request("/api/auth/sign-in/username", {
       method: "POST",
       headers: kopf(),
@@ -322,7 +670,6 @@ describe("Middleware", () => {
         password: konto.passwort,
       }),
     });
-    expect(ok.status).toBe(200);
     const cookie = ok.headers
       .getSetCookie()
       .map((c) => c.split(";")[0])
@@ -333,20 +680,48 @@ describe("Middleware", () => {
       body: "{}",
     });
     expect(aus.status).toBe(200);
-    const zeilen = (await zeilenVon(konto.id!)).filter(
-      (z) => z.art === "anmeldung",
-    );
-    expect(
-      zeilen.map((z) => [z.aktion, z.status, z.fehlerCode]).reverse(),
-    ).toEqual([
-      ["POST /api/auth/sign-in/username", 401, "INVALID_USERNAME_OR_PASSWORD"],
-      ["POST /api/auth/sign-in/username", 200, null],
-      ["POST /api/auth/sign-out", 200, null],
-    ]);
+    const zeilen = await zeilenVon(konto.id!);
+    // Keine Zeile für Erfolg oder Abmelden; die Fehlversuche zusammengezogen (nach Grund getrennt)
+    expect(zeilen.every((z) => z.art === "sicherheit")).toBe(true);
+    expect(zeilen.length).toBeLessThanOrEqual(2);
+    expect(zeilen.reduce((s, z) => s + (z.anzahl ?? 0), 0)).toBe(3);
+    expect(zeilen[0]).toMatchObject({
+      aktion: "POST /api/auth/sign-in/username",
+      status: 401,
+      ergebnis: "fehler",
+      gruppe: null,
+    });
+    expect(zeilen[0]!.fehlerCode).toBeTruthy();
     // Weder Benutzername noch Passwort stehen irgendwo
     const alles = JSON.stringify(zeilen);
     expect(alles).not.toContain(konto.benutzername!);
     expect(alles).not.toContain("falsch-falsch");
+    expect(
+      zeilen.some((z) =>
+        z.beschreibung?.startsWith("Anmeldung fehlgeschlagen"),
+      ),
+    ).toBe(true);
+  });
+
+  test("Sicherheit: höchstens so viele verschiedene Ereignisse je Stunde, der Rest zählt als verworfen", async () => {
+    const klein = erstelleAktivitaetsprotokoll(db, {
+      taktMs: null,
+      maxSicherheitProStunde: 2,
+    });
+    for (const h of ["a", "b", "c", "a"]) {
+      klein.erfasse({
+        zeit: new Date(),
+        art: "sicherheit",
+        akteur: "anonym",
+        herkunft: `h${h}`,
+        aktion: "POST /api/auth/sign-in/username",
+        bereich: "anmeldung",
+        ergebnis: "fehler",
+        anzahl: 1,
+      });
+    }
+    expect(klein.zaehler()).toMatchObject({ verworfen: 1 });
+    klein.stopp();
   });
 
   test("Puffer: über der Grenze fallen Zeilen weg, die Lücke steht als Systemzeile", async () => {
@@ -389,7 +764,7 @@ describe("Middleware", () => {
         akteur: "anonym",
         aktion: "POST /api/v1/x",
         bereich: "x",
-        ergebnis: "fehler",
+        ergebnis: "erfolg",
       });
     }
     expect(klein.zaehler()).toMatchObject({ puffer: 5, verworfen: 15 });
@@ -413,7 +788,65 @@ describe("Middleware", () => {
     kaputt.stopp();
   });
 
-  test("Trigger: eine Audit-Zeile wird eine Zeile «audit» mit Feldnamen, ohne Werte", async () => {
+  test("Audit-Angaben der Anfrage: Name der Audit-Aktion, Rechte neu und entzogen, einfache Werte, nie Namen", async () => {
+    const eigene = erstelleAktivitaetsprotokoll(db, { taktMs: null });
+    const zeit = new Date();
+    const ziel = randomUUID();
+    const aktion = `PATCH /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId`;
+    await db.insert(schema.auditLog).values([
+      {
+        abteilungId: welt.testabteilungId,
+        akteurId: admin.id!,
+        aktion: "gruppen_rolle_geaendert",
+        zielTyp: "gruppen_rolle",
+        zielId: ziel,
+        details: {
+          tagId: randomUUID(),
+          umbenannt: true,
+          hinzu: [{ recht: "anlass.bearbeiten", geltung: "alle" }],
+          weg: ["raum.verwalten"],
+          name: "Kassenwart Hans",
+        },
+      },
+    ]);
+    eigene.erfasse({
+      zeit,
+      art: "aktion",
+      userId: admin.id!,
+      akteur: "person",
+      methode: "PATCH",
+      aktion,
+      bereich: "rechte",
+      gruppe: "geaendert",
+      objektTyp: "rollen",
+      objektId: ziel,
+      status: 204,
+      dauerMs: 800,
+      ergebnis: "erfolg",
+      aenderung: { direkt: true },
+    });
+    await eigene.leere();
+    const [z] = await db
+      .select()
+      .from(schema.aktivitaet)
+      .where(
+        and(
+          eq(schema.aktivitaet.objektId, ziel),
+          eq(schema.aktivitaet.userId, admin.id!),
+        ),
+      );
+    expect(z!.aenderung).toMatchObject({
+      audit: "gruppen_rolle_geaendert",
+      hinzu: ["anlass.bearbeiten"],
+      weg: ["raum.verwalten"],
+      werte: { umbenannt: true },
+      direkt: true,
+    });
+    expect(JSON.stringify(z)).not.toContain("Kassenwart");
+    eigene.stopp();
+  });
+
+  test("Trigger: Audit-Zeilen von Personen werden nicht gespiegelt (die Anfrage steht schon da), von der Kommandozeile schon, mit Feldnamen ohne Werte", async () => {
     const aktion = `test_${randomUUID().slice(0, 8)}`;
     const ziel = randomUUID();
     await db.insert(schema.auditLog).values({
@@ -424,18 +857,33 @@ describe("Middleware", () => {
       zielId: ziel,
       details: { rolle: "geheimwert", anzahl: 3 },
     });
+    expect(
+      await db
+        .select()
+        .from(schema.aktivitaet)
+        .where(eq(schema.aktivitaet.aktion, aktion)),
+    ).toHaveLength(0);
+    const cli = `${aktion}_cli`;
+    await db.insert(schema.auditLog).values({
+      abteilungId: welt.testabteilungId,
+      akteurId: "cli",
+      aktion: cli,
+      zielTyp: "person",
+      zielId: ziel,
+      details: { rolle: "geheimwert", anzahl: 3 },
+    });
     const [z] = await db
       .select()
       .from(schema.aktivitaet)
-      .where(eq(schema.aktivitaet.aktion, aktion));
+      .where(eq(schema.aktivitaet.aktion, cli));
     expect(z).toMatchObject({
       art: "audit",
-      userId: admin.id,
+      akteur: "cli",
+      userId: null,
       objektTyp: "person",
       objektId: ziel,
       felder: ["anzahl", "rolle"],
     });
-    expect(z!.name).toBeTruthy();
     expect(JSON.stringify(z)).not.toContain("geheimwert");
   });
 });
@@ -518,9 +966,12 @@ describe("GET /api/v1/admin/protokoll", () => {
       titel: string;
       bereich: string;
       ergebnis: string;
+      gruppe: string | null;
+      beschreibung: string;
       benutzer: { id: string | null; name: string | null; rollen: string[] };
-      objekt: { typ: string; id: string } | null;
+      objekt: { typ: string; id: string; name: string | null } | null;
       felder: string[] | null;
+      anzahl: number | null;
     }[];
     weitere: boolean;
     naechste: string | null;
@@ -546,12 +997,39 @@ describe("GET /api/v1/admin/protokoll", () => {
         methode: "PATCH",
         aktion: `PATCH /api/v1/admin/seed${seed}/:id`,
         bereich: `seed${seed}`,
+        gruppe: i % 3 === 0 ? "angelegt" : "geaendert",
+        beschreibung: `Seed-Änderung ${i}`,
         objektTyp: "seed",
         objektId: i === 0 ? "00000000-0000-4000-8000-000000000001" : undefined,
-        status: i % 3 === 0 ? 500 : 204,
-        ergebnis: i % 3 === 0 ? ("fehler" as const) : ("erfolg" as const),
+        objektName: i === 0 ? `Objekt ${seed}` : undefined,
+        status: 204,
+        ergebnis: "erfolg" as const,
       })),
     );
+    // Sicherheitsereignisse im selben Bereich: nur mit art=sicherheit sichtbar
+    await db.insert(schema.aktivitaet).values([
+      {
+        art: "sicherheit" as const,
+        abteilungId: welt.testabteilungId,
+        akteur: "anonym" as const,
+        aktion: "POST /api/auth/sign-in/username",
+        bereich: `seed${seed}`,
+        status: 401,
+        ergebnis: "fehler" as const,
+        fehlerCode: "INVALID_USERNAME_OR_PASSWORD",
+        anzahl: 4,
+      },
+      {
+        art: "sicherheit" as const,
+        abteilungId: welt.testabteilungId,
+        akteur: "anonym" as const,
+        aktion: "(begrenzt)",
+        bereich: `seed${seed}`,
+        status: 429,
+        ergebnis: "fehler" as const,
+        anzahl: 1,
+      },
+    ]);
     // Eine Zeile der anderen Abteilung
     await db.insert(schema.aktivitaet).values({
       art: "aktion",
@@ -562,7 +1040,7 @@ describe("GET /api/v1/admin/protokoll", () => {
     });
   });
 
-  test("Entwickler mit zweitem Faktor liest; der Zugriff steht selbst im Protokoll", async () => {
+  test("Entwickler mit zweitem Faktor liest; das Lesen erzeugt keine Zeile; Sicherheit ist ausgeblendet", async () => {
     const { status, body } = await liste(entwickler, `?bereich=seed${seed}`);
     expect(status).toBe(200);
     expect(body.eintraege).toHaveLength(7);
@@ -574,10 +1052,12 @@ describe("GET /api/v1/admin/protokoll", () => {
         rollen: ["leitung"],
       },
     });
+    // Nur Änderungen: die zwei Sicherheitszeilen fehlen
+    expect(body.eintraege.every((e) => e.art === "aktion")).toBe(true);
     const zugriffe = (await zeilenVon(entwickler.id!)).filter(
-      (z) => z.art === "zugriff" && z.aktion === `GET ${BASIS}`,
+      (z) => z.aktion === `GET ${BASIS}`,
     );
-    expect(zugriffe.length).toBeGreaterThan(0);
+    expect(zugriffe).toHaveLength(0);
   });
 
   test("alle anderen: Abteilungsleitung, Stufenleitung 403, ohne Anmeldung 401", async () => {
@@ -636,14 +1116,30 @@ describe("GET /api/v1/admin/protokoll", () => {
     expect(await detail.json()).toMatchObject({ id, bereich: `seed${seed}` });
   });
 
-  test("Filter: Ergebnis, Benutzer (Kennung und Namensteil), Objekt, Freitext, Art, Zeitraum", async () => {
+  test("Filter: Gruppe, Art, Benutzer (Kennung und Namensteil), Objekt, Freitext, Zeitraum", async () => {
     const b = `bereich=seed${seed}`;
     expect(
-      (await liste(entwickler, `?${b}&ergebnis=fehler`)).body.eintraege,
+      (await liste(entwickler, `?${b}&gruppe=angelegt`)).body.eintraege,
     ).toHaveLength(3);
     expect(
-      (await liste(entwickler, `?${b}&ergebnis=erfolg`)).body.eintraege,
+      (await liste(entwickler, `?${b}&gruppe=geaendert`)).body.eintraege,
     ).toHaveLength(4);
+    // Sicherheit nur auf Verlangen, und dann nur sie
+    const sicherheit = (await liste(entwickler, `?${b}&art=sicherheit`)).body
+      .eintraege;
+    expect(sicherheit.every((e) => e.art === "sicherheit")).toBe(true);
+    expect(sicherheit.map((e) => e.beschreibung).sort()).toEqual([
+      "Anmeldung fehlgeschlagen, 4-mal",
+      "Zu viele Anfragen, Begrenzung ausgelöst",
+    ]);
+    // Der Filter «Ergebnis» gibt es nicht mehr
+    expect(
+      (await anfrage(entwickler, "GET", `${BASIS}?${b}&ergebnis=fehler`))
+        .status,
+    ).toBe(400);
+    expect(
+      (await liste(entwickler, `?${b}&q=Objekt ${seed}`)).body.eintraege,
+    ).toHaveLength(1);
     expect(
       (await liste(entwickler, `?${b}&benutzer=${entwickler.id}`)).body
         .eintraege,
@@ -672,11 +1168,17 @@ describe("GET /api/v1/admin/protokoll", () => {
       (await liste(entwickler, `?${b}&q=seed${seed}`)).body.eintraege,
     ).toHaveLength(7);
     expect(
+      (await liste(entwickler, `?${b}&q=Seed-Änderung 3`)).body.eintraege,
+    ).toHaveLength(1);
+    expect(
       (await liste(entwickler, `?${b}&q=gibtsnicht`)).body.eintraege,
     ).toHaveLength(0);
     expect(
       (await liste(entwickler, `?${b}&art=system`)).body.eintraege,
     ).toHaveLength(0);
+    expect(
+      (await liste(entwickler, `?${b}&art=aenderung`)).body.eintraege,
+    ).toHaveLength(7);
     const heute = new Date().toLocaleDateString("sv-SE", {
       timeZone: "Europe/Zurich",
     });
@@ -739,12 +1241,34 @@ describe("GET /api/v1/admin/protokoll", () => {
     );
     expect(antwort.status).toBe(200);
     const body = (await antwort.json()) as {
-      punkte: { start: string; gesamt: number; fehler: number }[];
+      punkte: { start: string; gesamt: number }[];
       bereiche: { bereich: string; gesamt: number }[];
-      summe: { gesamt: number; fehler: number };
+      summe: {
+        gesamt: number;
+        heute: number;
+        sieben: number;
+        personen: number;
+        sicherheit: number;
+      };
     };
     expect(body.punkte).toHaveLength(1);
-    expect(body.summe).toEqual({ gesamt: 7, fehler: 3 });
+    // Nur die sieben Änderungen; die fünf Sicherheitsereignisse (4 + 1) stehen gesondert
+    expect(body.summe).toEqual({
+      gesamt: 7,
+      heute: 7,
+      sieben: 7,
+      personen: 1,
+      sicherheit: 5,
+    });
+    expect(body.punkte[0]).not.toHaveProperty("fehler");
+    const sicher = (await (
+      await anfrage(
+        entwickler,
+        "GET",
+        `${BASIS}/verlauf?bereich=seed${seed}&art=sicherheit&einheit=tag`,
+      )
+    ).json()) as { summe: { gesamt: number } };
+    expect(sicher.summe.gesamt).toBe(5);
     expect(body.bereiche[0]).toMatchObject({
       bereich: `seed${seed}`,
       gesamt: 7,
@@ -796,7 +1320,7 @@ describe("GET /api/v1/admin/protokoll", () => {
     expect(antwort.headers.get("content-type")).toContain("text/csv");
     const text = await antwort.text();
     const zeilen = text.split("\r\n");
-    expect(zeilen[0]).toContain("zeit,art,benutzer_id");
+    expect(zeilen[0]).toContain("zeit,art,benutzer_id,rollen,beschreibung");
     expect(zeilen).toHaveLength(2);
     expect(text).not.toContain("Sichtbarer Name");
     expect(text).not.toContain("abcdef123456");
@@ -847,29 +1371,15 @@ describe("GET /api/v1/admin/protokoll", () => {
 });
 
 describe("Routenmuster", () => {
-  test("das Muster der ausgeführten Route, nicht einer später passenden (/verlauf vor /:id)", async () => {
-    const detail = (await zeilenVon(entwickler.id!)).filter(
-      (z) => z.aktion === "GET /api/v1/admin/protokoll/:id",
-    ).length;
-    expect(
-      (await anfrage(entwickler, "GET", "/api/v1/admin/protokoll/verlauf"))
-        .status,
-    ).toBe(200);
-    const danach = await zeilenVon(entwickler.id!);
-    expect(
-      danach.filter((z) => z.aktion === "GET /api/v1/admin/protokoll/:id")
-        .length,
-    ).toBe(detail);
-  });
-
-  test("unbekannte Pfade: kein Pfad im Protokoll, nur «(unbekannte Route)»", async () => {
+  test("unbekannte Pfade: keine Zeile, kein Pfad im Protokoll", async () => {
     const geheim = `geheim-${randomUUID()}`;
     expect(
       (await anfrage(admin, "POST", `/api/v1/${geheim}`, { a: 1 })).status,
     ).toBe(404);
     const zeilen = await zeilenVon(admin.id!);
-    const z = zeilen.find((r) => r.aktion === "POST (unbekannte Route)");
-    expect(z).toMatchObject({ status: 404, bereich: "sonstiges" });
+    expect(zeilen.some((r) => r.aktion === "POST (unbekannte Route)")).toBe(
+      false,
+    );
     expect(JSON.stringify(zeilen)).not.toContain(geheim);
   });
 });
@@ -877,8 +1387,17 @@ describe("Routenmuster", () => {
 describe("Konto löschen heisst vergessen", () => {
   test("mit dem Konto verlieren die Zeilen Kennung, Name und Funktionen; die Zeilen bleiben", async () => {
     const konto = await legePersonaAn(welt, "leitendeA");
-    const ziel = randomUUID();
-    await anfrage(konto, "PATCH", `/api/v1/admin/personen/${ziel}`, { a: 1 });
+    await db.insert(schema.aktivitaet).values({
+      art: "aktion",
+      abteilungId: welt.testabteilungId,
+      userId: konto.id!,
+      akteur: "person",
+      name: "Wird vergessen",
+      rollen: ["leitung"],
+      aktion: "PATCH /api/v1/admin/tags/:id",
+      bereich: "tags",
+      ergebnis: "erfolg",
+    });
     const vorher = await zeilenVon(konto.id!);
     expect(vorher.length).toBeGreaterThan(0);
     expect(vorher[0]!.name).toBeTruthy();

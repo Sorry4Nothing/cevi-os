@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { auditLog, raum } from "../../db/schema.js";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import { eingabe } from "../../eingabe.js";
 import { tagsGehoerenZurAbteilung } from "../../sichtbarkeit.js";
 import { verlange } from "../../rechtemodell/darf.js";
@@ -183,6 +184,13 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
         try {
           await db.transaction(async (tx) => {
             await tx.update(raum).set(aenderung).where(eq(raum.id, id));
+            // Für das Änderungsprotokoll: Aktiv oder deaktiviert, vorher und nachher
+            if (b.aktiv !== undefined && b.aktiv !== ziel.aktiv) {
+              meldeAenderung(c, {
+                vorher: { aktiv: ziel.aktiv },
+                nachher: { aktiv: b.aktiv },
+              });
+            }
             // Welche Angaben, nie die Werte
             await tx.insert(auditLog).values({
               abteilungId: person.abteilungId,
