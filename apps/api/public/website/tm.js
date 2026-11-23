@@ -1,6 +1,8 @@
 // Gemeinsame Bausteine der Seiten Termine, Termin vorschlagen, Anlass und Anlass-Anmeldung (#530).
 // Eine Ansicht ist eine reine Funktion von Daten zu einer Beschreibung (h), die baue() zu DOM-Knoten macht: Text wird nie als HTML gelesen, es gibt kein innerHTML. So lassen sich die Zustände ohne Browser testen (html()).
 
+import { FRIST_MS, holeMitFrist } from "./ui.js";
+
 const SVG = "http://www.w3.org/2000/svg";
 const SVG_TAGS = new Set(["svg", "path", "circle", "rect"]);
 const LEER = new Set(["input", "br"]);
@@ -170,14 +172,9 @@ export const fehlerView = (
     ),
   });
 
-// Skeleton-Lader: Der Rahmen ist für Hilfstechnik versteckt, ein Text meldet das Laden. «ladeText» steht in einer Live-Region
+// Skeleton-Lader (#574): derselbe Baustein wie skelett() in ui.js, hier als Beschreibung. Der Rahmen ist für Hilfstechnik versteckt, die Ansage steht in der Statusregion (melde)
 export const skelett = (...zeilen) =>
-  h(
-    "div",
-    { class: "skel", "aria-hidden": "true" },
-    zeilen,
-    h("span", { class: "schimmer" }),
-  );
+  h("div", { class: "skelett", "aria-hidden": "true" }, zeilen);
 // Ein Platzhalterbalken: Klassen für Breite (b30 bis b100) und Höhe (h20 bis h56), nie ein style-Attribut (CSP)
 export const sk = (klassen) => h("span", { class: `sk ${klassen}` });
 
@@ -186,16 +183,21 @@ export const sk = (klassen) => h("span", { class: `sk ${klassen}` });
 export async function api(pfad, { methode = "GET", body } = {}) {
   let antwort;
   try {
-    antwort = await fetch(`/api/v1${pfad}`, {
-      method: methode,
-      credentials: "same-origin",
-      cache: "no-store",
-      headers: {
-        Accept: "application/json",
-        ...(body !== undefined && { "Content-Type": "application/json" }),
+    // Mit Frist: Nichts bleibt für immer im Ladezustand (Abrufe 15 s, Änderungen 30 s)
+    antwort = await holeMitFrist(
+      `/api/v1${pfad}`,
+      {
+        method: methode,
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          ...(body !== undefined && { "Content-Type": "application/json" }),
+        },
+        ...(body !== undefined && { body: JSON.stringify(body) }),
       },
-      ...(body !== undefined && { body: JSON.stringify(body) }),
-    });
+      methode === "GET" ? FRIST_MS : 2 * FRIST_MS,
+    );
   } catch {
     return {
       status: 0,
@@ -413,4 +415,18 @@ export function bestaetige(
 export function melde(doc, t) {
   const r = doc.getElementById("tm-status");
   if (r) r.textContent = t;
+}
+
+// Ruhige Ansage des Ladens (#574): erst wenn es länger als 700 ms dauert, und nur einmal. Ein schneller Abruf braucht sie nicht, das Ergebnis meldet melde().
+// Gibt die Funktion zurück, die die Ansage zurücknimmt (beim Eintreffen der Antwort; eine schon gesagte Ansage wird geleert, das Ergebnis folgt danach)
+export function ladeAnsage(doc, t) {
+  let gesagt = false;
+  const timer = setTimeout(() => {
+    gesagt = true;
+    melde(doc, t);
+  }, 700);
+  return () => {
+    clearTimeout(timer);
+    if (gesagt) melde(doc, "");
+  };
 }

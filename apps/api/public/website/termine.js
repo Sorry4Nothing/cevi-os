@@ -10,6 +10,7 @@ import {
   h,
   heute,
   icon,
+  ladeAnsage,
   melde,
   MONAT,
   MONAT_KURZ,
@@ -233,7 +234,7 @@ export function listeLadeView() {
     h(
       "li",
       { class: "termin", "aria-hidden": "true" },
-      h("span", { class: "datum sk" }),
+      h("span", { class: "sk datum-skelett" }),
       h(
         "span",
         {},
@@ -248,16 +249,14 @@ export function listeLadeView() {
     h("span", { class: "sk h24 b40", "aria-hidden": "true" }),
     h(
       "div",
-      { class: "skel" },
+      { class: "skelett", "aria-hidden": "true" },
       h("ul", { class: "termine" }, [
         zeile("b50", "b70"),
         zeile("b40", "b60"),
         zeile("b50", "b70"),
         zeile("b40", "b60"),
       ]),
-      h("span", { class: "schimmer" }),
     ),
-    h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );
 }
 
@@ -583,24 +582,50 @@ export function monatView(
   );
 }
 
+// Das Skelett des Monats hat die Form des Kalenders: Kopf, Wochentage, 42 Zellen und das Tagesfeld (#574)
 export function monatLadeView(monat) {
   return h(
     "div",
     { "aria-busy": "true" },
     h(
       "div",
-      { class: "abschnitt-kopf" },
-      h("h2", { class: "monat-titel" }, monatTitel(monat)),
+      { class: "kal skelett" },
+      h(
+        "section",
+        { class: "kal-karte", "aria-hidden": "true" },
+        h(
+          "div",
+          { class: "kal-kopf" },
+          h(
+            "div",
+            {},
+            h("h2", { class: "monat-titel" }, monatTitel(monat)),
+            sk("t bpx160"),
+          ),
+          h("div", { class: "kal-nav" }, sk("h48 bpx70")),
+        ),
+        h(
+          "div",
+          { class: "kal-wochentage" },
+          WOCHENTAG_KURZ.slice(1)
+            .concat("So")
+            .map((w) => h("span", {}, w)),
+        ),
+        h(
+          "div",
+          { class: "kal-skelett-tage" },
+          Array.from({ length: 42 }, () =>
+            h("span", { class: "sk kal-zelle" }),
+          ),
+        ),
+      ),
+      h(
+        "section",
+        { class: "kal-tagfeld", "aria-hidden": "true" },
+        h("div", { class: "kal-tagkopf" }, sk("t h24 b60"), sk("t b40")),
+        h("div", { class: "kal-termine" }, sk("h56 b100"), sk("h56 b100 mt")),
+      ),
     ),
-    h(
-      "div",
-      { class: "skel" },
-      h("span", { class: "sk h56 b100" }),
-      h("span", { class: "sk h56 b100 mt" }),
-      h("span", { class: "sk h56 b100 mt" }),
-      h("span", { class: "schimmer" }),
-    ),
-    h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );
 }
 
@@ -998,6 +1023,7 @@ function start(doc, wurzel) {
     knopf.tabIndex = 0;
   };
 
+  let stoppeAnsage = () => {};
   async function lade(nach) {
     const { von, bis, key } = schluessel();
     const bisher = speicher.get(key);
@@ -1005,6 +1031,8 @@ function start(doc, wurzel) {
     const nummer = ++zaehler;
     if (!nach) speicher.set(key, { tab: s.tab, status: "laedt" });
     zeichne();
+    stoppeAnsage();
+    if (!nach) stoppeAnsage = ladeAnsage(doc, "Termine werden geladen.");
     const q = new URLSearchParams({
       von,
       bis,
@@ -1021,6 +1049,7 @@ function start(doc, wurzel) {
       r = await planAntwort(von, bis);
     }
     if (nummer !== zaehler) return;
+    stoppeAnsage();
     let eintrag;
     if (r.status === 200) {
       eintrag = {

@@ -4,7 +4,7 @@
 // Abfragen: beim Laden einmal GET /laden (prüft die Sitzung; ohne Sitzung 401) und mit Sitzung GET /laden/bestellungen/meine; danach nur bei einer Handlung. Bis die Antwort da ist, bleiben die Bedienelemente verborgen (kein Flackern). Preise und Summe rechnet beim Bestellen der Server, die Anzeige hier ist die Vorschau.
 // Ansichten sind reine Funktionen von Daten zu einer Beschreibung (tm.js: h, baue): kein innerHTML, kein style-Attribut (CSP). Stil: laden.css. Auswahlfelder wertet auswahl.js auf.
 import "./auswahl.js";
-import { api, bandView, baue, h, loginLink } from "./tm.js";
+import { api, bandView, baue, h, loginLink, sk, skelett } from "./tm.js";
 
 const SPEICHER = "laden-korb";
 // Nach der Anmeldung geht der Artikel («a:<id>») oder die Bestellübersicht («1») wieder auf
@@ -942,11 +942,25 @@ export function uebersichtView(z) {
   );
 }
 
-// «Deine Bestellungen» unter dem Laden, nur mit Sitzung. Zustände lädt, leer und Fehler sind bewusst einfach: Hier setzt das gemeinsame System für Ladezustände (#567) an
+// «Deine Bestellungen» unter dem Laden, nur mit Sitzung. Laden: Skelett in der Form zweier Bestellungen (gemeinsamer Baustein der Ladezustände, #574)
 export function bestellungenView(b) {
   const titel = h("h2", { id: "laden-bestellungen-t" }, "Deine Bestellungen");
   if (b.zustand === "lade") {
-    return [titel, h("p", { class: "meta", role: "status" }, "Lädt …")];
+    return [
+      titel,
+      h(
+        "div",
+        { "aria-busy": "true" },
+        skelett(
+          sk("t h24 b40"),
+          sk("t b90"),
+          sk("h56 b100 mt"),
+          sk("t h24 b40 mt"),
+          sk("t b70"),
+          sk("h56 b100 mt"),
+        ),
+      ),
+    ];
   }
   if (b.zustand === "fehler") {
     return [
@@ -1287,9 +1301,15 @@ function start(doc, wurzel) {
       b.zustand = "lade";
       zeichneListe();
     }
+    // Ruhige Ansage erst, wenn es dauert; eine schnelle Antwort sagt nichts
+    const ansage = setTimeout(
+      () => sage("Deine Bestellungen werden geladen."),
+      700,
+    );
     const r = await api(
       `/laden/bestellungen/meine${mehr && b.naechste ? `?nach=${b.naechste}` : ""}`,
     );
+    clearTimeout(ansage);
     if (r.status !== 200) {
       b.zustand = "fehler";
     } else {

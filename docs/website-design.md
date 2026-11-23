@@ -104,25 +104,43 @@ Kontraste (Text mindestens 4.5:1, Ränder und Fokus mindestens 3:1) sind in den 
 
 `symbol(name)` aus `src/website/symbole.ts` liefert ein Inline-SVG als `HtmlKnoten` (`info`, `warnung`, `schloss`, `person`, `menue`, `schliessen`, `nochmals`, `auge`, `auge-zu`, `sonne`, `mond`, `gruppe`, `zelt`, `kalender`, `stern`, `herz`, `ort`, `pfeil`, `dreieck`). Der Satz ist eigens gezeichnet (24er Raster) und folgt einer Logik: Linien 2 px mit geraden Enden und spitzen Ecken, Formen aus Gerade, Kreis und Bogen; was eine Richtung zeigt oder betont, ist ein gefülltes Dreieck oder Quadrat (das Dreieck ist die Form des Cevi-Zeichens). Ein Symbol steht nur, wo es etwas beiträgt: Telefon und E-Mail der Kontaktkarte tragen ihre Art als Wort. Das Skript für geschützte Bausteine kennt keine SVG-Elemente (`knoten.js`); geschützte Bausteine tragen darum keine Symbole. Skripte erzeugen dieselben Formen mit `symbol()` aus `website/ui.js`.
 
-### Skeleton (Grundlagen G3)
+### Ladezustände (#574)
 
-Wo Daten nachgeladen werden, steht ein formgleicher Platzhalter:
+Ein Baustein für alles, was lädt: CSS in `website.css` (Abschnitt «Ladezustände»), Hilfen in `website/ui.js` (DOM) und `website/tm.js` (Beschreibung `h()`), für Bilder das klassische Skript `website/ladezustand.js` im `<head>`. Farben nur aus `--skeleton` und `--skeleton-highlight` (Tag und Nacht).
+
+**Skelett.** Eine Fläche in der Form des späteren Inhalts. `skelett("t h24 b40", "t b90")` (`ui.js`) und `skelett(sk(…))` (`tm.js`) bauen denselben Behälter `.skelett` mit Teilen `.sk`; Breite `b30` bis `b100` (Prozent) und `bpx70`, `bpx160`, Höhe `h20` bis `h56`, `t` für eine Textzeile, `r` für rund, nie ein `style`-Attribut.
 
 ```html
-<div class="skel-rahmen" aria-busy="true">
-  <div class="skel karte" aria-hidden="true">
-    <span class="sk k w40"></span>
-    <span class="sk t w90"></span>
-    <span class="sk t w60"></span>
-    <span class="schimmer"></span>
+<div aria-busy="true">
+  <div class="skelett" aria-hidden="true">
+    <span class="sk t h24 b40"></span>
+    <span class="sk t b90"></span>
   </div>
 </div>
-<p class="nur-sr" role="status">Lädt …</p>
 ```
 
-- Die Information liefert die Live-Region, das Skeleton ist `aria-hidden`.
-- Es erscheint erst nach 200 ms (kein Flackern), der Schimmer läuft nur mit erlaubter Bewegung.
-- Nach 4 Sekunden steht «Das dauert länger als sonst.», nach 15 Sekunden der Fehlerzustand mit «Nochmals versuchen» (`geschuetzt.js`).
+Regeln, die für jedes Skelett gelten:
+
+- **Kein Aufblitzen:** Es erscheint erst nach 150 ms (`--skelett-verzoegerung`, eine Animation mit Verzögerung). Eine schnelle Antwort zeigt kein Skelett.
+- **Ruhig:** Ein heller Streifen läuft über das ganze Fenster und leuchtet dort auf, wo ein Skelett liegt; alle Skelette teilen sich dieselbe Welle (`background-attachment: fixed`). Der Streifen ist der einzige Verlauf der Website und gehört zum Skelett. Bei «Bewegung reduzieren» steht das Skelett still und getönt, ohne Streifen; nur die Verzögerung bleibt (0.01 s, sie bewegt nichts; ein Test prüft, dass ausserhalb von `no-preference` nur diese Animation steht). Erzwungene Farben: Rand statt Hintergrund.
+- **Für Hilfstechnik:** Das Skelett ist `aria-hidden`, der Bereich trägt `aria-busy="true"`. Die Ansage steht in der Statusregion der Seite (`#tm-status`, `ladeAnsage()` in `tm.js`): erst nach 700 ms, einmal, und sie wird geleert, bevor das Ergebnis folgt («117 Termine geladen.», «Das hat nicht geklappt.»). Ein schneller Abruf sagt nichts.
+- **Nichts bleibt für immer im Ladezustand:** `holeMitFrist()` (`ui.js`) bricht nach 15 s ab (Änderungen 30 s); `api()` in `tm.js` und die Anmeldung nutzen es. Dann gilt der Fehlerzustand mit «Nochmals versuchen». `geschuetzt.js` hat zusätzlich den Hinweis nach 4 s.
+- **Ohne Skript** gibt es keine Skelette: Der Inhalt steht im HTML (Termin-Liste des Datenplans, Bilder).
+
+Wo es angewendet ist: Termin-Liste (vier Zeilen mit Datumsfeld, Titel, Meta, Chips), Monat (Kopf, Wochentage, 42 Zellen, Tagesfeld), «Mein Kalender» und Kalender-Link, Anlass, Anmeldung (Konto-Daten), Terminvorschlag (Gruppen), geschützte Bausteine, Knöpfe beim Senden (`.btn .lade` mit «Sende …», «Melde an …»), Bilder. Der Laden (`laden.js`, #566) hängt noch nicht in dieser Kette: Raster, Artikelfenster und Warenkorb nutzen später dieselben Teile.
+
+**Bilder.** `ladezustand.js` steht klassisch im `<head>` (neben `theme.js`, beide zusammen in `THEMA_SKRIPT_TAG`) und setzt die Klasse `ladebild` auf `<html>`, erst wenn es läuft. Danach gilt für jedes `<img>` ohne Marke (Logo, Hero und Titelbild, Bildkarten, Stufenkarten, Karussell, Galerie, Zeitstrahl):
+
+- **Form von Anfang an:** Der Platz kommt aus `width` und `height` (das Seitenverhältnis) und den `aspect-ratio`-Regeln der Bausteine; nichts springt. Das Bild trägt dazu die Fläche des Skeletts, sein Inhalt bleibt verborgen (`object-position: -9999px`), bis es ganz da ist: kein zeilenweiser Aufbau.
+- **Marken:** `data-da` (geladen) oder `data-fehlt`. Ein Bild aus dem Cache wird sofort markiert und blendet nicht ein; kam es langsam (Ladezeit ab 150 ms), blendet es per Web-Animation vom Ton des Skeletts aus ein (0.5 s, `filter`, kommt den Animationen und Übergängen der Bausteine nicht in die Quere), bei «Bewegung reduzieren» nie.
+- **Nicht geladen:** Das Skript tauscht die Quelle gegen `website/bild-fehlt.svg` (die echte steht in `data-quelle`, der Alt-Text bleibt). Der Browser zeigt so nie sein kaputtes Bild-Symbol, sondern eine ruhige Fläche in der Form des Bildes mit gestricheltem Rand (Zustand nicht nur über Farbe) und einer Landschaft als Zeichen; wo eine Bildunterschrift steht (Karussell, Galerie), nennt sie das Bild. Kommt das Netz zurück (`online`), holt das Skript die Bilder noch einmal.
+- **Grossansicht:** Das Bild der Grossansicht (`lichtkasten.js`) bekommt dasselbe Skelett über `data-laedt`, in einem Ton, der auf dem dunklen Grund nicht grell ist (`lichtkasten.css`).
+- `loading="lazy"` steht nur bei Bildern weit unten; die ersten Abschnitte laden sofort, das Titelbild mit Vorrang.
+- Nicht gebaut: winzige Farb-Platzhalter aus dem Bild (sie bräuchten eine Spalte oder ein Dekodieren im Abgleich; das Skelett in Bildform genügt).
+
+### Seitenwechsel (#574)
+
+`@view-transition { navigation: auto; types: seite; }` in `website.css` (nur bei «Bewegung erlaubt»): Beim Wechsel zwischen zwei Seiten der Website blendet der Inhalt in 0.2 s ineinander über. Der Kopf hat eine eigene Gruppe (`view-transition-name: kopf`) und steht still; nur das Zeichen der aktuellen Seite und das Untermenü wechseln. Hell und Dunkel (`theme.js`) behalten ihre 0.5 s. Wo der Browser es nicht kennt, wechselt die Seite wie immer. Geprüft in Chromium: Kopf stabil, kein Fehler in der Konsole, bei zwei von zehn schnellen Klicks blieb es beim normalen Seitenwechsel.
 
 ## Gestaltung der Seiten (#555)
 
@@ -165,7 +183,7 @@ Termin-Zeilen bekommen beim Zeigen eine ruhige Fläche als eigene Schicht hinter
 
 ### Bewegung
 
-Eine Kurve und zwei Dauern gelten für alles: `--kurve`, `--dauer` (0.2 s, Zeigen und Drücken) und `--dauer-lang` (0.5 s, Einblenden und Wechsel). Jede Bewegung steht im Block «Bewegung (#555)» am Ende von `website.css` und gilt nur am Bildschirm und ohne «Bewegung reduzieren» (`@media screen and (prefers-reduced-motion: no-preference)`); ein Test prüft, dass ausserhalb kein `animation` und kein `transition` steht. Der Ruhezustand ist immer der sichtbare: Läuft eine Animation nicht (älterer Browser, Druck, kein Skript), steht der Inhalt da.
+Eine Kurve und zwei Dauern gelten für alles: `--kurve`, `--dauer` (0.2 s, Zeigen und Drücken) und `--dauer-lang` (0.5 s, Einblenden und Wechsel). Jede Bewegung steht im Block «Bewegung (#555)» am Ende von `website.css` und gilt nur am Bildschirm und ohne «Bewegung reduzieren» (`@media screen and (prefers-reduced-motion: no-preference)`); ein Test prüft, dass ausserhalb kein `animation` und kein `transition` steht (einzige Ausnahme: die Verzögerung der Skelette von 0.01 s, siehe «Ladezustände»). Der Ruhezustand ist immer der sichtbare: Läuft eine Animation nicht (älterer Browser, Druck, kein Skript), steht der Inhalt da.
 
 - Beim Laden: Das Titelbild setzt sich, die Fahne kommt von links, der Text folgt.
 - Beim Scrollen: Titel, Karten und Zeilen steigen kurz auf, sobald sie ins Fenster kommen. Reines CSS (`animation-timeline: view()` in `@supports`), kein Skript; lange Texte bewegen sich nicht. Für eigene Bausteine: Klasse `einblenden`.

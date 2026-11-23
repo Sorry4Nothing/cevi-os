@@ -133,7 +133,7 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 
 Gilt für `/termine`, `/termine/vorschlagen`, `/anlass` und `/anlass/anmeldung` zusätzlich zu 11.1 bis 11.11.
 
-- [ ] **11.40** Jeder Zustand ist Text mit Symbol, nie nur Farbe: Laden (`aria-busy`, «Lädt …» in einer Live-Region, Skeleton `aria-hidden`), leer, Fehler mit «Nochmals versuchen» (`role="alert"`), nicht angemeldet mit Link «Anmelden», kein Zugriff. «Abgesagt» und «Noch unklar» stehen als Wort im Etikett.
+- [ ] **11.40** Jeder Zustand ist Text mit Symbol, nie nur Farbe: Laden (`aria-busy`, Ansage in der Statusregion erst nach 700 ms und einmal, Skeleton `aria-hidden`), leer, Fehler mit «Nochmals versuchen» (`role="alert"`), nicht angemeldet mit Link «Anmelden», kein Zugriff. «Abgesagt» und «Noch unklar» stehen als Wort im Etikett.
 - [ ] **11.41** Reiter «Alle» und «Mein Kalender»: `role="tab"` mit `aria-selected`, Pfeiltasten, Pos1 und Ende wechseln; ohne Sitzung ist «Mein Kalender» `aria-disabled`, und in der Zeile der Reiter steht das Angebot «Nur die Termine deiner Gruppen sehen?» mit dem Link «Anmelden» (#564). Der öffentliche Datenplan (Liste und Monat) ist ohne Anmeldung und als Liste auch ohne Skript lesbar.
 - [ ] **11.42** Der Termin ist ein Link mit sprechendem Namen (Wochentag, Datum, Titel, Zeit, Ort, Gruppen). Der Monat (#564) ist ein Kalender mit Tagesfeld: Jeder Tag ist eine Schaltfläche mit Namen («Samstag, 13. März, 6 Termine»), der gewählte trägt `aria-pressed`, heute `aria-current="date"`. Genau ein Tag steht in der Tab-Reihenfolge; Pfeiltasten gehen einen Tag oder eine Woche, Pos1 und Ende an den Rand der Woche, Bild auf und ab einen Monat (mit Umschalt ein Jahr), der Fokus bleibt beim Monatswechsel auf dem Tag. Eingabe, Leertaste, Klick oder Finger wählen den Tag; das Tagesfeld nennt alle seine Termine mit Zeit, Ort und Gruppen, und eine Live-Region meldet die Zahl. Ein Tag mit Terminen zeigt Titel und «+ n weitere», am Handy Punkte (Form, nicht nur Farbe); die Tage sind am Handy mindestens 44 px gross. Kalender und Tagesfeld behalten beim Blättern ihre Höhe; das Tagesfeld rollt in sich und ist mit der Tastatur erreichbar.
 - [ ] **11.43** Das Filterblatt am Handy ist ein `dialog` (Fokus hinein, Esc schliesst, Fokus zurück auf «Filter»); die Auswahl sind Schalter mit `aria-pressed`, aktive Filter stehen auch als Text.
@@ -154,6 +154,17 @@ Gilt für den Baustein «laden» zusätzlich zu 11.1 bis 11.11, mit und ohne Anm
 - [ ] **11.56** Statusmeldungen (Artikel liegt im Warenkorb, Menge, entfernt, «Wird gesendet …», «Deine Bestellung ist eingegangen», storniert) stehen in einer Live-Region (`role="status"`) ohne Fokussprung; Fehler beim Bestellen (zu viele Versuche, Preis geändert, nicht verfügbar, keine Verbindung) stehen als Text mit Symbol in einem `role="alert"`-Band, der Warenkorb bleibt erhalten. Beim Senden ist der Knopf `aria-disabled` und trägt «Wird gesendet …».
 - [ ] **11.57** «Deine Bestellungen»: Überschrift, Liste mit Datum, Stand als Wort (Offen, Bereit zur Übergabe, Übergeben, Storniert), Positionen und Summe; «Stornieren» nennt die Bestellung im Namen. Zustände Lädt, leer und Fehler sind Text, der Fehler mit «Nochmals versuchen».
 - [ ] **11.58** Mit «Bewegung reduzieren» rollen Zahlen nicht, der Streifen gleitet nicht und das Blatt blendet nur ein; mit erzwungenen Farben haben Kachel, Plus, Streifen und Knöpfe einen Rand.
+
+### Ladezustände (#574)
+
+Gilt für jede Seite mit Bildern und für jede Stelle, die per Skript nachlädt (Termine, Anlass, Anmeldung, Terminvorschlag, geschützte Bausteine, Anmelden).
+
+- [ ] **11.60** Skelette stehen in der Form des Inhalts und erscheinen erst nach 150 ms: Bei einer schnellen Antwort (oder einem Bild aus dem Cache) blitzt nichts auf. Mit «Bewegung reduzieren» steht das Skelett still und getönt, ohne Streifen.
+- [ ] **11.61** Das Skelett ist `aria-hidden`, der Bereich trägt `aria-busy="true"`; die Ansage («… werden geladen») steht in einer Statusregion, kommt erst nach 700 ms, nur einmal, und wird vor dem Ergebnis geleert. Das Ergebnis wird angesagt («117 Termine geladen.», «Das hat nicht geklappt.»).
+- [ ] **11.62** Nichts bleibt für immer im Ladezustand: Nach 15 s (Änderungen 30 s) steht der Fehlerzustand mit «Nochmals versuchen»; der Knopf «Melde an …» wird wieder bedienbar. Prüfen mit gedrosseltem Netz (Entwicklerwerkzeuge, Netzwerk, «Langsames 3G») und mit gesperrtem Abruf.
+- [ ] **11.63** Bilder: Die Fläche hat von Anfang an die Form des Bildes (kein Springen); nach dem Laden blendet das Bild ein (bei «Bewegung reduzieren» nicht). Ein Bild, das nicht lädt, zeigt eine ruhige Fläche mit gestricheltem Rand und Zeichen und den Alt-Text für Screenreader, nie das kaputte Bild-Symbol des Browsers. Ohne Skript erscheinen die Bilder, wie der Browser sie zeichnet.
+- [ ] **11.64** Skelette haben genug Kontrast, um als Fläche erkennbar zu sein, und sind nicht grell (hell und dunkel); in erzwungenen Farben haben sie einen Rand.
+- [ ] **11.65** Der Seitenwechsel blendet ruhig über (0.2 s), der Kopf bleibt stehen, bei «Bewegung reduzieren» gibt es keinen Übergang, und Fokus und Sprunglink arbeiten danach wie bei einem normalen Seitenwechsel.
 
 ### Editor
 

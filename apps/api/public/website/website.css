@@ -972,20 +972,36 @@ a.termin:hover {
   margin-top: 0.625rem;
 }
 
-/* ===== Skeleton (Grundlagen G3): formgleich, Schimmer nur mit erlaubter Bewegung ===== */
-.skel-rahmen {
+/* ===== Ladezustände (#574): ein Baustein für Skelette, Bilder und Knöpfe =====
+   Skelett = Fläche in der Form des späteren Inhalts, Farben nur aus --skeleton und --skeleton-highlight (Tag und Nacht).
+   Regeln: erscheint erst nach 150 ms (ein schneller Abruf zeigt nichts), schimmert ruhig und nur mit erlaubter Bewegung (sonst steht es still und getönt),
+   ist für Hilfstechnik verborgen (aria-hidden), der Bereich trägt aria-busy und eine ruhige Ansage in der Statusregion. Ohne Skript gibt es keine Skelette: Der Inhalt steht im HTML. */
+:root {
+  --skelett-verzoegerung: 0.15s;
+  /* Helligkeit einer flachen Fläche im Ton des Skeletts (Bild blendet daraus ein): contrast(0) macht jedes Bild 50 % grau, brightness() hebt es auf den Ton von --skeleton */
+  --bild-flach: 1.72;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bild-flach: 0.33;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bild-flach: 0.33;
+}
+
+/* Behälter: erscheint nach der Verzögerung (bis dahin unsichtbar, ohne Platz zu verlieren; siehe die Blöcke zur Bewegung unten) */
+.skelett {
   position: relative;
 }
 
-.skel {
-  position: relative;
-  overflow: hidden;
-}
-
+/* Ein Teil des Skeletts: Zeile, Chip, Block. Breite b30 bis b100 (Prozent) und bpx70 bis bpx160, Höhe h20 bis h56, nie ein style-Attribut (CSP) */
 .sk {
   display: block;
   border-radius: 0.5rem;
-  background: var(--skeleton);
+  background-color: var(--skeleton);
 }
 
 .sk.r {
@@ -997,50 +1013,120 @@ a.termin:hover {
   margin: 0.375rem 0;
 }
 
-.sk.k {
-  height: 1.5rem;
+.sk.mt {
+  margin-top: 0.5rem;
 }
 
-.sk.b {
-  height: 4.75rem;
-  border-radius: var(--r-md);
+.sk.b30 {
+  width: 30%;
 }
 
-.sk.w90 {
-  width: 90%;
-}
-
-.sk.w60 {
-  width: 60%;
-}
-
-.sk.w40 {
+.sk.b40 {
   width: 40%;
 }
 
-.schimmer {
-  display: none;
+.sk.b50 {
+  width: 50%;
+}
+
+.sk.b60 {
+  width: 60%;
+}
+
+.sk.b70 {
+  width: 70%;
+}
+
+.sk.b90 {
+  width: 90%;
+}
+
+.sk.b100 {
+  width: 100%;
+}
+
+.sk.bpx70 {
+  width: 4.375rem;
+}
+
+.sk.bpx160 {
+  width: 10rem;
+}
+
+.sk.h20 {
+  height: 1.25rem;
+}
+
+.sk.h24 {
+  height: 1.5rem;
+}
+
+.sk.h28 {
+  height: 1.75rem;
+}
+
+.sk.h48 {
+  height: 3rem;
+}
+
+.sk.h52 {
+  height: 3.25rem;
+}
+
+.sk.h56 {
+  height: 3.5rem;
+}
+
+/* Bilder: Solange ein Bild lädt (Klasse «ladebild» setzt ladezustand.js im <head>), ist seine Fläche ein Skelett in seiner Form (width und height des Bildes, kein Springen).
+   Sein Inhalt bleibt verborgen, bis es ganz da ist: kein zeilenweiser Aufbau. Ohne Skript gilt nichts davon.
+   Die Grossansicht (lichtkasten.js) hat ihr eigenes Bild und blendet es selbst ein: Sie bekommt dasselbe Skelett über data-laedt */
+@media screen {
+  html.ladebild img:not([data-da], [data-fehlt], .lk-figur img),
+  .lk-figur img[data-laedt] {
+    background-color: var(--skeleton);
+    object-fit: none;
+    object-position: -9999px 0;
+  }
+
+  /* Nicht geladen: ladezustand.js tauscht die Quelle gegen bild-fehlt.svg (die echte Quelle steht in data-quelle) und lässt den Alt-Text stehen. So zeigt der Browser nie sein kaputtes Bild-Symbol.
+     Es bleibt eine ruhige Fläche in der Form des Bildes mit gestricheltem Rand und einem Zeichen (eine Landschaft); der Zustand hängt nicht an der Farbe */
+  html.ladebild img[data-fehlt] {
+    background-color: var(--surface-container);
+    outline: 1px dashed var(--outline);
+    outline-offset: -1px;
+    object-fit: none;
+    object-position: 50% 50%;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  /* Erst nach 200 ms sichtbar: ein schneller Abruf flackert nicht */
-  .skel {
-    opacity: 0;
-    animation: sk-ein 0s 0.2s forwards;
+  /* Erst nach 150 ms sichtbar, dann sanft: ein schneller Abruf zeigt kein Skelett */
+  .skelett {
+    animation: skelett-ein var(--dauer) var(--skelett-verzoegerung) backwards;
   }
 
-  .schimmer {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    left: -5rem;
-    display: block;
-    width: 4.5rem;
-    background: var(--skeleton-highlight);
-    opacity: 0.85;
-    transform: skewX(-18deg);
-    pointer-events: none;
-    animation: schimmer 1.4s ease-in-out infinite;
+  /* Der Schimmer: ein heller Streifen läuft ruhig über das ganze Fenster und leuchtet dort auf, wo ein Skelett liegt (--skeleton-highlight); alle Skelette teilen sich dieselbe Welle */
+  .sk,
+  html.ladebild img:not([data-da], [data-fehlt], .lk-figur img),
+  .lk-figur img[data-laedt] {
+    background-image: linear-gradient(
+      100deg,
+      transparent 40%,
+      var(--skeleton-highlight) 50%,
+      transparent 60%
+    );
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: 100vw 100vh;
+    animation: skelett-schimmer 2.4s ease-in-out infinite;
+  }
+
+  html.ladebild img:not([data-da], [data-fehlt], .lk-figur img),
+  .lk-figur img[data-laedt] {
+    animation:
+      skelett-grund var(--dauer) var(--skelett-verzoegerung) backwards,
+      skelett-schimmer 2.4s ease-in-out var(--skelett-verzoegerung) infinite
+        backwards;
   }
 
   .btn .lade {
@@ -1048,15 +1134,47 @@ a.termin:hover {
   }
 }
 
-@keyframes sk-ein {
-  to {
-    opacity: 1;
+/* Reduzierte Bewegung: kein Schimmer, kein Ring; nur die Verzögerung bleibt (0.01 s, keine Bewegung), damit ein schneller Abruf kein Skelett aufblitzen lässt. Die Skelette stehen still und getönt */
+@media (prefers-reduced-motion: reduce) {
+  .skelett {
+    animation: skelett-ein 0.01s var(--skelett-verzoegerung) backwards;
+  }
+
+  html.ladebild img:not([data-da], [data-fehlt], .lk-figur img),
+  .lk-figur img[data-laedt] {
+    animation: skelett-grund 0.01s var(--skelett-verzoegerung) backwards;
   }
 }
 
-@keyframes schimmer {
+@keyframes skelett-ein {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes skelett-grund {
+  from {
+    background-color: transparent;
+  }
+}
+
+@keyframes skelett-schimmer {
+  from {
+    background-position: -100vw 0;
+  }
+
   to {
-    left: 100%;
+    background-position: 100vw 0;
+  }
+}
+
+/* Erzwungene Farben: Hintergründe fallen weg, das Skelett behält einen Rand */
+@media (forced-colors: active) {
+  .sk,
+  html.ladebild img:not([data-da], [data-fehlt], .lk-figur img),
+  .lk-figur img[data-laedt] {
+    outline: 1px solid GrayText;
+    outline-offset: -1px;
   }
 }
 
@@ -2765,5 +2883,24 @@ dialog.lichtkasten {
 @media (forced-colors: active) {
   * {
     scrollbar-color: auto;
+  }
+}
+
+/* Seitenwechsel (#574): Beim Wechsel zwischen Seiten der Website blendet der Inhalt ruhig über (View Transition über Dokumente, reines CSS). Der Kopf steht still: Er hat seine eigene Gruppe, und weil alt und neu gleich sind, ändert sich nur das Zeichen der aktuellen Seite.
+   Wo der Browser es nicht kann, wechselt die Seite wie immer. Bei «Bewegung reduzieren» gibt es keinen Übergang. Hell und Dunkel (theme.js) behalten ihre längere Dauer */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+    types: seite;
+  }
+
+  .kopf {
+    view-transition-name: kopf;
+  }
+
+  html:active-view-transition-type(seite)::view-transition-old(root),
+  html:active-view-transition-type(seite)::view-transition-new(root) {
+    animation-duration: var(--dauer);
+    animation-timing-function: var(--kurve);
   }
 }

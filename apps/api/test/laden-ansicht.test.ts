@@ -99,4 +99,23 @@ describe("Kopf und Kachel", () => {
       /@media \(hover: none\) \{\s*\.laden-plus \{\s*display: grid/,
     );
   });
+
+  test("Deine Bestellungen laden (#574): Skelett in Listenform, verborgen, ohne «Lädt …»; die Ansage kommt aus der Statusregion", () => {
+    const h = html(
+      tm.h(
+        "div",
+        {},
+        laden.bestellungenView({
+          zustand: "lade",
+          liste: [],
+          weitere: false,
+          naechste: null,
+        }),
+      ),
+    );
+    expect(h).toContain('aria-busy="true"');
+    expect(h).toContain('<div class="skelett" aria-hidden="true">');
+    expect(h).toContain("Deine Bestellungen");
+    expect(h).not.toContain("Lädt …");
+  });
 });
