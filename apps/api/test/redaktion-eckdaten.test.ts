@@ -194,6 +194,8 @@ describe("Rechte", () => {
       expect(await gelesen.json()).toEqual({
         tag,
         ...FELDER,
+        treffpunktOrtId: null,
+        schlussOrtId: null,
         quelle: "seite",
       });
       expect(

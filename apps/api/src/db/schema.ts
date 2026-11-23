@@ -6,6 +6,7 @@ import {
   check,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
@@ -400,6 +401,49 @@ export const programm = pgTable(
   ],
 );
 
+// Orte der Abteilung (#646): Treffpunkte und Schlussorte, die oft vorkommen, einmal angelegt und per Auswahl gewählt (routes/redaktion/orte.ts).
+// Der Standort steht in höchstens einer Form: Adresse zum Suchen, Koordinaten oder ein geprüfter Link von Google Maps (karten-standort.ts); den Link zur Karte erzeugt der Server selbst
+export const ort = pgTable(
+  "ort",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    // Adresszeile oder Hinweis («Beim Hintereingang»); steht auf der Website unter dem Namen
+    beschreibung: text("beschreibung"),
+    karteAdresse: text("karte_adresse"),
+    breite: doublePrecision("breite"),
+    laenge: doublePrecision("laenge"),
+    karteUrl: text("karte_url"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    // Nicht aktive Orte bleiben in der Verwaltung, erscheinen aber nicht mehr in der Auswahl
+    aktiv: boolean("aktiv").notNull().default(true),
+    zuletztVerwendetAm: zeitpunkt("zuletzt_verwendet_am"),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ort_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+    index("ort_abteilung_idx").on(t.abteilungId, t.reihenfolge),
+    check(
+      "ort_laenge_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.beschreibung} is null or char_length(${t.beschreibung}) <= 200) and (${t.karteAdresse} is null or char_length(${t.karteAdresse}) <= 200) and (${t.karteUrl} is null or char_length(${t.karteUrl}) <= 500)`,
+    ),
+    check(
+      "ort_koordinaten_check",
+      sql`(${t.breite} is null) = (${t.laenge} is null) and (${t.breite} is null or (${t.breite} between -90 and 90 and ${t.laenge} between -180 and 180))`,
+    ),
+    check(
+      "ort_eine_form_check",
+      sql`(case when ${t.karteAdresse} is null then 0 else 1 end) + (case when ${t.breite} is null then 0 else 1 end) + (case when ${t.karteUrl} is null then 0 else 1 end) <= 1`,
+    ),
+  ],
+);
+
 // Die festen Felder der Stufenseite, im Editor gepflegt (routes/redaktion/eckdaten.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
 // Der Schlüssel ist Stufe und Tag; die Route hängt sie über beides an das Programm
 export const programmEckdaten = pgTable(
@@ -411,8 +455,15 @@ export const programmEckdaten = pgTable(
     tag: date("tag").notNull(),
     // HH:mm
     treffZeit: text("treff_zeit"),
+    // Der Text ist der Name zum Zeitpunkt der Wahl (Schnappschuss): Er bleibt, wenn der Ort gelöscht wird; die Kennung führt zur Karte (#646)
     treffpunkt: text("treffpunkt"),
+    treffpunktOrtId: uuid("treffpunkt_ort_id").references(() => ort.id, {
+      onDelete: "set null",
+    }),
     schlussOrt: text("schluss_ort"),
+    schlussOrtId: uuid("schluss_ort_id").references(() => ort.id, {
+      onDelete: "set null",
+    }),
     // HH:mm
     schlussZeit: text("schluss_zeit"),
     mitnehmen: text("mitnehmen"),
@@ -425,6 +476,12 @@ export const programmEckdaten = pgTable(
   (t) => [
     primaryKey({ columns: [t.stufeId, t.tag] }),
     check("programm_eckdaten_quelle_check", sql`${t.quelle} = 'seite'`),
+    index("programm_eckdaten_treffpunkt_ort_idx")
+      .on(t.treffpunktOrtId)
+      .where(sql`${t.treffpunktOrtId} is not null`),
+    index("programm_eckdaten_schluss_ort_idx")
+      .on(t.schlussOrtId)
+      .where(sql`${t.schlussOrtId} is not null`),
   ],
 );
 

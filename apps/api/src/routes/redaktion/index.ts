@@ -13,6 +13,7 @@ import { erstelleEckdatenRouten } from "./eckdaten.js";
 import { erstelleWebsiteEinstellungsRouten } from "./einstellungen.js";
 import { erstelleEditorIchRouten } from "./ich.js";
 import { erstelleEditorMedienRouten } from "./medien.js";
+import { erstelleOrteRouten } from "./orte.js";
 import { erstelleSeitenRouten } from "./seiten.js";
 import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
 import { erstelleVorlagenRouten } from "./vorlagen.js";
@@ -50,6 +51,7 @@ export function erstelleEditorRouten({
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db, kontakt }))
     .route("/stufen", erstelleEckdatenRouten({ db }))
+    .route("/orte", erstelleOrteRouten({ db }))
     .route("/medien", erstelleEditorMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
     .route("/", erstelleVorlagenRouten({ db }))
