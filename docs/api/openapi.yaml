@@ -22155,6 +22155,7 @@ components:
         - bildUrl
         - pushChat
         - pushProgramme
+        - websiteFreigabe
         - admin
         - zweiterFaktor
         - rollen
@@ -22205,6 +22206,9 @@ components:
         pushAnmeldungen:
           type: boolean
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
+        websiteFreigabe:
+          type: boolean
+          description: Ob die Person freigegeben hat, dass die öffentliche Website ihren Anzeigename (Cevi-Name, sonst Vorname) und ihr Profilbild zeigen darf. Vorgabe `false`.
         admin:
           type: boolean
         zweiterFaktor:
@@ -22237,6 +22241,9 @@ components:
           type: boolean
         pushAnmeldungen:
           type: boolean
+        websiteFreigabe:
+          type: boolean
+          description: "`true` gibt Anzeigename und Profilbild für die öffentliche Website frei, `false` widerruft. Nur ein Wechsel steht im Audit-Log (`website_freigabe_geaendert`, ohne Personendaten); die Website vergisst die Person beim nächsten Abgleich. Bei Minderjährigen braucht es das Einverständnis der Eltern; die API prüft das nicht."
         telefon:
           type:
             - string
@@ -23172,6 +23179,7 @@ components:
         - name
         - ceviName
         - bildUrl
+        - websiteFreigabe
         - telefon
         - benutzername
         - admin
@@ -23199,6 +23207,9 @@ components:
             - string
             - "null"
           description: Pfad zum Profilbild (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild. Die Verwaltung sieht die Bilder aller Personen der Abteilung.
+        websiteFreigabe:
+          type: boolean
+          description: Ob die Person für die öffentliche Website freigegeben ist (Anzeigename und Profilbild).
         telefon:
           type:
             - string
@@ -23405,6 +23416,9 @@ components:
             - string
             - "null"
           description: Eine Nummer speichert nur, wer nach der Änderung eine Rolle `stufenleitung` hat (sonst 400); leer oder `null` entfernt sie, das geht immer. Ändert sich der Wert, schreibt die API `telefon_geaendert` ins Audit-Log, ohne die Nummer.
+        websiteFreigabe:
+          type: boolean
+          description: "`true` gibt Anzeigename und Profilbild der Person für die öffentliche Website frei, `false` widerruft. Ein Wechsel steht als `website_freigabe_geaendert` im Audit-Log (ohne Personendaten); die Website vergisst die Person beim nächsten Abgleich. Bei Minderjährigen braucht es das Einverständnis der Eltern; die API prüft das nicht."
         admin:
           type: boolean
           description: "`false` für den letzten aktiven Admin ergibt 409 `LETZTER_ADMIN`."
@@ -34808,6 +34822,7 @@ components:
         - id
         - anzeigename
         - funktion
+        - websiteFreigabe
       properties:
         id:
           type: string
@@ -34820,6 +34835,9 @@ components:
             - string
             - "null"
           description: Die Rolle der Person an diesem Tag (freier Text); `null` ohne Rolle.
+        websiteFreigabe:
+          type: boolean
+          description: Ob die Person für die öffentliche Website freigegeben ist. Der Baustein `personen` zeigt nur freigegebene Personen; für alle anderen entfällt der Eintrag samt Namen.
     RedaktionPersonenListe:
       type: object
       required:

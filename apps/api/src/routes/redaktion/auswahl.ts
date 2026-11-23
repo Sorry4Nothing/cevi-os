@@ -46,6 +46,8 @@ export function erstelleAuswahlRouten({ db }: { db: Db }) {
             id: user.id,
             anzeigename: sql<string>`coalesce(${user.ceviName}, ${user.name})`,
             funktion: personTag.rolle,
+            // Nur freigegebene Personen erscheinen im Baustein «personen» (#560)
+            websiteFreigabe: sql<boolean>`${user.websiteFreigabeAm} is not null`,
           })
           .from(personTag)
           .innerJoin(user, eq(user.id, personTag.userId))

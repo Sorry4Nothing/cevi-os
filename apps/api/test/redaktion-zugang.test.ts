@@ -375,11 +375,17 @@ describe("Auswahllisten", () => {
       id: slA.id,
       anzeigename: "Flink",
       funktion: "stufenleitung",
+      websiteFreigabe: false,
     });
     // Wer den Tag nicht trägt, steht nicht in der Liste
     expect(personen.map((p) => p.id)).not.toContain(slB.id);
     for (const p of personen) {
-      expect(Object.keys(p).sort()).toEqual(["anzeigename", "funktion", "id"]);
+      expect(Object.keys(p).sort()).toEqual([
+        "anzeigename",
+        "funktion",
+        "id",
+        "websiteFreigabe",
+      ]);
     }
     expect(text).not.toContain("+41791234567");
     expect(text).not.toContain("@example.org");
