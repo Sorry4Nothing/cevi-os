@@ -113,13 +113,16 @@ function zeigeListe(bereich, ctx) {
         fehlerTitel: "Die Anlässe konnten nicht geladen werden.",
       },
     );
-  ctx.kopfAktion(
-    knopf("Neuer Anlass", {
-      art: "haupt",
-      symbol: "plus",
-      onclick: (e) => anlegen(ctx, e.currentTarget),
-    }),
-  );
+  // Neue Anlässe legt an, wer das Recht dazu hat; ein OK sieht nur die Anlässe seiner Gruppe
+  if (ctx.zugang.termine.anlassAnlegen) {
+    ctx.kopfAktion(
+      knopf("Neuer Anlass", {
+        art: "haupt",
+        symbol: "plus",
+        onclick: (e) => anlegen(ctx, e.currentTarget),
+      }),
+    );
+  }
   return lade();
 }
 
@@ -457,15 +460,25 @@ const REITER = [
   ["einstellungen", "Einstellungen"],
 ];
 
+// Welche Reiter die Person an diesem Anlass sieht (Antwort `rechte` des Servers): Anmeldungen mit «Anmeldungen sehen», Zusatzfelder und Einstellungen mit «Anlässe verwalten»
+const reiterFuer = (rechte) =>
+  REITER.filter(
+    ([schluessel]) =>
+      (schluessel !== "anmeldungen" || rechte?.anmeldungenSehen) &&
+      (!["felder", "einstellungen"].includes(schluessel) || rechte?.verwalten),
+  );
+
 function zeigeAnlass(bereich, ctx, id, reiter = "") {
-  const aktiv = REITER.some(([schluessel]) => schluessel === reiter)
-    ? reiter
-    : "";
   const lade = (neu = false) =>
     ctx.lade(
       () => ladeKopf(id, { neu }),
-      (daten) =>
-        zeichneRahmen(bereich, ctx, id, aktiv, daten, () => lade(true)),
+      (daten) => {
+        const erlaubt = reiterFuer(daten.anlass.rechte);
+        const aktiv = erlaubt.some(([schluessel]) => schluessel === reiter)
+          ? reiter
+          : "";
+        zeichneRahmen(bereich, ctx, id, aktiv, daten, () => lade(true));
+      },
       {
         skeleton: skeletonDetail,
         fehlerTitel: "Der Anlass konnte nicht geladen werden.",
@@ -509,7 +522,7 @@ function zeichneRahmen(
     el(
       "nav",
       { class: "tabs anl-tabs", "aria-label": "Bereiche des Anlasses" },
-      REITER.map(([schluessel, name]) =>
+      reiterFuer(a.rechte).map(([schluessel, name]) =>
         el(
           "a",
           {
@@ -607,6 +620,8 @@ function zeichneUebersicht(
   const name = (e) =>
     e.kind ? `${e.kind.vorname} ${e.kind.nachname}` : e.person.name;
 
+  const sehen = a.rechte?.anmeldungenSehen === true;
+  const verwalten = a.rechte?.verwalten === true;
   const rueckmeldungen = el(
     "section",
     { class: "flaeche anl-rueck", "aria-labelledby": "anl-rueck" },
@@ -713,47 +728,54 @@ function zeichneUebersicht(
     ["Sichtbar für", sichtText(a.sichtbarkeit)],
     [
       "Zusatzfelder",
-      el(
-        "a",
-        { class: "tm-tabellenlink", href: adresse(id, "felder") },
-        a.felder.length === 0
-          ? "Keine, hinzufügen"
-          : `${a.felder.length}, bearbeiten`,
-      ),
+      verwalten
+        ? el(
+            "a",
+            { class: "tm-tabellenlink", href: adresse(id, "felder") },
+            a.felder.length === 0
+              ? "Keine, hinzufügen"
+              : `${a.felder.length}, bearbeiten`,
+          )
+        : String(a.felder.length),
     ],
     // Die Gruppe des Anlasses (zum Beispiel das OK, #626); ihre Rollen tragen die Rechte (#651). Ein Lager hat keine
     a.art === "anlass" && [
       "Gruppe",
-      a.gruppe
-        ? el(
-            "span",
-            { class: "tm-doppellink" },
-            el(
-              "a",
-              {
-                class: "tm-tabellenlink",
-                href: `#personen/gruppen/${a.gruppe.id}`,
-              },
-              `${a.gruppe.name}, öffnen`,
-            ),
-            el(
-              "a",
-              {
-                class: "tm-tabellenlink",
-                href: `#personen/rechte/gruppen/${a.gruppe.id}`,
-              },
-              "Rollen und Rechte",
-            ),
-          )
-        : knopf("OK anlegen", {
-            klein: true,
-            art: "still",
-            symbol: "plus",
-            onclick: async () => {
-              const { okAnlegen } = await import("./rechte-anlass.js");
-              okAnlegen({ ctx, anlass: a });
-            },
-          }),
+      // Gruppen und Rollen ordnet nur die Abteilungsleitung (Bereich «Personen»); ein OK sieht den Namen
+      a.gruppe && ctx.ich.role !== "admin"
+        ? a.gruppe.name
+        : a.gruppe
+          ? el(
+              "span",
+              { class: "tm-doppellink" },
+              el(
+                "a",
+                {
+                  class: "tm-tabellenlink",
+                  href: `#personen/gruppen/${a.gruppe.id}`,
+                },
+                `${a.gruppe.name}, öffnen`,
+              ),
+              el(
+                "a",
+                {
+                  class: "tm-tabellenlink",
+                  href: `#personen/rechte/gruppen/${a.gruppe.id}`,
+                },
+                "Rollen und Rechte",
+              ),
+            )
+          : ctx.ich.role !== "admin"
+            ? "Keine"
+            : knopf("OK anlegen", {
+                klein: true,
+                art: "still",
+                symbol: "plus",
+                onclick: async () => {
+                  const { okAnlegen } = await import("./rechte-anlass.js");
+                  okAnlegen({ ctx, anlass: a });
+                },
+              }),
     ],
     a.seiteId && [
       "Seite",
@@ -779,8 +801,13 @@ function zeichneUebersicht(
     el(
       "div",
       { class: "anl-uebersicht" },
-      el("div", { class: "anl-spalte" }, rueckmeldungen, letzte),
-      el("div", { class: "anl-spalte" }, stand, daten),
+      el(
+        "div",
+        { class: "anl-spalte" },
+        sehen && rueckmeldungen,
+        sehen && letzte,
+      ),
+      el("div", { class: "anl-spalte" }, verwalten && stand, daten),
     ),
   );
 }
@@ -801,7 +828,8 @@ function zeigeEinstellungen(bereich, { ctx, id, pfad, a, summe, neu }) {
   const gesamt = summe.angemeldet + summe.abgemeldet;
   const lade = ctx.erstelleLader(bereich);
   lade(
-    () => anfrage("GET", "/api/v1/admin/tags").then((t) => t.tags),
+    // Nur Name und Typ der Gruppen, auch für ein OK ohne Zugang zur Gruppenverwaltung
+    () => anfrage("GET", `${BASIS}/gruppen`).then((t) => t.tags),
     (tags) =>
       zeichneEinstellungen(bereich, { ctx, id, pfad, a, gesamt, neu, tags }),
     {
@@ -904,28 +932,30 @@ function zeichneEinstellungen(
       k.sicht,
       ...k.tags,
     ),
-    el(
-      "section",
-      { class: "flaeche anl-gefahr", "aria-labelledby": "anl-e-weg" },
-      el("h2", { id: "anl-e-weg" }, "Löschen"),
+    // Löschen darf, wer Anlässe anlegen und löschen darf; ein OK mit «verwalten» ändert nur
+    a.rechte?.loeschen &&
       el(
-        "p",
-        { class: "leise" },
-        gesamt > 0
-          ? `Ein Anlass mit Anmeldungen lässt sich nicht löschen (${zaehlwort(gesamt, "Anmeldung", "Anmeldungen")}). Schliesse die Anmeldung, wenn niemand mehr dazukommen soll.`
-          : "Der Termin bleibt im Kalender, die Seite im Bereich «Website» auch. Es verschwindet nur die Anmeldung samt Zusatzfeldern.",
+        "section",
+        { class: "flaeche anl-gefahr", "aria-labelledby": "anl-e-weg" },
+        el("h2", { id: "anl-e-weg" }, "Löschen"),
+        el(
+          "p",
+          { class: "leise" },
+          gesamt > 0
+            ? `Ein Anlass mit Anmeldungen lässt sich nicht löschen (${zaehlwort(gesamt, "Anmeldung", "Anmeldungen")}). Schliesse die Anmeldung, wenn niemand mehr dazukommen soll.`
+            : "Der Termin bleibt im Kalender, die Seite im Bereich «Website» auch. Es verschwindet nur die Anmeldung samt Zusatzfeldern.",
+        ),
+        el(
+          "div",
+          { class: "reihe" },
+          knopf("Anlass löschen", {
+            art: "gefahr",
+            symbol: "papierkorb",
+            disabled: gesamt > 0,
+            onclick: () => loeschen(),
+          }),
+        ),
       ),
-      el(
-        "div",
-        { class: "reihe" },
-        knopf("Anlass löschen", {
-          art: "gefahr",
-          symbol: "papierkorb",
-          disabled: gesamt > 0,
-          onclick: () => loeschen(),
-        }),
-      ),
-    ),
     leiste.wurzel,
   );
   form.addEventListener("input", aktualisiere);

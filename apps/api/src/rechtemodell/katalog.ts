@@ -293,6 +293,13 @@ export const RECHTE_KATALOG = {
     ALLE_EIGENE,
     { bezug: "raum" },
   ),
+  "raum.team_zuweisen": v(
+    "raeume",
+    "Räume einem Team zuweisen",
+    "Einem Raum ein Team geben oder ihm das Team entziehen. Das Team sieht dann die Belegung und die Anfragen des Raums und entscheidet sie. Standardmässig nur die Abteilungsleitung.",
+    "erweitert",
+    ALLE,
+  ),
   "raum.anfrage_entscheiden": v(
     "raeume",
     "Raumanfragen entscheiden",

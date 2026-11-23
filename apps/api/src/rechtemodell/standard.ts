@@ -41,6 +41,11 @@ export const OHNE_ZWEITEN_FAKTOR_STUFENARBEIT: ReadonlySet<RechtId> = new Set([
   "stufe.einblick",
 ]);
 
+// Rechte, die für Mitglieder eines Teams ohne Rolle ohne zweiten Faktor gelten, obwohl ihr Eintrag «erweitert» ist: Wer das Team eines Raums trägt, entscheidet über dessen Anfragen wie vor dem Rechtemodell (Annahme R2 der Termine). Eine Gruppenrolle mit diesem Recht braucht ihn
+export const MITGLIED_OHNE_ZWEITEN_FAKTOR: ReadonlySet<RechtId> = new Set([
+  "raum.anfrage_entscheiden",
+]);
+
 // Mitgliedschaft in einer Gruppe gibt ohne Rolle schon etwas (Annahme A9 und R2 der Termine): Terminvorschläge für Funktion und Team, Raumanfragen entscheiden für das Team des Raums. «eigene» ist die Gruppe selbst. raum.belegung gilt für Mitglieder einer Gruppe, die ein Raum als Team führt (siehe satz.ts, istRaumTeam)
 export const MITGLIED_STANDARD = {
   team: [

@@ -19,6 +19,7 @@ import { kandidatenSuche } from "./personen-wahl.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { zurueckKlick } from "./verlauf.js";
 import { anlassKarte, anlassText, ladeFreieAnlaesse } from "./tags-anlass.js";
+import { raeumeKarte } from "./tags-raeume.js";
 
 // Gruppe (= Tag der Abteilung): Dialoge zum Anlegen, Umbenennen, Löschen und für die Mitglieder, dazu die Detailseite A5 (#personen/gruppen/<id>)
 export const TYPEN = [
@@ -579,6 +580,12 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   document.querySelector("#seitenkopf .kopf-text")?.prepend(zurueck);
   const anlassInfo = anlassKarte(tag);
   if (anlassInfo) bereich.append(anlassInfo);
+  // Räume, für die diese Gruppe das Team ist: sehen, zuweisen, entziehen (#649); Stufen und Lager führen keine Räume
+  const raeumeInfo =
+    tag.typ === "stufe" || tag.typ === "lager"
+      ? null
+      : raeumeKarte({ tag, ctx });
+  if (raeumeInfo) bereich.append(raeumeInfo);
   bereich.append(
     el(
       "div",

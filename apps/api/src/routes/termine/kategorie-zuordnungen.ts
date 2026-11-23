@@ -6,9 +6,10 @@ import type { Db } from "../../db/client.js";
 import { auditLog, kategorieZuordnung, tag } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import type { TermineEnv } from "./index.js";
 
-// Abweichungen «Outlook-Kategorie meint diesen Tag» verwalten (#434, Epic #430; Recht «termine.kategorien_zuordnen»). Nur die Abteilungsleitung (Admin; den zweiten Faktor verlangt schon der Pfad /api/v1/admin/*).
+// Abweichungen «Outlook-Kategorie meint diesen Tag» verwalten (#434, Epic #430; Recht «termine.kategorien_zuordnen»). Das Recht «Kalender-Kategorien zuordnen» (rechtemodell/katalog.ts, erweitert); standardmässig nur die Abteilungsleitung (#649).
 // Eine Änderung wirkt beim nächsten Kalender-Abgleich (bis 5 Minuten): kalender/tags-zuordnen.ts liest die Zeilen und rechnet programm_tag in jedem Lauf neu (für Termine mit mindestens einer zuordenbaren Kategorie). Darum hier kein Neuzuordnen der bestehenden Termine.
 const HOECHSTENS = 500;
 
@@ -34,15 +35,16 @@ const ZU_VIELE = {
 // Bricht die Transaktion ab, damit die Zeile über der Grenze nicht bleibt
 class ZuVieleFehler extends Error {}
 
-const pruefeRecht = (person: Pick<Person, "admin">) => {
-  if (!person.admin) throw new HTTPException(403);
-};
-
 export function erstelleKategorieZuordnungenRouten({ db }: { db: Db }) {
+  const pruefeRecht = (person: Person) =>
+    verlange(db, person, "termine.kategorien_zuordnen", {
+      abteilungId: person.abteilungId,
+    });
+
   return new Hono<TermineEnv>()
     .get("/admin/kategorie-zuordnungen", async (c) => {
       const person = c.get("person");
-      pruefeRecht(person);
+      await pruefeRecht(person);
       // Eine Abfrage: Zuordnung mit Namen und Typ des Tags
       const zeilen = await db
         .select({
@@ -67,7 +69,7 @@ export function erstelleKategorieZuordnungenRouten({ db }: { db: Db }) {
       eingabe("json", setzenSchema),
       async (c) => {
         const person = c.get("person");
-        pruefeRecht(person);
+        await pruefeRecht(person);
         const b = c.req.valid("json");
         const antwort = await db
           .transaction(async (tx) => {
@@ -134,7 +136,7 @@ export function erstelleKategorieZuordnungenRouten({ db }: { db: Db }) {
             )
             .for("update");
           if (!ziel) throw new HTTPException(404);
-          pruefeRecht(person);
+          await pruefeRecht(person);
           await tx
             .delete(kategorieZuordnung)
             .where(eq(kategorieZuordnung.id, id));

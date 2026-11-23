@@ -9,23 +9,24 @@ import type { Fcm } from "../../push.js";
 import { ladeRaum } from "../../termine/raum.js";
 import {
   anfrageSchema,
-  darfEntscheiden,
   dauerOk,
-  entscheidetUeberRaum,
   entscheidSchema,
   listeSchema,
   MAX_OFFENE_JE_PERSON,
   pushEntscheid,
   pushNeueAnfrage,
 } from "../../termine/raum-buchung.js";
+import { verlange } from "../../rechtemodell/darf.js";
+import { hatRaeume, raeumeMit, raumBedingung } from "../../termine/rechte.js";
 import type { TermineEnv } from "./index.js";
 
 // Rate-Limit je Konto (SR-71): so viele Anfragen in diesem Fenster
 const ANFRAGEN = 20;
 const FENSTER_MS = 10 * 60_000;
 
-// Raumanfragen (#447, Epic #430): Jede angemeldete Person der Abteilung fragt einen aktiven Raum an (Annahme, wie R2), das Team des Raums entscheidet (termine/raum-buchung.ts: darfEntscheiden). Ein Raum oder eine Anfrage einer anderen Abteilung ist 404; erst laden, dann das Recht (403). Cevi OS schreibt nie nach Outlook.
+// Raumanfragen (#447, Epic #430): Jede angemeldete Person der Abteilung fragt einen aktiven Raum an (Annahme, wie R2), über die Anfrage entscheidet, wer das Recht «Raumanfragen entscheiden» für den Raum hat: wer das Team des Raums trägt (ohne Rolle), eine Gruppenrolle des Teams mit dem Recht und für Räume ohne Team die Abteilungsleitung (rechtemodell/katalog.ts, #649). Ein Raum oder eine Anfrage einer anderen Abteilung ist 404; erst laden, dann das Recht (403). Cevi OS schreibt nie nach Outlook.
 const pfad = z.strictObject({ id: z.uuid() });
+const ENTSCHEIDEN = "raum.anfrage_entscheiden";
 
 const RAUM_BELEGT = {
   code: "RAUM_BELEGT",
@@ -107,13 +108,17 @@ export function erstelleRaumAnfragenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           });
         },
       )
-      // Die offenen Anfragen, über die diese Person entscheidet (Team-Tag des Raums; ohne Team die Abteilungsleitung), ohne ihre eigenen, älteste zuerst; wer über nichts entscheidet, bekommt eine leere Liste. Eine Abfrage je Seite (Join auf Raum und Konto, Tags der Person als Unterabfrage)
+      // Die offenen Anfragen, über die diese Person entscheidet (Räume ihres Teams; ohne Team die Abteilungsleitung), ohne ihre eigenen, älteste zuerst; wer über nichts entscheidet, bekommt eine leere Liste. Eine Abfrage für die Teams der Räume, eine je Seite (Join auf Raum und Konto)
       .get(
         "/raeume/anfragen/offen",
         eingabe("query", listeSchema),
         async (c) => {
           const person = c.get("person");
           const { limit, nach } = c.req.valid("query");
+          const sicht = await raeumeMit(db, person, [ENTSCHEIDEN]);
+          if (!hatRaeume(sicht)) {
+            return c.json({ anfragen: [], weitere: false, naechste: null });
+          }
           const zeilen = await db
             .select({
               b: raumBuchung,
@@ -129,7 +134,7 @@ export function erstelleRaumAnfragenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 eq(raumBuchung.status, "angefragt"),
                 gt(raumBuchung.ende, sql`now()`),
                 sql`${raumBuchung.userId} <> ${person.id}`,
-                entscheidetUeberRaum(person),
+                raumBedingung(sicht),
                 nach ? gt(raumBuchung.id, nach) : undefined,
               ),
             )
@@ -214,9 +219,10 @@ export function erstelleRaumAnfragenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               ),
             );
           if (!ziel) throw new HTTPException(404);
-          if (!(await darfEntscheiden(db, person, ziel.teamTagId))) {
-            throw new HTTPException(403);
-          }
+          await verlange(db, person, ENTSCHEIDEN, {
+            abteilungId: person.abteilungId,
+            raumTeamTagId: ziel.teamTagId,
+          });
           if (ziel.von === person.id) return c.json(EIGENE_ANFRAGE, 403);
           const status =
             b.entscheid === "annehmen" ? "bestaetigt" : "abgelehnt";

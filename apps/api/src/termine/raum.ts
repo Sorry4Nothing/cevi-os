@@ -1,5 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
-import { HTTPException } from "hono/http-exception";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
@@ -23,14 +22,7 @@ export const raeumeListeSchema = z.strictObject({
 
 // Räume (#446, Epic #430). Die Raumanfragen (#447, termine/raum-buchung.ts) bauen auf diesen Funktionen auf: ladeRaum (Raum der Abteilung, fremd = undefined = 404), ladeRaeume (Liste), zaehleOffeneAnfragen.
 
-// Wer Räume anlegt und pflegt (Recht «raum.verwalten», Annahme R1, vom Nutzer zu bestätigen): nur die Abteilungsleitung, also ein Admin mit zweitem Faktor (den verlangt schon der Pfad /api/v1/admin/*). Lesen darf jede Person der Abteilung. Alle Routen der Verwaltung prüfen hier und nirgends sonst; kommen Rollen dazu (#423), ändert sich nur diese Funktion.
-export const darfRaeumeVerwalten = (person: Pick<Person, "admin">) =>
-  person.admin;
-
-// Erst das Objekt laden (fremd = 404), dann diese Prüfung (403)
-export function pruefeRaumRecht(person: Pick<Person, "admin">) {
-  if (!darfRaeumeVerwalten(person)) throw new HTTPException(403);
-}
+// Wer Räume anlegt, pflegt und einem Team zuweist, bestimmen die Rechte «raum.verwalten» und «raum.team_zuweisen» (rechtemodell/katalog.ts); die Routen der Verwaltung prüfen sie mit verlange() (#649). Lesen darf jede Person der Abteilung.
 
 // Der Raum der Abteilung, in SQL auf sie gefiltert; mit sperren (FOR UPDATE, nur in einer Transaktion) hält die Zeile still, bis die Transaktion endet
 export async function ladeRaum(
@@ -91,6 +83,10 @@ export async function ladeRaeume(
     nurAktiv: boolean;
     limit: number;
     nach?: string;
+    // Nur die Räume dieses Teams (die Teamansicht)
+    teamId?: string;
+    // Nur die Räume, für die die Person ein Recht hat (termine/rechte.ts: raumBedingung)
+    bedingung?: SQL;
   },
 ): Promise<{
   raeume: RaumAnsicht[];
@@ -115,6 +111,8 @@ export async function ladeRaeume(
       and(
         eq(raum.abteilungId, opt.abteilungId),
         opt.nurAktiv ? eq(raum.aktiv, true) : undefined,
+        opt.teamId ? eq(raum.teamTagId, opt.teamId) : undefined,
+        opt.bedingung,
         opt.nach !== undefined ? sql`${sortName} > ${opt.nach}` : undefined,
       ),
     )
@@ -140,7 +138,7 @@ export async function ladeRaeume(
   };
 }
 
-// Belegungsplan (#628): Wer die Belegung der Räume sieht (Wunsch des Nutzers: «alle Leiter»; Annahme, vom Nutzer zu bestätigen): jede Leitung, also die Abteilungsleitung, wer eine Rolle «leitung» oder «stufenleitung» an einer Stufe hat, Verantwortliche eines Teams und wer den Team-Tag eines Raums trägt (entscheidet über dessen Anfragen). Eltern und Personen ohne eine dieser Aufgaben nicht. Eine Abfrage, und nur für Personen, die nicht schon über Admin oder eine Stufenrolle zählen. Ein Admin ohne zweiten Faktor zählt mit: Die Route liegt nicht unter /admin und gibt nichts frei, was die Leitung nicht schon in der App sieht.
+// Belegungsplan (#628): Der alte Weg für «raum.belegung», nur noch von der Hülle rechtemodell/alt.ts und vom Schattenbetrieb gebraucht; die Routen fragen verlange(). Wer die Belegung der Räume sieht (Wunsch des Nutzers: «alle Leiter»; Annahme, vom Nutzer zu bestätigen): jede Leitung, also die Abteilungsleitung, wer eine Rolle «leitung» oder «stufenleitung» an einer Stufe hat, Verantwortliche eines Teams und wer den Team-Tag eines Raums trägt (entscheidet über dessen Anfragen). Eltern und Personen ohne eine dieser Aufgaben nicht. Eine Abfrage, und nur für Personen, die nicht schon über Admin oder eine Stufenrolle zählen. Ein Admin ohne zweiten Faktor zählt mit: Die Route liegt nicht unter /admin und gibt nichts frei, was die Leitung nicht schon in der App sieht.
 export async function darfBelegungSehen(db: Db, person: Person) {
   if (person.admin || person.rollen.length > 0) return true;
   const [zeile] = await db
@@ -196,6 +194,8 @@ export async function ladeBelegung(
     bis: string;
     mitAnfragen: boolean;
     raumId?: string;
+    // Nur die Räume, für die die Person «raum.belegung» hat (termine/rechte.ts: raumBedingung)
+    bedingung?: SQL;
   },
 ): Promise<BelegungAnsicht> {
   const anfang = sql`(${opt.von}::date)::timestamp at time zone 'Europe/Zurich'`;
@@ -208,6 +208,7 @@ export async function ladeBelegung(
         eq(raum.abteilungId, opt.abteilungId),
         eq(raum.aktiv, true),
         opt.raumId ? eq(raum.id, opt.raumId) : undefined,
+        opt.bedingung,
       ),
     )
     .orderBy(asc(sortName))
@@ -240,6 +241,7 @@ export async function ladeBelegung(
         eq(raum.abteilungId, opt.abteilungId),
         eq(raum.aktiv, true),
         opt.raumId ? eq(raum.id, opt.raumId) : undefined,
+        opt.bedingung,
         sql`${raumBuchung.beginn} < ${schluss} and ${raumBuchung.ende} > ${anfang}`,
         opt.mitAnfragen
           ? sql`(${raumBuchung.status} = 'bestaetigt' or (${raumBuchung.status} = 'angefragt' and ${raumBuchung.ende} > now()))`

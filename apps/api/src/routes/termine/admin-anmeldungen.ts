@@ -12,12 +12,12 @@ import {
   type Anmeldung,
   type Feld,
 } from "../../termine/anmeldungen-liste.js";
-import { pruefeAnlassRecht } from "../../termine/anlass-recht.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { BOM, csvZeile } from "../../termine/csv.js";
 import type { Person } from "../../rechte.js";
 import type { TermineEnv } from "./index.js";
 
-// Anmeldungen eines Anlasses ansehen und exportieren (#444, Epic #430). Nur die Abteilungsleitung (termine/anlass-recht.ts, den zweiten Faktor verlangt der Pfad /api/v1/admin/*); ein Anlass einer anderen Abteilung ist 404.
+// Anmeldungen eines Anlasses ansehen und exportieren (#444, Epic #430). Ansehen verlangt «Anmeldungen sehen», die Datei «Anmeldungen exportieren» (rechtemodell/katalog.ts, beide erweitert: zweiter Faktor). Standardmässig hat sie nur die Abteilungsleitung; eine Gruppenrolle des OK kann sie für den Anlass der Gruppe haben (#649). Ein Anlass einer anderen Abteilung ist 404.
 // Abfragen: Liste 2 je Seite (Anlass mit Summe und Feldern; Seite mit Konto-Daten). Export: 1 (Anlass), 1 Audit-Eintrag, dann 1 je Block von 500 Anmeldungen, nie je Zeile. Die Datei wird gestreamt und nirgends gespeichert.
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
@@ -92,10 +92,17 @@ export function erstelleAdminAnmeldungenRouten({ db }: { db: Db }) {
   };
 
   // Erst den Anlass in SQL auf die Abteilung der Sitzung gefiltert laden (fremd und unbekannt sind 404), dann das Recht (403)
-  async function ladeAnlass(person: Person, id: string) {
+  async function ladeAnlass(
+    person: Person,
+    id: string,
+    recht: "anlass.anmeldungen_sehen" | "anlass.anmeldungen_exportieren",
+  ) {
     const a = await ladeAnlassMitSumme(db, person.abteilungId, id);
     if (!a) throw new HTTPException(404);
-    pruefeAnlassRecht(person);
+    await verlange(db, person, recht, {
+      abteilungId: person.abteilungId,
+      anlassId: id,
+    });
     return a;
   }
 
@@ -108,7 +115,7 @@ export function erstelleAdminAnmeldungenRouten({ db }: { db: Db }) {
         const person = c.get("person");
         const { id } = c.req.valid("param");
         const { status, limit = 50, nach } = c.req.valid("query");
-        const a = await ladeAnlass(person, id);
+        const a = await ladeAnlass(person, id, "anlass.anmeldungen_sehen");
         const cursor = nach === undefined ? undefined : liesCursor(nach);
         if (cursor === null) throw new HTTPException(400);
         const seite = await ladeSeite(db, id, status, limit, cursor);
@@ -128,7 +135,11 @@ export function erstelleAdminAnmeldungenRouten({ db }: { db: Db }) {
         const person = c.get("person");
         const { id } = c.req.valid("param");
         const { status } = c.req.valid("query");
-        const a = await ladeAnlass(person, id);
+        const a = await ladeAnlass(
+          person,
+          id,
+          "anlass.anmeldungen_exportieren",
+        );
         if (zuViele(person)) throw new HTTPException(429);
         const anzahl =
           status === "alle" ? a.angemeldet + a.abgemeldet : a[status];

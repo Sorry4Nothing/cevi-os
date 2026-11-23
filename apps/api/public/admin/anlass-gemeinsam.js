@@ -17,15 +17,24 @@ const FRIST_MS = 30_000;
 const speicher = new Map();
 export const vergiss = (id) => speicher.delete(id);
 
-// Anlass und die ersten 5 Anmeldungen (mit den Summen) in zwei Abfragen
+// Ohne das Recht «Anmeldungen sehen» (die Antwort des Anlasses nennt es unter `rechte`) gibt es keine Anmeldungen zu laden: Der Rahmen zeigt dann keine Namen und keine Zahlen
+const KEINE_ANMELDUNGEN = {
+  gesperrt: true,
+  summe: { angemeldet: 0, abgemeldet: 0 },
+  eintraege: [],
+  weitere: false,
+  naechste: null,
+};
+
+// Anlass und, wenn die Person die Anmeldungen sehen darf, die ersten 5 Anmeldungen (mit den Summen): zwei Abfragen nacheinander, weil erst der Anlass sagt, was die Person darf
 export async function ladeKopf(id, { neu = false } = {}) {
   const alt = speicher.get(id);
   if (!neu && alt && Date.now() - alt.zeit < FRIST_MS) return alt.daten;
   const pfad = `${BASIS}/${encodeURIComponent(id)}`;
-  const [anlass, anmeldungen] = await Promise.all([
-    anfrage("GET", pfad),
-    ladeSeite(pfad, "alle", "", 5),
-  ]);
+  const anlass = await anfrage("GET", pfad);
+  const anmeldungen = anlass.rechte?.anmeldungenSehen
+    ? await ladeSeite(pfad, "alle", "", 5)
+    : KEINE_ANMELDUNGEN;
   const daten = { anlass, anmeldungen };
   speicher.set(id, { zeit: Date.now(), daten });
   return daten;

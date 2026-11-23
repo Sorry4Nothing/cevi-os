@@ -199,6 +199,29 @@ Termine heissen im Code teils `programm`. Zwei Wege zu denselben Daten: die ält
 
 Die eigene Raumanfrage entscheidet nie dieselbe Person.
 
+**Einstellbar über Gruppenrollen (#649).** Seit der Umstellung der Routen auf `verlange()` (`rechtemodell/darf.ts`) prüft jede Route dieser Tabelle ein Recht des Katalogs statt einer Einzelfunktion. Die Standardrollen in der Tabelle bleiben, wie sie sind; zusätzlich lässt sich jedes dieser Rechte einer Plattformrolle (für die ganze Abteilung) oder einer Gruppenrolle (je Gruppe, mit der Geltung «alle» oder «eigene») geben. Die Matrix in «Rollen und Rechte» zeigt es; der Server prüft es bei jeder Anfrage.
+
+| Recht                            | Geltung «eigene» heisst                                      | Zweiter Faktor  | Route                                                                |
+| -------------------------------- | ------------------------------------------------------------ | --------------- | -------------------------------------------------------------------- |
+| `anlass.anmeldungen_sehen`       | der Anlass der Gruppe (`tag.anlass_id`), zum Beispiel das OK | ja              | `GET /admin/anlaesse/{id}/anmeldungen`                               |
+| `anlass.anmeldungen_exportieren` | der Anlass der Gruppe                                        | ja              | `GET /admin/anlaesse/{id}/anmeldungen.csv`                           |
+| `anlass.verwalten`               | der Anlass der Gruppe                                        | ja              | `GET`, `PATCH`, `PUT …/felder` unter `/admin/anlaesse`               |
+| `anlass.anlegen`                 | nur «alle»                                                   | ja              | `POST` und `DELETE` unter `/admin/anlaesse`                          |
+| `raum.verwalten`                 | die Räume, deren Team die Gruppe ist (`raum.team_tag_id`)    | ja              | `GET`, `PATCH`, `DELETE` unter `/admin/raeume`; `POST` nur «alle»    |
+| `raum.team_zuweisen`             | nur «alle»                                                   | ja              | `PATCH` und `POST /admin/raeume` mit `teamId`                        |
+| `raum.anfrage_entscheiden`       | die Anfragen der Räume, deren Team die Gruppe ist            | ja (Team: nein) | `GET /raeume/anfragen/offen`, `POST /raeume/anfragen/{id}/entscheid` |
+| `raum.belegung`                  | die Räume, deren Team die Gruppe ist                         | nein            | `GET /raeume/belegung`                                               |
+| `vorschlag.einreichen`           | nur «alle»                                                   | nein            | `POST /termin-vorschlaege`                                           |
+| `vorschlag.entscheiden`          | nur «alle»                                                   | ja              | `/admin/termin-vorschlaege*`                                         |
+| `termine.warnliste`              | nur «alle»                                                   | ja              | `GET /admin/termine/warnungen`                                       |
+| `termine.kategorien_zuordnen`    | nur «alle»                                                   | ja              | `/admin/kategorie-zuordnungen`                                       |
+
+Was neu möglich ist, ohne dass sich eine Standardrolle ändert:
+
+- **Anmeldungen eines Anlasses sehen und exportieren** kann eine Rolle in der Gruppe des Anlasses (OK) haben, zum Beispiel «Kasse» nur sehen, «Leitung» sehen und exportieren. Das gilt, bis die Gruppe gelöscht wird (keine Frist nach dem Anlass). Die Anlassliste zeigt der Rolle nur den Anlass ihrer Gruppe; ein fremder Anlass ist 403, ein unbekannter 404. Beide Rechte verlangen den zweiten Faktor.
+- **Räume einem Team zuweisen.** Ein Raum hat höchstens ein Team (`raum.team_tag_id`). Wer das Team trägt, sieht die Belegung der Räume und die Anfragen dafür und entscheidet sie (Mitglied ohne Rolle wie bisher ohne zweiten Faktor, eine Gruppenrolle mit dem Recht mit zweitem Faktor). Das Team eines Raums ändert nur, wer `raum.team_zuweisen` hat (standardmässig die Abteilungsleitung), im Raum-Formular oder in der Ansicht der Gruppe unter «Räume». Hat ein Raum kein Team, entscheidet die Abteilungsleitung. Eine Rolle mit `raum.verwalten` und «eigene» ändert die Räume ihres Teams, legt aber keine neuen an und ändert das Team nicht.
+- **Navigation.** Die Seiten «Räume», «Anfragen», «Anlässe», «Vorschläge», «Ohne Kategorie» und «Kategorien» erscheinen nach den Signalen `termine.*` aus `GET /api/v1/redaktion/ich`, nicht nach der Rolle. Die Oberfläche blendet nur aus; jede Route prüft selbst.
+
 Die Belegung (#628) ist eine neue Leseberechtigung für Leitende, die der Nutzer ausdrücklich verlangt hat («alle Leiter sollen sehen, wie die Räume belegt sind»); sie ist noch vom Nutzer zu bestätigen. Wer sie hat, prüft `darfBelegungSehen` (`termine/raum.ts`): Abteilungsleitung, Rolle `leitung` oder `stufenleitung` an einer Stufe, Verantwortliche eines Teams und wer den Team-Tag eines Raums trägt. Es braucht keinen zweiten Faktor (Lesen, nicht unter `/admin`). Die Verwaltung zeigt dafür die Seite «Belegung», sobald `GET /api/v1/redaktion/ich` das Signal `belegung` meldet.
 
 ### 4.4 Website: Seiten, Veröffentlichen, Medien, Einstellungen
@@ -396,15 +419,15 @@ Hier steht, wo Code, Tests und Kommentare nicht zusammenpassen oder nichts entsc
 1. **Lagerleitung und Stammdaten.** Der Kommentar in `lager/rechte-katalog.ts` sagt, Lager-Stammdaten, Mitglieder und Rechte verwalten Lagerleitung und Abteilungsleitung. Im Code und in der Matrix (`test/lager/matrix/lager.ts`, `verwaltungObjekt`) dürfen Stammdaten, Status, Mitglieder und Löschen nur die Abteilungsleitung (`/api/v1/admin/lager*`); die Lagerleitung darf nur die Rechte der Rollen ändern. Entscheid: Soll die Lagerleitung Mitglieder und Stammdaten ihres Lagers selbst verwalten dürfen? Dann Kommentar und Code angleichen, sonst den Kommentar korrigieren.
 2. **Annahmen ohne Bestätigung.** Diese Regeln sind gebaut, aber im Code als «vom Nutzer zu bestätigen» markiert (`Erweiterung Offene Entscheide`, `termine/rechte-katalog.ts`):
    - A9: Wer Termine vorschlagen darf (Abteilungsleitung, Stufenleitung, Leitung, Tag `funktion` oder `team`) (`termine/vorschlag.ts`)
-   - A10: Anlässe verwalten und Anmeldungen ansehen nur die Abteilungsleitung (`termine/anlass-recht.ts`)
-   - R1 und R2: Räume verwalten nur die Abteilungsleitung, lesen alle Angemeldeten (`termine/raum.ts`)
-   - Raumanfragen: Wer den Team-Tag trägt, sonst die Abteilungsleitung (`termine/raum-buchung.ts`)
+   - A10: Anlässe verwalten und Anmeldungen ansehen standardmässig nur die Abteilungsleitung; einer Gruppenrolle des OK einstellbar (`rechtemodell/katalog.ts`, #649)
+   - R1 und R2: Räume verwalten standardmässig nur die Abteilungsleitung (einer Gruppenrolle des Teams für ihre Räume einstellbar), lesen alle Angemeldeten
+   - Raumanfragen: Wer den Team-Tag trägt, sonst die Abteilungsleitung (`termine/raum-buchung.ts`, Recht `raum.anfrage_entscheiden`)
    - Team-Verantwortung: Rolle `verantwortlich` am Tag, «Wert offen» (`bearbeiten.ts`)
    - Lager: `diensttausch.entscheiden` ist im Standard auch bei der Leitung; Namen der Stimmen einer Umfrage sieht nur die Leitung des Lagers (#389, #382)
    - Lädeli: bestellen darf jede angemeldete Person (`laden/laden.ts` in #566)
 3. **Zwei Sichtlogiken für Termine.** `/api/v1/programme` (`rechte.ts`, `programmSichtbar`) und `/api/v1/termine` (`termine/sicht.ts`) entscheiden verschieden. Beispiel: Die Abteilungsleitung sieht ein Programm der Stufe A über `GET /programme/:id` (200), über `GET /termine/:id` aber nicht (404), und `intern` sieht sie nur in `/programme`. Die Apps sollen laut Plan auf `/termine` wechseln; offen, ob `/programme` bleibt und ob die Abteilungsleitung in «Mein Kalender» alles sehen soll.
 4. **Benennung von Sichtbarkeit und Tags.** Offen (Nutzer, 23.11.2026). `eltern` heisst im öffentlichen Datenplan der Website «öffentlich im Internet»; eine Stufe «für Eltern, aber nicht im Internet» gibt es nicht. Die Termin-Listen der Stufenseiten zeigen Gruppentermine eines Anlasses auch bei Anlass-Sichtbarkeit `angemeldet`, der Datenplan nicht.
-5. **Rechtekatalog der Termine ist nur Doku (Fundament seit #643 gebaut, Umstellung offen).** Der eine Katalog und `darf()` stehen (Abschnitt 8); die Routen stellen noch nicht um. `TERMINE_RECHTE` (`termine/rechte-katalog.ts`) ist ein Platzhalter: Keine Route liest ihn, nur `test/termine/geruest.test.ts` prüft die Namen. Die echte Prüfung steht in einzelnen Funktionen (`darfAnlaesseVerwalten`, `darfVorschlagen`, `darfEntscheiden`, `istAdmin` in den Routen). Entscheid: Katalog zur echten Quelle machen oder streichen.
+5. **Rechtekatalog der Termine (erledigt mit #649).** `TERMINE_RECHTE` (`termine/rechte-katalog.ts`) bleibt die Liste der Standardrollen für Anhang B; entschieden wird im zentralen Katalog (`rechtemodell/katalog.ts`) mit `verlange()`. Die Einzelfunktionen `darfAnlaesseVerwalten`, `darfRaeumeVerwalten` und die `person.admin`-Prüfungen sind aus den Routen verschwunden; `darfVorschlagen`, `darfBelegungSehen` und `darfEntscheiden` leben nur als alter Weg in `rechtemodell/alt.ts` weiter, bis der Modus `neu` gilt. Nicht umgestellt, weil kein Recht, sondern der Umfang der Sicht: «Alle Termine» der Abteilungsleitung ohne Tag (`termine/sicht.ts`, `routes/termine/mein.ts`).
 6. **Ungenutzte Prüf-Middleware (löst sich mit der Umstellung auf `verlange`, #643).** `verlangePlattformRecht` und `verlangeEntwickler` (`plattform.ts`) werden nur in `test/plattformrollen.test.ts` verwendet. Die Routen prüfen mit `hatPlattformRecht` und `istEntwickler` selbst. Entscheid: Middleware einsetzen oder entfernen.
 7. **Zwei Wege zu den Medien.** `/api/v1/admin/medien*` (seit #648 mit dem Recht `medien.verwalten`: Abteilungsleitung und Webmaster) und `/api/v1/redaktion/medien*` (auch Stufenleitung) führen zur selben Bibliothek, mit verschiedenen Regeln. Offen: Darf eine Stufenleitung Alt-Texte fremder Medien ändern (heute nur eigene Uploads)? Soll der Admin-Weg bleiben?
 8. **Zweiter Faktor je Pfad, nicht je Rolle.** Die Abteilungsleitung ohne zweiten Faktor sperrt die Middleware nur unter `/api/v1/admin/*`, `/redaktion` und `/plattform`; Programme, Anwesenheit, Lager (als Lagerleitung, ausser Rechte der Rollen), Vorschläge und Räume nutzt sie ohne. Das ist Entscheid #523 (Faktor nur im Web), aber die Regel hängt an der Route, nicht an der Rolle, und einzelne Routen bewachen ihn selbst (Raumanfragen entscheiden). Entscheid: Soll das so bleiben?
@@ -462,6 +485,7 @@ Ein Recht, das der Katalog für eine Rolle nicht kennt oder mit einer Geltung, d
 | `raum.ansehen`                   | Räume                | Räume ansehen                           | normal    | struktur  | –            | –      | jede angemeldete Person             |
 | `raum.belegung`                  | Räume                | Belegung der Räume sehen                | normal    | vergebbar | alle, eigene | raum   | Rollen                              |
 | `raum.verwalten`                 | Räume                | Räume verwalten                         | erweitert | vergebbar | alle, eigene | raum   | Rollen                              |
+| `raum.team_zuweisen`             | Räume                | Räume einem Team zuweisen               | erweitert | vergebbar | alle         | –      | Rollen                              |
 | `raum.anfrage_entscheiden`       | Räume                | Raumanfragen entscheiden                | erweitert | vergebbar | alle, eigene | raum   | Rollen                              |
 | `laden.bestellen`                | Lädeli               | Im Lädeli bestellen                     | normal    | struktur  | –            | –      | jede angemeldete Person             |
 | `laden.ansehen`                  | Lädeli               | Lädeli-Verwaltung ansehen               | erweitert | vergebbar | alle         | –      | Rollen                              |
@@ -582,19 +606,23 @@ Quelle: `RECHTE_KATALOG` in `apps/api/src/lager/rechte-katalog.ts`. Die Lagerlei
 
 Quelle: `TERMINE_RECHTE` in `apps/api/src/termine/rechte-katalog.ts` (siehe Lücke 5). «Wer» nennt die Absicht; die Prüfung steht in den Routen.
 
-| Recht                         | Wer                                                                                                    |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `termine.mein_kalender`       | jede angemeldete Person                                                                                |
-| `termine.alle`                | jede angemeldete Person                                                                                |
-| `termine.warnliste`           | Abteilungsleitung (mit zweitem Faktor)                                                                 |
-| `termine.kategorien_zuordnen` | Abteilungsleitung (mit zweitem Faktor)                                                                 |
-| `vorschlag.einreichen`        | Abteilungsleitung, Stufenleitung, Leitung, Tag `funktion` oder `team` (Annahme A9)                     |
-| `vorschlag.entscheiden`       | Abteilungsleitung (mit zweitem Faktor)                                                                 |
-| `anlass.verwalten`            | Abteilungsleitung (mit zweitem Faktor, Annahme A10)                                                    |
-| `anlass.anmelden`             | jede angemeldete Person (Eltern ihres Kindes)                                                          |
-| `anmeldung.ansehen`           | Abteilungsleitung (mit zweitem Faktor)                                                                 |
-| `raum.ansehen`                | jede angemeldete Person                                                                                |
-| `raum.verwalten`              | Abteilungsleitung (mit zweitem Faktor)                                                                 |
-| `raum.belegung`               | Leitende: Abteilungsleitung, Leitung, Stufenleitung, Team-Verantwortliche, Team-Tag eines Raums (#628) |
+| Recht                            | Wer                                                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `termine.mein_kalender`          | jede angemeldete Person                                                                                          |
+| `termine.alle`                   | jede angemeldete Person                                                                                          |
+| `termine.warnliste`              | Abteilungsleitung (mit zweitem Faktor)                                                                           |
+| `termine.kategorien_zuordnen`    | Abteilungsleitung (mit zweitem Faktor)                                                                           |
+| `vorschlag.einreichen`           | Abteilungsleitung, Stufenleitung, Leitung, Tag `funktion` oder `team` (Annahme A9)                               |
+| `vorschlag.entscheiden`          | Abteilungsleitung (mit zweitem Faktor)                                                                           |
+| `anlass.anlegen`                 | Abteilungsleitung (mit zweitem Faktor); nur «alle» (#649)                                                        |
+| `anlass.verwalten`               | Abteilungsleitung (mit zweitem Faktor, Annahme A10); einer Gruppenrolle des OK für den eigenen Anlass            |
+| `anlass.anmelden`                | jede angemeldete Person (Eltern ihres Kindes)                                                                    |
+| `anmeldung.ansehen`              | Abteilungsleitung (mit zweitem Faktor); im Katalog `anlass.anmeldungen_sehen`, einer Gruppenrolle des OK         |
+| `anlass.anmeldungen_exportieren` | Abteilungsleitung (mit zweitem Faktor); einer Gruppenrolle des OK für den eigenen Anlass (#649)                  |
+| `raum.ansehen`                   | jede angemeldete Person                                                                                          |
+| `raum.verwalten`                 | Abteilungsleitung (mit zweitem Faktor)                                                                           |
+| `raum.belegung`                  | Leitende: Abteilungsleitung, Leitung, Stufenleitung, Team-Verantwortliche, Team-Tag eines Raums (#628)           |
+| `raum.anfrage_entscheiden`       | wer das Team des Raums trägt; ohne Team die Abteilungsleitung (mit zweitem Faktor); einer Gruppenrolle des Teams |
+| `raum.team_zuweisen`             | Abteilungsleitung (mit zweitem Faktor, #649)                                                                     |
 
 Related: [Architektur](architektur.md), [Endpunkte und Zugriff](api/endpunkte.md), [API-Vertrag](api/openapi.yaml), [Postman](api/postman.md), [Bedrohungsmodell](sicherheit/bedrohungsmodell.md), [Barrierefreiheit](barrierefreiheit.md)

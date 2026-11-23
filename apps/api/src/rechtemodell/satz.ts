@@ -21,6 +21,7 @@ import {
   type RechtId,
 } from "./katalog.js";
 import {
+  MITGLIED_OHNE_ZWEITEN_FAKTOR,
   MITGLIED_STANDARD,
   OHNE_ZWEITEN_FAKTOR,
   OHNE_ZWEITEN_FAKTOR_STUFENARBEIT,
@@ -298,6 +299,12 @@ export class RechteSatz {
       const h = this.herkuenfte(recht, objekt);
       return !h.some(
         (x) => x.art === "stufenrolle" || x.art === "abteilungsleitung",
+      );
+    }
+    // Nur Mitglieder ohne Rolle (oder allein der alte Weg im Schattenbetrieb): ohne zweiten Faktor wie bisher
+    if (MITGLIED_OHNE_ZWEITEN_FAKTOR.has(recht)) {
+      return !this.herkuenfte(recht, objekt).every(
+        (x) => x.art === "mitgliedschaft",
       );
     }
     if (!OHNE_ZWEITEN_FAKTOR.has(recht)) return true;

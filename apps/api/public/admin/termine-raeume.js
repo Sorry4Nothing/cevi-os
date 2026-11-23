@@ -24,7 +24,7 @@ import {
 } from "./kalenderhilfen.js";
 import { leerKarte } from "./zustaende.js";
 
-// Unterseite «Räume» (A14, A15, #446, #447): Die Abteilungsleitung legt Räume an, ändert, deaktiviert und löscht sie. Über Anfragen entscheidet die Unterseite «Anfragen».
+// Unterseite «Räume» (A14, A15, #446, #447): Die Abteilungsleitung legt Räume an, ändert, deaktiviert und löscht sie; ein Team mit dem Recht «Räume verwalten» sieht und ändert die Räume, die ihm zugewiesen sind (#649). Das Team eines Raums ändert nur, wer «Räume einem Team zuweisen» darf. Über Anfragen entscheidet die Unterseite «Anfragen».
 // Datenbanklast: eine Abfrage beim Öffnen und je «Weitere laden» (50 Räume), die Gruppen (eine Abfrage) erst, wenn ein Blatt sie braucht. Suche und Sortierung laufen im Browser. Kein Polling.
 // Lücken gegenüber dem Design: Die Spalte «Anfragen offen» fehlt (die API zählt offene Anfragen nicht je Raum), und das Feld «Ausstattung» heisst im Raum «Ort» (Gebäude, Stockwerk) und «Beschreibung» (Ausstattung und Hinweise).
 
@@ -81,14 +81,16 @@ export function zeige(bereich, ctx) {
       (erste) => zeichne(bereich, ctx, erste, lade),
       { fehlerTitel: "Die Räume konnten nicht geladen werden." },
     );
-  // Die Hauptaktion steht auch bei einem Ladefehler im Kopf
-  ctx.kopfAktion(
-    knopf("Neuer Raum", {
-      art: "haupt",
-      symbol: "plus",
-      onclick: () => blatt({ ctx, neu: lade }),
-    }),
-  );
+  // Die Hauptaktion steht auch bei einem Ladefehler im Kopf; neue Räume legt an, wer Räume für die ganze Abteilung verwalten darf (der Server prüft)
+  if (ctx.zugang.termine.raumAnlegen) {
+    ctx.kopfAktion(
+      knopf("Neuer Raum", {
+        art: "haupt",
+        symbol: "plus",
+        onclick: () => blatt({ ctx, neu: lade }),
+      }),
+    );
+  }
   return lade();
 }
 
@@ -258,12 +260,16 @@ function zeichne(bereich, ctx, erste, neu) {
 
 // Blatt «Raum bearbeiten» (A15) und «Neuer Raum»: Name, Beschreibung, Ort, Team, Plätze, Aktiv
 async function blatt({ raum, ctx, neu }) {
-  let tags;
-  try {
-    tags = await ladeTags();
-  } catch (f) {
-    ctx.melde(meldungVon(f), "fehler");
-    return;
+  // Die Gruppen braucht nur, wer das Team zuweisen darf; sonst steht das Team als Text da
+  const kannZuweisen = ctx.zugang.termine.raumZuweisen === true;
+  let tags = [];
+  if (kannZuweisen) {
+    try {
+      tags = await ladeTags();
+    } catch (f) {
+      ctx.melde(meldungVon(f), "fehler");
+      return;
+    }
   }
   const name = feld({
     label: "Name",
@@ -285,14 +291,22 @@ async function blatt({ raum, ctx, neu }) {
     wert: raum?.ort ?? "",
     maxlength: 200,
   });
-  const team = auswahl({
-    label: "Zuständiges Team",
-    optionen: [
-      ["", "Kein Team"],
-      ...tags.map((t) => [t.id, `${t.name} (${TYPEN[t.typ] ?? t.typ})`]),
-    ],
-    wert: raum?.team?.id ?? "",
-  });
+  const team = kannZuweisen
+    ? auswahl({
+        label: "Zuständiges Team",
+        optionen: [
+          ["", "Kein Team"],
+          ...tags.map((t) => [t.id, `${t.name} (${TYPEN[t.typ] ?? t.typ})`]),
+        ],
+        wert: raum?.team?.id ?? "",
+      })
+    : feld({
+        label: "Zuständiges Team",
+        hilfe:
+          "Das Team ändert, wer Räume einem Team zuweisen darf (in der Teamansicht unter Gruppen).",
+        wert: raum?.team?.name ?? "Kein Team",
+      });
+  if (!kannZuweisen) team.eingabe.readOnly = true;
   const plaetze = zahlfeld({
     label: "Plätze (optional)",
     hilfe: "Wie viele Personen Platz haben, von 1 bis 1000.",
@@ -387,7 +401,8 @@ async function blatt({ raum, ctx, neu }) {
       ort: leer(ort),
       beschreibung: leer(beschreibung),
       kapazitaet: roh === "" ? null : n,
-      teamId: team.eingabe.value || null,
+      // Das Team gehört nur in die Anfrage, wenn die Person es zuweisen darf
+      ...(kannZuweisen && { teamId: team.eingabe.value || null }),
       aktiv: aktiv.eingabe.checked,
     };
     sperre(true);
