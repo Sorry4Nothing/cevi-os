@@ -314,6 +314,15 @@ Der Bereich `#lager` nutzt die Querschnitt-Bausteine (`sortieren.js`, `filterlei
 
 Das Rechte-Modell ist nicht verändert: Die Rechte der Rollen heissen im Server weiter wie bisher; nur die Anzeige zeigt statt des Schlüssels einen Satz.
 
+### Lager: Menschen und Einteilung (#675)
+
+Neun Module der Gruppe «Menschen» im Arbeitsbereich des Lagers (Register `lager-module.js`, Adresse `#lager/lager/<id>/<modul>`; Dateien `lager-m-*.js`, `lager-menschen.js`, `lager-menschen-logik.js`, `lager-ziehen.js`, `lager-menschen.css`, Vorsatz `mn-`): Teilnehmende, Abzählen, Anwesenheit, Gruppen, Zimmer und Zelte, Fahrten, Schichtplan, Diensttausch, Adressbuch. Sie rufen nur Routen unter `/api/v1/lager/{id}` (`test/admin-lager-menschen.test.ts` gleicht sie mit `docs/api/openapi.yaml` ab) und zeigen nur, was die Rolle darf (`k.darf` für Lesen, `k.kann` für Schreiben; `k.kann` ist im geschlossenen Lager immer falsch). Kein Polling: Aktualisieren holt den Stand, Schreiben prüft die Version.
+
+- **Ziehen** (`lager-ziehen.js`): Griff-Knopf mit Zeigerereignissen, Hülle am Zeiger, Ablegeflächen mit Rand und Fläche; Escape bricht ab. Jede Zuteilung geht auch ohne Ziehen: Menü «Mehr» der Person, Auswahlleiste unten (mehrere ankreuzen), im Schichtplan «Besetzen».
+- **Konflikt** (`lager-menschen.js`): Formulare senden nur geänderte Felder; bei 409 `VERSION_KONFLIKT` zeigt `zeigeKonflikt` beide Stände und zwei Wege («Meine Änderung übernehmen» sendet mit der Version des Servers, «Stand des Servers übernehmen» lädt neu). Anwesenheit führt denselben Konflikt in der Matrix.
+- **Lokaler Stand**: Zimmer, Fahrten, Gruppen und Schichtplan führen nach jeder Zuteilung nur ihre Liste nach, die Seite lädt nicht neu (Scrollposition bleibt); bei einem Fehler holt `neu()` den Stand des Servers.
+- **Zuteilen mit zwei Aufrufen** (Verschieben zwischen Zimmern, Fahrten, Zellen): erst entfernen, dann einteilen; schlägt das Einteilen fehl, kommt die Person an ihren alten Platz zurück.
+
 ## Laden, Leer, Fehler
 
 `ctx.lade(laden, zeichnen, { skeleton })` (`lader.js`) macht, was G5 verlangt:
