@@ -1,6 +1,11 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  erstelleAktivitaetsprotokoll,
+  loescheAlteAktivitaet,
+  systemzeileAus,
+} from "./aktivitaet.js";
 import { erstelleApp } from "./app.js";
 import { erstelleAuth } from "./auth.js";
 import {
@@ -38,7 +43,7 @@ import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
 } from "./lager/aufraeumen.js";
-import { log } from "./log.js";
+import { log, setzeLogSenke } from "./log.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
 import { ladeSeiten } from "./seiten.js";
 import {
@@ -120,7 +125,19 @@ const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
   });
+// Aktivitätsprotokoll (#637): Ereignisse ohne Anfrage (Läufe, Versand) kommen über log() hinein; der Start steht als eigene Zeile
+const aktivitaet = erstelleAktivitaetsprotokoll(db);
+setzeLogSenke((felder) => systemzeileAus(aktivitaet, felder));
+aktivitaet.system("start", { bereich: "system" });
+// Beim Beenden schreibt der Prozess den Puffer zu Ende (höchstens eine Sekunde Zeilen)
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    aktivitaet.stopp();
+    void aktivitaet.leere().finally(() => process.exit(0));
+  });
+}
 const app = erstelleApp({
+  aktivitaet,
   appMinVersion: konfiguration.APP_MIN_VERSION,
   sql,
   db,
@@ -146,6 +163,15 @@ const app = erstelleApp({
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Aktivitätsprotokoll (#637): nach der Frist (Vorgabe 90 Tage) und über der Obergrenze löschen
+starteSitzungenAufraeumen(
+  () =>
+    loescheAlteAktivitaet(db, {
+      tage: konfiguration.PROTOKOLL_TAGE ?? 90,
+      maxZeilen: konfiguration.PROTOKOLL_MAX_ZEILEN ?? 500_000,
+    }),
+  "aktivitaet_aufraeumen",
+);
 starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),

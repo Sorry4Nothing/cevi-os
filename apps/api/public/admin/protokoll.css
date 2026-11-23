@@ -1,0 +1,418 @@
+/* Protokoll (#637). Klassen mit Vorsatz pl-. Farben nur über Variablen aus admin.css und tokens.css, keine style-Attribute; Bewegung nur unter prefers-reduced-motion: no-preference. */
+
+.pl-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.pl-erklaerung {
+  max-width: 48rem;
+  margin: 0;
+}
+
+.pl-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 12px;
+}
+
+/* ===== Aktivität: Säulen, Legende, Tabelle ===== */
+.pl-flaeche {
+  min-width: 0;
+}
+
+.pl-verlauf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pl-verlauf-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.pl-verlauf-kopf h2 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.pl-legende {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.pl-punkt {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  background: var(--akzent);
+  border-radius: 3px;
+}
+
+.pl-punkt--fehler {
+  margin-left: 12px;
+  background: var(--fe);
+}
+
+.pl-tabelle summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  color: var(--akzent);
+  font-weight: 700;
+}
+
+.pl-tabelle summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ===== Werkzeugleiste ===== */
+.pl-liste-bereich {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.pl-liste-bereich > h2 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.pl-leiste-kopf {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.pl-werkzeuge {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pl-zeile-felder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 12px;
+}
+
+.pl-gesetzt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.pl-gesetzt[hidden],
+.pl-chips[hidden] {
+  display: none;
+}
+
+.pl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ===== Zeitleiste ===== */
+.pl-listenfeld[aria-busy="true"] {
+  opacity: 0.6;
+}
+
+.pl-leiste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pl-tag {
+  margin: 16px 0 0;
+  color: var(--akzent);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pl-tag:first-child {
+  margin-top: 0;
+}
+
+.pl-liste {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Durchgehende Spur hinter den Avataren */
+.pl-liste::before {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  left: 36px;
+  width: 2px;
+  background: var(--rand-leise);
+}
+
+.pl-eintrag {
+  position: relative;
+}
+
+.pl-zeile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 4px 16px;
+  align-items: start;
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pl-zeile:hover {
+  border-color: var(--rand);
+}
+
+.pl-zeile:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.pl-zeile--fehler {
+  border-left: 4px solid var(--fe);
+}
+
+.pl-person {
+  position: relative;
+  display: flex;
+}
+
+.pl-art {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: var(--erhoben);
+  color: var(--text);
+  border: 2px solid var(--karte);
+  border-radius: 9999px;
+}
+
+.pl-art .i {
+  width: 12px;
+  height: 12px;
+}
+
+.pl-haupt {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pl-wer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.pl-name {
+  font-weight: 700;
+}
+
+.pl-rolle {
+  min-height: 20px;
+  background: var(--erhoben);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.pl-titel {
+  overflow-wrap: anywhere;
+}
+
+.pl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.pl-meta code,
+.pl-detail code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+}
+
+.pl-rechts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.pl-zeit {
+  color: var(--leise);
+  font-size: 0.8125rem;
+  white-space: nowrap;
+}
+
+.pl-status {
+  font-variant-numeric: tabular-nums;
+}
+
+.pl-mehr {
+  display: flex;
+  justify-content: center;
+}
+
+.pl-mehr:empty {
+  display: none;
+}
+
+.pl-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.pl-export p {
+  margin: 0;
+}
+
+/* ===== Detail ===== */
+.pl-detail-kopf {
+  margin-bottom: 16px;
+}
+
+.pl-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: 0;
+  margin: 0;
+}
+
+.pl-detail dt,
+.pl-detail dd {
+  margin: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.pl-detail dt {
+  padding-right: 16px;
+  color: var(--leise);
+  font-size: 0.8125rem;
+}
+
+.pl-wert {
+  overflow-wrap: anywhere;
+}
+
+.pl-wege {
+  margin: 24px 0 16px;
+}
+
+.pl-wege h3 {
+  margin-bottom: 8px;
+  font-size: 1rem;
+}
+
+/* ===== Schmal ===== */
+@media (max-width: 40rem) {
+  .pl-zeile {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pl-rechts {
+    grid-column: 2;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .pl-liste::before {
+    left: 32px;
+  }
+
+  .pl-detail {
+    grid-template-columns: 1fr;
+  }
+
+  .pl-detail dt {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+
+  .pl-detail dd {
+    border-top: 0;
+    padding-top: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pl-zeile {
+    transition:
+      border-color var(--dauer) var(--kurve),
+      transform var(--dauer) var(--kurve);
+  }
+
+  .pl-zeile:active {
+    transform: translateY(1px);
+  }
+
+  .pl-listenfeld {
+    transition: opacity var(--dauer) var(--kurve);
+  }
+}
+
+/* Erzwungene Farben: Der Fehlerrand bleibt als Linie sichtbar */
+@media (forced-colors: active) {
+  .pl-zeile--fehler {
+    border-left-color: CanvasText;
+  }
+
+  .pl-liste::before {
+    background: CanvasText;
+  }
+}

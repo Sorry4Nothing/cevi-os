@@ -270,6 +270,14 @@ export const BEREICHE = [
         modul: "./zeitregeln.js",
         untertitel: "Pushes an Eltern, die noch nicht geantwortet haben.",
       },
+      {
+        schluessel: "protokoll",
+        name: "Protokoll",
+        modul: "./protokoll.js",
+        untertitel:
+          "Was wer wann geändert hat: alle Aktionen mit Benutzer, Zeit und Ergebnis.",
+        zugang: "entwickler",
+      },
     ],
   },
 ];

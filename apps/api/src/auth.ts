@@ -19,6 +19,7 @@ import {
   BENUTZERNAME_MIN,
   BENUTZERNAME_MUSTER,
 } from "./benutzername.js";
+import type { AktivitaetVariablen } from "./aktivitaet-middleware.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
@@ -37,6 +38,17 @@ const anmeldepfade = new Set([
   "/sign-in/username",
   "/two-factor/verify-totp",
   "/two-factor/verify-backup-code",
+]);
+
+// Wer sich mit dieser Anfrage angemeldet hat (oder wessen Konto ein Fehlversuch traf), für das Aktivitätsprotokoll (#637): Die Hooks wissen es, die Route nach dem Handler nicht. Der Schlüssel ist die Anfrage selbst, nichts bleibt nach ihr stehen
+export const aktivitaetNutzer = new WeakMap<Request, string>();
+
+// Pfade, bei denen die Sitzung vor dem Handler gilt (nachher ist sie weg oder ersetzt)
+const MIT_SITZUNG = new Set([
+  "/api/auth/sign-out",
+  "/api/auth/change-password",
+  "/api/auth/revoke-sessions",
+  "/api/auth/two-factor/enable",
 ]);
 
 // Felder der Bremse und des Pflichtwechsels am User, wo better-auth nur seinen Grundtyp kennt
@@ -316,6 +328,7 @@ export function erstelleAuth(
           if (newSession) {
             // Dieser Hook läuft vor dem des twoFactor-Plugins, die neue Sitzung ist also auch bei dessen Umleitung noch da
             const person = newSession.user as Bremsfelder & { id: string };
+            if (ctx.request) aktivitaetNutzer.set(ctx.request, person.id);
             if (person.fehlversuche || person.naechsterVersuchAb) {
               await adapter.update({
                 model: "user",
@@ -341,6 +354,7 @@ export function erstelleAuth(
           });
           // Unbekannte Namen hinterlassen nichts
           if (!person) return;
+          if (ctx.request) aktivitaetNutzer.set(ctx.request, person.id);
           const wo = [{ field: "id", value: person.id }];
           if (
             person.fehlversuche &&
@@ -392,6 +406,9 @@ export function erstelleAuth(
         }
         if (ctx.path === "/two-factor/verify-totp") {
           const { newSession, session } = ctx.context;
+          if (newSession && ctx.request) {
+            aktivitaetNutzer.set(ctx.request, newSession.user.id);
+          }
           const vorher = session?.user as { twoFactorEnabled?: boolean };
           // Nur der Schritt, der den Faktor einschaltet (in der Anmeldung gibt es noch keine Sitzung): Andere Sitzungen kamen ohne Code zustande und enden hier
           if (
@@ -466,7 +483,7 @@ function mitExpoOrigin(anfrage: Request) {
 }
 
 export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
-  const routen = new Hono();
+  const routen = new Hono<{ Variables: AktivitaetVariablen }>();
   // Den zweiten Faktor richten nur Admins ein; für alle anderen ist der Pfad zu
   routen.post("/api/auth/two-factor/enable", async (c, next) => {
     const sitzung = await auth.api.getSession({
@@ -481,7 +498,31 @@ export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
     const anmeldung = eintrag === "POST /api/auth/sign-in/username";
     // Beide Umbauten hier statt in einem after-Hook: dispatchAuthEndpoint behielte dessen Status und verriete den Fall
     routen.on(methode, pfad, async (c) => {
-      const antwort = await auth.handler(mitExpoOrigin(c.req.raw));
+      // Aktivitätsprotokoll (#637): Wer handelt, steht in nutzerId, bevor die Sitzung endet
+      if (MIT_SITZUNG.has(pfad)) {
+        const sitzung = await auth.api
+          .getSession({
+            headers: c.req.raw.headers,
+            query: { disableRefresh: true },
+          })
+          .catch(() => null);
+        if (sitzung) c.set("nutzerId", sitzung.user.id);
+      }
+      const anfrage = mitExpoOrigin(c.req.raw);
+      const antwort = await auth.handler(anfrage);
+      const wer = aktivitaetNutzer.get(anfrage);
+      if (wer) c.set("nutzerId", wer);
+      // Der Grund eines Fehlschlags (Wartezeit, falsches Passwort, Sperre) bleibt im Protokoll, auch wenn der Client nur das einheitliche 401 sieht
+      if (anmeldung && antwort.status >= 400 && antwort.status !== 429) {
+        const grund = await antwort
+          .clone()
+          .json()
+          .then((b: { code?: unknown }) =>
+            typeof b.code === "string" ? b.code : undefined,
+          )
+          .catch(() => undefined);
+        if (grund) c.set("aktivitaetCode", grund);
+      }
       // better-auth antwortet auf 429 nur mit einer englischen message; X-Retry-After bleibt
       if (antwort.status === 429) {
         return c.json(ZU_VIELE_ANFRAGEN, 429, {

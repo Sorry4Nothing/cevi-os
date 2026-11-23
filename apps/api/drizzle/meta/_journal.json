@@ -687,6 +687,13 @@
       "when": 1793555400000,
       "tag": "0134_website_freigabe_entfernt",
       "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1793555900000,
+      "tag": "0139_aktivitaet",
+      "breakpoints": true
     }
   ]
 }

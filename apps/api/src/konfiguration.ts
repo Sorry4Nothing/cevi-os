@@ -68,6 +68,11 @@ const schema = z.object({
     "Oetwilerstrasse 35, 8634 Hombrechtikon",
   ),
   KONTAKT_EMAIL: mitVorgabe(z.email(), "cevi-al@cevi-staefa-hombi.ch"),
+  // Aktivitätsprotokoll (#637): Aufbewahrung in Tagen (die Datenbank löscht nie vor 7) und Obergrenze der Zeilen (nie unter 10000); darüber löscht der nächtliche Lauf die ältesten
+  PROTOKOLL_TAGE: freiwillig(z.coerce.number().int().min(7).max(365)),
+  PROTOKOLL_MAX_ZEILEN: freiwillig(
+    z.coerce.number().int().min(10000).max(5_000_000),
+  ),
   // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
   KONTAKT_TELEFON: freiwillig(
     z

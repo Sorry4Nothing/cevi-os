@@ -733,3 +733,6 @@ export * from "./schema-bereichsschalter.js";
 
 // Lädeli (#566)
 export * from "./schema-laden.js";
+
+// Aktivitätsprotokoll (#637)
+export * from "./schema-aktivitaet.js";

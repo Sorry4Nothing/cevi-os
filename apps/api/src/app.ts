@@ -13,6 +13,11 @@ import {
   erstelleSchalterZustand,
   type SchalterZustand,
 } from "./bereichsschalter.js";
+import {
+  aktivitaetMiddleware,
+  type AktivitaetSenke,
+  type AktivitaetVariablen,
+} from "./aktivitaet-middleware.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import { LagerAntwortFehler } from "./lager/sync.js";
@@ -33,6 +38,7 @@ import { erstelleRechteRouten } from "./routes/admin/rechte.js";
 import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
+import { erstelleProtokollRouten } from "./routes/admin/protokoll.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
@@ -120,6 +126,7 @@ export function erstelleApp({
   schalter = erstelleSchalterZustand(),
   website,
   websiteKontakt,
+  aktivitaet,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -148,6 +155,8 @@ export function erstelleApp({
     nimmVomNetz: () => Promise<void>;
     gibFrei: () => Promise<void>;
   };
+  // Aktivitätsprotokoll (#637): nimmt jede schreibende Anfrage entgegen; ohne Angabe (Tests, Werkzeuge) wird nichts erfasst. Die Route des Protokolls liest die Tabelle ohnehin
+  aktivitaet?: AktivitaetSenke;
   // Adresse, Telefon und E-Mail der Abteilung für die Vorschau im Editor (#570); der Abgleich bekommt dieselben Werte in server.ts
   websiteKontakt?: { adresse?: string; telefon?: string; email?: string };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
@@ -175,9 +184,12 @@ export function erstelleApp({
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   // Bis zu 100 Operationen der Offline-Warteschlange des Lagers (#367)
   const warteschlangeLimit = bodyLimit({ maxSize: 256 * 1024 });
+  const protokollieren = aktivitaet
+    ? aktivitaetMiddleware(aktivitaet)
+    : undefined;
   return (
     // nutzerId setzt personAusSitzung, sobald es die Sitzung gelesen hat
-    new Hono<{ Variables: { nutzerId?: string } }>()
+    new Hono<{ Variables: AktivitaetVariablen }>()
       // Ohne Header-Name übernimmt Hono keine ID vom Client und schickt keine zurück
       .use(requestId({ headerName: "" }))
       .use(async (c, next) => {
@@ -220,6 +232,8 @@ export function erstelleApp({
           metriken.erfasse(eintrag);
         }
       })
+      // Aktivitätsprotokoll (#637): vor den Begrenzungen, damit auch abgewiesene Anfragen (401, 413, 429) erscheinen; die Zeile entsteht nach der Antwort
+      .use((c, next) => (protokollieren ? protokollieren(c, next) : next()))
       // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB, das Dokument einer Seite mit 512 KiB und die Warteschlange des Lagers mit 256 KB
       .use((c, next) =>
         (c.req.method === "PUT" &&
@@ -332,6 +346,8 @@ export function erstelleApp({
         "/api/v1/admin/mitteilungen",
         erstelleMitteilungenRouten({ db, fcm }),
       )
+      // Aktivitätsprotokoll (#637): nur der Entwickler, die Route prüft selbst
+      .route("/api/v1/admin/protokoll", erstelleProtokollRouten({ db }))
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken, syncs }),
