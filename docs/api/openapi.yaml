@@ -1240,7 +1240,37 @@ paths:
   /admin/uebersicht-kacheln.js:
     get:
       operationId: getAdminUebersichtKachelnSkript
-      summary: Skript der Verwaltung – Kacheln der Übersicht
+      summary: Skript der Verwaltung – Aufgaben, Kennzahlen und Zustand der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht-verlauf.js:
+    get:
+      operationId: getAdminUebersichtVerlaufSkript
+      summary: Skript der Verwaltung – Hauptdiagramm der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht-kommend.js:
+    get:
+      operationId: getAdminUebersichtKommendSkript
+      summary: Skript der Verwaltung – Kommendes, Aktivität und Teilnahme der Übersicht
       tags:
         - Allgemein
       security: []
@@ -3995,19 +4025,19 @@ paths:
       operationId: holeAdminUebersicht
       summary: Übersicht der Verwaltung in einem Abruf
       description: |
-        Liefert alles, was die Übersicht der Verwaltung zeigt, in EINER Antwort: offene Aufgaben mit Zahl, Kennzahlen mit kleinen Verläufen, Kommendes (Termine und Lager der nächsten acht Wochen), Zustand (Website, Medien, Kalender, Datenbank) und Betriebszahlen der API. Jeder Teil hängt an seinem eigenen Recht; **was die Person nicht sehen darf, fehlt** (der Schlüssel ist nicht in der Antwort). Die Oberfläche blendet die Kachel dann aus, verlässt sich aber nie darauf.
+        Liefert alles, was die Übersicht der Verwaltung zeigt, in EINER Antwort: offene Aufgaben mit Zahl, Kennzahlen mit Verläufen über ein Jahr, Anlässe mit Anmeldungen, Zeitpunkte der letzten Aktivität, Kommendes (Termine und Lager der nächsten acht Wochen), Zustand (Website, Medien, Kalender, Datenbank) und Betriebszahlen der API. Jeder Teil hängt an seinem eigenen Recht; **was die Person nicht sehen darf, fehlt** (der Schlüssel ist nicht in der Antwort). Die Oberfläche blendet die Kachel dann aus, verlässt sich aber nie darauf.
 
         | Teil | Wer ihn bekommt |
         | --- | --- |
-        | `aufgaben` (Vorschläge, Termine ohne Kategorie, Bestellungen, Konten ohne zweiten Faktor, Anmeldefristen, Kalenderfehler), `kennzahlen`, `betrieb`, `zustand.kalender`, `zustand.datenbank` | Abteilungsleitung |
+        | `aufgaben` (Vorschläge, Termine ohne Kategorie, Bestellungen, Konten ohne zweiten Faktor, Anmeldefristen, Kalenderfehler), `kennzahlen`, `anlaesse`, `aktivitaet`, `betrieb`, `zustand.kalender`, `zustand.datenbank` | Abteilungsleitung |
         | `aufgaben.raumanfragen` | Abteilungsleitung oder wer den Team-Tag eines Raums trägt |
         | `aufgaben.websiteEntwuerfe`, `aufgaben.websiteAenderungen`, `zustand.website`, `zustand.medien` | wer Seiten bearbeiten darf; gezählt werden nur die Seiten, die die Person bearbeiten darf (Stufenleitung: ihre Stufenseite) |
         | `kinderJeStufe` | Abteilungsleitung alle Stufen, Stufenleitung die eigenen; sonst fehlt der Teil |
         | `kommend` | Termine wie «Alle Termine» (nur, was die Person sehen darf), Lager wie «Meine Lager» (ohne Mitgliedschaft nur die Abteilungsleitung) |
 
-        Die Antwort enthält nur Zahlen, Daten und feste Texte: nie Namen von Personen, Adressen oder Fehlertexte. Scheitert ein Teil in der Datenbank, steht sein Name in `fehlt` und die übrigen Teile kommen trotzdem. Die Verläufe zählen acht Fenster zu je sieben Tagen, das letzte endet jetzt (`erzeugtAm`).
+        Die Antwort enthält nur Zahlen, Daten und feste Texte: nie Namen von Personen, Adressen oder Fehlertexte. Scheitert ein Teil in der Datenbank, steht sein Name in `fehlt` und die übrigen Teile kommen trotzdem. Die Verläufe zählen 52 Fenster zu je sieben Tagen, das letzte endet jetzt (`erzeugtAm`). `anlaesse` nennt nur Titel, Zeiten und Zahlen der Anmeldungen, nie Personen; `aktivitaet` nur zwei Zeitpunkte.
 
-        Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens neun Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
+        Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens elf Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
 
         Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
       tags:
@@ -24806,6 +24836,7 @@ components:
               [
                 aufgaben,
                 kennzahlen,
+                anlaesse,
                 kinderJeStufe,
                 raumanfragen,
                 website,
@@ -24860,7 +24891,7 @@ components:
           properties:
             fenster:
               type: integer
-              description: Zahl der Verlaufspunkte (Fenster zu je sieben Tagen, das letzte endet jetzt).
+              description: Zahl der Verlaufspunkte (52 Fenster zu je sieben Tagen, das letzte endet jetzt).
             personen:
               type: object
               additionalProperties: false
@@ -24911,6 +24942,60 @@ components:
                 kommend:
                   type: integer
                   description: Kommende Termine der Abteilung (ohne abgesagte und interne).
+        anlaesse:
+          type: array
+          description: Kommende Anlässe (höchstens sechs) und Anlässe, deren Anmeldefrist im letzten Jahr lag (höchstens acht); nur Titel, Zeiten und Zahlen.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [
+                titel,
+                kommend,
+                beginn,
+                tagVon,
+                frist,
+                angemeldet,
+                neu7,
+                letzteAm,
+              ]
+            properties:
+              titel:
+                type: string
+              kommend:
+                type: boolean
+              beginn:
+                type: [string, "null"]
+                format: date-time
+              tagVon:
+                type: [string, "null"]
+                format: date
+              frist:
+                type: [string, "null"]
+                format: date-time
+              angemeldet:
+                type: integer
+                minimum: 0
+                description: Anmeldungen mit Status «angemeldet».
+              neu7:
+                type: integer
+                minimum: 0
+                description: Davon in den letzten sieben Tagen angemeldet.
+              letzteAm:
+                type: [string, "null"]
+                format: date-time
+        aktivitaet:
+          type: object
+          additionalProperties: false
+          required: [letzteBestellungAm, letzterVorschlagAm]
+          description: Zeitpunkt der letzten Bestellung und des letzten offenen Terminvorschlags; die Oberfläche zeigt daraus «Zuletzt passiert».
+          properties:
+            letzteBestellungAm:
+              type: [string, "null"]
+              format: date-time
+            letzterVorschlagAm:
+              type: [string, "null"]
+              format: date-time
         kinderJeStufe:
           type: array
           items:

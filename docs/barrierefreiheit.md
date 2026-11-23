@@ -424,8 +424,8 @@ Dieser Abschnitt gilt für `termine-kalender.js`, `termine-monat.js`, `termine-a
 Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.js`) und die Übersicht (`uebersicht*.js`, `uebersicht.css`). Die Abschnitte 15, 16 und 22 gelten weiter.
 
 - [ ] **23.1** Breite: Kopf, Bereichsleiste, Unterleiste, Hinweisband, Seitenkopf und Inhalt haben bei 1440, 1920 und 2560 Pixeln dieselbe linke und rechte Kante wie `.wrap` der Website (Maximalbreite 105 rem, Seitenrand `clamp(1rem, 4vw, 4.5rem)`); gemessen über `getBoundingClientRect` auf allen Seiten der Navigation. Raster, Tabellen, Kalender, Zweispalter und Seiten im Fluss laufen nicht über den Rand und scrollen die Seite nicht waagrecht.
-- [ ] **23.2** «Jetzt zu tun»: Alle Kacheln einer Ansicht sind gleich gross, die Aktionszeile unten ist überall 44 Pixel hoch und gleich platziert; die ganze Kachel ist ein Link mit dem Namen aus Zahl, Satz und Aktion (16.2). Ohne Recht auf die Zielseite bleibt die Zeile leer, die Kachel gleich gross.
-- [ ] **23.3** Kennzahlen: Jede Kachel nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Mit «Bewegung reduzieren» schiebt sich die Zahl nicht ein, und die Säulen wachsen nicht.
+- [ ] **23.2** «Jetzt zu tun»: Jede Zeile ist ein Link mit dem Namen aus Zahl, Titel, Satz und Aktion (16.2), mindestens 56 Pixel hoch; ohne Recht auf die Zielseite steht die Zeile ohne Aktion und ohne Link. Weiter: 32.1.
+- [ ] **23.3** Kennzahlen: Jede Zelle nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Weiter: 32.3.
 - [ ] **23.4** Zustand: Jeder Dienst (Website, Kalender-Abgleich) steht mit Name, Zustand als Wort mit Symbol und einem Satz; Verweis mindestens 44 Pixel hoch. Fehlt das Recht, fehlt der Dienst.
 - [ ] **23.5** Zähler in der Unterleiste und der Bereichsauswahl sind Kreise (24 Pixel, Zahl mittig, bis 99); der Screenreader hört «<Zahl> offen» nach dem Namen. Der Kreis hat in erzwungenen Farben einen Rand.
 - [ ] **23.6** Auswahlfelder: Alle `select` der Verwaltung werden zum Auswahlfeld der Website (`auswahl.js`, dieselben Masse: 52 Pixel hoch, 17 Pixel, Radius 12, Liste mit Haken); kein `select` zeigt die Liste des Browsers, kein Auswahlfeld hat `multiple`. Oben in den Listen (Filterleiste) stehen sie wie bei den Terminen der Website: 220 Pixel breit, Beschriftung 16 Pixel mit 8 Pixel Abstand, Pfeil in der leisen Textfarbe. Geprüft per Durchgang durch alle Seiten der Navigation.
@@ -529,6 +529,22 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 ### Stand der Prüfung (#609)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
+
+## 32. Verwaltung: Übersicht als Dashboard (#620)
+
+Dieser Abschnitt gilt für die Übersicht (`uebersicht.js`, `uebersicht-kacheln.js`, `uebersicht-verlauf.js`, `uebersicht-kommend.js`, `uebersicht-diagramme.js`, `uebersicht.css`). Die Abschnitte 14, 16 und 23 gelten weiter, soweit sie nicht hier ersetzt sind.
+
+- [ ] **32.1** Überschriften und Reihenfolge: Die Seite hat eine `h1` (Begrüssung); jede Karte hat eine `h2`, die Zustandsstreifen-Punkte eine `h3`. Die Reihenfolge im Dokument ist die Lesereihenfolge (Aufgaben, Verlauf, Kennzahlen, Kommendes, Aktivität, Teilnahme, Zustand). Die Gruppen der Aufgaben sind `role="group"` mit Namen; Störung und Sicherheit tragen Symbol und Wort, nie nur Farbe.
+- [ ] **32.2** Hauptdiagramm per Tastatur: Der Schieber ist erreichbar (Tab), hat einen Fokusring (3 px, 3:1), Pfeile, Bild auf/ab, Pos1 und Ende wählen die Woche, `aria-valuetext` nennt Woche und Wert, die Zeile darunter (`aria-live="polite"`) nennt die Anmeldefrist der Woche. Mass und Zeitraum sind Knöpfe mit `aria-pressed` (44 Pixel hoch). Ein Satz (nur für Screenreader) fasst das Diagramm zusammen; die Zeichnung ist `aria-hidden`.
+- [ ] **32.3** Zahlen und Grafiken: Jede Zahl, die hochzählt, hat den Endwert sofort als Text für Screenreader; jede Spur (kleine Grafik) hat `role="img"` mit einem Satz mit allen Werten. Kein Wert steht nur als Farbe oder Höhe (Zahl, Wort oder Vorzeichen daneben). Kontrast Linie, Balken und Text mindestens 3:1 (Grafik) und 4.5:1 (Text) in Hell und Dunkel.
+- [ ] **32.4** Bewegung: Nur unter `prefers-reduced-motion: no-preference` kommen Karten gestaffelt, zeichnen sich Linie, Spuren und Balken ein und zählen Zahlen hoch; mit «Bewegung reduzieren» steht alles sofort da und nichts flackert. Keine Bewegung ist Pflicht, um etwas zu bedienen.
+- [ ] **32.5** Breite und Umbruch: Das Raster liegt in der Breite der Website (23.1); bei 1100 Pixeln und weniger eine Spalte, bei 390 Pixeln kein Querscrollen, bei 200 Prozent Zoom bleibt jede Funktion erreichbar; Umschalter und Zeilen sind mindestens 44 Pixel hoch.
+- [ ] **32.6** Rollen: Stufenleitung und Webmaster sehen nur ihre Teile (kein Hauptdiagramm, kein Band); die Karten stehen ohne Lücken in einer Reihe. Ein gescheiterter Teil zeigt nur seine Karte mit «Nochmals versuchen».
+- [ ] **32.7** Erzwungene Farben: Linie, Fadenkreuz, Balken und Marken bleiben in Systemfarben sichtbar (Highlight, CanvasText), Karten haben einen Rand.
+
+### Stand der Prüfung (#620)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit gefüllten Demo-Daten geprüft: 32.1 bis 32.6 als Abteilungsleitung bei 1440, 1920, 2560 und 390 Pixeln in Hell und Dunkel (Ablesen mit Zeiger und Pfeiltasten, Umschalten von Mass und Zeitraum, Antwort der Route als Stufenleitung, Webmaster, leer und mit gescheiterten Teilen nachgestellt). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, erzwungene Farben am Gerät (32.7 nur aus dem Stil gelesen), Touch am Gerät.
 
 ## Im PR angeben
 
