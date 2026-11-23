@@ -142,3 +142,14 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 | FCM             | Gerät                               | über APNs (Apple) und Google | Pushes zustellen                                                                                                 |
 
 Wie Cevi OS die Daten schützt und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).
+
+## Lädeli (#566)
+
+Das Lädeli ist ein eigener kleiner Bereich neben Website, Terminen und Lager: Artikel der Abteilung, Bestellungen angemeldeter Personen, keine Zahlung, kein Lagerbestand.
+
+- Tabellen (Migration 0131): `laden_artikel` (Name, Preis in Rappen, Bild aus der Medienbibliothek, Varianten als freie Liste, Hinweis, verfügbar, Reihenfolge), `laden_einstellung` (Übergabearten je Abteilung; ohne Zeile gilt «Abholung im Lädeli»), `laden_bestellung` (Person, Stand `offen`, `bereit`, `uebergeben`, `storniert`, Übergabe als Text, Summe, Abschlusszeit) und `laden_bestellposition` (Name, Variante, Menge, Einzelpreis als Stand beim Bestellen).
+- Regeln an einer Stelle: `src/laden/laden.ts` (Schemas, Grenzen, Übergänge des Stands, `darfLadenVerwalten`, Löschlauf, Datenquelle der Website).
+- Routen unter `/api/v1` (`src/routes/laden/`), für Website und Apps dieselben: `GET /laden` (Artikel, Übergabearten, Grenzen), `POST /laden/bestellungen`, `GET /laden/bestellungen/meine`, `DELETE /laden/bestellungen/{id}` (eigene offene stornieren); Verwaltung mit zweitem Faktor: `/admin/laden/artikel`, `/admin/laden/artikel/{id}`, `/admin/laden/bestellungen`, `/admin/laden/bestellungen/{id}/status`, `/admin/laden/einstellungen`.
+- Preise und Summen rechnet nur der Server; die Anfrage nennt Artikel, Variante und Menge.
+- Website: Baustein `laden` (`src/website/laden.ts`, `public/website/laden.js`, `laden.css`), siehe [website-auslieferung.md](website-auslieferung.md). Verwaltung: Bereich «Lädeli» (`public/admin/laedeli.js`).
+- Aufbewahrung: täglicher Lauf `laden_bestellungen` (180 Tage nach Übergabe oder Stornieren, nie abgeschlossene nach 365 Tagen).

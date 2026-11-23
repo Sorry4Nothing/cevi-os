@@ -106,6 +106,15 @@ export const KATEGORIEN = {
     apple: ["User Content: Other User Content"],
     google: ["App activity: Other user-generated content"],
   },
+  laedeli: {
+    titel: "Bestellungen im Lädeli",
+    zweck:
+      "Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe.",
+    frist:
+      "180 Tage nachdem die Bestellung übergeben oder storniert ist; eine Bestellung, die nie abgeschlossen wurde, ein Jahr nach der letzten Änderung. Mit dem Konto der bestellenden Person früher. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Purchases: Purchase History"],
+    google: ["Financial info: Purchase history"],
+  },
   chat: {
     titel: "Chats",
     zweck:
@@ -561,6 +570,46 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "entschieden_am",
       "begruendung",
       "erstellt_am",
+    ],
+  },
+  // Lädeli (#566): Artikel und Übergabearten sind Angaben der Abteilung ohne Personendaten; Bestellung und Positionen gehören der bestellenden Person (user_id)
+  laden_artikel: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "name",
+      "preis_rappen",
+      "medium_id",
+      "varianten",
+      "hinweis",
+      "verfuegbar",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  laden_einstellung: { abteilung: ["abteilung_id", "uebergabearten"] },
+  laden_bestellung: {
+    laedeli: [
+      "id",
+      "abteilung_id",
+      "user_id",
+      "status",
+      "uebergabe",
+      "summe_rappen",
+      "erstellt_am",
+      "geaendert_am",
+      "abgeschlossen_am",
+    ],
+  },
+  laden_bestellposition: {
+    laedeli: [
+      "id",
+      "bestellung_id",
+      "artikel_id",
+      "name",
+      "variante",
+      "menge",
+      "einzelpreis_rappen",
     ],
   },
   // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid
