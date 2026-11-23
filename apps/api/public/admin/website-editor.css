@@ -282,6 +282,35 @@
   display: none;
 }
 
+/* Titelbild der Seite: Bild links, Erklärung und Knöpfe rechts; schmal untereinander */
+.ws-titelbild {
+  gap: 12px;
+}
+
+.ws-titelbild-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ws-titelbild-bild {
+  width: 200px;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-titelbild-text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
 /* Einstellungen */
 .ws-einstellungen {
   gap: 16px;

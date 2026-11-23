@@ -103,6 +103,7 @@ export function erstelleApp({
   syncs,
   schalter = erstelleSchalterZustand(),
   website,
+  websiteKontakt,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -131,6 +132,8 @@ export function erstelleApp({
     nimmVomNetz: () => Promise<void>;
     gibFrei: () => Promise<void>;
   };
+  // Adresse, Telefon und E-Mail der Abteilung für die Vorschau im Editor (#570); der Abgleich bekommt dieselben Werte in server.ts
+  websiteKontakt?: { adresse?: string; telefon?: string; email?: string };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
   seiten: {
     admin: AdminDateien;
@@ -295,7 +298,11 @@ export function erstelleApp({
       // Namensraum der Website-Verwaltung (Seiten, Medien, Weiterleitungen, Vorlagen). Der Pfad stammt aus der Zeit vor #426 und bleibt, damit Editor und Clients nicht brechen; was jemand darf, bestimmen die Plattformrechte (plattform.ts)
       .route(
         "/api/v1/redaktion",
-        erstelleEditorRouten({ db, medien: medienHandler }),
+        erstelleEditorRouten({
+          db,
+          medien: medienHandler,
+          kontakt: websiteKontakt,
+        }),
       )
       // Geschützte Bausteine der Website nachladen (#354): hinter der Sitzung
       .route("/api/v1/website", erstelleWebsiteRouten({ db }))

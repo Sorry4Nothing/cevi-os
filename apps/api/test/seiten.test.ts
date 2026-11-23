@@ -71,6 +71,7 @@ const ADMIN_TYPEN: Record<string, string> = {
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
   svg: "image/svg+xml",
+  woff2: "font/woff2",
 };
 
 describe("Verwaltung unter /admin", () => {
@@ -88,7 +89,13 @@ describe("Verwaltung unter /admin", () => {
       expect(antwort.headers.get("content-type")).toBe(
         ADMIN_TYPEN[datei.split(".").pop()!],
       );
-      expect(await antwort.text()).toBe(admin[datei]);
+      // Die Schrift der Vorschau liegt als Bytes vor
+      if (typeof admin[datei] === "string")
+        expect(await antwort.text()).toBe(admin[datei]);
+      else
+        expect(new Uint8Array(await antwort.arrayBuffer())).toEqual(
+          admin[datei],
+        );
       const csp = antwort.headers.get("content-security-policy")!;
       for (const regel of [
         "default-src 'none'",
@@ -133,6 +140,41 @@ describe("Verwaltung unter /admin", () => {
     expect(admin["admin.css"]).toContain("prefers-color-scheme: dark");
   });
 
+  // Entscheid des Auftraggebers (#570): nur Erfolg und Info ohne Aktion vergehen; Warnung, Fehler und alles mit Aktion bleiben (docs/barrierefreiheit.md 8.2)
+  test("Rückmeldungen: Erfolg und Info ohne Aktion vergehen von selbst, alles andere bleibt", async () => {
+    // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
+    vi.stubGlobal("document", { addEventListener: () => {} });
+    // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
+    const rahmenPfad = "../public/admin/rahmen.js";
+    const { vergehtVonSelbst } = (await import(
+      /* @vite-ignore */ rahmenPfad
+    )) as { vergehtVonSelbst: (art: string, aktion?: object) => boolean };
+    vi.unstubAllGlobals();
+    expect(vergehtVonSelbst("ok", undefined)).toBe(true);
+    expect(vergehtVonSelbst("info", undefined)).toBe(true);
+    for (const art of ["warn", "fehler"])
+      expect(vergehtVonSelbst(art, undefined)).toBe(false);
+    for (const art of ["ok", "info", "warn", "fehler"])
+      expect(vergehtVonSelbst(art, { text: "Beheben" })).toBe(false);
+  });
+
+  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, mit «Bewegung reduzieren» ohne Übergang", () => {
+    const rahmen = String(admin["rahmen.js"]);
+    for (const ereignis of [
+      "pointerenter",
+      "pointerleave",
+      "focusin",
+      "focusout",
+    ])
+      expect(rahmen).toContain(`"${ereignis}"`);
+    expect(rahmen).toContain("prefers-reduced-motion: reduce");
+    expect(rahmen).toContain("Hinweis schliessen");
+    // Der Übergang steht nur im Zweig für erlaubte Bewegung
+    expect(String(admin["geruest.css"])).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.rueckmeldung \.hinweis--geht \{\s*transition:/,
+    );
+  });
+
   test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
     "%s schreibt keine Daten als HTML und lädt nichts von aussen",
     (datei) => {
@@ -145,7 +187,7 @@ describe("Verwaltung unter /admin", () => {
       );
       // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
       expect(
-        admin[datei].replaceAll("http://www.w3.org/2000/svg", ""),
+        String(admin[datei]).replaceAll("http://www.w3.org/2000/svg", ""),
       ).not.toMatch(/https?:\/\//);
     },
   );

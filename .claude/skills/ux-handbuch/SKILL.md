@@ -1036,7 +1036,7 @@ Quelle: die Repos `Sorry4Nothing/cevi-os` (Backend + Web-Verwaltung `/admin`), `
 - **Beide Apps nur Hochformat** (Entscheid, bewusste Abweichung von Checkliste 5.8).
 - **«Die App zeigt nur, was die API erlaubt»:** fehlt eine Aktion in der API-Antwort, fehlt der Button – er wird **nicht** ausgegraut (geht der allgemeinen Regel in 2.6 vor).
 - **Jede Aktion antwortet sofort** (Ladekreis im Knopf, Text bleibt, kein zweiter Tipp, Screenreader hört z. B. «Wird gespeichert»); Overlay über der App erst nach 250 ms und nie bei Hintergrundanfragen; Hinweis nach 4 s, dass es länger dauert.
-- **Keine Meldung verschwindet von selbst** (Checkliste 8.2) → keine selbst verschwindenden Toasts/Snackbars; Meldungen bleiben, bis sie geschlossen oder ersetzt werden (geht 2.7/3.5 vor).
+- **Fehler, Warnungen und Rückfragen verschwinden nie von selbst** (Checkliste 8.2); sie bleiben, bis sie geschlossen oder behoben sind (geht 2.7/3.5 vor). Ausnahme Web-Verwaltung (Entscheid des Auftraggebers, November 2026): Erfolgs- und Infomeldungen ohne Aktion blenden nach 6 Sekunden aus, mit Pause bei Zeiger und Fokus, Schliessen-Knopf und Statusregion. In den Apps gilt weiter: keine selbst verschwindenden Meldungen.
 - **Kein Feld «Passwort wiederholen»** (Checkliste 9.7); Passwort-Auge mit Ansage des Zustands.
 - **Neue Interaktionsmuster (Dialog, Sheet, Popup) nicht ungefragt einführen.** Wo der Entwurf mehr zeigt als API oder Issue, gilt das Issue.
 - **Sprache:** nur Deutsch, Schweizer Schreibweise, «du», kurze Sätze, Buttons sind Verben, keine Emojis, Anführungszeichen «». Code/Bezeichner englisch, Texte und Doku deutsch.

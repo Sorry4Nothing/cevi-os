@@ -12,6 +12,8 @@ const MASKE: Record<string, string> = {
 };
 const maskiere = (text: string) => text.replace(/[&<>"']/g, (z) => MASKE[z]!);
 
+const SCHRIFT = "archivo-latin.woff2";
+
 // Ohne Angabe bleibt die Seite lesbar, nennt aber keine erfundene Stelle oder Adresse
 export function setzeKontakt(
   html: string,
@@ -38,15 +40,23 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
   const lade = (datei: string) =>
     readFileSync(new URL(`../public/${datei}`, import.meta.url), "utf8");
   // Alle Dateien aus public/admin; neue Module brauchen keine Änderung hier
-  const admin = Object.fromEntries(
-    readdirSync(new URL("../public/admin/", import.meta.url))
-      .sort()
-      .map((datei) => [datei, lade(`admin/${datei}`)]),
-  );
+  const admin: Record<string, string | Uint8Array<ArrayBuffer>> =
+    Object.fromEntries(
+      readdirSync(new URL("../public/admin/", import.meta.url))
+        .sort()
+        .map((datei) => [datei, lade(`admin/${datei}`)]),
+    );
   // Die Vorschau im Editor (#358) lädt den Stil der Website von hier: Die Website selbst liefert die API nicht aus
   // Mit dem Stil des Kopfs (#558), der Grossansicht und des Karussells (#559) und der Inhaltsbausteine (#560), den die Website nur auf Seiten mit einem solchen Baustein lädt
+  // Die Schrift der Website (#570) liefert die Verwaltung selbst aus: Die Vorschau zeigt Archivo auch, wenn Website und Verwaltung nicht auf demselben Host liegen
+  admin[SCHRIFT] = new Uint8Array(
+    readFileSync(new URL(`../public/website/${SCHRIFT}`, import.meta.url)),
+  );
   admin["website-vorschau.css"] =
-    lade("website/website.css") +
+    lade("website/website.css").replace(
+      `/website/${SCHRIFT}`,
+      `/admin/${SCHRIFT}`,
+    ) +
     lade("website/kopf.css") +
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +

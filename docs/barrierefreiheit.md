@@ -80,7 +80,7 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 ## 8. Gesten und Zeit
 
 - [ ] **8.1** Jede Wisch-, Zieh- oder Mehrfingeraktion lässt sich auch mit einem Finger ohne Wischen und Ziehen auslösen, mit einem Knopf oder über ein Menü. Für Screenreader und Schalter gibt es sie zusätzlich als Aktion (`accessibilityActions` mit `onAccessibilityAction`).
-- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Meldung verschwindet von selbst.
+- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Fehlermeldung, Warnung oder Rückfrage verschwindet von selbst. Ausnahme in der Web-Verwaltung (Entscheid des Auftraggebers, #570): Erfolgs- und Infomeldungen ohne Aktion («Gespeichert», «Veröffentlicht») blenden nach 6 Sekunden aus. Bedingungen: Die Meldung steht sofort und ganz in der Statusregion (`role="status"`), die Zeit hält bei Zeiger und Fokus auf der Meldung an und beginnt danach neu, «Hinweis schliessen» bleibt, mit «Bewegung reduzieren» ohne Übergang. Die Meldung bestätigt nur, was auf der Seite ohnehin sichtbar ist (Zustand, Liste); sie ist keine Voraussetzung, um weiterzuarbeiten (WCAG 2.2.1 betrifft Zeitlimits für Aufgaben, 2.2.3 ist AAA).
 
 ## 9. Textfelder und Login
 

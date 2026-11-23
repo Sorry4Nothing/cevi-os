@@ -34,6 +34,7 @@ import {
   VERWEIS_TEXTE,
   feldName,
   kurzText,
+  medienIds,
   typName,
 } from "./website-felder.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
@@ -179,7 +180,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     geloescht: null,
   };
   if (gepuffert)
-    ctx.melde("Deine ungespeicherten Änderungen sind wieder da.", "info");
+    // «warn», damit sie bleibt: Die Änderungen sind noch nicht gespeichert
+    ctx.melde("Deine ungespeicherten Änderungen sind wieder da.", "warn");
 
   const wurzel = el("div", { class: "ws-editor-seite" });
   bereich.append(wurzel);
@@ -614,6 +616,10 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         ),
       );
     }
+    if (b === titelbildBaustein())
+      teile.push(
+        el("li", { class: "chip" }, symbol("bild"), "Titelbild der Seite"),
+      );
     if (k.pruefen.has(b.id))
       teile.push(
         el(
@@ -637,7 +643,100 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     if (stufe) liste.append(festeFelder(stufe));
     k.dok.bausteine.forEach((b, i) => liste.append(karte(b, i, n)));
     leerKarte.hidden = n > 0;
+    zeichneTitelbild();
     if (fokus) setzeFokus(fokus);
+  }
+
+  // --- Titelbild (#570): Die Website nimmt das erste Bild der Seite als Titelbild (rendereSeite). Hier steht das als Einstellung: wählen, tauschen, entfernen.
+  // Gespeichert wird nichts Eigenes: Die Fläche setzt, tauscht oder löscht den Baustein «Bild» zuoberst
+  const titelbildId = neueId("titelbild");
+  const titelbild = el("section", {
+    class: "flaeche ws-titelbild",
+    "aria-labelledby": titelbildId,
+  });
+  const istStart = seite.elternId === null && seite.adresse === "start";
+  function titelbildBaustein() {
+    const b = k.dok.bausteine[0];
+    return b?.typ === "bild" &&
+      b.daten.mediumId &&
+      (b.sichtbarkeit === "erbt" || b.sichtbarkeit.art === "oeffentlich")
+      ? b
+      : null;
+  }
+  function zeichneTitelbild() {
+    const b = titelbildBaustein();
+    const m = b && k.medien.get(b.daten.mediumId);
+    const waehlen = knopf(b ? "Anderes Titelbild wählen" : "Titelbild wählen", {
+      klein: true,
+      onclick: () =>
+        k.waehleBild((neu) => {
+          commitGeloescht();
+          k.medien.set(neu.id, neu);
+          const da = titelbildBaustein();
+          if (da) da.daten.mediumId = neu.id;
+          else if (k.dok.bausteine.length >= MAX_BAUSTEINE) {
+            ctx.melde(
+              `Mehr als ${MAX_BAUSTEINE} Bausteine sind nicht möglich.`,
+              "fehler",
+            );
+            return;
+          } else
+            k.dok.bausteine.unshift({
+              id: neueUuid(),
+              typ: "bild",
+              daten: { mediumId: neu.id },
+              sichtbarkeit: "erbt",
+            });
+          k.aenderung();
+          zeichneListe();
+          titelbild.querySelector("button")?.focus();
+          ansage.textContent = "Das Titelbild ist gesetzt.";
+        }),
+    });
+    titelbild.replaceChildren(
+      el("h2", { id: titelbildId }, "Titelbild"),
+      el(
+        "div",
+        { class: "ws-titelbild-in" },
+        b &&
+          el("img", {
+            class: "ws-titelbild-bild",
+            src: `/api/v1/medien/${b.daten.mediumId}`,
+            alt: "",
+          }),
+        el(
+          "div",
+          { class: "ws-titelbild-text" },
+          el(
+            "p",
+            { class: "klein leise" },
+            b
+              ? "Steht gross über der Seite, die Überschrift liegt darauf. Es ist der Baustein «Bild» zuoberst in der Liste: Dort änderst du Alt-Text und Bildunterschrift."
+              : "Noch kein Titelbild: Die Überschrift steht auf einem ruhigen Band. Mit Titelbild steht sie gross über dem Foto.",
+            istStart &&
+              " Auf der Startseite liegen die Überschrift und die Schaltflächen gleich nach dem ersten Text als Karte im Titelbild.",
+          ),
+          m &&
+            el(
+              "p",
+              { class: "klein" },
+              m.dekorativ
+                ? "Als Zierde markiert, ohne Alt-Text."
+                : `Alt-Text: ${m.altText ?? ""}`,
+            ),
+          el(
+            "div",
+            { class: "ws-reihe" },
+            waehlen,
+            b &&
+              knopf("Titelbild entfernen", {
+                klein: true,
+                onclick: () => loesche(b, 0),
+              }),
+          ),
+        ),
+      ),
+    );
   }
 
   function festeFelder(stufe) {
@@ -974,16 +1073,25 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     el(
       "div",
       { class: "ws-editor" },
-      el("div", { class: "ws-spalte" }, liste, leerKarte, hinzuKnopf, stand),
+      el(
+        "div",
+        { class: "ws-spalte" },
+        titelbild,
+        liste,
+        leerKarte,
+        hinzuKnopf,
+        stand,
+      ),
       el("div", { class: "ws-spalte" }, vorschau.wurzel, einstellungen),
     ),
   );
   zeichneListe();
   zeichneStatus();
 
-  // Die Alt-Texte der Bilder stehen in den Medien: Ein Abruf, nur wenn die Seite ein Bild-Baustein hat (Datenbanklast)
-  if (k.dok.bausteine.some((b) => b.typ === "bild")) {
-    anfrage("GET", `${API}/medien?limit=100`).then(
+  // Die Alt-Texte der Bilder stehen in den Medien: Ein Abruf für genau die Bilder der Seite, nur wenn sie welche hat (Datenbanklast)
+  const bildIds = medienIds(k.dok).slice(0, 100);
+  if (bildIds.length > 0) {
+    anfrage("GET", `${API}/medien?limit=100&ids=${bildIds.join(",")}`).then(
       (a) => {
         for (const m of a.medien) k.medien.set(m.id, m);
         if (wurzel.isConnected) zeichneListe();
@@ -1154,10 +1262,18 @@ function vorschauFlaeche(k, speichereZuerst) {
     if (nr === null && !(await speichereZuerst())) return;
     version = nr;
     zeigt = true;
-    hinweisText.textContent =
+    const adresse = `${API}/seiten/${k.id}/vorschau${nr === null ? "" : `?version=${nr}`}`;
+    // Die Fläche ist klein: Der Link zeigt dieselbe Vorschau in voller Grösse
+    hinweisText.replaceChildren(
       nr === null
-        ? "Der gespeicherte Entwurf. Auch Bausteine nur für Angemeldete oder Gruppen sind sichtbar. Links führen in der Vorschau nirgends hin."
-        : `Version ${nr}, nicht der aktuelle Entwurf. Links führen in der Vorschau nirgends hin.`;
+        ? "Der gespeicherte Entwurf, hell und ohne Menü. Auch Bausteine nur für Angemeldete oder Gruppen sind sichtbar. Das Karussell läuft hier nicht, Links führen nirgends hin. "
+        : `Version ${nr}, nicht der aktuelle Entwurf. Das Karussell läuft hier nicht, Links führen nirgends hin. `,
+      el(
+        "a",
+        { href: adresse, target: "_blank", rel: "noopener" },
+        "Vorschau gross in neuem Tab öffnen",
+      ),
+    );
     const rahmen = el("iframe", {
       class: "ws-rahmen",
       sandbox: "allow-same-origin",
@@ -1218,10 +1334,7 @@ function vorschauFlaeche(k, speichereZuerst) {
       }
       live.textContent = "Die Vorschau ist geladen.";
     });
-    rahmen.setAttribute(
-      "src",
-      `${API}/seiten/${k.id}/vorschau${nr === null ? "" : `?version=${nr}`}`,
-    );
+    rahmen.setAttribute("src", adresse);
     if (fokus) {
       wurzel.scrollIntoView({ block: "nearest" });
       wurzel.focus();

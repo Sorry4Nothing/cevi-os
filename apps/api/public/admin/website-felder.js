@@ -25,6 +25,23 @@ export const MAX_BAUSTEINE = 100;
 export const MAX_PERSONEN = 24;
 export const MAX_ARTIKEL = 60;
 
+// Darstellungen des Bausteins «karten»: Name im Editor und Name eines Eintrags
+export const KARTEN_ARTEN = {
+  karten: "Karten",
+  liste: "Liste",
+  stufen: "Bildkarten",
+  merkmale: "Merkmale",
+  zeitstrahl: "Zeitstrahl",
+  zahlen: "Zahlen",
+};
+const EINTRAG_NAMEN = {
+  karten: "Karte",
+  stufen: "Bildkarte",
+  merkmale: "Merkmal",
+  zeitstrahl: "Station",
+  zahlen: "Zahl",
+};
+
 const kuerze = (text, n = 60) =>
   text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
 const anzahlText = (n, eins, viele) => (n === 1 ? eins : `${n} ${viele}`);
@@ -54,7 +71,7 @@ export const FELDNAMEN = {
   anzahl: "Die Anzahl",
   symbol: "Das Symbol",
   bild: "Das Bild",
-  alter: "Das Alter",
+  alter: "Das Etikett",
   sichtbarkeit: "Die Sichtbarkeit",
   tagIds: "Die Gruppen",
   bezeichnung: "Die Bezeichnung",
@@ -242,15 +259,25 @@ export const groesseText = (bytes) =>
 // Ein Bild der Bibliothek (E4): Vorschau, Angaben, «Bild wählen» und beim Typ «Bild» der Alt-Text.
 // Der Alt-Text gehört dem Medium, nicht dem Baustein: Wer Medien verwalten darf, ändert ihn hier; für alle anderen steht er zum Lesen da.
 // schluessel: Feld des Eintrags mit der Bild-ID; optional: das Bild darf fehlen (Stufenkarte), «Bild entfernen» erscheint
+// alt: «pflicht» (Bild, Karussell: ohne Alt-Text kein Übernehmen), «zeigen» (der Alt-Text steht da und lässt sich ändern) oder ein Satz, warum das Bild hier keinen braucht (Porträt)
+// name: Beschriftung («Bild», «Foto der Station», «Porträt»); klein: Vorschau in halber Höhe, für Einträge einer Liste
 function bildWahl(
   k,
   b,
   reg,
   ziel,
   pfad,
-  { alt = false, schluessel = "mediumId", optional = false } = {},
+  {
+    alt = "zeigen",
+    schluessel = "mediumId",
+    optional = false,
+    name = "Bild",
+    klein = false,
+  } = {},
 ) {
-  const wurzel = el("div", { class: "feld ws-bildwahl" });
+  const wurzel = el("div", {
+    class: klein ? "feld ws-bildwahl ws-bildwahl--klein" : "feld ws-bildwahl",
+  });
   const zeichne = () => {
     const medium = k.medien.get(ziel[schluessel]);
     wurzel.replaceChildren();
@@ -272,7 +299,7 @@ function bildWahl(
         onclick: waehleFn,
       },
     );
-    wurzel.append(el("span", { class: "legende", id: titelId }, "Bild"));
+    wurzel.append(el("span", { class: "legende", id: titelId }, name));
     if (!ziel[schluessel]) {
       wurzel.append(
         el(
@@ -299,6 +326,7 @@ function bildWahl(
         rahmen.removeAttribute("aria-busy");
         rahmen.classList.add("geladen");
         rahmen.querySelector(".sk")?.remove();
+        rahmen.querySelector("[role=status]")?.remove();
       },
       onerror: () => {
         wurzel.replaceChildren(
@@ -321,43 +349,54 @@ function bildWahl(
       bild,
       el("p", { class: "nur-leser", role: "status" }, "Bild lädt …"),
     );
+    // el() überspringt, was fehlt (append() schriebe «undefined» oder «false» auf die Seite)
     wurzel.append(
       rahmen,
-      medium &&
+      el(
+        "div",
+        { class: "ws-bildangaben" },
+        medium &&
+          el(
+            "p",
+            { class: "klein leise" },
+            [
+              `Bild vom ${tag(medium.erstelltAm)}`,
+              groesseText(medium.groesse),
+              medium.breite && `${medium.breite} × ${medium.hoehe} Pixel`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          ),
         el(
-          "p",
-          { class: "klein leise" },
-          [
-            `Bild vom ${tag(medium.erstelltAm)}`,
-            groesseText(medium.groesse),
-            medium.breite && `${medium.breite} × ${medium.hoehe} Pixel`,
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          "div",
+          { class: "ws-teilaktionen" },
+          waehlen,
+          optional &&
+            knopf("Bild entfernen", {
+              klein: true,
+              "aria-describedby": titelId,
+              onclick: () => {
+                delete ziel[schluessel];
+                k.aendere(b);
+                zeichne();
+                wurzel.querySelector("button")?.focus();
+              },
+            }),
         ),
-      waehlen,
-      optional &&
-        knopf("Bild entfernen", {
-          klein: true,
-          "aria-describedby": titelId,
-          onclick: () => {
-            delete ziel[schluessel];
-            k.aendere(b);
-            zeichne();
-            wurzel.querySelector("button")?.focus();
-          },
-        }),
+      ),
     );
     reg(pfad, wurzel, waehlen);
-    if (alt) wurzel.append(altFeld(k, medium, ziel, reg));
+    wurzel.append(altFeld(k, medium, alt, reg));
   };
   // Alt-Text (Pflicht) des gewählten Bildes
   zeichne();
   return wurzel;
 }
 
-function altFeld(k, medium, ziel, reg) {
+function altFeld(k, medium, alt, reg) {
   const kannAendern = k.kannAlt && medium && !medium.dekorativ;
+  if (alt !== "pflicht" && alt !== "zeigen")
+    return el("p", { class: "hilfe" }, alt);
   if (!medium) {
     return el(
       "p",
@@ -369,24 +408,24 @@ function altFeld(k, medium, ziel, reg) {
     return el(
       "p",
       { class: "hilfe" },
-      "Das Bild ist als Zierde markiert und braucht keinen Alt-Text.",
+      "Das Bild ist als Zierde markiert: Screenreader überspringen es. Das änderst du unter «Medien».",
     );
   }
   const f = feld({
-    label: "Alt-Text (Pflicht)",
+    label: alt === "pflicht" ? "Alt-Text (Pflicht)" : "Alt-Text",
     mehrzeilig: true,
     rows: 3,
     maxlength: 500,
     wert: k.altText(medium),
     readonly: !kannAendern,
     hilfe: kannAendern
-      ? "Beschreibe, was man sieht. Screenreader lesen diesen Text vor."
-      : "Beschreibe, was man sieht. Den Alt-Text ändert die Abteilungsleitung unter «Medien».",
+      ? "Beschreibe, was man sieht. Screenreader lesen diesen Text vor. Er gehört zum Bild und gilt überall, wo es steht."
+      : "Screenreader lesen diesen Text vor. Ändern kann ihn, wer Medien verwaltet, unter «Medien».",
   });
   f.eingabe.addEventListener("input", () => {
     k.altAenderung(medium.id, f.eingabe.value);
   });
-  anmelden(reg, "alt", f);
+  anmelden(reg, `alt.${medium.id}`, f);
   return f.wurzel;
 }
 
@@ -481,7 +520,10 @@ function galerieForm(k, b, reg, karussell = false) {
         fertig(liste.length - 1);
       }),
     zeile: (eintrag, pfad) => [
-      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, { alt: karussell }),
+      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, {
+        alt: karussell ? "pflicht" : "zeigen",
+        klein: true,
+      }),
       teilEingabe(
         k,
         b,
@@ -505,14 +547,14 @@ function galerieForm(k, b, reg, karussell = false) {
 
 function kartenForm(k, b, reg) {
   const art = b.daten.darstellung;
-  const darstellung = wahl(k, b, reg, "darstellung", "Darstellung", [
-    ["karten", "Karten"],
-    ["liste", "Liste"],
-    ["merkmale", "Merkmale"],
-    ["stufen", "Bildkarten"],
-    ["zeitstrahl", "Zeitstrahl"],
-    ["zahlen", "Zahlen"],
-  ]);
+  const darstellung = wahl(
+    k,
+    b,
+    reg,
+    "darstellung",
+    "Darstellung",
+    Object.entries(KARTEN_ARTEN),
+  );
   // Die Felder hängen von der Darstellung ab: Das Formular zeichnet sich neu, der Fokus bleibt auf der Wahl
   darstellung.addEventListener("change", () => {
     k.formNeu(b);
@@ -523,32 +565,30 @@ function kartenForm(k, b, reg) {
       "Wenige Stichworte mit kurzem Text in einem blauen Band, ohne Link, auf Wunsch je mit Foto. Gut für «Das erwartet dich».",
     stufen:
       "Karten mit Foto, einem Etikett im Bild und einem Link auf die ganze Karte. Gut für Stufen (Etikett: Alter) und für Artikel (Etikett: Preis).",
-    personen:
-      "Porträt, Name und Funktion, ohne Link. Ohne Bild stehen die Anfangsbuchstaben.",
     zeitstrahl:
       "Stationen einer Geschichte in ihrer Reihenfolge, in einem blauen Band: Im Titel steht das Jahr (kurz, es erscheint sehr gross), im Text, was geschah. Mit Foto stehen Bild und Text abwechselnd links und rechts.",
     zahlen:
       "Wenige grosse Zahlen mit kurzer Beschriftung: Im Titel steht die Zahl, im Text, was sie zählt.",
   }[art];
   const titelName =
-    { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", personen: "Name" }[art] ??
-    "Titel";
-  const mitBild = ["stufen", "personen", "merkmale", "zeitstrahl"].includes(
-    art,
-  );
-  const ohneLink = ["merkmale", "personen", "zeitstrahl", "zahlen"].includes(
-    art,
-  );
+    { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", merkmale: "Stichwort" }[
+      art
+    ] ?? "Titel";
+  const bildName = { zeitstrahl: "Foto der Station", stufen: "Foto der Karte" }[
+    art
+  ];
+  const mitBild = ["stufen", "merkmale", "zeitstrahl"].includes(art);
+  const ohneLink = ["merkmale", "zeitstrahl", "zahlen"].includes(art);
   return [
     darstellung,
     ...(hilfe ? [el("p", { class: "hilfe" }, hilfe)] : []),
     listenForm(k, b, {
-      name: "Eintrag",
+      name: EINTRAG_NAMEN[art] ?? "Eintrag",
       listeName: "Einträge",
       pfadName: "daten.eintraege",
       liste: () => b.daten.eintraege,
       max: MAX_KARTEN,
-      hinzuText: "Eintrag hinzufügen",
+      hinzuText: `${EINTRAG_NAMEN[art] ?? "Eintrag"} hinzufügen`,
       hinzu: (liste, fertig) => {
         liste.push({ titel: "" });
         fertig(liste.length - 1);
@@ -581,6 +621,8 @@ function kartenForm(k, b, reg) {
               bildWahl(k, b, reg, eintrag, `${pfad}.bild`, {
                 schluessel: "bild",
                 optional: true,
+                klein: true,
+                ...(bildName && { name: bildName }),
               }),
             ]
           : []),
@@ -637,23 +679,14 @@ const pflicht = (d, ...felder) => [
 ];
 
 // Ein freiwilliges Bild je Eintrag: wählen, wechseln, entfernen. Der Alt-Text bleibt am Medium
-function bildOptional(k, b, reg, eintrag, pfad) {
-  const index = Number(pfad.split(".").at(-1));
+// bild: true oder die Optionen von bildWahl (Beschriftung, Alt-Text)
+function bildOptional(k, b, reg, eintrag, pfad, bild) {
   return [
-    bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`),
-    ...(eintrag.mediumId
-      ? [
-          knopf("Bild entfernen", {
-            klein: true,
-            kontext: `Eintrag ${index + 1}`,
-            onclick: () => {
-              delete eintrag.mediumId;
-              k.aendere(b);
-              k.formNeu(b, { index, was: "neu" });
-            },
-          }),
-        ]
-      : []),
+    bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, {
+      optional: true,
+      klein: true,
+      ...(bild === true ? {} : bild),
+    }),
   ];
 }
 
@@ -683,7 +716,7 @@ function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
           optionen,
         ),
       ),
-      ...(bild ? bildOptional(k, b, reg, eintrag, pfad) : []),
+      ...(bild ? bildOptional(k, b, reg, eintrag, pfad, bild) : []),
     ],
   });
 }
@@ -901,11 +934,11 @@ export const TYPEN = {
       const fehler = d.mediumId ? [] : [["daten.mediumId", "fehlt."]];
       const m = d.mediumId ? k?.medien.get(d.mediumId) : null;
       if (m && !m.dekorativ && !k.altText(m).trim())
-        fehler.push(["alt", "fehlt."]);
+        fehler.push([`alt.${m.id}`, "fehlt."]);
       return fehler;
     },
     form: (k, b, reg) => [
-      bildWahl(k, b, reg, b.daten, "daten.mediumId", { alt: true }),
+      bildWahl(k, b, reg, b.daten, "daten.mediumId", { alt: "pflicht" }),
       eingabe(k, b, reg, "unterschrift", "Bildunterschrift (optional)", {
         maxlength: 300,
         optional: true,
@@ -941,8 +974,20 @@ export const TYPEN = {
     form: (k, b, reg) => [galerieForm(k, b, reg, true)],
   },
   karten: {
-    name: "Karten, Merkmale oder Liste",
-    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
+    name: "Karten",
+    kurz: (d) =>
+      [
+        anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
+        kuerze(
+          (d.eintraege ?? [])
+            .map((e) => e.titel)
+            .filter(Boolean)
+            .join(", "),
+          70,
+        ),
+      ]
+        .filter(Boolean)
+        .join(": "),
     pruefe: (d) => [
       ...((d.eintraege ?? []).length === 0
         ? [["daten.eintraege", "fehlt."]]
@@ -1018,7 +1063,10 @@ export const TYPEN = {
       eintraegeForm(k, b, reg, {
         name: "Person",
         max: MAX_PERSONEN,
-        bild: true,
+        bild: {
+          name: "Porträt",
+          alt: "Das Porträt braucht keinen Alt-Text: Der Name steht daneben. Ohne Porträt stehen die Anfangsbuchstaben.",
+        },
         felder: [
           [
             "name",
@@ -1379,11 +1427,25 @@ export const KATALOG = [
     beschreibung: "3 bis 8 Bilder, die sich langsam abwechseln.",
     neu: () => ({ bilder: [{}, {}, {}] }),
   },
-  {
+  ...[
+    ["karten", "Kästchen mit Titel, Text und Link «Mehr zu …»."],
+    ["liste", "Zeilen mit Titel und Text, der Titel als Link."],
+    [
+      "stufen",
+      "Karten mit Foto, Etikett im Bild und Link, zum Beispiel für Stufen.",
+    ],
+    [
+      "merkmale",
+      "Stichworte mit kurzem Text im blauen Band, auf Wunsch mit Foto.",
+    ],
+    ["zeitstrahl", "Stationen einer Geschichte mit Jahr, Text und Foto."],
+    ["zahlen", "Wenige grosse Zahlen mit kurzer Beschriftung."],
+  ].map(([darstellung, beschreibung]) => ({
     typ: "karten",
-    beschreibung: "Karten, Merkmale mit Symbol oder Stufenkarten mit Foto.",
-    neu: () => ({ darstellung: "karten", eintraege: [{ titel: "" }] }),
-  },
+    name: KARTEN_ARTEN[darstellung],
+    beschreibung,
+    neu: () => ({ darstellung, eintraege: [{ titel: "" }] }),
+  })),
   {
     typ: "schaltflaeche",
     beschreibung: "Führt auf eine andere Seite oder Adresse.",
@@ -1455,9 +1517,25 @@ export const KATALOG = [
     beschreibung: "«Fragen? Melde dich bei uns.» mit Telefon und E-Mail.",
     neu: () => ({}),
   },
-].map((e) => ({ ...e, name: TYPEN[e.typ].name }));
+].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
-export const typName = (b) => TYPEN[b.typ]?.name ?? b.typ;
+// Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder
+export const typName = (b) =>
+  (b.typ === "karten" && KARTEN_ARTEN[b.daten?.darstellung]) ||
+  (TYPEN[b.typ]?.name ?? b.typ);
+
+// Alle Bilder, auf die ein Dokument verweist (für den Abruf ihrer Angaben und Alt-Texte)
+export const medienIds = (dok) => [
+  ...new Set(
+    dok.bausteine
+      .flatMap((b) => [
+        b.daten.mediumId,
+        ...(b.daten.bilder ?? []).map((x) => x.mediumId),
+        ...(b.daten.eintraege ?? []).flatMap((x) => [x.bild, x.mediumId]),
+      ])
+      .filter(Boolean),
+  ),
+];
 export const kurzText = (k, b) => {
   try {
     return TYPEN[b.typ]?.kurz(b.daten, k) ?? "";

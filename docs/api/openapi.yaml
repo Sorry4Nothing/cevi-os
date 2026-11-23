@@ -164,6 +164,22 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/archivo-latin.woff2:
+    get:
+      operationId: getAdminArchivoSchrift
+      summary: Schrift der Website für die Vorschau im Editor
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung. Dieselbe Schrift wie auf der Website, damit die Vorschau im Editor sie zeigt, auch wenn Website und Verwaltung nicht auf demselben Host liegen.
+      responses:
+        "200":
+          description: Datei (`font/woff2`).
+          content:
+            font/woff2:
+              schema:
+                type: string
+                format: binary
   /admin/dom.js:
     get:
       operationId: getAdminDomSkript
@@ -3706,7 +3722,7 @@ paths:
       operationId: listeAdminMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Nur Admins. Die Medien der eigenen Abteilung, neueste zuerst. Ohne Angaben die jüngsten 200; mit `limit` und `offset` seitenweise, mit `suche` nur Medien, deren Alt-Text den Text enthält (ohne Beachtung der Gross- und Kleinschreibung; `%` und `_` zählen als Text). `weitere` sagt, ob nach dieser Seite noch Medien folgen.
+        Nur Admins. Die Medien der eigenen Abteilung, neueste zuerst. Ohne Angaben die jüngsten 200; mit `limit` und `offset` seitenweise, mit `suche` nur Medien, deren Alt-Text den Text enthält (ohne Beachtung der Gross- und Kleinschreibung; `%` und `_` zählen als Text). Mit `ids` nur die genannten Medien (höchstens 100). `weitere` sagt, ob nach dieser Seite noch Medien folgen.
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -3716,6 +3732,7 @@ paths:
         - $ref: "#/components/parameters/MedienLimit"
         - $ref: "#/components/parameters/MedienOffset"
         - $ref: "#/components/parameters/MedienSuche"
+        - $ref: "#/components/parameters/MedienIds"
       responses:
         "200":
           description: Die Medien.
@@ -6161,7 +6178,7 @@ paths:
       operationId: listeRedaktionMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Für alle mit Zugang (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die Medien der eigenen Abteilung, neueste zuerst; seitenweise mit `limit` und `offset`, durchsuchbar im Alt-Text mit `suche`. Gleiche Antwort und gleiche Regeln wie `/api/v1/admin/medien`.
+        Für alle mit Zugang (dasselbe wie `/api/v1/redaktion/seiten`). Die Medien einer Abteilung sind eine gemeinsame Bibliothek: Die Medien der eigenen Abteilung, neueste zuerst; seitenweise mit `limit` und `offset`, durchsuchbar im Alt-Text mit `suche`. Mit `ids` nur die genannten Medien (der Editor holt so die Angaben zu den Bildern einer Seite). Gleiche Antwort und gleiche Regeln wie `/api/v1/admin/medien`.
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -6171,6 +6188,7 @@ paths:
         - $ref: "#/components/parameters/MedienLimit"
         - $ref: "#/components/parameters/MedienOffset"
         - $ref: "#/components/parameters/MedienSuche"
+        - $ref: "#/components/parameters/MedienIds"
       responses:
         "200":
           description: Die Medien.
@@ -34781,6 +34799,13 @@ components:
         type: string
         minLength: 1
         maxLength: 100
+    MedienIds:
+      name: ids
+      in: query
+      required: false
+      description: Nur diese Medien, kommagetrennte IDs (1 bis 100). Ohne Treffer in der Abteilung bleibt die Liste leer.
+      schema:
+        type: string
     SchalterArt:
       name: art
       in: query

@@ -172,6 +172,18 @@ Eine Kurve und zwei Dauern gelten für alles: `--kurve`, `--dauer` (0.2 s, Zeige
 - Zeigen und Drücken: Knöpfe, Karten und Pfeile antworten mit Farbe und kleiner Verschiebung.
 - Für Vollseiten-Screenshots «Bewegung reduzieren» einschalten: Sonst bleiben Stücke unterhalb des Fensters unsichtbar, weil ihre Animation noch nicht begonnen hat.
 
+### Scrollleisten (#572)
+
+Die Seite und jeder innere Scrollbereich (Tagesfeld der Termine, Auswahlliste, Menütafel, Dialoge, Streifen des Karussells ohne Skript) tragen dieselbe schmale Leiste mit rundem Griff. Alle Regeln stehen im Abschnitt «Scrollleisten» am Ende von `website.css`, die Tokens in `:root`: `--leiste-griff` (Ton der Umrisse, `--outline`), `--leiste-griff-hover` (`--on-surface-variant`), `--leiste-griff-aktiv` (`--accent`, nur beim Ziehen), `--leiste-spur` (durchsichtig) und `--leiste-breite` (`thin`). Sie leiten sich von bestehenden Tokens ab und gelten darum in Tag und Nacht ohne eigenen Nachtsatz. Nur die Grossansicht (immer dunkel) setzt eigene Werte.
+
+- **Zwei Wege, nie beide:** Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar` (8 px dicker Griff in 14 px Leiste, rund, keine Pfeile, deutlicher bei Hover und Ziehen). Firefox kennt nur `scrollbar-width: thin` und `scrollbar-color`. Die Eigenschaften stehen deshalb in `@supports not selector(::-webkit-scrollbar)`: Sobald `scrollbar-color` gilt, ignoriert Chrome die WebKit-Regeln und zeigt die Systemleiste mit Pfeilen.
+- **Kontrast:** Der Griff hat zur Fläche mindestens 3:1 (gemessen: hell 4.1:1 auf der Fläche und 4.5:1 auf der Karte, dunkel 5.7:1 auf der Fläche und 4.7:1 auf der Karte, Grossansicht 12.4:1). Beim Hover und Ziehen wird er dunkler (hell) oder heller (dunkel); die Farbe ist nie der einzige Hinweis, die Leiste ist auch im Ruhezustand sichtbar.
+- **Finger und Stift (`pointer: coarse`):** Die Leiste des Systems bleibt (überlagernd, nicht schmaler als der Standard); die eigenen Regeln gelten nur mit `not (pointer: coarse)`.
+- **Erzwungene Farben:** Die eigenen WebKit-Regeln gelten nicht, die Leiste ist die des Systems; Firefox setzt `scrollbar-color: auto`.
+- **Kein Springen:** `html` und das Tagesfeld der Termine haben `scrollbar-gutter: stable` (das Tagesfeld `both-edges`, damit der Inhalt mittig bleibt). Eine Seite, die erst beim Laden länger wird, verschiebt sich nicht.
+- **Karussell:** Mit Skript hat der Streifen keine Leiste (Pfeile, Ziehen, Wischen und die Fortschrittsanzeige übernehmen); ohne Skript (`scripting: none`) zeigt er die waagrechte Leiste.
+- Eigene Scrollbereiche brauchen nichts: `overflow: auto` genügt, die Leiste kommt von der Regel für alle Elemente.
+
 ## Neuer Seitentyp
 
 1. Inhalt in `rahmen(k, { titel, aktuell, inhalt, … })` übergeben. `inhalt` ist fertiges Markup, das in `.wrap` steht. `titel` landet im `<title>` («Titel | Abteilung»), den `h1` schreibt der Seitentyp.
@@ -232,5 +244,5 @@ Das erste Bild einer Seite ist ihr Titelbild und geht bis zum Fensterrand; der S
 ## Hinweise für den Betrieb
 
 - Der Host liefert `500.html` bei 5xx-Fehlern der Website und `wartung.html` mit Status 503 (Vorschlag im Abschnitt «Vorschlag für den Edge-Caddy» in [website-auslieferung.md](website-auslieferung.md)).
-- Die Vorschau im Editor nutzt dieselbe Stilvorlage (`/admin/website-vorschau.css` ist `website.css`).
+- Die Vorschau im Editor nutzt dieselben Stile wie die Website: `/admin/website-vorschau.css` ist `website.css`, `kopf.css`, `lichtkasten.css`, `karussell.css` und die Stile der Inhaltsbausteine hintereinander, die Schrift Archivo liefert die Verwaltung selbst (`/admin/archivo-latin.woff2`). Die Vorschau ist immer hell, zeigt Termin-Liste, «Zur Anmeldung» und Kontakt (Telefon, E-Mail, Adresse aus der Konfiguration) wie die Website und hat weder Menü noch Skripte. Das Titelbild der Seite stellt der Editor als eigene Fläche «Titelbild» über der Bausteinliste ein; es ist der Baustein «Bild» zuoberst.
 - Nach einer Änderung an Renderer oder Stilvorlage schreibt der Abgleich alle Dateien beim nächsten Lauf neu (der Hash ändert sich).

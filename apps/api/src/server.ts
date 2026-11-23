@@ -127,6 +127,11 @@ const app = erstelleApp({
   seiten,
   schalter,
   website: websiteSperre,
+  websiteKontakt: {
+    adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
+    telefon: konfiguration.KONTAKT_TELEFON,
+    email: konfiguration.KONTAKT_EMAIL,
+  },
   syncs: {
     kalender: kalenderLauf,
   },

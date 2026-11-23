@@ -263,6 +263,22 @@ dialog.ws-fenster--breit {
   height: auto;
 }
 
+/* Bild eines Eintrags einer Liste (Station, Bildkarte, Porträt): halbe Höhe, damit die Liste überschaubar bleibt */
+.ws-bildwahl--klein .ws-bildvorschau-bild {
+  max-height: 140px;
+}
+
+.ws-bildwahl--klein .ws-bildvorschau .sk {
+  aspect-ratio: auto;
+  height: 140px;
+}
+
+.ws-bildangaben {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Teile einer Liste (Galerie, Karten) im Formular */
 .ws-liste {
   display: flex;
