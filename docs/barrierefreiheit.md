@@ -645,6 +645,24 @@ Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Ba
 - [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
 - [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
 
+## 38. Verwaltung: Belegungsplan der Räume (#628)
+
+Gilt für `termine-belegung.js`, `termine-belegung.css` und `belegung-layout.js` (Bereich «Räume», Unterseite «Belegung», Startseite für alle Leitenden). Geprüft im Browser bei 390, 1440, 1920 und 2560 px, Tag und Nacht, mit Tastatur; Demo-Buchungen nur in der eigenen Testdatenbank.
+
+- [ ] **38.1** Zustand nie nur über Farbe: Bestätigt ist ausgefüllt (Akzentfarbe) mit Haken, Angefragt ist hell, gestrichelt umrandet und schraffiert mit Uhr; in der Tagesansicht und in der Liste steht zusätzlich das Wort («angefragt», «Bestätigt»). Die Legende über dem Plan erklärt Bestätigt, Angefragt, Frei und «Jetzt». Bei erzwungenen Farben (`forced-colors`) bleiben Füllung und gestrichelter Rand erhalten.
+- [ ] **38.2** Jeder Block ist ein Knopf mit voller Beschriftung («Raum, Mo 23.11., 18:00–20:00, Zweck, Person, Bestätigt»); die Karte mit den Angaben (Hover, Fokus; Klick hält sie fest, Escape schliesst sie) ist nur zur Ansicht (`aria-hidden`), nichts steht nur in ihr. Fokusring 3 px; die Karte bleibt im Fenster (sie erscheint über dem Block, wenn unten kein Platz ist).
+- [ ] **38.3** Tastatur: Ein Block liegt in der Tabulatorfolge (rollende Marke), Pfeil links und rechts gehen in der Zeit desselben Raums, Pfeil auf und ab zum nächsten Raum (Block mit dem nächsten Beginn), Pos1 und Ende zum ersten und letzten Block des Raums. Die Tage in der Kopfzeile, die Pfeile, «Heute», Ansicht, Raum und «Angefragte zeigen» sind Knöpfe oder Felder mit mindestens 44 px.
+- [ ] **38.4** Der Zeitraum steht als Überschrift der Ebene 2 in einer höflichen Live-Region («Woche 48 · 23.–29. November 2026», beim Tag mit Wochentag), darunter die Zahl der Buchungen und Anfragen; die Pfeile heissen «Vorige Woche» / «Nächste Woche» beziehungsweise «Vorheriger Tag» / «Nächster Tag». «Heute» ist im aktuellen Zeitraum deaktiviert. Der heutige Tag trägt `aria-current="date"`, eine Marke «Heute» und die Linie «Jetzt» (im Tagesplan mit Uhrzeit); alle Zeiten in Schweizer Zeit.
+- [ ] **38.5** Freie Zeitfenster sind erkennbar: in der Woche als leere Fläche mit Zeitskala 07, 12, 18, 23 im Kopf jedes Tages, im Tagesplan als Zeile «frei 07:00–10:00, 12:00–23:00» im Kopf jedes Raums, in der Liste unter jedem Raum. Fenster unter 30 Minuten zählen nicht. Die Achse reicht von 07 bis 23 Uhr und wächst um volle Stunden, wenn eine Buchung davor oder danach liegt.
+- [ ] **38.6** Schmal (bis 760 px) und als dritte Ansicht «Liste» gibt es je Raum eine Karte mit den Buchungen des Tages (Zeit, Zweck, Person, Stand), darüber einen Streifen mit den sieben Tagen (`aria-pressed`, `aria-current`, Zahl der Buchungen im Namen; die Punkte sind nur Zugabe). Kein waagrechtes Scrollen der Seite bei 390 px; der Tagesplan scrollt nur in seinem Rahmen, wenn viele Räume nebeneinander stehen.
+- [ ] **38.7** Zustände: lädt (Skeleton in Form der Wochenzeilen, beim Wochenwechsel ein Platzhalter mit «Belegung wird geladen …» für Screenreader), Fehler (Karte mit «Nochmals versuchen»), keine Räume (Satz, für die Abteilungsleitung mit Verweis), ein Tag ohne Belegung («Alle Räume sind den ganzen Tag frei»), mehr als 500 Buchungen (Hinweis mit Rat). Bewegung (Einblenden) nur ohne «Bewegung reduzieren».
+- [ ] **38.8** Adressen: `#raeume/belegung/woche|tag|liste/<Datum>[/<Raum>]`; ein Wechsel von Woche, Tag oder Liste legt einen Verlaufseintrag an (Zurück führt zur vorigen Ansicht), Raum und «Angefragte zeigen» ändern die Adresse nur.
+- [ ] **38.9** Navigation: Wer nur Leitende ist (keine Abteilungsleitung, kein Zugang zur Website), sieht nur den Bereich «Räume» mit der Seite «Belegung»; Räume und Anfragen bleiben bei der Abteilungsleitung, die Übersicht beim Zugang zur Website. Eltern bekommen unverändert die Seite «Kein Zugang». Die Prüfung steht auf dem Server (`GET /api/v1/raeume/belegung`: 403).
+
+### Stand der Prüfung (#628)
+
+Im Browser (Chromium, headless) bei 390, 1440, 1920 und 2560 px in Tag und Nacht gesehen, Tastatur (Pfeile, Escape, Zurück) durchgespielt, Konten Abteilungsleitung, Stufenleitung und Eltern. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA), echtes Gerät, 400 % Zoom, Kontrastmessung mit dem Skript (die Farben sind die geprüften Tokens).
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

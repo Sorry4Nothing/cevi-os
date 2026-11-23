@@ -36364,7 +36364,7 @@ components:
           description: Ob die Person Seiten anlegen und löschen darf (Plattformrecht `seiten.anlegen_loeschen`). Bleibt für Clients, die nur dieses Feld kennen; `rechte` ist genauer. Nur für die Anzeige; jede Route prüft selbst.
         belegung:
           type: boolean
-          description: Ob die Person den Belegungsplan der Räume sehen darf (`GET /api/v1/raeume/belegung`): jede Leitung, also Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Verantwortliche eines Teams und wer das Team eines Raums trägt. Öffnet der Verwaltung die Tür auch ohne Zugang zur Website. Nur für die Anzeige; die Route prüft selbst.
+          description: "Ob die Person den Belegungsplan der Räume sehen darf (`GET /api/v1/raeume/belegung`): jede Leitung, also Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Verantwortliche eines Teams und wer das Team eines Raums trägt. Öffnet der Verwaltung die Tür auch ohne Zugang zur Website. Nur für die Anzeige; die Route prüft selbst."
         rechte:
           type: array
           description: "Die Plattformrechte der Person (Abteilungsleitung und Entwickler: alle), sortiert; leer ohne Plattformrecht. Stufenleitung, Rechte pro Seite und Team-Verantwortung stehen nicht darin, sie gelten je Seite. Nur für die Anzeige; jede Route prüft selbst."
