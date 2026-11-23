@@ -442,7 +442,8 @@ async function zeigeVerwaltung() {
     darfEinstellungen
       ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)
       : null,
-    istAdmin() ? null : anfrage("GET", "/api/v1/ich").catch(() => null),
+    // Auch die Abteilungsleitung: Das Profilbild gehört in den Kopf (#621)
+    anfrage("GET", "/api/v1/ich").catch(() => null),
   ]);
   entwickler = einstellungen?.nameAenderbar === true;
   const rolle = rolleVon({
@@ -466,7 +467,7 @@ async function zeigeVerwaltung() {
         "header",
         { class: "kopfzeile" },
         logozeile({
-          konto: { name: ich.name, rolle },
+          konto: { name: ich.name, rolle, bildUrl: profil?.bildUrl ?? null },
           beiAbmelden: abmelden,
           suche: palette.knopf,
         }),
@@ -591,6 +592,9 @@ async function navigiere() {
     pfad,
     // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
     seite: { bereich: gruppe, unter },
+    // Für «Mein Konto» (#621): ob die Person den Namen der Abteilung ändern darf (Rolle im Kopf) und der Weg zur Anmeldung, wenn alle Sitzungen beendet sind
+    entwickler,
+    zurAnmeldung: (text) => zeigeLogin(text),
     melde,
     // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)
     mitRueckgaengig,

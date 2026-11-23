@@ -1237,6 +1237,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/konto.js:
+    get:
+      operationId: getAdminKontoSkript
+      summary: Skript der Verwaltung – Seite Mein Konto
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/konto.css:
+    get:
+      operationId: getAdminKontoStilvorlage
+      summary: Stilvorlage der Verwaltung – Seite Mein Konto
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht-kacheln.js:
     get:
       operationId: getAdminUebersichtKachelnSkript

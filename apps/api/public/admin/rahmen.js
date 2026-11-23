@@ -117,8 +117,26 @@ function themaSchalter() {
 // Nach dem Einsetzen des Kopfs aufrufen: theme.js verbindet die Knöpfe und zeigt sie
 export const bindeThema = () => window.ceviThema?.binde();
 
+// «Mein Konto» (#621): Der Name im Kopf ist der Link zur Seite; er trägt aria-current, solange sie offen ist, und zeigt das Profilbild, sobald die Person eines gesetzt hat
+const meldeKontoSeite = () => {
+  const hier = window.location.hash.startsWith("#konto");
+  for (const a of document.querySelectorAll("a.konto")) {
+    if (hier) a.setAttribute("aria-current", "page");
+    else a.removeAttribute("aria-current");
+  }
+};
+window.addEventListener("hashchange", meldeKontoSeite);
+// bildUrl: Pfad des Bildes oder null (Initialen)
+export function setzeKontoBild(bildUrl) {
+  for (const a of document.querySelectorAll("a.konto")) {
+    a.querySelector(".ava")?.replaceWith(
+      avatar(a.dataset.name, { bildUrl: bildUrl ?? null }),
+    );
+  }
+}
+
 // Logozeile: Marke, «Verwaltung», Konto mit Rolle, Umschalter und «Abmelden»
-// konto: { name, rolle } (rolle: Text unter dem Namen)
+// konto: { name, rolle, bildUrl } (rolle: Text unter dem Namen; bildUrl: Profilbild oder null)
 export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
   return el(
     "div",
@@ -134,13 +152,25 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
         sichtbar &&
           konto &&
           el(
-            "div",
-            { class: "konto" },
-            avatar(konto.name),
+            "a",
+            {
+              class: "konto",
+              href: "#konto",
+              "data-name": konto.name,
+              ...(window.location.hash.startsWith("#konto") && {
+                "aria-current": "page",
+              }),
+            },
+            avatar(konto.name, { bildUrl: konto.bildUrl }),
             el(
               "div",
               { class: "konto-text" },
-              el("p", { class: "kontoname" }, konto.name),
+              el(
+                "p",
+                { class: "kontoname" },
+                el("span", { class: "nur-leser" }, "Mein Konto: "),
+                konto.name,
+              ),
               el("p", { class: "mini leise" }, konto.rolle),
             ),
           ),
