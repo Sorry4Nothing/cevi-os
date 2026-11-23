@@ -19,6 +19,15 @@ export function merkeEintrag() {
   letzter = location.hash;
 }
 
+// Ergänzt den Zustand des aktuellen Eintrags (z. B. den Schritt einer Schrittfolge), ohne die Adresse zu ändern
+export function ergaenzeZustand(teil) {
+  window.history.replaceState(
+    { ...window.history.state, ...teil },
+    "",
+    location.href,
+  );
+}
+
 // Wie Browser-Zurück: Kam man von der Adresse ziel, geht es im Verlauf zurück (kein neuer Eintrag, Scrollposition und Filter kommen mit); sonst, etwa nach einem Tiefenlink, führt es zu ziel
 export function zurueck(ziel) {
   if (window.history.state?.von === ziel) window.history.back();
