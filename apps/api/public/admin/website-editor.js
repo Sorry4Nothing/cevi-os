@@ -2,16 +2,21 @@ import { ApiFehler, anfrage, fehlertext } from "./api.js";
 import { zurueckKlick } from "./verlauf.js";
 import { el, feld, knopf, neueId } from "./dom.js";
 import { sk } from "./lader.js";
+import { splitKnopf } from "./aktionen.js";
+import { sortierListe } from "./sortieren.js";
 import { zeichen } from "./zustaende.js";
 import {
   ADRESSE,
   MAX_TIEFE,
   API,
+  RESERVIERT,
   baue as baueBaum,
+  geaenderteAdressen,
   koerper,
   patch,
   plane,
 } from "./website-baum.js";
+import { weiterleitungsHinweis } from "./website-baumansicht.js";
 import {
   bearbeitenBlatt,
   bildDialog,
@@ -42,6 +47,7 @@ import { mitSymbol, symbol } from "./website-symbole.js";
 import {
   veroeffentlichenDialog,
   vergleiche,
+  zurueckziehen,
 } from "./website-veroeffentlichen.js";
 
 // Editor einer Seite (Boards E2 bis E6). Schnittstelle zum Bereich: ctx aus admin.js, ctx.pfad[0] ist die Kennung der Seite.
@@ -186,15 +192,23 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   const wurzel = el("div", { class: "ws-editor-seite" });
   bereich.append(wurzel);
 
-  // Titel, Zurück-Link und Zustand im Seitenkopf der Verwaltung
+  // Kopf des Editors (Vorlage: Werkzeugleiste eines Editors): Titel mit Zeichen und «Umbenennen», darunter der Speicherstand; rechts Zugriff, Vorschau und Veröffentlichen mit Menü
   ctx.titel(seite.titel, seite.pfad);
   const titelChip = el("span", { class: "ws-titelchip" });
   const kopfEl = document.getElementById("seitenkopf");
   const h1 = kopfEl?.querySelector("h1");
+  const stand = el("p", { class: "ws-stand", role: "status" });
+  const umbenennen = knopf("Umbenennen", {
+    art: "still",
+    klein: true,
+    symbol: "bearbeiten",
+    "aria-label": "Titel der Seite ändern (Taste F2)",
+    onclick: () => benenne(),
+  });
   if (h1) {
     const zeileEl = el("div", { class: "ws-titelzeile" });
     h1.replaceWith(zeileEl);
-    zeileEl.append(h1, titelChip);
+    zeileEl.append(h1, titelChip, verwalten ? umbenennen : null);
     zeileEl.parentElement.prepend(
       el(
         "p",
@@ -207,14 +221,79 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         ),
       ),
     );
+    zeileEl.parentElement.append(stand);
+  }
+
+  // Titel direkt umbenennen: Der Titel steht in Liste und Navigation, er gehört nicht zum Entwurf und wird sofort gespeichert
+  function benenne() {
+    if (!h1 || h1.hidden) return;
+    const eingabe = el("input", {
+      class: "eingabe ws-titel-eingabe",
+      type: "text",
+      value: k.seite.titel,
+      maxlength: "150",
+      autocomplete: "off",
+      "aria-label": "Titel der Seite. Enter speichert, Escape bricht ab.",
+    });
+    let fertig = false;
+    const zu = (fokus) => {
+      fertig = true;
+      eingabe.remove();
+      h1.hidden = false;
+      umbenennen.hidden = false;
+      if (fokus) umbenennen.focus();
+    };
+    const speichereTitel = async () => {
+      const neu = eingabe.value.trim();
+      if (!neu || neu === k.seite.titel) return zu(true);
+      eingabe.setAttribute("aria-busy", "true");
+      try {
+        await patch(k.seite.id, { titel: neu });
+        k.seite.titel = neu;
+        ctx.titel(neu);
+        zu(true);
+        ctx.melde(`Der Titel ist jetzt «${kuerze(neu, 60)}».`, "ok");
+      } catch (f) {
+        eingabe.removeAttribute("aria-busy");
+        fertig = false;
+        ctx.melde(fehlertext(f), "fehler");
+        eingabe.focus();
+      }
+    };
+    eingabe.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        speichereTitel();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        zu(true);
+      }
+    });
+    eingabe.addEventListener("blur", () => {
+      if (!fertig) window.setTimeout(() => !fertig && speichereTitel(), 0);
+    });
+    h1.hidden = true;
+    umbenennen.hidden = true;
+    h1.after(eingabe);
+    eingabe.focus();
+    eingabe.select();
   }
 
   const ansage = el("p", { class: "nur-leser", role: "status" });
 
-  // --- Stand: Zeichen im Kopf, Zeile unter der Liste, Knöpfe oben
-  const stand = el("p", { class: "fusszeile", role: "status" });
+  // --- Stand: Zeichen im Kopf, Speicherstand unter dem Titel, Knöpfe oben
   const speichernKnopf = knopf("Speichern", { klein: true });
   const knoepfe = {};
+  // «Gespeichert vor 2 Min.»: rechnet im Browser, fragt den Server nie
+  const vor = (d) => {
+    const min = Math.floor((Date.now() - d.getTime()) / 60000);
+    return min < 1
+      ? "gerade eben"
+      : min < 60
+        ? `vor ${min} Min.`
+        : `um ${uhrzeit.format(d)}`;
+  };
 
   function zeichneStatus() {
     const [text, symbolName, art] = k.dirty
@@ -241,7 +320,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
       inhalt.push(
         symbol("haken"),
         k.gespeichertAm
-          ? `Zuletzt gespeichert um ${uhrzeit.format(k.gespeichertAm)}`
+          ? `Gespeichert ${vor(k.gespeichertAm)}`
           : "Der Entwurf ist gespeichert.",
       );
     }
@@ -250,12 +329,19 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
       ...(!k.speichert && k.dirty ? [speichernKnopf] : []),
     );
     if (k.speichert) stand.append(speichernKnopf);
-    knoepfe.veroeffentlichen.removeAttribute("aria-disabled");
+    knoepfe.veroeffentlichen?.removeAttribute("aria-disabled");
     if (k.offline) {
-      knoepfe.veroeffentlichen.setAttribute("aria-disabled", "true");
+      knoepfe.veroeffentlichen?.setAttribute("aria-disabled", "true");
     }
     hilfeVeroeffentlichen.hidden = !k.offline;
+    // Die Menüpunkte hängen vom Stand ab (zurückziehen geht nur, wenn die Seite online ist)
+    if ((k.nr === null) !== knoepfe.unpubliziert) kopfAktionen();
   }
+  // Die Zeit im Speicherstand läuft weiter, ohne Abruf; der Takt endet mit dem Editor
+  const takt = window.setInterval(() => {
+    if (!wurzel.isConnected) return window.clearInterval(takt);
+    if (!k.dirty && !k.speichert && k.gespeichertAm) zeichneStatus();
+  }, 30000);
 
   k.aenderung = () => {
     k.aenderungen += 1;
@@ -540,7 +626,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         k.aenderungen = 0;
         k.unveroeffentlicht = true;
         puffer.delete(pufferId);
-        k.geloescht = null;
         konfliktPlatz.replaceChildren();
         k.neuZeichnen();
         ctx.melde("Die aktuelle Fassung ist übernommen.", "ok");
@@ -559,7 +644,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     k.unveroeffentlicht = neu.unveroeffentlicht;
     k.nr = neu.veroeffentlichteNr;
     puffer.delete(pufferId);
-    k.geloescht = null;
     k.neuZeichnen();
   };
   k.neuZeichnen = () => {
@@ -582,8 +666,13 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     k.aenderung();
   });
 
-  // --- Liste der Bausteine
-  const liste = el("ul", { class: "ws-bausteine", "aria-label": "Bausteine" });
+  // --- Liste der Bausteine: eine Sortierliste (Griff, Tastatur, Hoch und Runter; sortieren.js), darüber die festen Felder der Stufenseite
+  const liste = el("div", { class: "ws-bausteine" });
+  const festePlatz = el("ul", {
+    class: "ws-fest",
+    "aria-label": "Feste Felder",
+  });
+  let sortierung = null;
   const leerKarte = el(
     "div",
     { class: "ws-leer" },
@@ -595,14 +684,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     onclick: () => katalogDialog(k),
   });
   hinzuKnopf.classList.add("ws-gestrichelt");
-
-  // Der Platz eines gelöschten Bausteins: Die Snackbar mit «Rückgängig» bleibt, bis die Person etwas anderes tut
-  let snack = null;
-  const commitGeloescht = () => {
-    k.geloescht = null;
-    snack?.remove();
-    snack = null;
-  };
 
   const chipsFuer = (b) => {
     const teile = [];
@@ -632,19 +713,82 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     return teile;
   };
 
-  // fokus: { id, was, index } nach dem Zeichnen; was: hoch | runter | bearbeiten | griff | loeschen
+  // fokus: { id, was } nach dem Zeichnen; was: hoch | runter | griff | bearbeiten | duplizieren | loeschen
   function zeichneListe(fokus) {
-    liste.replaceChildren();
     const n = k.dok.bausteine.length;
     // Eine feste Zeile für die Felder der Stufenseite: Ihre Werte pflegt man unter «Stufenfelder», nicht im Dokument
     const stufe = k.tags.find(
       (t) => t.id === k.seite.tagId && t.typ === "stufe",
     );
-    if (stufe) liste.append(festeFelder(stufe));
-    k.dok.bausteine.forEach((b, i) => liste.append(karte(b, i, n)));
+    festePlatz.replaceChildren(...(stufe ? [festeFelder(stufe)] : []));
+    const eintraege = k.dok.bausteine.map((b, i) => ({
+      id: b.id,
+      text: `${name(b)} ${i + 1}`,
+      inhalt: bauzeile(b),
+    }));
+    if (!sortierung) {
+      sortierung = sortierListe({
+        beschriftung: "Bausteine",
+        eintraege,
+        beiNeu: neueReihenfolge,
+      });
+      liste.replaceChildren(festePlatz, sortierung.wurzel);
+    } else sortierung.setze(eintraege);
     leerKarte.hidden = n > 0;
     zeichneTitelbild();
     if (fokus) setzeFokus(fokus);
+  }
+
+  // Die Sortierliste meldet die neue Reihenfolge (nach dem Ablegen oder einem Klick auf Hoch und Runter)
+  function neueReihenfolge(ids) {
+    const nachId = new Map(k.dok.bausteine.map((b) => [b.id, b]));
+    const aktiv = document.activeElement;
+    const bid = aktiv?.closest?.("[data-id]")?.dataset.id;
+    k.dok.bausteine = ids.map((id) => nachId.get(id));
+    k.aenderung();
+    zeichneListe(bid ? { id: bid, was: aktiv.dataset.art } : undefined);
+  }
+
+  function bauzeile(b) {
+    const bezeichnung = name(b);
+    const mini = (aktion, label, symbolName, fn) =>
+      el(
+        "button",
+        {
+          type: "button",
+          class: "knopf knopf--rund",
+          "aria-label": `${label}: ${bezeichnung}`,
+          "data-aktion": aktion,
+          onclick: fn,
+        },
+        symbol(symbolName),
+      );
+    const bearbeiten = knopf("Bearbeiten", {
+      klein: true,
+      symbol: "bearbeiten",
+      "aria-label": `Bearbeiten: ${bezeichnung}`,
+      "data-aktion": "bearbeiten",
+      onclick: () => bearbeitenBlatt(k, b, k.dok.bausteine.indexOf(b)),
+    });
+    const chips = chipsFuer(b);
+    return el(
+      "div",
+      { class: "ws-bauzeile" },
+      el(
+        "div",
+        { class: "ws-bausteintext" },
+        el("p", { class: "typ" }, bezeichnung),
+        el("p", { class: "zus" }, kurzText(k, b) || "Noch ohne Inhalt"),
+        chips.length > 0 ? el("ul", { class: "chips" }, chips) : null,
+      ),
+      el(
+        "div",
+        { class: "akt" },
+        bearbeiten,
+        mini("duplizieren", "Duplizieren", "kopieren", () => dupliziere(b)),
+        mini("loeschen", "Löschen", "papierkorb", () => loesche(b)),
+      ),
+    );
   }
 
   // --- Titelbild (#570): Die Website nimmt das erste Bild der Seite als Titelbild (rendereSeite). Hier steht das als Einstellung: wählen, tauschen, entfernen.
@@ -670,7 +814,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
       klein: true,
       onclick: () =>
         k.waehleBild((neu) => {
-          commitGeloescht();
           k.medien.set(neu.id, neu);
           const da = titelbildBaustein();
           if (da) da.daten.mediumId = neu.id;
@@ -771,18 +914,19 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   }
 
   function setzeFokus({ id: bid, was }) {
-    const block = liste.querySelector(`[data-block="${bid}"]`);
+    const block = liste.querySelector(`[data-id="${CSS.escape(bid)}"]`);
     let ziel = null;
-    if (was === "rueckgaengig") ziel = snack?.querySelector("button");
-    else if (block) {
-      const such = (a) =>
-        block.querySelector(`[data-aktion="${a}"]:not([aria-disabled="true"])`);
+    if (block) {
+      const frei = ":not([disabled]):not([aria-disabled='true'])";
+      const art = (a) => block.querySelector(`[data-art="${a}"]${frei}`);
+      const akt = (a) => block.querySelector(`[data-aktion="${a}"]${frei}`);
       if (was === "hoch" || was === "runter") {
         ziel =
-          such(was) ??
-          such(was === "hoch" ? "runter" : "hoch") ??
-          such("bearbeiten");
-      } else ziel = such(was) ?? such("bearbeiten");
+          art(was) ??
+          art(was === "hoch" ? "runter" : "hoch") ??
+          akt("bearbeiten");
+      } else if (was === "griff") ziel = art("griff");
+      else ziel = akt(was) ?? akt("bearbeiten");
     }
     (ziel ?? hinzuKnopf).focus();
   }
@@ -790,188 +934,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
 
   const name = (b) => typName(b);
 
-  function verschiebe(i, ziel, was, text = true) {
-    commitGeloescht();
-    const [b] = k.dok.bausteine.splice(i, 1);
-    k.dok.bausteine.splice(ziel, 0, b);
-    k.aenderung();
-    zeichneListe({ id: b.id, was });
-    if (text)
-      ansage.textContent = `«${name(b)}» steht jetzt an Position ${ziel + 1} von ${k.dok.bausteine.length}.`;
-  }
-
-  // Ziehen mit der Maus und mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab)
-  let aufgenommen = null;
-  function griffTaste(e, b, i) {
-    const start = aufgenommen;
-    if (!start && (e.key === " " || e.key === "Enter")) {
-      e.preventDefault();
-      aufgenommen = { id: b.id, von: i };
-      e.currentTarget.setAttribute("aria-pressed", "true");
-      ansage.textContent = `«${name(b)}» aufgenommen, Position ${i + 1} von ${k.dok.bausteine.length}. Mit den Pfeiltasten verschieben, mit der Leertaste ablegen, mit Escape abbrechen.`;
-      return;
-    }
-    if (!start || start.id !== b.id) return;
-    const jetzt = k.dok.bausteine.findIndex((x) => x.id === b.id);
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      e.preventDefault();
-      const ziel = jetzt + (e.key === "ArrowUp" ? -1 : 1);
-      if (ziel < 0 || ziel >= k.dok.bausteine.length) return;
-      verschiebe(jetzt, ziel, "griff");
-      liste
-        .querySelector(`[data-block="${b.id}"] .griff`)
-        ?.setAttribute("aria-pressed", "true");
-    } else if (e.key === " " || e.key === "Enter") {
-      e.preventDefault();
-      aufgenommen = null;
-      e.currentTarget.setAttribute("aria-pressed", "false");
-      ansage.textContent = `«${name(b)}» abgelegt an Position ${jetzt + 1} von ${k.dok.bausteine.length}.`;
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      aufgenommen = null;
-      if (jetzt !== start.von) verschiebe(jetzt, start.von, "griff", false);
-      ansage.textContent = `Verschieben abgebrochen. «${name(b)}» steht wieder an Position ${start.von + 1}.`;
-    }
-  }
-
-  let gezogen = null;
-  const ablage = el(
-    "li",
-    { class: "ablage", "aria-hidden": "true" },
-    symbol("ablegen"),
-    "Hier ablegen",
-  );
-  function dragZiel(e) {
-    if (!gezogen) return;
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    const li = e.target.closest?.("li[data-block]");
-    if (!li || li.dataset.block === gezogen.id) return;
-    const r = li.getBoundingClientRect();
-    const vor = e.clientY < r.top + r.height / 2;
-    if (vor) li.before(ablage);
-    else li.after(ablage);
-  }
-  liste.addEventListener("dragover", dragZiel);
-  liste.addEventListener("drop", (e) => {
-    if (!gezogen || !ablage.isConnected) return;
-    e.preventDefault();
-    const bloecke = [...liste.querySelectorAll("li[data-block]")].filter(
-      (li) => li.dataset.block !== gezogen.id,
-    );
-    const pos = bloecke.findIndex(
-      (li) =>
-        li.compareDocumentPosition(ablage) & Node.DOCUMENT_POSITION_PRECEDING,
-    );
-    const ziel = pos === -1 ? 0 : pos + 1;
-    const von = k.dok.bausteine.findIndex((b) => b.id === gezogen.id);
-    gezogen = null;
-    ablage.remove();
-    if (von !== -1 && von !== ziel) verschiebe(von, ziel, "griff");
-    else zeichneListe();
-  });
-
-  function karte(b, i, n) {
-    const bezeichnung = name(b);
-    const mini = (aktion, label, symbolName, fn, versteckt) =>
-      el(
-        "button",
-        {
-          type: "button",
-          class: "knopf knopf--rund",
-          "aria-label": `${label}: ${bezeichnung}`,
-          "data-aktion": aktion,
-          "aria-disabled": versteckt ? "true" : undefined,
-          tabindex: versteckt ? "-1" : undefined,
-          onclick: versteckt ? undefined : fn,
-        },
-        symbol(symbolName),
-      );
-    const hoch = mini(
-      "hoch",
-      "Nach oben",
-      "hoch",
-      () => verschiebe(i, i - 1, "hoch"),
-      i === 0,
-    );
-    const runter = mini(
-      "runter",
-      "Nach unten",
-      "runter",
-      () => verschiebe(i, i + 1, "runter"),
-      i === n - 1,
-    );
-    if (i === 0) hoch.classList.add("ws-unsichtbar");
-    if (i === n - 1) runter.classList.add("ws-unsichtbar");
-    const griff = el(
-      "button",
-      {
-        type: "button",
-        class: "knopf knopf--rund griff",
-        "data-aktion": "griff",
-        "aria-pressed": aufgenommen?.id === b.id ? "true" : "false",
-        "aria-label": `Ziehen: ${bezeichnung}. Mit Leertaste aufnehmen, mit Pfeiltasten verschieben.`,
-        onkeydown: (e) => griffTaste(e, b, i),
-        onpointerdown: (e) => {
-          if (e.pointerType === "mouse") li.draggable = true;
-        },
-        onpointerup: () => {
-          li.draggable = false;
-        },
-      },
-      symbol("griff"),
-    );
-    const bearbeiten = knopf("Bearbeiten", {
-      klein: true,
-      symbol: "bearbeiten",
-      "aria-label": `Bearbeiten: ${bezeichnung}`,
-      "data-aktion": "bearbeiten",
-      onclick: () => {
-        commitGeloescht();
-        const index = k.dok.bausteine.indexOf(b);
-        bearbeitenBlatt(k, b, index);
-      },
-    });
-    const dup = mini("duplizieren", "Duplizieren", "kopieren", () =>
-      dupliziere(b, i),
-    );
-    const loeschen = mini("loeschen", "Löschen", "papierkorb", () =>
-      loesche(b, i),
-    );
-    const li = el(
-      "li",
-      { class: "baustein", "data-block": b.id, draggable: undefined },
-      griff,
-      el(
-        "div",
-        { class: "ws-bausteintext" },
-        el("p", { class: "typ" }, bezeichnung),
-        el("p", { class: "zus" }, kurzText(k, b) || "Noch ohne Inhalt"),
-        chipsFuer(b).length > 0
-          ? el("ul", { class: "chips" }, chipsFuer(b))
-          : null,
-      ),
-      el("div", { class: "akt" }, hoch, runter, bearbeiten, dup, loeschen),
-    );
-    li.addEventListener("dragstart", (e) => {
-      gezogen = { id: b.id };
-      commitGeloescht();
-      e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", b.id);
-      window.requestAnimationFrame(() => li.classList.add("gezogen"));
-    });
-    li.addEventListener("dragend", () => {
-      gezogen = null;
-      li.draggable = false;
-      li.classList.remove("gezogen");
-      ablage.remove();
-    });
-    return li;
-  }
-
-  function dupliziere(b, i) {
-    commitGeloescht();
+  function dupliziere(b) {
+    const i = k.dok.bausteine.indexOf(b);
     if (k.dok.bausteine.length >= MAX_BAUSTEINE) {
       ctx.melde(
         `Mehr als ${MAX_BAUSTEINE} Bausteine sind nicht möglich.`,
@@ -986,45 +950,30 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     ansage.textContent = `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`;
   }
 
-  function loesche(b, i) {
-    commitGeloescht();
-    k.dok.bausteine.splice(i, 1);
-    k.geloescht = { block: b, index: i };
-    k.pruefen.delete(b.id);
-    k.aenderung();
-    snack = el(
-      "div",
-      { class: "snack", role: "status" },
-      `Baustein «${name(b)}» gelöscht.`,
-      knopf("Rückgängig", {
-        onclick: () => {
-          k.dok.bausteine.splice(Math.min(i, k.dok.bausteine.length), 0, b);
-          commitGeloescht();
+  // Mit «Rückgängig» (Toast, Strg+Z): Der Baustein verschwindet sofort aus dem Entwurf; zurückgeholt kommt er an dieselbe Stelle.
+  // Auf dem Server ändert sich nichts, bevor die Person speichert
+  function loesche(b) {
+    const i = k.dok.bausteine.indexOf(b);
+    if (i < 0) return;
+    ctx.mitRueckgaengig({
+      text: `Baustein «${name(b)}» gelöscht`,
+      ansicht: {
+        weg: () => {
+          k.dok.bausteine.splice(k.dok.bausteine.indexOf(b), 1);
+          k.pruefen.delete(b.id);
           k.aenderung();
-          zeichneListe({ id: b.id, was: "loeschen" });
-          ansage.textContent = `«${name(b)}» ist wiederhergestellt.`;
+          const nachbar = k.dok.bausteine[i] ?? k.dok.bausteine[i - 1];
+          zeichneListe(nachbar && { id: nachbar.id, was: "bearbeiten" });
         },
-      }),
-      el(
-        "button",
-        {
-          type: "button",
-          class: "knopf knopf--rund",
-          "aria-label": "Hinweis schliessen",
-          onclick: () => {
-            commitGeloescht();
-            (liste.querySelector("button") ?? hinzuKnopf).focus();
-          },
+        zurueck: () => {
+          k.dok.bausteine.splice(Math.min(i, k.dok.bausteine.length), 0, b);
+          k.aenderung();
+          zeichneListe({ id: b.id, was: "bearbeiten" });
         },
-        symbol("schliessen"),
-      ),
-    );
-    snack
-      .querySelector(".knopf:not(.knopf--rund)")
-      .classList.add("knopf--still");
-    document.body.append(snack);
-    zeichneListe();
-    snack.querySelector("button").focus();
+      },
+      ausfuehren: async () => {},
+      erledigt: `Baustein «${name(b)}» ist aus dem Entwurf entfernt. Speichere die Seite, damit es gilt.`,
+    });
   }
 
   // --- Vorschau (rechte Spalte): der gespeicherte Entwurf oder eine Version, im Rahmen ohne Skripte
@@ -1038,33 +987,84 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     ctx.titel(k.seite.titel, k.seite.pfad);
   });
 
-  // --- Kopf
+  // --- Kopf: Zugriff (Sichtbarkeit und Bearbeiter in einem Panel neben dem Editor), Vorschau, Veröffentlichen mit weiteren Schritten im Menü
+  const zugriffText = () =>
+    `Zugriff: ${kuerze(sichtbarkeitText(k.seite.sichtbarkeit, k.tagNamen), 28)}`;
+  knoepfe.zugriff = knopf(zugriffText(), {
+    symbol: "schild",
+    onclick: () =>
+      sichtbarkeitBlatt({
+        typ: "seite",
+        frage: "Wer sieht die Seite?",
+        titel: "Zugriff auf die Seite",
+        untertitel: `${seite.titel} · ${seite.pfad}`,
+        start: seite.sichtbarkeit,
+        tagNamen: k.tagNamen,
+        ladeTags: async () => {
+          const { tags } = await anfrage("GET", `${API}/tags`);
+          k.tags = tags;
+          k.tagNamen = new Map(tags.map((t) => [t.id, t.name]));
+          return tags;
+        },
+        speichere: async (wert) => {
+          await patch(seite.id, { sichtbarkeit: wert });
+          seite.sichtbarkeit = wert;
+          knoepfe.zugriff.lastChild.textContent = zugriffText();
+          ctx.melde("Der Zugriff auf die Seite ist gespeichert.", "ok");
+        },
+        rechte: {
+          seite,
+          istAdmin: ctx.ich.role === "admin",
+          melde: ctx.melde,
+        },
+      }),
+  });
   knoepfe.vorschau = mitSymbol(
     knopf("Vorschau", { onclick: () => vorschau.zeige(null, true) }),
     "vorschau",
   );
-  knoepfe.versionen = knopf("Versionen", {
-    symbol: "uhr",
-    "aria-haspopup": "dialog",
-    onclick: () => veroeffentlichenDialog(k, "Versionen"),
-  });
-  knoepfe.veroeffentlichen = knopf("Veröffentlichen", { art: "haupt" });
-  bei(knoepfe.veroeffentlichen, () => veroeffentlichenDialog(k));
   const hilfeVeroeffentlichen = el(
     "span",
     { class: "mini leise", hidden: true },
     "Geht wieder, sobald du online bist.",
   );
-  ctx.kopfAktion(
-    knoepfe.vorschau,
-    knoepfe.versionen,
-    el(
-      "span",
-      { class: "ws-fussspalte" },
-      knoepfe.veroeffentlichen,
-      hilfeVeroeffentlichen,
-    ),
-  );
+  function kopfAktionen() {
+    knoepfe.unpubliziert = k.nr === null;
+    const split = splitKnopf({
+      text: "Veröffentlichen",
+      art: "haupt",
+      onclick: () => {
+        if (knoepfe.veroeffentlichen?.getAttribute("aria-disabled") === "true")
+          return;
+        veroeffentlichenDialog(k);
+      },
+      eintraege: [
+        { text: "Entwurf speichern", onclick: () => speichere() },
+        {
+          text: "Versionen ansehen",
+          onclick: () => veroeffentlichenDialog(k, "Versionen"),
+        },
+        {
+          text: "Seite zurückziehen",
+          gefaehrlich: true,
+          gesperrt: k.nr === null,
+          onclick: () => zurueckziehen(k),
+        },
+      ],
+    });
+    knoepfe.veroeffentlichen = split.haupt;
+    ctx.kopfAktion(
+      knoepfe.zugriff,
+      knoepfe.vorschau,
+      el(
+        "span",
+        { class: "ws-fussspalte" },
+        split.wurzel,
+        hilfeVeroeffentlichen,
+      ),
+    );
+  }
+  kopfAktionen();
 
   wurzel.append(
     ansage,
@@ -1080,7 +1080,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         liste,
         leerKarte,
         hinzuKnopf,
-        stand,
       ),
       el("div", { class: "ws-spalte" }, vorschau.wurzel, einstellungen),
     ),
@@ -1115,7 +1114,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   const vorDemSchliessen = (e) => {
     if (!wurzel.isConnected)
       return window.removeEventListener("beforeunload", vorDemSchliessen);
-    if (k.dirty) {
+    if (k.dirty || k.einstellungenGeaendert?.()) {
       e.preventDefault();
       e.returnValue = "";
     }
@@ -1127,7 +1126,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     if (!wurzel.isConnected)
       return document.removeEventListener("click", beiKlick, true);
     const a = e.target.closest?.("a[href^='#']");
-    if (!a || !k.dirty) return;
+    if (!a || !(k.dirty || k.einstellungenGeaendert?.())) return;
     const ziel = a.getAttribute("href");
     if (ziel === "#inhalt" || ziel === location.hash || ziel === "#") return;
     e.preventDefault();
@@ -1135,17 +1134,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     verlassenDialog(k, pufferId, ziel);
   };
   document.addEventListener("click", beiKlick, true);
-  // Die Snackbar gehört zur Seite: Mit dem Editor geht sie
-  const wachter = new window.MutationObserver(() => {
-    if (!wurzel.isConnected) {
-      snack?.remove();
-      wachter.disconnect();
-    }
-  });
-  wachter.observe(bereich.parentElement ?? document.body, {
-    childList: true,
-    subtree: true,
-  });
 }
 
 // --- Rückfrage beim Verlassen (E2 «Verlassen Rückfrage») ----------------------------------------------------------------
@@ -1170,7 +1158,7 @@ function verlassenDialog(k, pufferId, ziel) {
     el(
       "span",
       {},
-      "Wirklich verlassen? Du hast nicht gespeicherte Änderungen. Wenn du die Seite verlässt, gehen sie verloren.",
+      "Wirklich verlassen? Du hast nicht gespeicherte Änderungen (Entwurf oder Einstellungen). Wenn du die Seite verlässt, gehen sie verloren.",
     ),
     bleiben,
     speichernUndGehen,
@@ -1180,7 +1168,10 @@ function verlassenDialog(k, pufferId, ziel) {
   bleiben.focus();
   bei(speichernUndGehen, async () => {
     beschaeftigt(speichernUndGehen, true);
-    const gespeichert = await k.speichere();
+    // Entwurf und Einstellungen: Scheitert eines, bleibt die Person hier
+    const gespeichert =
+      (!k.dirty || (await k.speichere())) &&
+      (!k.einstellungenGeaendert?.() || (await k.speichereEinstellungen()));
     beschaeftigt(speichernUndGehen, false);
     // Bei einem Fehler bleibt die Person auf der Seite: Die Meldung steht dort
     frage.remove();
@@ -1189,6 +1180,7 @@ function verlassenDialog(k, pufferId, ziel) {
   bei(verlassen, () => {
     puffer.delete(pufferId);
     k.dirty = false;
+    k.einstellungenGeaendert = () => false;
     frage.remove();
     location.hash = ziel;
   });
@@ -1355,22 +1347,13 @@ function vorschauFlaeche(k, speichereZuerst) {
 }
 
 // --- Einstellungen der Seite (rechte Spalte, E2) ---------------------------------------------------------------------
+// Adresse (mit Live-Prüfung und der Adresse der Elternseite davor), Elternseite und die Überschrift des Entwurfs. Titel und Position stehen im Kopf und im Seitenbaum, Zugriff im Panel «Zugriff».
+// Eine geänderte, noch nicht gespeicherte Einstellung zählt für die Rückfrage beim Verlassen (k.einstellungenGeaendert, k.speichereEinstellungen).
 
 function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
   const { seite } = k;
   const titelId = neueId("einst");
   const baum = baueBaum(k.alle);
-  const index = Math.max(
-    0,
-    baum.zeilen.find((z) => z.seite.id === seite.id)?.index ?? 0,
-  );
-  const titel = feld({
-    label: "Titel",
-    wert: seite.titel,
-    maxlength: 150,
-    required: true,
-    hilfe: "So heisst die Seite in der Liste und in der Navigation.",
-  });
   const adresse = feld({
     label: "Adresse",
     wert: seite.adresse,
@@ -1378,15 +1361,19 @@ function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
     required: true,
     autocomplete: "off",
     spellcheck: "false",
-    hilfe:
-      "Nur Kleinbuchstaben, Ziffern und «-». Ändert sich die Adresse, ändert sich auch die Adresse der veröffentlichten Seite.",
   });
   adresse.eingabe.classList.add("mono");
+  // Die Adresse mit der Adresse der Elternseite davor, wie sie online steht
+  const praefix = el("span", { class: "ws-handle-praefix mono" }, "/");
+  const zeile = el("div", { class: "ws-handle-zeile" }, praefix);
+  adresse.eingabe.before(zeile);
+  zeile.append(adresse.eingabe);
+  const stand = el("p", { class: "hilfe ws-adressstand", role: "status" });
+  adresse.wurzel.append(stand);
   const verboten = baum.nachfahren(seite.id);
   verboten.add(seite.id);
   const hoehe = baum.hoehe(seite.id);
   let eltern = null;
-  let position = null;
   if (verwalten) {
     const optionen = [
       ["", "Oberste Ebene"],
@@ -1411,32 +1398,20 @@ function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
         { class: "feld" },
         el("label", { for: id }, "Elternseite"),
         select,
+        el(
+          "p",
+          { class: "hilfe" },
+          "Die Reihenfolge ordnest du in der Liste der Seiten, per Ziehen oder mit dem Menü «Mehr».",
+        ),
       ),
       eingabe: select,
     };
-    position = feld({
-      label: "Position",
-      typ: "number",
-      wert: String(index + 1),
-      min: 1,
-      inputmode: "numeric",
-      hilfe: "1 steht ganz oben unter der Elternseite.",
-    });
-    position.eingabe.classList.add("ws-kurzfeld");
   }
-  const sichtText = el("span", { class: "chip" });
-  const zeichneSicht = () => {
-    sichtText.replaceChildren(
-      symbol("schild"),
-      sichtbarkeitText(seite.sichtbarkeit, k.tagNamen),
-    );
-  };
-  zeichneSicht();
-  const aendern = knopf("Ändern", {
-    klein: true,
-    "aria-label": "Sichtbarkeit der Seite ändern",
-    onclick: oeffneSicht,
-  });
+  const geaendert = () =>
+    adresse.eingabe.value.trim() !== seite.adresse ||
+    (eltern !== null && (eltern.eingabe.value || null) !== seite.elternId);
+  k.einstellungenGeaendert = geaendert;
+
   const speichern = knopf("Einstellungen speichern", { klein: true });
   const fehlerPlatz = el("div", {});
   const rest = (text) => (
@@ -1445,63 +1420,68 @@ function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
     fehlerPlatz.firstChild.focus()
   );
 
-  function oeffneSicht() {
-    sichtbarkeitBlatt({
-      typ: "seite",
-      frage: "Wer sieht die Seite?",
-      titel: "Sichtbarkeit der Seite",
-      untertitel: `${seite.titel} · ${seite.pfad}`,
-      start: seite.sichtbarkeit,
-      tagNamen: k.tagNamen,
-      ladeTags: async () => {
-        const { tags } = await anfrage("GET", `${API}/tags`);
-        k.tags = tags;
-        k.tagNamen = new Map(tags.map((t) => [t.id, t.name]));
-        return tags;
-      },
-      speichere: async (wert) => {
-        await patch(seite.id, { sichtbarkeit: wert });
-        seite.sichtbarkeit = wert;
-        zeichneSicht();
-        k.ctx.melde("Die Sichtbarkeit der Seite ist gespeichert.", "ok");
-      },
-      rechte: {
-        seite,
-        istAdmin: k.ctx.ich.role === "admin",
-        melde: k.ctx.melde,
-      },
-    });
-  }
+  // Live-Prüfung gegen die Seiten unter derselben Elternseite; der Server prüft zusätzlich
+  const pruefe = () => {
+    const wert = adresse.eingabe.value.trim();
+    const vater = eltern ? eltern.eingabe.value : (seite.elternId ?? "");
+    const vaterSeite = k.alle.find((s) => s.id === vater);
+    praefix.textContent = `${vaterSeite ? vaterSeite.pfad : ""}/`;
+    let r = { art: "info", text: "So steht die Seite online." };
+    if (!ADRESSE.test(wert)) {
+      r = {
+        art: "fehler",
+        text: "Nur Kleinbuchstaben, Ziffern und «-», höchstens 60 Zeichen.",
+      };
+    } else if (
+      k.alle.some(
+        (s) =>
+          s.id !== seite.id &&
+          (s.elternId ?? "") === vater &&
+          s.adresse === wert,
+      )
+    ) {
+      r = { art: "fehler", text: "Diese Adresse ist hier schon vergeben." };
+    } else if (vater === "" && RESERVIERT.includes(wert)) {
+      r = {
+        art: "fehler",
+        text: "Diese Adresse gehört der Verwaltung oder der Website.",
+      };
+    } else if (geaendert() && k.nr !== null) {
+      r = {
+        art: "warn",
+        text: "Die Seite ist veröffentlicht: Der alte Link führt danach ins Leere, wenn niemand weiterleitet.",
+      };
+    }
+    stand.replaceChildren(
+      r.art === "fehler" || r.art === "warn" ? symbol("warnung") : "",
+      r.text,
+    );
+    stand.dataset.art = r.art;
+    adresse.eingabe.setAttribute(
+      "aria-invalid",
+      r.art === "fehler" ? "true" : "false",
+    );
+    return r;
+  };
+  adresse.eingabe.addEventListener("input", pruefe);
+  eltern?.eingabe.addEventListener("change", pruefe);
+  pruefe();
 
-  bei(speichern, async () => {
+  async function speichereEinstellungen() {
     fehlerPlatz.replaceChildren();
     const neuAdresse = adresse.eingabe.value.trim();
-    const neuTitel = titel.eingabe.value.trim();
-    if (!neuTitel) return rest("Der Titel fehlt.");
-    if (!ADRESSE.test(neuAdresse)) {
-      return rest(
-        "Die Adresse darf nur Kleinbuchstaben, Ziffern und «-» enthalten und höchstens 60 Zeichen lang sein.",
-      );
+    if (pruefe().art === "fehler") {
+      rest(stand.textContent);
+      return false;
     }
     const aenderung = {};
-    if (neuTitel !== seite.titel) aenderung.titel = neuTitel;
     if (neuAdresse !== seite.adresse) aenderung.adresse = neuAdresse;
     const weitere = [];
-    if (verwalten) {
+    if (eltern) {
       const neuEltern = eltern.eingabe.value || null;
-      const pos = Number(position.eingabe.value.trim());
-      if (!Number.isInteger(pos) || pos < 1)
-        return rest("Die Position ist eine ganze Zahl ab 1.");
-      const elternGeaendert = neuEltern !== seite.elternId;
-      const posGeaendert = pos !== index + 1;
-      if (elternGeaendert || posGeaendert) {
-        // Wechselt nur die Elternseite, kommt die Seite ans Ende
-        const { aenderungen } = plane(
-          k.alle,
-          seite,
-          neuEltern,
-          elternGeaendert && !posGeaendert ? Infinity : pos - 1,
-        );
+      if (neuEltern !== seite.elternId) {
+        // Wechselt die Elternseite, kommt die Seite ans Ende
+        const { aenderungen } = plane(k.alle, seite, neuEltern, Infinity);
         for (const a of aenderungen) {
           if (a.id === seite.id) Object.assign(aenderung, koerper(a));
           else weitere.push(a);
@@ -1510,49 +1490,63 @@ function einstellungenFlaeche(k, ueberschrift, verwalten, beiNeuerAdresse) {
     }
     if (Object.keys(aenderung).length === 0 && weitere.length === 0) {
       k.ctx.melde("Nichts geändert.", "info");
-      return;
+      return true;
     }
     beschaeftigt(speichern, true);
     try {
+      const alt = k.alle.map((s) => ({ ...s }));
       if (Object.keys(aenderung).length > 0) await patch(seite.id, aenderung);
       for (const a of weitere) await patch(a.id, koerper(a));
       const neu = await anfrage("GET", `${API}/seiten/${seite.id}`);
       Object.assign(seite, neu);
+      // Die Abteilungsleitung sieht alle Seiten: ihre Adressen folgen der neuen Lage
+      if (eltern) {
+        const liste = await anfrage("GET", `${API}/seiten`);
+        k.alle.splice(0, k.alle.length, ...liste.seiten);
+      } else {
+        const meine = k.alle.find((s) => s.id === seite.id);
+        if (meine) Object.assign(meine, neu);
+      }
       adresse.eingabe.value = seite.adresse;
+      pruefe();
       beiNeuerAdresse();
-      k.ctx.melde(`«${kuerze(seite.titel, 60)}» ist gespeichert.`, "ok");
+      k.ctx.melde(
+        `Die Einstellungen von «${kuerze(seite.titel, 60)}» sind gespeichert.`,
+        "ok",
+      );
+      weiterleitungsHinweis(
+        k.ctx,
+        geaenderteAdressen(alt, k.alle),
+        seite.titel,
+      );
+      return true;
     } catch (f) {
-      const text =
+      rest(
         f?.meldung &&
-        [
-          "ADRESSE_RESERVIERT",
-          "ADRESSE_VERGEBEN",
-          "SEITE_ZYKLUS",
-          "SEITE_ZU_TIEF",
-        ].includes(f.code)
+          [
+            "ADRESSE_RESERVIERT",
+            "ADRESSE_VERGEBEN",
+            "SEITE_ZYKLUS",
+            "SEITE_ZU_TIEF",
+          ].includes(f.code)
           ? f.meldung
-          : fehlertext(f);
-      rest(text);
+          : fehlertext(f),
+      );
+      return false;
     } finally {
       beschaeftigt(speichern, false);
     }
-  });
+  }
+  k.speichereEinstellungen = speichereEinstellungen;
+  bei(speichern, speichereEinstellungen);
 
   return el(
     "section",
     { class: "flaeche ws-einstellungen", "aria-labelledby": titelId },
     el("h2", { id: titelId }, "Seiteneinstellungen"),
-    titel.wurzel,
     ueberschrift.wurzel,
     adresse.wurzel,
     eltern?.wurzel,
-    position?.wurzel,
-    el(
-      "div",
-      { class: "feld" },
-      el("span", { class: "legende" }, "Sichtbarkeit"),
-      el("div", { class: "zeile" }, sichtText, aendern),
-    ),
     fehlerPlatz,
     el("div", { class: "ws-reihe" }, speichern),
   );

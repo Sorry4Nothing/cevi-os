@@ -1,16 +1,16 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
-import {
-  chip,
-  el,
-  feld,
-  filterGruppe,
-  knopf,
-  neueId,
-  tabelle,
-  zeit,
-} from "./dom.js";
+import { el, feld, filterGruppe, knopf, neueId } from "./dom.js";
 import { sk } from "./lader.js";
-import { MAX_TIEFE, API, baue as baueBaum } from "./website-baum.js";
+import {
+  ADRESSE,
+  MAX_TIEFE,
+  API,
+  RESERVIERT,
+  adresseAusTitel,
+  baue as baueBaum,
+  patch,
+} from "./website-baum.js";
+import { baumAnsicht } from "./website-baumansicht.js";
 import {
   anzahlText,
   band,
@@ -19,10 +19,10 @@ import {
   fenster,
   keinRecht,
   kuerze,
-  sichtbarkeitText,
   uhrzeit,
 } from "./website-dialoge.js";
-import { ansichtVonKnopf } from "./rueckgaengig.js";
+import { ansichtVon } from "./rueckgaengig.js";
+import { skizze } from "./website-skizzen.js";
 import { symbol } from "./website-symbole.js";
 import { zustandsKarte } from "./zustaende.js";
 
@@ -45,7 +45,12 @@ const seitenFehler = (f) =>
   f?.meldung && SEITEN_CODES.has(f.code) ? f.meldung : fehlertext(f);
 
 // frage, filter: überleben das Neuladen nach einer Aktion; vorlagen: einmal je Besuch geladen
-const zustand = { frage: "", filter: "alle", vorlagen: null };
+const zustand = {
+  frage: "",
+  filter: "alle",
+  vorlagen: null,
+  zugeklappt: new Set(),
+};
 
 export async function zeige(bereich, ctx) {
   if (ctx.pfad.length > 0) {
@@ -56,6 +61,7 @@ export async function zeige(bereich, ctx) {
   zustand.frage = "";
   zustand.filter = "alle";
   zustand.vorlagen = null;
+  zustand.zugeklappt = new Set();
   ctx.lade(
     () => ladeAlles(),
     (daten) => zeichne(bereich, ctx, daten),
@@ -125,9 +131,10 @@ function zeichne(bereich, ctx, daten) {
     ctx,
     bereich,
     daten,
-    baum: baueBaum(daten.seiten),
     tagNamen: new Map(daten.tags.map((t) => [t.id, t.name])),
     verwalten,
+    seitenFehler,
+    beiLoeschen: (z, element) => loesche(k, z.seite, element),
   };
   ctx.kopfAktion(
     ...(darfAnlegen
@@ -166,18 +173,7 @@ function zeichne(bereich, ctx, daten) {
     return;
   }
 
-  const eintraege = k.baum.zeilen.map((z) => zeile(k, z));
-  const { wurzel } = tabelle({
-    beschriftung: "Seiten der Website",
-    spalten: [
-      "Seite",
-      "Status",
-      "Sichtbarkeit",
-      "Zuletzt geändert",
-      "Aktionen",
-    ],
-    zeilen: eintraege.map((e) => e.tr),
-  });
+  const baum = baumAnsicht(k, zustand);
   const FILTER = {
     alle: () => true,
     entwurf: (s) => !s.veroeffentlicht,
@@ -223,18 +219,33 @@ function zeichne(bereich, ctx, daten) {
       suche.focus();
     },
   });
+  // Treffer und ihre Elternseiten bleiben im Baum sichtbar, damit die Einrückung verständlich bleibt
   function aktualisiere() {
     const frage = leseSuche().toLowerCase();
-    let n = 0;
-    for (const e of eintraege) {
-      const sichtbar =
-        FILTER[zustand.filter](e.seite) && e.suche.includes(frage);
-      e.tr.hidden = !sichtbar;
-      if (sichtbar) n++;
+    const nachId = new Map(daten.seiten.map((s) => [s.id, s]));
+    const treffer = new Set(
+      daten.seiten
+        .filter(
+          (s) =>
+            FILTER[zustand.filter](s) &&
+            `${s.titel} ${s.pfad}`.toLowerCase().includes(frage),
+        )
+        .map((s) => s.id),
+    );
+    const aktiv = frage !== "" || zustand.filter !== "alle";
+    const ids = new Set(treffer);
+    if (aktiv) {
+      for (const id of treffer) {
+        for (let e = nachId.get(id)?.elternId; e; e = nachId.get(e)?.elternId) {
+          ids.add(e);
+        }
+      }
     }
+    baum.filtere(aktiv ? ids : null, treffer);
+    const n = treffer.size;
     zaehler.textContent = `${n} von ${anzahlText(daten.seiten.length, "1 Seite", "Seiten")}`;
     keine.hidden = n > 0;
-    wurzel.hidden = n === 0;
+    baum.wurzel.hidden = n === 0;
     if (n === 0) {
       keine.replaceChildren(
         el(
@@ -272,106 +283,8 @@ function zeichne(bereich, ctx, daten) {
     ),
     zaehler,
     keine,
-    wurzel,
+    baum.wurzel,
   );
-}
-
-function zeile(k, z) {
-  const { seite, ebene } = z;
-  const name = el(
-    "a",
-    { class: "name ws-name", href: `#website/seiten/${seite.id}` },
-    seite.titel,
-  );
-  const bearbeiten = el(
-    "a",
-    {
-      class: "knopf knopf--klein",
-      href: `#website/seiten/${seite.id}`,
-      "aria-label": `Bearbeiten: ${seite.titel}`,
-    },
-    symbol("bearbeiten"),
-    "Bearbeiten",
-  );
-  const loeschen =
-    k.verwalten &&
-    el(
-      "button",
-      {
-        type: "button",
-        class: "knopf knopf--rund",
-        "aria-label": `Löschen: ${seite.titel}`,
-        onclick: (e) => loesche(k, z, e),
-      },
-      symbol("papierkorb"),
-    );
-  const tr = el(
-    "tr",
-    {},
-    el(
-      "td",
-      {},
-      el(
-        "div",
-        { class: "ws-seitenzelle" },
-        Array.from({ length: Math.min(ebene, 4) }, () =>
-          el("span", { class: "baum-ebene", "aria-hidden": "true" }),
-        ),
-        el(
-          "div",
-          {},
-          name,
-          el("span", { class: "mono leise ws-pfad" }, seite.pfad),
-          ebene > 0 &&
-            el(
-              "span",
-              { class: "nur-leser" },
-              `Unterseite, Ebene ${ebene + 1}`,
-            ),
-        ),
-      ),
-    ),
-    el(
-      "td",
-      {},
-      el(
-        "ul",
-        { class: "chips" },
-        seite.veroeffentlicht
-          ? chip("Veröffentlicht", "ok")
-          : chip("Entwurf", "warn", "bearbeiten"),
-      ),
-    ),
-    el(
-      "td",
-      {},
-      el(
-        "ul",
-        { class: "chips" },
-        chip(
-          sichtbarkeitText(seite.sichtbarkeit, k.tagNamen),
-          undefined,
-          "schild",
-        ),
-      ),
-    ),
-    el(
-      "td",
-      { class: "klein leise" },
-      el("time", { datetime: seite.geaendertAm }, zeit(seite.geaendertAm)),
-    ),
-    el(
-      "td",
-      { class: "rechts" },
-      el("div", { class: "aktionen" }, bearbeiten, loeschen),
-    ),
-  );
-  return {
-    seite,
-    tr,
-    name,
-    suche: `${seite.titel} ${seite.pfad}`.toLowerCase(),
-  };
 }
 
 // Nach einer Änderung neu laden: Schlägt es fehl (offline), bleibt die Liste stehen und ein Band sagt, von wann sie ist
@@ -401,19 +314,19 @@ async function neuLaden(k, fokusId) {
 
 function zeichneNeu(k, daten, fokusId) {
   zeichne(k.bereich, k.ctx, daten);
-  if (fokusId === null) {
-    (
-      k.bereich.querySelector(".ws-name") ?? document.querySelector("h1")
-    )?.focus();
-  } else if (fokusId) {
-    k.bereich.querySelector(`a.ws-name[href$="${fokusId}"]`)?.focus();
-  }
+  const zeile = fokusId
+    ? k.bereich.querySelector(`[role=treeitem][data-id="${fokusId}"]`)
+    : null;
+  (
+    zeile ??
+    k.bereich.querySelector("[role=treeitem]") ??
+    document.querySelector("h1")
+  )?.focus();
 }
 
 // Mit «Rückgängig» (#578): Die Zeile verschwindet sofort, gelöscht wird nach der Frist (samt Entwurf und allen Versionen). Mit Unterseiten geht es nicht: nur ein Hinweis, keine Aktion
-function loesche(k, z, ereignis) {
-  const { seite } = z;
-  const n = (k.baum.kinder.get(seite.id) ?? []).length;
+function loesche(k, seite, element) {
+  const n = k.daten.seiten.filter((s) => s.elternId === seite.id).length;
   if (n > 0) {
     k.ctx.melde(
       `«${seite.titel}» hat ${anzahlText(n, "1 Unterseite", "Unterseiten")}. Verschiebe oder lösche sie zuerst, danach lässt sich die Seite löschen.`,
@@ -421,20 +334,20 @@ function loesche(k, z, ereignis) {
     );
     return;
   }
+  const nachbar =
+    element?.nextElementSibling?.dataset.id ??
+    element?.previousElementSibling?.dataset.id ??
+    null;
   k.ctx.mitRueckgaengig({
     text: `Seite «${kuerze(seite.titel, 50)}» gelöscht. Wer den Link aufruft, sieht «Diese Seite gibt es nicht»`,
-    ansicht: ansichtVonKnopf(ereignis),
+    ansicht: ansichtVon(element),
     ausfuehren: () => anfrage("DELETE", `${API}/seiten/${seite.id}`),
     fehlertext: seitenFehler,
-    danach: () => {
-      const i = k.baum.zeilen.indexOf(z);
-      const nachbar = k.baum.zeilen[i + 1] ?? k.baum.zeilen[i - 1];
-      neuLaden(k, nachbar ? nachbar.seite.id : null);
-    },
+    danach: () => neuLaden(k, nachbar),
   });
 }
 
-// Neue Seite (E1): Vorlage als Wahlkarte, Titel, Elternseite und, wo die Vorlage es braucht, die Gruppe
+// Neue Seite (E1): Vorlage als Skizze, Titel, Adresse mit Live-Prüfung, Elternseite und, wo die Vorlage es braucht, die Gruppe
 async function neueSeite(k) {
   if (!zustand.vorlagen) {
     try {
@@ -463,8 +376,9 @@ async function neueSeite(k) {
     eingabe.checked = v.schluessel === gewaehlt;
     return el(
       "label",
-      { class: "wahlkarte" },
+      { class: "wahlkarte ws-vorlage" },
       eingabe,
+      skizze(v.schluessel),
       el("div", {}, el("strong", {}, v.name), el("span", {}, v.beschreibung)),
     );
   });
@@ -472,17 +386,19 @@ async function neueSeite(k) {
     label: "Titel",
     maxlength: 120,
     required: true,
-    hilfe: "Die Adresse entsteht aus dem Titel. Du kannst sie danach ändern.",
+    hilfe: "So heisst die Seite in der Liste und in der Navigation.",
   });
+  const baum = baueBaum(k.daten.seiten);
   const elternId = neueId("eltern");
   const eltern = el(
     "select",
     { id: elternId, class: "ws-select" },
     el("option", { value: "" }, "Oberste Ebene"),
     k.daten.seiten
-      .filter((s) => (k.baum.ebenen.get(s.id) ?? 0) + 2 <= MAX_TIEFE)
+      .filter((s) => (baum.ebenen.get(s.id) ?? 0) + 2 <= MAX_TIEFE)
       .map((s) => el("option", { value: s.id }, `${s.titel} (${s.pfad})`)),
   );
+  eltern.addEventListener("change", () => aktualisiere());
   const belegt = new Set(k.daten.seiten.map((s) => s.tagId).filter(Boolean));
   const freieTags = k.daten.tags.filter((t) => !belegt.has(t.id));
   const gruppeId = neueId("gruppe");
@@ -498,11 +414,80 @@ async function neueSeite(k) {
     el("label", { for: gruppeId }, "Gruppe"),
     gruppeSel,
   );
+
+  // Adresse: folgt dem Titel, bis die Person sie selbst ändert; Prüfung gegen die Seiten unter derselben Elternseite (der Server prüft zusätzlich)
+  const adresseId = neueId("adresse");
+  const praefix = el("span", { class: "ws-handle-praefix mono" }, "/");
+  const adresse = el("input", {
+    class: "eingabe mono",
+    id: adresseId,
+    type: "text",
+    maxlength: "60",
+    autocomplete: "off",
+    spellcheck: "false",
+    "aria-describedby": `${adresseId}-stand`,
+  });
+  const stand = el("p", {
+    class: "hilfe ws-adressstand",
+    id: `${adresseId}-stand`,
+    role: "status",
+  });
+  let angepasst = false;
+  adresse.addEventListener("input", () => {
+    angepasst = adresse.value !== "";
+    aktualisiere();
+  });
+  titel.eingabe.addEventListener("input", () => aktualisiere());
+  const pruefeAdresse = () => {
+    const wert = adresse.value.trim();
+    const geschwister = k.daten.seiten.filter(
+      (s) => (s.elternId ?? "") === eltern.value,
+    );
+    if (!wert)
+      return { art: "info", text: "Die Adresse entsteht aus dem Titel." };
+    if (!ADRESSE.test(wert))
+      return {
+        art: "fehler",
+        text: "Nur Kleinbuchstaben, Ziffern und «-», höchstens 60 Zeichen.",
+      };
+    if (geschwister.some((s) => s.adresse === wert))
+      return {
+        art: angepasst ? "fehler" : "warn",
+        text: angepasst
+          ? "Diese Adresse ist hier schon vergeben. Wähle eine andere."
+          : "Diese Adresse ist hier schon vergeben. Die Seite bekommt eine Zahl am Ende.",
+      };
+    if (eltern.value === "" && RESERVIERT.includes(wert))
+      return {
+        art: angepasst ? "fehler" : "warn",
+        text: "Diese Adresse gehört der Verwaltung oder der Website. Wähle eine andere.",
+      };
+    return { art: "ok", text: "Die Adresse ist frei." };
+  };
   function aktualisiere() {
     const v = vorlagen.find((x) => x.schluessel === gewaehlt);
     gruppe.hidden = !v?.brauchtTag;
+    const vater = k.daten.seiten.find((s) => s.id === eltern.value);
+    praefix.textContent = `${vater ? vater.pfad : ""}/`;
+    if (!angepasst) {
+      adresse.value = titel.eingabe.value.trim()
+        ? adresseAusTitel(titel.eingabe.value)
+        : "";
+    }
+    const r = pruefeAdresse();
+    stand.replaceChildren(
+      r.art === "fehler" || r.art === "warn"
+        ? symbol("warnung")
+        : r.art === "ok"
+          ? symbol("haken")
+          : "",
+      r.text,
+    );
+    stand.dataset.art = r.art;
+    adresse.setAttribute("aria-invalid", r.art === "fehler" ? "true" : "false");
   }
   aktualisiere();
+
   const abbrechen = knopf("Abbrechen", { onclick: () => f.schliesse() });
   const erstellen = knopf("Erstellen", { art: "haupt" });
   bei(erstellen, async () => {
@@ -512,6 +497,11 @@ async function neueSeite(k) {
     if (!titel.eingabe.value.trim()) {
       f.fehler("Gib einen Titel ein.");
       titel.eingabe.focus();
+      return;
+    }
+    if (angepasst && pruefeAdresse().art === "fehler") {
+      f.fehler(stand.textContent);
+      adresse.focus();
       return;
     }
     if (v?.brauchtTag && !tagId) {
@@ -524,8 +514,9 @@ async function neueSeite(k) {
     }
     beschaeftigt(erstellen, true);
     abbrechen.disabled = true;
+    let adressText = "";
     try {
-      // Ohne Vorgabe «öffentlich»: Wer anlegt, öffnet die Seite bewusst, im Editor unter «Sichtbarkeit»
+      // Ohne Vorgabe «öffentlich»: Wer anlegt, öffnet die Seite bewusst, im Editor unter «Zugriff»
       const neu = await anfrage("POST", `${API}/seiten/aus-vorlage`, {
         vorlage: gewaehlt,
         titel: titel.eingabe.value.trim(),
@@ -533,14 +524,23 @@ async function neueSeite(k) {
         ...(tagId && { tagId }),
         sichtbarkeit: { art: "angemeldet" },
       });
+      // Die Route kennt keine Adresse: Eine eigene Wahl folgt als zweiter Schritt; scheitert er, bleibt die Adresse aus dem Titel
+      const gewuenscht = adresse.value.trim();
+      if (angepasst && gewuenscht && gewuenscht !== neu.adresse) {
+        try {
+          await patch(neu.id, { adresse: gewuenscht });
+        } catch {
+          adressText = ` Deine Adresse konnte nicht gesetzt werden, die Seite heisst «${neu.adresse}». Ändere sie im Editor.`;
+        }
+      }
       zustand.frage = "";
       zustand.filter = "alle";
       f.dialog.addEventListener(
         "close",
         () => {
           k.ctx.melde(
-            "Die Seite ist angelegt. Sie ist ein Entwurf und nur für Angemeldete sichtbar.",
-            "ok",
+            `Die Seite ist angelegt. Sie ist ein Entwurf und nur für Angemeldete sichtbar.${adressText}`,
+            adressText ? "warn" : "ok",
             {
               text: "Seite bearbeiten",
               onclick: () => {
@@ -561,21 +561,37 @@ async function neueSeite(k) {
   });
   const f = fenster({
     titel: "Neue Seite",
+    breit: true,
     inhalt: [
       el(
-        "fieldset",
-        { class: "ws-vorlagen" },
-        el("legend", { class: "legende" }, "Vorlage"),
-        karten,
-      ),
-      titel.wurzel,
-      el(
         "div",
-        { class: "feld" },
-        el("label", { for: elternId }, "Elternseite"),
-        eltern,
+        { class: "ws-neu" },
+        el(
+          "fieldset",
+          { class: "ws-vorlagen" },
+          el("legend", { class: "legende" }, "Vorlage"),
+          karten,
+        ),
+        el(
+          "div",
+          { class: "ws-neu-felder" },
+          titel.wurzel,
+          el(
+            "div",
+            { class: "feld" },
+            el("label", { for: elternId }, "Elternseite"),
+            eltern,
+          ),
+          el(
+            "div",
+            { class: "feld ws-handle" },
+            el("label", { for: adresseId }, "Adresse"),
+            el("div", { class: "ws-handle-zeile" }, praefix, adresse),
+            stand,
+          ),
+          gruppe,
+        ),
       ),
-      gruppe,
     ],
     fuss: [abbrechen, erstellen],
     fokus: titel.eingabe,

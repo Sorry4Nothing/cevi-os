@@ -7,6 +7,7 @@ import {
   zaehleZeichen,
 } from "./website-richtext.js";
 import { sk } from "./lader.js";
+import { sortierListe } from "./sortieren.js";
 import { symbol } from "./website-symbole.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
@@ -429,7 +430,7 @@ function altFeld(k, medium, alt, reg) {
   return f.wurzel;
 }
 
-// Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Nach oben», «Nach unten» und «Entfernen».
+// Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Entfernen» und der Reihenfolge wie bei den Bausteinen (Sortierliste: Griff, Tastatur, Hoch und Runter).
 // Jede Änderung der Liste zeichnet das Formular des Bausteins neu und setzt den Fokus auf den betroffenen Teil.
 function listenForm(
   k,
@@ -438,53 +439,46 @@ function listenForm(
 ) {
   const eintraege = liste();
   const neu = (fokus) => k.formNeu(b, fokus);
-  const ul = el("ol", { class: "ws-teile", "aria-label": listeName });
-  eintraege.forEach((eintrag, i) => {
+  const inhalt = (eintrag, i) => {
     const bez = `${name} ${i + 1}`;
-    const bewege = (delta, was) => {
-      const ziel = i + delta;
-      const [x] = eintraege.splice(i, 1);
-      eintraege.splice(ziel, 0, x);
-      k.aendere(b);
-      neu({ index: ziel, was });
-      k.ctx.melde(
-        `${bez} steht jetzt an Position ${ziel + 1} von ${eintraege.length}.`,
-      );
-    };
-    ul.append(
+    return el(
+      "div",
+      { class: "ws-teil-karte" },
+      el("h4", {}, bez),
+      ...zeile(eintrag, `${pfadName}.${i}`),
       el(
-        "li",
-        { class: "ws-teil-karte" },
-        el("h4", {}, bez),
-        ...zeile(eintrag, `${pfadName}.${i}`),
-        el(
-          "div",
-          { class: "ws-teilaktionen" },
-          knopf("Nach oben", {
-            klein: true,
-            kontext: bez,
-            disabled: i === 0,
-            onclick: () => bewege(-1, "hoch"),
-          }),
-          knopf("Nach unten", {
-            klein: true,
-            kontext: bez,
-            disabled: i === eintraege.length - 1,
-            onclick: () => bewege(1, "runter"),
-          }),
-          knopf("Entfernen", {
-            klein: true,
-            kontext: bez,
-            onclick: () => {
-              eintraege.splice(i, 1);
-              k.aendere(b);
-              neu({ index: Math.min(i, eintraege.length - 1), was: "neu" });
-              k.ctx.melde(`${bez} ist entfernt.`);
-            },
-          }),
-        ),
+        "div",
+        { class: "ws-teilaktionen" },
+        knopf("Entfernen", {
+          klein: true,
+          kontext: bez,
+          onclick: () => {
+            eintraege.splice(i, 1);
+            k.aendere(b);
+            neu({ index: Math.min(i, eintraege.length - 1), was: "neu" });
+            k.ctx.melde(`${bez} ist entfernt.`);
+          },
+        }),
       ),
     );
+  };
+  const reihe = sortierListe({
+    beschriftung: listeName,
+    eintraege: eintraege.map((e, i) => ({
+      id: String(i),
+      text: `${name} ${i + 1}`,
+      inhalt: inhalt(e, i),
+    })),
+    // Die neue Reihenfolge gilt sofort im Baustein; das Formular wird neu gezeichnet, damit Nummern und Pfade stimmen
+    beiNeu: (ids) => {
+      const aktiv = document.activeElement;
+      const li = aktiv?.closest?.(".sortier-eintrag");
+      const index = li ? [...li.parentElement.children].indexOf(li) : 0;
+      const sortiert = ids.map((id) => eintraege[Number(id)]);
+      eintraege.splice(0, eintraege.length, ...sortiert);
+      k.aendere(b);
+      neu({ index, was: aktiv?.dataset?.art ?? "neu" });
+    },
   });
   const hinzuKnopf = knopf(hinzuText, {
     klein: true,
@@ -501,7 +495,7 @@ function listenForm(
       });
     },
   });
-  return el("div", { class: "ws-liste" }, ul, hinzuKnopf);
+  return el("div", { class: "ws-liste" }, reihe.wurzel, hinzuKnopf);
 }
 
 // Galerie und Karussell: eine Liste von Bildern; im Karussell zeigt jede Zeile auch den Alt-Text (Pflicht)

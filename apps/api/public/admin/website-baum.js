@@ -71,3 +71,95 @@ export const gleicheSichtbarkeit = (a, b) =>
   (a.art !== "tags" ||
     (a.tagIds.length === b.tagIds.length &&
       a.tagIds.every((id) => b.tagIds.includes(id))));
+
+// --- Verschieben im Baum (#595): Modell im Browser, der Server prüft alles ----------------------------------------------
+
+// Geschwister einer Elternseite in der Reihenfolge der Anzeige, ohne die Seite «ohne»
+export const geschwister = (seiten, elternId, ohne = null) =>
+  seiten
+    .filter((s) => s.elternId === elternId && s.id !== ohne)
+    .sort((a, b) => a.reihenfolge - b.reihenfolge);
+
+// Die Seiten sortiert, damit baue() und plane() die Reihenfolge aus der Liste lesen
+export const sortiere = (seiten) =>
+  seiten.sort((a, b) => a.reihenfolge - b.reihenfolge);
+
+// Stand der Felder, die ein Verschieben ändert (für «Rückgängig» und den Abbruch beim Tastaturverschieben)
+export const schnappschuss = (seiten) =>
+  seiten.map((s) => ({
+    id: s.id,
+    elternId: s.elternId,
+    reihenfolge: s.reihenfolge,
+    pfad: s.pfad,
+  }));
+export function stelleHer(seiten, stand) {
+  const nachId = new Map(seiten.map((s) => [s.id, s]));
+  for (const x of stand) Object.assign(nachId.get(x.id) ?? {}, x);
+  sortiere(seiten);
+}
+
+// Wendet die Änderungen von plane() im Modell an und rechnet die Adressen der betroffenen Seiten neu: Elternadresse + eigene Adresse
+export function wendeAn(seiten, aenderungen) {
+  const nachId = new Map(seiten.map((s) => [s.id, s]));
+  for (const a of aenderungen) Object.assign(nachId.get(a.id), koerper(a));
+  sortiere(seiten);
+  const pfadVon = (s) => {
+    const eltern = s.elternId ? nachId.get(s.elternId) : null;
+    return `${eltern ? pfadVon(eltern) : ""}/${s.adresse}`;
+  };
+  for (const s of seiten) s.pfad = pfadVon(s);
+}
+
+// Darf die Seite dorthin? Nicht unter sich selbst oder einen Nachfahren, und der Baum bleibt unter MAX_TIEFE.
+// Liefert den Grund als Text oder null
+export function ablehnung(baum, seite, elternId) {
+  if (elternId === seite.id || baum.nachfahren(seite.id).has(elternId)) {
+    return "Eine Seite lässt sich nicht unter sich selbst oder ihre Unterseiten legen.";
+  }
+  const ebene = elternId === null ? -1 : (baum.ebenen.get(elternId) ?? 0);
+  if (ebene + 1 + baum.hoehe(seite.id) > MAX_TIEFE) {
+    return `Der Baum darf höchstens ${MAX_TIEFE} Ebenen tief sein.`;
+  }
+  return null;
+}
+
+// Alte Adressen aller Seiten, deren Adresse sich durch den Schritt von vorher nach nachher ändert (Seite und Unterseiten), nur veröffentlichte:
+// [{ alt, neu }] für Weiterleitungen
+export function geaenderteAdressen(vorher, nachher) {
+  const neu = new Map(nachher.map((s) => [s.id, s]));
+  return vorher
+    .filter((s) => s.veroeffentlicht && neu.get(s.id)?.pfad !== s.pfad)
+    .map((s) => ({ alt: s.pfad, neu: neu.get(s.id).pfad }));
+}
+
+// Adresse aus einem Titel wie auf dem Server (website/automatik.ts adresseAusName); der Server entscheidet bei Kollisionen
+export function adresseAusTitel(titel) {
+  const slug = titel
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .slice(0, 60)
+    .replace(/^-+|-+$/g, "");
+  return slug === "" ? "seite" : slug;
+}
+
+// Gleiche Adressen auf oberster Ebene, die der Server nicht vergibt (api, admin …): nur die Liste, die Prüfung bleibt beim Server
+export const RESERVIERT = [
+  "api",
+  "admin",
+  "health",
+  "datenschutz",
+  "konto-loeschen",
+  "support",
+  "website",
+  "anmelden",
+  "medien",
+  "ical",
+  "termine",
+  "anlass",
+];

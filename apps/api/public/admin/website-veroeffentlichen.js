@@ -12,9 +12,9 @@ import {
 import { kurzText, typName } from "./website-felder.js";
 import { symbol } from "./website-symbole.js";
 
-// Veröffentlichen und Versionen (Boards E6): Ein Fenster mit den Änderungen seit der veröffentlichten Version, den Versionen
-// (Vorschau, Zurückholen) und «Jetzt veröffentlichen». Die Versionen und die veröffentlichte Fassung werden erst geladen, wenn das Fenster öffnet.
-// Datenbanklast: zwei Abrufe beim Öffnen (Liste der Versionen und die veröffentlichte Version für den Vergleich), einer beim Veröffentlichen.
+// Veröffentlichen und Versionen (Boards E6, #595): «Veröffentlichen» zeigt die Änderungen seit der veröffentlichten Version und «Jetzt veröffentlichen»; «Versionen» ist eine Zeitleiste
+// (neueste oben, Markierung für die veröffentlichte Version, Vorschau und Zurückholen), ohne Vergleich der Texte. Beides wird erst geladen, wenn die Seite öffnet.
+// Datenbanklast: «Veröffentlichen» zwei Abrufe beim Öffnen (Versionen und die veröffentlichte Version für den Vergleich), «Versionen» einer; einer beim Veröffentlichen.
 
 const API = "/api/v1/redaktion";
 const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -62,17 +62,15 @@ const CHIP = {
 // titel: «Veröffentlichen» oder «Versionen»
 export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
   if (k.dirty && !(await k.speichere())) return;
+  const nurVersionen = titel === "Versionen";
   const aenderungen = el("section", { class: "ws-teil", "aria-busy": "true" });
   const versionen = el("section", { class: "ws-teil", "aria-busy": "true" });
   const ok = knopf("Jetzt veröffentlichen", { art: "haupt" });
   const grund = el("span", { class: "mini leise" });
   const okSpalte = el("span", { class: "ws-fussspalte" }, ok, grund);
-  const abbrechen = knopf("Abbrechen", { onclick: () => f.schliesse() });
-  const zurueckziehenKnopf =
-    k.nr !== null
-      ? knopf("Seite zurückziehen", { onclick: () => zurueckziehen() })
-      : null;
-  zurueckziehenKnopf?.classList.add("ws-links");
+  const abbrechen = knopf(nurVersionen ? "Schliessen" : "Abbrechen", {
+    onclick: () => f.schliesse(),
+  });
   let bereit = false;
 
   const skeletonZeilen = () => [
@@ -91,6 +89,7 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
     ...skeletonZeilen().slice(0, 1),
     ...skeletonZeilen().slice(-1),
   );
+  if (nurVersionen) aenderungen.hidden = true;
   versionen.replaceChildren(el("h3", {}, "Versionen"), ...skeletonZeilen());
 
   const sperre = (text) => {
@@ -102,7 +101,7 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
   const f = fenster({
     titel,
     inhalt: [aenderungen, versionen],
-    fuss: [zurueckziehenKnopf, abbrechen, okSpalte].filter(Boolean),
+    fuss: nurVersionen ? [abbrechen] : [abbrechen, okSpalte],
     fokus: abbrechen,
   });
 
@@ -146,33 +145,12 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
     }
   });
 
-  function zurueckziehen() {
-    f.dialog.addEventListener(
-      "close",
-      // Mit «Rückgängig» (#578): Erst nach der Frist ist die Seite nicht mehr erreichbar; «Jetzt ausführen und schliessen» im Toast zieht sofort zurück
-      () =>
-        k.ctx.mitRueckgaengig({
-          text: `Seite «${kuerze(k.dok.titel, 50)}» zurückgezogen. Entwurf und Versionen bleiben, du kannst sie wieder veröffentlichen`,
-          ausfuehren: () =>
-            anfrage("POST", `${API}/seiten/${k.id}/zurueckziehen`),
-          fehlertext,
-          danach: () => {
-            k.nr = null;
-            k.unveroeffentlicht = true;
-            k.statusNeu();
-          },
-        }),
-      { once: true },
-    );
-    f.schliesse();
-  }
-
   // Laden: Versionen und die veröffentlichte Fassung (für den Vergleich)
   async function lade() {
     try {
       const [{ versionen: liste2 }, veroeff] = await Promise.all([
         anfrage("GET", `${API}/seiten/${k.id}/versionen`),
-        k.nr === null
+        k.nr === null || nurVersionen
           ? null
           : anfrage("GET", `${API}/seiten/${k.id}/versionen/${k.nr}`),
       ]);
@@ -205,7 +183,9 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
     aenderungen.removeAttribute("aria-busy");
     versionen.removeAttribute("aria-busy");
     // Änderungen
-    if (veroeffentlicht === null) {
+    if (nurVersionen) {
+      // nichts: Die Zeitleiste steht unten
+    } else if (veroeffentlicht === null) {
       aenderungen.replaceChildren(
         el("h3", {}, "Erste Version"),
         el(
@@ -265,33 +245,56 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
       );
       return;
     }
-    versionen.replaceChildren(
-      el("h3", {}, "Versionen"),
-      el(
-        "ul",
-        { class: "liste-zeilen" },
-        liste2.map((v) => {
-          const wann = zeit(v.erstelltAm);
-          return el(
-            "li",
-            {},
+    // Zeitleiste: ein Punkt je Version, die veröffentlichte ist gefüllt und trägt die Marke «Veröffentlicht» (Zustand nie nur über Farbe)
+    const eintraege = [];
+    if (k.unveroeffentlicht) {
+      eintraege.push(
+        el(
+          "li",
+          { class: "ws-zeitpunkt ws-zeitpunkt--entwurf" },
+          el("span", { class: "ws-punkt", "aria-hidden": "true" }),
+          el(
+            "div",
+            { class: "text" },
+            el("p", { class: "fett" }, "Aktueller Entwurf"),
             el(
-              "div",
-              { class: "text" },
-              el("p", { class: "fett" }, wann),
-              el(
-                "p",
-                { class: "klein leise" },
-                `Version ${v.nr}`,
-                v.veroeffentlicht &&
-                  el(
-                    "span",
-                    { class: "chip chip--ok ws-abstand" },
-                    symbol("haken"),
-                    "Veröffentlicht",
-                  ),
-              ),
+              "p",
+              { class: "klein leise" },
+              "Noch nicht veröffentlicht. Er gilt erst nach «Veröffentlichen».",
             ),
+          ),
+        ),
+      );
+    }
+    for (const v of liste2) {
+      const wann = zeit(v.erstelltAm);
+      eintraege.push(
+        el(
+          "li",
+          {
+            class: `ws-zeitpunkt${v.veroeffentlicht ? " ws-zeitpunkt--online" : ""}`,
+          },
+          el("span", { class: "ws-punkt", "aria-hidden": "true" }),
+          el(
+            "div",
+            { class: "text" },
+            el("p", { class: "fett" }, wann),
+            el(
+              "p",
+              { class: "klein leise" },
+              `Version ${v.nr}`,
+              v.veroeffentlicht &&
+                el(
+                  "span",
+                  { class: "chip chip--ok ws-abstand" },
+                  symbol("haken"),
+                  "Veröffentlicht",
+                ),
+            ),
+          ),
+          el(
+            "div",
+            { class: "ws-zeitaktion" },
             knopf("Vorschau", {
               klein: true,
               "aria-label": `Vorschau: Version vom ${wann}`,
@@ -307,8 +310,16 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
               "aria-label": `Zurückholen: Version vom ${wann}`,
               onclick: () => zurueckholen(v.nr, wann),
             }),
-          );
-        }),
+          ),
+        ),
+      );
+    }
+    versionen.replaceChildren(
+      el("h3", {}, "Versionen"),
+      el(
+        "ol",
+        { class: "ws-zeitleiste", "aria-label": "Versionen, neueste zuerst" },
+        eintraege,
       ),
     );
   }
@@ -338,4 +349,19 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
   }
 
   lade();
+}
+
+// Seite zurückziehen: nicht mehr online, Entwurf und Versionen bleiben. Mit «Rückgängig» (#578): Erst nach der Frist ist die Seite nicht mehr erreichbar; «Jetzt ausführen und schliessen» im Toast zieht sofort zurück
+export function zurueckziehen(k) {
+  if (k.nr === null) return;
+  k.ctx.mitRueckgaengig({
+    text: `Seite «${kuerze(k.dok.titel, 50)}» zurückgezogen. Entwurf und Versionen bleiben, du kannst sie wieder veröffentlichen`,
+    ausfuehren: () => anfrage("POST", `${API}/seiten/${k.id}/zurueckziehen`),
+    fehlertext,
+    danach: () => {
+      k.nr = null;
+      k.unveroeffentlicht = true;
+      k.statusNeu();
+    },
+  });
 }

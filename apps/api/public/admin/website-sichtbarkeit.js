@@ -2,6 +2,7 @@ import { anfrage, fehlertext } from "./api.js";
 import { el, knopf, neueId, seitenblatt } from "./dom.js";
 import { band, beschaeftigt, bei, fenster, kuerze } from "./website-dialoge.js";
 import { sk } from "./lader.js";
+import { unteransicht } from "./website-unteransicht.js";
 import { nochmals, zustandsDaten, zustandsKarte } from "./zustaende.js";
 
 // Sichtbarkeit einer Seite oder eines Bausteins (Boards E5): Seitenblatt mit den Wahlkarten «Öffentlich», «Nur angemeldet» und
@@ -200,24 +201,34 @@ export function sichtbarkeitBlatt(opt) {
   });
 
   const rechteBox = opt.rechte ? rechteBereich(opt.rechte, tagNamen) : null;
-  const blatt = seitenblatt({
-    panel: true,
-    titel: opt.titel,
-    untertitel: opt.untertitel,
-    inhalt: [
-      el(
-        "div",
-        { class: "ws-blattinhalt" },
-        arten,
-        gruppen,
-        warnung,
-        rechteBox,
-        fehlerPlatz,
-      ),
-    ],
-    fusszeile: [abbrechen, speichern],
-    schliessen: opt.beimSchliessen,
-  });
+  const inhalt = [
+    el(
+      "div",
+      { class: "ws-blattinhalt" },
+      arten,
+      gruppen,
+      warnung,
+      rechteBox,
+      fehlerPlatz,
+    ),
+  ];
+  // Im Panel eines Bausteins ersetzt die Auswahl dessen Inhalt (nie ein zweites Panel über dem ersten)
+  const blatt = opt.in
+    ? unteransicht(opt.in, {
+        titel: opt.titel,
+        untertitel: opt.untertitel,
+        inhalt,
+        fusszeile: [abbrechen, speichern],
+        zurueckText: "Zurück zum Baustein",
+      })
+    : seitenblatt({
+        panel: true,
+        titel: opt.titel,
+        untertitel: opt.untertitel,
+        inhalt,
+        fusszeile: [abbrechen, speichern],
+        schliessen: opt.beimSchliessen,
+      });
   zeichneGruppen();
   laden();
   return blatt;
