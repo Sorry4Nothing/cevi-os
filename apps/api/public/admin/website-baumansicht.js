@@ -632,10 +632,13 @@ export function weiterleitungsHinweis(ctx, aenderungen, titel) {
           fehler.push(f?.meldung ?? "Das hat nicht geklappt.");
         }
       }
+      const ok = n - fehler.length;
       ctx.melde(
         fehler.length === 0
           ? `${anzahlText(n, "1 Weiterleitung ist", "Weiterleitungen sind")} angelegt.`
-          : `${anzahlText(n - fehler.length, "1 Weiterleitung ist", "Weiterleitungen sind")} angelegt. ${fehler[0]}`,
+          : ok === 0
+            ? `Keine Weiterleitung angelegt. ${fehler[0]}`
+            : `${anzahlText(ok, "1 Weiterleitung ist", "Weiterleitungen sind")} angelegt. ${fehler[0]}`,
         fehler.length === 0 ? "ok" : "warn",
       );
     },

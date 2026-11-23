@@ -202,7 +202,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     art: "still",
     klein: true,
     symbol: "bearbeiten",
-    "aria-label": "Titel der Seite ändern (Taste F2)",
+    "aria-label": "Umbenennen: Titel der Seite (Taste F2)",
     onclick: () => benenne(),
   });
   if (h1) {
@@ -1106,6 +1106,15 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
       e.preventDefault();
       speichere();
+    }
+    // F2 benennt die Seite um, ausser in einem Feld
+    if (
+      e.key === "F2" &&
+      verwalten &&
+      !e.target.closest?.("input, textarea, select")
+    ) {
+      e.preventDefault();
+      benenne();
     }
   };
   document.addEventListener("keydown", taste);

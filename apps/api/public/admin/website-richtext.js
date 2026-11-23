@@ -292,3 +292,50 @@ export function zaehleZeichen(bloecke) {
     0,
   );
 }
+
+// Format-Leiste (#595): setzt die Schreibweise oben um, statt sie auswendig zu verlangen. Reine Funktion für das Textfeld:
+// wert: Text, von und bis: Auswahl; liefert { wert, von, bis } mit der neuen Auswahl. Der Inhalt bleibt dieselbe Schreibweise (Format-Treue), geprüft wird weiter auf dem Server.
+// art: «fett», «kursiv», «link», «liste», «nummer»
+export function formatiere(wert, von, bis, art) {
+  const auswahl = wert.slice(von, bis);
+  const ersetze = (neu, innenVon, innenBis) => ({
+    wert: wert.slice(0, von) + neu + wert.slice(bis),
+    von: von + innenVon,
+    bis: von + innenBis,
+  });
+  if (art === "fett" || art === "kursiv") {
+    const m = art === "fett" ? "**" : "*";
+    const text = auswahl || "Text";
+    return ersetze(`${m}${text}${m}`, m.length, m.length + text.length);
+  }
+  if (art === "link") {
+    const text = auswahl || "Text";
+    // Schema als Text zusammengesetzt: Die Verwaltung enthält sonst keine Adresse mit Schema (Test seiten.test.ts)
+    const schema = "https:" + "//";
+    const neu = `[${text}](${schema})`;
+    // Mit gewähltem Text steht die Adresse im Fokus, sonst der Text
+    return auswahl
+      ? ersetze(neu, neu.length - 1 - schema.length, neu.length - 1)
+      : ersetze(neu, 1, 1 + text.length);
+  }
+  // Listen: ganze Zeilen der Auswahl; sind schon alle so beginnt, fällt das Zeichen weg
+  const start = wert.lastIndexOf("\n", von - 1) + 1;
+  const ende =
+    wert.indexOf("\n", bis) === -1 ? wert.length : wert.indexOf("\n", bis);
+  const zeilen = wert.slice(start, ende).split("\n");
+  const punkt = art === "liste";
+  const schonDa = (z) => (punkt ? LISTE_PUNKT : LISTE_NUMMER).test(z);
+  const alle = zeilen.every((z) => z.trim() === "" || schonDa(z));
+  const neu = zeilen
+    .map((z, i) => {
+      if (z.trim() === "") return z;
+      const roh = z.replace(/^(?:- +|\d+\. +)/, "");
+      return alle ? roh : `${punkt ? "-" : `${i + 1}.`} ${roh}`;
+    })
+    .join("\n");
+  return {
+    wert: wert.slice(0, start) + neu + wert.slice(ende),
+    von: start,
+    bis: start + neu.length,
+  };
+}

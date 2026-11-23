@@ -18,8 +18,8 @@ export function unteransicht(
     beiZurueck: () => sub.close(),
   });
   // «Zurück» heisst hier, wohin es führt
-  kopf.querySelector(".knopf")?.lastChild &&
-    (kopf.querySelector(".knopf").lastChild.textContent = zurueckText);
+  const zurueckKnopf = kopf.querySelector(".knopf");
+  if (zurueckKnopf?.lastChild) zurueckKnopf.lastChild.textContent = zurueckText;
   // Im Panel ist der Titel eine Überschrift der zweiten Ebene
   const h2 = el("h2", { id: titelId, class: "fluss-titel", tabindex: "-1" });
   h2.textContent = titel;
@@ -51,4 +51,13 @@ export function unteransicht(
     sub.querySelector(".blatt-inhalt input, .blatt-inhalt textarea") ?? h2
   ).focus();
   return sub;
+}
+
+// Ein Panel aus der Seite heraus öffnen: ein schon offenes Panel (Baustein, Zugriff, Bild) schliesst zuerst, nie zwei nebeneinander.
+// Hat das offene Panel ungespeicherte Eingaben, fragt es selbst («Änderungen verwerfen?») und das neue öffnet nicht; liefert dann false
+export function schliesseOffenePanels() {
+  for (const panel of document.querySelectorAll("aside.fluss-panel")) {
+    panel.versuchSchliessen?.();
+  }
+  return !document.querySelector("aside.fluss-panel");
 }

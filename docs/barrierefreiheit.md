@@ -169,16 +169,16 @@ Gilt für jede Seite mit Bildern und für jede Stelle, die per Skript nachlädt 
 
 ### Editor
 
-- [ ] **11.15** Der Editor lässt sich vollständig mit der Tastatur bedienen: Seitenliste, Einstellungen, Bausteine hinzufügen, bearbeiten, verschieben, duplizieren und löschen, Vorschau, Veröffentlichen, Versionen, Medienbibliothek. Verschieben geht mit Knöpfen («Nach oben», «Nach unten») und am Griff mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab), nie nur durch Ziehen (WCAG 2.5.7). Die Stelle einer Seite im Seitenbaum ändern die Felder «Elternseite» und «Position» in den Seiteneinstellungen.
+- [ ] **11.15** Der Editor lässt sich vollständig mit der Tastatur bedienen: Seitenliste, Einstellungen, Bausteine hinzufügen, bearbeiten, verschieben, duplizieren und löschen, Vorschau, Veröffentlichen, Versionen, Medienbibliothek. Verschieben geht mit Knöpfen («Nach oben», «Nach unten») und am Griff mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab), nie nur durch Ziehen (WCAG 2.5.7). Der Seitenbaum ist ein Baum (Abschnitt 17), die Bausteine und die Karten im Baustein sind Sortierlisten (Griff, Tastatur, Knöpfe).
 - [ ] **11.16** Jedes Bedienelement hat einen Namen, der mit dem sichtbaren Text beginnt, und eine Rolle. Der Zustand einer Seite, eines Bausteins und einer Version ist ein Wort, nie nur ein Symbol oder eine Farbe.
 - [ ] **11.17** Dialoge (Einstellungen, Rückfrage beim Löschen, Konflikt, Veröffentlichen, Hochladen) setzen den Fokus hinein, halten ihn darin und geben ihn beim Schliessen an das Element zurück, das sie geöffnet hat; Esc schliesst, wo nichts verloren geht.
-- [ ] **11.18** Nach dem Löschen eines Bausteins erscheint eine Meldung mit «Rückgängig» und der Fokus liegt dort; sie bleibt, bis die Person etwas anderes tut oder sie schliesst. Hinzufügen, Verschieben, Speichern und Veröffentlichen melden das Ergebnis in der Statusmeldung (Live-Region), ohne den Fokus zu stehlen.
+- [ ] **11.18** Nach dem Löschen eines Bausteins erscheint ein Toast mit «Rückgängig» (auch Strg+Z); Erfolgsmeldungen im Editor gehen nach 6 Sekunden von selbst, Warnungen, Fehler und Meldungen mit Aktion bleiben. Hinzufügen, Verschieben, Speichern und Veröffentlichen melden das Ergebnis in der Statusmeldung (Live-Region), ohne den Fokus zu stehlen.
 - [ ] **11.19** Fehler vom Server (400 mit Feldpfad, 409 Konflikt, 413, 429, offline) stehen als Text beim betroffenen Feld und in einer Meldung, die der Screenreader ansagt; der Fokus liegt danach auf der Meldung oder dem ersten fehlerhaften Feld.
-- [ ] **11.20** Der Rich Text ist ein Textfeld mit einer kleinen Schreibweise (`**fett**`, `*kursiv*`, `[Text](Adresse)`, `- `, `1. `), kein `contenteditable`. Die Schreibweise steht als Text beim Feld, nicht nur in einem Tooltip.
+- [ ] **11.20** Der Rich Text ist ein Textfeld mit einer kleinen Schreibweise (`**fett**`, `*kursiv*`, `[Text](Adresse)`, `- `, `1. `), kein `contenteditable`. Die Schreibweise steht als Text beim Feld, nicht nur in einem Tooltip. Eine Format-Leiste (Fett, Kursiv, Link, Liste, Nummerierung; Strg+B und Strg+I) setzt sie im Feld um; die Knöpfe sind gewöhnliche Knöpfe, der Text bleibt derselbe.
 - [ ] **11.21** Beim Hochladen ist genau eines von «Alt-Text» und «Nur Zierde» Pflicht, die Sichtbarkeit ohne Vorgabe. Die Medienbibliothek zeigt den Alt-Text-Zustand als Wort («Alt-Text vorhanden», «Alt-Text fehlt», «Nur Zierde»); die Vorschau eines Bildes ersetzt den Alt-Text nie.
 - [ ] **11.22** Die Vorschau im Rahmen hat einen Titel (`title` am `iframe`), lässt sich ohne Maus verlassen und zeigt dieselbe Darstellung wie die erzeugte Seite (Computer und Handy).
 - [ ] **11.23** Ungespeicherte Änderungen: Beim Verlassen kommt eine Rückfrage; der Zustand «gespeichert» oder «nicht gespeichert» steht als Text da. Es gibt keinen Autospeicher, der unbemerkt Fehler erzeugt.
-- [ ] **11.24** Tabellen (Seitenliste) haben Spaltenköpfe; auf schmalen Bildschirmen scrollt die Tabelle in ihrem Rahmen, nicht die Seite.
+- [ ] **11.24** Die Seitenliste ist ein Baum (`role="tree"`, Abschnitt 17); auf schmalen Bildschirmen bricht die Zeile um, die Seite scrollt nicht waagrecht.
 - [ ] **11.25** Der Editor ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar und folgt dem Dunkelmodus und den erzwungenen Farben. Bekannter Befund: In erzwungenen Farben ist der gewählte Filter nicht erkennbar (`filterGruppe` in `dom.js`); ein Issue mit dem Label `accessibility` ist noch nicht angelegt.
 
 ## 12. Verwaltung: Bereich «Termine»
@@ -273,6 +273,39 @@ Dieser Abschnitt gilt für die Übersicht unter `/admin#uebersicht` (`apps/api/p
 ### Stand der Prüfung (#583)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 16.1 bis 16.7 und 16.9 bis 16.11 (1440, 390 und 320 Pixel, Hell, Dunkel, erzwungene Farben, Tabellenansicht, Tastaturfolge mit Pfeiltasten in den Grafiken, je ein Konto der Abteilungsleitung, der Stufenleitung und des Webmasters). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack: 14.2, 14.3 und 14.8 nur an den Attributen), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
+
+## 17. Verwaltung: Website, Seiten und Editor (#595)
+
+Dieser Abschnitt gilt für `#website/seiten` und den Editor (`website-seiten.js`, `website-baumansicht.js`, `website-editor.js`, `website-bausteine.js`, `website-felder.js`, `website-veroeffentlichen.js`, `website-sichtbarkeit.js`, `website-unteransicht.js`). Die Abschnitte 11 und 15 gelten dazu; geprüft wird in Tag und Nacht, bei 1440 und 390 Pixeln, mit Tastatur.
+
+### Seitenbaum
+
+- [ ] **17.1** Die Liste ist ein Baum: `role="tree"`, jede Zeile `role="treeitem"` mit `aria-level`, `aria-posinset`, `aria-setsize`, bei Unterseiten `aria-expanded`; der Name der Zeile ist der Titel. Nur eine Zeile ist per Tab erreichbar (Roving Tabindex), ihre Knöpfe folgen ihr. Pfeil hoch und runter, Pos1, Ende, rechts (aufklappen, in die Unterseiten), links (zuklappen, zur Elternseite), Enter öffnet den Editor.
+- [ ] **17.2** Die Ebene steht nie nur als Linie da: `aria-level`, Einrückung und Führungslinien zeigen sie; die Linien sind `aria-hidden`.
+- [ ] **17.3** Verschieben ohne Ziehen (WCAG 2.5.7): Leertaste nimmt eine Zeile auf, Pfeil hoch und runter ordnet unter Geschwistern, Pfeil rechts macht sie zur Unterseite der Seite darüber, Pfeil links stellt sie auf die Ebene der Elternseite, Leertaste legt ab, Escape bricht ab; jeder Schritt wird angesagt («Position 2 von 4, unter …»). Dieselben Schritte stehen im Menü «Mehr».
+- [ ] **17.4** Ziehen am Griff (Maus, Finger, Stift): Das Ziel zeigt eine Linie davor, einen Rahmen für «darunter» oder eine Linie danach; ein unmögliches Ziel (unter sich selbst, zu tief) ist gestrichelt, der Grund steht danach in einer Meldung. Nahe am Rand scrollt die Seite mit.
+- [ ] **17.5** Das Verschieben läuft über «Rückgängig» (Toast, Strg+Z); höchstens eines wartet zugleich. Ändert sich dabei die Adresse einer veröffentlichten Seite oder ihrer Unterseiten, sagt eine Meldung es und bietet (mit dem Recht «Weiterleitungen verwalten») «Weiterleitung anlegen» an; ohne das Recht verweist sie an die Abteilungsleitung.
+- [ ] **17.6** F2 und «Umbenennen» im Menü ersetzen den Titel durch ein Feld (Enter speichert, Escape bricht ab, Fokus kehrt zur Zeile zurück); Entf löscht mit Toast und «Rückgängig». Suche und Filter blenden Zeilen aus, behalten aber die Elternseiten der Treffer sichtbar; solange sie aktiv sind, lässt sich der Baum nicht ordnen (die Meldung sagt es).
+- [ ] **17.7** Ziele mindestens 44 Pixel (Griff, Faltknopf, Name, Knöpfe), Fokus sichtbar (3 Pixel), Zeilenhöhe 64 Pixel; bei 390 Pixeln liegen Chips und Zeit unter dem Namen.
+
+### Neue Seite
+
+- [ ] **17.8** Die Vorlagen sind Radiokarten mit Skizze (`aria-hidden`) und Name; die Adresse folgt dem Titel, bis die Person sie ändert; der Stand («Die Adresse ist frei.», «… schon vergeben …») steht mit Symbol und Text in einer Statusregion beim Feld. Der feste Anfang zeigt die Adresse der Elternseite.
+
+### Editor
+
+- [ ] **17.9** Kopf: Titel, Zeichen des Standes und «Umbenennen» (Name beginnt mit dem sichtbaren Text, F2 geht ausserhalb von Feldern); darunter der Speicherstand als Text («Gespeichert vor 2 Min.», «Änderungen noch nicht gespeichert», «Wird gespeichert …»), der Takt rechnet im Browser und belastet den Server nicht.
+- [ ] **17.10** «Veröffentlichen» ist ein geteilter Knopf: Menü mit Pfeiltasten, Escape, Tippen springt; «Entwurf speichern», «Versionen ansehen», «Seite zurückziehen» (gesperrt, solange die Seite nicht online ist).
+- [ ] **17.11** Versionen sind eine Zeitleiste (`ol`, neueste oben): Der Punkt ist `aria-hidden`, die veröffentlichte Version trägt zusätzlich das Wort «Veröffentlicht», der heutige Entwurf steht ganz oben, solange er nicht veröffentlicht ist. Es gibt keinen Vergleich der Texte.
+- [ ] **17.12** «Zugriff» (Sichtbarkeit und Bearbeiter) ist ein Panel neben dem Editor, nicht modal, Escape schliesst es. Eine Gruppe oder Person lässt sich im Panel selbst hinzufügen, nie auf einer Seite über dem Panel.
+- [ ] **17.13** Bild wählen und Zugriff eines Bausteins ersetzen den Inhalt des Baustein-Panels (Knopf «Zurück zum Baustein», Escape); es gibt nie ein zweites Panel über dem ersten. Das Formular des Bausteins bleibt dabei erhalten.
+- [ ] **17.14** Bausteine und Karten (Galerie, Karussell, Eckdaten, Kontaktkarte) sind Sortierlisten: Griff mit Maus oder Finger, am Griff Leertaste und Pfeile, Knöpfe «Nach oben» und «Nach unten»; Löschen von Bausteinen mit Toast und «Rückgängig».
+- [ ] **17.15** Ungespeicherte Einstellungen (Adresse, Elternseite) zählen wie der Entwurf: Ein Link oder das Schliessen des Tabs fragt zuerst («Speichern und verlassen», «Verlassen», «Bleiben»).
+- [ ] **17.16** Hell, Dunkel, erzwungene Farben; 1440, 1024, 390 Pixel, 200 Prozent Zoom; mit «Bewegung reduzieren» keine Übergänge am Faltknopf und an den Zeilen.
+
+### Stand der Prüfung (#595)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 17.1 bis 17.9 und 17.11 bis 17.15 (Tastatur, Ziehen mit der Maus, Rückgängig, Weiterleitungs-Hinweis), Tag und Nacht, 1440, 1024 und 390 Pixel (Messung: kein Seitenüberlauf, keine Ziele unter 44 Pixel). **Nicht geprüft:** Screenreader (NVDA, VoiceOver), Ziehen mit dem Finger, 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug, erzwungene Farben.
 
 ## Im PR angeben
 

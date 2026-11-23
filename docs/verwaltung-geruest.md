@@ -50,6 +50,9 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
 | `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
 | `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
+| `website-baumansicht.js`              | Website: Seitenbaum als Baum (Tastatur, Ziehen, Umbenennen, Weiterleitungs-Hinweis)                          |
+| `website-skizzen.js`                  | Website: Skizzen der Seitenvorlagen für «Neue Seite»                                                         |
+| `website-unteransicht.js`             | Website: Unteransicht im Panel (Bild wählen, Zugriff eines Bausteins), nie ein zweites Panel                 |
 | `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
@@ -257,6 +260,14 @@ Es gibt keine Modale mehr. `dialogFormular`, `seitenblatt` und `geheimnisDialog`
 Verlauf (`verlauf.js`): Jede Ansicht ist eine Adresse mit eigenem Eintrag; `replaceState` schreibt nur Korrekturen (alte Adressen, Stand des Eintrags). `zurueck(ziel)` macht dasselbe wie Browser-Zurück (zur Herkunft), nur ohne Herkunft (Tiefenlink) führt es zu `ziel`; `zurueckKlick` hängt es an einen Zurück-Link; `gehe(hash)` wechselt die Adresse mit eigenem Eintrag. Scrollposition und Zustand liegen je Eintrag im `history.state`.
 
 Rückfragen sind Toasts mit «Rückgängig» (`rueckgaengig.js`, siehe «Rückmeldungen»); wo eine Verzögerung nicht sicher ist, gibt es `zweiStufig` (Knopf wird zum «Wirklich …?»-Knopf).
+
+## Website: Seiten und Editor (#595)
+
+- **Seitenbaum** (`website-baumansicht.js`): `role="tree"`, Zeilen mit `aria-level`; das Modell liegt im Browser (`website-baum.js`: `plane`, `wendeAn`, `ablehnung`, `geaenderteAdressen`), der Server prüft jede Änderung. Ziehen, Tastatur und Menü «Mehr» rufen dieselbe Funktion `verschiebe`, die den Schritt über `ctx.mitRueckgaengig` ausführt (höchstens einer wartet). Ändert sich eine Adresse, weist `weiterleitungsHinweis` darauf hin und legt mit dem Recht «Weiterleitungen verwalten» Weiterleitungen an (`POST /api/v1/redaktion/weiterleitungen`); das Verschieben selbst legt keine an (Entscheid der API, #356).
+- **Reihenfolgen** (Bausteine, Karten, Bilder): `sortieren.js` (`sortierListe`); nie eine eigene Ziehlogik.
+- **Editor-Kopf:** Titel direkt umbenennen (PATCH `titel`), Speicherstand (Text, rechnet im Browser), «Zugriff», «Vorschau», «Veröffentlichen» als `splitKnopf` (`aktionen.js`). Einstellungen (Adresse, Elternseite) mit Live-Prüfung; ungespeicherte Einstellungen zählen für die Rückfrage beim Verlassen.
+- **Unteransicht statt zweitem Panel:** `unteransicht(blatt, …)` ersetzt den Inhalt des offenen Panels; `bildDialog` und `sichtbarkeitBlatt` nehmen `{ in: blatt }`.
+- **Format-Leiste** über dem Text-Baustein: `formatiere()` in `website-richtext.js` (rein, getestet) setzt die Schreibweise im Feld um.
 
 ## Scrollleisten (#572, #578)
 

@@ -1132,6 +1132,51 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website-baumansicht.js:
+    get:
+      operationId: getAdminWebsiteBaumansichtSkript
+      summary: Skript der Verwaltung – Bereich Website, Seitenbaum als Baumansicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-skizzen.js:
+    get:
+      operationId: getAdminWebsiteSkizzenSkript
+      summary: Skript der Verwaltung – Bereich Website, Skizzen der Seitenvorlagen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-unteransicht.js:
+    get:
+      operationId: getAdminWebsiteUnteransichtSkript
+      summary: Skript der Verwaltung – Bereich Website, Unteransicht im Panel
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/website-bausteine.js:
     get:
       operationId: getAdminWebsiteBausteineSkript

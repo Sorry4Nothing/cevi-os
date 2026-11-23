@@ -9,7 +9,7 @@ import {
   sichtbarkeitText,
   zeigeFeldFehler,
 } from "./website-dialoge.js";
-import { unteransicht } from "./website-unteransicht.js";
+import { schliesseOffenePanels, unteransicht } from "./website-unteransicht.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import {
   KATALOG,
@@ -161,6 +161,7 @@ export function katalogDialog(k) {
 // k: Kontext des Editors; b: der Baustein (bei neu: noch nicht im Dokument); position: Index im Dokument bzw. Einfügeposition
 // opt: { neu, fehler: [{ pfad, text }] (Meldungen des Servers, die gleich zu den Feldern kommen) }
 export function bearbeitenBlatt(k, b, position, opt = {}) {
+  if (!schliesseOffenePanels()) return null;
   const typ = TYPEN[b.typ];
   const arbeit = kopie(b);
   const alt = new Map();
@@ -398,6 +399,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
 const MEDIEN_SEITE = 24;
 // opt.in: das Panel des Bausteins; dann ersetzt die Wahl dessen Inhalt (nie ein zweites Panel über dem ersten)
 export function bildDialog(k, beiWahl, opt = {}) {
+  if (!opt.in && !schliesseOffenePanels()) return;
   const suche = feld({
     label: "Bild suchen (nach Beschreibung)",
     type: "search",

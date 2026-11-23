@@ -3,6 +3,7 @@ import { el, feld, knopf, neueId, tag } from "./dom.js";
 import { loescheFeldFehler } from "./website-dialoge.js";
 import {
   bloeckeZuText,
+  formatiere,
   textZuBloecken,
   zaehleZeichen,
 } from "./website-richtext.js";
@@ -246,6 +247,40 @@ function textForm(k, b, reg) {
     k.aendere(b);
   });
   zaehle();
+  // Format-Leiste: Fett, Kursiv, Link, Liste; setzt die Schreibweise im Feld um, der Text bleibt derselbe (auch Strg+B und Strg+I)
+  const wende = (art) => {
+    const t = f.eingabe;
+    const r = formatiere(t.value, t.selectionStart, t.selectionEnd, art);
+    t.value = r.wert;
+    t.focus();
+    t.setSelectionRange(r.von, r.bis);
+    t.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const leiste = el(
+    "div",
+    { class: "ws-format", role: "group", "aria-label": "Textformat" },
+    [
+      ["fett", "Fett", "Strg+B"],
+      ["kursiv", "Kursiv", "Strg+I"],
+      ["link", "Link"],
+      ["liste", "Liste"],
+      ["nummer", "Nummerierung"],
+    ].map(([art, text, taste]) =>
+      knopf(text, {
+        klein: true,
+        title: taste ? `${text} (${taste})` : undefined,
+        onclick: () => wende(art),
+      }),
+    ),
+  );
+  f.eingabe.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    const art = { b: "fett", i: "kursiv" }[e.key.toLowerCase()];
+    if (!art) return;
+    e.preventDefault();
+    wende(art);
+  });
+  f.eingabe.before(leiste);
   f.wurzel.append(zaehler);
   anmelden(reg, "daten.inhalt", f);
   return f.wurzel;
