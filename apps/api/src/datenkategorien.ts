@@ -42,7 +42,7 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung kann es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung und der Entwickler können es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
     frist:
       "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Auf der Website steht das Bild, solange die Person die Rolle trägt und das Bild besteht; die Website vergisst es beim nächsten Abgleich, kurz nachdem die Rolle oder das Bild wegfällt.",
     apple: ["User Content: Photos or Videos"],

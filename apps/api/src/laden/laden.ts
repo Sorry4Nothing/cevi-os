@@ -15,12 +15,64 @@ export const darfLadenVerwalten = (person: Pick<Person, "admin">) =>
 // Obergrenzen gegen Missbrauch und Tippfehler
 export const MAX_ARTIKEL = 200;
 export const MAX_VARIANTEN = 20;
+// Vorgaben, solange eine Abteilung nichts anderes einstellt (#642); die Abteilung wählt darunter bis zur Obergrenze (OBERGRENZE)
 export const MAX_POSITIONEN = 20;
 export const MAX_MENGE = 10;
 // So viele Bestellungen einer Person dürfen zugleich offen oder bereit sein
 export const MAX_OFFENE_JE_PERSON = 5;
 export const MAX_UEBERGABEARTEN = 5;
 export const UEBERGABE_VORGABE = ["Abholung im Lädeli"];
+// Was keine Einstellung übersteigen darf (dieselben Zahlen prüft die Datenbank, Migration 0145)
+export const OBERGRENZE = { menge: 99, positionen: 50, offene: 20 } as const;
+export const MAX_MINDESTBESTELLUNG_RAPPEN = 1_000_000;
+
+// Die Einstellungen der Abteilung (#642). Alles, was eine Abteilung am Lädeli selbst bestimmen will und sonst im Code stünde. Texte mit der Vorgabe «» sind optional; die übrigen Vorgaben sind die Texte und Regeln, die das Lädeli vor #642 fest hatte
+export type LadenEinstellung = {
+  uebergabearten: string[];
+  bestellenOffen: boolean;
+  schnellDazu: boolean;
+  preiseOeffentlich: boolean;
+  maxMenge: number;
+  maxPositionen: number;
+  maxOffene: number;
+  mindestRappen: number;
+  bezahlhinweis: string;
+  zahlungsart: string;
+  bestaetigung: string;
+  uebergabehinweis: string;
+  bedingungen: string;
+  geschlossenText: string;
+};
+export const EINSTELLUNG_VORGABE: LadenEinstellung = {
+  uebergabearten: UEBERGABE_VORGABE,
+  bestellenOffen: true,
+  schnellDazu: true,
+  preiseOeffentlich: true,
+  maxMenge: MAX_MENGE,
+  maxPositionen: MAX_POSITIONEN,
+  maxOffene: MAX_OFFENE_JE_PERSON,
+  mindestRappen: 0,
+  bezahlhinweis: "Bezahlt wird bei der Übergabe, nicht online.",
+  zahlungsart: "Bei der Übergabe",
+  // {uebergabe} wird durch die gewählte Übergabeart ersetzt
+  bestaetigung:
+    "Du bezahlst bei der Übergabe: {uebergabe}. Den Stand siehst du unter «Deine Bestellungen».",
+  uebergabehinweis: "",
+  bedingungen: "",
+  geschlossenText: "Das Lädeli nimmt zurzeit keine Bestellungen an.",
+};
+// Längen der Texte; dieselben Zahlen prüft die Datenbank (0145)
+export const TEXT_LAENGE = {
+  bezahlhinweis: 120,
+  zahlungsart: 60,
+  bestaetigung: 240,
+  uebergabehinweis: 200,
+  bedingungen: 600,
+  geschlossenText: 200,
+} as const;
+export const TEXT_FELDER = Object.keys(
+  TEXT_LAENGE,
+) as (keyof typeof TEXT_LAENGE)[];
 // Abgeschlossene Bestellungen (übergeben, storniert) bleiben so lange, damit Umtausch und Rückfragen über zwei Verkaufstermine hinweg möglich sind; wie die Anmeldungen zu Anlässen
 export const AUFBEWAHRUNG_TAGE = 180;
 // Bestellungen, die nie abgeschlossen wurden, fallen nach einem Jahr ohne Änderung weg
@@ -158,12 +210,39 @@ export const artikelAendernSchema = z.strictObject({
   groessenart: groessenart.optional(),
 });
 
+// Ein Text der Einstellungen darf leer sein (dann entfällt er); Steuerzeichen nicht, ausser dem Zeilenumbruch
+const freierText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max)
+    .refine((s) => !/\p{Cc}/u.test(s.replace(/\n/g, "")));
+// Ohne Schlüssel bleibt der Wert, wie er ist
 export const einstellungSchema = z.strictObject({
   uebergabearten: z
     .array(text(80))
     .min(1)
     .max(MAX_UEBERGABEARTEN)
-    .refine(eindeutig),
+    .refine(eindeutig)
+    .optional(),
+  bestellenOffen: z.boolean().optional(),
+  schnellDazu: z.boolean().optional(),
+  preiseOeffentlich: z.boolean().optional(),
+  maxMenge: z.number().int().min(1).max(OBERGRENZE.menge).optional(),
+  maxPositionen: z.number().int().min(1).max(OBERGRENZE.positionen).optional(),
+  maxOffene: z.number().int().min(1).max(OBERGRENZE.offene).optional(),
+  mindestRappen: z
+    .number()
+    .int()
+    .min(0)
+    .max(MAX_MINDESTBESTELLUNG_RAPPEN)
+    .optional(),
+  bezahlhinweis: freierText(TEXT_LAENGE.bezahlhinweis).optional(),
+  zahlungsart: freierText(TEXT_LAENGE.zahlungsart).optional(),
+  bestaetigung: freierText(TEXT_LAENGE.bestaetigung).optional(),
+  uebergabehinweis: freierText(TEXT_LAENGE.uebergabehinweis).optional(),
+  bedingungen: freierText(TEXT_LAENGE.bedingungen).optional(),
+  geschlossenText: freierText(TEXT_LAENGE.geschlossenText).optional(),
 });
 
 // Eine Bestellung nennt nur Artikel, Variante und Menge: Name, Preis und Summe liest der Server aus den Artikeln
@@ -173,11 +252,12 @@ export const bestellenSchema = z.strictObject({
       z.strictObject({
         artikelId: z.uuid(),
         variante: text(40).nullable().optional(),
-        menge: z.number().int().min(1).max(MAX_MENGE),
+        // Bis zur Obergrenze; die Grenze der Abteilung prüft die Route (laden/laden.ts: EINSTELLUNG_VORGABE)
+        menge: z.number().int().min(1).max(OBERGRENZE.menge),
       }),
     )
     .min(1)
-    .max(MAX_POSITIONEN),
+    .max(OBERGRENZE.positionen),
   uebergabe: text(80),
   // Die Summe, die die Person gesehen hat: Weicht sie ab (ein Preis hat sich geändert), entsteht keine Bestellung
   erwarteteSummeRappen: z.number().int().min(0).optional(),
@@ -224,16 +304,73 @@ export const ladeArtikel = (
     .orderBy(asc(ladenArtikel.reihenfolge), asc(ladenArtikel.name))
     .limit(MAX_ARTIKEL);
 
+// Die Einstellungen der Abteilung mit den Vorgaben dort, wo nichts gespeichert ist; eine Abfrage
+export async function ladeEinstellung(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<LadenEinstellung> {
+  const [z] = await db
+    .select()
+    .from(ladenEinstellung)
+    .where(eq(ladenEinstellung.abteilungId, abteilungId));
+  if (!z) return { ...EINSTELLUNG_VORGABE };
+  const v = EINSTELLUNG_VORGABE;
+  return {
+    uebergabearten: z.uebergabearten,
+    bestellenOffen: z.bestellenOffen,
+    schnellDazu: z.schnellDazu,
+    preiseOeffentlich: z.preiseOeffentlich,
+    maxMenge: z.maxMenge,
+    maxPositionen: z.maxPositionen,
+    maxOffene: z.maxOffene,
+    mindestRappen: z.mindestRappen,
+    bezahlhinweis: z.bezahlhinweis ?? v.bezahlhinweis,
+    zahlungsart: z.zahlungsart ?? v.zahlungsart,
+    bestaetigung: z.bestaetigung ?? v.bestaetigung,
+    uebergabehinweis: z.uebergabehinweis ?? v.uebergabehinweis,
+    bedingungen: z.bedingungen ?? v.bedingungen,
+    geschlossenText: z.geschlossenText ?? v.geschlossenText,
+  };
+}
+
 export async function ladeUebergabearten(
   db: Pick<Db, "select">,
   abteilungId: string,
 ): Promise<string[]> {
-  const [zeile] = await db
-    .select({ arten: ladenEinstellung.uebergabearten })
-    .from(ladenEinstellung)
-    .where(eq(ladenEinstellung.abteilungId, abteilungId));
-  return zeile?.arten ?? UEBERGABE_VORGABE;
+  return (await ladeEinstellung(db, abteilungId)).uebergabearten;
 }
+
+// Was in die Datenbank kommt: ein Text, der der Vorgabe gleicht, als null (die Vorgabe darf sich später ändern), alles andere wie eingegeben
+export function einstellungZeile(e: LadenEinstellung) {
+  const text = (feld: keyof typeof TEXT_LAENGE) =>
+    e[feld] === EINSTELLUNG_VORGABE[feld] ? null : e[feld];
+  return {
+    uebergabearten: e.uebergabearten,
+    bestellenOffen: e.bestellenOffen,
+    schnellDazu: e.schnellDazu,
+    preiseOeffentlich: e.preiseOeffentlich,
+    maxMenge: e.maxMenge,
+    maxPositionen: e.maxPositionen,
+    maxOffene: e.maxOffene,
+    mindestRappen: e.mindestRappen,
+    bezahlhinweis: text("bezahlhinweis"),
+    zahlungsart: text("zahlungsart"),
+    bestaetigung: text("bestaetigung"),
+    uebergabehinweis: text("uebergabehinweis"),
+    bedingungen: text("bedingungen"),
+    geschlossenText: text("geschlossenText"),
+  };
+}
+
+// Was die Website und die Apps von den Einstellungen sehen: alles; die Übergabearten stehen schon eigens in der Antwort
+export const oeffentlicheEinstellung = ({
+  uebergabearten: _,
+  ...rest
+}: LadenEinstellung) => rest;
+
+// Die Meldung bei zu kleiner Bestellung; «CHF 20.–»
+export const mindestText = (rappen: number) =>
+  `Die Mindestbestellung beträgt ${preisText(rappen)}.`;
 
 // Das Bild eines Artikels muss ein öffentliches Bild der Abteilung sein: Der Laden steht auf einer öffentlichen Seite
 export async function istLadenBild(db: Db, abteilungId: string, id: string) {
@@ -261,7 +398,7 @@ export function preisText(rappen: number): string {
   return `CHF ${franken}.${rest === 0 ? "–" : String(rest).padStart(2, "0")}`;
 }
 
-// Website: Hat eine Seite den Baustein «laden», kommen die Artikel der Abteilung und ihre Bilder in die Daten des Renderers. Drei Abfragen je Lauf des Abgleichs (Artikel, Übergabearten, Bilder), keine je Besuch
+// Website: Hat eine Seite den Baustein «laden», kommen die Artikel der Abteilung, ihre Einstellungen und ihre Bilder in die Daten des Renderers. Drei Abfragen je Lauf des Abgleichs (Artikel, Einstellungen, Bilder), keine je Besuch
 export const ladeLadenDaten: Datenquelle = async (
   db,
   abteilungId,
@@ -272,9 +409,9 @@ export const ladeLadenDaten: Datenquelle = async (
     d.bausteine.some((b) => b.typ === "laden"),
   );
   if (!gebraucht) return {};
-  const [artikel, uebergabearten] = await Promise.all([
+  const [artikel, einstellung] = await Promise.all([
     ladeArtikel(db, abteilungId),
-    ladeUebergabearten(db, abteilungId),
+    ladeEinstellung(db, abteilungId),
   ]);
   const bildIds = artikel.flatMap((a) => (a.mediumId ? [a.mediumId] : []));
   const bilder =
@@ -293,7 +430,11 @@ export const ladeLadenDaten: Datenquelle = async (
   // Maps, weil der Abgleich die Einträge der Quellen je Schlüssel zusammenführt; die Reihenfolge der Artikel bleibt die der Abfrage
   return {
     laden: new Map(artikel.map((a) => [a.id, artikelAnsicht(a)])),
-    ladenUebergabe: new Map(uebergabearten.map((u) => [u, true as const])),
+    ladenUebergabe: new Map(
+      einstellung.uebergabearten.map((u) => [u, true as const]),
+    ),
+    // Ein Eintrag; der Abgleich führt die Quellen je Schlüssel zusammen
+    ladenEinstellung: new Map([["e", einstellung]]),
     medien: new Map(
       bilder.map((m) => [
         m.id,

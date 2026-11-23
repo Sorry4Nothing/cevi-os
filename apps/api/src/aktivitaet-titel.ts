@@ -10,6 +10,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/admin/lager/:p/mitglieder/:p": "Mitglied entfernen",
   "DELETE /api/v1/admin/medien/:p": "Medium löschen",
   "DELETE /api/v1/admin/personen/:p": "Person löschen",
+  "DELETE /api/v1/admin/personen/:p/bild": "Profilbild einer Person entfernen",
   "DELETE /api/v1/admin/plattform/rollen/:p": "Plattformrolle löschen",
   "DELETE /api/v1/admin/plattform/rollen/:p/personen/:p":
     "Plattformrolle einer Person entziehen",
@@ -336,7 +337,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PUT /api/v1/admin/kategorie-zuordnungen": "Kategorie einem Tag zuordnen",
   "PUT /api/v1/admin/laden/artikel/reihenfolge":
     "Reihenfolge der Artikel setzen",
-  "PUT /api/v1/admin/laden/einstellungen": "Übergabearten des Lädelis ersetzen",
+  "PUT /api/v1/admin/laden/einstellungen":
+    "Einstellungen des Lädelis speichern",
   "PUT /api/v1/admin/lager-dateien/hosts":
     "Erlaubte Hosts für Datei-Links festlegen",
   "PUT /api/v1/admin/lager/:p/mitglieder/:p":
