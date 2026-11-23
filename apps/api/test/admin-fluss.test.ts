@@ -319,10 +319,12 @@ describe("Umbau der Dialoge (Quelltext)", () => {
     expect(blatt).not.toContain("showModal");
   });
 
-  test("keine Datei der Verwaltung öffnet ein modales Fenster, ausser der Rückfrage der Website", () => {
+  test("keine Datei der Verwaltung öffnet ein modales Fenster, ausser der Rückfrage der Website und der Befehlspalette (#602)", () => {
     const dateien = readdirSyncAdmin().filter((d) => d.endsWith(".js"));
     const treffer = dateien.filter((d) => /\.showModal\(/.test(lies(d)));
-    expect(treffer).toEqual(["website-dialoge.js"]);
+    expect(treffer).toEqual(["befehlspalette.js", "website-dialoge.js"]);
+    // Die Palette ist ein Suchfeld mit Tastatur, kein Formular und keine Rückfrage
+    expect(lies("befehlspalette.js")).toContain('role: "combobox"');
     // Dort nur im Zweig «rueckfrage»: Ohne sie ist fenster() eine Seite im Fluss
     const quelle = lies("website-dialoge.js");
     expect(quelle).toContain("if (!rueckfrage) {");
