@@ -49,7 +49,7 @@ export function zustandsDaten(f) {
     return {
       ueber: "Fehler 401",
       titel: "Die Sitzung ist abgelaufen.",
-      text: "Bitte melde dich neu an. Was du nicht gespeichert hast, bleibt in diesem Browser.",
+      text: "Bitte melde dich neu an. Du kommst danach auf dieselbe Seite zurück. Was du nicht gespeichert hast, ist weg.",
       symbol: "uhr",
       art: "warn",
     };

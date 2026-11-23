@@ -1,14 +1,6 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
-import {
-  chip,
-  el,
-  filterGruppe,
-  flussKopf,
-  icon,
-  knopf,
-  neueId,
-} from "./dom.js";
-import { oeffneFluss } from "./fluss.js";
+import { chip, el, filterGruppe, icon, knopf } from "./dom.js";
+import { zurueckKlick } from "./verlauf.js";
 import {
   keineTreffer,
   stempel,
@@ -169,13 +161,16 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
       ? `${anlass.titel} · noch keine Anmeldungen.`
       : `${anlass.titel} · ${summe.angemeldet} angemeldet, ${summe.abgemeldet} abgemeldet.`;
   ctx.titel("Anmeldungen", untertitel());
-  ctx.kopfAktion(
-    knopf("Exportieren", {
-      art: "haupt",
-      symbol: "ablage",
-      onclick: () => exportieren(pfad, anlass, status),
-    }),
+  // Der Export ist eine Karte auf der Seite (Download-Muster), kein Fenster; sie kennt den gewählten Stand
+  const exportKarte = erstelleExport(pfad, anlass, () => status);
+  const balkenHalter = el("div", {});
+  const kopfblock = el(
+    "div",
+    { class: "tm-anmeldekopf" },
+    balkenHalter,
+    exportKarte.wurzel,
   );
+  const zeichneBalken = () => ersetze(balkenHalter, balkenKarte(summe, anlass));
 
   const filterHalter = el("div", {});
   const werkzeuge = el("div", { class: "werkzeuge" });
@@ -358,6 +353,8 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
       summe = a.summe;
       ctx.titel("Anmeldungen", untertitel());
       zeichneFilter();
+      zeichneBalken();
+      exportKarte.aktualisiere();
       zeichneListe();
       meldung.textContent = neu
         ? ""
@@ -383,24 +380,118 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
 
   werkzeuge.append(suche.wurzel, filterHalter);
   bereich.append(
+    zurueckZeile(),
+    kopfblock,
     werkzeuge,
     liste,
     meldung,
     el("div", { class: "tm-mehr" }, mehr),
   );
   zeichneFilter();
+  zeichneBalken();
   zeichneListe();
 }
 
-/* ---------- Export als CSV (A19: läuft, bereit, fehlgeschlagen) ---------- */
+function zurueckZeile() {
+  return el(
+    "p",
+    {},
+    el(
+      "a",
+      {
+        class: "knopf knopf--still knopf--klein",
+        href: "#anlaesse/anmeldungen",
+        onclick: zurueckKlick,
+      },
+      icon("zurueck"),
+      "Alle Anlässe",
+    ),
+  );
+}
 
-// Der Browser holt die Datei mit der Sitzung; sie liegt nur im Speicher dieser Seite, bis du sie herunterlädst oder den Dialog schliesst.
-function exportieren(pfad, anlass, status) {
-  const zurueck = document.activeElement;
-  const titelId = neueId("titel");
-  const meldungsId = neueId("export");
+/* ---------- Rückmeldungen als Balken ---------- */
+
+const SVG = "http://www.w3.org/2000/svg";
+const prozent = (n, gesamt) =>
+  gesamt === 0 ? 0 : Math.round((n / gesamt) * 100);
+
+// Ein Balken: Spur und Füllung als SVG (die Breite steht als Attribut, die CSP erlaubt keine Inline-Stile). Er wächst beim Erscheinen, nur bei erlaubter Bewegung (termine.css)
+function balken(anteil, art) {
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("class", "tm-balken-svg");
+  svg.setAttribute("viewBox", "0 0 100 10");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  const spur = document.createElementNS(SVG, "rect");
+  spur.setAttribute("class", "tm-balken-spur");
+  spur.setAttribute("width", "100");
+  spur.setAttribute("height", "10");
+  const fuell = document.createElementNS(SVG, "rect");
+  fuell.setAttribute("class", `tm-balken-fuell tm-balken-fuell--${art}`);
+  fuell.setAttribute("width", String(anteil));
+  fuell.setAttribute("height", "10");
+  svg.append(spur, fuell);
+  return svg;
+}
+
+// Karte «Rückmeldungen»: Angemeldet und Abgemeldet als Anteil aller Rückmeldungen. Die API kennt kein «Offen» (wer noch nicht geantwortet hat, ist ihr unbekannt), darum gibt es nur diese zwei Balken.
+function balkenKarte(summe, anlass) {
+  const gesamt = summe.angemeldet + summe.abgemeldet;
+  const zeile = (name, n, art) =>
+    el(
+      "div",
+      { class: "tm-balkenzeile" },
+      el(
+        "div",
+        { class: "tm-balkentext" },
+        el("span", { class: "name" }, name),
+        el(
+          "span",
+          { class: "tm-ziffern" },
+          `${n}${gesamt > 0 ? ` · ${prozent(n, gesamt)} %` : ""}`,
+        ),
+      ),
+      balken(prozent(n, gesamt), art),
+    );
+  const frist = anlass.frist ? new Date(anlass.frist) : null;
+  const tage = frist ? Math.ceil((frist - new Date()) / 86_400_000) : null;
+  return el(
+    "section",
+    { class: "flaeche tm-balkenkarte", "aria-labelledby": "am-balken" },
+    el("h2", { id: "am-balken" }, "Rückmeldungen"),
+    el(
+      "p",
+      { class: "klein leise" },
+      gesamt === 0
+        ? "Noch keine Rückmeldung."
+        : `${zaehlwort(gesamt, "Rückmeldung", "Rückmeldungen")} insgesamt.`,
+    ),
+    zeile("Angemeldet", summe.angemeldet, "ja"),
+    zeile("Abgemeldet", summe.abgemeldet, "nein"),
+    frist &&
+      el(
+        "p",
+        { class: "klein tm-frist" },
+        icon("uhr"),
+        !anlass.anmeldungOffen
+          ? "Die Anmeldung ist geschlossen."
+          : tage > 0
+            ? `Anmeldeschluss ${stempel(anlass.frist)} Uhr, noch ${zaehlwort(tage, "Tag", "Tage")}.`
+            : `Anmeldeschluss war ${stempel(anlass.frist)} Uhr.`,
+      ),
+  );
+}
+
+/* ---------- Export als CSV (Download-Muster: bereit, läuft, fertig, fehlgeschlagen) ---------- */
+
+// Karte auf der Seite: Dateiname, Format, und der Knopf wechselt vom Erstellen über den Fortschritt zum Herunterladen. Der Browser holt die Datei mit der Sitzung; sie liegt nur im Speicher dieser Seite, bis du sie herunterlädst oder die Seite verlässt.
+function erstelleExport(pfad, anlass, holeStatus) {
   let abbruch = null;
   let objektUrl = null;
+  let zustand = "bereit";
+  let fehler = "";
+  let blobGroesse = 0;
+  let stand = holeStatus();
   const dateiname = `anmeldungen-${
     anlass.titel
       .toLowerCase()
@@ -409,115 +500,97 @@ function exportieren(pfad, anlass, status) {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "") || "anlass"
   }.csv`;
-
-  const zone = el("div", { id: meldungsId, role: "status" });
-  const knoepfe = el("div", { class: "dialog-knoepfe" });
-  // Eine Seite im Fluss (#578), kein Fenster: «Zurück», eigener Verlaufseintrag
-  const { kopf } = flussKopf({
-    titelId,
-    titel: "Anmeldungen exportieren",
-    beiZurueck: () => dialog.versuchSchliessen(),
+  const wurzel = el("section", {
+    class: "flaeche tm-export",
+    "aria-labelledby": "am-export",
   });
-  const dialog = el(
-    "section",
-    { class: "fluss-seite fluss-formular", "aria-labelledby": titelId },
-    kopf,
-    el(
-      "div",
-      { class: "fluss-karte ws-fluss" },
-      el(
-        "dl",
-        { class: "werte" },
-        el("div", {}, el("dt", {}, "Format"), el("dd", {}, "CSV")),
-        el("div", {}, el("dt", {}, "Anlass"), el("dd", {}, anlass.titel)),
-        el("div", {}, el("dt", {}, "Stand"), el("dd", {}, STATUS_TEXT[status])),
-      ),
-      el(
-        "p",
-        { class: "hinweis", role: "note" },
-        "Der Export enthält Personendaten. Speichere ihn sicher und lösche ihn, wenn du ihn nicht mehr brauchst.",
-      ),
-      el(
-        "p",
-        { class: "klein leise" },
-        "Die Datei enthält alle Anmeldungen mit diesem Stand, nicht nur die geladenen. Zellen, die mit = + - oder @ beginnen, bekommen ein Hochkomma davor, auch Telefonnummern mit +41: Das schützt vor Formeln in Tabellenprogrammen. Pro Person sind 10 Exporte in 10 Minuten möglich.",
-      ),
-      zone,
-      knoepfe,
-    ),
-  );
+  const status = el("p", { class: "nur-leser", role: "status" });
 
-  const schliessen = () => dialog.close();
-  const zeigeStart = (fehler) => {
-    ersetze(
-      zone,
-      fehler &&
+  const freigeben = () => {
+    if (objektUrl) window.URL.revokeObjectURL(objektUrl);
+    objektUrl = null;
+  };
+
+  function zeichne(fokus) {
+    const aktion =
+      zustand === "laeuft"
+        ? knopf("Abbrechen", { onclick: () => abbruch?.abort() })
+        : zustand === "fertig"
+          ? el(
+              "a",
+              {
+                class: "knopf knopf--haupt",
+                href: objektUrl,
+                download: dateiname,
+              },
+              icon("ablage"),
+              "Herunterladen",
+            )
+          : knopf(
+              zustand === "fehler" ? "Nochmals versuchen" : "Export erstellen",
+              {
+                art: "haupt",
+                symbol: zustand === "fehler" ? "aktualisieren" : "ablage",
+                onclick: () => starte(),
+              },
+            );
+    wurzel.replaceChildren(
+      ...[
+        el("h2", { id: "am-export" }, "Export"),
         el(
           "div",
-          { class: "hinweis hinweis--fehler", role: "alert" },
-          `Der Export ist fehlgeschlagen. ${fehler} Die Daten sind nicht verändert.`,
+          { class: "tm-datei" },
+          el("span", { class: "tm-dateisymbol" }, icon("ablage")),
+          el(
+            "div",
+            { class: "text" },
+            el("span", { class: "name tm-roh" }, dateiname),
+            el(
+              "span",
+              { class: "klein leise" },
+              zustand === "fertig"
+                ? `CSV, ${Math.max(1, Math.round(blobGroesse / 1024))} KB, bereit zum Herunterladen`
+                : `CSV mit allen Anmeldungen, Stand «${STATUS_TEXT[stand]}»`,
+            ),
+          ),
         ),
+        zustand === "laeuft" &&
+          el(
+            "div",
+            {
+              class: "fortschritt",
+              role: "progressbar",
+              "aria-label": "Der Export wird erstellt …",
+            },
+            el("span", { class: "tm-unbestimmt" }),
+          ),
+        zustand === "fehler" &&
+          el(
+            "div",
+            { class: "hinweis hinweis--fehler", role: "alert" },
+            `Der Export ist fehlgeschlagen. ${fehler} Die Daten sind nicht verändert.`,
+          ),
+        aktion,
+        el(
+          "p",
+          { class: "klein leise" },
+          "Enthält Personendaten: Speichere die Datei sicher und lösche sie, wenn du sie nicht mehr brauchst. Zellen mit = + - oder @ am Anfang bekommen ein Hochkomma (Schutz vor Formeln). 10 Exporte in 10 Minuten sind möglich.",
+        ),
+        status,
+      ].filter(Boolean),
     );
-    ersetze(
-      knoepfe,
-      knopf(fehler ? "Schliessen" : "Abbrechen", { onclick: schliessen }),
-      knopf(fehler ? "Nochmals versuchen" : "Export erstellen", {
-        art: "haupt",
-        symbol: fehler ? "aktualisieren" : "ablage",
-        onclick: () => starte(),
-      }),
-    );
-    knoepfe.lastChild.focus();
-  };
-  const zeigeLaeuft = () => {
-    ersetze(
-      zone,
-      el("p", { class: "name" }, "Der Export wird erstellt …"),
-      el(
-        "div",
-        {
-          class: "fortschritt",
-          role: "progressbar",
-          "aria-label": "Der Export wird erstellt …",
-        },
-        el("span", { class: "tm-unbestimmt" }),
-      ),
-    );
-    ersetze(
-      knoepfe,
-      knopf("Abbrechen", {
-        onclick: () => {
-          abbruch?.abort();
-        },
-      }),
-    );
-    knoepfe.firstChild.focus();
-  };
-  const zeigeBereit = (blob) => {
-    objektUrl = window.URL.createObjectURL(blob);
-    ersetze(
-      zone,
-      el(
-        "div",
-        { class: "hinweis hinweis--ok", role: "status" },
-        `Bereit: ${dateiname} (${Math.max(1, Math.round(blob.size / 1024))} KB)`,
-      ),
-    );
-    const laden = el(
-      "a",
-      { class: "knopf knopf--haupt", href: objektUrl, download: dateiname },
-      icon("ablage"),
-      "Herunterladen",
-    );
-    ersetze(knoepfe, knopf("Schliessen", { onclick: schliessen }), laden);
-    laden.focus();
-  };
+    if (fokus) wurzel.querySelector(".knopf")?.focus();
+  }
 
   async function starte() {
+    freigeben();
     abbruch = new window.AbortController();
-    zeigeLaeuft();
+    stand = holeStatus();
+    zustand = "laeuft";
+    zeichne(true);
+    status.textContent = "Der Export wird erstellt.";
     try {
-      const antwort = await fetch(`${pfad}/anmeldungen.csv?status=${status}`, {
+      const antwort = await fetch(`${pfad}/anmeldungen.csv?status=${stand}`, {
         credentials: "same-origin",
         cache: "no-store",
         signal: abbruch.signal,
@@ -536,26 +609,48 @@ function exportieren(pfad, anlass, status) {
           antwort.headers.get("X-Retry-After"),
         );
       }
-      zeigeBereit(await antwort.blob());
+      const blob = await antwort.blob();
+      objektUrl = window.URL.createObjectURL(blob);
+      blobGroesse = blob.size;
+      zustand = "fertig";
+      zeichne(true);
+      status.textContent = `Der Export ist bereit: ${dateiname}.`;
     } catch (f) {
       if (f?.name === "AbortError") {
-        zeigeStart();
+        zustand = "bereit";
+        zeichne(true);
         return;
       }
-      zeigeStart(
-        f instanceof ApiFehler
-          ? fehlertext(f)
-          : fehlertext(new ApiFehler(0, "NETZ")),
+      fehler = fehlertext(
+        f instanceof ApiFehler ? f : new ApiFehler(0, "NETZ"),
       );
+      zustand = "fehler";
+      zeichne(true);
     }
   }
 
-  dialog.addEventListener("close", () => {
+  // Wechselt der Stand, gilt die fertige Datei nicht mehr für ihn: zurück auf «bereit»
+  function aktualisiere() {
+    if (zustand === "laeuft") return;
+    const neu = holeStatus();
+    if (neu === stand) return;
+    freigeben();
+    zustand = "bereit";
+    stand = neu;
+    zeichne(false);
+  }
+
+  // Beim Verlassen der Seite (der Router baut #bereich neu): Abruf beenden, Speicher freigeben
+  window.addEventListener("pagehide", () => abbruch?.abort());
+  new window.MutationObserver((_, beobachter) => {
+    if (wurzel.isConnected) return;
     abbruch?.abort();
-    if (objektUrl) window.URL.revokeObjectURL(objektUrl);
-    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
-    else document.querySelector("h1")?.focus();
+    freigeben();
+    beobachter.disconnect();
+  }).observe(document.getElementById("bereich") ?? document.body, {
+    childList: true,
+    subtree: true,
   });
-  oeffneFluss(dialog);
-  zeigeStart();
+  zeichne(false);
+  return { wurzel, aktualisiere };
 }

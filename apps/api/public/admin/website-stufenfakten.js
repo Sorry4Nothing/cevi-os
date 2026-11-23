@@ -30,16 +30,44 @@ const datumText = (iso) => tagFormat.format(new Date(`${iso}T12:00:00Z`));
 const url = (stufeId, tag) =>
   `/api/v1/redaktion/stufen/${stufeId}/eckdaten${tag ? `/${tag}` : ""}`;
 
+// 403 heisst hier «nicht deine Stufe», kein Fehler: Die Stufenleitung darf nur die eigene Stufe pflegen
+async function ladeEckdaten(stufeId) {
+  try {
+    return (await anfrage("GET", url(stufeId))).eckdaten;
+  } catch (f) {
+    if (f?.status === 403) return null;
+    throw f;
+  }
+}
+
 export function zeige(bereich, ctx) {
   ctx.lade(
     async () => {
       const { tags } = await anfrage("GET", "/api/v1/redaktion/tags");
       const stufen = tags.filter((t) => t.typ === "stufe");
-      const gewaehlt = stufen.find((s) => s.id === ctx.pfad[0]) ?? stufen[0];
-      const eckdaten = gewaehlt
-        ? (await anfrage("GET", url(gewaehlt.id))).eckdaten
-        : [];
-      return { stufen, gewaehlt, eckdaten };
+      // Die gewünschte Stufe zuerst; wer sie nicht pflegen darf, bekommt die eigene (die Antworten sagen es, die API nennt die Stufen der Person nicht)
+      const gewuenscht = stufen.find((s) => s.id === ctx.pfad[0]) ?? stufen[0];
+      if (!gewuenscht) return { stufen, gewaehlt: undefined, eckdaten: [] };
+      const erste = await ladeEckdaten(gewuenscht.id);
+      if (erste) return { stufen, gewaehlt: gewuenscht, eckdaten: erste };
+      const uebrige = stufen.filter((s) => s.id !== gewuenscht.id);
+      const antworten = await Promise.all(
+        uebrige.map(async (s) => [s, await ladeEckdaten(s.id)]),
+      );
+      const erlaubt = antworten.filter(([, e]) => e);
+      if (erlaubt.length === 0) {
+        return {
+          stufen: [],
+          gewaehlt: undefined,
+          eckdaten: [],
+          keinRecht: true,
+        };
+      }
+      return {
+        stufen: erlaubt.map(([s]) => s),
+        gewaehlt: erlaubt[0][0],
+        eckdaten: erlaubt[0][1],
+      };
     },
     (daten, neu) => zeichne(bereich, ctx, daten, neu),
   );
@@ -48,10 +76,17 @@ export function zeige(bereich, ctx) {
 function zeichne(bereich, ctx, daten, neu) {
   if (!daten.gewaehlt) {
     bereich.append(
-      zustandsKarte({
-        titel: "Es gibt noch keine Stufe.",
-        text: "Lege zuerst eine Stufe an, dann pflegst du hier ihre Angaben.",
-      }).wurzel,
+      zustandsKarte(
+        daten.keinRecht
+          ? {
+              titel: "Für dich ist hier keine Stufe frei.",
+              text: "Du darfst die Angaben einer Stufe nur pflegen, wenn du dort Stufenleitung bist. Wende dich an die Abteilungsleitung.",
+            }
+          : {
+              titel: "Es gibt noch keine Stufe.",
+              text: "Lege zuerst eine Stufe an, dann pflegst du hier ihre Angaben.",
+            },
+      ).wurzel,
     );
     return;
   }

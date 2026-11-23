@@ -1,0 +1,287 @@
+/* Verwaltung: System, Plattform, Erinnerungen, Mitteilungen und das Hinweisband (#593). Nur Tokens aus tokens.css und die Namen aus admin.css; Masse in rem, Bewegung nur bei erlaubter Bewegung. */
+
+/* ===== Hinweisband bei Wartung und Informationssperre (hinweisband.js) ===== */
+.hinweisband {
+  border-bottom: 1px solid currentcolor;
+}
+
+.hinweisband--wartung {
+  background: var(--wa-f);
+  color: var(--wa);
+}
+
+.hinweisband--sperre {
+  background: var(--fe-f);
+  color: var(--fe);
+}
+
+.hinweisband-innen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  max-width: 90rem;
+  margin: 0 auto;
+  padding: 0.75rem clamp(1rem, 4vw, 4.5rem);
+}
+
+.hinweisband-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.hinweisband-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.hinweisband-zeile .i {
+  margin-top: 1px;
+}
+
+.hinweisband-titel {
+  font-weight: 700;
+}
+
+.hinweisband-meta,
+.hinweisband-text {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.hinweisband .knopf {
+  border-color: currentcolor;
+  color: inherit;
+}
+
+.hinweisband .knopf:hover {
+  background: transparent;
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* ===== System: Verlauf der letzten 24 Stunden ===== */
+.verlauf24 .ub-diagramm {
+  margin-top: 0;
+  padding-top: 0;
+}
+
+.verlauf24 .ub-lese {
+  margin-top: 0.5rem;
+}
+
+/* ===== Plattform: eine Zeile je Bereich ===== */
+.sch-liste,
+.zr-liste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.sch-zeile,
+.zr-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 0.875rem 1.25rem;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.sch-zeile:first-child,
+.zr-zeile:first-child {
+  border-top: 0;
+}
+
+/* Ein Streifen links trägt den Zustand mit; das Wort steht im Chip */
+.sch-zeile--wartung {
+  box-shadow: inset 0.25rem 0 0 var(--wa);
+}
+
+.sch-zeile--sperre {
+  box-shadow: inset 0.25rem 0 0 var(--fe);
+}
+
+.sch-text,
+.zr-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.sch-zustand,
+.zr-chips {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sch-aktionen,
+.zr-zeile .aktionen {
+  justify-content: flex-end;
+}
+
+@media (max-width: 40rem) {
+  .sch-zeile,
+  .zr-zeile {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .sch-aktionen,
+  .zr-zeile .aktionen {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .zr-chips {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+}
+
+/* ===== Erinnerungen: Zeitplan ===== */
+.zr-tage {
+  display: flex;
+  max-width: 100%;
+}
+
+.zr-tage label {
+  justify-content: center;
+  min-width: 2.75rem;
+}
+
+.zr-vorschau {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.zr-termin {
+  display: flex;
+  flex-direction: column;
+  min-width: 5.75rem;
+  padding: 0.5rem 0.875rem;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.zr-termin--naechster {
+  border-color: var(--akzent);
+  box-shadow: inset 0 0 0 1px var(--akzent);
+}
+
+.zr-termin-tag {
+  font-weight: 700;
+}
+
+.zr-termin-zeit {
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.zr-leer {
+  padding: 0.25rem 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .zr-termin {
+    animation: zr-ein var(--dauer) var(--kurve) both;
+  }
+
+  .hinweisband {
+    animation: band-ein var(--dauer-lang) var(--kurve) both;
+  }
+}
+
+@keyframes zr-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.25rem);
+  }
+}
+
+@keyframes band-ein {
+  from {
+    opacity: 0;
+    transform: translateY(-0.5rem);
+  }
+}
+
+/* ===== Mitteilungen ===== */
+.mt-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.mt-vorschau {
+  position: sticky;
+  top: 1rem;
+}
+
+@media (max-width: 68.75em) {
+  .mt-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mt-vorschau {
+    position: static;
+  }
+}
+
+.mt-auswahl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+  gap: 0.25rem 1rem;
+}
+
+.mt-push {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.875rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--rand-leise);
+  border-radius: 1rem;
+}
+
+.mt-push-app {
+  color: var(--leise);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.mt-push-titel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mt-push-leer {
+  color: var(--leise);
+  font-weight: 400;
+}
+
+.mt-push-text {
+  color: var(--leise);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
