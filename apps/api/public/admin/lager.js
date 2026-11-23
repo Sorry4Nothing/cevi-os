@@ -12,7 +12,6 @@ import {
   ID,
   nichtGefunden,
   statusChip,
-  symbol,
   zeigeWartende,
   zeitraum,
 } from "./lager-gemeinsam.js";

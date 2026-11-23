@@ -149,7 +149,7 @@ function suchfeld(lager) {
         suchbegriff.frage = eingabe.value.trim();
         const ziel = adresse(lager.id, "suche");
         if (location.hash === ziel)
-          window.dispatchEvent(new HashChangeEvent("hashchange"));
+          window.dispatchEvent(new Event("hashchange"));
         else location.hash = ziel;
       },
     },

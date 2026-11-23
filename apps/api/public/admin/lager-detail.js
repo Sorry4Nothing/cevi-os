@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { splitKnopf, bestaetigungAmOrt } from "./aktionen.js";
-import { auswahl, dialogFormular, el, knopf } from "./dom.js";
+import { auswahl, dialogFormular, el } from "./dom.js";
 import { skeletonFlaeche } from "./lader.js";
 import {
   ADRESSE,
