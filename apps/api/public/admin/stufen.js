@@ -2,7 +2,6 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   STANDARD_LOGO,
   ankreuzen,
-  avatar,
   dialogFormular,
   el,
   feld,
@@ -10,6 +9,7 @@ import {
 } from "./dom.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { dateiFeld } from "./personen-wahl.js";
+import { mitgliedKopf } from "./mitglieder.js";
 import { sortierListe } from "./sortieren.js";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
@@ -147,6 +147,10 @@ function stufenleitung(personen, stufe) {
     );
 }
 
+// Bild oder Initialen, Name und Cevi-Name wie in der Mitglieder-Darstellung (mitglieder.js)
+const personKopf = (p) =>
+  mitgliedKopf({ name: p.name, ceviName: p.ceviName, bildUrl: p.bildUrl });
+
 // Die Stufenleitung steht als Sortierliste in der Karte: Ziehen am Griff, Tastatur und Knöpfe Nach oben und Nach unten, danach «Rückgängig» im Toast. Die Anfrage geht erst nach der Frist; die erste Person ist der Hauptkontakt in den Kontakten der App.
 function leitungsListe(stufe, sl, ctx) {
   return sortierListe({
@@ -154,12 +158,7 @@ function leitungsListe(stufe, sl, ctx) {
     eintraege: sl.map((p) => ({
       id: p.id,
       text: p.name,
-      inhalt: el(
-        "span",
-        { class: "st-person" },
-        avatar(p.name, { hell: true }),
-        el("span", { class: "name" }, p.name),
-      ),
+      inhalt: personKopf(p),
     })),
     aktionstext: `Reihenfolge der Stufenleitung von ${stufe.name} geändert`,
     mitRueckgaengig: ctx.mitRueckgaengig,
@@ -186,12 +185,7 @@ function karte(stufe, anzahl, sl, ctx, neu) {
     sl.length === 0
       ? el("p", { class: "leise" }, "Noch niemand eingetragen.")
       : sl.length === 1
-        ? el(
-            "p",
-            { class: "st-person" },
-            avatar(sl[0].name, { hell: true }),
-            el("span", { class: "name" }, sl[0].name),
-          )
+        ? personKopf(sl[0])
         : [
             leitungsListe(stufe, sl, ctx).wurzel,
             el(

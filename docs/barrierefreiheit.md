@@ -530,6 +530,25 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
 
+## 33. Verwaltung: Mitglieder-Darstellung für Personen, Kinder und Gruppen (#624)
+
+Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellung» in `personen.css` (Klassenvorsatz `mg-`) auf den Seiten «Personen», «Kinder», dem Detail einer Gruppe und der Stufenleitung auf «Stufen». Geprüft wird im Browser bei 390, 720, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
+
+- [ ] **33.1** Umschalter «Karten | Liste» und «Gruppieren»: je eine Gruppe von Auswahlknöpfen (`role="radiogroup"`, benannt durch «Ansicht» und «Gruppieren nach»). Pfeiltasten wechseln, Tab verlässt die Gruppe, der Fokus ist sichtbar (3 Pixel). Jede Option ist 44 Pixel hoch. Die gewählte Option trägt Rand und Fläche, nie nur eine Farbe. Der Schieber gleitet nur ohne «Bewegung reduzieren».
+- [ ] **33.2** Die Wahl der Ansicht bleibt im Browser (`localStorage`, nur «karten» oder «liste»); ohne Speicher gilt «karten». Die Gruppierung gilt für die Sitzung.
+- [ ] **33.3** Abschnitte: Jeder Abschnitt hat eine Überschrift (Ebene 2, im Detail einer Gruppe Ebene 3) mit der Zahl der Treffer, das Raster oder die Tabelle trägt den Namen des Abschnitts. Die Zahl zählt alle Treffer, nicht nur die der Seite.
+- [ ] **33.4** Karte: Bild oder Initialen, Name, Cevi-Name, Rollen und Tags als Chips mit Wort (höchstens drei, der Rest als «+n weitere» mit Aufzählung im Titel), darunter «Bearbeiten». Der Name der Person steht im Namen jedes Knopfs (`kontext`, `aria-label`). Konto und Zugang sind ruhige Marken mit Symbol und Wort (`Konto aktiv`, `Eltern verknüpft`, `Kein Zugang`, `Zweiter Faktor`); was Aufmerksamkeit verlangt (Startpasswort offen, abgelaufen, deaktiviert, Inaktiv, Telefon fehlt) bleibt ein Chip mit Symbol.
+- [ ] **33.5** Kontrast: Marken (`--leise`, `--ok`) und Chips erreichen 4.5:1 auf Karte und Fläche in Tag und Nacht; Rand von Karte und Umschalter mindestens 3:1 zu `--outline` beim Zeigen und beim Wählen.
+- [ ] **33.6** Auswahl: Das Kästchen steht oben rechts in der Karte, die Trefferfläche ist 44 Pixel gross; «Alle auf der Seite wählen» steht in der Leiste und gilt für Karten und Liste. Die Auswahlleiste (Tag setzen, Tag entziehen, Rückgängig) bleibt unverändert.
+- [ ] **33.7** Liste: eine Tabelle mit Spaltenköpfen (`scope="col"`), Abschnittszeilen (`scope="colgroup"`) und sortierbaren Köpfen (`aria-sort`); nach dem Sortieren bleibt der Fokus auf dem Kopf. Auf schmalem Platz scrollt der Rahmen waagrecht und ist mit der Tastatur erreichbar. Im Detail einer Gruppe steht die Liste als Zeilen, nicht als Tabelle.
+- [ ] **33.8** Bewegung: Das gestaffelte Einblenden der Karten läuft nur beim Wechsel von Ansicht oder Gruppierung und nur ohne «Bewegung reduzieren»; beim Tippen im Filter bewegt sich nichts.
+- [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
+- [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
+
+### Stand der Prüfung (#624)
+
+Im Browser geprüft bei 1440, 1920, 2560 und 390 Pixeln in Tag und Nacht (Karten, Liste, Gruppierung nach Rolle, Stufe und Zugang) mit der Demo-Abteilung. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack) und 200 % Zoom auf echten Geräten.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

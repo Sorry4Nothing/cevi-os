@@ -22490,6 +22490,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/mitglieder.js:
+    get:
+      operationId: getAdminMitgliederSkript
+      summary: Skript der Verwaltung – Mitglieder-Darstellung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/laedeli.css:
     get:
       operationId: getAdminLaedeliStilvorlage

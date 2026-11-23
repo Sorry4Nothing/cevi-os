@@ -37,6 +37,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/uebersicht.css`                   | Stilvorlage der Verwaltung – Bereich Übersicht                                       | **200** alle      |
 | `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen                                         | **200** alle      |
 | `GET /admin/laedeli.js`                       | Skript der Verwaltung – Bereich Lädeli                                               | **200** alle      |
+| `GET /admin/mitglieder.js`                    | Skript der Verwaltung – Mitglieder-Darstellung                                       | **200** alle      |
 | `GET /admin/laedeli.css`                      | Stilvorlage der Verwaltung – Bereich Lädeli                                          | **200** alle      |
 | `GET /admin/csv.js`                           | Skript der Verwaltung – CSV-Leser                                                    | **200** alle      |
 | `GET /admin/anwesenheit.js`                   | Skript der Verwaltung – Bereich Anwesenheit                                          | **200** alle      |
