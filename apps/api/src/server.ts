@@ -9,6 +9,7 @@ import {
 } from "./bereichsschalter.js";
 import {
   kodiereMedienbild,
+  kodiereZeichen,
   kodiereProfilbild,
   kodiereStufenlogo,
 } from "./bild-sharp.js";
@@ -198,6 +199,33 @@ if (
       }),
   );
   const merker = new Map<string, string>();
+  // Favicon (#558): aus dem gewählten Zeichen, sonst (oder wenn es sich nicht laden lässt) aus dem Cevi-Zeichen der Plattform. Gemerkt je Medium: Der Speicher wird nur gefragt, wenn sich die Wahl ändert
+  const standardZeichen = readFileSync(
+    new URL("../public/admin/favicon.svg", import.meta.url),
+  );
+  let gemerktesZeichen:
+    | { id: string | null; dateien: Awaited<ReturnType<typeof kodiereZeichen>> }
+    | undefined;
+  const zeichen = async (
+    quelle: { id: string; speicherSchluessel: string } | null,
+  ) => {
+    const id = medienspeicher && quelle ? quelle.id : null;
+    if (gemerktesZeichen?.id === id) return gemerktesZeichen.dateien;
+    let dateien;
+    try {
+      dateien = await kodiereZeichen(
+        id && quelle && medienspeicher
+          ? await medienspeicher.holen(quelle.speicherSchluessel)
+          : standardZeichen,
+      );
+    } catch {
+      // Nicht gemerkt: Der nächste Lauf versucht es wieder
+      log(undefined, { ereignis: "website_zeichen", code: "nicht-lesbar" });
+      return kodiereZeichen(standardZeichen);
+    }
+    gemerktesZeichen = { id, dateien };
+    return dateien;
+  };
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
   const basisUrl = konfiguration.WEBSITE_BASIS_URL;
   starteWebsiteAbgleich(
@@ -212,6 +240,7 @@ if (
           basisUrl,
           stylesheet,
           skripte,
+          zeichen,
           datenquellen: [ladeStufenfakten, ladeTerminlisten],
           kontakt: {
             adresse: konfiguration.VERANTWORTLICHE_ADRESSE,

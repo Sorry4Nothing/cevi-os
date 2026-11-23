@@ -19,6 +19,8 @@ const aendernSchema = z
     name: z.string().trim().min(1).max(MAX_ABTEILUNGSNAME).refine(sauber),
     logoMediumId: z.uuid().nullable(),
     logoDunkelMediumId: z.uuid().nullable(),
+    // Quadratisches Zeichen für das Favicon (#558, null = das Cevi-Zeichen der Plattform)
+    zeichenMediumId: z.uuid().nullable(),
   })
   .partial()
   .refine((f) => Object.keys(f).length > 0);
@@ -43,6 +45,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
         name: abteilung.name,
         logoMediumId: abteilung.websiteLogoMediumId,
         logoDunkelMediumId: abteilung.websiteLogoDunkelMediumId,
+        zeichenMediumId: abteilung.websiteZeichenMediumId,
       })
       .from(abteilung)
       .where(eq(abteilung.id, person.abteilungId));
@@ -65,7 +68,11 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
       }
 
       const fehler = await db.transaction(async (tx) => {
-        for (const mediumId of [f.logoMediumId, f.logoDunkelMediumId]) {
+        for (const mediumId of [
+          f.logoMediumId,
+          f.logoDunkelMediumId,
+          f.zeichenMediumId,
+        ]) {
           if (!mediumId) continue;
           // FOR SHARE: Ein gleichzeitiges Löschen des Mediums wartet und sieht danach den Verweis
           const [m] = await tx
@@ -96,6 +103,9 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             }),
             ...(f.logoDunkelMediumId !== undefined && {
               websiteLogoDunkelMediumId: f.logoDunkelMediumId,
+            }),
+            ...(f.zeichenMediumId !== undefined && {
+              websiteZeichenMediumId: f.zeichenMediumId,
             }),
           })
           .where(eq(abteilung.id, person.abteilungId));
