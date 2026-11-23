@@ -4,6 +4,7 @@ import type { Db } from "../db/client.js";
 import { ort, programmEckdaten, seite, tag } from "../db/schema.js";
 import { kartenLink } from "../karten-standort.js";
 import type { Datenquelle } from "./abgleich.js";
+import { teileMitnehmen } from "./mitnehmen.js";
 import type { Fakt } from "./rendern.js";
 
 // Die festen Felder einer Stufenseite (#355): je Stufe und Datum eine Zeile in programm_eckdaten.
@@ -78,7 +79,16 @@ export function faktenAus(z: Eckdatenzeile): Fakt[] {
   mitOrt("Treffpunkt", z.treffpunkt, z.treffpunktZusatz, z.treffpunktKarte);
   mit("Schlusszeit", z.schlussZeit && `${z.schlussZeit} Uhr`);
   mitOrt("Schlussort", z.schlussOrt, z.schlussOrtZusatz, z.schlussOrtKarte);
-  mit("Mitnehmen", z.mitnehmen);
+  // Mitnehmen ist ein längerer Text: als Liste, wenn es mehrere Dinge sind (#645)
+  if (z.mitnehmen !== null && z.mitnehmen.trim() !== "") {
+    const liste = teileMitnehmen(z.mitnehmen);
+    fakten.push({
+      bezeichnung: "Mitnehmen",
+      wert: z.mitnehmen.trim(),
+      lang: true,
+      ...(liste && { liste }),
+    });
+  }
   return fakten;
 }
 
