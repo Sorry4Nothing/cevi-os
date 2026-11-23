@@ -266,7 +266,7 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
             el(
               "div",
               { class: "wer" },
-              avatar(m.name),
+              avatar(m.name, { hell: true, bildUrl: m.bildUrl }),
               el(
                 "div",
                 {},

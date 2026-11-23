@@ -917,3 +917,18 @@ Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`
 ### Stand der Prüfung (#663)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.
+
+## 55. Verwaltung: Kästchen und Profilbilder im Lager (#668)
+
+Gilt für alle Kästchen (`input[type="checkbox"]`) der Verwaltung, vor allem im Bereich Lager (Personenwahl, Rechte der Rollen), und für die Kreise mit Profilbild im Lager (Assistent, Mitglieder, Personenwahl). Massstab WCAG 2.2 AA.
+
+- [ ] **55.1** Es gibt kein rohes Browser-Kästchen: Jedes Kästchen trägt die gemeinsame Gestaltung aus `admin.css` (`appearance: none`, Rand, Haken), auch wenn die ganze Zeile ein `label` ist. Ein Test (`admin-kaestchen.test.ts`) hält fest, dass kein Stylesheet ein Kästchen mit `accent-color` nachzeichnet.
+- [ ] **55.2** Der Zustand «angekreuzt» steht in Haken und Farbe, nie nur in Farbe; der Rand des leeren Kästchens hat gegen den Grund mindestens 3 : 1 (Tag und Nacht).
+- [ ] **55.3** Fokusring (3 px, versetzt), Hover (kräftiger Rand, auch über der ganzen Zeile), deaktiviert (halb deckend, Verbotszeiger) und der Haken-Übergang (nur unter `prefers-reduced-motion: no-preference`) sind für jedes Kästchen gleich.
+- [ ] **55.4** Erzwungene Farben (`forced-colors: active`): Rand `ButtonText`, angekreuzt `Highlight` mit Haken `HighlightText`, deaktiviert `GrayText`.
+- [ ] **55.5** Die Fläche zum Treffen ist die ganze Zeile und mindestens 44 px hoch (Personenzeile 52 px, Schalter der Rechte 44 px); das Kästchen selbst ist 24 px.
+- [ ] **55.6** Im Lager zeigt der Kreis einer Person ihr Profilbild, wenn sie eins hat und die Verwaltung es sehen darf; sonst bleiben die Initialen, auch wenn das Bild nicht lädt (403 oder 404). Das Bild ist dekorativ (`alt=""`), der Name steht daneben.
+
+### Stand der Prüfung (#668)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank mit erfundenen Bildern) bei 1440 und 390 px, Tag und Nacht: 55.1 bis 55.3, 55.5 und 55.6; Tastatur (Tab, Leertaste, Fokusring) in der Personenwahl. Gemessen: Rand des leeren Kästchens 4.5 : 1 (Tag) und 4.7 : 1 (Nacht). Offen: Der Rand des angekreuzten Kästchens hat in der Nacht zum Grund nur 1.3 : 1; der Haken (Weiss auf Marineblau) trägt die Information, das Kästchen sieht in der ganzen Verwaltung gleich aus. Nicht geprüft: Screenreader, 200 % Zoom per Browser-Einstellung, 2560 px, `forced-colors` im echten Kontrast-Thema (55.4 nur nach dem Quelltext).
