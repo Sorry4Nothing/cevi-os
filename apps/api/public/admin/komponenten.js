@@ -16,7 +16,12 @@ import {
   skeletonListe,
   skeletonTabelle,
 } from "./lader.js";
+import { bestaetigungAmOrt, splitKnopf } from "./aktionen.js";
+import { datumsfeld, datumZeitFeld, zahlfeld, zeitfeld } from "./datumsfeld.js";
+import { filterleiste } from "./filterleiste.js";
+import { formularRaster } from "./formularraster.js";
 import { mitRueckgaengig, zweistufig } from "./rueckgaengig.js";
+import { sortierListe } from "./sortieren.js";
 import { leerKarte, rahmenzustand, zustandsKarte } from "./zustaende.js";
 
 const abschnitt = (titel, ...inhalt) =>
@@ -201,6 +206,110 @@ function tafel() {
   }).wurzel;
 }
 
+// Querschnitt-Komponenten (#578): feste Beispiele, nichts wird gespeichert
+function werkzeuge(ctx) {
+  const sortiert = sortierListe({
+    beschriftung: "Beispiel: Reihenfolge der Stufen",
+    eintraege: [
+      { id: "a", text: "Biberstufe" },
+      { id: "b", text: "Wolfsstufe" },
+      { id: "c", text: "Pfadistufe" },
+      { id: "d", text: "Piostufe" },
+    ],
+    beiNeu: () => {},
+    mitRueckgaengig: ctx.mitRueckgaengig,
+  });
+  const zeilen = [
+    ["Anna", "Aktiv"],
+    ["Ben", "Aktiv"],
+    ["Cem", "Inaktiv"],
+  ];
+  let leiste;
+  const trefferListe = el("ul", { class: "spalte" });
+  const zeichne = ({ suche, filter }) => {
+    const sichtbar = zeilen.filter(
+      ([n, s]) =>
+        n.toLowerCase().includes(suche.trim().toLowerCase()) &&
+        (filter.status === "alle" || filter.status === s),
+    );
+    trefferListe.replaceChildren(
+      ...sichtbar.map(([n, s]) => el("li", {}, `${n} (${s})`)),
+    );
+    leiste.setzeTreffer(sichtbar.length, zeilen.length);
+  };
+  leiste = filterleiste({
+    suche: { label: "Name suchen" },
+    filter: [
+      {
+        schluessel: "status",
+        label: "Status",
+        optionen: [
+          ["alle", "Alle"],
+          ["Aktiv", "Aktiv"],
+          ["Inaktiv", "Inaktiv"],
+        ],
+      },
+    ],
+    namen: { einzahl: "Person", mehrzahl: "Personen" },
+    beiAenderung: zeichne,
+  });
+  zeichne(leiste.stand());
+  const geteilt = splitKnopf({
+    text: "Veröffentlichen",
+    art: "haupt",
+    onclick: () => ctx.melde("Veröffentlicht.", "ok"),
+    eintraege: [
+      {
+        text: "Entwurf speichern",
+        onclick: () => ctx.melde("Entwurf gespeichert.", "ok"),
+      },
+      { text: "Versionen ansehen", onclick: () => {} },
+      { text: "Zurückziehen", gefaehrlich: true, onclick: () => {} },
+    ],
+  });
+  const amOrt = bestaetigungAmOrt({
+    text: "Lager löschen",
+    frage: "Lager «Sommerlager» endgültig löschen?",
+    folge: "Alle Mitglieder, Aufgaben und Packlisten gehen mit.",
+    erwartet: "Sommerlager",
+    ausfuehren: () =>
+      ctx.melde("Nur ein Beispiel: Nichts wurde gelöscht.", "info"),
+  });
+  const raster = formularRaster({
+    felder: [
+      feld({ label: "Name", wert: "Sommerlager" }).wurzel,
+      el("p", { class: "hilfe" }, "Die Felder stehen links, das Bild rechts."),
+    ],
+    seite: el(
+      "p",
+      { class: "leise" },
+      "Hier steht das Bild oder die Vorschau.",
+    ),
+    seiteTitel: "Vorschau",
+  });
+  return [
+    abschnitt("Sortierliste", sortiert.wurzel),
+    abschnitt("Filterleiste", leiste.wurzel, trefferListe),
+    abschnitt(
+      "Datum, Zeit und Zahl",
+      el(
+        "div",
+        { class: "reihe" },
+        datumsfeld({ label: "Beginn", wert: "2026-12-05" }).wurzel,
+        zeitfeld({ label: "Uhrzeit", wert: "14:30" }).wurzel,
+        datumZeitFeld({ label: "Anmeldeschluss", wert: "2026-12-01T18:00" })
+          .wurzel,
+        zahlfeld({ label: "Plätze", wert: "12", min: 0, max: 200 }).wurzel,
+      ),
+    ),
+    abschnitt(
+      "Geteilter Knopf und Bestätigung am Ort",
+      el("div", { class: "reihe" }, geteilt.wurzel, amOrt.wurzel),
+    ),
+    abschnitt("Formularraster", raster),
+  ];
+}
+
 export function zeige(bereich, ctx) {
   const hinweise = el(
     "div",
@@ -278,6 +387,7 @@ export function zeige(bereich, ctx) {
     ),
     abschnitt("Zustände der Bausteine", tafel()),
     abschnitt("Hinweise", hinweise, meldungen),
+    ...werkzeuge(ctx),
     abschnitt(
       "Zustände einer Fläche",
       karte.wurzel,

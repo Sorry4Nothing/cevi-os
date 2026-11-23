@@ -56,7 +56,7 @@ const ICONS = {
   kinder: [
     ["circle", { cx: 12, cy: 12, r: 9 }],
     "M8.5 14.5c1 1.3 2.1 2 3.5 2s2.5-.7 3.5-2",
-    "M9 9.5h.01M15 9.5h.01",
+    ["path", { class: "f", d: "M8 8.5h2v2H8zM14 8.5h2v2h-2z" }],
   ],
   tag: [
     "M3 12.5V4h8.5L21 13.5 13.5 21z",
@@ -100,8 +100,16 @@ const ICONS = {
   sperre: [["circle", { cx: 12, cy: 12, r: 9 }], "M5.6 5.6l12.8 12.8"],
   lupe: [["circle", { cx: 11, cy: 11, r: 7 }], "m20 20-3.5-3.5"],
   abmelden: ["M14 4h5v16h-5", "M10 8l-4 4 4 4M6 12h10"],
-  warnung: ["M12 3.5 2.5 20h19z", "M12 10v4M12 17h.01"],
-  info: [["circle", { cx: 12, cy: 12, r: 9 }], "M12 11v5M12 8h.01"],
+  warnung: [
+    "M12 3.5 21.5 20h-19z",
+    "M12 9.5v5",
+    ["path", { class: "f", d: "M11 15.5h2v2h-2z" }],
+  ],
+  info: [
+    ["circle", { cx: 12, cy: 12, r: 9 }],
+    "M12 11v6",
+    ["path", { class: "f", d: "M11 6.5h2v2h-2z" }],
+  ],
   schluessel: [["circle", { cx: 8, cy: 15, r: 4 }], "m11 12 9-9M16 7l3 3"],
   kopieren: [
     ["rect", { x: 8, y: 8, width: 12, height: 12, rx: 2 }],
@@ -118,6 +126,18 @@ const ICONS = {
   aktualisieren: ["M20 11a8 8 0 1 0-2.3 5.7", "M20 5v6h-6"],
   hoch: ["M6 15l6-6 6 6"],
   runter: ["M6 9l6 6 6-6"],
+  weiter: ["M9 6l6 6-6 6"],
+  minus: ["M5 12h14"],
+  // Griff der Sortierliste: sechs Punkte (gefüllte Quadrate, Klasse «f»)
+  sortieren: [
+    [
+      "path",
+      {
+        class: "f",
+        d: "M8 5h2v2H8zM14 5h2v2h-2zM8 11h2v2H8zM14 11h2v2h-2zM8 17h2v2H8zM14 17h2v2h-2z",
+      },
+    ],
+  ],
   website: [
     ["circle", { cx: 12, cy: 12, r: 9 }],
     "M3 12h18",

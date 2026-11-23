@@ -532,6 +532,96 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/werkzeuge.css:
+    get:
+      operationId: getAdminWerkzeugeStilvorlage
+      summary: Stilvorlage der Verwaltung – Querschnitt-Komponenten (Sortierliste, Filterleiste, Datum, geteilter Knopf)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/sortieren.js:
+    get:
+      operationId: getAdminSortierenSkript
+      summary: Skript der Verwaltung – Sortierliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/filterleiste.js:
+    get:
+      operationId: getAdminFilterleisteSkript
+      summary: Skript der Verwaltung – Filterleiste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/datumsfeld.js:
+    get:
+      operationId: getAdminDatumsfeldSkript
+      summary: Skript der Verwaltung – Felder für Datum, Zeit und Zahl
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/aktionen.js:
+    get:
+      operationId: getAdminAktionenSkript
+      summary: Skript der Verwaltung – geteilter Knopf und Bestätigung am Ort
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/formularraster.js:
+    get:
+      operationId: getAdminFormularrasterSkript
+      summary: Skript der Verwaltung – Formularraster
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/navigation.js:
     get:
       operationId: getAdminNavigationSkript
