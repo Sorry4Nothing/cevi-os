@@ -739,6 +739,26 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 50. Verwaltung: Rechte-Matrix, Gruppenrollen und OK (#651)
+
+Gilt für «Rollen und Rechte» (`rechte*.js`, `rechte.css`) und «OK anlegen» am Anlass. Massstab WCAG 2.2 AA.
+
+- [ ] **50.1** Jede Zelle der Matrix ist eine Radiogruppe (`role="radiogroup"`, Segmente `role="radio"`, `aria-checked`) mit vollem Namen «Rolle: Recht»; ein Tabstopp je Zelle, Pfeiltasten wechseln und wählen, kein Zustand nur über Farbe (Wort «Aus», «Eigene», «Alle», Haken, Rand).
+- [ ] **50.2** Jedes Segment ist mindestens 44 px hoch und breit; der Fokusring (3 px) liegt innen und ist in Tag und Nacht sichtbar.
+- [ ] **50.3** Die Tabelle hat `caption` (für Leser), `th scope` für Spalten, Zeilen und Bereiche; der waagrecht scrollbare Bereich ist eine beschriftete Region mit Fokus. Kopf und erste Spalte bleiben beim Scrollen stehen.
+- [ ] **50.4** Am Telefon und bei grosser Schrift gibt es dieselben Rechte als Karten je Rolle (Matrix/Je Rolle umschaltbar); 200 % Zoom und 390 px ohne seitliches Scrollen der Seite.
+- [ ] **50.5** Geänderte Zellen zeigen den alten Stand als Text («war aus») und einen Rand; «N Änderungen» steht in einer Statusregion, jede Änderung wird angesagt.
+- [ ] **50.6** Die Speicherleiste ist erreichbar und verdeckt keinen Fokus; Speichern bei grosser Wirkung ist ein zweistufiger Knopf mit Ansage und Escape. Kein Popup, keine native Rückfrage: Löschen fragt in einer Zeile am Ort mit Folgenanzeige.
+- [ ] **50.7** Reihenfolge der Rollen per Ziehen, mit Leertaste und Pfeilen und mit den Knöpfen Hoch und Runter (WCAG 2.5.7).
+- [ ] **50.8** Feste Punkte sind als «Fest» gekennzeichnet und erklärt, nicht nur ausgegraut.
+- [ ] **50.9** Marken («2. Faktor», «Öffentlich», «Löscht») tragen Wort und Symbol; Kontrast der Marken mindestens 4.5:1 in Tag und Nacht (Tokens).
+- [ ] **50.10** Ladezustände sind Skelette in der Form der Seite; Fehler tragen «Nochmals versuchen»; Reduced Motion schaltet die Übergänge ab.
+- [ ] **50.11** «OK anlegen»: Seite im Fluss mit Zurück, Fehler am Feld, Rollenzeilen mit beschrifteten Haken und Namensfeldern; nach dem Anlegen führt die Seite zur neuen Gruppe.
+
+### Stand der Prüfung (#651)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht: 50.1 bis 50.5, 50.7 (Tasten), 50.8, 50.11. Mit Tastatur: Pfeil in der Zelle, Speichern zweistufig. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema.
+
 ## 43. Verwaltung: Kind mit eigenem Konto (#644)
 
 Dieser Abschnitt gilt für `kinder.js`, `kinder-konto.js` und die Seiten «Eigenes Konto erstellen» und «Konten für Kinder». Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Alles sind Seiten im Fluss; Rückfragen stehen am Knopf (zweistufig), nie in einem Popup.
@@ -788,6 +808,22 @@ Gilt für `website-orte.js`, `website-orte.css`, `orte-logik.js` und die Ortswah
 ### Stand der Prüfung (#646)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Orten gesehen: 46.1 (Reiter und Zustand; Browser-Zurück nicht von Hand geprüft), 46.2 (Knopf Nach unten mit Speichern nach der Frist; Tastatur und Ziehen sind die der gemeinsamen Sortierliste, hier nicht erneut geprüft), 46.3 (Rückgängig, zweite Stufe), 46.4 (Fehlerfall mit fremdem Host, gültiger Link, Speichern), 46.5 («Neuer Ort …» aus der Auswahl, Liste mit Überschriften) bei 1440 und 390 Pixel, Tag und Nacht, und 46.6 bei 390, 1024 (ohne Skript), 1440 und 2560 Pixel, Tag und Nacht, mit Tastatur (Tab auf den Verweis, Fokusring hell) und in erzwungenen Farben. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA), 200 Prozent Zoom von Hand, 46.8 Fehlerzustand (nur Leer- und Normalzustand gesehen).
+
+## 48. Verwaltung: Zugang nach Rechten (#648)
+
+Gilt für die Navigation der Verwaltung (`public/admin/navigation.js`, `admin.js`) und die Detailseite eines Lagers (`lager.js`), soweit sie dem Recht der Person folgen. Die Oberfläche zeigt nur Seiten, die der Server dieser Person öffnet; der Server prüft jede Route neu.
+
+- [ ] **48.1** Eine Seite, die für die Person in ein 403 liefe, erscheint nicht in der Navigation (weder Bereichsleiste noch Unterleiste noch Suche). Es gibt keine ausgegraute oder tote Auswahl, deren Grund nur ein Tooltip nennt.
+- [ ] **48.2** Eine Person, die nur ein Recht für einen Bereich hat (zum Beispiel Lädeli), landet nach der Anmeldung in diesem Bereich und sieht keine leere Übersicht. Bereiche ohne sichtbare Seite fehlen ganz.
+- [ ] **48.3** Hat die Person kein Recht, das die Verwaltung öffnet, steht auf der Seite der Text «Dieses Konto hat keinen Zugang zur Verwaltung.» mit Statusangabe (Symbol und Text, nicht nur Farbe).
+- [ ] **48.4** Fehlt der zweite Faktor, sagt die Meldung in Worten, was zu tun ist; sie steht in einer Statusregion und verschwindet nicht von selbst.
+- [ ] **48.5** Lager ohne das Recht, Mitglieder zu vergeben: Das Lager zeigt nur Angaben und Stand. Der Abschnitt «Mitglieder» und die Verweise darauf fehlen, es bleibt keine Zahl «0 Mitglieder» stehen, die falsch wäre.
+- [ ] **48.6** Reihenfolge von Fokus und Überschriften bleibt gleich, wenn Abschnitte entfallen (eine Überschrift der Ebene 1 pro Seite, keine übersprungenen Ebenen).
+- [ ] **48.7** Tastatur: Jede sichtbare Seite ist mit Tab und Enter erreichbar; die Reihenfolge der Unterleiste folgt der Reihenfolge im Quelltext.
+
+### Stand der Prüfung (#648)
+
+Geprüft: 48.1 bis 48.3 und 48.5 am Quelltext und in den Tests (`test/admin-navigation.test.ts`, `test/rechte-website-lager-plattform.test.ts`: Antwort von `GET /api/v1/redaktion/ich` je Rolle). Die Navigation ist in dieser Änderung nicht neu gestaltet; es kommen nur Bedingungen dazu. Nicht im Browser geprüft: Screenreader, 200 % Zoom, 390 px; 48.4, 48.6 und 48.7 folgen aus unveränderten Bausteinen und gelten als nicht geprüft, bis die Vorschau durchgegangen ist.
 
 ## Im PR angeben
 

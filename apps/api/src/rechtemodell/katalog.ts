@@ -337,11 +337,20 @@ export const RECHTE_KATALOG = {
     ALLE,
   ),
 
-  // Lager: Die Rechte im Lager selbst (49) bleiben je Lager (lager/rechte-katalog.ts)
-  "lager.verwalten": f(
+  // Lager (Verwaltung der Abteilung). Mitglieder und Rollen eines Lagers vergibt nur die Abteilungsleitung (rechte.verwalten); die Rechte im Lager stellt die Lagerleitung je Lager ein (lager/rechte-katalog.ts, Anhang A)
+  "lager.verwalten": v(
     "lager",
-    "Lager verwalten",
-    "Lager anlegen, Stammdaten, Mitglieder und Dateien verwalten. Die Rechte der Rollen im Lager stellt die Lagerleitung je Lager ein.",
+    "Lager anlegen und verwalten",
+    "Lager anlegen, Stammdaten ändern, den Stand setzen, Lager löschen und die erlaubten Hosts für Dateilinks einstellen. Wer Mitglied eines Lagers wird und welche Rolle es hat, bestimmt nur die Abteilungsleitung. Das Recht gibt keinen Einblick in die Daten im Lager.",
+    "erweitert",
+    ALLE,
+  ),
+  "lager.vorlagen_pflegen": v(
+    "lager",
+    "Lager-Vorlagen pflegen",
+    "Vorlagen für Aufgaben und Packlisten anlegen, ändern und löschen, die neue Lager übernehmen können.",
+    "erweitert",
+    ALLE,
   ),
 
   // Mitteilungen
@@ -468,14 +477,31 @@ export const RECHTE_KATALOG = {
   ),
   "plattform.sperren": f(
     "plattform",
-    "Wartung und Informationssperre schalten",
-    "Einzelne Bereiche oder alles in Wartung setzen und die Informationssperre auslösen.",
+    "Informationssperre schalten",
+    "Einen Bereich oder alles sperren (Informationssperre) und die Sperre wieder aufheben. Die Wartung eines Bereichs ist ein eigenes, vergebbares Recht.",
     { entwickler: true },
   ),
-  "system.lesen": f(
+  "wartung.bereiche": v(
+    "plattform",
+    "Wartung der Bereiche schalten",
+    "Die Bereiche Lager, Chat, Programme und Verwaltung in Wartung setzen und wieder öffnen. Die Website hat ein eigenes Recht, die Informationssperre bleibt bei der Abteilungsleitung.",
+    "erweitert",
+    ALLE,
+    { entwickler: true },
+  ),
+  "system.lesen": v(
     "plattform",
     "Betriebszahlen lesen",
-    "Die Seite «System» mit Betriebszahlen und Sicherungen lesen.",
+    "Die Seite «System» mit Betriebszahlen und Anfragestatistik lesen, dazu den Stand der Kalender-Abgleiche, und einen Abgleich anstossen.",
+    "erweitert",
+    ALLE,
+  ),
+  "zeitregeln.verwalten": v(
+    "plattform",
+    "Erinnerungen (Zeitregeln) verwalten",
+    "Die Zeitregeln für Erinnerungen an Eltern anlegen, ändern und löschen.",
+    "erweitert",
+    ALLE,
   ),
 } as const satisfies Record<string, RechtEintrag>;
 

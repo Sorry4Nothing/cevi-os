@@ -74,6 +74,9 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
   "stufe.einblick": abteilungsleitungOderLeitung,
   "plattform.sperren": async (db, person) =>
     person.admin || (await istEntwickler(db, person)),
+  // Wartung eines Bereichs (#648): wie die Sperre bisher, Abteilungsleitung und Entwickler; neu zusätzlich über Rollen
+  "wartung.bereiche": async (db, person) =>
+    person.admin || (await istEntwickler(db, person)),
   "protokoll.lesen": (db, person) => istEntwickler(db, person),
   // Profilbild einer Person entfernen (#642): Abteilungsleitung oder Entwickler
   "profilbild.entfernen": async (db, person) =>

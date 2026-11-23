@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { PLATTFORM_RECHT_NAMEN, PLATTFORM_RECHTE } from "../src/plattform.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -15,8 +14,6 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
-// @ts-expect-error: Die Verwaltung besteht aus Browser-Modulen ohne Typen
-import * as logik from "../public/admin/rechte-logik.js";
 
 // «Rollen und Rechte» der Verwaltung (#623): die Route der Zuordnungen und die reine Logik der Seite
 
@@ -157,197 +154,18 @@ describe("GET /api/v1/admin/rechte/zuordnungen", () => {
   });
 });
 
-describe("Rollen und Rechte: Logik der Seite", () => {
-  const katalog = PLATTFORM_RECHT_NAMEN.map((recht) => ({
-    recht,
-    bedeutung: PLATTFORM_RECHTE[recht].bedeutung,
-    erweitert: PLATTFORM_RECHTE[recht].erweitert,
-  }));
-  const rolle = (id: string, rechte: string[], personen: string[]) => ({
-    id,
-    name: id,
-    vorgabe: false,
-    rechte,
-    personen: personen.map((p) => ({ id: p, name: p })),
-  });
-
-  test("jedes Recht des Katalogs hat einen Klartext, einen Bereich und eine Wirkung", () => {
-    expect(Object.keys(logik.RECHT_INFO).sort()).toEqual(
-      [...PLATTFORM_RECHT_NAMEN].sort(),
-    );
-    const bereiche = logik.BEREICHE.map((b: [string]) => b[0]);
-    for (const info of Object.values(logik.RECHT_INFO) as {
-      bereich: string;
-      wirkung: string;
-      text: string;
-    }[]) {
-      expect(bereiche).toContain(info.bereich);
-      expect(logik.WIRKUNG[info.wirkung]).toBeDefined();
-      expect(info.text.length).toBeGreaterThan(20);
-    }
-  });
-
-  test("ein Recht, das nur der Server kennt, erscheint unter «Weitere» mit seinem Text", () => {
-    const gruppen = logik.gruppiereKatalog([
-      ...katalog,
-      { recht: "neu.recht", bedeutung: "Etwas Neues", erweitert: true },
-    ]);
-    const weitere = gruppen.find(
-      (g: { schluessel: string }) => g.schluessel === "weitere",
-    );
-    expect(weitere.rechte.map((r: { recht: string }) => r.recht)).toEqual([
-      "neu.recht",
-    ]);
-    expect(weitere.rechte[0].titel).toBe("Etwas Neues");
-  });
-
-  test("ein Haken an und wieder aus ist keine Änderung", () => {
-    const r = rolle("a", ["seiten.bearbeiten"], []);
-    const entwurf = new Map();
-    logik.setzeRecht(entwurf, r, "medien.verwalten", true);
-    expect(logik.anzahlAenderungen([r], entwurf)).toBe(1);
-    logik.setzeRecht(entwurf, r, "medien.verwalten", false);
-    expect(entwurf.size).toBe(0);
-    expect(logik.anzahlAenderungen([r], entwurf)).toBe(0);
-  });
-
-  test("die Vorschau zählt Personen nach der Vereinigung ihrer Rollen und lässt die Abteilungsleitung aus", () => {
-    const a = rolle("a", ["seiten.bearbeiten"], ["p1", "p2", "admin"]);
-    const b = rolle("b", ["medien.verwalten"], ["p2"]);
-    const entwurf = new Map();
-    // a bekommt «medien.verwalten»: p1 gewinnt es, p2 hat es schon über b, admin zählt nicht
-    logik.setzeRecht(entwurf, a, "medien.verwalten", true);
-    // a verliert «seiten.bearbeiten»: p1 und p2 verlieren es
-    logik.setzeRecht(entwurf, a, "seiten.bearbeiten", false);
-    const heikel = (r: string) => r === "medien.verwalten";
-    const b2 = logik.betroffene([a, b], entwurf, new Set(["admin"]), heikel);
-    expect(b2.gewinnen.get("medien.verwalten")).toEqual(["p1"]);
-    expect(b2.verlieren.get("seiten.bearbeiten")).toEqual(["p1", "p2"]);
-    expect([...b2.personen].sort()).toEqual(["p1", "p2"]);
-    expect(b2.heikel.get("medien.verwalten")).toBe(1);
-  });
-
-  test("eine Rolle ohne Personen betrifft niemanden", () => {
-    const a = rolle("a", [], []);
-    const entwurf = new Map();
-    logik.setzeRecht(entwurf, a, "seiten.bearbeiten", true);
-    const b = logik.betroffene([a], entwurf, new Set(), () => false);
-    expect(b.personen.size).toBe(0);
-    expect(logik.vorschauText(b, (r: string) => r)).toMatch(/Niemand/);
-  });
-
-  const daten = () => ({
-    katalog,
-    stufen: [{ id: "s1", name: "Pilami" }],
-    personen: [
-      {
-        id: "u1",
-        name: "U Eins",
-        admin: false,
-        rollen: [{ stufeId: "s1", typ: "stufenleitung" }],
-      },
-      { id: "u2", name: "U Zwei", admin: true, rollen: [] },
-      { id: "u3", name: "U Drei", admin: false, rollen: [] },
-    ],
-    rollen: [rolle("r1", ["seiten.bearbeiten"], ["u1"])],
-    gruppen: [
-      {
-        id: "g1",
-        typ: "team",
-        name: "Mat",
-        mitglieder: [
-          { userId: "u1", rolle: "Verantwortlich" },
-          { userId: "u3", rolle: "Materialwart" },
-        ],
-      },
-    ],
-    lager: [
-      {
-        id: "l1",
-        titel: "Sola",
-        status: "aktiv",
-        mitglieder: [{ userId: "u3", rolle: "team" }],
-      },
-    ],
-    raeume: [
-      { id: "ra1", name: "Keller", teamTagId: "g1", aktiv: true },
-      { id: "ra2", name: "Heim", teamTagId: null, aktiv: true },
-    ],
-    sonderrechte: [{ id: "b1", seiteId: "se1", userId: null, tagId: "g1" }],
-    seiten: [{ id: "se1", titel: "Teamseite" }],
-  });
-  const zeile = (z: { schluessel: string }[], s: string) =>
-    z.find((x) => x.schluessel === s) as
-      | { quellen: { umfang: string; herkunft: string; zf: boolean }[] }
-      | undefined;
-
-  test("Was darf wer: jede Quelle nennt Herkunft und zweiten Faktor", () => {
-    const z = logik.darfVon("u1", daten());
-    const bearbeiten = zeile(z, "seiten.bearbeiten")!;
-    expect(bearbeiten.quellen.map((q) => q.herkunft)).toEqual([
-      "Rolle «r1»",
-      "Stufenleitung",
-      "Verantwortlich im Team",
-      "Sonderrecht der Gruppe «Mat»",
-    ]);
-    // Die Stufenleitung arbeitet an der eigenen Stufenseite ohne zweiten Faktor (docs/rechte.md, Abschnitt 2)
-    expect(bearbeiten.quellen.map((q) => q.zf)).toEqual([
-      true,
-      false,
-      true,
-      true,
-    ]);
-    expect(zeile(z, "raum.entscheiden")!.quellen).toHaveLength(1);
-    // Ein Recht ohne Quelle erscheint nicht
-    expect(zeile(z, "medien.verwalten")).toBeUndefined();
-  });
-
-  test("Was darf wer: «Verantwortlich» zählt nur mit dem Wort, nicht mit einer anderen Bezeichnung", () => {
-    const z = logik.darfVon("u3", daten());
-    expect(
-      zeile(z, "seiten.bearbeiten")!.quellen.map((q) => q.herkunft),
-    ).toEqual(["Sonderrecht der Gruppe «Mat»"]);
-    // Gruppe und Lager: Vorschlagen und Lagerrolle, aber keine Seite des Teams
-    expect(zeile(z, "termine.vorschlagen")!.quellen).toHaveLength(1);
-    expect(zeile(z, "lager")!.quellen[0].herkunft).toBe("Rolle Team");
-  });
-
-  test("Was darf wer: die Abteilungsleitung hat alles und die Räume ohne Team", () => {
-    const z = logik.darfVon("u2", daten());
-    expect(zeile(z, "verwaltung")).toBeDefined();
-    for (const r of PLATTFORM_RECHT_NAMEN) {
-      expect(zeile(z, r)!.quellen[0].herkunft).toBe("Abteilungsleitung");
-    }
-    expect(zeile(z, "raum.entscheiden")!.quellen[0].umfang).toBe(
-      "Raum «Heim» (ohne Team)",
-    );
-  });
-
-  test("Was darf wer: eine unbekannte Person gibt nichts", () => {
-    expect(logik.darfVon("nie", daten())).toEqual([]);
-  });
-
-  test("was eine Gruppe trägt: Team, Funktion, Stufe und Lager", () => {
-    const d = daten();
-    const traegt = (typ: string) =>
-      logik
-        .gruppeTraegt({ id: "g1", typ, name: "X", mitglieder: [] }, d)
-        .map((t: { schluessel: string }) => t.schluessel);
-    expect(traegt("team")).toEqual(["seite", "vorschlag", "raeume"]);
-    expect(traegt("funktion")).toEqual(["vorschlag", "raeume"]);
-    expect(traegt("stufe")).toEqual(["raeume", "stufe"]);
-    expect(traegt("lager")).toEqual(["raeume", "lager"]);
-  });
-});
-
 describe("Rollen und Rechte: Oberfläche", () => {
   const DATEIEN = [
     "rechte.js",
+    "rechte-api.js",
     "rechte-gemeinsam.js",
+    "rechte-matrix.js",
+    "rechte-modell.js",
+    "rechte-rolle.js",
     "rechte-rollen.js",
     "rechte-gruppen.js",
     "rechte-uebersicht.js",
-    "rechte-logik.js",
+    "rechte-anlass.js",
   ];
   const alle = DATEIEN.map(lies).join("\n");
 
@@ -357,11 +175,25 @@ describe("Rollen und Rechte: Oberfläche", () => {
   });
 
   test("sie ruft nur Routen auf, die die API kennt", () => {
-    expect(alle).toContain("/api/v1/admin/plattform/rollen");
-    expect(alle).toContain("/api/v1/admin/rechte/zuordnungen");
-    expect(alle).toContain("/api/v1/admin/personen");
-    expect(alle).toContain("/api/v1/admin/bearbeiter");
-    expect(alle).toContain("/api/v1/admin/tags/");
+    for (const pfad of [
+      "/api/v1/admin/rechte",
+      "/api/v1/admin/personen",
+      "/api/v1/admin/tags",
+      "/api/v1/admin/plattform/rollen/",
+    ]) {
+      expect(alle).toContain(pfad);
+    }
+    const api = lies("rechte-api.js");
+    for (const teil of [
+      "/katalog",
+      "/gruppen",
+      "/rollen",
+      "/personen/",
+      "/aenderungen",
+      "/rollen/vorschau",
+    ]) {
+      expect(api).toContain(teil);
+    }
   });
 
   test("kein Popup, kein Polling, keine Inline-Stile, keine Farbwerte", () => {
@@ -371,8 +203,52 @@ describe("Rollen und Rechte: Oberfläche", () => {
     expect(lies("rechte.css")).not.toMatch(/:\s*[^;{]*#[0-9a-fA-F]{3,8}\b/);
   });
 
-  test("Rechte werden nie als Schlüssel angezeigt: jede Matrixzeile trägt Klartext", () => {
-    expect(lies("rechte-rollen.js")).toContain("r.titel");
-    expect(lies("rechte-rollen.js")).toContain("r.text");
+  test("Rechte werden nie als Schlüssel angezeigt: die Matrix zeigt Klartext und Erklärung des Katalogs", () => {
+    const matrix = lies("rechte-matrix.js");
+    expect(matrix).toContain("recht.klartext");
+    expect(matrix).toContain("recht.erklaerung");
+  });
+
+  test("jede Zelle ist eine Radiogruppe mit Namen, jedes Segment 44 px hoch, Pfeiltasten wechseln", () => {
+    const matrix = lies("rechte-matrix.js");
+    expect(matrix).toContain('role: "radiogroup"');
+    expect(matrix).toContain('role: "radio"');
+    expect(matrix).toContain("ArrowRight");
+    expect(lies("rechte.css")).toMatch(/\.rr-segment \{[^}]*min-height: 44px/);
+  });
+
+  test("Karten für schmale Bildschirme und die Matrix teilen sich einen Entwurf", () => {
+    const matrix = lies("rechte-matrix.js");
+    expect(matrix).toContain("baueKarten");
+    expect(matrix).toContain("baueTabelle");
+    expect(matrix).toContain("setzeZelle(z.entwurf");
+  });
+
+  test("der Server entscheidet über Versionen: Speichern schickt die Version mit, ein Konflikt behält den Entwurf", () => {
+    const seite = lies("rechte.js");
+    expect(seite).toContain("version: rolle.version");
+    expect(seite).toContain("VERSION_KONFLIKT");
+    expect(seite).toContain("uebernehmeStand");
+    expect(seite).toMatch(/zweiStufig/);
+  });
+
+  test("Reihenfolge der Rollen per Ziehen, Tastatur und Knöpfen", () => {
+    const gruppen = lies("rechte-gruppen.js");
+    expect(gruppen).toContain("sortierListe");
+    expect(gruppen).toContain("mitRueckgaengig");
+  });
+
+  test("Löschen zeigt die Folgen am Ort und fragt zweimal", () => {
+    const rolle = lies("rechte-rolle.js");
+    expect(rolle).toContain("bestaetigeAmOrt");
+    expect(rolle).toContain("verlieren die Rolle");
+    expect(rolle).toContain("lässt sich nicht rückgängig machen");
+  });
+
+  test("die Anlass-Seite legt das OK mit den Rollenvorschlägen an", () => {
+    expect(lies("termine-anlaesse.js")).toContain("rechte-anlass.js");
+    const anlass = lies("rechte-anlass.js");
+    expect(anlass).toContain("vorschlaegeFuer");
+    expect(anlass).toContain('typ: "anlass"');
   });
 });
