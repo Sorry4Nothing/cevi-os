@@ -1,4 +1,4 @@
-import { anfrage } from "./api.js";
+import { anfrage, kennungGueltig } from "./api.js";
 import { ankreuzen, auswahl, el, filterGruppe, icon, knopf } from "./dom.js";
 import { ersetze, heuteZuerich } from "./kalenderhilfen.js";
 import {
@@ -18,6 +18,7 @@ import {
   zuerichTeile,
 } from "./belegung-layout.js";
 import { sk } from "./lader.js";
+import { gueltigerTag } from "./termine-monat.js";
 import { ersetzeAdresse, schiebeAdresse } from "./verlauf.js";
 import {
   leerKarte,
@@ -34,7 +35,6 @@ import {
 const BASIS = "/api/v1/raeume/belegung";
 const ANSICHTEN = ["woche", "tag", "liste"];
 const KOMPAKT = "(max-width: 760px)";
-const DATUM = /^\d{4}-\d{2}-\d{2}$/;
 const STATUS = {
   bestaetigt: { text: "Bestätigt", symbol: "haken" },
   angefragt: { text: "Angefragt", symbol: "uhr" },
@@ -82,8 +82,8 @@ function periodenTitel(art, datum) {
 
 export function ansichtAusPfad(pfad, heute) {
   const art = ANSICHTEN.includes(pfad[0]) ? pfad[0] : null;
-  const datum = DATUM.test(pfad[1] ?? "") ? pfad[1] : heute;
-  const raumId = /^[0-9a-f-]{36}$/.test(pfad[2] ?? "") ? pfad[2] : "";
+  const datum = gueltigerTag(pfad[1] ?? "") ? pfad[1] : heute;
+  const raumId = kennungGueltig(pfad[2] ?? "") ? pfad[2] : "";
   return { art, datum, raumId };
 }
 
@@ -623,7 +623,17 @@ function hinweisKarte(ctx) {
     el(
       "p",
       {},
-      "Einen Raum fragst du in der Cevi-OS-App an. Das zuständige Team oder die Abteilungsleitung bestätigt die Anfrage. Erst dann erscheint die Zeit hier als bestätigt; bis dahin steht sie als angefragt da.",
+      "Einen Raum fragst du unter «Meine Anfragen» an, in der Verwaltung oder in der Cevi-OS-App. Das zuständige Team oder die Abteilungsleitung bestätigt die Anfrage. Erst dann erscheint die Zeit hier als bestätigt; bis dahin steht sie als angefragt da.",
+    ),
+    el(
+      "p",
+      {},
+      el(
+        "a",
+        { class: "knopf knopf--klein", href: "#raeume/meine" },
+        icon("kalender"),
+        "Raum anfragen",
+      ),
     ),
     ctx.zugang.termine.raumAnfragen &&
       el(

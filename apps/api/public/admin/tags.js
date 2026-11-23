@@ -1,4 +1,4 @@
-import { anfrage } from "./api.js";
+import { anfrage, kennungGueltig } from "./api.js";
 import { flussOffen } from "./fluss.js";
 import { aktionenZelle, chip, el, icon, knopf, tabelle } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
@@ -31,6 +31,9 @@ const zustand = {
 
 export function zeige(bereich, ctx) {
   const [id] = ctx.pfad;
+  // Die Kennung geht in Pfade der API: nur eine echte UUID, sonst «Diese Seite gibt es nicht» ohne Anfrage
+  if (id && (!kennungGueltig(id) || ctx.pfad.length > 1))
+    return ctx.nichtGefunden();
   if (id) return zeigeDetail(bereich, ctx, id);
   zustand.frage = "";
   zustand.typ = "alle";

@@ -1,4 +1,4 @@
-import { anfrage } from "./api.js";
+import { anfrage, kennungGueltig } from "./api.js";
 import { gehe, zurueckKlick } from "./verlauf.js";
 import {
   auswahl,
@@ -61,6 +61,8 @@ export function zeige(bereich, ctx) {
     return;
   }
   const [id, reiter] = pfad;
+  // Die Kennung geht in Pfade der API: nur eine echte UUID, sonst «Diese Seite gibt es nicht» ohne Anfrage
+  if (id && !kennungGueltig(id)) return ctx.nichtGefunden();
   if (id) zeigeAnlass(bereich, ctx, id, reiter);
   else zeigeListe(bereich, ctx);
 }

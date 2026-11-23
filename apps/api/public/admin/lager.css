@@ -272,13 +272,6 @@ a.name.lg-name {
   background: var(--secondary-container);
 }
 
-.lg-person input {
-  width: 1.375rem;
-  height: 1.375rem;
-  margin: 0;
-  accent-color: var(--secondary);
-}
-
 .lg-person-text {
   display: flex;
   flex-direction: column;
@@ -418,13 +411,6 @@ a.name.lg-name {
   gap: 0.5rem;
   min-height: 2.75rem;
   cursor: pointer;
-}
-
-.lg-schalter input {
-  width: 1.375rem;
-  height: 1.375rem;
-  margin: 0;
-  accent-color: var(--secondary);
 }
 
 /* Die Leiste mit den ungespeicherten Änderungen haftet am unteren Rand */

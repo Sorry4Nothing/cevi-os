@@ -1,0 +1,418 @@
+/* Module «Sitzungen und Mitteilen» im Lager-Arbeitsbereich (#673): Höcks, Traktanden, Höck-Modus, Protokolle, Pinnwand, Umfragen, Eingang, Erwähnungen, Dokumente. Klassen mit dem Vorsatz «lg-sm-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung. */
+
+.lg-sm-inhalt,
+.lg-sm-liste,
+.lg-sm-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lg-sm-werkzeug {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lg-sm-aktionen {
+  justify-content: flex-start;
+}
+
+.lg-sm-blockkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 16px;
+}
+
+.lg-sm-blockkopf h2 {
+  margin: 0;
+}
+
+.lg-sm-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lg-sm-zitat {
+  padding: 12px 16px;
+  background: var(--surface-container-low);
+  border-left: 4px solid var(--rand);
+  border-radius: 0 8px 8px 0;
+}
+
+/* Angaben eines Höcks als Liste mit Namen und Werten */
+.lg-sm-angaben {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+  gap: 12px 24px;
+  margin: 0;
+}
+
+.lg-sm-angaben dt {
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.lg-sm-angaben dd {
+  margin: 0;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.lg-sm-zeile {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+/* Traktanden */
+.lg-sm-traktandum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.lg-sm-trakt-kopf,
+.lg-sm-umfragekopf,
+.lg-sm-beitragkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.lg-sm-lesen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-lesen > li {
+  padding: 12px 16px;
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.lg-sm-entscheid,
+.lg-sm-antwort {
+  margin: 0;
+  padding: 8px 12px;
+  background: var(--surface-container-low);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+.lg-sm-links,
+.lg-sm-dateien {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-dateien li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lg-sm-schnell {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lg-sm-schnell .feld {
+  flex: 1 1 18rem;
+}
+
+/* Zeilen für Links und Dateien im Formular */
+.lg-sm-linkliste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.lg-sm-linkzeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  align-items: start;
+  gap: 8px 12px;
+}
+
+.lg-sm-linkzeile > .knopf {
+  margin-top: 28px;
+}
+
+/* Anwesende */
+.lg-sm-personen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Mehrzeilige Felder im Höck-Modus brauchen weniger Höhe */
+.lg-sm-spalte .feld textarea {
+  min-height: 6.5rem;
+}
+
+/* Höck-Modus: links die Bühne und der Ablauf, rechts Anwesenheit und Runde */
+.lg-sm-modus {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.lg-sm-spalte {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lg-sm-gross {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+}
+
+.lg-sm-ablauf {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-ablaufknopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  color: var(--text);
+  text-align: left;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lg-sm-ablaufknopf:hover {
+  background: var(--surface-container-low);
+}
+
+.lg-sm-ablaufknopf[aria-current="step"] {
+  background: var(--blau-f);
+  border-color: var(--akzent);
+  font-weight: 700;
+}
+
+.lg-sm-nr {
+  display: inline-grid;
+  flex: none;
+  place-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--rand);
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lg-sm-runde {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-ressort summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+/* Pinnwand */
+.lg-sm-karten {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-beitrag,
+.lg-sm-erwaehnung,
+.lg-sm-beschluss {
+  gap: 12px;
+}
+
+.lg-sm-beitragkopf {
+  align-items: flex-start;
+}
+
+.lg-sm-beitragtitel {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.lg-sm-h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  overflow-wrap: anywhere;
+}
+
+.lg-sm-chips,
+.lg-sm-reaktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-reaktionen .knopf[aria-pressed="true"] {
+  color: var(--auf-blau);
+  background: var(--blau);
+  border-color: var(--blau);
+}
+
+.lg-sm-umfrage {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.lg-sm-optionen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-sm-ergebnis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.lg-sm-ergebnis progress {
+  flex: 1 1 10rem;
+  height: 10px;
+  accent-color: var(--akzent);
+}
+
+.lg-sm-gesehen summary {
+  min-height: 44px;
+  color: var(--leise);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.lg-sm-empfaenger {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Eingang, Erwähnungen, Tabellen */
+.lg-sm-meldungstext {
+  min-width: 16rem;
+  overflow-wrap: anywhere;
+}
+
+.lg-sm-antwortzeile {
+  display: block;
+}
+
+.lg-sm-eigene {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.lg-sm-eigene:first-child {
+  border-top: 0;
+}
+
+.lg-sm-anonym {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Konflikt in einem Formular */
+.lg-konflikt .lg-konflikt-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lg-konflikt-liste {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+@media (max-width: 900px) {
+  .lg-sm-modus {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .lg-sm-zeile,
+  .lg-sm-linkzeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lg-sm-linkzeile > .knopf {
+    margin-top: 0;
+    justify-self: start;
+  }
+}

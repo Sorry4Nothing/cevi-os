@@ -18,13 +18,15 @@ const seiten = rendereTermineSeiten(kontext);
 const PUBLIC = new URL("../public/website/", import.meta.url);
 
 describe("Seiten für Termine und Anlässe", () => {
-  test("vier Dateien an den Adressen termine und anlass", () => {
+  test("sechs Dateien an den Adressen termine, anlass, termin und konto", () => {
     expect(seiten.map(([d]) => d)).toEqual(TERMINE_DATEIEN);
     expect(TERMINE_DATEIEN).toEqual([
       "termine/index.html",
       "termine/vorschlagen/index.html",
       "anlass/index.html",
       "anlass/anmeldung/index.html",
+      "termin/index.html",
+      "konto/index.html",
     ]);
   });
 
@@ -89,6 +91,18 @@ describe("Seiten für Termine und Anlässe", () => {
     expect(
       seiten.find(([d]) => d === "anlass/anmeldung/index.html")![1],
     ).toContain('<h1 id="tm-titel">Anmeldung</h1>');
+  });
+
+  test("Termin (#671) hat Platz für Datum und Titel, Mein Konto einen festen Titel", () => {
+    const termin = seiten.find(([d]) => d === "termin/index.html")![1];
+    expect(termin).toContain('<p class="kicker" hidden></p>');
+    expect(termin).toContain('data-seite="termin"');
+    const konto = seiten.find(([d]) => d === "konto/index.html")![1];
+    expect(konto).toContain('<h1 id="tm-titel">Mein Konto</h1>');
+    expect(konto).toContain('data-seite="konto"');
+    // Beide sind ohne Anmeldung leer: kein Inhalt im HTML, kein Kind, keine Person
+    expect(termin).not.toMatch(/Kind|Telefon/);
+    expect(konto).not.toMatch(/Telefon|Benutzername/);
   });
 });
 

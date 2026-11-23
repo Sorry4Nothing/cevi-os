@@ -9,6 +9,7 @@ import {
 } from "./rechte-api.js";
 import { ADRESSE, adresse } from "./rechte-gemeinsam.js";
 import {
+  adresseGueltig,
   aenderungenJeRolle,
   anzahlAenderungen,
   anzahlRollen,
@@ -57,6 +58,8 @@ export function zeige(bereich, ctx) {
   // Hat der Bereich nur eine Unterseite (so sieht es der Entwickler), steht «rechte» noch vorn im Pfad
   const pfad = ctx.pfad[0] === "rechte" ? ctx.pfad.slice(1) : ctx.pfad;
   const [reiter = "gruppen", ...rest] = pfad;
+  // Unbekannter Reiter oder Kennung, die keine UUID ist: «Diese Seite gibt es nicht», ohne eine Anfrage an den Server
+  if (!adresseGueltig(reiter, rest)) return ctx.nichtGefunden();
   ctx.lade(
     ladeGrund,
     (daten, neu) => zeichne(bereich, ctx, daten, neu, reiter, rest),
