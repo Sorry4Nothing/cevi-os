@@ -24,8 +24,7 @@ const CSS = readFileSync(
   "utf8",
 );
 
-const THEMA_SKRIPT =
-  '<script src="/website/theme.js"></script>\n<script src="/website/bilder.js"></script>';
+const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
   id: id(),
@@ -436,8 +435,8 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    // Menü, theme.js, bilder.js und anmelden.js, alle eigene Dateien
-    expect(zaehle(html, "<script")).toBe(4);
+    // Menü, theme.js und anmelden.js, alle eigene Dateien
+    expect(zaehle(html, "<script")).toBe(3);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });
