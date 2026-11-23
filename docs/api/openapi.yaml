@@ -21312,6 +21312,509 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/laden:
+    get:
+      operationId: holeLaden
+      summary: Lädeli lesen
+      description: |
+        Für jede angemeldete Person: alle Artikel der eigenen Abteilung in der Reihenfolge des Ladens (auch nicht verfügbare, mit `verfuegbar: false`), die Übergabearten und die Grenzen für eine Bestellung. Die Website fragt es einmal beim Öffnen des Ladens, auch um zu erkennen, ob jemand angemeldet ist: Ohne Sitzung antwortet es 401, und der Laden zeigt sich nur zum Ansehen.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung oder bei deaktiviertem Konto. 403, wenn noch ein Passwortwechsel aussteht.
+
+        Datenbanklast: zwei Abfragen (Artikel, Übergabearten), parallel; höchstens 200 Artikel.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Artikel, Übergabearten und Grenzen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenAnsicht"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/laden/bestellungen/meine:
+    get:
+      operationId: listeMeineLadenBestellungen
+      summary: Eigene Bestellungen im Lädeli
+      description: |
+        Für jede angemeldete Person: die eigenen Bestellungen in jedem Stand, neueste zuerst, mit ihren Positionen. `nach` ist die ID des letzten Eintrags der Vorseite (`naechste`).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Parameter, `limit` ausserhalb von 1 bis 100, `nach` keine UUID). 401 ohne gültige Sitzung oder bei deaktiviertem Konto. 403, wenn noch ein Passwortwechsel aussteht.
+
+        Datenbanklast: zwei Abfragen je Seite (Bestellungen mit Index auf die Person, dann alle ihre Positionen in einer Abfrage).
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenLimit"
+        - $ref: "#/components/parameters/LadenNach"
+      responses:
+        "200":
+          description: Eine Seite eigener Bestellungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenBestellungenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/laden/bestellungen:
+    post:
+      operationId: bestelleImLaden
+      summary: Im Lädeli bestellen
+      description: |
+        Für jede angemeldete Person. Die Anfrage nennt nur Artikel, Variante und Menge; Name, Einzelpreis und Summe liest der Server in derselben Transaktion aus den Artikeln der eigenen Abteilung und speichert sie als Stand der Bestellung. Ein Preis oder eine Summe in der Anfrage ist 400 (unbekanntes Feld), `erwarteteSummeRappen` ausgenommen: Es ist die Summe, die die Person gesehen hat; weicht sie ab, entsteht keine Bestellung (409 `PREIS_GEAENDERT` mit der neuen `summeRappen`). Keine Zahlung: Bezahlt wird bei der Übergabe.
+
+        Grenzen: 1 bis 20 Positionen, Menge 1 bis 10, derselbe Artikel in derselben Variante nur einmal (sonst 400), höchstens 5 offene oder bereitgestellte Bestellungen je Person (409 `BESTELL_LIMIT`), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 429 bei zu vielen Versuchen.
+
+        Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LadenBestellen"
+      responses:
+        "201":
+          description: Die Bestellung mit Positionen und berechneter Summe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenBestellung"
+        "400":
+          description: Ungültige Eingabe, oder `VARIANTE_UNGUELTIG` und `UEBERGABE_UNBEKANNT` mit Text.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Nichts bestellt. `ARTIKEL_NICHT_VERFUEGBAR` (mit `artikelIds`), `PREIS_GEAENDERT` (mit der neuen `summeRappen`) oder `BESTELL_LIMIT`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/laden/bestellungen/{id}:
+    delete:
+      operationId: storniereLadenBestellung
+      summary: Eigene offene Bestellung stornieren
+      description: |
+        Für jede angemeldete Person, nur für die eigene Bestellung und nur, solange sie `offen` ist. Die Zeile bleibt mit Stand `storniert` bis zur Löschfrist. Ein zweites Stornieren ist wieder 204. Eine fremde Bestellung ist unbekannt (404), auch für die Abteilungsleitung (sie nutzt die Verwaltung). Hat die Abteilung die Bestellung schon bereitgestellt oder übergeben, ist es 409 `STATUS_UNGUELTIG`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 404, wenn es die Bestellung nicht gibt oder sie einer anderen Person oder Abteilung gehört. 409 `STATUS_UNGUELTIG`.
+
+        Datenbanklast: eine Abfrage zum Lesen, dann eine Transaktion mit bedingtem Update und Audit-Eintrag.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenBestellungId"
+      responses:
+        "204":
+          description: Storniert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Die Bestellung ist nicht mehr offen (`STATUS_UNGUELTIG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/artikel:
+    get:
+      operationId: listeAdminLadenArtikel
+      summary: Artikel des Lädelis für die Verwaltung
+      description: |
+        Nur Admins mit zweitem Faktor. Alle Artikel der eigenen Abteilung, auch die nicht verfügbaren.
+
+        Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung. 403 für Nicht-Admins, bei fehlendem zweitem Faktor (`ZWEITER_FAKTOR_FEHLT`) oder offenem Passwortwechsel.
+
+        Datenbanklast: eine Abfrage, höchstens 200 Artikel.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Artikel der Abteilung.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - artikel
+                properties:
+                  artikel:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/LadenArtikel"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminLadenArtikelAn
+      summary: Artikel anlegen
+      description: |
+        Nur Admins mit zweitem Faktor. Die Grösse ist Pflicht: `groessenart` ist `einheit` (der Artikel gibt es nur in einer Grösse; keine `varianten`) oder `liste` (mindestens zwei verschiedene `varianten`, höchstens 20, je höchstens 40 Zeichen). Ohne Angabe oder mit einer Liste, die nicht passt, antwortet die Route 422 mit `code` und dem Feld `feld`. Die Art wird nicht gespeichert; sie folgt aus der Liste (leer heisst Einheitsgrösse). Preis in Rappen als Ganzzahl von 0 bis 1 000 000. Das Bild muss ein öffentliches Bild der Medienbibliothek der eigenen Abteilung sein (sonst 400 `MEDIUM_UNGEEIGNET`). Ohne `reihenfolge` kommt der Artikel ans Ende. Höchstens 200 Artikel (409 `ARTIKEL_LIMIT`). Das Audit-Log hält nur die Kennung fest. Danach erzeugt der Abgleich die Seiten mit dem Laden neu.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder ungeeignetem Bild. 403 für Nicht-Admins. 409 `ARTIKEL_LIMIT`. 422 `GROESSE_FEHLT` oder `GROESSE_UNGUELTIG`.
+
+        Datenbanklast: eine Transaktion mit Sperre je Abteilung, Zählen, Einfügen und Audit-Eintrag; vorher eine Abfrage für das Bild, wenn eines genannt ist.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LadenArtikelAnlegen"
+      responses:
+        "201":
+          description: Der Artikel ist angelegt.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+        "400":
+          description: Ungültige Eingabe oder `MEDIUM_UNGEEIGNET`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Das Lädeli fasst höchstens 200 Artikel (`ARTIKEL_LIMIT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "422":
+          $ref: "#/components/responses/LadenGroesse422"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/artikel/{id}:
+    patch:
+      operationId: aendereAdminLadenArtikel
+      summary: Artikel ändern
+      description: |
+        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. Das Audit-Log hält nur die Namen der geänderten Felder fest.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Bild (400).
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404, 422 wie beschrieben.
+
+        Datenbanklast: eine Abfrage für den Artikel, eine für das Bild (falls genannt), eine Transaktion mit Update und Audit-Eintrag.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenArtikelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LadenArtikelAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          description: Ungültige Eingabe oder `MEDIUM_UNGEEIGNET`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "422":
+          $ref: "#/components/responses/LadenGroesse422"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminLadenArtikel
+      summary: Artikel löschen
+      description: |
+        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Das Löschen ist endgültig und der Artikel verschwindet von der Website. Positionen bestehender Bestellungen bleiben mit Name und Preis stehen (ihr Verweis auf den Artikel wird leer). Soll ein Artikel nur nicht bestellbar sein, setzt man `verfuegbar: false`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Artikel unbekannt ist oder zu einer anderen Abteilung gehört (auch ein zweites Löschen).
+
+        Datenbanklast: eine Abfrage für den Artikel, eine Transaktion mit Löschen und Audit-Eintrag.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenArtikelId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/bestellungen:
+    get:
+      operationId: listeAdminLadenBestellungen
+      summary: Bestellungen im Lädeli für die Verwaltung
+      description: |
+        Nur Admins mit zweitem Faktor. Die Bestellungen der eigenen Abteilung, neueste zuerst, wahlweise nur ein `status`, mit Name und Cevi-Name der bestellenden Person und allen Positionen. `nach` ist die ID des letzten Eintrags der Vorseite.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne gültige Sitzung. 403 für Nicht-Admins oder bei fehlendem zweitem Faktor.
+
+        Datenbanklast: zwei Abfragen je Seite (Bestellungen mit Konto im Join, dann alle ihre Positionen); Index auf Abteilung, Stand und ID.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenLimit"
+        - $ref: "#/components/parameters/LadenNach"
+        - name: status
+          in: query
+          required: false
+          description: Nur Bestellungen in diesem Stand.
+          schema:
+            $ref: "#/components/schemas/LadenStatus"
+      responses:
+        "200":
+          description: Eine Seite Bestellungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenAdminBestellungenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/bestellungen/{id}/status:
+    post:
+      operationId: setzeAdminLadenBestellungStatus
+      summary: Stand einer Bestellung setzen
+      description: |
+        Nur Admins mit zweitem Faktor, nur Bestellungen der eigenen Abteilung. `offen` und `bereit` lassen sich wechseln, in `uebergeben` und `storniert` gehen beide über; `uebergeben` und `storniert` sind endgültig. Derselbe Stand ein zweites Mal ist wieder 200. Das UPDATE ist bedingt auf den gelesenen Stand: Setzen zwei Personen ihn zugleich, ist die zweite 409 `STATUS_UNGUELTIG`. Das Audit-Log hält Kennung und neuen Stand fest.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Bestellung in der eigenen Abteilung (404), Admin-Recht (403), Übergang (409).
+
+        Statuscodes: 200 bei Erfolg. 400, 403, 404 wie beschrieben. 409 `STATUS_UNGUELTIG`.
+
+        Datenbanklast: eine Abfrage zum Lesen, eine Transaktion mit bedingtem Update und Audit-Eintrag.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/LadenBestellungId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - status
+              additionalProperties: false
+              properties:
+                status:
+                  $ref: "#/components/schemas/LadenStatus"
+      responses:
+        "200":
+          description: Der Stand ist gesetzt.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - status
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  status:
+                    $ref: "#/components/schemas/LadenStatus"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Dieser Wechsel ist nicht erlaubt oder der Stand hat sich inzwischen geändert (`STATUS_UNGUELTIG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/einstellungen:
+    get:
+      operationId: holeAdminLadenEinstellungen
+      summary: Übergabearten des Lädelis
+      description: |
+        Nur Admins mit zweitem Faktor. Die Übergabearten der Abteilung; ohne eigene Einstellung gilt «Abholung im Lädeli».
+
+        Statuscodes: 200 bei Erfolg. 401, 403 wie bei den anderen Routen der Verwaltung.
+
+        Datenbanklast: eine Abfrage.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Übergabearten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenEinstellung"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminLadenEinstellungen
+      summary: Übergabearten des Lädelis ersetzen
+      description: |
+        Nur Admins mit zweitem Faktor. Ersetzt die Liste der Übergabearten (1 bis 5, je 1 bis 80 Zeichen ohne Steuerzeichen, ohne Doppelte). Bestehende Bestellungen behalten ihren Text. Die Übergabearten stehen im Laden der Website: Der Abgleich erzeugt die Seiten neu.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401, 403 wie bei den anderen Routen der Verwaltung.
+
+        Datenbanklast: eine Transaktion mit Upsert und Audit-Eintrag (nur die Anzahl).
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LadenEinstellung"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /admin/laedeli.js:
+    get:
+      operationId: getAdminLaedeliSkript
+      summary: Skript der Verwaltung – Bereich Lädeli
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/laedeli.css:
+    get:
+      operationId: getAdminLaedeliStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lädeli
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
 components:
   schemas:
     Fehler:
@@ -34743,6 +35246,409 @@ components:
         mitnehmen:
           type: [string, "null"]
           maxLength: 1000
+    LadenStatus:
+      type: string
+      enum:
+        - offen
+        - bereit
+        - uebergeben
+        - storniert
+      description: Stand einer Bestellung. `uebergeben` und `storniert` sind endgültig.
+    LadenArtikel:
+      type: object
+      required:
+        - id
+        - name
+        - preisRappen
+        - mediumId
+        - groessenart
+        - varianten
+        - hinweis
+        - verfuegbar
+        - reihenfolge
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        preisRappen:
+          type: integer
+          minimum: 0
+          description: Preis in Rappen; 0 heisst gratis.
+        mediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Öffentliches Bild aus der Medienbibliothek (`GET /api/v1/medien/{id}`), oder `null`.
+        groessenart:
+          type: string
+          enum:
+            - einheit
+            - liste
+          description: "`einheit`: Einheitsgrösse, keine Auswahl im Laden. `liste`: die Person wählt eine der `varianten`."
+        varianten:
+          type: array
+          items:
+            type: string
+          description: Leer bei Einheitsgrösse, sonst mindestens zwei Einträge.
+        hinweis:
+          type:
+            - string
+            - "null"
+        verfuegbar:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 9999
+    LadenAnsicht:
+      type: object
+      required:
+        - artikel
+        - uebergabearten
+        - grenzen
+      properties:
+        artikel:
+          type: array
+          items:
+            $ref: "#/components/schemas/LadenArtikel"
+        uebergabearten:
+          type: array
+          items:
+            type: string
+        grenzen:
+          type: object
+          required:
+            - positionen
+            - menge
+            - offeneBestellungen
+          properties:
+            positionen:
+              type: integer
+              description: Höchstens so viele Positionen je Bestellung (20).
+            menge:
+              type: integer
+              description: Höchstens so viele Stück je Position (10).
+            offeneBestellungen:
+              type: integer
+              description: Höchstens so viele offene oder bereitgestellte Bestellungen je Person (5).
+    LadenBestellPosition:
+      type: object
+      required:
+        - artikelId
+        - name
+        - variante
+        - menge
+        - einzelpreisRappen
+      properties:
+        artikelId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: "`null`, wenn der Artikel gelöscht wurde; Name und Preis bleiben."
+        name:
+          type: string
+          description: Name des Artikels beim Bestellen.
+        variante:
+          type:
+            - string
+            - "null"
+        menge:
+          type: integer
+          minimum: 1
+          maximum: 10
+        einzelpreisRappen:
+          type: integer
+          minimum: 0
+          description: Preis beim Bestellen; eine spätere Änderung am Artikel ändert ihn nicht.
+    LadenBestellung:
+      type: object
+      required:
+        - id
+        - status
+        - uebergabe
+        - summeRappen
+        - erstelltAm
+        - geaendertAm
+        - positionen
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          $ref: "#/components/schemas/LadenStatus"
+        uebergabe:
+          type: string
+        summeRappen:
+          type: integer
+          minimum: 0
+          description: Vom Server aus den Artikelpreisen gerechnet.
+        erstelltAm:
+          type: string
+          format: date-time
+        geaendertAm:
+          type: string
+          format: date-time
+        positionen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LadenBestellPosition"
+    LadenBestellungenSeite:
+      type: object
+      required:
+        - bestellungen
+        - weitere
+        - naechste
+      properties:
+        bestellungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LadenBestellung"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: ID des letzten Eintrags dieser Seite; als `nach` für die nächste. `null` ohne weitere.
+    LadenAdminBestellung:
+      allOf:
+        - $ref: "#/components/schemas/LadenBestellung"
+        - type: object
+          required:
+            - person
+          properties:
+            person:
+              type: object
+              required:
+                - id
+                - name
+                - ceviName
+              properties:
+                id:
+                  type: string
+                  format: uuid
+                name:
+                  type: string
+                ceviName:
+                  type:
+                    - string
+                    - "null"
+    LadenAdminBestellungenSeite:
+      type: object
+      required:
+        - bestellungen
+        - weitere
+        - naechste
+      properties:
+        bestellungen:
+          type: array
+          items:
+            $ref: "#/components/schemas/LadenAdminBestellung"
+        weitere:
+          type: boolean
+        naechste:
+          type:
+            - string
+            - "null"
+          format: uuid
+    LadenBestellen:
+      type: object
+      required:
+        - positionen
+        - uebergabe
+      additionalProperties: false
+      properties:
+        positionen:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: object
+            required:
+              - artikelId
+              - menge
+            additionalProperties: false
+            properties:
+              artikelId:
+                type: string
+                format: uuid
+              variante:
+                type:
+                  - string
+                  - "null"
+                maxLength: 40
+                description: Pflicht bei einem Artikel mit Liste, verboten bei Einheitsgrösse.
+              menge:
+                type: integer
+                minimum: 1
+                maximum: 10
+        uebergabe:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Eine der Übergabearten aus `GET /api/v1/laden`.
+        erwarteteSummeRappen:
+          type: integer
+          minimum: 0
+          description: Die Summe, die die Person gesehen hat. Weicht sie von der des Servers ab, entsteht keine Bestellung (409 `PREIS_GEAENDERT`).
+    LadenKonflikt:
+      type: object
+      description: Fehler des Lädelis mit eigenem `code` und deutschem Text für die Anzeige.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - BESTELL_LIMIT
+            - ARTIKEL_NICHT_VERFUEGBAR
+            - VARIANTE_UNGUELTIG
+            - UEBERGABE_UNBEKANNT
+            - PREIS_GEAENDERT
+            - STATUS_UNGUELTIG
+            - MEDIUM_UNGEEIGNET
+            - ARTIKEL_LIMIT
+        message:
+          type: string
+        artikelIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+          description: Bei `ARTIKEL_NICHT_VERFUEGBAR`.
+        summeRappen:
+          type: integer
+          description: Bei `PREIS_GEAENDERT` die Summe des Servers.
+    LadenGroesseFehler:
+      type: object
+      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (Statuscode 422).
+      required:
+        - code
+        - feld
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - GROESSE_FEHLT
+            - GROESSE_UNGUELTIG
+        feld:
+          type: string
+          enum:
+            - groessenart
+            - varianten
+          description: Das Feld, bei dem die Meldung steht.
+        message:
+          type: string
+    LadenArtikelAnlegen:
+      type: object
+      required:
+        - name
+        - preisRappen
+        - groessenart
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        preisRappen:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        groessenart:
+          type: string
+          enum:
+            - einheit
+            - liste
+          description: Pflicht. `einheit` ohne `varianten`, `liste` mit mindestens zwei.
+        varianten:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          description: Nur bei `liste`; ohne Doppelte (Gross- und Kleinschreibung zählt nicht).
+        mediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        hinweis:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        verfuegbar:
+          type: boolean
+          description: Ohne Angabe `true`.
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 9999
+    LadenArtikelAendern:
+      type: object
+      additionalProperties: false
+      description: Alle Felder sind optional. `varianten` nur zusammen mit `groessenart`.
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        preisRappen:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        groessenart:
+          type: string
+          enum:
+            - einheit
+            - liste
+        varianten:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+        mediumId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        hinweis:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        verfuegbar:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 0
+          maximum: 9999
+    LadenEinstellung:
+      type: object
+      required:
+        - uebergabearten
+      additionalProperties: false
+      properties:
+        uebergabearten:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            type: string
+            minLength: 1
+            maxLength: 80
+          description: Ohne Doppelte; ohne eigene Einstellung gilt «Abholung im Lädeli».
   parameters:
     MedienLimit:
       name: limit
@@ -34998,6 +35904,40 @@ components:
       schema:
         type: string
         format: uuid
+    LadenLimit:
+      name: limit
+      in: query
+      required: false
+      description: Anzahl Einträge je Seite, 1 bis 100, ohne Angabe 25.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    LadenNach:
+      name: nach
+      in: query
+      required: false
+      description: ID des letzten Eintrags der Vorseite (`naechste`).
+      schema:
+        type: string
+        format: uuid
+    LadenBestellungId:
+      name: id
+      in: path
+      required: true
+      description: ID der Bestellung (UUID).
+      schema:
+        type: string
+        format: uuid
+    LadenArtikelId:
+      name: id
+      in: path
+      required: true
+      description: ID des Artikels (UUID).
+      schema:
+        type: string
+        format: uuid
   securitySchemes:
     sitzung:
       type: apiKey
@@ -35178,3 +36118,9 @@ components:
         application/json:
           schema:
             $ref: "#/components/schemas/Fehler"
+    LadenGroesse422:
+      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (`GROESSE_FEHLT`, `GROESSE_UNGUELTIG`); `feld` nennt das Feld.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/LadenGroesseFehler"

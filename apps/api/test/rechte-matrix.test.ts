@@ -143,6 +143,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/tags.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
+  "GET /admin/laedeli.js": { erwartet: alle(200) },
+  "GET /admin/laedeli.css": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/anwesenheit.js": { erwartet: alle(200) },
   "GET /admin/anwesenheit.css": { erwartet: alle(200) },
@@ -940,6 +942,151 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Lädeli (#566): Laden lesen, bestellen und eigene Bestellungen sehen kann jede angemeldete Person; Verwaltung nur Admins mit zweitem Faktor. Summen, Grenzen, Stand und Löschfrist prüft test/laden.test.ts
+  "GET /api/v1/laden": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/laden/bestellungen/meine": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/laden/bestellungen": {
+    // Jede Person bestellt einen Artikel ihrer eigenen Abteilung (eine offene Bestellung je Person, Grenze 5)
+    body: (konto) => ({
+      positionen: [
+        {
+          artikelId:
+            konto.abteilungId === welt.demoAbteilungId
+              ? ladenArtikelDemoId
+              : ladenArtikelId,
+          menge: 1,
+        },
+      ],
+      uebergabe: "Abholung im Lädeli",
+    }),
+    erwartet: {
+      ...alle(201),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/laden/bestellungen/:id": {
+    // Die Bestellung gehört einer Wegwerf-Person: Für alle anderen ist sie unbekannt (404), auch für die Abteilungsleitung. Das eigene Stornieren prüft test/laden.test.ts
+    url: () => `/api/v1/laden/bestellungen/${ladenBestellungId}`,
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/laden/artikel": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/laden/artikel": {
+    body: () => ({
+      name: "Matrix Artikel",
+      preisRappen: 100,
+      groessenart: "einheit",
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/laden/artikel/:id": {
+    url: () => `/api/v1/admin/laden/artikel/${ladenArtikelId}`,
+    body: () => ({ preisRappen: 150 }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/laden/artikel/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/laden/artikel/${await wegwerfLadenArtikelId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/laden/bestellungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/laden/bestellungen/:id/status": {
+    url: () => `/api/v1/admin/laden/bestellungen/${ladenBestellungId}/status`,
+    // Derselbe Stand ein zweites Mal ist wieder 200
+    body: () => ({ status: "bereit" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/laden/einstellungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/laden/einstellungen": {
+    body: () => ({ uebergabearten: ["Abholung im Lädeli"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Tags (#331): nur Admins; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
   "GET /api/v1/admin/tags": {
     erwartet: {
@@ -1705,6 +1852,9 @@ let bildZielId: string;
 let mediumId: string;
 let seiteId: string;
 let weiterleitungId: string;
+let ladenArtikelId: string;
+let ladenArtikelDemoId: string;
+let ladenBestellungId: string;
 let plattformRolleId: string;
 let testBild: Buffer;
 
@@ -1746,6 +1896,15 @@ async function wegwerfMediumId() {
       speicherSchluessel: schluessel,
     })
     .returning({ id: schema.medium.id });
+  return zeile.id;
+}
+
+// Wegwerf-Artikel des Lädelis (Einheitsgrösse), auf Wunsch in der Demo-Abteilung
+async function wegwerfLadenArtikelId(abteilungId = welt.testabteilungId) {
+  const [zeile] = await welt.db
+    .insert(schema.ladenArtikel)
+    .values({ abteilungId, name: "Wegwerf Artikel", preisRappen: 100 })
+    .returning({ id: schema.ladenArtikel.id });
   return zeile.id;
 }
 
@@ -1968,6 +2127,25 @@ beforeAll(async () => {
     })
     .returning({ id: schema.seite.id });
   weiterleitungId = await wegwerfWeiterleitungId();
+  ladenArtikelId = await wegwerfLadenArtikelId();
+  ladenArtikelDemoId = await wegwerfLadenArtikelId(welt.demoAbteilungId);
+  // Eine offene Bestellung einer Wegwerf-Person der Testabteilung
+  [{ id: ladenBestellungId }] = await db
+    .insert(schema.ladenBestellung)
+    .values({
+      abteilungId: welt.testabteilungId,
+      userId: tagPersonId,
+      uebergabe: "Abholung im Lädeli",
+      summeRappen: 100,
+    })
+    .returning({ id: schema.ladenBestellung.id });
+  await db.insert(schema.ladenBestellposition).values({
+    bestellungId: ladenBestellungId,
+    artikelId: ladenArtikelId,
+    name: "Wegwerf Artikel",
+    menge: 1,
+    einzelpreisRappen: 100,
+  });
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
