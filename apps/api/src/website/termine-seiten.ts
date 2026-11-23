@@ -128,6 +128,10 @@ ${inhalt}
 
 export const TERMINE_DATEIEN = SEITEN.map((s) => s.datei);
 
+// Platz für Reiter und Werkzeugleiste (#567): Das Skript setzt sie über die Liste im HTML. Mit Skript hält ein Skelett den Platz frei, damit die Liste nicht nach unten springt; das Skript ersetzt es mit allem anderen im Behälter, laden.css blendet es ohne Skript und bei Ausfall des Skripts nach einigen Sekunden aus
+const VORAB = `<div class="vorab" aria-hidden="true"><span class="vorab-reiter"></span><span class="vorab-werkzeug"></span></div>
+`;
+
 function seite(s: Definition, k: Kontext, jetzt: Date): string {
   const plan = s.seite === "termine" ? planListe(k, jetzt) : "";
   const kopf =
@@ -148,7 +152,7 @@ function seite(s: Definition, k: Kontext, jetzt: Date): string {
     inhalt: `<div class="tm">
 ${kopf}
 <div id="tm-app" data-seite="${s.seite}">
-${plan}<noscript><div class="band wa" role="status"><div class="text">${plan ? "<strong>Monatsansicht, Filter und Anmeldung brauchen JavaScript.</strong>Die Liste zeigt die Termine der nächsten drei Monate." : "<strong>Diese Seite braucht JavaScript.</strong>Schalte es in deinem Browser ein, um die Seite zu nutzen."}</div></div></noscript>
+${s.seite === "termine" ? VORAB : ""}${plan}<noscript><div class="band wa" role="status"><div class="text">${plan ? "<strong>Monatsansicht, Filter und Anmeldung brauchen JavaScript.</strong>Die Liste zeigt die Termine der nächsten drei Monate." : "<strong>Diese Seite braucht JavaScript.</strong>Schalte es in deinem Browser ein, um die Seite zu nutzen."}</div></div></noscript>
 </div>
 <p class="nur-leser" id="tm-status" role="status" aria-live="polite"></p>
 </div>`,

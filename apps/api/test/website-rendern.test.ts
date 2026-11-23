@@ -355,10 +355,13 @@ describe("Aufbau und Barrierefreiheit", () => {
 
   test("kein Skript ausser theme.js, keine fremde Quelle, Meta-CSP", () => {
     const html = seite(dok("T", b("trenner", { art: "linie" })));
-    // Das einzige Skript jeder Seite ist die eigene Datei für Hell und Dunkel (#550), nie inline
+    // Die einzigen Skripte jeder Seite sind die eigenen Dateien für Hell und Dunkel (#550) und für die Bilder (#567), nie inline
     expect(html).toContain('<script src="/website/theme.js"></script>');
+    expect(html).toContain('<script src="/website/bilder.js"></script>');
     expect(
-      html.replace('<script src="/website/theme.js"></script>', ""),
+      html
+        .replace('<script src="/website/theme.js"></script>', "")
+        .replace('<script src="/website/bilder.js"></script>', ""),
     ).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
     expect(html).toContain("script-src &#39;self&#39;");
     expect(html).not.toContain("connect-src");
@@ -774,8 +777,8 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain(
       '<script src="/website/karussell.js" defer></script>',
     );
-    // Kein Inline-Skript, nur die eigenen Dateien (Thema, Grossansicht, Karussell); keine Knöpfe ohne Skript
-    expect(zaehle(html, "<script")).toBe(3);
+    // Kein Inline-Skript, nur die eigenen Dateien (Thema, Bilder, Grossansicht, Karussell); keine Knöpfe ohne Skript
+    expect(zaehle(html, "<script")).toBe(4);
     expect(html).not.toContain('class="k-knoepfe"');
   });
 

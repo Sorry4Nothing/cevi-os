@@ -86,3 +86,131 @@
     outline-offset: -1px;
   }
 }
+
+/* ===== Teil 2: Platz für Inhalte, die ein Skript setzt ===== */
+@media screen {
+  /* Reiter und Werkzeugleiste der Seite «Termine» (termine-seiten.ts, VORAB): Ohne Skript gibt es sie nicht, mit Skript wären sie plötzlich da und die Liste im HTML spränge nach unten.
+     Das Skelett hat dieselbe Höhe wie das, was das Skript setzt (191 px, schmal 236 px), erscheint erst nach 0.4 s (ein schneller Abruf zeigt es nie) und verschwindet von selbst nach 8 s, falls das Skript nicht kommt */
+  .vorab {
+    display: none;
+  }
+
+  html.bilder .vorab {
+    display: block;
+    height: 11.9375rem;
+    overflow: hidden;
+    opacity: 0;
+    animation:
+      vorab-ein 0s 0.4s forwards,
+      vorab-weg 0s 8s forwards;
+  }
+
+  .vorab-reiter,
+  .vorab-werkzeug {
+    position: relative;
+    display: block;
+  }
+
+  .vorab-reiter {
+    height: 3.8125rem;
+    border-bottom: 1px solid var(--outline-variant);
+  }
+
+  .vorab-werkzeug {
+    height: 5.125rem;
+    margin-top: 1.5rem;
+  }
+
+  .vorab-reiter::before,
+  .vorab-reiter::after,
+  .vorab-werkzeug::before,
+  .vorab-werkzeug::after {
+    position: absolute;
+    background: var(--skeleton);
+    content: "";
+  }
+
+  .vorab-reiter::before,
+  .vorab-reiter::after {
+    top: 1rem;
+    height: 1.75rem;
+    border-radius: var(--r-full);
+  }
+
+  .vorab-reiter::before {
+    left: 1.25rem;
+    width: 3.5rem;
+  }
+
+  .vorab-reiter::after {
+    left: 5.75rem;
+    width: 8rem;
+  }
+
+  .vorab-werkzeug::before {
+    top: 1.25rem;
+    left: 0;
+    width: 10.5rem;
+    height: 3.25rem;
+    border-radius: var(--r-full);
+  }
+
+  .vorab-werkzeug::after {
+    top: 1.25rem;
+    right: 0;
+    width: 14rem;
+    height: 3.25rem;
+    border-radius: var(--r-sm);
+    /* das zweite Auswahlfeld daneben */
+    box-shadow: -15rem 0 var(--skeleton);
+  }
+
+  @keyframes vorab-ein {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes vorab-weg {
+    to {
+      height: 0;
+      opacity: 0;
+    }
+  }
+
+  /* Seiten, die ein Skript ganz aufbaut (Anlass, Anmeldung, Vorschlag): Ohne Mindesthöhe stünde der Fuss kurz direkt unter dem Kopf und spränge nach unten */
+  html.bilder .tm #tm-app {
+    min-height: 80svh;
+  }
+}
+
+@media screen and (max-width: 45em) {
+  html.bilder .vorab {
+    height: 14.75rem;
+  }
+
+  .vorab-reiter {
+    height: 8.5625rem;
+  }
+
+  .vorab-werkzeug {
+    height: 3.25rem;
+  }
+
+  .vorab-werkzeug::before {
+    top: 0;
+    width: 100%;
+  }
+
+  .vorab-werkzeug::after {
+    display: none;
+  }
+}
+
+/* Skelette (website.css, termine.css): Mit Bewegung erscheinen sie erst nach 0.2 s. Auch bei «Bewegung reduzieren» zeigt ein schneller Abruf sie nie: Das Erscheinen ist keine Bewegung, nur der Schimmer ist es */
+@media screen and (prefers-reduced-motion: reduce) {
+  .skel {
+    opacity: 0;
+    animation: sk-ein 0s 0.2s forwards;
+  }
+}
