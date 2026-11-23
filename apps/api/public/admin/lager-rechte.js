@@ -318,7 +318,8 @@ function zeichneRechte(bereich, ctx, lager, rechte, neu) {
 
   haenge(
     bereich,
-    zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
+    !ctx.imRahmen &&
+      zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
     zu &&
       el(
         "div",

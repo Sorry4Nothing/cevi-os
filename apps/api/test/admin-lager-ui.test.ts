@@ -114,7 +114,7 @@ describe("Lager: Assistent, Mitglieder, Rechte (Quelltext)", () => {
     const m = quelle("lager-mitglieder.js");
     expect(m).toContain("ctx.mitRueckgaengig");
     expect(m).toContain("Rolle von ${m.name}");
-    const l = quelle("lager.js");
+    const l = quelle("lager-detail.js");
     expect(l).toContain("lg-ohne-leitung");
     expect(l).toContain("Mitglieder öffnen");
     expect(l).toContain("splitKnopf");

@@ -410,6 +410,7 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Schalter           | `button.schalter[role=switch][aria-checked]`, Zeile `div.schalterzeile`                      | `schalter`                              |
 | Wahlkarte          | `label.wahlkarte > input[type=radio] + div(strong, span)`                                    | `wahlkarte`                             |
 | Feld               | `feld({ label, hilfe, wert })`, `auswahl`, `ankreuzen`, `gruppe`, `codefeld`                 | `feld`, `eingabe`                       |
+| Kästchen           | `ankreuzen`; jedes `input[type=checkbox]` hat die Gestaltung aus `admin.css` (#668)          | `wahl`                                  |
 | Dialog             | `dialogFormular({...})`; Rückfragen: `ctx.mitRueckgaengig({...})` (Toast), `zweistufig(...)` | `dialog`                                |
 | Seitenblatt        | `seitenblatt({ titel, untertitel, inhalt, fusszeile })` (ohne Radius, 600 px)                | `blatt`                                 |
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
