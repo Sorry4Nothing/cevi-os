@@ -208,11 +208,30 @@ describe("Termine: Ansichten (W5, W6)", () => {
     expect(mit).toContain("Angemeldet");
     expect(html(termine.terminKarte(termin()))).not.toContain("<a ");
   });
-  test("Laden: Skeleton, aria-busy, Meldung «Lädt …»", () => {
+  test("Laden (#574): Skelett in der Form der Zeilen, aria-busy, verborgen; die Ansage steht in der Statusregion, nicht im Skelett", () => {
     const h = html(termine.feldView(s, { status: "laedt" }, "2027-02-01"));
     expect(h).toContain('aria-busy="true"');
-    expect(h).toContain("Lädt …");
+    expect(h).toContain('<div class="skelett" aria-hidden="true">');
     expect(h).toContain('aria-hidden="true"');
+    expect(h).not.toContain("Lädt …");
+    // vier Terminzeilen mit Datumsfeld, Titel, Meta und zwei Chips
+    expect(h.match(/class="termin"/g)).toHaveLength(4);
+    expect(h.match(/sk datum-skelett/g)).toHaveLength(4);
+  });
+  test("Laden im Monat (#574): Skelett in der Form des Kalenders mit 42 Zellen und dem Tagesfeld", () => {
+    const m = html(
+      termine.feldView(
+        { ...s, ansicht: "monat", monat: "2027-02" },
+        { status: "laedt" },
+        "2027-02-01",
+      ),
+    );
+    expect(m).toContain('aria-busy="true"');
+    expect(m).toContain("Februar 2027");
+    expect(m.match(/sk kal-zelle/g)).toHaveLength(42);
+    expect(m).toContain('class="kal-tagfeld" aria-hidden="true"');
+    // Das Skelett ist kein Bedienelement
+    expect(m).not.toContain("<button");
   });
   test("Leer: Alle und Mein Kalender haben ihren Text", () => {
     const leer = daten({ termine: [] });
@@ -524,7 +543,7 @@ describe("Termin vorschlagen (W7)", () => {
   });
   test("Formular: Laden zeigt Skeleton bei den Gruppen und sperrt das Senden", () => {
     const h = html(vorschlag.formularView(s({ optionen: null })));
-    expect(h).toContain("Lädt …");
+    expect(h).toContain('aria-busy="true"');
     expect(h).toContain('aria-disabled="true"');
   });
   test("Formular: Gruppen als Schalter, Fehler verknüpft mit dem Feld", () => {
@@ -651,7 +670,7 @@ describe("Anlass (W3)", () => {
     expect(h).toContain("Anmeldung ansehen");
   });
   test("Laden, nicht angemeldet, nicht gefunden, Fehler", () => {
-    expect(html(anlass.ladeKasten())).toContain("Lädt …");
+    expect(html(anlass.ladeKasten())).toContain('aria-busy="true"');
     expect(html(anlass.zustandAnsicht("abgemeldet", ID))).toContain(
       `weiter=${encodeURIComponent(`/anlass?id=${ID}`)}`,
     );
@@ -859,7 +878,7 @@ describe("Anlass-Anmeldung (W8)", () => {
         ),
       ),
     ).toContain("Nils ist für «Sommerlager 2027» angemeldet.");
-    expect(html(anmeldung.kontoLadeKarte())).toContain("Lädt …");
+    expect(html(anmeldung.kontoLadeKarte())).toContain('aria-busy="true"');
   });
 });
 

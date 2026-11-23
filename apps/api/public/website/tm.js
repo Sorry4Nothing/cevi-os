@@ -416,3 +416,17 @@ export function melde(doc, t) {
   const r = doc.getElementById("tm-status");
   if (r) r.textContent = t;
 }
+
+// Ruhige Ansage des Ladens (#574): erst wenn es länger als 700 ms dauert, und nur einmal. Ein schneller Abruf braucht sie nicht, das Ergebnis meldet melde().
+// Gibt die Funktion zurück, die die Ansage zurücknimmt (beim Eintreffen der Antwort; eine schon gesagte Ansage wird geleert, das Ergebnis folgt danach)
+export function ladeAnsage(doc, t) {
+  let gesagt = false;
+  const timer = setTimeout(() => {
+    gesagt = true;
+    melde(doc, t);
+  }, 700);
+  return () => {
+    clearTimeout(timer);
+    if (gesagt) melde(doc, "");
+  };
+}
