@@ -171,7 +171,7 @@ describe("Was ausgeliefert wird", () => {
 
     const e = await lauf();
     // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite, der Datenplan (termine.json, #564) und je eine Hülle für die zwei ganz geschützten Seiten
-    expect(e).toEqual({ geschrieben: 17, geloescht: 0, fehler: 0 });
+    expect(e).toEqual({ geschrieben: 19, geloescht: 0, fehler: 0 });
 
     const dateien = await alle();
     expect(Object.keys(dateien).sort()).toEqual([
@@ -183,10 +183,12 @@ describe("Was ausgeliefert wird", () => {
       "gruppe/index.html",
       "index.html",
       "intern/index.html",
+      "konto/index.html",
       "robots.txt",
       "sitemap.xml",
       "stufen/index.html",
       "stufen/woelfe/index.html",
+      "termin/index.html",
       "termine/index.html",
       "termine/termine.json",
       "termine/vorschlagen/index.html",
@@ -647,10 +649,12 @@ describe("Was ausgeliefert wird", () => {
       "anlass/anmeldung/index.html",
       "anlass/index.html",
       "anmelden/index.html",
+      "konto/index.html",
       "ordner/api/index.html",
       "ordner/index.html",
       "robots.txt",
       "sitemap.xml",
+      "termin/index.html",
       "termine/index.html",
       "termine/termine.json",
       "termine/vorschlagen/index.html",
@@ -816,7 +820,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     await seite({ adresse: "unter", inhalt: dok("Unter") });
     const merker = new Map<string, string>();
-    expect((await lauf({ merker })).geschrieben).toBe(14);
+    expect((await lauf({ merker })).geschrieben).toBe(16);
     const vorher = await hash(id);
     // Eigene Ausgabe, die jeden Schreibversuch zählt
     const schreibt = vi.spyOn(ausgabe, "schreibe");
@@ -827,8 +831,8 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
     const nachNeustart = await lauf();
-    expect(nachNeustart.geschrieben).toBe(12);
-    expect(schreibt).toHaveBeenCalledTimes(12);
+    expect(nachNeustart.geschrieben).toBe(14);
+    expect(schreibt).toHaveBeenCalledTimes(14);
     expect(await hash(id)).toEqual(vorher);
   });
 
@@ -882,9 +886,11 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "anmelden/index.html",
       "b/index.html",
       "d/index.html",
+      "konto/index.html",
       "notiz.txt",
       "robots.txt",
       "sitemap.xml",
+      "termin/index.html",
       "termine/index.html",
       "termine/termine.json",
       "termine/vorschlagen/index.html",
@@ -922,8 +928,10 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "anlass/anmeldung/index.html",
       "anlass/index.html",
       "anmelden/index.html",
+      "konto/index.html",
       "robots.txt",
       "sitemap.xml",
+      "termin/index.html",
       "termine/index.html",
       "termine/termine.json",
       "termine/vorschlagen/index.html",
