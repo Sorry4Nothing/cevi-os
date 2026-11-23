@@ -5,6 +5,7 @@
 import {
   api,
   baue,
+  datumKurz,
   fehlerView,
   h,
   heute,
@@ -129,6 +130,19 @@ export function terminAria(t) {
 }
 
 // --- Ansichten
+// Pfeil am Ende einer Zeile mit Link (Form «pfeil» des Symbolsatzes der Website)
+const pfeil = () =>
+  h(
+    "span",
+    { class: "termin-pfeil", "aria-hidden": "true" },
+    h(
+      "svg",
+      { class: "i", viewBox: "0 0 24 24" },
+      h("path", { d: "M3 12h12" }),
+      h("path", { class: "f", d: "M14 6l7.5 6-7.5 6z" }),
+    ),
+  );
+
 export function terminKarte(t) {
   const tag = ersterTag(t);
   const p = tagTeile(tag);
@@ -164,20 +178,7 @@ export function terminKarte(t) {
       ),
     ),
   ];
-  if (link) {
-    inhalt.push(
-      h(
-        "span",
-        { class: "termin-pfeil", "aria-hidden": "true" },
-        h(
-          "svg",
-          { class: "i", viewBox: "0 0 24 24" },
-          h("path", { d: "M3 12h12" }),
-          h("path", { class: "f", d: "M14 6l7.5 6-7.5 6z" }),
-        ),
-      ),
-    );
-  }
+  if (link) inhalt.push(pfeil());
   const aria = terminAria(t);
   return h(
     "li",
@@ -260,23 +261,44 @@ export function listeLadeView() {
   );
 }
 
-const ZELLE_MAX = 3;
-// Monatsraster: Wochen von Montag bis Sonntag. Breit zeigt es die Titel der Termine, schmal Punkte und darunter die Liste
-// fenster ({ von, bis }, ganze Tage): Ausserhalb davon gibt es keine Daten (öffentlicher Datenplan), die Schaltflächen am Rand sind dann gesperrt
-export function monatView(
-  monat,
-  termine,
-  heuteTag,
-  { mehr = false, fenster = null } = {},
-) {
-  const amAnfang = fenster && monat <= fenster.von.slice(0, 7);
-  const amEnde = fenster && monat >= fenster.bis.slice(0, 7);
-  const [y, m] = monat.split("-").map(Number);
-  const anzahl = tageImMonat(y, m);
-  const vorne = (wochentagVon(`${monat}-01`) + 6) % 7;
+// --- Monat: Kalender mit Tagesfeld. Links das Raster (Wochen von Montag bis Sonntag, jeder Tag eine Schaltfläche), daneben oder darunter die Termine des gewählten Tages.
+// Tastatur im Raster (ein Tag steht in der Tab-Reihenfolge): Pfeile gehen einen Tag oder eine Woche, Pos1 und Ende an den Rand der Woche, Bild auf und ab einen Monat (mit Umschalt ein Jahr); Eingabe oder Leertaste wählt den Tag.
+
+// Wohin eine Taste den Fokus im Raster bewegt; null, wenn die Taste nichts bewegt
+export function fokusZiel(tag, taste, umschalt = false) {
+  const wt = (wochentagVon(tag) + 6) % 7;
+  const monate = (n) => {
+    const t = tagTeile(tag);
+    const ziel = monatPlus(tag.slice(0, 7), n);
+    const [y, m] = ziel.split("-").map(Number);
+    return `${ziel}-${zwei(Math.min(t.d, tageImMonat(y, m)))}`;
+  };
+  switch (taste) {
+    case "ArrowLeft":
+      return tagPlus(tag, -1);
+    case "ArrowRight":
+      return tagPlus(tag, 1);
+    case "ArrowUp":
+      return tagPlus(tag, -7);
+    case "ArrowDown":
+      return tagPlus(tag, 7);
+    case "Home":
+      return tagPlus(tag, -wt);
+    case "End":
+      return tagPlus(tag, 6 - wt);
+    case "PageUp":
+      return monate(umschalt ? -12 : -1);
+    case "PageDown":
+      return monate(umschalt ? 12 : 1);
+    default:
+      return null;
+  }
+}
+
+// Die Termine je Tag des Monats; mehrtägige erscheinen an jedem Tag, den sie berühren
+export function termineJeTag(monat, termine) {
   const proTag = new Map();
   for (const t of termine) {
-    // Mehrtägige Termine erscheinen an jedem Tag des Monats, den sie berühren
     const bis = letzterTag(t);
     for (let tag = ersterTag(t); tag <= bis; tag = tagPlus(tag, 1)) {
       if (tag.slice(0, 7) !== monat) {
@@ -288,125 +310,260 @@ export function monatView(
       proTag.set(tag, liste);
     }
   }
+  return proTag;
+}
+
+// Der gewählte Tag: der gewünschte, wenn er im Monat liegt; sonst heute oder der nächste Tag mit Terminen, sonst der erste mit Terminen, sonst der Erste
+export function gewaehlterTag(monat, proTag, heuteTag, wunsch) {
+  if (wunsch?.slice(0, 7) === monat) return wunsch;
+  const mit = [...proTag.keys()].sort();
+  if (heuteTag.slice(0, 7) === monat) {
+    return proTag.has(heuteTag)
+      ? heuteTag
+      : (mit.find((t) => t > heuteTag) ?? heuteTag);
+  }
+  return mit[0] ?? `${monat}-01`;
+}
+
+const anzahlText = (n) => (n === 1 ? "1 Termin" : `${n} Termine`);
+// «Samstag, 13. März»
+export const tagLang = (tag) =>
+  `${WOCHENTAG[wochentagVon(tag)]}, ${datumKurz(tag)}`;
+// «Heute», «Morgen», «In 5 Tagen», «Vor 3 Tagen»
+export function abstandText(heuteTag, tag) {
+  const ms = (t) => {
+    const p = tagTeile(t);
+    return Date.UTC(p.y, p.m - 1, p.d);
+  };
+  const n = Math.round((ms(tag) - ms(heuteTag)) / 86_400_000);
+  if (n === 0) return "Heute";
+  if (n === 1) return "Morgen";
+  if (n === -1) return "Gestern";
+  return n > 0 ? `In ${n} Tagen` : `Vor ${-n} Tagen`;
+}
+
+// Ein Termin im Tagesfeld: Titel, Zeit, Ort, Gruppen
+function tagTermin(t) {
+  const link = anlassLink(t);
+  const inhalt = [
+    h(
+      "span",
+      { class: "kal-text" },
+      h("span", { class: "titel" }, t.titel),
+      h(
+        "span",
+        { class: "kal-zeile" },
+        icon("uhr"),
+        terminMeta({ ...t, ort: null }),
+      ),
+      t.ort ? h("span", { class: "kal-zeile" }, icon("ort"), t.ort) : null,
+      h(
+        "span",
+        { class: "chips" },
+        t.status === "abgesagt"
+          ? h("span", { class: "chip fe" }, "Abgesagt")
+          : null,
+        t.status === "pruefen"
+          ? h("span", { class: "chip wa" }, "Noch unklar")
+          : null,
+        t.anlass?.angemeldet
+          ? h("span", { class: "chip ok" }, icon("haken"), "Angemeldet")
+          : null,
+        t.tags.length
+          ? t.tags.map((g) => h("span", { class: "chip st" }, g.name))
+          : h("span", { class: "chip st" }, "Alle"),
+      ),
+    ),
+    link ? pfeil() : null,
+  ];
+  return h(
+    "li",
+    {},
+    link
+      ? h(
+          "a",
+          { class: "kal-termin", href: link, "aria-label": terminAria(t) },
+          inhalt,
+        )
+      : h("div", { class: "kal-termin" }, inhalt),
+  );
+}
+
+// fenster ({ von, bis }, ganze Tage): Ausserhalb davon gibt es keine Daten (öffentlicher Datenplan), die Schaltflächen am Rand sind dann gesperrt
+// tag: der gewählte Tag (sonst wählt gewaehlterTag)
+export function monatView(
+  monat,
+  termine,
+  heuteTag,
+  { mehr = false, fenster = null, tag: wunsch = null } = {},
+) {
+  const [y, m] = monat.split("-").map(Number);
+  const anzahl = tageImMonat(y, m);
+  const vorne = (wochentagVon(`${monat}-01`) + 6) % 7;
+  const proTag = termineJeTag(monat, termine);
+  const gewaehlt = gewaehlterTag(monat, proTag, heuteTag, wunsch);
+  const amAnfang = fenster && monat <= fenster.von.slice(0, 7);
+  const amEnde = fenster && monat >= fenster.bis.slice(0, 7);
+  const imMonat = imBereich(termine, `${monat}-01`, `${monat}-31`);
+
+  // Sechs Wochen: Der Kalender bleibt beim Blättern gleich hoch
   const zellen = [];
-  for (let i = 0; i < vorne; i++)
-    zellen.push(h("li", { class: "zelle leer", "aria-hidden": "true" }));
-  for (let tag = 1; tag <= anzahl; tag++) {
-    const datum = `${monat}-${zwei(tag)}`;
+  for (let i = 0; i < 42; i++) {
+    const nr = i - vorne + 1;
+    if (nr < 1 || nr > anzahl) {
+      zellen.push(h("span", { class: "kal-leer", "aria-hidden": "true" }));
+      continue;
+    }
+    const datum = `${monat}-${zwei(nr)}`;
     const liste = proTag.get(datum) ?? [];
+    const erster = liste[0];
     zellen.push(
       h(
-        "li",
+        "button",
         {
-          class: `zelle${datum === heuteTag ? " heute" : ""}`,
-          ...(datum === heuteTag && { "aria-current": "date" }),
+          type: "button",
+          class: `kal-tag${datum === heuteTag ? " heute" : ""}${liste.length ? " mit" : ""}`,
+          "aria-pressed": datum === gewaehlt ? "true" : "false",
+          "aria-current": datum === heuteTag ? "date" : null,
+          "aria-label": `${tagLang(datum)}${datum === heuteTag ? ", heute" : ""}${liste.length ? `, ${anzahlText(liste.length)}` : ""}`,
+          tabindex: datum === gewaehlt ? "0" : "-1",
+          "data-aktion": `tag:${datum}`,
+          "data-tag": datum,
+          "data-f": `tag-${datum}`,
         },
-        h(
-          "span",
-          { class: "n" },
-          h(
-            "span",
-            { class: "nur-leser" },
-            `${WOCHENTAG[wochentagVon(datum)]}, `,
-          ),
-          tag,
-        ),
-        // Höchstens drei Titel je Tag, der Rest als Zahl: Die Liste unter dem Raster nennt alle
-        liste.slice(0, ZELLE_MAX).map((t) => {
-          const link = anlassLink(t);
-          const klasse = `eintrag${t.status === "abgesagt" ? " abgesagt" : ""}`;
-          const titel =
-            t.status === "abgesagt" ? `${t.titel} (abgesagt)` : t.titel;
-          return link
-            ? h("a", { class: klasse, href: link }, titel)
-            : h("span", { class: klasse }, titel);
-        }),
-        liste.length > ZELLE_MAX
+        h("span", { class: "kal-nr" }, nr),
+        // Breit: der erste Titel und die Zahl der weiteren; schmal: Punkte. Beides ist für Hilfstechnik im Namen des Tages enthalten
+        erster
           ? h(
               "span",
-              { class: "eintrag-mehr", "aria-hidden": "true" },
-              `+ ${liste.length - ZELLE_MAX} weitere`,
+              { class: "kal-chips", "aria-hidden": "true" },
+              h(
+                "span",
+                {
+                  class: `eintrag${erster.status === "abgesagt" ? " abgesagt" : ""}`,
+                },
+                // Im schmalen Feld zählt das Ende des Titels: «Cevi-Programm Wölfe» wird zu «Wölfe»
+                erster.tags.find((g) => erster.titel.endsWith(g.name))?.name ??
+                  erster.titel,
+              ),
+              liste.length > 1
+                ? h(
+                    "span",
+                    { class: "eintrag-mehr" },
+                    `+ ${liste.length - 1} weitere`,
+                  )
+                : null,
             )
           : null,
         liste.length
-          ? [
-              h("span", { class: "punkt", "aria-hidden": "true" }),
-              h(
-                "span",
-                { class: "nur-leser" },
-                liste.length === 1 ? "1 Termin" : `${liste.length} Termine`,
-              ),
-            ]
+          ? h(
+              "span",
+              { class: "kal-punkte", "aria-hidden": "true" },
+              liste.slice(0, 3).map(() => h("span", { class: "punkt" })),
+            )
           : null,
       ),
     );
   }
-  // Die letzte Woche auffüllen, damit das Raster unten geschlossen ist
-  while (zellen.length % 7 !== 0)
-    zellen.push(h("li", { class: "zelle leer", "aria-hidden": "true" }));
-  // Auch mehrtägige Termine, die in den Monat hineinreichen
-  const imMonat = imBereich(termine, `${monat}-01`, `${monat}-31`);
+
+  const amTag = proTag.get(gewaehlt) ?? [];
+  const blaettern = (richtung, name, symbol, gesperrt) =>
+    h(
+      "button",
+      {
+        type: "button",
+        class: "kal-blatt",
+        "aria-label": name,
+        "aria-disabled": gesperrt ? "true" : null,
+        "data-aktion": `monat:${richtung}`,
+        "data-f": richtung,
+      },
+      icon(symbol),
+    );
   return h(
     "div",
     {},
     h(
       "div",
-      { class: "abschnitt-kopf" },
+      { class: "kal" },
       h(
-        "button",
-        {
-          type: "button",
-          class: "btn s",
-          "aria-label": "Vorheriger Monat",
-          "aria-disabled": amAnfang ? "true" : null,
-          "data-aktion": "monat:zurueck",
-          "data-f": "zurueck",
-        },
-        icon("links"),
-      ),
-      h(
-        "h2",
-        { class: "monat-titel", id: "tm-monat-titel" },
-        monatTitel(monat),
-      ),
-      h(
-        "button",
-        {
-          type: "button",
-          class: "btn s",
-          "aria-label": "Nächster Monat",
-          "aria-disabled": amEnde ? "true" : null,
-          "data-aktion": "monat:vor",
-          "data-f": "vor",
-        },
-        icon("rechts"),
-      ),
-    ),
-    h(
-      "div",
-      { class: "monat" },
-      h(
-        "div",
-        { class: "wochentage", "aria-hidden": "true" },
-        WOCHENTAG_KURZ.slice(1)
-          .concat("So")
-          .map((w) => h("div", { class: "wt" }, w)),
-      ),
-      h("ol", { class: "tage", "aria-labelledby": "tm-monat-titel" }, zellen),
-    ),
-    // Zeit, Ort und Gruppen stehen in der Liste unter dem Raster: Das Raster zeigt nur Titel oder Punkte
-    imMonat.length
-      ? h(
+        "section",
+        { class: "kal-karte", "aria-labelledby": "tm-monat-titel" },
+        h(
           "div",
-          { class: "plan" },
-          h("h3", { class: "monat-titel" }, `Termine im ${MONAT[m - 1]}`),
-          h("ul", { class: "termine" }, imMonat.map(terminKarte)),
-        )
-      : h(
-          "p",
-          { class: "leise monat-leer" },
-          `Im ${MONAT[m - 1]} stehen keine Termine an.`,
+          { class: "kal-kopf" },
+          h(
+            "div",
+            {},
+            h(
+              "h2",
+              { class: "monat-titel", id: "tm-monat-titel" },
+              monatTitel(monat),
+            ),
+            h(
+              "p",
+              { class: "kal-anzahl" },
+              imMonat.length
+                ? `${anzahlText(imMonat.length)} in diesem Monat`
+                : "Keine Termine in diesem Monat",
+            ),
+          ),
+          h(
+            "div",
+            { class: "kal-nav" },
+            blaettern("zurueck", "Vorheriger Monat", "links", amAnfang),
+            blaettern("vor", "Nächster Monat", "rechts", amEnde),
+          ),
         ),
+        h(
+          "div",
+          { class: "kal-wochentage", "aria-hidden": "true" },
+          WOCHENTAG_KURZ.slice(1)
+            .concat("So")
+            .map((w) => h("span", {}, w)),
+        ),
+        h(
+          "div",
+          {
+            class: "kal-tage",
+            role: "group",
+            "aria-label": `Tage im ${monatTitel(monat)}`,
+          },
+          zellen,
+        ),
+      ),
+      h(
+        "section",
+        { class: "kal-tagfeld", "aria-labelledby": "tm-tag-titel" },
+        h(
+          "div",
+          { class: "kal-tagkopf" },
+          h("h3", { id: "tm-tag-titel" }, tagLang(gewaehlt)),
+          h("p", { class: "kal-abstand" }, abstandText(heuteTag, gewaehlt)),
+        ),
+        amTag.length
+          ? h(
+              "ul",
+              {
+                class: "kal-termine",
+                tabindex: "0",
+                "aria-labelledby": "tm-tag-titel",
+              },
+              amTag.map(tagTermin),
+            )
+          : h(
+              "div",
+              { class: "kal-ohne" },
+              icon("kalender", false),
+              h("p", {}, "Keine Termine an diesem Tag."),
+              h(
+                "p",
+                { class: "leise klein" },
+                "Wähle einen anderen Tag, um seine Termine zu sehen.",
+              ),
+            ),
+      ),
+    ),
     mehr
       ? h(
           "div",
@@ -467,7 +624,7 @@ export function reiterView({ tab, angemeldet }) {
     );
   return h(
     "div",
-    {},
+    { class: "reiter-zeile" },
     h(
       "div",
       { class: "reiter", role: "tablist", "aria-label": "Termine" },
@@ -478,10 +635,9 @@ export function reiterView({ tab, angemeldet }) {
     !angemeldet
       ? h(
           "p",
-          { class: "reiter-hinweis" },
-          "Du siehst den öffentlichen Datenplan. Für deinen eigenen Kalender ",
-          h("a", { href: "/anmelden?weiter=%2Ftermine" }, "melde dich an"),
-          ".",
+          { class: "reiter-angebot" },
+          "Nur die Termine deiner Gruppen sehen?",
+          h("a", { href: "/anmelden?weiter=%2Ftermine" }, "Anmelden", pfeil()),
         )
       : null,
   );
@@ -696,6 +852,7 @@ export function feldView(s, daten, heuteTag) {
     return monatView(s.monat, sichtbar, heuteTag, {
       mehr: daten.weitere,
       fenster: daten.fenster,
+      tag: s.tag,
     });
   }
   if (sichtbar.length === 0 && !daten.weitere) {
@@ -735,6 +892,10 @@ function start(doc, wurzel) {
     gruppe: null,
     zeitraum: "3m",
     monat: heute().slice(0, 7),
+    // Der gewählte Tag der Monatsansicht; null: die Ansicht wählt selbst
+    tag: null,
+    // Tag, der nach dem nächsten Zeichnen den Fokus bekommt (Tastatur im Raster über den Monat hinaus)
+    fokusTag: null,
     angemeldet: true,
   };
   const heuteTag = heute();
@@ -815,12 +976,23 @@ function start(doc, wurzel) {
         : null;
       blatt.replaceChildren(baue(doc, filterBlattView(s, gruppen, anzahl)));
     }
-    if (fokus) {
-      [...doc.querySelectorAll("[data-f]")]
-        .find((e) => e.dataset.f === fokus)
-        ?.focus();
+    const ziel = s.fokusTag ? `tag-${s.fokusTag}` : fokus;
+    if (ziel) {
+      const e = [...doc.querySelectorAll("[data-f]")].find(
+        (e) => e.dataset.f === ziel,
+      );
+      // Erst wenn der Monat da ist: Beim Laden steht der Tag noch nicht im Dokument
+      if (e || !s.fokusTag) s.fokusTag = null;
+      if (e?.dataset.tag) rolle(e);
+      e?.focus();
     }
   }
+
+  // Genau ein Tag des Rasters steht in der Tab-Reihenfolge
+  const rolle = (knopf) => {
+    for (const k of bFeld.querySelectorAll(".kal-tag")) k.tabIndex = -1;
+    knopf.tabIndex = 0;
+  };
 
   async function lade(nach) {
     const { von, bis, key } = schluessel();
@@ -906,7 +1078,19 @@ function start(doc, wurzel) {
     } else if (aktion === "monat") {
       if (b.getAttribute("aria-disabled") === "true") return;
       s.monat = monatPlus(s.monat, wert === "vor" ? 1 : -1);
+      s.tag = null;
       lade();
+    } else if (aktion === "tag") {
+      s.tag = wert;
+      zeichne();
+      const liste = termineJeTag(
+        s.monat,
+        filtere(aktuell()?.termine ?? [], s.gruppe),
+      ).get(wert);
+      melde(
+        doc,
+        `${tagLang(wert)}: ${liste ? (liste.length === 1 ? "1 Termin" : `${liste.length} Termine`) : "keine Termine"}.`,
+      );
     } else if (aktion === "gruppe") {
       s.gruppe = wert || null;
       zeichne();
@@ -942,6 +1126,32 @@ function start(doc, wurzel) {
     }
   });
   // Reiter mit Pfeiltasten (Reiter-Muster): Pfeil, Pos1 und Ende wählen den Nachbarn
+  // Kalenderraster: Der Fokus wandert mit den Tasten, auch über den Monat hinaus (innerhalb des Plans)
+  wurzel.addEventListener("keydown", (e) => {
+    const knopf = e.target.closest?.(".kal-tag");
+    if (!knopf || e.ctrlKey || e.metaKey || e.altKey) return;
+    const ziel = fokusZiel(knopf.dataset.tag, e.key, e.shiftKey);
+    if (!ziel) return;
+    e.preventDefault();
+    const monat = ziel.slice(0, 7);
+    if (monat === s.monat) {
+      const neu = bFeld.querySelector(`[data-tag="${ziel}"]`);
+      rolle(neu);
+      neu.focus();
+      return;
+    }
+    const fenster = aktuell()?.fenster;
+    if (
+      fenster &&
+      (monat < fenster.von.slice(0, 7) || monat > fenster.bis.slice(0, 7))
+    ) {
+      return;
+    }
+    s.monat = monat;
+    s.tag = null;
+    s.fokusTag = ziel;
+    lade();
+  });
   wurzel.addEventListener("keydown", (e) => {
     if (!e.target.closest?.('[role="tab"]')) return;
     const ziel = {
