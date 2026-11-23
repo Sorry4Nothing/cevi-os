@@ -48,8 +48,10 @@ describe("fuss.css (#580, #605)", () => {
   test("Links und Knöpfe bekommen hier keine eigene Fassung: nur Zusätze für Blau und Pfeile", () => {
     expect(css).not.toMatch(/^(a|\.btn)(\.[pst]|\.gross)?(:hover)? \{/m);
     expect(css).not.toMatch(/^\.verweis(:hover)? \{/m);
-    // «Nach oben» ist eine Nebenaktion des Repertoires, auf Blau mit hellem Rand
-    expect(css).toContain(".fuss a.btn.s {");
+    // «Nach oben» ist ein Verweis des Repertoires (kein Knopf, kein Pfeil im Knopf): fett, der Pfeil zeigt nach oben und sitzt hinter dem Wort
+    expect(css).not.toContain("a.btn.s");
+    expect(css).toContain(".fuss a.fuss-oben::after {");
+    expect(css).toMatch(/41\.7% 100%,\s+41\.7% 40\.5%/);
   });
 });
 
@@ -68,11 +70,16 @@ describe("Kontaktkarte und Fuss füllen die Breite (#605)", () => {
       ".kontakt-zeile {",
       ".fuss-kontakt a {",
       ".fuss-seiten li a {",
-      ".fuss a.btn.s {",
     ]) {
       const block = css.slice(css.indexOf(regel)).split("}")[0]!;
       expect(block, regel).toMatch(/min-height: (2.75|3.5|3.75|4.25|5)rem/);
     }
+    // «Nach oben» (a.verweis) bekommt die Höhe von dort: website.css, Repertoire «Verweis»
+    const site = readFileSync(
+      new URL("../public/website/website.css", import.meta.url),
+      "utf8",
+    );
+    expect(site).toMatch(/^\.verweis,\s+a\.mehr \{[^}]*min-height: 2\.75rem/m);
   });
 
   test("die verworfene Fassung ist weg: keine Wortmarke, kein Band in drei Stufen", () => {

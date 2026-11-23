@@ -42,6 +42,15 @@ describe("Admin-Panel: Räume und Raumanfragen", () => {
     expect(methoden(anfragen)).toEqual(["GET", "GET", "POST", "POST"]);
   });
 
+  test("Anfragen: Der Zweck steht an erster Stelle, in der Liste und als Titel des Details (#622)", () => {
+    expect(anfragen).toContain(
+      'spalten: ["Wofür", "Raum", "Zeitraum", "Person", "Status"]',
+    );
+    expect(anfragen).toContain('el("h2", { class: "tm-wofuer" }, a.zweck)');
+    // Die API trägt keine Stufe und keinen Anlass: nichts erfinden, nur Zweck, Raum, Zeit und Person zeigen
+    expect(anfragen).not.toMatch(/a\.(stufe|gruppe|anlass|bezug)/);
+  });
+
   test("kein Polling und keine Inline-Stile (strenge CSP)", () => {
     for (const modul of [raeume, anfragen]) {
       expect(modul).not.toMatch(/setInterval|\.style\b|setAttribute\("style"/);

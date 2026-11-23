@@ -66,10 +66,17 @@ export const mitUmfang = (hash, nur) =>
     ? hash.replace("#termine/kalender", "#termine/kalender/meine")
     : hash;
 
+// Standard ist «alle»: Nur die Adresse mit «meine» nach «kalender» zeigt Meine Termine (#622)
+export const umfangAusPfad = (pfad) =>
+  pfad[0] === "meine"
+    ? { nur: "meine", rest: pfad.slice(1) }
+    : { nur: "alle", rest: pfad };
+
 export function zeige(bereich, ctx) {
   const heute = heuteZuerich();
-  const meine = ctx.pfad[0] === "meine";
-  const ansicht = ansichtAusPfad(meine ? ctx.pfad.slice(1) : ctx.pfad, heute);
+  const { nur, rest } = umfangAusPfad(ctx.pfad);
+  const meine = nur === "meine";
+  const ansicht = ansichtAusPfad(rest, heute);
   // umfang: «alle» oder «meine»; die Ansicht trägt ein, wie sie auf einen Wechsel reagiert (beiWechsel) und welche Adresse sie gerade hat (adresse)
   const umfang = {
     nur: meine ? "meine" : "alle",
