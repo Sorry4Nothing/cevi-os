@@ -1364,12 +1364,18 @@ export const TYPEN = {
       }),
     ],
   },
-  // Kontaktkarte (#549): Telefon und E-Mail der Abteilung stehen in der Konfiguration des Servers
+  // Kontaktkarte (#549, #580): Telefon, E-Mail und Anschrift der Abteilung stehen in der Konfiguration des Servers
   kontaktkarte: {
     name: "Kontaktkarte",
     kurz: (d, k) =>
       k.personNamen.get(d.personId) ?? "Fragen? Melde dich bei uns.",
-    pruefe: () => [],
+    pruefe: (d) =>
+      (d.verweise ?? []).flatMap((v, i) => [
+        ...(v.beschriftung?.trim()
+          ? []
+          : [[`daten.verweise.${i}.beschriftung`, "fehlt."]]),
+        ...(v.ziel?.trim() ? [] : [[`daten.verweise.${i}.ziel`, "fehlt."]]),
+      ]),
     form: (k, b, reg) => [
       eingabe(k, b, reg, "titel", "Titel (optional)", {
         maxlength: 100,
@@ -1380,8 +1386,58 @@ export const TYPEN = {
       el(
         "p",
         { class: "hilfe" },
-        "Die Person ist freiwillig; Cevi-Name und Funktion erscheinen unter dem Titel. Telefon und E-Mail der Abteilung setzt der Server ein.",
+        "Die Person ist freiwillig; Cevi-Name und Funktion erscheinen unter dem Titel. Die Knöpfe «E-Mail schreiben» und «Anrufen» und die Angaben zu Anschrift, E-Mail und Telefon setzt der Server aus der Konfiguration der Abteilung ein.",
       ),
+      eingabe(k, b, reg, "hinweis", "Hinweis zur Erreichbarkeit (optional)", {
+        maxlength: 200,
+        optional: true,
+        mehrzeilig: true,
+        rows: 2,
+        hilfe:
+          "Steht unter dem Titel, zum Beispiel wann man jemanden erreicht. Nur Angaben, die stimmen.",
+      }),
+      bildWahl(k, b, reg, b.daten, "daten.bild", {
+        schluessel: "bild",
+        optional: true,
+        name: "Bild neben den Angaben",
+      }),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Weiterführende Verweise stehen als ruhige Zeile unter der Karte, zum Beispiel Cevi Schweiz. Fremde Seiten tragen den kleinen Pfeil nach oben rechts.",
+      ),
+      listenForm(k, b, {
+        name: "Verweis",
+        listeName: "Verweise",
+        pfadName: "daten.verweise",
+        liste: () => b.daten.verweise ?? [],
+        max: 4,
+        hinzuText: "Verweis hinzufügen",
+        hinzu: (liste, fertig) => {
+          // Das Feld entsteht erst mit dem ersten Verweis
+          const verweise = (b.daten.verweise ??= liste);
+          verweise.push({ beschriftung: "", ziel: "" });
+          fertig(verweise.length - 1);
+        },
+        zeile: (eintrag, pfad) => [
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "beschriftung",
+            "Beschriftung",
+            `${pfad}.beschriftung`,
+            { maxlength: 60, hilfe: "Zum Beispiel: Cevi Schweiz." },
+          ),
+          teilEingabe(k, b, reg, eintrag, "ziel", "Ziel", `${pfad}.ziel`, {
+            maxlength: 2000,
+            spellcheck: "false",
+            autocapitalize: "off",
+            hilfe: LINK_HILFE,
+          }),
+        ],
+      }),
     ],
   },
   laden: {
@@ -1533,7 +1589,8 @@ export const KATALOG = [
   },
   {
     typ: "kontaktkarte",
-    beschreibung: "«Fragen? Melde dich bei uns.» mit Telefon und E-Mail.",
+    beschreibung:
+      "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
   },
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
@@ -1549,6 +1606,7 @@ export const medienIds = (dok) => [
     dok.bausteine
       .flatMap((b) => [
         b.daten.mediumId,
+        b.daten.bild,
         ...(b.daten.bilder ?? []).map((x) => x.mediumId),
         ...(b.daten.eintraege ?? []).flatMap((x) => [x.bild, x.mediumId]),
       ])

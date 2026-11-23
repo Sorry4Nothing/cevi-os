@@ -58,6 +58,7 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
       `/admin/${SCHRIFT}`,
     ) +
     lade("website/kopf.css") +
+    lade("website/fuss.css") +
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +
     lade("website/inhalt.css");

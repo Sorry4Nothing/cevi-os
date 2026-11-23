@@ -414,20 +414,7 @@ figcaption,
   padding: 0 var(--rand);
 }
 
-/* Der Kopf (Marke, Navigation, Umschalter, Menü) steht in kopf.css (#558) */
-.fuss {
-  padding: clamp(2.5rem, 5vw, 4rem) 0 2rem;
-  background: var(--secondary);
-  color: var(--on-secondary);
-}
-
-.fuss a {
-  color: var(--on-secondary);
-}
-
-.fuss :focus-visible {
-  outline-color: var(--on-secondary);
-}
+/* Der Kopf (Marke, Navigation, Umschalter, Menü) steht in kopf.css (#558), der Fuss und die Kontaktkarte in fuss.css (#580) */
 
 /* ===== Seiten ===== */
 .seitenkopf {
@@ -1443,8 +1430,7 @@ div.termin {
 
 @media (min-width: 64.0625em) {
   .sektion--text > .wrap,
-  .sektion--terminliste .abschnitt,
-  .kontaktkarte {
+  .sektion--terminliste .abschnitt {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     column-gap: var(--spalt);
@@ -2082,75 +2068,10 @@ a.btn.w {
   }
 }
 
-/* Kontakt: die Frage in der Schiene, rechts Telefon und E-Mail als grosse Zeilen */
-.kontakt-text {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.75rem;
-}
-
-.wege {
-  display: flex;
-  flex-direction: column;
-}
-
-.wege > li + li {
-  border-top: 1px solid var(--outline-variant);
-}
-
-.weg {
-  display: flex;
-  flex-direction: column;
-  min-height: 2.75rem;
-  padding: 1.25rem 0;
-  color: var(--titel);
-  text-decoration: none;
-}
-
-.wege > li:first-child .weg {
-  padding-top: 0;
-}
-
-.weg-art {
-  color: var(--on-surface-variant);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-  font-weight: 700;
-}
-
-.weg-wert {
-  font-size: clamp(1.25rem, 1rem + 1.5vw, 2.25rem);
-  line-height: 1.15;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  overflow-wrap: anywhere;
-}
-
-.weg:hover .weg-wert {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-}
-
-.weg:focus-visible {
-  outline-offset: 4px;
-}
-
-/* Was nach der Kontaktkarte folgt (zum Beispiel ein Satz mit Links), steht darunter in der Spalte des Inhalts */
-.sektion--kontaktkarte .wrap > * + * {
+/* Was nach der Kontaktkarte folgt (zum Beispiel ein loser Satz in einem Text), steht darunter; Kontaktkarte, Fuss: fuss.css (#580) */
+.sektion--kontaktkarte .wrap > .kontaktkarte ~ * {
   margin-top: 2rem;
   color: var(--on-surface-variant);
-}
-
-@media (min-width: 64.0625em) {
-  .kontakt-text {
-    margin-bottom: 0;
-  }
-
-  .sektion--kontaktkarte .wrap > * + * {
-    margin-left: calc((100% - var(--spalt)) / 3 + var(--spalt));
-  }
 }
 
 /* Galerie: Raster mit festem Seitenverhältnis, die Fläche steht schon vor dem Bild */
@@ -2163,62 +2084,6 @@ a.btn.w {
 
 .galerie img {
   border-radius: var(--r-md);
-}
-
-/* Fuss: Name und Adresse, Seiten, Kontakt und Rechtliches in Spalten */
-.fuss-in {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
-  gap: 2rem var(--spalt);
-}
-
-.fuss-name {
-  min-width: 0;
-}
-
-.fuss-spalte h2 {
-  margin-bottom: 0.5rem;
-  color: var(--on-secondary-muted);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-  font-weight: 700;
-}
-
-.fuss strong {
-  display: block;
-  margin-bottom: 0.5rem;
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
-  line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-
-.fuss p {
-  margin: 0;
-}
-
-.fuss .klein {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid color-mix(in srgb, var(--on-secondary) 24%, transparent);
-  color: var(--on-secondary-muted);
-}
-
-.fuss a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  text-decoration: none;
-}
-
-.fuss a:hover {
-  text-decoration: underline;
-}
-
-@media (min-width: 64.0625em) {
-  .fuss-in {
-    grid-template-columns: 1.6fr repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 47.5em) {
@@ -2522,9 +2387,7 @@ a.btn.w {
     .sektion--terminliste .termine > li,
     .abschnitt-kopf,
     .aufruf > *,
-    .kontakt-text,
-    .wege > li,
-    .fuss-in > * {
+    .kontaktkarte > * {
       animation: auf linear both;
       animation-timeline: view();
       animation-range: cover 0% cover 16%;

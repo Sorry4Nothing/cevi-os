@@ -149,25 +149,108 @@ describe("Kontaktkarte", () => {
       personen: new Map([
         [personId, { name: "Mara Muster", funktion: "Abteilungsleitung" }],
       ]),
-      kontakt: { telefon: "043 543 96 82", email: "info@example.org" },
+      kontakt: {
+        telefon: "043 543 96 82",
+        email: "info@example.org",
+        adresse: "Beispielweg 1, 8000 Beispielstadt",
+      },
     };
   };
 
-  test("Frage, Ansprechperson links, Telefon und E-Mail als Links rechts", () => {
+  test("Frage, Ansprechperson, E-Mail als Hauptaktion und Anrufen als zweite Möglichkeit, dazu die Angaben zum Nachlesen (#580)", () => {
     const d = daten();
     const personId = [...d.personen.keys()][0]!;
     const html = seite(dok("T", b("kontaktkarte", { personId })), d);
     expect(html).toContain("<h2>Fragen? Melde dich bei uns.</h2>");
     expect(html).toContain(
-      '<p class="leise">Mara Muster, Abteilungsleitung</p>',
+      '<p class="kontakt-person">Mara Muster, Abteilungsleitung</p>',
     );
-    // Grosse Zeilen: Art und Wert in einem Link, ohne Symbol
+    // Eine Hauptaktion (rot), die zweite Möglichkeit mit Rand: Knöpfe des Repertoires, nie ein eigener Knopf
     expect(html).toContain(
-      '<a href="tel:+41435439682" class="weg"><span class="weg-art">Telefon</span>',
+      '<div class="knopfreihe aktionen"><a href="mailto:info@example.org" class="btn p gross">E-Mail schreiben</a><a href="tel:+41435439682" class="btn s gross">Anrufen</a></div>',
     );
-    expect(html).toContain('<span class="weg-wert">043 543 96 82</span>');
-    expect(html).toContain('<a href="mailto:info@example.org" class="weg">');
-    expect(html).toContain('<span class="weg-wert">info@example.org</span>');
+    expect(html).toContain(
+      '<dl class="kontakt-angaben"><div><dt>Anschrift</dt><dd>Beispielweg 1, 8000 Beispielstadt</dd></div>',
+    );
+    expect(html).toContain(
+      '<dt>E-Mail</dt><dd><a href="mailto:info@example.org">info@example.org</a></dd>',
+    );
+    expect(html).toContain(
+      '<dt>Telefon</dt><dd><a href="tel:+41435439682">043 543 96 82</a></dd>',
+    );
+    // Hinweis, Bild und Verweise sind freiwillig
+    expect(html).not.toContain("kontakt-hinweis");
+    expect(html).not.toContain("kontakt-bild");
+    expect(html).not.toContain("kontakt-verweise");
+    expect(html).toContain('<section class="kontaktkarte">');
+  });
+
+  test("ohne E-Mail ist das Telefon die Hauptaktion; fehlt beides, gibt es keine Knöpfe", () => {
+    const nurTelefon = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { telefon: "043 543 96 82" },
+    });
+    expect(nurTelefon).toContain('class="btn p gross">Anrufen</a>');
+    expect(nurTelefon).not.toContain("E-Mail schreiben");
+    const nurAdresse = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { adresse: "Beispielweg 1" },
+    });
+    expect(nurAdresse).toContain('class="kontakt-angaben"');
+    expect(nurAdresse).not.toContain('class="knopfreihe aktionen"');
+  });
+
+  test("Hinweis zur Erreichbarkeit, Bild und Verweise: der fremde Link trägt Pfeil-Zusatz und rel, die Seite der Website nicht (#580)", () => {
+    const medium = id();
+    const html = seite(
+      dok(
+        "T",
+        b("kontaktkarte", {
+          hinweis: "Wir antworten, sobald wir können.",
+          bild: medium,
+          verweise: [
+            { beschriftung: "Cevi Schweiz", ziel: "https://www.cevi.ch" },
+            { beschriftung: "Mitmachen", ziel: "/mitmachen" },
+          ],
+        }),
+      ),
+      {
+        ...daten(),
+        medien: new Map([
+          [
+            medium,
+            {
+              mimeTyp: "image/webp",
+              groesse: 10,
+              breite: 1920,
+              hoehe: 1280,
+              altText: "Kinder auf einer Wiese",
+            },
+          ],
+        ]),
+      },
+    );
+    expect(html).toContain(
+      '<p class="kontakt-hinweis">Wir antworten, sobald wir können.</p>',
+    );
+    expect(html).toContain('<section class="kontaktkarte kontaktkarte--bild">');
+    expect(html).toContain(
+      `<figure class="kontakt-bild"><img src="/api/v1/medien/${medium}" alt="Kinder auf einer Wiese" width="1920" height="1280" decoding="async"></figure>`,
+    );
+    // Steht die Karte weit unten, lädt das Bild erst beim Scrollen (loading="lazy", wie jedes Bild unterhalb des ersten Bildschirms); als erster Abschnitt lädt es sofort
+    expect(html).toContain("<h3>Weitere Informationen</h3>");
+    expect(html).toContain(
+      '<a href="https://www.cevi.ch" rel="noopener noreferrer" class="verweis">Cevi Schweiz<span class="nur-sr"> (externe Seite)</span></a>',
+    );
+    expect(html).toContain(
+      '<a href="/mitmachen" class="verweis">Mitmachen</a>',
+    );
+  });
+
+  test("ein Bild, das nicht (mehr) da ist, entfällt: die Karte steht ohne Bild", () => {
+    const html = seite(dok("T", b("kontaktkarte", { bild: id() })), daten());
+    expect(html).not.toContain("kontakt-bild");
+    expect(html).toContain('<section class="kontaktkarte">');
   });
 
   test("ohne Person und ohne Kontaktdaten entfällt die Karte", () => {
@@ -421,13 +504,13 @@ describe("Navigation in einer Zeile", () => {
   });
 });
 
-describe("Fuss", () => {
-  const fuss = (daten: Daten) =>
-    rendereFehlerseite({ ...kontext(daten) }).split(
+describe("Fuss (#580)", () => {
+  const fuss = (daten: Daten, rest: Partial<Kontext> = {}) =>
+    rendereFehlerseite({ ...kontext(daten), ...rest }).split(
       '<footer class="fuss">',
     )[1]!;
 
-  test("Spalten: Name und Anschrift, Seiten, Telefon und E-Mail, Impressum und Datenschutz, dazu ©", () => {
+  test("drei Stufen: Marke und Hauptbereiche, Anschrift, E-Mail und Telefon mit «Nach oben», «©» und Rechtliches", () => {
     const html = fuss({
       ...keineDaten(),
       kontakt: {
@@ -438,25 +521,71 @@ describe("Fuss", () => {
         datenschutz: "/datenschutz-website",
       },
     });
+    // Ohne Logo steht die Wortmarke
     expect(html).toContain(
-      "<strong>Cevi Beispielstadt</strong><p>Beispielweg 1, 8000 Beispielstadt</p>",
+      '<a class="fuss-marke" href="/"><b>CEVI</b><span>Beispielstadt</span></a>',
     );
-    expect(html).toContain('href="tel:+41000000000"');
     expect(html).toContain(
-      '<a href="mailto:info@example.org">info@example.org</a>',
+      "<dt>Anschrift</dt><dd>Cevi Beispielstadt<br>Beispielweg 1, 8000 Beispielstadt</dd>",
     );
+    expect(html).toContain(
+      '<dt>Telefon</dt><dd><a href="tel:+41000000000">+41 00 000 00 00</a></dd>',
+    );
+    expect(html).toContain(
+      '<dt>E-Mail</dt><dd><a href="mailto:info@example.org">info@example.org</a></dd>',
+    );
+    // «Nach oben» ist eine Nebenaktion des Repertoires
+    expect(html).toContain('<a class="btn s fuss-oben" href="#">Nach oben');
     expect(html).toContain('<a href="/impressum">Impressum</a>');
     expect(html).toContain('<a href="/datenschutz-website">Datenschutz</a>');
     expect(html).toMatch(/© \d{4} Cevi Beispielstadt/);
   });
 
-  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Erklärung der Plattform, keine leeren Spalten", () => {
+  test("nur die oberste Ebene der Navigation steht im Fuss, nie die Unterseiten", () => {
+    const html = fuss(keineDaten(), {
+      navigation: [
+        { pfad: "/gruppen", titel: "Unsere Gruppen", kinder: [nav("Bienli")] },
+        { pfad: "/mitmachen", titel: "Mitmachen", kinder: [] },
+      ],
+    });
+    expect(html).toContain(
+      '<nav class="fuss-seiten" aria-label="Seiten"><ul><li><a href="/gruppen">Unsere Gruppen</a></li><li><a href="/mitmachen">Mitmachen</a></li></ul></nav>',
+    );
+    expect(html).not.toContain("Bienli");
+  });
+
+  test("Logo: mit Fassung für Dunkel steht sie auf Blau, mit nur einer hellen Fassung auf einem hellen Feld", () => {
+    const logo = {
+      id: "01a20580-3c5d-7c70-8783-e931b4402523",
+      altText: "Cevi",
+      breite: 800,
+      hoehe: 165,
+    };
+    const zwei = fuss(keineDaten(), {
+      logo: {
+        ...logo,
+        dunkel: {
+          id: "01a20580-3d31-7782-abdd-2cc5b954ab90",
+          breite: 800,
+          hoehe: 165,
+        },
+      },
+    });
+    expect(zwei).toContain(
+      '<img class="fuss-logo" src="/api/v1/medien/01a20580-3d31-7782-abdd-2cc5b954ab90" alt="Cevi" width="800" height="165"><span class="nur-sr">Beispielstadt</span>',
+    );
+    const eins = fuss(keineDaten(), { logo });
+    expect(eins).toContain(
+      '<img class="fuss-logo fuss-logo--feld" src="/api/v1/medien/01a20580-3c5d-7c70-8783-e931b4402523"',
+    );
+  });
+
+  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Erklärung der Plattform, keine leeren Angaben", () => {
     const html = fuss(keineDaten());
     expect(html).not.toContain("Impressum");
     expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
-    // Nur Spalten mit Inhalt: Seiten und Rechtliches, kein leeres Kontakt
-    expect(zaehle(html, 'class="fuss-spalte"')).toBe(2);
-    expect(html).not.toContain('aria-label="Kontakt"');
+    expect(html).not.toContain("<address>");
+    expect(html).not.toContain("<dt>");
   });
 });
 
@@ -817,7 +946,7 @@ describe("Abgleich", () => {
     const fuss = start.split('<footer class="fuss">')[1]!;
     expect(fuss).toContain('<a href="/impressum">Impressum</a>');
     expect(fuss).toContain('<a href="/datenschutz-website">Datenschutz</a>');
-    expect(fuss).toContain("<p>Beispielweg 1</p>");
+    expect(fuss).toContain("<dd>Cevi Testabteilung<br>Beispielweg 1</dd>");
     const leiste = start.slice(
       start.indexOf('<nav class="hauptnav"'),
       start.indexOf("</nav>"),

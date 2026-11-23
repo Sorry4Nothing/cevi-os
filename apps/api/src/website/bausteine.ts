@@ -27,6 +27,8 @@ export const MAX_KARUSSELL_BILDER = 8;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
 export const MAX_HINWEIS = 200;
+// Weiterführende Verweise der Kontaktkarte (#580)
+export const MAX_KONTAKT_VERWEISE = 4;
 // Alterschip einer Stufenkarte (#555), zum Beispiel «3./4. Klasse»
 export const MAX_ALTER = 40;
 // Symbole der Merkmale (#555): Die Website zeichnet sie nicht mehr (Merkmale tragen grosse Schrift oder ein Foto); das Feld bleibt, damit gespeicherte Seiten gültig sind
@@ -302,12 +304,24 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       ziel: linkAlle,
     }),
   ),
-  // Kontaktkarte (#549, Design W1): Telefon und E-Mail der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen
+  // Kontaktkarte (#549, Design W1): Telefon, E-Mail und Anschrift der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen.
+  // #580: dazu ein Hinweis zur Erreichbarkeit, ein Bild der Medienbibliothek und weiterführende Verweise (zum Beispiel Cevi Schweiz); alles freiwillig
   baustein(
     "kontaktkarte",
     z.strictObject({
       titel: kurztext(MAX_KURZTEXT).optional(),
       personId: z.uuid().optional(),
+      hinweis: kurztext(MAX_HINWEIS).optional(),
+      bild: mediumId.optional(),
+      verweise: z
+        .array(
+          z.strictObject({
+            beschriftung: kurztext(MAX_BESCHRIFTUNG),
+            ziel: linkAlle,
+          }),
+        )
+        .max(MAX_KONTAKT_VERWEISE)
+        .optional(),
     }),
   ),
   // Personen (#560): echte Personen der Plattform. Name (Cevi-Name, sonst Vorname) und Bild (das Profilbild) kommen von der Person und erscheinen nur mit ihrer Freigabe; Funktion und Funktionsadresse sind Angaben der Seite.
