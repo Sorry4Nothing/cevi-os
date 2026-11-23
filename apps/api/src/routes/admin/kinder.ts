@@ -558,21 +558,16 @@ export function erstelleKinderRouten({
             eingaben.elternEinsicht ?? einstellung.elternEinsichtVorgabe;
           try {
             const benutzername = await db.transaction(async (tx) => {
-              const angelegt = await legePersonAn(
-                tx,
-                person,
-                c.req.raw.headers,
-                {
-                  vorname: ziel.vorname,
-                  nachname: ziel.nachname,
-                  ceviName: ziel.ceviName,
-                  benutzername: eingaben.benutzername,
-                  admin: false,
-                  rollen: [],
-                  elternteilVon: [],
-                  startpasswort,
-                },
-              );
+              const angelegt = await legePersonAn(tx, person, {
+                vorname: ziel.vorname,
+                nachname: ziel.nachname,
+                ceviName: ziel.ceviName,
+                benutzername: eingaben.benutzername,
+                admin: false,
+                rollen: [],
+                elternteilVon: [],
+                startpasswort,
+              });
               // Nur wenn noch kein Konto da ist: Zwei gleichzeitige Anfragen legen nie zwei an
               const gesetzt = await tx
                 .update(kind)

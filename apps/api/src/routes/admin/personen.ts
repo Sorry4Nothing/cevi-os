@@ -30,7 +30,6 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { verlange } from "../../rechtemodell/darf.js";
 import { telefonSchema } from "../../telefon.js";
 import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
