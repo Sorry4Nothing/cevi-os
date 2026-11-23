@@ -438,7 +438,6 @@ Dieser Abschnitt gilt für `schrittfolge.js` und `import.js` (Schrittfolge nach 
 - [ ] **24.11** Kinder: Die Spalte heisst «Zugang», der Filter «Ohne Zugang». Ein Kind ohne verknüpften Elternteil ist ein Hinweis (Text «hat keinen Zugang: Ohne verknüpften Elternteil kann niemand es in der App sehen»), keine Warnung und kein Fehler. In der Liste steht dafür ruhiger Text statt eines Chips je Zeile.
 - [ ] **24.12** «Kind» ist wie die Person eine Seite im Fluss mit eigener Adresse im Verlauf (Karten «Angaben», «Stufe», «Eltern und Zugang», rechts das Kind mit Zustand); Speichern und Abbrechen stehen in der Leiste unten, ungespeicherte Eingaben fragt der Fluss ab.
 
-
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
