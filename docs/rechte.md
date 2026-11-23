@@ -6,18 +6,19 @@ Stand: 23.11.2026, Branch `develop` (ohne das Lädeli aus #566, siehe Abschnitt 
 
 Wo etwas entschieden wird:
 
-| Frage                                              | Ort im Code                                                                                                               |
-| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Wer ist die Person, welche Stufenrollen hat sie    | `apps/api/src/rechte.ts` (`personAusSitzung`, `Person`, `hatRolle`)                                                       |
-| Plattformrechte, Entwickler, Webmaster             | `apps/api/src/plattform.ts` (`PLATTFORM_RECHTE`, `hatPlattformRecht`, `istEntwickler`)                                    |
-| Recht an einer Seite (Stufe, Team, Sonderrecht)    | `apps/api/src/bearbeiten.ts` (`darfBearbeiten`, `bearbeitbar`)                                                            |
-| Zugang zur Website-Verwaltung                      | `apps/api/src/website/seiten.ts` (`hatWebsiteZugang`, `hatErweitertesRecht`)                                              |
-| Rollen und Rechte im Lager                         | `apps/api/src/lager/rechte-katalog.ts`, `lager/policy.ts` (`lagerZugriff`, `darf`)                                        |
-| Sichtbarkeit von Inhalten                          | `apps/api/src/sichtbarkeit.ts`, `termine/sicht.ts`, `termine/anlass-sicht.ts`                                             |
-| Wartungsmodus und Informationssperre               | `apps/api/src/bereichsschalter.ts`, `routes/plattform.ts`                                                                 |
-| Zweiter Faktor                                     | `rechte.ts` (`zweiterFaktorPflicht`), `plattform.ts`, `lager/policy.ts`, `app.ts`                                         |
-| Oberfläche für Rollen, Gruppen und «Was darf wer?» | `apps/api/public/admin/rechte*.js`, `apps/api/src/routes/admin/rechte.ts` (Verwaltung, Personen, Rollen und Rechte; #623) |
-| Beweis, was jede Route antwortet                   | `apps/api/test/rechte-matrix.test.ts`, `test/lager/matrix/*.ts`, `test/termine/matrix/*.ts`                               |
+| Frage                                              | Ort im Code                                                                                                                        |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| Wer ist die Person, welche Stufenrollen hat sie    | `apps/api/src/rechte.ts` (`personAusSitzung`, `Person`, `hatRolle`)                                                                |
+| Plattformrechte, Entwickler, Webmaster             | `apps/api/src/plattform.ts` (`PLATTFORM_RECHTE`, `hatPlattformRecht`, `istEntwickler`)                                             |
+| Recht an einer Seite (Stufe, Team, Sonderrecht)    | `apps/api/src/bearbeiten.ts` (`darfBearbeiten`, `bearbeitbar`)                                                                     |
+| Zugang zur Website-Verwaltung                      | `apps/api/src/website/seiten.ts` (`hatWebsiteZugang`, `hatErweitertesRecht`)                                                       |
+| Rollen und Rechte im Lager                         | `apps/api/src/lager/rechte-katalog.ts`, `lager/policy.ts` (`lagerZugriff`, `darf`)                                                 |
+| Sichtbarkeit von Inhalten                          | `apps/api/src/sichtbarkeit.ts`, `termine/sicht.ts`, `termine/anlass-sicht.ts`                                                      |
+| Wartungsmodus und Informationssperre               | `apps/api/src/bereichsschalter.ts`, `routes/plattform.ts`                                                                          |
+| Rechtekatalog, Gruppenrollen, `darf()`, Matrix     | `apps/api/src/rechtemodell/` (Katalog, RechteSatz, rechtSql, Schattenbetrieb), `routes/admin/rechte-matrix.ts` (Abschnitt 8; #643) |
+| Zweiter Faktor                                     | `rechte.ts` (`zweiterFaktorPflicht`), `plattform.ts`, `lager/policy.ts`, `app.ts`                                                  |
+| Oberfläche für Rollen, Gruppen und «Was darf wer?» | `apps/api/public/admin/rechte*.js`, `apps/api/src/routes/admin/rechte.ts` (Verwaltung, Personen, Rollen und Rechte; #623)          |
+| Beweis, was jede Route antwortet                   | `apps/api/test/rechte-matrix.test.ts`, `test/lager/matrix/*.ts`, `test/termine/matrix/*.ts`                                        |
 
 ## 1. Begriffe und Rollen
 
@@ -34,6 +35,7 @@ Wo etwas entschieden wird:
 | Plattformrolle (zuerst «Webmaster») | Eine Rolle der Abteilung mit einer Auswahl aus dem Plattformkatalog. Die Vorgabe «Webmaster» gibt es in jeder Abteilung; weitere legt die Abteilungsleitung an.                               | `plattform_rolle`, `plattform_rolle_recht`, `person_plattform_rolle`; `WEBMASTER_VORGABE`, `legeWebmasterAn` | Abteilungsleitung unter `/api/v1/admin/plattform/rollen`               |
 | Bearbeiter (Sonderrecht)            | Zeile in `bearbeiter`: Eine Person oder ein Tag darf genau eine Seite bearbeiten. Ein Tag verleiht für sich nichts.                                                                           | `bearbeiten.ts` (`sonderrecht`), `routes/admin/bearbeiter.ts`                                                | Abteilungsleitung unter `/api/v1/admin/bearbeiter`                     |
 | Team-Verantwortliche                | Person, die an einem Tag vom Typ `team` die Rolle `verantwortlich` trägt (Gross- und Kleinschreibung egal). Sie bearbeitet die Seiten ihres Teams und entscheidet Raumanfragen.               | `bearbeiten.ts` (`teamVerantwortung`, `TEAM_ROLLE`), `termine/raum-buchung.ts`                               | Abteilungsleitung (Tags)                                               |
+| Gruppenrolle                        | Rolle einer einzelnen Gruppe mit einstellbaren Rechten (Abschnitt 8). Jede Gruppe hat Systemrollen und selbst erstellte Rollen; eine Person trägt je Gruppe eine.                             | `gruppen_rolle`, `gruppen_rolle_recht`, `person_tag.rolle_id`                                                | Abteilungsleitung unter `/api/v1/admin/rechte/gruppen`                 |
 | Tag (Gruppe)                        | Eintrag in `tag` mit Typ `stufe`, `funktion`, `team` oder `lager`; Personen tragen ihn über `person_tag`. Steuert Sichtbarkeit, Termine und die zwei Sonderwege oben.                         | `db/schema.ts`, `sichtbarkeit.ts`                                                                            | Abteilungsleitung unter `/api/v1/admin/tags`                           |
 | Lager-Rolle                         | Zeile in `lager_mitglied`: `lagerleitung`, `leitung`, `team` oder `lesen`. Gilt nur in diesem Lager. Nicht zu verwechseln mit der Stufenrolle «Leitung».                                      | `LAGER_ROLLEN` (`lager/rechte-katalog.ts`), `ladeLagerZugriff`                                               | Abteilungsleitung unter `/api/v1/admin/lager/{id}/mitglieder`          |
 | Gesperrtes oder deaktiviertes Konto | `banned` oder `deaktiviert_am` gesetzt: jede Anfrage 401, auch mit alter Sitzung. Es ist nirgends Mitglied.                                                                                   | `personAusSitzung`, `aktivesKonto`                                                                           | Abteilungsleitung                                                      |
@@ -327,17 +329,107 @@ Hier steht, wo Code, Tests und Kommentare nicht zusammenpassen oder nichts entsc
    - Lädeli: bestellen darf jede angemeldete Person (`laden/laden.ts` in #566)
 3. **Zwei Sichtlogiken für Termine.** `/api/v1/programme` (`rechte.ts`, `programmSichtbar`) und `/api/v1/termine` (`termine/sicht.ts`) entscheiden verschieden. Beispiel: Die Abteilungsleitung sieht ein Programm der Stufe A über `GET /programme/:id` (200), über `GET /termine/:id` aber nicht (404), und `intern` sieht sie nur in `/programme`. Die Apps sollen laut Plan auf `/termine` wechseln; offen, ob `/programme` bleibt und ob die Abteilungsleitung in «Mein Kalender» alles sehen soll.
 4. **Benennung von Sichtbarkeit und Tags.** Offen (Nutzer, 23.11.2026). `eltern` heisst im öffentlichen Datenplan der Website «öffentlich im Internet»; eine Stufe «für Eltern, aber nicht im Internet» gibt es nicht. Die Termin-Listen der Stufenseiten zeigen Gruppentermine eines Anlasses auch bei Anlass-Sichtbarkeit `angemeldet`, der Datenplan nicht.
-5. **Rechtekatalog der Termine ist nur Doku.** `TERMINE_RECHTE` (`termine/rechte-katalog.ts`) ist ein Platzhalter: Keine Route liest ihn, nur `test/termine/geruest.test.ts` prüft die Namen. Die echte Prüfung steht in einzelnen Funktionen (`darfAnlaesseVerwalten`, `darfVorschlagen`, `darfEntscheiden`, `istAdmin` in den Routen). Entscheid: Katalog zur echten Quelle machen oder streichen.
-6. **Ungenutzte Prüf-Middleware.** `verlangePlattformRecht` und `verlangeEntwickler` (`plattform.ts`) werden nur in `test/plattformrollen.test.ts` verwendet. Die Routen prüfen mit `hatPlattformRecht` und `istEntwickler` selbst. Entscheid: Middleware einsetzen oder entfernen.
+5. **Rechtekatalog der Termine ist nur Doku (Fundament seit #643 gebaut, Umstellung offen).** Der eine Katalog und `darf()` stehen (Abschnitt 8); die Routen stellen noch nicht um. `TERMINE_RECHTE` (`termine/rechte-katalog.ts`) ist ein Platzhalter: Keine Route liest ihn, nur `test/termine/geruest.test.ts` prüft die Namen. Die echte Prüfung steht in einzelnen Funktionen (`darfAnlaesseVerwalten`, `darfVorschlagen`, `darfEntscheiden`, `istAdmin` in den Routen). Entscheid: Katalog zur echten Quelle machen oder streichen.
+6. **Ungenutzte Prüf-Middleware (löst sich mit der Umstellung auf `verlange`, #643).** `verlangePlattformRecht` und `verlangeEntwickler` (`plattform.ts`) werden nur in `test/plattformrollen.test.ts` verwendet. Die Routen prüfen mit `hatPlattformRecht` und `istEntwickler` selbst. Entscheid: Middleware einsetzen oder entfernen.
 7. **Zwei Wege zu den Medien.** `/api/v1/admin/medien*` (nur Abteilungsleitung) und `/api/v1/redaktion/medien*` (auch Webmaster und Stufenleitung) führen zur selben Bibliothek, mit verschiedenen Regeln. Offen: Darf eine Stufenleitung Alt-Texte fremder Medien ändern (heute nur eigene Uploads)? Soll der Admin-Weg bleiben?
 8. **Zweiter Faktor je Pfad, nicht je Rolle.** Die Abteilungsleitung ohne zweiten Faktor sperrt die Middleware nur unter `/api/v1/admin/*`, `/redaktion` und `/plattform`; Programme, Anwesenheit, Lager (als Lagerleitung, ausser Rechte der Rollen), Vorschläge und Räume nutzt sie ohne. Das ist Entscheid #523 (Faktor nur im Web), aber die Regel hängt an der Route, nicht an der Rolle, und einzelne Routen bewachen ihn selbst (Raumanfragen entscheiden). Entscheid: Soll das so bleiben?
 9. **Kein Selbstbedienungsweg für Datenschutzrechte.** Konto löschen und Daten löschen laufen nur auf Anfrage bei der Leitung (Seite «Konto löschen»); es gibt keine Route für Auskunft oder Export einer Person. Entscheid und rechtliche Prüfung offen (J+S-Frist 10 Jahre gegen Löschung nach 6 Monaten, Datenschutzerklärung #548).
 10. **Entwickler ist kein Admin.** Er hat jedes Recht des Plattformkatalogs, aber keine Routen unter `/api/v1/admin/*` (dort 403, die Routen prüfen `person.admin`) und sieht keine Admin-Daten. Das ist gewollt (Kommentar in `plattform.ts`), steht aber in keinem Entscheid; bitte bestätigen.
 11. **Lager-Mitglieder sind beliebige Konten.** Jedes Konto der Abteilung (auch Eltern) kann Mitglied eines Lagers sein; das Konto der Lagerleitung braucht für das Ändern der Rechte den zweiten Faktor, sonst nichts Besonderes. Offen, ob Eltern Lager-Mitglieder sein sollen.
 
-12. **Rechte an einer Gruppe lassen sich nicht einstellen (offen, Entscheid #585).** Die Seite «Rollen und Rechte» zeigt ehrlich, was Gruppen heute tragen: Verantwortliche eines Teams (Seite des Teams), Raumanfragen des Teams, Terminvorschläge, Sonderrechte an einzelnen Seiten. Ein Recht aus dem Katalog (zum Beispiel «Medien verwalten») kann eine Gruppe wie «Mat» nicht tragen; Plattformrollen gelten für Personen. Es gibt auch keine Rollen in der Gruppe ausser dem Freitext «verantwortlich» und keine Geltung «nur eigene Objekte». Das ist der Umbau aus dem Entwurf (Vorlage je Gruppentyp, `plattform_rolle` mit Gruppenart); er ist nicht entschieden und nicht gebaut.
-13. **Kein Verlauf der Rechteänderungen in der Oberfläche.** Die Änderungen stehen im Audit-Log, aber keine Route liest es. Die Seite zeigt darum keinen Verlauf. Entscheid: Eine lesende Route für die Abteilungsleitung (nur Aktion, Zeit, Kennungen) oder weiter nur die Datenbank.
-14. **Gleichzeitige Änderung einer Rolle.** `PATCH …/rollen/{id}` ersetzt die Rechte als Ganzes, ohne Versionsnummer. Die Oberfläche liest vor dem Speichern den Stand noch einmal und bricht bei einer Änderung ab; ein Rest bleibt, wenn zwei Personen im selben Augenblick speichern.
+12. **Rechte je Gruppe sind gebaut, die Oberfläche und die Umstellung der Routen fehlen (#643).** Gruppenrollen, Katalog, `darf()`, Schattenbetrieb und Matrix-API stehen (Abschnitt 8). Offen: die Oberfläche der Matrix, die Umstellung der rund 100 Stellen mit `person.admin` ([rechte-umstellung.md](rechte-umstellung.md)), Lager-Rechte je Lager-Gruppe (das Tag-Typ `lager` hat keine Verknüpfung zu einem Lager).
+13. **Verlauf der Rechteänderungen.** `GET /api/v1/admin/rechte/aenderungen` liest die Audit-Zeilen (Aktion, Zeit, Kennungen, Rechte; nie Namen von Rollen). Die Oberfläche zeigt ihn noch nicht.
+14. **Gleichzeitige Änderung einer Rolle.** Gelöst für die neue API (`version` Pflicht, 409 `VERSION_KONFLIKT`). Die ältere Route `PATCH /api/v1/admin/plattform/rollen/{id}` hat keine Versionsprüfung, zählt aber die Version hoch.
+
+## 8. Das Rechtemodell: Gruppenrollen, Katalog und darf() (#643)
+
+Dieser Abschnitt beschreibt das Fundament für die Matrix «Rollen und Rechte». Es steht im Code unter `apps/api/src/rechtemodell/`; die Routen stellen Schritt für Schritt darauf um (Anleitung: [rechte-umstellung.md](rechte-umstellung.md)). Bis eine Route umgestellt ist, gilt dort die Prüfung aus Abschnitt 4.
+
+### 8.1 Rechte je einzelne Gruppe
+
+Jede Gruppe (Tag jedes Typs: Stufe, Funktion, Team, Lager, Anlass wie das OK) hat eigene, selbst erstellbare **Gruppenrollen** (`gruppen_rolle`): Name, Beschreibung, eine Menge von Rechten mit Geltung, das Kennzeichen «Verantwortliche/r» und eine Reihenfolge. Eine Person trägt in einer Gruppe höchstens eine Rolle (`person_tag.rolle_id`). Es gibt **keine Frist**: Die Rechte gelten, bis Rolle, Zuordnung oder Gruppe gelöscht wird; auch die Rechte eines OK enden nicht mit dem Anlass.
+
+Jede Gruppe hat ausserdem **Systemrollen**, die das System anlegt und die sich nicht löschen und nicht umbenennen lassen; ihre Rechte sind einstellbar. An einer Stufe sind es «Stufenleitung» und «Leitung», an jeder anderen Gruppe «Verantwortliche/r». Sie folgen dem Freitext `person_tag.rolle` (Trigger `person_tag_rolle_abgleich`: Stufe `leitung` und `stufenleitung`, sonst `verantwortlich`, Gross- und Kleinschreibung egal). Der Freitext bleibt Anzeige und Quelle des alten Wegs.
+
+Geltung eines Rechts:
+
+- **alle:** jedes Objekt der Abteilung.
+- **eigene:** nur Objekte, die zur Gruppe der Rolle gehören. Was das heisst, steht je Recht im Katalog (Spalte «Bezug»): `seite` die Seiten der Gruppe (`seite.tag_id`) und die Seite ihres Anlasses, `anlass` der Anlass des OK (`tag.anlass_id`), `raum` die Räume, deren Team die Gruppe ist, `gruppe` die Gruppe selbst (Ziel einer Mitteilung, Mitglieder).
+
+Ein Recht, das der Katalog für eine Rolle nicht kennt oder mit einer Geltung, die er nicht vorsieht, gibt nichts (fail-closed). Ein Verbot gibt es nicht: Was eine Rolle nicht trägt, hat sie nicht; ein «gesperrt» wirkt nie quer über Gruppen.
+
+### 8.2 Der eine Katalog
+
+`rechtemodell/katalog.ts` ersetzt `PLATTFORM_RECHTE` (Abschnitt 2) und `TERMINE_RECHTE` (Anhang B) als Quelle für Rollen, Matrix und `darf()`; die älteren Kataloge bleiben, solange alte Routen sie lesen, und stehen im neuen. Risiko: **normal** (Alltag, kein zweiter Faktor), **erweitert** (ändert Inhalte, sieht oder exportiert Personendaten oder entscheidet über andere: zweiter Faktor), **fest** (nur Abteilungsleitung, nicht vergebbar). Art: **vergebbar** (an Plattform- und Gruppenrollen einstellbar), **struktur** (folgt aus der Beziehung: jede angemeldete Person, Eltern des Kindes; steht im Katalog, ist nicht einstellbar), **fest**. Rechte mit Personendaten von Kindern (Anmeldungen sehen und exportieren, Personen verwalten, Lädeli-Bestellungen) sind `erweitert` und nie strukturell.
+
+| Recht                            | Bereich              | Klartext                                | Risiko    | Art       | Geltung      | Bezug  | Wer                           |
+| -------------------------------- | -------------------- | --------------------------------------- | --------- | --------- | ------------ | ------ | ----------------------------- |
+| `seiten.bearbeiten`              | Website              | Seiten bearbeiten                       | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest       |
+| `seiten.veroeffentlichen`        | Website              | Seiten veröffentlichen                  | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest       |
+| `seiten.anlegen_loeschen`        | Website              | Seiten anlegen und löschen              | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `medien.verwalten`               | Website              | Medien verwalten                        | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `weiterleitungen.verwalten`      | Website              | Weiterleitungen verwalten               | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `vorlagen.nutzen`                | Website              | Vorlagen nutzen                         | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `wartungsmodus.website`          | Website              | Wartungsmodus der Website schalten      | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `termine.mein_kalender`          | Termine              | Eigenen Kalender sehen                  | normal    | struktur  | –            | –      | jede angemeldete Person       |
+| `termine.alle`                   | Termine              | Alle Termine sehen                      | normal    | struktur  | –            | –      | jede angemeldete Person       |
+| `termine.warnliste`              | Termine              | Warnliste der Termine sehen             | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `termine.kategorien_zuordnen`    | Termine              | Kalender-Kategorien zuordnen            | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `vorschlag.einreichen`           | Termine              | Termine vorschlagen                     | normal    | vergebbar | alle         | –      | Rollen                        |
+| `vorschlag.entscheiden`          | Termine              | Terminvorschläge entscheiden            | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `anlass.anlegen`                 | Anlässe              | Anlässe anlegen und löschen             | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `anlass.verwalten`               | Anlässe              | Anlässe verwalten                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
+| `anlass.anmelden`                | Anlässe              | Sich oder das eigene Kind anmelden      | normal    | struktur  | –            | –      | jede angemeldete Person       |
+| `anlass.anmeldungen_sehen`       | Anlässe              | Anmeldungen sehen                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
+| `anlass.anmeldungen_exportieren` | Anlässe              | Anmeldungen exportieren                 | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
+| `raum.ansehen`                   | Räume                | Räume ansehen                           | normal    | struktur  | –            | –      | jede angemeldete Person       |
+| `raum.belegung`                  | Räume                | Belegung der Räume sehen                | normal    | vergebbar | alle, eigene | raum   | Rollen                        |
+| `raum.verwalten`                 | Räume                | Räume verwalten                         | erweitert | vergebbar | alle, eigene | raum   | Rollen                        |
+| `raum.anfrage_entscheiden`       | Räume                | Raumanfragen entscheiden                | erweitert | vergebbar | alle, eigene | raum   | Rollen                        |
+| `laden.bestellen`                | Lädeli               | Im Lädeli bestellen                     | normal    | struktur  | –            | –      | jede angemeldete Person       |
+| `laden.ansehen`                  | Lädeli               | Lädeli-Verwaltung ansehen               | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `laden.artikel_pflegen`          | Lädeli               | Lädeli-Artikel pflegen                  | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `laden.bestellungen_bearbeiten`  | Lädeli               | Lädeli-Bestellungen bearbeiten          | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `laden.einstellungen`            | Lädeli               | Lädeli einstellen                       | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `lager.verwalten`                | Lager                | Lager verwalten                         | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `mitteilung.senden`              | Mitteilungen         | Mitteilungen senden                     | erweitert | vergebbar | alle, eigene | gruppe | Rollen                        |
+| `personen.verwalten`             | Personen und Gruppen | Personen und Kinder verwalten           | erweitert | vergebbar | alle         | –      | Rollen                        |
+| `gruppen.verwalten`              | Personen und Gruppen | Gruppen und ihre Mitglieder verwalten   | erweitert | vergebbar | alle, eigene | gruppe | Rollen                        |
+| `profilbild.entfernen`           | Personen und Gruppen | Profilbilder entfernen                  | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
+| `konto.loeschen`                 | Personen und Gruppen | Konten löschen                          | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `protokoll.lesen`                | Plattform und Rechte | Protokoll lesen                         | fest      | fest      | –            | –      | nur Entwickler                |
+| `rechte.verwalten`               | Plattform und Rechte | Rechte und Rollen vergeben              | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `entwickler.vergeben`            | Plattform und Rechte | Entwickler vergeben                     | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `plattform.sperren`              | Plattform und Rechte | Wartung und Informationssperre schalten | fest      | fest      | –            | –      | Abteilungsleitung, Entwickler |
+| `system.lesen`                   | Plattform und Rechte | Betriebszahlen lesen                    | fest      | fest      | –            | –      | Abteilungsleitung             |
+
+Fest bleiben, weil sie Aussperren oder Eskalation verhindern: Rechte und Rollen vergeben (`rechte.verwalten`; wer Rechte vergibt, hat sie selbst, mindestens in der Geltung, die er vergibt), Entwickler vergeben (nur die Kommandozeile), Konto löschen, Lager anlegen und verwalten, Wartung und Informationssperre, Betriebszahlen und, nur für den Entwickler, das Protokoll (Entscheid E5). Die Abteilungsleitung hat in der eigenen Abteilung immer jedes Recht ausser dem Protokoll. Einstellbar sind unter anderem: Mitteilungen senden, Lädeli sehen und verwalten (Webmaster-Zugang), Räume verwalten und Anfragen entscheiden, Belegung sehen, Anlässe verwalten, Anmeldungen sehen und exportieren, Website veröffentlichen und Medien, Personen und Gruppen verwalten, Profilbilder entfernen.
+
+Nicht im Katalog: Lager-Rechte (49 Rechte je Lager, Anhang A) bleiben je Lager. Das Tag-Typ `lager` ist heute keinem Lager zugeordnet; «eigene» für Lager gibt es darum nicht (offen, Abschnitt 7).
+
+### 8.3 Wer ein Recht hat: `darf()`
+
+`darf(db, person, recht, objekt?)` und `verlange(...)` (`rechtemodell/darf.ts`) vereinigen diese Quellen; ist eine erfüllt, gilt das Recht:
+
+1. **Abteilungsleitung:** jedes Recht in der eigenen Abteilung, ausser dem Protokoll.
+2. **Entwickler:** nur Rechte, bei denen der Katalog ihn nennt (Website, Plattform, Profilbild, Protokoll).
+3. **Plattformrollen** (abteilungsweit, Geltung `alle`).
+4. **Stufenrollen** (Leitung, Stufenleitung; fest im Code, `rechtemodell/standard.ts`).
+5. **Mitgliedschaft** ohne Rolle (Terminvorschläge für Funktion und Team, Raumanfragen des Teams, Belegung für das Team eines Raums; fest im Code).
+6. **Gruppenrollen**, je Objekt-Bezug.
+7. **Sonderrechte** je Seite (`bearbeiter`).
+
+Das Objekt baut die Route nach dem Laden aus der Zeile (`Objekt`: `abteilungId`, `seiteId`, `tagId`, `stufeId`, `anlassId`, `raumTeamTagId`, `abteilungsweit`). Ein Objekt einer fremden Abteilung gibt nie ein Recht. Die Rechte der Person lädt eine einzige Abfrage je Anfrage (`RechteSatz`, `rechtemodell/satz.ts`), die Auswertung läuft im Speicher. Für Listen gibt `rechtSql` (`rechtemodell/sql.ts`) dieselbe Frage als SQL-Bedingung; ein Property-Test (`test/rechtemodell.test.ts`) hält beide Darstellungen über alle Personen, Rechte und Objekte der Testwelt zusammen.
+
+Reihenfolge der Antworten bleibt: Objekt laden (404), `verlange` (403), danach der zweite Faktor (403 `ZWEITER_FAKTOR_FEHLT`), dann der Zustand (409). Der zweite Faktor entfällt nur für die Stufenleitung an der eigenen Stufenseite. Fällt die Abfrage der Rechte aus, antwortet die Route 500, nie «erlaubt».
+
+### 8.4 Schattenbetrieb
+
+`RECHTE_MODELL` (Umgebung) wählt den Weg: `alt` (nur die alten Funktionen, Notschalter; Gruppenrollen wirken nicht), `schatten` (Vorgabe: der alte Weg und, was Plattform- und Gruppenrollen zusätzlich geben, setzen durch; verglichen wird mit dem neuen Weg, jede Abweichung steht im Protokoll als `rechte_schatten` mit Recht und Richtung, nie mit Personen) und `neu` (nur der neue Weg). Die Hülle um die alten Funktionen steht in `rechtemodell/alt.ts`. Bekannte, gewollte Abweichungen: Die Abteilungsleitung entscheidet im neuen Weg auch Raumanfragen eines Teams (heute nur Mitglieder des Teams); der Entwickler darf Profilbilder entfernen.
+
+### 8.5 Matrix-API
+
+Nur die Abteilungsleitung mit zweitem Faktor (festes Recht `rechte.verwalten`), alles unter `/api/v1/admin/rechte`: `GET /katalog`, `GET /gruppen`, Gruppenrollen je Gruppe (`GET|POST /gruppen/{tagId}/rollen`, `PATCH|DELETE …/{rolleId}`, `POST …/rollen/vorschau`, `PUT /gruppen/{tagId}/personen/{userId}/rolle`), globale Rollen mit dem ganzen Katalog (`/rollen`; die ältere Route `/api/v1/admin/plattform/rollen` bleibt und lässt die übrigen Rechte stehen), `GET /personen/{userId}` («Was darf wer?» mit Herkunft) und `GET /aenderungen` (Audit-Zeilen). Jede Rolle trägt eine Versionsnummer; wer auf einem alten Stand speichert, bekommt 409 `VERSION_KONFLIKT` mit dem aktuellen Stand. Der Server prüft Abteilung (404), Katalog (400), Eskalation (403) und Version (409).
 
 15. **Kind mit eigenem Konto: Annahmen zur Bestätigung (#644).** Gebaut sind die vorsichtigen Vorgaben: Konten aus, Chat aus, Eltern behalten die Einsicht, Erstellen nur durch die Abteilungsleitung mit Vermerk «Eltern informiert». Offen: Mindestalter (nur ein Hinweis, Cevi OS kennt das Alter nicht), ob die Leitung einer Stufe Konten für ihre Stufe erstellen darf, ob das Kind Programme der Sichtbarkeit `eltern` (zum Beispiel einen Elternabend) sehen soll, ob Kinder im Lädeli bestellen dürfen (heute ja, wie jede Person), und dass Mitteilungen an die Eltern das Konto des Kindes nicht erreichen (keine Push-Nachricht an Kinder).
 

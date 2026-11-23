@@ -68,7 +68,7 @@ export const KATEGORIEN = {
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte, Plattformrollen und Rollen in Gruppen legen fest, wer Inhalte ändern, Anmeldungen sehen oder Mitteilungen senden darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],

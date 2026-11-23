@@ -22,6 +22,7 @@ export const BEREICHE = [
   "anlaesse",
   "raeume",
   "laedeli",
+  "lager",
   "mitteilungen",
   "personen",
   "plattform",
@@ -34,6 +35,7 @@ export const BEREICH_NAMEN: Record<Bereich, string> = {
   anlaesse: "Anlässe",
   raeume: "Räume",
   laedeli: "Lädeli",
+  lager: "Lager",
   mitteilungen: "Mitteilungen",
   personen: "Personen und Gruppen",
   plattform: "Plattform und Rechte",
@@ -318,6 +320,13 @@ export const RECHTE_KATALOG = {
     "Übergabearten, Texte und Preisangaben des Lädelis ändern.",
     "erweitert",
     ALLE,
+  ),
+
+  // Lager: Die Rechte im Lager selbst (49) bleiben je Lager (lager/rechte-katalog.ts)
+  "lager.verwalten": f(
+    "lager",
+    "Lager verwalten",
+    "Lager anlegen, Stammdaten, Mitglieder und Dateien verwalten. Die Rechte der Rollen im Lager stellt die Lagerleitung je Lager ein.",
   ),
 
   // Mitteilungen
