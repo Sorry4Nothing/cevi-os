@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import { LAGER_RECHTE, LAGER_ROLLEN } from "../src/lager/rechte-katalog.js";
 import { PLATTFORM_RECHT_NAMEN } from "../src/plattform.js";
+import { RECHT_IDS } from "../src/rechtemodell/katalog.js";
 import { TERMINE_RECHTE } from "../src/termine/rechte-katalog.js";
 
 // docs/rechte.md beschreibt, wer was darf. Dieser Test hält die Seite beim Code: Jedes Recht der Kataloge steht darin, und in den Tabellen der Kataloge steht kein Recht, das es nicht gibt. Er prüft nicht, ob die Beschreibung stimmt; das tun die Matrizen.
@@ -43,6 +44,11 @@ describe("docs/rechte.md", () => {
     expect(tabellenNamen(tabelle).sort()).toEqual(
       Object.keys(TERMINE_RECHTE).sort(),
     );
+  });
+
+  test("jedes Recht des einen Katalogs steht in Abschnitt 8, und dort steht kein anderes", () => {
+    const tabelle = abschnitt("## 8. Das Rechtemodell", "## Anhang A");
+    expect(tabellenNamen(tabelle).sort()).toEqual([...RECHT_IDS].sort());
   });
 
   test.each(LAGER_ROLLEN)("die Lager-Rolle «%s» kommt vor", (rolle) => {

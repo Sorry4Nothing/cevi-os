@@ -692,3 +692,61 @@ function sqlTemplate(ausdruecke: SQL[]): SQL {
   );
   return dsql`select ${dsql.join(spalten, dsql`, `)}`;
 }
+
+describe("alter und neuer Weg über alle Personen", () => {
+  // Jedes Recht mit eigener Hülle um eine alte Funktion, an allen Objekten der Welt: Der neue Weg gibt dasselbe, ausser in den Fällen, die der Nutzer entschieden hat (docs/rechte.md 8.4)
+  const MIT_HUELLE = [
+    "seiten.bearbeiten",
+    "seiten.veroeffentlichen",
+    "seiten.anlegen_loeschen",
+    "medien.verwalten",
+    "weiterleitungen.verwalten",
+    "vorlagen.nutzen",
+    "wartungsmodus.website",
+    "vorschlag.einreichen",
+    "raum.belegung",
+    "raum.anfrage_entscheiden",
+    "plattform.sperren",
+    "protokoll.lesen",
+  ];
+
+  test("keine unerklärte Abweichung", async () => {
+    setzeRechteModus("alt");
+    const abweichungen: string[] = [];
+    try {
+      for (const name of Object.keys(w.personen)) {
+        // Gruppenrollen kennt der alte Weg nicht: nur Personen ohne Rolle in einer Gruppe vergleichen, die Rechte aus Rollen sind der Zuwachs
+        for (const recht of MIT_HUELLE) {
+          for (const [objektName, objekt] of Object.entries(O)) {
+            const person = { ...w.personen[name] };
+            const alt = await darf(db, person, recht, {
+              ...objekt,
+              abteilungId: w.abteilungId,
+            });
+            const satz = await ladeRechteSatz(db, { ...w.personen[name] });
+            const neu = satz.hat(recht, {
+              ...objekt,
+              abteilungId: w.abteilungId,
+            });
+            const ausRolle = satz.ausRollen(recht, {
+              ...objekt,
+              abteilungId: w.abteilungId,
+            });
+            // Was nur die Rollen geben, ist der gewollte Zuwachs
+            if (alt !== neu && !(neu && ausRolle)) {
+              abweichungen.push(
+                `${name} ${recht} ${objektName}: alt ${alt}, neu ${neu}`,
+              );
+            }
+          }
+        }
+      }
+    } finally {
+      setzeRechteModus("schatten");
+    }
+    // Gewollt: Die Abteilungsleitung entscheidet Raumanfragen eines Teams mit (alt nur Mitglieder des Teams)
+    expect(
+      abweichungen.filter((a) => !a.startsWith("al raum.anfrage_entscheiden")),
+    ).toEqual([]);
+  }, 120_000);
+});

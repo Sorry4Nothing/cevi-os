@@ -6,7 +6,7 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import {
   kind,
-  kindEltern,
+  kindZugang,
   leitungAnmeldung,
   programm,
   programmEckdaten,
@@ -93,8 +93,8 @@ export async function eigeneKinder(
     })
     .from(kind)
     .innerJoin(
-      kindEltern,
-      and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+      kindZugang,
+      and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
     )
     .innerJoin(
       programmTag,
