@@ -30,7 +30,7 @@ function saeule(x, y, b, h, r = 3) {
 }
 
 // Eine ablesbare Grafik: Zeiger und Pfeiltasten wählen einen Punkt. marken[i] bekommt «ist-aktiv»; texte[i] steht unter der Grafik (aria-live)
-function ablesbar({ grafik, marken, texte, beschriftung, ruhe }) {
+export function ablesbar({ grafik, marken, texte, beschriftung, ruhe }) {
   const lese = el("p", { class: "ub-lese klein leise", "aria-live": "polite" });
   const ruheText = ruhe ?? "";
   lese.textContent = ruheText;
