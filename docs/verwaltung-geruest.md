@@ -138,7 +138,7 @@ Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nenne
 
 ## Rückmeldungen
 
-`ctx.melde(text, art, aktion)` stapelt Hinweise in einer Live-Region (`#rueckmeldung`). Keine Meldung verschwindet von selbst: jede hat «Hinweis schliessen». Fehler sind `role="alert"`. Dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle; der Router tut das bei jeder Navigation.
+`ctx.melde(text, art, aktion)` stapelt Hinweise in einer Live-Region (`#rueckmeldung`). Jede hat «Hinweis schliessen». Erfolg und Info (`ok`, `info`) ohne Aktion blenden nach 6 Sekunden von selbst aus; die Zeit hält an, solange der Zeiger auf der Meldung steht oder der Fokus darin liegt, und beginnt danach neu. Warnungen, Fehler und jede Meldung mit einer Aktion bleiben, bis man sie schliesst. Fehler sind `role="alert"`. Dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle; der Router tut das bei jeder Navigation.
 
 ## Tokens (Tag und Nacht)
 
@@ -185,7 +185,7 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
 | Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
 
-Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; keine Meldung verschwindet von selbst.
+Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; nur Erfolgs- und Infomeldungen verschwinden von selbst, nie ein Fehler oder eine Rückfrage. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt die Art `warn` oder `fehler` oder eine Aktion.
 
 ### Listen und Formulare (Personen, Gruppen und Tags)
 
@@ -195,6 +195,14 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 - Auswahlleiste (`.auswahlleiste`, `role="region"`) für Mehrfachauswahl, `.pe-wahl` für die Checkbox-Spalte.
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
+
+## Scrollleisten (#572)
+
+Die Verwaltung zeigt schlichte Scrollleisten: schmal, runder Griff in der Randfarbe `--rand` (3:1 zur Fläche, 4.1:1 im Tag, 5.7:1 in der Nacht), bei Hover `--leise`, beim Ziehen `--text`; die Spur ist durchsichtig. Die Regeln stehen in `admin.css` (Abschnitt «Scrollleisten») und gelten für die Seite und alle inneren Scrollbereiche (Dialoge, Tabellen, Listen). `html` hat `scrollbar-gutter: stable`, damit die Seite beim Wechsel zwischen kurzen und langen Ansichten nicht springt.
+
+- Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar` (14 px Leiste, 8 px Griff); Firefox bekommt `scrollbar-width: thin` und `scrollbar-color` in `@supports not selector(::-webkit-scrollbar)`. Beide Wege gelten nie zugleich: Mit `scrollbar-color` ignoriert Chrome die WebKit-Regeln.
+- Mit Finger oder Stift (`pointer: coarse`) und in erzwungenen Farben bleibt die Leiste des Systems.
+- Ein neuer Scrollbereich braucht nichts ausser `overflow: auto`.
 
 ## Lokal prüfen
 
