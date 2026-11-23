@@ -129,10 +129,10 @@ describe("Mitglieder-Darstellung: Quelltext", () => {
     expect(lies("mitglieder.js")).not.toMatch(/anfrage\(|fetch\(/);
   });
 
-  test("Ansicht bleibt im Browser, ohne Speicher gilt «karten»; Bewegung nur bei erlaubter Bewegung", () => {
+  test("Ansicht gilt nur, solange die Seite offen ist (kein Browser-Speicher); Bewegung nur bei erlaubter Bewegung", () => {
     const quelle = lies("mitglieder.js");
-    expect(quelle).toContain("localStorage");
-    expect(quelle).toMatch(/catch \{/);
+    expect(quelle).not.toContain("localStorage");
+    expect(quelle).toContain("let gewaehlteAnsicht");
     const css = lies("personen.css");
     const ein = css.indexOf("animation: mg-ein");
     expect(ein).toBeGreaterThan(0);
