@@ -152,6 +152,18 @@ describe("Bereichszuordnung aller Routen", () => {
     }
     expect(bereichVon("/api/v1/ich/lager-benachrichtigungen")).toBe("lager");
   });
+
+  test("das Lädeli (Laden, Bestellungen, Verwaltung) gehört zur Website", () => {
+    for (const pfad of [
+      "/api/v1/laden",
+      "/api/v1/laden/bestellungen",
+      "/api/v1/laden/bestellungen/x",
+      "/api/v1/admin/laden/artikel",
+      "/api/v1/admin/laden/bestellungen/x/status",
+    ]) {
+      expect(bereichVon(pfad), pfad).toBe("website");
+    }
+  });
 });
 
 describe("Sperre «alles» erfasst jede Route", () => {
