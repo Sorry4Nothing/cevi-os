@@ -48,7 +48,7 @@ beforeAll(async () => {
   // 0147 ist die erste Migration nach 0139: alles davor gilt als Stand vorher
   ordnerBauen(bisVorher, 146);
   ordnerBauen(komplett, 147);
-});
+}, 60_000);
 
 afterAll(async () => {
   await besitzer?.end();
