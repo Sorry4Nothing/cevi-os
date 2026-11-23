@@ -1919,7 +1919,7 @@ div.termin {
   background: var(--karte);
 }
 
-/* Aufruf zum Handeln: ein Band in der Hauptfarbe über die ganze Breite */
+/* Aufruf zum Handeln: ein Band in der Hauptfarbe über die ganze Breite. Text und Schaltfläche stehen auf einer Mittellinie; die Ränder sind die der Spalte (.wrap), links wie rechts gleich */
 .sektion--aufruf {
   padding-block: clamp(2.5rem, 1.5rem + 4.5vw, 5.5rem);
   background: var(--primary);
@@ -1929,7 +1929,7 @@ div.termin {
 .aufruf {
   display: flex;
   flex-wrap: wrap;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
   gap: 1.75rem 3rem;
 }

@@ -352,6 +352,24 @@ describe("Aufruf zum Handeln", () => {
     );
   });
 
+  test("Text und Schaltfläche stehen auf einer Mittellinie, die Ränder sind die der Spalte (#622)", () => {
+    const css = readFileSync(
+      new URL("../public/website/website.css", import.meta.url),
+      "utf8",
+    );
+    const regel = /\.aufruf \{([^}]*)\}/.exec(css)?.[1] ?? "";
+    expect(regel).toMatch(/align-items: center;/);
+    expect(regel).toMatch(/justify-content: space-between;/);
+    // Der Aufruf liegt in der Spalte (.wrap) wie der Kopf und die übrigen Abschnitte, nicht in einer eigenen Breite
+    expect(
+      seite(
+        dok("T", b("aufruf", { titel: "T", beschriftung: "B", ziel: "/s" })),
+      ),
+    ).toMatch(
+      /<section class="sektion sektion--aufruf">\s*<div class="wrap">\s*<div class="aufruf">/,
+    );
+  });
+
   test("Schema: Titel, Beschriftung und Ziel sind Pflicht, das Ziel eine erlaubte Adresse", () => {
     const ok = (d: object) => bausteinSchema.safeParse(b("aufruf", d)).success;
     const voll = { titel: "T", beschriftung: "B", ziel: "/start" };

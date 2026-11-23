@@ -421,20 +421,32 @@ a.kontakt-zeile:hover {
   line-height: 1.375rem;
 }
 
-/* «Nach oben» ist eine Nebenaktion (.btn.s); auf Blau hat sie einen hellen Rand, beim Zeigen füllt sie sich */
-.fuss a.btn.s {
-  min-height: 2.75rem;
-  border-color: var(--on-secondary-muted);
-  color: var(--on-secondary);
+/* «Nach oben» ist ein Verweis (a.verweis): fett, ohne Strich, der Pfeil steht dahinter und zeigt nach oben. Er hat dieselbe Grösse wie die Pfeile der Bereiche und sitzt auf deren Linie am rechten Rand,
+   gedämpft wie dort und hell beim Zeigen und beim Fokus; die Zeile ist wie die übrigen Ziele im Fuss 44 px hoch */
+.fuss a.fuss-oben {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
 }
 
-.fuss a.btn.s:hover {
-  background: var(--on-secondary);
-  color: var(--secondary);
+.fuss a.fuss-oben::after {
+  width: 1rem;
+  height: 1.5rem;
+  margin-left: 0.75rem;
+  opacity: 0.55;
+  clip-path: polygon(
+    41.7% 100%,
+    41.7% 40.5%,
+    0 40.5%,
+    50% 0,
+    100% 40.5%,
+    58.3% 40.5%,
+    58.3% 100%
+  );
 }
 
-.fuss-oben .i {
-  rotate: -90deg;
+.fuss a.fuss-oben:hover::after,
+.fuss a.fuss-oben:focus-visible::after {
+  opacity: 1;
 }
 
 @media (min-width: 48em) {
@@ -492,9 +504,14 @@ a.kontakt-zeile:hover {
     transition: background-color var(--dauer) var(--kurve);
   }
 
-  .kontakt-pfeil .i,
-  .fuss-oben .i {
+  .kontakt-pfeil .i {
     transition: translate var(--dauer) var(--kurve);
+  }
+
+  .fuss a.fuss-oben::after {
+    transition:
+      opacity var(--dauer) var(--kurve),
+      translate var(--dauer) var(--kurve);
   }
 
   .fuss-seiten li a::after {
@@ -511,7 +528,7 @@ a.kontakt-zeile:hover {
     translate: 0.25rem 0;
   }
 
-  .fuss-oben:hover .i {
+  .fuss a.fuss-oben:hover::after {
     translate: 0 -0.25rem;
   }
 }
