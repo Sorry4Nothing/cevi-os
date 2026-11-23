@@ -38,8 +38,39 @@ const linkKnoten = (
 
 type KontaktDaten = Extract<Baustein, { typ: "kontaktkarte" }>["daten"];
 
-// Kontaktkarte: links die Frage mit der einen Hauptaktion (E-Mail schreiben) und der zweiten Möglichkeit (Anrufen), rechts das Bild und die Angaben zum Nachlesen,
-// darunter die ruhige Gruppe der weiterführenden Verweise. Ohne Bild stehen die Angaben rechts. Gibt es nichts zu zeigen, entfällt die Karte
+// Eine Zeile der Angaben: Symbol, Art und Wert; E-Mail und Telefon sind ganze Zeilen als Link, die Anschrift steht ohne Link
+const angabe = (
+  art: string,
+  symbolName: string,
+  wert: string,
+  ziel?: string,
+): HtmlKnoten => {
+  const inhalt: HtmlKnoten[] = [
+    el("span", { class: "kontakt-symbol" }, symbol(symbolName)),
+    el(
+      "span",
+      { class: "kontakt-text" },
+      el("span", { class: "kontakt-art" }, art),
+      " ",
+      el("span", { class: "kontakt-wert" }, wert),
+    ),
+  ];
+  const link = ziel
+    ? linkKnoten(
+        ziel,
+        [...inhalt, el("span", { class: "kontakt-pfeil" }, symbol("pfeil"))],
+        "kontakt-zeile",
+      )
+    : null;
+  return el(
+    "li",
+    undefined,
+    link ?? el("div", { class: "kontakt-zeile" }, ...inhalt),
+  );
+};
+
+// Kontaktkarte (#580, neu gestaltet in #605): die grosse Frage mit der einen Hauptaktion (E-Mail schreiben) und der zweiten Möglichkeit (Anrufen), E-Mail, Telefon und Anschrift
+// als Zeilen mit Symbol, das Bild und die ruhige Gruppe der weiterführenden Verweise. Ohne Bild stehen die Angaben neben der Frage. Gibt es nichts zu zeigen, entfällt die Karte
 export function kontaktkarte(
   d: KontaktDaten,
   daten: Daten,
@@ -59,17 +90,14 @@ export function kontaktkarte(
     )
     .filter((a) => a !== null);
   const zeilen = [
-    k?.adresse ? ["Anschrift", k.adresse] : undefined,
     k?.email
-      ? ["E-Mail", linkKnoten(`mailto:${k.email}`, [k.email]) ?? k.email]
+      ? angabe("E-Mail", "mail", k.email, `mailto:${k.email}`)
       : undefined,
     k?.telefon
-      ? [
-          "Telefon",
-          linkKnoten(telefonZiel(k.telefon), [k.telefon]) ?? k.telefon,
-        ]
+      ? angabe("Telefon", "telefon", k.telefon, telefonZiel(k.telefon))
       : undefined,
-  ].filter((z) => z !== undefined) as [string, HtmlKnoten][];
+    k?.adresse ? angabe("Anschrift", "ort", k.adresse) : undefined,
+  ].filter((z) => z !== undefined);
   const verweise = (d.verweise ?? []).map((v) =>
     el("li", undefined, ...verlinke(v.ziel, [v.beschriftung], "verweis")),
   );
@@ -117,16 +145,9 @@ export function kontaktkarte(
     ...(zeilen.length > 0
       ? [
           el(
-            "dl",
+            "address",
             { class: "kontakt-angaben" },
-            ...zeilen.map(([name, wert]) =>
-              el(
-                "div",
-                undefined,
-                el("dt", undefined, name),
-                el("dd", undefined, wert),
-              ),
-            ),
+            el("ul", undefined, ...zeilen),
           ),
         ]
       : []),
@@ -162,22 +183,16 @@ function fussMarke(k: Kontext): string {
   return `<a class="fuss-marke fuss-marke--logo" href="/"><img class="${k.logo.dunkel ? "fuss-logo" : "fuss-logo fuss-logo--feld"}" src="${medienUrl(quelle.id)}" alt="${esc(k.logo.altText ?? "")}"${masse}><span class="nur-sr">${name}</span></a>`;
 }
 
-// Fuss (#580): ein Band mit drei Stufen. Oben die Marke, die Hauptbereiche der Navigation (nur die oberste Ebene) und «Nach oben»;
-// in der Mitte Anschrift, E-Mail und Telefon; unten «©» und Rechtliches. Was es nicht gibt, fehlt; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
+// Fuss (#580, neu gestaltet in #605): ein Raster über die ganze Breite. Marke, die Hauptbereiche der Navigation (nur die oberste Ebene), Kontakt und Rechtliches als Spalten, darunter «©» und «Nach oben».
+// Was es nicht gibt, fehlt; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
 export function fuss(k: Kontext): string {
   const c = k.daten.kontakt ?? {};
   const link = (ziel: string, text: string) =>
     serialisiere(linkKnoten(ziel, [text]) ?? text);
-  const angaben = [
-    c.adresse
-      ? `<div><dt>Anschrift</dt><dd>${esc(k.abteilung)}<br>${esc(c.adresse)}</dd></div>`
-      : "",
-    c.email
-      ? `<div><dt>E-Mail</dt><dd>${link(`mailto:${c.email}`, c.email)}</dd></div>`
-      : "",
-    c.telefon
-      ? `<div><dt>Telefon</dt><dd>${link(telefonZiel(c.telefon), c.telefon)}</dd></div>`
-      : "",
+  const kontakt = [
+    c.email ? `<li>${link(`mailto:${c.email}`, c.email)}</li>` : "",
+    c.telefon ? `<li>${link(telefonZiel(c.telefon), c.telefon)}</li>` : "",
+    c.adresse ? `<li>${esc(k.abteilung)}<br>${esc(c.adresse)}</li>` : "",
   ].filter((a) => a !== "");
   const seiten = k.navigation
     .slice(0, 8)
@@ -187,10 +202,12 @@ export function fuss(k: Kontext): string {
     `<li><a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a></li>`,
   ].filter((a) => a !== "");
   return `<footer class="fuss">
-<div class="wrap">
-<div class="fuss-kopf">${fussMarke(k)}${seiten.length > 0 ? `<nav class="fuss-seiten" aria-label="Seiten"><ul>${seiten.join("")}</ul></nav>` : ""}</div>
-<div class="fuss-mitte">${angaben.length > 0 ? `<address><dl class="fuss-angaben">${angaben.join("")}</dl></address>` : ""}<a class="btn s fuss-oben" href="#">Nach oben${serialisiere(symbol("pfeil"))}</a></div>
-<div class="fuss-recht"><p>© ${new Date().getFullYear()} ${esc(k.abteilung)}</p><nav aria-label="Rechtliches"><ul>${recht.join("")}</ul></nav></div>
+<div class="wrap fuss-raster">
+<div class="fuss-marke-feld">${fussMarke(k)}</div>
+${seiten.length > 0 ? `<nav class="fuss-seiten" aria-labelledby="fuss-seiten"><h2 id="fuss-seiten">Bereiche</h2><ul>${seiten.join("")}</ul></nav>` : ""}
+${kontakt.length > 0 ? `<div class="fuss-kontakt"><h2>Kontakt</h2><address><ul>${kontakt.join("")}</ul></address></div>` : ""}
+<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul>${recht.join("")}</ul></nav>
+<div class="fuss-unten"><p class="fuss-copy">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p><a class="btn s fuss-oben" href="#">Nach oben${serialisiere(symbol("pfeil"))}</a></div>
 </div>
 </footer>`;
 }
