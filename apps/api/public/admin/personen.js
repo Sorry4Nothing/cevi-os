@@ -42,13 +42,15 @@ export function zeige(bereich, ctx) {
   // Wunsch der Befehlspalette: «Neue Person» öffnet das Formular, eine Person setzt die Suche
   const wunsch = nimmWunsch();
   zustand.frage = wunsch?.art === "person" ? wunsch.frage : "";
+  // Die gewählte Person bekommt den Fokus, sobald die Liste steht
+  const gesucht = wunsch?.art === "person" ? wunsch.id : null;
   zustand.filter = { tag: "", rolle: "alle", konto: "alle" };
   zustand.sort = { schluessel: "name", richtung: "auf" };
-  zustand.fokus = null;
+  zustand.fokus = gesucht ?? null;
   ctx.lade(
     mitFehlertitel("Die Personen konnten nicht geladen werden.", ladeDaten),
     (daten, neu) => {
-      meldePersonen(daten.personen);
+      meldePersonen(daten, { systemRollen, kontoChips, typName });
       zeichne(bereich, ctx, daten, neu);
       if (wunsch?.art === "neu") {
         wunsch.art = "erledigt";
@@ -60,7 +62,7 @@ export function zeige(bereich, ctx) {
 }
 
 // Die API nennt die Tags einer Person nicht; sie stehen im Einzelabruf des Tags. Darum: Personen und Tags in einer Runde, danach je ein Abruf für jeden Tag, den jemand trägt (nicht je Person).
-async function ladeDaten() {
+export async function ladeDaten() {
   const [liste, tagListe] = await Promise.all([
     anfrage("GET", "/api/v1/admin/personen"),
     anfrage("GET", "/api/v1/admin/tags"),
