@@ -220,7 +220,12 @@ describe("Gruppenrollen je Gruppe", () => {
       rollen
         .find((r) => r.schluessel === "leitung")
         .fest.map((z: any) => z.recht),
-    ).toEqual(["vorschlag.einreichen", "raum.belegung"]);
+    ).toEqual([
+      "vorschlag.einreichen",
+      "raum.belegung",
+      "anwesenheit.fuehren",
+      "stufe.einblick",
+    ]);
   });
 
   test("Eingaben ausserhalb des Katalogs sind 400", async () => {

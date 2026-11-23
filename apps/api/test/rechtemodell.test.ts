@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
@@ -751,7 +751,12 @@ async function rolleDerGruppe(tagId: string) {
   const [z] = await db
     .select({ id: schema.gruppenRolle.id })
     .from(schema.gruppenRolle)
-    .where(eq(schema.gruppenRolle.tagId, tagId));
+    .where(
+      and(
+        eq(schema.gruppenRolle.tagId, tagId),
+        eq(schema.gruppenRolle.schluessel, "verantwortlich"),
+      ),
+    );
   return z?.id;
 }
 
@@ -793,6 +798,13 @@ describe("alter und neuer Weg über alle Personen", () => {
         // Gruppenrollen kennt der alte Weg nicht: nur Personen ohne Rolle in einer Gruppe vergleichen, die Rechte aus Rollen sind der Zuwachs
         for (const recht of MIT_HUELLE) {
           for (const [objektName, objekt] of Object.entries(O)) {
+            // Eine Stufe ohne Seite (stufeObj*) kennt der alte Weg der Seiten nicht: Er fragt immer nach der Seite
+            if (
+              objektName.startsWith("stufeObj") &&
+              recht.startsWith("seiten.")
+            ) {
+              continue;
+            }
             const person = { ...w.personen[name] };
             const alt = await darf(db, person, recht, {
               ...objekt,

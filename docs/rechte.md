@@ -413,48 +413,57 @@ Ein Recht, das der Katalog für eine Rolle nicht kennt oder mit einer Geltung, d
 
 `rechtemodell/katalog.ts` ersetzt `PLATTFORM_RECHTE` (Abschnitt 2) und `TERMINE_RECHTE` (Anhang B) als Quelle für Rollen, Matrix und `darf()`; die älteren Kataloge bleiben, solange alte Routen sie lesen, und stehen im neuen. Risiko: **normal** (Alltag, kein zweiter Faktor), **erweitert** (ändert Inhalte, sieht oder exportiert Personendaten oder entscheidet über andere: zweiter Faktor), **fest** (nur Abteilungsleitung, nicht vergebbar). Art: **vergebbar** (an Plattform- und Gruppenrollen einstellbar), **struktur** (folgt aus der Beziehung: jede angemeldete Person, Eltern des Kindes; steht im Katalog, ist nicht einstellbar), **fest**. Rechte mit Personendaten von Kindern (Anmeldungen sehen und exportieren, Personen verwalten, Lädeli-Bestellungen) sind `erweitert` und nie strukturell.
 
-| Recht                            | Bereich              | Klartext                                | Risiko    | Art       | Geltung      | Bezug  | Wer                           |
-| -------------------------------- | -------------------- | --------------------------------------- | --------- | --------- | ------------ | ------ | ----------------------------- |
-| `seiten.bearbeiten`              | Website              | Seiten bearbeiten                       | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest       |
-| `seiten.veroeffentlichen`        | Website              | Seiten veröffentlichen                  | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest       |
-| `seiten.anlegen_loeschen`        | Website              | Seiten anlegen und löschen              | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `medien.verwalten`               | Website              | Medien verwalten                        | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `weiterleitungen.verwalten`      | Website              | Weiterleitungen verwalten               | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `vorlagen.nutzen`                | Website              | Vorlagen nutzen                         | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `wartungsmodus.website`          | Website              | Wartungsmodus der Website schalten      | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `termine.mein_kalender`          | Termine              | Eigenen Kalender sehen                  | normal    | struktur  | –            | –      | jede angemeldete Person       |
-| `termine.alle`                   | Termine              | Alle Termine sehen                      | normal    | struktur  | –            | –      | jede angemeldete Person       |
-| `termine.warnliste`              | Termine              | Warnliste der Termine sehen             | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `termine.kategorien_zuordnen`    | Termine              | Kalender-Kategorien zuordnen            | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `vorschlag.einreichen`           | Termine              | Termine vorschlagen                     | normal    | vergebbar | alle         | –      | Rollen                        |
-| `vorschlag.entscheiden`          | Termine              | Terminvorschläge entscheiden            | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `anlass.anlegen`                 | Anlässe              | Anlässe anlegen und löschen             | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `anlass.verwalten`               | Anlässe              | Anlässe verwalten                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
-| `anlass.anmelden`                | Anlässe              | Sich oder das eigene Kind anmelden      | normal    | struktur  | –            | –      | jede angemeldete Person       |
-| `anlass.anmeldungen_sehen`       | Anlässe              | Anmeldungen sehen                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
-| `anlass.anmeldungen_exportieren` | Anlässe              | Anmeldungen exportieren                 | erweitert | vergebbar | alle, eigene | anlass | Rollen                        |
-| `raum.ansehen`                   | Räume                | Räume ansehen                           | normal    | struktur  | –            | –      | jede angemeldete Person       |
-| `raum.belegung`                  | Räume                | Belegung der Räume sehen                | normal    | vergebbar | alle, eigene | raum   | Rollen                        |
-| `raum.verwalten`                 | Räume                | Räume verwalten                         | erweitert | vergebbar | alle, eigene | raum   | Rollen                        |
-| `raum.anfrage_entscheiden`       | Räume                | Raumanfragen entscheiden                | erweitert | vergebbar | alle, eigene | raum   | Rollen                        |
-| `laden.bestellen`                | Lädeli               | Im Lädeli bestellen                     | normal    | struktur  | –            | –      | jede angemeldete Person       |
-| `laden.ansehen`                  | Lädeli               | Lädeli-Verwaltung ansehen               | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `laden.artikel_pflegen`          | Lädeli               | Lädeli-Artikel pflegen                  | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `laden.bestellungen_bearbeiten`  | Lädeli               | Lädeli-Bestellungen bearbeiten          | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `laden.einstellungen`            | Lädeli               | Lädeli einstellen                       | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `lager.verwalten`                | Lager                | Lager verwalten                         | fest      | fest      | –            | –      | Abteilungsleitung             |
-| `mitteilung.senden`              | Mitteilungen         | Mitteilungen senden                     | erweitert | vergebbar | alle, eigene | gruppe | Rollen                        |
-| `personen.verwalten`             | Personen und Gruppen | Personen und Kinder verwalten           | erweitert | vergebbar | alle         | –      | Rollen                        |
-| `gruppen.verwalten`              | Personen und Gruppen | Gruppen und ihre Mitglieder verwalten   | erweitert | vergebbar | alle, eigene | gruppe | Rollen                        |
-| `profilbild.entfernen`           | Personen und Gruppen | Profilbilder entfernen                  | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
-| `konto.loeschen`                 | Personen und Gruppen | Konten löschen                          | fest      | fest      | –            | –      | Abteilungsleitung             |
-| `kinder.konto_verwalten`         | Personen und Gruppen | Konten von Kindern verwalten            | fest      | fest      | –            | –      | Abteilungsleitung             |
-| `kinder.konto_sehen`             | Personen und Gruppen | Eigenes Kind sehen (Konto eines Kindes) | normal    | struktur  | –            | –      | Konto des Kindes              |
-| `protokoll.lesen`                | Plattform und Rechte | Protokoll lesen                         | fest      | fest      | –            | –      | nur Entwickler                |
-| `rechte.verwalten`               | Plattform und Rechte | Rechte und Rollen vergeben              | fest      | fest      | –            | –      | Abteilungsleitung             |
-| `entwickler.vergeben`            | Plattform und Rechte | Entwickler vergeben                     | fest      | fest      | –            | –      | Abteilungsleitung             |
-| `plattform.sperren`              | Plattform und Rechte | Wartung und Informationssperre schalten | fest      | fest      | –            | –      | Abteilungsleitung, Entwickler |
-| `system.lesen`                   | Plattform und Rechte | Betriebszahlen lesen                    | fest      | fest      | –            | –      | Abteilungsleitung             |
+| Recht                            | Bereich              | Klartext                                | Risiko    | Art       | Geltung      | Bezug  | Wer                               |
+| -------------------------------- | -------------------- | --------------------------------------- | --------- | --------- | ------------ | ------ | --------------------------------- |
+| `seiten.bearbeiten`              | Website              | Seiten bearbeiten                       | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest           |
+| `seiten.veroeffentlichen`        | Website              | Seiten veröffentlichen                  | erweitert | vergebbar | alle, eigene | seite  | Rollen; Entwickler fest           |
+| `seiten.anlegen_loeschen`        | Website              | Seiten anlegen und löschen              | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `medien.verwalten`               | Website              | Medien verwalten                        | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `weiterleitungen.verwalten`      | Website              | Weiterleitungen verwalten               | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `vorlagen.nutzen`                | Website              | Vorlagen nutzen                         | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `wartungsmodus.website`          | Website              | Wartungsmodus der Website schalten      | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `termine.mein_kalender`          | Termine              | Eigenen Kalender sehen                  | normal    | struktur  | –            | –      | jede angemeldete Person           |
+| `termine.alle`                   | Termine              | Alle Termine sehen                      | normal    | struktur  | –            | –      | jede angemeldete Person           |
+| `termine.warnliste`              | Termine              | Warnliste der Termine sehen             | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `termine.kategorien_zuordnen`    | Termine              | Kalender-Kategorien zuordnen            | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `vorschlag.einreichen`           | Termine              | Termine vorschlagen                     | normal    | vergebbar | alle         | –      | Rollen                            |
+| `vorschlag.entscheiden`          | Termine              | Terminvorschläge entscheiden            | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `programm.alle_sehen`            | Termine              | Alle Programme sehen                    | normal    | vergebbar | alle         | –      | Rollen; Stufenleitung im Standard |
+| `programm.intern_sehen`          | Termine              | Interne Programme sehen                 | normal    | vergebbar | alle         | –      | Rollen                            |
+| `anlass.anlegen`                 | Anlässe              | Anlässe anlegen und löschen             | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `anlass.verwalten`               | Anlässe              | Anlässe verwalten                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                            |
+| `anlass.anmelden`                | Anlässe              | Sich oder das eigene Kind anmelden      | normal    | struktur  | –            | –      | jede angemeldete Person           |
+| `anlass.anmeldungen_sehen`       | Anlässe              | Anmeldungen sehen                       | erweitert | vergebbar | alle, eigene | anlass | Rollen                            |
+| `anlass.anmeldungen_exportieren` | Anlässe              | Anmeldungen exportieren                 | erweitert | vergebbar | alle, eigene | anlass | Rollen                            |
+| `raum.ansehen`                   | Räume                | Räume ansehen                           | normal    | struktur  | –            | –      | jede angemeldete Person           |
+| `raum.belegung`                  | Räume                | Belegung der Räume sehen                | normal    | vergebbar | alle, eigene | raum   | Rollen                            |
+| `raum.verwalten`                 | Räume                | Räume verwalten                         | erweitert | vergebbar | alle, eigene | raum   | Rollen                            |
+| `raum.anfrage_entscheiden`       | Räume                | Raumanfragen entscheiden                | erweitert | vergebbar | alle, eigene | raum   | Rollen                            |
+| `laden.bestellen`                | Lädeli               | Im Lädeli bestellen                     | normal    | struktur  | –            | –      | jede angemeldete Person           |
+| `laden.ansehen`                  | Lädeli               | Lädeli-Verwaltung ansehen               | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `laden.artikel_pflegen`          | Lädeli               | Lädeli-Artikel pflegen                  | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `laden.bestellungen_bearbeiten`  | Lädeli               | Lädeli-Bestellungen bearbeiten          | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `laden.einstellungen`            | Lädeli               | Lädeli einstellen                       | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `lager.verwalten`                | Lager                | Lager verwalten                         | fest      | fest      | –            | –      | Abteilungsleitung                 |
+| `mitteilung.senden`              | Mitteilungen         | Mitteilungen senden                     | erweitert | vergebbar | alle, eigene | gruppe | Rollen                            |
+| `personen.sehen`                 | Personen und Gruppen | Personenliste sehen                     | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `personen.verwalten`             | Personen und Gruppen | Personen verwalten                      | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `kinder.sehen`                   | Personen und Gruppen | Kinder sehen                            | erweitert | vergebbar | alle, eigene | gruppe | Rollen                            |
+| `kinder.verwalten`               | Personen und Gruppen | Kinder verwalten                        | erweitert | vergebbar | alle, eigene | gruppe | Rollen                            |
+| `gruppen.verwalten`              | Personen und Gruppen | Gruppen und Stufen verwalten            | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `gruppen.mitglieder`             | Personen und Gruppen | Mitglieder einer Gruppe ändern          | erweitert | vergebbar | alle, eigene | gruppe | Rollen                            |
+| `import.ausfuehren`              | Personen und Gruppen | Kinder importieren                      | erweitert | vergebbar | alle         | –      | Rollen                            |
+| `anwesenheit.fuehren`            | Personen und Gruppen | Anwesenheit führen                      | erweitert | vergebbar | alle, eigene | gruppe | Rollen; Stufenrollen im Standard  |
+| `stufe.einblick`                 | Personen und Gruppen | Teilnahmen und Kontakte der Stufe sehen | erweitert | vergebbar | alle, eigene | gruppe | Rollen; Stufenrollen im Standard  |
+| `profilbild.entfernen`           | Personen und Gruppen | Profilbilder entfernen                  | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest           |
+| `konto.loeschen`                 | Personen und Gruppen | Konten löschen                          | fest      | fest      | –            | –      | Abteilungsleitung                 |
+| `kinder.konto_verwalten`         | Personen und Gruppen | Konten von Kindern verwalten            | fest      | fest      | –            | –      | Abteilungsleitung                 |
+| `kinder.konto_sehen`             | Personen und Gruppen | Eigenes Kind sehen (Konto eines Kindes) | normal    | struktur  | –            | –      | Konto des Kindes                  |
+| `protokoll.lesen`                | Plattform und Rechte | Protokoll lesen                         | fest      | fest      | –            | –      | nur Entwickler                    |
+| `rechte.verwalten`               | Plattform und Rechte | Rechte und Rollen vergeben              | fest      | fest      | –            | –      | Abteilungsleitung                 |
+| `entwickler.vergeben`            | Plattform und Rechte | Entwickler vergeben                     | fest      | fest      | –            | –      | Abteilungsleitung                 |
+| `plattform.sperren`              | Plattform und Rechte | Wartung und Informationssperre schalten | fest      | fest      | –            | –      | Abteilungsleitung, Entwickler     |
+| `system.lesen`                   | Plattform und Rechte | Betriebszahlen lesen                    | fest      | fest      | –            | –      | Abteilungsleitung                 |
 
 Fest bleiben, weil sie Aussperren oder Eskalation verhindern: Rechte und Rollen vergeben (`rechte.verwalten`; wer Rechte vergibt, hat sie selbst, mindestens in der Geltung, die er vergibt), Entwickler vergeben (nur die Kommandozeile), Konto löschen, Lager anlegen und verwalten, Wartung und Informationssperre, Betriebszahlen und, nur für den Entwickler, das Protokoll (Entscheid E5). Die Abteilungsleitung hat in der eigenen Abteilung immer jedes Recht ausser dem Protokoll. Einstellbar sind unter anderem: Mitteilungen senden, Lädeli sehen und verwalten (Webmaster-Zugang), Räume verwalten und Anfragen entscheiden, Belegung sehen, Anlässe verwalten, Anmeldungen sehen und exportieren, Website veröffentlichen und Medien, Personen und Gruppen verwalten, Profilbilder entfernen.
 
