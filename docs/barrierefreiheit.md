@@ -724,6 +724,23 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 45. Website: Stufenseite, Tafel und «Mitnehmen» (#645)
+
+Gilt für die blaue Tafel `dl.fakten.karte` der Stufenfakten (`stufenfakten.ts`, `mitnehmen.ts`, `rendern.ts`, Stil in `website.css`). Geprüft im Browser (Chromium, headless) bei 195 (200 % von 390), 390, 720 (200 % von 1440), 1024, 1440 und 2560 Pixeln, Tag und Nacht, ohne Skript, mit erzwungenen Farben.
+
+- [ ] **45.1** Struktur: Die Tafel bleibt eine Definitionsliste (`dl` mit `div.fakt`, `dt`, `dd`). «Mitnehmen» ist darin eine echte Liste (`dd > ul.mitnehmen[role=list] > li`, die Rolle hält die Liste für Safari und VoiceOver trotz `list-style: none`); die Zahl der Einträge ist für Hilfstechnik hörbar, nicht nur sichtbar.
+- [ ] **45.2** Lesbarkeit: Die Einträge stehen in Lesegrösse (18 px, Zeilenhöhe 26 px) und normaler Stärke; kurze Fakten bleiben die einzigen fetten Werte. Ein langer Text in der Tafel hat nie die Wirkung einer Überschrift.
+- [ ] **45.3** Kontrast: Eintrag weiss auf `--secondary` 11.4:1, Beschriftung `--on-secondary-muted` 7.6:1 (gemessen, Tag und Nacht gleich). Der Haken hat die Farbe des Texts; Zustand und Bedeutung hängen nicht an der Farbe.
+- [ ] **45.4** Haken ohne Bild: Der Haken ist ein gezeichneter Rand (`li::before`), kein SVG und kein Bild; er ist dekorativ und wird nicht vorgelesen. In erzwungenen Farben nimmt er die Textfarbe des Systems.
+- [ ] **45.5** Reflow: einspaltig in der schmalen Tafel und am Handy, zweispaltig, sobald zwei Spalten à 11 rem Platz haben (Tafel über Seitenbreite, z. B. bei 200 % Zoom auf 1440 Pixeln); kein waagrechter Scroll durch die Tafel, lange Wörter brechen um (`overflow-wrap`, Silbentrennung `de`).
+- [ ] **45.6** Ohne Skript und mit strenger CSP: Die Liste ist statisches HTML, keine Inline-Stile, keine Bilder; sie steht auch im nachgeladenen, geschützten Baustein.
+- [ ] **45.7** Text bleibt Text: Freitext ohne Trenner, ein einzelnes Ding oder mehr als 30 Einträge stehen als Absatz im selben Stil (nichts geht verloren); Markup in Einträgen wird maskiert angezeigt.
+- [ ] **45.8** Keine Bewegung: Die Tafel hat keine Animation.
+
+### Stand der Prüfung (#645)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank) bei 195, 320, 390, 720, 1024, 1440 und 2560 Pixeln, Tag und Nacht, mit ausgeschaltetem Skript und in erzwungenen Farben geprüft; Randfälle (ein Ding, Satz ohne Komma, Zeilenumbrüche mit Aufzählungszeichen, Klammern, offene Klammer, 31 Einträge, Markup, sehr langes Wort). Kontrast mit eigener Berechnung. **Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack; die Ansage der Liste ist nicht gehört), Zoom 400 %.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

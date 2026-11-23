@@ -669,6 +669,38 @@ describe("Datenquelle für den Baustein «stufenfakten»", () => {
   });
 });
 
+describe("Mitnehmen als Liste (#645)", () => {
+  const zeile = (mitnehmen: string | null) => ({
+    tag: "2027-04-10",
+    treffZeit: null,
+    treffpunkt: null,
+    schlussZeit: null,
+    schlussOrt: null,
+    mitnehmen,
+  });
+  const letzter = (mitnehmen: string | null) =>
+    faktenAus(zeile(mitnehmen)).at(-1);
+
+  test("mehrere Dinge: Liste, der Wortlaut bleibt als Wert", () => {
+    expect(letzter(" Kluft, Zvieri ")).toEqual({
+      bezeichnung: "Mitnehmen",
+      wert: "Kluft, Zvieri",
+      lang: true,
+      liste: ["Kluft", "Zvieri"],
+    });
+  });
+
+  test("ein Satz ohne Trenner: Text ohne Liste; leer: keine Zeile", () => {
+    expect(letzter("Warme Kleidung")).toEqual({
+      bezeichnung: "Mitnehmen",
+      wert: "Warme Kleidung",
+      lang: true,
+    });
+    expect(letzter("  ")?.bezeichnung).toBe("Datum");
+    expect(letzter(null)?.bezeichnung).toBe("Datum");
+  });
+});
+
 describe("Seite und Nachladen", () => {
   let wurzel: string;
   beforeEach(async () => {
