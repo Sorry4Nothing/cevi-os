@@ -118,7 +118,8 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
 
   haenge(
     bereich,
-    zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
+    !ctx.imRahmen &&
+      zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
     zu &&
       el(
         "div",
