@@ -109,11 +109,27 @@
   margin-left: auto;
 }
 
+/* Der Name im Kopf ist der Link zu «Mein Konto» (#621): Rand und Zeigen wie «Abmelden», Fläche mindestens 44 px */
 .konto {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.125rem 1rem 0.125rem 0.125rem;
+  color: var(--text);
+  border-radius: var(--r-full);
+  text-decoration: none;
+  transition: background var(--dauer) var(--kurve);
+}
+
+.konto:hover {
+  color: var(--text);
+  background: var(--erhoben);
+}
+
+.konto[aria-current="page"] {
+  box-shadow: inset 0 0 0 2px var(--blau);
 }
 
 .konto-text {
@@ -324,6 +340,10 @@
 
 @media (max-width: 1100px) {
   /* Name und Rolle bleiben für Screenreader, weichen aber dem Platz (A2) */
+  .konto {
+    padding-right: 0.125rem;
+  }
+
   .konto-text {
     position: absolute;
     width: 1px;

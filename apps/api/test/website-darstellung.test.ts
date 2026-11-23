@@ -559,9 +559,9 @@ describe("Fuss (#580)", () => {
     expect(html).toContain(
       '<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul><li><a href="/impressum">Impressum</a></li><li><a href="/datenschutz-website">Datenschutz</a></li></ul></nav>',
     );
-    // «Nach oben» ist eine Nebenaktion des Repertoires, «©» und «Nach oben» stehen in einer Zeile
+    // «Nach oben» ist ein Verweis des Repertoires (ohne Knopf), «©» und «Nach oben» stehen in einer Zeile
     expect(html).toMatch(
-      /<div class="fuss-unten"><p class="fuss-copy">© \d{4} Cevi Beispielstadt<\/p><a class="btn s fuss-oben" href="#">Nach oben/,
+      /<div class="fuss-unten"><p class="fuss-copy">© \d{4} Cevi Beispielstadt<\/p><a class="verweis fuss-oben" href="#">Nach oben<\/a><\/div>/,
     );
   });
 
