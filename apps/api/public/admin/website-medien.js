@@ -19,6 +19,7 @@ import {
 import { groesseText } from "./website-felder.js";
 import { mitSymbol, symbol } from "./website-symbole.js";
 import { zustandsKarte } from "./zustaende.js";
+import { zuschneiden } from "./zuschneiden.js";
 
 // Medienbibliothek (Boards E7 und E8): Raster der Bilder mit Alt-Text, Suche, Filter, Mehrfachauswahl, Hochladen, Beschreiben und Löschen.
 // Die Bibliothek verwaltet nur Bilder. Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei zum Herunterladen» verknüpft (#428);
@@ -787,7 +788,7 @@ function zeichne(bereich, ctx, erste) {
       el(
         "p",
         { class: "hilfe" },
-        "Bilder (JPG, PNG, WebP), höchstens 10 MB. Bilder werden automatisch verkleinert.",
+        "Bilder (JPG, PNG, WebP), höchstens 10 MB. Du kannst sie vor dem Hochladen zuschneiden. Bilder werden automatisch verkleinert.",
       ),
     );
     const gewaehlteBox = el("div", { hidden: true });
@@ -898,6 +899,30 @@ function zeichne(bereich, ctx, erste) {
         pruefeBereit();
         grund.textContent = "Wähle eine andere Datei.";
         gesperrt(hochKnopf, true);
+        return;
+      }
+      // Zuschneiden (#633): eine Seite im Fluss; «Original verwenden» lässt die Datei, wie sie ist. Abbrechen heisst: nichts gewählt.
+      try {
+        const ergebnis = await zuschneiden({
+          datei: d,
+          beschreibung:
+            "Schneide das Bild zu, bevor du es hochlädst, oder nimm es, wie es ist.",
+          maxSeite: 2048,
+          maxBytes: MAX_BYTES,
+          ok: "Zuschneiden und übernehmen",
+        });
+        if (!ergebnis) {
+          zone.hidden = false;
+          pruefeBereit();
+          return;
+        }
+        d = ergebnis.datei;
+      } catch (fehl) {
+        meldung.replaceChildren(band("fehler", fehl.message));
+        zone.hidden = false;
+        pruefeBereit();
+        gesperrt(hochKnopf, true);
+        grund.textContent = "Wähle eine andere Datei.";
         return;
       }
       // Vorschau über eine Leinwand: Die CSP erlaubt keine blob:-Adressen. Das Lesen zeigt nebenbei, ob sich das Bild öffnen lässt.

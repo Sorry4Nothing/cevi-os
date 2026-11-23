@@ -141,8 +141,10 @@ describe("Laden lesen", () => {
       mediumId: null,
       groessenart: "liste",
       varianten: ["S", "M"],
+      nichtVerfuegbar: [],
       hinweis: "Hinweis",
       verfuegbar: true,
+      verfuegbarGesetzt: true,
       reihenfolge: 0,
     });
     expect(d.uebergabearten).toEqual([ABHOLUNG]);
@@ -151,6 +153,32 @@ describe("Laden lesen", () => {
       menge: 10,
       offeneBestellungen: MAX_OFFENE_JE_PERSON,
     });
+  });
+
+  test("die Antwort nennt, wie die Person angemeldet ist: Cevi-Name, sonst Vorname (nur der eigene Name)", async () => {
+    const [ich] = await db
+      .select({ name: schema.user.name, ceviName: schema.user.ceviName })
+      .from(schema.user)
+      .where(eq(schema.user.id, eltern.id!));
+    const erwartet =
+      ich!.ceviName?.trim() || ich!.name.trim().split(/\s+/)[0] || null;
+    const d = await json(await aufruf(eltern, "GET", "/laden"));
+    expect(d.angemeldetAls).toBe(erwartet);
+    // Mit Cevi-Name zählt der
+    await db
+      .update(schema.user)
+      .set({ ceviName: "Luna" })
+      .where(eq(schema.user.id, eltern.id!));
+    try {
+      expect(
+        (await json(await aufruf(eltern, "GET", "/laden"))).angemeldetAls,
+      ).toBe("Luna");
+    } finally {
+      await db
+        .update(schema.user)
+        .set({ ceviName: ich!.ceviName })
+        .where(eq(schema.user.id, eltern.id!));
+    }
   });
 
   test("ohne Sitzung 401", async () => {
@@ -363,6 +391,177 @@ describe("Bestellen", () => {
     expect(
       (await bestelle(konten.slA, [{ artikelId: a.id, menge: 1 }])).status,
     ).toBe(429);
+  });
+});
+
+describe("Verfügbarkeit je Grösse (#629)", () => {
+  const lesen = async (id: string) =>
+    (
+      await json(await aufruf(admin, "GET", "/admin/laden/artikel"))
+    ).artikel.find((a: { id: string }) => a.id === id);
+  const bestellungenVon = (konto: PersonaKonto) =>
+    db
+      .select()
+      .from(schema.ladenBestellung)
+      .where(eq(schema.ladenBestellung.userId, konto.id!));
+
+  test("eine nicht verfügbare Grösse lässt sich nicht bestellen (422 mit Feld, Meldung und Position); die übrigen Grössen gehen", async () => {
+    const a = await neuerArtikel({
+      varianten: ["S", "M", "L"],
+      nichtVerfuegbar: ["S"],
+    });
+    const r = await bestelle(eltern, [
+      { artikelId: a.id, variante: "S", menge: 1 },
+    ]);
+    expect(r.status).toBe(422);
+    const d = await json(r);
+    expect(d).toMatchObject({
+      code: "GROESSE_NICHT_VERFUEGBAR",
+      feld: "positionen",
+      positionen: [{ artikelId: a.id, variante: "S" }],
+    });
+    expect(d.message).toContain("S");
+    expect(d.message).toContain(a.name);
+    expect(await bestellungenVon(eltern)).toHaveLength(0);
+    // Der Artikel selbst bleibt bestellbar
+    expect(
+      (await bestelle(eltern, [{ artikelId: a.id, variante: "M", menge: 1 }]))
+        .status,
+    ).toBe(201);
+  });
+
+  test("gemischte Positionen: die nicht verfügbare wird genannt, nichts wird teilweise angelegt", async () => {
+    const a = await neuerArtikel({
+      varianten: ["S", "M"],
+      nichtVerfuegbar: ["S"],
+    });
+    const b = await neuerArtikel({ varianten: ["M", "L"] });
+    const c = await neuerArtikel();
+    const r = await bestelle(eltern, [
+      { artikelId: b.id, variante: "L", menge: 2 },
+      { artikelId: a.id, variante: "S", menge: 1 },
+      { artikelId: c.id, menge: 1 },
+    ]);
+    expect(r.status).toBe(422);
+    expect((await json(r)).positionen).toEqual([
+      { artikelId: a.id, variante: "S" },
+    ]);
+    expect(await bestellungenVon(eltern)).toHaveLength(0);
+    const positionen = await db
+      .select()
+      .from(schema.ladenBestellposition)
+      .where(eq(schema.ladenBestellposition.artikelId, b.id));
+    expect(positionen).toHaveLength(0);
+  });
+
+  test("ein Artikel, dessen Grössen alle nicht verfügbar sind, gilt als nicht verfügbar (Ansicht und Bestellung)", async () => {
+    const a = await neuerArtikel({
+      varianten: ["S", "M"],
+      nichtVerfuegbar: ["S", "M"],
+    });
+    const laden = await json(await aufruf(eltern, "GET", "/laden"));
+    expect(
+      laden.artikel.find((x: { id: string }) => x.id === a.id),
+    ).toMatchObject({
+      verfuegbar: false,
+      verfuegbarGesetzt: true,
+      nichtVerfuegbar: ["S", "M"],
+    });
+    const r = await bestelle(eltern, [
+      { artikelId: a.id, variante: "M", menge: 1 },
+    ]);
+    expect(r.status).toBe(409);
+    expect(await json(r)).toMatchObject({
+      code: "ARTIKEL_NICHT_VERFUEGBAR",
+      artikelIds: [a.id],
+    });
+    // Wird eine Grösse wieder frei, ist der Artikel zurück
+    expect(
+      (
+        await aufruf(admin, "PATCH", `/admin/laden/artikel/${a.id}`, {
+          nichtVerfuegbar: ["S"],
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      (await bestelle(eltern, [{ artikelId: a.id, variante: "M", menge: 1 }]))
+        .status,
+    ).toBe(201);
+  });
+
+  test("Verwaltung: nur Grössen aus der Liste, beim Anlegen und Ändern; eine geänderte Liste behält nur die noch vorhandenen Meldungen", async () => {
+    const neu = await aufruf(admin, "POST", "/admin/laden/artikel", {
+      name: "Shirt",
+      preisRappen: 2000,
+      groessenart: "liste",
+      varianten: ["S", "M", "L"],
+      nichtVerfuegbar: ["S"],
+    });
+    expect(neu.status).toBe(201);
+    const { id } = await json(neu);
+    expect(await lesen(id)).toMatchObject({ nichtVerfuegbar: ["S"] });
+    const aendern = (body: Record<string, unknown>) =>
+      aufruf(admin, "PATCH", `/admin/laden/artikel/${id}`, body);
+    const falsch = await aendern({ nichtVerfuegbar: ["XXL"] });
+    expect(falsch.status).toBe(422);
+    expect(await json(falsch)).toMatchObject({
+      code: "NICHT_VERFUEGBAR_UNGUELTIG",
+      feld: "nichtVerfuegbar",
+    });
+    expect(
+      (
+        await aufruf(admin, "POST", "/admin/laden/artikel", {
+          name: "Gurt",
+          preisRappen: 100,
+          groessenart: "einheit",
+          nichtVerfuegbar: ["S"],
+        })
+      ).status,
+    ).toBe(422);
+    // Doppelte Einträge sind eine ungültige Eingabe
+    expect((await aendern({ nichtVerfuegbar: ["M", "M"] })).status).toBe(400);
+    // Neue Liste ohne «S»: Die Meldung zu S entfällt, die zu M bleibt
+    expect((await aendern({ nichtVerfuegbar: ["S", "M"] })).status).toBe(204);
+    expect(
+      (
+        await aendern({
+          groessenart: "liste",
+          varianten: ["M", "L", "XL"],
+        })
+      ).status,
+    ).toBe(204);
+    expect(await lesen(id)).toMatchObject({
+      varianten: ["M", "L", "XL"],
+      nichtVerfuegbar: ["M"],
+    });
+    // Einheitsgrösse: keine Meldungen mehr
+    expect((await aendern({ groessenart: "einheit" })).status).toBe(204);
+    expect(await lesen(id)).toMatchObject({
+      varianten: [],
+      nichtVerfuegbar: [],
+    });
+  });
+
+  test("der Schalter des Artikels bleibt eigenständig: aus heisst nicht verfügbar, auch wenn Grössen frei sind", async () => {
+    const a = await neuerArtikel({
+      varianten: ["S", "M"],
+      nichtVerfuegbar: ["S"],
+      verfuegbar: false,
+    });
+    expect(await lesen(a.id)).toMatchObject({
+      verfuegbar: false,
+      verfuegbarGesetzt: false,
+    });
+    expect(
+      (await bestelle(eltern, [{ artikelId: a.id, variante: "M", menge: 1 }]))
+        .status,
+    ).toBe(409);
+  });
+
+  test("die Datenbank lässt nur vorhandene Grössen als nicht verfügbar zu", async () => {
+    await expect(
+      neuerArtikel({ varianten: ["S", "M"], nichtVerfuegbar: ["XL"] }),
+    ).rejects.toThrow();
   });
 });
 

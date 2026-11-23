@@ -100,7 +100,7 @@
 /* Artikelliste: feste Spalten, damit Überschrift und Werte untereinander stehen (Zahlen rechts, Text links, Aktionen rechts). Gilt für beide Zeilenarten, mit und ohne Zusatzzeile */
 .ld-tabelle .tabelle {
   table-layout: fixed;
-  min-width: 62rem;
+  min-width: 72rem;
 }
 
 .ld-tabelle th,
@@ -121,11 +121,11 @@
 }
 
 .ld-tabelle th:nth-child(4) {
-  width: 11rem;
+  width: 18rem;
 }
 
 .ld-tabelle th:nth-child(5) {
-  width: 11rem;
+  width: 12rem;
 }
 
 .ld-tabelle th.rechts,
@@ -466,4 +466,205 @@
 .ld-vorschau-preis {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* Verfügbarkeit je Grösse (#629): Pillen-Schalter wie die Segment-Auswahl der Verwaltung (.seg): verfügbar ist gefüllt und trägt einen Haken, nicht verfügbar hat einen gestrichelten Rand, ein Kreuz und den durchgestrichenen Namen; das Wort steht unter der Pille. Eigene Datei, damit nichts anderes sie überschreibt. */
+
+ul.ld-groessen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.ld-groessen > li.ld-gposten {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.ld-groessen button.ld-gschalter {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 4.5rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px 0 12px;
+  border: 2px solid var(--blau);
+  border-radius: 9999px;
+  background: var(--blau);
+  background-image: none;
+  box-shadow: none;
+  color: var(--auf-blau);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+
+ul.ld-groessen button.ld-gschalter .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.6;
+}
+
+ul.ld-groessen button.ld-gschalter:hover {
+  filter: brightness(1.12);
+}
+
+ul.ld-groessen button.ld-gschalter:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+ul.ld-groessen button.ld-gschalter--aus,
+ul.ld-groessen button.ld-gschalter--aus:hover {
+  border: 2px dashed var(--rand);
+  background: transparent;
+  color: var(--leise);
+  filter: none;
+}
+
+ul.ld-groessen button.ld-gschalter--aus s {
+  text-decoration-thickness: 2px;
+}
+
+.ld-gstand {
+  color: var(--leise);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ld-gstand--aus {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.ld-gwahl {
+  margin-top: 16px;
+}
+
+.ld-gwahl[hidden] {
+  display: none;
+}
+
+.ld-gwahl-titel {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.ld-gwahl .hilfe {
+  margin: 0 0 12px;
+}
+
+.ld-stand-weg {
+  margin: 4px 0 0;
+}
+
+@media (forced-colors: active) {
+  ul.ld-groessen button.ld-gschalter {
+    border: 2px solid ButtonText;
+  }
+
+  ul.ld-groessen button.ld-gschalter--aus {
+    border-style: dashed;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ul.ld-groessen button.ld-gschalter {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      filter 0.15s ease;
+  }
+}
+
+/* Schmal (Handy): Jede Zeile der Artikelliste wird eine Karte, damit die Schalter ohne Seitwärtsscrollen erreichbar sind. Die Spaltenköpfe bleiben für Hilfstechnik, aber unsichtbar; Grösse und Stand tragen ihren Namen */
+@media (max-width: 48rem) {
+  .ld-tabelle .tabelle {
+    display: block;
+    min-width: 0;
+  }
+
+  .ld-tabelle thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ld-tabelle tbody {
+    display: block;
+  }
+
+  .ld-tabelle tbody tr {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    column-gap: 4px;
+    padding: 12px 12px 12px 4px;
+    border-top: 1px solid var(--rand-leise);
+  }
+
+  .ld-tabelle tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .ld-tabelle tbody tr > * {
+    display: block;
+    width: auto;
+    padding: 4px 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .ld-tabelle td.ld-griffzelle {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0;
+  }
+
+  .ld-tabelle tbody tr > th,
+  .ld-tabelle tbody tr > td:not(.ld-griffzelle) {
+    grid-column: 2;
+  }
+
+  .ld-tabelle td.zahl {
+    text-align: left;
+    color: var(--leise);
+  }
+
+  .ld-tabelle td[data-label]:not(.zahl)::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--leise);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  .ld-tabelle td.rechts {
+    width: auto;
+  }
+
+  .ld-tabelle td.rechts .aktionen {
+    justify-content: flex-start;
+  }
 }

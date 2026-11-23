@@ -3,7 +3,7 @@
 // Bereich:     { schluessel, name, symbol, start?, unter: [Unterseite] }
 // Unterseite:  { schluessel, name, modul, untertitel, zugang? }
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
-//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
+//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
@@ -18,7 +18,8 @@ export const BEREICHE = [
         name: "Übersicht",
         modul: "./uebersicht.js",
         untertitel: "Was offen ist und wie es der Abteilung geht.",
-        zugang: "alle",
+        // Tür der Übersicht (GET /api/v1/admin/uebersicht): Abteilungsleitung oder Zugang zur Verwaltung der Website; wer nur den Belegungsplan sieht (#628), bekäme dort 403
+        zugang: "website",
       },
     ],
   },
@@ -157,7 +158,15 @@ export const BEREICHE = [
     schluessel: "raeume",
     name: "Räume",
     symbol: "kalender",
+    start: "belegung",
     unter: [
+      {
+        schluessel: "belegung",
+        name: "Belegung",
+        modul: "./termine-belegung.js",
+        untertitel: "Wie die Räume der Abteilung belegt sind.",
+        zugang: "belegung",
+      },
       {
         schluessel: "raeume",
         name: "Räume",
@@ -337,6 +346,7 @@ export function darfSehen(
   if (istAdmin) return true;
   if (wer === "admin") return false;
   if (wer === "alle") return true;
+  if (wer === "belegung") return zugang?.belegung === true;
   if (wer.startsWith("recht:")) {
     return zugang?.rechte?.includes(wer.slice("recht:".length)) ?? false;
   }

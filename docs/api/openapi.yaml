@@ -952,6 +952,51 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/termine-belegung.js:
+    get:
+      operationId: getAdminTermineBelegungSkript
+      summary: Skript der Verwaltung – Bereich Räume, Belegungsplan
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/termine-belegung.css:
+    get:
+      operationId: getAdminTermineBelegungStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Räume, Belegungsplan
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/belegung-layout.js:
+    get:
+      operationId: getAdminBelegungLayoutSkript
+      summary: Skript der Verwaltung – Rechnen für den Belegungsplan
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/lager.js:
     get:
       operationId: getAdminLagerSkript
@@ -1256,6 +1301,36 @@ paths:
     get:
       operationId: getAdminKontoStilvorlage
       summary: Stilvorlage der Verwaltung – Seite Mein Konto
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/zuschneiden.js:
+    get:
+      operationId: getAdminZuschneidenSkript
+      summary: Skript der Verwaltung – Bild zuschneiden
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zuschneiden.css:
+    get:
+      operationId: getAdminZuschneidenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bild zuschneiden
       tags:
         - Allgemein
       security: []
@@ -21870,6 +21945,68 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/raeume/belegung:
+    get:
+      operationId: leseRaumBelegung
+      summary: Belegungsplan der Räume (nur Leitende)
+      description: |
+        Wunsch des Nutzers, vom Nutzer zu bestätigen: Alle Leitenden sehen, wie die aktiven Räume ihrer Abteilung belegt sind. Gesehen wird sie von der Abteilungsleitung, von Personen mit der Rolle «leitung» oder «stufenleitung» an einer Stufe, von Verantwortlichen eines Teams und von wem das Team eines Raums trägt. Eltern, Kinder und Personen ohne Leitungsaufgabe bekommen 403; sie sehen weiter nur die Liste der Räume.
+
+        Der Zeitraum gilt in Schweizer Zeit (`Europe/Zurich`): von `von` 00:00 bis zum Ende des Tages `bis`, beide Tage eingeschlossen, höchstens 31 Tage. Die Antwort enthält die bestätigten Buchungen und, solange `anfragen` nicht `nein` ist, die offenen Anfragen, die noch nicht vorbei sind (Status `angefragt`). Abgelehnte und stornierte Anfragen kommen nie vor. Je Buchung stehen Raum, Beginn, Ende, Zweck (Freitext, wie in der Anfrage) und die Person nur mit Cevi-Name, sonst Vorname; nie Nachname, Telefon oder E-Mail. Höchstens 500 Buchungen je Aufruf (`weitere: true`, wenn mehr da wären; Zeitraum verkleinern oder `raumId` setzen). Zwei Abfragen, unabhängig von der Zahl der Räume. Räume und Buchungen anderer Abteilungen kommen nie vor.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (Datum, mehr als 31 Tage, `bis` vor `von`). 401 ohne Sitzung. 403 für Personen ohne Leitungsaufgabe und bei offenem Passwortwechsel.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: von
+          in: query
+          required: true
+          description: Erster Tag (Schweizer Zeit), `JJJJ-MM-TT`.
+          schema:
+            type: string
+            format: date
+        - name: bis
+          in: query
+          required: true
+          description: Letzter Tag (Schweizer Zeit), `JJJJ-MM-TT`, nicht vor `von`, höchstens 30 Tage nach `von`.
+          schema:
+            type: string
+            format: date
+        - name: anfragen
+          in: query
+          required: false
+          description: "`ja` (Vorgabe) nimmt die offenen Anfragen mit; `nein` nur die bestätigten Buchungen."
+          schema:
+            type: string
+            enum:
+              - ja
+              - nein
+            default: ja
+        - name: raumId
+          in: query
+          required: false
+          description: Nur dieser Raum.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Räume und ihre Belegung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RaumBelegung"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: raum-anfragen (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/raeume/{id}/anfragen:
     post:
@@ -22671,7 +22808,7 @@ paths:
 
         Grenzen: 1 bis 20 Positionen, Menge 1 bis 10, derselbe Artikel in derselben Variante nur einmal (sonst 400), höchstens 5 offene oder bereitgestellte Bestellungen je Person (409 `BESTELL_LIMIT`), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 429 bei zu vielen Versuchen.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
 
         Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
       tags:
@@ -22707,6 +22844,12 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LadenKonflikt"
+        "422":
+          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LadenGroesseNichtVerfuegbar"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -22891,13 +23034,13 @@ paths:
       operationId: aendereAdminLadenArtikel
       summary: Artikel ändern
       description: |
-        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. Das Audit-Log hält nur die Namen der geänderten Felder fest.
+        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Ein Artikel mit Grössen hat in der Verwaltung keinen eigenen Schalter mehr: Sie sendet dann `verfuegbar: true` und lässt allein die Grössen entscheiden. Ein älterer Artikel mit Grössen und `verfuegbar: false` bleibt nicht verfügbar (der Server wertet den Schalter weiter aus). Das Audit-Log hält nur die Namen der geänderten Felder fest.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Bild (400).
+        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Verfügbarkeit je Grösse (422), Bild (400).
 
         Statuscodes: 204 bei Erfolg. 400, 403, 404, 422 wie beschrieben.
 
-        Datenbanklast: eine Abfrage für den Artikel, eine für das Bild (falls genannt), eine Transaktion mit Update und Audit-Eintrag.
+        Datenbanklast: eine Abfrage für den Artikel (mit Grössen und Meldungen), eine für das Bild (falls genannt), eine Transaktion mit Update und Audit-Eintrag.
       tags:
         - Lädeli
       parameters:
@@ -36339,6 +36482,85 @@ components:
             - string
             - "null"
           description: Wert für `nach` der nächsten Seite; `null` auf der letzten.
+    RaumBelegung:
+      type: object
+      required:
+        - von
+        - bis
+        - zeitzone
+        - raeume
+        - buchungen
+        - weitere
+      properties:
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        zeitzone:
+          type: string
+          enum:
+            - Europe/Zurich
+        raeume:
+          type: array
+          description: Die aktiven Räume der Abteilung (oder der eine Raum), nach Name.
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - ort
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              ort:
+                type:
+                  - string
+                  - "null"
+        buchungen:
+          type: array
+          description: Nach Beginn geordnet, höchstens 500.
+          items:
+            type: object
+            required:
+              - id
+              - raumId
+              - beginn
+              - ende
+              - zweck
+              - status
+              - person
+            properties:
+              id:
+                type: string
+                format: uuid
+              raumId:
+                type: string
+                format: uuid
+              beginn:
+                type: string
+                format: date-time
+              ende:
+                type: string
+                format: date-time
+              zweck:
+                type: string
+                description: Freitext der Anfrage, höchstens 200 Zeichen.
+              status:
+                type: string
+                enum:
+                  - bestaetigt
+                  - angefragt
+              person:
+                type: string
+                description: Cevi-Name der buchenden Person, sonst ihr Vorname. Nie Nachname, Telefon oder E-Mail.
+        weitere:
+          type: boolean
+          description: "`true`, wenn es mehr als 500 Buchungen im Zeitraum gibt."
     RaumAnlegen:
       type: object
       additionalProperties: false
@@ -36700,6 +36922,7 @@ components:
         - redigieren
         - bereiche
         - verwalten
+        - belegung
         - rechte
       properties:
         redigieren:
@@ -36716,6 +36939,9 @@ components:
         verwalten:
           type: boolean
           description: Ob die Person Seiten anlegen und löschen darf (Plattformrecht `seiten.anlegen_loeschen`). Bleibt für Clients, die nur dieses Feld kennen; `rechte` ist genauer. Nur für die Anzeige; jede Route prüft selbst.
+        belegung:
+          type: boolean
+          description: "Ob die Person den Belegungsplan der Räume sehen darf (`GET /api/v1/raeume/belegung`): jede Leitung, also Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Verantwortliche eines Teams und wer das Team eines Raums trägt. Öffnet der Verwaltung die Tür auch ohne Zugang zur Website. Nur für die Anzeige; die Route prüft selbst."
         rechte:
           type: array
           description: "Die Plattformrechte der Person (Abteilungsleitung und Entwickler: alle), sortiert; leer ohne Plattformrecht. Stufenleitung, Rechte pro Seite und Team-Verantwortung stehen nicht darin, sie gelten je Seite. Nur für die Anzeige; jede Route prüft selbst."
@@ -37410,8 +37636,10 @@ components:
         - mediumId
         - groessenart
         - varianten
+        - nichtVerfuegbar
         - hinweis
         - verfuegbar
+        - verfuegbarGesetzt
         - reihenfolge
       properties:
         id:
@@ -37440,12 +37668,21 @@ components:
           items:
             type: string
           description: Leer bei Einheitsgrösse, sonst mindestens zwei Einträge.
+        nichtVerfuegbar:
+          type: array
+          items:
+            type: string
+          description: Grössen aus `varianten`, die nicht zu haben sind (Verfügbarkeit je Grösse, kein Lagerbestand). Sie bleiben im Laden sichtbar, lassen sich aber nicht bestellen.
         hinweis:
           type:
             - string
             - "null"
         verfuegbar:
           type: boolean
+          description: Ob der Artikel zu haben ist. `false`, wenn die Verwaltung ihn ausgeschaltet hat (`verfuegbarGesetzt`, bei einer Einheitsgrösse die einzige Einstellung, bei älteren Artikeln mit Grössen weiter gültig) oder alle Grössen in `nichtVerfuegbar` stehen. Mit Grössen setzt die Verwaltung nur noch `nichtVerfuegbar`.
+        verfuegbarGesetzt:
+          type: boolean
+          description: Der Schalter des Artikels selbst, wie ihn die Verwaltung gesetzt hat, unabhängig von den Grössen.
         reihenfolge:
           type: integer
           minimum: 0
@@ -37453,10 +37690,16 @@ components:
     LadenAnsicht:
       type: object
       required:
+        - angemeldetAls
         - artikel
         - uebergabearten
         - grenzen
       properties:
+        angemeldetAls:
+          type:
+            - string
+            - "null"
+          description: Wie die angemeldete Person heisst (Cevi-Name, sonst Vorname), nur der eigene Name; die Website zeigt «Angemeldet als …». `null`, wenn kein Name hinterlegt ist.
         artikel:
           type: array
           items:
@@ -37685,14 +37928,49 @@ components:
           enum:
             - GROESSE_FEHLT
             - GROESSE_UNGUELTIG
+            - NICHT_VERFUEGBAR_UNGUELTIG
         feld:
           type: string
           enum:
             - groessenart
             - varianten
+            - nichtVerfuegbar
           description: Das Feld, bei dem die Meldung steht.
         message:
           type: string
+    LadenGroesseNichtVerfuegbar:
+      type: object
+      description: Eine bestellte Grösse ist nicht mehr zu haben (Statuscode 422 beim Bestellen). Die Bestellung ist ganz abgelehnt.
+      required:
+        - code
+        - feld
+        - message
+        - positionen
+      properties:
+        code:
+          type: string
+          enum:
+            - GROESSE_NICHT_VERFUEGBAR
+        feld:
+          type: string
+          enum:
+            - positionen
+        message:
+          type: string
+          description: Deutscher Text mit Artikel und Grösse für die Anzeige.
+        positionen:
+          type: array
+          items:
+            type: object
+            required:
+              - artikelId
+              - variante
+            properties:
+              artikelId:
+                type: string
+                format: uuid
+              variante:
+                type: string
     LadenArtikelAnlegen:
       type: object
       required:
@@ -37723,6 +38001,14 @@ components:
             minLength: 1
             maxLength: 40
           description: Nur bei `liste`; ohne Doppelte (Gross- und Kleinschreibung zählt nicht).
+        nichtVerfuegbar:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          description: Grössen aus `varianten`, die nicht zu haben sind; ohne Angabe sind alle verfügbar. Bei `einheit` nicht erlaubt (422 `NICHT_VERFUEGBAR_UNGUELTIG`).
         mediumId:
           type:
             - string
@@ -37761,6 +38047,14 @@ components:
             type: string
             minLength: 1
             maxLength: 40
+        nichtVerfuegbar:
+          type: array
+          maxItems: 20
+          items:
+            type: string
+            minLength: 1
+            maxLength: 40
+          description: Ersetzt die Liste der nicht verfügbaren Grössen; jede muss in `varianten` (neu oder gespeichert) stehen.
         mediumId:
           type:
             - string
@@ -38265,7 +38559,7 @@ components:
           schema:
             $ref: "#/components/schemas/Fehler"
     LadenGroesse422:
-      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (`GROESSE_FEHLT`, `GROESSE_UNGUELTIG`); `feld` nennt das Feld.
+      description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (`GROESSE_FEHLT`, `GROESSE_UNGUELTIG`), oder `nichtVerfuegbar` nennt eine Grösse, die nicht in der Liste steht (`NICHT_VERFUEGBAR_UNGUELTIG`); `feld` nennt das Feld.
       content:
         application/json:
           schema:

@@ -135,7 +135,7 @@ export function setzeKontoBild(bildUrl) {
   }
 }
 
-// Logozeile: Marke, «Verwaltung», Konto mit Rolle, Umschalter und «Abmelden»
+// Logozeile: Marke, «Verwaltung», Konto mit Rolle, Suche, «Abmelden» und ganz rechts der Umschalter (wie auf der Website)
 // konto: { name, rolle, bildUrl } (rolle: Text unter dem Namen; bildUrl: Profilbild oder null)
 export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
   return el(
@@ -175,7 +175,6 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
             ),
           ),
         sichtbar && konto && suche?.(),
-        themaSchalter(),
         sichtbar &&
           konto &&
           knopf("Abmelden", {
@@ -183,6 +182,8 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
             klein: true,
             onclick: beiAbmelden,
           }),
+        // Ganz rechts, wie im Kopf der Website
+        themaSchalter(),
       ),
     ),
   );

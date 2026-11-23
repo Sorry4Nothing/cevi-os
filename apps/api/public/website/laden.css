@@ -639,6 +639,64 @@ a.laden-knopf--bestellen {
   white-space: nowrap;
 }
 
+/* Eine Grösse, die nicht zu haben ist (#629): durchgestrichen, dazu das Wort in der Notiz darunter; nie nur eine Farbe */
+.laden-variante--weg s,
+.laden-schnell-knoepfe button.weg s,
+.laden-wahl-knoepfe button.weg s {
+  text-decoration-thickness: 2px;
+}
+
+.laden-weg-notiz,
+.laden-wahl-notiz {
+  margin: 0;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.laden-wahl-notiz {
+  margin-top: 0.5rem;
+}
+
+.laden-schnell-knoepfe button.weg,
+.laden-schnell-knoepfe button.weg:hover {
+  border: 1px dashed var(--l-linie);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: not-allowed;
+}
+
+.laden-wahl-knoepfe button.weg,
+.laden-wahl-knoepfe button.weg:hover {
+  border-style: dashed;
+  border-color: var(--l-linie);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: not-allowed;
+}
+
+/* Zeile im Warenkorb, deren Grösse entfallen ist: Rand links und Hinweis mit Symbol */
+.laden-zeilen > li.laden-zeile--weg {
+  box-shadow: inset 3px 0 0 var(--l-leise);
+  padding-left: 0.75rem;
+}
+
+.laden-zeile-hinweis {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.laden-zeile-hinweis .i {
+  flex: none;
+  width: 1rem;
+  height: 1.25rem;
+}
+
 .laden .hinweis {
   color: var(--l-leise);
   font-size: 0.875rem;
@@ -1566,4 +1624,36 @@ a.laden-knopf--bestellen {
 /* Im Kopf des Ladens steht der Hinweis schon als Notiz daneben: dort nur der Knopf */
 .laden-leiste-korb .laden-anmelden .meta {
   display: none;
+}
+
+/* ===== Zeile über dem Raster: wer angemeldet ist, mit dem Weg zum Abmelden (#638) ===== */
+
+.laden-konto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0 0;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.laden-konto-text {
+  margin: 0;
+}
+
+.laden-konto-text strong {
+  color: var(--on-surface);
+}
+
+.laden-konto-fehler {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-konto-ort .band {
+  margin-top: 0.75rem;
 }

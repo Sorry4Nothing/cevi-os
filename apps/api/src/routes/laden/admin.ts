@@ -23,6 +23,7 @@ import {
   listeSchema,
   MAX_ARTIKEL,
   pruefeGroesse,
+  pruefeNichtVerfuegbar,
   reihenfolgeSchema,
   STATUS,
   WECHSEL,
@@ -61,7 +62,11 @@ function pruefeRecht(person: Pick<Person, "admin">) {
 const ladeEinenArtikel = async (db: Db, abteilungId: string, id: string) =>
   (
     await db
-      .select({ id: ladenArtikel.id })
+      .select({
+        id: ladenArtikel.id,
+        varianten: ladenArtikel.varianten,
+        nichtVerfuegbar: ladenArtikel.nichtVerfuegbar,
+      })
       .from(ladenArtikel)
       .where(
         and(eq(ladenArtikel.id, id), eq(ladenArtikel.abteilungId, abteilungId)),
@@ -94,6 +99,8 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           const { groessenart, ...b } = c.req.valid("json");
           const groesse = pruefeGroesse({ groessenart, ...b }, true);
           if ("fehler" in groesse) return c.json(groesse.fehler, 422);
+          const weg = pruefeNichtVerfuegbar(b, groesse, null);
+          if ("fehler" in weg) return c.json(weg.fehler, 422);
           if (
             b.mediumId &&
             !(await istLadenBild(db, person.abteilungId, b.mediumId))
@@ -121,6 +128,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
                 preisRappen: b.preisRappen,
                 mediumId: b.mediumId ?? null,
                 varianten: groesse.varianten ?? [],
+                nichtVerfuegbar: weg.nichtVerfuegbar ?? [],
                 hinweis: b.hinweis ?? null,
                 verfuegbar: b.verfuegbar ?? true,
                 // Ein neuer Artikel kommt ans Ende
@@ -200,13 +208,15 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           const { id } = c.req.valid("param");
           const { groessenart, ...b } = c.req.valid("json");
           // Erst das Objekt (404), dann das Recht (403), dann die Eingabe gegen die Datenbank
-          if (!(await ladeEinenArtikel(db, person.abteilungId, id))) {
-            throw new HTTPException(404);
-          }
+          const bisher = await ladeEinenArtikel(db, person.abteilungId, id);
+          if (!bisher) throw new HTTPException(404);
           pruefeRecht(person);
           const groesse = pruefeGroesse({ groessenart, ...b }, false);
           if ("fehler" in groesse) return c.json(groesse.fehler, 422);
           if (groesse.varianten) b.varianten = groesse.varianten;
+          const weg = pruefeNichtVerfuegbar(b, groesse, bisher);
+          if ("fehler" in weg) return c.json(weg.fehler, 422);
+          if (weg.nichtVerfuegbar) b.nichtVerfuegbar = weg.nichtVerfuegbar;
           if (
             b.mediumId &&
             !(await istLadenBild(db, person.abteilungId, b.mediumId))
