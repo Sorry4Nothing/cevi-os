@@ -4,6 +4,8 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 // Arbeitsbereich des Lagers (#672): Register, Navigation nach Rechten, Einbau in lager.js; ohne Browser.
 type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 let rahmen: Modul;
+let suche: Modul;
+let benachrichtigungen: Modul;
 let register: { GRUPPEN: string[]; MODULE: Eintrag[] };
 type Eintrag = {
   schluessel: string;
@@ -22,6 +24,12 @@ beforeAll(async () => {
   register = (await import(
     /* @vite-ignore */ "../public/admin/lager-module.js"
   )) as typeof register;
+  suche = (await import(
+    /* @vite-ignore */ "../public/admin/lager-m-suche.js"
+  )) as Modul;
+  benachrichtigungen = (await import(
+    /* @vite-ignore */ "../public/admin/lager-m-benachrichtigungen.js"
+  )) as Modul;
   vi.unstubAllGlobals();
 });
 
@@ -97,5 +105,59 @@ describe("Lager: Arbeitsbereich", () => {
     expect(q).not.toMatch(/localStorage|sessionStorage/);
     // Der Suchbegriff bleibt aus der Adresse
     expect(q).toContain("suchbegriff.frage");
+  });
+
+  test("Suche: Treffer öffnen nur ein sichtbares Modul, sonst keinen Link", () => {
+    const id = "00000000-0000-4000-8000-000000000001";
+    const t = { typ: "ressort", id: "00000000-0000-4000-8000-000000000002" };
+    expect(suche.trefferAdresse!(id, t, ["ressorts"])).toBe(
+      `#lager/lager/${id}/ressorts/${t.id}`,
+    );
+    expect(suche.trefferAdresse!(id, t, ["heute"])).toBeNull();
+    expect(
+      suche.trefferAdresse!(id, { typ: "unbekannt", id: "x" }, ["x"]),
+    ).toBeNull();
+  });
+
+  test("Suche: der Suchbegriff geht nicht in die Adresse", () => {
+    const q = quelle("lager-m-suche.js");
+    expect(q).toContain("suchbegriff.frage");
+    expect(q).not.toMatch(/location.hashs*=[^;]*frage/);
+  });
+
+  test("Benachrichtigungen: Ziel nach Typ, Adressbuch ohne Objekt-ID", () => {
+    const id = "00000000-0000-4000-8000-000000000001";
+    const e = {
+      objektTyp: "aufgabe",
+      objektId: "00000000-0000-4000-8000-000000000003",
+    };
+    expect(benachrichtigungen.zielAdresse!(id, e, ["aufgaben"])).toBe(
+      `#lager/lager/${id}/aufgaben/${e.objektId}`,
+    );
+    expect(
+      benachrichtigungen.zielAdresse!(
+        id,
+        { objektTyp: "adressbuch", objektId: id },
+        ["adressbuch"],
+      ),
+    ).toBe(`#lager/lager/${id}/adressbuch`);
+    expect(benachrichtigungen.zielAdresse!(id, e, [])).toBeNull();
+  });
+
+  test("Schreibende Module behandeln Versionskonflikte und geschlossene Lager", () => {
+    for (const datei of [
+      "lager-start-teile.js",
+      "lager-m-check.js",
+      "lager-m-ressorts.js",
+    ])
+      expect(quelle(datei)).toMatch(/konfliktHinweis|konfliktText/);
+    expect(quelle("lager-konflikt.js")).toContain("VERSION_KONFLIKT");
+    expect(quelle("lager-konflikt.js")).toContain("LAGER_GESCHLOSSEN");
+  });
+
+  test("Der Event-Stream ist einer je Lager und kein Takt", () => {
+    const q = quelle("lager-ereignisse.js");
+    expect(q).toContain("/ereignisse");
+    expect(q).not.toMatch(/setInterval/);
   });
 });

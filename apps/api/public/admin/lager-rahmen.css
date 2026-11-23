@@ -225,3 +225,94 @@
   color: var(--leise);
   font-variant-numeric: tabular-nums;
 }
+
+.lg-kartentitel {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.lg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.lg-zeile-meta {
+  display: block;
+}
+
+.lg-zeile--aufgabe .chip,
+.lg-zeile--hinweis .chip {
+  flex: none;
+}
+
+.lg-konflikt {
+  flex: 1 1 100%;
+}
+
+.lg-beispiele {
+  margin: 4px 0 0;
+  padding-left: 1.25rem;
+}
+
+/* Lager-Check: Gesamtstand oben */
+.lg-gesamt {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.lg-gesamt p {
+  margin: 0;
+}
+
+.lg-gesamt-text {
+  font-weight: 700;
+}
+
+.lg-anlegen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Suche */
+.lg-suchformular {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.lg-treffer {
+  padding: 0;
+}
+
+@media (max-width: 700px) {
+  .lg-suchformular {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Ressorts */
+.lg-ressort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.lg-ressort-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lg-notiz {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

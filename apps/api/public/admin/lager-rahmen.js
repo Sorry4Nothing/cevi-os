@@ -10,6 +10,7 @@ import {
   symbol,
   zeitraum,
 } from "./lager-gemeinsam.js";
+import { verfolge } from "./lager-ereignisse.js";
 import { GRUPPEN, MODULE, suchbegriff } from "./lager-module.js";
 
 // Arbeitsbereich eines Lagers (#672): Kopf mit Name, Status und Zeitraum, links die Navigation der Module, rechts das gewählte Modul. Adresse: #lager/lager/<id>/<modul>[/…]. Die Navigation zeigt nur Module, für die die Rolle im Lager das Leserecht hat (GET /api/v1/lager/{id} nennt die Rechte der eigenen Rolle); der Server prüft jede Anfrage weiter selbst.
@@ -232,6 +233,16 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
     suchfeld(lager),
     neuLaden,
   );
+  // Der Event-Stream des Lagers (SSE) meldet nur, dass es Neues gibt; die Person lädt selbst neu
+  const neues = el(
+    "div",
+    { class: "hinweis hinweis--info", role: "status", hidden: true },
+    el("span", {}, "Es gibt Neues im Lager."),
+    knopf("Aktualisieren", { klein: true, onclick: () => neu() }),
+  );
+  verfolge(lager.id, () => {
+    if (neues.isConnected) neues.hidden = false;
+  });
   // Das Modul sieht denselben ctx, aber seine Ladeanzeige, sein Titel und seine Meldungen bleiben im Inhalt
   const modulCtx = {
     ...ctx,
@@ -248,6 +259,7 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
   haenge(
     bereich,
     leiste,
+    neues,
     lager.schreibgeschuetzt &&
       el(
         "div",
