@@ -15,7 +15,28 @@ export const GRUPPEN = [
   "Lager",
 ];
 
-export const MODULE = [];
+export const MODULE = [
+  {
+    schluessel: "aufgaben",
+    titel: "Aufgaben",
+    gruppe: "Planen",
+    recht: "aufgaben.lesen_alle|aufgaben.bearbeiten|aufgaben.eigene",
+    laden: () => import("./lager-m-aufgaben.js"),
+  },
+  {
+    schluessel: "zeitplan",
+    titel: "Zeitplan",
+    gruppe: "Planen",
+    recht: "zeitplan.lesen",
+    laden: () => import("./lager-m-zeitplan.js"),
+  },
+  {
+    schluessel: "todos",
+    titel: "Meine To-dos",
+    gruppe: "Planen",
+    laden: () => import("./lager-m-todos.js"),
+  },
+];
 
 // Ein Suchbegriff aus dem Feld im Kopf des Arbeitsbereichs geht nie in die Adresse (er kann einen Namen enthalten); das Modul «Suche» holt ihn hier ab
 export const suchbegriff = { frage: "" };
