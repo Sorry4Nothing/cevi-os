@@ -1,5 +1,5 @@
 // Diagramme der Übersicht (#583): kleine Grafiken als Inline-SVG, ohne Bibliothek. Farben nur über Klassen (uebersicht.css, aus den Tokens, Tag und Nacht), nie als Wert im Code; die CSP erlaubt keine style-Attribute, darum stehen Masse als SVG-Attribute.
-// Jede Grafik hat eine Entsprechung als Tabelle (Schalter «Tabellen statt Diagramme»), einen Satz mit allen Werten für Screenreader und eine Ablesung: Zeiger oder Pfeiltasten wählen einen Punkt, der Text darunter nennt Zeitraum und Wert.
+// Jede Grafik hat einen Satz mit allen Werten für Screenreader und eine Ablesung: Zeiger oder Pfeiltasten wählen einen Punkt, der Text darunter nennt Zeitraum und Wert.
 // Vorlage für das Ablesen mit Pfeiltasten ist der Streifen «Status» (Kokonut UI Pro, status-footer); gezeichnet ist alles selbst.
 import { el } from "./dom.js";
 

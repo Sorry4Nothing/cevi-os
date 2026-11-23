@@ -1,5 +1,5 @@
-// Kacheln der Übersicht (#583): jede Kachel eine Funktion, die aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten baut. Fehlt ein Teil in der Antwort, fehlt die Kachel (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Kachel für sich «Nochmals versuchen», der Rest bleibt stehen.
-// Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben nach dem, was sie von dir brauchen), «status-footer» (Streifen mit Ablesung per Zeiger und Pfeiltasten), «clinic-dashboard» (Tagesschiene für das Kommende).
+// Kacheln der Übersicht (#583, neu gestaltet in #607): jede Kachel eine Funktion, die aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten baut. Fehlt ein Teil in der Antwort, fehlt die Kachel (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Kachel für sich «Nochmals versuchen», der Rest bleibt stehen.
+// Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben nach dem, was sie von dir brauchen), «status-footer» (Streifen mit Ablesung per Zeiger und Pfeiltasten), «clinic-dashboard» (Tagesschiene für das Kommende), «stats-feature» und «clinic-dashboard» (Kennzahlen: Zahl gross, Veränderung als Marke mit Pfeil, kleine Grafik).
 import { chip, el, icon, knopf } from "./dom.js";
 import { BEREICHE, darfSehen } from "./navigation.js";
 import {
@@ -7,9 +7,9 @@ import {
   pfeil,
   rangBalken,
   saeulen,
+  svg,
   verlaufLinie,
   vorzeichen,
-  wertetabelle,
 } from "./uebersicht-diagramme.js";
 
 const ZONE = "Europe/Zurich";
@@ -203,7 +203,7 @@ const AUFGABEN = [
     ],
     kurz: "Anmeldefristen",
     aktion: "Ansehen",
-    ziel: ["anlaesse", "anmeldungen"],
+    ziel: ["anlaesse", "anlaesse"],
   },
 ];
 
@@ -212,21 +212,26 @@ const ARTEN = {
   sicher: ["Sicherheit", "schild"],
 };
 
+// Jede Kachel hat denselben Aufbau, damit alle gleich gross und gleich bedienbar sind: oben Zahl und Marke, in der Mitte der Satz, unten die Zeile mit der Aktion (feste Höhe; ohne Recht auf die Zielseite bleibt die Zeile leer)
 function aufgabe(def, wert, ctx) {
   const n = typeof wert === "boolean" ? (wert ? 1 : 0) : wert;
   const href = ziel(ctx, def.ziel);
   const inhalt = [
-    def.art &&
-      el(
-        "ul",
-        { class: "chips ub-art" },
-        chip(ARTEN[def.art][0], "warn", ARTEN[def.art][1]),
-      ),
-    typeof wert === "boolean"
-      ? el("span", { class: "ub-zahl ub-zahl--wort" }, "Fehler")
-      : el("span", { class: "ub-zahl" }, fmt(n)),
+    el(
+      "span",
+      { class: "ub-aufgabe-kopf" },
+      typeof wert === "boolean"
+        ? el("span", { class: "ub-zahl ub-zahl--wort" }, "Fehler")
+        : el("span", { class: "ub-zahl" }, fmt(n)),
+      def.art &&
+        el(
+          "ul",
+          { class: "chips ub-art" },
+          chip(ARTEN[def.art][0], "warn", ARTEN[def.art][1]),
+        ),
+    ),
     el("span", { class: "ub-aufgabe-text" }, def.text[n === 1 ? 0 : 1]),
-    href && el("span", { class: "ub-aufgabe-aktion" }, def.aktion, pfeil()),
+    el("span", { class: "ub-aufgabe-aktion" }, href && [def.aktion, pfeil()]),
   ];
   return el(
     "li",
@@ -313,6 +318,7 @@ export function aufgabenBand(daten, ctx, nochmals) {
 }
 
 // 2. Kennzahlen ----------------------------------------------------------------------------
+// Aufbau nach den Statistikkacheln von Kokonut UI Pro («stats-feature»: Zahl gross und tabellarisch, Bezeichnung darunter; «clinic-dashboard»: Veränderung als Marke mit Pfeil): Titel, grosse Zahl mit Einheit, Veränderung gegenüber dem Zeitraum davor, kleine Grafik. Nur Zahlen, die für die Abteilung etwas sagen und die die Route schon liefert.
 
 const wochenNamen = (erzeugtAm, n) =>
   Array.from({ length: n }, (_, i) => {
@@ -330,41 +336,88 @@ function wert(zahlText, einheitText) {
     einheitText && el("span", { class: "ub-wert-einheit" }, einheitText),
   );
 }
-const delta = (text) => el("p", { class: "ub-delta" }, text);
 
-// Eine Kennzahl: Wert, Vergleich mit Zeitraum, Grafik und ihre Tabelle (der Schalter «Tabellen statt Diagramme» blendet eine der beiden aus)
-function kennzahl({ titel, wertKnoten, vergleich, grafik, tabelle, klasse }) {
+// Pfeil der Veränderung: hoch, runter oder gleich (Zustand nie nur über Farbe: Pfeil und Vorzeichen)
+const PFEIL_PFAD = {
+  hoch: "M12 19V5M6 11l6-6 6 6",
+  runter: "M12 5v14M6 13l6 6 6-6",
+  gleich: "M5 12h14",
+};
+
+// Veränderung als Marke mit Pfeil und Vorzeichen, daneben der Vergleich in Worten
+function veraenderung(unterschied, text) {
+  const richtung =
+    unterschied > 0 ? "hoch" : unterschied < 0 ? "runter" : "gleich";
+  return el(
+    "p",
+    { class: "ub-delta" },
+    el(
+      "span",
+      { class: "ub-marke-delta" },
+      svg(
+        "svg",
+        {
+          class: "ub-pfeil",
+          viewBox: "0 0 24 24",
+          "aria-hidden": "true",
+          focusable: "false",
+        },
+        svg("path", { d: PFEIL_PFAD[richtung] }),
+      ),
+      vorzeichen(unterschied),
+    ),
+    el("span", {}, text),
+  );
+}
+const vergleichText = (text) => el("p", { class: "ub-delta" }, text);
+
+// Eine Kennzahl: Titel, Zahl, Veränderung und Grafik; die Grafik trägt Satz und Ablesung (uebersicht-diagramme.js)
+function kennzahl({ titel, wertText, einheit, vergleich, grafik }) {
   return kachel({
     titel,
-    klasse: `ub-kennzahl ${klasse ?? ""}`,
+    klasse: "ub-stat",
     inhalt: [
-      wertKnoten,
+      wert(wertText, einheit),
       vergleich,
       el("div", { class: "ub-diagramm" }, grafik),
-      tabelle,
     ],
   });
 }
 
-export function kennzahlen(daten, ctx, { nochmals, tabellen, beiTabellen }) {
+export function kennzahlen(daten, ctx, { nochmals }) {
   const k = daten.kennzahlen;
-  const b = daten.betrieb;
   const id = neueId("h");
   const kacheln = [];
   if (k) {
     const n = k.fenster;
     const namen = wochenNamen(daten.erzeugtAm, n);
+    const an = k.anmeldungen;
+    const neu = an.verlauf[n - 1];
+    const davor = an.verlauf[n - 2];
+    kacheln.push(
+      kennzahl({
+        titel: "Anmeldungen zu Anlässen",
+        wertText: fmt(an.kommend),
+        einheit: "bei kommenden Anlässen",
+        vergleich: veraenderung(
+          neu - davor,
+          `${fmt(neu)} neu in den letzten 7 Tagen, ${fmt(davor)} in den 7 Tagen davor`,
+        ),
+        grafik: saeulen({
+          titel: "Neue Anmeldungen je 7 Tage",
+          einheit: "Anmeldungen",
+          punkte: an.verlauf.map((w, i) => ({ name: namen[i], wert: w })),
+        }),
+      }),
+    );
     const p = k.personen;
     const seit = p.verlauf[n - 1] - p.verlauf[n - 5];
     kacheln.push(
       kennzahl({
-        titel: "Personen",
-        wertKnoten: wert(fmt(p.jetzt), "aktive Konten"),
-        vergleich: delta(
-          seit === 0
-            ? "Unverändert seit vier Wochen"
-            : `${vorzeichen(seit)} seit vier Wochen`,
-        ),
+        titel: "Konten",
+        wertText: fmt(p.jetzt),
+        einheit: "aktive Konten",
+        vergleich: veraenderung(seit, "seit vier Wochen"),
         grafik: verlaufLinie({
           titel: "Aktive Konten",
           einheit: "Konten",
@@ -374,156 +427,58 @@ export function kennzahlen(daten, ctx, { nochmals, tabellen, beiTabellen }) {
             wert: w,
           })),
         }),
-        tabelle: wertetabelle({
-          beschriftung: "Aktive Konten am Ende jedes Zeitraums",
-          spalten: ["Zeitpunkt", "Konten"],
-          zeilen: p.verlauf.map((w, i) => [
-            namen[i].replace("7 Tage bis", "Stand"),
-            fmt(w),
-          ]),
-        }),
       }),
     );
-    const an = k.anmeldungen;
-    const neu = an.verlauf[n - 1];
-    const davor = an.verlauf[n - 2];
-    kacheln.push(
-      kennzahl({
-        titel: "Anmeldungen zu Anlässen",
-        wertKnoten: wert(fmt(an.kommend), "bei kommenden Anlässen"),
-        vergleich: delta(
-          `Neu in 7 Tagen: ${fmt(neu)} (${neu === davor ? "gleich viele wie in den 7 Tagen davor" : `${vorzeichen(neu - davor)} gegenüber den 7 Tagen davor`})`,
-        ),
-        grafik: saeulen({
-          titel: "Neue Anmeldungen je 7 Tage",
-          einheit: "Anmeldungen",
-          punkte: an.verlauf.map((w, i) => ({ name: namen[i], wert: w })),
-        }),
-        tabelle: wertetabelle({
-          beschriftung: "Neue Anmeldungen je 7 Tage",
-          spalten: ["Zeitraum", "Anmeldungen"],
-          zeilen: an.verlauf.map((w, i) => [namen[i], fmt(w)]),
-        }),
-      }),
-    );
+    // Bestellungen nur, wenn das Lädeli in den letzten Wochen überhaupt benutzt wurde
     const be = k.bestellungen.verlauf;
-    kacheln.push(
-      kennzahl({
-        titel: "Bestellungen im Lädeli",
-        wertKnoten: wert(fmt(be[n - 1]), "in den letzten 7 Tagen"),
-        vergleich: delta(
-          be[n - 1] === be[n - 2]
-            ? "Gleich viele wie in den 7 Tagen davor"
-            : `${vorzeichen(be[n - 1] - be[n - 2])} gegenüber den 7 Tagen davor`,
-        ),
-        grafik: saeulen({
-          titel: "Neue Bestellungen je 7 Tage",
-          einheit: "Bestellungen",
-          punkte: be.map((w, i) => ({ name: namen[i], wert: w })),
+    if (be.some((w) => w > 0)) {
+      kacheln.push(
+        kennzahl({
+          titel: "Bestellungen im Lädeli",
+          wertText: fmt(be[n - 1]),
+          einheit: "in den letzten 7 Tagen",
+          vergleich: veraenderung(
+            be[n - 1] - be[n - 2],
+            "gegenüber den 7 Tagen davor",
+          ),
+          grafik: saeulen({
+            titel: "Neue Bestellungen je 7 Tage",
+            einheit: "Bestellungen",
+            punkte: be.map((w, i) => ({ name: namen[i], wert: w })),
+          }),
         }),
-        tabelle: wertetabelle({
-          beschriftung: "Neue Bestellungen je 7 Tage, ohne stornierte",
-          spalten: ["Zeitraum", "Bestellungen"],
-          zeilen: be.map((w, i) => [namen[i], fmt(w)]),
-        }),
-      }),
-    );
+      );
+    }
   } else if (daten.fehlt.includes("kennzahlen")) {
     kacheln.push(fehlerKachel("Kennzahlen", nochmals));
   }
-  if (b) {
-    const stunden = b.stunden;
-    const summe = stunden.reduce((s, x) => s + x.anzahl, 0);
-    const f4 = stunden.reduce((s, x) => s + x.fehler4xx, 0);
-    const f5 = stunden.reduce((s, x) => s + x.fehler5xx, 0);
-    const start = new Date(b.seit);
-    const teilweise = Date.now() - start.getTime() < 24 * 3_600_000;
-    const name = (x) => `Ab ${fUhr.format(new Date(x.ab))} Uhr`;
+  // Termine der nächsten Wochen: dieselbe Sicht wie «Kommendes», ohne Termine keine Kachel
+  const wochen = daten.kommend?.termineProWoche;
+  const summe = wochen ? wochen.reduce((s, w) => s + w, 0) : 0;
+  if (wochen && summe > 0) {
+    const woche = (i) =>
+      i === 0 ? "Diese Woche" : i === 1 ? "Nächste Woche" : `In ${i} Wochen`;
     kacheln.push(
       kennzahl({
-        titel: "Anfragen an die API",
-        wertKnoten: wert(fmt(summe), "in 24 Stunden"),
-        vergleich: el(
-          "div",
-          { class: "ub-delta" },
-          el(
-            "p",
-            {},
-            f5 > 0
-              ? `${fmt(f5)} Serverfehler (5xx), ${fmt(f4)} abgelehnte (4xx)`
-              : `Keine Serverfehler (5xx), ${fmt(f4)} abgelehnte (4xx)`,
-          ),
-          b.p95Ms !== null &&
-            el("p", {}, `Antwortzeit: 95 % unter ${fmt(b.p95Ms)} ms`),
-          teilweise &&
-            el(
-              "p",
-              { class: "leise" },
-              `Gezählt seit dem Start um ${fUhr.format(start)} Uhr`,
-            ),
+        titel: "Termine",
+        wertText: fmt(summe),
+        einheit: `in den nächsten ${daten.kommend.wochen} Wochen`,
+        vergleich: vergleichText(
+          `Diese Woche ${fmt(wochen[0])}, nächste Woche ${fmt(wochen[1] ?? 0)}`,
         ),
-        grafik: [
-          saeulen({
-            titel: "Anfragen je Stunde",
-            einheit: "Anfragen",
-            fehlerName: "mit Fehler",
-            punkte: stunden.map((x) => ({
-              name: name(x),
-              wert: x.anzahl,
-              fehler: x.fehler4xx + x.fehler5xx,
-            })),
-          }),
-          el(
-            "p",
-            { class: "ub-legende klein leise" },
-            el("span", {
-              class: "ub-schluessel ub-schluessel--ok",
-              "aria-hidden": "true",
-            }),
-            "Anfragen ",
-            el("span", {
-              class: "ub-schluessel ub-schluessel--fehler",
-              "aria-hidden": "true",
-            }),
-            "davon mit Fehler",
-          ),
-        ],
-        tabelle: wertetabelle({
-          beschriftung: "Anfragen je Stunde, die letzten 24 Stunden",
-          spalten: ["Stunde", "Anfragen", "mit Fehler"],
-          zeilen: stunden.map((x) => [
-            name(x),
-            fmt(x.anzahl),
-            fmt(x.fehler4xx + x.fehler5xx),
-          ]),
+        grafik: saeulen({
+          titel: "Termine je Woche",
+          einheit: "Termine",
+          punkte: wochen.map((w, i) => ({ name: woche(i), wert: w })),
         }),
       }),
     );
   }
   if (kacheln.length === 0) return null;
-  const schalter = el(
-    "button",
-    {
-      type: "button",
-      class: "knopf knopf--klein knopf--still ub-schalter",
-      "aria-pressed": String(tabellen),
-      onclick: (e) => {
-        const an = e.currentTarget.getAttribute("aria-pressed") !== "true";
-        e.currentTarget.setAttribute("aria-pressed", String(an));
-        beiTabellen(an);
-      },
-    },
-    "Tabellen statt Diagramme",
-  );
   return el(
     "section",
     { class: "ub-abschnitt", "aria-labelledby": id },
-    el(
-      "div",
-      { class: "ub-abschnitt-kopf" },
-      el("h2", { id }, "Kennzahlen"),
-      schalter,
-    ),
+    el("h2", { id }, "Kennzahlen"),
     el("div", { class: "ub-raster" }, kacheln),
   );
 }
@@ -589,7 +544,7 @@ export function kommendes(daten, ctx, { nochmals }) {
     })),
   ]
     .sort((a, b) => a.von - b.von)
-    .slice(0, 8);
+    .slice(0, 6);
   const ist = ctx.ich.role === "admin";
   const liste =
     zeilen.length === 0
@@ -651,40 +606,6 @@ export function kommendes(daten, ctx, { nochmals }) {
   });
 }
 
-// Termine je Woche: eigene Kachel neben der Liste
-export function termineProWoche(daten) {
-  const k = daten.kommend;
-  const wochen = k?.termineProWoche;
-  if (!wochen) return null;
-  const namen = wochen.map((_, i) =>
-    i === 0 ? "Diese Woche" : i === 1 ? "Nächste Woche" : `In ${i} Wochen`,
-  );
-  const summe = wochen.reduce((s, w) => s + w, 0);
-  // Ohne Termine sagt die Liste daneben schon alles
-  if (summe === 0) return null;
-  return kachel({
-    titel: "Termine je Woche",
-    inhalt: [
-      wert(fmt(summe), `in den nächsten ${k.wochen} Wochen`),
-      el(
-        "div",
-        { class: "ub-diagramm" },
-        saeulen({
-          titel: "Termine je Woche",
-          einheit: "Termine",
-          weit: true,
-          punkte: wochen.map((w, i) => ({ name: namen[i], wert: w })),
-        }),
-      ),
-      wertetabelle({
-        beschriftung: "Termine je Woche ab heute",
-        spalten: ["Woche", "Termine"],
-        zeilen: wochen.map((w, i) => [namen[i], fmt(w)]),
-      }),
-    ],
-  });
-}
-
 // 4. Kinder je Stufe -----------------------------------------------------------------------
 
 export function kinderJeStufe(daten, ctx, { nochmals }) {
@@ -724,171 +645,109 @@ export function kinderJeStufe(daten, ctx, { nochmals }) {
 }
 
 // 5. Zustand -------------------------------------------------------------------------------
+// Nur, was die Abteilung wissen muss: läuft die Website (Wartung, Sperre), läuft der Kalender-Abgleich. Dateien, Speicher und Antwortzeiten der Datenbank sind Sache des Systems und stehen dort. Aufbau wie der Streifen «Status» von Kokonut UI Pro (status-footer): ein Band, je Punkt Name, Zustand als Wort mit Symbol und ein Satz.
 
-const zeile = (name, knoten) =>
-  el("div", {}, el("dt", {}, name), el("dd", {}, knoten));
 const chips = (...c) => el("ul", { class: "chips" }, c.filter(Boolean));
 
-function mb(bytes) {
-  return bytes >= 1024 ** 3
-    ? `${(bytes / 1024 ** 3).toFixed(1)} GB`
-    : `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+function punkt({ titel, zustandChips, satz, href, verweis, extra }) {
+  const id = neueId("p");
+  return el(
+    "li",
+    { class: "ub-punkt-betrieb", "aria-labelledby": id },
+    el(
+      "div",
+      { class: "ub-betrieb-kopf" },
+      el("h3", { id, class: "ub-kachel-titel" }, titel),
+      href && verweisZeile(href, verweis),
+    ),
+    zustandChips,
+    el("p", { class: "ub-delta" }, satz),
+    extra,
+  );
 }
 
 export function zustand(daten, ctx, { nochmals }) {
   const z = daten.zustand ?? {};
-  const kacheln = [];
+  const punkte = [];
   if (z.website) {
     const w = z.website;
-    kacheln.push(
-      kachel({
+    punkte.push(
+      punkt({
         titel: "Website",
-        aktion: verweisZeile(ziel(ctx, ["website", "seiten"]), "Seiten"),
-        inhalt: [
-          chips(
-            w.sperre
-              ? chip(
-                  w.offline
-                    ? "Informationssperre, Website vom Netz"
-                    : "Informationssperre",
-                  "fehler",
-                )
-              : null,
-            w.wartung
-              ? chip(
-                  w.wartungEndeAm
-                    ? `Wartung bis ${fDatumZeit.format(new Date(w.wartungEndeAm))}`
-                    : "Wartung",
-                  "warn",
-                )
-              : null,
-            !w.sperre && !w.wartung
-              ? chip("Keine Wartung, keine Sperre", "ok")
-              : null,
-          ),
-          el(
-            "dl",
-            { class: "werte" },
-            zeile(
-              "Zuletzt erzeugt",
-              w.zuletztErzeugtAm
-                ? el(
-                    "span",
-                    {},
-                    vor(w.zuletztErzeugtAm),
-                    el(
-                      "span",
-                      { class: "ub-nebenwert klein leise" },
-                      fDatumZeit.format(new Date(w.zuletztErzeugtAm)),
-                    ),
-                  )
-                : "Noch nie",
-            ),
-            zeile(
-              "Seiten",
-              `${fmt(w.veroeffentlicht)} von ${fmt(w.seiten)} veröffentlicht`,
-            ),
-          ),
-        ],
+        href: ziel(ctx, ["website", "seiten"]),
+        verweis: "Seiten",
+        zustandChips: chips(
+          w.sperre
+            ? chip(
+                w.offline
+                  ? "Informationssperre, Website vom Netz"
+                  : "Informationssperre",
+                "fehler",
+              )
+            : null,
+          w.wartung
+            ? chip(
+                w.wartungEndeAm
+                  ? `Wartung bis ${fDatumZeit.format(new Date(w.wartungEndeAm))}`
+                  : "Wartung",
+                "warn",
+              )
+            : null,
+          !w.sperre && !w.wartung ? chip("Läuft", "ok") : null,
+        ),
+        satz: w.zuletztErzeugtAm
+          ? `Zuletzt aktualisiert ${vor(w.zuletztErzeugtAm)}`
+          : "Noch nie erzeugt",
       }),
     );
   } else if (daten.fehlt.includes("website")) {
-    kacheln.push(fehlerKachel("Website", nochmals));
+    punkte.push(
+      punkt({
+        titel: "Website",
+        zustandChips: chips(chip("Nicht geladen", "fehler")),
+        satz: "Der Zustand konnte nicht geladen werden.",
+        extra: knopf("Nochmals versuchen", { klein: true, onclick: nochmals }),
+      }),
+    );
   }
   if (z.kalender) {
     const c = z.kalender;
     const alt =
       c.letzterErfolgAm &&
       Date.now() - new Date(c.letzterErfolgAm).getTime() > 30 * 60_000;
-    kacheln.push(
-      kachel({
+    punkte.push(
+      punkt({
         titel: "Kalender-Abgleich",
-        aktion: verweisZeile(ziel(ctx, ["termine", "outlook"]), "Outlook"),
-        inhalt: [
-          chips(
-            !c.eingerichtet ? chip("Nicht eingerichtet", "", "info") : null,
-            c.eingerichtet && c.fehler
-              ? chip("Letzter Abgleich fehlgeschlagen", "fehler")
-              : null,
-            c.eingerichtet && !c.fehler && alt
-              ? chip("Älter als 30 Minuten", "warn")
-              : null,
-            c.eingerichtet && !c.fehler && !alt && c.letzterErfolgAm
-              ? chip("Läuft", "ok")
-              : null,
-          ),
-          el(
-            "dl",
-            { class: "werte" },
-            c.eingerichtet &&
-              zeile(
-                "Letzter Erfolg",
-                c.letzterErfolgAm
-                  ? el(
-                      "span",
-                      {},
-                      vor(c.letzterErfolgAm),
-                      el(
-                        "span",
-                        { class: "ub-nebenwert klein leise" },
-                        fDatumZeit.format(new Date(c.letzterErfolgAm)),
-                      ),
-                    )
-                  : "Noch keiner",
-              ),
-            c.fehler && zeile("Meldung", c.fehler),
-            zeile("Termine im Bestand", fmt(c.programme)),
-          ),
-        ],
-      }),
-    );
-  }
-  if (z.medien) {
-    const m = z.medien;
-    kacheln.push(
-      kachel({
-        titel: "Medien",
-        aktion: verweisZeile(ziel(ctx, ["website", "medien"]), "Medien"),
-        inhalt: el(
-          "dl",
-          { class: "werte" },
-          zeile("Dateien", fmt(m.anzahl)),
-          zeile("Speicher", mb(m.bytes)),
-          zeile("Bilder und PDF", `${fmt(m.bilder)} und ${fmt(m.pdf)}`),
+        href: ziel(ctx, ["termine", "outlook"]),
+        verweis: "Outlook",
+        zustandChips: chips(
+          !c.eingerichtet ? chip("Nicht eingerichtet", "", "info") : null,
+          c.eingerichtet && c.fehler
+            ? chip("Letzter Abgleich fehlgeschlagen", "fehler")
+            : null,
+          c.eingerichtet && !c.fehler && alt
+            ? chip("Älter als 30 Minuten", "warn")
+            : null,
+          c.eingerichtet && !c.fehler && !alt && c.letzterErfolgAm
+            ? chip("Läuft", "ok")
+            : null,
         ),
-      }),
-    );
-  } else if (daten.fehlt.includes("medien")) {
-    kacheln.push(fehlerKachel("Medien", nochmals));
-  }
-  if (z.datenbank) {
-    const d = z.datenbank;
-    kacheln.push(
-      kachel({
-        titel: "Datenbank",
-        aktion: verweisZeile(ziel(ctx, ["system", "system"]), "System"),
-        inhalt: [
-          chips(
-            d.erreichbar
-              ? chip("Erreichbar", "ok")
-              : chip("Nicht erreichbar", "fehler"),
-          ),
-          d.antwortMs !== null &&
-            el(
-              "dl",
-              { class: "werte" },
-              zeile("Antwortzeit", `${fmt(d.antwortMs)} ms`),
-            ),
-        ],
+        satz: !c.eingerichtet
+          ? "Die Termine kommen noch nicht aus Outlook."
+          : c.fehler
+            ? c.fehler
+            : c.letzterErfolgAm
+              ? `Letzter Abgleich ${vor(c.letzterErfolgAm)}`
+              : "Noch kein Abgleich erfolgt",
       }),
     );
   }
-  if (kacheln.length === 0) return null;
+  if (punkte.length === 0) return null;
   const id = neueId("h");
   return el(
     "section",
     { class: "ub-abschnitt", "aria-labelledby": id },
     el("h2", { id }, "Zustand"),
-    el("div", { class: "ub-raster ub-raster--zustand" }, kacheln),
+    el("ul", { class: "ub-betrieb" }, punkte),
   );
 }
