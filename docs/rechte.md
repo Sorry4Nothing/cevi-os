@@ -398,6 +398,8 @@ Ein Recht, das der Katalog für eine Rolle nicht kennt oder mit einer Geltung, d
 | `gruppen.verwalten`              | Personen und Gruppen | Gruppen und ihre Mitglieder verwalten   | erweitert | vergebbar | alle, eigene | gruppe | Rollen                        |
 | `profilbild.entfernen`           | Personen und Gruppen | Profilbilder entfernen                  | erweitert | vergebbar | alle         | –      | Rollen; Entwickler fest       |
 | `konto.loeschen`                 | Personen und Gruppen | Konten löschen                          | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `kinder.konto_verwalten`         | Personen und Gruppen | Konten von Kindern verwalten            | fest      | fest      | –            | –      | Abteilungsleitung             |
+| `kinder.konto_sehen`             | Personen und Gruppen | Eigenes Kind sehen (Konto eines Kindes) | normal    | struktur  | –            | –      | Konto des Kindes              |
 | `protokoll.lesen`                | Plattform und Rechte | Protokoll lesen                         | fest      | fest      | –            | –      | nur Entwickler                |
 | `rechte.verwalten`               | Plattform und Rechte | Rechte und Rollen vergeben              | fest      | fest      | –            | –      | Abteilungsleitung             |
 | `entwickler.vergeben`            | Plattform und Rechte | Entwickler vergeben                     | fest      | fest      | –            | –      | Abteilungsleitung             |
