@@ -508,3 +508,7 @@ Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/se
 ## Änderungen am Gerüst
 
 Das Gerüst ändert sich nach dem ersten Stand nur additiv: neue Klassen in der eigenen Datei, neue Einträge in `navigation.js`. Wer `admin.js`, `admin.css`, `dom.js` oder `index.html` anfasst, hält die Änderung klein und nennt sie im PR. Stile eines Bereichs gehören in `<bereich>.css` mit eigenem Klassenvorsatz.
+
+## Lager-Arbeitsbereich (#672)
+
+Adresse `#lager/lager/<id>/<modul>[/…]`. Der Rahmen (`lager-rahmen.js`) lädt `GET /api/v1/lager/{id}` (eigene Rolle, Rechte, Schreibschutz), baut Kopf und Navigation und lädt das Modul. Das Register `lager-module.js` hält die Module (`schluessel`, `titel`, `gruppe`, `recht`, `laden`); jedes Modul liegt in `lager-m-<schluessel>.js` und exportiert `zeige(bereich, ctx, lagerId, lager)`. `ctx` im Modul: `lade` (eigener Lader im Inhalt), `titel` (Titel des Moduls), `weiter` (Rest der Adresse), `neuRahmen` (alles neu laden), `imRahmen`. Gemeinsam: `lager-konflikt.js` (Versionskonflikt, geschlossenes Lager), `lager-start-teile.js` (Karten, Aufgabenzeilen), `lager-ereignisse.js` (Event-Stream, eine Verbindung je Lager). Stil: `lager-rahmen.css` (Vorsatz `lg-`).
