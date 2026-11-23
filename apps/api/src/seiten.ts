@@ -1,4 +1,6 @@
 import { readdirSync, readFileSync } from "node:fs";
+import { kodiereZeichen } from "./bild-sharp.js";
+import type { ZeichenDateien } from "./website/zeichen.js";
 
 // Wer die Seiten verantwortet und wie man sie erreicht; kommt aus der Umgebung des Servers, nie aus dem Repo
 export type Kontakt = { stelle?: string; adresse?: string; email?: string };
@@ -58,6 +60,7 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
       `/admin/${SCHRIFT}`,
     ) +
     lade("website/kopf.css") +
+    lade("website/fuss.css") +
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +
     lade("website/inhalt.css");
@@ -68,8 +71,19 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
       lade(datei).replace("/* STIL */", () => stil),
       kontakt,
     );
+  // Favicon der Verwaltung und der Plattformseiten (#581): ohne Zeichen der Abteilung das Cevi-Zeichen. server.ts tauscht es aus, sobald das Zeichen der Abteilung bekannt ist; Besuche fragen die Datenbank nie
+  let zeichen: Promise<ZeichenDateien> | undefined;
   return {
     admin,
+    zeichen: {
+      holen: () =>
+        (zeichen ??= kodiereZeichen(
+          readFileSync(new URL("../public/admin/favicon.svg", import.meta.url)),
+        )),
+      setze: (dateien: ZeichenDateien) => {
+        zeichen = Promise.resolve(dateien);
+      },
+    },
     datenschutz: seite("datenschutz.html"),
     kontoLoeschen: seite("konto-loeschen.html"),
     support: seite("support.html"),

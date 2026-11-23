@@ -46,6 +46,7 @@ import {
   starteSitzungenAufraeumen,
 } from "./sitzungen-aufraeumen.js";
 import {
+  ladeZeichen,
   starteWebsiteAbgleich,
   synchronisiereWebsite,
 } from "./website/abgleich.js";
@@ -108,7 +109,11 @@ const websiteAusgabe =
     : undefined;
 const websiteSperre =
   websiteAusgabe && konfiguration.WEBSITE_ABTEILUNG_ID
-    ? erstelleWebsiteSperre(websiteAusgabe, konfiguration.WEBSITE_ABTEILUNG_ID)
+    ? erstelleWebsiteSperre(
+        websiteAusgabe,
+        konfiguration.WEBSITE_ABTEILUNG_ID,
+        seiten.zeichen.holen,
+      )
     : undefined;
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
@@ -222,7 +227,7 @@ if (
   ) => {
     const id = medienspeicher && quelle ? quelle.id : null;
     if (gemerktesZeichen?.id === id) return gemerktesZeichen.dateien;
-    let dateien;
+    let dateien: Awaited<ReturnType<typeof kodiereZeichen>>;
     try {
       dateien = await kodiereZeichen(
         id && quelle && medienspeicher
@@ -232,13 +237,23 @@ if (
     } catch {
       // Nicht gemerkt: Der nächste Lauf versucht es wieder
       log(undefined, { ereignis: "website_zeichen", code: "nicht-lesbar" });
-      return kodiereZeichen(standardZeichen);
+      dateien = await kodiereZeichen(standardZeichen);
+      seiten.zeichen.setze(dateien);
+      return dateien;
     }
     gemerktesZeichen = { id, dateien };
+    // Dasselbe Zeichen zeigen die Verwaltung und die Plattformseiten (#581)
+    seiten.zeichen.setze(dateien);
     return dateien;
   };
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
   const basisUrl = konfiguration.WEBSITE_BASIS_URL;
+  // Gleich beim Start, auch unter einer Sperre (dann läuft der Abgleich nicht): Die Verwaltung zeigt von Anfang an das Zeichen der Abteilung
+  void ladeZeichen(db, abteilungId)
+    .then(zeichen)
+    .catch(() =>
+      log(undefined, { ereignis: "website_zeichen", code: "start-fehler" }),
+    );
   starteWebsiteAbgleich(
     // Unter einer Sperre, die die Website vom Netz nimmt, läuft der Abgleich nicht (#425)
     mitSperre(

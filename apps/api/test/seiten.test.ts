@@ -239,14 +239,14 @@ describe("Seiten für die Stores", () => {
   });
 
   test.each(alle)(
-    "%s: Sprache, Hauptbereich, eine Überschrift 1, nichts von aussen, kein Eszett",
+    "%s: Sprache, Hauptbereich, eine Überschrift 1, nichts von aussen (ausser dem Favicon der Plattform), kein Eszett",
     (_name, html) => {
       expect(html).toContain('<html lang="de-CH">');
       expect(html).toContain("<main>");
       expect(html.match(/<h1[ >]/g)).toHaveLength(1);
       expect(html).toContain('name="viewport"');
       expect(html).not.toMatch(
-        /<script|<img|<iframe|<link|\ssrc\s*=|@import|url\(/i,
+        /<script|<img|<iframe|<link(?![^>]*href="\/(favicon\.ico|apple-touch-icon\.png)")|\ssrc\s*=|@import|url\(/i,
       );
       // Verweise nach aussen: nur die Aufsichtsbehörde und die Standardvertragsklauseln der EU-Kommission
       const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
@@ -279,5 +279,75 @@ describe("Seiten für die Stores", () => {
       "Auf Anfrage löscht die Leitung Daten.",
     );
     expect(seiten.kontoLoeschen).toContain("mailto:kontakt@example.org");
+  });
+});
+
+// Favicon überall (#581): Plattformseiten und Verwaltung zeigen dasselbe Zeichen wie die Website
+describe("Favicon der Plattformseiten und der Verwaltung", () => {
+  const SEITEN = [
+    ["/datenschutz", geladen.datenschutz],
+    ["/konto-loeschen", geladen.kontoLoeschen],
+    ["/support", geladen.support],
+    ["/admin", String(admin["index.html"])],
+  ] as const;
+
+  test.each(SEITEN)(
+    "%s trägt die Einträge für /favicon.ico und /apple-touch-icon.png, und beide Adressen antworten",
+    async (_pfad, html) => {
+      expect(html).toContain('<link rel="icon" type="image/x-icon"');
+      expect(html).toContain('href="/favicon.ico"');
+      expect(html).toContain(
+        '<link rel="apple-touch-icon" href="/apple-touch-icon.png"',
+      );
+      // Nichts von aussen: Die CSP der Verwaltung (img-src 'self') lässt nur eigene Adressen zu
+      expect(html).not.toMatch(
+        /<link rel="(icon|apple-touch-icon)"[^>]*https?:/,
+      );
+      for (const [adresse, typ] of [
+        ["/favicon.ico", "image/x-icon"],
+        ["/apple-touch-icon.png", "image/png"],
+      ]) {
+        const antwort = await app.request(adresse!);
+        expect(antwort.status).toBe(200);
+        expect(antwort.headers.get("content-type")).toBe(typ);
+        expect(antwort.headers.get("cache-control")).toBe("no-cache");
+        expect(antwort.headers.get("etag")).toBeTruthy();
+        expect((await antwort.arrayBuffer()).byteLength).toBeGreaterThan(100);
+      }
+    },
+  );
+
+  test("das gewählte Zeichen der Abteilung ersetzt das Cevi-Zeichen, ohne neue Abfrage", async () => {
+    const eigene = ladeSeiten();
+    const eigeneApp = erstelleApp({
+      appMinVersion: "1.2.0",
+      sql,
+      db,
+      auth,
+      seiten: eigene,
+    });
+    const png = new Uint8Array([1, 2, 3]);
+    eigene.zeichen.setze({
+      "favicon.ico": png,
+      "website/zeichen-32.png": png,
+      "website/zeichen-192.png": png,
+      "apple-touch-icon.png": new Uint8Array([9, 9]),
+    });
+    expect([
+      ...new Uint8Array(
+        await (await eigeneApp.request("/favicon.ico")).arrayBuffer(),
+      ),
+    ]).toEqual([1, 2, 3]);
+    expect([
+      ...new Uint8Array(
+        await (await eigeneApp.request("/apple-touch-icon.png")).arrayBuffer(),
+      ),
+    ]).toEqual([9, 9]);
+    // Mit passendem ETag: 304
+    const erste = await eigeneApp.request("/favicon.ico");
+    const bedingt = await eigeneApp.request("/favicon.ico", {
+      headers: { "If-None-Match": erste.headers.get("etag")! },
+    });
+    expect(bedingt.status).toBe(304);
   });
 });

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/redaktion/weiterleitungen"
-order: 172000
+order: 173000
 method: GET
 url: "{{baseUrl}}/api/v1/redaktion/weiterleitungen"
 headers:

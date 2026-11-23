@@ -2,7 +2,7 @@ $kind: http-request
 name: "DELETE /api/v1/laden/bestellungen/:id"
 order: 140000
 method: DELETE
-url: "{{baseUrl}}/api/v1/laden/bestellungen/01a2060a-6bbe-7974-b3b1-d53345883676"
+url: "{{baseUrl}}/api/v1/laden/bestellungen/01a20640-4bb0-729a-808c-cbcc2401d4f9"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

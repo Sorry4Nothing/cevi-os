@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/admin/vorlagen/:id"
-order: 426000
+order: 427000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L224}}"
 headers:
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "name": "Matrix 5511c229-bbcb-46ac-80b3-5ca48659169b"
+      "name": "Matrix e0416361-3fdf-42bd-aad6-d5fc38987717"
     }

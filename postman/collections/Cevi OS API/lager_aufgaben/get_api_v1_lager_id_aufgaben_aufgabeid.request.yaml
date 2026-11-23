@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/aufgaben/:aufgabeId"
-order: 237000
+order: 238000
 method: GET
 url: "{{baseUrl}}{{pfad_L34}}"
 headers:

@@ -59,6 +59,43 @@ paths:
             text/html:
               schema:
                 type: string
+  /favicon.ico:
+    get:
+      operationId: getFavicon
+      summary: Favicon der Abteilung
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Das Zeichen der Abteilung (Website, Einstellungen), sonst das Cevi-Zeichen der Plattform, als 32-px-Symbol für
+        die Verwaltung und die Seiten der Plattform (`/datenschutz`, `/support`, `/konto-loeschen`). Dieselben Dateien
+        schreibt der Abgleich neben die Seiten der Website. Ohne Anmeldung, ohne Datenbankabfrage je Aufruf (die Dateien
+        liegen im Speicher), mit `ETag`. Liegt die Website am selben Host, liefert der Edge die Datei statisch aus.
+      responses:
+        "200":
+          description: Symbol (`image/x-icon`, ein PNG im ICO-Rahmen).
+          content:
+            image/x-icon:
+              schema:
+                type: string
+                format: binary
+  /apple-touch-icon.png:
+    get:
+      operationId: getAppleTouchIcon
+      summary: Symbol der Abteilung für den Startbildschirm
+      tags:
+        - Allgemein
+      security: []
+      description: |
+        Wie `GET /favicon.ico`, als 180-px-PNG ohne Transparenz für iOS.
+      responses:
+        "200":
+          description: Symbol (`image/png`).
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
   /konto-loeschen:
     get:
       operationId: getKontoLoeschenSeite
@@ -198,7 +235,7 @@ paths:
   /admin/favicon.svg:
     get:
       operationId: getAdminFavicon
-      summary: Symbol der Verwaltung im Browser-Tab
+      summary: Cevi-Zeichen der Plattform
       tags:
         - Allgemein
       security: []
@@ -21608,7 +21645,7 @@ paths:
       operationId: legeAdminLadenArtikelAn
       summary: Artikel anlegen
       description: |
-        Nur Admins mit zweitem Faktor. Die Grösse ist Pflicht: `groessenart` ist `einheit` (der Artikel gibt es nur in einer Grösse; keine `varianten`) oder `liste` (mindestens zwei verschiedene `varianten`, höchstens 20, je höchstens 40 Zeichen). Ohne Angabe oder mit einer Liste, die nicht passt, antwortet die Route 422 mit `code` und dem Feld `feld`. Die Art wird nicht gespeichert; sie folgt aus der Liste (leer heisst Einheitsgrösse). Preis in Rappen als Ganzzahl von 0 bis 1 000 000. Das Bild muss ein öffentliches Bild der Medienbibliothek der eigenen Abteilung sein (sonst 400 `MEDIUM_UNGEEIGNET`). Ohne `reihenfolge` kommt der Artikel ans Ende. Höchstens 200 Artikel (409 `ARTIKEL_LIMIT`). Das Audit-Log hält nur die Kennung fest. Danach erzeugt der Abgleich die Seiten mit dem Laden neu.
+        Nur Admins mit zweitem Faktor. Die Grösse ist Pflicht: `groessenart` ist `einheit` (der Artikel gibt es nur in einer Grösse; keine `varianten`) oder `liste` (mindestens zwei verschiedene `varianten`, höchstens 20, je höchstens 40 Zeichen). Ohne Angabe oder mit einer Liste, die nicht passt, antwortet die Route 422 mit `code` und dem Feld `feld`. Die Art wird nicht gespeichert; sie folgt aus der Liste (leer heisst Einheitsgrösse). Preis in Rappen als Ganzzahl von 0 bis 1 000 000. Das Bild muss ein öffentliches Bild der Medienbibliothek der eigenen Abteilung sein (sonst 400 `MEDIUM_UNGEEIGNET`). Ein neuer Artikel kommt ans Ende der Liste (die Reihenfolge ändert `PUT /api/v1/admin/laden/artikel/reihenfolge`). Höchstens 200 Artikel (409 `ARTIKEL_LIMIT`). Das Audit-Log hält nur die Kennung fest. Danach erzeugt der Abgleich die Seiten mit dem Laden neu.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder ungeeignetem Bild. 403 für Nicht-Admins. 409 `ARTIKEL_LIMIT`. 422 `GROESSE_FEHLT` oder `GROESSE_UNGUELTIG`.
 
@@ -21654,6 +21691,55 @@ paths:
                 $ref: "#/components/schemas/LadenKonflikt"
         "422":
           $ref: "#/components/responses/LadenGroesse422"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/laden/artikel/reihenfolge:
+    put:
+      operationId: setzeAdminLadenReihenfolge
+      summary: Reihenfolge der Artikel setzen
+      description: |
+        Nur Admins mit zweitem Faktor. Die Liste `ids` nennt Artikel der eigenen Abteilung in der neuen Reihenfolge; ein Aufruf ersetzt alle Einzelaufrufe. Der Server vergibt die internen Werte 0, 1, 2 … ohne Lücken. Artikel, die in der Liste fehlen (zum Beispiel einer, den inzwischen jemand anders angelegt hat), folgen am Ende in ihrer bisherigen Folge. Die Website zeigt die Artikel in dieser Reihenfolge, der Abgleich erzeugt die Seiten neu. Das Audit-Log hält nur die Anzahl fest.
+
+        Reihenfolge der Prüfungen: Body (400: leere Liste, Doppelte, mehr als 200, unbekannte Felder), Admin-Recht (403), Artikel in der eigenen Abteilung (404: ein unbekannter oder fremder Artikel in der Liste, nichts wird geändert).
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404 wie beschrieben.
+
+        Datenbanklast: eine Transaktion unter der Sperre der Abteilung mit einer Abfrage für die Artikel, einem Update mit CASE für alle Zeilen und einem Audit-Eintrag.
+      tags:
+        - Lädeli
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ids
+              additionalProperties: false
+              properties:
+                ids:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  uniqueItems: true
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -36016,10 +36102,6 @@ components:
         verfuegbar:
           type: boolean
           description: Ohne Angabe `true`.
-        reihenfolge:
-          type: integer
-          minimum: 0
-          maximum: 9999
     LadenArtikelAendern:
       type: object
       additionalProperties: false
@@ -36057,10 +36139,6 @@ components:
           maxLength: 200
         verfuegbar:
           type: boolean
-        reihenfolge:
-          type: integer
-          minimum: 0
-          maximum: 9999
     LadenEinstellung:
       type: object
       required:

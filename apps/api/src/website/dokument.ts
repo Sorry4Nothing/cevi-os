@@ -89,6 +89,8 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         break;
       case "kontaktkarte":
         if (b.daten.personId) personen.add(b.daten.personId);
+        if (b.daten.bild) medien.add(b.daten.bild);
+        b.daten.verweise?.forEach((v) => ziel(v.ziel));
         break;
       case "leitungsteam":
         tags.add(b.daten.tagId);
