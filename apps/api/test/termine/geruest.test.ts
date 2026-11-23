@@ -71,7 +71,10 @@ describe("Gerüst der Termine: Admin-Panel", () => {
 
   test("navigation.js bindet jedes Modul-Skript der Termine ein, und der Bereich «termine» steht dort", () => {
     const navigation = lies("../../public/admin/navigation.js");
-    for (const datei of dateien.filter((d) => /^termine-.*\.js$/.test(d))) {
+    // termine-monat.js ist ein Baustein des Kalenders (kein Modul einer Unterseite), termine-kalender.js lädt ihn
+    for (const datei of dateien.filter(
+      (d) => /^termine-.*\.js$/.test(d) && d !== "termine-monat.js",
+    )) {
       expect(navigation, datei).toContain(`"./${datei}"`);
     }
     expect(navigation).toContain('schluessel: "termine"');

@@ -234,14 +234,8 @@ function zeichne(bereich, ctx, erste) {
   });
   const sucheEingabe = () => leiste.wurzel.querySelector("input[type=search]");
 
-  // Ansicht: Raster oder Liste (dieselben Karten, nur anders gelegt); die Wahl merkt sich der Browser
+  // Ansicht: Raster oder Liste (dieselben Karten, nur anders gelegt); die Verwaltung speichert nichts im Browser, jeder Besuch beginnt mit dem Raster
   let ansicht = "raster";
-  try {
-    if (window.localStorage.getItem("ceviMedienAnsicht") === "liste")
-      ansicht = "liste";
-  } catch {
-    /* ohne Speicher bleibt es beim Raster */
-  }
   const ansichtKnoepfe = [
     ["raster", "Raster"],
     ["liste", "Liste"],
@@ -260,11 +254,6 @@ function zeichne(bereich, ctx, erste) {
   );
   function setzeAnsicht(wert) {
     ansicht = wert;
-    try {
-      window.localStorage.setItem("ceviMedienAnsicht", wert);
-    } catch {
-      /* ohne Speicher gilt die Wahl nur für diesen Besuch */
-    }
     ansichtKnoepfe.forEach((k, i) =>
       k.setAttribute("aria-pressed", String(["raster", "liste"][i] === wert)),
     );
