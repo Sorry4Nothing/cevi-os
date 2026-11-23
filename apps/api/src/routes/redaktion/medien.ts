@@ -3,8 +3,8 @@ import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { darf } from "../../rechtemodell/darf.js";
 import { hatWebsiteZugang } from "../../website/seiten.js";
 import {
   aendernSchema,
@@ -58,12 +58,12 @@ export function erstelleEditorMedienRouten({
           async (person, m) =>
             (await hatWebsiteZugang(db, person)) &&
             (m.hochgeladenVon === person.id ||
-              (await hatPlattformRecht(db, person, "medien.verwalten"))),
+              (await darf(db, person, "medien.verwalten"))),
         ),
     )
     .delete("/:id", eingabe("param", pfadSchema), (c) =>
       handler.loeschen(c, c.req.valid("param").id, (person) =>
-        hatPlattformRecht(db, person, "medien.verwalten"),
+        darf(db, person, "medien.verwalten"),
       ),
     );
 }

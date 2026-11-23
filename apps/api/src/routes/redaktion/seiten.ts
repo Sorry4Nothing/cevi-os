@@ -2,12 +2,12 @@ import { and, asc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { bearbeitbar, darfBearbeiten } from "../../bearbeiten.js";
+import { bearbeitbar, darfSeite } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, bearbeiter, seite, tag } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { darf as darfRecht, verlange } from "../../rechtemodell/darf.js";
 import {
   sichtbarkeitAusSpalten,
   sichtbarkeitSchema,
@@ -156,14 +156,10 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
 
   // Eine Seite einer Stufe (tagId = Stufe) bearbeitet auch deren Stufenleitung, die eines Teams dessen Verantwortliche
   const darf = (
-    d: Pick<Db, "select">,
+    d: Pick<Db, "select" | "execute">,
     person: Person,
-    z: { id: string; tagId: string | null },
-  ) =>
-    darfBearbeiten(d, person, "seite", z.id, {
-      stufeId: z.tagId ?? undefined,
-      tagId: z.tagId ?? undefined,
-    });
+    z: { id: string; abteilungId?: string; tagId: string | null },
+  ) => darfSeite(d, person, z);
 
   // Reservierte Adresse, Zyklus und Tiefe; die Eindeutigkeit der Adresse sichert zusätzlich die Datenbank
   function pruefeAdresseUndLage(
@@ -243,11 +239,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
           if (elternId !== null && !knoten.has(elternId)) {
             throw new HTTPException(404);
           }
-          if (
-            !(await hatPlattformRecht(tx, person, "seiten.anlegen_loeschen"))
-          ) {
-            throw new HTTPException(403);
-          }
+          await verlange(tx, person, "seiten.anlegen_loeschen");
           if (tagId !== null) await pruefeTag(tx, person, tagId);
           await pruefeSichtbarkeit(person, felder.sichtbarkeit);
           pruefeAdresseUndLage(knoten, undefined, elternId, felder.adresse);
@@ -324,24 +316,12 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
               if (elternId !== null && !ziel) throw new HTTPException(404);
               const erlaubt = ziel
                 ? await darf(tx, person, ziel)
-                : await hatPlattformRecht(
-                    tx,
-                    person,
-                    "seiten.anlegen_loeschen",
-                  );
+                : await darfRecht(tx, person, "seiten.anlegen_loeschen");
               if (!erlaubt) throw new HTTPException(403);
             }
             // Die Gruppe einer Seite bestimmt, wer sie als Stufenleitung bearbeitet: nur wer Seiten anlegen und löschen darf, ändert sie
             if (felder.tagId !== undefined && felder.tagId !== alt.tagId) {
-              if (
-                !(await hatPlattformRecht(
-                  tx,
-                  person,
-                  "seiten.anlegen_loeschen",
-                ))
-              ) {
-                throw new HTTPException(403);
-              }
+              await verlange(tx, person, "seiten.anlegen_loeschen");
               if (felder.tagId !== null) {
                 await pruefeTag(tx, person, felder.tagId);
               }
@@ -394,11 +374,7 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
           await sperre(tx, person.abteilungId);
           await ladeSeite(tx, person, id);
           // Löschen wie Anlegen nur mit dem Recht «Seiten anlegen und löschen»: Eine Stufenleitung löscht die Seite ihrer Stufe nicht
-          if (
-            !(await hatPlattformRecht(tx, person, "seiten.anlegen_loeschen"))
-          ) {
-            throw new HTTPException(403);
-          }
+          await verlange(tx, person, "seiten.anlegen_loeschen");
           const [kind] = await tx
             .select({ id: seite.id })
             .from(seite)

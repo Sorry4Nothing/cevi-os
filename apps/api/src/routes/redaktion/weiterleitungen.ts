@@ -5,8 +5,8 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { auditLog, weiterleitung } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
   alterPfadSchema,
@@ -105,9 +105,7 @@ export function erstelleWeiterleitungsRouten({ db }: { db: Db }) {
         ),
       );
     if (!zeile) throw new HTTPException(404);
-    if (!(await hatPlattformRecht(tx, person, "weiterleitungen.verwalten"))) {
-      throw new HTTPException(403);
-    }
+    await verlange(tx, person, "weiterleitungen.verwalten");
     return zeile;
   }
 
@@ -116,9 +114,7 @@ export function erstelleWeiterleitungsRouten({ db }: { db: Db }) {
 
   // Nur mit dem Recht «Weiterleitungen verwalten»; die Alternative, jeder mit Zugang zu den Seiten, würde einer Stufenleitung erlauben, fremde Adressen umzuleiten
   const pruefeRecht = async (person: Person) => {
-    if (!(await hatPlattformRecht(db, person, "weiterleitungen.verwalten"))) {
-      throw new HTTPException(403);
-    }
+    await verlange(db, person, "weiterleitungen.verwalten");
   };
 
   return new Hono<{ Variables: { person: Person } }>()

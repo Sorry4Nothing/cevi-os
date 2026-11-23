@@ -12,6 +12,7 @@ import {
   standardEintraege,
 } from "../../lager/rechte.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { antwortAufAenderung } from "../lager/rechte.js";
 
 // Admin-Pendant zu /api/v1/lager/{id}/rechte (#365): Rechte der Rollen eines Lagers, nur für die Abteilungsleitung. Reihenfolge wie bei /admin/lager: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
@@ -24,7 +25,7 @@ export function erstelleAdminLagerRechteRouten({ db }: { db: Db }) {
       .from(lager)
       .where(and(eq(lager.id, id), eq(lager.abteilungId, person.abteilungId)));
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(db, person, "rechte.verwalten");
     return ziel.id;
   }
 

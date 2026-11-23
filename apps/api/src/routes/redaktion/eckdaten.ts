@@ -2,7 +2,7 @@ import { and, asc, eq, gte, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { darfBearbeiten } from "../../bearbeiten.js";
+import { darfSeite } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import {
   abteilung,
@@ -111,13 +111,10 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
         ),
       )
       .limit(1);
-    const darf = await darfBearbeiten(
-      db,
-      person,
-      "seite",
-      stufenseite?.id ?? KEINE_SEITE,
-      { stufeId },
-    );
+    const darf = await darfSeite(db, person, {
+      id: stufenseite?.id ?? KEINE_SEITE,
+      tagId: stufeId,
+    });
     if (!darf) throw new HTTPException(403);
     return {
       stufenseiteId: stufenseite?.id,

@@ -355,11 +355,15 @@ function skeletonDetail() {
 
 function detail(bereich, ctx, id) {
   zeigeWartende(ctx);
+  // Mitglieder und Rollen vergibt nur, wer Rechte vergeben darf (Abteilungsleitung); wer nur Lager verwaltet (#648), sieht die Angaben und den Stand, nicht die Mitglieder
+  const mitMitgliedern = ctx.zugang?.darf("rechte.verwalten") !== false;
   ctx.lade(
     () =>
       Promise.all([
         anfrage("GET", `${BASIS}/${id}`),
-        anfrage("GET", `${BASIS}/${id}/mitglieder`),
+        mitMitgliedern
+          ? anfrage("GET", `${BASIS}/${id}/mitglieder`)
+          : { mitglieder: null },
       ]),
     ([lager, { mitglieder }], neu) =>
       zeichneDetail(bereich, ctx, lager, mitglieder, neu),
@@ -451,15 +455,20 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
     lager.titel,
     [zeitraum(lager.von, lager.bis), lager.ort].filter(Boolean).join(" · "),
   );
-  const rolle = (r) => mitglieder.filter((m) => m.rolle === r).length;
+  // mitglieder === null: Die Person darf sie nicht sehen; der Server prüft die Leitung beim Aktivieren trotzdem
+  const ohneMitglieder = mitglieder === null;
+  const rolle = (r) => (mitglieder ?? []).filter((m) => m.rolle === r).length;
   ctx.kopfAktion(
-    ...aktionen(lager, rolle("lagerleitung") > 0, ctx, neu).map(
-      (a) => a.wurzel ?? a,
-    ),
+    ...aktionen(
+      lager,
+      ohneMitglieder || rolle("lagerleitung") > 0,
+      ctx,
+      neu,
+    ).map((a) => a.wurzel ?? a),
   );
 
   const hinweis =
-    lager.status === "entwurf" && rolle("lagerleitung") === 0
+    lager.status === "entwurf" && !ohneMitglieder && rolle("lagerleitung") === 0
       ? el(
           "div",
           { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
@@ -539,62 +548,65 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
             }),
           ),
       ),
-      el(
-        "section",
-        { class: "flaeche" },
-        el("h2", {}, "Mitglieder"),
-        werte(ROLLEN.map(([r, text]) => [text, String(rolle(r))])),
+      !ohneMitglieder &&
         el(
-          "div",
-          { class: "lg-fuss" },
-          zahlKnopf(
-            "Mitglieder und Rollen",
-            `${ADRESSE}/${lager.id}/mitglieder`,
-            "personen",
+          "section",
+          { class: "flaeche" },
+          el("h2", {}, "Mitglieder"),
+          werte(ROLLEN.map(([r, text]) => [text, String(rolle(r))])),
+          el(
+            "div",
+            { class: "lg-fuss" },
+            zahlKnopf(
+              "Mitglieder und Rollen",
+              `${ADRESSE}/${lager.id}/mitglieder`,
+              "personen",
+            ),
           ),
         ),
-      ),
-      el(
-        "section",
-        { class: "flaeche" },
-        el("h2", {}, "Vorlagen"),
+      !ohneMitglieder &&
         el(
-          "p",
-          { class: "leise" },
-          "Ergänze die Aufgaben oder die Packliste dieses Lagers aus einer Vorlage der Abteilung.",
-        ),
-        vorlagenHinweis,
-        el(
-          "div",
-          { class: "lg-fuss" },
-          !geschlossen &&
-            knopfMit("Vorlage anwenden", {
-              symbol: "plus",
-              onclick: () => vorlageDialog(lager, ctx, neu, vorlagenHinweis),
-            }),
-          zahlKnopf("Vorlagen verwalten", "#lager/vorlagen"),
-        ),
-      ),
-      el(
-        "section",
-        { class: "flaeche" },
-        el("h2", {}, "Ausdrucke und Rechte"),
-        el(
-          "p",
-          { class: "leise" },
-          "Aushänge als PDF und was Leitung, Team und Lesen in diesem Lager dürfen. Die Lagerleitung darf immer alles.",
-        ),
-        el(
-          "div",
-          { class: "lg-fuss" },
-          zahlKnopf("Ausdrucke", `${ADRESSE}/${lager.id}/ausdrucke`, "pdf"),
-          zahlKnopf(
-            "Rechte der Rollen",
-            `${ADRESSE}/${lager.id}/rechte`,
-            "schluessel",
+          "section",
+          { class: "flaeche" },
+          el("h2", {}, "Vorlagen"),
+          el(
+            "p",
+            { class: "leise" },
+            "Ergänze die Aufgaben oder die Packliste dieses Lagers aus einer Vorlage der Abteilung.",
+          ),
+          vorlagenHinweis,
+          el(
+            "div",
+            { class: "lg-fuss" },
+            !geschlossen &&
+              knopfMit("Vorlage anwenden", {
+                symbol: "plus",
+                onclick: () => vorlageDialog(lager, ctx, neu, vorlagenHinweis),
+              }),
+            zahlKnopf("Vorlagen verwalten", "#lager/vorlagen"),
           ),
         ),
-      ),
+      !ohneMitglieder &&
+        el(
+          "section",
+          { class: "flaeche" },
+          el("h2", {}, "Ausdrucke und Rechte"),
+          el(
+            "p",
+            { class: "leise" },
+            "Aushänge als PDF und was Leitung, Team und Lesen in diesem Lager dürfen. Die Lagerleitung darf immer alles.",
+          ),
+          el(
+            "div",
+            { class: "lg-fuss" },
+            zahlKnopf("Ausdrucke", `${ADRESSE}/${lager.id}/ausdrucke`, "pdf"),
+            zahlKnopf(
+              "Rechte der Rollen",
+              `${ADRESSE}/${lager.id}/rechte`,
+              "schluessel",
+            ),
+          ),
+        ),
     ),
     (lager.status === "entwurf" || lager.status === "archiviert") &&
       loeschenKarte(lager),

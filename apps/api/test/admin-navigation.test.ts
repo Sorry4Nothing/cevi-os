@@ -176,3 +176,36 @@ describe("Verwaltung: navigation.js", () => {
     );
   });
 });
+
+describe("Zugang nach Rechten des Katalogs (#648)", () => {
+  const seite = (zugang: string) => ({ zugang });
+  const person = (katalogRechte: string[], rechte: string[] = []) => ({
+    istAdmin: false,
+    zugang: { bereiche: [], rechte, katalogRechte },
+  });
+
+  test("«recht:» prüft Plattformrechte und Katalogrechte, «|» lässt eines genügen", () => {
+    const laden = seite("recht:laden.ansehen|laden.artikel_pflegen");
+    expect(nav.darfSehen(laden, person(["laden.artikel_pflegen"]))).toBe(true);
+    expect(nav.darfSehen(laden, person(["laden.einstellungen"]))).toBe(false);
+    expect(nav.darfSehen(laden, person([]))).toBe(false);
+    const web = seite("recht:seiten.veroeffentlichen");
+    expect(nav.darfSehen(web, person([], ["seiten.veroeffentlichen"]))).toBe(
+      true,
+    );
+    expect(nav.darfSehen(web, person(["seiten.veroeffentlichen"]))).toBe(true);
+  });
+
+  test("Lädeli, Lager und System zeigen nur, was das Recht öffnet", () => {
+    const sicht = (rechte: string[]) =>
+      nav
+        .sichtbareBereiche(person(rechte))
+        .map((b) => `${b.schluessel}:${b.unter.map((u) => u.schluessel)}`);
+    expect(sicht(["laden.einstellungen"])).toEqual(["laedeli:einstellungen"]);
+    expect(sicht(["system.lesen", "zeitregeln.verwalten"])).toEqual([
+      "system:system,zeitregeln",
+    ]);
+    expect(sicht(["lager.vorlagen_pflegen"])).toEqual(["lager:vorlagen"]);
+    expect(sicht([])).toEqual([]);
+  });
+});

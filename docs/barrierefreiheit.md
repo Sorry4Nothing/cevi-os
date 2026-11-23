@@ -724,6 +724,22 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 48. Verwaltung: Zugang nach Rechten (#648)
+
+Gilt für die Navigation der Verwaltung (`public/admin/navigation.js`, `admin.js`) und die Detailseite eines Lagers (`lager.js`), soweit sie dem Recht der Person folgen. Die Oberfläche zeigt nur Seiten, die der Server dieser Person öffnet; der Server prüft jede Route neu.
+
+- [ ] **48.1** Eine Seite, die für die Person in ein 403 liefe, erscheint nicht in der Navigation (weder Bereichsleiste noch Unterleiste noch Suche). Es gibt keine ausgegraute oder tote Auswahl, deren Grund nur ein Tooltip nennt.
+- [ ] **48.2** Eine Person, die nur ein Recht für einen Bereich hat (zum Beispiel Lädeli), landet nach der Anmeldung in diesem Bereich und sieht keine leere Übersicht. Bereiche ohne sichtbare Seite fehlen ganz.
+- [ ] **48.3** Hat die Person kein Recht, das die Verwaltung öffnet, steht auf der Seite der Text «Dieses Konto hat keinen Zugang zur Verwaltung.» mit Statusangabe (Symbol und Text, nicht nur Farbe).
+- [ ] **48.4** Fehlt der zweite Faktor, sagt die Meldung in Worten, was zu tun ist; sie steht in einer Statusregion und verschwindet nicht von selbst.
+- [ ] **48.5** Lager ohne das Recht, Mitglieder zu vergeben: Das Lager zeigt nur Angaben und Stand. Der Abschnitt «Mitglieder» und die Verweise darauf fehlen, es bleibt keine Zahl «0 Mitglieder» stehen, die falsch wäre.
+- [ ] **48.6** Reihenfolge von Fokus und Überschriften bleibt gleich, wenn Abschnitte entfallen (eine Überschrift der Ebene 1 pro Seite, keine übersprungenen Ebenen).
+- [ ] **48.7** Tastatur: Jede sichtbare Seite ist mit Tab und Enter erreichbar; die Reihenfolge der Unterleiste folgt der Reihenfolge im Quelltext.
+
+### Stand der Prüfung (#648)
+
+Geprüft: 48.1 bis 48.3 und 48.5 am Quelltext und in den Tests (`test/admin-navigation.test.ts`, `test/rechte-website-lager-plattform.test.ts`: Antwort von `GET /api/v1/redaktion/ich` je Rolle). Die Navigation ist in dieser Änderung nicht neu gestaltet; es kommen nur Bedingungen dazu. Nicht im Browser geprüft: Screenreader, 200 % Zoom, 390 px; 48.4, 48.6 und 48.7 folgen aus unveränderten Bausteinen und gelten als nicht geprüft, bis die Vorschau durchgegangen ist.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

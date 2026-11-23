@@ -2,15 +2,10 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { ladenArtikel, ladenEinstellung, medium } from "../db/schema.js";
-import type { Person } from "../rechte.js";
 import type { Datenquelle } from "../website/abgleich.js";
 
 // Lädeli (#566): Regeln, Schemas und Abfragen, die Routen und Website teilen.
 // Offen und darum als Annahme gebaut (vom Nutzer zu bestätigen): bestellen darf jede angemeldete Person der Abteilung; die Bestellung ist verbindlich, bezahlt wird bei der Übergabe; es gibt keinen Lagerbestand.
-
-// Wer Artikel pflegt und Bestellungen bearbeitet: die Abteilungsleitung, also ein Admin mit zweitem Faktor (den verlangt schon der Pfad /api/v1/admin/*). Kommt eine eigene Rolle dazu, ändert sich nur diese Funktion
-export const darfLadenVerwalten = (person: Pick<Person, "admin">) =>
-  person.admin;
 
 // Obergrenzen gegen Missbrauch und Tippfehler
 export const MAX_ARTIKEL = 200;

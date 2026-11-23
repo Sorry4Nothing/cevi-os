@@ -6,6 +6,7 @@ import type { Db } from "../../db/client.js";
 import { auditLog, stufe, zeitregel } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
 // Wochentag ISO: 1 Montag bis 7 Sonntag; Uhrzeit HH:mm in Schweizer Zeit
 const wochentag = z.number().int().min(1).max(7);
@@ -59,13 +60,13 @@ export function erstelleZeitregelRouten({ db }: { db: Db }) {
         ),
       );
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(db, person, "zeitregeln.verwalten");
   }
 
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "zeitregeln.verwalten");
       const regeln = await db
         .select({
           id: zeitregel.id,
@@ -87,7 +88,7 @@ export function erstelleZeitregelRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "zeitregeln.verwalten");
       const felder = c.req.valid("json");
       await pruefeStufe(person, felder.stufeId);
       const neu = await db.transaction(async (tx) => {
