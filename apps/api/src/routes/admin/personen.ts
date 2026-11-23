@@ -30,6 +30,7 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { telefonSchema } from "../../telefon.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
@@ -277,7 +278,11 @@ export function erstellePersonenRouten({
             )
             .orderBy(asc(kind.id)),
           db
-            .select({ id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel })
+            .select({
+              id: stufe.id,
+              name: stufe.name,
+              kuerzel: stufe.kuerzel,
+            })
             .from(stufe)
             .where(eq(stufe.abteilungId, abteilungId))
             .orderBy(asc(stufe.name), asc(stufe.id)),
@@ -538,6 +543,36 @@ export function erstellePersonenRouten({
         return c.body(null, 204);
       },
     )
+    .delete("/:id/bild", eingabe("param", pfad()), async (c) => {
+      // Entfernt das Profilbild einer Person (sie setzt es selbst). Erst das Objekt (404, auch fremde Abteilung), dann das Recht (403). Ohne Bild ebenfalls 204; der Protokolleintrag nennt nur die Person, nie das Bild
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      const [ziel] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      if (!ziel) throw new HTTPException(404);
+      // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
+      await verlange(db, person, "profilbild.entfernen");
+      const entfernt = await db.transaction(async (tx) => {
+        const weg = await tx
+          .delete(profilbild)
+          .where(eq(profilbild.userId, id))
+          .returning({ userId: profilbild.userId });
+        if (weg.length > 0) {
+          await protokolliere(tx, person, "profilbild_entfernt", id);
+        }
+        return weg.length > 0;
+      });
+      // Die Website vergisst das Bild beim nächsten Abgleich (Leitungsteams zeigen es)
+      if (entfernt) {
+        meldeWebsiteEreignis({
+          art: "seite_geaendert",
+          abteilungId: person.abteilungId,
+        });
+      }
+      return c.body(null, 204);
+    })
     .post("/:id/startpasswort", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");

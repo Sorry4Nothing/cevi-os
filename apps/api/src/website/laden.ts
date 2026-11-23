@@ -1,9 +1,13 @@
-import { preisText } from "../laden/laden.js";
+import {
+  EINSTELLUNG_VORGABE,
+  oeffentlicheEinstellung,
+  preisText,
+} from "../laden/laden.js";
 import { el, medienUrl, type Daten, type HtmlKnoten } from "./rendern.js";
 
 // Baustein «laden» (#566): das Lädeli der Abteilung als Laden mit Raster, Artikelfenster, Warenkorb und Bestellübersicht.
 // Die Artikel und die Übergabearten kommen beim Abgleich aus der Datenbank (laden/laden.ts: ladeLadenDaten) und stehen ganz in der erzeugten Datei: ein Besuch löst keine Abfrage aus.
-// Ohne Skript ist es eine Preisliste. Das Skript (public/website/laden.js) liest Artikel-ID, Preis, Varianten und Hinweis aus dem Markup und stellt Artikelfenster, Warenkorb (nur im Browser) und Bestellübersicht dazu, auch ohne Anmeldung; erst das Absenden braucht ein Konto. Preise und Summen rechnet beim Bestellen der Server.
+// Die Einstellungen der Abteilung (#642) bestimmen Hinweise, Preisanzeige und Regeln; das Skript liest sie aus data-einstellung. Ohne Skript ist es eine Preisliste. Das Skript (public/website/laden.js) liest Artikel-ID, Preis, Varianten und Hinweis aus dem Markup und stellt Artikelfenster, Warenkorb (nur im Browser) und Bestellübersicht dazu, auch ohne Anmeldung; erst das Absenden braucht ein Konto. Preise und Summen rechnet beim Bestellen der Server.
 // Stil: public/website/laden.css
 
 // Das eigene Auswahlfeld (auswahl.js, #564) für Sortierung und Übergabe, dann der Laden
@@ -58,24 +62,47 @@ function kachel(a: LadenArtikel, daten: Daten): HtmlKnoten {
 export function rendereLaden(daten: Daten, ebene: number): HtmlKnoten | null {
   const artikel = [...daten.laden.values()];
   if (artikel.length === 0) return null;
+  const e = daten.ladenEinstellung.get("e") ?? EINSTELLUNG_VORGABE;
+  // Der Satz zur Bezahlung steht in der Leiste ohne Schlusspunkt, hinter «Bestellen mit Konto»
+  const leistenText = [
+    "Bestellen mit Konto",
+    e.bezahlhinweis.replace(/\.$/, ""),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   return el(
     "div",
     {
       class: "laden",
       "data-laden": "",
       "data-uebergabe": JSON.stringify([...daten.ladenUebergabe.keys()]),
+      "data-einstellung": JSON.stringify(oeffentlicheEinstellung(e)),
     },
     // Kopf des Ladens: Anzahl, Hinweis zur Bezahlung, rechts setzt das Skript den Warenkorb ein
     el(
       "div",
       { class: "laden-leiste" },
       el("p", { class: "laden-zahl" }, `${artikel.length} Artikel`),
-      el(
-        "p",
-        { class: "laden-notiz" },
-        "Bestellen mit Konto · Bezahlt wird bei der Übergabe",
-      ),
+      ...(e.bestellenOffen
+        ? [el("p", { class: "laden-notiz" }, leistenText)]
+        : []),
     ),
+    // Geschlossen und der Hinweis zur Übergabe stehen immer, auch auf dem Telefon (die Notiz oben gibt es erst ab 48 rem)
+    ...(e.bestellenOffen
+      ? []
+      : [
+          el(
+            "p",
+            {
+              class: "laden-hinweiszeile laden-hinweiszeile--zu",
+              role: "status",
+            },
+            e.geschlossenText,
+          ),
+        ]),
+    ...(e.uebergabehinweis
+      ? [el("p", { class: "laden-hinweiszeile" }, e.uebergabehinweis)]
+      : []),
     el(
       "ul",
       { class: "laden-raster" },
@@ -87,7 +114,8 @@ export function rendereLaden(daten: Daten, ebene: number): HtmlKnoten | null {
               ? "laden-artikel"
               : "laden-artikel laden-artikel--weg",
             "data-id": a.id,
-            "data-preis": String(a.preisRappen),
+            // Ohne öffentliche Preise steht der Preis nicht im Markup; mit Sitzung liefert ihn GET /laden
+            ...(e.preiseOeffentlich && { "data-preis": String(a.preisRappen) }),
           },
           kachel(a, daten),
           el(
@@ -97,7 +125,13 @@ export function rendereLaden(daten: Daten, ebene: number): HtmlKnoten | null {
             el(
               "div",
               { class: "laden-fuss" },
-              el("p", { class: "preis" }, preisText(a.preisRappen)),
+              el(
+                "p",
+                { class: "preis" },
+                e.preiseOeffentlich
+                  ? preisText(a.preisRappen)
+                  : "Preis nach Anmeldung",
+              ),
               ...(a.varianten.length > 0
                 ? [
                     el(

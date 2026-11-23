@@ -17,9 +17,12 @@ import {
   artikelAnsicht,
   darfLadenVerwalten,
   einstellungSchema,
+  einstellungZeile,
+  EINSTELLUNG_VORGABE,
   istLadenBild,
   ladeArtikel,
-  ladeUebergabearten,
+  ladeEinstellung,
+  type LadenEinstellung,
   listeSchema,
   MAX_ARTIKEL,
   pruefeGroesse,
@@ -29,6 +32,7 @@ import {
   WECHSEL,
 } from "../../laden/laden.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { bestellungAnsicht, ladePositionen } from "./bestellungen.js";
 import type { LadenEnv } from "./index.js";
@@ -368,39 +372,47 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           return c.json({ id, status });
         },
       )
+      // Alle Einstellungen des Lädelis mit den Vorgaben daneben (für «Standard wiederherstellen» und die Hinweise der Verwaltung)
       .get("/admin/laden/einstellungen", async (c) => {
         const person = c.get("person");
-        pruefeRecht(person);
+        await verlange(db, person, "laden.einstellungen");
         return c.json({
-          uebergabearten: await ladeUebergabearten(db, person.abteilungId),
+          ...(await ladeEinstellung(db, person.abteilungId)),
+          vorgaben: EINSTELLUNG_VORGABE,
         });
       })
-      // Die Übergabearten ersetzen. Bestehende Bestellungen behalten ihren Text
+      // Die Einstellungen ersetzen; Felder ohne Schlüssel bleiben, wie sie sind. Bestehende Bestellungen behalten ihren Text und ihren Preis
       .put(
         "/admin/laden/einstellungen",
         eingabe("json", einstellungSchema),
         async (c) => {
           const person = c.get("person");
-          pruefeRecht(person);
-          const { uebergabearten } = c.req.valid("json");
+          await verlange(db, person, "laden.einstellungen");
+          const aenderung = c.req.valid("json");
           await db.transaction(async (tx) => {
+            const neu: LadenEinstellung = {
+              ...(await ladeEinstellung(tx, person.abteilungId)),
+              ...aenderung,
+            };
+            const zeile = einstellungZeile(neu);
             await tx
               .insert(ladenEinstellung)
-              .values({ abteilungId: person.abteilungId, uebergabearten })
+              .values({ abteilungId: person.abteilungId, ...zeile })
               .onConflictDoUpdate({
                 target: ladenEinstellung.abteilungId,
-                set: { uebergabearten },
+                set: zeile,
               });
+            // Nur die Namen der geänderten Felder, nie die Texte
             await tx.insert(auditLog).values({
               abteilungId: person.abteilungId,
               akteurId: person.id,
               aktion: "laden_einstellung_geaendert",
               zielTyp: "abteilung",
               zielId: person.abteilungId,
-              details: { uebergabearten: uebergabearten.length },
+              details: { felder: Object.keys(aenderung) },
             });
           });
-          // Die Übergabearten stehen im Laden der Website
+          // Die Einstellungen stehen im Laden der Website
           geaendert(person.abteilungId);
           return c.body(null, 204);
         },
