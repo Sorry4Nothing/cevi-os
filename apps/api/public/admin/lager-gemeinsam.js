@@ -1,5 +1,6 @@
 import { ApiFehler, fehlertext } from "./api.js";
 import { zurueckKlick } from "./verlauf.js";
+import { datumsfeld } from "./datumsfeld.js";
 import { el, feld, icon, knopf } from "./dom.js";
 
 // Gemeinsames des Bereichs «Lager» (#527): Texte, Symbole, Statuschip, Datum und die Meldung, die eine Navigation überlebt. Klassen mit dem Vorsatz «lg-».
@@ -158,7 +159,7 @@ export function feldFehler(f, text, { fokus = true } = {}) {
   if (fokus) f.eingabe.focus();
 }
 
-// Die Felder der Grunddaten (Anlegen und Ändern): Name, Beginn, Ende, Ort. Daten als Datumsfeld, damit der Wert schon ISO ist.
+// Die Felder der Grunddaten (Anlegen und Ändern): Name, Beginn, Ende, Ort. Beginn und Ende sind eigene Datumsfelder (Tippen und Kalender), ihr Wert ist schon ISO.
 // pruefe() liefert die Fehler [{ f, id, label, text }]; leer heisst gültig. koerper() liefert den Teil der Anfrage.
 export function grunddaten(start = {}) {
   const name = feld({
@@ -167,8 +168,8 @@ export function grunddaten(start = {}) {
     maxlength: 200,
     autocomplete: "off",
   });
-  const von = feld({ label: "Beginn", typ: "date", wert: start.von ?? "" });
-  const bis = feld({ label: "Ende", typ: "date", wert: start.bis ?? "" });
+  const von = datumsfeld({ label: "Beginn", wert: start.von ?? "" });
+  const bis = datumsfeld({ label: "Ende", wert: start.bis ?? "" });
   const ort = feld({
     label: "Ort",
     hilfe: "Freiwillig.",
@@ -219,3 +220,13 @@ export function zurueckLink(text, href) {
 // Hängt Knoten an und lässt false, null und undefined weg (append() schriebe sie als Text)
 export const haenge = (ziel, ...kinder) =>
   ziel.append(...kinder.filter(Boolean));
+
+// Schmale Bildschirme: Die Tabelle wird zu einer Kartenliste (Zeile = Karte, Spaltenname vor dem Wert). Der Aufrufer ruft beschrifteZellen() nach jedem Neuaufbau der Zeilen.
+export const kartenTabelle = (rahmen) =>
+  rahmen.querySelector("table").classList.add("lg-karten");
+export function beschrifteZellen(koerper, namen) {
+  for (const tr of koerper.querySelectorAll("tr"))
+    [...tr.children].forEach((zelle, i) => {
+      if (i > 0 && namen[i]) zelle.setAttribute("data-label", namen[i]);
+    });
+}

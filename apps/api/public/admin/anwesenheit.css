@@ -64,3 +64,8 @@
     padding-inline: 10px;
   }
 }
+
+/* Anzahl der letzten Anlässe: Ziel mindestens 44 px breit */
+.an-wahl .filter button {
+  min-width: 44px;
+}

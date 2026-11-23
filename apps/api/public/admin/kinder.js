@@ -8,14 +8,13 @@ import {
   STANDARD_LOGO,
   el,
   feld,
-  filterGruppe,
-  gruppe,
-  icon,
   knopf,
-  neueId,
   seitenwahl,
   tabelle,
 } from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
+import { suchWahl } from "./personen-wahl.js";
+import { leerKarte } from "./zustaende.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -93,13 +92,23 @@ function bearbeiten(kind, daten, ctx, neu) {
     wert: kind.stufeId,
   });
   const aktiv = ankreuzen({ label: "Aktiv", gewaehlt: kind.aktiv });
-  const boxen = daten.personen.map((person) =>
-    ankreuzen({
-      label: `${person.name} (${person.benutzername ?? "ohne Benutzernamen"})`,
-      gewaehlt: kind.eltern.includes(person.id),
-      wert: person.id,
-    }),
-  );
+  const eltern = suchWahl({
+    titel: "Elternteile",
+    beschriftung: "Person suchen",
+    kandidaten: daten.personen.map((p) => ({
+      id: p.id,
+      name: p.name,
+      zusatz:
+        [p.ceviName, p.deaktiviert && "deaktiviert"]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+      bildUrl: p.bildUrl,
+    })),
+    gewaehlt: kind.eltern,
+    max: 10,
+    leerText: "Es gibt noch keine Personen.",
+    keinerText: "Noch keine Eltern verknüpft.",
+  });
   dialogFormular({
     titel: "Kind bearbeiten",
     beschreibung: `${kind.vorname} ${kind.nachname}`,
@@ -109,11 +118,7 @@ function bearbeiten(kind, daten, ctx, neu) {
       ceviName.wurzel,
       stufe.wurzel,
       aktiv.wurzel,
-      gruppe(
-        "Elternteile (höchstens 10)",
-        boxen.map((b) => b.wurzel),
-        { scrollen: true },
-      ),
+      eltern.wurzel,
     ],
     ok: "Speichern",
     senden: () =>
@@ -123,9 +128,7 @@ function bearbeiten(kind, daten, ctx, neu) {
         ceviName: ceviName.eingabe.value,
         stufeId: stufe.eingabe.value,
         aktiv: aktiv.eingabe.checked,
-        eltern: boxen
-          .filter((b) => b.eingabe.checked)
-          .map((b) => b.eingabe.value),
+        eltern: eltern.wert(),
       }),
     danach: () => {
       neu();
@@ -157,18 +160,34 @@ function elternZelle(kind, personen) {
 function zeichne(bereich, ctx, daten, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
   const personen = new Map(daten.personen.map((p) => [p.id, p]));
-  const { wurzel, koerper } = tabelle({
-    beschriftung: "Kinder",
-    spalten: ["Kind", "Stufe", "Eltern", "Status", "Aktionen"],
-    zeilen: daten.kinder.map((kind) => {
-      const name = `${kind.vorname} ${kind.nachname}`;
-      return el(
+  ctx.kopfAktion(
+    daten.stufen.length > 0
+      ? knopf("Kind anlegen", {
+          art: "haupt",
+          symbol: "plus",
+          onclick: () => anlegen(daten, ctx, neu),
+        })
+      : el("p", { class: "hilfe" }, "Lege zuerst eine Stufe an."),
+  );
+  if (daten.kinder.length === 0) {
+    bereich.append(
+      leerKarte(
+        daten.stufen.length > 0
+          ? "Es gibt noch keine Kinder. Lege das erste an oder übernimm eine Liste über «Import»."
+          : "Es gibt noch keine Kinder. Lege zuerst eine Stufe an.",
+        [],
+      ),
+    );
+    return;
+  }
+  const eintraege = daten.kinder.map((kind) => {
+    const name = `${kind.vorname} ${kind.nachname}`;
+    return {
+      kind,
+      suche: `${name} ${kind.ceviName ?? ""}`.toLowerCase(),
+      tr: el(
         "tr",
-        {
-          class: kind.aktiv ? undefined : "inaktiv",
-          "data-suche": `${name} ${kind.ceviName ?? ""}`.toLowerCase(),
-          "data-stufe": kind.stufeId,
-        },
+        { class: kind.aktiv ? undefined : "inaktiv" },
         el(
           "th",
           { scope: "row" },
@@ -204,65 +223,66 @@ function zeichne(bereich, ctx, daten, neu) {
             onclick: () => bearbeiten(kind, daten, ctx, neu),
           }),
         ),
-      );
-    }),
+      ),
+    };
   });
-  ctx.kopfAktion(
-    daten.stufen.length > 0
-      ? knopf("Kind anlegen", {
-          art: "haupt",
-          symbol: "plus",
-          onclick: () => anlegen(daten, ctx, neu),
-        })
-      : el("p", { class: "hilfe" }, "Lege zuerst eine Stufe an."),
-  );
-
+  const { wurzel, koerper } = tabelle({
+    beschriftung: "Kinder",
+    spalten: ["Kind", "Stufe", "Eltern", "Zustand", "Aktionen"],
+    zeilen: [],
+  });
   const ohneEltern = daten.kinder.filter((k) => k.eltern.length === 0).length;
-  const zaehler = el("p", { class: "meta klein", role: "status" });
-  const sucheId = neueId("suche");
-  const suche = el("input", {
-    id: sucheId,
-    class: "eingabe",
-    type: "search",
-    placeholder: "Name oder Cevi-Name",
-    autocomplete: "off",
+  const keine = el("div");
+  const seiten = seitenwahl({ beiWechsel: () => aktualisiere() });
+  const leiste = filterleiste({
+    suche: { label: "Name oder Cevi-Name" },
+    filter: [
+      {
+        schluessel: "stufe",
+        label: "Stufe",
+        optionen: [
+          ["", "Alle Stufen"],
+          ...daten.stufen.map((s) => [s.id, s.name]),
+        ],
+      },
+      {
+        schluessel: "eltern",
+        label: "Eltern",
+        optionen: [
+          ["", "Alle"],
+          ["ohne", "Ohne Eltern"],
+        ],
+      },
+    ],
+    namen: { einzahl: "Kind", mehrzahl: "Kinder" },
+    beiAenderung: () => {
+      seiten.anfang();
+      aktualisiere();
+    },
   });
-  const seiten = seitenwahl({ beiWechsel: aktualisiere });
-  const vonVorn = () => {
-    seiten.anfang();
-    aktualisiere();
-  };
-  const filter =
-    daten.stufen.length > 0
-      ? filterGruppe({
-          beschriftung: "Stufe",
-          eintraege: [
-            { text: "Alle", n: daten.kinder.length, wert: "" },
-            ...daten.stufen.map((s) => ({
-              text: s.name,
-              n: daten.kinder.filter((k) => k.stufeId === s.id).length,
-              wert: s.id,
-            })),
-          ],
-          beiAenderung: vonVorn,
-        })
-      : null;
   function aktualisiere() {
-    const frage = suche.value.trim().toLowerCase();
-    const stufe = filter?.wert() ?? "";
-    const treffer = [...koerper.children].filter(
-      (eintrag) =>
-        eintrag.dataset.suche.includes(frage) &&
-        (stufe === "" || eintrag.dataset.stufe === stufe),
+    const { suche, filter } = leiste.stand();
+    const frage = suche.trim().toLowerCase();
+    const treffer = eintraege.filter(
+      (e) =>
+        e.suche.includes(frage) &&
+        (!filter.stufe || e.kind.stufeId === filter.stufe) &&
+        (filter.eltern !== "ohne" || e.kind.eltern.length === 0),
     );
     const [von, bis] = seiten.fenster(treffer.length);
-    const sichtbar = new Set(treffer.slice(von, bis));
-    for (const eintrag of koerper.children) {
-      eintrag.hidden = !sichtbar.has(eintrag);
-    }
-    zaehler.textContent = `${treffer.length} von ${daten.kinder.length} Kindern`;
+    koerper.replaceChildren(...treffer.slice(von, bis).map((e) => e.tr));
+    wurzel.hidden = treffer.length === 0;
+    leiste.setzeTreffer(treffer.length, daten.kinder.length);
+    keine.replaceChildren(
+      treffer.length === 0
+        ? leerKarte("Kein Kind passt zu diesen Filtern.", [
+            knopf("Filter zurücksetzen", {
+              onclick: () => leiste.setzeAlles(),
+            }),
+          ])
+        : [],
+    );
   }
-  suche.addEventListener("input", vonVorn);
   aktualisiere();
   bereich.append(
     ...[
@@ -274,19 +294,8 @@ function zeichne(bereich, ctx, daten, neu) {
             ? "1 Kind hat noch keine Eltern verknüpft."
             : `${ohneEltern} Kinder haben noch keine Eltern verknüpft.`,
         ),
-      el(
-        "div",
-        { class: "werkzeuge" },
-        el(
-          "div",
-          { class: "suche" },
-          el("label", { class: "nur-leser", for: sucheId }, "Kinder suchen"),
-          icon("lupe"),
-          suche,
-        ),
-        filter?.wurzel,
-      ),
-      zaehler,
+      leiste.wurzel,
+      keine,
       wurzel,
       seiten.wurzel,
     ].filter(Boolean),

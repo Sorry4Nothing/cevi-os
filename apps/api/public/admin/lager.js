@@ -1,21 +1,16 @@
 import { anfrage } from "./api.js";
-import { gehe } from "./verlauf.js";
-import {
-  auswahl,
-  dialogFormular,
-  el,
-  filterGruppe,
-  icon,
-  knopf,
-  seitenwahl,
-  tabelle,
-} from "./dom.js";
+import { splitKnopf, bestaetigungAmOrt } from "./aktionen.js";
+import { filterleiste } from "./filterleiste.js";
+import { auswahl, dialogFormular, el, knopf, tabelle } from "./dom.js";
 import { skeletonFlaeche, skeletonTabelle } from "./lader.js";
+import { macheSortierbar, seitenleiste, sortiere } from "./liste-hilfen.js";
 import { leerKarte } from "./zustaende.js";
 import {
   ADRESSE,
   haenge,
   BASIS,
+  beschrifteZellen,
+  kartenTabelle,
   ID,
   ROLLEN,
   feldFehler,
@@ -28,21 +23,26 @@ import {
   symbol,
   zeigeWartende,
   zeitraum,
+  zurueckLink,
 } from "./lager-gemeinsam.js";
 
-// Bereich «Lager», Unterseite «Lager» (#527, Boards A20, A22, A29): Liste, Detail mit den Dialogen Abschliessen, Archivieren und Löschen. Adressen: #lager/lager, …/neu, …/<id>, …/<id>/mitglieder, …/<id>/rechte, …/<id>/ausdrucke. Kein Polling; die Liste ist eine Abfrage, das Detail zwei (Lager und Mitglieder).
+// Bereich «Lager», Unterseite «Lager» (#527, Boards A20, A22, A29; #592): Liste, Detail mit einer Hauptaktion und Varianten (geteilter Knopf), Löschen mit Namenseingabe am Ort. Adressen: #lager/lager, …/neu (und …/neu/<schritt>), …/<id>, …/<id>/mitglieder, …/<id>/rechte, …/<id>/ausdrucke. Kein Polling; die Liste ist eine Abfrage, das Detail zwei (Lager und Mitglieder).
 
 export function zeige(bereich, ctx) {
   const [erster, zweiter, weiter] = ctx.pfad;
   if (erster === undefined) return liste(bereich, ctx);
-  if (erster === "neu" && zweiter === undefined)
+  if (erster === "neu")
     return import("./lager-anlegen.js").then((m) => m.zeige(bereich, ctx));
   if (!ID.test(erster) || weiter !== undefined)
     return ctx.lade(nichtGefunden, () => {});
   if (zweiter === undefined) return detail(bereich, ctx, erster);
-  if (zweiter === "mitglieder" || zweiter === "rechte")
+  if (zweiter === "mitglieder")
     return import("./lager-mitglieder.js").then((m) =>
-      m.zeige(bereich, ctx, erster, zweiter),
+      m.zeige(bereich, ctx, erster),
+    );
+  if (zweiter === "rechte")
+    return import("./lager-rechte.js").then((m) =>
+      m.zeige(bereich, ctx, erster),
     );
   if (zweiter === "ausdrucke")
     return import("./lager-ausdrucke.js").then((m) =>
@@ -53,15 +53,14 @@ export function zeige(bereich, ctx) {
 
 // Liste (A20) ---------------------------------------------------------------
 
-const GRUPPEN = [
+const STATUS_FILTER = [
   ["alle", "Alle"],
   ["aktiv", "Aktiv"],
   ["entwurf", "Entwurf"],
   ["abgeschlossen", "Abgeschlossen"],
   ["archiviert", "Archiviert"],
 ];
-const sortiere = (a, b) =>
-  a.titel.localeCompare(b.titel, "de-CH", { numeric: true });
+const STATUS_FOLGE = ["entwurf", "aktiv", "abgeschlossen", "archiviert"];
 
 function liste(bereich, ctx) {
   zeigeWartende(ctx);
@@ -74,102 +73,84 @@ function liste(bereich, ctx) {
   );
   ctx.lade(
     () => anfrage("GET", BASIS),
-    (daten) => zeichneListe(bereich, ctx, daten.lager),
+    (daten) => zeichneListe(bereich, daten.lager),
     {
       skeleton: () => skeletonTabelle({ spalten: 4, zeilen: 3, avatar: false }),
     },
   );
 }
 
-function zeichneListe(bereich, ctx, alle) {
+function zeichneListe(bereich, alle) {
   if (alle.length === 0) {
-    bereich.append(
-      leerKarte("Es gibt noch kein Lager. Lege das erste an.", [
-        knopf("Neues Lager", {
-          symbol: "plus",
-          onclick: () => (location.hash = `${ADRESSE}/neu`),
-        }),
-      ]),
-    );
+    bereich.append(leerKarte("Es gibt noch kein Lager. Lege das erste an."));
     return;
   }
-  const zustand = { frage: "", gruppe: "alle", aufsteigend: true };
+  const zustand = { schluessel: "von", richtung: "ab" };
+  const stand = { suche: "", filter: { status: "alle" } };
   // «Alle» zeigt keine archivierten Lager; sie stehen unter ihrem eigenen Filter
-  const zaehle = (g) =>
-    alle.filter((l) =>
-      g === "alle" ? l.status !== "archiviert" : l.status === g,
-    ).length;
-  const gruppen = GRUPPEN.filter(([g]) => g !== "archiviert" || zaehle(g) > 0);
-  const filter = filterGruppe({
-    beschriftung: "Status",
-    eintraege: gruppen.map(([wert, text]) => ({ text, wert, n: zaehle(wert) })),
-    wert: "alle",
-    beiAenderung: (g) => {
-      zustand.gruppe = g;
+  const gibtArchiv = alle.some((l) => l.status === "archiviert");
+  const leiste = filterleiste({
+    suche: { label: "Lager suchen" },
+    filter: [
+      {
+        schluessel: "status",
+        label: "Status",
+        grundwert: "alle",
+        optionen: STATUS_FILTER.filter(
+          ([g]) => g !== "archiviert" || gibtArchiv,
+        ),
+      },
+    ],
+    namen: { einzahl: "Lager", mehrzahl: "Lager" },
+    beiAenderung: (neu) => {
+      stand.suche = neu.suche.trim().toLowerCase();
+      stand.filter = neu.filter;
       seiten.anfang();
       zeichne();
     },
   });
-  const suchId = "lg-suche";
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Lager suchen",
-    autocomplete: "off",
-    oninput: () => {
-      zustand.frage = suche.value.trim().toLowerCase();
-      seiten.anfang();
-      zeichne();
-    },
-  });
-  const seiten = seitenwahl({ beiWechsel: () => zeichne() });
+  const seiten = seitenleiste({ beiWechsel: () => zeichne() });
   const { wurzel: rahmen, koerper } = tabelle({
     beschriftung: "Lager",
     spalten: ["Name", "Zeitraum", "Ort", "Status"],
     zeilen: [],
   });
-  const kopfName = rahmen.querySelector("th");
-  const sortKnopf = el("button", {
-    type: "button",
-    class: "lg-sort",
-    onclick: () => {
-      zustand.aufsteigend = !zustand.aufsteigend;
-      zeichne();
-      sortKnopf.focus();
-    },
-  });
-  kopfName.replaceChildren(sortKnopf);
+  kartenTabelle(rahmen);
+  macheSortierbar(
+    rahmen,
+    [
+      { index: 0, schluessel: "name", name: "Name" },
+      { index: 1, schluessel: "von", name: "Zeitraum" },
+      { index: 2, schluessel: "ort", name: "Ort" },
+      { index: 3, schluessel: "status", name: "Status" },
+    ],
+    zustand,
+    () => zeichne(),
+  );
   const leer = el("div");
-  const status = el("p", { class: "nur-leser", role: "status" });
+  const schluesselVon = (l, k) =>
+    k === "name"
+      ? l.titel
+      : k === "von"
+        ? l.von
+        : k === "ort"
+          ? (l.ort ?? "")
+          : STATUS_FOLGE.indexOf(l.status);
 
   function zeichne() {
-    sortKnopf.replaceChildren(
-      "Name",
-      el(
-        "span",
-        { class: "lg-sortwort" },
-        symbol(zustand.aufsteigend ? "hoch" : "runter"),
-        zustand.aufsteigend ? "aufsteigend" : "absteigend",
-      ),
-    );
-    kopfName.setAttribute(
-      "aria-sort",
-      zustand.aufsteigend ? "ascending" : "descending",
-    );
-    const treffer = alle
+    const gefiltert = alle
       .filter((l) =>
-        zustand.gruppe === "alle"
+        stand.filter.status === "alle"
           ? l.status !== "archiviert"
-          : l.status === zustand.gruppe,
+          : l.status === stand.filter.status,
       )
       .filter(
         (l) =>
-          zustand.frage === "" ||
-          l.titel.toLowerCase().includes(zustand.frage) ||
-          (l.ort ?? "").toLowerCase().includes(zustand.frage),
-      )
-      .sort((a, b) => (zustand.aufsteigend ? sortiere(a, b) : sortiere(b, a)));
+          stand.suche === "" ||
+          l.titel.toLowerCase().includes(stand.suche) ||
+          (l.ort ?? "").toLowerCase().includes(stand.suche),
+      );
+    const treffer = sortiere(gefiltert, zustand, schluesselVon);
     const [von, bis] = seiten.fenster(treffer.length);
     koerper.replaceChildren(
       ...treffer
@@ -193,142 +174,59 @@ function zeichneListe(bereich, ctx, alle) {
           ),
         ),
     );
+    beschrifteZellen(koerper, ["", "Zeitraum", "Ort", "Status"]);
     rahmen.hidden = treffer.length === 0;
     leer.replaceChildren();
-    if (treffer.length === 0) {
+    if (treffer.length === 0)
       leer.append(
         leerKarte(
-          zustand.frage
-            ? `Keine Treffer für «${suche.value.trim()}».`
+          stand.suche
+            ? `Keine Treffer für «${stand.suche}».`
             : "Kein Lager in diesem Status.",
           [
             knopf("Filter zurücksetzen", {
-              onclick: () => {
-                suche.value = "";
-                zustand.frage = "";
-                zustand.gruppe = "alle";
-                filter.setze("alle");
-                seiten.anfang();
-                zeichne();
-                suche.focus();
-              },
+              onclick: () => leiste.setzeAlles(),
             }),
           ],
         ),
       );
-    }
-    status.textContent =
-      treffer.length === 1 ? "1 Lager." : `${treffer.length} Lager.`;
+    leiste.setzeTreffer(treffer.length, alle.length);
   }
-  bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Lager suchen"),
-        icon("lupe"),
-        suche,
-      ),
-      filter.wurzel,
-    ),
-    rahmen,
-    leer,
-    seiten.wurzel,
-    status,
-  );
+  bereich.append(leiste.wurzel, rahmen, leer, seiten.wurzel);
   zeichne();
 }
 
-// Detail (A22) und Dialoge (A29) --------------------------------------------
+// Detail (A22) --------------------------------------------------------------
 
-const DIALOGE = {
-  abschliessen: {
-    titel: "Lager abschliessen?",
-    text: "Das Lager wird schreibgeschützt. Alle Mitglieder sehen es weiter, ändern kann niemand mehr. Du kannst es später wieder öffnen.",
-    ok: "Abschliessen",
-    symbol: "schloss",
-    status: "abgeschlossen",
-    nicht: "Nicht abgeschlossen.",
-    erfolg: (t) =>
-      `«${t}» ist abgeschlossen und schreibgeschützt. Du kannst es jederzeit wieder öffnen.`,
-  },
-  archivieren: {
-    titel: "Lager archivieren?",
-    text: "Das Lager verschwindet aus den Listen. Daten bleiben erhalten und lassen sich wiederherstellen.",
-    ok: "Archivieren",
-    symbol: "archiv",
-    status: "archiviert",
-    nicht: "Nicht archiviert.",
-    erfolg: (t) =>
-      `«${t}» ist archiviert. Du findest es in der Liste unter «Archiviert».`,
-  },
-};
-
-// Rückfrage mit blauem Knopf (nicht rot: Abschliessen und Archivieren lassen sich zurücknehmen); danach zurück zur Liste
-function statusDialog(art, lager) {
-  const d = DIALOGE[art];
-  const dialog = dialogFormular({
-    titel: d.titel,
-    beschreibung: d.text,
-    ok: d.ok,
-    senden: () =>
-      anfrage("PATCH", `${BASIS}/${lager.id}`, { status: d.status }),
-    fehlertext: (f) => `${d.nicht} ${meldung(f)}`,
-    danach: () => {
-      merkeMeldung(d.erfolg(lager.titel));
-      gehe(ADRESSE);
-    },
-  });
-  const ok = dialog.querySelector('button[type="submit"]');
-  ok.className = "knopf knopf--blau";
-  ok.prepend(symbol(d.symbol));
-}
-
-function loeschenDialog(lager) {
-  const name = el("input", {
-    class: "eingabe",
-    id: "lg-loeschen-name",
-    type: "text",
-    autocomplete: "off",
-    "aria-describedby": "lg-loeschen-hilfe",
-  });
-  const wurzel = el(
-    "div",
-    { class: "feld" },
-    el(
-      "label",
-      { for: "lg-loeschen-name" },
-      "Tippe den Namen des Lagers zur Bestätigung",
-    ),
-    el("p", { class: "hilfe", id: "lg-loeschen-hilfe" }, lager.titel),
-    name,
-  );
-  const dialog = dialogFormular({
-    titel: "Lager endgültig löschen?",
-    beschreibung:
-      "Das Lager und alle Daten werden gelöscht: Aufgaben, Einteilung, Pinnwand und alles Übrige. Das geht nicht rückgängig.",
-    ok: "Löschen",
-    gefaehrlich: true,
-    felder: [wurzel],
-    pruefe: () => {
-      if (name.value.trim() === lager.titel) return false;
-      feldFehler(
-        { wurzel, eingabe: name },
-        `Der Name stimmt nicht. Tippe «${lager.titel}».`,
-      );
-      return true;
-    },
-    senden: () =>
-      anfrage("DELETE", `${BASIS}/${lager.id}`, { titel: name.value.trim() }),
-    fehlertext: (f) => `Nicht gelöscht. ${meldung(f)}`,
-    danach: () => {
+function loeschenKarte(lager) {
+  const { wurzel } = bestaetigungAmOrt({
+    text: "Lager löschen",
+    frage: `«${lager.titel}» endgültig löschen?`,
+    folge:
+      "Das Lager und alle Daten gehen mit: Aufgaben, Einteilung, Pinnwand und alles Übrige.",
+    bestaetigenText: "Endgültig löschen",
+    erwartet: lager.titel,
+    ausfuehren: async () => {
+      await anfrage("DELETE", `${BASIS}/${lager.id}`, { titel: lager.titel });
       merkeMeldung(`«${lager.titel}» ist gelöscht.`);
-      gehe(ADRESSE);
+      // Das gelöschte Lager soll nicht im Verlauf zurückkommen
+      location.replace(ADRESSE);
     },
+    fehlertext: (f) => `Nicht gelöscht. ${meldung(f)}`,
   });
-  dialog.querySelector('button[type="submit"]').prepend(symbol("papierkorb"));
+  return el(
+    "section",
+    { class: "flaeche lg-gefahr" },
+    el("h2", {}, "Lager löschen"),
+    el(
+      "p",
+      { class: "leise" },
+      lager.status === "archiviert"
+        ? "Nur ein Entwurf oder ein archiviertes Lager lässt sich löschen. Das geht nicht rückgängig."
+        : "Nur ein Entwurf oder ein archiviertes Lager lässt sich löschen. Archiviere es zuerst, wenn du die Daten behalten willst.",
+    ),
+    wurzel,
+  );
 }
 
 function aendernDialog(lager, ctx, neu) {
@@ -357,7 +255,8 @@ function aendernDialog(lager, ctx, neu) {
   });
 }
 
-async function vorlageDialog(lager, ctx, neu) {
+// Die Vorlagen laden, erst wenn man sie braucht; gibt es keine, steht der Hinweis in der Karte und führt zum Anlegen
+async function vorlageDialog(lager, ctx, neu, hinweis) {
   let vorlagen;
   try {
     vorlagen = (await anfrage("GET", "/api/v1/admin/vorlagen")).vorlagen;
@@ -366,10 +265,15 @@ async function vorlageDialog(lager, ctx, neu) {
     return;
   }
   if (vorlagen.length === 0) {
-    ctx.melde(
-      "Es gibt noch keine Vorlage. Lege eine unter «Vorlagen» an.",
-      "info",
+    hinweis.replaceChildren(
+      "Es gibt noch keine Vorlage. ",
+      el(
+        "a",
+        { class: "lg-verweis", href: "#lager/vorlagen" },
+        "Vorlage anlegen",
+      ),
     );
+    hinweis.hidden = false;
     return;
   }
   const wahl = auswahl({
@@ -404,19 +308,36 @@ async function vorlageDialog(lager, ctx, neu) {
   });
 }
 
-async function statusSetzen(k, lager, status, text, ctx, neu) {
-  k.disabled = true;
-  k.setAttribute("aria-busy", "true");
+// Statuswechsel sofort, mit «Rückgängig» in der Meldung: Der alte Status lässt sich jederzeit wieder setzen (die Meldung bleibt, bis man sie schliesst)
+async function wechsle(lager, status, text, ctx, neu) {
+  const alt = lager.status;
   try {
     await anfrage("PATCH", `${BASIS}/${lager.id}`, { status });
-    neu();
-    ctx.melde(text);
   } catch (f) {
-    k.disabled = false;
-    k.removeAttribute("aria-busy");
-    ctx.melde(meldung(f), "fehler");
+    ctx.melde(`Nicht geändert. ${meldung(f)}`, "fehler");
+    return;
   }
+  await neu();
+  ctx.melde(text, "ok", {
+    text: "Rückgängig",
+    onclick: async () => {
+      try {
+        await anfrage("PATCH", `${BASIS}/${lager.id}`, { status: alt });
+        ctx.melde(`«${lager.titel}» ist wieder ${statusWort(alt)}.`);
+      } catch (f) {
+        ctx.melde(`Nicht zurückgesetzt. ${meldung(f)}`, "fehler");
+      }
+      await neu();
+    },
+  });
 }
+const statusWort = (s) =>
+  ({
+    entwurf: "ein Entwurf",
+    aktiv: "aktiv",
+    abgeschlossen: "abgeschlossen",
+    archiviert: "archiviert",
+  })[s];
 
 const zahlKnopf = (text, href, symbolName) => {
   const a = el("a", { class: "knopf", href }, text);
@@ -446,6 +367,83 @@ function detail(bereich, ctx, id) {
   );
 }
 
+// Eine Hauptaktion je Status; was sonst noch geht, steht im Menü daneben (Archivieren) oder unten (Löschen)
+function aktionen(lager, hatLeitung, ctx, neu) {
+  const archivieren = {
+    text: "Archivieren",
+    onclick: () =>
+      wechsle(
+        lager,
+        "archiviert",
+        `«${lager.titel}» ist archiviert. Du findest es in der Liste unter «Archiviert».`,
+        ctx,
+        neu,
+      ),
+  };
+  if (lager.status === "entwurf") {
+    // Ohne Lagerleitung antwortet der Server mit 409: Der Knopf ist gesperrt, der Grund steht im Hinweis darunter (aria-describedby) mit dem Weg zu den Mitgliedern
+    const aktivieren = splitKnopf({
+      text: "Aktivieren",
+      art: "haupt",
+      symbol: "haken",
+      onclick: () =>
+        wechsle(lager, "aktiv", `«${lager.titel}» ist aktiv.`, ctx, neu),
+      eintraege: [archivieren],
+    });
+    if (!hatLeitung) {
+      aktivieren.haupt.disabled = true;
+      aktivieren.haupt.setAttribute("aria-describedby", "lg-ohne-leitung");
+    }
+    return [aktivieren];
+  }
+  if (lager.status === "aktiv")
+    return [
+      splitKnopf({
+        text: "Abschliessen",
+        art: "blau",
+        symbol: "schloss",
+        onclick: () =>
+          wechsle(
+            lager,
+            "abgeschlossen",
+            `«${lager.titel}» ist abgeschlossen und schreibgeschützt. Du kannst es jederzeit wieder öffnen.`,
+            ctx,
+            neu,
+          ),
+        eintraege: [archivieren],
+      }),
+    ];
+  if (lager.status === "abgeschlossen")
+    return [
+      knopfMit("Wieder öffnen", {
+        art: "haupt",
+        symbol: "aktualisieren",
+        onclick: () =>
+          wechsle(
+            lager,
+            "aktiv",
+            `«${lager.titel}» ist wieder geöffnet.`,
+            ctx,
+            neu,
+          ),
+      }),
+    ];
+  return [
+    knopfMit("Wiederherstellen", {
+      art: "haupt",
+      symbol: "aktualisieren",
+      onclick: () =>
+        wechsle(
+          lager,
+          "abgeschlossen",
+          `«${lager.titel}» ist wiederhergestellt, abgeschlossen und schreibgeschützt.`,
+          ctx,
+          neu,
+        ),
+    }),
+  ];
+}
+
 function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
   const geschlossen =
     lager.status === "abgeschlossen" || lager.status === "archiviert";
@@ -453,121 +451,49 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
     lager.titel,
     [zeitraum(lager.von, lager.bis), lager.ort].filter(Boolean).join(" · "),
   );
-  const aktionen = [];
-  // Ein aktives Lager braucht eine Lagerleitung (sonst antwortet der Server mit 409): Der Knopf ist dann gesperrt, der Grund steht darunter
-  const ohneLeitung =
-    lager.status === "entwurf" &&
-    !mitglieder.some((m) => m.rolle === "lagerleitung");
-  if (lager.status === "entwurf") {
-    const aktivieren = knopf("Aktivieren", {
-      art: "haupt",
-      symbol: "haken",
-      disabled: ohneLeitung,
-      "aria-describedby": ohneLeitung ? "lg-ohne-leitung" : undefined,
-    });
-    aktivieren.addEventListener("click", () =>
-      statusSetzen(
-        aktivieren,
-        lager,
-        "aktiv",
-        `«${lager.titel}» ist aktiv.`,
-        ctx,
-        neu,
-      ),
-    );
-    aktionen.push(aktivieren);
-  }
-  if (lager.status === "aktiv")
-    aktionen.push(
-      knopfMit("Abschliessen", {
-        symbol: "schloss",
-        onclick: () => statusDialog("abschliessen", lager),
-      }),
-    );
-  if (lager.status === "entwurf" || lager.status === "aktiv")
-    aktionen.push(
-      knopfMit("Archivieren", {
-        symbol: "archiv",
-        onclick: () => statusDialog("archivieren", lager),
-      }),
-    );
-  if (lager.status === "entwurf" || lager.status === "archiviert")
-    aktionen.push(
-      knopf("Löschen", {
-        art: "gefahr",
-        symbol: "papierkorb",
-        onclick: () => loeschenDialog(lager),
-      }),
-    );
-  if (lager.status === "archiviert") {
-    const wieder = knopf("Wiederherstellen", {
-      art: "haupt",
-      symbol: "aktualisieren",
-    });
-    wieder.addEventListener("click", () =>
-      statusSetzen(
-        wieder,
-        lager,
-        "abgeschlossen",
-        `«${lager.titel}» ist wiederhergestellt, abgeschlossen und schreibgeschützt.`,
-        ctx,
-        neu,
-      ),
-    );
-    aktionen.unshift(wieder);
-  }
-  ctx.kopfAktion(...aktionen);
-
   const rolle = (r) => mitglieder.filter((m) => m.rolle === r).length;
-  const hinweis = ohneLeitung
-    ? el(
-        "div",
-        { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
-        el(
-          "span",
-          {},
-          "Zum Aktivieren fehlt die Lagerleitung. Ein aktives Lager braucht mindestens eine.",
-        ),
-        el(
-          "a",
-          {
-            class: "knopf knopf--klein",
-            href: `${ADRESSE}/${lager.id}/mitglieder`,
-          },
-          "Mitglieder öffnen",
-        ),
-      )
-    : lager.status === "abgeschlossen"
+  ctx.kopfAktion(
+    ...aktionen(lager, rolle("lagerleitung") > 0, ctx, neu).map(
+      (a) => a.wurzel ?? a,
+    ),
+  );
+
+  const hinweis =
+    lager.status === "entwurf" && rolle("lagerleitung") === 0
       ? el(
           "div",
-          { class: "hinweis hinweis--info", role: "status" },
-          el("span", {}, "Das Lager ist schreibgeschützt."),
-          (() => {
-            const k = knopf("Wieder öffnen", { klein: true });
-            k.addEventListener("click", () =>
-              statusSetzen(
-                k,
-                lager,
-                "aktiv",
-                `«${lager.titel}» ist wieder geöffnet.`,
-                ctx,
-                neu,
-              ),
-            );
-            return k;
-          })(),
+          { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
+          el(
+            "span",
+            {},
+            "Zum Aktivieren fehlt die Lagerleitung. Ein aktives Lager braucht mindestens eine Person mit dieser Rolle.",
+          ),
+          el(
+            "a",
+            {
+              class: "knopf knopf--klein",
+              href: `${ADRESSE}/${lager.id}/mitglieder`,
+            },
+            "Mitglieder öffnen",
+          ),
         )
-      : lager.status === "archiviert"
+      : lager.status === "abgeschlossen"
         ? el(
             "div",
             { class: "hinweis hinweis--info", role: "status" },
-            el(
-              "span",
-              {},
-              "Archiviert, nicht in der Liste «Alle». Die Daten bleiben erhalten.",
-            ),
+            el("span", {}, "Das Lager ist schreibgeschützt."),
           )
-        : null;
+        : lager.status === "archiviert"
+          ? el(
+              "div",
+              { class: "hinweis hinweis--info", role: "status" },
+              el(
+                "span",
+                {},
+                "Archiviert, nicht in der Liste «Alle». Die Daten bleiben erhalten.",
+              ),
+            )
+          : null;
 
   const werte = (paare) =>
     el(
@@ -575,8 +501,14 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
       { class: "werte" },
       paare.map(([k, v]) => el("div", {}, el("dt", {}, k), el("dd", {}, v))),
     );
+  const vorlagenHinweis = el("p", {
+    class: "hinweis hinweis--info",
+    role: "status",
+    hidden: true,
+  });
   haenge(
     bereich,
+    zurueckLink("Alle Lager", ADRESSE),
     el("p", { class: "lg-status" }, statusChip(lager.status)),
     hinweis,
     el(
@@ -631,13 +563,14 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
           { class: "leise" },
           "Ergänze die Aufgaben oder die Packliste dieses Lagers aus einer Vorlage der Abteilung.",
         ),
+        vorlagenHinweis,
         el(
           "div",
           { class: "lg-fuss" },
           !geschlossen &&
             knopfMit("Vorlage anwenden", {
               symbol: "plus",
-              onclick: () => vorlageDialog(lager, ctx, neu),
+              onclick: () => vorlageDialog(lager, ctx, neu, vorlagenHinweis),
             }),
           zahlKnopf("Vorlagen verwalten", "#lager/vorlagen"),
         ),
@@ -663,5 +596,7 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
         ),
       ),
     ),
+    (lager.status === "entwurf" || lager.status === "archiviert") &&
+      loeschenKarte(lager),
   );
 }

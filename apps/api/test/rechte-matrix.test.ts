@@ -158,6 +158,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/liste-hilfen.js": { erwartet: alle(200) },
   "GET /admin/personen-blatt.js": { erwartet: alle(200) },
+  "GET /admin/personen-wahl.js": { erwartet: alle(200) },
+  "GET /admin/telefon.js": { erwartet: alle(200) },
   "GET /admin/tags-detail.js": { erwartet: alle(200) },
   "GET /admin/personen.css": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
@@ -234,6 +236,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-mitglieder.js": { erwartet: alle(200) },
   "GET /admin/lager-ausdrucke.js": { erwartet: alle(200) },
   "GET /admin/lager-vorlagen.js": { erwartet: alle(200) },
+  "GET /admin/lager-personenwahl.js": { erwartet: alle(200) },
+  "GET /admin/lager-rechte.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {

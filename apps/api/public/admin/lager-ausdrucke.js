@@ -1,16 +1,17 @@
 import { ApiFehler, anfrage } from "./api.js";
-import { el, tabelle } from "./dom.js";
-import { skeletonTabelle } from "./lader.js";
+import { el, knopf } from "./dom.js";
+import { skeletonListe } from "./lader.js";
 import {
   ADRESSE,
   BASIS,
+  haenge,
   knopfMit,
   meldung,
   symbol,
   zurueckLink,
 } from "./lager-gemeinsam.js";
 
-// Ausdrucke eines Lagers (#527, Board A27, nur die PDF-Aushänge): GET /api/v1/lager/{id}/aushaenge/{art}. Der Server erzeugt das PDF beim Klick und speichert es nirgends; hier bleibt es nur als Blob im Speicher dieser Seite. Eine Abfrage für den Titel, dann eine je Klick.
+// Ausdrucke eines Lagers (#527, Board A27, nur die PDF-Aushänge; #592): GET /api/v1/lager/{id}/aushaenge/{art}. Der Server erzeugt das PDF beim Klick und speichert es nirgends; hier bleibt es nur als Blob im Speicher dieser Seite. Jede Zeile zeigt Dateiname, Typ und Grösse und hat einen Fortschritt mit «Abbrechen». Eine Abfrage für den Titel, dann eine je Klick.
 
 const AUSHAENGE = [
   ["schichtplan", "Schichtplan", "Dienste und Besetzung je Tag."],
@@ -41,14 +42,40 @@ const TEXTE = {
 // Die Adressen der erzeugten Dateien, damit sie beim nächsten Besuch freigegeben werden
 let urls = [];
 
-async function erzeuge(id, art) {
+// Reine Funktionen (testbar): Dateiname aus Lager und Art, Grösse in Worten
+export function dateiname(titel, art) {
+  const slug = String(titel)
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .replace(/ß/g, "ss")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  return `${slug ? `${slug}-` : ""}${art}.pdf`;
+}
+export function groesse(bytes) {
+  const zahl = (n) =>
+    new Intl.NumberFormat("de-CH", { maximumFractionDigits: 1 }).format(n);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${zahl(bytes / 1024)} kB`;
+  return `${zahl(bytes / 1024 / 1024)} MB`;
+}
+
+// Holt die Datei und meldet den Fortschritt, soweit der Server die Länge nennt (sonst bleibt er unbestimmt)
+async function erzeuge(id, art, { signal, beiFortschritt }) {
   let antwort;
   try {
     antwort = await fetch(`/api/v1/lager/${id}/aushaenge/${art}`, {
       credentials: "same-origin",
       cache: "no-store",
+      signal,
     });
-  } catch {
+  } catch (f) {
+    if (f?.name === "AbortError") throw f;
     throw new ApiFehler(0, "NETZ");
   }
   if (!antwort.ok) {
@@ -65,7 +92,19 @@ async function erzeuge(id, art) {
       antwort.headers.get("X-Retry-After"),
     );
   }
-  return antwort.blob();
+  const gesamt = Number(antwort.headers.get("content-length")) || 0;
+  if (!antwort.body?.getReader) return antwort.blob();
+  const leser = antwort.body.getReader();
+  const teile = [];
+  let gelesen = 0;
+  for (;;) {
+    const { done, value } = await leser.read();
+    if (done) break;
+    teile.push(value);
+    gelesen += value.length;
+    beiFortschritt(gelesen, gesamt);
+  }
+  return new Blob(teile, { type: "application/pdf" });
 }
 
 export function zeige(bereich, ctx, id) {
@@ -76,81 +115,127 @@ export function zeige(bereich, ctx, id) {
     (lager) => {
       ctx.titel("Ausdrucke", `${lager.titel} · fertige Aushänge zum Drucken.`);
       const zeilen = AUSHAENGE.map(([art, name, text]) => {
-        const zelle = el("div", { class: "aktionen" });
-        const feld = el("td", { class: "rechts" }, zelle);
-        const erstellen = () => {
-          zelle.classList.remove("lg-fehlerzelle");
-          zelle.replaceChildren(
-            el(
-              "span",
-              {
-                class: "knopf knopf--klein lg-erstellt",
-                role: "status",
-                "aria-busy": "true",
-              },
-              "Wird erstellt …",
-            ),
-          );
-          erzeuge(id, art).then(
-            (blob) => {
-              if (!bereich.isConnected) return;
-              const url = window.URL.createObjectURL(blob);
-              urls.push(url);
-              const link = el(
-                "a",
-                {
-                  class: "knopf knopf--klein knopf--blau",
-                  href: url,
-                  download: `${art}.pdf`,
-                },
-                symbol("pdf"),
-                `Bereit: ${name} herunterladen`,
-              );
-              zelle.replaceChildren(link);
-              link.focus();
-            },
-            (f) => {
-              if (!bereich.isConnected) return;
-              const t = el(
-                "p",
-                { class: "feld-fehler", role: "alert" },
-                symbol("info"),
-                `Erstellen fehlgeschlagen. ${TEXTE[f?.status] ?? meldung(f)}`,
-              );
-              const nochmal = knopfMit("Nochmals versuchen", {
-                klein: true,
-                symbol: "aktualisieren",
-                kontext: name,
-                onclick: erstellen,
-              });
-              zelle.classList.add("lg-fehlerzelle");
-              zelle.replaceChildren(t, nochmal);
-              nochmal.focus();
-            },
+        const datei = dateiname(lager.titel, art);
+        const zustand = el("div", { class: "lg-dl-zustand" });
+        const meldungZeile = el("p", { class: "klein leise", role: "status" });
+        // Ohne value ist der Fortschritt unbestimmt (das Element läuft dann von selbst, bei reduzierter Bewegung steht es still)
+        const fortschritt = el("progress", {
+          class: "lg-dl-balken",
+          max: 100,
+          "aria-label": `${name} wird erstellt`,
+          hidden: true,
+        });
+        let abbruch = null;
+
+        const zeigeBereit = () => {
+          zustand.replaceChildren(
+            knopfMit("Erstellen", {
+              symbol: "drucker",
+              kontext: name,
+              onclick: erstellen,
+            }),
           );
         };
-        zelle.append(
-          knopfMit("Erstellen", {
+        const erstellen = async () => {
+          abbruch = new AbortController();
+          fortschritt.hidden = false;
+          fortschritt.removeAttribute("value");
+          meldungZeile.textContent = "Wird erstellt …";
+          const stopp = knopf("Abbrechen", {
             klein: true,
-            symbol: "drucker",
             kontext: name,
-            onclick: erstellen,
-          }),
-        );
+            onclick: () => abbruch.abort(),
+          });
+          zustand.replaceChildren(stopp);
+          stopp.focus();
+          try {
+            const blob = await erzeuge(id, art, {
+              signal: abbruch.signal,
+              beiFortschritt: (gelesen, gesamt) => {
+                if (!gesamt) return;
+                const pct = Math.min(100, Math.round((gelesen / gesamt) * 100));
+                fortschritt.value = pct;
+              },
+            });
+            if (!bereich.isConnected) return;
+            const url = window.URL.createObjectURL(blob);
+            urls.push(url);
+            fortschritt.hidden = true;
+            meldungZeile.textContent = `Bereit: ${datei}, ${groesse(blob.size)}.`;
+            const link = el(
+              "a",
+              {
+                class: "knopf knopf--blau",
+                href: url,
+                download: datei,
+                "aria-label": `Herunterladen: ${datei}, ${groesse(blob.size)}`,
+              },
+              symbol("pdf"),
+              "Herunterladen",
+            );
+            const nochmal = knopf("Neu erstellen", {
+              art: "still",
+              kontext: name,
+              symbol: "aktualisieren",
+              onclick: erstellen,
+            });
+            zustand.replaceChildren(link, nochmal);
+            link.focus();
+          } catch (f) {
+            if (!bereich.isConnected) return;
+            fortschritt.hidden = true;
+            if (f?.name === "AbortError") {
+              meldungZeile.textContent =
+                "Abgebrochen. Es wurde nichts gespeichert.";
+              zeigeBereit();
+              zustand.firstChild.focus();
+              return;
+            }
+            meldungZeile.replaceChildren(
+              el(
+                "span",
+                { class: "lg-dl-fehler" },
+                symbol("info"),
+                `Erstellen fehlgeschlagen. ${TEXTE[f?.status] ?? meldung(f)}`,
+              ),
+            );
+            const nochmal = knopfMit("Nochmals versuchen", {
+              symbol: "aktualisieren",
+              kontext: name,
+              onclick: erstellen,
+            });
+            zustand.replaceChildren(nochmal);
+            nochmal.focus();
+          }
+        };
+        zeigeBereit();
         return el(
-          "tr",
-          {},
+          "li",
+          { class: "lg-dl" },
           el(
-            "th",
-            { scope: "row" },
-            el("span", { class: "name" }, name),
-            el("span", { class: "klein leise" }, text),
+            "span",
+            { class: "lg-dl-bild", "aria-hidden": "true" },
+            symbol("pdf"),
           ),
-          el("td", {}, el("span", { class: "chip" }, symbol("pdf"), "PDF")),
-          feld,
+          el(
+            "div",
+            { class: "lg-dl-text" },
+            el("strong", { class: "name" }, name),
+            el("span", { class: "klein leise" }, text),
+            el(
+              "span",
+              { class: "klein leise lg-dl-datei" },
+              datei,
+              el("span", { class: "chip" }, "PDF"),
+            ),
+            fortschritt,
+            meldungZeile,
+          ),
+          zustand,
         );
       });
-      bereich.append(
+      haenge(
+        bereich,
         zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
         el(
           "div",
@@ -161,15 +246,13 @@ export function zeige(bereich, ctx, id) {
             "Der Aushang entsteht beim Klick aus dem aktuellen Stand und wird nirgends gespeichert.",
           ),
         ),
-        tabelle({
-          beschriftung: "Ausdrucke",
-          spalten: ["Ausdruck", "Format", "Aktionen"],
+        el(
+          "ul",
+          { class: "flaeche lg-dls", "aria-label": "Ausdrucke" },
           zeilen,
-        }).wurzel,
+        ),
       );
     },
-    {
-      skeleton: () => skeletonTabelle({ spalten: 3, zeilen: 6, avatar: false }),
-    },
+    { skeleton: () => skeletonListe({ zeilen: 6 }) },
   );
 }

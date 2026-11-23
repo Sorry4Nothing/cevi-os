@@ -9,6 +9,8 @@ import {
   knopf,
 } from "./dom.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
+import { dateiFeld } from "./personen-wahl.js";
+import { sortierListe } from "./sortieren.js";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -39,11 +41,10 @@ function felder(stufe) {
       maxlength: 100,
       required: true,
     }),
-    logo: feld({
+    logo: dateiFeld({
       label: "Logo (optional)",
       hilfe:
         "JPEG, PNG oder WebP, höchstens 5 MB. Ohne eigenes Logo gilt das Cevi-Logo.",
-      typ: "file",
       accept: "image/jpeg,image/png,image/webp",
     }),
     // Nur bei einer Stufe mit Logo
@@ -57,12 +58,41 @@ function lesen(f) {
   return { name: f.name.eingabe.value.trim() };
 }
 
+// Logo mit Vorschau daneben (Muster «edit-profile-form»): Die Vorschau zeigt die gewählte Datei, bevor sie gespeichert ist. Als data:-Adresse gelesen, denn die Seite lädt Bilder nur von sich selbst und aus data:
+function logoZeile(f, stufe) {
+  const vorschau = el("img", {
+    class: "stufe-vorschau",
+    src: stufe?.logoUrl ?? STANDARD_LOGO,
+    alt: "",
+  });
+  f.logo.eingabe.addEventListener("change", () => {
+    const datei = f.logo.eingabe.files[0];
+    if (!datei || datei.size > LOGO_MAX_BYTES) return;
+    const leser = new window.FileReader();
+    leser.addEventListener("load", () => {
+      vorschau.src = leser.result;
+    });
+    leser.readAsDataURL(datei);
+  });
+  return el(
+    "div",
+    { class: "stufe-logozeile" },
+    vorschau,
+    el(
+      "div",
+      { class: "stufe-logofelder" },
+      f.logo.wurzel,
+      f.entfernen?.wurzel,
+    ),
+  );
+}
+
 function dialog({ stufe, ctx, neu }) {
   const f = felder(stufe);
   dialogFormular({
     titel: stufe ? "Stufe bearbeiten" : "Stufe anlegen",
     beschreibung: stufe?.name,
-    felder: [f.name.wurzel, f.logo.wurzel, f.entfernen?.wurzel].filter(Boolean),
+    felder: [f.name.wurzel, logoZeile(f, stufe)],
     ok: stufe ? "Speichern" : "Anlegen",
     senden: async () => {
       const body = lesen(f);
@@ -117,89 +147,38 @@ function stufenleitung(personen, stufe) {
     );
 }
 
-function reihenfolge(stufe, sl, ctx, neu) {
-  const ids = sl.map((p) => p.id);
-  const namen = new Map(sl.map((p) => [p.id, p.name]));
-  const liste = el("ol", { class: "sl-reihenfolge" });
-  const status = el("p", { class: "meta klein", role: "status" });
-  function zeichne(fokus) {
-    liste.replaceChildren(
-      ...ids.map((id, i) =>
-        el(
-          "li",
-          {},
-          el(
-            "span",
-            { class: "name" },
-            namen.get(id),
-            i === 0 && " (Hauptkontakt)",
-          ),
-          knopf("Nach oben", {
-            klein: true,
-            symbol: "hoch",
-            kontext: namen.get(id),
-            disabled: i === 0,
-            "data-id": id,
-            "data-richtung": "oben",
-            onclick: () => bewege(id, -1),
-          }),
-          knopf("Nach unten", {
-            klein: true,
-            symbol: "runter",
-            kontext: namen.get(id),
-            disabled: i === ids.length - 1,
-            "data-id": id,
-            "data-richtung": "unten",
-            onclick: () => bewege(id, 1),
-          }),
-        ),
-      ),
-    );
-    // Der Fokus folgt dem verschobenen Eintrag; am Rand bleibt er beim anderen Knopf
-    const knoepfe = [
-      ...liste.querySelectorAll(`button[data-id="${fokus?.id}"]`),
-    ];
-    (
-      knoepfe.find(
-        (k) => k.dataset.richtung === fokus?.richtung && !k.disabled,
-      ) ?? knoepfe.find((k) => !k.disabled)
-    )?.focus();
-  }
-  function bewege(id, schritt) {
-    const i = ids.indexOf(id);
-    ids.splice(i, 1);
-    ids.splice(i + schritt, 0, id);
-    status.textContent = `${namen.get(id)} steht jetzt an Position ${i + schritt + 1} von ${ids.length}.`;
-    zeichne({ id, richtung: schritt < 0 ? "oben" : "unten" });
-  }
-  dialogFormular({
-    titel: "Reihenfolge der Stufenleitung",
-    beschreibung: `${stufe.name}: Die erste Person ist der Hauptkontakt, die weiteren folgen in den Kontakten der App.`,
-    felder: [liste, status],
-    ok: "Speichern",
-    senden: () =>
-      anfrage("PUT", `/api/v1/admin/stufen/${stufe.id}/stufenleitung`, { ids }),
-    danach: () => {
-      neu();
-      ctx.melde("Reihenfolge gespeichert.");
-    },
+// Die Stufenleitung steht als Sortierliste in der Karte: Ziehen am Griff, Tastatur und Knöpfe Nach oben und Nach unten, danach «Rückgängig» im Toast. Die Anfrage geht erst nach der Frist; die erste Person ist der Hauptkontakt in den Kontakten der App.
+function leitungsListe(stufe, sl, ctx) {
+  return sortierListe({
+    beschriftung: `Stufenleitung von ${stufe.name}`,
+    eintraege: sl.map((p) => ({
+      id: p.id,
+      text: p.name,
+      inhalt: el("span", { class: "name" }, p.name),
+    })),
+    aktionstext: `Reihenfolge der Stufenleitung von ${stufe.name} geändert`,
+    mitRueckgaengig: ctx.mitRueckgaengig,
+    beiNeu: (ids) =>
+      anfrage("PUT", `/api/v1/admin/stufen/${stufe.id}/stufenleitung`, {
+        ids,
+      }),
   });
-  zeichne(null);
 }
 
 function karte(stufe, anzahl, sl, ctx, neu) {
+  const bild = el("img", {
+    class: "stufe-logo",
+    src: stufe.logoUrl ?? STANDARD_LOGO,
+    // Dekorativ: Der Name daneben nennt schon alles
+    alt: "",
+  });
   return el(
     "li",
     { class: "karte stufe-karte" },
     el(
       "div",
       { class: "stufe-kopf" },
-      // Dekorativ: Name und Chip daneben nennen schon alles
-      el("img", {
-        class: "stufe-logo",
-        src: stufe.logoUrl ?? STANDARD_LOGO,
-        alt: "",
-      }),
+      bild,
       el(
         "div",
         { class: "stufe-text" },
@@ -207,8 +186,21 @@ function karte(stufe, anzahl, sl, ctx, neu) {
         el(
           "ul",
           { class: "chips" },
-          chip(stufe.logoUrl ? "Eigenes Logo" : "Cevi-Logo"),
-          anzahl !== null && chip(anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`),
+          anzahl !== null &&
+            chip(
+              anzahl === 1 ? "1 Kind" : `${anzahl} Kinder`,
+              undefined,
+              false,
+            ),
+          chip(
+            sl.length === 0
+              ? "Keine Stufenleitung"
+              : sl.length === 1
+                ? "1 Stufenleitung"
+                : `${sl.length} Stufenleitende`,
+            sl.length === 0 ? "warn" : undefined,
+            sl.length === 0 ? undefined : false,
+          ),
         ),
       ),
     ),
@@ -217,22 +209,20 @@ function karte(stufe, anzahl, sl, ctx, neu) {
         "div",
         { class: "stufe-sl" },
         el("h3", {}, "Stufenleitung"),
-        el(
-          "ol",
-          { class: "sl-liste" },
-          sl.map((p) => el("li", {}, p.name)),
-        ),
+        sl.length > 1
+          ? [
+              el(
+                "p",
+                { class: "klein leise" },
+                "Die erste Person ist der Hauptkontakt. Ordne sie per Ziehen oder mit den Pfeilen.",
+              ),
+              leitungsListe(stufe, sl, ctx).wurzel,
+            ]
+          : el("p", {}, sl[0].name),
       ),
     el(
       "div",
       { class: "stufe-aktionen" },
-      sl.length > 1 &&
-        knopf("Reihenfolge", {
-          klein: true,
-          symbol: "hoch",
-          kontext: stufe.name,
-          onclick: () => reihenfolge(stufe, sl, ctx, neu),
-        }),
       knopf("Bearbeiten", {
         klein: true,
         symbol: "bearbeiten",
@@ -241,7 +231,7 @@ function karte(stufe, anzahl, sl, ctx, neu) {
       }),
       knopf("Löschen", {
         klein: true,
-        art: "gefahr",
+        art: "still",
         symbol: "papierkorb",
         kontext: stufe.name,
         onclick: (e) => loeschen(stufe, ctx, neu, e),

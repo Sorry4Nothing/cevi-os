@@ -6,15 +6,12 @@ import {
   auswahl,
   avatar,
   chip,
-  dialogFormular,
   el,
   feld,
-  filterGruppe,
-  icon,
   knopf,
-  neueId,
   tabelle,
 } from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
 import {
   aktionenKopfVerstecken,
   macheSortierbar,
@@ -23,32 +20,26 @@ import {
   sortiere,
 } from "./liste-hilfen.js";
 import {
-  kinderFelder,
-  oeffneBlatt,
-  rollenFelder,
-  startpasswortDialog,
-  statusChips,
+  fehltTelefon,
+  kontoChips,
+  oeffnePerson,
   systemRollen,
 } from "./personen-blatt.js";
 import { typName } from "./tags-detail.js";
 import { leerKarte } from "./zustaende.js";
 
-// Personen (A6, A7): Liste mit Suche, Tag, Status und Rolle, Mehrfachauswahl für Tags, Seitenblatt zum Bearbeiten
+// Personen (A6, A7): Liste mit Filterleiste (Suche, Tag, Rolle, Konto, Trefferzahl), Auswahlleiste für Tags mit «Rückgängig» und eine Seite im Fluss zum Erfassen und Bearbeiten (personen-blatt.js)
 // Suche und Filter überleben das Neuladen nach einer Aktion; fokus: Person, deren Zeile danach den Fokus bekommt
 const zustand = {
   frage: "",
-  tag: "",
-  status: "alle",
-  rolle: "alle",
+  filter: { tag: "", rolle: "alle", konto: "alle" },
   sort: { schluessel: "name", richtung: "auf" },
   fokus: null,
 };
 
 export function zeige(bereich, ctx) {
   zustand.frage = "";
-  zustand.tag = "";
-  zustand.status = "alle";
-  zustand.rolle = "alle";
+  zustand.filter = { tag: "", rolle: "alle", konto: "alle" };
   zustand.sort = { schluessel: "name", richtung: "auf" };
   zustand.fokus = null;
   ctx.lade(
@@ -77,78 +68,16 @@ async function ladeDaten() {
       tagsJePerson.set(e.userId, eigene);
     }
   }
-  for (const eigene of tagsJePerson.values()) {
-    eigene.sort(
-      (a, b) =>
-        (a.tag.typ === "stufe" ? 0 : 1) - (b.tag.typ === "stufe" ? 0 : 1) ||
-        a.tag.name.localeCompare(b.tag.name, "de-CH"),
-    );
-  }
+  for (const eigene of tagsJePerson.values()) sortiereTags(eigene);
   return { ...liste, tags: tagListe.tags, tagsJePerson };
 }
 
-// Person erfassen: Konto mit Startpasswort, Stufenrollen und Kindern
-function erfassen(daten, ctx, neu) {
-  const vorname = feld({ label: "Vorname", maxlength: 100, required: true });
-  const nachname = feld({ label: "Nachname", maxlength: 100, required: true });
-  const ceviName = feld({ label: "Cevi-Name (optional)", maxlength: 50 });
-  const telefon = feld({
-    label: "Telefon (optional)",
-    typ: "tel",
-    hilfe:
-      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
-    maxlength: 30,
-    autocomplete: "off",
-  });
-  const benutzername = feld({
-    label: "Benutzername",
-    hilfe:
-      "2 bis 64 Zeichen: Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich. Gross- und Kleinschreibung zählt nicht.",
-    maxlength: 64,
-    autocapitalize: "none",
-    spellcheck: "false",
-    required: true,
-  });
-  const admin = ankreuzen({ label: "Admin-Rechte" });
-  const rollen = rollenFelder(daten.stufen, []);
-  const kinder = kinderFelder(daten.kinder, daten.stufen, []);
-  dialogFormular({
-    titel: "Person erfassen",
-    beschreibung:
-      "Die Person erhält ein Startpasswort. Es bleibt im Blatt der Person sichtbar, bis sie es ersetzt hat.",
-    felder: [
-      vorname.wurzel,
-      nachname.wurzel,
-      ceviName.wurzel,
-      telefon.wurzel,
-      benutzername.wurzel,
-      admin.wurzel,
-      rollen.wurzel,
-      kinder.wurzel,
-    ],
-    ok: "Erfassen",
-    senden: () =>
-      anfrage("POST", "/api/v1/admin/personen", {
-        vorname: vorname.eingabe.value.trim(),
-        nachname: nachname.eingabe.value.trim(),
-        ceviName: ceviName.eingabe.value,
-        telefon: telefon.eingabe.value,
-        benutzername: benutzername.eingabe.value.trim(),
-        admin: admin.eingabe.checked,
-        rollen: rollen.wert(),
-        elternteilVon: kinder.wert(),
-      }),
-    fehlertext: (f) =>
-      f.code === "BENUTZERNAME_VERGEBEN"
-        ? "Der Benutzername ist schon vergeben. Wähle einen anderen."
-        : fehlertext(f),
-    danach: (antwort) => {
-      neu();
-      ctx.melde(`Person «${antwort.benutzername}» ist erfasst.`);
-      startpasswortDialog(antwort.benutzername, antwort.startpasswort);
-    },
-  });
-}
+const sortiereTags = (eigene) =>
+  eigene.sort(
+    (a, b) =>
+      (a.tag.typ === "stufe" ? 0 : 1) - (b.tag.typ === "stufe" ? 0 : 1) ||
+      a.tag.name.localeCompare(b.tag.name, "de-CH"),
+  );
 
 // Tags für mehrere Personen: Die API kennt nur die Einzelzuordnung, darum je Person ein Aufruf, höchstens 5 gleichzeitig
 async function nacheinander(aufgaben) {
@@ -162,107 +91,26 @@ async function nacheinander(aufgaben) {
   return misslungen;
 }
 
-function sammelAktion({ art, auswahlIds, daten, ctx, neu, danach }) {
-  const hinzufuegen = art === "hinzufuegen";
-  const traeger = (tagId) =>
-    auswahlIds.filter((id) =>
-      daten.tagsJePerson.get(id)?.some((e) => e.tag.id === tagId),
-    );
-  const verfuegbar = hinzufuegen
-    ? daten.tags
-    : daten.tags.filter((t) => traeger(t.id).length > 0);
-  if (verfuegbar.length === 0) {
-    ctx.melde("Die gewählten Personen tragen keinen Tag.", "info");
-    return;
-  }
-  const tag = auswahl({
-    label: "Tag",
-    optionen: [
-      ["", "Tag wählen"],
-      ...verfuegbar.map((t) => [t.id, `${t.name} (${typName(t.typ)})`]),
-    ],
-    wert: "",
-  });
-  const rolle = hinzufuegen
-    ? feld({
-        label: "Rolle (optional)",
-        hilfe: "Freier Text, höchstens 50 Zeichen.",
-        maxlength: 50,
-      })
-    : null;
-  const n = auswahlIds.length;
-  dialogFormular({
-    titel: hinzufuegen ? "Tag hinzufügen" : "Tag entfernen",
-    beschreibung: `${n === 1 ? "1 Person ist" : `${n} Personen sind`} gewählt.`,
-    felder: [tag.wurzel, rolle?.wurzel].filter(Boolean),
-    ok: hinzufuegen ? "Hinzufügen" : "Entfernen",
-    gefaehrlich: !hinzufuegen,
-    pruefe: () => {
-      if (tag.eingabe.value) return false;
-      const fehler = el(
-        "p",
-        { class: "feld-fehler", role: "alert" },
-        "Wähle einen Tag.",
-      );
-      tag.wurzel.querySelector(".feld-fehler")?.remove();
-      tag.wurzel.append(fehler);
-      tag.wurzel.querySelector(".auswahl-knopf").focus();
-      return true;
-    },
-    senden: async () => {
-      const tagId = tag.eingabe.value;
-      const text = rolle?.eingabe.value.trim();
-      const ziele = hinzufuegen
-        ? auswahlIds.filter((id) => !traeger(tagId).includes(id))
-        : traeger(tagId);
-      const misslungen = await nacheinander(
-        ziele.map(
-          (id) => () =>
-            hinzufuegen
-              ? anfrage(
-                  "PUT",
-                  `/api/v1/admin/tags/${tagId}/personen/${id}`,
-                  text ? { rolle: text } : {},
-                )
-              : anfrage("DELETE", `/api/v1/admin/tags/${tagId}/personen/${id}`),
-        ),
-      );
-      return { tagId, ziele: ziele.length, misslungen };
-    },
-    danach: ({ tagId, ziele, misslungen }) => {
-      const name = daten.tags.find((t) => t.id === tagId)?.name ?? "Tag";
-      neu();
-      danach();
-      if (misslungen > 0) {
-        ctx.melde(
-          `«${name}»: ${misslungen} von ${ziele} Änderungen gingen nicht durch. Prüfe die Liste und versuche es nochmals.`,
-          "warn",
-        );
-      } else {
-        ctx.melde(
-          hinzufuegen
-            ? `«${name}» gilt jetzt für ${ziele === 1 ? "1 Person" : `${ziele} Personen`}.`
-            : `«${name}» ist ${ziele === 1 ? "1 Person" : `${ziele} Personen`} entzogen.`,
-        );
-      }
-    },
-  });
-}
-
-const FILTER = {
+const ROLLE = {
   alle: () => true,
   eltern: (p) => p.elternteilVon.length > 0,
   leitung: (p) => p.rollen.length > 0,
   admin: (p) => p.admin,
 };
-const STATUS = {
+const KONTO = {
   alle: () => true,
-  offen: (p) => p.mussPasswortAendern,
+  aktiv: (p) => !p.deaktiviert && !p.mussPasswortAendern,
+  offen: (p) => !p.deaktiviert && p.mussPasswortAendern,
   deaktiviert: (p) => p.deaktiviert,
 };
+const personen = (n) => (n === 1 ? "1 Person" : `${n} Personen`);
 
 function zeichne(bereich, ctx, daten, neu) {
-  const erfassenKnopf = () => erfassen(daten, ctx, neu);
+  const erfassenKnopf = () =>
+    oeffnePerson({ person: null, daten, ctx, neu, beiFokus });
+  const beiFokus = (id) => {
+    zustand.fokus = id;
+  };
   ctx.kopfAktion(
     knopf("Person erfassen", {
       art: "haupt",
@@ -274,13 +122,29 @@ function zeichne(bereich, ctx, daten, neu) {
     bereich.append(
       leerKarte(
         "Es gibt noch keine Personen. Erfasse die erste oder übernimm eine Liste über «Import».",
-        [knopf("Person erfassen", { symbol: "plus", onclick: erfassenKnopf })],
+        [],
       ),
     );
     return;
   }
   const gewaehlt = new Set();
   const tagsVon = (p) => daten.tagsJePerson.get(p.id) ?? [];
+  const tagZelle = (person) => {
+    const tags = tagsVon(person);
+    return tags.length
+      ? el(
+          "ul",
+          { class: "chips" },
+          tags.map((e) =>
+            chip(
+              `${e.tag.name} · ${typName(e.tag.typ)}`,
+              e.tag.typ === "stufe" ? "stufe" : undefined,
+              "tag",
+            ),
+          ),
+        )
+      : el("span", { class: "leise" }, "–");
+  };
   const eintraege = daten.personen.map((person) => {
     const eigenes = person.id === ctx.ich.id;
     const box = ankreuzen({ label: `${person.name} wählen`, wert: person.id });
@@ -290,25 +154,15 @@ function zeichne(bereich, ctx, daten, neu) {
       else gewaehlt.delete(person.id);
       zeichneAuswahl();
     });
-    const tags = tagsVon(person);
-    const status = statusChips(person);
     const rollen = systemRollen(person);
     const bearbeiten = knopf("Bearbeiten", {
       klein: true,
       kontext: person.name,
       symbol: "bearbeiten",
       onclick: () =>
-        oeffneBlatt({
-          person,
-          daten,
-          ctx,
-          neu,
-          beiFokus: (id) => {
-            zustand.fokus = id;
-          },
-          tr,
-        }),
+        oeffnePerson({ person, daten, ctx, neu, beiFokus, tr: eintrag.tr }),
     });
+    const tagTd = el("td", {}, tagZelle(person));
     const tr = el(
       "tr",
       { class: person.deaktiviert ? "inaktiv" : undefined },
@@ -329,49 +183,48 @@ function zeichne(bereich, ctx, daten, neu) {
           ),
         ),
       ),
-      el(
-        "td",
-        {},
-        tags.length
-          ? el(
-              "ul",
-              { class: "chips" },
-              tags.map((e) =>
-                chip(
-                  `${e.tag.name} · ${typName(e.tag.typ)}`,
-                  e.tag.typ === "stufe" ? "stufe" : undefined,
-                  "tag",
-                ),
-              ),
-            )
-          : el("span", { class: "leise" }, "–"),
-      ),
+      tagTd,
       el(
         "td",
         {},
         rollen.length ? rollen.join(", ") : el("span", { class: "leise" }, "–"),
+        fehltTelefon(person) &&
+          el(
+            "ul",
+            { class: "chips" },
+            chip("Telefon fehlt", "warn", "telefon"),
+          ),
       ),
-      el(
-        "td",
-        {},
-        status.length
-          ? el("ul", { class: "chips" }, status)
-          : el("span", { class: "leise" }, "–"),
-      ),
+      el("td", {}, el("ul", { class: "chips" }, kontoChips(person))),
       aktionenZelle(bearbeiten),
     );
-    return {
+    const eintrag = {
       person,
       tr,
       box,
+      tagTd,
       knopf: bearbeiten,
-      tagNamen: tags.map((e) => e.tag.name).join(" "),
-      tagIds: tags.map((e) => e.tag.id),
+      tagNamen: "",
+      tagIds: [],
     };
+    return eintrag;
   });
+  // Tag-Spalte und Filterwerte nach einer Änderung der Tags neu aus den Daten ableiten
+  const frischeTags = (ids) => {
+    for (const e of eintraege) {
+      if (ids && !ids.includes(e.person.id)) continue;
+      e.tagNamen = tagsVon(e.person)
+        .map((t) => t.tag.name)
+        .join(" ");
+      e.tagIds = tagsVon(e.person).map((t) => t.tag.id);
+      e.tagTd.replaceChildren(tagZelle(e.person));
+    }
+  };
+  frischeTags();
+
   const { wurzel, koerper } = tabelle({
     beschriftung: "Personen",
-    spalten: ["Auswahl", "Name", "Tags", "Rolle", "Status", "Aktionen"],
+    spalten: ["Auswahl", "Name", "Tags", "Rolle", "Konto", "Aktionen"],
     zeilen: [],
   });
   // Kopfzelle der Auswahlspalte: «Alle wählen» betrifft die Zeilen der Seite
@@ -389,8 +242,52 @@ function zeichne(bereich, ctx, daten, neu) {
   });
   let sichtbar = [];
   let treffer = [];
-  const zaehler = el("p", { class: "klein leise", role: "status" });
   const keine = el("div");
+  const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
+  const tabellenBox = el("div", {}, wurzel, seiten.wurzel);
+
+  const leiste = filterleiste({
+    suche: { label: "Name oder Cevi-Name", wert: zustand.frage },
+    filter: [
+      {
+        schluessel: "tag",
+        label: "Tag",
+        optionen: [["", "Alle Tags"], ...daten.tags.map((t) => [t.id, t.name])],
+        wert: zustand.filter.tag,
+      },
+      {
+        schluessel: "rolle",
+        label: "Rolle",
+        optionen: [
+          ["alle", "Alle Rollen"],
+          ["eltern", "Eltern"],
+          ["leitung", "Leitung"],
+          ["admin", "Admin"],
+        ],
+        wert: zustand.filter.rolle,
+      },
+      {
+        schluessel: "konto",
+        label: "Konto",
+        optionen: [
+          ["alle", "Alle Konten"],
+          ["aktiv", "Aktiv"],
+          ["offen", "Startpasswort offen"],
+          ["deaktiviert", "Deaktiviert"],
+        ],
+        wert: zustand.filter.konto,
+      },
+    ],
+    namen: { einzahl: "Person", mehrzahl: "Personen" },
+    beiAenderung: ({ suche, filter }) => {
+      zustand.frage = suche;
+      zustand.filter = filter;
+      seiten.anfang();
+      aktualisiere();
+    },
+  });
+
+  // Auswahlleiste (Muster «action-toolbar»): sagt, wie viele gewählt sind, und bietet die Sammelaktionen; Tags setzen und entziehen lassen sich zurücknehmen
   const auswahlLeiste = el("div", {
     class: "auswahlleiste",
     role: "region",
@@ -402,38 +299,29 @@ function zeichne(bereich, ctx, daten, neu) {
       e.box.eingabe.checked = gewaehlt.has(e.person.id);
     zeichneAuswahl();
   };
+  let offeneAktion = null; // "hinzufuegen" | "entfernen"
   function zeichneAuswahl() {
     auswahlLeiste.hidden = gewaehlt.size === 0;
+    if (gewaehlt.size === 0) offeneAktion = null;
     const n = gewaehlt.size;
-    auswahlLeiste.replaceChildren(
-      el("span", { role: "status" }, `${n} gewählt`),
-      knopf("Tag hinzufügen", {
+    const kopfZeile = el(
+      "div",
+      { class: "auswahlleiste-zeile" },
+      el("span", { role: "status", class: "auswahl-zahl" }, `${n} gewählt`),
+      knopf("Tag setzen", {
         klein: true,
         symbol: "tag",
-        onclick: () =>
-          sammelAktion({
-            art: "hinzufuegen",
-            auswahlIds: [...gewaehlt],
-            daten,
-            ctx,
-            neu,
-            danach: () => gewaehlt.clear(),
-          }),
+        "aria-expanded": String(offeneAktion === "hinzufuegen"),
+        onclick: () => oeffneAktion("hinzufuegen"),
       }),
-      knopf("Tag entfernen", {
+      knopf("Tag entziehen", {
         klein: true,
-        onclick: () =>
-          sammelAktion({
-            art: "entfernen",
-            auswahlIds: [...gewaehlt],
-            daten,
-            ctx,
-            neu,
-            danach: () => gewaehlt.clear(),
-          }),
+        "aria-expanded": String(offeneAktion === "entfernen"),
+        onclick: () => oeffneAktion("entfernen"),
       }),
       knopf("Auswahl aufheben", {
         klein: true,
+        art: "still",
         onclick: () => {
           gewaehlt.clear();
           nachAuswahl();
@@ -441,85 +329,171 @@ function zeichne(bereich, ctx, daten, neu) {
         },
       }),
     );
+    auswahlLeiste.replaceChildren(
+      kopfZeile,
+      offeneAktion ? aktionsFormular(offeneAktion) : false,
+    );
     alleBox.eingabe.checked =
       sichtbar.length > 0 && sichtbar.every((e) => gewaehlt.has(e.person.id));
   }
-  const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
-  const tabellenBox = el("div", {}, wurzel, seiten.wurzel);
-  const suchId = neueId("suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Name oder Cevi-Name",
-    autocomplete: "off",
-    oninput: () => {
-      zustand.frage = suche.value;
-      vonVorn();
-    },
-  });
-  suche.value = zustand.frage;
-  const vonVorn = () => {
-    seiten.anfang();
-    aktualisiere();
-  };
-  const tagWahl = auswahl({
-    label: "Tag",
-    optionen: [["", "Alle Tags"], ...daten.tags.map((t) => [t.id, t.name])],
-    wert: zustand.tag,
-  });
-  tagWahl.wurzel.classList.add("pe-filterfeld");
-  tagWahl.eingabe.addEventListener("change", () => {
-    zustand.tag = tagWahl.eingabe.value;
-    vonVorn();
-  });
-  const statusWahl = auswahl({
-    label: "Status",
-    optionen: [
-      ["alle", "Alle"],
-      ["offen", "Startpasswort offen"],
-      ["deaktiviert", "Deaktiviert"],
-    ],
-    wert: zustand.status,
-  });
-  statusWahl.wurzel.classList.add("pe-filterfeld");
-  statusWahl.eingabe.addEventListener("change", () => {
-    zustand.status = statusWahl.eingabe.value;
-    vonVorn();
-  });
-  const anzahl = (wert) => daten.personen.filter(FILTER[wert]).length;
-  const rollenFilter = filterGruppe({
-    beschriftung: "Rolle",
-    wert: zustand.rolle,
-    eintraege: [
-      { text: "Alle", wert: "alle" },
-      { text: "Eltern", wert: "eltern" },
-      { text: "Leitung", wert: "leitung" },
-      { text: "Admin", wert: "admin" },
-    ].map((e) => ({ ...e, n: anzahl(e.wert) })),
-    beiAenderung: (wert) => {
-      zustand.rolle = wert;
-      vonVorn();
-    },
-  });
-  // Die eigenen Auswahlfelder zeigen einen von aussen gesetzten Wert nicht an: Die Ansicht entsteht mit den Vorgaben neu
-  const zuruecksetzen = () => {
-    zustand.frage = "";
-    zustand.tag = "";
-    zustand.status = "alle";
-    zustand.rolle = "alle";
-    bereich.replaceChildren();
-    zeichne(bereich, ctx, daten, neu);
-    bereich.querySelector(".suche input")?.focus();
-  };
+  function oeffneAktion(art) {
+    offeneAktion = offeneAktion === art ? null : art;
+    zeichneAuswahl();
+    auswahlLeiste.querySelector(".auswahl-knopf, input")?.focus();
+  }
+
+  // Der Tag wird für die Auswahl gesetzt oder entzogen: sofort sichtbar, die Anfragen gehen nach der Frist (ctx.mitRueckgaengig)
+  function aktionsFormular(art) {
+    const hinzufuegen = art === "hinzufuegen";
+    const ids = [...gewaehlt];
+    const traeger = (tagId) =>
+      ids.filter((id) => tagsVon({ id }).some((e) => e.tag.id === tagId));
+    const verfuegbar = hinzufuegen
+      ? daten.tags
+      : daten.tags.filter((t) => traeger(t.id).length > 0);
+    if (verfuegbar.length === 0) {
+      return el(
+        "p",
+        { class: "auswahlleiste-hinweis" },
+        "Die gewählten Personen tragen keinen Tag.",
+      );
+    }
+    const tag = auswahl({
+      label: "Tag",
+      optionen: [
+        ["", "Tag wählen"],
+        ...verfuegbar.map((t) => [t.id, `${t.name} (${typName(t.typ)})`]),
+      ],
+      wert: "",
+    });
+    const rolle = hinzufuegen
+      ? feld({
+          label: "Rolle (optional)",
+          hilfe: "Freier Text, höchstens 50 Zeichen.",
+          maxlength: 50,
+        })
+      : null;
+    const fehlerText = el(
+      "p",
+      { class: "feld-fehler", role: "alert", hidden: true },
+      "Wähle einen Tag.",
+    );
+    const anwenden = knopf(hinzufuegen ? "Tag setzen" : "Tag entziehen", {
+      art: hinzufuegen ? "haupt" : "gefahr",
+      klein: true,
+      onclick: () => {
+        const tagId = tag.eingabe.value;
+        if (!tagId) {
+          fehlerText.hidden = false;
+          tag.wurzel.querySelector(".auswahl-knopf").focus();
+          return;
+        }
+        wende(art, tagId, ids, rolle?.eingabe.value.trim() || null);
+      },
+    });
+    return el(
+      "div",
+      { class: "auswahlleiste-formular" },
+      el("div", { class: "auswahlleiste-felder" }, tag.wurzel, rolle?.wurzel),
+      fehlerText,
+      el(
+        "div",
+        { class: "aktionen" },
+        anwenden,
+        knopf("Abbrechen", {
+          klein: true,
+          art: "still",
+          onclick: () => oeffneAktion(art),
+        }),
+      ),
+    );
+  }
+
+  function wende(art, tagId, ids, rolleText) {
+    const hinzufuegen = art === "hinzufuegen";
+    const tag = daten.tags.find((t) => t.id === tagId);
+    const hat = (id) => tagsVon({ id }).some((e) => e.tag.id === tagId);
+    const ziele = hinzufuegen
+      ? ids.filter((id) => !hat(id))
+      : ids.filter((id) => hat(id));
+    const alt = new Map(
+      ziele.map((id) => [id, daten.tagsJePerson.get(id)?.slice()]),
+    );
+    const setzeLokal = () => {
+      for (const id of ziele) {
+        const liste = (daten.tagsJePerson.get(id) ?? []).filter(
+          (e) => e.tag.id !== tagId,
+        );
+        if (hinzufuegen) liste.push({ tag, rolle: rolleText });
+        daten.tagsJePerson.set(id, sortiereTags(liste));
+      }
+      frischeTags(ziele);
+      aktualisiere();
+    };
+    const holeZurueck = () => {
+      for (const [id, liste] of alt) {
+        if (liste === undefined) daten.tagsJePerson.delete(id);
+        else daten.tagsJePerson.set(id, liste);
+      }
+      frischeTags(ziele);
+      aktualisiere();
+    };
+    if (ziele.length === 0) {
+      ctx.melde(
+        hinzufuegen
+          ? `Alle gewählten Personen tragen «${tag.name}» schon.`
+          : `Keine der gewählten Personen trägt «${tag.name}».`,
+        "info",
+      );
+      return;
+    }
+    gewaehlt.clear();
+    offeneAktion = null;
+    nachAuswahl();
+    ctx.mitRueckgaengig({
+      text: hinzufuegen
+        ? `«${tag.name}» gilt für ${personen(ziele.length)}`
+        : `«${tag.name}» ist ${personen(ziele.length)} entzogen`,
+      ansicht: { weg: setzeLokal, zurueck: holeZurueck },
+      ausfuehren: () =>
+        nacheinander(
+          ziele.map(
+            (id) => () =>
+              hinzufuegen
+                ? anfrage(
+                    "PUT",
+                    `/api/v1/admin/tags/${tagId}/personen/${id}`,
+                    rolleText ? { rolle: rolleText } : {},
+                  )
+                : anfrage(
+                    "DELETE",
+                    `/api/v1/admin/tags/${tagId}/personen/${id}`,
+                  ),
+          ),
+        ),
+      fehlertext,
+      danach: (misslungen) => {
+        if (misslungen > 0) {
+          ctx.melde(
+            `«${tag.name}»: ${misslungen} von ${ziele.length} Änderungen gingen nicht durch. Prüfe die Liste und versuche es nochmals.`,
+            "warn",
+          );
+        }
+        // Der Stand der API ist die Wahrheit: Liste neu holen
+        neu();
+      },
+    });
+  }
+
   function aktualisiere() {
     const frage = zustand.frage.trim().toLowerCase();
+    const f = zustand.filter;
     treffer = sortiere(
       eintraege.filter(
         (e) =>
-          FILTER[zustand.rolle](e.person) &&
-          STATUS[zustand.status](e.person) &&
-          (!zustand.tag || e.tagIds.includes(zustand.tag)) &&
+          ROLLE[f.rolle](e.person) &&
+          KONTO[f.konto](e.person) &&
+          (!f.tag || e.tagIds.includes(f.tag)) &&
           `${e.person.name} ${e.person.ceviName ?? ""} ${e.person.benutzername ?? ""}`
             .toLowerCase()
             .includes(frage),
@@ -531,14 +505,18 @@ function zeichne(bereich, ctx, daten, neu) {
     sichtbar = treffer.slice(von, bis);
     koerper.replaceChildren(...sichtbar.map((e) => e.tr));
     tabellenBox.hidden = treffer.length === 0;
-    zaehler.textContent = `${treffer.length} von ${daten.personen.length} Personen`;
+    leiste.setzeTreffer(treffer.length, daten.personen.length);
     keine.replaceChildren(
       treffer.length === 0
         ? leerKarte(
             frage.trim()
               ? `Keine Treffer für «${zustand.frage.trim()}».`
-              : "Keine Personen für diesen Filter.",
-            [knopf("Filter zurücksetzen", { onclick: zuruecksetzen })],
+              : "Keine Personen für diese Filter.",
+            [
+              knopf("Filter zurücksetzen", {
+                onclick: () => leiste.setzeAlles(),
+              }),
+            ],
           )
         : [],
     );
@@ -551,31 +529,15 @@ function zeichne(bereich, ctx, daten, neu) {
       { index: 2, schluessel: "tags", name: "Tags" },
     ],
     zustand.sort,
-    vonVorn,
+    () => {
+      seiten.anfang();
+      aktualisiere();
+    },
   );
   aktionenKopfVerstecken(wurzel);
   aktualisiere();
-  bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Name oder Cevi-Name"),
-        icon("lupe"),
-        suche,
-      ),
-      tagWahl.wurzel,
-      statusWahl.wurzel,
-      rollenFilter.wurzel,
-    ),
-    auswahlLeiste,
-    zaehler,
-    keine,
-    tabellenBox,
-  );
-  // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn kein Dialog den Fokus hält
+  bereich.append(leiste.wurzel, auswahlLeiste, keine, tabellenBox);
+  // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn keine Seite im Fluss den Fokus hält
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.person.id === zustand.fokus);
     zustand.fokus = null;

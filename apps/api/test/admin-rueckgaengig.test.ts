@@ -334,7 +334,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
       "mitteilungen.js",
       "personen-blatt.js",
       "plattform.js",
-      "lager-mitglieder.js",
+      "lager-rechte.js",
     ]) {
       expect(lies(datei), datei).toMatch(/zweiStufig|zweistufig/);
     }
