@@ -699,3 +699,16 @@
     font-weight: 700;
   }
 }
+
+.lg-person .ava,
+.lg-chip .ava {
+  flex: none;
+}
+
+/* Im Assistenten steht die Personenwahl schon in der Karte des Schritts */
+.lg-schrittinhalt .lg-wahlkarte {
+  max-width: none;
+  padding: 0;
+  background: none;
+  border: 0;
+}

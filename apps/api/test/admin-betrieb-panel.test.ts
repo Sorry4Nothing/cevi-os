@@ -183,8 +183,9 @@ describe("Quelltext der Bereiche (#593)", () => {
 
   test("Lager: ohne Lagerleitung ist «Aktivieren» gesperrt und erklärt", () => {
     const lager = quelle("lager.js");
-    expect(lager).toContain('m.rolle === "lagerleitung"');
-    expect(lager).toContain("disabled: ohneLeitung");
+    expect(lager).toContain('rolle("lagerleitung") > 0');
+    expect(lager).toContain("aktivieren.haupt.disabled = true");
+    expect(lager).toContain('"aria-describedby", "lg-ohne-leitung"');
     expect(lager).toContain("Zum Aktivieren fehlt die Lagerleitung");
   });
 
