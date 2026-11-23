@@ -1414,6 +1414,11 @@ fieldset .feld .aw {
   width: 11rem;
 }
 
+/* Der Pfeil der Auswahlfelder steht wie bei den Terminen der Website in der leisen Textfarbe (website/termine.css), nicht im Akzent (#607) */
+.aw .aw-dreieck {
+  color: var(--on-surface-variant);
+}
+
 .scrollfeld {
   max-height: 15rem;
   overflow-y: auto;

@@ -413,7 +413,7 @@ Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.
 - [ ] **23.3** Kennzahlen: Jede Kachel nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Mit «Bewegung reduzieren» schiebt sich die Zahl nicht ein, und die Säulen wachsen nicht.
 - [ ] **23.4** Zustand: Jeder Dienst (Website, Kalender-Abgleich) steht mit Name, Zustand als Wort mit Symbol und einem Satz; Verweis mindestens 44 Pixel hoch. Fehlt das Recht, fehlt der Dienst.
 - [ ] **23.5** Zähler in der Unterleiste und der Bereichsauswahl sind Kreise (24 Pixel, Zahl mittig, bis 99); der Screenreader hört «<Zahl> offen» nach dem Namen. Der Kreis hat in erzwungenen Farben einen Rand.
-- [ ] **23.6** Auswahlfelder: Alle `select` der Verwaltung werden zum Auswahlfeld der Website (`auswahl.js`, dieselben Masse: 52 Pixel hoch, 17 Pixel, Radius 12, Pfeil, Liste mit Haken); kein `select` zeigt die Liste des Browsers, kein Auswahlfeld hat `multiple`. Geprüft per Durchgang durch alle Seiten der Navigation.
+- [ ] **23.6** Auswahlfelder: Alle `select` der Verwaltung werden zum Auswahlfeld der Website (`auswahl.js`, dieselben Masse: 52 Pixel hoch, 17 Pixel, Radius 12, Liste mit Haken); kein `select` zeigt die Liste des Browsers, kein Auswahlfeld hat `multiple`. Oben in den Listen (Filterleiste) stehen sie wie bei den Terminen der Website: 220 Pixel breit, Beschriftung 16 Pixel mit 8 Pixel Abstand, Pfeil in der leisen Textfarbe. Geprüft per Durchgang durch alle Seiten der Navigation.
 - [ ] **23.7** Navigation: «Komponenten» und «Anmeldungen» stehen nirgends im Menü; `#anlaesse/anmeldungen` führt zur Liste der Anlässe, mit Kennung zum Anlass.
 
 ### Stand der Prüfung (#607)
