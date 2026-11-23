@@ -290,7 +290,7 @@ Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf
 - [ ] **17.2** Die Plattform zeigt jeden Zustand als Chip mit Wort («Frei», «In Wartung», «Offen», «Gesperrt»); die Knöpfe tragen den Bereich im Namen («Aufheben: Website»). «Aufheben» fragt im Knopf («Wirklich aufheben?»), Esc nimmt die Frage zurück.
 - [ ] **17.3** Das geplante Ende ist Datum und Uhrzeit in eigenen Feldern mit Beschriftung; eine unvollständige Angabe nennt der Fehlertext beim Feld, der Fokus geht dorthin.
 - [ ] **17.4** Der Wochentag der Erinnerung ist eine Gruppe mit Legende; jeder Tag hat den vollen Namen für Screenreader («Montag», sichtbar «Mo»), die Pfeiltasten wechseln den Tag. Die Vorschau der nächsten Termine ist eine Liste mit Legende; der nächste Termin trägt Rahmen und steht an erster Stelle.
-- [ ] **17.5** Die Vorschau der Mitteilung ist für Screenreader ausgeblendet (`aria-hidden`), die Angaben stehen in den Feldern selbst; «Geht an» und «Rollen» stehen als Liste mit Name und Wert. Der Knopf «Senden» fragt im Knopf, die Frage nennt Empfänger und Rollen.
+- [ ] **17.5** Die Vorschau der Mitteilung ist für Screenreader ausgeblendet (`aria-hidden`), die Angaben stehen in den Feldern selbst; «Geht an» und «Rollen» stehen als Liste mit Name und Wert. Der Knopf «Senden» fragt im Knopf, die Frage nennt Empfänger und Rollen. Seit #625 gilt dafür Abschnitt 35.
 - [ ] **17.6** Das Diagramm der Anfragen hat einen Satz mit allen Werten, eine Ablesung mit Pfeiltasten und eine Tabelle («Als Tabelle anzeigen»); der Fehleranteil hat Legende und Zahl, nicht nur Farbe.
 - [ ] **17.7** Die Seite System aktualisiert sich nie von selbst; «Aktualisieren» meldet «Zahlen aktualisiert.» in der Live-Region.
 - [ ] **17.8** Anmeldung: Fehler, «zu viele Versuche» (Chip mit Wort) und der zweite Faktor (Codefeld mit sechs Zellen, Einfügen, Autofill) sind Meldungen mit `role="alert"`; der Fokus liegt auf der Meldung oder dem Titel. Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite zurück.
@@ -550,6 +550,24 @@ Dieser Abschnitt gilt für `konto.js`, `konto.css` und den Link im Kopf (`rahmen
 ### Stand der Prüfung (#621)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 36.1 bis 36.9 mit Stufenleitung (Telefon speichern, ändern, entfernen, ungültig; Schalter; Bild hochladen und entfernen; Passwort falsch, zu kurz, ändern und zurücksetzen; überall abmelden) und Abteilungsleitung (Karte, Rollen), 36.10 bei 390, 720, 1024, 1440 und 2560 Pixeln, Tag und Nacht, 36.1 und 36.6 mit Tastatur (Tabreihenfolge, Fokusring 3 Pixel), 36.11 mit `reducedMotion: reduce`. **Nicht geprüft:** Screenreader (NVDA, VoiceOver), erzwungene Farben, Webmaster mit eigenem zweitem Faktor (nur der Stand der Karte), Zoom 400 %.
+
+## 35. Verwaltung: Mitteilungen an Gruppen und Rollen (#625)
+
+Dieser Abschnitt gilt für `mitteilungen.js` und den Teil «Mitteilungen» in `system.css`. Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Die Seite hat eine Liste von Zielen (Gruppe mit Rollen), eine Suche nach Gruppen (Muster «action-search-bar») und rechts die Vorschau mit dem Push und den Zahlen.
+
+- [ ] **35.1** Die Suche nach Gruppen ist ein Eingabefeld mit `role="combobox"`, `aria-controls` auf die Liste (`role="listbox"`) und `aria-activedescendant` auf die markierte Zeile (`role="option"`, `aria-selected`). Pfeil auf und ab markieren, Enter fügt hinzu (und sendet nicht), Escape leert die Suche. Der Fokus bleibt im Feld; das Hinzufügen und Entfernen sagt die Live-Region an («Material-Team hinzugefügt.»). Die markierte Zeile trägt einen Balken links, nicht nur eine Farbe.
+- [ ] **35.2** Die Art der Gruppe (Alle, Stufen, Teams, Funktionen, Lager, Anlässe) ist eine Gruppe von Schaltflächen mit `aria-pressed` und der Zahl der noch wählbaren Gruppen; Arten ohne Gruppe fehlen. Die Zeilen nennen Name und Art (bei Teams, Funktionen, Lagern und Anlässen die Zahl der Mitglieder), das Plus ist Zierde.
+- [ ] **35.3** Jedes Ziel ist ein Listeneintrag mit Name, Art als Wort und «Entfernen» (Name im Aufruf: «Entfernen: Artemis»). Die Rollen sind Schaltflächen mit `aria-pressed` in einer Gruppe «Rollen für <Gruppe>», 44 Pixel hoch; gewählt zeigt ein Haken und die Füllung, nie nur die Farbe. Bei einer Stufe: Kinder (über die Eltern), Leitende, Stufenleitung; bei allen anderen Gruppen: Alle Mitglieder, Verantwortliche.
+- [ ] **35.4** Ein Ziel ohne Rolle ist rot umrandet, nennt «Keine Rolle» und den Satz «Wähle mindestens eine Rolle, sonst zählt das Ziel nicht.» (mit Symbol); «Senden» stoppt mit einer Meldung (`role="alert"`, Fokus darauf), die Gesamtzahl sagt «Wähle bei jedem Ziel mindestens eine Rolle.»
+- [ ] **35.5** Die Vorschau zeigt den Push (für Screenreader ausgeblendet, die Angaben stehen in den Feldern), die Gesamtzahl der Konten als Zustandsmeldung (`role="status"`, `aria-busy` beim Zählen) und je Ziel eine Zeile mit Satz und Zahl. Doppelte Personen nennt ein Hinweis («Wer in mehreren Zielen steht, zählt im Gesamttotal einmal.»). Kein Name eines Kindes oder einer Person steht irgendwo.
+- [ ] **35.6** «Alle aktiven Konten der Abteilung» ist ein Ankreuzfeld; ist es gewählt, ist die Auswahl der Ziele ausgeblendet (nicht nur grau) und die Vorschau zählt alle Konten.
+- [ ] **35.7** «Senden» fragt im Knopf («Wirklich an 8 Konten (die Leitenden von «Artemis») senden?»), ein zweiter Klick sendet, Escape nimmt die Frage zurück. Ändern sich Ziele oder Zahl, gilt der nächste Klick wieder als erster. Eine Wahl ohne Konten stoppt mit einer Meldung; während der Zählung sagt eine Meldung «Einen Moment».
+- [ ] **35.8** Hell, Dunkel und «Bewegung reduzieren»: Ein neues Ziel gleitet nur bei erlaubter Bewegung ein, die Rollen blenden ihren Zustand nur dann weich um. Mit erzwungenen Farben bleiben Haken, Rand und Balken sichtbar.
+- [ ] **35.9** 320, 390, 720, 1440 und 1920 Pixel: nichts scrollt waagrecht; auf dem Handy entfällt der innere Rahmen der Empfänger, «Entfernen» steht rechts neben dem Namen, die Rollen brechen um. Die Liste der Gruppen scrollt in ihrem Rahmen (höchstens 16 rem), nicht die Seite.
+
+### Stand der Prüfung (#625)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Demo-Daten geprüft: 35.1 bis 35.7 mit Tastatur und Maus (Titel leer, keine Wahl, Ziel ohne Rolle, Senden in zwei Stufen, «Alle»), 35.9 bei 390, 1440 und 1920 Pixel, Hell und Dunkel (Bilder). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben, Kontrastwerte mit einem Messwerkzeug, Bewegung reduzieren im Browser.
 
 ## 31. Website: «Nach oben» und Aufruf, Verwaltung: Kalender-Standard und Raumanfragen (#622)
 
