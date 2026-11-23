@@ -432,12 +432,12 @@ a.laden-knopf--bestellen {
   outline-offset: -3px;
 }
 
-/* Runder Knopf in der Ecke: öffnet das schnelle Hinzufügen (für Finger; mit der Maus erscheint der Streifen beim Zeigen) */
+/* Runder Knopf in der Ecke: öffnet das schnelle Hinzufügen. Nur auf Geräten ohne Zeigen (Touch); mit der Maus erscheint der Streifen beim Zeigen, mit der Tastatur beim Fokus auf der Kachel */
 .laden-plus {
   position: absolute;
   right: 0.5rem;
   bottom: 0.5rem;
-  display: grid;
+  display: none;
   place-items: center;
   width: 2.75rem;
   height: 2.75rem;
@@ -450,9 +450,15 @@ a.laden-knopf--bestellen {
   cursor: pointer;
 }
 
-.schnell-offen .laden-plus,
-.laden-kachel:focus-within .laden-plus:not(:focus) {
-  display: none;
+@media (hover: none) {
+  .laden-plus {
+    display: grid;
+  }
+
+  .schnell-offen .laden-plus,
+  .laden-kachel:focus-within .laden-plus:not(:focus) {
+    display: none;
+  }
 }
 
 /* Schnelles Hinzufügen: ein Streifen am unteren Rand der Kachel, sonst unter dem Rand verborgen */
@@ -471,16 +477,11 @@ a.laden-knopf--bestellen {
   pointer-events: auto;
 }
 
-@media (hover: hover) and (min-width: 40rem) {
+@media (hover: hover) {
   .laden-artikel:hover .laden-schnell-ort {
     translate: 0;
     opacity: 1;
     pointer-events: auto;
-  }
-
-  /* Der Streifen ersetzt das Plus, wie in der Vorlage */
-  .laden-artikel:hover .laden-plus {
-    display: none;
   }
 
   .laden-schnell-zu {
@@ -538,7 +539,7 @@ a.laden-knopf--bestellen {
   display: grid;
 }
 
-@media (hover: hover) and (min-width: 40rem) {
+@media (hover: hover) {
   .laden-schnell-zu:not([hidden]) {
     display: none;
   }
@@ -1547,4 +1548,22 @@ a.laden-knopf--bestellen {
   .laden-dichte button[aria-pressed="true"] {
     outline: 2px solid Highlight;
   }
+}
+
+/* ===== Besucher ohne Konto: Hinweis mit dem Weg zur Anmeldung ===== */
+
+.laden-anmelden {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.laden-anmelden .meta {
+  margin: 0;
+}
+
+/* Im Kopf des Ladens steht der Hinweis schon als Notiz daneben: dort nur der Knopf */
+.laden-leiste-korb .laden-anmelden .meta {
+  display: none;
 }

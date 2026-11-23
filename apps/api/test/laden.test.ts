@@ -139,6 +139,7 @@ describe("Laden lesen", () => {
       name: a.name,
       preisRappen: 1500,
       mediumId: null,
+      groessenart: "liste",
       varianten: ["S", "M"],
       hinweis: "Hinweis",
       verfuegbar: true,
@@ -434,7 +435,11 @@ describe("Verwaltung", () => {
     ] as const) {
       for (const [m, pfad, body] of [
         ["GET", "/admin/laden/artikel"],
-        ["POST", "/admin/laden/artikel", { name: "X", preisRappen: 1 }],
+        [
+          "POST",
+          "/admin/laden/artikel",
+          { name: "X", preisRappen: 1, groessenart: "einheit" },
+        ],
         ["GET", "/admin/laden/bestellungen"],
         ["GET", "/admin/laden/einstellungen"],
         ["PUT", "/admin/laden/einstellungen", { uebergabearten: ["X"] }],
@@ -451,6 +456,7 @@ describe("Verwaltung", () => {
     const r = await aufruf(admin, "POST", "/admin/laden/artikel", {
       name: "  Foulard  ",
       preisRappen: 2500,
+      groessenart: "liste",
       varianten: ["Rot", "Blau"],
       hinweis: "Nur mit Prüfung",
     });
@@ -462,14 +468,25 @@ describe("Verwaltung", () => {
       { name: "X", preisRappen: -1 },
       { name: "X", preisRappen: 1_000_001 },
       { name: "X", preisRappen: 12.5 },
-      { name: "X", preisRappen: 1, varianten: ["S", "s"] },
       {
         name: "X",
         preisRappen: 1,
+        groessenart: "liste",
+        varianten: ["S", "s"],
+      },
+      {
+        name: "X",
+        preisRappen: 1,
+        groessenart: "liste",
         varianten: Array.from({ length: 21 }, (_, i) => `v${i}`),
       },
       { name: "X", preisRappen: 1, abteilungId: welt.demoAbteilungId },
-      { name: "X", preisRappen: 1, mediumId: randomUUID() },
+      {
+        name: "X",
+        preisRappen: 1,
+        groessenart: "einheit",
+        mediumId: randomUUID(),
+      },
     ]) {
       expect(
         (await aufruf(admin, "POST", "/admin/laden/artikel", schlecht)).status,
@@ -503,6 +520,78 @@ describe("Verwaltung", () => {
     expect(
       (await aufruf(admin, "DELETE", `/admin/laden/artikel/${id}`)).status,
     ).toBe(404);
+  });
+
+  test("Grösse ist Pflicht: Einheitsgrösse oder eine Liste mit mindestens zwei Grössen (422 mit Feld)", async () => {
+    const neu = (body: Record<string, unknown>) =>
+      aufruf(admin, "POST", "/admin/laden/artikel", {
+        name: "Gurt",
+        preisRappen: 100,
+        ...body,
+      });
+    // Ohne Angabe, mit Liste ohne Art, zu kurze Liste, Einheit mit Liste
+    for (const [body, feld, code] of [
+      [{}, "groessenart", "GROESSE_FEHLT"],
+      [{ varianten: ["S", "M"] }, "groessenart", "GROESSE_FEHLT"],
+      [{ groessenart: "liste" }, "varianten", "GROESSE_UNGUELTIG"],
+      [
+        { groessenart: "liste", varianten: ["S"] },
+        "varianten",
+        "GROESSE_UNGUELTIG",
+      ],
+      [
+        { groessenart: "einheit", varianten: ["S", "M"] },
+        "varianten",
+        "GROESSE_UNGUELTIG",
+      ],
+    ] as const) {
+      const r = await neu(body);
+      expect(r.status, JSON.stringify(body)).toBe(422);
+      expect(await json(r)).toMatchObject({ code, feld });
+    }
+    const einheit = await json(await neu({ groessenart: "einheit" }));
+    const liste = await json(
+      await neu({ groessenart: "liste", varianten: ["S", "M"] }),
+    );
+    const lesen = async (id: string) =>
+      (
+        await json(await aufruf(admin, "GET", "/admin/laden/artikel"))
+      ).artikel.find((a: { id: string }) => a.id === id);
+    expect(await lesen(einheit.id)).toMatchObject({
+      groessenart: "einheit",
+      varianten: [],
+    });
+    expect(await lesen(liste.id)).toMatchObject({
+      groessenart: "liste",
+      varianten: ["S", "M"],
+    });
+    // Ändern: eine Liste ohne Art ist ein Fehler, die Art allein wechselt, ohne Angaben bleibt alles
+    const aendern = (id: string, body: Record<string, unknown>) =>
+      aufruf(admin, "PATCH", `/admin/laden/artikel/${id}`, body);
+    expect((await aendern(liste.id, { varianten: ["A", "B"] })).status).toBe(
+      422,
+    );
+    expect((await aendern(liste.id, { groessenart: "liste" })).status).toBe(
+      422,
+    );
+    expect((await aendern(liste.id, { preisRappen: 5 })).status).toBe(204);
+    expect((await lesen(liste.id)).varianten).toEqual(["S", "M"]);
+    expect((await aendern(liste.id, { groessenart: "einheit" })).status).toBe(
+      204,
+    );
+    expect(await lesen(liste.id)).toMatchObject({
+      groessenart: "einheit",
+      varianten: [],
+    });
+    expect(
+      (
+        await aendern(einheit.id, {
+          groessenart: "liste",
+          varianten: ["X", "Y", "Z"],
+        })
+      ).status,
+    ).toBe(204);
+    expect((await lesen(einheit.id)).varianten).toEqual(["X", "Y", "Z"]);
   });
 
   test("Artikel und Bestellungen einer anderen Abteilung sind 404, auch für deren Abteilungsleitung", async () => {

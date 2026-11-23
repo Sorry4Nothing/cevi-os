@@ -47,6 +47,43 @@ const text = (max: number) =>
 const eindeutig = (liste: string[]) =>
   new Set(liste.map((s) => s.toLocaleLowerCase("de-CH"))).size === liste.length;
 
+// Pflichtangabe «Grösse»: ausdrücklich «Einheitsgrösse» (gespeichert als leere Liste) oder eine Liste mit mindestens zwei Einträgen. Die Art wird nicht gespeichert, sie folgt aus der Liste
+export const GROESSENART = ["einheit", "liste"] as const;
+const groessenart = z.enum(GROESSENART);
+export const GROESSE_FEHLT = {
+  code: "GROESSE_FEHLT",
+  feld: "groessenart",
+  message:
+    "Gib die Grösse an: Einheitsgrösse oder eine Liste mit mindestens zwei Grössen.",
+} as const;
+export const GROESSE_UNGUELTIG = {
+  code: "GROESSE_UNGUELTIG",
+  feld: "varianten",
+  message:
+    "Eine Liste braucht mindestens zwei verschiedene Grössen. Gibt es nur eine, wähle Einheitsgrösse.",
+} as const;
+// Liefert den Fehler oder die Liste, die gespeichert wird (null: nichts zu ändern). Beim Anlegen ist die Art Pflicht; beim Ändern bleibt ohne Art und ohne Liste alles, wie es ist
+export function pruefeGroesse(
+  b: { groessenart?: (typeof GROESSENART)[number]; varianten?: string[] },
+  anlegen: boolean,
+):
+  | { fehler: typeof GROESSE_FEHLT | typeof GROESSE_UNGUELTIG }
+  | { varianten: string[] | null } {
+  if (b.groessenart === undefined) {
+    return anlegen || b.varianten !== undefined
+      ? { fehler: GROESSE_FEHLT }
+      : { varianten: null };
+  }
+  if (b.groessenart === "einheit") {
+    return b.varianten !== undefined && b.varianten.length > 0
+      ? { fehler: GROESSE_UNGUELTIG }
+      : { varianten: [] };
+  }
+  return b.varianten !== undefined && b.varianten.length >= 2
+    ? { varianten: b.varianten }
+    : { fehler: GROESSE_UNGUELTIG };
+}
+
 const artikelFelder = {
   name: text(100),
   preisRappen: z.number().int().min(0).max(1_000_000),
@@ -59,6 +96,7 @@ const artikelFelder = {
 export const artikelAnlegenSchema = z.strictObject({
   name: artikelFelder.name,
   preisRappen: artikelFelder.preisRappen,
+  groessenart: groessenart.optional(),
   mediumId: artikelFelder.mediumId.optional(),
   varianten: artikelFelder.varianten.optional(),
   hinweis: artikelFelder.hinweis.optional(),
@@ -66,13 +104,14 @@ export const artikelAnlegenSchema = z.strictObject({
   reihenfolge: artikelFelder.reihenfolge.optional(),
 });
 // Ohne Schlüssel bleibt der Wert; null löscht Bild und Hinweis
-export const artikelAendernSchema = z.strictObject(
-  Object.fromEntries(
+export const artikelAendernSchema = z.strictObject({
+  ...(Object.fromEntries(
     Object.entries(artikelFelder).map(([n, s]) => [n, s.optional()]),
   ) as {
     [K in keyof typeof artikelFelder]: z.ZodOptional<(typeof artikelFelder)[K]>;
-  },
-);
+  }),
+  groessenart: groessenart.optional(),
+});
 
 export const einstellungSchema = z.strictObject({
   uebergabearten: z
@@ -110,6 +149,8 @@ export const artikelAnsicht = (a: Artikel) => ({
   name: a.name,
   preisRappen: a.preisRappen,
   mediumId: a.mediumId,
+  groessenart:
+    a.varianten.length > 0 ? ("liste" as const) : ("einheit" as const),
   varianten: a.varianten,
   hinweis: a.hinweis,
   verfuegbar: a.verfuegbar,

@@ -22,6 +22,7 @@ import {
   ladeUebergabearten,
   listeSchema,
   MAX_ARTIKEL,
+  pruefeGroesse,
   STATUS,
   WECHSEL,
 } from "../../laden/laden.js";
@@ -89,7 +90,9 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           const person = c.get("person");
           // Ohne Objekt im Pfad: erst das Recht
           pruefeRecht(person);
-          const b = c.req.valid("json");
+          const { groessenart, ...b } = c.req.valid("json");
+          const groesse = pruefeGroesse({ groessenart, ...b }, true);
+          if ("fehler" in groesse) return c.json(groesse.fehler, 422);
           if (
             b.mediumId &&
             !(await istLadenBild(db, person.abteilungId, b.mediumId))
@@ -113,7 +116,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
                 name: b.name,
                 preisRappen: b.preisRappen,
                 mediumId: b.mediumId ?? null,
-                varianten: b.varianten ?? [],
+                varianten: groesse.varianten ?? [],
                 hinweis: b.hinweis ?? null,
                 verfuegbar: b.verfuegbar ?? true,
                 // Ohne Angabe ans Ende
@@ -143,12 +146,15 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         async (c) => {
           const person = c.get("person");
           const { id } = c.req.valid("param");
-          const b = c.req.valid("json");
+          const { groessenart, ...b } = c.req.valid("json");
           // Erst das Objekt (404), dann das Recht (403), dann die Eingabe gegen die Datenbank
           if (!(await ladeEinenArtikel(db, person.abteilungId, id))) {
             throw new HTTPException(404);
           }
           pruefeRecht(person);
+          const groesse = pruefeGroesse({ groessenart, ...b }, false);
+          if ("fehler" in groesse) return c.json(groesse.fehler, 422);
+          if (groesse.varianten) b.varianten = groesse.varianten;
           if (
             b.mediumId &&
             !(await istLadenBild(db, person.abteilungId, b.mediumId))

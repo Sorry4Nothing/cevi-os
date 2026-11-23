@@ -1,13 +1,13 @@
 // Lädeli (#566): Laden mit Artikelfenster, Warenkorb und Bestellübersicht auf dem Raster, das der Server erzeugt hat (src/website/laden.ts).
 // Aufbau, Zustände und Abfolge folgen einem Ladenmuster: Kachel mit schnellem Hinzufügen, Artikelfenster mit grossem Bild, Variante und Menge, Warenkorb als Blatt von rechts, Bestellübersicht als Karte mit Summe und der einen Hauptaktion.
-// Alles bis zum Absenden läuft ohne Konto und ohne Server: Artikel, Preise, Varianten und Übergabearten stehen im Markup, der Korb liegt im Browser (localStorage: Artikel-ID, Variante, Menge, keine Personendaten). Erst «Bestellen» braucht eine Sitzung.
-// Abfragen: beim Laden einmal GET /laden (prüft die Sitzung; ohne Sitzung 401) und mit Sitzung GET /laden/bestellungen/meine; danach nur bei einer Handlung. Preise und Summe rechnet beim Bestellen der Server, die Anzeige hier ist die Vorschau.
+// Ansehen geht ohne Konto: Artikel, Preise, Varianten und Übergabearten stehen im Markup, das Artikelfenster zeigt Foto, Name, Preis und Beschreibung. Bestellen und Warenkorb gibt es nur mit Konto; Besucher bekommen statt der Bedienelemente den Hinweis «Zum Bestellen anmelden». Der Korb liegt im Browser (localStorage: Artikel-ID, Variante, Menge, keine Personendaten) und wird erst mit einer Sitzung gelesen und geschrieben.
+// Abfragen: beim Laden einmal GET /laden (prüft die Sitzung; ohne Sitzung 401) und mit Sitzung GET /laden/bestellungen/meine; danach nur bei einer Handlung. Bis die Antwort da ist, bleiben die Bedienelemente verborgen (kein Flackern). Preise und Summe rechnet beim Bestellen der Server, die Anzeige hier ist die Vorschau.
 // Ansichten sind reine Funktionen von Daten zu einer Beschreibung (tm.js: h, baue): kein innerHTML, kein style-Attribut (CSP). Stil: laden.css. Auswahlfelder wertet auswahl.js auf.
 import "./auswahl.js";
 import { api, bandView, baue, h, loginLink } from "./tm.js";
 
 const SPEICHER = "laden-korb";
-// Nach der Anmeldung geht die Bestellübersicht wieder auf
+// Nach der Anmeldung geht der Artikel («a:<id>») oder die Bestellübersicht («1») wieder auf
 const WEITER = "laden-weiter";
 const BLITZ_MS = 1600;
 // Bis zu so vielen Varianten stehen als Knöpfe im schnellen Hinzufügen der Kachel
@@ -222,6 +222,29 @@ export const korbKnopfView = (z) =>
     ),
   );
 
+// Besucher ohne Sitzung: ein ruhiger Hinweis mit dem Weg zur Anmeldung; weiter: Artikel, zu dem sie danach zurückkehren
+export const anmeldeView = (z, weiter) =>
+  h(
+    "div",
+    { class: "laden-anmelden" },
+    h(
+      "p",
+      { class: "meta" },
+      "Zum Bestellen brauchst du ein Konto der Abteilung.",
+    ),
+    h(
+      "a",
+      {
+        class: "laden-knopf laden-knopf--haupt",
+        href: loginLink(z.pfad),
+        "data-aktion": "anmelden",
+        "data-f": weiter ? "anmelden-artikel" : "anmelden",
+        "data-weiter": weiter ? `a:${weiter}` : "1",
+      },
+      "Zum Bestellen anmelden",
+    ),
+  );
+
 // Bleibt beim Scrollen am unteren Rand stehen, sobald etwas im Korb liegt (die Seite ist lang, der Kopf des Ladens scrollt weg)
 export const schwebeView = (z) =>
   stueck(z.korb) === 0
@@ -395,7 +418,7 @@ export function artikelView(a, wahl, z) {
           h("p", { class: "preis" }, preisText(a.preisRappen)),
           a.hinweis ? h("p", { class: "beschrieb" }, a.hinweis) : null,
         ),
-        a.varianten.length > 0
+        a.varianten.length > 0 && z.konto === "an"
           ? h(
               "fieldset",
               { class: "laden-wahl" },
@@ -423,58 +446,65 @@ export function artikelView(a, wahl, z) {
               ),
             )
           : null,
-        h(
-          "div",
-          { class: "laden-kauf" },
-          h(
-            "div",
-            { class: "laden-kauf-zeile" },
-            mengeView({
-              name: a.name,
-              menge: wahl.menge,
-              max: z.grenzen.menge,
-              f: "wahl",
-            }),
-            h(
-              "button",
-              {
-                type: "button",
-                class: "laden-knopf laden-knopf--haupt laden-dazu",
-                "data-aktion": "dazu",
-                "data-f": "dazu",
-                "aria-disabled": fehlt || !a.verfuegbar ? "true" : null,
-              },
-              h(
-                "span",
-                {
-                  class: "laden-tausch",
-                  "data-rolle": "tausch",
-                  "data-wert": tausch,
-                },
-                beschriftung,
-              ),
-            ),
-          ),
-          h(
-            "p",
-            { class: "meta laden-imkorb" },
-            imKorb > 0
-              ? [
-                  `${stueckText(imKorb)} im Warenkorb · `,
+        a.varianten.length > 0 && z.konto !== "an"
+          ? h("p", { class: "meta" }, `Grössen: ${a.varianten.join(", ")}`)
+          : null,
+        z.konto === "aus"
+          ? anmeldeView(z, a.id)
+          : z.konto !== "an"
+            ? null
+            : h(
+                "div",
+                { class: "laden-kauf" },
+                h(
+                  "div",
+                  { class: "laden-kauf-zeile" },
+                  mengeView({
+                    name: a.name,
+                    menge: wahl.menge,
+                    max: z.grenzen.menge,
+                    f: "wahl",
+                  }),
                   h(
                     "button",
                     {
                       type: "button",
-                      class: "laden-link",
-                      "data-aktion": "zum-korb",
-                      "data-f": "zum-korb",
+                      class: "laden-knopf laden-knopf--haupt laden-dazu",
+                      "data-aktion": "dazu",
+                      "data-f": "dazu",
+                      "aria-disabled": fehlt || !a.verfuegbar ? "true" : null,
                     },
-                    "Warenkorb ansehen",
+                    h(
+                      "span",
+                      {
+                        class: "laden-tausch",
+                        "data-rolle": "tausch",
+                        "data-wert": tausch,
+                      },
+                      beschriftung,
+                    ),
                   ),
-                ]
-              : null,
-          ),
-        ),
+                ),
+                h(
+                  "p",
+                  { class: "meta laden-imkorb" },
+                  imKorb > 0
+                    ? [
+                        `${stueckText(imKorb)} im Warenkorb · `,
+                        h(
+                          "button",
+                          {
+                            type: "button",
+                            class: "laden-link",
+                            "data-aktion": "zum-korb",
+                            "data-f": "zum-korb",
+                          },
+                          "Warenkorb ansehen",
+                        ),
+                      ]
+                    : null,
+                ),
+              ),
         h(
           "ul",
           { class: "laden-angaben" },
@@ -1184,8 +1214,12 @@ function start(doc, wurzel) {
   }
   const merke = () => setze("localStorage", SPEICHER, JSON.stringify(z.korb));
   const zeichneKopf = () => {
-    zeichne(kopf, korbKnopfView(z));
-    zeichne(schwebe, schwebeView(z));
+    const an = z.konto === "an";
+    zeichne(
+      kopf,
+      an ? korbKnopfView(z) : z.konto === "aus" ? anmeldeView(z) : null,
+    );
+    zeichne(schwebe, an ? schwebeView(z) : null);
   };
   const zeichneKorb = () => {
     if (korbDlg.open) zeichne(korbDlg, korbView(z));
@@ -1213,6 +1247,15 @@ function start(doc, wurzel) {
 
   // Mit Sitzung liefert der Server Preise, Verfügbarkeit, Übergabearten und Grenzen frisch; die Bilder bleiben die des Markups
   function uebernimm(daten) {
+    // Der Korb wird erst mit Sitzung aus dem Speicher gelesen
+    if (!z.korbGelesen) {
+      z.korbGelesen = true;
+      try {
+        z.korb = JSON.parse(lies("localStorage", SPEICHER) ?? "[]");
+      } catch {
+        z.korb = [];
+      }
+    }
     z.grenzen = daten.grenzen;
     z.uebergabearten = daten.uebergabearten;
     if (!z.uebergabearten.includes(z.uebergabe)) {
@@ -1436,8 +1479,8 @@ function start(doc, wurzel) {
     } else if (aktion === "zu") {
       knopf.closest("dialog").close();
     } else if (aktion === "anmelden") {
-      // Der Link führt zur Anmeldung; danach geht die Übersicht wieder auf
-      setze("sessionStorage", WEITER, "1");
+      // Der Link führt zur Anmeldung; danach geht der Artikel oder die Übersicht wieder auf
+      setze("sessionStorage", WEITER, knopf.dataset.weiter ?? "1");
     } else if (aktion === "bestellen") {
       void bestelle();
     } else if (aktion === "variante" && wahl) {
@@ -1543,13 +1586,6 @@ function start(doc, wurzel) {
   }
 
   // --- Aufbau: Kacheln werden bedienbar, Kopf, Werkzeuge und Fenster kommen dazu
-  let roh;
-  try {
-    roh = JSON.parse(lies("localStorage", SPEICHER) ?? "[]");
-  } catch {
-    roh = [];
-  }
-  z.korb = bereinige(roh, z.artikel, z.grenzen);
   for (const [id, li] of kacheln) {
     const a = z.artikel.get(id);
     const flaeche = li.querySelector(".laden-kachel");
@@ -1566,45 +1602,68 @@ function start(doc, wurzel) {
         }),
       ),
     );
-    if (!a.verfuegbar) continue;
-    const ort = doc.createElement("div");
-    ort.className = "laden-schnell-ort";
-    ort.append(baue(doc, schnellView(a, undefined)));
-    flaeche.append(
-      ort,
-      baue(
-        doc,
-        h(
-          "button",
-          {
-            type: "button",
-            class: "laden-plus",
-            "data-aktion": "schnell-auf",
-            "aria-label": `Schnell dazu: ${a.name}`,
-          },
-          zeichen(...PLUS),
+  }
+  // Schnelles Hinzufügen gibt es nur mit Sitzung; die Kacheln bekommen es, sobald sie feststeht
+  function schnellErgaenzen() {
+    for (const [id, li] of kacheln) {
+      const a = z.artikel.get(id);
+      const flaeche = li.querySelector(".laden-kachel");
+      if (
+        !a?.verfuegbar ||
+        !flaeche ||
+        li.querySelector(".laden-schnell-ort")
+      ) {
+        continue;
+      }
+      const ort = doc.createElement("div");
+      ort.className = "laden-schnell-ort";
+      ort.append(baue(doc, schnellView(a, undefined)));
+      flaeche.append(
+        ort,
+        baue(
+          doc,
+          h(
+            "button",
+            {
+              type: "button",
+              class: "laden-plus",
+              "data-aktion": "schnell-auf",
+              "aria-label": `Schnell dazu: ${a.name}`,
+            },
+            zeichen(...PLUS),
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
   wurzel.querySelector(".laden-leiste")?.append(kopf);
   raster.before(werkzeuge);
   wurzel.append(schwebe, fensterDlg, korbDlg, karteDlg, live);
   wurzel.classList.add("laden--an");
   zeichne(werkzeuge, werkzeugeView(z));
-  zeichneKopf();
 
-  // Einmal je Besuch: Sitzung prüfen. Mit Sitzung kommen «Deine Bestellungen» dazu; nach der Anmeldung geht die Übersicht wieder auf
+  // Einmal je Besuch: Sitzung prüfen. Mit Sitzung kommen Korb, schnelles Hinzufügen und «Deine Bestellungen» dazu, ohne Sitzung der Hinweis zur Anmeldung. Nach der Anmeldung geht der Artikel oder die Übersicht wieder auf
   void (async () => {
     const status = await pruefeKonto();
+    // Ohne Antwort des Servers bleibt der Laden ein Katalog
+    if (status !== 200) z.konto = "aus";
+    const weiter = lies("sessionStorage", WEITER);
+    setze("sessionStorage", WEITER, null);
+    if (z.konto === "an") schnellErgaenzen();
     zeichneKopf();
     zeichneKorb();
-    const weiter = lies("sessionStorage", WEITER) === "1";
-    setze("sessionStorage", WEITER, null);
+    zeichneFenster();
     if (status !== 200) return;
     wurzel.insertBefore(liste, schwebe);
     void ladeBestellungen();
-    if (weiter && z.korb.length > 0) void oeffneUebersicht(kopf.firstChild);
+    if (weiter === "1" && z.korb.length > 0) {
+      void oeffneUebersicht(kopf.firstChild);
+    } else if (weiter?.startsWith("a:") && !wahl) {
+      const a = z.artikel.get(weiter.slice(2));
+      if (a) {
+        oeffneFenster(a, kacheln.get(a.id)?.querySelector(".laden-oeffnen"));
+      }
+    }
   })();
 }
 

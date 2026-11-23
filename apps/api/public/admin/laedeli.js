@@ -381,7 +381,7 @@ function zeigeArtikel(bereich, ctx) {
       spalten: [
         "Artikel",
         ["Preis", "zahl"],
-        "Varianten",
+        "Grösse",
         "Stand",
         ["Reihenfolge", "zahl"],
         "Aktionen",
@@ -419,7 +419,7 @@ function zeigeArtikel(bereich, ctx) {
             {},
             a.varianten.length > 0
               ? a.varianten.join(", ")
-              : el("span", { class: "leise" }, "Keine"),
+              : el("span", { class: "leise" }, "Einheitsgrösse"),
           ),
           el(
             "td",
@@ -511,13 +511,57 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     ],
     wert: artikel?.mediumId ?? "",
   });
+  // Pflichtangabe «Grösse»: Einheitsgrösse oder eine Liste; ohne Wahl lässt sich nicht speichern
+  const groesseName = `groesse-${Math.random().toString(36).slice(2)}`;
+  const groesseRadio = (wert, titel, text) => {
+    const eingabe = el("input", {
+      type: "radio",
+      name: groesseName,
+      value: wert,
+      onchange: () => aktualisiereGroesse(),
+    });
+    eingabe.checked = artikel?.groessenart === wert;
+    return {
+      eingabe,
+      wurzel: el(
+        "label",
+        { class: "wahlkarte" },
+        eingabe,
+        el("div", {}, el("strong", {}, titel), el("span", {}, text)),
+      ),
+    };
+  };
+  const einheit = groesseRadio(
+    "einheit",
+    "Einheitsgrösse",
+    "Es gibt den Artikel nur in einer Grösse. Im Lädeli gibt es keine Auswahl.",
+  );
+  const liste = groesseRadio(
+    "liste",
+    "Liste mit Grössen",
+    "Es gibt mehrere Grössen. Die Person wählt eine davon.",
+  );
   const varianten = feld({
-    label: "Varianten (optional)",
+    label: "Vorhandene Grössen",
     hilfe:
-      "Zum Beispiel Grössen, mit Komma getrennt: S, M, L. Höchstens 20, je höchstens 40 Zeichen. Ohne Eintrag gibt es keine Auswahl.",
+      "Mindestens zwei, mit Komma getrennt: S, M, L. Höchstens 20, je höchstens 40 Zeichen, keine doppelten.",
     wert: artikel?.varianten.join(", ") ?? "",
     autocomplete: "off",
   });
+  const groesse = {
+    eingabe: einheit.eingabe,
+    wurzel: el(
+      "fieldset",
+      { class: "feld ld-groesse" },
+      el("legend", {}, "Grösse (Pflicht)"),
+      el("div", { class: "ld-wahl" }, einheit.wurzel, liste.wurzel),
+      varianten.wurzel,
+    ),
+  };
+  function aktualisiereGroesse() {
+    varianten.wurzel.hidden = !liste.eingabe.checked;
+  }
+  aktualisiereGroesse();
   const hinweis = feld({
     label: "Hinweis (optional)",
     hilfe: "Steht unter dem Preis, höchstens 200 Zeichen.",
@@ -548,7 +592,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     name.wurzel,
     preis.wurzel,
     bild.wurzel,
-    varianten.wurzel,
+    groesse.wurzel,
     hinweis.wurzel,
     reihenfolge.wurzel,
     verfuegbar.wurzel,
@@ -590,6 +634,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     for (const f of [name, preis, varianten, hinweis, reihenfolge]) {
       f.eingabe.readOnly = an;
     }
+    einheit.eingabe.disabled = liste.eingabe.disabled = an;
     speichern.disabled = abbrechen.disabled = an;
     if (loeschen) loeschen.disabled = an;
     if (an) speichern.setAttribute("aria-busy", "true");
@@ -615,13 +660,32 @@ async function artikelBlatt({ artikel, ctx, neu }) {
         "Preis",
       );
     }
-    const liste = variantenAus(varianten.eingabe.value);
-    if (liste.length > 20 || liste.some((v) => v.length > 40)) {
+    const art = einheit.eingabe.checked
+      ? "einheit"
+      : liste.eingabe.checked
+        ? "liste"
+        : null;
+    const namen = art === "liste" ? variantenAus(varianten.eingabe.value) : [];
+    if (art === null) {
       melde(
-        varianten,
-        "Höchstens 20 Varianten mit je höchstens 40 Zeichen.",
-        "Varianten",
+        groesse,
+        "Gib die Grösse an: Einheitsgrösse oder eine Liste mit mindestens zwei Grössen.",
+        "Grösse",
       );
+    } else if (art === "liste") {
+      if (namen.length < 2) {
+        melde(
+          varianten,
+          "Gib mindestens zwei verschiedene Grössen an. Gibt es nur eine, wähle Einheitsgrösse.",
+          "Grössen",
+        );
+      } else if (namen.length > 20 || namen.some((v) => v.length > 40)) {
+        melde(
+          varianten,
+          "Höchstens 20 Grössen mit je höchstens 40 Zeichen.",
+          "Grössen",
+        );
+      }
     }
     const rohFolge = reihenfolge.eingabe.value.trim();
     const folge = Number(rohFolge);
@@ -641,7 +705,8 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       name: wert,
       preisRappen: rappen,
       mediumId: bild.eingabe.value || null,
-      varianten: liste,
+      groessenart: art,
+      ...(art === "liste" && { varianten: namen }),
       hinweis: hinweis.eingabe.value.trim() || null,
       verfuegbar: verfuegbar.eingabe.checked,
       ...(rohFolge !== "" && { reihenfolge: folge }),
