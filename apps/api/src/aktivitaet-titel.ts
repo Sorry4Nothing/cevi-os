@@ -5,6 +5,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/admin/bearbeiter/:p": "Bearbeitungsrecht entziehen",
   "DELETE /api/v1/admin/kategorie-zuordnungen/:p": "Zuordnung entfernen",
   "DELETE /api/v1/admin/kinder/:p": "Kind löschen",
+  "DELETE /api/v1/admin/kinder/:p/konto": "Konto eines Kindes entfernen",
   "DELETE /api/v1/admin/laden/artikel/:p": "Artikel löschen",
   "DELETE /api/v1/admin/lager/:p": "Lager endgültig löschen",
   "DELETE /api/v1/admin/lager/:p/mitglieder/:p": "Mitglied entfernen",
@@ -103,6 +104,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "GET /api/v1/admin/anlaesse/:p/anmeldungen.csv":
     "Anmeldungen eines Anlasses als CSV-Datei exportieren",
   "GET /api/v1/admin/kinder": "Kinder der Abteilung mit Elternteilen",
+  "GET /api/v1/admin/kinder/konto-einstellung":
+    "Einstellungen der Konten für Kinder lesen",
   "GET /api/v1/admin/laden/bestellungen":
     "Bestellungen im Lädeli für die Verwaltung",
   "GET /api/v1/admin/personen":
@@ -128,6 +131,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/admin/anlaesse/:p":
     "Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern",
   "PATCH /api/v1/admin/kinder/:p": "Kind ändern",
+  "PATCH /api/v1/admin/kinder/:p/konto":
+    "Einsicht der Eltern am Konto eines Kindes ändern («Konto übergeben»)",
   "PATCH /api/v1/admin/laden/artikel/:p": "Artikel ändern",
   "PATCH /api/v1/admin/lager/:p": "Lager ändern, Status setzen",
   "PATCH /api/v1/admin/personen/:p":
@@ -200,6 +205,12 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "POST /api/v1/admin/import/vorschau":
     "Import prüfen, ohne etwas zu schreiben",
   "POST /api/v1/admin/kinder": "Kind anlegen",
+  "POST /api/v1/admin/kinder/:p/konto": "Eigenes Konto für ein Kind erstellen",
+  "POST /api/v1/admin/kinder/:p/konto/entsperren":
+    "Konto eines Kindes entsperren",
+  "POST /api/v1/admin/kinder/:p/konto/sperren": "Konto eines Kindes sperren",
+  "POST /api/v1/admin/kinder/:p/konto/startpasswort":
+    "Neues Startpasswort für das Konto eines Kindes erzeugen",
   "POST /api/v1/admin/laden/artikel": "Artikel anlegen",
   "POST /api/v1/admin/laden/bestellungen/:p/status":
     "Stand einer Bestellung setzen",
@@ -334,6 +345,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PUT /api/v1/admin/anlaesse/:p/felder":
     "Zusatzfelder eines Anlasses ersetzen",
   "PUT /api/v1/admin/kategorie-zuordnungen": "Kategorie einem Tag zuordnen",
+  "PUT /api/v1/admin/kinder/konto-einstellung":
+    "Einstellungen der Konten für Kinder speichern",
   "PUT /api/v1/admin/laden/artikel/reihenfolge":
     "Reihenfolge der Artikel setzen",
   "PUT /api/v1/admin/laden/einstellungen": "Übergabearten des Lädelis ersetzen",
