@@ -19,6 +19,7 @@ const TYPEN = {
   funktion: "Funktion",
   team: "Team",
   lager: "Lager",
+  anlass: "Anlass",
 };
 const BASIS = "/api/v1/admin/kategorie-zuordnungen";
 const WIRKT =

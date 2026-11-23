@@ -36,19 +36,30 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/zuschneiden.js`                   | Skript der Verwaltung – Bild zuschneiden                                             | **200** alle      |
 | `GET /admin/zuschneiden.css`                  | Stilvorlage der Verwaltung – Bild zuschneiden                                        | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht                                            | **200** alle      |
-| `GET /admin/uebersicht-kacheln.js`            | Skript der Verwaltung – Kacheln der Übersicht                                        | **200** alle      |
+| `GET /admin/uebersicht-kacheln.js`            | Skript der Verwaltung – Aufgaben, Kennzahlen, Zustand                                | **200** alle      |
 | `GET /admin/uebersicht-diagramme.js`          | Skript der Verwaltung – Diagramme der Übersicht                                      | **200** alle      |
+| `GET /admin/uebersicht-verlauf.js`            | Skript der Verwaltung – Hauptdiagramm der Übersicht                                  | **200** alle      |
+| `GET /admin/uebersicht-kommend.js`            | Skript der Verwaltung – Kommendes, Aktivität und Teilnahme                           | **200** alle      |
 | `GET /admin/uebersicht.css`                   | Stilvorlage der Verwaltung – Bereich Übersicht                                       | **200** alle      |
 | `GET /admin/zeitregeln.js`                    | Skript der Verwaltung – Bereich Erinnerungen                                         | **200** alle      |
 | `GET /admin/laedeli.js`                       | Skript der Verwaltung – Bereich Lädeli                                               | **200** alle      |
+| `GET /admin/mitglieder.js`                    | Skript der Verwaltung – Mitglieder-Darstellung                                       | **200** alle      |
 | `GET /admin/laedeli.css`                      | Stilvorlage der Verwaltung – Bereich Lädeli                                          | **200** alle      |
 | `GET /admin/csv.js`                           | Skript der Verwaltung – CSV-Leser                                                    | **200** alle      |
 | `GET /admin/anwesenheit.js`                   | Skript der Verwaltung – Bereich Anwesenheit                                          | **200** alle      |
 | `GET /admin/anwesenheit.css`                  | Stilvorlage der Verwaltung – Bereich Anwesenheit                                     | **200** alle      |
 | `GET /admin/liste-hilfen.js`                  | Skript der Verwaltung – Hilfen für Listen                                            | **200** alle      |
 | `GET /admin/personen-blatt.js`                | Skript der Verwaltung – Seitenblatt einer Person                                     | **200** alle      |
+| `GET /admin/tags-anlass.js`                   | Skript der Verwaltung – Gruppen zu einem Anlass                                      | **200** alle      |
 | `GET /admin/tags-detail.js`                   | Skript der Verwaltung – Gruppe und ihre Dialoge                                      | **200** alle      |
 | `GET /admin/personen.css`                     | Stilvorlage der Verwaltung – Personen, Gruppen und Tags                              | **200** alle      |
+| `GET /admin/rechte.js`                        | Verwaltung – Rollen und Rechte: Einstieg                                             | **200** alle      |
+| `GET /admin/rechte.css`                       | Stilvorlage der Verwaltung – Rollen und Rechte                                       | **200** alle      |
+| `GET /admin/rechte-rollen.js`                 | Verwaltung – Rollen und Rechte: Rollen                                               | **200** alle      |
+| `GET /admin/rechte-gruppen.js`                | Verwaltung – Rollen und Rechte: Gruppen                                              | **200** alle      |
+| `GET /admin/rechte-uebersicht.js`             | Verwaltung – Rollen und Rechte: Was darf wer?                                        | **200** alle      |
+| `GET /admin/rechte-gemeinsam.js`              | Verwaltung – Rollen und Rechte: Bausteine                                            | **200** alle      |
+| `GET /admin/rechte-logik.js`                  | Verwaltung – Rollen und Rechte: Logik                                                | **200** alle      |
 | `GET /admin/import.js`                        | Skript der Verwaltung – Bereich Import                                               | **200** alle      |
 | `GET /admin/website-baum.js`                  | Skript der Verwaltung – Bereich Website, Seitenbaum                                  | **200** alle      |
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |
@@ -190,6 +201,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `DELETE /api/v1/admin/tags/:id`                                | Tag löschen                                                    | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `PUT /api/v1/admin/tags/:id/personen/:userId`                  | Tag einer Person zuweisen                                      | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `DELETE /api/v1/admin/tags/:id/personen/:userId`               | Tag einer Person entziehen                                     | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/rechte/zuordnungen`                         | Zuordnungen für «Rollen und Rechte»                            | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `GET /api/v1/admin/bearbeiter`                                 | Bearbeitungsrechte der Abteilung                               | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
 | `POST /api/v1/admin/bearbeiter`                                | Bearbeitungsrecht vergeben                                     | **201** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** demoAdmin |
 | `DELETE /api/v1/admin/bearbeiter/:id`                          | Bearbeitungsrecht entziehen                                    | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |

@@ -59,7 +59,7 @@ export const KATEGORIEN = {
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -686,7 +686,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
   // Tags vom Typ «stufe» sind die Stufen der Abteilung (Kategorie «abteilung», kein Personenbezug); alle anderen Tags gehören zu «rollen»
-  tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
+  tag: {
+    rollen: ["id", "abteilung_id", "typ", "name", "kuerzel", "anlass_id"],
+  },
   person_tag: {
     rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
   },

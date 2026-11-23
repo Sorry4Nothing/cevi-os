@@ -41,6 +41,13 @@ export const BEREICHE = [
           "Wer zu welcher Gruppe gehört, steuert, wer was sieht und bearbeiten darf.",
       },
       {
+        schluessel: "rechte",
+        name: "Rollen und Rechte",
+        modul: "./rechte.js",
+        untertitel:
+          "Wer in der Abteilung was darf: Rollen, Gruppen und die Rechte jeder Person.",
+      },
+      {
         schluessel: "kinder",
         name: "Kinder",
         modul: "./kinder.js",

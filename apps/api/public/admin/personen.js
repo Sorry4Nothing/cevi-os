@@ -4,12 +4,11 @@ import {
   aktionenZelle,
   ankreuzen,
   auswahl,
-  avatar,
   chip,
   el,
   feld,
+  icon,
   knopf,
-  tabelle,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import {
@@ -27,6 +26,20 @@ import {
 } from "./personen-blatt.js";
 import { meldePersonen, nimmWunsch } from "./befehlspalette.js";
 import { typName } from "./tags-detail.js";
+import { skeletonTabelle } from "./lader.js";
+import {
+  abschnitte,
+  ansichtsleiste,
+  chipListe,
+  gespeicherteAnsicht,
+  gliedere,
+  marke,
+  mitgliedKarte,
+  mitgliedKopf,
+  skeletonKarten,
+  stufenKennzeichen,
+  zeichneAnsicht,
+} from "./mitglieder.js";
 import { leerKarte } from "./zustaende.js";
 
 // Personen (A6, A7): Liste mit Filterleiste (Suche, Tag, Rolle, Konto, Trefferzahl), Auswahlleiste für Tags mit «Rückgängig» und eine Seite im Fluss zum Erfassen und Bearbeiten (personen-blatt.js)
@@ -35,6 +48,7 @@ const zustand = {
   frage: "",
   filter: { tag: "", rolle: "alle", konto: "alle" },
   sort: { schluessel: "name", richtung: "auf" },
+  gruppierung: "rolle",
   fokus: null,
 };
 
@@ -57,7 +71,12 @@ export function zeige(bereich, ctx) {
         document.querySelector("#seitenkopf .kopf-aktion button")?.click();
       }
     },
-    { skeleton: "tabelle" },
+    {
+      skeleton: () =>
+        gespeicherteAnsicht() === "liste"
+          ? skeletonTabelle({ spalten: 6 })
+          : skeletonKarten(),
+    },
   );
 }
 
@@ -141,22 +160,57 @@ function zeichne(bereich, ctx, daten, neu) {
   }
   const gewaehlt = new Set();
   const tagsVon = (p) => daten.tagsJePerson.get(p.id) ?? [];
-  const tagZelle = (person) => {
-    const tags = tagsVon(person);
-    return tags.length
-      ? el(
-          "ul",
-          { class: "chips" },
-          tags.map((e) =>
-            chip(
-              `${e.tag.name} · ${typName(e.tag.typ)}`,
-              e.tag.typ === "stufe" ? "stufe" : undefined,
-              "tag",
-            ),
-          ),
-        )
-      : el("span", { class: "leise" }, "–");
+  const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
+  // Die Stufenrolle steht schon als Rolle da; der gleichnamige Stufen-Tag mit derselben Funktion wäre doppelt
+  const eigeneTags = (person) => {
+    const stufenrollen = new Set(
+      person.rollen.map((r) => stufenname.get(r.stufeId)),
+    );
+    return tagsVon(person).filter(
+      (e) =>
+        !(
+          e.tag.typ === "stufe" &&
+          ["leitung", "stufenleitung"].includes(e.rolle) &&
+          stufenrollen.has(e.tag.name)
+        ),
+    );
   };
+  const tagChips = (person) =>
+    eigeneTags(person).map((e) =>
+      chip(
+        `${e.tag.name} · ${typName(e.tag.typ)}`,
+        e.tag.typ === "stufe" ? "stufe" : undefined,
+        "tag",
+      ),
+    );
+  const rollenChips = (person) =>
+    [
+      person.admin && chip("Admin", undefined, false),
+      ...person.rollen.map((r) =>
+        chip(
+          `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
+          "stufe",
+          false,
+        ),
+      ),
+      person.elternteilVon.length > 0 && chip("Eltern", undefined, false),
+      fehltTelefon(person) && chip("Telefon fehlt", "warn", "telefon"),
+    ].filter(Boolean);
+  // Konto: Ein aktives Konto ist eine ruhige Marke, alles andere (Startpasswort, Sperre) bleibt ein Chip
+  const kontoMarken = (person) => {
+    const [zustandChip] = kontoChips(person);
+    return [
+      zustandChip.classList.contains("chip--ok")
+        ? marke("Konto aktiv", "haken", "ok")
+        : el("ul", { class: "chips" }, zustandChip),
+      person.zweiterFaktor && marke("Zweiter Faktor", "schild"),
+    ];
+  };
+  const chipSpalte = (chips) =>
+    chips.length
+      ? el("ul", { class: "chips" }, chips)
+      : el("span", { class: "leise" }, "–");
+
   const eintraege = daten.personen.map((person) => {
     const eigenes = person.id === ctx.ich.id;
     const box = ankreuzen({ label: `${person.name} wählen`, wert: person.id });
@@ -166,62 +220,91 @@ function zeichne(bereich, ctx, daten, neu) {
       else gewaehlt.delete(person.id);
       zeichneAuswahl();
     });
-    const rollen = systemRollen(person);
-    const bearbeiten = knopf("Bearbeiten", {
+    const eintrag = {
+      person,
+      eigenes,
+      box,
+      knoten: null, // Karte oder Zeile, je nach Ansicht neu gebaut
+      knopf: null,
+      tagNamen: "",
+      tagIds: [],
+    };
+    eintrag.knopf = knopf("Bearbeiten", {
       klein: true,
       kontext: person.name,
       symbol: "bearbeiten",
       onclick: () =>
-        oeffnePerson({ person, daten, ctx, neu, beiFokus, tr: eintrag.tr }),
+        oeffnePerson({
+          person,
+          daten,
+          ctx,
+          neu,
+          beiFokus,
+          tr: eintrag.knoten,
+        }),
     });
-    const tagTd = el("td", {}, tagZelle(person));
-    const tr = el(
+    return eintrag;
+  });
+  // Kontakt nur dort, wo die Verwaltung die Nummer ohnehin sieht (Stufenleitung)
+  const anrufen = (e) =>
+    e.person.telefon &&
+    el(
+      "a",
+      {
+        class: "knopf knopf--klein mg-anruf",
+        href: `tel:${e.person.telefon.replace(/[^\d+]/g, "")}`,
+        "aria-label": `Anrufen: ${e.person.name}`,
+        title: "Anrufen",
+      },
+      icon("telefon"),
+    );
+  const ton = (p) => (p.admin || p.rollen.length > 0 ? "blau" : "hell");
+  const karte = (e) => {
+    const p = e.person;
+    e.knoten = mitgliedKarte({
+      id: p.id,
+      aus: p.deaktiviert,
+      kopf: mitgliedKopf({
+        name: p.name,
+        ceviName: p.ceviName,
+        bildUrl: p.bildUrl,
+        du: e.eigenes,
+        gross: true,
+        ton: ton(p),
+        zusatz: kontoMarken(p),
+      }),
+      rollen: chipListe(rollenChips(p), { max: 3 }),
+      tags: chipListe(tagChips(p), { max: 3 }),
+      aktionen: [anrufen(e), e.knopf],
+      wahl: e.box.wurzel,
+    });
+    return e.knoten;
+  };
+  const zeile = (e) => {
+    const p = e.person;
+    e.knoten = el(
       "tr",
-      { class: person.deaktiviert ? "inaktiv" : undefined },
-      el("td", { class: "pe-wahl" }, box.wurzel),
+      { class: p.deaktiviert ? "inaktiv" : undefined },
+      el("td", { class: "pe-wahl" }, e.box.wurzel),
       el(
         "th",
         { scope: "row" },
-        el(
-          "div",
-          { class: "wer" },
-          avatar(person.name, { hell: !eigenes, bildUrl: person.bildUrl }),
-          el(
-            "div",
-            {},
-            el("span", { class: "name" }, person.name, eigenes && " (du)"),
-            person.ceviName &&
-              el("span", { class: "klein leise" }, person.ceviName),
-          ),
-        ),
+        mitgliedKopf({
+          name: p.name,
+          ceviName: p.ceviName,
+          bildUrl: p.bildUrl,
+          du: e.eigenes,
+          ton: ton(p),
+        }),
       ),
-      tagTd,
-      el(
-        "td",
-        {},
-        rollen.length ? rollen.join(", ") : el("span", { class: "leise" }, "–"),
-        fehltTelefon(person) &&
-          el(
-            "ul",
-            { class: "chips" },
-            chip("Telefon fehlt", "warn", "telefon"),
-          ),
-      ),
-      el("td", {}, el("ul", { class: "chips" }, kontoChips(person))),
-      aktionenZelle(bearbeiten),
+      el("td", {}, chipSpalte(rollenChips(p))),
+      el("td", {}, chipSpalte(tagChips(p))),
+      el("td", {}, el("div", { class: "mg-zustand" }, kontoMarken(p))),
+      aktionenZelle(anrufen(e), e.knopf),
     );
-    const eintrag = {
-      person,
-      tr,
-      box,
-      tagTd,
-      knopf: bearbeiten,
-      tagNamen: "",
-      tagIds: [],
-    };
-    return eintrag;
-  });
-  // Tag-Spalte und Filterwerte nach einer Änderung der Tags neu aus den Daten ableiten
+    return e.knoten;
+  };
+  // Filterwerte nach einer Änderung der Tags neu aus den Daten ableiten
   const frischeTags = (ids) => {
     for (const e of eintraege) {
       if (ids && !ids.includes(e.person.id)) continue;
@@ -229,21 +312,12 @@ function zeichne(bereich, ctx, daten, neu) {
         .map((t) => t.tag.name)
         .join(" ");
       e.tagIds = tagsVon(e.person).map((t) => t.tag.id);
-      e.tagTd.replaceChildren(tagZelle(e.person));
     }
   };
   frischeTags();
 
-  const { wurzel, koerper } = tabelle({
-    beschriftung: "Personen",
-    spalten: ["Auswahl", "Name", "Tags", "Rolle", "Konto", "Aktionen"],
-    zeilen: [],
-  });
-  // Kopfzelle der Auswahlspalte: «Alle wählen» betrifft die Zeilen der Seite
-  const alleBox = ankreuzen({ label: "Alle wählen" });
-  alleBox.wurzel.querySelector("label").classList.add("nur-leser");
-  wurzel.querySelector("thead th").replaceChildren(alleBox.wurzel);
-  wurzel.querySelector("thead th").classList.add("pe-wahl");
+  // «Alle wählen» betrifft die Einträge der Seite und steht in der Leiste über der Ansicht, für Karten und Liste gleich
+  const alleBox = ankreuzen({ label: "Alle auf der Seite wählen" });
   alleBox.eingabe.addEventListener("change", () => {
     for (const e of sichtbar) {
       e.box.eingabe.checked = alleBox.eingabe.checked;
@@ -255,8 +329,65 @@ function zeichne(bereich, ctx, daten, neu) {
   let sichtbar = [];
   let treffer = [];
   const keine = el("div");
+  const ansichtBox = el("div", { class: "mg-ansicht" });
   const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
-  const tabellenBox = el("div", {}, wurzel, seiten.wurzel);
+  const tabellenBox = el("div", {}, ansichtBox, seiten.wurzel);
+
+  // Abschnitte nach Rolle (Leitende, Administration, Eltern, Weitere) oder nach Stufe; «keine» zeigt alle in einem Raster
+  const stufenRang = new Map(daten.stufen.map((s, i) => [s.id, i]));
+  const kindStufe = new Map(daten.kinder.map((k) => [k.id, k.stufeId]));
+  const stufeVon = (p) =>
+    [
+      ...p.rollen.map((r) => r.stufeId),
+      ...p.elternteilVon.map((id) => kindStufe.get(id)),
+    ]
+      .filter((id) => stufenRang.has(id))
+      .sort((a, b) => stufenRang.get(a) - stufenRang.get(b))[0] ?? "";
+  const gruppenFuer = (art) =>
+    art === "rolle"
+      ? {
+          gruppen: [
+            { schluessel: "leitung", titel: "Leitende" },
+            { schluessel: "admin", titel: "Administration" },
+            { schluessel: "eltern", titel: "Eltern" },
+            { schluessel: "weitere", titel: "Weitere Personen" },
+          ],
+          schluesselVon: ({ person: p }) =>
+            p.rollen.length > 0
+              ? "leitung"
+              : p.admin
+                ? "admin"
+                : p.elternteilVon.length > 0
+                  ? "eltern"
+                  : "weitere",
+        }
+      : art === "stufe"
+        ? {
+            gruppen: [
+              ...daten.stufen.map((s) => ({
+                schluessel: s.id,
+                titel: s.name,
+                kennzeichen: stufenKennzeichen(s),
+              })),
+              { schluessel: "", titel: "Ohne Stufe" },
+            ],
+            schluesselVon: ({ person }) => stufeVon(person),
+          }
+        : { gruppen: null, schluesselVon: () => "" };
+  const ansicht = ansichtsleiste({
+    links: alleBox.wurzel,
+    gruppierungen: [
+      ["rolle", "Rolle"],
+      ["stufe", "Stufe"],
+      ["keine", "Keine"],
+    ],
+    gruppierung: zustand.gruppierung,
+    beiAenderung: (stand) => {
+      zustand.gruppierung = stand.gruppierung;
+      seiten.anfang();
+      aktualisiere(true);
+    },
+  });
 
   const leiste = filterleiste({
     suche: { label: "Name oder Cevi-Name", wert: zustand.frage },
@@ -497,10 +628,10 @@ function zeichne(bereich, ctx, daten, neu) {
     });
   }
 
-  function aktualisiere() {
+  function aktualisiere(animiert = false) {
     const frage = zustand.frage.trim().toLowerCase();
     const f = zustand.filter;
-    treffer = sortiere(
+    const gefiltert = sortiere(
       eintraege.filter(
         (e) =>
           ROLLE[f.rolle](e.person) &&
@@ -513,9 +644,42 @@ function zeichne(bereich, ctx, daten, neu) {
       zustand.sort,
       (e, k) => (k === "tags" ? e.tagNamen : e.person.name),
     );
+    const { gruppen, schluesselVon } = gruppenFuer(ansicht.stand().gruppierung);
+    const geordnet = gliedere(gefiltert, gruppen, schluesselVon);
+    treffer = geordnet.geordnet;
     const [von, bis] = seiten.fenster(treffer.length);
     sichtbar = treffer.slice(von, bis);
-    koerper.replaceChildren(...sichtbar.map((e) => e.tr));
+    const tabelleKnoten = zeichneAnsicht(ansichtBox, {
+      ansicht: ansicht.stand().ansicht,
+      beschriftung: "Personen",
+      spalten: ["Auswahl", "Person", "Rolle", "Tags", "Konto", "Aktionen"],
+      abschnitte: abschnitte(sichtbar, gruppen, schluesselVon, geordnet.gesamt),
+      karte,
+      zeile,
+      animiert,
+    });
+    // Die Tabelle entsteht bei jeder Zeichnung neu: Sortierknöpfe gehen mit, der Fokus bleibt auf dem Knopf
+    if (tabelleKnoten) {
+      tabelleKnoten
+        .querySelector("thead th")
+        .replaceChildren(el("span", { class: "nur-leser" }, "Auswahl"));
+      macheSortierbar(
+        tabelleKnoten,
+        [
+          { index: 1, schluessel: "name", name: "Person" },
+          { index: 3, schluessel: "tags", name: "Tags" },
+        ],
+        zustand.sort,
+        () => {
+          seiten.anfang();
+          aktualisiere();
+          ansichtBox
+            .querySelector("th:not([aria-sort='none']) .pe-sortieren")
+            ?.focus();
+        },
+      );
+      aktionenKopfVerstecken(tabelleKnoten);
+    }
     tabellenBox.hidden = treffer.length === 0;
     leiste.setzeTreffer(treffer.length, daten.personen.length);
     keine.replaceChildren(
@@ -534,32 +698,25 @@ function zeichne(bereich, ctx, daten, neu) {
     );
     zeichneAuswahl();
   }
-  macheSortierbar(
-    wurzel,
-    [
-      { index: 1, schluessel: "name", name: "Name" },
-      { index: 2, schluessel: "tags", name: "Tags" },
-    ],
-    zustand.sort,
-    () => {
-      seiten.anfang();
-      aktualisiere();
-    },
+  aktualisiere(true);
+  bereich.append(
+    leiste.wurzel,
+    ansicht.wurzel,
+    auswahlLeiste,
+    keine,
+    tabellenBox,
   );
-  aktionenKopfVerstecken(wurzel);
-  aktualisiere();
-  bereich.append(leiste.wurzel, auswahlLeiste, keine, tabellenBox);
   // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn keine Seite im Fluss den Fokus hält
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.person.id === zustand.fokus);
     zustand.fokus = null;
     // Steht die Person auf einer späteren Seite, blättert die Liste zu ihr, damit der Fokus eine sichtbare Zeile trifft
-    if (ziel && !ziel.tr.isConnected && treffer.includes(ziel)) {
+    if (ziel && !ziel.knoten?.isConnected && treffer.includes(ziel)) {
       seiten.zu(treffer.indexOf(ziel));
       aktualisiere();
     }
     if (!flussOffen()) {
-      (ziel?.tr.isConnected
+      (ziel?.knoten?.isConnected
         ? ziel.knopf
         : document.querySelector("h1")
       )?.focus();

@@ -1154,7 +1154,7 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
     return u!.id;
   };
   const tagNeu = async (
-    typ: "stufe" | "team",
+    typ: "stufe" | "team" | "anlass",
     name: string,
     abt: string = abteilungId,
   ) =>
@@ -1182,6 +1182,40 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
       .where(eq(schema.seite.id, seiteId));
     await lauf();
   };
+
+  test("eine Gruppe vom Typ «anlass» erscheint nie: weder ihre Rolle bei einer Kontaktperson noch als Leitungsteam (#626)", async () => {
+    const ok = await tagNeu("anlass", "OK Geheimgruppe");
+    const team = await tagNeu("team", "Kontaktteam");
+    const anna = await person("Anna Muster", { ceviName: "Wolke" }, false);
+    await rolle(anna, team, "Kontakt");
+    await rolle(anna, ok, "OK-Leitung-Geheim");
+    const beat = await person("Beat Beispiel", { ceviName: "Pfanne" }, false);
+    await rolle(beat, ok, "Mitglied-Geheim");
+    await seite({
+      adresse: "start",
+      inhalt: dok(
+        "Start",
+        {
+          id: randomUUID(),
+          typ: "kontaktperson",
+          daten: { personId: anna },
+        },
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: ok } },
+      ),
+    });
+    await lauf();
+    const html = await lies("index.html");
+    expect(html).toContain("Wolke");
+    expect(html).toContain("Kontakt");
+    for (const verboten of [
+      "OK-Leitung-Geheim",
+      "Mitglied-Geheim",
+      "Pfanne",
+      "OK Geheimgruppe",
+    ]) {
+      expect(html).not.toContain(verboten);
+    }
+  });
 
   test("Stufenleitung und Leitung erscheinen ohne Freigabe mit Anzeigename und Profilbild als Datei; wer keine Rolle hat, gar nicht", async () => {
     const stufe = await tagNeu("stufe", "Biber");

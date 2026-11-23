@@ -429,9 +429,7 @@ describe("zuschneiden.js (#633)", () => {
     expect(q).toContain('imageOrientation: "from-image"');
     expect(q).toContain("createImageBitmap");
     expect(q).toContain("toBlob");
-    expect(q).not.toMatch(
-      /createObjectURL|innerHTML|setAttribute\("style"/,
-    );
+    expect(q).not.toMatch(/createObjectURL|innerHTML|setAttribute\("style"/);
     expect(q).not.toMatch(/el\("img"/);
     // Zuhörer für Zeiger, Rad und Tasten
     expect(q).toContain('"wheel"');

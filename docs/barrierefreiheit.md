@@ -424,8 +424,8 @@ Dieser Abschnitt gilt für `termine-kalender.js`, `termine-monat.js`, `termine-a
 Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.js`) und die Übersicht (`uebersicht*.js`, `uebersicht.css`). Die Abschnitte 15, 16 und 22 gelten weiter.
 
 - [ ] **23.1** Breite: Kopf, Bereichsleiste, Unterleiste, Hinweisband, Seitenkopf und Inhalt haben bei 1440, 1920 und 2560 Pixeln dieselbe linke und rechte Kante wie `.wrap` der Website (Maximalbreite 105 rem, Seitenrand `clamp(1rem, 4vw, 4.5rem)`); gemessen über `getBoundingClientRect` auf allen Seiten der Navigation. Raster, Tabellen, Kalender, Zweispalter und Seiten im Fluss laufen nicht über den Rand und scrollen die Seite nicht waagrecht.
-- [ ] **23.2** «Jetzt zu tun»: Alle Kacheln einer Ansicht sind gleich gross, die Aktionszeile unten ist überall 44 Pixel hoch und gleich platziert; die ganze Kachel ist ein Link mit dem Namen aus Zahl, Satz und Aktion (16.2). Ohne Recht auf die Zielseite bleibt die Zeile leer, die Kachel gleich gross.
-- [ ] **23.3** Kennzahlen: Jede Kachel nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Mit «Bewegung reduzieren» schiebt sich die Zahl nicht ein, und die Säulen wachsen nicht.
+- [ ] **23.2** «Jetzt zu tun»: Jede Zeile ist ein Link mit dem Namen aus Zahl, Titel, Satz und Aktion (16.2), mindestens 56 Pixel hoch; ohne Recht auf die Zielseite steht die Zeile ohne Aktion und ohne Link. Weiter: 32.1.
+- [ ] **23.3** Kennzahlen: Jede Zelle nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Weiter: 32.3.
 - [ ] **23.4** Zustand: Jeder Dienst (Website, Kalender-Abgleich) steht mit Name, Zustand als Wort mit Symbol und einem Satz; Verweis mindestens 44 Pixel hoch. Fehlt das Recht, fehlt der Dienst.
 - [ ] **23.5** Zähler in der Unterleiste und der Bereichsauswahl sind Kreise (24 Pixel, Zahl mittig, bis 99); der Screenreader hört «<Zahl> offen» nach dem Namen. Der Kreis hat in erzwungenen Farben einen Rand.
 - [ ] **23.6** Auswahlfelder: Alle `select` der Verwaltung werden zum Auswahlfeld der Website (`auswahl.js`, dieselben Masse: 52 Pixel hoch, 17 Pixel, Radius 12, Liste mit Haken); kein `select` zeigt die Liste des Browsers, kein Auswahlfeld hat `multiple`. Oben in den Listen (Filterleiste) stehen sie wie bei den Terminen der Website: 220 Pixel breit, Beschriftung 16 Pixel mit 8 Pixel Abstand, Pfeil in der leisen Textfarbe. Geprüft per Durchgang durch alle Seiten der Navigation.
@@ -529,6 +529,70 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 ### Stand der Prüfung (#609)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
+
+## 34. Verwaltung: Gruppentyp «Anlass» (#626)
+
+Dieser Abschnitt gilt für «Gruppen und Tags» (`tags.js`, `tags-detail.js`, `tags-anlass.js`) und den Verweis auf die Gruppe in der Übersicht eines Anlasses (`termine-anlaesse.js`). Geprüft wird im Browser mit der Abteilungsleitung, bei 1440 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **34.1** «Neue Gruppe»: Typ und Anlass sind eigene Auswahlfelder (`role="combobox"` mit Namen «Typ» und «Anlass», Tastatur: Pfeile, Eingabe, Escape). Das Feld «Anlass» erscheint erst beim Typ «Anlass»; die Anlässe kommen mit einer Abfrage und stehen als «Titel · Datum», kommende zuerst. Hat kein Anlass mehr Platz, steht der Hinweis als Text im Feld (`role="status"`).
+- [ ] **34.2** Fehlt der Anlass, steht «Wähle einen Anlass.» am Feld (nicht nur Farbe, `aria-invalid`, Symbol), die Zusammenfassung oben nennt «Anlass» und führt mit dem Fokus dorthin. Ein zweiter Versuch für denselben Anlass sagt «Zu diesem Anlass gibt es schon eine Gruppe.» und verlangt einen anderen Anlass.
+- [ ] **34.3** Liste: Der Typ steht als Chip mit Wort und Symbol («Anlass»), nie nur als Farbe; unter dem Namen steht der Anlass mit Datum als Link (Trefferfläche mindestens 44 Pixel hoch). Ist der Anlass gelöscht, steht «Der Anlass ist gelöscht». «Anlass» ist im Typfilter und in der Suche der Befehlspalette.
+- [ ] **34.4** Gruppe: Die Karte «Anlass» nennt Titel (Link «<Titel>, öffnen») und Termin als Definitionsliste und sagt, dass die Gruppe keine zusätzlichen Rechte gibt und nie auf der Website erscheint. Mitglieder und Rollen verhalten sich wie bei einem Team.
+- [ ] **34.5** Anlass, Übersicht: Die Zeile «Gruppe» in «Angaben» ist ein Link auf die Gruppe oder der Knopf «Gruppe anlegen» (Seite im Fluss, der Anlass steht in der Beschreibung, Typ und Anlass entfallen). Nach dem Erstellen steht die Meldung in der Statusregion und die Zeile zeigt die Gruppe.
+- [ ] **34.6** Bei 390 Pixeln stehen die Felder untereinander, Ziele sind mindestens 44 Pixel hoch, nichts scrollt ausser der Tabelle der Gruppen in ihrem beschrifteten Bereich; bei 200 % Zoom bleibt alles lesbar. Es gibt keine neue Bewegung.
+
+## 37. Verwaltung: Rollen und Rechte (#623)
+
+Dieser Abschnitt gilt für die Seite «Rollen und Rechte» (`rechte.js`, `rechte-rollen.js`, `rechte-gruppen.js`, `rechte-uebersicht.js`, `rechte.css`) mit den Reitern «Rollen», «Gruppen» und «Was darf wer?». Geprüft wird im Browser mit Tastatur, bei 390 und 1440 Pixeln, in Tag und Nacht und mit «Bewegung reduzieren».
+
+- [ ] **37.1** Matrix: eine echte Tabelle (`caption` nur für Screenreader, `th scope="col"` je Rolle, `th scope="row"` je Recht, `th scope="rowgroup"` je Bereich). Jede Zelle enthält ein echtes Kontrollkästchen mit dem vollen Namen («Webmaster: Seiten bearbeiten»; bei einer Änderung mit «, neu, noch nicht gespeichert» oder «, entzogen, …»). Die Spalte der Abteilungsleitung ist fest und nennt «immer erlaubt». Die Tabelle scrollt in einem beschrifteten, per Tastatur fokussierbaren Bereich.
+- [ ] **37.2** Hauptweg ohne Tabelle: Jede Rolle hat eine Seite (`#personen/rechte/rolle/<id>`) mit allen Rechten als Schalter (`role="switch"`, Name und Erklärung per `aria-labelledby` und `aria-describedby`), Personen, Namen und Löschen. Unter 48 rem (auch bei 200 % Zoom) ersetzen Karten mit «Öffnen» die Matrix; es gibt kein waagrechtes Scrollen der Seite (geprüft bei 390 Pixeln; bei 320 Pixeln läuft die Kopfzeile des Gerüsts über, das gilt für alle Seiten).
+- [ ] **37.3** Tastatur: Alles ist per Tab, Leertaste und Enter bedienbar; die Kästchen sind 44 × 44 Pixel gross und tragen einen sichtbaren Fokusring (3 Pixel, `--fokus`). Zweistufige Knöpfe und Rückfragen am Ort nimmt Escape zurück und geben den Fokus zurück; `Bestätigen` bekommt den Fokus beim Öffnen. Kein Popup, kein Fokusfang.
+- [ ] **37.4** Nie nur Farbe: «Neu» und «Entzogen» stehen als Text in der Zelle und in der Zeile der Rolle; die Wirkung eines Rechts («Wirkt öffentlich», «Löscht», «Sperrt die Website») steht als Wort mit Symbol; «2. Faktor» als Wort mit Symbol; Zustände der Konten («Zweiter Faktor fehlt», «Konto gesperrt») als Wort mit Symbol.
+- [ ] **37.5** Speicherleiste: Die Zahl («2 Änderungen, noch nicht gespeichert») ist eine Statusregion; die Vorschau «wer ist betroffen» ist ein aufklappbares `details` mit Text. «Speichern» bei Rechten mit grosser Wirkung ist zweistufig (der Knopf nennt die Rechte). Fehler und Konflikte stehen als Meldung mit dem Namen der Rolle. Beim Verlassen mit Entwurf fragt eine Zeile am Ort (`role="alert"`, «Bleiben» / «Verwerfen und gehen»); Tab schliessen und Neuladen warnt der Browser.
+- [ ] **37.6** Vergeben und Entziehen: Entziehen (Person aus Rolle, Verantwortung, Sonderrecht, Rolle löschen) ist ein zweistufiger Knopf; Vergeben bei Rechten mit grosser Wirkung fragt in einer Zeile am Ort. Beides sagt die Folge in Worten (««Name» verliert die Rechte dieser Rolle.»).
+- [ ] **37.7** Gruppen und Übersicht: Suche und Filter wie überall (`filterleiste`, laufende Trefferzahl), Karten und Zeilen mit Links von mindestens 44 Pixeln Höhe. Die Karte «Noch nicht möglich» sagt ehrlich, was fehlt, ohne Fehlerton. «Was darf wer?» ist nur lesend; jede Quelle nennt Umfang, Herkunft und zweiten Faktor, mit Link zur Stelle, wo man es ändert.
+- [ ] **37.8** Farben und Kontrast: Alle Farben kommen aus den Tokens (`--akzent`, `--karte`, `--wa-f` …), Tag und Nacht; das gesetzte Kästchen ist `--akzent` mit `--auf-akzent`. Keine Farbwerte im Stil.
+- [ ] **37.9** Bewegung: Die Speicherleiste gleitet nur mit erlaubter Bewegung ein; sonst steht sie sofort da. Keine andere Animation.
+
+### Stand der Prüfung (#623)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 37.1 bis 37.6 bei 1440 Pixeln mit Tastatur und Maus (Rolle anlegen, Rechte setzen, speichern mit zweistufigem Knopf, Person geben und entziehen, umbenennen, löschen, Verantwortliche im Team), 37.2 und 37.7 bei 390 Pixeln (kein Seitenüberlauf, Kartenliste, Detailseite), 37.8 in Tag und Nacht (Sichtprüfung), Zielgrössen per Messung (alle Knöpfe und Kästchen mindestens 44 Pixel hoch; die Schalter sind 32 Pixel hoch und haben eine 44 Pixel grosse Trefferfläche). **Nicht geprüft:** Screenreader (NVDA, VoiceOver), 200 % Zoom von Hand, gemessene Kontrastwerte (nur Sichtprüfung gegen die Tokens), Safari und Firefox.
+
+## 32. Verwaltung: Übersicht als Dashboard (#620)
+
+Dieser Abschnitt gilt für die Übersicht (`uebersicht.js`, `uebersicht-kacheln.js`, `uebersicht-verlauf.js`, `uebersicht-kommend.js`, `uebersicht-diagramme.js`, `uebersicht.css`). Die Abschnitte 14, 16 und 23 gelten weiter, soweit sie nicht hier ersetzt sind.
+
+- [ ] **32.1** Überschriften und Reihenfolge: Die Seite hat eine `h1` (Begrüssung); jede Karte hat eine `h2`, die Zustandsstreifen-Punkte eine `h3`. Die Reihenfolge im Dokument ist die Lesereihenfolge (Aufgaben, Verlauf, Kennzahlen, Kommendes, Aktivität, Teilnahme, Zustand). Die Gruppen der Aufgaben sind `role="group"` mit Namen; Störung und Sicherheit tragen Symbol und Wort, nie nur Farbe.
+- [ ] **32.2** Hauptdiagramm per Tastatur: Der Schieber ist erreichbar (Tab), hat einen Fokusring (3 px, 3:1), Pfeile, Bild auf/ab, Pos1 und Ende wählen die Woche, `aria-valuetext` nennt Woche und Wert, die Zeile darunter (`aria-live="polite"`) nennt die Anmeldefrist der Woche. Mass und Zeitraum sind Knöpfe mit `aria-pressed` (44 Pixel hoch). Ein Satz (nur für Screenreader) fasst das Diagramm zusammen; die Zeichnung ist `aria-hidden`.
+- [ ] **32.3** Zahlen und Grafiken: Jede Zahl, die hochzählt, hat den Endwert sofort als Text für Screenreader; jede Spur (kleine Grafik) hat `role="img"` mit einem Satz mit allen Werten. Kein Wert steht nur als Farbe oder Höhe (Zahl, Wort oder Vorzeichen daneben). Kontrast Linie, Balken und Text mindestens 3:1 (Grafik) und 4.5:1 (Text) in Hell und Dunkel.
+- [ ] **32.4** Bewegung: Nur unter `prefers-reduced-motion: no-preference` kommen Karten gestaffelt, zeichnen sich Linie, Spuren und Balken ein und zählen Zahlen hoch; mit «Bewegung reduzieren» steht alles sofort da und nichts flackert. Keine Bewegung ist Pflicht, um etwas zu bedienen.
+- [ ] **32.5** Breite und Umbruch: Das Raster liegt in der Breite der Website (23.1); bei 1100 Pixeln und weniger eine Spalte, bei 390 Pixeln kein Querscrollen, bei 200 Prozent Zoom bleibt jede Funktion erreichbar; Umschalter und Zeilen sind mindestens 44 Pixel hoch.
+- [ ] **32.6** Rollen: Stufenleitung und Webmaster sehen nur ihre Teile (kein Hauptdiagramm, kein Band); die Karten stehen ohne Lücken in einer Reihe. Ein gescheiterter Teil zeigt nur seine Karte mit «Nochmals versuchen».
+- [ ] **32.7** Erzwungene Farben: Linie, Fadenkreuz, Balken und Marken bleiben in Systemfarben sichtbar (Highlight, CanvasText), Karten haben einen Rand.
+
+### Stand der Prüfung (#620)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit gefüllten Demo-Daten geprüft: 32.1 bis 32.6 als Abteilungsleitung bei 1440, 1920, 2560 und 390 Pixeln in Hell und Dunkel (Ablesen mit Zeiger und Pfeiltasten, Umschalten von Mass und Zeitraum, Antwort der Route als Stufenleitung, Webmaster, leer und mit gescheiterten Teilen nachgestellt). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, erzwungene Farben am Gerät (32.7 nur aus dem Stil gelesen), Touch am Gerät.
+
+## 33. Verwaltung: Mitglieder-Darstellung für Personen, Kinder und Gruppen (#624)
+
+Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellung» in `personen.css` (Klassenvorsatz `mg-`) auf den Seiten «Personen», «Kinder», dem Detail einer Gruppe und der Stufenleitung auf «Stufen». Geprüft wird im Browser bei 390, 720, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
+
+- [ ] **33.1** Umschalter «Karten | Liste» und «Gruppieren»: je eine Gruppe von Auswahlknöpfen (`role="radiogroup"`, benannt durch «Ansicht» und «Gruppieren nach»). Pfeiltasten wechseln, Tab verlässt die Gruppe, der Fokus ist sichtbar (3 Pixel). Jede Option ist 44 Pixel hoch. Die gewählte Option trägt Rand und Fläche, nie nur eine Farbe. Der Schieber gleitet nur ohne «Bewegung reduzieren».
+- [ ] **33.2** Die Wahl der Ansicht bleibt im Browser (`localStorage`, nur «karten» oder «liste»); ohne Speicher gilt «karten». Die Gruppierung gilt für die Sitzung.
+- [ ] **33.3** Abschnitte: Jeder Abschnitt hat eine Überschrift (Ebene 2, im Detail einer Gruppe Ebene 3) mit der Zahl der Treffer, das Raster oder die Tabelle trägt den Namen des Abschnitts. Die Zahl zählt alle Treffer, nicht nur die der Seite.
+- [ ] **33.4** Karte: Bild oder Initialen, Name, Cevi-Name, Rollen und Tags als Chips mit Wort (höchstens drei, der Rest als «+n weitere» mit Aufzählung im Titel), darunter «Bearbeiten». Der Name der Person steht im Namen jedes Knopfs (`kontext`, `aria-label`). Konto und Zugang sind ruhige Marken mit Symbol und Wort (`Konto aktiv`, `Eltern verknüpft`, `Kein Zugang`, `Zweiter Faktor`); was Aufmerksamkeit verlangt (Startpasswort offen, abgelaufen, deaktiviert, Inaktiv, Telefon fehlt) bleibt ein Chip mit Symbol.
+- [ ] **33.5** Kontrast: Marken (`--leise`, `--ok`) und Chips erreichen 4.5:1 auf Karte und Fläche in Tag und Nacht; Rand von Karte und Umschalter mindestens 3:1 zu `--outline` beim Zeigen und beim Wählen.
+- [ ] **33.6** Auswahl: Das Kästchen steht oben rechts in der Karte, die Trefferfläche ist 44 Pixel gross; «Alle auf der Seite wählen» steht in der Leiste und gilt für Karten und Liste. Die Auswahlleiste (Tag setzen, Tag entziehen, Rückgängig) bleibt unverändert.
+- [ ] **33.7** Liste: eine Tabelle mit Spaltenköpfen (`scope="col"`), Abschnittszeilen (`scope="colgroup"`) und sortierbaren Köpfen (`aria-sort`); nach dem Sortieren bleibt der Fokus auf dem Kopf. Auf schmalem Platz scrollt der Rahmen waagrecht und ist mit der Tastatur erreichbar. Im Detail einer Gruppe steht die Liste als Zeilen, nicht als Tabelle.
+- [ ] **33.8** Bewegung: Das gestaffelte Einblenden der Karten läuft nur beim Wechsel von Ansicht oder Gruppierung und nur ohne «Bewegung reduzieren»; beim Tippen im Filter bewegt sich nichts.
+- [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
+- [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
+
+### Stand der Prüfung (#624)
+
+Im Browser geprüft bei 1440, 1920, 2560 und 390 Pixeln in Tag und Nacht (Karten, Liste, Gruppierung nach Rolle, Stufe und Zugang) mit der Demo-Abteilung. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack) und 200 % Zoom auf echten Geräten.
 
 ## 36. Verwaltung: Mein Konto (#621)
 
