@@ -3,6 +3,13 @@
   margin: 0 0 0.5rem;
 }
 
+/* Einleitung: lesbare Zeilenlänge, normale Schriftgrösse; sie erklärt, wozu die Seite dient */
+.ws-stufenfakten-einleitung {
+  max-width: 44rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
 .ws-stufenfakten-kopf {
   margin: 1rem 0;
 }
