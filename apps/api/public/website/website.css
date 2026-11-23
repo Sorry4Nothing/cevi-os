@@ -2559,20 +2559,6 @@ dialog.lichtkasten {
   }
 }
 
-/* Mit Finger oder Stift (Firefox) nicht schmaler als der Standard des Systems */
-@media (pointer: coarse) {
-  :root {
-    --leiste-breite: auto;
-  }
-}
-
-/* Erzwungene Farben: Firefox behält die Leiste des Systems, die WebKit-Regeln oben gelten dann nicht */
-@media (forced-colors: active) {
-  * {
-    scrollbar-color: auto;
-  }
-}
-
 /* Seitenwechsel (#574): Beim Wechsel zwischen Seiten der Website blendet der Inhalt ruhig über (View Transition über Dokumente, reines CSS). Der Kopf steht still: Er hat seine eigene Gruppe, und weil alt und neu gleich sind, ändert sich nur das Zeichen der aktuellen Seite.
    Wo der Browser es nicht kann, wechselt die Seite wie immer. Bei «Bewegung reduzieren» gibt es keinen Übergang. Hell und Dunkel (theme.js) behalten ihre längere Dauer */
 @media (prefers-reduced-motion: no-preference) {
