@@ -25,7 +25,6 @@ import {
   stufe,
   user,
 } from "./db/schema.js";
-import { PROGRAMM_STUFEN_ROH } from "./termine/stufen-sicht.js";
 
 // Eltern haben keine Stufenrolle: Ihre Rechte hängen am Kind, die Routen joinen kind_eltern direkt in SQL
 export type Person = {
@@ -300,33 +299,6 @@ export function hatRolle(
     (r) =>
       r.stufeId === stufeId && (r.typ === "stufenleitung" || typ === "leitung"),
   );
-}
-
-// Admins und SL sehen jedes Programm der Abteilung, auch eines ohne Stufen-Tag: SL brauchen fremde Stufen für Abteilungsanlässe
-const adminOderSl = (person: Person) =>
-  person.admin || person.rollen.some((r) => r.typ === "stufenleitung");
-
-// Spalten bewusst als Text «programm.…»: In der Feldliste eines Selects liesse Drizzle den Tabellennamen weg
-export function programmLeitungssicht(person: Person): SQL {
-  const eigeneAbteilung = sql`programm.abteilung_id = ${person.abteilungId}`;
-  if (adminOderSl(person)) return eigeneAbteilung;
-  // inArray mit leerer Liste wird zu «false»: Ohne Rolle bleibt alles verborgen
-  return sql`(${eigeneAbteilung} and programm.sichtbarkeit in ('leitende', 'eltern') and exists (select 1 from ${PROGRAMM_STUFEN_ROH} where programm_tag.programm_id = programm.id and ${inArray(
-    sql`programm_tag.tag_id`,
-    person.rollen.map((r) => r.stufeId),
-  )}))`;
-}
-
-// Fail-closed über das Kind: Es zählt nur aktiv und in der eigenen Abteilung
-function programmElternsicht(person: Person): SQL {
-  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from ${PROGRAMM_STUFEN_ROH} inner join kind on kind.stufe_id = programm_tag.tag_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_tag.programm_id = programm.id))`;
-}
-
-// Sichtbar ist ein Programm mit Leitungs- oder Elternsicht; beide schränken auf die Abteilung aus der Sitzung ein
-export function programmSichtbar(person: Person): SQL {
-  const leitungssicht = programmLeitungssicht(person);
-  if (adminOderSl(person)) return leitungssicht;
-  return sql`(${leitungssicht} or ${programmElternsicht(person)})`;
 }
 
 // Beginn des Programms; ganztägige beginnen um 00:00 Schweizer Zeit, nie über die Sitzungszone (tag_von::timestamptz)

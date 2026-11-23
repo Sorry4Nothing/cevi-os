@@ -7,6 +7,8 @@ import { kind, kindEltern, profilbild, stufe, user } from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
+import { eintragVon, RECHT_IDS } from "../rechtemodell/katalog.js";
+import { ladeRechteSatz } from "../rechtemodell/satz.js";
 import { erstelleLagerBenachrichtigungEinstellungRouten } from "./lager/benachrichtigungen.js";
 import { telefonSchema } from "../telefon.js";
 
@@ -93,6 +95,22 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                   ),
                 )
                 .orderBy(asc(stufe.name), asc(stufe.id));
+        // Die Rechte der Person (#650), damit die Verwaltung nur zeigt, was der Server erlaubt: je Recht des Katalogs, das sich vergeben lässt oder fest ist, die Geltung «alle» oder «eigene». Nur Kennungen; die Prüfung bleibt auf dem Server. Eine Abfrage
+        const satz = await ladeRechteSatz(db, person);
+        const rechte = RECHT_IDS.flatMap((recht) => {
+          if (eintragVon(recht).art === "struktur") return [];
+          const herkunft = satz.herkuenfte(recht);
+          return herkunft.length === 0
+            ? []
+            : [
+                {
+                  recht,
+                  geltung: herkunft.some((h) => h.geltung === "alle")
+                    ? ("alle" as const)
+                    : ("eigene" as const),
+                },
+              ];
+        });
         // Der Anmelde-Push gilt nur Leitenden: Allen anderen zeigt die API den Schalter nicht
         const { pushAnmeldungen, ...rest } = profil;
         return c.json({
@@ -101,6 +119,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           admin: person.admin,
           zweiterFaktor: person.zweiterFaktor,
           rollen: person.rollen,
+          rechte,
           stufen,
           kinder,
         });

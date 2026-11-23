@@ -1,7 +1,7 @@
 import { darfBearbeiten } from "../bearbeiten.js";
 import type { Db } from "../db/client.js";
 import { hatPlattformRecht, istEntwickler } from "../plattform.js";
-import type { Person } from "../rechte.js";
+import { hatRolle, type Person } from "../rechte.js";
 import { darfBelegungSehen } from "../termine/raum.js";
 import { darfEntscheiden } from "../termine/raum-buchung.js";
 import { darfVorschlagen } from "../termine/vorschlag.js";
@@ -19,6 +19,17 @@ export type Altweg = (
 ) => Promise<boolean>;
 
 const nurAbteilungsleitung: Altweg = async (_db, person) => person.admin;
+
+// Anwesenheit, Teilnahmen und Kontakte einer Stufe (#650): die Abteilungsleitung und die Leitung der Stufe (die Stufenleitung erfüllt jede Prüfung auf Leitung, hatRolle). Ohne Stufe: irgendeine Stufenrolle
+const abteilungsleitungOderLeitung: Altweg = async (_db, person, objekt) => {
+  if (person.admin) return true;
+  // Die Frage gilt der ganzen Abteilung: Eine Stufenrolle gibt das nie
+  if (objekt.abteilungsweit) return false;
+  const stufeId = objekt.stufeId ?? objekt.tagId;
+  return stufeId
+    ? hatRolle(person, stufeId, "leitung")
+    : person.rollen.length > 0;
+};
 
 // Das Plattformrecht gleichen Namens: Entwickler, Abteilungsleitung und Plattformrollen, wie hatPlattformRecht sie kennt
 const plattform =
@@ -56,6 +67,11 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
       { id: person.id, admin: person.admin, zweiterFaktor: true },
       objekt.raumTeamTagId ?? null,
     ),
+  // Jedes Programm der Abteilung sieht die Abteilungsleitung und, wer irgendwo Stufenleitung ist (rechte.ts, adminOderSl)
+  "programm.alle_sehen": async (_db, person) =>
+    person.admin || person.rollen.some((r) => r.typ === "stufenleitung"),
+  "anwesenheit.fuehren": abteilungsleitungOderLeitung,
+  "stufe.einblick": abteilungsleitungOderLeitung,
   "plattform.sperren": async (db, person) =>
     person.admin || (await istEntwickler(db, person)),
   "protokoll.lesen": (db, person) => istEntwickler(db, person),

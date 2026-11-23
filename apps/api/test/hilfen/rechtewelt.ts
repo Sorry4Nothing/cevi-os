@@ -134,7 +134,7 @@ export async function legeRechtewelt(
       { recht: "raum.anfrage_entscheiden", geltung: "eigene" },
       { recht: "raum.verwalten", geltung: "eigene" },
       { recht: "mitteilung.senden", geltung: "eigene" },
-      { recht: "gruppen.verwalten", geltung: "eigene" },
+      { recht: "gruppen.mitglieder", geltung: "eigene" },
     ]),
     okKasse: await rolle(ok, "Kasse", [
       { recht: "anlass.anmeldungen_sehen", geltung: "eigene" },
@@ -157,10 +157,17 @@ export async function legeRechtewelt(
       { recht: "personen.verwalten", geltung: "alle" },
       { recht: "mitteilung.senden", geltung: "alle" },
       { recht: "seiten.bearbeiten", geltung: "alle" },
+      { recht: "kinder.sehen", geltung: "alle" },
+      { recht: "import.ausfuehren", geltung: "alle" },
+      { recht: "gruppen.verwalten", geltung: "alle" },
     ]),
     // Eine Rolle in einer Stufe: gibt zusätzlich zur Stufenrolle ein Recht, nur für die Stufe
     stufeRolle: await rolle(welt.stufeAId, "Kassier", [
       { recht: "mitteilung.senden", geltung: "eigene" },
+      { recht: "kinder.sehen", geltung: "eigene" },
+      { recht: "kinder.verwalten", geltung: "eigene" },
+      { recht: "anwesenheit.fuehren", geltung: "eigene" },
+      { recht: "stufe.einblick", geltung: "eigene" },
     ]),
     plattform: await zeile(
       db,
@@ -174,7 +181,13 @@ export async function legeRechtewelt(
     ),
   };
   await db.insert(schema.plattformRolleRecht).values(
-    ["medien.verwalten", "mitteilung.senden", "laden.ansehen"].map((recht) => ({
+    [
+      "medien.verwalten",
+      "mitteilung.senden",
+      "laden.ansehen",
+      "personen.sehen",
+      "programm.intern_sehen",
+    ].map((recht) => ({
       rolleId: rollen.plattform,
       recht,
     })),

@@ -59,6 +59,9 @@ beforeAll(async () => {
     gruppeStufeA: { tagId: w.stufeA },
     gruppeStufeB: { tagId: w.stufeB },
     gruppeOk: { tagId: w.ok },
+    // Eine Stufe ist zugleich eine Gruppe: Stufenrollen treffen über stufeId, Gruppenrollen über tagId
+    stufeObjA: { tagId: w.stufeA, stufeId: w.stufeA },
+    stufeObjB: { tagId: w.stufeB, stufeId: w.stufeB },
     leer: {},
   };
 });
@@ -122,8 +125,11 @@ const FAELLE: Fall[] = [
   ["teamRolle", "mitteilung.senden", "gruppeTeam", true],
   ["teamRolle", "mitteilung.senden", "gruppeStufeA", false],
   ["teamRolle", "mitteilung.senden", undefined, true],
-  ["teamRolle", "gruppen.verwalten", "gruppeTeam", true],
-  ["teamRolle", "gruppen.verwalten", "gruppeOk", false],
+  ["teamRolle", "gruppen.mitglieder", "gruppeTeam", true],
+  ["teamRolle", "gruppen.mitglieder", "gruppeOk", false],
+  ["teamRolle", "gruppen.mitglieder", undefined, true],
+  // Gruppen anlegen, umbenennen und löschen gibt es nur für alle (#650)
+  ["teamRolle", "gruppen.verwalten", "gruppeTeam", false],
   ["teamRolle", "rechte.verwalten", undefined, false],
   // Funktion: nur Vorschläge
   ["funktionMitglied", "vorschlag.einreichen", undefined, true],
@@ -167,6 +173,58 @@ const FAELLE: Fall[] = [
   ["sonderPerson", "seiten.bearbeiten", "seiteFrei", false],
   ["sonderGruppe", "seiten.bearbeiten", "seiteSonder", true],
   ["sonderGruppe", "seiten.bearbeiten", "seiteFrei", false],
+  // Personen, Kinder, Stufenarbeit und Programme (#650)
+  ["al", "personen.sehen", undefined, true],
+  ["al", "kinder.verwalten", "stufeObjB", true],
+  ["al", "anwesenheit.fuehren", "stufeObjA", true],
+  ["al", "stufe.einblick", "stufeObjB", true],
+  ["al", "import.ausfuehren", undefined, true],
+  ["al", "gruppen.mitglieder", "gruppeOk", true],
+  ["al", "programm.alle_sehen", undefined, true],
+  ["al", "programm.intern_sehen", undefined, true],
+  ["entwickler", "kinder.sehen", undefined, false],
+  ["entwickler", "personen.sehen", undefined, false],
+  ["entwickler", "programm.intern_sehen", undefined, false],
+  // Die Stufenleitung führt die Anwesenheit ihrer Stufe und sieht jedes Programm, aber nie die Verwaltung der Kinder
+  ["slA", "anwesenheit.fuehren", "stufeObjA", true],
+  ["slA", "anwesenheit.fuehren", "stufeObjB", false],
+  ["slA", "anwesenheit.fuehren", undefined, true],
+  ["slA", "stufe.einblick", "stufeObjA", true],
+  ["slA", "stufe.einblick", "stufeObjB", false],
+  ["slA", "programm.alle_sehen", undefined, true],
+  ["slA", "programm.intern_sehen", undefined, false],
+  ["slA", "kinder.sehen", "stufeObjA", false],
+  ["slA", "kinder.verwalten", "stufeObjA", false],
+  ["slA", "personen.sehen", undefined, false],
+  ["slA", "import.ausfuehren", undefined, false],
+  ["slA", "gruppen.mitglieder", "stufeObjA", false],
+  // Leitung: wie die Stufenleitung, aber ohne alle Programme
+  ["leitungB", "anwesenheit.fuehren", "stufeObjB", true],
+  ["leitungB", "anwesenheit.fuehren", "stufeObjA", false],
+  ["leitungB", "stufe.einblick", "stufeObjB", true],
+  ["leitungB", "programm.alle_sehen", undefined, false],
+  // Eine Rolle in der Stufe gibt die Rechte nur für diese Stufe
+  ["stufeKassier", "kinder.sehen", "stufeObjA", true],
+  ["stufeKassier", "kinder.sehen", "stufeObjB", false],
+  ["stufeKassier", "kinder.verwalten", "stufeObjA", true],
+  ["stufeKassier", "kinder.verwalten", "stufeObjB", false],
+  ["stufeKassier", "kinder.verwalten", undefined, true],
+  ["stufeKassier", "anwesenheit.fuehren", "stufeObjA", true],
+  ["stufeKassier", "anwesenheit.fuehren", "stufeObjB", false],
+  ["stufeKassier", "stufe.einblick", "stufeObjA", true],
+  ["stufeKassier", "personen.verwalten", undefined, false],
+  // Eine Rolle mit «alle»: jede Stufe, aber nichts, was die Rolle nicht trägt
+  ["alleRolle", "kinder.sehen", "stufeObjB", true],
+  ["alleRolle", "kinder.verwalten", "stufeObjB", false],
+  ["alleRolle", "import.ausfuehren", undefined, true],
+  ["alleRolle", "gruppen.verwalten", "gruppeTeam", true],
+  ["alleRolle", "gruppen.mitglieder", "gruppeTeam", false],
+  ["alleRolle", "personen.sehen", undefined, false],
+  // Die Plattformrolle gilt abteilungsweit
+  ["plattform", "personen.sehen", undefined, true],
+  ["plattform", "personen.verwalten", undefined, false],
+  ["plattform", "programm.intern_sehen", undefined, true],
+  ["plattform", "kinder.sehen", "stufeObjA", false],
   // Ohne alles: nur, was strukturell ist
   ["ohneAlles", "termine.mein_kalender", undefined, true],
   ["ohneAlles", "anlass.anmelden", undefined, true],
@@ -350,6 +408,23 @@ describe("RechteSatz: die Standardmatrix als Literal", () => {
     expect((await satzVon("leitungB")).braucht2Faktor("raum.belegung")).toBe(
       false,
     );
+    // Stufenarbeit (#650): ohne zweiten Faktor für Stufenrollen und die Abteilungsleitung, mit für eine Rolle der Gruppe oder der Plattform
+    expect(
+      (await satzVon("slA")).braucht2Faktor("anwesenheit.fuehren", O.stufeObjA),
+    ).toBe(false);
+    expect(
+      (await satzVon("leitungB")).braucht2Faktor("stufe.einblick", O.stufeObjB),
+    ).toBe(false);
+    expect(
+      (await satzVon("al")).braucht2Faktor("anwesenheit.fuehren", O.stufeObjA),
+    ).toBe(false);
+    expect(
+      (await satzVon("stufeKassier")).braucht2Faktor(
+        "anwesenheit.fuehren",
+        O.stufeObjA,
+      ),
+    ).toBe(true);
+    expect((await satzVon("al")).braucht2Faktor("kinder.sehen")).toBe(true);
     // Hat die Stufenleitung dieselbe Stufenseite auch über eine zweite Quelle, gilt die strengere
     expect((await satzVon("slA")).braucht2Faktor("mitteilung.senden")).toBe(
       true,

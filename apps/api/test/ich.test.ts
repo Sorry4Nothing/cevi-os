@@ -94,6 +94,13 @@ describe("GET /api/v1/ich", () => {
       pushProgramme: true,
       pushAnmeldungen: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
+      // Die Rechte der Leitung: Standard der Stufenrolle, ohne zweiten Faktor sichtbar (#650)
+      rechte: [
+        { recht: "vorschlag.einreichen", geltung: "alle" },
+        { recht: "raum.belegung", geltung: "alle" },
+        { recht: "anwesenheit.fuehren", geltung: "eigene" },
+        { recht: "stufe.einblick", geltung: "eigene" },
+      ],
       // Die Stufen der Rollen und der Kinder, nach Name
       stufen: [
         { id: welt.stufeAId, name: "Stufe A", kuerzel: "A" },

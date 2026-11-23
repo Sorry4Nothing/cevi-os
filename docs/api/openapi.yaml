@@ -3062,7 +3062,7 @@ paths:
 
         Die Antwort trägt `Cache-Control: no-store`.
 
-        **Rollen.** Administratorinnen und Administratoren sowie Leitende und SL der Stufe. Eltern und Leitende
+        **Rollen.** Administratorinnen und Administratoren sowie Leitende und SL der Stufe, ebenso wer das Recht `anwesenheit.fuehren` für die Stufe als Rolle der Plattform oder der Gruppe trägt (mit zweitem Faktor; #650). Eltern und Leitende
         anderer Stufen bekommen 403; unbekannte Stufen und Stufen anderer Abteilungen 404.
         Statuscodes: 200, 400, 401, 403, 404, 426, 429.
       parameters:
@@ -3386,7 +3386,7 @@ paths:
 
         Wer aufrufen darf: jede angemeldete Person. Sichtbar ist ein Programm so:
         - Administratorinnen und Administratoren sowie Stufenleitungen (SL) sehen jedes Programm der Abteilung,
-          auch ohne Stufen-Tag; «intern» (für niemanden sichtbar) nur mit `alle=1` und nur für Administratorinnen und Administratoren.
+          auch ohne Stufen-Tag (Recht `programm.alle_sehen`, das es auch als Rolle gibt); «intern» (für niemanden sichtbar) nur mit `alle=1` und nur mit dem Recht `programm.intern_sehen` (Standard: Abteilungsleitung).
         - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die den Stufen-Tag einer ihrer Stufen tragen.
         - Eltern sehen Programme mit Sichtbarkeit «eltern», die den Stufen-Tag einer Stufe tragen, in der ein aktives
           eigenes Kind ist.
@@ -3553,7 +3553,7 @@ paths:
         der Stufen begrenzt.
 
         **Was wer sieht.**
-        - Administratorinnen und Administratoren: alle Kinder und Leitenden aller zugeordneten Stufen.
+        - Administratorinnen und Administratoren sowie Rollen mit `stufe.einblick` für die Stufe: alle Kinder und Leitenden der zugeordneten Stufen (Administratorinnen und Administratoren aller).
         - Leitende und SL: alle Kinder und alle Leitenden und SL der zugeordneten Stufen, in denen sie selbst
           Leitung oder SL sind.
         - Eltern: nur die eigenen Kinder in zugeordneten Stufen. `leitende` ist leer.
@@ -3563,7 +3563,7 @@ paths:
         Sortiert: Kinder nach Vorname, Nachname, `id`; Leitende nach Name, `id`.
 
         **Reihenfolge der Prüfung.** Eingabe (400), Sichtbarkeit des Programms (404), Recht (403). 403 bekommt, wer
-        das Programm sieht, aber weder Admin noch Leitung einer zugeordneten Stufe noch Elternteil eines Kindes
+        das Programm sieht, aber weder Admin noch Leitung einer zugeordneten Stufe (noch das Recht `stufe.einblick` dafür) noch Elternteil eines Kindes
         darin ist, zum Beispiel die SL einer anderen Stufe.
         Statuscodes: 200 Erfolg; 400 `id` keine UUID; 401 keine gültige Sitzung; 403 kein Recht auf die Übersicht
         oder Konto muss zuerst das Passwort ändern; 404 Programm unbekannt oder nicht sichtbar; 426 App-Version
@@ -3601,8 +3601,8 @@ paths:
         überschrieben. Ohne gespeicherte Antwort gilt «offen» (siehe `ProgrammKind.status` = `null`). Es gibt kein
         Zurücksetzen auf «offen».
 
-        Wer aufrufen darf: Eltern des Kindes, Leitende und SL der Stufe des Kindes sowie Administratorinnen und
-        Administratoren. Das Programm muss der Stufe des Kindes zugeordnet und das Kind aktiv sein. Leitende oder
+        Wer aufrufen darf: Eltern des Kindes, Leitende und SL der Stufe des Kindes, Administratorinnen und
+        Administratoren sowie wer das Recht `stufe.einblick` für die Stufe des Kindes hat (Rolle der Plattform oder der Gruppe, mit zweitem Faktor; #650). Das Programm muss der Stufe des Kindes zugeordnet und das Kind aktiv sein. Leitende oder
         SL einer anderen Stufe und Eltern fremder Kinder bekommen 403.
 
         Setzt der Aufruf die Antwort neu oder ändert er sie, geht ein Push an die Leitenden der Stufen des Programms
@@ -3903,7 +3903,7 @@ paths:
       operationId: listeAdminPersonen
       summary: Personen, Stufen und Kinder der Abteilung für die Verwaltung
       description: |
-        Nur Admins. Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und alle Kinder (nach Nachname, Vorname) für den Rollen-Editor.
+        Wer Personen verwalten (`personen.verwalten`) oder sehen darf (`personen.sehen`), mit zweitem Faktor; die Abteilungsleitung hat beide (#650). Mit `personen.sehen` ist `startpasswort` immer `null`; mit `personen.verwalten` zeigt es nur die von Konten ohne Rechte, die Abteilungsleitung sieht alle. `kinder` und `elternteilVon` nennen nur Kinder der Stufen, die die Person sehen darf (`kinder.sehen` oder `kinder.verwalten`, je Stufe). Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und die Kinder (nach Nachname, Vorname) für den Rollen-Editor.
         Enthält nie E-Mail, Telefon, Sperrgrund, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors.
 
         Statuscodes: 200 bei Erfolg. 403, wenn die Person kein Admin ist, wenn ein Admin noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Admin-Routen) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
@@ -3930,7 +3930,7 @@ paths:
       operationId: legeAdminPersonAn
       summary: Person anlegen und Startpasswort erhalten
       description: |
-        Nur Admins. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
+        Wer `personen.verwalten` hat (mit zweitem Faktor; #650). `admin: true` und Stufenrollen in `rollen` setzt nur die Abteilungsleitung (`rechte.verwalten`): Rechte vergibt sie allein. `elternteilVon` braucht `kinder.verwalten` in der Stufe jedes Kindes. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
 
         Das Startpasswort steht nur in dieser 201-Antwort. Es wird nicht gespeichert und lässt sich nicht erneut abrufen; ein neues erzeugt `POST /api/v1/admin/personen/{id}/startpasswort`. Die Antwort kommt erst nach dem Commit; scheitert das Anlegen, gibt es kein Startpasswort. Ein Admin-Anlegen oder eine vergebene Rolle «stufenleitung» löst einen Push an die anderen Admins aus.
 
@@ -3973,7 +3973,7 @@ paths:
       operationId: aendereAdminPerson
       summary: Name, Admin-Recht, Stufenrollen und Kinder einer Person ändern
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `admin` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufen- und Kind-IDs (400).
 
@@ -4014,7 +4014,7 @@ paths:
       operationId: loescheAdminPerson
       summary: Person löschen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
+        Nur die Abteilungsleitung (festes Recht `konto.loeschen`), nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für den letzten aktiven Admin.
       tags:
@@ -4048,7 +4048,7 @@ paths:
       operationId: setzeAdminStartpasswortNeu
       summary: Neues Startpasswort für eine Person erzeugen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung zurück (403 sonst, #650). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -4088,7 +4088,7 @@ paths:
       operationId: deaktiviereAdminPerson
       summary: Person deaktivieren
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für den letzten aktiven Admin.
       tags:
@@ -4122,7 +4122,7 @@ paths:
       operationId: aktiviereAdminPerson
       summary: Deaktivierte Person wieder aktivieren
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -4162,7 +4162,7 @@ paths:
       operationId: setzeAdminZweitenFaktorZurueck
       summary: Zweiten Faktor einer Person zurücksetzen
       description: |
-        Nur Admins, nur Personen der eigenen Abteilung. Entfernt den zweiten Faktor der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Entfernt den zweiten Faktor der Person. Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENER_ZWEITER_FAKTOR` für den eigenen Faktor (ein anderer Admin setzt ihn zurück) oder `KEIN_ZWEITER_FAKTOR`, wenn die Person keinen hat.
       tags:
@@ -4699,7 +4699,7 @@ paths:
       operationId: sendeAdminMitteilung
       summary: Mitteilung als Push senden
       description: |
-        Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt den Titel und, wenn angegeben, die Beschreibung als Text. Beide dürfen keine Namen enthalten: Sie laufen über Apple und Google.
+        Wer das Recht `mitteilung.senden` hat (mit zweitem Faktor): für alle Gruppen oder, mit der Geltung «eigene», nur für die Gruppe der Rolle; jedes Ziel wird einzeln geprüft (403, wenn eines nicht erlaubt ist), `empfaenger: "alle"` und «alle Stufen» brauchen die Geltung «alle» (#643). Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt den Titel und, wenn angegeben, die Beschreibung als Text. Beide dürfen keine Namen enthalten: Sie laufen über Apple und Google.
 
         Die Empfänger gibt es in zwei Formen, die sich nicht mischen lassen. **Ziele** (`ziele`): eine Liste von Gruppen (jeder Tag der Abteilung: Stufe, Funktion, Team, Lager, Anlass), je mit den Rollen, die zur Gruppe passen. Bei einer Stufe sind es `eltern` (die Eltern aktiver Kinder; Kinder haben kein Konto), `leitung` und `stufenleitung`; bei jeder anderen Gruppe `alle` (alle Mitglieder) und `verantwortliche` (Mitglieder mit der Rolle «verantwortlich» an der Zuordnung). Eine Rolle, die nicht zum Typ der Gruppe passt, ist ungültig. Eine Person, die mehrere Ziele trifft, bekommt den Push einmal; die absendende Person bekommt ihn nur, wenn sie selbst zu einem Ziel gehört. **Bisherige Form** (`empfaenger` mit `stufeIds` und `rollen`): `alle` erreicht alle aktiven Konten der Abteilung, `stufen` die gewählten Stufen; hier bekommt die absendende Person den Push auch, wenn alle Rollen gelten. Voraussetzung ist in jedem Fall ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`).
 
@@ -4746,7 +4746,7 @@ paths:
       operationId: zaehleAdminMitteilungEmpfaenger
       summary: Empfänger einer Mitteilung zählen
       description: |
-        Nur Admins. Löst dieselbe Wahl wie `POST /api/v1/admin/mitteilungen` auf, ohne zu senden: Die Antwort nennt nur Zahlen, nie Namen oder Konten. `empfaenger` ist die Zahl der Konten, die der Push erreichen würde (eine Person in mehreren Zielen zählt einmal); `ziele` nennt je Ziel die Zahl der Konten, in der Reihenfolge der Anfrage (leer bei `alle`). Die Zahlen der Ziele zusammengezählt können grösser sein als `empfaenger`, weil Personen in mehreren Zielen vorkommen.
+        Wer das Recht `mitteilung.senden` hat; dieselbe Prüfung je Ziel wie `POST /api/v1/admin/mitteilungen`. Löst dieselbe Wahl wie `POST /api/v1/admin/mitteilungen` auf, ohne zu senden: Die Antwort nennt nur Zahlen, nie Namen oder Konten. `empfaenger` ist die Zahl der Konten, die der Push erreichen würde (eine Person in mehreren Zielen zählt einmal); `ziele` nennt je Ziel die Zahl der Konten, in der Reihenfolge der Anfrage (leer bei `alle`). Die Zahlen der Ziele zusammengezählt können grösser sein als `empfaenger`, weil Personen in mehreren Zielen vorkommen.
 
         Kein Audit-Eintrag, kein Versand und kein Teil des Limits; es braucht den Push-Dienst nicht. Die Abfragen sind dieselben wie beim Senden (höchstens vier, unabhängig von der Zahl der Ziele); die Verwaltung fragt nach jeder Änderung der Wahl einmal, nie in einer Schleife.
 
@@ -4781,7 +4781,7 @@ paths:
       operationId: legeAdminStufeAn
       summary: Stufe anlegen
       description: |
-        Nur Admins. Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
+        Wer `gruppen.verwalten` hat (mit zweitem Faktor; #650). Legt eine Stufe in der eigenen Abteilung an und in derselben Transaktion ihren Gruppenchat (`typ` `stufe`); eine Stufe hat genau einen.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlende Felder, Längen). 403 für Nicht-Admins. 409 mit Code `STUFENNAME_VERGEBEN`, wenn es in der Abteilung schon eine Stufe mit diesem Namen gibt (Gross-/Kleinschreibung zählt nicht).
       tags:
@@ -4822,7 +4822,7 @@ paths:
       operationId: aendereAdminStufe
       summary: Stufe ändern
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204.
+        Wer `gruppen.verwalten` hat, nur Stufen der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID oder ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `STUFENNAME_VERGEBEN`, wenn der neue Name schon vergeben ist.
       tags:
@@ -4861,7 +4861,7 @@ paths:
       operationId: loescheAdminStufe
       summary: Stufe löschen
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten, Erinnerungsregeln der Stufe und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
+        Wer `gruppen.verwalten` hat, nur Stufen der eigenen Abteilung. Löscht die Stufe samt Logo, Gruppenchat mit allen Nachrichten, Einzelchats der Stufe, Eckdaten, Erinnerungsregeln der Stufe und Zuordnungen zu Programmen; die Programme selbst bleiben. Der Vorgang steht im Audit-Log (`stufe_geloescht`).
 
         Eine Stufe mit zugewiesenen Kindern (auch inaktiven) oder Leitenden lässt sich nicht löschen: Sie müssen zuerst einer anderen Stufe zugewiesen oder entfernt werden.
 
@@ -4897,7 +4897,7 @@ paths:
       operationId: ordneAdminStufenleitung
       summary: Reihenfolge der Stufenleitung festlegen
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. `ids` nennt SL der Stufe in der Reihenfolge der Kontakte: die erste
+        Wer `gruppen.mitglieder` hat (alle Stufen oder, mit der Geltung «eigene», die Stufe der Rolle), nur Stufen der eigenen Abteilung. `ids` nennt SL der Stufe in der Reihenfolge der Kontakte: die erste
         ist der Hauptkontakt (`prioritaet` 1), dann 2, 3 und so weiter. SL der Stufe, die nicht in `ids` stehen, verlieren
         ihren Rang und folgen danach nach Name; eine leere Liste hebt die Reihenfolge auf. Die Reihenfolge gilt für
         `GET /api/v1/programme/{id}/kontakte`, `GET /api/v1/stufen/{id}/kontakte` und die Liste `stufenleitung` der Chats.
@@ -4947,7 +4947,7 @@ paths:
       operationId: setzeAdminStufeLogo
       summary: Logo einer Stufe hochladen
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. Ein vorhandenes Logo wird ersetzt.
+        Wer `gruppen.verwalten` hat, nur Stufen der eigenen Abteilung. Ein vorhandenes Logo wird ersetzt.
 
         **Body.** Das Bild selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung oder `Content-Type`. Höchstens 5 MiB und höchstens
@@ -5010,7 +5010,7 @@ paths:
       operationId: loescheAdminStufeLogo
       summary: Logo einer Stufe löschen
       description: |
-        Nur Admins, nur Stufen der eigenen Abteilung. Danach gilt wieder das Cevi-Logo. Ohne eigenes Logo ebenfalls 204.
+        Wer `gruppen.verwalten` hat, nur Stufen der eigenen Abteilung. Danach gilt wieder das Cevi-Logo. Ohne eigenes Logo ebenfalls 204.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -5218,7 +5218,7 @@ paths:
       operationId: listeAdminKinder
       summary: Kinder der Abteilung mit Elternteilen
       description: |
-        Nur Admins. Liefert alle Kinder der eigenen Abteilung (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung. Keine Datumsfelder.
+        Wer Kinder sehen (`kinder.sehen`) oder verwalten darf (`kinder.verwalten`), mit zweitem Faktor; mit der Geltung «eigene» nur die Kinder der Stufe der Rolle (#650). Liefert die Kinder der eigenen Abteilung, die die Person sehen darf (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung. Keine Datumsfelder.
 
         Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
@@ -5244,7 +5244,7 @@ paths:
       operationId: legeAdminKindAn
       summary: Kind anlegen
       description: |
-        Nur Admins. Legt ein aktives Kind in einer Stufe der eigenen Abteilung an. Elternteile verknüpft `PATCH /api/v1/admin/kinder/{id}` oder `PATCH /api/v1/admin/personen/{id}`.
+        Wer `kinder.verwalten` in der gewählten Stufe hat (403 sonst). Legt ein aktives Kind in einer Stufe der eigenen Abteilung an. Elternteile verknüpft `PATCH /api/v1/admin/kinder/{id}` oder `PATCH /api/v1/admin/personen/{id}`.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins.
       tags:
@@ -5279,7 +5279,7 @@ paths:
       operationId: vorschauAdminImport
       summary: Import prüfen, ohne etwas zu schreiben
       description: |
-        Nur Admins. Prüft eine Liste von Personen aus einem Export der Cevi-Datenbank und zeigt je Zeile, was der Import täte. Schreibt nichts. Die Spalten- und Rollenzuordnung hat der Browser schon getroffen: Jede Zeile trägt ihre Art.
+        Wer `import.ausfuehren` hat (mit zweitem Faktor; #650). Enthält die Liste Leitende (`leitung`, `stufenleitung`), braucht es zusätzlich `rechte.verwalten`, also die Abteilungsleitung (403 sonst). Prüft eine Liste von Personen aus einem Export der Cevi-Datenbank und zeigt je Zeile, was der Import täte. Schreibt nichts. Die Spalten- und Rollenzuordnung hat der Browser schon getroffen: Jede Zeile trägt ihre Art.
 
         Je Zeile gilt der Status `ungueltig` (leerer oder zu langer Name, ungültiger Cevi-Name), `ausgelassen` (Art `auslassen`), `vorhanden` (die Abteilung hat schon ein Kind bzw. bei Leitenden ein Konto mit gleichem Vor- und Nachnamen), `doppelt` (ab dem zweiten Vorkommen derselben Person in der Datei, getrennt für Kinder und Leitende) oder `neu`. Namen werden ohne Gross-/Kleinschreibung, Akzente und überzählige Leerzeichen verglichen. Für neue Leitende nennt `benutzername` den vorgesehenen Benutzernamen: aus Vor- und Nachname erzeugt, bei Kollision mit einem Konto oder einer früheren Zeile mit 2, 3, … versehen. Der Import vergibt für dieselbe Datei denselben Namen.
 
@@ -5316,7 +5316,7 @@ paths:
       operationId: fuehreAdminImportAus
       summary: Kinder und Leitende importieren
       description: |
-        Nur Admins. Legt alle Zeilen mit Status `neu` in einer Transaktion an: Kinder wie `POST /api/v1/admin/kinder`, Leitende wie `POST /api/v1/admin/personen` (kein Admin, Rolle `leitung` oder `stufenleitung` in der gewählten Stufe, keine Elternverknüpfung) mit je eigenem Startpasswort und einem Audit-Eintrag `person_angelegt` pro Konto. Der Server berechnet die Zeilenstatus neu und vertraut dem Browser nicht; alles ausser `neu` wird übersprungen. Ein zweiter Import derselben Datei legt daher nichts doppelt an.
+        Wer `import.ausfuehren` hat; Zeilen mit Leitenden braucht zusätzlich `rechte.verwalten` (die Abteilungsleitung, 403 sonst). Legt alle Zeilen mit Status `neu` in einer Transaktion an: Kinder wie `POST /api/v1/admin/kinder`, Leitende wie `POST /api/v1/admin/personen` (kein Admin, Rolle `leitung` oder `stufenleitung` in der gewählten Stufe, keine Elternverknüpfung) mit je eigenem Startpasswort und einem Audit-Eintrag `person_angelegt` pro Konto. Der Server berechnet die Zeilenstatus neu und vertraut dem Browser nicht; alles ausser `neu` wird übersprungen. Ein zweiter Import derselben Datei legt daher nichts doppelt an.
 
         Die Startpasswörter stehen nur in dieser 201-Antwort. Sie werden nicht gespeichert und lassen sich nicht erneut abrufen. Die Antwort kommt erst nach dem Commit; scheitert irgendein Konto, wird alles zurückgenommen und es gibt keine Passwörter. Das Anlegen von 500 Konten dauert wegen der Passwortprüfung je Konto entsprechend lange.
 
@@ -5361,7 +5361,7 @@ paths:
       operationId: aendereAdminKind
       summary: Kind ändern
       description: |
-        Nur Admins, nur Kinder der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Die App darf das ganze Formular schicken: Nur echte Änderungen von `stufeId` und `aktiv` setzen die Zeitpunkte, auf die die Chat-Sicht aufbaut. `eltern` ersetzt die bisherige Liste der Elternteile vollständig.
+        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung; eine neue `stufeId` braucht das Recht auch dort (#650). Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Die App darf das ganze Formular schicken: Nur echte Änderungen von `stufeId` und `aktiv` setzen die Zeitpunkte, auf die die Chat-Sicht aufbaut. `eltern` ersetzt die bisherige Liste der Elternteile vollständig.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Kind in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufe und Elternteile (400).
 
@@ -5396,7 +5396,7 @@ paths:
       operationId: loescheAdminKind
       summary: Kind löschen
       description: |
-        Nur Admins, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen.
+        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -5548,7 +5548,7 @@ paths:
       operationId: listeAdminTags
       summary: Tags der Abteilung
       description: |
-        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
+        Wer Gruppen verwalten (`gruppen.verwalten`) oder Mitglieder ändern darf (`gruppen.mitglieder`, mit zweitem Faktor). Mit `gruppen.mitglieder` in der Geltung «eigene» nur die eigenen Gruppen (#650). Liefert die Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
 
         Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
@@ -5574,7 +5574,7 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`, `anlass`) bleibt danach fest. Der Typ `anlass` (#626) braucht `anlassId`: Die Gruppe gehört zu diesem Anlass (zum Beispiel das OK), es gibt höchstens eine je Anlass; sie hat keine Seite auf der Website und vergibt keine Rechte. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
+        Wer `gruppen.verwalten` hat. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`, `anlass`) bleibt danach fest. Der Typ `anlass` (#626) braucht `anlassId`: Die Gruppe gehört zu diesem Anlass (zum Beispiel das OK), es gibt höchstens eine je Anlass; sie hat keine Seite auf der Website und vergibt keine Rechte. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
         Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen, `anlassId` ohne Typ `anlass` oder umgekehrt) oder mit Code `ANLASS_UNBEKANNT`, wenn der Anlass nicht besteht, zu einer anderen Abteilung gehört oder ein Lager ist. 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist, oder `ANLASS_HAT_GRUPPE`, wenn der Anlass schon eine Gruppe hat.
       tags:
@@ -5615,7 +5615,7 @@ paths:
       operationId: holeAdminTag
       summary: Tag mit Verwendung
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Bei Typ `anlass` nennt `anlass` den Anlass mit Titel und Termin (`null`, wenn er gelöscht wurde). Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
+        Wer `gruppen.verwalten` oder `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Bei Typ `anlass` nennt `anlass` den Anlass mit Titel und Termin (`null`, wenn er gelöscht wurde). Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
 
         Reihenfolge der Prüfungen: Pfad (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403).
 
@@ -5648,7 +5648,7 @@ paths:
       operationId: aendereAdminTag
       summary: Tag umbenennen
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Ändert Name und Kürzel; der Typ lässt sich nicht ändern (400). Ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, nie die Werte).
+        Wer `gruppen.verwalten` hat, nur Tags der eigenen Abteilung. Ändert Name und Kürzel; der Typ lässt sich nicht ändern (400). Ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, nie die Werte).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `TAGNAME_VERGEBEN`, wenn der neue Name schon vergeben ist.
       tags:
@@ -5687,7 +5687,7 @@ paths:
       operationId: loescheAdminTag
       summary: Tag löschen
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Löscht den Tag, solange ihn keine Person trägt. Sonst antwortet der Server mit 409 und dem Code `TAG_BELEGT`; `verwendung.personen` nennt, wie viele Personen ihn tragen (`null`, wenn die Zuordnung gleichzeitig entstand). Das Löschen steht im Audit-Log (nur der Typ).
+        Wer `gruppen.verwalten` hat, nur Tags der eigenen Abteilung. Löscht den Tag, solange ihn keine Person trägt. Sonst antwortet der Server mit 409 und dem Code `TAG_BELEGT`; `verwendung.personen` nennt, wie viele Personen ihn tragen (`null`, wenn die Zuordnung gleichzeitig entstand). Das Löschen steht im Audit-Log (nur der Typ).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist oder zu einer anderen Abteilung gehört. 409 `TAG_BELEGT`.
       tags:
@@ -5721,7 +5721,7 @@ paths:
       operationId: weiseAdminTagZu
       summary: Tag einer Person zuweisen
       description: |
-        Nur Admins. Weist der Person den Tag zu oder ändert eine bestehende Zuordnung. Ein Schlüssel ohne Wert lässt das Feld, wie es ist (bei einer neuen Zuordnung: leer); `null` leert es. Eine Person trägt einen Tag höchstens einmal. Die Zuordnung steht im Audit-Log (Person und Priorität, nie die Rolle). Tags verleihen für sich keine Rechte: Wer Admin ist, steht in `admins.ts`, nicht in den Tags. Darum setzt diese Route an Tags vom Typ `stufe` die Rollenwerte `leitung` und `stufenleitung` nicht: Sie sind Stufenrollen mit Rechten und gehen nur über `PATCH /api/v1/admin/personen/{id}` (mit Audit-Log und Push). Freie Rollen an Stufen-Tags und alle Rollen an Tags anderer Typen bleiben möglich; bestehende Zuordnungen bleiben unberührt.
+        Wer `gruppen.mitglieder` für diese Gruppe hat (alle Gruppen oder, mit «eigene», die Gruppe der Rolle), nur Tags der eigenen Abteilung. Wer nicht Rechte vergeben darf (`rechte.verwalten`), nimmt sich nie selbst auf, setzt die Rolle «verantwortlich» nicht (sie gibt der Gruppe Rechte, 403) und ändert die Rolle einer Person nicht, die eine Rolle mit Rechten trägt (403). Weist der Person den Tag zu oder ändert eine bestehende Zuordnung. Ein Schlüssel ohne Wert lässt das Feld, wie es ist (bei einer neuen Zuordnung: leer); `null` leert es. Eine Person trägt einen Tag höchstens einmal. Die Zuordnung steht im Audit-Log (Person und Priorität, nie die Rolle). Tags verleihen für sich keine Rechte: Wer Admin ist, steht in `admins.ts`, nicht in den Tags. Darum setzt diese Route an Tags vom Typ `stufe` die Rollenwerte `leitung` und `stufenleitung` nicht: Sie sind Stufenrollen mit Rechten und gehen nur über `PATCH /api/v1/admin/personen/{id}` (mit Audit-Log und Push). Freie Rollen an Stufen-Tags und alle Rollen an Tags anderer Typen bleiben möglich; bestehende Zuordnungen bleiben unberührt.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufenrolle an einem Stufen-Tag (400), dann Person in der eigenen Abteilung (404).
 
@@ -5757,7 +5757,7 @@ paths:
       operationId: entzieheAdminTag
       summary: Tag einer Person entziehen
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log.
+        Wer `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Tag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht trägt.
       tags:
@@ -24123,6 +24123,21 @@ components:
         stufeId:
           type: string
           format: uuid
+    IchRecht:
+      type: object
+      required:
+        - recht
+        - geltung
+      properties:
+        recht:
+          type: string
+          description: Kennung des Rechts im Katalog, zum Beispiel `kinder.verwalten`.
+        geltung:
+          type: string
+          enum:
+            - alle
+            - eigene
+          description: «alle» für jedes Objekt der Abteilung, «eigene» nur für die Gruppen der Rollen der Person (Stufe, Team, OK).
     IchProfil:
       type: object
       required:
@@ -24139,6 +24154,7 @@ components:
         - admin
         - zweiterFaktor
         - rollen
+        - rechte
         - stufen
         - kinder
       properties:
@@ -24196,6 +24212,11 @@ components:
           description: Stufenrollen der Person (Leitende und Stufenleitung); für Eltern und Admins ohne Stufenrolle leer.
           items:
             $ref: "#/components/schemas/IchRolle"
+        rechte:
+          type: array
+          description: Die Rechte der Person aus dem Rechtekatalog (#650), die sich vergeben lassen oder fest sind (nicht, was jede Person darf). Die Verwaltung zeigt damit nur, was der Server erlaubt; die Prüfung bleibt auf dem Server. Nur Kennungen. Eine Abfrage.
+          items:
+            $ref: "#/components/schemas/IchRecht"
         stufen:
           type: array
           description: Die Stufen der Rollen und der aktiven Kinder, nach Name, ohne Doppelte.

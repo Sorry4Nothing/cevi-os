@@ -12,9 +12,16 @@ import {
   tag,
   user,
 } from "../../db/schema.js";
+import { TEAM_ROLLE } from "../../bearbeiten.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 import { legeSystemrollenAn } from "../../rechtemodell/gruppenrollen.js";
+import {
+  gruppeObjekt,
+  hatRechtMitFaktor,
+  verlangeEines,
+} from "../../rechtemodell/personenrechte.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
@@ -45,6 +52,9 @@ const zuweisenSchema = z.strictObject({
 });
 // Diese Rollenwerte an einem Stufen-Tag sind echte Stufenrollen mit Rechten (Sicht «rolle»); sie setzt nur PATCH /admin/personen/:id, mit Audit-Log und Push (#344)
 const STUFENROLLEN = ["leitung", "stufenleitung"];
+// Lesen darf, wer Gruppen verwaltet oder Mitglieder einer Gruppe ändert
+const LESEN = ["gruppen.verwalten", "gruppen.mitglieder"] as const;
+const MITGLIEDER = ["gruppen.mitglieder"] as const;
 const pfad = () => z.strictObject({ id: z.uuid() });
 const pfadPerson = () => z.strictObject({ id: z.uuid(), userId: z.uuid() });
 
@@ -88,8 +98,12 @@ class Belegt extends Error {
 }
 
 export function erstelleTagRouten({ db }: { db: Db }) {
-  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht
-  async function ladeTag(person: Person, id: string) {
+  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650): Gruppen verwalten (alle) oder, für die Mitglieder, das Recht an dieser Gruppe
+  async function ladeTag(
+    person: Person,
+    id: string,
+    rechte: readonly string[] = ["gruppen.verwalten"],
+  ) {
     const [ziel] = await db
       .select({
         id: tag.id,
@@ -100,14 +114,16 @@ export function erstelleTagRouten({ db }: { db: Db }) {
       .from(tag)
       .where(and(eq(tag.id, id), eq(tag.abteilungId, person.abteilungId)));
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlangeEines(db, person, rechte, gruppeObjekt(person, id));
     return ziel;
   }
 
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      // Die Tür: Gruppen verwalten oder Mitglieder irgendeiner Gruppe ändern; wer nur Mitglieder ändert, sieht nur seine Gruppen
+      await verlangeEines(db, person, LESEN);
+      const alle = await hatRechtMitFaktor(db, person, "gruppen.verwalten");
       const tags = await db
         .select({
           id: tag.id,
@@ -124,9 +140,23 @@ export function erstelleTagRouten({ db }: { db: Db }) {
         .where(eq(tag.abteilungId, person.abteilungId))
         .groupBy(tag.id, anlass.id, programm.id)
         .orderBy(asc(tag.typ), asc(tag.name), asc(tag.id));
+      const sichtbar: typeof tags = [];
+      for (const t of tags) {
+        if (
+          alle ||
+          (await hatRechtMitFaktor(
+            db,
+            person,
+            "gruppen.mitglieder",
+            gruppeObjekt(person, t.id),
+          ))
+        ) {
+          sichtbar.push(t);
+        }
+      }
       // Ohne Anlass liefert der Join lauter null: dann kein Objekt
       return c.json({
-        tags: tags.map((t) => ({
+        tags: sichtbar.map((t) => ({
           ...t,
           anlass: t.anlass?.id ? t.anlass : null,
         })),
@@ -134,7 +164,9 @@ export function erstelleTagRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "gruppen.verwalten", {
+        abteilungId: person.abteilungId,
+      });
       const felder = c.req.valid("json");
       try {
         const neu = await db.transaction(async (tx) => {
@@ -215,7 +247,7 @@ export function erstelleTagRouten({ db }: { db: Db }) {
     })
     .get("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
-      const ziel = await ladeTag(person, c.req.valid("param").id);
+      const ziel = await ladeTag(person, c.req.valid("param").id, LESEN);
       // Der Anlass einer Gruppe vom Typ «anlass», nur für diese (eine zusätzliche Abfrage); null, wenn der Anlass gelöscht wurde
       const [anlassZeile] =
         ziel.typ === "anlass"
@@ -326,7 +358,23 @@ export function erstelleTagRouten({ db }: { db: Db }) {
         const person = c.get("person");
         const { id, userId } = c.req.valid("param");
         const felder = c.req.valid("json");
-        const { typ: tagTyp } = await ladeTag(person, id);
+        const { typ: tagTyp } = await ladeTag(person, id, MITGLIEDER);
+        // Wer nicht Rechte vergeben darf, ändert keine Rolle, die Rechte gibt, und nimmt sich nicht selbst auf: Die Rolle «verantwortlich» und jede Rolle aus der Verwaltung der Rechte gibt der Gruppe Rechte (#650)
+        if (!(await darf(db, person, "rechte.verwalten"))) {
+          if (userId === person.id) throw new HTTPException(403);
+          if (felder.rolle !== undefined) {
+            const [bisher] = await db
+              .select({ rolleId: personTag.rolleId })
+              .from(personTag)
+              .where(
+                and(eq(personTag.tagId, id), eq(personTag.userId, userId)),
+              );
+            if (bisher?.rolleId) throw new HTTPException(403);
+            if (felder.rolle?.toLowerCase() === TEAM_ROLLE) {
+              throw new HTTPException(403);
+            }
+          }
+        }
         if (
           tagTyp === "stufe" &&
           felder.rolle &&
@@ -381,7 +429,7 @@ export function erstelleTagRouten({ db }: { db: Db }) {
       async (c) => {
         const person = c.get("person");
         const { id, userId } = c.req.valid("param");
-        await ladeTag(person, id);
+        await ladeTag(person, id, MITGLIEDER);
         await db.transaction(async (tx) => {
           const entfernt = await tx
             .delete(personTag)

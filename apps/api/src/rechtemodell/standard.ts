@@ -16,14 +16,29 @@ export const STUFENROLLEN_STANDARD = {
     z("seiten.veroeffentlichen", "eigene"),
     z("vorschlag.einreichen", "alle"),
     z("raum.belegung", "alle"),
+    // Programme und Stufenarbeit wie vor dem Rechtemodell (#650): «adminOderSl» sieht jedes Programm; Leitung und Stufenleitung führen die Anwesenheit ihrer Stufe, sehen die Teilnahmen der Kinder und die Kontakte der Stufe
+    z("programm.alle_sehen", "alle"),
+    z("anwesenheit.fuehren", "eigene"),
+    z("stufe.einblick", "eigene"),
   ],
-  leitung: [z("vorschlag.einreichen", "alle"), z("raum.belegung", "alle")],
+  leitung: [
+    z("vorschlag.einreichen", "alle"),
+    z("raum.belegung", "alle"),
+    z("anwesenheit.fuehren", "eigene"),
+    z("stufe.einblick", "eigene"),
+  ],
 } as const satisfies Record<"leitung" | "stufenleitung", readonly Zuteilung[]>;
 
 // Rechte, die ohne zweiten Faktor gelten, obwohl ihr Eintrag «erweitert» ist: nur die Arbeit der Stufenleitung an der eigenen Stufenseite
 export const OHNE_ZWEITEN_FAKTOR: ReadonlySet<RechtId> = new Set([
   "seiten.bearbeiten",
   "seiten.veroeffentlichen",
+]);
+
+// Die Stufenarbeit (#650): Anwesenheit, Teilnahmen und Kontakte liefen schon vor dem Rechtemodell ohne zweiten Faktor, für Leitung und Stufenleitung und für die Abteilungsleitung (Entscheid #523: der Faktor gilt nur im Web, unter /api/v1/admin). Eine Gruppenrolle oder Plattformrolle mit diesen Rechten braucht ihn, wie jedes erweiterte Recht
+export const OHNE_ZWEITEN_FAKTOR_STUFENARBEIT: ReadonlySet<RechtId> = new Set([
+  "anwesenheit.fuehren",
+  "stufe.einblick",
 ]);
 
 // Mitgliedschaft in einer Gruppe gibt ohne Rolle schon etwas (Annahme A9 und R2 der Termine): Terminvorschläge für Funktion und Team, Raumanfragen entscheiden für das Team des Raums. «eigene» ist die Gruppe selbst. raum.belegung gilt für Mitglieder einer Gruppe, die ein Raum als Team führt (siehe satz.ts, istRaumTeam)

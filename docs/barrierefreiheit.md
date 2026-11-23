@@ -740,3 +740,15 @@ Geprüft auf <Gerät> mit Android <Version>: 1.1–1.7, 2.1, 5.1–5.4, 6.1, 6.3
 Nicht geprüft: iPhone, noch kein Dev-Build
 Offen: 5.1 bei grösster Schrift (#<Issue>)
 ```
+
+## 49. Verwaltung: Rechte für Personen, Kinder, Gruppen und Stufenarbeit (#650)
+
+Dieser Abschnitt gilt für den Server (`/api/v1/admin/personen`, `kinder`, `tags`, `stufen`, `import`, `mitteilungen`, `plattform/rollen`, die Programme und die Anwesenheit). Die Änderung baut keine Oberfläche: Die Seiten der Verwaltung bleiben, wie sie sind; neu ist, dass der Server die Rechte der Rollen kennt und `GET /api/v1/ich` sie als `rechte` liefert. Die Abschnitte 1 bis 4 und 6 gelten für jede Oberfläche, die diese Rechte später zeigt (Rechte-Matrix, Navigation nach Recht).
+
+- [ ] **49.1** Eine Person ohne Recht oder ohne zweiten Faktor bekommt 403 mit dem Text des Servers (`ZWEITER_FAKTOR_FEHLT` führt zur Einrichtung); die Oberfläche zeigt ihn als Meldung mit `role="alert"` beim Bereich, nicht nur als Farbe. Der Server antwortet in dieser Reihenfolge: 404, 403, zweiter Faktor, 409.
+- [ ] **49.2** `rechte` aus `GET /api/v1/ich` sind Kennungen. Eine Oberfläche übersetzt sie in Klartext des Katalogs (`klartext`, `erklaerung`), zeigt nie die Kennung allein, und zeigt «alle» und «eigene» mit Worten («alle Gruppen», «nur die eigene Gruppe»), nie nur mit einem Symbol oder einer Farbe.
+- [ ] **49.3** Die Navigation blendet aus, was der Server nicht erlaubt (nur Komfort, die Prüfung bleibt auf dem Server). Eine Seite, deren Recht fehlt, zeigt den Satz «Kein Zugriff» mit der Rückkehr zur Übersicht, nie eine leere Seite.
+
+### Stand der Prüfung (#650)
+
+Geprüft mit Tests gegen die API (`test/rechte-personen.test.ts`, Rechte-Matrix, OpenAPI). **Nicht geprüft:** jede Oberfläche, denn es gibt keine neue; Screenreader, Tastatur und Kontrast sind für die Punkte 49.1 bis 49.3 offen, bis eine Seite die Rechte zeigt (Rechte-Matrix, #651).

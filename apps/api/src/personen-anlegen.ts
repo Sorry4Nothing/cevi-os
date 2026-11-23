@@ -28,13 +28,13 @@ export interface NeuePerson {
 export async function legePersonAn(
   tx: Tx,
   akteur: Person,
-  headers: Headers,
   eingaben: NeuePerson,
 ) {
   // createUser legt den User vor der HIBP-Prüfung an; die Transaktion nimmt bei jedem Fehler alles zurück, sonst hielte ein Konto ohne Passwort den Benutzernamen fest
   const txAuth = erstelleAuth(
     drizzleAdapter(tx, { provider: "pg", schema, transaction: true }),
   );
+  // Ohne Header der Anfrage: Das Recht prüft die Route (verlange, #650); mit den Headern prüfte der Admin-Zusatz von better-auth nochmals und liesse nur die Abteilungsleitung durch
   const { user: neu } = await txAuth.api.createUser({
     body: {
       email: platzhalterEmail(),
@@ -48,8 +48,6 @@ export async function legePersonAn(
         ...startpasswortFelder(new Date(), eingaben.startpasswort),
       },
     },
-    // Mit den Headern der Admin-Anfrage; ohne sie prüfte createUser keine Rechte
-    headers,
   });
   if (eingaben.telefon) {
     await tx

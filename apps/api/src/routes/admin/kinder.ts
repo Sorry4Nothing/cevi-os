@@ -7,6 +7,12 @@ import type { Db } from "../../db/client.js";
 import { auditLog, kind, kindEltern, stufe, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
+import {
+  sichtbareKinderStufen,
+  stufeObjekt,
+  verlangeEines,
+} from "../../rechtemodell/personenrechte.js";
 
 const text = z.string().trim().min(1).max(100);
 const elternFeld = z
@@ -41,7 +47,13 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
       .from(kind)
       .where(and(eq(kind.id, id), eq(kind.abteilungId, person.abteilungId)));
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    // Das Kind gehört zu einer Stufe: «eigene» sind die Kinder der Stufe der Rolle (#650)
+    await verlange(
+      db,
+      person,
+      "kinder.verwalten",
+      stufeObjekt(person, ziel.stufeId),
+    );
     return ziel;
   }
 
@@ -101,7 +113,8 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      // Die Tür: Kinder sehen oder verwalten, irgendwo; welche Stufen, entscheidet die Liste unten
+      await verlangeEines(db, person, ["kinder.sehen", "kinder.verwalten"]);
       const abteilungId = person.abteilungId;
       const [kinder, links] = await Promise.all([
         db
@@ -135,23 +148,36 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
           )
           .orderBy(asc(kindEltern.userId)),
       ]);
+      // Nur die Kinder der Stufen, die die Person sehen darf
+      const sichtbar = await sichtbareKinderStufen(
+        db,
+        person,
+        kinder.map((k) => k.stufeId),
+      );
       // Keine Daten: Die Datumsfelder liest #48 in SQL
       return c.json({
-        kinder: kinder.map((k) => ({
-          id: k.id,
-          vorname: k.vorname,
-          nachname: k.nachname,
-          ceviName: k.ceviName,
-          stufeId: k.stufeId,
-          aktiv: k.inaktivSeit === null,
-          eltern: links.filter((l) => l.kindId === k.id).map((l) => l.userId),
-        })),
+        kinder: kinder
+          .filter((k) => sichtbar.has(k.stufeId))
+          .map((k) => ({
+            id: k.id,
+            vorname: k.vorname,
+            nachname: k.nachname,
+            ceviName: k.ceviName,
+            stufeId: k.stufeId,
+            aktiv: k.inaktivSeit === null,
+            eltern: links.filter((l) => l.kindId === k.id).map((l) => l.userId),
+          })),
       });
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
       const eingaben = c.req.valid("json");
+      await verlange(
+        db,
+        person,
+        "kinder.verwalten",
+        stufeObjekt(person, eingaben.stufeId),
+      );
       await pruefeStufe(person, eingaben.stufeId);
       const [neu] = await db
         .insert(kind)
@@ -169,6 +195,15 @@ export function erstelleKinderRouten({ db }: { db: Db }) {
         const { aktiv, eltern, ...aenderung } = c.req.valid("json");
         const bisher = await ladeZiel(person, id);
         if (aenderung.stufeId !== undefined) {
+          // Ein Kind in eine andere Stufe zu setzen, braucht das Recht auch dort
+          if (aenderung.stufeId !== bisher.stufeId) {
+            await verlange(
+              db,
+              person,
+              "kinder.verwalten",
+              stufeObjekt(person, aenderung.stufeId),
+            );
+          }
           await pruefeStufe(person, aenderung.stufeId);
         }
         if (eltern) await pruefeEltern(person, eltern);

@@ -23,6 +23,7 @@ import {
 import {
   MITGLIED_STANDARD,
   OHNE_ZWEITEN_FAKTOR,
+  OHNE_ZWEITEN_FAKTOR_STUFENARBEIT,
   RAUM_TEAM_STANDARD,
   STUFENROLLEN_STANDARD,
 } from "./standard.js";
@@ -292,6 +293,13 @@ export class RechteSatz {
   braucht2Faktor(recht: string, objekt?: Objekt) {
     if (!istRecht(recht)) return true;
     if (eintragVon(recht).risiko === "normal") return false;
+    // Stufenarbeit (#650): ohne zweiten Faktor, wenn eine Stufenrolle oder die Abteilungsleitung das Recht gibt; eine Gruppenrolle oder Plattformrolle allein braucht ihn
+    if (OHNE_ZWEITEN_FAKTOR_STUFENARBEIT.has(recht as RechtId)) {
+      const h = this.herkuenfte(recht, objekt);
+      return !h.some(
+        (x) => x.art === "stufenrolle" || x.art === "abteilungsleitung",
+      );
+    }
     if (!OHNE_ZWEITEN_FAKTOR.has(recht)) return true;
     const h = this.herkuenfte(recht, objekt);
     return !(h.length > 0 && h.every((x) => x.art === "stufenrolle"));

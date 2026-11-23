@@ -66,7 +66,15 @@ describe("Rechtekatalog", () => {
         }
         // Alles, was ändert oder Personendaten zeigt, ist erweitert; normal ist nur Alltag
         if (e.risiko === "normal") {
-          expect(["vorschlag.einreichen", "raum.belegung"], id).toContain(id);
+          expect(
+            [
+              "vorschlag.einreichen",
+              "raum.belegung",
+              "programm.alle_sehen",
+              "programm.intern_sehen",
+            ],
+            id,
+          ).toContain(id);
         }
       } else {
         expect(e.geltungen, id).toEqual([]);
@@ -81,6 +89,11 @@ describe("Rechtekatalog", () => {
       "anlass.anmeldungen_sehen",
       "anlass.anmeldungen_exportieren",
       "personen.verwalten",
+      "personen.sehen",
+      "kinder.sehen",
+      "kinder.verwalten",
+      "anwesenheit.fuehren",
+      "stufe.einblick",
       "laden.ansehen",
     ] as const) {
       expect(RECHTE_KATALOG[id].risiko, id).toBe("erweitert");

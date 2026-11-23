@@ -216,6 +216,21 @@ export const RECHTE_KATALOG = {
     ALLE,
   ),
 
+  "programm.alle_sehen": v(
+    "termine",
+    "Alle Programme sehen",
+    "Jedes Programm der Abteilung lesen, auch ohne die eigene Stufe, aber ohne interne Programme.",
+    "normal",
+    ALLE,
+  ),
+  "programm.intern_sehen": v(
+    "termine",
+    "Interne Programme sehen",
+    "Auch Programme sehen, die in der App für niemanden sichtbar sind (Sichtbarkeit «intern»), zum Beispiel zum Einblenden in der Verwaltung.",
+    "normal",
+    ALLE,
+  ),
+
   // Anlässe
   "anlass.anlegen": v(
     "anlaesse",
@@ -331,17 +346,70 @@ export const RECHTE_KATALOG = {
   ),
 
   // Personen und Gruppen
-  "personen.verwalten": v(
+  "personen.sehen": v(
     "personen",
-    "Personen und Kinder verwalten",
-    "Personen und Kinder anlegen, ändern, importieren und deaktivieren. Das sind Personendaten von Kindern.",
+    "Personenliste sehen",
+    "Namen, Cevi-Namen, Telefonnummern, Rollen und Konten der Personen lesen, aber nichts ändern. Startpasswörter sieht nur, wer Personen verwalten darf.",
     "erweitert",
     ALLE,
   ),
+  "personen.verwalten": v(
+    "personen",
+    "Personen verwalten",
+    "Personen anlegen und ändern, deaktivieren, Startpasswort und zweiten Faktor zurücksetzen. Das sind Personendaten. Konten mit Rollen und Rechten, die Stufenrollen und die Abteilungsleitung vergibt und betreut nur die Abteilungsleitung.",
+    "erweitert",
+    ALLE,
+  ),
+  "kinder.sehen": v(
+    "personen",
+    "Kinder sehen",
+    "Die Liste der Kinder mit Namen, Stufe und Eltern lesen. Das sind Personendaten von Kindern. «Eigene» sind die Kinder der Stufe der Rolle.",
+    "erweitert",
+    ALLE_EIGENE,
+    { bezug: "gruppe" },
+  ),
+  "kinder.verwalten": v(
+    "personen",
+    "Kinder verwalten",
+    "Kinder anlegen, ändern, in eine andere Stufe setzen, deaktivieren, löschen und ihren Eltern zuordnen. «Eigene» sind die Kinder der Stufe der Rolle.",
+    "erweitert",
+    ALLE_EIGENE,
+    { bezug: "gruppe" },
+  ),
   "gruppen.verwalten": v(
     "personen",
-    "Gruppen und ihre Mitglieder verwalten",
-    "Gruppen anlegen und ändern und Personen in Gruppen aufnehmen oder entfernen. Rollen und ihre Rechte zuordnen darf nur die Abteilungsleitung.",
+    "Gruppen und Stufen verwalten",
+    "Gruppen, Tags und Stufen anlegen, umbenennen und löschen und das Logo einer Stufe ändern. Was die Mitglieder einer Gruppe dürfen, stellt die Abteilungsleitung ein.",
+    "erweitert",
+    ALLE,
+  ),
+  "gruppen.mitglieder": v(
+    "personen",
+    "Mitglieder einer Gruppe ändern",
+    "Personen in eine Gruppe aufnehmen oder entfernen und die Reihenfolge der Stufenleitung ändern. Rollen mit Rechten zuordnen darf nur die Abteilungsleitung. «Eigene» ist die Gruppe der Rolle.",
+    "erweitert",
+    ALLE_EIGENE,
+    { bezug: "gruppe" },
+  ),
+  "import.ausfuehren": v(
+    "personen",
+    "Kinder importieren",
+    "Kinder aus einer Liste in eine Stufe einlesen. Leitende mit eigenem Konto importiert nur die Abteilungsleitung.",
+    "erweitert",
+    ALLE,
+  ),
+  "anwesenheit.fuehren": v(
+    "personen",
+    "Anwesenheit führen",
+    "Anwesenheit und Zusagen der Kinder und Leitenden einer Stufe lesen und erfassen. Das sind Personendaten von Kindern. «Eigene» ist die Stufe der Rolle.",
+    "erweitert",
+    ALLE_EIGENE,
+    { bezug: "gruppe" },
+  ),
+  "stufe.einblick": v(
+    "personen",
+    "Teilnahmen und Kontakte der Stufe sehen",
+    "Die Teilnahmen der Kinder an Programmen sehen und melden und die Kontakte der Stufenleitung lesen. Das sind Personendaten von Kindern. «Eigene» ist die Stufe der Rolle.",
     "erweitert",
     ALLE_EIGENE,
     { bezug: "gruppe" },
