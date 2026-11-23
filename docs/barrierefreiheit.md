@@ -545,6 +545,8 @@ Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellun
 - [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
 - [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
 
+- [ ] **33.11** Stufenkarte: Das hinterlegte Bild (erstes Bild der Stufenseite auf der Website) steht oben in der Karte mit leerem `alt` (Zierde, der Name der Stufe steht darunter als Überschrift); bis es geladen ist, steht ein ruhiger Platzhalter, fehlt die Datei, das Wort «Vorschau fehlt». Ohne Seite, ohne Bild oder ohne Recht bleibt die Karte wie vorher mit dem Buchstaben. Abfragen: die Seitenliste und je Stufe mit Seite der Entwurf, nur lesend.
+
 ### Stand der Prüfung (#624)
 
 Im Browser geprüft bei 1440, 1920, 2560 und 390 Pixeln in Tag und Nacht (Karten, Liste, Gruppierung nach Rolle, Stufe und Zugang) mit der Demo-Abteilung. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack) und 200 % Zoom auf echten Geräten.

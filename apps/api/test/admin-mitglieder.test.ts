@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 // dom.js hängt beim Laden Zuhörer an document; ohne Browser genügt eine Attrappe.
 type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 let mitglieder: Modul;
+let stufen: Modul;
 
 beforeAll(async () => {
   vi.stubGlobal("document", { addEventListener: () => {} });
@@ -13,6 +14,10 @@ beforeAll(async () => {
   const name: string = "mitglieder.js";
   mitglieder = (await import(
     /* @vite-ignore */ `../public/admin/${name}`
+  )) as Modul;
+  const stufenName: string = "stufen.js";
+  stufen = (await import(
+    /* @vite-ignore */ `../public/admin/${stufenName}`
   )) as Modul;
   vi.unstubAllGlobals();
 });
@@ -87,6 +92,28 @@ describe("mitglieder.js: Gliederung", () => {
     expect(eins).toHaveLength(1);
     expect(eins[0].titel).toBeNull();
     expect(eins[0].eintraege).toBe(seite);
+  });
+});
+
+describe("stufen.js: Bild der Stufe", () => {
+  const id = "01a204cf-77a7-7066-a520-92ea9f0150e0";
+  test("titelbildId nimmt das erste Bild der Seite", () => {
+    const dokument = {
+      bausteine: [
+        { typ: "text", daten: {} },
+        { typ: "bild", daten: { mediumId: id } },
+        { typ: "bild", daten: { mediumId: "zweites" } },
+      ],
+    };
+    expect(stufen.titelbildId!(dokument)).toBe(id);
+  });
+
+  test("titelbildId liefert null ohne Bild, ohne Dokument und bei einer fremden Form", () => {
+    expect(stufen.titelbildId!(null)).toBeNull();
+    expect(stufen.titelbildId!({ bausteine: [] })).toBeNull();
+    expect(
+      stufen.titelbildId!({ bausteine: [{ typ: "bild", daten: {} }] }),
+    ).toBeNull();
   });
 });
 
