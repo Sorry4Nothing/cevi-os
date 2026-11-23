@@ -368,6 +368,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     blatt.close();
   });
   const blatt = seitenblatt({
+    panel: true,
     titel: `${typName(b)} ${opt.neu ? "hinzufügen" : "bearbeiten"}`,
     untertitel: `Baustein ${nr} von ${von} · ${k.seite.titel}`,
     inhalt: [
@@ -410,6 +411,7 @@ export function bildDialog(k, beiWahl) {
     onclick: () => lade(false),
   });
   const blatt = seitenblatt({
+    panel: true,
     titel: "Bild wählen",
     inhalt: [
       el(

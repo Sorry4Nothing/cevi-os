@@ -1,9 +1,8 @@
-import { anfrage } from "./api.js";
+import { anfrage, fehlertext } from "./api.js";
 import { zustandsKarte } from "./zustaende.js";
 import {
   aktionenZelle,
   auswahl,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -11,6 +10,7 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 
 // Stufenfelder (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
 // Adresse: #website/stufenfakten und #website/stufenfakten/<stufeId>. Die Werte wirken sofort, ohne Veröffentlichen.
@@ -134,16 +134,13 @@ function zeile(z, stufe, ctx, neu) {
           klein: true,
           art: "gefahr",
           kontext,
-          onclick: () =>
-            bestaetigen({
-              titel: "Datum löschen?",
-              beschreibung: `${kontext}: Die Angaben verschwinden von der Stufenseite.`,
-              ok: "Löschen",
-              aktion: () => anfrage("DELETE", url(stufe.id, z.tag)),
-              danach: () => {
-                neu();
-                ctx.melde("Das Datum ist gelöscht.");
-              },
+          onclick: (e) =>
+            ctx.mitRueckgaengig({
+              text: `${kontext} gelöscht. Die Angaben verschwinden von der Stufenseite`,
+              ansicht: ansichtVonKnopf(e),
+              ausfuehren: () => anfrage("DELETE", url(stufe.id, z.tag)),
+              fehlertext,
+              danach: neu,
             }),
         }),
     ),

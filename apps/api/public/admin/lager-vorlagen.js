@@ -7,13 +7,13 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { leerKarte } from "./zustaende.js";
 import {
   datumKurz,
   feldFehler,
   meldung,
   nichtGefunden,
-  symbol,
 } from "./lager-gemeinsam.js";
 
 // Bereich «Lager», Unterseite «Vorlagen» (#527, Board A24): Vorlagen der Abteilung nach Art (Reiter Aufgaben und Packlisten), anlegen, umbenennen, löschen. Eine Abfrage je Reiter (höchstens 100 Vorlagen, kein Seitenwechsel nötig). Adressen: #lager/vorlagen und #lager/vorlagen/packlisten. Anwenden geschieht im Lager.
@@ -179,21 +179,15 @@ function umbenennen(v, ctx, neu) {
   });
 }
 
-function loeschen(v, ctx, neu) {
-  const [eins, viele] = ARTEN[v.art].eintrag;
-  const dialog = dialogFormular({
-    titel: `Vorlage «${v.name}» löschen?`,
-    beschreibung: `Die Vorlage «${v.name}» mit ${v.anzahl} ${v.art === "aufgaben" ? (v.anzahl === 1 ? eins : viele) : v.anzahl === 1 ? "Punkt" : "Punkten"} wird gelöscht. Lager, die sie schon übernommen haben, behalten ${v.art === "aufgaben" ? "ihre Aufgaben" : "ihre Punkte der Packliste"}. Das lässt sich nicht rückgängig machen.`,
-    ok: "Vorlage löschen",
-    gefaehrlich: true,
-    senden: () => anfrage("DELETE", `${BASIS}/${v.id}`),
+// Mit «Rückgängig» (#578): Lager, die die Vorlage schon übernommen haben, behalten ihre Aufgaben oder Punkte
+function loeschen(v, ctx, neu, ereignis) {
+  ctx.mitRueckgaengig({
+    text: `Vorlage «${v.name}» gelöscht`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () => anfrage("DELETE", `${BASIS}/${v.id}`),
     fehlertext: (f) => `Die Vorlage wurde nicht gelöscht. ${meldung(f)}`,
-    danach: () => {
-      neu();
-      ctx.melde(`Vorlage «${v.name}» ist gelöscht.`);
-    },
+    danach: neu,
   });
-  dialog.querySelector('button[type="submit"]').prepend(symbol("papierkorb"));
 }
 
 function zeichne(inhalt, ctx, art, vorlagen, neu) {
@@ -238,7 +232,7 @@ function zeichne(inhalt, ctx, art, vorlagen, neu) {
             art: "gefahr",
             symbol: "papierkorb",
             kontext: v.name,
-            onclick: () => loeschen(v, ctx, neu),
+            onclick: (e) => loeschen(v, ctx, neu, e),
           }),
         ),
       ),

@@ -1,8 +1,7 @@
-import { anfrage } from "./api.js";
+import { anfrage, fehlertext } from "./api.js";
 import {
   aktionenZelle,
   ankreuzen,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -11,6 +10,7 @@ import {
   tabelle,
   zeit,
 } from "./dom.js";
+import { zweistufig } from "./rueckgaengig.js";
 
 // Bereich «Plattform» (#424 Wartungsmodus, #425 Informationssperre): Schalter je Bereich setzen und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche», «darfSperre»); jede Schaltung prüft er selbst.
 const BEREICHE = [
@@ -87,23 +87,19 @@ function wartungDialog({ eintrag, schalter, ctx, neu }) {
   });
 }
 
-function wartungAufheben(eintrag, ctx, neu) {
+// Aufheben wirkt sofort auf alle (Bereich wieder benutzbar) und lässt sich nicht verzögern: zwei Stufen im Knopf statt eines Popups (#578)
+async function wartungAufheben(eintrag, ctx, neu) {
   const [schluessel, name] = eintrag;
-  bestaetigen({
-    titel: `Wartung aufheben: ${name}`,
-    beschreibung: "Der Bereich ist sofort wieder ganz benutzbar.",
-    ok: "Wartung aufheben",
-    gefaehrlich: false,
-    aktion: () =>
-      anfrage(
-        "DELETE",
-        `/api/v1/plattform/schalter?art=wartung&bereich=${schluessel}`,
-      ),
-    danach: () => {
-      neu();
-      ctx.melde(`${name} ist wieder frei.`);
-    },
-  });
+  try {
+    await anfrage(
+      "DELETE",
+      `/api/v1/plattform/schalter?art=wartung&bereich=${schluessel}`,
+    );
+    neu();
+    ctx.melde(`${name} ist wieder frei und ganz benutzbar.`);
+  } catch (f) {
+    ctx.melde(fehlertext(f), "fehler");
+  }
 }
 
 function sperreDialog({ eintrag, daten, ctx, neu }) {
@@ -166,24 +162,20 @@ function sperreDialog({ eintrag, daten, ctx, neu }) {
   });
 }
 
-function sperreAufheben(eintrag, ctx, neu) {
+async function sperreAufheben(eintrag, ctx, neu) {
   const [schluessel, name] = eintrag;
-  bestaetigen({
-    titel: `Informationssperre aufheben: ${name}`,
-    beschreibung:
-      "Der Bereich liefert sofort wieder Inhalte. Beendete Sitzungen kommen nicht zurück: Die Personen melden sich neu an.",
-    ok: "Sperre aufheben",
-    gefaehrlich: false,
-    aktion: () =>
-      anfrage(
-        "DELETE",
-        `/api/v1/plattform/schalter?art=sperre&bereich=${schluessel}`,
-      ),
-    danach: () => {
-      neu();
-      ctx.melde(`${name} ist wieder freigegeben.`);
-    },
-  });
+  try {
+    await anfrage(
+      "DELETE",
+      `/api/v1/plattform/schalter?art=sperre&bereich=${schluessel}`,
+    );
+    neu();
+    ctx.melde(
+      `${name} ist wieder freigegeben. Der Bereich liefert sofort wieder Inhalte, beendete Sitzungen kommen nicht zurück.`,
+    );
+  } catch (f) {
+    ctx.melde(fehlertext(f), "fehler");
+  }
 }
 
 // Eine Tabelle je Art: art «wartung» oder «sperre»; der Zustand steht im Wort und als Symbol, nie nur über Farbe
@@ -259,17 +251,22 @@ function zustandsTabelle({ art, eintraege, schalter, ctx, daten, neu }) {
                     onclick: () =>
                       wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
                   }),
-                knopf("Aufheben", {
-                  klein: true,
-                  symbol: "haken",
-                  kontext: name,
-                  onclick: () =>
+                zweistufig(
+                  knopf("Aufheben", {
+                    klein: true,
+                    symbol: "haken",
+                    kontext: name,
+                  }),
+                  istSperre
+                    ? "Sperre wirklich aufheben?"
+                    : "Wirklich aufheben?",
+                  () =>
                     (istSperre ? sperreAufheben : wartungAufheben)(
                       eintrag,
                       ctx,
                       neu,
                     ),
-                }),
+                ),
               ]
             : [
                 istSperre

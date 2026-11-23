@@ -1,4 +1,5 @@
 import { anfrage } from "./api.js";
+import { zurueck } from "./verlauf.js";
 import { ankreuzen, avatar, el, knopf, neueId } from "./dom.js";
 import {
   ADRESSE,
@@ -39,7 +40,7 @@ export function zeige(bereich, ctx) {
   const setze = (...kinder) =>
     inhalt.replaceChildren(...kinder.flat().filter(Boolean));
 
-  const zurListe = () => (location.hash = ADRESSE);
+  const zurListe = () => zurueck(ADRESSE);
   const gehe = (n) => {
     st.schritt = n;
     st.fehler = "";
@@ -429,7 +430,8 @@ export function zeige(bereich, ctx) {
         onclick: () => (location.hash = `${ADRESSE}/${id}`),
       });
     }
-    location.hash = ADRESSE;
+    // Der Eintrag des Assistenten wird ersetzt: Zurück führt danach zur Liste, nicht in den fertigen Assistenten
+    location.replace(ADRESSE);
   }
 
   function zeichne(fokus) {

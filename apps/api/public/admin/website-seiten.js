@@ -19,10 +19,10 @@ import {
   fenster,
   keinRecht,
   kuerze,
-  rueckfrage,
   sichtbarkeitText,
   uhrzeit,
 } from "./website-dialoge.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { symbol } from "./website-symbole.js";
 import { zustandsKarte } from "./zustaende.js";
 
@@ -301,7 +301,7 @@ function zeile(k, z) {
         type: "button",
         class: "knopf knopf--rund",
         "aria-label": `Löschen: ${seite.titel}`,
-        onclick: () => loesche(k, z),
+        onclick: (e) => loesche(k, z, e),
       },
       symbol("papierkorb"),
     );
@@ -410,31 +410,28 @@ function zeichneNeu(k, daten, fokusId) {
   }
 }
 
-function loesche(k, z) {
+// Mit «Rückgängig» (#578): Die Zeile verschwindet sofort, gelöscht wird nach der Frist (samt Entwurf und allen Versionen). Mit Unterseiten geht es nicht: nur ein Hinweis, keine Aktion
+function loesche(k, z, ereignis) {
   const { seite } = z;
   const n = (k.baum.kinder.get(seite.id) ?? []).length;
-  const mitKindern = n > 0;
-  const f = rueckfrage({
-    titel: `Seite «${kuerze(seite.titel, 50)}» löschen?`,
-    text: mitKindern
-      ? `«${seite.titel}» hat ${anzahlText(n, "1 Unterseite", "Unterseiten")}. Verschiebe oder lösche sie zuerst, danach lässt sich die Seite löschen.`
-      : `Die Seite und ihre Bausteine werden gelöscht, samt Entwurf und allen Versionen. Wer den Link aufruft, sieht «Diese Seite gibt es nicht». Das lässt sich nicht rückgängig machen.`,
-    ok: "Seite löschen",
-    gefaehrlich: true,
-    aktion: () => anfrage("DELETE", `${API}/seiten/${seite.id}`),
+  if (n > 0) {
+    k.ctx.melde(
+      `«${seite.titel}» hat ${anzahlText(n, "1 Unterseite", "Unterseiten")}. Verschiebe oder lösche sie zuerst, danach lässt sich die Seite löschen.`,
+      "warn",
+    );
+    return;
+  }
+  k.ctx.mitRueckgaengig({
+    text: `Seite «${kuerze(seite.titel, 50)}» gelöscht. Wer den Link aufruft, sieht «Diese Seite gibt es nicht»`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () => anfrage("DELETE", `${API}/seiten/${seite.id}`),
     fehlertext: seitenFehler,
     danach: () => {
       const i = k.baum.zeilen.indexOf(z);
       const nachbar = k.baum.zeilen[i + 1] ?? k.baum.zeilen[i - 1];
-      k.ctx.melde(`«${seite.titel}» ist gelöscht.`, "ok");
       neuLaden(k, nachbar ? nachbar.seite.id : null);
     },
   });
-  // Mit Unterseiten geht das Löschen nicht: Der Knopf bleibt sichtbar, gesperrt
-  if (mitKindern)
-    f.dialog
-      .querySelector(".ws-gefahr-voll")
-      .setAttribute("aria-disabled", "true");
 }
 
 // Neue Seite (E1): Vorlage als Wahlkarte, Titel, Elternseite und, wo die Vorlage es braucht, die Gruppe

@@ -1,5 +1,14 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
-import { chip, el, filterGruppe, icon, knopf, neueId } from "./dom.js";
+import {
+  chip,
+  el,
+  filterGruppe,
+  flussKopf,
+  icon,
+  knopf,
+  neueId,
+} from "./dom.js";
+import { oeffneFluss } from "./fluss.js";
 import {
   keineTreffer,
   stempel,
@@ -403,29 +412,39 @@ function exportieren(pfad, anlass, status) {
 
   const zone = el("div", { id: meldungsId, role: "status" });
   const knoepfe = el("div", { class: "dialog-knoepfe" });
+  // Eine Seite im Fluss (#578), kein Fenster: «Zurück», eigener Verlaufseintrag
+  const { kopf } = flussKopf({
+    titelId,
+    titel: "Anmeldungen exportieren",
+    beiZurueck: () => dialog.versuchSchliessen(),
+  });
   const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId },
-    el("h2", { id: titelId, tabindex: "-1" }, "Anmeldungen exportieren"),
+    "section",
+    { class: "fluss-seite fluss-formular", "aria-labelledby": titelId },
+    kopf,
     el(
-      "dl",
-      { class: "werte" },
-      el("div", {}, el("dt", {}, "Format"), el("dd", {}, "CSV")),
-      el("div", {}, el("dt", {}, "Anlass"), el("dd", {}, anlass.titel)),
-      el("div", {}, el("dt", {}, "Stand"), el("dd", {}, STATUS_TEXT[status])),
+      "div",
+      { class: "fluss-karte ws-fluss" },
+      el(
+        "dl",
+        { class: "werte" },
+        el("div", {}, el("dt", {}, "Format"), el("dd", {}, "CSV")),
+        el("div", {}, el("dt", {}, "Anlass"), el("dd", {}, anlass.titel)),
+        el("div", {}, el("dt", {}, "Stand"), el("dd", {}, STATUS_TEXT[status])),
+      ),
+      el(
+        "p",
+        { class: "hinweis", role: "note" },
+        "Der Export enthält Personendaten. Speichere ihn sicher und lösche ihn, wenn du ihn nicht mehr brauchst.",
+      ),
+      el(
+        "p",
+        { class: "klein leise" },
+        "Die Datei enthält alle Anmeldungen mit diesem Stand, nicht nur die geladenen. Zellen, die mit = + - oder @ beginnen, bekommen ein Hochkomma davor, auch Telefonnummern mit +41: Das schützt vor Formeln in Tabellenprogrammen. Pro Person sind 10 Exporte in 10 Minuten möglich.",
+      ),
+      zone,
+      knoepfe,
     ),
-    el(
-      "p",
-      { class: "hinweis", role: "note" },
-      "Der Export enthält Personendaten. Speichere ihn sicher und lösche ihn, wenn du ihn nicht mehr brauchst.",
-    ),
-    el(
-      "p",
-      { class: "klein leise" },
-      "Die Datei enthält alle Anmeldungen mit diesem Stand, nicht nur die geladenen. Zellen, die mit = + - oder @ beginnen, bekommen ein Hochkomma davor, auch Telefonnummern mit +41: Das schützt vor Formeln in Tabellenprogrammen. Pro Person sind 10 Exporte in 10 Minuten möglich.",
-    ),
-    zone,
-    knoepfe,
   );
 
   const schliessen = () => dialog.close();
@@ -534,11 +553,9 @@ function exportieren(pfad, anlass, status) {
   dialog.addEventListener("close", () => {
     abbruch?.abort();
     if (objektUrl) window.URL.revokeObjectURL(objektUrl);
-    dialog.remove();
-    if (zurueck?.isConnected) zurueck.focus();
+    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
     else document.querySelector("h1")?.focus();
   });
-  document.body.append(dialog);
-  dialog.showModal();
+  oeffneFluss(dialog);
   zeigeStart();
 }

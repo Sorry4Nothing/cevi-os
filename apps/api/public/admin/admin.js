@@ -1,5 +1,12 @@
-import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
+import {
+  ApiFehler,
+  anfrage,
+  beiSitzungsende,
+  fehlertext,
+  setzeVerlassen,
+} from "./api.js";
 import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
+import { schliesseAlle } from "./fluss.js";
 import { erstelleLader } from "./lader.js";
 import {
   BEREICHE,
@@ -10,11 +17,14 @@ import {
 import {
   erstelleLeisten,
   erstelleRueckmeldungen,
+  erstelleToasts,
   bindeThema,
   logozeile,
   seitenkopf,
   setzeMarke,
 } from "./rahmen.js";
+import { mitRueckgaengig, steuerung, verdrahte } from "./rueckgaengig.js";
+import { merkeEintrag, stelleWiederHer } from "./verlauf.js";
 import {
   nochmals,
   rahmenzustand,
@@ -38,6 +48,7 @@ const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
 
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
+  schliesseAlle();
   leere(app);
   app.append(...knoten);
   // Der Umschalter Hell und Dunkel im Kopf (theme.js)
@@ -73,23 +84,29 @@ function anmeldeSeite({
   const meldung =
     hinweis &&
     el("p", { class: "hinweis", role: "status", tabindex: "-1" }, hinweis);
+  // Auch die Anmeldung trägt den Kopf der Website mit Marke und Umschalter Hell/Dunkel (#578); ohne Sitzung kennt sie weder Name noch Logo der Abteilung
   zeichne(
     el(
       "div",
-      { class: "mitte" },
+      { class: "app" },
+      el("header", {}, logozeile({ sichtbar: false })),
       el(
-        "main",
-        { class: "anmeldung karte", id: "inhalt", tabindex: "-1" },
+        "div",
+        { class: "mitte" },
         el(
-          "div",
-          { class: "anmeldung-kopf" },
-          kopfzeichen,
-          el("p", { class: "ueber" }, ueber),
-          ueberschrift,
-          el("p", { class: "leise" }, text),
+          "main",
+          { class: "anmeldung karte", id: "inhalt", tabindex: "-1" },
+          el(
+            "div",
+            { class: "anmeldung-kopf" },
+            kopfzeichen,
+            el("p", { class: "ueber" }, ueber),
+            ueberschrift,
+            el("p", { class: "leise" }, text),
+          ),
+          meldung,
+          ...inhalt,
         ),
-        meldung,
-        ...inhalt,
       ),
     ),
   );
@@ -314,6 +331,8 @@ async function pruefeKonto(nachAnmeldung = true) {
 }
 
 async function abmelden() {
+  // Offene Aktionen mit «Rückgängig» laufen jetzt: Nach dem Abmelden gäbe es keine Sitzung mehr dafür
+  await steuerung.alleAusfuehren();
   try {
     await anfrage("POST", "/api/auth/sign-out", {});
   } catch (f) {
@@ -378,6 +397,17 @@ function zurUebersicht(klasse = "") {
 }
 
 const leisten = erstelleLeisten();
+// Toasts mit «Rückgängig» (#578): Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen
+const toasts = erstelleToasts(steuerung);
+verdrahte({
+  beiAenderung: toasts.zeichne,
+  ansage: toasts.sage,
+  beimVerlassen: () => setzeVerlassen(true),
+});
+// Verlässt die Person die Seite vor Ablauf der Frist, läuft die Aktion sofort (keepalive), nie still verworfen
+window.addEventListener("pagehide", () => {
+  steuerung.alleAusfuehren({ verlassen: true });
+});
 // Stand der Zähler in der Unterleiste: «bereich/unterseite» -> Anzahl. Die Module melden sie, wenn sie die Zahl ohnehin geladen haben (keine eigene Abfrage).
 const zaehlerStand = new Map();
 let aktiv = null;
@@ -407,6 +437,7 @@ function zeigeVerwaltung() {
         }),
         leisten.wurzel,
       ),
+      toasts.wurzel,
       el(
         "main",
         { class: "inhalt", id: "inhalt", tabindex: "-1" },
@@ -477,7 +508,12 @@ async function navigiere() {
   }
   // Alte Adressen (#tags, #termine/raeume …) gehören jetzt zu einer anderen Seite
   const neu = neueAdresse(location.hash);
-  if (neu !== location.hash) window.history.replaceState(null, "", neu);
+  if (neu !== location.hash) {
+    window.history.replaceState(window.history.state, "", neu);
+  }
+  // Seiten im Fluss gehören zur Ansicht, die jetzt wechselt; der Eintrag im Verlauf (Position, Scroll) wird hier gemerkt (#578)
+  schliesseAlle();
+  merkeEintrag();
   const bereiche = sichtbareBereiche();
   const treffer = loese(location.hash, bereiche);
   if (!treffer) {
@@ -519,6 +555,8 @@ async function navigiere() {
     // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
     seite: { bereich: gruppe, unter },
     melde,
+    // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)
+    mitRueckgaengig,
     lade: erstelleLader(container, { zurUebersicht }),
     // Für Module mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
     erstelleLader: (ziel) => erstelleLader(ziel, { zurUebersicht }),
@@ -543,9 +581,17 @@ async function navigiere() {
       }
     },
   });
+  // Zurück an die gemerkte Stelle des Verlaufseintrags (der Inhalt lädt nach), sonst nach oben
+  stelleWiederHer();
 }
 
 window.addEventListener("hashchange", navigiere);
+// Der Sprunglink legt keinen Verlaufseintrag an: nur der Fokus geht zum Inhalt
+document.addEventListener("click", (ereignis) => {
+  if (!ereignis.target.closest?.("a.sprung")) return;
+  ereignis.preventDefault();
+  document.getElementById("inhalt")?.focus();
+});
 beiSitzungsende(() => {
   if (ich) zeigeSitzungAbgelaufen();
 });

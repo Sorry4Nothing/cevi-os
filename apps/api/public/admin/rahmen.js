@@ -310,3 +310,137 @@ export function erstelleRueckmeldungen() {
   }
   return { wurzel, melde };
 }
+
+// Toasts mit «Rückgängig» (#578, Logik in rueckgaengig.js): unten links, gestapelt. Der Toast bekommt nie den Fokus. Erreichbar sind sie auf drei Wegen: «Rückgängig» ist ein Knopf im Seitenaufbau (die Region steht gleich nach dem Kopf, vor dem Inhalt),
+// Strg oder Cmd + Z nimmt die jüngste Aktion zurück (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes), F6 setzt den Fokus auf den ersten Knopf «Rückgängig». Die Statusregion sagt jede Aktion und die Möglichkeit zum Rückgängigmachen an.
+// steuerung: das Ergebnis von erstelleRueckgaengig (rueckgaengig.js)
+export function erstelleToasts(steuerung) {
+  const liste = el("ul", { class: "toast-liste" });
+  const status = el("p", {
+    class: "nur-leser",
+    role: "status",
+    "aria-live": "polite",
+  });
+  const wurzel = el(
+    "div",
+    {
+      class: "toasts",
+      role: "region",
+      "aria-label": "Rückgängig",
+      tabindex: "-1",
+    },
+    status,
+    liste,
+  );
+  const knoten = new Map();
+
+  function baue(a) {
+    let zeiger = false;
+    let fokus = false;
+    const pruefe = () =>
+      zeiger || fokus ? steuerung.halte(a) : steuerung.weiter(a);
+    const text = el("span", { class: "toast-text" });
+    const aktion = el(
+      "button",
+      {
+        type: "button",
+        class: "toast-aktion",
+        onclick: () => {
+          steuerung.macheRueckgaengig(a);
+          // Der Knopf ist weg: Der Fokus geht zum Titel der Seite statt ins Leere
+          if (document.activeElement === document.body) {
+            document.querySelector("h1")?.focus();
+          }
+        },
+      },
+      "Rückgängig",
+    );
+    const zu = el(
+      "button",
+      {
+        type: "button",
+        class: "knopf knopf--rund",
+        onclick: () => steuerung.schliesse(a),
+      },
+      icon("schliessen"),
+    );
+    const balken = el("span", { class: "toast-balken", "aria-hidden": "true" });
+    const li = el("li", { class: "toast" }, text, aktion, zu, balken);
+    li.addEventListener("pointerenter", () => ((zeiger = true), pruefe()));
+    li.addEventListener("pointerleave", () => ((zeiger = false), pruefe()));
+    li.addEventListener("focusin", () => ((fokus = true), pruefe()));
+    li.addEventListener("focusout", () => ((fokus = false), pruefe()));
+    return { li, text, aktion, zu };
+  }
+
+  function zeichne(aktionen) {
+    const ids = new Set(aktionen.map((a) => a.id));
+    for (const [id, k] of knoten) {
+      if (!ids.has(id)) {
+        k.li.remove();
+        knoten.delete(id);
+      }
+    }
+    for (const a of aktionen) {
+      let k = knoten.get(a.id);
+      if (!k) {
+        k = baue(a);
+        knoten.set(a.id, k);
+        liste.append(k.li);
+      }
+      k.li.className = `toast toast--${a.phase}${a.pausiert ? " toast--halt" : ""}`;
+      k.li.setAttribute("role", a.phase === "fehler" ? "alert" : "group");
+      k.li.setAttribute(
+        "aria-label",
+        a.phase === "fehler" ? "Fehler" : "Aktion",
+      );
+      k.text.textContent = a.phase === "fehler" ? a.fehlerText : a.text;
+      // Nur in der Frist lässt sich etwas zurücknehmen; danach heisst der Knopf rechts nur noch «Schliessen»
+      k.aktion.hidden = a.phase !== "wartet";
+      k.zu.setAttribute(
+        "aria-label",
+        a.phase === "wartet" ? "Jetzt ausführen und schliessen" : "Schliessen",
+      );
+      k.zu.disabled = a.phase === "laeuft";
+      k.li.toggleAttribute("aria-busy", a.phase === "laeuft");
+    }
+    wurzel.hidden = aktionen.length === 0;
+  }
+  wurzel.hidden = true;
+
+  const tippt = (ziel) =>
+    ziel?.closest?.("input, textarea, select, [contenteditable='true']");
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "F6" && !wurzel.hidden) {
+      const erster = wurzel.querySelector(".toast-aktion:not([hidden])");
+      if (erster) {
+        e.preventDefault();
+        erster.focus();
+      }
+      return;
+    }
+    if (
+      e.key.toLowerCase() === "z" &&
+      (e.ctrlKey || e.metaKey) &&
+      !e.shiftKey &&
+      !e.altKey &&
+      !tippt(e.target)
+    ) {
+      const letzte = steuerung.letzte();
+      if (letzte) {
+        e.preventDefault();
+        steuerung.macheRueckgaengig(letzte);
+      }
+    }
+  });
+
+  return {
+    wurzel,
+    zeichne,
+    // Text für die Statusregion; leeren und neu setzen, damit auch ein gleicher Text wieder angesagt wird
+    sage(text) {
+      status.textContent = "";
+      window.setTimeout(() => (status.textContent = text), 50);
+    },
+  };
+}

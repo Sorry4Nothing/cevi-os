@@ -11,7 +11,6 @@ import {
   keinRecht,
   kuerze,
   loescheFeldFehler,
-  rueckfrage,
   uhrzeit,
   zeigeFeldFehler,
 } from "./website-dialoge.js";
@@ -577,18 +576,24 @@ function zeichne(bereich, ctx, erste) {
   }
 
   // Löschen einer Auswahl: nacheinander, damit jede Antwort für sich zählt. Ein Bild, das noch in Seiten steht, bleibt (409).
+  // Mit «Rückgängig» (#578): Die Kacheln verschwinden sofort, gelöscht wird nach der Frist; was bleibt, kommt mit einer Meldung zurück
   function loescheAuswahl() {
     const ms = [...gewaehlt].map((id) => eintraege.get(id)?.m).filter(Boolean);
     if (ms.length === 0) return;
     const einzeln = ms.length === 1;
-    rueckfrage({
-      titel: einzeln
-        ? `«${kurzname(ms[0])}» löschen?`
-        : `${ms.length} Medien löschen?`,
-      text: `${einzeln ? "Dieses Medium wird" : "Diese Medien werden"} endgültig gelöscht. Steht ${einzeln ? "es" : "eines"} noch in einer Seite (im Entwurf oder in einer früheren Version), bleibt es erhalten, und du siehst, wo du es entfernen musst. Das Löschen lässt sich nicht rückgängig machen.`,
-      ok: einzeln ? "Löschen" : `${ms.length} löschen`,
-      gefaehrlich: true,
-      aktion: async () => {
+    const zeige = (m, sichtbar) => {
+      const e = eintraege.get(m.id);
+      if (e) e.li.hidden = !sichtbar;
+    };
+    ctx.mitRueckgaengig({
+      text: einzeln
+        ? `«${kurzname(ms[0])}» gelöscht. Steht es noch in einer Seite, bleibt es erhalten`
+        : `${ms.length} Medien gelöscht. Was noch in einer Seite steht, bleibt erhalten`,
+      ansicht: {
+        weg: () => ms.forEach((m) => zeige(m, false)),
+        zurueck: () => ms.forEach((m) => zeige(m, true)),
+      },
+      ausfuehren: async () => {
         const weg = [];
         const bleibt = [];
         for (const m of ms) {
@@ -606,6 +611,8 @@ function zeichne(bereich, ctx, erste) {
             }
           }
         }
+        // Was nicht gelöscht ist, steht wieder da
+        for (const m of ms) if (!weg.includes(m)) zeige(m, true);
         return { weg, bleibt };
       },
       fehlertext: (f) =>
@@ -615,14 +622,6 @@ function zeichne(bereich, ctx, erste) {
       danach: ({ weg, bleibt }) => {
         for (const m of weg) entferne(m.id);
         zeigeZustand();
-        if (weg.length > 0) {
-          ctx.melde(
-            einzeln
-              ? "Das Medium ist gelöscht."
-              : `${weg.length} ${weg.length === 1 ? "Medium ist" : "Medien sind"} gelöscht.`,
-            "ok",
-          );
-        }
         for (const b of bleibt) {
           const seiten =
             b.seiten === 1
@@ -635,10 +634,6 @@ function zeichne(bereich, ctx, erste) {
             "fehler",
           );
         }
-        const erstes = bleibt[0]
-          ? eintraege.get(bleibt[0].m.id)
-          : [...eintraege.values()].find((e) => !e.li.hidden);
-        (erstes?.li ?? document.querySelector("h1"))?.focus();
       },
     });
   }

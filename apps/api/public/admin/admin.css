@@ -900,8 +900,7 @@ a.tab[aria-current="page"] {
 .hinweis::before,
 .kachel--ok::after,
 .kachel--warn::after,
-.kachel--fehler::after,
-.auswahl-eintrag[aria-selected="true"]::after {
+.kachel--fehler::after {
   content: "";
   flex: none;
   width: 22px;
@@ -1296,8 +1295,7 @@ legend,
 
 .eingabe:focus-visible,
 .feld input:focus-visible,
-.feld textarea:focus-visible,
-.auswahl-knopf:focus-visible {
+.feld textarea:focus-visible {
   border-color: var(--fokus);
   outline-offset: 0;
 }
@@ -1402,7 +1400,7 @@ fieldset .feld > label {
   font-weight: 400;
 }
 
-fieldset .feld .auswahl {
+fieldset .feld .aw {
   flex: none;
   width: 11rem;
 }
@@ -1464,113 +1462,12 @@ fieldset .feld .auswahl {
   cursor: pointer;
 }
 
-/* Eigene Auswahl (Combobox mit Liste) */
-
-.auswahl {
-  position: relative;
-}
-
-.auswahl-knopf {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 52px;
-  padding: 0 44px 0 16px;
-  background: var(--karte);
-  color: var(--text);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.auswahl-knopf::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  width: 8px;
-  height: 8px;
-  margin-top: -6px;
-  border: solid currentcolor;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
-
-.auswahl-knopf[aria-expanded="true"]::after {
-  margin-top: -2px;
-  transform: rotate(-135deg);
-}
-
-.auswahl-liste {
-  /* Popover im Top-Layer: Lage und Breite setzt dom.js, damit die Liste nicht im Dialog gefangen ist */
-  position: fixed;
-  inset: auto;
-  max-height: 15rem;
-  margin: 0;
-  padding: 4px;
-  overflow-y: auto;
-  background: var(--karte);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  box-shadow: var(--schatten);
-  list-style: none;
-}
-
 .seitenwahl {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 16px;
   margin-top: 16px;
-}
-
-.auswahl-wert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.auswahl-bild {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-}
-
-.auswahl-eintrag {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.auswahl-eintrag:hover {
-  background: var(--erhoben);
-}
-
-.auswahl-eintrag.ist-aktiv {
-  background: var(--erhoben);
-  outline: 2px solid var(--fokus);
-  outline-offset: -2px;
-}
-
-.auswahl-eintrag[aria-selected="true"] {
-  font-weight: 700;
-}
-
-.auswahl-eintrag[aria-selected="true"]::after {
-  width: 18px;
-  height: 18px;
-  -webkit-mask-image: var(--ic-ok);
-  mask-image: var(--ic-ok);
 }
 
 /* Code-Feld: sechs Zellen, darüber die unsichtbare echte Eingabe */
@@ -1644,8 +1541,9 @@ fieldset .feld .auswahl {
 
 .mitte {
   display: grid;
+  flex: 1 1 auto;
   place-items: center;
-  min-height: 100vh;
+  min-height: 24rem;
   padding: 48px 24px;
 }
 
@@ -1756,10 +1654,6 @@ dialog .wahl input:checked {
   background: var(--blau);
 }
 
-dialog .auswahl-knopf {
-  background: var(--surface);
-}
-
 .dialog-knoepfe {
   display: flex;
   flex-wrap: wrap;
@@ -1851,7 +1745,7 @@ dialog.blatt[open] {
     flex-wrap: wrap;
   }
 
-  fieldset .feld .auswahl {
+  fieldset .feld .aw {
     flex: 1 1 100%;
     width: auto;
   }

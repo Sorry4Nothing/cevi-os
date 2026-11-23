@@ -8,7 +8,6 @@ import {
   bei,
   fenster,
   kuerze,
-  rueckfrage,
 } from "./website-dialoge.js";
 import { kurzText, typName } from "./website-felder.js";
 import { symbol } from "./website-symbole.js";
@@ -150,19 +149,17 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
   function zurueckziehen() {
     f.dialog.addEventListener(
       "close",
+      // Mit «Rückgängig» (#578): Erst nach der Frist ist die Seite nicht mehr erreichbar; «Jetzt ausführen und schliessen» im Toast zieht sofort zurück
       () =>
-        rueckfrage({
-          titel: `Seite «${kuerze(k.dok.titel, 50)}» zurückziehen?`,
-          text: "Die Seite ist danach nicht mehr erreichbar. Der Entwurf und alle Versionen bleiben erhalten. Du kannst die Seite wieder veröffentlichen.",
-          ok: "Zurückziehen",
-          aktion: () => anfrage("POST", `${API}/seiten/${k.id}/zurueckziehen`),
+        k.ctx.mitRueckgaengig({
+          text: `Seite «${kuerze(k.dok.titel, 50)}» zurückgezogen. Entwurf und Versionen bleiben, du kannst sie wieder veröffentlichen`,
+          ausfuehren: () =>
+            anfrage("POST", `${API}/seiten/${k.id}/zurueckziehen`),
+          fehlertext,
           danach: () => {
             k.nr = null;
             k.unveroeffentlicht = true;
             k.statusNeu();
-            k.ctx.melde(
-              "Die Seite ist zurückgezogen. Sie ist nicht mehr erreichbar.",
-            );
           },
         }),
       { once: true },
@@ -320,25 +317,20 @@ export async function veroeffentlichenDialog(k, titel = "Veröffentlichen") {
     f.dialog.addEventListener(
       "close",
       () =>
-        rueckfrage({
-          titel: `Version vom ${wann.split(",")[0]} zurückholen?`,
-          text: `Diese Version wird zum Entwurf. Die veröffentlichte Seite ändert sich erst, wenn du veröffentlichst.${
+        k.ctx.mitRueckgaengig({
+          text: `Version vom ${wann.split(",")[0]} als Entwurf zurückgeholt. Veröffentlicht ist sie noch nicht${
             k.unveroeffentlicht
-              ? " Der heutige Entwurf geht dabei verloren, weil er nicht als Version veröffentlicht ist."
+              ? ". Der heutige Entwurf geht dabei verloren, weil er nicht als Version veröffentlicht ist"
               : ""
           }`,
-          ok: "Zurückholen",
-          aktion: async () => {
+          ausfuehren: async () => {
             await anfrage(
               "POST",
               `${API}/seiten/${k.id}/versionen/${nr}/zurueckholen`,
             );
             await k.neuAusEntwurf();
           },
-          danach: () =>
-            k.ctx.melde(
-              `Version ${nr} ist als Entwurf zurückgeholt. Veröffentlicht ist sie noch nicht.`,
-            ),
+          fehlertext,
         }),
       { once: true },
     );

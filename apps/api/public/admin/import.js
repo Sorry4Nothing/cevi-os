@@ -17,7 +17,6 @@ import {
 import {
   STANDARD_LOGO,
   auswahl,
-  bestaetigen,
   chip,
   el,
   feld,
@@ -29,6 +28,7 @@ import {
   seitenwahl,
   tabelle,
 } from "./dom.js";
+import { zweiStufig } from "./rueckgaengig.js";
 import { kachel } from "./system.js";
 
 export function zeige(bereich, ctx) {
@@ -633,12 +633,7 @@ function zeichne(bereich, ctx, stufen, neu) {
         "div",
         { class: "zeile" },
         hinweis,
-        summe.neu > 0 &&
-          knopf("Importieren", {
-            art: "haupt",
-            symbol: "ablage",
-            onclick: () => starteImport(summe),
-          }),
+        summe.neu > 0 && importKnopf(summe),
       ),
       el("div", { class: "werkzeuge" }, filter.wurzel),
       zaehler,
@@ -648,27 +643,31 @@ function zeichne(bereich, ctx, stufen, neu) {
     s4.wurzel.hidden = false;
   }
 
-  function starteImport(summe) {
-    const uebersprungen = gesendet.length - summe.neu;
-    let ergebnis = null;
-    const dialog = bestaetigen({
-      titel: "Import starten",
-      beschreibung: `In der Stufe «${vorschauStufe.name}» werden ${kinderText(summe.kinder)} und ${leitendeText(summe.leitende)} angelegt.${summe.leitende > 0 ? " Die Leitenden bekommen ein Startpasswort. Es bleibt in der Personenliste sichtbar, bis die Person es ersetzt hat." : ""}${uebersprungen > 0 ? ` ${zeilenText(uebersprungen)} werden übersprungen.` : ""}`,
-      ok: "Importieren",
-      gefaehrlich: false,
-      aktion: () =>
-        anfrage("POST", "/api/v1/admin/import", {
+  // Der Import lässt sich nicht zurücknehmen (Konten, Startpasswörter): kein Rückgängig, sondern zwei Stufen im Knopf statt eines Popups (#578)
+  function importKnopf(summe) {
+    const k = knopf("Importieren", { art: "haupt", symbol: "ablage" });
+    zweiStufig(k, {
+      frage: `Wirklich ${kinderText(summe.kinder)} und ${leitendeText(summe.leitende)} anlegen?`,
+      ausfuehren: () => starteImport(summe, k),
+    });
+    return k;
+  }
+
+  async function starteImport(summe, knopfEl) {
+    knopfEl.disabled = true;
+    knopfEl.setAttribute("aria-busy", "true");
+    try {
+      zeigeErgebnis(
+        await anfrage("POST", "/api/v1/admin/import", {
           stufeId: vorschauStufe.id,
           zeilen: gesendet,
         }),
-      danach: (antwort) => {
-        ergebnis = antwort;
-      },
-    });
-    // Läuft nach dem Schliessen-Handler des Dialogs, der den Fokus zurückgibt; so landet der Fokus zuletzt auf der Ergebnisansicht
-    dialog.addEventListener("close", () => {
-      if (ergebnis) zeigeErgebnis(ergebnis);
-    });
+      );
+    } catch (f) {
+      ctx.melde(fehlertext(f), "fehler");
+      knopfEl.disabled = false;
+      knopfEl.removeAttribute("aria-busy");
+    }
   }
 
   function zeigeErgebnis(ergebnis) {

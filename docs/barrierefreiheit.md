@@ -217,6 +217,30 @@ Dieser Abschnitt gilt für die drei Unterseiten des Bereichs «Lädeli» unter `
 - [ ] **13.7** Einstellungen: Die Übergabearten haben eine sichtbare Beschriftung mit Hilfetext (1 bis 5, eine je Zeile), Fehler stehen beim Feld.
 - [ ] **13.8** Der Bereich ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar (die Tabelle scrollt in ihrem Rahmen), Kontrast und Ziele wie 12.11, Texte kurz, Schweizer Schreibweise, Knöpfe sind Verben.
 
+## 14. Verwaltung: Toasts mit «Rückgängig» und zweistufige Knöpfe (#578)
+
+Dieser Abschnitt gilt für jede Aktion der Verwaltung, die früher eine Rückfrage hatte (`ctx.mitRueckgaengig`, `zweistufig`; Beschreibung in [verwaltung-geruest.md](verwaltung-geruest.md)). Geprüft wird im Browser am PC und am Handy, in Tag und Nacht; die Abschnitte 1 bis 6 gelten sinngemäss.
+
+- [ ] **14.1** Der Toast erscheint in einer Region mit Namen («Rückgängig») gleich nach dem Kopf im Seitenaufbau, nimmt dem Fokus nichts weg und erscheint am Handy über die ganze Breite, ohne Inhalt zu verdecken, der gerade bedient wird.
+- [ ] **14.2** Ein Screenreader sagt beim Auslösen die Aktion und die Möglichkeit zum Rückgängigmachen an («Seite gelöscht. Rückgängig mit dem Knopf oder mit Strg Z.»), beim Zurücknehmen «Rückgängig gemacht: …», beim Ausführen «Erledigt.» und bei einem Fehler den Fehlertext (`role="alert"`).
+- [ ] **14.3** «Rückgängig» ist mit der Tastatur erreichbar: über Tab (die Region steht vor dem Inhalt), über F6 und, ausserhalb von Eingabefeldern, mit Strg oder Cmd + Z. Der Knopf ist mindestens 44 Pixel hoch und hat einen sichtbaren Fokusring; Zustand und Knopf sind Wort und Unterstreichung, nie nur Farbe.
+- [ ] **14.4** Die Frist von 8 Sekunden hält an, solange der Zeiger auf dem Toast steht oder der Fokus darin liegt; ohne «Bewegung reduzieren» läuft ein Balken, mit ihr gibt es keinen Balken und keine Einblendung, die Frist gilt gleich.
+- [ ] **14.5** Der Schliessen-Knopf heisst «Jetzt ausführen und schliessen» (in der Frist), danach «Schliessen»; er verwirft nie eine Aktion. Wer die Seite verlässt oder sich abmeldet, führt offene Aktionen aus.
+- [ ] **14.6** Zweistufige Knöpfe wechseln beim ersten Klick Beschriftung und Aussehen («Wirklich senden?», Fläche und Text in der Fehlerfarbe), sagen die Frage in einer Statusregion an, ersetzen ein eigenes `aria-label` solange sie scharf sind, fallen nach 6 Sekunden zurück und lassen sich mit Escape zurücknehmen.
+- [ ] **14.7** Kontrast: Text auf dem Toast im Tag 10.4:1, in der Nacht 16.6:1, Fehler 6.8:1 und 7.5:1; bei erzwungenen Farben hat der Toast einen Rand. Kein Popup, kein `confirm`, `alert` oder `prompt`.
+
+## 15. Verwaltung: Kopf, Auswahlfelder, Scrollbereiche, Seiten im Fluss (#578)
+
+Die Verwaltung teilt Tokens, Kopf und Bausteine mit der Website (Beschreibung in [verwaltung-geruest.md](verwaltung-geruest.md)). Geprüft in Tag und Nacht, bei 1440 und 390 Pixeln, mit Tastatur.
+
+- [ ] **15.1** Kopf: Marke (Logo oder Wortmarke), «Verwaltung», Konto, Umschalter und «Abmelden» stehen in einer Zeile; darunter die Bereichsleiste mit dem roten Strich unter dem aktuellen Bereich (`aria-current`) und die Unterleiste. Ziele mindestens 44 Pixel, Fokusring sichtbar, Reihenfolge Marke, Bereiche, Unterseiten, Konto.
+- [ ] **15.2** Name und Logo der Abteilung kommen aus den Einstellungen der Website; fehlt das Recht oder das Logo, steht die Wortmarke. Das Logo hat leeren Alt-Text, der Name steht für Screenreader im Link; ein Logo ohne dunkle Fassung steht in der Nacht auf hellem Feld (Kontrast).
+- [ ] **15.3** Umschalter Hell/Dunkel: Gruppe «Darstellung», zwei Knöpfe mit Namen («Hell», «Dunkel»), `aria-pressed` zeigt die Wahl, die gewählte Seite ist gefüllt und hat einen Ring (nie nur Farbe); die Wahl bleibt nach Neuladen und gilt auch auf der Anmeldeseite.
+- [ ] **15.4** Auswahlfelder: Pfeiltasten, Pos1, Ende, Bild auf/ab, Tippen zum Springen, Eingabe oder Leertaste wählt, Escape schliesst nur die Liste; der Name steht im Knopf (`aria-labelledby`), die gewählte Option trägt einen Haken und `aria-selected`; die Liste klappt nach oben, wenn unten der Platz fehlt; gesperrte Felder sind gesperrt. Ohne Skript bleibt das Feld des Browsers.
+- [ ] **15.5** Scrollbereiche: Im Editor scrollen die zwei Spalten für sich, nichts wird abgeschnitten (Fokusring sichtbar am Rand), die Seite springt nicht, wenn eine Leiste erscheint; die Leisten sind mit Maus erreichbar und mit Tastatur (Bereich fokussierbar, wenn er scrollt). Bei 200 Prozent Zoom und 320 Pixeln Breite wird daraus eine Spalte ohne Seitenscroll in zwei Richtungen.
+- [ ] **15.6** Seiten im Fluss: Der Fokus geht beim Öffnen auf den Titel oder das erste Feld, beim Schliessen zurück zum Auslöser; Browser-Zurück, der Zurück-Knopf und Escape schliessen; «Änderungen verwerfen?» ist eine Zeile mit zwei Knöpfen, kein Popup; das Panel im Editor ist nicht modal (der Inhalt dahinter bleibt bedienbar), Escape schliesst es.
+- [ ] **15.7** Verlauf: Jede Ansicht hat eine eigene Adresse; Zurück und Vor im Browser führen zum vorherigen Bildschirm samt Scrollposition; ein Tiefenlink funktioniert nach Neuladen.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

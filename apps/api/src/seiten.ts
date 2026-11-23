@@ -57,6 +57,9 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
   admin["tokens.css"] = tokens;
   // Umschalter Hell und Dunkel der Verwaltung (#578): dieselbe Datei wie die Website, dieselbe Wahl im Browser
   admin["theme.js"] = lade("website/theme.js");
+  // Eigenes Auswahlfeld (#564, #578): dieselben Dateien wie die Website; es wertet jedes select der Verwaltung auf
+  admin["auswahl.js"] = lade("website/auswahl.js");
+  admin["auswahl.css"] = lade("website/auswahl.css");
   admin["website-vorschau.css"] =
     tokens +
     lade("website/website.css") +

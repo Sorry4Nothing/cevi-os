@@ -1,4 +1,5 @@
 import { anfrage, fehlertext } from "./api.js";
+import { flussOffen } from "./fluss.js";
 import {
   aktionenZelle,
   ankreuzen,
@@ -583,7 +584,7 @@ function zeichne(bereich, ctx, daten, neu) {
       seiten.zu(treffer.indexOf(ziel));
       aktualisiere();
     }
-    if (!document.querySelector("dialog[open]")) {
+    if (!flussOffen()) {
       (ziel?.tr.isConnected
         ? ziel.knopf
         : document.querySelector("h1")

@@ -175,3 +175,19 @@ select.aw-nativ {
     color: GrayText;
   }
 }
+
+/* Bild vor dem Namen einer Option (data-bild, #578): Symbole der Stufen in der Verwaltung */
+.aw-bild {
+  flex: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-right: 0.75rem;
+  object-fit: contain;
+  vertical-align: middle;
+}
+.aw-liste [role="option"] > span:first-child,
+.aw-wert {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}

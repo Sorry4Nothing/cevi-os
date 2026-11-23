@@ -1,6 +1,7 @@
 // Bausteine für die Oberfläche. Daten gelangen nur als Text (createTextNode, textContent) in die Seite, nie als HTML.
 
 import { fehlertext as standardFehlertext } from "./api.js";
+import { oeffneFluss } from "./fluss.js";
 
 let zaehler = 0;
 export const neueId = (vorsatz) => `${vorsatz}-${++zaehler}`;
@@ -107,6 +108,7 @@ const ICONS = {
     "M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3",
   ],
   schliessen: ["M6 6l12 12M18 6 6 18"],
+  zurueck: ["M15 6l-6 6 6 6"],
   // Umschalter Hell und Dunkel (dieselben Formen wie der Symbolsatz der Website, src/website/symbole.ts)
   sonne: [
     ["circle", { cx: 12, cy: 12, r: 4 }],
@@ -499,155 +501,26 @@ export const STANDARD_LOGO = "/admin/favicon.svg";
 
 export function auswahl({ label, optionen, wert, ...rest }) {
   const id = neueId("auswahl");
-  const listeId = `${id}-liste`;
+  // Das select hält den Wert (.eingabe.value, «change» wie bei einem normalen Feld); auswahl.js (dieselbe Datei wie auf der Website, #578) stellt Knopf und Liste daneben
   const feldSelect = el(
     "select",
-    { hidden: true, tabindex: "-1", "aria-hidden": "true", ...rest },
-    optionen.map(([w, text]) => el("option", { value: w }, text)),
+    { id, ...rest },
+    optionen.map(([w, text, bild]) =>
+      el("option", { value: w, "data-bild": bild }, text),
+    ),
   );
   feldSelect.value = wert;
-  const inhalt = ([, beschriftung, bild]) =>
-    el(
-      "span",
-      { class: "auswahl-wert" },
-      bild && el("img", { class: "auswahl-bild", src: bild, alt: "" }),
-      beschriftung,
-    );
-  const text = el("span", { class: "auswahl-wert" });
-  const knopf = el(
-    "button",
-    {
-      type: "button",
-      id,
-      class: "auswahl-knopf",
-      role: "combobox",
-      "aria-haspopup": "listbox",
-      "aria-expanded": "false",
-      "aria-controls": listeId,
-      "aria-labelledby": `${id}-label ${id}`,
-    },
-    text,
+  const wurzel = el(
+    "div",
+    { class: "feld" },
+    el("label", { for: id, id: `${id}-label` }, label),
+    feldSelect,
   );
-  const eintraege = optionen.map((option, i) =>
-    el(
-      "li",
-      { id: `${id}-o${i}`, role: "option", class: "auswahl-eintrag" },
-      inhalt(option),
-    ),
-  );
-  const liste = el(
-    "ul",
-    {
-      id: listeId,
-      class: "auswahl-liste",
-      role: "listbox",
-      "aria-labelledby": `${id}-label`,
-      popover: "manual",
-    },
-    eintraege,
-  );
-  let aktiv = 0;
-
-  const gewaehlt = () => feldSelect.selectedIndex;
-  const zeigeWahl = () => {
-    const wahl = optionen[gewaehlt()];
-    text.replaceChildren(...(wahl ? inhalt(wahl).childNodes : []));
-    eintraege.forEach((e, i) =>
-      e.setAttribute("aria-selected", String(i === gewaehlt())),
-    );
-  };
-  const markiere = (i) => {
-    aktiv = Math.max(0, Math.min(eintraege.length - 1, i));
-    eintraege.forEach((e, j) => e.classList.toggle("ist-aktiv", j === aktiv));
-    knopf.setAttribute("aria-activedescendant", eintraege[aktiv].id);
-    eintraege[aktiv].scrollIntoView({ block: "nearest" });
-  };
-  const offen = () => liste.matches(":popover-open");
-  // Die Liste liegt im Top-Layer und ragt so über das Dialogfenster hinaus; Lage und Breite folgen dem Knopf
-  const platziere = () => {
-    const r = knopf.getBoundingClientRect();
-    liste.style.top = `${r.bottom + 4}px`;
-    liste.style.left = `${r.left}px`;
-    liste.style.width = `${r.width}px`;
-  };
-  // Scrollt oder wächst das Fenster, stimmt die Lage nicht mehr: schliessen statt nachführen
-  const beiLageAenderung = (e) => {
-    if (e.target !== liste) schliesse();
-  };
-  const oeffne = () => {
-    platziere();
-    liste.showPopover();
-    window.addEventListener("resize", beiLageAenderung);
-    document.addEventListener("scroll", beiLageAenderung, true);
-    knopf.setAttribute("aria-expanded", "true");
-    markiere(gewaehlt());
-  };
-  const schliesse = () => {
-    if (offen()) liste.hidePopover();
-    window.removeEventListener("resize", beiLageAenderung);
-    document.removeEventListener("scroll", beiLageAenderung, true);
-    knopf.setAttribute("aria-expanded", "false");
-    knopf.removeAttribute("aria-activedescendant");
-  };
-  const waehle = (i) => {
-    if (i !== gewaehlt()) {
-      feldSelect.selectedIndex = i;
-      zeigeWahl();
-      feldSelect.dispatchEvent(new window.Event("change", { bubbles: true }));
-    }
-    schliesse();
-  };
-
-  knopf.addEventListener("click", () => (offen() ? schliesse() : oeffne()));
-  knopf.addEventListener("blur", schliesse);
-  knopf.addEventListener("keydown", (e) => {
-    const taste = e.key;
-    if (taste === "Tab") return schliesse();
-    if (taste === "Escape") {
-      if (!offen()) return;
-      e.preventDefault();
-      e.stopPropagation();
-      return schliesse();
-    }
-    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(taste)) {
-      e.preventDefault();
-      if (!offen()) return oeffne();
-      if (taste === "ArrowDown") markiere(aktiv + 1);
-      else if (taste === "ArrowUp") markiere(aktiv - 1);
-      else markiere(taste === "Home" ? 0 : eintraege.length - 1);
-    } else if (taste === "Enter" || taste === " ") {
-      e.preventDefault();
-      if (offen()) waehle(aktiv);
-      else oeffne();
-    } else if (taste.length === 1 && !e.ctrlKey && !e.metaKey) {
-      // Kurzwahl: nächster Eintrag, der mit dem Buchstaben beginnt
-      const start = (offen() ? aktiv : gewaehlt()) + 1;
-      const n = optionen.length;
-      for (let k = 0; k < n; k++) {
-        const i = (start + k) % n;
-        if (optionen[i][1].toLowerCase().startsWith(taste.toLowerCase())) {
-          (offen() ? markiere : waehle)(i);
-          break;
-        }
-      }
-    }
-  });
-  // mousedown nicht übernehmen, sonst verliert der Knopf den Fokus und die Liste schliesst vor dem Klick
-  liste.addEventListener("mousedown", (e) => e.preventDefault());
-  liste.addEventListener("click", (e) => {
-    const i = eintraege.indexOf(e.target.closest("li"));
-    if (i >= 0) waehle(i);
-  });
-  zeigeWahl();
-  return {
-    wurzel: el(
-      "div",
-      { class: "feld" },
-      el("label", { for: id, id: `${id}-label` }, label),
-      el("div", { class: "auswahl" }, knopf, liste, feldSelect),
-    ),
-    eingabe: feldSelect,
-  };
+  // auswahl.js steht in index.html vor admin.js und legt window.ceviAuswahl an; ohne es (Tests) bleibt das Feld des Browsers
+  globalThis.ceviAuswahl?.verbessere(feldSelect);
+  // Die Panels finden den Knopf über diese Klasse (Fokus, Fehler)
+  wurzel.querySelector(".aw-knopf")?.classList.add("auswahl-knopf");
+  return { wurzel, eingabe: feldSelect };
 }
 
 export function ankreuzen({ label, gewaehlt = false, wert }) {
@@ -711,9 +584,10 @@ function pruefePflichtfelder(formular) {
   return erstes !== null;
 }
 
-// Liefert den Dialog-Inhalt in der Reihenfolge: Titel, Beschreibung, Felder, Fehler, Knöpfe
-// senden() darf werfen; die Meldung erscheint im Dialog, er bleibt offen
+// Seite im Fluss statt Dialog (#578): Titel, Beschreibung, Felder, Fehler, Knöpfe in der Reihenfolge des Dialogs; ersetzt die Ansicht im Inhalt (fluss.js), eigener Verlaufseintrag, «Zurück» wie Browser-Zurück
+// senden() darf werfen; die Meldung erscheint auf der Seite, sie bleibt offen
 // pruefe() (optional) prüft Felder, die keine Pflichtfelder im Sinn von «required» sind; sie zeigt die Meldungen beim Feld, setzt den Fokus selbst und liefert true, wenn etwas fehlt
+// Rückgabe: das Element der Seite mit close() (sofort, ohne Rückfrage), versuchSchliessen() (fragt bei ungespeicherten Eingaben), open und dem Ereignis «close»
 export function dialogFormular({
   titel,
   beschreibung,
@@ -733,7 +607,9 @@ export function dialogFormular({
     hidden: true,
     tabindex: "-1",
   });
-  const abbrechen = knopf("Abbrechen", { onclick: () => dialog.close() });
+  const abbrechen = knopf("Abbrechen", {
+    onclick: () => seite.versuchSchliessen(),
+  });
   const bestaetigen = el(
     "button",
     {
@@ -749,13 +625,17 @@ export function dialogFormular({
     fehler,
     el("div", { class: "dialog-knoepfe" }, abbrechen, bestaetigen),
   );
-  const ueberschrift = el("h2", { id: titelId, tabindex: "-1" }, titel);
-  const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId },
-    ueberschrift,
-    beschreibung && el("p", { class: "beschreibung" }, beschreibung),
-    formular,
+  const { kopf } = flussKopf({
+    titelId,
+    titel,
+    beschreibung,
+    beiZurueck: () => seite.versuchSchliessen(),
+  });
+  const seite = el(
+    "section",
+    { class: "fluss-seite fluss-formular", "aria-labelledby": titelId },
+    kopf,
+    el("div", { class: "fluss-karte" }, formular),
   );
   formular.addEventListener("submit", async (ereignis) => {
     ereignis.preventDefault();
@@ -766,7 +646,7 @@ export function dialogFormular({
     bestaetigen.setAttribute("aria-busy", "true");
     try {
       const ergebnis = await senden();
-      dialog.close();
+      seite.close();
       danach?.(ergebnis);
     } catch (f) {
       fehler.textContent = fehlertext(f);
@@ -777,100 +657,112 @@ export function dialogFormular({
       bestaetigen.removeAttribute("aria-busy");
     }
   });
-  dialog.addEventListener("close", () => {
-    dialog.remove();
-    // Folgt gleich ein weiterer Dialog (Startpasswort), gehört ihm der Fokus
-    const offen = document.querySelector("dialog[open]");
-    if (offen && !offen.contains(zurueck)) return;
+  seite.addEventListener("close", () => {
     // Zurück zum Auslöser; ist er nach dem Neuladen weg, bleibt der Fokus beim Titel der Seite
-    if (zurueck?.isConnected) zurueck.focus();
+    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
     else document.querySelector("h1")?.focus();
   });
-  document.body.append(dialog);
-  dialog.showModal();
-  // Zerstörende Dialoge starten bei «Abbrechen», die anderen im ersten Feld
-  const erstes = dialog.querySelector("input, .auswahl-knopf, textarea");
+  oeffneFluss(seite);
+  // Zerstörende Seiten starten bei «Abbrechen», die anderen im ersten Feld
+  const erstes = seite.querySelector("input, .auswahl-knopf, textarea");
   (gefaehrlich || !erstes ? abbrechen : erstes).focus();
-  return dialog;
+  return seite;
 }
 
-// Modales Seitenblatt von rechts für Details und Bearbeiten; Fokus, Escape und Rückfokus wie bei dialogFormular
-// inhalt und fusszeile: Knoten oder Listen davon; schliessen() läuft nach dem Schliessen. Liefert das dialog-Element (dialog.close() schliesst es).
+// Kopf einer Seite im Fluss: «Zurück», Titel als Überschrift der Ansicht, Beschreibung
+export function flussKopf({
+  titelId,
+  titel,
+  untertitel,
+  beschreibung,
+  beiZurueck,
+  panel,
+}) {
+  const ueberschrift = el(
+    panel ? "h2" : "h1",
+    { id: titelId, class: "fluss-titel", tabindex: "-1" },
+    titel,
+  );
+  const text = untertitel ?? beschreibung;
+  const zu = panel
+    ? el(
+        "button",
+        {
+          type: "button",
+          class: "knopf knopf--rund",
+          "aria-label": "Schliessen",
+          onclick: beiZurueck,
+        },
+        icon("schliessen"),
+      )
+    : knopf("Zurück", {
+        art: "still",
+        klein: true,
+        symbol: "zurueck",
+        onclick: beiZurueck,
+      });
+  const kopf = el(
+    "header",
+    { class: "fluss-kopf" },
+    panel ? false : zu,
+    el(
+      "div",
+      { class: "fluss-titelblock" },
+      ueberschrift,
+      text &&
+        el(
+          "p",
+          { class: untertitel !== undefined ? "leise" : "beschreibung" },
+          text,
+        ),
+    ),
+    panel ? zu : false,
+  );
+  return { kopf, ueberschrift };
+}
+
+// Seite im Fluss für Details und Bearbeiten (früher das modale Seitenblatt von rechts); Fokus und Rückfokus wie bei dialogFormular
+// inhalt und fusszeile: Knoten oder Listen davon; schliessen() läuft nach dem Schliessen. Liefert das Element (close() schliesst es, versuchSchliessen() fragt bei Eingaben).
+// panel: true (Editor) = nicht modales Panel rechts im Layout, ohne Verlaufseintrag; bei schmalen Fenstern eine Seite
 export function seitenblatt({
   titel,
   untertitel,
   inhalt,
   fusszeile,
   schliessen,
+  panel = false,
 }) {
   const zurueck = ausloeser();
   const titelId = neueId("titel");
-  const ueberschrift = el("h2", { id: titelId, tabindex: "-1" }, titel);
-  const zu = el(
-    "button",
+  const istPanel = panel && window.matchMedia("(min-width: 75rem)").matches;
+  const { kopf, ueberschrift } = flussKopf({
+    titelId,
+    titel,
+    untertitel,
+    panel: istPanel,
+    beiZurueck: () => blatt.versuchSchliessen(),
+  });
+  const blatt = el(
+    istPanel ? "aside" : "section",
     {
-      type: "button",
-      class: "knopf knopf--rund",
-      "aria-label": "Schliessen",
-      onclick: () => dialog.close(),
+      class: istPanel ? "fluss-panel blatt" : "fluss-seite fluss-blatt blatt",
+      "aria-labelledby": titelId,
     },
-    icon("schliessen"),
-  );
-  const dialog = el(
-    "dialog",
-    { class: "blatt", "aria-labelledby": titelId },
-    el(
-      "div",
-      { class: "blatt-kopf" },
-      el(
-        "div",
-        { class: "blatt-titel" },
-        ueberschrift,
-        untertitel && el("p", { class: "leise" }, untertitel),
-      ),
-      zu,
-    ),
+    kopf,
     el("div", { class: "blatt-inhalt" }, inhalt),
     fusszeile && el("div", { class: "blatt-fuss" }, fusszeile),
   );
-  // Klick auf den abgedunkelten Rest schliesst das Blatt
-  dialog.addEventListener("click", (ereignis) => {
-    if (ereignis.target === dialog) dialog.close();
-  });
-  dialog.addEventListener("close", () => {
-    dialog.remove();
+  blatt.addEventListener("close", () => {
     schliessen?.();
-    const offen = document.querySelector("dialog[open]");
-    if (offen && !offen.contains(zurueck)) return;
-    if (zurueck?.isConnected) zurueck.focus();
+    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
     else document.querySelector("h1")?.focus();
   });
-  document.body.append(dialog);
-  dialog.showModal();
-  const erstes = dialog.querySelector(
+  oeffneFluss(blatt, { panel });
+  const erstes = blatt.querySelector(
     ".blatt-inhalt input, .blatt-inhalt .auswahl-knopf, .blatt-inhalt textarea",
   );
   (erstes ?? ueberschrift).focus();
-  return dialog;
-}
-
-// Rückfrage vor einer folgenreichen Aktion; aktion() wirft bei Fehlern, danach() läuft nach dem Schliessen
-export function bestaetigen({
-  titel,
-  beschreibung,
-  ok,
-  aktion,
-  danach,
-  gefaehrlich = true,
-}) {
-  return dialogFormular({
-    titel,
-    beschreibung,
-    ok,
-    gefaehrlich,
-    senden: aktion,
-    danach,
-  });
+  return blatt;
 }
 
 // Zeigt ein Geheimnis (Startpasswort) genau einmal; beim Schliessen wird der Text aus der Seite gelöscht
@@ -901,22 +793,33 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
     },
     "Schliessen",
   );
+  // Eine Karte im Fluss, nicht modal und ohne Verlaufseintrag (#578): Sie steht oben in der offenen Ansicht und verschwindet mit ihr; beim Schliessen und beim Verlassen ist der Text aus der Seite gelöscht
   const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId },
+    "section",
+    { class: "fluss-geheimnis", "aria-labelledby": titelId },
     el("h2", { id: titelId, tabindex: "-1" }, titel),
     el("p", { class: "beschreibung" }, beschreibung),
     anzeige,
     rueck,
     el("div", { class: "dialog-knoepfe" }, kopieren, schliessen),
   );
-  dialog.addEventListener("close", () => {
+  dialog.close = () => {
     anzeige.textContent = "";
     dialog.remove();
-    if (zurueck?.isConnected) zurueck.focus();
+    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
     else document.querySelector("h1")?.focus();
-  });
-  document.body.append(dialog);
-  dialog.showModal();
+  };
+  const ort =
+    document.querySelector(".fluss-seite:not([hidden])") ??
+    document.getElementById("bereich") ??
+    document.body;
+  ort.prepend(dialog);
+  // Verlässt die Person die Ansicht, wird der Container verworfen; leer ist der Text dann auch
+  new MutationObserver((_, beobachter) => {
+    if (dialog.isConnected) return;
+    anzeige.textContent = "";
+    beobachter.disconnect();
+  }).observe(ort.parentNode, { childList: true });
+  dialog.scrollIntoView({ block: "nearest" });
   kopieren.focus();
 }

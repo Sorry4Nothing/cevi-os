@@ -14,7 +14,7 @@ Die öffentliche Website folgt dem Design «Cevi Web» (Tag und Nacht, Desktop u
 
 ## Tokens (Grundlagen G1)
 
-Farben stehen nur als `var(--token)`. Die Namen sind die des Designs; Werte für Tag und Nacht stehen am Anfang von `website.css`.
+Farben stehen nur als `var(--token)`. Die Namen sind die des Designs; Werte für Tag und Nacht, Radien, Bewegung, Scrollleisten und die Schrift Archivo stehen in `website/tokens.css` (#578), die **auch die Verwaltung lädt** (`/admin/tokens.css`, dieselben Bytes); eine Seite lädt `tokens.css` vor `website.css`. In `website.css` bleiben nur die Layout-Masse (`--rand`, `--abstand`, `--spalt`). Auch `theme.js` (Umschalter Hell/Dunkel) und `auswahl.js`/`auswahl.css` (Auswahlfeld) teilt die Verwaltung; ändert man eine dieser Dateien, gilt es für beide.
 
 | Token                                                                             | Rolle                                          |
 | --------------------------------------------------------------------------------- | ---------------------------------------------- |

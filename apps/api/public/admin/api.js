@@ -27,6 +27,12 @@ export function beiSitzungsende(fn) {
   beiAbgelaufen = fn;
 }
 
+// Beim Verlassen der Seite (pagehide) führt die Verwaltung offene Aktionen mit «Rückgängig» aus (rueckgaengig.js): Diese Anfragen laufen mit keepalive weiter, auch wenn die Seite schon weg ist
+let verlassen = false;
+export function setzeVerlassen(wert = true) {
+  verlassen = wert;
+}
+
 function fehlerAus(status, daten, warten, pfad) {
   if (status === 401 && pfad.startsWith("/api/v1/")) beiAbgelaufen();
   return new ApiFehler(
@@ -75,6 +81,7 @@ export async function anfrage(methode, pfad, body) {
       method: methode,
       credentials: "same-origin",
       cache: "no-store",
+      keepalive: verlassen || undefined,
       // Eine Datei geht unverändert hin (Logo-Upload), alles andere als JSON
       headers:
         body === undefined || body instanceof Blob

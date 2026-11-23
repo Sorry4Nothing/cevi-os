@@ -170,6 +170,8 @@ describe("Verwaltung unter /admin", () => {
   test("Rückmeldungen: Erfolg und Info ohne Aktion vergehen von selbst, alles andere bleibt", async () => {
     // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
     vi.stubGlobal("document", { addEventListener: () => {} });
+    // fluss.js hört auf popstate und pagehide (#578)
+    vi.stubGlobal("window", { addEventListener: () => {} });
     // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
     const rahmenPfad = "../public/admin/rahmen.js";
     const { vergehtVonSelbst } = (await import(

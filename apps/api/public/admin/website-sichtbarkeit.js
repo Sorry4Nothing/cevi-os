@@ -201,6 +201,7 @@ export function sichtbarkeitBlatt(opt) {
 
   const rechteBox = opt.rechte ? rechteBereich(opt.rechte, tagNamen) : null;
   const blatt = seitenblatt({
+    panel: true,
     titel: opt.titel,
     untertitel: opt.untertitel,
     inhalt: [

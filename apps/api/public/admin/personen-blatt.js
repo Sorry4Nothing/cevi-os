@@ -2,7 +2,6 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   el,
   feld,
@@ -13,6 +12,7 @@ import {
   seitenblatt,
   zeit,
 } from "./dom.js";
+import { zweistufig } from "./rueckgaengig.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { typName } from "./tags-detail.js";
 
@@ -191,67 +191,68 @@ export function startpasswortDialog(name, wert) {
   });
 }
 
+// Aktionen ohne Frist (#578): Ein neues Startpasswort meldet die Person sofort ab und wird genau einmal angezeigt, der zweite Faktor und das Aktivieren sind ebenso nicht zurückzunehmen.
+// Statt eines Popups hat der Knopf zwei Stufen (zweiStufig); die Aktion läuft beim zweiten Klick und meldet Fehler als Hinweis
+async function direkt(ctx, aktion, danach) {
+  try {
+    danach(await aktion());
+  } catch (f) {
+    ctx.melde(fehlertext(f), "fehler");
+  }
+}
+
 // fertig() schliesst das Seitenblatt nach einer geglückten Aktion, denn seine Angaben sind danach veraltet
 function neuesStartpasswort(person, ctx, neu, fertig) {
-  bestaetigen({
-    titel: "Neues Startpasswort erzeugen",
-    beschreibung: `«${person.name}» wird überall abgemeldet und muss beim nächsten Login ein neues Passwort wählen. Das Startpasswort gilt 7 Tage.`,
-    ok: "Startpasswort erzeugen",
-    aktion: () =>
-      anfrage("POST", `/api/v1/admin/personen/${person.id}/startpasswort`),
-    danach: (antwort) => {
+  return direkt(
+    ctx,
+    () => anfrage("POST", `/api/v1/admin/personen/${person.id}/startpasswort`),
+    (antwort) => {
       neu();
       ctx.melde(`Neues Startpasswort für «${person.name}» ist erzeugt.`);
       startpasswortDialog(person.name, antwort.startpasswort);
       fertig();
     },
-  });
+  );
 }
 
+// Deaktivieren lässt sich zurücknehmen: Toast mit «Rückgängig», das Blatt schliesst sofort. Aktivieren erzeugt ein Startpasswort (einmalig sichtbar): zwei Stufen
 function umschalten(person, ctx, neu, fertig) {
-  const deaktivieren = !person.deaktiviert;
-  bestaetigen({
-    titel: deaktivieren ? "Person deaktivieren" : "Person aktivieren",
-    beschreibung: deaktivieren
-      ? `«${person.name}» kann sich nicht mehr anmelden und wird überall abgemeldet.`
-      : `«${person.name}» kann sich wieder anmelden. Dafür gibt es ein neues Startpasswort, das alte gilt nicht mehr.`,
-    ok: deaktivieren ? "Deaktivieren" : "Aktivieren",
-    gefaehrlich: deaktivieren,
-    aktion: () =>
-      anfrage(
-        "POST",
-        `/api/v1/admin/personen/${person.id}/${deaktivieren ? "deaktivieren" : "aktivieren"}`,
-      ),
-    danach: (antwort) => {
-      neu();
-      ctx.melde(
-        deaktivieren
-          ? `«${person.name}» ist deaktiviert.`
-          : `«${person.name}» ist aktiviert.`,
-      );
-      if (!deaktivieren)
+  if (person.deaktiviert) {
+    return direkt(
+      ctx,
+      () => anfrage("POST", `/api/v1/admin/personen/${person.id}/aktivieren`),
+      (antwort) => {
+        neu();
+        ctx.melde(`«${person.name}» ist aktiviert.`);
         startpasswortDialog(person.name, antwort.startpasswort);
-      fertig();
-    },
+        fertig();
+      },
+    );
+  }
+  ctx.mitRueckgaengig({
+    text: `«${person.name}» deaktiviert. Die Person kann sich nicht mehr anmelden und ist überall abgemeldet`,
+    ansicht: { weg: fertig, zurueck: () => {} },
+    ausfuehren: () =>
+      anfrage("POST", `/api/v1/admin/personen/${person.id}/deaktivieren`),
+    fehlertext,
+    danach: neu,
   });
 }
 
 function faktorZuruecksetzen(person, ctx, neu, fertig) {
-  bestaetigen({
-    titel: "Zweiten Faktor zurücksetzen",
-    beschreibung: `«${person.name}» muss den zweiten Faktor danach neu einrichten.`,
-    ok: "Zurücksetzen",
-    aktion: () =>
+  return direkt(
+    ctx,
+    () =>
       anfrage(
         "POST",
         `/api/v1/admin/personen/${person.id}/zweiter-faktor-zuruecksetzen`,
       ),
-    danach: () => {
+    () => {
       neu();
       ctx.melde(`Der zweite Faktor von «${person.name}» ist zurückgesetzt.`);
       fertig();
     },
-  });
+  );
 }
 
 // Aktion im Seitenblatt: Titel und Erklärung links, Knopf rechts
@@ -612,41 +613,47 @@ export function oeffneBlatt({ person, daten, ctx, neu, beiFokus, tr }) {
           kontoAktion(
             "Neues Startpasswort",
             "Meldet die Person überall ab. Das Passwort gilt 7 Tage und bleibt hier sichtbar, bis die Person es ersetzt hat.",
-            knopf("Startpasswort erzeugen", {
-              klein: true,
-              symbol: "schluessel",
-              onclick: () => {
+            zweistufig(
+              knopf("Startpasswort erzeugen", {
+                klein: true,
+                symbol: "schluessel",
+              }),
+              "Wirklich erzeugen?",
+              () => {
                 beiFokus(person.id);
                 neuesStartpasswort(person, ctx, neu, schliesse);
               },
-            }),
+            ),
           ),
           person.zweiterFaktor &&
             kontoAktion(
               "Zweiter Faktor",
               "Die Person muss ihn danach neu einrichten.",
-              knopf("Zweiten Faktor zurücksetzen", {
-                klein: true,
-                art: "gefahr",
-                symbol: "schild",
-                onclick: () => {
+              zweistufig(
+                knopf("Zweiten Faktor zurücksetzen", {
+                  klein: true,
+                  art: "gefahr",
+                  symbol: "schild",
+                }),
+                "Wirklich zurücksetzen?",
+                () => {
                   beiFokus(person.id);
                   faktorZuruecksetzen(person, ctx, neu, schliesse);
                 },
-              }),
+              ),
             ),
           person.deaktiviert
             ? kontoAktion(
                 "Person aktivieren",
                 "Sie kann sich wieder anmelden, mit einem neuen Startpasswort.",
-                knopf("Aktivieren", {
-                  klein: true,
-                  symbol: "haken",
-                  onclick: () => {
+                zweistufig(
+                  knopf("Aktivieren", { klein: true, symbol: "haken" }),
+                  "Wirklich aktivieren?",
+                  () => {
                     beiFokus(person.id);
                     umschalten(person, ctx, neu, schliesse);
                   },
-                }),
+                ),
               )
             : kontoAktion(
                 "Person deaktivieren",

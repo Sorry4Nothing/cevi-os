@@ -1,6 +1,6 @@
 // Eigenes Auswahlfeld der Website (#564). Das <select> bleibt im Dokument: Es hält den Wert, sendet ihn mit dem Formular und meldet «change» wie bisher. Ohne Skript bleibt es das Feld des Browsers.
 // Das Skript stellt eine Schaltfläche (role="combobox") und eine Liste (role="listbox") daneben, nach dem Muster «Select-Only Combobox» der ARIA Authoring Practices: Pfeiltasten, Pos1, Ende, Bild auf/ab, Eingabe, Leertaste, Escape, Tab, Tippen zum Springen.
-// Kein style-Attribut, kein innerHTML (CSP). Stil: auswahl.css.
+// Kein style-Attribut und kein HTML aus Text (CSP). Stil: auswahl.css.
 
 const SVG = "http://www.w3.org/2000/svg";
 const TIPP_PAUSE_MS = 600;
@@ -86,8 +86,20 @@ export function verbessere(select) {
   const optionen = () => [...liste.children];
   const gesperrt = (i) => select.options[i]?.disabled ?? true;
 
+  // Eine Option kann ein Bild vor dem Namen tragen (data-bild, #578: Symbole der Stufen in der Verwaltung)
+  function bildVon(o) {
+    if (!o?.dataset.bild) return null;
+    const b = doc.createElement("img");
+    b.className = "aw-bild";
+    b.alt = "";
+    b.src = o.dataset.bild;
+    return b;
+  }
   function zeige() {
-    wert.textContent = select.selectedOptions[0]?.textContent ?? "";
+    const gewaehlt = select.selectedOptions[0];
+    wert.textContent = gewaehlt?.textContent ?? "";
+    const bild = bildVon(gewaehlt);
+    if (bild) wert.prepend(bild);
     optionen().forEach((o, i) =>
       o.setAttribute(
         "aria-selected",
@@ -104,6 +116,8 @@ export function verbessere(select) {
         if (o.disabled) li.setAttribute("aria-disabled", "true");
         const name = doc.createElement("span");
         name.textContent = o.textContent;
+        const bild = bildVon(o);
+        if (bild) name.prepend(bild);
         // Der Haken zeigt die gewählte Option, nicht nur die Farbe
         li.append(name, symbol(doc, "i aw-haken", "m5 12 5 5 9-10", false));
         return li;
@@ -248,10 +262,16 @@ export function verbessere(select) {
   select.addEventListener("focus", () => knopf.focus());
   select.addEventListener("change", zeige);
   select.form?.addEventListener("reset", () => fenster.setTimeout(zeige));
-  new fenster.MutationObserver(baueListe).observe(select, {
+  // Ändert ein Skript die Optionen oder sperrt das Feld (disabled, #578), folgt die Schaltfläche
+  new fenster.MutationObserver(() => {
+    knopf.disabled = select.disabled;
+    baueListe();
+  }).observe(select, {
     childList: true,
     subtree: true,
     characterData: true,
+    attributes: true,
+    attributeFilter: ["disabled"],
   });
 
   baueListe();
@@ -274,4 +294,8 @@ export function starte(doc) {
   }).observe(doc.documentElement, { childList: true, subtree: true });
 }
 
-if (typeof document !== "undefined") starte(document);
+if (typeof document !== "undefined" && document.documentElement) {
+  starte(document);
+}
+// Die Verwaltung stellt Felder, die sie selbst baut, sofort um (und nicht erst nach dem Einsetzen, #578)
+if (typeof window !== "undefined") window.ceviAuswahl = { verbessere };

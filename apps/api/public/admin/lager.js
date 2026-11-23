@@ -1,4 +1,5 @@
 import { anfrage } from "./api.js";
+import { gehe } from "./verlauf.js";
 import {
   auswahl,
   dialogFormular,
@@ -277,7 +278,7 @@ function statusDialog(art, lager) {
     fehlertext: (f) => `${d.nicht} ${meldung(f)}`,
     danach: () => {
       merkeMeldung(d.erfolg(lager.titel));
-      location.hash = ADRESSE;
+      gehe(ADRESSE);
     },
   });
   const ok = dialog.querySelector('button[type="submit"]');
@@ -324,7 +325,7 @@ function loeschenDialog(lager) {
     fehlertext: (f) => `Nicht gelöscht. ${meldung(f)}`,
     danach: () => {
       merkeMeldung(`«${lager.titel}» ist gelöscht.`);
-      location.hash = ADRESSE;
+      gehe(ADRESSE);
     },
   });
   dialog.querySelector('button[type="submit"]').prepend(symbol("papierkorb"));

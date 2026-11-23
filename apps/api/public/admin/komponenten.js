@@ -1,6 +1,5 @@
 // «Komponenten» (System): Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen der Verwaltung, in Tag und Nacht des Browsers. Zeigt nur feste Beispiele, ruft keine API auf und enthält keine echten Daten. Dient auch als Prüfstand für die Folge-Issues.
 import {
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -17,6 +16,7 @@ import {
   skeletonListe,
   skeletonTabelle,
 } from "./lader.js";
+import { mitRueckgaengig, zweistufig } from "./rueckgaengig.js";
 import { leerKarte, rahmenzustand, zustandsKarte } from "./zustaende.js";
 
 const abschnitt = (titel, ...inhalt) =>
@@ -55,7 +55,7 @@ function knopfZeile(name, art, text, gefaehrlich = false) {
     aus,
     laedt,
     gefaehrlich
-      ? "Zerstörendes fragt vorher im Dialog zurück"
+      ? "Zerstörendes lässt sich in der Frist zurücknehmen (Toast)"
       : "Fehler steht im Hinweis",
   );
 }
@@ -159,20 +159,28 @@ function tafel() {
         "Hinweis im Dialog, Eingaben bleiben",
       ),
       zeile(
-        "Rückfrage",
-        knopf("Rückfrage öffnen", {
+        "Aktion mit Rückgängig",
+        knopf("Toast zeigen", {
           onclick: () =>
-            bestaetigen({
-              titel: "Vorlage «Wochenendlager» löschen?",
-              beschreibung:
-                "Die Vorlage wird gelöscht. Das lässt sich nicht rückgängig machen. Der Fokus liegt auf «Abbrechen».",
-              ok: "Vorlage löschen",
-              aktion: async () => {},
+            mitRueckgaengig({
+              text: "Vorlage «Wochenendlager» gelöscht",
+              ausfuehren: async () => {},
             }),
         }),
         "gibt es nicht",
+        "Toast bleibt 8 Sekunden, der Balken läuft ab",
+        "Der Toast meldet den Fehler und die Ansicht kommt zurück",
+      ),
+      zeile(
+        "Zweistufiger Knopf",
+        zweistufig(
+          knopf("Senden", { symbol: "glocke" }),
+          "Wirklich senden?",
+          () => {},
+        ),
         "gibt es nicht",
-        "Hinweis im Dialog, Eingaben bleiben",
+        "gibt es nicht",
+        "Hinweis im Fluss",
       ),
       zeile(
         "Seitenblatt",

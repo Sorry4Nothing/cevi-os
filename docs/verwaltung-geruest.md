@@ -1,41 +1,52 @@
 # Gerüst der Verwaltung
 
-Das Gerüst der Verwaltung unter `/admin` folgt dem Design «Cevi Web» (Boards A1, A2, A30, G4 bis G6). Diese Seite ist die Anleitung für alle, die einen Bereich neu bauen. Die Seiten laufen ohne Build-Schritt, mit ES-Modulen und strenger CSP (keine Inline-Skripte, keine `style`-Attribute, keine fremden Hosts, keine fremden Schriften).
+Das Gerüst der Verwaltung unter `/admin` ist Teil **eines** Designsystems mit der öffentlichen Website (#578): dieselben Tokens, dieselbe Schrift, derselbe Kopf, dieselben Knöpfe, Chips, Karten, Felder, Auswahlfelder, Scrollleisten und dieselbe Bewegung. Die Dichte darf höher sein (Arbeitsoberfläche), die Handschrift ist dieselbe. Entstanden aus dem Design «Cevi Web» (Boards A1, A2, A30, G4 bis G6). Diese Seite ist die Anleitung für alle, die einen Bereich neu bauen. Die Seiten laufen ohne Build-Schritt, mit ES-Modulen und strenger CSP (keine Inline-Skripte, keine `style`-Attribute, keine fremden Hosts, keine fremden Schriften).
 
 ## Aufbau der Seite
 
 ```
-Kopf (header.kopfzeile)
-  Logozeile        Marke «CEVI», «Verwaltung», Konto, Abmelden
-  Bereichsleiste   blau, ein Eintrag je Bereich, aktiver Bereich mit rotem Strich
-  Unterleiste      die Unterseiten des aktiven Bereichs, Zähler als rote Pille
-main#inhalt        .rahmen (max. 1248 px)
+Kopf (header.kopfzeile, wie website/kopf.css)
+  Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name), «Verwaltung», Konto, Umschalter Hell/Dunkel, Abmelden
+  Bereichsleiste   weisses Band, ein Eintrag je Bereich, roter Strich unter dem aktuellen; haftet beim Scrollen oben
+  Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als rote Pille; scrollt mit weg
+main#inhalt        .rahmen (max. 90 rem wie der Kopf, Seitenrand clamp(1rem, 4vw, 4.5rem) wie --rand der Website)
   #seitenkopf      h1 + Untertitel + rechts die Hauptaktion
-  #rueckmeldung    gestapelte Hinweise
+  #rueckmeldung    Meldungen; darunter die Toasts mit «Rückgängig»
   #bereich         hier zeichnet dein Modul
 ```
 
-Die Leisten stehen im Kopf, nicht in einer Seitenleiste: So zeigt es das Design (G4, «Kopf mit Bereichsleiste und Unterleiste statt Dock»). Unter 1100 px rücken Name und Rolle des Kontos zu den Screenreadern, unter 760 px laufen die Leisten waagrecht.
+**Marke:** Name und Logo kommen aus den Einstellungen der Website (`GET /api/v1/redaktion/website`: `name`, `logoMediumId`, `logoDunkelMediumId`; das Bild liefert `/api/v1/medien/<id>`) und stehen nie im Code. Fehlt das Recht auf die Einstellungen (403) oder ist kein Logo gesetzt, steht die Wortmarke «CEVI» (mit dem Namen, wenn bekannt). Ein Logo ohne dunkle Fassung steht in der Nacht auf hellem Feld (`--logo-grund`). `setzeMarke()` in `rahmen.js` ersetzt die Marke; die Anmeldeseite trägt denselben Kopf ohne Konto.
+
+**Umschalter Hell/Dunkel:** zwei Knöpfe mit Symbol (Sonne, Mond), `aria-pressed`, `role="group"`; die Wahl liegt im Browser (`localStorage`, Schlüssel `cevi-darstellung`, dieselbe wie auf der Website, `/admin/theme.js` ist `website/theme.js`). Ohne gespeicherte Wahl folgt die Verwaltung dem Gerät.
+
+Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rücken Name und Rolle des Kontos zu den Screenreadern, unter 760 px laufen die Leisten waagrecht (nur die Verwaltung braucht so viele Bereiche; ein Menü wie am Handy der Website gibt es hier nicht).
+
+`.kopfzeile` und `.leisten` sind `display: contents`: Logozeile, Bereichsleiste und Unterleiste sind Geschwister im Gerüst, damit nur die Zeile der Navigation haftet.
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
-| Datei                | Aufgabe                                                                                                      |
-| -------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `index.html`         | lädt die Stilvorlagen und `admin.js`                                                                         |
-| `admin.js`           | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                             |
-| `navigation.js`      | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                  |
-| `rahmen.js`          | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                |
-| `lader.js`           | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                              |
-| `zustaende.js`       | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                        |
-| `platzhalter.js`     | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                      |
-| `komponenten.js`     | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                  |
-| `dom.js`             | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …            |
-| `api.js`             | `anfrage`, `ApiFehler`, `fehlertext`                                                                         |
-| `admin.css`          | Tokens (Tag und Nacht) und die bestehenden Bausteine                                                         |
-| `geruest.css`        | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
-| `komponenten.css`    | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
-| `liste-hilfen.js`    | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
-| `<bereich>-*.js/css` | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
+| Datei                                 | Aufgabe                                                                                                      |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `index.html`                          | lädt die Stilvorlagen und `admin.js`                                                                         |
+| `admin.js`                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                             |
+| `navigation.js`                       | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                  |
+| `rahmen.js`                           | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                |
+| `lader.js`                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                              |
+| `zustaende.js`                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                        |
+| `platzhalter.js`                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                      |
+| `komponenten.js`                      | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                  |
+| `dom.js`                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …            |
+| `api.js`                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                         |
+| `tokens.css`                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)           |
+| `theme.js`                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                 |
+| `auswahl.js`, `auswahl.css`           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                              |
+| `fluss.js`, `fluss.css`, `verlauf.js` | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                           |
+| `rueckgaengig.js`, `toast.css`        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                  |
+| `admin.css`                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                     |
+| `geruest.css`                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
+| `komponenten.css`                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
+| `liste-hilfen.js`                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
+| `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
 
@@ -140,24 +151,52 @@ Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nenne
 
 `ctx.melde(text, art, aktion)` stapelt Hinweise in einer Live-Region (`#rueckmeldung`). Jede hat «Hinweis schliessen». Erfolg und Info (`ok`, `info`) ohne Aktion blenden nach 6 Sekunden von selbst aus; die Zeit hält an, solange der Zeiger auf der Meldung steht oder der Fokus darin liegt, und beginnt danach neu. Warnungen, Fehler und jede Meldung mit einer Aktion bleiben, bis man sie schliesst. Fehler sind `role="alert"`. Dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle; der Router tut das bei jeder Navigation.
 
+### Aktionen mit «Rückgängig» statt Rückfrage (#578)
+
+Es gibt keine Rückfrage-Dialoge mehr («Wirklich löschen?»). Was sich zurücknehmen lässt, läuft über **eine** Funktion, `ctx.mitRueckgaengig(...)` (oder `mitRueckgaengig` aus `rueckgaengig.js`): Die Aktion wird sofort angezeigt, aber erst nach einer Frist von 8 Sekunden an die API geschickt.
+
+```js
+ctx.mitRueckgaengig({
+  text: "Seite «Wölfe» gelöscht", // Vergangenheit, so steht es im Toast und in der Statusregion
+  ansicht: ansichtVonKnopf(e), // optional: { weg(), zurueck() }; blendet die Zeile sofort aus
+  ausfuehren: () => anfrage("DELETE", `/api/v1/…`), // die verzögerte Anfrage, wirft bei Fehlern
+  fehlertext: (f) => fehlertext(f), // Text bei Fehlern
+  danach: neu, // nach Erfolg: Liste neu laden o. ä.
+  rueckgaengig: () => {}, // optional: wenn die Person zurücknimmt
+  erledigt: "Erledigt.", // optional
+});
+```
+
+- Der Toast (unten links, am Handy volle Breite) trägt den Text, «Rückgängig», einen Schliessen-Knopf und einen Balken, der in 8 Sekunden abläuft (nur bei erlaubter Bewegung). Zeiger und Fokus halten die Frist an. «Schliessen» heisst in der Frist «jetzt ausführen» (Beschriftung «Jetzt ausführen und schliessen»), nie «verwerfen».
+- «Rückgängig» geht per Knopf, mit Strg oder Cmd + Z (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes) und über F6, das den Fokus auf den ersten Knopf setzt. Der Toast bekommt den Fokus nie von selbst; die Region steht im Seitenaufbau gleich nach dem Kopf, und die Statusregion sagt die Aktion mit der Möglichkeit zum Rückgängigmachen an («… Rückgängig mit dem Knopf oder mit Strg Z.»).
+- Nach der Frist läuft die Anfrage; der Toast wechselt zu «Erledigt.» und geht nach 6 Sekunden von selbst. Ein Fehler stellt die Ansicht wieder her und bleibt als Toast (`role="alert"`) stehen, bis man ihn schliesst.
+- Verlässt die Person die Seite oder den Tab vor Ablauf (`pagehide`) oder meldet sie sich ab, laufen alle offenen Aktionen sofort (mit `keepalive`), nie still verworfen. Mehrere Aktionen stapeln sich.
+- Die Logik steht rein in `rueckgaengig.js` (Zeitgeber einsetzbar, Test `admin-rueckgaengig.test.ts`), die Darstellung in `rahmen.js` (`erstelleToasts`) und `toast.css`.
+
+**Ausnahmen** (Folge trifft sofort andere oder ist nicht umkehrbar): kein Popup, sondern ein Knopf mit zwei Stufen, `zweistufig(knopf, frage, ausfuehren)` (`zweiStufig` für Knöpfe in Formularen). Der erste Klick macht ihn scharf («Wirklich senden?»), der zweite führt aus; ohne Bestätigung fällt er nach 6 Sekunden zurück, Escape nimmt die Frage zurück, eine Statusregion sagt sie an. So laufen: Mitteilung senden, Import ausführen, neues Startpasswort erzeugen, Person aktivieren (neues Startpasswort), zweiten Faktor zurücksetzen, Rechte eines Lagers auf den Standard zurücksetzen, Wartungsmodus und Informationssperre aufheben. Formulare mit Pflichteingabe bleiben Formulare (Informationssperre auslösen, Lager mit Titel-Bestätigung löschen, Anfragen und Vorschläge ablehnen, entscheiden): Dort ist der Absenden-Knopf die zweite Stufe.
+
 ## Tokens (Tag und Nacht)
 
-Definiert in `admin.css` (`:root`, in der Nacht überschrieben unter `@media (prefers-color-scheme: dark)`). Die Verwaltung folgt dem Gerät, es gibt keinen Umschalter. Farben nur über diese Variablen, nie als Hex im Bereichs-CSS.
+**Eine Datei für Website und Verwaltung:** `public/website/tokens.css` (Farben für Tag und Nacht, Radien, Bewegung `--kurve`/`--dauer`/`--dauer-lang`, Scrollleisten `--leiste-*`, Schrift `--schrift`, `@font-face` Archivo mit relativer Adresse). Die Website lädt sie als `/website/tokens.css`, die Verwaltung als `/admin/tokens.css` (`src/seiten.ts` liefert dieselben Bytes). Die Namen sind die des Designs (`--surface`, `--surface-container-low`, `--on-surface`, `--outline`, `--primary`, `--secondary`, `--accent`, `--focus`, `--success-container` …, `--inverse-surface`, `--scrim`). Werte ändert man nur dort.
 
-| Variable                  | Rolle im Design                       | Variable                    | Rolle im Design                |
-| ------------------------- | ------------------------------------- | --------------------------- | ------------------------------ |
-| `--surface`               | surface (Grund)                       | `--ok` / `--ok-f`           | Text / Fläche «ok»             |
-| `--karte`                 | surface-container-low (Karten)        | `--wa` / `--wa-f`           | Warnung                        |
-| `--leiste`                | surface-container (Leisten, Filter)   | `--fe` / `--fe-f`           | Fehler                         |
-| `--erhoben`               | surface-container-high (Dialoge)      | `--st` / `--st-f`           | Stufen-Etikett                 |
-| `--text` / `--leise`      | on-surface / on-surface-variant       | `--blau` / `--auf-blau`     | Bereichsleiste, gewählt        |
-| `--rand` / `--rand-leise` | outline (Bedienelemente) / Trennlinie | `--blau-f` / `--auf-blau-f` | Info-Band                      |
-| `--rot` / `--auf-rot`     | primary (Hauptaktion, Zähler)         | `--akzent`                  | «hier bist du», gewählte Pille |
-| `--rot-text`              | Rot als Text                          | `--fokus`                   | Fokusring (3 px)               |
-| `--titel`                 | H1 und H2 (Tag rot, Nacht weiss)      | `--umkehr` / `--auf-umkehr` | Snackbar                       |
-| `--skeleton`              | Skeleton-Fläche (Dekor)               | `--schleier` / `--schatten` | scrim / elevation-float        |
+Tag und Nacht gelten über `prefers-color-scheme` und über `data-theme` am `<html>` (Umschalter im Kopf). Farben stehen im Bereichs-CSS nur als `var(--token)`, nie als Hex.
 
-Schrift: Archivo, wenn sie auf dem Gerät liegt, sonst die Systemschrift (die CSP erlaubt keine fremden Schriften, und das Repo enthält keine Schriftdatei). H1 36/42 (700), H2 22/28 (700), Text 16, klein 14, Tabellenkopf 13 (700). Zielgrösse mindestens 44 px, Kontrast mindestens 4.5:1, Zustand nie nur über Farbe.
+Die Namen der Verwaltung aus der Zeit vor #578 bleiben als **Verweise** in `admin.css` (`:root`), damit die Stile der Bereiche unverändert laufen; neuer Code nutzt die Namen des Designs:
+
+| Name der Verwaltung       | Token                                    | Name der Verwaltung         | Token                                            |
+| ------------------------- | ---------------------------------------- | --------------------------- | ------------------------------------------------ |
+| `--karte`                 | `--karte` (Tokens)                       | `--ok` / `--ok-f`           | `--on-success-container` / `--success-container` |
+| `--leiste`                | `--surface-container`                    | `--wa` / `--wa-f`           | `--on-warning-container` / `--warning-container` |
+| `--erhoben`               | `--surface-container-high`               | `--fe` / `--fe-f`           | `--on-error-container` / `--error-container`     |
+| `--text` / `--leise`      | `--on-surface` / `--on-surface-variant`  | `--st` / `--st-f`           | `--on-stufe-container` / `--stufe-container`     |
+| `--rand` / `--rand-leise` | `--outline` / `--outline-variant`        | `--blau` / `--auf-blau`     | `--secondary` / `--on-secondary`                 |
+| `--rot` / `--auf-rot`     | `--primary` / `--on-primary`             | `--akzent`                  | `--accent`                                       |
+| `--rot-text`              | `--primary-text`                         | `--fokus`                   | `--focus`                                        |
+| `--titel`                 | `--titel` (Tokens; Tag blau, Nacht hell) | `--umkehr` / `--auf-umkehr` | `--inverse-surface` / `--inverse-on-surface`     |
+
+Der Seitenrand `--rand` der Website (Abstand) und `--rand` der Verwaltung (Farbe des Rands) heissen gleich, sind aber verschieden: Der Seitenrand steht in `website.css`, nicht in den Tokens, und gilt in der Verwaltung nicht.
+
+Schrift: Archivo als eigene Datei (`/admin/archivo-latin.woff2`, die CSP der Verwaltung erlaubt `font-src 'self'`). H1 36/42 (700), H2 22/28 (700), Text 16, klein 14, Tabellenkopf 13 (700). Titel sind wie auf der Website blau (Nacht hell). Zielgrösse mindestens 44 px, Kontrast mindestens 4.5:1, Zustand nie nur über Farbe.
 
 ## Bausteine: Klassen
 
@@ -178,14 +217,14 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Schalter           | `button.schalter[role=switch][aria-checked]`, Zeile `div.schalterzeile`                      | `schalter`                              |
 | Wahlkarte          | `label.wahlkarte > input[type=radio] + div(strong, span)`                                    | `wahlkarte`                             |
 | Feld               | `feld({ label, hilfe, wert })`, `auswahl`, `ankreuzen`, `gruppe`, `codefeld`                 | `feld`, `eingabe`                       |
-| Dialog             | `dialogFormular({...})`, `bestaetigen({...})` (zerstörend: Fokus auf «Abbrechen»)            | `dialog`                                |
+| Dialog             | `dialogFormular({...})`; Rückfragen: `ctx.mitRueckgaengig({...})` (Toast), `zweistufig(...)` | `dialog`                                |
 | Seitenblatt        | `seitenblatt({ titel, untertitel, inhalt, fusszeile })` (ohne Radius, 600 px)                | `blatt`                                 |
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
 | Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                              | `fortschritt`, `schritte`               |
 | Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
 | Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
 
-Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit Rückfrage; Tabellen mit `th scope` und `aria-sort`; nur Erfolgs- und Infomeldungen verschwinden von selbst, nie ein Fehler oder eine Rückfrage. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt die Art `warn` oder `fehler` oder eine Aktion.
+Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit «Rückgängig» (Toast) oder, wo das nicht geht, zwei Stufen im Knopf, nie mit einem Popup; Tabellen mit `th scope` und `aria-sort`; nur Erfolgs- und Infomeldungen verschwinden von selbst, nie ein Fehler oder eine Rückfrage. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt die Art `warn` oder `fehler` oder eine Aktion.
 
 ### Listen und Formulare (Personen, Gruppen und Tags)
 
@@ -196,13 +235,26 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
 
-## Scrollleisten (#572)
+## Seiten im Fluss statt Dialoge, Verlauf (#578)
 
-Die Verwaltung zeigt schlichte Scrollleisten: schmal, runder Griff in der Randfarbe `--rand` (3:1 zur Fläche, 4.1:1 im Tag, 5.7:1 in der Nacht), bei Hover `--leise`, beim Ziehen `--text`; die Spur ist durchsichtig. Die Regeln stehen in `admin.css` (Abschnitt «Scrollleisten») und gelten für die Seite und alle inneren Scrollbereiche (Dialoge, Tabellen, Listen). `html` hat `scrollbar-gutter: stable`, damit die Seite beim Wechsel zwischen kurzen und langen Ansichten nicht springt.
+Es gibt keine Modale mehr. `dialogFormular`, `seitenblatt` und `geheimnisDialog` in `dom.js` behalten ihre Aufrufe, öffnen aber eine **Seite im Fluss** (`fluss.js`): Sie ersetzt die Ansicht in `#bereich` (Zurück-Knopf, Titel, Felder, «Abbrechen» und «Speichern»), bekommt einen eigenen Verlaufseintrag (`pushState`), und Browser-Zurück, der Zurück-Knopf und Escape schliessen sie, mit Ansicht, Scrollposition und Fokus wie vorher. Der Rückgabewert hat `close()`, `versuchSchliessen()` und das Ereignis `close`. Bei ungespeicherten Eingaben fragt eine Zeile im Fluss («Änderungen verwerfen?», «Weiter bearbeiten»/«Verwerfen»), `beforeunload` deckt Neuladen und Tab schliessen ab. Im Editor einer Seite sind «Baustein bearbeiten», «Bild wählen» und «Sichtbarkeit» ein nicht modales **Panel** rechts im Layout (`panel: true`); unter 75 rem wird daraus eine Seite im Fluss. Das Startpasswort steht als Karte oben in der Ansicht.
 
-- Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar` (14 px Leiste, 8 px Griff); Firefox bekommt `scrollbar-width: thin` und `scrollbar-color` in `@supports not selector(::-webkit-scrollbar)`. Beide Wege gelten nie zugleich: Mit `scrollbar-color` ignoriert Chrome die WebKit-Regeln.
+Verlauf (`verlauf.js`): Jede Ansicht ist eine Adresse mit eigenem Eintrag; `replaceState` schreibt nur Korrekturen (alte Adressen, Stand des Eintrags). `zurueck(ziel)` macht dasselbe wie Browser-Zurück (zur Herkunft), nur ohne Herkunft (Tiefenlink) führt es zu `ziel`; `zurueckKlick` hängt es an einen Zurück-Link; `gehe(hash)` wechselt die Adresse mit eigenem Eintrag. Scrollposition und Zustand liegen je Eintrag im `history.state`.
+
+Rückfragen sind Toasts mit «Rückgängig» (`rueckgaengig.js`, siehe «Rückmeldungen»); wo eine Verzögerung nicht sicher ist, gibt es `zweiStufig` (Knopf wird zum «Wirklich …?»-Knopf).
+
+## Scrollleisten (#572, #578)
+
+Die Regeln für Scrollleisten stehen **einmal** in `tokens.css` und gelten für Website und Verwaltung: schmal, runder Griff (`--leiste-griff` = `--outline`, mindestens 3:1), bei Hover `--leiste-griff-hover`, beim Ziehen `--leiste-griff-aktiv`, durchsichtige Spur. Sie gelten für die Seite und für jeden inneren Scrollbereich. `html` hat `scrollbar-gutter: stable`, damit nichts springt.
+
+- Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar`; Firefox bekommt `scrollbar-width` und `scrollbar-color` in `@supports not selector(::-webkit-scrollbar)`. Beide Wege gelten nie zugleich.
 - Mit Finger oder Stift (`pointer: coarse`) und in erzwungenen Farben bleibt die Leiste des Systems.
 - Ein neuer Scrollbereich braucht nichts ausser `overflow: auto`.
+- **Zwei Spalten, zwei Scrollbereiche:** Im Editor einer Seite hat ab 1100 px jede Spalte (Bausteine, Vorschau und Einstellungen) einen eigenen Scrollbereich in der Höhe des Fensters unter der Navigation (`.ws-editor`, `website-editor.css`); die Seite scrollt nur, bis der Editor oben steht. Innen bleibt Platz für den Fokusring (`padding: 4px`), `scrollbar-gutter: stable` hält die Breite.
+
+## Auswahlfelder (#578)
+
+Jedes `<select>` der Verwaltung wird zu dem Auswahlfeld der Website (`auswahl.js`, Select-Only-Combobox nach den ARIA Authoring Practices; Stil `auswahl.css`): das native `select` bleibt darunter (Wert, `change`, Formular), Knopf und Liste sind eigene Elemente mit Pfeiltasten, Pos1/Ende, Tippen zum Springen, Escape, Haken bei der gewählten Option. `auswahl({ label, optionen, wert })` in `dom.js` baut Label und Feld; ein selbst gebautes `select` stellt `auswahl.js` von selbst um (`data-nativ` lässt eines aus). Optionen können ein Bild tragen (`data-bild`, Symbole der Stufen). Der Knopf trägt zusätzlich die Klasse `auswahl-knopf`, nach der die Bereiche ihn finden.
 
 ## Lokal prüfen
 

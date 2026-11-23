@@ -1,4 +1,5 @@
 import { ApiFehler, fehlertext } from "./api.js";
+import { zurueckKlick } from "./verlauf.js";
 import { el, feld, icon, knopf } from "./dom.js";
 
 // Gemeinsames des Bereichs «Lager» (#527): Texte, Symbole, Statuschip, Datum und die Meldung, die eine Navigation überlebt. Klassen mit dem Vorsatz «lg-».
@@ -207,7 +208,12 @@ export const nichtGefunden = () => Promise.reject(new ApiFehler(404));
 
 // Zurück-Link über dem Inhalt einer Unterseite
 export function zurueckLink(text, href) {
-  return el("a", { class: "lg-zurueck", href }, symbol("zurueck"), text);
+  return el(
+    "a",
+    { class: "lg-zurueck", href, onclick: zurueckKlick },
+    symbol("zurueck"),
+    text,
+  );
 }
 
 // Hängt Knoten an und lässt false, null und undefined weg (append() schriebe sie als Text)

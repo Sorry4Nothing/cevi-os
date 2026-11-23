@@ -1,5 +1,6 @@
-import { anfrage } from "./api.js";
-import { ankreuzen, bestaetigen, el, feld, gruppe, icon } from "./dom.js";
+import { anfrage, fehlertext } from "./api.js";
+import { ankreuzen, el, feld, gruppe, icon } from "./dom.js";
+import { zweiStufig } from "./rueckgaengig.js";
 
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -65,6 +66,12 @@ function zeichne(bereich, ctx, stufen) {
     fehler.focus();
   };
 
+  const senden = el(
+    "button",
+    { type: "submit", class: "knopf knopf--haupt" },
+    icon("glocke"),
+    "Senden",
+  );
   const formular = el(
     "form",
     { class: "formular karte mitteilung", novalidate: true },
@@ -83,17 +90,10 @@ function zeichne(bereich, ctx, stufen) {
       rollen.map((r) => r.wurzel),
     ),
     fehler,
-    el(
-      "div",
-      { class: "dialog-knoepfe" },
-      el(
-        "button",
-        { type: "submit", class: "knopf knopf--haupt" },
-        icon("glocke"),
-        "Senden",
-      ),
-    ),
+    el("div", { class: "dialog-knoepfe" }, senden),
   );
+  // Eine gesendete Mitteilung lässt sich nicht zurückholen und trifft sofort andere: kein Rückgängig mit Frist, sondern zwei Stufen im Knopf statt eines Popups (#578)
+  const zweiter = zweiStufig(senden);
 
   formular.addEventListener("submit", (ereignis) => {
     ereignis.preventDefault();
@@ -152,21 +152,33 @@ function zeichne(bereich, ctx, stufen) {
         : gewaehlt.length === 1
           ? `die Stufe «${stufen.find((s) => s.id === gewaehlt[0].eingabe.value).name}»`
           : `${gewaehlt.length} Stufen`) + wer;
-    bestaetigen({
-      titel: "Mitteilung senden",
-      beschreibung: `«${text}»${beschreibungText ? ` mit der Beschreibung «${beschreibungText}»` : ""} geht als Push an ${wohin}. Das lässt sich nicht zurückholen.`,
-      ok: "Senden",
-      gefaehrlich: false,
-      aktion: () => anfrage("POST", "/api/v1/admin/mitteilungen", body),
-      danach: (ergebnis) => {
-        titel.eingabe.value = "";
-        beschreibung.eingabe.value = "";
-        alle.eingabe.checked = false;
-        for (const b of boxen) b.eingabe.checked = false;
-        sperre();
-        ctx.melde(`Mitteilung gesendet an ${ANZAHL(ergebnis.empfaenger)}.`);
+    // Ändert sich der Text der Frage (andere Empfänger), gilt der nächste Klick wieder als erster
+    zweiter.verlange(
+      `Wirklich an ${wohin} senden?`,
+      async () => {
+        senden.disabled = true;
+        senden.setAttribute("aria-busy", "true");
+        try {
+          const ergebnis = await anfrage(
+            "POST",
+            "/api/v1/admin/mitteilungen",
+            body,
+          );
+          titel.eingabe.value = "";
+          beschreibung.eingabe.value = "";
+          alle.eingabe.checked = false;
+          for (const b of boxen) b.eingabe.checked = false;
+          sperre();
+          ctx.melde(`Mitteilung gesendet an ${ANZAHL(ergebnis.empfaenger)}.`);
+        } catch (f) {
+          zeigeFehler(fehlertext(f));
+        } finally {
+          senden.disabled = false;
+          senden.removeAttribute("aria-busy");
+        }
       },
-    });
+      JSON.stringify(body),
+    );
   });
 
   bereich.append(formular);

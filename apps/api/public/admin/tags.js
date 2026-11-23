@@ -1,4 +1,5 @@
 import { anfrage } from "./api.js";
+import { flussOffen } from "./fluss.js";
 import {
   aktionenZelle,
   chip,
@@ -94,9 +95,10 @@ function zeile(tag, ctx, neu) {
       el("td", { class: "pe-zahl" }, String(tag.anzahlPersonen)),
       aktionenZelle(
         bearbeiten,
-        rundKnopf("papierkorb", `Löschen: ${tag.name}`, () =>
+        rundKnopf("papierkorb", `Löschen: ${tag.name}`, (e) =>
           tagLoeschen({
             tag,
+            ereignis: e,
             ctx,
             neu: () => {
               zustand.fokus = "seite";
@@ -241,9 +243,9 @@ function zeichne(bereich, ctx, tags, neu) {
     const ziel = eintraege.find((e) => e.tag.id === zustand.fokus);
     zustand.fokus = null;
     // Nur eine sichtbare Zeile kann den Fokus bekommen; sonst bleibt er beim Titel
-    if (ziel?.tr.isConnected && !document.querySelector("dialog[open]")) {
+    if (ziel?.tr.isConnected && !flussOffen()) {
       ziel.link.focus();
-    } else if (!document.querySelector("dialog[open]")) {
+    } else if (!flussOffen()) {
       document.querySelector("h1")?.focus();
     }
   }

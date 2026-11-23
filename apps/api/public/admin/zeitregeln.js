@@ -1,9 +1,8 @@
-import { anfrage } from "./api.js";
+import { anfrage, fehlertext } from "./api.js";
 import {
   aktionenZelle,
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -11,6 +10,7 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 
 // ISO: 1 Montag bis 7 Sonntag, wie in der API
 const WOCHENTAGE = [
@@ -109,16 +109,14 @@ function dialog({ regel, daten, ctx, neu }) {
   });
 }
 
-function loeschen(regel, ctx, neu) {
-  bestaetigen({
-    titel: "Erinnerung löschen",
-    beschreibung: `«${regel.text}» wird gelöscht. Schon gesendete Erinnerungen bleiben gesendet.`,
-    ok: "Löschen",
-    aktion: () => anfrage("DELETE", `/api/v1/admin/zeitregeln/${regel.id}`),
-    danach: () => {
-      neu();
-      ctx.melde("Erinnerung ist gelöscht.");
-    },
+// Mit «Rückgängig» (#578); schon gesendete Erinnerungen bleiben gesendet
+function loeschen(regel, ctx, neu, ereignis) {
+  ctx.mitRueckgaengig({
+    text: `Erinnerung «${regel.text}» gelöscht`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () => anfrage("DELETE", `/api/v1/admin/zeitregeln/${regel.id}`),
+    fehlertext,
+    danach: neu,
   });
 }
 
@@ -184,7 +182,7 @@ function zeichne(bereich, ctx, daten, neu) {
             art: "gefahr",
             symbol: "papierkorb",
             kontext: regel.text,
-            onclick: () => loeschen(regel, ctx, neu),
+            onclick: (e) => loeschen(regel, ctx, neu, e),
           }),
         ),
       ),

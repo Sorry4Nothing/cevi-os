@@ -1,4 +1,5 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
+import { zurueckKlick } from "./verlauf.js";
 import { el, feld, knopf, neueId } from "./dom.js";
 import { sk } from "./lader.js";
 import { zeichen } from "./zustaende.js";
@@ -21,7 +22,6 @@ import {
   band,
   beschaeftigt,
   bei,
-  fenster,
   keinRecht,
   kuerze,
   sichtbarkeitText,
@@ -201,7 +201,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         { class: "ws-zurueck" },
         el(
           "a",
-          { class: "klein", href: "#website/seiten" },
+          { class: "klein", href: "#website/seiten", onclick: zurueckKlick },
           symbol("zurueck"),
           " Seiten",
         ),
@@ -1151,35 +1151,45 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
 // --- Rückfrage beim Verlassen (E2 «Verlassen Rückfrage») ----------------------------------------------------------------
 
 function verlassenDialog(k, pufferId, ziel) {
-  const bleiben = knopf("Bleiben", { onclick: () => f.schliesse() });
-  const speichernUndGehen = knopf("Speichern und verlassen");
-  const verlassen = knopf("Verlassen");
-  verlassen.classList.add("knopf--gefahr");
-  const f = fenster({
-    titel: "Wirklich verlassen?",
-    rueckfrage: true,
-    inhalt: [
-      el(
-        "p",
-        { class: "leise" },
-        "Du hast nicht gespeicherte Änderungen. Wenn du die Seite verlässt, gehen sie verloren.",
-      ),
-    ],
-    fuss: [bleiben, speichernUndGehen, verlassen],
-    fokus: bleiben,
+  // Zweistufig im Fluss statt Fenster (#578): eine Zeile oben im Editor, die Seite bleibt bedienbar
+  const alt = document.querySelector(".ws-verlassen");
+  if (alt) {
+    alt.querySelector("button").focus();
+    return;
+  }
+  const bleiben = knopf("Bleiben", {
+    klein: true,
+    onclick: () => frage.remove(),
   });
+  const speichernUndGehen = knopf("Speichern und verlassen", { klein: true });
+  const verlassen = knopf("Verlassen", { klein: true });
+  verlassen.classList.add("knopf--gefahr");
+  const frage = el(
+    "div",
+    { class: "hinweis hinweis--warn fluss-frage ws-verlassen", role: "alert" },
+    el(
+      "span",
+      {},
+      "Wirklich verlassen? Du hast nicht gespeicherte Änderungen. Wenn du die Seite verlässt, gehen sie verloren.",
+    ),
+    bleiben,
+    speichernUndGehen,
+    verlassen,
+  );
+  (document.querySelector(".ws-editor-seite") ?? document.body).prepend(frage);
+  bleiben.focus();
   bei(speichernUndGehen, async () => {
     beschaeftigt(speichernUndGehen, true);
     const gespeichert = await k.speichere();
     beschaeftigt(speichernUndGehen, false);
     // Bei einem Fehler bleibt die Person auf der Seite: Die Meldung steht dort
-    f.schliesse();
+    frage.remove();
     if (gespeichert) location.hash = ziel;
   });
   bei(verlassen, () => {
     puffer.delete(pufferId);
     k.dirty = false;
-    f.schliesse();
+    frage.remove();
     location.hash = ziel;
   });
 }

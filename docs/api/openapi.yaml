@@ -390,6 +390,111 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/toast.css:
+    get:
+      operationId: getAdminToastStilvorlage
+      summary: Stilvorlage der Verwaltung – Toasts mit Rückgängig
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/rueckgaengig.js:
+    get:
+      operationId: getAdminRueckgaengigSkript
+      summary: Skript der Verwaltung – Aktionen mit Rückgängig und zweistufige Knöpfe
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/fluss.css:
+    get:
+      operationId: getAdminFlussStilvorlage
+      summary: Stilvorlage der Verwaltung – Seiten im Fluss statt Dialoge
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/fluss.js:
+    get:
+      operationId: getAdminFlussSkript
+      summary: Skript der Verwaltung – Seiten im Fluss, Verlauf und Rückfrage bei ungespeicherten Eingaben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/verlauf.js:
+    get:
+      operationId: getAdminVerlaufSkript
+      summary: Skript der Verwaltung – Verlauf, Zurück und Scrollposition
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/auswahl.css:
+    get:
+      operationId: getAdminAuswahlStilvorlage
+      summary: Stilvorlage der Verwaltung – eigenes Auswahlfeld (dieselbe Datei wie die Website)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/auswahl.js:
+    get:
+      operationId: getAdminAuswahlSkript
+      summary: Skript der Verwaltung – eigenes Auswahlfeld (dieselbe Datei wie die Website)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/navigation.js:
     get:
       operationId: getAdminNavigationSkript

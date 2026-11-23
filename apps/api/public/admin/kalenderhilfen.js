@@ -253,12 +253,12 @@ export function pruefHinweis(fehler) {
   return hinweis;
 }
 
-// Kleiner Dialog mit einem Knopf (Design A10 «Vorschlag schon entschieden»): Titel, Hinweis, Text, Knopf; der Fokus kehrt danach zum Titel der Seite zurück
+// Eine Notiz mit einem Knopf (Design A10 «Vorschlag schon entschieden»), seit #578 eine Karte oben in der Ansicht statt eines Fensters: Titel, Hinweis, Text, Knopf; der Fokus kehrt danach zum Titel der Seite zurück
 export function meldungsDialog({ titel, hinweis, text, ok, beiOk }) {
   const titelId = neueId("titel");
   const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId },
+    "section",
+    { class: "fluss-geheimnis fluss-notiz", "aria-labelledby": titelId },
     el("h2", { id: titelId, tabindex: "-1" }, titel),
     hinweis &&
       el("p", { class: "hinweis hinweis--warn", role: "status" }, hinweis),
@@ -275,12 +275,15 @@ export function meldungsDialog({ titel, hinweis, text, ok, beiOk }) {
       }),
     ),
   );
-  dialog.addEventListener("close", () => {
+  dialog.close = () => {
     dialog.remove();
     document.querySelector("h1")?.focus();
-  });
-  document.body.append(dialog);
-  dialog.showModal();
+  };
+  (
+    document.querySelector(".fluss-seite:not([hidden])") ??
+    document.getElementById("bereich") ??
+    document.body
+  ).prepend(dialog);
   dialog.querySelector(".knopf").focus();
   return dialog;
 }

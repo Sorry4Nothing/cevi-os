@@ -1,9 +1,9 @@
 import { anfrage, fehlertext } from "./api.js";
+import { flussOffen } from "./fluss.js";
 import {
   aktionenZelle,
   auswahl,
   avatar,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -11,6 +11,7 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 import {
   aktionenKopfVerstecken,
   entferneFehler,
@@ -153,18 +154,20 @@ export function tagDialog({ tag, ctx, neu, danach }) {
   dialog.classList.add("pe-dialog");
 }
 
-export function tagLoeschen({ tag, anzahl, ctx, neu, danach }) {
+// Mit «Rückgängig» (#578): Die Zeile verschwindet sofort, gelöscht wird nach der Frist. Trägt noch jemand die Gruppe, gibt es keine Aktion, nur den Hinweis
+export function tagLoeschen({ tag, anzahl, ctx, neu, danach, ereignis }) {
   const n = anzahl ?? tag.anzahlPersonen ?? 0;
-  const dialog = dialogFormular({
-    titel: "Gruppe löschen",
-    beschreibung: `«${tag.name}» wird gelöscht. Das lässt sich nicht rückgängig machen.${
-      n > 0
-        ? ` ${anzahlText(n, "1 Person trägt", "Personen tragen")} sie noch. Entferne zuerst alle Mitglieder.`
-        : ""
-    }`,
-    ok: "Löschen",
-    gefaehrlich: true,
-    senden: () => anfrage("DELETE", `/api/v1/admin/tags/${tag.id}`),
+  if (n > 0) {
+    ctx.melde(
+      `${anzahlText(n, "1 Person trägt", "Personen tragen")} «${tag.name}» noch. Entferne zuerst alle Mitglieder und lösche die Gruppe danach.`,
+      "warn",
+    );
+    return;
+  }
+  ctx.mitRueckgaengig({
+    text: `Gruppe «${tag.name}» gelöscht`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () => anfrage("DELETE", `/api/v1/admin/tags/${tag.id}`),
     fehlertext: (f) => {
       if (f.code !== "TAG_BELEGT") return fehlertext(f);
       const m = f.verwendung?.personen;
@@ -172,11 +175,9 @@ export function tagLoeschen({ tag, anzahl, ctx, neu, danach }) {
     },
     danach: () => {
       neu();
-      ctx.melde(`«${tag.name}» ist gelöscht.`);
       danach?.();
     },
   });
-  dialog.classList.add("pe-dialog");
 }
 
 const rolleFeld = (typ, wert = "") =>
@@ -260,21 +261,18 @@ function rolleAendern({ tag, eintrag, name, ctx, neu }) {
   });
 }
 
-function entfernen({ tag, eintrag, name, ctx, neu }) {
-  bestaetigen({
-    titel: "Mitglied entfernen",
-    beschreibung: `${name} wird aus «${tag.name}» entfernt. Du kannst die Person jederzeit wieder hinzufügen.`,
-    ok: "Entfernen",
-    gefaehrlich: false,
-    aktion: () =>
+// Mit «Rückgängig» (#578): Die Person kann man jederzeit wieder hinzufügen, trotzdem verschwindet die Zeile erst nach der Frist wirklich
+function entfernen({ tag, eintrag, name, ctx, neu, ereignis }) {
+  ctx.mitRueckgaengig({
+    text: `${name} aus «${tag.name}» entfernt`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () =>
       anfrage(
         "DELETE",
         `/api/v1/admin/tags/${tag.id}/personen/${eintrag.userId}`,
       ),
-    danach: () => {
-      neu();
-      ctx.melde(`${name} ist aus «${tag.name}» entfernt.`);
-    },
+    fehlertext,
+    danach: neu,
   });
 }
 
@@ -305,7 +303,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     `${typName(tag.typ)} · ${mitglieder(tag.verwendung.personen)}`,
   );
   // Nach Entfernen oder Ändern ist der Knopf, der den Dialog öffnete, durch das Neuzeichnen weg: Der Fokus gehört dann dem Titel
-  if (!document.querySelector("dialog[open]")) {
+  if (!flussOffen()) {
     document.querySelector("h1")?.focus();
   }
   const hinzufuegen = () => mitgliedHinzufuegen({ tag, kandidaten, ctx, neu });
@@ -381,8 +379,8 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
             kontext: name,
             onclick: () => rolleAendern({ tag, eintrag, name, ctx, neu }),
           }),
-          rundKnopf("schliessen", `Entfernen: ${name}`, () =>
-            entfernen({ tag, eintrag, name, ctx, neu }),
+          rundKnopf("schliessen", `Entfernen: ${name}`, (e) =>
+            entfernen({ tag, eintrag, name, ctx, neu, ereignis: e }),
           ),
         ),
       ),

@@ -44,6 +44,25 @@
   min-width: 0;
 }
 
+/* Zwei Spalten, zwei Scrollbereiche (#578): Ab 1100 px (zwei Spalten) hat der Editor die Höhe des Fensters unter der Navigation und jede Spalte ihren eigenen Bereich, der für sich scrollt, so wie die Spalten der Website mit Bild daneben. Nichts wird abgeschnitten (innen Platz für den Fokusring), nichts springt (der Platz der Leiste bleibt reserviert). Die Leiste gestalten die Tokens in tokens.css. */
+@media (min-width: 68.8125em) {
+  .ws-editor {
+    height: calc(100vh - 8.25rem);
+    height: calc(100dvh - 8.25rem);
+    min-height: 24rem;
+    align-items: stretch;
+  }
+
+  .ws-editor > .ws-spalte {
+    min-height: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
 /* Liste der Bausteine */
 .ws-bausteine {
   display: flex;

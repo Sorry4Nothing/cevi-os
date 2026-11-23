@@ -1,8 +1,9 @@
 import { anfrage, fehlertext } from "./api.js";
+import { mitRueckgaengig } from "./rueckgaengig.js";
+import { gehe } from "./verlauf.js";
 import {
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -449,7 +450,7 @@ async function anlegen(ctx, ausloeser) {
       }),
     fehlertext: meldungVon,
     danach: (neu) => {
-      window.location.hash = `#anlaesse/anlaesse/${neu.id}`;
+      gehe(`#anlaesse/anlaesse/${neu.id}`);
     },
   });
 }
@@ -516,16 +517,17 @@ function zeichneAnlass(bereich, ctx, pfad, a, neu) {
     }
   }
 
+  // Mit «Rückgängig» (#578): Die Liste öffnet sofort, gelöscht wird nach der Frist. Das geht nur ohne Anmeldungen; der Termin und die Anlassseite im Bereich «Website» bleiben
   function loeschen() {
-    bestaetigen({
-      titel: "Anlass löschen?",
-      beschreibung: `«${a.titel}» ist danach kein Anlass mehr, der Termin bleibt. Das geht nur ohne Anmeldungen. Die Anlassseite bleibt im Bereich «Website» bestehen.`,
-      ok: "Anlass löschen",
-      aktion: () => anfrage("DELETE", pfad),
-      danach: () => {
-        ctx.melde(`«${a.titel}» ist kein Anlass mehr.`);
-        window.location.hash = "#anlaesse/anlaesse";
+    const hier = window.location.hash;
+    ctx.mitRueckgaengig({
+      text: `«${a.titel}» ist kein Anlass mehr. Der Termin bleibt`,
+      ansicht: {
+        weg: () => gehe("#anlaesse/anlaesse"),
+        zurueck: () => gehe(hier),
       },
+      ausfuehren: () => anfrage("DELETE", pfad),
+      fehlertext: meldungVon,
     });
   }
 
@@ -808,24 +810,29 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     );
   }
 
+  // Mit «Rückgängig» (#578): Das Feld verschwindet sofort aus der Liste, bei «Rückgängig» steht es wieder an seiner Stelle. Erst «Speichern» übernimmt es; gibt es schon Antworten zu dem Feld, lehnt der Server das Speichern ab
   function entferne(f) {
-    bestaetigen({
-      titel: "Feld entfernen?",
-      beschreibung: `«${f.beschriftung}» wird aus der Liste entfernt. Erst «Speichern» übernimmt das. Gibt es schon Antworten zu dem Feld, lässt es sich nicht entfernen.`,
-      ok: "Feld entfernen",
-      aktion: async () => {},
-      danach: () => {
-        const i = felder.indexOf(f);
-        felder.splice(i, 1);
-        markiere();
-        zeichneListe();
-        sage(`«${f.beschriftung}» ist entfernt, noch nicht gespeichert.`);
-        fokusAuf(
-          liste.querySelector(
-            `[data-id="${(felder[i] ?? felder[i - 1])?._id}"] .name`,
-          ) ?? liste.querySelector("h2"),
-        );
+    const i = felder.indexOf(f);
+    mitRueckgaengig({
+      text: `Feld «${f.beschriftung}» entfernt, noch nicht gespeichert`,
+      ansicht: {
+        weg: () => {
+          felder.splice(i, 1);
+          markiere();
+          zeichneListe();
+          fokusAuf(
+            liste.querySelector(
+              `[data-id="${(felder[i] ?? felder[i - 1])?._id}"] .name`,
+            ) ?? liste.querySelector("h2"),
+          );
+        },
+        zurueck: () => {
+          felder.splice(i, 0, f);
+          markiere();
+          zeichneListe();
+        },
       },
+      ausfuehren: async () => {},
     });
   }
 

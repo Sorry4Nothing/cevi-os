@@ -28,6 +28,8 @@ export default defineConfig(
         clearInterval: "readonly",
         clearTimeout: "readonly",
         AbortController: "readonly",
+        Event: "readonly",
+        MutationObserver: "readonly",
         window: "readonly",
       },
     },

@@ -117,7 +117,7 @@ td.pe-zahl {
 
 .pe-feld-fehler .eingabe,
 .pe-feld-fehler input:not([type="checkbox"], [type="radio"]),
-.pe-feld-fehler .auswahl-knopf {
+.pe-feld-fehler .aw-knopf {
   border-color: var(--fe);
 }
 

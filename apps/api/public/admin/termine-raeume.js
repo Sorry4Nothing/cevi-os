@@ -2,13 +2,13 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   el,
   feld,
   knopf,
   seitenblatt,
 } from "./dom.js";
+import { mitRueckgaengig } from "./rueckgaengig.js";
 import {
   entferneFeldFehler,
   feldFehler,
@@ -286,7 +286,9 @@ async function blatt({ raum, ctx, neu }) {
   const speichern = knopf("Speichern", { art: "haupt", type: "submit" });
   speichern.setAttribute("form", "tm-raum-formular");
   formular.id = "tm-raum-formular";
-  const abbrechen = knopf("Abbrechen", { onclick: () => dialog.close() });
+  const abbrechen = knopf("Abbrechen", {
+    onclick: () => dialog.versuchSchliessen(),
+  });
   // Löschen steht links, abgesetzt von Abbrechen und Speichern
   const loeschenKnopf =
     raum &&
@@ -294,17 +296,16 @@ async function blatt({ raum, ctx, neu }) {
       art: "gefahr",
       symbol: "papierkorb",
       onclick: () =>
-        bestaetigen({
-          titel: "Raum löschen?",
-          beschreibung: `«${raum.name}» wird endgültig gelöscht. Willst du ihn nur ausblenden, deaktiviere ihn stattdessen.`,
-          ok: "Raum löschen",
-          aktion: () => anfrage("DELETE", `${BASIS}/${raum.id}`),
-          danach: async () => {
-            dialog.close();
-            ctx.melde(`Raum «${raum.name}» ist gelöscht.`);
-            await neu();
-            document.querySelector("h1")?.focus();
+        // Das Blatt schliesst sofort; bei «Rückgängig» oder Fehler öffnet es wieder. Willst du den Raum nur ausblenden, deaktiviere ihn stattdessen
+        mitRueckgaengig({
+          text: `Raum «${raum.name}» gelöscht`,
+          ansicht: {
+            weg: () => dialog.close(),
+            zurueck: () => blatt({ raum, ctx, neu }),
           },
+          ausfuehren: () => anfrage("DELETE", `${BASIS}/${raum.id}`),
+          fehlertext: meldungVon,
+          danach: neu,
         }),
     });
   loeschenKnopf?.classList.add("tm-fuss-links");

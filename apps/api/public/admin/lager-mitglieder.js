@@ -12,6 +12,7 @@ import {
   tabelle,
 } from "./dom.js";
 import { skeletonTabelle } from "./lader.js";
+import { ansichtVonKnopf, zweistufig } from "./rueckgaengig.js";
 import { leerKarte } from "./zustaende.js";
 import {
   ADRESSE,
@@ -218,7 +219,7 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
                 art: "gefahr",
                 symbol: "papierkorb",
                 kontext: m.name,
-                onclick: () => entfernen(lager, m, ctx, neu),
+                onclick: (e) => entfernen(lager, m, ctx, neu, e),
               }),
             ),
         ),
@@ -293,20 +294,15 @@ function rolleAendern(lager, m, ctx, neu) {
   });
 }
 
-function entfernen(lager, m, ctx, neu) {
-  dialogFormular({
-    titel: `${m.name} entfernen?`,
-    beschreibung:
-      "Die Person verliert den Zugriff auf dieses Lager bei der nächsten Anfrage. Ihr Konto bleibt bestehen.",
-    ok: "Entfernen",
-    gefaehrlich: true,
-    senden: () =>
+// Mit «Rückgängig» (#578): Die Person verliert den Zugriff erst nach der Frist, ihr Konto bleibt bestehen
+function entfernen(lager, m, ctx, neu, ereignis) {
+  ctx.mitRueckgaengig({
+    text: `${m.name} ist nicht mehr Mitglied`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () =>
       anfrage("DELETE", `${BASIS}/${lager.id}/mitglieder/${m.personId}`),
     fehlertext: meldung,
-    danach: () => {
-      neu();
-      ctx.melde(`${m.name} ist nicht mehr Mitglied.`);
-    },
+    danach: neu,
   });
 }
 
@@ -399,23 +395,22 @@ function zeichneRechte(bereich, ctx, lager, rechte, neu) {
       }
     },
   });
-  const zuruecksetzen = knopf("Auf Standard zurücksetzen", {
-    symbol: "aktualisieren",
-    onclick: () =>
-      dialogFormular({
-        titel: "Rechte auf den Standard zurücksetzen?",
-        beschreibung:
-          "Leitung, Team und Lesen bekommen in diesem Lager wieder die Rechte, die der Katalog vorgibt. Nicht gespeicherte Änderungen hier gehen verloren.",
-        ok: "Zurücksetzen",
-        senden: () =>
-          anfrage("POST", `${BASIS}/${lager.id}/rechte/zuruecksetzen`),
-        fehlertext: meldung,
-        danach: () => {
-          neu();
-          ctx.melde("Die Rechte sind auf den Standard zurückgesetzt.");
-        },
-      }),
-  });
+  // Rechte gelten ab der nächsten Anfrage für andere: keine Frist, sondern zwei Stufen im Knopf statt eines Popups (#578). Nicht gespeicherte Änderungen hier gehen verloren
+  const zuruecksetzen = zweistufig(
+    knopf("Auf Standard zurücksetzen", { symbol: "aktualisieren" }),
+    "Wirklich zurücksetzen?",
+    async () => {
+      try {
+        await anfrage("POST", `${BASIS}/${lager.id}/rechte/zuruecksetzen`);
+        neu();
+        ctx.melde(
+          "Die Rechte sind auf den Standard zurückgesetzt. Leitung, Team und Lesen haben wieder die Rechte des Katalogs.",
+        );
+      } catch (f) {
+        ctx.melde(meldung(f), "fehler");
+      }
+    },
+  );
   if (zu) ctx.kopfAktion();
   else ctx.kopfAktion(zuruecksetzen, speichern);
   const suchId = neueId("lg-suche");

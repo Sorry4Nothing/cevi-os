@@ -2,7 +2,6 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   el,
   feld,
@@ -11,6 +10,7 @@ import {
   seitenblatt,
   tabelle,
 } from "./dom.js";
+import { ansichtVon } from "./rueckgaengig.js";
 import {
   entferneFeldFehler,
   ersetze,
@@ -171,21 +171,18 @@ function zeigeBestellungen(bereich, ctx) {
             klein: true,
             symbol: "haken",
             kontext: wer(b),
-            onclick: () =>
-              bestaetigen({
-                titel: "Bestellung übergeben?",
-                beschreibung: `Die Bestellung von ${wer(b)} über ${summeText(b.summeRappen)} gilt danach als übergeben und bezahlt. Das lässt sich nicht zurücknehmen.`,
-                ok: "Als übergeben eintragen",
-                gefaehrlich: false,
-                aktion: () =>
+            onclick: (e) =>
+              ctx.mitRueckgaengig({
+                text: `Bestellung von ${wer(b)} über ${summeText(b.summeRappen)} als übergeben und bezahlt eingetragen`,
+                ansicht: ansichtVon(e.currentTarget.closest("tr")),
+                ausfuehren: () =>
                   anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
                     status: "uebergeben",
                   }),
+                fehlertext: meldungVon,
                 danach: async () => {
-                  ctx.melde(`Bestellung von ${wer(b)} ist übergeben.`);
                   ersetze(bereich);
                   await lade();
-                  document.querySelector("h1")?.focus();
                 },
               }),
           }),
@@ -193,20 +190,18 @@ function zeigeBestellungen(bereich, ctx) {
             klein: true,
             art: "gefahr",
             kontext: wer(b),
-            onclick: () =>
-              bestaetigen({
-                titel: "Bestellung stornieren?",
-                beschreibung: `Die Bestellung von ${wer(b)} über ${summeText(b.summeRappen)} wird storniert. Das lässt sich nicht zurücknehmen.`,
-                ok: "Bestellung stornieren",
-                aktion: () =>
+            onclick: (e) =>
+              ctx.mitRueckgaengig({
+                text: `Bestellung von ${wer(b)} storniert`,
+                ansicht: ansichtVon(e.currentTarget.closest("tr")),
+                ausfuehren: () =>
                   anfrage("POST", `${BASIS}/bestellungen/${b.id}/status`, {
                     status: "storniert",
                   }),
+                fehlertext: meldungVon,
                 danach: async () => {
-                  ctx.melde(`Bestellung von ${wer(b)} ist storniert.`);
                   ersetze(bereich);
                   await lade();
-                  document.querySelector("h1")?.focus();
                 },
               }),
           }),
@@ -602,7 +597,9 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     type: "submit",
     form: "ld-artikel-formular",
   });
-  const abbrechen = knopf("Abbrechen", { onclick: () => dialog.close() });
+  const abbrechen = knopf("Abbrechen", {
+    onclick: () => dialog.versuchSchliessen(),
+  });
   // Löschen steht links, abgesetzt von Abbrechen und Speichern
   const loeschen =
     artikel &&
@@ -611,17 +608,16 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       symbol: "papierkorb",
       class: "knopf knopf--gefahr ld-fuss-links",
       onclick: () =>
-        bestaetigen({
-          titel: "Artikel löschen?",
-          beschreibung: `«${artikel.name}» wird endgültig gelöscht und verschwindet von der Website. Bestehende Bestellungen behalten ihre Positionen. Soll er nur nicht bestellbar sein, nimm das Häkchen bei «Verfügbar» weg.`,
-          ok: "Artikel löschen",
-          aktion: () => anfrage("DELETE", `${BASIS}/artikel/${artikel.id}`),
-          danach: async () => {
-            dialog.close();
-            ctx.melde(`Artikel «${artikel.name}» ist gelöscht.`);
-            await neu();
-            document.querySelector("h1")?.focus();
+        // Das Blatt schliesst sofort; bei «Rückgängig» oder Fehler öffnet es wieder. Soll der Artikel nur nicht bestellbar sein, nimmt man das Häkchen bei «Verfügbar» weg
+        ctx.mitRueckgaengig({
+          text: `Artikel «${artikel.name}» gelöscht. Er verschwindet von der Website, bestehende Bestellungen behalten ihre Positionen`,
+          ansicht: {
+            weg: () => dialog.close(),
+            zurueck: () => artikelBlatt({ artikel, ctx, neu }),
           },
+          ausfuehren: () => anfrage("DELETE", `${BASIS}/artikel/${artikel.id}`),
+          fehlertext: meldungVon,
+          danach: neu,
         }),
     });
   const dialog = seitenblatt({

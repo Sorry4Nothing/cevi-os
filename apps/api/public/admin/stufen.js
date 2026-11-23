@@ -2,13 +2,13 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   STANDARD_LOGO,
   ankreuzen,
-  bestaetigen,
   chip,
   dialogFormular,
   el,
   feld,
   knopf,
 } from "./dom.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -93,16 +93,14 @@ function dialog({ stufe, ctx, neu }) {
   });
 }
 
-function loeschen(stufe, ctx, neu) {
-  bestaetigen({
-    titel: "Stufe löschen",
-    beschreibung: `«${stufe.name}» wird mit Gruppenchat und allen Nachrichten gelöscht. Das lässt sich nicht rückgängig machen. Es geht nur, solange der Stufe keine Kinder oder Leitenden zugewiesen sind.`,
-    ok: "Löschen",
-    aktion: () => anfrage("DELETE", `/api/v1/admin/stufen/${stufe.id}`),
-    danach: () => {
-      neu();
-      ctx.melde(`«${stufe.name}» ist gelöscht.`);
-    },
+// Mit «Rückgängig» (#578): Die Karte verschwindet sofort, gelöscht wird nach der Frist. Es geht nur, solange der Stufe keine Kinder oder Leitenden zugewiesen sind
+function loeschen(stufe, ctx, neu, ereignis) {
+  ctx.mitRueckgaengig({
+    text: `Stufe «${stufe.name}» gelöscht, mit Gruppenchat und allen Nachrichten`,
+    ansicht: ansichtVonKnopf(ereignis),
+    ausfuehren: () => anfrage("DELETE", `/api/v1/admin/stufen/${stufe.id}`),
+    fehlertext,
+    danach: neu,
   });
 }
 
@@ -246,7 +244,7 @@ function karte(stufe, anzahl, sl, ctx, neu) {
         art: "gefahr",
         symbol: "papierkorb",
         kontext: stufe.name,
-        onclick: () => loeschen(stufe, ctx, neu),
+        onclick: (e) => loeschen(stufe, ctx, neu, e),
       }),
     ),
   );
