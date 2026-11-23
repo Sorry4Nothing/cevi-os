@@ -176,12 +176,6 @@ export const BEREICHE = [
         modul: "./termine-anlaesse.js",
         untertitel: "Anlässe mit Anmeldung über das Konto.",
       },
-      {
-        schluessel: "anmeldungen",
-        name: "Anmeldungen",
-        modul: "./termine-anmeldungen.js",
-        untertitel: "Anmeldungen zu den Anlässen.",
-      },
     ],
   },
   {
@@ -268,14 +262,6 @@ export const BEREICHE = [
         modul: "./zeitregeln.js",
         untertitel: "Pushes an Eltern, die noch nicht geantwortet haben.",
       },
-      {
-        schluessel: "komponenten",
-        name: "Komponenten",
-        modul: "./komponenten.js",
-        untertitel:
-          "Skeleton-Lader und Zustände aller Bausteine, Tag und Nacht.",
-        zugang: "entwickler",
-      },
     ],
   },
 ];
@@ -290,6 +276,8 @@ export const ALIASE = [
   ["zeitregeln", "system/zeitregeln"],
   ["plattform", "system/plattform"],
   ["termine/anlaesse", "anlaesse/anlaesse"],
+  // Anmeldungen sind kein eigener Punkt mehr: Sie gehören zum Anlass (#607); die Adresse mit Kennung führt zum Anlass, ohne Kennung zur Liste
+  ["anlaesse/anmeldungen", "anlaesse/anlaesse"],
   ["termine/raeume", "raeume/raeume"],
 ];
 

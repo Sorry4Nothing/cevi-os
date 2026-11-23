@@ -266,11 +266,11 @@ Die Verwaltung teilt Tokens, Kopf und Bausteine mit der Website (Beschreibung in
 
 Dieser Abschnitt gilt für die Übersicht unter `/admin#uebersicht` (`apps/api/public/admin/uebersicht*.js`, `uebersicht.css`). Geprüft wird im Browser am PC und am Handy, mit je einem Konto der Abteilungsleitung, einer Stufenleitung und eines Webmasters; die Abschnitte 1 bis 4 und 7 gelten dafür sinngemäss (NVDA oder VoiceOver am Browser).
 
-- [ ] **16.1** Die Seite hat eine Überschriftenfolge (`h1` Übersicht, `h2` je Abschnitt «Jetzt zu tun», «Kennzahlen», «Kommendes und Stufen» (nur für Screenreader), «Zustand», `h3` je Kachel); jeder Abschnitt ist eine `section` mit `aria-labelledby`.
+- [ ] **16.1** Die Seite hat eine Überschriftenfolge (`h1` Übersicht, `h2` je Abschnitt «Jetzt zu tun», «Kennzahlen», «Kommendes und Stufen» (nur für Screenreader), «Zustand», `h3` je Kachel und je Dienst im Zustand); jeder Abschnitt ist eine `section` mit `aria-labelledby`.
 - [ ] **16.2** Jede Aufgabenkachel ist ein Link mit einem Namen aus Zahl, Satz und Aktion («2 Terminvorschläge warten auf deinen Entscheid, Prüfen»); ohne Recht auf die Zielseite gibt es keinen Link, nur die Zahl. Störung und Sicherheit stehen als Wort mit Symbol, nie nur als Farbe.
 - [ ] **16.3** Jede Grafik ist ein Element mit `role="img"` und einem Satz, der alle Werte nennt; sie ist mit Tab erreichbar, zeigt einen sichtbaren Fokusring (3 px) und lässt sich mit Pfeiltasten, Pos1 und Ende ablesen. Der Text der Ablesung steht in einer höflichen Live-Region. Wer keinen Zeiger hat, verliert nichts.
-- [ ] **16.4** Der Schalter «Tabellen statt Diagramme» ist ein Knopf mit `aria-pressed` (der Zustand steht auch als Häkchen im Knopf); er tauscht alle Diagramme der Seite gegen Tabellen mit `caption`, `th scope`, Zahlen rechts. Die Wahl bleibt bei «Aktualisieren».
-- [ ] **16.5** Die Information liegt nie nur in der Farbe: Der aktuelle Zeitraum hat Akzent und steht in der Ablesung, der Fehleranteil der Anfragen hat Legende, Zahl und in erzwungenen Farben einen Umriss statt einer Füllung, Termine von heute tragen das Wort «Heute».
+- [ ] **16.4** Die Übersicht hat keinen Schalter «Tabellen statt Diagramme» und keine Tabellenansicht (#607). Die Werte jeder Grafik stehen im Satz (`role="img"`, `aria-label`) und in der Ablesung (16.3); Zahl, Einheit und Veränderung der Kachel stehen als Text neben der Grafik.
+- [ ] **16.5** Die Information liegt nie nur in der Farbe: Der aktuelle Zeitraum hat Akzent und steht in der Ablesung, die Veränderung einer Kennzahl trägt Pfeil, Vorzeichen und Worte (nie nur Farbe), Termine von heute tragen das Wort «Heute».
 - [ ] **16.6** Lädt: Skelett in der Form der Seite (`aria-hidden`), «Lädt …» in der Live-Region. Fehler einer einzelnen Kachel («Nicht geladen», «Nochmals versuchen») lassen den Rest stehen; ein Fehler der ganzen Seite zeigt die Zustandskarte mit «Nochmals versuchen». Leer steht als Satz («Gerade ist nichts offen.», «In den nächsten 8 Wochen steht nichts an.»).
 - [ ] **16.7** «Aktualisieren» im Seitenkopf behält den Fokus und lässt den alten Inhalt stehen, bis der neue da ist («Wird aktualisiert …»).
 - [ ] **16.8** Zeiten und Daten stehen in Schweizer Zeit mit Wochentag; das Datumsfeld der Liste «Kommendes» ist für Screenreader ein Satz («Samstag, 5. Dezember: …»), der Block daneben ist `aria-hidden`.
@@ -395,7 +395,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 
 Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl, Befehlspalette), `geruest.css` und die Rolle im Kopf (`admin.js`). Geprüft wird im Browser mit je einem Konto der Abteilungsleitung, des Entwicklers, eines Webmasters und einer Stufenleitung, bei 1440, 960 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
 
-- [ ] **22.1** Jeder Eintrag des Menüs führt zu einer Seite, die die Person öffnen darf: Die Stufenleitung sieht «Einstellungen» der Website nicht, «Komponenten» sieht nur der Entwickler. Das Menü ist nur Anzeige; der Server prüft jede Route.
+- [ ] **22.1** Jeder Eintrag des Menüs führt zu einer Seite, die die Person öffnen darf: Die Stufenleitung sieht «Einstellungen» der Website nicht. «Komponenten» und «Anmeldungen» stehen in keinem Menü mehr (#607). Das Menü ist nur Anzeige; der Server prüft jede Route.
 - [ ] **22.2** Der Kopf nennt die Rolle der Person («Abteilungsleitung», «Stufenleitung Pilami», «Website-Redaktion», «Wartung der Website»), nie das Sammelwort «Redaktion».
 - [ ] **22.3** Unter 960 Pixeln ersetzt die Bereichsauswahl beide Leisten. Die Zeile ist ein Knopf mit `aria-expanded` und `aria-controls`, 52 Pixel hoch, und nennt Bereich und Seite als Text; das Panel wächst aus der Zeile, das geschlossene Panel ist `inert` (kein Fokus, wird nicht vorgelesen).
 - [ ] **22.4** Tastatur der Bereichsauswahl: Enter und Leertaste öffnen, der Fokus geht auf die aktuelle Seite, Pfeil hoch und runter wechseln die Einträge, Escape schliesst und gibt den Fokus an die Zeile zurück, ein Klick daneben schliesst. Die aktuelle Seite trägt `aria-current="page"` und einen Balken (nie nur Farbe); Zähler offener Dinge stehen als Zahl mit «offen».
@@ -403,6 +403,22 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.6** Die Wartungsseite heisst «Wartung und Sperre» (Menü und Überschrift), nicht «Plattform».
 - [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Befehlspalette (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf und im Hinweis. «Neue Person» erscheint nur mit dem Recht, Personen erscheinen nur, wenn ihre Liste schon geladen ist.
+
+## 23. Verwaltung: Breite, Übersicht, Zähler, Auswahlfelder (#607)
+
+Dieser Abschnitt gilt für das Gerüst (`admin.css`, `geruest.css`, `navigation.js`) und die Übersicht (`uebersicht*.js`, `uebersicht.css`). Die Abschnitte 15, 16 und 22 gelten weiter.
+
+- [ ] **23.1** Breite: Kopf, Bereichsleiste, Unterleiste, Hinweisband, Seitenkopf und Inhalt haben bei 1440, 1920 und 2560 Pixeln dieselbe linke und rechte Kante wie `.wrap` der Website (Maximalbreite 105 rem, Seitenrand `clamp(1rem, 4vw, 4.5rem)`); gemessen über `getBoundingClientRect` auf allen Seiten der Navigation. Raster, Tabellen, Kalender, Zweispalter und Seiten im Fluss laufen nicht über den Rand und scrollen die Seite nicht waagrecht.
+- [ ] **23.2** «Jetzt zu tun»: Alle Kacheln einer Ansicht sind gleich gross, die Aktionszeile unten ist überall 44 Pixel hoch und gleich platziert; die ganze Kachel ist ein Link mit dem Namen aus Zahl, Satz und Aktion (16.2). Ohne Recht auf die Zielseite bleibt die Zeile leer, die Kachel gleich gross.
+- [ ] **23.3** Kennzahlen: Jede Kachel nennt Titel, Zahl mit Einheit und (wo es einen Vergleich gibt) die Veränderung mit Pfeil, Vorzeichen und Worten. Die Zahl hat Kontrast 4.5:1 in Hell und Dunkel. Mit «Bewegung reduzieren» schiebt sich die Zahl nicht ein, und die Säulen wachsen nicht.
+- [ ] **23.4** Zustand: Jeder Dienst (Website, Kalender-Abgleich) steht mit Name, Zustand als Wort mit Symbol und einem Satz; Verweis mindestens 44 Pixel hoch. Fehlt das Recht, fehlt der Dienst.
+- [ ] **23.5** Zähler in der Unterleiste und der Bereichsauswahl sind Kreise (24 Pixel, Zahl mittig, bis 99); der Screenreader hört «<Zahl> offen» nach dem Namen. Der Kreis hat in erzwungenen Farben einen Rand.
+- [ ] **23.6** Auswahlfelder: Alle `select` der Verwaltung werden zum Auswahlfeld der Website (`auswahl.js`, dieselben Masse: 52 Pixel hoch, 17 Pixel, Radius 12, Pfeil, Liste mit Haken); kein `select` zeigt die Liste des Browsers, kein Auswahlfeld hat `multiple`. Geprüft per Durchgang durch alle Seiten der Navigation.
+- [ ] **23.7** Navigation: «Komponenten» und «Anmeldungen» stehen nirgends im Menü; `#anlaesse/anmeldungen` führt zur Liste der Anlässe, mit Kennung zum Anlass.
+
+### Stand der Prüfung (#607)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 23.1 (alle 33 Seiten der Navigation, 1440, 1920 und 2560 Pixel, Hell), 23.2 bis 23.5 und 23.7 (Übersicht in Hell und Dunkel bei 1440 und 2560 Pixeln, Zähler vermessen), 23.6 (Durchgang durch alle Seiten, Masse der Felder verglichen). **Nicht geprüft:** Screenreader, 200 Prozent Zoom am Gerät, Messung der Kontraste mit einem Werkzeug, Dunkel bei 1920 Pixeln auf allen Seiten.
 
 ## Im PR angeben
 

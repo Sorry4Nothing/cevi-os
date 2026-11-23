@@ -9,6 +9,10 @@
   --rand: var(--outline); /* Felder und Knöpfe */
   --rand-leise: var(--outline-variant); /* nur Karten und Trennlinien */
 
+  /* Breite und Seitenrand wie die Website (.wrap, --rand dort; hier anders benannt, weil --rand in der Verwaltung die Randfarbe ist) */
+  --seitenbreite: 105rem;
+  --seitenrand: clamp(1rem, 4vw, 4.5rem);
+
   --rot: var(--primary); /* genau eine Hauptaktion je Ansicht, Zähler */
   --auf-rot: var(--on-primary);
   --rot-text: var(--primary-text);
@@ -237,10 +241,10 @@ main:focus {
 .inhalt {
   flex: 1 1 auto;
   width: 100%;
-  max-width: 90rem;
+  max-width: var(--seitenbreite);
   min-width: 0;
   margin: 0 auto;
-  padding: 2.5rem clamp(1rem, 4vw, 4.5rem) 4rem;
+  padding: 2.5rem var(--seitenrand) 4rem;
 }
 
 .rahmen {
