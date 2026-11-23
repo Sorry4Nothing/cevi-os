@@ -716,7 +716,9 @@ function zeichneUebersicht(
       el(
         "a",
         { class: "tm-tabellenlink", href: adresse(id, "felder") },
-        a.felder.length === 0 ? "Keine, hinzufügen" : `${a.felder.length}, bearbeiten`,
+        a.felder.length === 0
+          ? "Keine, hinzufügen"
+          : `${a.felder.length}, bearbeiten`,
       ),
     ],
     a.seiteId && [
