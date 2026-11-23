@@ -1117,6 +1117,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/hinweisband.js:
+    get:
+      operationId: getAdminHinweisbandSkript
+      summary: Skript der Verwaltung – Hinweisband bei Wartung und Informationssperre
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/system.css:
+    get:
+      operationId: getAdminSystemStilvorlage
+      summary: Stilvorlage der Verwaltung – System, Plattform, Erinnerungen, Mitteilungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht.css:
     get:
       operationId: getAdminUebersichtStilvorlage
