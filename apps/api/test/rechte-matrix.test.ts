@@ -1074,8 +1074,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/kinder/:id/konto/entsperren": {
-    url: () =>
-      `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
+    url: () => `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
     erwartet: {
       ...alle(403),
       admin: 200,
