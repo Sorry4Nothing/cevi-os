@@ -76,9 +76,9 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen. Dazu kommen die Orte der Abteilung (Name, Adresszeile und ein Standort als Adresse, Koordinaten oder Link auf Google Maps), die die Stufenleitung pflegt: Treffpunkt und Schlussort der Angaben wählt sie aus diesen Orten. Die Website zeigt dazu den Link «Auf Google Maps ansehen»; der Server ruft Google nie ab, und die Seite verbindet sich nicht mit Google, erst der Klick auf den Link tut es.",
     frist:
-      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist.",
+      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist. Einen Ort löscht die Stufenleitung oder die Abteilungsleitung; die Angaben behalten den Namen, nur der Link zur Karte entfällt.",
     apple: [],
     google: [],
   },
@@ -707,13 +707,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Orte der Abteilung (#646): Name, Adresszeile und Standort; die Karte ist nur ein Link, den der Server selbst baut
+  ort: {
+    programme: [
+      "id",
+      "abteilung_id",
+      "name",
+      "beschreibung",
+      "karte_adresse",
+      "breite",
+      "laenge",
+      "karte_url",
+      "reihenfolge",
+      "aktiv",
+      "zuletzt_verwendet_am",
+      "erstellt_am",
+    ],
+  },
   programm_eckdaten: {
     programme: [
       "stufe_id",
       "tag",
       "treff_zeit",
       "treffpunkt",
+      "treffpunkt_ort_id",
       "schluss_ort",
+      "schluss_ort_id",
       "schluss_zeit",
       "mitnehmen",
       "abgerufen_am",

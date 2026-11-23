@@ -1,0 +1,105 @@
+/* Orte (#646): Liste mit Griff, Auswahl in den Samstagsangaben und Formular. Klassen mit dem Vorsatz «ort-». Nur Tokens, Masse in rem */
+.ort-reiter {
+  margin: 0 0 1rem;
+}
+
+.ort-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.ort-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.ort-name {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.ort-standort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+/* Verweis zur Karte: ein externer Textlink mit Pfeil nach oben rechts, 44 px hoch */
+a.ort-karte {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+  font-weight: 600;
+}
+
+a.ort-karte::after {
+  content: "";
+  flex: none;
+  width: 0.625rem;
+  height: 0.625rem;
+  background: currentcolor;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% 100%,
+    85% 100%,
+    85% 27%,
+    10% 100%,
+    0 90%,
+    73% 15%,
+    0 15%
+  );
+}
+
+.ort-hinweis {
+  margin: 0.25rem 0 0;
+}
+
+/* Das Textfeld für einen einmaligen Ort steht unter der Auswahl, mit Abstand */
+.ort-freitext {
+  margin-top: 0.75rem;
+}
+
+.ort-hinweis a.ort-karte {
+  min-height: 2.75rem;
+}
+
+.ort-gelesen {
+  margin: 0.25rem 0 0;
+}
+
+.ort-vorschau-zusatz {
+  display: block;
+  font-weight: 400;
+}
+
+@media (min-width: 64rem) {
+  .ort-zeile {
+    grid-template-columns: minmax(0, 1fr) minmax(10rem, auto) auto;
+  }
+}
+
+@media (forced-colors: active) {
+  a.ort-karte::after {
+    background: LinkText;
+  }
+}
+
+/* Die Knöpfe einer Zeile stehen nebeneinander, auch wo die Zeile schmal ist */
+.ort-zeile .aktionen {
+  flex-direction: row;
+  justify-content: flex-start;
+}
+
+@media (min-width: 64rem) {
+  .ort-zeile .aktionen {
+    justify-content: flex-end;
+  }
+}

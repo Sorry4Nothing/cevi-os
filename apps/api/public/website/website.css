@@ -2614,3 +2614,32 @@ dialog.lichtkasten {
     animation-timing-function: var(--kurve);
   }
 }
+
+/* Ort mit Adresszeile und Verweis zur Karte (#646): ein Link, keine Karte und kein Skript. Der Verweis ist ein externer Textlink (Zeichen aus a[rel~="noopener"]) mit 44 px Höhe */
+.fakt-zusatz {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.fakt dd p.fakt-karte {
+  margin: 0.125rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.fakt-karte a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+}
+
+/* Auf der blauen Tafel wäre der Fokusring blau auf blau: Links in der Tafel (Eckdaten, Verweis zur Karte) zeigen ihn hell */
+.fakten.karte :focus-visible {
+  outline-color: var(--on-secondary);
+}

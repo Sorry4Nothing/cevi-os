@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -7,6 +7,7 @@ import type { Db } from "../../db/client.js";
 import {
   abteilung,
   auditLog,
+  ort,
   programmEckdaten,
   seite,
   tag,
@@ -44,6 +45,9 @@ const text = (max: number) =>
     z.string().trim().max(max).regex(OHNE_STEUERZEICHEN).nullable().optional(),
   );
 
+// Ein Ort aus der Bibliothek (#646): Der Name des Orts ersetzt den Text, den die Anfrage mitschickt (Schnappschuss); leer heisst «Freitext»
+const ortId = z.preprocess(leerZuNull, z.uuid().nullable().optional());
+
 const pfad = () =>
   z.strictObject({
     stufeId: z.uuid(),
@@ -54,8 +58,10 @@ const speichernSchema = z
   .strictObject({
     treffZeit: zeit,
     treffpunkt: text(MAX_ORT),
+    treffpunktOrtId: ortId,
     schlussZeit: zeit,
     schlussOrt: text(MAX_ORT),
+    schlussOrtId: ortId,
     mitnehmen: text(MAX_MITNEHMEN),
   })
   .refine((f) => Object.values(f).some((w) => w != null));
@@ -63,6 +69,10 @@ const speichernSchema = z
 const VERGANGEN = {
   code: "DATUM_VERGANGEN",
   message: "Das Datum liegt in der Vergangenheit.",
+} as const;
+const ORT_UNBEKANNT = {
+  code: "ORT_UNBEKANNT",
+  message: "Der Ort gehört nicht zu dieser Abteilung.",
 } as const;
 const ZU_VIELE = {
   code: "ECKDATEN_ZU_VIELE",
@@ -76,8 +86,10 @@ const spalten = {
   tag: programmEckdaten.tag,
   treffZeit: programmEckdaten.treffZeit,
   treffpunkt: programmEckdaten.treffpunkt,
+  treffpunktOrtId: programmEckdaten.treffpunktOrtId,
   schlussZeit: programmEckdaten.schlussZeit,
   schlussOrt: programmEckdaten.schlussOrt,
+  schlussOrtId: programmEckdaten.schlussOrtId,
   mitnehmen: programmEckdaten.mitnehmen,
   quelle: programmEckdaten.quelle,
 };
@@ -184,11 +196,38 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
       const f = parsed.data;
       if (tagWert < heuteZuerich()) return c.json(VERGANGEN, 400);
 
+      // Orte der Bibliothek: nur die der eigenen Abteilung; ihr Name steht als Text in der Angabe
+      const ortIds = [f.treffpunktOrtId, f.schlussOrtId].filter(
+        (i): i is string => i != null,
+      );
+      const orte = new Map<string, string>();
+      if (ortIds.length > 0) {
+        const gefunden = await db
+          .select({ id: ort.id, name: ort.name })
+          .from(ort)
+          .where(
+            and(
+              inArray(ort.id, ortIds),
+              eq(ort.abteilungId, person.abteilungId),
+            ),
+          );
+        for (const o of gefunden) orte.set(o.id, o.name);
+        if (ortIds.some((i) => !orte.has(i))) return c.json(ORT_UNBEKANNT, 400);
+      }
+      const treffpunkt = f.treffpunktOrtId
+        ? orte.get(f.treffpunktOrtId)!
+        : (f.treffpunkt ?? null);
+      const schlussOrt = f.schlussOrtId
+        ? orte.get(f.schlussOrtId)!
+        : (f.schlussOrt ?? null);
+
       const werte = {
         treffZeit: f.treffZeit ?? null,
-        treffpunkt: f.treffpunkt ?? null,
+        treffpunkt,
+        treffpunktOrtId: f.treffpunktOrtId ?? null,
         schlussZeit: f.schlussZeit ?? null,
-        schlussOrt: f.schlussOrt ?? null,
+        schlussOrt,
+        schlussOrtId: f.schlussOrtId ?? null,
         mitnehmen: f.mitnehmen ?? null,
         quelle: "seite" as const,
         abgerufenAm: sql`now()`,
@@ -250,6 +289,13 @@ export function erstelleEckdatenRouten({ db }: { db: Db }) {
               .map(([name]) => name),
           },
         });
+        // «Zuletzt verwendet» ordnet die Auswahl der Orte
+        if (ortIds.length > 0) {
+          await tx
+            .update(ort)
+            .set({ zuletztVerwendetAm: sql`now()` })
+            .where(inArray(ort.id, ortIds));
+        }
         // Das Programm der Abteilung ohne Kalender entsteht hier, beim Speichern, nie im Takt
         await legeStufenprogrammAn(tx, stufe, { tag: tagWert, ...werte });
         return true;

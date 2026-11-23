@@ -1777,6 +1777,51 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/website-orte.js:
+    get:
+      operationId: getAdminWebsiteOrteSkript
+      summary: Skript der Verwaltung – Bereich Website, Orte der Samstagsangaben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/orte-logik.js:
+    get:
+      operationId: getAdminOrteLogikSkript
+      summary: Skript der Verwaltung – Orte der Samstagsangaben, reine Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-orte.css:
+    get:
+      operationId: getAdminWebsiteOrteStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Orte der Samstagsangaben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/website-einstellungen.js:
     get:
       operationId: getAdminWebsiteEinstellungenSkript
@@ -23477,7 +23522,7 @@ paths:
       operationId: schreibeRedaktionEckdaten
       summary: Felder der Stufenseite für ein Datum pflegen
       description: |
-        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig. Hat die Abteilung keinen Google-Kalender, legt das Speichern zugleich das Programm dieses Tages an oder aktualisiert es (ID `web:<Stufe>:<Tag>`, Titel «Cevi-Programm <Stufe>», für Eltern sichtbar; Beginn und Ende aus Treffzeit und Schlusszeit, ohne beide oder mit Schluss vor Beginn ganztägig); mit Kalender entsteht kein Programm. Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
+        Legt die Zeile für dieses Datum an oder ersetzt sie vollständig. Hat die Abteilung keinen Google-Kalender, legt das Speichern zugleich das Programm dieses Tages an oder aktualisiert es (ID `web:<Stufe>:<Tag>`, Titel «Cevi-Programm <Stufe>», für Eltern sichtbar; Beginn und Ende aus Treffzeit und Schlusszeit, ohne beide oder mit Schluss vor Beginn ganztägig); mit Kalender entsteht kein Programm. Felder ohne Wert oder leer sind nicht gesetzt; mindestens eines muss gesetzt sein. Zeiten `HH:MM`, Treffpunkt und Schlussort höchstens 500, Mitnehmen höchstens 1000 Zeichen. Treffpunkt und Schlussort sind Freitext oder ein Ort der Bibliothek (`treffpunktOrtId`, `schlussOrtId`, siehe `/api/v1/redaktion/orte`): Dann speichert der Server dessen Namen als Text (Schnappschuss), die Kennung führt auf der Stufenseite zum Verweis «Auf Google Maps ansehen»; ein Ort einer anderen Abteilung oder ein unbekannter ist 400 `ORT_UNBEKANNT`. Das Datum darf nicht in der Vergangenheit liegen (400 `DATUM_VERGANGEN`). Höchstens 20 gepflegte Zeilen je Stufe (409 `ECKDATEN_ZU_VIELE`); jede Speicherung räumt vergangene gepflegte Zeilen weg. Wirkt sofort, ohne Veröffentlichen: Die App-Route `GET /api/v1/programme/{id}` zeigt die Werte für das Programm dieses Tages, und die Stufenseite wird neu erzeugt. Audit-Log: `eckdaten_geaendert` mit Datum und den Namen der gesetzten Felder, nie den Werten.
 
         Reihenfolge der Prüfungen: Stufe in der eigenen Abteilung (404), Recht (403), Body (400), Datum (400), Obergrenze (409).
 
@@ -23539,6 +23584,218 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/orte:
+    get:
+      operationId: listeRedaktionOrte
+      summary: Orte der Abteilung
+      description: |
+        Die Orte-Bibliothek der Abteilung (Treffpunkte und Schlussorte, die oft vorkommen) in der gepflegten Reihenfolge, höchstens 200, darum ohne Seitenwechsel. Je Ort stehen der Standort so, wie man ihn eingeben würde (`standort`), seine Art, der Link zur Karte (`kartenLink`, vom Server gebaut), wie viele kommende Samstage ihn gebrauchen (`verwendet`) und die ersten fünf davon (`verwendung`); `zuletztVerwendetAm` ordnet die Auswahl.
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne Recht.
+
+        Datenbanklast: zwei Abfragen (Orte, Samstage mit Ort), nie mehrere je Ort.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Orte der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionOrteListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeRedaktionOrtAn
+      summary: Ort anlegen
+      description: |
+        Legt einen Ort hinten in der Reihenfolge an. `name` ist Pflicht (höchstens 100 Zeichen, je Abteilung einmalig ohne Gross- und Kleinschreibung), `beschreibung` (Adresszeile oder Hinweis, höchstens 200) steht auf der Website unter dem Namen. `standort` ist ein Link von Google Maps, eine Adresse oder «Breite, Länge» (höchstens 600 Zeichen); der Server prüft und normalisiert ihn und speichert nur eine Form: Koordinaten (aus einem langen Link gelesen), eine Adresse oder, wo sich nichts lesen lässt (Kurzlink), den geprüften Link selbst. Erlaubt sind nur `https` und die Hosts `www.google.com`, `google.com`, `maps.google.com` (jeweils unter `/maps`), `maps.app.goo.gl` und `goo.gl/maps`; keine Anmeldeinformationen, kein Port, keine IP-Adresse, keine Weiterleiter. Den Link zur Karte erzeugt der Server selbst (`https://www.google.com/maps/search/?api=1&query=…`); der Server ruft nie eine Adresse ab. Höchstens 200 Orte je Abteilung. Audit-Log: `ort_angelegt` mit den Namen der Felder.
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, mit `ORT_STANDORT_UNGUELTIG` bei einem Standort, den der Server nicht annimmt. 403 ohne Recht. 409 mit `ORT_NAME_VERGEBEN` oder `ORT_ZU_VIELE`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionOrtAnlegen"
+      responses:
+        "201":
+          description: Ort angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAngelegt"
+        "400":
+          $ref: "#/components/responses/RedaktionOrt400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "409":
+          $ref: "#/components/responses/RedaktionOrt409"
+  /api/v1/redaktion/orte/vorschau:
+    post:
+      operationId: vorschauRedaktionOrtStandort
+      summary: Standort eines Orts prüfen, ohne zu speichern
+      description: |
+        Liest einen Standort wie beim Anlegen und antwortet, was der Server daraus macht (Eingabetext, Art, Link zur Karte). Die Verwaltung zeigt es beim Tippen. Nichts wird gespeichert und nichts abgerufen. Ein leerer Standort ist gültig (`standortArt: null`).
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 200 bei Erfolg. 400 mit `ORT_STANDORT_UNGUELTIG` oder ungültiger Eingabe. 403 ohne Recht.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionOrtVorschauAnfrage"
+      responses:
+        "200":
+          description: Der gelesene Standort.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionOrtStandort"
+        "400":
+          $ref: "#/components/responses/RedaktionOrt400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/orte/reihenfolge:
+    put:
+      operationId: ordneRedaktionOrte
+      summary: Reihenfolge der Orte setzen
+      description: |
+        Setzt die Reihenfolge nach der Liste der IDs (höchstens 200, keine doppelt). Eine ID, die nicht zur Abteilung gehört, ist 404 (nichts wird geändert). Orte, die nicht genannt sind, behalten ihre Zahl. Audit-Log: `ort_reihenfolge_geaendert` mit der Anzahl.
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 204 bei Erfolg. 400, 403, 404.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionOrtReihenfolge"
+      responses:
+        "204":
+          description: Reihenfolge gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+  /api/v1/redaktion/orte/{id}:
+    patch:
+      operationId: aendereRedaktionOrt
+      summary: Ort ändern
+      description: |
+        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. Ein leerer `standort` oder eine leere `beschreibung` entfernt den Wert; ein neuer `standort` ersetzt den alten ganz. `aktiv: false` nimmt den Ort aus der Auswahl, ohne ihn zu löschen. Ändert sich der Name, folgt der Name in allen Samstagsangaben, die den Ort gewählt haben; die betroffenen Stufenseiten werden neu erzeugt (nicht bei `aktiv`). Audit-Log: `ort_geaendert` mit den Namen der Felder.
+
+        Reihenfolge der Prüfungen: Ort in der eigenen Abteilung (404), Recht (403), Body (400), Name (409).
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 204 bei Erfolg. 400 (auch `ORT_STANDORT_UNGUELTIG`), 403, 404 für einen fremden oder unbekannten Ort, 409 mit `ORT_NAME_VERGEBEN`.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionOrtId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionOrtAendern"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/RedaktionOrt400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          $ref: "#/components/responses/RedaktionOrt409"
+    delete:
+      operationId: loescheRedaktionOrt
+      summary: Ort löschen
+      description: |
+        Löscht den Ort. Die Samstagsangaben, die ihn gewählt haben, behalten den Namen als Text; nur der Bezug und damit der Link zur Karte entfallen (die betroffenen Stufenseiten werden neu erzeugt). Wo der Ort noch gebraucht wird, sagt die Liste vorher (`verwendet`, `verwendung`); die Verwaltung fragt dann nach. Audit-Log: `ort_geloescht`.
+
+        Reihenfolge der Prüfungen: Ort in der eigenen Abteilung (404), Recht (403).
+
+        Recht: Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` (Rolle Webmaster) oder ein Sonderrecht an einer Stufenseite; ein zweiter Faktor ist für die Stufenleitung nicht nötig (Admins brauchen ihn wie im ganzen Namensraum). Die Orte gehören der ganzen Abteilung: Wer die Samstagsangaben mindestens einer Stufe pflegen darf, pflegt auch die Orte, weil jede Stufe sie in der Auswahl braucht und «Neuer Ort» ohne Umweg möglich sein soll.
+
+        Statuscodes: 204 bei Erfolg. 400 `id` ist keine UUID. 403, 404 für einen fremden oder unbekannten Ort.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RedaktionOrtId"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
   /api/v1/laden:
     get:
       operationId: holeLaden
@@ -38507,8 +38764,10 @@ components:
         - tag
         - treffZeit
         - treffpunkt
+        - treffpunktOrtId
         - schlussZeit
         - schlussOrt
+        - schlussOrtId
         - mitnehmen
         - quelle
       properties:
@@ -38521,12 +38780,22 @@ components:
         treffpunkt:
           type: [string, "null"]
           maxLength: 500
+          description: Freitext oder, wenn `treffpunktOrtId` gesetzt ist, der Name des Orts zum Zeitpunkt der Wahl (Schnappschuss).
+        treffpunktOrtId:
+          type: [string, "null"]
+          format: uuid
+          description: Der gewählte Ort der Bibliothek; leer bei Freitext oder wenn der Ort gelöscht wurde (der Name bleibt in `treffpunkt`).
         schlussZeit:
           type: [string, "null"]
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         schlussOrt:
           type: [string, "null"]
           maxLength: 500
+          description: Freitext oder, wenn `schlussOrtId` gesetzt ist, der Name des Orts zum Zeitpunkt der Wahl (Schnappschuss).
+        schlussOrtId:
+          type: [string, "null"]
+          format: uuid
+          description: Der gewählte Ort der Bibliothek; leer bei Freitext oder wenn der Ort gelöscht wurde.
         mitnehmen:
           type: [string, "null"]
           maxLength: 1000
@@ -38553,15 +38822,162 @@ components:
         treffpunkt:
           type: [string, "null"]
           maxLength: 500
+          description: Freitext. Mit `treffpunktOrtId` ersetzt der Name des Orts den Text.
+        treffpunktOrtId:
+          type: [string, "null"]
+          format: uuid
+          description: Ort der Bibliothek der eigenen Abteilung (400 `ORT_UNBEKANNT`, sonst). Der Server speichert den Namen als Schnappschuss.
         schlussZeit:
           type: [string, "null"]
           pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         schlussOrt:
           type: [string, "null"]
           maxLength: 500
+          description: Freitext. Mit `schlussOrtId` ersetzt der Name des Orts den Text.
+        schlussOrtId:
+          type: [string, "null"]
+          format: uuid
+          description: Ort der Bibliothek der eigenen Abteilung (400 `ORT_UNBEKANNT`, sonst). Der Server speichert den Namen als Schnappschuss.
         mitnehmen:
           type: [string, "null"]
           maxLength: 1000
+    RedaktionOrtStandort:
+      type: object
+      required:
+        - standort
+        - standortArt
+        - kartenLink
+      properties:
+        standort:
+          type: string
+          description: Der Standort so, wie man ihn eingeben würde («47.2391, 8.7258», eine Adresse oder ein Kurzlink); leer ohne Standort.
+        standortArt:
+          type: [string, "null"]
+          enum: [koordinaten, adresse, link, null]
+        kartenLink:
+          type: [string, "null"]
+          format: uri
+          description: Link zu Google Maps, vom Server gebaut (`https://www.google.com/maps/search/?api=1&query=…`) oder ein geprüfter Kurzlink von Google Maps. Ohne Standort null.
+    RedaktionOrt:
+      allOf:
+        - $ref: "#/components/schemas/RedaktionOrtStandort"
+        - type: object
+          required:
+            - id
+            - name
+            - beschreibung
+            - reihenfolge
+            - aktiv
+            - zuletztVerwendetAm
+            - verwendet
+            - verwendung
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+              minLength: 1
+              maxLength: 100
+            beschreibung:
+              type: [string, "null"]
+              maxLength: 200
+            reihenfolge:
+              type: integer
+            aktiv:
+              type: boolean
+              description: Nicht aktive Orte stehen nicht mehr in der Auswahl, die Angaben, die sie gewählt haben, bleiben.
+            zuletztVerwendetAm:
+              type: [string, "null"]
+              format: date-time
+            verwendet:
+              type: integer
+              minimum: 0
+              description: Zahl der kommenden Samstage (Stufe und Datum), die den Ort als Treffpunkt oder Schlussort tragen.
+            verwendung:
+              type: array
+              maxItems: 5
+              items:
+                type: object
+                required:
+                  - stufe
+                  - tag
+                properties:
+                  stufe:
+                    type: string
+                  tag:
+                    type: string
+                    format: date
+    RedaktionOrteListe:
+      type: object
+      required:
+        - orte
+      properties:
+        orte:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/RedaktionOrt"
+    RedaktionOrtAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        beschreibung:
+          type: [string, "null"]
+          maxLength: 200
+        standort:
+          type: string
+          maxLength: 600
+          description: Link von Google Maps, Adresse oder «Breite, Länge»; leer heisst kein Standort.
+        aktiv:
+          type: boolean
+          default: true
+    RedaktionOrtAendern:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        beschreibung:
+          type: [string, "null"]
+          maxLength: 200
+        standort:
+          type: string
+          maxLength: 600
+        aktiv:
+          type: boolean
+    RedaktionOrtReihenfolge:
+      type: object
+      additionalProperties: false
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 200
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    RedaktionOrtVorschauAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - standort
+      properties:
+        standort:
+          type: string
+          maxLength: 600
     LadenStatus:
       type: string
       enum:
@@ -39883,6 +40299,14 @@ components:
       schema:
         type: string
         format: uuid
+    RedaktionOrtId:
+      name: id
+      in: path
+      required: true
+      description: ID des Orts (UUID), in der Abteilung der Person.
+      schema:
+        type: string
+        format: uuid
     RedaktionStufeId:
       name: stufeId
       in: path
@@ -40151,6 +40575,20 @@ components:
     RedaktionWeiterleitung409:
       description: |
         Konflikt: `WEITERLEITUNG_SCHLEIFE` (die Weiterleitung führt im Kreis), `WEITERLEITUNG_KETTE` (das Ziel ist selbst eine alte Adresse oder umgekehrt), `WEITERLEITUNG_ADRESSE_VERGEBEN` (die alte Adresse hat schon eine Weiterleitung) oder `WEITERLEITUNG_ZU_VIELE` (mehr als 1000).
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionOrt400:
+      description: |
+        Ungültige Eingabe. `ORT_STANDORT_UNGUELTIG`: der Standort ist kein Link von Google Maps, keine lesbare Adresse und keine Koordinaten, hat einen fremden Host, ein anderes Schema als `https`, Anmeldeinformationen oder ist zu lang; `message` sagt es auf Deutsch. Sonst ein 400 ohne Code.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionOrt409:
+      description: |
+        Konflikt: `ORT_NAME_VERGEBEN` (der Name ist in der Abteilung schon vergeben, ohne Gross- und Kleinschreibung) oder `ORT_ZU_VIELE` (mehr als 200 Orte).
       content:
         application/json:
           schema:

@@ -803,7 +803,8 @@
             Titel, Zeit und Ort. Dazu die Beschreibung aus dem Kalender, die
             Eltern nie sehen, die Kategorien des Termins im Kalender und die
             Stufen und Tags, für die ein Programm gilt. Dazu die Räume der
-            Abteilung mit Name, Ort, Beschreibung, Plätzen und zuständigem Team.
+            Abteilung mit Name, Ort, Beschreibung, Plätzen und zuständigem Team
+            und die Orte der Abteilung mit Name, Adresszeile und Standort.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -813,14 +814,22 @@
             bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung
             (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die
             Abteilungsleitung pflegt und die alle angemeldeten Personen der
-            Abteilung lesen.
+            Abteilung lesen. Dazu kommen die Orte der Abteilung (Name,
+            Adresszeile und ein Standort als Adresse, Koordinaten oder Link auf
+            Google Maps), die die Stufenleitung pflegt: Treffpunkt und
+            Schlussort der Angaben wählt sie aus diesen Orten. Die Website zeigt
+            dazu den Link «Auf Google Maps ansehen»; der Server ruft Google nie
+            ab, und die Seite verbindet sich nicht mit Google, erst der Klick
+            auf den Link tut es.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
             Bis die Leitung das Programm löscht. Der Kalender der Abteilung
             bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das
             geht nur, solange keine Anfrage offen und keine Buchung in der
-            Zukunft ist.
+            Zukunft ist. Einen Ort löscht die Stufenleitung oder die
+            Abteilungsleitung; die Angaben behalten den Namen, nur der Link zur
+            Karte entfällt.
           </dd>
         </dl>
       </section>
@@ -2005,6 +2014,15 @@
           seinen eigenen Servern aus und sieht dann Titel, Ort, Zeit und Stand
           deiner Termine. Das entscheidest du; du kannst den Link jederzeit
           widerrufen.
+        </li>
+        <li>
+          Ist bei einem Treffpunkt oder Schlussort ein Standort hinterlegt,
+          zeigt die Stufenseite den Link «Auf Google Maps ansehen». Es ist nur
+          ein Link: Die Seite lädt keine Karte und kein Skript von Google, und
+          der Server ruft Google nie ab. Erst wenn du den Link anklickst,
+          verbindet sich dein Browser mit Google (Google Maps), ohne dass die
+          Website mitgeschickt wird, woher du kommst; ab dann gelten die
+          Bedingungen von Google. Cevi OS erfährt davon nichts.
         </li>
         <li>
           Cevi OS selbst gibt sonst keine Daten an Dritte weiter und verkauft
