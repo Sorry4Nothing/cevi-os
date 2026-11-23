@@ -991,7 +991,7 @@ describe("Verwaltung", () => {
   test("Übergabearten: eine bis fünf, ohne Doppelte; ohne Einstellung gilt die Vorgabe", async () => {
     expect(
       await json(await aufruf(admin, "GET", "/admin/laden/einstellungen")),
-    ).toEqual({ uebergabearten: [ABHOLUNG] });
+    ).toMatchObject({ uebergabearten: [ABHOLUNG] });
     for (const schlecht of [
       [],
       ["a", "A"],

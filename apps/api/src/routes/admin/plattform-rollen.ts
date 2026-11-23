@@ -18,6 +18,7 @@ import {
   plattformRechteVon,
   type PlattformRecht,
 } from "../../plattform.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 import { pruefeEigeneRechte as pruefeEigeneRechteModell } from "../../rechtemodell/eskalation.js";
@@ -106,7 +107,11 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       .select({ id: user.id })
       .from(user)
       .where(
-        and(eq(user.id, userId), eq(user.abteilungId, person.abteilungId)),
+        and(
+          eq(user.id, userId),
+          eq(user.abteilungId, person.abteilungId),
+          keinKindKonto(user.id),
+        ),
       );
     if (!ziel) throw new HTTPException(404);
   }

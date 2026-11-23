@@ -16,11 +16,11 @@ import {
   artikelVerfuegbar,
   bestellenSchema,
   ladeArtikel,
-  ladeUebergabearten,
+  ladeEinstellung,
   listeSchema,
-  MAX_MENGE,
-  MAX_OFFENE_JE_PERSON,
-  MAX_POSITIONEN,
+  mindestText,
+  oeffentlicheEinstellung,
+  EINSTELLUNG_VORGABE,
 } from "../../laden/laden.js";
 import type { LadenEnv } from "./index.js";
 
@@ -32,10 +32,30 @@ const FENSTER_MS = 10 * 60_000;
 // Eine Bestellung nennt nur Artikel, Variante und Menge; Name, Preis und Summe liest der Server in derselben Transaktion aus den Artikeln der eigenen Abteilung. Fremde Artikel und fremde Bestellungen sind unbekannt (404 oder «nicht verfügbar»).
 const pfad = z.strictObject({ id: z.uuid() });
 
-const BESTELL_LIMIT = {
-  code: "BESTELL_LIMIT",
-  message: `Du hast schon ${MAX_OFFENE_JE_PERSON} offene Bestellungen. Warte, bis eine übergeben ist, oder storniere eine.`,
-} as const;
+// Die Grenzen und Texte stellt die Abteilung ein (laden/laden.ts: LadenEinstellung); die Meldungen nennen die gültige Zahl
+const bestellLimit = (n: number) =>
+  ({
+    code: "BESTELL_LIMIT",
+    message: `Du hast schon ${n} offene Bestellungen. Warte, bis eine übergeben ist, oder storniere eine.`,
+  }) as const;
+const ladenGeschlossen = (text: string) =>
+  ({ code: "LADEN_GESCHLOSSEN", message: text }) as const;
+const mindestbestellung = (rappen: number) =>
+  ({
+    code: "MINDESTBESTELLUNG",
+    message: mindestText(rappen),
+    mindestRappen: rappen,
+  }) as const;
+const zuViele = (n: number) =>
+  ({
+    code: "POSITIONEN_ZU_VIELE",
+    message: `Eine Bestellung hat höchstens ${n} verschiedene Artikel.`,
+  }) as const;
+const mengeZuGross = (n: number) =>
+  ({
+    code: "MENGE_ZU_GROSS",
+    message: `Von einem Artikel lassen sich höchstens ${n} Stück bestellen.`,
+  }) as const;
 const ARTIKEL_NICHT_VERFUEGBAR = {
   code: "ARTIKEL_NICHT_VERFUEGBAR",
   message: "Mindestens ein Artikel ist nicht mehr verfügbar.",
@@ -103,7 +123,7 @@ export const ladePositionen = (db: Pick<Db, "select">, ids: string[]) =>
 export function erstelleBestellRouten({ db }: { db: Db }) {
   // shortcut: Zähler im Arbeitsspeicher, ein Neustart setzt ihn zurück und mehrere Instanzen zählen getrennt; in die Datenbank, sobald die API auf mehr als einer Instanz läuft
   const versuche = new Map<string, number[]>();
-  const zuViele = (id: string) => {
+  const zuOft = (id: string) => {
     const jetzt = Date.now();
     const liste = (versuche.get(id) ?? []).filter(
       (t) => jetzt - t < FENSTER_MS,
@@ -119,9 +139,9 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
       // Der Laden für Apps und Website: alle Artikel der Abteilung (auch nicht verfügbare, mit Kennzeichen), die Übergabearten, die Grenzen und wie die Person angemeldet ist (nur der eigene Name, für die Zeile «Angemeldet als …»). Drei Abfragen
       .get("/laden", async (c) => {
         const person = c.get("person");
-        const [artikel, uebergabearten, [ich]] = await Promise.all([
+        const [artikel, einstellung, [ich]] = await Promise.all([
           ladeArtikel(db, person.abteilungId),
-          ladeUebergabearten(db, person.abteilungId),
+          ladeEinstellung(db, person.abteilungId),
           db
             .select({ name: user.name, ceviName: user.ceviName })
             .from(user)
@@ -133,12 +153,14 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
         return c.json({
           angemeldetAls,
           artikel: artikel.map(artikelAnsicht),
-          uebergabearten,
+          uebergabearten: einstellung.uebergabearten,
           grenzen: {
-            positionen: MAX_POSITIONEN,
-            menge: MAX_MENGE,
-            offeneBestellungen: MAX_OFFENE_JE_PERSON,
+            positionen: einstellung.maxPositionen,
+            menge: einstellung.maxMenge,
+            offeneBestellungen: einstellung.maxOffene,
           },
+          // Regeln und Texte der Abteilung (#642); die Website zeigt dasselbe schon im Markup, hier steht der frische Stand
+          einstellungen: oeffentlicheEinstellung(einstellung),
         });
       })
       // Die eigenen Bestellungen in jedem Stand, neueste zuerst (uuidv7 ist nach Zeit geordnet); nach ist die ID des letzten Eintrags der Vorseite. Zwei Abfragen je Seite (Bestellungen, dann alle ihre Positionen)
@@ -187,11 +209,23 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
           if (new Set(schluessel).size !== schluessel.length) {
             throw new HTTPException(400);
           }
-          if (zuViele(person.id)) throw new HTTPException(429);
+          if (zuOft(person.id)) throw new HTTPException(429);
           const ergebnis = await db.transaction(async (tx) => {
             await tx.execute(
               sql`select pg_advisory_xact_lock(hashtextextended(${"laden " + person.id}, 0))`,
             );
+            const einstellung = await ladeEinstellung(tx, person.abteilungId);
+            if (!einstellung.bestellenOffen) {
+              return {
+                geschlossen: einstellung.geschlossenText || undefined,
+              };
+            }
+            if (b.positionen.length > einstellung.maxPositionen) {
+              return { positionenMax: einstellung.maxPositionen };
+            }
+            if (b.positionen.some((p) => p.menge > einstellung.maxMenge)) {
+              return { mengeMax: einstellung.maxMenge };
+            }
             const [{ offen }] = await tx
               .select({ offen: sql<number>`count(*)::int` })
               .from(ladenBestellung)
@@ -201,7 +235,9 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
                   sql`${ladenBestellung.status} in ('offen', 'bereit')`,
                 ),
               );
-            if (offen >= MAX_OFFENE_JE_PERSON) return "limit" as const;
+            if (offen >= einstellung.maxOffene) {
+              return { limit: einstellung.maxOffene };
+            }
             const ids = [...new Set(b.positionen.map((p) => p.artikelId))];
             const artikel = new Map(
               (
@@ -248,8 +284,9 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
                 : [];
             });
             if (weg.length > 0) return { weg };
-            const arten = await ladeUebergabearten(tx, person.abteilungId);
-            if (!arten.includes(b.uebergabe)) return "uebergabe" as const;
+            if (!einstellung.uebergabearten.includes(b.uebergabe)) {
+              return "uebergabe" as const;
+            }
             const summeRappen = b.positionen.reduce(
               (s, p) => s + p.menge * artikel.get(p.artikelId)!.preisRappen,
               0,
@@ -259,6 +296,9 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
               b.erwarteteSummeRappen !== summeRappen
             ) {
               return { summeRappen };
+            }
+            if (summeRappen < einstellung.mindestRappen) {
+              return { mindest: einstellung.mindestRappen };
             }
             const [zeile] = await tx
               .insert(ladenBestellung)
@@ -293,9 +333,28 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
             });
             return { bestellung: bestellungAnsicht(zeile!, positionen) };
           });
-          if (ergebnis === "limit") return c.json(BESTELL_LIMIT, 409);
           if (ergebnis === "variante") return c.json(VARIANTE_UNGUELTIG, 400);
           if (ergebnis === "uebergabe") return c.json(UEBERGABE_UNBEKANNT, 400);
+          if ("geschlossen" in ergebnis) {
+            return c.json(
+              ladenGeschlossen(
+                ergebnis.geschlossen ?? EINSTELLUNG_VORGABE.geschlossenText,
+              ),
+              409,
+            );
+          }
+          if ("positionenMax" in ergebnis) {
+            return c.json(zuViele(ergebnis.positionenMax!), 400);
+          }
+          if ("mengeMax" in ergebnis) {
+            return c.json(mengeZuGross(ergebnis.mengeMax!), 400);
+          }
+          if ("mindest" in ergebnis) {
+            return c.json(mindestbestellung(ergebnis.mindest!), 409);
+          }
+          if ("limit" in ergebnis) {
+            return c.json(bestellLimit(ergebnis.limit!), 409);
+          }
           if ("weg" in ergebnis) {
             return c.json(groesseNichtVerfuegbar(ergebnis.weg!), 422);
           }

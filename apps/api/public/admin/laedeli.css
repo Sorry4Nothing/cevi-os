@@ -44,6 +44,74 @@
   max-width: 640px;
 }
 
+/* Einstellungen (#642): Abschnitte mit Überschrift, getrennt durch eine Linie; die Vorschau rechts gliedert sich in Blöcke */
+.ld-einst-abschnitt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.ld-einst-abschnitt:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ld-einst-abschnitt h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.ld-einst-abschnitt > .leise {
+  margin: -8px 0 0;
+}
+
+.ld-einst-abschnitt .feld .knopf {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+.ld-einstellungen .feld textarea {
+  min-height: 7rem;
+}
+
+.ld-einstellungen .feld textarea.ld-kurz {
+  min-height: 4.5rem;
+}
+
+.ld-schalter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ld-schalter .hilfe {
+  margin: 0 0 0 36px;
+}
+
+.ld-einst-vorschau {
+  gap: 16px;
+}
+
+.ld-einst-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ld-einst-block h3 {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ld-einst-leise {
+  color: var(--leise);
+}
+
 /* Vorschau der Übergabewahl: Ringe wie bei einer Auswahl, nur zur Ansicht */
 .ld-wahlvorschau {
   display: flex;

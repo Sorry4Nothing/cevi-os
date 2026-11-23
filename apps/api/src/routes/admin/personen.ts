@@ -30,7 +30,9 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { telefonSchema } from "../../telefon.js";
+import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
@@ -106,6 +108,9 @@ const elternteilVonFeld = z
   .max(50)
   .refine((kinder) => new Set(kinder).size === kinder.length);
 
+// Das eigene Konto eines Kindes (#644) gehört auf die Seite «Kinder», nie in die Personen: Hier erhielte es Rollen oder Adminrechte
+const keinKindKonto = keinKindKontoVon(user.id);
+
 // Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
 const anlegenSchema = z.strictObject({
   vorname: text(100),
@@ -141,7 +146,13 @@ export function erstellePersonenRouten({
     const [ziel] = await db
       .select({ id: user.id, admin: sql<boolean>`${user.role} = 'admin'` })
       .from(user)
-      .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      .where(
+        and(
+          eq(user.id, id),
+          eq(user.abteilungId, person.abteilungId),
+          keinKindKonto,
+        ),
+      );
     if (!ziel) throw new HTTPException(404);
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
@@ -337,7 +348,7 @@ export function erstellePersonenRouten({
             })
             .from(user)
             .leftJoin(profilbild, eq(profilbild.userId, user.id))
-            .where(eq(user.abteilungId, abteilungId))
+            .where(and(eq(user.abteilungId, abteilungId), keinKindKonto))
             .orderBy(asc(user.name), asc(user.id)),
           db
             .select({
@@ -367,7 +378,11 @@ export function erstellePersonenRouten({
             )
             .orderBy(asc(kind.id)),
           db
-            .select({ id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel })
+            .select({
+              id: stufe.id,
+              name: stufe.name,
+              kuerzel: stufe.kuerzel,
+            })
             .from(stufe)
             .where(eq(stufe.abteilungId, abteilungId))
             .orderBy(asc(stufe.name), asc(stufe.id)),
@@ -663,6 +678,36 @@ export function erstellePersonenRouten({
         return c.body(null, 204);
       },
     )
+    .delete("/:id/bild", eingabe("param", pfad()), async (c) => {
+      // Entfernt das Profilbild einer Person (sie setzt es selbst). Erst das Objekt (404, auch fremde Abteilung), dann das Recht (403). Ohne Bild ebenfalls 204; der Protokolleintrag nennt nur die Person, nie das Bild
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      const [ziel] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      if (!ziel) throw new HTTPException(404);
+      // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
+      await verlange(db, person, "profilbild.entfernen");
+      const entfernt = await db.transaction(async (tx) => {
+        const weg = await tx
+          .delete(profilbild)
+          .where(eq(profilbild.userId, id))
+          .returning({ userId: profilbild.userId });
+        if (weg.length > 0) {
+          await protokolliere(tx, person, "profilbild_entfernt", id);
+        }
+        return weg.length > 0;
+      });
+      // Die Website vergisst das Bild beim nächsten Abgleich (Leitungsteams zeigen es)
+      if (entfernt) {
+        meldeWebsiteEreignis({
+          art: "seite_geaendert",
+          abteilungId: person.abteilungId,
+        });
+      }
+      return c.body(null, 204);
+    })
     .post("/:id/startpasswort", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");

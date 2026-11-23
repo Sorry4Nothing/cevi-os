@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import sharp from "sharp";
@@ -138,6 +139,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/kinder-konto.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
@@ -192,6 +194,9 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  "GET /admin/website-orte.js": { erwartet: alle(200) },
+  "GET /admin/website-orte.css": { erwartet: alle(200) },
+  "GET /admin/orte-logik.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
@@ -604,6 +609,19 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Profilbild einer Person entfernen (#642): Abteilungsleitung mit zweitem Faktor; der Entwickler mit zweitem Faktor kommt in test/profilbild-entfernen.test.ts vor, die Matrix hat keine Person mit dieser Funktion. Ziel in fremder Abteilung 404 vor dem 403
+  "DELETE /api/v1/admin/personen/:id/bild": {
+    url: () => `/api/v1/admin/personen/${startpasswortZielId}/bild`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
   "GET /api/v1/stufen": {
     erwartet: {
@@ -974,6 +992,117 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "GET /api/v1/admin/kinder/konto-einstellung": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/kinder/konto-einstellung": {
+    body: () => ({
+      erlaubt: true,
+      chat: "aus",
+      mindestalter: null,
+      elternEinsichtVorgabe: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto": {
+    // Jede Anfrage legt ein Konto an (Passwort-Hash): ein frisches Kind pro Persona
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/kinder/${await wegwerfKindId()}/konto`,
+    body: () => ({
+      benutzername: `matrix.${randomUUID().slice(0, 8)}`,
+      elternInformiertAm: new Date().toLocaleDateString("sv-SE", {
+        timeZone: "Europe/Zurich",
+      }),
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/admin/kinder/:id/konto": {
+    url: () => `/api/v1/admin/kinder/${kontoAendernKindId}/konto`,
+    body: () => ({ elternEinsicht: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/startpasswort": {
+    url: () =>
+      `/api/v1/admin/kinder/${kontoStartpasswortKindId}/konto/startpasswort`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/sperren": {
+    url: () => `/api/v1/admin/kinder/${kontoSperrenKindId}/konto/sperren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/entsperren": {
+    url: () =>
+      `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/kinder/:id/konto": {
+    // Jede Anfrage verbraucht das Konto
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/kinder/${await wegwerfKindMitKontoId()}/konto`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "GET /api/v1/admin/zeitregeln": {
     erwartet: {
       ...alle(403),
@@ -1324,6 +1453,81 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(404),
       adminOhneZweitenFaktor: 403,
       mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Orte der Abteilung (#646): Abteilungsleitung und jede Stufenleitung pflegen sie (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, Orte einer fremden Abteilung 404. Die Wirkung steht in test/redaktion-orte.test.ts
+  "GET /api/v1/redaktion/orte": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte": {
+    body: () => ({ name: `Matrix ${randomUUID()}`, standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte/vorschau": {
+    body: () => ({ standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/redaktion/orte/reihenfolge": {
+    body: () => ({ ids: [ortId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/orte/:id": {
+    url: () => `/api/v1/redaktion/orte/${ortId}`,
+    body: () => ({ aktiv: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/redaktion/orte/:id": {
+    urlJeAnfrage: async () => `/api/v1/redaktion/orte/${await wegwerfOrtId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1756,7 +1960,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufenfelder der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
+  // Samstagsangaben der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
   "GET /api/v1/redaktion/stufen/:stufeId/eckdaten": {
     url: (w) => `/api/v1/redaktion/stufen/${w.stufeAId}/eckdaten`,
     erwartet: {
@@ -2168,6 +2372,11 @@ let aktivierenZielId: string;
 let patchStufeId: string;
 let stufenZaehler = 0;
 let patchKindId: string;
+// Kinder mit eigenem Konto (#644); jedes Ziel nur fuer eine Route
+let kontoAendernKindId: string;
+let kontoStartpasswortKindId: string;
+let kontoSperrenKindId: string;
+let kontoEntsperrenKindId: string;
 let patchRegelId: string;
 let patchTagId: string;
 let tagPersonId: string;
@@ -2176,6 +2385,7 @@ let bildZielId: string;
 let mediumId: string;
 let seiteId: string;
 let weiterleitungId: string;
+let ortId: string;
 let ladenArtikelId: string;
 let ladenArtikelDemoId: string;
 let ladenBestellungId: string;
@@ -2259,6 +2469,17 @@ async function wegwerfKindId() {
     })
     .returning({ id: schema.kind.id });
   return zeile.id;
+}
+
+// Ein Kind mit einem Konto ohne Passwort: Die Routen am Konto brauchen nur die Verknuepfung
+async function wegwerfKindMitKontoId() {
+  const kindId = await wegwerfKindId();
+  const kontoId = await wegwerfPersonId();
+  await welt.db
+    .update(schema.kind)
+    .set({ userId: kontoId, kontoSeit: new Date() })
+    .where(eq(schema.kind.id, kindId));
+  return kindId;
 }
 
 async function wegwerfRegelId() {
@@ -2380,6 +2601,15 @@ async function wegwerfWeiterleitungId() {
   return zeile.id;
 }
 
+// Wegwerf-Ort der Testabteilung (#646)
+async function wegwerfOrtId() {
+  const [zeile] = await welt.db
+    .insert(schema.ort)
+    .values({ abteilungId: welt.testabteilungId, name: `Matrix ${randomUUID()}` })
+    .returning({ id: schema.ort.id });
+  return zeile.id;
+}
+
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
   return Object.fromEntries(
@@ -2429,6 +2659,21 @@ beforeAll(async () => {
       wegwerfPersonId(),
     ]);
   patchKindId = await wegwerfKindId();
+  // Konten fuer Kinder sind in der Testabteilung erlaubt, sonst waere die Antwort fuer die Abteilungsleitung 409
+  await db
+    .insert(schema.kindKontoEinstellung)
+    .values({ abteilungId: welt.testabteilungId, erlaubt: true });
+  [
+    kontoAendernKindId,
+    kontoStartpasswortKindId,
+    kontoSperrenKindId,
+    kontoEntsperrenKindId,
+  ] = await Promise.all([
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+  ]);
   patchRegelId = await wegwerfRegelId();
   patchTagId = await wegwerfTagId();
   tagPersonId = await wegwerfPersonId();
@@ -2476,6 +2721,7 @@ beforeAll(async () => {
     })
     .returning({ id: schema.seite.id });
   weiterleitungId = await wegwerfWeiterleitungId();
+  ortId = await wegwerfOrtId();
   ladenArtikelId = await wegwerfLadenArtikelId();
   ladenArtikelDemoId = await wegwerfLadenArtikelId(welt.demoAbteilungId);
   // Eine offene Bestellung einer Wegwerf-Person der Testabteilung

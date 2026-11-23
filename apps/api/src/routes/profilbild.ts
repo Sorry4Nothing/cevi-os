@@ -161,6 +161,8 @@ export function erstelleProfilbildRouten({
       // Der Body ist das Bild selbst (JPEG, PNG oder WebP); die Grösse begrenzt bodyLimit, bevor die Route einliest, der Typ ergibt sich aus den Bytes und nie aus Header oder Endung. Das Ergebnis ersetzt ein vorhandenes Bild
       .put("/ich/bild", bodyLimit({ maxSize: BILD_MAX_BYTES }), async (c) => {
         const person = c.get("person");
+        // Von Kindern gibt es nie ein Bild (Datenschutzerklärung)
+        if (person.kindId) throw new HTTPException(403);
         if (!kodiereBild) throw new HTTPException(501);
         if (zuViele(person.id)) throw new HTTPException(429);
         const daten = new Uint8Array(await c.req.arrayBuffer());

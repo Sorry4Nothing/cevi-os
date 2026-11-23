@@ -76,7 +76,7 @@ export const ladenArtikel = pgTable(
   ],
 );
 
-// Einstellungen des Lädelis je Abteilung: die Übergabearten, aus denen eine Bestellung wählt. Ohne Zeile gilt die Vorgabe (laden/laden.ts: UEBERGABE_VORGABE)
+// Einstellungen des Lädelis je Abteilung (#566, #642): die Übergabearten, die Regeln (offen, Schnell dazu, Preise für Besucher, Mengen, Mindestbestellung) und die Texte. Ein Text ohne Wert (null) gilt als Vorgabe; die Vorgaben stehen in laden/laden.ts (EINSTELLUNG_VORGABE). Ohne Zeile gelten alle Vorgaben
 export const ladenEinstellung = pgTable(
   "laden_einstellung",
   {
@@ -84,11 +84,32 @@ export const ladenEinstellung = pgTable(
       .primaryKey()
       .references(() => abteilung.id, { onDelete: "restrict" }),
     uebergabearten: text("uebergabearten").array().notNull(),
+    bestellenOffen: boolean("bestellen_offen").notNull().default(true),
+    schnellDazu: boolean("schnell_dazu").notNull().default(true),
+    preiseOeffentlich: boolean("preise_oeffentlich").notNull().default(true),
+    maxMenge: integer("max_menge").notNull().default(10),
+    maxPositionen: integer("max_positionen").notNull().default(20),
+    maxOffene: integer("max_offene").notNull().default(5),
+    mindestRappen: integer("mindest_rappen").notNull().default(0),
+    bezahlhinweis: text("bezahlhinweis"),
+    zahlungsart: text("zahlungsart"),
+    bestaetigung: text("bestaetigung"),
+    uebergabehinweis: text("uebergabehinweis"),
+    bedingungen: text("bedingungen"),
+    geschlossenText: text("geschlossen_text"),
   },
   (t) => [
     check(
       "laden_einstellung_uebergabe_check",
       sql`cardinality(${t.uebergabearten}) between 1 and 5`,
+    ),
+    check(
+      "laden_einstellung_grenzen_check",
+      sql`${t.maxMenge} between 1 and 99 and ${t.maxPositionen} between 1 and 50 and ${t.maxOffene} between 1 and 20 and ${t.mindestRappen} between 0 and 1000000`,
+    ),
+    check(
+      "laden_einstellung_texte_check",
+      sql`(${t.bezahlhinweis} is null or char_length(${t.bezahlhinweis}) <= 120) and (${t.zahlungsart} is null or char_length(${t.zahlungsart}) <= 60) and (${t.bestaetigung} is null or char_length(${t.bestaetigung}) <= 240) and (${t.uebergabehinweis} is null or char_length(${t.uebergabehinweis}) <= 200) and (${t.bedingungen} is null or char_length(${t.bedingungen}) <= 600) and (${t.geschlossenText} is null or char_length(${t.geschlossenText}) <= 200)`,
     ),
   ],
 );
@@ -165,7 +186,7 @@ export const ladenBestellposition = pgTable(
     index("laden_bestellposition_artikel_idx").on(t.artikelId),
     check(
       "laden_bestellposition_menge_check",
-      sql`${t.menge} between 1 and 10`,
+      sql`${t.menge} between 1 and 99`,
     ),
     check(
       "laden_bestellposition_preis_check",

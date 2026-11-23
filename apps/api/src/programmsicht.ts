@@ -23,7 +23,7 @@ export function programmLeitungssicht(person: Person): SQL {
 
 // Fail-closed über das Kind: Es zählt nur aktiv und in der eigenen Abteilung
 function programmElternsicht(person: Person): SQL {
-  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from ${PROGRAMM_STUFEN_ROH} inner join kind on kind.stufe_id = programm_tag.tag_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_eltern on kind_eltern.kind_id = kind.id and kind_eltern.user_id = ${person.id} where programm_tag.programm_id = programm.id))`;
+  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit = 'eltern' and exists (select 1 from ${PROGRAMM_STUFEN_ROH} inner join kind on kind.stufe_id = programm_tag.tag_id and kind.abteilung_id = ${person.abteilungId} and kind.inaktiv_seit is null inner join kind_zugang on kind_zugang.kind_id = kind.id and kind_zugang.user_id = ${person.id} where programm_tag.programm_id = programm.id))`;
 }
 
 // Sichtbar ist ein Programm mit Leitungs- oder Elternsicht; beide schränken auf die Abteilung aus der Sitzung ein

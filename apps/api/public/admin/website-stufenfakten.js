@@ -13,10 +13,16 @@ import {
 import { datumsfeld, zeitfeld } from "./datumsfeld.js";
 import { formularRaster } from "./formularraster.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
+import {
+  kartenVerweis,
+  ladeOrte,
+  ortAuswahl,
+  reiter,
+  zeigeOrte,
+} from "./website-orte.js";
 
-// Stufenfelder (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
+// Samstagsangaben der Stufen (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
 // Adresse: #website/stufenfakten und #website/stufenfakten/<stufeId>. Die Werte wirken sofort, ohne Veröffentlichen.
-const MAX_ORT = 500;
 const MAX_MITNEHMEN = 1000;
 
 const heute = () =>
@@ -43,36 +49,46 @@ async function ladeEckdaten(stufeId) {
 }
 
 export function zeige(bereich, ctx) {
+  if (ctx.pfad[0] === "orte") {
+    zeigeOrte(bereich, ctx);
+    return;
+  }
   ctx.lade(
     async () => {
-      const { tags } = await anfrage("GET", "/api/v1/redaktion/tags");
-      const stufen = tags.filter((t) => t.typ === "stufe");
-      // Die gewünschte Stufe zuerst; wer sie nicht pflegen darf, bekommt die eigene (die Antworten sagen es, die API nennt die Stufen der Person nicht)
-      const gewuenscht = stufen.find((s) => s.id === ctx.pfad[0]) ?? stufen[0];
-      if (!gewuenscht) return { stufen, gewaehlt: undefined, eckdaten: [] };
-      const erste = await ladeEckdaten(gewuenscht.id);
-      if (erste) return { stufen, gewaehlt: gewuenscht, eckdaten: erste };
-      const uebrige = stufen.filter((s) => s.id !== gewuenscht.id);
-      const antworten = await Promise.all(
-        uebrige.map(async (s) => [s, await ladeEckdaten(s.id)]),
-      );
-      const erlaubt = antworten.filter(([, e]) => e);
-      if (erlaubt.length === 0) {
-        return {
-          stufen: [],
-          gewaehlt: undefined,
-          eckdaten: [],
-          keinRecht: true,
-        };
-      }
-      return {
-        stufen: erlaubt.map(([s]) => s),
-        gewaehlt: erlaubt[0][0],
-        eckdaten: erlaubt[0][1],
-      };
+      // Die Orte der Bibliothek (#646) kommen mit; ohne Recht daran bleibt es bei Freitext
+      const [angaben, orte] = await Promise.all([ladeAngaben(ctx), ladeOrte()]);
+      return { ...angaben, orte };
     },
     (daten, neu) => zeichne(bereich, ctx, daten, neu),
   );
+}
+
+async function ladeAngaben(ctx) {
+  const { tags } = await anfrage("GET", "/api/v1/redaktion/tags");
+  const stufen = tags.filter((t) => t.typ === "stufe");
+  // Die gewünschte Stufe zuerst; wer sie nicht pflegen darf, bekommt die eigene (die Antworten sagen es, die API nennt die Stufen der Person nicht)
+  const gewuenscht = stufen.find((s) => s.id === ctx.pfad[0]) ?? stufen[0];
+  if (!gewuenscht) return { stufen, gewaehlt: undefined, eckdaten: [] };
+  const erste = await ladeEckdaten(gewuenscht.id);
+  if (erste) return { stufen, gewaehlt: gewuenscht, eckdaten: erste };
+  const uebrige = stufen.filter((s) => s.id !== gewuenscht.id);
+  const antworten = await Promise.all(
+    uebrige.map(async (s) => [s, await ladeEckdaten(s.id)]),
+  );
+  const erlaubt = antworten.filter(([, e]) => e);
+  if (erlaubt.length === 0) {
+    return {
+      stufen: [],
+      gewaehlt: undefined,
+      eckdaten: [],
+      keinRecht: true,
+    };
+  }
+  return {
+    stufen: erlaubt.map(([s]) => s),
+    gewaehlt: erlaubt[0][0],
+    eckdaten: erlaubt[0][1],
+  };
 }
 
 function zeichne(bereich, ctx, daten, neu) {
@@ -106,10 +122,11 @@ function zeichne(bereich, ctx, daten, neu) {
     knopf("Neues Datum", {
       art: "haupt",
       symbol: "plus",
-      onclick: () => formular({ stufe: gewaehlt, ctx, neu }),
+      onclick: () => formular({ stufe: gewaehlt, ctx, neu, orte: daten.orte }),
     }),
   );
   bereich.append(
+    ...(daten.orte === null ? [] : [reiter("angaben")]),
     el(
       "p",
       { class: "hilfe ws-stufenfakten-einleitung" },
@@ -129,12 +146,12 @@ function zeichne(bereich, ctx, daten, neu) {
   const { wurzel } = tabelle({
     beschriftung: `Kommende Daten der Stufe ${gewaehlt.name}`,
     spalten: ["Datum", "Treffpunkt", "Quelle", "Aktionen"],
-    zeilen: eckdaten.map((z) => zeile(z, gewaehlt, ctx, neu)),
+    zeilen: eckdaten.map((z) => zeile(z, gewaehlt, ctx, neu, daten.orte)),
   });
   bereich.append(wurzel);
 }
 
-function zeile(z, stufe, ctx, neu) {
+function zeile(z, stufe, ctx, neu, orte) {
   const gepflegt = z.quelle === "seite";
   const kontext = datumText(z.tag);
   return el(
@@ -165,7 +182,7 @@ function zeile(z, stufe, ctx, neu) {
       knopf("Bearbeiten", {
         klein: true,
         kontext,
-        onclick: () => formular({ stufe, ctx, neu, zeile: z }),
+        onclick: () => formular({ stufe, ctx, neu, zeile: z, orte }),
       }),
       gepflegt &&
         knopf("Löschen", {
@@ -186,7 +203,7 @@ function zeile(z, stufe, ctx, neu) {
 }
 
 // Neues Datum oder Angaben bearbeiten: links die Felder, rechts die Angaben so, wie die Stufenseite sie ordnet (die Vorschau geht beim Tippen mit)
-function formular({ stufe, ctx, neu, zeile }) {
+function formular({ stufe, ctx, neu, zeile, orte }) {
   const neuesDatum = zeile === undefined;
   // Das Datum eines bestehenden Eintrags bleibt, wie es ist: Ein anderes Datum wäre ein neuer Eintrag
   const tag = neuesDatum
@@ -203,19 +220,24 @@ function formular({ stufe, ctx, neu, zeile }) {
     label: "Treffzeit",
     wert: zeile?.treffZeit ?? "",
   });
-  const treffpunkt = feld({
+  // Treffpunkt und Schlussort wählst du aus den Orten der Abteilung (#646); «Anderer Ort» bleibt ein Text
+  const treffpunkt = ortAuswahl({
     label: "Treffpunkt",
-    wert: zeile?.treffpunkt ?? "",
-    maxlength: MAX_ORT,
+    orte,
+    ortId: zeile?.treffpunktOrtId,
+    text: zeile?.treffpunkt,
+    ctx,
   });
   const schlussZeit = zeitfeld({
     label: "Schlusszeit",
     wert: zeile?.schlussZeit ?? "",
   });
-  const schlussOrt = feld({
+  const schlussOrt = ortAuswahl({
     label: "Schlussort",
-    wert: zeile?.schlussOrt ?? "",
-    maxlength: MAX_ORT,
+    orte,
+    ortId: zeile?.schlussOrtId,
+    text: zeile?.schlussOrt,
+    ctx,
   });
   const mitnehmen = feld({
     label: "Mitnehmen",
@@ -226,12 +248,29 @@ function formular({ stufe, ctx, neu, zeile }) {
     hilfe: "Ein Gegenstand pro Zeile.",
   });
   const alle = [tag, treffZeit, treffpunkt, schlussZeit, schlussOrt, mitnehmen];
+  // Die Ortswahl hat mehrere Eingaben (Auswahl und Text), die anderen Felder eine
+  const eingaben = alle.flatMap((f) => f.eingaben ?? [f.eingabe]);
 
   const vorschau = el("dl", { class: "ws-stufenvorschau" });
   const zeigeVorschau = () => {
     const wert = datumWert();
     const mitZeit = (zeit, ort) =>
-      [zeit && `${zeit} Uhr`, ort.trim()].filter(Boolean).join(", ");
+      [zeit && `${zeit} Uhr`, ort.name].filter(Boolean).join(", ");
+    // Der Ort mit Adresszeile und dem Verweis zur Karte, wie die Stufenseite ihn zeigt
+    const ortZeile = (zeit, ort) => {
+      const kopf = mitZeit(zeit, ort);
+      const verweis = kartenVerweis(ort.link);
+      return !kopf
+        ? leer.cloneNode(true)
+        : el(
+            "dd",
+            {},
+            kopf,
+            ort.zusatz &&
+              el("span", { class: "ort-vorschau-zusatz" }, ort.zusatz),
+            verweis && el("span", { class: "ort-vorschau-zusatz" }, verweis),
+          );
+    };
     const dinge = mitnehmen.eingabe.value
       .split("\n")
       .map((d) => d.trim())
@@ -247,13 +286,10 @@ function formular({ stufe, ctx, neu, zeile }) {
       );
     vorschau.replaceChildren(
       reihe("Datum", text(wert ? datumText(wert) : "")),
-      reihe(
-        "Treffen",
-        text(mitZeit(treffZeit.eingabe.value, treffpunkt.eingabe.value)),
-      ),
+      reihe("Treffen", ortZeile(treffZeit.eingabe.value, treffpunkt.anzeige())),
       reihe(
         "Schluss",
-        text(mitZeit(schlussZeit.eingabe.value, schlussOrt.eingabe.value)),
+        ortZeile(schlussZeit.eingabe.value, schlussOrt.anzeige()),
       ),
       reihe(
         "Mitnehmen",
@@ -271,9 +307,9 @@ function formular({ stufe, ctx, neu, zeile }) {
       ),
     );
   };
-  for (const f of alle) {
-    f.eingabe.addEventListener("input", zeigeVorschau);
-    f.eingabe.addEventListener("change", zeigeVorschau);
+  for (const e of eingaben) {
+    e.addEventListener("input", zeigeVorschau);
+    e.addEventListener("change", zeigeVorschau);
   }
   zeigeVorschau();
 
@@ -289,11 +325,15 @@ function formular({ stufe, ctx, neu, zeile }) {
     ],
     ok: "Speichern",
     senden: () => {
+      const treff = treffpunkt.werte();
+      const schluss = schlussOrt.werte();
       const werte = {
         treffZeit: treffZeit.eingabe.value,
-        treffpunkt: treffpunkt.eingabe.value,
+        treffpunkt: treff.text,
+        treffpunktOrtId: treff.ortId,
         schlussZeit: schlussZeit.eingabe.value,
-        schlussOrt: schlussOrt.eingabe.value,
+        schlussOrt: schluss.text,
+        schlussOrtId: schluss.ortId,
         mitnehmen: mitnehmen.eingabe.value,
       };
       if (Object.values(werte).every((w) => w.trim() === "")) {

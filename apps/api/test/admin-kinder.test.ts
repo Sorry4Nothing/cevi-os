@@ -215,9 +215,11 @@ describe("GET /api/v1/admin/kinder", () => {
       "ceviName",
       "eltern",
       "id",
+      "konto",
       "nachname",
       "stufeId",
       "vorname",
+      "zugang",
     ]);
     expect(eintrag(aktiv)).toEqual({
       id: aktiv,
@@ -227,6 +229,8 @@ describe("GET /api/v1/admin/kinder", () => {
       stufeId: welt.stufeAId,
       aktiv: true,
       eltern: [eltern.id],
+      zugang: "eltern",
+      konto: null,
     });
     expect(eintrag(inaktiv)).toMatchObject({ aktiv: false, eltern: [] });
     expect(kinder.map((k) => k.id)).not.toContain(welt.demoKindId);

@@ -42,7 +42,7 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung kann es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung und der Entwickler können es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
     frist:
       "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Auf der Website steht das Bild, solange die Person die Rolle trägt und das Bild besteht; die Website vergisst es beim nächsten Abgleich, kurz nachdem die Rolle oder das Bild wegfällt.",
     apple: ["User Content: Photos or Videos"],
@@ -56,10 +56,19 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  kinderkonto: {
+    titel: "Konto eines Kindes",
+    zweck:
+      "Ein Kind meldet sich mit einem eigenen Konto an und sieht die Programme, die Leitung und, wenn die Abteilung es erlaubt, den Gruppenchat seiner Stufe. Die Abteilungsleitung erstellt das Konto und vermerkt, dass die Eltern informiert sind. Das Konto kennt nur das eigene Kind: nie andere Kinder, Eltern oder Telefonnummern.",
+    frist:
+      "Bis die Leitung das Konto entfernt oder sperrt oder das Kind gelöscht wird; mit dem Kind verschwindet auch das Konto.",
+    apple: ["Contact Info: Name", "Identifiers: User ID"],
+    google: ["Personal info: Name", "Personal info: User IDs"],
+  },
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte, Plattformrollen und Rollen in Gruppen legen fest, wer Inhalte ändern, Anmeldungen sehen oder Mitteilungen senden darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -67,9 +76,9 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen. Dazu kommen die Orte der Abteilung (Name, Adresszeile und ein Standort als Adresse, Koordinaten oder Link auf Google Maps), die die Stufenleitung pflegt: Treffpunkt und Schlussort der Angaben wählt sie aus diesen Orten. Die Website zeigt dazu den Link «Auf Google Maps ansehen»; der Server ruft Google nie ab, und die Seite verbindet sich nicht mit Google, erst der Klick auf den Link tut es.",
     frist:
-      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist.",
+      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist. Einen Ort löscht die Stufenleitung oder die Abteilungsleitung; die Angaben behalten den Namen, nur der Link zur Karte entfällt.",
     apple: [],
     google: [],
   },
@@ -526,6 +535,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "stufe_seit",
       "inaktiv_seit",
     ],
+    kinderkonto: [
+      "user_id",
+      "konto_seit",
+      "eltern_informiert_am",
+      "eltern_einsicht",
+    ],
+  },
+  kind_konto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "erlaubt",
+      "chat",
+      "mindestalter",
+      "eltern_einsicht_vorgabe",
+    ],
   },
   kind_eltern: { kinder: ["kind_id", "user_id", "erstellt_am"] },
   leitung_anmeldung: {
@@ -624,7 +648,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
-  laden_einstellung: { abteilung: ["abteilung_id", "uebergabearten"] },
+  laden_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "uebergabearten",
+      "bestellen_offen",
+      "schnell_dazu",
+      "preise_oeffentlich",
+      "max_menge",
+      "max_positionen",
+      "max_offene",
+      "mindest_rappen",
+      "bezahlhinweis",
+      "zahlungsart",
+      "bestaetigung",
+      "uebergabehinweis",
+      "bedingungen",
+      "geschlossen_text",
+    ],
+  },
   laden_bestellung: {
     laedeli: [
       "id",
@@ -665,13 +707,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Orte der Abteilung (#646): Name, Adresszeile und Standort; die Karte ist nur ein Link, den der Server selbst baut
+  ort: {
+    programme: [
+      "id",
+      "abteilung_id",
+      "name",
+      "beschreibung",
+      "karte_adresse",
+      "breite",
+      "laenge",
+      "karte_url",
+      "reihenfolge",
+      "aktiv",
+      "zuletzt_verwendet_am",
+      "erstellt_am",
+    ],
+  },
   programm_eckdaten: {
     programme: [
       "stufe_id",
       "tag",
       "treff_zeit",
       "treffpunkt",
+      "treffpunkt_ort_id",
       "schluss_ort",
+      "schluss_ort_id",
       "schluss_zeit",
       "mitnehmen",
       "abgerufen_am",

@@ -15,7 +15,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
   kind,
-  kindEltern,
+  kindZugang,
   leitungAnmeldung,
   programm,
   programmEckdaten,
@@ -114,8 +114,8 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       })
       .from(kind)
       .innerJoin(
-        kindEltern,
-        and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+        kindZugang,
+        and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
       )
       .innerJoin(
         programmStufen,
@@ -310,11 +310,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               exists(
                 db
                   .select({ eins: sql`1` })
-                  .from(kindEltern)
+                  .from(kindZugang)
                   .where(
                     and(
-                      eq(kindEltern.kindId, kind.id),
-                      eq(kindEltern.userId, person.id),
+                      eq(kindZugang.kindId, kind.id),
+                      eq(kindZugang.userId, person.id),
                     ),
                   ),
               ),
@@ -493,11 +493,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         if (!zeile || !ziel) throw new HTTPException(404);
         const [eigenes] = await db
           .select({ eins: sql`1` })
-          .from(kindEltern)
+          .from(kindZugang)
           .where(
             and(
-              eq(kindEltern.kindId, kindId),
-              eq(kindEltern.userId, person.id),
+              eq(kindZugang.kindId, kindId),
+              eq(kindZugang.userId, person.id),
             ),
           );
         const zustaendig =
