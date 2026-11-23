@@ -8,9 +8,11 @@ import {
   feld,
   knopf,
 } from "./dom.js";
+import { feldFehler } from "./liste-hilfen.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { dateiFeld } from "./personen-wahl.js";
 import { sortierListe } from "./sortieren.js";
+import { zuschneiden } from "./zuschneiden.js";
 
 const LOGO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -59,13 +61,14 @@ function lesen(f) {
 }
 
 // Logo mit Vorschau daneben (Muster «edit-profile-form»): Die Vorschau zeigt die gewählte Datei, bevor sie gespeichert ist. Als data:-Adresse gelesen, denn die Seite lädt Bilder nur von sich selbst und aus data:
+// Vor dem Speichern lässt sich das Logo zuschneiden (#633). Der Zuschnitt ist freiwillig: «Original verwenden» lässt es unberührt; Durchsichtiges bleibt bei PNG erhalten.
 function logoZeile(f, stufe) {
   const vorschau = el("img", {
     class: "stufe-vorschau",
     src: stufe?.logoUrl ?? STANDARD_LOGO,
     alt: "",
   });
-  f.logo.eingabe.addEventListener("change", () => {
+  const zeigeVorschau = () => {
     const datei = f.logo.eingabe.files[0];
     if (!datei || datei.size > LOGO_MAX_BYTES) return;
     const leser = new window.FileReader();
@@ -73,6 +76,47 @@ function logoZeile(f, stufe) {
       vorschau.src = leser.result;
     });
     leser.readAsDataURL(datei);
+  };
+  let eigeneAenderung = false;
+  const setzeDatei = (datei) => {
+    eigeneAenderung = true;
+    if (datei) {
+      const liste = new window.DataTransfer();
+      liste.items.add(datei);
+      f.logo.eingabe.files = liste.files;
+    } else {
+      f.logo.eingabe.value = "";
+    }
+    f.logo.eingabe.dispatchEvent(new window.Event("change", { bubbles: true }));
+    eigeneAenderung = false;
+  };
+  f.logo.eingabe.addEventListener("change", async () => {
+    if (eigeneAenderung) return zeigeVorschau();
+    const datei = f.logo.eingabe.files[0];
+    if (!datei || datei.size > LOGO_MAX_BYTES) return;
+    try {
+      const ergebnis = await zuschneiden({
+        datei,
+        titel: "Logo zuschneiden",
+        beschreibung:
+          "Der Zuschnitt ist freiwillig. Mit «Original verwenden» bleibt das Logo, wie es ist.",
+        verhaeltnisse: [
+          { text: "Frei", wert: null },
+          { text: "1:1", wert: 1 },
+          { text: "4:3", wert: 4 / 3 },
+        ],
+        maxSeite: 1024,
+        maxBytes: LOGO_MAX_BYTES,
+        ok: "Zuschneiden und übernehmen",
+      });
+      // Abbrechen: keine Datei gewählt, das bisherige Logo bleibt
+      if (!ergebnis) setzeDatei(null);
+      else if (ergebnis.zugeschnitten) setzeDatei(ergebnis.datei);
+      else zeigeVorschau();
+    } catch (fehler) {
+      setzeDatei(null);
+      feldFehler(f.logo, fehler.message);
+    }
   });
   return el(
     "div",

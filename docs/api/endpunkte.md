@@ -33,6 +33,8 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/tags.js`                          | Skript der Verwaltung – Bereich Tags                                                 | **200** alle      |
 | `GET /admin/konto.js`                         | Skript der Verwaltung – Seite Mein Konto                                             | **200** alle      |
 | `GET /admin/konto.css`                        | Stilvorlage der Verwaltung – Seite Mein Konto                                        | **200** alle      |
+| `GET /admin/zuschneiden.js`                   | Skript der Verwaltung – Bild zuschneiden                                             | **200** alle      |
+| `GET /admin/zuschneiden.css`                  | Stilvorlage der Verwaltung – Bild zuschneiden                                        | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht                                            | **200** alle      |
 | `GET /admin/uebersicht-kacheln.js`            | Skript der Verwaltung – Kacheln der Übersicht                                        | **200** alle      |
 | `GET /admin/uebersicht-diagramme.js`          | Skript der Verwaltung – Diagramme der Übersicht                                      | **200** alle      |
