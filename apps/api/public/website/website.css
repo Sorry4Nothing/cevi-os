@@ -722,6 +722,26 @@ a.btn.s {
   gap: 0.75rem;
 }
 
+/* Aktionsgruppe (#555): Schaltflächen, die aufeinander folgen, stehen in einer Zeile. Alle haben dieselbe Form und Höhe; nur die Hauptaktion ist gefüllt.
+   Ein Verweis in der Gruppe ist ein Knopf mit Rand und Pfeil, damit Haupt- und Nebenaktion aus einem Guss sind */
+.aktionen {
+  gap: 0.75rem 1rem;
+}
+
+.aktionen .verweis {
+  min-height: 3.5rem;
+  padding: 0 1.75rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1.0625rem;
+}
+
+.aktionen .verweis:hover {
+  background: var(--surface-container);
+  text-decoration: none;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -1368,17 +1388,9 @@ div.termin {
   --abstand: clamp(2.25rem, 1.5rem + 2.5vw, 4rem);
 }
 
-/* Folgt ein Abschnitt mit Schiene auf einen gleichen, bleibt die Fläche: Eine Linie trennt, kein neuer Ton */
+/* Folgt ein Abschnitt mit Schiene auf einen gleichen, bleibt die Fläche: Eine Linie trennt, kein neuer Ton. Die Linie läuft wie die Hintergründe von Fensterrand zu Fensterrand */
 .sektion--folge {
-  padding-top: 0;
-}
-
-.sektion--folge > .wrap::before {
-  display: block;
-  grid-column: 1 / -1;
-  margin-bottom: var(--abstand);
   border-top: 1px solid var(--outline-variant);
-  content: "";
 }
 
 .sektion-rumpf {
@@ -2021,8 +2033,9 @@ a.btn.w {
   background: none;
 }
 
-.sektion--terminliste .termine > li:first-child .termin {
-  padding-top: 0;
+/* Die Liste rückt um den Innenabstand der ersten Zeile nach oben: So steht das erste Datumsfeld auf der Höhe des Titels */
+.sektion--terminliste .termine {
+  margin-block: -1.25rem;
 }
 
 .sektion--terminliste .termin .titel {
@@ -2031,19 +2044,32 @@ a.btn.w {
   font-weight: 800;
 }
 
-/* Zeigen und Fokus: Die Zeile bekommt eine ruhige Fläche, sonst bewegt sich nichts ausser dem Pfeil. Die Fläche reicht seitlich über die Zeile hinaus, damit der Text nicht springt */
+/* Zeigen: Hinter der Zeile erscheint eine ruhige Fläche, sonst bewegt sich nichts ausser dem Pfeil. Die Fläche ist eine eigene Schicht (::before):
+   Sie hat rundum denselben Abstand zum Inhalt (0.75rem), bleibt von den Trennlinien weg (0.5rem) und verschiebt nichts */
 .sektion--terminliste a.termin {
-  margin-inline: -1rem;
-  padding-inline: 1rem;
-  border-radius: var(--r-sm);
+  position: relative;
+  isolation: isolate;
+}
+
+.sektion--terminliste a.termin::before {
+  position: absolute;
+  inset: 0.5rem -0.75rem;
+  z-index: -1;
+  border-radius: var(--r-md);
+  content: "";
 }
 
 .sektion--terminliste a.termin:hover {
+  background: none;
+}
+
+.sektion--terminliste a.termin:hover::before {
   background: var(--surface-container);
 }
 
 .sektion--terminliste a.termin:focus-visible {
-  outline-offset: 4px;
+  outline-offset: -0.375rem;
+  border-radius: var(--r-md);
 }
 
 .termin-pfeil {
@@ -2276,60 +2302,105 @@ a.btn.w {
   line-height: 1.5rem;
 }
 
-/* Zeitstrahl: das Jahr gross vorn, das Ereignis daneben; eine Linie mit Marken verbindet die Jahre */
+/* Zeitstrahl (#560): eine Geschichte in Stationen, im blauen Band. Das Jahr ist riesige Typografie; Foto und Text wechseln die Seite,
+   und das Jahr schneidet als blaues Feld in die Ecke des Fotos (wie die Fahne im Titelbild). Keine Linien, keine Punkte */
 .zeitstrahl {
+  --jahr: clamp(4rem, 1.5rem + 9vw, 11rem);
   display: flex;
   flex-direction: column;
+  gap: clamp(3.5rem, 2rem + 6vw, 8rem);
 }
 
-.zeitstrahl > li {
-  position: relative;
+.station {
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
-  gap: 0.25rem 2.5rem;
-  align-items: baseline;
-  padding-bottom: 2rem;
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 0 clamp(2rem, 4vw, 5rem);
+  align-items: end;
 }
 
-.zeitstrahl > li:last-child {
-  padding-bottom: 0;
+/* Jede zweite Station gespiegelt: Text links, Foto rechts */
+.station:nth-child(even) {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
 }
 
-.zeitstrahl > li::before {
-  position: absolute;
-  top: 0.5rem;
-  bottom: -0.5rem;
-  left: calc(6.5rem + 1.25rem - 1px);
-  width: 2px;
-  background: var(--outline-variant);
-  content: "";
+.station:nth-child(even) .station-bild {
+  order: 2;
 }
 
-.zeitstrahl > li:last-child::before {
-  display: none;
+.station-bild {
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  margin: 0;
+  border-radius: var(--r-md);
+  background: var(--on-secondary-container, var(--secondary));
 }
 
-.zeitstrahl > li::after {
-  position: absolute;
-  top: 0.5rem;
-  left: calc(6.5rem + 1.25rem - 0.375rem);
-  width: 0.75rem;
-  height: 0.75rem;
-  background: var(--primary);
-  content: "";
+.station-bild img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: 50% 35%;
 }
 
+.station-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: clamp(0rem, 2vw, 2rem);
+}
+
+/* Das Jahr ragt als blaues Feld über die Lücke ins Foto */
 .zeitstrahl .jahr {
-  color: var(--titel);
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
-  line-height: 1;
+  width: max-content;
+  max-width: none;
+  margin-left: calc(-1 * clamp(4rem, 9vw, 10rem));
+  padding: 0.12em 0.2em 0 0.22em;
+  border-top-left-radius: var(--r-md);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-size: var(--jahr);
+  line-height: 0.86;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
 }
 
-.zeitstrahl p + p {
-  max-width: 52ch;
+.station:nth-child(even) .jahr {
+  align-self: flex-end;
+  margin-right: calc(-1 * clamp(4rem, 9vw, 10rem));
+  margin-left: 0;
+  padding: 0.12em 0.22em 0 0.2em;
+  border-top-left-radius: 0;
+  border-top-right-radius: var(--r-md);
+}
+
+.zeitstrahl .station-text p + p {
+  max-width: 34rem;
+  color: var(--on-secondary);
+  font-size: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
+  line-height: 1.55;
+}
+
+/* Station ohne Foto: Jahr und Text nebeneinander über die ganze Breite */
+.station:not(.station--bild),
+.station:not(.station--bild):nth-child(even) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.station:not(.station--bild) .station-text {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem clamp(2rem, 4vw, 5rem);
+  align-items: flex-end;
+}
+
+.station:not(.station--bild) .jahr {
+  align-self: auto;
+  margin-inline: 0;
+  padding-inline: 0;
 }
 
 /* Zahlen: wenige grosse Zahlen nebeneinander, darunter, was sie zählen */
@@ -2362,17 +2433,29 @@ a.btn.w {
 }
 
 @media (max-width: 47.5em) {
-  .zeitstrahl > li {
-    grid-template-columns: 4.5rem minmax(0, 1fr);
-    gap: 0.25rem 2rem;
+  .station,
+  .station:nth-child(even) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .zeitstrahl > li::before {
-    left: calc(4.5rem + 1rem - 1px);
+  .station:nth-child(even) .station-bild {
+    order: 0;
   }
 
-  .zeitstrahl > li::after {
-    left: calc(4.5rem + 1rem - 0.375rem);
+  .zeitstrahl .jahr,
+  .station:nth-child(even) .jahr {
+    align-self: flex-start;
+    margin: -0.55em 0 0;
+    padding: 0.12em 0.2em 0 0;
+    border-radius: 0 var(--r-md) 0 0;
+  }
+
+  .station:not(.station--bild) .jahr {
+    margin-top: 0;
+  }
+
+  .station-text {
+    padding-bottom: 0;
   }
 
   .personen {
@@ -2469,7 +2552,8 @@ a.btn.w {
   /* Knöpfe und Flächen antworten auf Zeigen und Drücken */
   .btn,
   .karten > li,
-  a.termin {
+  a.termin,
+  a.termin::before {
     transition:
       background-color var(--dauer) var(--kurve),
       border-color var(--dauer) var(--kurve),
@@ -2549,4 +2633,50 @@ a.btn.w {
   text-decoration: underline;
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
+}
+
+/* Zeitstrahl in erzwungenen Farben (#560): Das Feld des Jahres bekommt einen Rand */
+@media (forced-colors: active) {
+  .zeitstrahl .jahr {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Zeitstrahl (#560), Bewegung am Scrollen: Das Foto wächst aus leichter Vergrösserung, das Jahr schiebt sich von der Seite ins Bild. Ohne animation-timeline und bei «Bewegung reduzieren» steht alles still */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes station-bild {
+      from {
+        scale: 1.12;
+      }
+    }
+
+    @keyframes jahr-links {
+      from {
+        translate: 3rem 0;
+      }
+    }
+
+    @keyframes jahr-rechts {
+      from {
+        translate: -3rem 0;
+      }
+    }
+
+    .station-bild img {
+      animation: station-bild linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 45%;
+    }
+
+    .station--bild .jahr {
+      animation: jahr-links linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 40%;
+    }
+
+    .station--bild:nth-child(even) .jahr {
+      animation-name: jahr-rechts;
+    }
+  }
 }

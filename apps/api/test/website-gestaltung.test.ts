@@ -514,3 +514,33 @@ describe("Verweise und Aktionen: ein Repertoire (#568)", () => {
     );
   });
 });
+
+describe("Aktionsgruppen", () => {
+  const knopf = (beschriftung: string, darstellung = "schaltflaeche") =>
+    b("schaltflaeche", { darstellung, beschriftung, ziel: "/ziel" });
+
+  test("Schaltflächen, die aufeinander folgen, stehen in einer Gruppe: Hauptaktion, weitere Schaltfläche, Verweis", () => {
+    const html = seite(
+      dok(
+        "T",
+        h2("Abschnitt"),
+        absatz("Text"),
+        knopf("Eins"),
+        knopf("Zwei"),
+        knopf("Drei", "link"),
+      ),
+    );
+    expect(html).toContain(
+      '<div class="knopfreihe aktionen"><a href="/ziel" class="btn p gross">Eins</a><a href="/ziel" class="btn s gross">Zwei</a><a href="/ziel" class="verweis">Drei</a></div>',
+    );
+    expect(html).not.toContain('<p class="knopf">');
+  });
+
+  test("eine einzelne Schaltfläche bleibt ein Absatz; Text dazwischen trennt zwei Gruppen", () => {
+    const html = seite(
+      dok("T", h2("A"), knopf("Eins"), absatz("Text"), knopf("Zwei", "link")),
+    );
+    expect(zaehle(html, '<p class="knopf">')).toBe(2);
+    expect(html).not.toContain("aktionen");
+  });
+});
