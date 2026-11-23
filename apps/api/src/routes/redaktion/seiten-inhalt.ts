@@ -235,6 +235,9 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
           if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
           if (laden.laden) {
             daten.laden = laden.laden;
+            if (laden.ladenUebergabe) {
+              daten.ladenUebergabe = laden.ladenUebergabe;
+            }
             daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
           }
           const seitenHtml = rendereSeite(

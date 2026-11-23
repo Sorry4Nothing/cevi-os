@@ -1,14 +1,41 @@
-/* Lädeli (#566): Raster der Artikel, Dialog eines Artikels, Warenkorb und «Deine Bestellungen». Markup: src/website/laden.ts, Verhalten: laden.js. Tokens aus website.css; das Auswahlfeld kommt aus auswahl.css.
-   Bilder werden nie über ihre eigene Grösse hinaus gezogen und nie beschnitten (object-fit: scale-down). */
+/* Lädeli (#566): Laden mit Raster, Artikelfenster, Warenkorb und Bestellübersicht. Markup: src/website/laden.ts, Verhalten: laden.js.
+   Aufbau und Proportionen folgen einem Ladenmuster (Kachel 4:5 mit schnellem Hinzufügen, Fenster mit grossem Bild, Blatt von rechts, Übersichtskarte); Farben, Schrift und Symbole sind die der Website (Tokens aus website.css), hell und dunkel.
+   Fotos stehen unbeschnitten auf ihrer Fläche und werden nie über ihre eigene Grösse gezogen (object-fit: scale-down). */
 
 .laden {
-  --kachel: #ffffff;
-  display: grid;
-  gap: 1.5rem;
+  /* Eigene Rollen aus den Tokens der Website: ruhige Hauptfarbe (Cevi-Blau) für «in den Warenkorb» und Gewähltes, Rot nur für «Bestellen» */
+  --l-haupt: var(--secondary);
+  --l-auf-haupt: var(--on-secondary);
+  --l-flaeche: var(--karte);
+  --l-kachel: #ffffff;
+  --l-linie: var(--outline-variant);
+  --l-leise: var(--on-surface-variant);
+  --l-still: var(--surface-container);
+  --l-radius: var(--r-sm);
+  /* Kurven der Bewegung: Fenster und Zahlen laufen aus, das Blatt gleitet */
+  --l-aus: cubic-bezier(0.23, 1, 0.32, 1);
+  --l-blatt: cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .laden {
+    --l-haupt: var(--accent);
+    --l-auf-haupt: #0b1b2e;
+    --l-kachel: #e9e9e4;
+  }
+}
+
+:root[data-theme="dark"] .laden {
+  --l-haupt: var(--accent);
+  --l-auf-haupt: #0b1b2e;
+  --l-kachel: #e9e9e4;
 }
 
 .laden *,
-.laden *::before {
+.laden *::before,
+.laden *::after {
   box-sizing: border-box;
 }
 
@@ -23,92 +50,284 @@
 
 .laden .i {
   flex: none;
-  width: 1.5rem;
-  height: 1.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
   fill: none;
   stroke: currentcolor;
   stroke-width: 2;
 }
 
-.laden p {
+.laden p,
+.laden dl,
+.laden dd {
   margin: 0;
 }
 
-/* ===== Kopf: Anzahl links, Zugang (Hinweis oder Warenkorb) rechts ===== */
+.laden .meta {
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
 
-.laden-kopf {
+.laden .mitte {
+  text-align: center;
+}
+
+.laden .leise {
+  color: var(--l-leise);
+}
+
+.laden :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ===== Knöpfe: eine Form, vier Gewichte ===== */
+
+.laden-knopf {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  border: 1px solid transparent;
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.laden-knopf.voll {
+  width: 100%;
+}
+
+.laden-knopf--haupt {
+  background: var(--l-haupt);
+  color: var(--l-auf-haupt);
+}
+
+/* Die eine Hauptaktion des Ladens: Bestellen */
+.laden-knopf--bestellen,
+a.laden-knopf--bestellen {
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.laden-knopf--zweit {
+  border-color: var(--l-linie);
+  background: var(--l-flaeche);
+}
+
+.laden-knopf--zweit:hover {
+  background: var(--l-still);
+}
+
+.laden-knopf--still {
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+}
+
+.laden-knopf--still:hover {
+  background: var(--l-still);
+  color: var(--on-surface);
+}
+
+.laden-knopf--haupt:hover,
+.laden-knopf--bestellen:hover {
+  filter: brightness(1.12);
+}
+
+.laden-knopf[aria-disabled="true"] {
+  background: var(--surface-container-high);
+  color: var(--l-leise);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.laden-knopf:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.laden-knopf .lade {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+  border: 2.5px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+.laden-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--on-surface);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--outline);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Kleiner Text als Knopf: Die Fläche zum Treffen reicht über die Zeile hinaus */
+.laden-link,
+.laden-knopf--still {
+  position: relative;
+}
+
+.laden-link::after,
+.laden-knopf--still::after {
+  content: "";
+  position: absolute;
+  inset: 50% -0.25rem auto;
+  height: 2.75rem;
+  translate: 0 -50%;
+}
+
+/* ===== Kopf des Ladens: Anzahl, Hinweis, Warenkorb ===== */
+
+.laden-leiste {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1.5rem;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid var(--outline-variant);
+  gap: 1rem;
+  min-height: 3.5rem;
+  border-bottom: 1px solid var(--l-linie);
 }
 
 .laden-zahl {
-  color: var(--on-surface-variant);
-  font-size: 1rem;
-  line-height: 1.5rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-
-.laden-zugang {
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  color: var(--on-surface);
-  font-size: 1rem;
-  line-height: 1.5rem;
-}
-
-.laden-zugang > .i {
-  color: var(--accent);
-}
-
-.laden-zugang a {
-  color: var(--accent);
+  font-size: 1.0625rem;
   font-weight: 700;
-  text-underline-offset: 3px;
-}
-
-.laden-zugang--an {
-  gap: 1.25rem;
-}
-
-/* Der Warenkorb bleibt beim Scrollen erreichbar: unten rechts, in der Zone des Daumens */
-.laden-schwebe {
-  position: fixed;
-  right: var(--rand);
-  bottom: max(1rem, env(safe-area-inset-bottom));
-  z-index: 10;
-  min-height: 3.5rem;
-  box-shadow: var(--schatten);
-}
-
-.laden-schwebe .betrag {
-  padding-left: 0.75rem;
-  border-left: 1px solid rgb(255 255 255 / 45%);
+  letter-spacing: -0.01em;
   font-variant-numeric: tabular-nums;
 }
 
-.laden-schwebe .laden-anzahl {
-  margin-right: 0;
+.laden-notiz {
+  display: none;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 48rem) {
+  .laden-notiz {
+    display: block;
+  }
+}
+
+.laden-leiste-korb {
+  margin-left: auto;
+}
+
+.laden-korbknopf {
+  padding: 0 0.625rem 0 0.875rem;
+}
+
+.laden-korbknopf .wort {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .laden-korbknopf .wort {
+    display: inline;
+  }
 }
 
 .laden-anzahl {
   display: inline-grid;
   place-items: center;
-  min-width: 1.75rem;
-  height: 1.75rem;
-  margin-right: -0.5rem;
-  padding: 0 0.375rem;
-  border-radius: var(--r-full);
-  background: var(--on-primary);
-  color: var(--primary);
-  font-size: 0.9375rem;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.3125rem;
+  border-radius: 0.375rem;
+  background: var(--l-still);
+  font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
+}
+
+/* Bleibt erreichbar, wenn der Kopf des Ladens weggescrollt ist: unten rechts, in der Zone des Daumens */
+.laden-schwebe {
+  position: fixed;
+  right: var(--rand);
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 10;
+  min-height: 3rem;
+  box-shadow: var(--schatten);
+}
+
+.laden-schwebe .laden-anzahl {
+  background: rgb(255 255 255 / 18%);
+}
+
+.laden-schwebe .betrag {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Werkzeuge: Sortierung und Spalten ===== */
+
+.laden-werkzeuge {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.laden-sort {
+  width: min(100%, 14.5rem);
+}
+
+.laden-sort .aw-knopf {
+  min-height: 2.75rem;
+  border-color: var(--l-linie);
+  border-radius: var(--l-radius);
+  font-size: 0.9375rem;
+}
+
+.laden-dichte {
+  display: none;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: var(--l-radius);
+  background: var(--l-still);
+}
+
+@media (min-width: 64rem) {
+  .laden-dichte {
+    display: flex;
+  }
+}
+
+.laden-dichte button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.375rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--l-radius) - 0.1875rem);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: pointer;
+}
+
+/* Gewählt: helles Feld und dunklere Zeichnung, dazu aria-pressed */
+.laden-dichte button[aria-pressed="true"] {
+  background: var(--l-flaeche);
+  color: var(--on-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
 }
 
 /* ===== Raster ===== */
@@ -117,9 +336,13 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1.75rem 0.75rem;
-  margin: 0;
+  margin: 0.75rem 0 0;
   padding: 0;
   list-style: none;
+}
+
+.laden--an .laden-raster {
+  margin-top: 0;
 }
 
 @media (min-width: 40rem) {
@@ -129,15 +352,23 @@
   }
 }
 
-@media (min-width: 64rem) {
+@media (min-width: 75rem) {
   .laden-raster {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
-@media (min-width: 100rem) {
-  .laden-raster {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+@media (min-width: 64rem) {
+  .laden-raster[data-spalten="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .laden-raster[data-spalten="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .laden-raster[data-spalten="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -148,91 +379,60 @@
   min-width: 0;
 }
 
-/* Die Kachel: ein ruhiges, helles Feld im Format 4:5, darauf das Foto in seiner ganzen Form */
-.laden-bild {
+/* Die Kachel: ein ruhiges Feld im Format 4:5, das Foto auf gut drei Vierteln der Breite */
+.laden-kachel {
   position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: var(--r-md);
-  background: var(--kachel);
+  background: var(--l-kachel);
 }
 
-.laden-bild img {
-  width: 84%;
-  height: 84%;
+.laden-kachel img {
+  width: 78%;
+  height: 78%;
   border-radius: 0;
   object-fit: scale-down;
 }
 
-.laden-bild--leer {
-  background: var(--surface-container);
+.laden-kachel--leer {
+  background: var(--l-still);
 }
 
-.laden-artikel--weg .laden-bild img {
+.laden-artikel--weg .laden-kachel img {
   opacity: 0.45;
 }
 
-.laden-text {
-  display: grid;
-  gap: 0.125rem;
-  padding: 0 0.125rem;
-}
-
-.laden .name {
-  margin: 0;
-  font-size: 1.0625rem;
-  line-height: 1.375rem;
-  font-weight: 700;
-  overflow-wrap: anywhere;
-  hyphens: auto;
-}
-
-.laden .preis {
-  color: var(--titel);
-  font-size: 1.0625rem;
-  line-height: 1.5rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-
-.laden .hinweis {
-  color: var(--on-surface-variant);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-}
-
-.laden-varianten {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin: 0.375rem 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.laden-varianten li {
-  min-width: 2rem;
-  padding: 0.125rem 0.5rem;
-  border: 1px solid var(--outline-variant);
-  border-radius: var(--r-full);
-  color: var(--on-surface-variant);
-  font-size: 0.875rem;
+/* Marke in der Ecke der Fläche: der Zustand als Wort */
+.laden-marke {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.875rem;
+  color: #2b2b2b;
+  font-size: 0.8125rem;
   line-height: 1.25rem;
   font-weight: 600;
-  text-align: center;
+  pointer-events: none;
 }
 
-.laden-weg {
-  margin-top: 0.25rem;
-  color: var(--on-surface-variant);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-  font-weight: 600;
+/* Die ganze Kachel öffnet das Artikelfenster */
+.laden-oeffnen {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  cursor: pointer;
 }
 
-/* Runder Knopf in der Ecke der Kachel: 44 px, legt in den Warenkorb oder öffnet die Wahl der Variante */
+.laden-oeffnen:focus-visible {
+  outline-offset: -3px;
+}
+
+/* Runder Knopf in der Ecke: öffnet das schnelle Hinzufügen (für Finger; mit der Maus erscheint der Streifen beim Zeigen) */
 .laden-plus {
   position: absolute;
   right: 0.5rem;
@@ -244,229 +444,631 @@
   padding: 0;
   border: 0;
   border-radius: var(--r-full);
-  background: var(--secondary);
-  color: var(--on-secondary);
+  background: #ffffff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 14%);
   cursor: pointer;
 }
 
-.laden-plus:focus-visible,
-.laden-zu:focus-visible,
-.laden-menge button:focus-visible {
-  outline: 3px solid var(--focus);
-  outline-offset: 2px;
+.schnell-offen .laden-plus,
+.laden-kachel:focus-within .laden-plus:not(:focus) {
+  display: none;
 }
 
-/* ===== Menge: Schrittknöpfe ===== */
+/* Schnelles Hinzufügen: ein Streifen am unteren Rand der Kachel, sonst unter dem Rand verborgen */
+.laden-schnell-ort {
+  position: absolute;
+  inset: auto 0.5rem 0.5rem;
+  translate: 0 calc(100% + 0.75rem);
+  opacity: 0;
+  pointer-events: none;
+}
 
-.laden-menge {
-  display: inline-flex;
+.laden-kachel:focus-within .laden-schnell-ort,
+.schnell-offen .laden-schnell-ort {
+  translate: 0;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) and (min-width: 40rem) {
+  .laden-artikel:hover .laden-schnell-ort {
+    translate: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* Der Streifen ersetzt das Plus, wie in der Vorlage */
+  .laden-artikel:hover .laden-plus {
+    display: none;
+  }
+
+  .laden-schnell-zu {
+    display: none;
+  }
+}
+
+.laden-schnell {
+  padding: 0.5rem;
+  border-radius: var(--l-radius);
+  background: rgb(255 255 255 / 96%);
+  color: #1a1a1a;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 6%),
+    0 8px 24px -12px rgb(0 0 0 / 24%);
+}
+
+.laden-schnell-kopf {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.375rem;
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.laden-schnell-kopf .titel {
+  font-weight: 700;
+}
+
+.laden-schnell-kopf .notiz {
+  overflow: hidden;
+  margin-left: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laden-schnell-zu {
+  position: relative;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: #4d4d4d;
+  cursor: pointer;
+}
+
+.laden-schnell-zu:not([hidden]) {
+  display: grid;
+}
+
+@media (hover: hover) and (min-width: 40rem) {
+  .laden-schnell-zu:not([hidden]) {
+    display: none;
+  }
+}
+
+.laden-schnell-zu::after {
+  content: "";
+  position: absolute;
+  inset: -0.625rem;
+}
+
+.laden-schnell-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.laden-schnell-knoepfe button {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  white-space: nowrap;
+  padding: 0 0.375rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #eceff3;
+  color: #1a1a1a;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.laden-schnell-knoepfe button:hover {
+  background: #dfe4ea;
+}
+
+/* Eben hinzugefügt: dunkles Feld mit Haken, nicht nur eine andere Farbe */
+.laden-schnell-knoepfe button.dazu {
+  background: #013974;
+  color: #ffffff;
+}
+
+.laden-schnell-knoepfe .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Unter der Kachel: Name, dann Preis links und Varianten rechts */
+.laden-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0 0.125rem;
+}
+
+.laden .name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  hyphens: auto;
+}
+
+.laden-fuss {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.laden .preis {
+  flex: none;
+  color: var(--on-surface);
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-varianten {
+  display: flex;
+  gap: 0.5rem;
   min-width: 0;
   margin: 0;
   padding: 0;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
+  overflow: hidden;
+  list-style: none;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  white-space: nowrap;
+}
+
+.laden .hinweis {
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* ===== Menge: ruhige Schrittknöpfe in einem feinen Rahmen ===== */
+
+.laden-menge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 2.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.125rem;
+  border: 1px solid var(--l-linie);
+  border-radius: var(--l-radius);
 }
 
 .laden-menge button {
+  position: relative;
   display: grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.5rem;
+  height: 100%;
   padding: 0;
   border: 0;
-  border-radius: var(--r-full);
+  border-radius: calc(var(--l-radius) - 0.1875rem);
   background: transparent;
-  color: var(--on-surface);
+  color: var(--l-leise);
   cursor: pointer;
 }
 
 .laden-menge button:hover {
-  background: var(--surface-container);
+  background: var(--l-still);
+  color: var(--on-surface);
 }
 
-/* Am Ende der Spanne: blasser und mit durchgestrichenem Zeiger, der Zustand steht auch in aria-disabled */
-.laden-menge button[aria-disabled="true"] {
+.laden-menge .i {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Am Ende der Spanne: blass und ohne Wirkung; der Zustand steht in aria-disabled */
+.laden-menge button[aria-disabled="true"],
+.laden-menge button[aria-disabled="true"]:hover {
+  background: transparent;
   color: var(--outline);
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.laden-menge button[aria-disabled="true"]:hover {
-  background: transparent;
-}
-
 .laden-menge .zahl {
-  min-width: 2rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
+  width: 2rem;
+  font-size: 1rem;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-/* ===== Dialoge ===== */
+.laden-menge--klein {
+  height: 2.25rem;
+}
+
+.laden-menge--klein button {
+  width: 2.125rem;
+}
+
+/* Die Fläche zum Treffen bleibt 44 px hoch */
+.laden-menge--klein button::after {
+  content: "";
+  position: absolute;
+  inset: -0.375rem 0;
+}
+
+.laden-menge--klein .zahl {
+  width: 1.625rem;
+}
+
+/* ===== Fenster, Blatt und Karte: gemeinsamer Grund ===== */
 
 .laden dialog {
-  border: 0;
-  background: var(--karte);
+  border: 1px solid var(--l-linie);
+  background: var(--l-flaeche);
   color: var(--on-surface);
-  box-shadow: var(--schatten);
 }
 
 .laden dialog::backdrop {
-  background: rgb(10 16 28 / 55%);
+  background: rgb(10 14 22 / 45%);
 }
 
-/* Artikel: Bild links, Wahl rechts; schmal untereinander */
-.laden-dialog {
-  width: min(52rem, calc(100vw - 2rem));
-  max-height: calc(100dvh - 2rem);
-  padding: 0.75rem;
-  border-radius: calc(var(--r-md) + 0.75rem);
-  /* Die Liste des Auswahlfelds darf über den Rand ragen */
-  overflow: visible;
-}
-
-.laden-wahl {
+.laden-zu {
+  position: relative;
   display: grid;
-  gap: 1.25rem;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: pointer;
 }
 
-@media (min-width: 44rem) {
-  .laden-wahl {
-    grid-template-columns: 1.05fr 1fr;
-    gap: 2rem;
+.laden-zu::after {
+  content: "";
+  position: absolute;
+  inset: -0.25rem;
+}
+
+.laden-zu:hover {
+  background: var(--l-still);
+  color: var(--on-surface);
+}
+
+/* ===== Artikelfenster: schmal ein Blatt von unten, breit ein Fenster in der Mitte ===== */
+
+.laden-dialog {
+  width: 100%;
+  max-width: 57.5rem;
+  max-height: calc(100dvh - 1.5rem);
+  margin: auto auto 0;
+  padding: 0.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  box-shadow: var(--schatten);
+}
+
+@media (min-width: 40rem) {
+  .laden-dialog {
+    width: calc(100% - 3rem);
+    margin: auto;
+    border-radius: var(--r-md);
   }
 }
 
-.laden-wahl-bild {
+.laden-fenster {
+  position: relative;
+}
+
+.laden-fenster > .laden-zu {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  z-index: 1;
+}
+
+/* Schmal liegt das Schliessen auf der hellen Bühne: eigenes helles Feld, in beiden Tönen lesbar */
+@media (max-width: 39.99rem) {
+  .laden-fenster > .laden-zu {
+    background: rgb(255 255 255 / 90%);
+    color: #1a1a1a;
+  }
+}
+
+.laden-fenster-raster {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Die Bühne: dieselbe ruhige Fläche wie die Kachel, das Foto gross darauf */
+.laden-buehne {
+  position: relative;
   display: grid;
   place-items: center;
   aspect-ratio: 1;
-  max-height: 34dvh;
+  max-height: 42dvh;
   width: 100%;
-  border-radius: var(--r-md);
-  background: var(--kachel);
+  overflow: hidden;
+  border-radius: var(--l-radius);
+  background: var(--l-kachel);
 }
 
-@media (min-width: 44rem) {
-  .laden-wahl-bild {
-    aspect-ratio: 4 / 5;
-    max-height: none;
-  }
+.laden-buehne-bild {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
 }
 
-.laden-wahl-bild img {
-  width: 84%;
-  height: 84%;
+.laden-buehne-bild img {
+  width: 72%;
+  height: 80%;
   border-radius: 0;
   object-fit: scale-down;
 }
 
-.laden-wahl-bild--leer {
-  background: var(--surface-container);
+.laden-buehne-bild--leer {
+  background: var(--l-still);
 }
 
-.laden-wahl-text {
-  display: grid;
-  align-content: center;
-  gap: 1rem;
-  padding: 0 0.75rem 0.75rem;
-}
-
-.laden-wahl-text h2 {
-  margin: 0;
-  font-size: clamp(1.5rem, 1.2rem + 1.2vw, 2rem);
-  line-height: 1.15;
-}
-
-.laden-wahl-text .preis {
-  font-size: 1.375rem;
-  line-height: 1.75rem;
-}
-
-.laden-wahl-menge {
+.laden-fenster-text {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.75rem 0.75rem 1rem;
 }
 
-.laden-beschriftung {
-  font-weight: 700;
+@media (min-width: 46rem) {
+  .laden-fenster-raster {
+    grid-template-columns: 1.05fr 1fr;
+  }
+
+  .laden-buehne {
+    aspect-ratio: auto;
+    min-height: 27.5rem;
+    max-height: none;
+  }
+
+  .laden-fenster-text {
+    padding: 1.5rem 1.25rem 1rem;
+  }
 }
 
-.laden .fehlertext {
+.laden-fenster-kopf {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 0.375rem;
-  color: var(--on-error-container);
+  padding-right: 2.5rem;
+}
+
+.laden-fenster-kopf h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.875rem;
+  letter-spacing: -0.01em;
+}
+
+.laden-fenster-kopf .preis {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.laden-fenster-kopf .beschrieb {
+  margin-top: 0.25rem;
+  color: var(--l-leise);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.laden-wahl {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.laden-wahl legend {
+  margin-bottom: 0.5rem;
+  padding: 0;
+  font-size: 1rem;
   font-weight: 600;
 }
 
-/* Warenkorb: ein Blatt am rechten Rand, am Handy über die ganze Breite */
-.laden-korb {
+.laden-wahl-knoepfe {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+/* Längere Namen (Farben, Ausführungen) bekommen breitere Felder */
+.laden-wahl-knoepfe--breit {
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+}
+
+.laden-wahl-knoepfe button {
+  min-height: 2.75rem;
+  padding: 0 0.375rem;
+  overflow: hidden;
+  border: 1px solid var(--l-linie);
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.laden-wahl-knoepfe button:hover {
+  border-color: var(--outline);
+  background: var(--l-still);
+}
+
+/* Gewählt: gefülltes Feld, dazu aria-pressed */
+.laden-wahl-knoepfe button[aria-pressed="true"] {
+  border-color: var(--l-haupt);
+  background: var(--l-haupt);
+  color: var(--l-auf-haupt);
+}
+
+.laden-kauf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.laden-kauf-zeile {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.laden-dazu {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 0.75rem;
+}
+
+.laden-tausch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.laden-tausch .punkt {
+  opacity: 0.5;
+}
+
+.laden-imkorb {
+  min-height: 1.25rem;
+}
+
+.laden-angaben {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--l-linie);
+  list-style: none;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.laden-angaben li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.laden-angaben .i {
+  margin-top: 1px;
+  color: var(--l-leise);
+}
+
+/* ===== Warenkorb: ein Blatt am rechten Rand, schmal über die ganze Breite ===== */
+
+.laden-blatt {
   inset: 0 0 0 auto;
-  width: min(27rem, 100%);
+  width: min(26.25rem, 100%);
   max-width: none;
   height: 100dvh;
   max-height: none;
   margin: 0;
   padding: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  border-width: 0 0 0 1px;
 }
 
-.laden-korb-inhalt {
-  display: grid;
-  align-content: start;
-  gap: 1.25rem;
-  min-height: 100%;
-  padding: 1.25rem 1.5rem 1.5rem;
+.laden-blatt[open] {
+  display: flex;
+  flex-direction: column;
 }
 
-.laden-korb-kopf {
+.laden-blatt-kopf {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+  padding: 0 0.875rem 0 1.25rem;
+  border-bottom: 1px solid var(--l-linie);
+}
+
+.laden-blatt-kopf h2 {
   display: flex;
   align-items: baseline;
-  gap: 0.75rem;
-}
-
-.laden-korb-kopf h2 {
+  gap: 0.5rem;
   margin: 0;
-  font-size: 1.5rem;
-  line-height: 2rem;
+  color: var(--on-surface);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  letter-spacing: 0;
 }
 
-.laden-korb-kopf h2:focus {
+.laden-blatt-kopf h2:focus,
+.laden-karte-kopf h2:focus {
   outline: none;
 }
 
-.laden-korb-kopf .leise {
+.laden-blatt-kopf .zahl {
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
 
-.laden-zu {
-  display: grid;
-  place-items: center;
-  align-self: center;
-  width: 2.75rem;
-  height: 2.75rem;
-  margin: -0.375rem -0.625rem -0.375rem auto;
-  padding: 0;
-  border: 0;
-  border-radius: var(--r-full);
-  background: transparent;
-  color: var(--on-surface);
-  cursor: pointer;
+.laden-blatt-rumpf {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.25rem;
 }
 
-.laden-zu:hover {
-  background: var(--surface-container);
+.laden-blatt-rumpf > .band {
+  margin-top: 1rem;
 }
 
-.laden-zeilen,
-.laden-positionen,
-.laden-liste {
-  display: grid;
+.laden-blatt-fuss {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+/* Zeilen: Bildfläche, Name und Betrag, darunter Variante, Menge und «Entfernen» */
+.laden-zeilen {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -474,14 +1076,13 @@
 
 .laden-zeilen > li {
   display: flex;
-  gap: 1rem;
+  gap: 0.875rem;
   padding: 1rem 0;
-  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--l-linie);
 }
 
-.laden-zeilen > li:first-child {
-  padding-top: 0;
-  border-top: 0;
+.laden-zeilen > li:last-child {
+  border-bottom: 0;
 }
 
 .laden-zeile-bild {
@@ -490,25 +1091,31 @@
   place-items: center;
   width: 4.75rem;
   height: 4.75rem;
-  border-radius: var(--r-sm);
-  background: var(--kachel);
+  overflow: hidden;
+  border-radius: var(--l-radius);
+  background: var(--l-kachel);
 }
 
 .laden-zeile-bild img {
-  width: 82%;
-  height: 82%;
+  width: 80%;
+  height: 80%;
   border-radius: 0;
   object-fit: scale-down;
 }
 
 .laden-zeile-bild--leer {
-  background: var(--surface-container);
+  background: var(--l-still);
+}
+
+.laden-zeilen--klein .laden-zeile-bild {
+  width: 3.5rem;
+  height: 3.5rem;
 }
 
 .laden-zeile-text {
-  display: grid;
+  display: flex;
   flex: 1;
-  gap: 0.125rem;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -519,76 +1126,226 @@
   gap: 0.75rem;
 }
 
-.laden-zeile-kopf .preis {
+.laden-zeile-kopf .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laden .betrag {
   flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-zeile-text .meta {
+  min-height: 1.25rem;
+  margin-top: 0.125rem;
 }
 
 .laden-zeile-fuss {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
 }
 
-.laden-leer,
-.laden-entfernt {
-  color: var(--on-surface-variant);
+.laden-zeile-fuss .laden-knopf--still {
+  margin-right: -0.5rem;
 }
 
-.laden-entfernt {
-  display: flex;
-  flex-wrap: wrap;
+/* Entfernte Zeile: bleibt an ihrem Platz, bis der Korb sich das nächste Mal ändert */
+.laden-zeilen > li.laden-entfernt {
   align-items: center;
   justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-  padding: 0.25rem 0 0.25rem 1rem;
-  border-radius: var(--r-sm);
-  background: var(--surface-container);
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.875rem;
+  border: 0;
+  border-radius: var(--l-radius);
+  background: var(--l-still);
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
 }
 
-.laden-uebergabe {
-  display: grid;
-  gap: 0.5rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--outline-variant);
+.laden-entfernt p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.laden-angabe {
+.laden-entfernt strong {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-entfernt .laden-link {
+  flex: none;
+}
+
+.laden-reihen {
   display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.laden-reihen > div {
+  display: flex;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  margin: 0;
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
 }
 
-.laden-angabe dt {
-  color: var(--on-surface-variant);
-}
-
-.laden-angabe dd {
-  margin: 0;
-  font-weight: 600;
+.laden-reihen dd {
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
   text-align: right;
 }
 
-.laden-summe {
+.laden-reihen > .stark {
+  margin-top: 0.375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--l-linie);
+  color: var(--on-surface);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.laden-leer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.laden-leer-bild {
+  width: 9rem;
+  margin-bottom: 1rem;
+  fill: none;
+  stroke: var(--outline);
+  stroke-width: 2;
+}
+
+.laden-leer .titel {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.laden-leer .laden-knopf {
+  margin-top: 1.25rem;
+}
+
+/* ===== Bestellübersicht: eine ruhige Karte ===== */
+
+.laden-uebersicht {
+  width: min(26rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-md);
+  box-shadow: var(--schatten);
+}
+
+.laden-karte {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+@media (min-width: 40rem) {
+  .laden-karte {
+    padding: 1.5rem;
+  }
+}
+
+.laden-karte-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.laden-karte-kopf h2 {
+  margin: 0;
+  color: var(--on-surface);
+  font-size: 1.1875rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.laden-karte-kopf .meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-karte-kopf .laden-zu {
+  align-self: center;
+  margin: -0.375rem -0.5rem -0.375rem auto;
+}
+
+.laden-karte-leer {
+  padding: 0.75rem 0;
+}
+
+.laden-karte > .band {
+  margin: 0.75rem 0 1rem;
+}
+
+.laden-karte-wahl {
+  margin-top: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+.laden-karte-wahl .feld {
+  margin: 0;
+}
+
+.laden-karte-reihen {
+  padding-top: 0.375rem;
+}
+
+/* Fuss: links die Summe gross, rechts die eine Hauptaktion */
+.laden-karte-fuss {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--outline-variant);
+  margin-top: 0.875rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--l-linie);
 }
 
-.laden-summe .betrag {
-  color: var(--titel);
-  font-size: 1.875rem;
-  line-height: 2.25rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+.laden-karte-fuss .summe {
+  margin-top: 0.125rem;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+}
+
+.laden-karte-notiz {
+  margin-top: 0.875rem;
+}
+
+.laden-positionen,
+.laden-liste {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 .laden-positionen {
@@ -602,30 +1359,23 @@
   gap: 1rem;
 }
 
-.laden-positionen .preis {
-  flex: none;
-  color: var(--on-surface);
-  font-size: 1rem;
-  font-weight: 600;
-}
-
 /* ===== Deine Bestellungen ===== */
 
 .laden-bestellungen {
   display: grid;
   gap: 1.25rem;
   max-width: 46rem;
-  margin-top: 2rem;
-  padding-top: 2.5rem;
-  border-top: 1px solid var(--outline-variant);
-  scroll-margin-top: 5rem;
+  margin-top: 3.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--l-linie);
+  scroll-margin-top: 6rem;
 }
 
 .laden-bestellungen > h2 {
   margin: 0;
 }
 
-.laden-bestellungen > .btn {
+.laden-bestellungen > .laden-knopf {
   justify-self: start;
 }
 
@@ -637,8 +1387,9 @@
   display: grid;
   gap: 0.875rem;
   padding: 1.25rem 1.5rem;
+  border: 1px solid var(--l-linie);
   border-radius: var(--r-md);
-  background: var(--karte);
+  background: var(--l-flaeche);
 }
 
 .laden-liste-kopf,
@@ -652,96 +1403,148 @@
 
 .laden-liste-kopf h3 {
   margin: 0;
-  font-size: 1.125rem;
+  color: var(--on-surface);
+  font-size: 1.0625rem;
   line-height: 1.5rem;
+  letter-spacing: 0;
 }
 
 .laden-liste-fuss {
   padding-top: 0.875rem;
-  border-top: 1px solid var(--outline-variant);
-}
-
-/* ===== Nacht: Die Kachel bleibt hell (die Fotos haben weissen Grund), aber gedämpft ===== */
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .laden {
-    --kachel: #e9e9e4;
-  }
-}
-
-:root[data-theme="dark"] .laden {
-  --kachel: #e9e9e4;
+  border-top: 1px solid var(--l-linie);
 }
 
 /* ===== Bewegung: nur, wenn erlaubt; ohne sie steht alles sofort da ===== */
 
+.laden-rolle {
+  display: inline-block;
+}
+
 @media screen and (prefers-reduced-motion: no-preference) {
-  .laden-bild img {
-    transition: transform var(--dauer-lang) var(--kurve);
-  }
-
-  .laden-artikel:hover .laden-bild img {
-    transform: scale(1.04);
-  }
-
-  .laden-plus {
-    transition:
-      transform var(--dauer) var(--kurve),
-      background-color var(--dauer) var(--kurve);
-  }
-
-  .laden-plus:hover {
-    transform: scale(1.08);
-  }
-
-  .laden-plus:active {
-    transform: scale(0.94);
-  }
-
+  .laden-knopf,
+  .laden-zu,
   .laden-menge button,
-  .laden-zu {
-    transition: background-color var(--dauer) var(--kurve);
+  .laden-dichte button,
+  .laden-wahl-knoepfe button,
+  .laden-schnell-knoepfe button {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      filter 0.15s ease;
   }
 
-  .laden-korb[open] {
-    animation: laden-blatt var(--dauer-lang) var(--kurve);
+  /* Der Streifen gleitet von unten in die Kachel */
+  .laden-schnell-ort {
+    transition:
+      translate 0.2s var(--l-aus),
+      opacity 0.2s var(--l-aus);
   }
 
-  .laden-dialog[open] {
-    animation: laden-auf var(--dauer) var(--kurve);
+  /* Zahlen rollen: aufwärts von unten, abwärts von oben */
+  .laden-rolle.rollt-auf {
+    animation: laden-rollt-auf 0.3s var(--l-aus);
+  }
+
+  .laden-rolle.rollt-ab {
+    animation: laden-rollt-ab 0.3s var(--l-aus);
+  }
+
+  /* Fenster und Karte: wachsen aus 96 % und steigen 12 px; zurück schneller */
+  .laden-dialog,
+  .laden-uebersicht {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 0.5rem;
+    transition:
+      opacity 0.15s var(--l-aus),
+      scale 0.15s var(--l-aus),
+      translate 0.15s var(--l-aus),
+      overlay 0.15s allow-discrete,
+      display 0.15s allow-discrete;
+  }
+
+  .laden-dialog[open],
+  .laden-uebersicht[open] {
+    opacity: 1;
+    scale: 1;
+    translate: 0;
+    transition-duration: 0.26s;
+  }
+
+  @starting-style {
+    .laden-dialog[open],
+    .laden-uebersicht[open] {
+      opacity: 0;
+      scale: 0.96;
+      translate: 0 0.75rem;
+    }
+  }
+
+  /* Das Blatt gleitet von rechts herein und wieder hinaus */
+  .laden-blatt {
+    translate: 100%;
+    transition:
+      translate 0.3s var(--l-blatt),
+      overlay 0.3s allow-discrete,
+      display 0.3s allow-discrete;
+  }
+
+  .laden-blatt[open] {
+    translate: 0;
+  }
+
+  @starting-style {
+    .laden-blatt[open] {
+      translate: 100%;
+    }
+  }
+
+  .laden dialog::backdrop {
+    opacity: 0;
+    transition:
+      opacity 0.2s var(--l-aus),
+      overlay 0.3s allow-discrete,
+      display 0.3s allow-discrete;
   }
 
   .laden dialog[open]::backdrop {
-    animation: laden-schleier var(--dauer) linear;
+    opacity: 1;
+  }
+
+  @starting-style {
+    .laden dialog[open]::backdrop {
+      opacity: 0;
+    }
   }
 }
 
-@keyframes laden-blatt {
-  from {
-    transform: translateX(2.5rem);
-    opacity: 0;
-  }
-}
-
-@keyframes laden-auf {
-  from {
-    transform: translateY(0.75rem);
-    opacity: 0;
-  }
-}
-
-@keyframes laden-schleier {
+@keyframes laden-rollt-auf {
   from {
     opacity: 0;
+    translate: 0 70%;
   }
 }
 
-/* Erzwungene Farben: Kacheln, Knöpfe und Blätter bekommen einen Rand, damit sie sichtbar bleiben */
+@keyframes laden-rollt-ab {
+  from {
+    opacity: 0;
+    translate: 0 -70%;
+  }
+}
+
+/* Erzwungene Farben: Flächen und Knöpfe bekommen einen Rand, damit sie sichtbar bleiben */
 @media (forced-colors: active) {
-  .laden-bild,
+  .laden-kachel,
   .laden-plus,
-  .laden dialog,
+  .laden-schnell,
+  .laden-knopf,
   .laden-liste > li {
     border: 1px solid CanvasText;
+  }
+
+  .laden-wahl-knoepfe button[aria-pressed="true"],
+  .laden-dichte button[aria-pressed="true"] {
+    outline: 2px solid Highlight;
   }
 }

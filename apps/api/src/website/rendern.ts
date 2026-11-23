@@ -98,6 +98,8 @@ export type Daten = {
   verborgen?: ReadonlySet<string>;
   // Die Artikel des Lädelis (#566) in ihrer Reihenfolge, nach ID; leer, wenn keine Seite den Baustein «laden» hat
   laden: ReadonlyMap<string, LadenArtikel>;
+  // Die Übergabearten des Lädelis in ihrer Reihenfolge (der Name ist der Schlüssel)
+  ladenUebergabe: ReadonlyMap<string, true>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -107,6 +109,7 @@ export const keineDaten = (): Daten => ({
   termine: new Map(),
   anlaesse: new Map(),
   laden: new Map(),
+  ladenUebergabe: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke

@@ -171,7 +171,7 @@ export function preisText(rappen: number): string {
   return `CHF ${franken}.${rest === 0 ? "–" : String(rest).padStart(2, "0")}`;
 }
 
-// Website: Hat eine Seite den Baustein «laden», kommen die Artikel der Abteilung und ihre Bilder in die Daten des Renderers. Zwei Abfragen je Lauf des Abgleichs, keine je Besuch
+// Website: Hat eine Seite den Baustein «laden», kommen die Artikel der Abteilung und ihre Bilder in die Daten des Renderers. Drei Abfragen je Lauf des Abgleichs (Artikel, Übergabearten, Bilder), keine je Besuch
 export const ladeLadenDaten: Datenquelle = async (
   db,
   abteilungId,
@@ -182,7 +182,10 @@ export const ladeLadenDaten: Datenquelle = async (
     d.bausteine.some((b) => b.typ === "laden"),
   );
   if (!gebraucht) return {};
-  const artikel = await ladeArtikel(db, abteilungId);
+  const [artikel, uebergabearten] = await Promise.all([
+    ladeArtikel(db, abteilungId),
+    ladeUebergabearten(db, abteilungId),
+  ]);
   const bildIds = artikel.flatMap((a) => (a.mediumId ? [a.mediumId] : []));
   const bilder =
     bildIds.length === 0
@@ -200,6 +203,7 @@ export const ladeLadenDaten: Datenquelle = async (
   // Maps, weil der Abgleich die Einträge der Quellen je Schlüssel zusammenführt; die Reihenfolge der Artikel bleibt die der Abfrage
   return {
     laden: new Map(artikel.map((a) => [a.id, artikelAnsicht(a)])),
+    ladenUebergabe: new Map(uebergabearten.map((u) => [u, true as const])),
     medien: new Map(
       bilder.map((m) => [
         m.id,

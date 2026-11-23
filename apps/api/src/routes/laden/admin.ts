@@ -332,6 +332,8 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
               details: { uebergabearten: uebergabearten.length },
             });
           });
+          // Die Übergabearten stehen im Laden der Website
+          geaendert(person.abteilungId);
           return c.body(null, 204);
         },
       )
