@@ -16,6 +16,7 @@ Bei **jeder** Arbeit, die Oberfläche, Abläufe, Texte, Formulare, Navigation, D
 - [Checkliste Barrierefreiheit](docs/barrierefreiheit.md): Prüfpunkte mit festen Nummern für jeden Bildschirm; Massstab WCAG 2.2 AA.
 - [Git-Workflow](docs/GIT_WORKFLOW.md): Branches, PRs, Commits, Releases und was nie ins Repo gehört.
 - [Architektur](docs/architektur.md) und [API-Vertrag](docs/api/openapi.yaml): Die Apps zeigen nur, was die API erlaubt.
+- [Rechte: Wer darf was?](docs/rechte.md): Rollen, Rechtekatalog, Grundregeln und Rechte je Bereich; bei jeder neuen Route und jeder Änderung an Rollen oder Rechten nachführen.
 - [Bedrohungsmodell](docs/sicherheit/bedrohungsmodell.md) und [SECURITY.md](SECURITY.md).
 
 ## Weitere Regeln
