@@ -207,7 +207,7 @@ export function fuss(k: Kontext): string {
 ${seiten.length > 0 ? `<nav class="fuss-seiten" aria-labelledby="fuss-seiten"><h2 id="fuss-seiten">Bereiche</h2><ul>${seiten.join("")}</ul></nav>` : ""}
 ${kontakt.length > 0 ? `<div class="fuss-kontakt"><h2>Kontakt</h2><address><ul>${kontakt.join("")}</ul></address></div>` : ""}
 <nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul>${recht.join("")}</ul></nav>
-<div class="fuss-unten"><p class="fuss-copy">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p><a class="btn s fuss-oben" href="#">Nach oben${serialisiere(symbol("pfeil"))}</a></div>
+<div class="fuss-unten"><p class="fuss-copy">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p><a class="verweis fuss-oben" href="#">Nach oben</a></div>
 </div>
 </footer>`;
 }

@@ -178,6 +178,23 @@ describe("Kalender: Alle Termine und Meine Termine", () => {
     );
   });
 
+  test("Standard ist «Alle Termine»: nur «meine» in der Adresse wählt Meine Termine (#622)", () => {
+    expect(kalender.umfangAusPfad([])).toEqual({ nur: "alle", rest: [] });
+    expect(kalender.umfangAusPfad(["2027-01"])).toEqual({
+      nur: "alle",
+      rest: ["2027-01"],
+    });
+    expect(kalender.umfangAusPfad(["liste", "12"]).nur).toBe("alle");
+    expect(kalender.umfangAusPfad(["meine"])).toEqual({
+      nur: "meine",
+      rest: [],
+    });
+    expect(kalender.umfangAusPfad(["meine", "2027-01"])).toEqual({
+      nur: "meine",
+      rest: ["2027-01"],
+    });
+  });
+
   test("die Adresse trägt «meine» nach «kalender»", () => {
     expect(kalender.mitUmfang("#termine/kalender/2027-01", "meine")).toBe(
       "#termine/kalender/meine/2027-01",

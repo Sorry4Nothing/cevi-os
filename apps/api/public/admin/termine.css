@@ -782,3 +782,14 @@ th[aria-sort] .tm-sortknopf {
     position: static;
   }
 }
+
+/* Der Zweck («Sitzung OK», «Elternabend Pilami») ist die erste Angabe einer Anfrage: Er steht im Detail als Titel und darf mehrere Zeilen füllen (bis 200 Zeichen) */
+.tm-anfragen .tm-wofuer {
+  margin-top: 2px;
+  overflow-wrap: anywhere;
+}
+
+.tm-anfragen .tm-wahl {
+  max-width: 28ch;
+  overflow-wrap: anywhere;
+}
