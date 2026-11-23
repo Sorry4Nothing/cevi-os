@@ -121,7 +121,7 @@ describe("Hinweisband", () => {
     );
     expect(html).toContain('<div class="band hinweisband" role="status"><svg');
     expect(html).toContain(
-      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager" class="hinweis-link">Zum Lager<svg',
+      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager" class="verweis">Zum Lager</a></div>',
     );
   });
 

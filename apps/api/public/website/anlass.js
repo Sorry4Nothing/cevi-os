@@ -95,7 +95,11 @@ export function anmeldungInhalt(a, heuteTag) {
       art: "ok",
       symbol: "haken",
       titel: wer,
-      aktion: h("a", { href: anmeldungAdresse(a.id) }, "Anmeldung ansehen"),
+      aktion: h(
+        "a",
+        { class: "verweis", href: anmeldungAdresse(a.id) },
+        "Anmeldung ansehen",
+      ),
     });
   }
   if (!a.anmeldungOffen) {
