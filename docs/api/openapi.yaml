@@ -36929,10 +36929,16 @@ components:
     LadenAnsicht:
       type: object
       required:
+        - angemeldetAls
         - artikel
         - uebergabearten
         - grenzen
       properties:
+        angemeldetAls:
+          type:
+            - string
+            - "null"
+          description: Wie die angemeldete Person heisst (Cevi-Name, sonst Vorname), nur der eigene Name; die Website zeigt «Angemeldet als …». `null`, wenn kein Name hinterlegt ist.
         artikel:
           type: array
           items:

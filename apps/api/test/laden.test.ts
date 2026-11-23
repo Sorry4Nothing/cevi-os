@@ -155,6 +155,32 @@ describe("Laden lesen", () => {
     });
   });
 
+  test("die Antwort nennt, wie die Person angemeldet ist: Cevi-Name, sonst Vorname (nur der eigene Name)", async () => {
+    const [ich] = await db
+      .select({ name: schema.user.name, ceviName: schema.user.ceviName })
+      .from(schema.user)
+      .where(eq(schema.user.id, eltern.id!));
+    const erwartet =
+      ich!.ceviName?.trim() || ich!.name.trim().split(/\s+/)[0] || null;
+    const d = await json(await aufruf(eltern, "GET", "/laden"));
+    expect(d.angemeldetAls).toBe(erwartet);
+    // Mit Cevi-Name zählt der
+    await db
+      .update(schema.user)
+      .set({ ceviName: "Luna" })
+      .where(eq(schema.user.id, eltern.id!));
+    try {
+      expect(
+        (await json(await aufruf(eltern, "GET", "/laden"))).angemeldetAls,
+      ).toBe("Luna");
+    } finally {
+      await db
+        .update(schema.user)
+        .set({ ceviName: ich!.ceviName })
+        .where(eq(schema.user.id, eltern.id!));
+    }
+  });
+
   test("ohne Sitzung 401", async () => {
     expect((await aufruf(konten.ohneLogin, "GET", "/laden")).status).toBe(401);
     expect(

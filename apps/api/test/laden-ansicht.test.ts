@@ -123,6 +123,78 @@ describe("Artikelfenster", () => {
     });
   });
 
+  test("Angemeldet-Zeile (#638): Name oder nur «Angemeldet», dazu «Abmelden»; ohne Sitzung nichts davon", () => {
+    const z = zustand("an");
+    const mit = html(tm.h("div", {}, laden.kontoView({ ...z, name: "Luna" })));
+    expect(mit).toContain("Angemeldet als <strong>Luna</strong>");
+    expect(mit).toContain('data-aktion="abmelden"');
+    expect(mit).toContain("Abmelden");
+    const ohne = html(tm.h("div", {}, laden.kontoView({ ...z, name: null })));
+    expect(ohne).toContain("Angemeldet");
+    expect(ohne).not.toContain("Angemeldet als");
+    // Fehler beim Abmelden steht als Text
+    expect(
+      html(
+        tm.h(
+          "div",
+          {},
+          laden.kontoView({ ...z, kontoFehler: "Nicht geklappt." }),
+        ),
+      ),
+    ).toContain("Nicht geklappt.");
+    // Ohne Sitzung: keine Zeile, keine Bedienelemente; nach Ablauf ein Hinweis
+    const aus = zustand("aus");
+    expect(laden.kontoView(aus)).toBeNull();
+    const hinweis = html(
+      tm.h(
+        "div",
+        {},
+        laden.kontoView({
+          ...aus,
+          sitzungsHinweis: { titel: "Du bist nicht mehr angemeldet." },
+        }),
+      ),
+    );
+    expect(hinweis).toContain("Du bist nicht mehr angemeldet.");
+    expect(hinweis).not.toContain('data-aktion="abmelden"');
+  });
+
+  test("Sitzung (#638): Ende bei 401, Neuladen bei neuer Sitzung, sonst Zustand halten; der Zustand ohne Sitzung hat keinen Korb", () => {
+    expect(laden.kontoSchritt("an", 401)).toBe("ende");
+    expect(laden.kontoSchritt("an", 200)).toBe("bleibt");
+    expect(laden.kontoSchritt("an", 0)).toBe("bleibt");
+    expect(laden.kontoSchritt("an", 500)).toBe("bleibt");
+    expect(laden.kontoSchritt("aus", 200)).toBe("neu");
+    expect(laden.kontoSchritt("aus", 401)).toBe("bleibt");
+    expect(laden.OHNE_SITZUNG).toMatchObject({
+      konto: "aus",
+      name: null,
+      korb: [],
+      bestaetigt: null,
+    });
+    // Ohne Sitzung zeigt der Kopf nur den Weg zur Anmeldung, nie den Warenkorb
+    const kopf = html(tm.h("div", {}, laden.anmeldeView(zustand("aus"))));
+    expect(kopf).toContain("Zum Bestellen anmelden");
+    expect(kopf).not.toContain("Warenkorb");
+  });
+
+  test("Quelltext (#638): Speicher nur mit Sitzung, Sitzungsende bei 401 und nach Zurück-Taste", () => {
+    const js = readFileSync("public/website/laden.js", "utf8");
+    // Der Korb wird nur mit Sitzung geschrieben
+    expect(js).toMatch(
+      /if \(z\.konto === "an"\)\s+setze\("localStorage", SPEICHER/,
+    );
+    // Beim Bestellen, Stornieren und Laden der Bestellungen beendet 401 die Sitzung im Browser
+    expect(js.match(/r\.status === 401/g)!.length).toBeGreaterThanOrEqual(4);
+    expect(js).toContain("function sitzungEnde");
+    expect(js).toContain('setze("localStorage", SPEICHER, null)');
+    // Zurück-Taste (bfcache) und Rückkehr in den Tab fragen neu
+    expect(js).toContain('"pageshow"');
+    expect(js).toContain('"visibilitychange"');
+    // Abmelden über die bestehende Auth-Route
+    expect(js).toContain("/api/auth/sign-out");
+  });
+
   test("angemeldet: Menge und «In den Warenkorb», kein Anmelde-Hinweis", () => {
     const a = artikel();
     const s = html(laden.artikelView(a, wahl(a), zustand("an", a)));
