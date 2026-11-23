@@ -89,9 +89,14 @@ export function gruppenVon(termine) {
 const gruppeName = (gruppen, id) =>
   gruppen.find((g) => g.id === id)?.name ?? null;
 
-// Link zur Anlass-Seite, falls der Termin einen Anlass hat; im öffentlichen Datenplan die öffentliche Seite des Anlasses
+// Link zur Anlass-Seite, falls der Termin einen Anlass hat; im öffentlichen Datenplan die öffentliche Seite des Anlasses. Sonst führt ein Termin mit ID (nur für Angemeldete, der Datenplan hat keine) auf die Seite «Termin» (#671)
 export const anlassLink = (t) =>
-  t.seite ?? (t.anlass ? `/anlass/?id=${t.anlass.id}` : null);
+  t.seite ??
+  (t.anlass
+    ? `/anlass/?id=${t.anlass.id}`
+    : t.id
+      ? `/termin/?id=${t.id}`
+      : null);
 
 export const PLAN_DATEI = "/termine/termine.json";
 const zeitpunkt = (tag, zeit) => {

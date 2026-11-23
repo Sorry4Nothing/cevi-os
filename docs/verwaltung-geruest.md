@@ -483,3 +483,7 @@ Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/se
 ## Änderungen am Gerüst
 
 Das Gerüst ändert sich nach dem ersten Stand nur additiv: neue Klassen in der eigenen Datei, neue Einträge in `navigation.js`. Wer `admin.js`, `admin.css`, `dom.js` oder `index.html` anfasst, hält die Änderung klein und nennt sie im PR. Stile eines Bereichs gehören in `<bereich>.css` mit eigenem Klassenvorsatz.
+
+### Raum anfragen: «Meine Anfragen» (#671)
+
+Die Unterseite «Meine Anfragen» im Bereich «Räume» (`raeume-meine.js`, `zugang: "belegung"`, also für alle Leitenden) ist das Gegenstück zu «Raum anfragen» und «Meine Raumanfragen» der App. Knopf «Raum anfragen» öffnet eine Seite im Fluss mit Raum (eigenes Auswahlfeld), Beginn und Ende (`datumZeitFeld`, Zürcher Zeit), Zweck; die Prüfung läuft vor dem Senden (Zukunft, Ende nach Beginn, höchstens 14 Tage, Zweck höchstens 200 Zeichen), der Server prüft weiter alles (409 `RAUM_BELEGT`, `ANFRAGE_LIMIT`, 429). Die Liste zeigt die eigenen Anfragen mit Status als Wort und Symbol (Angefragt, Bestätigt, Abgelehnt mit Grund, Zurückgezogen); «Zurückziehen» ist ein zweistufiger Knopf in der Zeile. Abfragen: beim Öffnen zwei, je Anfrage und Zurückziehen eine, kein Polling. Der Hinweis in der Belegung verweist auf diese Seite.

@@ -32,6 +32,9 @@ export const RESERVIERTE_ADRESSEN: readonly string[] = [
   // Die Seiten für Termine und Anlässe (#530)
   "termine",
   "anlass",
+  // Termin mit Antwort je Kind und Mein Konto (#671)
+  "termin",
+  "konto",
   "sitemap.xml",
   "robots.txt",
   ".well-known",

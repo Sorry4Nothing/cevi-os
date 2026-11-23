@@ -917,3 +917,20 @@ Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`
 ### Stand der Prüfung (#663)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.
+
+## 62. Website und Verwaltung: Gleichstand mit der App ausserhalb des Lagers (#671)
+
+Gilt für die Website-Seiten `/termin` (`termin.js`) und `/konto` (`konto.js`) sowie für «Meine Anfragen» der Räume in der Verwaltung (`raeume-meine.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9 und 10 gelten, ebenso die Abschnitte 11 (Website), 12 (Verwaltung, Termine) und 31 (Raumanfragen).
+
+- [ ] **62.1** Antworten Ja oder Nein (`/termin`) sind eine Gruppe von Knöpfen mit `aria-pressed`, benannt nach der Person (`aria-labelledby` auf den Namen); ohne Antwort steht «Noch keine Antwort» als Text. Ist der Termin abgesagt oder begonnen, gibt es keine Knöpfe, die Antwort steht als Wort («Ja», «Nein», «Noch keine Antwort») mit der Erklärung «Antworten ist nicht mehr möglich».
+- [ ] **62.2** Beim Speichern einer Antwort sind die Knöpfe `aria-disabled` und `aria-busy`; das Ergebnis kommt als Ansage in der Statusregion («Gespeichert: Ja.») und der Fokus bleibt auf dem gedrückten Knopf. Ein Fehler steht als Band mit `role="alert"` über der Liste, die Auswahl bleibt unverändert.
+- [ ] **62.3** Die Zusagen für Leitende («Antworten») nennen Zahlen und Namen als Text mit Wort («Ja», «Noch keine Antwort»); Farbe verstärkt nur. Telefonnummern sind echte Links (`tel:`), Name und Nummer stehen in einer Zeile oder umbrechen ohne waagrechtes Scrollen.
+- [ ] **62.4** `/konto`: Beim Startpasswort steht nur die Karte «Wähle dein Passwort» mit Erklärung; Felder haben sichtbare Beschriftungen, `autocomplete` (`current-password`, `new-password`), Einfügen ist erlaubt (WCAG 3.3.8), Fehler stehen beim Feld mit Symbol und Text (`aria-describedby`, `aria-invalid`), der Fokus geht auf das erste fehlerhafte Feld. «Passwörter anzeigen» ist ein Knopf mit `aria-pressed`. Das Passwort wird nach dem Senden geleert.
+- [ ] **62.5** Mitteilungsschalter: je eine Gruppe «Ein/Aus» mit `aria-pressed` und sichtbarem Text, Zustand nie nur über Farbe; der Hinweis sagt, dass sie für die App gelten.
+- [ ] **62.6** «Überall abmelden» fragt in der Zeile nach («Alle anderen Geräte abmelden?» mit «Ja, überall abmelden» und «Abbrechen», Ansage per `role="status"`, Fokus auf dem ersten Knopf der Frage); kein Dialog des Browsers.
+- [ ] **62.7** «Meine Anfragen» (Verwaltung): Das Formular ist eine Seite im Fluss mit Zurück; Fehler stehen beim Feld und in einer Zusammenfassung mit Sprungmarken; Datum und Uhrzeit sind die eigenen Felder (Tippen und Kalender); der Status steht als Wort mit Symbol; «Zurückziehen» ist zweistufig mit Ansage, der Fokus geht danach an die Überschrift.
+- [ ] **62.8** Alle Seiten: Zielgrösse 44 px, sichtbarer Fokus, Hell und Dunkel, 390 bis 1440 px ohne waagrechtes Scrollen, kein Inline-Skript und kein `style`-Attribut (CSP), Bewegung nur unter `no-preference`. Ohne Anmeldung zeigt jede Seite «Melde dich an» mit Weg zurück zur Seite (nur ein Pfad der eigenen Website, `sicheresZiel`).
+
+### Stand der Prüfung (#671)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank mit erfundenen Demo-Konten für Eltern, Stufenleitung und Entwickler) gesehen und bedient: 62.1 und 62.2 (Antwort setzen, Fokus bleibt), 62.3, 62.4 (auch der Pflichtwechsel mit Startpasswort bis zur Seite danach), 62.5 (Schalter, Telefon speichern), 62.6 nur die Darstellung der Frage in der Ansicht (Test), 62.7 (anfragen, zurückziehen, Fehlerzusammenfassung), 62.8 bei 1440 und 390 px, Hell und Dunkel, Ziele unter 44 px: keine gefunden. Per Test: Ansichten ohne Browser (`test/website-konto-termin.test.ts`, `test/admin-raeume-meine.test.ts`). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Kontrastmessung, 200 % Zoom per Browser-Einstellung, 2560 px, Windows-Hochkontrast, das Verhalten bei sehr langen Namen.
