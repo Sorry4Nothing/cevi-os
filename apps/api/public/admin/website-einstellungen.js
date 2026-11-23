@@ -1,6 +1,7 @@
 import { anfrage, ApiFehler } from "./api.js";
 import { bildMitLader, bildwahl } from "./bildwahl.js";
 import { el, feld, knopf, STANDARD_LOGO } from "./dom.js";
+import { formularRaster } from "./formularraster.js";
 import { sk } from "./lader.js";
 import { band, keinRecht } from "./website-dialoge.js";
 
@@ -65,32 +66,21 @@ const bildUrl = (id) => `/api/v1/medien/${id}`;
 
 // Zwei Spalten wie das Formular: Felder links, Vorschau rechts
 function skeletonEinstellungen() {
-  return el(
-    "div",
-    { class: "ws-einst-spalten", "aria-hidden": "true" },
-    el(
-      "div",
-      { class: "ws-einst-felder" },
+  return formularRaster({
+    felder: [
       el("div", { class: "feld" }, sk("t", 80), sk("b", 380)),
       ...BILDER.map(() =>
         el(
           "div",
-          { class: "feld" },
+          { class: "feld", "aria-hidden": "true" },
           sk("t", 200),
           sk("t", 320),
           el("div", { class: "sk-zeile" }, sk("r", 136), sk("r", 112)),
         ),
       ),
-    ),
-    el(
-      "div",
-      { class: "ws-einst-vorschau" },
-      sk("t", 112),
-      sk("b", 380),
-      sk("b", 380),
-      sk("b", 380),
-    ),
-  );
+    ],
+    seite: [sk("b", 380), sk("b", 380), sk("b", 380)],
+  });
 }
 
 export function zeige(bereich, ctx) {
@@ -186,7 +176,11 @@ function zeichne(bereich, ctx, stand) {
             )
           : el("img", { src: STANDARD_LOGO, alt: "", class: "ws-v-zeichen" }),
       ),
-      el("span", { class: "ws-v-tabtext" }, name.eingabe.value.trim() || stand.name),
+      el(
+        "span",
+        { class: "ws-v-tabtext" },
+        name.eingabe.value.trim() || stand.name,
+      ),
     );
     fehlerseite.replaceChildren(
       fehler
@@ -243,7 +237,7 @@ function zeichne(bereich, ctx, stand) {
         id
           ? bildMitLader(
               el("img", { src: bildUrl(id), alt: "", decoding: "async" }),
-              "ws-einst-minibild",
+              `ws-einst-minibild${b.feld === "logoDunkelMediumId" ? " ws-einst-minibild--dunkel" : ""}`,
             )
           : el("span", { class: "ws-einst-minibild ws-einst-minibild--leer" }),
       );
@@ -259,10 +253,19 @@ function zeichne(bereich, ctx, stand) {
     const titelId = `bf-${b.feld}`;
     return el(
       "div",
-      { class: "feld ws-einst-bild", role: "group", "aria-labelledby": titelId },
+      {
+        class: "feld ws-einst-bild",
+        role: "group",
+        "aria-labelledby": titelId,
+      },
       el("span", { class: "legende", id: titelId }, b.titel),
       el("p", { class: "hilfe" }, b.hilfe),
-      el("div", { class: "ws-einst-wahl" }, mini, el("div", {}, text, aktionen)),
+      el(
+        "div",
+        { class: "ws-einst-wahl" },
+        mini,
+        el("div", {}, text, aktionen),
+      ),
       w.panel,
     );
   };
@@ -277,27 +280,21 @@ function zeichne(bereich, ctx, stand) {
   const formular = el(
     "form",
     { class: "formular ws-einstellungen", novalidate: true },
-    el(
-      "div",
-      { class: "ws-einst-spalten" },
-      el(
-        "div",
-        { class: "ws-einst-felder" },
+    formularRaster({
+      felder: [
         name.wurzel,
         ...BILDER.map(bildFeld),
-      ),
-      el(
-        "aside",
-        { class: "ws-einst-vorschau", "aria-label": "Vorschau" },
-        el("h2", { class: "ws-einst-vtitel" }, "So sieht es aus"),
+        meldung,
+        el("div", { class: "ws-einst-leiste" }, status, speichern),
+      ],
+      seiteTitel: "So sieht es aus",
+      seite: [
         vorschauKarte("Kopf am Tag", kopfHell),
         vorschauKarte("Kopf in der Nacht", kopfDunkel),
         vorschauKarte("Tab im Browser", tab),
         vorschauKarte("Fehlerseite", fehlerseite),
-      ),
-    ),
-    meldung,
-    el("div", { class: "ws-einst-leiste" }, status, speichern),
+      ],
+    }),
   );
   zeichneVorschau();
   zeigeStatus();

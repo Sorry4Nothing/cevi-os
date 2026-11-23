@@ -5,21 +5,6 @@
   --v-hell-text: #1a1a1a;
   --v-dunkel: #141412;
   --v-dunkel-text: #f3f3ef;
-  max-width: 76rem;
-}
-
-.ws-einst-spalten {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
-  gap: 32px;
-  align-items: start;
-}
-
-.ws-einst-felder {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  min-width: 0;
 }
 
 /* Ein Bildfeld: Titel, Hilfe, kleine Vorschau mit Knöpfen */
@@ -54,28 +39,17 @@
   border-radius: 12px;
 }
 
+.bild-box.ws-einst-minibild:not(.bild-laedt) {
+  background: var(--v-hell);
+}
+
+.bild-box.ws-einst-minibild--dunkel:not(.bild-laedt) {
+  background: var(--v-dunkel);
+}
+
 .ws-einst-minibild--leer {
   background: var(--leiste);
   border-style: dashed;
-}
-
-/* Vorschau: bleibt beim Scrollen der Felder im Blick */
-.ws-einst-vorschau {
-  position: sticky;
-  top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-width: 0;
-  padding: 16px;
-  background: var(--karte);
-  border: 1px solid var(--rand-leise);
-  border-radius: 16px;
-}
-
-.ws-einst-vtitel {
-  margin: 0;
-  font-size: 1.125rem;
 }
 
 .ws-v-karte {
@@ -200,7 +174,7 @@
   width: 100%;
 }
 
-.ws-v-fehlerbild > img {
+.bild-box.ws-v-fehlerbild > img {
   object-fit: cover;
 }
 
@@ -256,19 +230,30 @@
   border-color: var(--rot);
 }
 
-@media (max-width: 1100px) {
-  .ws-einst-spalten {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .ws-einst-vorschau {
-    position: static;
-  }
-}
-
 @media (max-width: 760px) {
   .ws-einst-wahl {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* Die Seite hat einen Kopf über dem Formular: Das Raster wächst mit, nur die Vorschau bleibt beim Scrollen stehen (das Formularraster der Flussseiten füllt sonst die Höhe des Fensters) */
+@media (min-width: 68.8125em) {
+  .ws-einstellungen .formularraster {
+    height: auto;
+    min-height: 0;
+    align-items: start;
+  }
+
+  .ws-einstellungen .formularraster-felder {
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .ws-einstellungen .formularraster-seite {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
   }
 }

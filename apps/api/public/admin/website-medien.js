@@ -1,5 +1,8 @@
 import { ApiFehler, anfrage, fehlertext, hochladen } from "./api.js";
-import { chip, el, feld, filterGruppe, knopf, neueId, tag } from "./dom.js";
+import { bildMitLader } from "./bildwahl.js";
+import { chip, el, feld, knopf, neueId, tag } from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
+import { formularRaster } from "./formularraster.js";
 import { sk } from "./lader.js";
 import {
   anzahlText,
@@ -36,6 +39,35 @@ const ALT_HILFE = `Beschreibe, was man sieht. Der Text hilft Menschen, die das B
 const ZIERDE = "Nur Zierde: Das Bild braucht keine Beschreibung";
 const ALT_FEHLT = "Gib einen Alt-Text ein oder wähle «Nur Zierde».";
 
+// Symbole der Ansichtswahl (eigene Zeichen im Raster der übrigen Symbole)
+function ansichtSymbol(art) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("class", "i");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("aria-hidden", "true");
+  const formen =
+    art === "raster"
+      ? [
+          [4, 4, 7, 7],
+          [13, 4, 7, 7],
+          [4, 13, 7, 7],
+          [13, 13, 7, 7],
+        ]
+      : [
+          [4, 5, 16, 3],
+          [4, 10.5, 16, 3],
+          [4, 16, 16, 3],
+        ];
+  for (const [x, y, w, h] of formen) {
+    const r = document.createElementNS(ns, "rect");
+    for (const [k, v] of Object.entries({ x, y, width: w, height: h, rx: 1.5 }))
+      r.setAttribute(k, String(v));
+    svg.append(r);
+  }
+  return svg;
+}
+
 const istBild = (m) => m.mimeTyp.startsWith("image/");
 
 // Kurzer Name für Knöpfe und Rückfragen: Ein Bild hat keinen Dateinamen, also zählt seine Beschreibung
@@ -58,6 +90,20 @@ function altChip(m) {
     ? chip("Alt-Text vorhanden", "ok")
     : chip("Alt-Text fehlt", "warn");
 }
+
+const sichtChip = (m) =>
+  m.sichtbarkeit === "oeffentlich"
+    ? chip("Öffentlich", undefined, "website")
+    : chip("Nur angemeldet", undefined, "schild");
+
+const metaText = (m) =>
+  [
+    groesseText(m.groesse),
+    m.breite && `${m.breite} × ${m.hoehe} Pixel`,
+    tag(m.erstelltAm),
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
 // Der Typ ergibt sich aus den ersten Bytes, wie auf dem Server; die Endung sagt nichts
 async function pruefeDatei(datei) {
@@ -96,22 +142,26 @@ export function zeige(bereich, ctx) {
   );
 }
 
-// Das Raster, solange es lädt: Werkzeugzeile und Karten mit Bild, Name, Chip und Grösse (G3 «Galerie / Medienraster»)
-function skeletonMedien() {
-  const karte = () =>
+// Karten, die noch laden: Bild, Name, Chip und Grösse in der Form der echten Karte (G3 «Galerie / Medienraster»)
+const skeletonKarten = (n) =>
+  Array.from({ length: n }, () =>
     el(
       "li",
-      { class: "medium", "aria-hidden": "true" },
-      sk("b", 320),
+      { class: "medium ws-platzhalter", "aria-hidden": "true" },
+      el("span", { class: "bild" }),
       sk("t", 136),
       sk("r", 112),
       sk("t", 48),
-    );
+    ),
+  );
+
+// Das Raster, solange es lädt: Werkzeugzeile und Karten
+function skeletonMedien() {
   return el(
     "div",
-    { class: "sk-seitenliste" },
+    { class: "sk-seitenliste ws-platzhalter" },
     el("div", { class: "werkzeuge" }, sk("r", 380), sk("r", 380)),
-    el("ul", { class: "medien" }, Array.from({ length: 8 }, karte)),
+    el("ul", { class: "medien" }, skeletonKarten(8)),
   );
 }
 
@@ -131,10 +181,10 @@ function zeichne(bereich, ctx, erste) {
   let stand = new Date();
 
   const raster = el("ul", { class: "medien", "aria-label": "Medien" });
-  const zaehler = el("p", { class: "klein leise", role: "status" });
+  const weiterText = el("p", { class: "klein leise", role: "status" });
   const leer = el("div", { hidden: true });
   const meldungsplatz = el("div", {});
-  const auswahlPlatz = el("div", {});
+  const auswahlPlatz = el("div", { class: "ws-auswahlplatz" });
   const mehr = knopf("Weitere Bilder laden", {
     klein: true,
     onclick: () => {
@@ -143,53 +193,106 @@ function zeichne(bereich, ctx, erste) {
       ladeWeitere();
     },
   });
-  const suchId = neueId("suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Alt-Text suchen",
-    autocomplete: "off",
-    oninput: () => {
-      window.clearTimeout(timer);
-      timer = setTimeout(neueSuche, 300);
-    },
-  });
-  const filter = filterGruppe({
-    beschriftung: "Art",
-    wert: "alle",
-    eintraege: [
-      { text: "Alle", wert: "alle" },
-      { text: "Bilder", wert: "bilder" },
-      { text: "Dateien", wert: "dateien" },
-      { text: "Alt-Text fehlt", wert: "alt" },
+  // Filterleiste (Suche im Alt-Text auf dem Server, Art und Sichtbarkeit auf den geladenen Medien) mit laufender Trefferzahl
+  let sichtFilter = "alle";
+  let letzteFrage = "";
+  const leiste = filterleiste({
+    suche: { label: "Alt-Text suchen" },
+    filter: [
+      {
+        schluessel: "art",
+        label: "Art",
+        optionen: [
+          ["alle", "Alle"],
+          ["bilder", "Bilder"],
+          ["dateien", "Dateien"],
+          ["alt", "Alt-Text fehlt"],
+        ],
+      },
+      {
+        schluessel: "sicht",
+        label: "Sichtbarkeit",
+        optionen: [
+          ["alle", "Alle"],
+          ["oeffentlich", "Öffentlich"],
+          ["angemeldet", "Nur angemeldet"],
+        ],
+      },
     ],
-    beiAenderung: (w) => {
-      artFilter = w;
-      zeigeZustand();
+    namen: { einzahl: "Medium", mehrzahl: "Medien" },
+    beiAenderung: ({ suche: begriff, filter: f }) => {
+      artFilter = f.art;
+      sichtFilter = f.sicht;
+      // Die Suche läuft auf dem Server: kurz warten, bis das Tippen pausiert
+      if (begriff !== letzteFrage) {
+        letzteFrage = begriff;
+        window.clearTimeout(timer);
+        timer = setTimeout(neueSuche, 300);
+      } else {
+        zeigeZustand();
+      }
     },
   });
+  const sucheEingabe = () => leiste.wurzel.querySelector("input[type=search]");
+
+  // Ansicht: Raster oder Liste (dieselben Karten, nur anders gelegt); die Wahl merkt sich der Browser
+  let ansicht = "raster";
+  try {
+    if (window.localStorage.getItem("ceviMedienAnsicht") === "liste")
+      ansicht = "liste";
+  } catch {
+    /* ohne Speicher bleibt es beim Raster */
+  }
+  const ansichtKnoepfe = [
+    ["raster", "Raster"],
+    ["liste", "Liste"],
+  ].map(([wert, text]) =>
+    el(
+      "button",
+      {
+        type: "button",
+        class: "ws-ansicht-knopf",
+        "aria-pressed": String(ansicht === wert),
+        onclick: () => setzeAnsicht(wert),
+      },
+      ansichtSymbol(wert),
+      text,
+    ),
+  );
+  function setzeAnsicht(wert) {
+    ansicht = wert;
+    try {
+      window.localStorage.setItem("ceviMedienAnsicht", wert);
+    } catch {
+      /* ohne Speicher gilt die Wahl nur für diesen Besuch */
+    }
+    ansichtKnoepfe.forEach((k, i) =>
+      k.setAttribute("aria-pressed", String(["raster", "liste"][i] === wert)),
+    );
+    raster.classList.toggle("medien--liste", wert === "liste");
+  }
+  raster.classList.toggle("medien--liste", ansicht === "liste");
   const werkzeuge = el(
     "div",
-    { class: "werkzeuge" },
+    { class: "ws-werkzeuge" },
+    leiste.wurzel,
     el(
       "div",
-      { class: "suche" },
-      el("label", { class: "nur-leser", for: suchId }, "Medien suchen"),
-      symbol("lupe"),
-      suche,
+      { class: "ws-ansicht", role: "group", "aria-label": "Ansicht" },
+      ansichtKnoepfe,
     ),
-    filter.wurzel,
   );
 
   const passt = (m) =>
-    artFilter === "alle" ||
-    (artFilter === "bilder" && istBild(m)) ||
-    (artFilter === "dateien" && !istBild(m)) ||
-    (artFilter === "alt" &&
-      istBild(m) &&
-      !m.dekorativ &&
-      !(m.altText ?? "").trim());
+    (artFilter === "alle" ||
+      (artFilter === "bilder" && istBild(m)) ||
+      (artFilter === "dateien" && !istBild(m)) ||
+      (artFilter === "alt" &&
+        istBild(m) &&
+        !m.dekorativ &&
+        !(m.altText ?? "").trim())) &&
+    (sichtFilter === "alle" ||
+      (sichtFilter === "oeffentlich") === (m.sichtbarkeit === "oeffentlich"));
 
   function zeigeZustand() {
     const n = eintraege.size;
@@ -198,14 +301,13 @@ function zeichne(bereich, ctx, erste) {
       e.li.hidden = !passt(e.m);
       if (!e.li.hidden) sichtbar++;
     }
-    const gefiltert = frage.trim() || artFilter !== "alle";
-    werkzeuge.hidden = n === 0 && !frage.trim();
-    zaehler.textContent =
-      n === 0
-        ? ""
-        : sichtbar === n
-          ? `${anzahlText(n, "1 Medium", "Medien")}${weitere ? ", weitere folgen beim Scrollen" : ""}`
-          : `${sichtbar} von ${anzahlText(n, "1 Medium", "Medien")}${weitere ? ", weitere folgen beim Scrollen" : ""}`;
+    const gefiltert =
+      frage.trim() || artFilter !== "alle" || sichtFilter !== "alle";
+    werkzeuge.hidden = n === 0 && !frage.trim() && !gefiltert;
+    leiste.setzeTreffer(sichtbar, n);
+    weiterText.textContent = weitere
+      ? "Weitere Medien folgen beim Scrollen."
+      : "";
     leer.hidden = sichtbar > 0;
     leer.replaceChildren();
     raster.hidden = sichtbar === 0;
@@ -229,11 +331,8 @@ function zeichne(bereich, ctx, erste) {
               [
                 knopf("Filter zurücksetzen", {
                   onclick: () => {
-                    suche.value = "";
-                    artFilter = "alle";
-                    filter.setze("alle");
-                    neueSuche();
-                    suche.focus();
+                    leiste.setzeAlles();
+                    sucheEingabe()?.focus();
                   },
                 }),
               ],
@@ -245,31 +344,58 @@ function zeichne(bereich, ctx, erste) {
     zeichneAuswahl();
   }
 
+  // Auswahlleiste: bleibt am unteren Rand sichtbar, solange etwas gewählt ist
+  function waehleAlle(an) {
+    for (const e of eintraege.values()) {
+      if (!e.box || e.li.hidden) continue;
+      e.box.checked = an;
+      e.li.classList.toggle("gewaehlt", an);
+      if (an) gewaehlt.add(e.m.id);
+      else gewaehlt.delete(e.m.id);
+    }
+    zeichneAuswahl();
+  }
   function zeichneAuswahl() {
     if (gewaehlt.size === 0) {
       auswahlPlatz.replaceChildren();
       return;
     }
+    // Neu zeichnen nur, wenn es die Leiste noch nicht gibt; sonst ändert sich nur die Zahl (der Fokus bleibt)
+    const vorhanden = auswahlPlatz.querySelector(".ws-auswahlzahl");
+    if (vorhanden) {
+      vorhanden.textContent = `${gewaehlt.size} gewählt`;
+      return;
+    }
     auswahlPlatz.replaceChildren(
       el(
         "div",
-        { class: "auswahlleiste", role: "region", "aria-label": "Auswahl" },
-        el("span", { class: "ws-auswahlzahl" }, `${gewaehlt.size} gewählt`),
+        {
+          class: "ws-auswahlleiste",
+          role: "region",
+          "aria-label": "Auswahl",
+        },
+        el(
+          "span",
+          { class: "ws-auswahlzahl", role: "status" },
+          `${gewaehlt.size} gewählt`,
+        ),
+        knopf("Alle wählen", {
+          klein: true,
+          onclick: () => waehleAlle(true),
+        }),
         knopf("Löschen", {
           klein: true,
           art: "gefahr",
+          symbol: "papierkorb",
           onclick: () => loescheAuswahl(),
         }),
         knopf("Auswahl aufheben", {
           klein: true,
           onclick: () => {
+            waehleAlle(false);
             gewaehlt.clear();
-            for (const e of eintraege.values()) {
-              if (e.box) e.box.checked = false;
-              e.li.classList.remove("gewaehlt");
-            }
             zeichneAuswahl();
-            suche.focus();
+            sucheEingabe()?.focus();
           },
         }),
       ),
@@ -279,26 +405,20 @@ function zeichne(bereich, ctx, erste) {
   function karte(m) {
     const kontext = kurzname(m);
     const bild = istBild(m);
-    const vorschau = el("div", { class: "bild" });
-    if (bild) {
-      vorschau.append(
-        el("img", {
-          src: m.url,
-          alt: "",
-          width: m.breite,
-          height: m.hoehe,
-          loading: "lazy",
-          decoding: "async",
-          // Fehlt die Datei, steht ein Wort an ihrer Stelle
-          onerror: (e) =>
-            e.target.replaceWith(
-              el("span", { class: "ws-ohne" }, "Vorschau nicht verfügbar"),
-            ),
-        }),
-      );
-    } else {
-      vorschau.append(el("span", { class: "ws-ohne" }, "PDF"));
-    }
+    // Ein ruhiger Platzhalter steht, bis das Bild da ist; fehlt die Datei, steht ein Wort an seiner Stelle
+    const vorschau = bild
+      ? bildMitLader(
+          el("img", {
+            src: m.url,
+            alt: "",
+            width: m.breite,
+            height: m.hoehe,
+            loading: "lazy",
+            decoding: "async",
+          }),
+          "bild",
+        )
+      : el("div", { class: "bild" }, el("span", { class: "ws-ohne" }, "PDF"));
     const box = verwalten
       ? el("input", {
           type: "checkbox",
@@ -315,6 +435,7 @@ function zeichne(bereich, ctx, erste) {
       bild && verwalten
         ? knopf("Alt-Text ändern", {
             klein: true,
+            class: "knopf knopf--klein ws-alt",
             symbol: "bearbeiten",
             kontext,
             onclick: () => aendereDialog(m),
@@ -326,25 +447,8 @@ function zeichne(bereich, ctx, erste) {
       box && el("div", { class: "wahl" }, box),
       vorschau,
       el("p", { class: "name ws-medienname" }, titelText(m)),
-      el(
-        "ul",
-        { class: "chips" },
-        altChip(m),
-        m.sichtbarkeit === "oeffentlich"
-          ? chip("Öffentlich", undefined, "website")
-          : chip("Nur angemeldet", undefined, "schild"),
-      ),
-      el(
-        "p",
-        { class: "klein leise" },
-        [
-          groesseText(m.groesse),
-          m.breite && `${m.breite} × ${m.hoehe} Pixel`,
-          tag(m.erstelltAm),
-        ]
-          .filter(Boolean)
-          .join(" · "),
-      ),
+      el("ul", { class: "chips" }, altChip(m), sichtChip(m)),
+      el("p", { class: "klein leise ws-meta" }, metaText(m)),
       !bild &&
         el(
           "p",
@@ -405,16 +509,21 @@ function zeichne(bereich, ctx, erste) {
   async function neueSuche() {
     if (!raster.isConnected) return;
     const mein = ++lauf;
-    frage = suche.value;
+    frage = leiste.stand().suche;
     meldungsplatz.replaceChildren();
     raster.setAttribute("aria-busy", "true");
-    zaehler.textContent = "Suche läuft …";
+    // Karten, die noch laden, statt einer leeren oder alten Liste
+    raster.hidden = false;
+    leer.hidden = true;
+    raster.replaceChildren(...skeletonKarten(8));
+    weiterText.textContent = "Suche läuft …";
     try {
       const daten = await hole(0);
       if (mein !== lauf) return;
       ersetze(daten);
     } catch (f) {
       if (mein !== lauf) return;
+      raster.replaceChildren(...[...eintraege.values()].map((e) => e.li));
       zeigeZustand();
       zeigeFehler(f, neueSuche);
     } finally {
@@ -428,6 +537,8 @@ function zeichne(bereich, ctx, erste) {
     const mein = lauf;
     mehr.disabled = true;
     raster.setAttribute("aria-busy", "true");
+    const platzhalter = skeletonKarten(4);
+    raster.append(...platzhalter);
     try {
       // Der Versatz ist die Zahl der geladenen Bilder: Ein neues oder gelöschtes Bild ändert ihn hier im Gleichschritt mit dem Server
       const daten = await hole(eintraege.size);
@@ -445,6 +556,7 @@ function zeichne(bereich, ctx, erste) {
         ladeWeitere();
       });
     } finally {
+      for (const p of platzhalter) p.remove();
       laedt = false;
       mehr.disabled = false;
       if (mein === lauf) {
@@ -559,17 +671,38 @@ function zeichne(bereich, ctx, erste) {
         abbrechen.disabled = false;
       }
     });
+    // Zwei Spalten: links der Text, rechts das Bild gross, damit man beschreibt, was man sieht
     const f = fenster({
       titel: "Alt-Text ändern",
       beschreibung: `Für «${kurzname(m)}».`,
+      breit: true,
       inhalt: [
-        alt.wurzel,
-        el(
-          "div",
-          { class: "wahl" },
-          zierde,
-          el("label", { for: zierde.id }, ZIERDE),
-        ),
+        formularRaster({
+          felder: [
+            alt.wurzel,
+            el(
+              "div",
+              { class: "wahl" },
+              zierde,
+              el("label", { for: zierde.id }, ZIERDE),
+            ),
+          ],
+          seiteTitel: "Das Bild",
+          seite: [
+            bildMitLader(
+              el("img", {
+                src: m.url,
+                alt: m.altText ?? "",
+                width: m.breite,
+                height: m.hoehe,
+                decoding: "async",
+              }),
+              "ws-altbild",
+            ),
+            el("ul", { class: "chips" }, altChip(m), sichtChip(m)),
+            el("p", { class: "klein leise" }, metaText(m)),
+          ],
+        }),
       ],
       fuss: [abbrechen, speichern],
     });
@@ -671,6 +804,14 @@ function zeichne(bereich, ctx, erste) {
     );
     const gewaehlteBox = el("div", { hidden: true });
     const meldung = el("div", {});
+    // Rechts: das gewählte Bild gross
+    const leerVorschau = () =>
+      el(
+        "p",
+        { class: "ws-vorschau-leer" },
+        "Hier erscheint das Bild, sobald du eine Datei gewählt hast.",
+      );
+    const vorschauPlatz = el("div", { class: "ws-vorschau" }, leerVorschau());
     const alt = feld({
       label: "Alt-Text (Pflicht)",
       mehrzeilig: true,
@@ -756,6 +897,7 @@ function zeichne(bereich, ctx, erste) {
       gewaehlteBox.hidden = true;
       gewaehlteBox.replaceChildren();
       gewaehltDatei = null;
+      vorschauPlatz.replaceChildren(leerVorschau());
       if (!d) return pruefeBereit();
       const problem = await pruefeDatei(d);
       const art = d.type.replace("image/", "").toUpperCase() || "Datei";
@@ -779,7 +921,7 @@ function zeichne(bereich, ctx, erste) {
           "aria-label": "Vorschau des gewählten Bildes",
           class: "ws-leinwand",
         });
-        const faktor = Math.min(1, 160 / bild.width);
+        const faktor = Math.min(1, 640 / bild.width);
         leinwand.width = Math.round(bild.width * faktor);
         leinwand.height = Math.round(bild.height * faktor);
         leinwand
@@ -799,7 +941,8 @@ function zeichne(bereich, ctx, erste) {
         return;
       }
       gewaehltDatei = d;
-      gewaehlteBox.append(dateiZeile(d, art, leinwand));
+      vorschauPlatz.replaceChildren(leinwand);
+      gewaehlteBox.append(dateiZeile(d, art, null));
       gewaehlteBox.hidden = false;
       zone.hidden = true;
       pruefeBereit();
@@ -809,7 +952,6 @@ function zeichne(bereich, ctx, erste) {
       el(
         "div",
         { class: "medium ws-gewaehlt" },
-        el("div", { class: "bild" }, leinwand),
         el(
           "div",
           {},
@@ -948,15 +1090,22 @@ function zeichne(bereich, ctx, erste) {
 
     const f = fenster({
       titel: "Medien hochladen",
+      breit: true,
       inhalt: [
-        zone,
         dateiEingabe,
-        gewaehlteBox,
-        meldung,
-        alt.wurzel,
-        zierdeWurzel,
-        sichtbarkeit,
-        fortschrittPlatz,
+        formularRaster({
+          felder: [
+            zone,
+            gewaehlteBox,
+            meldung,
+            alt.wurzel,
+            zierdeWurzel,
+            sichtbarkeit,
+            fortschrittPlatz,
+          ],
+          seiteTitel: "Vorschau",
+          seite: vorschauPlatz,
+        }),
       ],
       fuss: [abbrechen, hochSpalte],
     });
@@ -967,11 +1116,13 @@ function zeichne(bereich, ctx, erste) {
 
   // Nach dem Hochladen: Eine Suche, zu der das neue Bild nicht passt, versteckte es: zurück zur ganzen Liste
   async function nachHochladen(m, name) {
-    if (frage.trim() || artFilter !== "alle") {
-      suche.value = "";
+    if (frage.trim() || artFilter !== "alle" || sichtFilter !== "alle") {
+      leiste.setzeAlles();
+      letzteFrage = "";
+      window.clearTimeout(timer);
       frage = "";
       artFilter = "alle";
-      filter.setze("alle");
+      sichtFilter = "alle";
       const mein = ++lauf;
       try {
         const daten = await hole(0);
@@ -999,12 +1150,11 @@ function zeichne(bereich, ctx, erste) {
   zeigeZustand();
   bereich.append(
     werkzeuge,
-    auswahlPlatz,
-    zaehler,
     meldungsplatz,
     leer,
     raster,
-    el("div", { class: "ws-medienfuss" }, mehr),
+    el("div", { class: "ws-medienfuss" }, weiterText, mehr),
+    auswahlPlatz,
   );
   beobachte();
 }

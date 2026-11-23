@@ -17,6 +17,10 @@
   transition: opacity var(--dauer) var(--kurve);
 }
 
+.bild-box.bild-laedt {
+  background: var(--skeleton);
+}
+
 .bild-box.bild-laedt > img {
   opacity: 0;
 }
@@ -158,4 +162,9 @@
 
 .bw-skeleton .sk--b {
   height: 6rem;
+}
+
+/* Liegt die Wahl in einem «.feld», gilt dessen Innenabstand; der Platz für das Suchsymbol bleibt */
+.bw .suche .eingabe {
+  padding-left: 48px;
 }

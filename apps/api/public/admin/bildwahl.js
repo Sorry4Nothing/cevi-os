@@ -109,7 +109,12 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
           },
         },
         bildMitLader(
-          el("img", { src: m.url, alt: "", loading: "lazy", decoding: "async" }),
+          el("img", {
+            src: m.url,
+            alt: "",
+            loading: "lazy",
+            decoding: "async",
+          }),
           "bw-bild",
         ),
         el(
@@ -132,7 +137,11 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
           el("li", {}, sk("b", 380), sk("t", 112)),
         ),
       ),
-      el("p", { class: "nur-leser", role: "status" }, "Bilder werden geladen …"),
+      el(
+        "p",
+        { class: "nur-leser", role: "status" },
+        "Bilder werden geladen …",
+      ),
     );
 
   async function lade(neu) {
@@ -173,7 +182,10 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
           "div",
           { class: "hinweis hinweis--fehler", role: "alert" },
           `${fehlertext(f)} `,
-          knopf("Nochmals versuchen", { klein: true, onclick: () => lade(neu) }),
+          knopf("Nochmals versuchen", {
+            klein: true,
+            onclick: () => lade(neu),
+          }),
         ),
       );
     } finally {
@@ -198,7 +210,9 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
     suche.focus();
   }
 
-  ausloeser.addEventListener("click", () => (panel.hidden ? oeffne() : schliesse()));
+  ausloeser.addEventListener("click", () =>
+    panel.hidden ? oeffne() : schliesse(),
+  );
   // Escape schliesst nur die Wahl, nicht die Seite darum herum
   panel.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
