@@ -1150,7 +1150,52 @@ paths:
   /admin/termine-anmeldungen.js:
     get:
       operationId: getAdminTermineAnmeldungenSkript
-      summary: Skript der Verwaltung – Bereich Anlässe, Unterseite Anmeldungen
+      summary: Skript der Verwaltung – alte Adresse der Anmeldungen, leitet auf den Anlass um
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anlass-anmeldungen.js:
+    get:
+      operationId: getAdminAnlassAnmeldungenSkript
+      summary: Skript der Verwaltung – Bereich Anlässe, Reiter Anmeldungen eines Anlasses
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anlass-felder.js:
+    get:
+      operationId: getAdminAnlassFelderSkript
+      summary: Skript der Verwaltung – Bereich Anlässe, Reiter Zusatzfelder eines Anlasses
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/anlass-gemeinsam.js:
+    get:
+      operationId: getAdminAnlassGemeinsamSkript
+      summary: Skript der Verwaltung – Bereich Anlässe, gemeinsame Teile
       tags:
         - Allgemein
       security: []
@@ -20667,7 +20712,7 @@ paths:
       operationId: listeAdminAnlaesse
       summary: Anlässe der Abteilung
       description: |
-        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anlässe der eigenen Abteilung, neueste zuerst, in Seiten. Eine Abfrage je Seite: Anlass, Angaben des Termins und Zahl der Zusatzfelder. `nach` ist die `naechste` der Vorseite.
+        Nur die Abteilungsleitung (Admin mit zweitem Faktor). Liefert die Anlässe der eigenen Abteilung, neueste zuerst, in Seiten. Eine Abfrage je Seite: Anlass, Angaben des Termins, Zahl der Zusatzfelder und Zahl der Rückmeldungen (`anmeldungen.angemeldet`, `anmeldungen.abgemeldet`). `nach` ist die `naechste` der Vorseite.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 403 für alle anderen.
       tags:
@@ -34696,11 +34741,25 @@ components:
         - type: object
           required:
             - anzahlFelder
+            - anmeldungen
           properties:
             anzahlFelder:
               type: integer
               minimum: 0
               maximum: 20
+            anmeldungen:
+              type: object
+              description: Die Rückmeldungen zum Anlass, gezählt in derselben Abfrage wie die Zahl der Felder.
+              required:
+                - angemeldet
+                - abgemeldet
+              properties:
+                angemeldet:
+                  type: integer
+                  minimum: 0
+                abgemeldet:
+                  type: integer
+                  minimum: 0
     AdminAnlassListe:
       type: object
       required:

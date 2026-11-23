@@ -42,16 +42,49 @@ describe("Admin-Panel: Termine und Anlässe", () => {
     expect(methoden(modul)).toEqual(["GET", "POST"]);
   });
 
-  test("Anlässe und Anmeldungen: nur die Routen der Anlässe", () => {
+  test("Anlässe, Zusatzfelder und Anmeldungen: nur die Routen der Anlässe", () => {
     const anlaesse = lies("termine-anlaesse.js");
-    const anmeldungen = lies("termine-anmeldungen.js");
-    expect(anlaesse).toContain('"/api/v1/admin/anlaesse"');
-    expect(anmeldungen).toContain('"/api/v1/admin/anlaesse"');
-    expect(methoden(anmeldungen)).toEqual(["GET", "GET", "GET", "GET"]);
-    // Der Export holt die Datei mit der Sitzung; es gibt keine Excel- oder Word-Dateien
+    const gemeinsam = lies("anlass-gemeinsam.js");
+    const anmeldungen = lies("anlass-anmeldungen.js");
+    const felder = lies("anlass-felder.js");
+    expect(gemeinsam).toContain('"/api/v1/admin/anlaesse"');
+    // Liste, weitere Seite, Termine und Gruppen zum Anlegen, Gruppen der Einstellungen (GET); Anlegen (POST); Ändern (zwei Stellen: Anmeldung öffnen und Einstellungen); Löschen. Den Anlass selbst lädt anlass-gemeinsam.js
+    expect(methoden(anlaesse)).toEqual([
+      "DELETE",
+      "GET",
+      "GET",
+      "GET",
+      "GET",
+      "GET",
+      "PATCH",
+      "PATCH",
+      "POST",
+    ]);
+    expect(methoden(gemeinsam)).toEqual(["GET"]);
+    // Anmeldungen: nur lesen (Seite mit Summen), der Export holt die Datei mit der Sitzung; es gibt keine Excel- oder Word-Dateien
+    expect(methoden(anmeldungen)).toEqual(["GET"]);
     expect(anmeldungen).toContain("/anmeldungen.csv?status=");
     expect(anmeldungen).not.toMatch(/xlsx|docx/);
-    expect(anlaesse).toContain("/felder`");
+    expect(methoden(felder)).toEqual(["GET", "PUT"]);
+    expect(felder).toContain("/felder`");
+  });
+
+  test("Anmeldungen gibt es nur über den Anlass: kein eigenes Modul, alte Adressen leiten auf den Anlass", () => {
+    const anlaesse = lies("termine-anlaesse.js");
+    // Die alte Unterseite ist nur noch eine Weiterleitung und ruft keine Route auf
+    const alt = lies("termine-anmeldungen.js");
+    expect(alt).toContain("leiteAltAdresseUm");
+    expect(alt).not.toContain("anfrage");
+    expect(anlaesse).toContain('pfad[0] === "anmeldungen"');
+    expect(lies("anlass-gemeinsam.js")).toContain(
+      'adresse(rest[0], "anmeldungen")',
+    );
+    // Die Liste verweist nie auf eine zweite Anlass-Auswahl
+    for (const datei of ["termine-anlaesse.js", "termine-monat.js"]) {
+      expect(lies(datei), datei).not.toMatch(
+        /href:\s*[`"']#anlaesse\/anmeldungen/,
+      );
+    }
   });
 
   test("kein Polling und keine Inline-Stile (strenge CSP)", () => {
@@ -63,7 +96,9 @@ describe("Admin-Panel: Termine und Anlässe", () => {
       "termine-kategorien.js",
       "termine-outlook.js",
       "termine-anlaesse.js",
-      "termine-anmeldungen.js",
+      "anlass-gemeinsam.js",
+      "anlass-anmeldungen.js",
+      "anlass-felder.js",
     ]) {
       expect(lies(datei), datei).not.toMatch(
         /setInterval|\.style\b|setAttribute\("style"/,
@@ -76,7 +111,7 @@ describe("Admin-Panel: Termine und Anlässe", () => {
     for (const modul of [
       "termine-kalender",
       "termine-outlook",
-      "termine-anmeldungen",
+      "termine-anlaesse",
     ]) {
       expect(navigation).toContain(`"./${modul}.js"`);
     }

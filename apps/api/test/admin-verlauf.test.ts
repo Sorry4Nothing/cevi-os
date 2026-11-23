@@ -214,9 +214,7 @@ describe("Verlauf in den Bereichen (Quelltext)", () => {
   test("nach dem Schliessen einer Seite im Fluss ändert die Verwaltung die Adresse erst nach dem Zurück im Verlauf", () => {
     // Das Löschen am Ort öffnet keine Seite im Fluss: Die Adresse der Liste ersetzt die des gelöschten Lagers
     expect(lies("lager.js")).toContain("location.replace(ADRESSE)");
-    expect(lies("termine-anlaesse.js")).toMatch(
-      /gehe\(`#anlaesse\/anlaesse\/\$\{neu\.id\}`\)/,
-    );
+    expect(lies("termine-anlaesse.js")).toMatch(/gehe\(adresse\(neu\.id\)\)/);
   });
 
   test("Vorschläge: Auswahl und Stand sind eigene Einträge und folgen Browser-Zurück", () => {

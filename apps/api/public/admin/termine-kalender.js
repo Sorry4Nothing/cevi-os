@@ -1,5 +1,13 @@
 import { anfrage, fehlertext } from "./api.js";
-import { chip, el, filterGruppe, icon, knopf, seitenwahl } from "./dom.js";
+import {
+  auswahl,
+  chip,
+  el,
+  filterGruppe,
+  icon,
+  knopf,
+  seitenwahl,
+} from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import {
   datumsZelle,
@@ -22,9 +30,9 @@ import {
 import { ersetzeAdresse, schiebeAdresse } from "./verlauf.js";
 import { leerKarte } from "./zustaende.js";
 
-// Unterseite «Kalender» (A8, #590): Alle kommenden Termine der Abteilung, auch die ohne Gruppe. Standard ist die Monatsansicht (Raster mit Terminchips und Tagesliste, termine-monat.js); die Tabelle bleibt als Ansicht «Liste». Nur lesen: Die Termine kommen aus Outlook.
-// Adressen: #termine/kalender (dieser Monat) · …/2027-01 (Monat) · …/2027-01-16 (Monat, Tag gewählt) · …/liste (Tabelle, 3 Monate) · …/liste/12 (12 Monate; die alte Adresse …/12 gilt weiter)
-// Abfragen: 1 Abruf der Gruppen für den Filter; Monat: je Monat 1 Abfrage (bis 100 Termine, 2 Minuten im Speicher); Liste: je Seite von 100 Terminen 1 Abfrage beim Öffnen und je «Weitere laden». Suche, Filter, Sortierung und Blättern laufen im Browser. Kein Polling.
+// Unterseite «Kalender» (A8, #590, #608): Alle kommenden Termine der Abteilung, auch die ohne Gruppe. Standard ist die Monatsansicht (Raster mit Terminchips und Tagesliste, termine-monat.js); die Tabelle bleibt als Ansicht «Liste». Oben im Kopf wechselt der Umschalter «Alle Termine / Meine Termine»: Meine sind die Termine der Gruppen der angemeldeten Person. Die Antwort von GET /api/v1/termine/alle trägt dafür je Termin das Feld «meine»; es braucht keine weitere Abfrage. Nur lesen: Die Termine kommen aus Outlook.
+// Adressen: #termine/kalender (dieser Monat) · …/2027-01 (Monat) · …/2027-01-16 (Monat, Tag gewählt) · …/liste (Tabelle, 3 Monate) · …/liste/12 (12 Monate; die alte Adresse …/12 gilt weiter). Meine Termine: dieselben Adressen mit «meine» nach «kalender», z. B. #termine/kalender/meine/2027-01.
+// Abfragen: 1 Abruf der Gruppen für den Filter (30 Sekunden im Speicher); Monat: je Monat 1 Abfrage (bis 100 Termine, 2 Minuten im Speicher); Liste: je Seite von 100 Terminen 1 Abfrage beim Öffnen und je «Weitere laden». Umschalter, Suche, Filter, Sortierung und Blättern laufen im Browser. Kein Polling.
 
 const BASIS = "/api/v1/termine/alle";
 const ZEITRAEUME = [
@@ -38,19 +46,40 @@ const holeSeite = (von, bis, nach) =>
     `${BASIS}?von=${von}&bis=${bis}&limit=100${nach ? `&nach=${encodeURIComponent(nach)}` : ""}`,
   );
 
-// Gruppen für die Filterleiste; ohne Recht oder bei einem Fehler bleibt der Filter «Alle» und «Ohne Gruppe»
-const ladeGruppen = () =>
-  anfrage("GET", "/api/v1/admin/tags").then(
+// Gruppen für den Filter; ohne Recht oder bei einem Fehler bleibt der Filter «Alle» und «Ohne Gruppe». 30 Sekunden im Speicher: Der Wechsel zwischen den Ansichten fragt nicht jedes Mal
+let gruppenSpeicher = null;
+const ladeGruppen = async () => {
+  if (gruppenSpeicher && Date.now() - gruppenSpeicher.zeit < 30_000) {
+    return gruppenSpeicher.gruppen;
+  }
+  const gruppen = await anfrage("GET", "/api/v1/admin/tags").then(
     (a) => a.tags,
     () => [],
   );
+  gruppenSpeicher = { zeit: Date.now(), gruppen };
+  return gruppen;
+};
+
+// Adresse mit dem Umschalter: «meine» steht nach «kalender»
+export const mitUmfang = (hash, nur) =>
+  nur === "meine"
+    ? hash.replace("#termine/kalender", "#termine/kalender/meine")
+    : hash;
 
 export function zeige(bereich, ctx) {
   const heute = heuteZuerich();
-  const ansicht = ansichtAusPfad(ctx.pfad, heute);
+  const meine = ctx.pfad[0] === "meine";
+  const ansicht = ansichtAusPfad(meine ? ctx.pfad.slice(1) : ctx.pfad, heute);
+  // umfang: «alle» oder «meine»; die Ansicht trägt ein, wie sie auf einen Wechsel reagiert (beiWechsel) und welche Adresse sie gerade hat (adresse)
+  const umfang = {
+    nur: meine ? "meine" : "alle",
+    beiWechsel: () => {},
+    adresse: () => adresseVon(ansicht),
+  };
+  ctx.kopfAktion(umfangswahl(umfang).wurzel);
   ctx.lade(
     ladeGruppen,
-    (gruppen) => zeichne(bereich, ansicht, gruppen, heute),
+    (gruppen) => zeichne(bereich, ansicht, gruppen, heute, umfang),
     {
       skeleton: () => skeletonFlaeche({ zeilen: 6 }),
       fehlerTitel: "Der Kalender konnte nicht geladen werden.",
@@ -58,7 +87,24 @@ export function zeige(bereich, ctx) {
   );
 }
 
-function ansichtswahl(ansicht) {
+// Der Umschalter oben im Kopf: gilt für Monat und Liste. Er filtert im Browser; die Adresse bekommt «meine» (ohne neuen Verlaufseintrag)
+function umfangswahl(umfang) {
+  return filterGruppe({
+    beschriftung: "Welche Termine",
+    eintraege: [
+      { text: "Alle Termine", wert: "alle" },
+      { text: "Meine Termine", wert: "meine" },
+    ],
+    wert: umfang.nur,
+    beiAenderung: (wert) => {
+      umfang.nur = wert;
+      ersetzeAdresse(mitUmfang(umfang.adresse(), wert));
+      umfang.beiWechsel();
+    },
+  });
+}
+
+function ansichtswahl(ansicht, umfang) {
   return filterGruppe({
     beschriftung: "Ansicht",
     eintraege: [
@@ -67,8 +113,10 @@ function ansichtswahl(ansicht) {
     ],
     wert: ansicht.art,
     beiAenderung: (wert) => {
-      window.location.hash =
-        wert === "liste" ? "#termine/kalender/liste" : "#termine/kalender";
+      window.location.hash = mitUmfang(
+        wert === "liste" ? "#termine/kalender/liste" : "#termine/kalender",
+        umfang.nur,
+      );
     },
   });
 }
@@ -83,62 +131,90 @@ const gruppenFilter = (gruppen) => ({
   ],
 });
 
-function zeichne(bereich, ansicht, gruppen, heute) {
+function zeichne(bereich, ansicht, gruppen, heute, umfang) {
+  const quelle = el("p", { class: "klein leise tm-quelle" });
+  const schreibeQuelle = () =>
+    ersetze(
+      quelle,
+      icon("kalender"),
+      umfang.nur === "meine"
+        ? "Meine Termine sind die Termine deiner Gruppen. Die Termine kommen aus Outlook, Änderungen machst du dort."
+        : "Die Termine kommen aus Outlook. Änderungen machst du dort.",
+    );
+  schreibeQuelle();
   bereich.append(
     ansicht.art === "monat"
-      ? monatsSeite(ansicht, gruppen, heute)
-      : listenSeite(bereich, ansicht, gruppen),
-    el(
-      "p",
-      { class: "klein leise tm-quelle" },
-      icon("kalender"),
-      "Die Termine kommen aus Outlook. Änderungen machst du dort.",
-    ),
+      ? monatsSeite(ansicht, gruppen, heute, umfang, schreibeQuelle)
+      : listenSeite(bereich, ansicht, gruppen, umfang, schreibeQuelle),
+    quelle,
   );
 }
 
 /* ---------- Monat ---------- */
 
-function monatsSeite(ansicht, gruppen, heute) {
+function monatsSeite(ansicht, gruppen, heute, umfang, schreibeQuelle) {
   const zustand = {
     monat: ansicht.monat,
     tag: ansicht.tag,
     suche: "",
     gruppe: "",
+    nur: umfang.nur,
   };
-  const leiste = filterleiste({
-    suche: { label: "Titel oder Ort suchen" },
-    filter: [gruppenFilter(gruppen)],
-    namen: { einzahl: "Termin", mehrzahl: "Termine" },
-    beiAenderung: ({ suche, filter }) => {
-      zustand.suche = suche;
-      zustand.gruppe = filter.gruppe;
-      monat.filterGeaendert();
-    },
-  });
+  // Im Monat bleibt, was nötig ist: Gruppe und Ansicht in der Zeile des Monats, keine Suche, keine Trefferzahl
+  const gruppenwahl =
+    gruppen.length > 0
+      ? gruppenAuswahl(gruppen, (wert) => {
+          zustand.gruppe = wert;
+          monat.filterGeaendert();
+        })
+      : null;
   const monat = monatsAnsicht({
     heute,
     zustand,
     holeSeite,
-    ansichtswahl: ansichtswahl(ansicht).wurzel,
-    werkzeugleiste: leiste.wurzel,
+    ansichtswahl: el(
+      "div",
+      { class: "tm-ansichtsgruppe" },
+      gruppenwahl,
+      ansichtswahl(ansicht, umfang).wurzel,
+    ),
     // Monate bekommen einen Verlaufseintrag (Zurück führt zum Vormonat), die Wahl eines Tages nur die Korrektur der Adresse
     beiAenderung: (z, art) => {
-      const hash = adresseVon({ art: "monat", monat: z.monat, tag: z.tag });
-      if (art === "monat") schiebeAdresse(`#termine/kalender/${z.monat}`);
+      const hash = mitUmfang(
+        adresseVon({ art: "monat", monat: z.monat, tag: z.tag }),
+        umfang.nur,
+      );
+      if (art === "monat")
+        schiebeAdresse(mitUmfang(`#termine/kalender/${z.monat}`, umfang.nur));
       else ersetzeAdresse(hash);
     },
-    beiZahlen: (treffer, gesamt) => {
-      leiste.setzeTreffer(treffer, gesamt);
-    },
   });
+  umfang.adresse = () =>
+    adresseVon({ art: "monat", monat: zustand.monat, tag: zustand.tag });
+  umfang.beiWechsel = () => {
+    zustand.nur = umfang.nur;
+    schreibeQuelle();
+    monat.filterGeaendert();
+  };
   queueMicrotask(() => monat.start());
   return monat.wurzel;
 }
 
+// Die Auswahl der Gruppe (Alle Gruppen, Ohne Gruppe, eine Gruppe); die Beschriftung bleibt für Screenreader, sichtbar steht der gewählte Wert
+function gruppenAuswahl(gruppen, beiAenderung) {
+  const f = gruppenFilter(gruppen);
+  const wahl = auswahl({ label: f.label, optionen: f.optionen, wert: "" });
+  wahl.wurzel.querySelector("label")?.classList.add("nur-leser");
+  wahl.wurzel.classList.add("tm-gruppenwahl");
+  wahl.eingabe.addEventListener("change", () =>
+    beiAenderung(wahl.eingabe.value),
+  );
+  return wahl.wurzel;
+}
+
 /* ---------- Liste (Tabelle) ---------- */
 
-function listenSeite(bereich, ansicht, gruppen) {
+function listenSeite(bereich, ansicht, gruppen, umfang, schreibeQuelle) {
   const wahl =
     ZEITRAEUME.find((z) => z.schluessel === ansicht.zeitraum) ?? ZEITRAEUME[0];
   const von = heuteZuerich();
@@ -151,13 +227,16 @@ function listenSeite(bereich, ansicht, gruppen) {
     eintraege: ZEITRAEUME.map((z) => ({ text: z.text, wert: z.schluessel })),
     wert: wahl.schluessel,
     beiAenderung: (wert) => {
-      window.location.hash = `#termine/kalender/liste${wert === "3" ? "" : `/${wert}`}`;
+      window.location.hash = mitUmfang(
+        `#termine/kalender/liste${wert === "3" ? "" : `/${wert}`}`,
+        umfang.nur,
+      );
     },
   });
   const kopfzeile = el(
     "div",
     { class: "tm-listenkopf" },
-    ansichtswahl(ansicht).wurzel,
+    ansichtswahl(ansicht, umfang).wurzel,
     zeitraumWahl.wurzel,
   );
   wurzel.append(kopfzeile);
@@ -166,7 +245,7 @@ function listenSeite(bereich, ansicht, gruppen) {
   anfrage("GET", url()).then(
     (erste) => {
       if (!wurzel.isConnected) return;
-      zeichneListe(inhalt, wahl, erste, url, gruppen);
+      zeichneListe(inhalt, wahl, erste, url, gruppen, umfang, schreibeQuelle);
     },
     (f) => {
       inhalt.append(
@@ -190,12 +269,28 @@ function listenSeite(bereich, ansicht, gruppen) {
   return wurzel;
 }
 
-function zeichneListe(bereich, wahl, erste, url, gruppen) {
+function zeichneListe(
+  bereich,
+  wahl,
+  erste,
+  url,
+  gruppen,
+  umfang,
+  schreibeQuelle,
+) {
   const termine = [...erste.termine];
   let weitere = erste.weitere;
   let naechste = erste.naechste;
   let richtung = "ascending";
   let stand = { suche: "", filter: { gruppe: "" } };
+  // Die Adresse der Liste (3 oder 12 Monate) für den Umschalter oben im Kopf
+  umfang.adresse = () =>
+    `#termine/kalender/liste${wahl.schluessel === "12" ? "/12" : ""}`;
+  umfang.beiWechsel = () => {
+    schreibeQuelle();
+    seiten.anfang();
+    zeichneTabelle();
+  };
 
   const leiste = filterleiste({
     suche: { label: "Titel oder Ort suchen" },
@@ -219,6 +314,7 @@ function zeichneListe(bereich, wahl, erste, url, gruppen) {
     const kopie = filtere(termine, {
       suche: stand.suche,
       gruppe: stand.filter.gruppe,
+      nur: umfang.nur,
     });
     // Beginn des Termins; ganztägige zählen ab 00:00 ihres ersten Tages
     const beginn = (t) =>
@@ -247,11 +343,6 @@ function zeichneListe(bereich, wahl, erste, url, gruppen) {
       ),
       el("td", {}, t.ort ?? el("span", { class: "leise" }, "–")),
       el("td", {}, gruppenChips(t.tags)),
-      el(
-        "td",
-        {},
-        el("ul", { class: "chips" }, chip("Outlook", undefined, "kalender")),
-      ),
     );
   }
 
@@ -273,14 +364,20 @@ function zeichneListe(bereich, wahl, erste, url, gruppen) {
       seiten.wurzel.hidden = true;
       ersetze(
         liste,
-        keineTreffer(stand.suche || "diese Filter", () => leiste.setzeAlles()),
+        umfang.nur === "meine" && !stand.suche && !stand.filter.gruppe
+          ? leerKarte(
+              `Für deine Gruppen stehen in den nächsten ${wahl.text} keine Termine an.`,
+            )
+          : keineTreffer(stand.suche || "diese Filter", () =>
+              leiste.setzeAlles(),
+            ),
       );
       return;
     }
     const [a, b] = seiten.fenster(treffer.length);
     const t = termineTabelle({
       beschriftung: "Kommende Termine",
-      spalten: ["Datum", "Titel", "Ort", "Gruppen", "Quelle"],
+      spalten: ["Datum", "Titel", "Ort", "Gruppen"],
       zeilen: treffer.slice(a, b).map(zeile),
     });
     // Sortieren geht nur, solange alle Termine geladen sind; sonst stünde «absteigend» für einen Ausschnitt

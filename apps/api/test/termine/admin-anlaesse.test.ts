@@ -434,6 +434,20 @@ describe("Feldvalidierung", () => {
 });
 
 describe("Liste und Detail", () => {
+  test("die Liste zählt die Rückmeldungen je Anlass in derselben Abfrage", async () => {
+    const mit = await neuerAnlass();
+    const ohne = await neuerAnlass();
+    await db.insert(schema.anlassAnmeldung).values([
+      { anlassId: mit.id, userId: eltern.id as string, status: "angemeldet" },
+      { anlassId: mit.id, userId: leitung.id as string, status: "abgemeldet" },
+    ]);
+    const antwort = await anfrage(leitung, "GET", `${BASIS}?limit=10`);
+    const nach = (id: string) =>
+      antwort.body.anlaesse.find((x: { id: string }) => x.id === id);
+    expect(nach(mit.id).anmeldungen).toEqual({ angemeldet: 1, abgemeldet: 1 });
+    expect(nach(ohne.id).anmeldungen).toEqual({ angemeldet: 0, abgemeldet: 0 });
+  });
+
   test("die Liste teilt in Seiten, zeigt nur die eigene Abteilung und zählt die Felder", async () => {
     const a = await neuerAnlass({ felder: [feld(), feld()] });
     const b = await neuerAnlass();

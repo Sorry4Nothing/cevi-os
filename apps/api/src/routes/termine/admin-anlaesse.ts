@@ -238,11 +238,13 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
       const person = c.get("person");
       pruefeAnlassRecht(person);
       const { limit, nach } = c.req.valid("query");
-      // Eine Abfrage für die Seite: Anlass, Termin und Zahl der Felder; neueste zuerst (uuidv7 ist zeitlich geordnet), nach = ID des letzten Eintrags
+      // Eine Abfrage für die Seite: Anlass, Termin, Zahl der Felder und die Rückmeldungen (zwei Zahlen aus einer Zählung je Anlass der Seite); neueste zuerst (uuidv7 ist zeitlich geordnet), nach = ID des letzten Eintrags
       const zeilen = await db
         .select({
           ...anlassSpalten,
           anzahlFelder: sql<number>`(select count(*)::int from anlass_feld where anlass_feld.anlass_id = ${anlass.id})`,
+          angemeldet: sql<number>`(select count(*)::int from anlass_anmeldung a where a.anlass_id = ${anlass.id} and a.status = 'angemeldet')`,
+          abgemeldet: sql<number>`(select count(*)::int from anlass_anmeldung a where a.anlass_id = ${anlass.id} and a.status = 'abgemeldet')`,
         })
         .from(anlass)
         .innerJoin(programm, eq(programm.id, anlass.programmId))
@@ -257,7 +259,10 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
       const seite = zeilen.slice(0, limit);
       const weitere = zeilen.length > limit;
       return c.json({
-        anlaesse: seite.map(ausgabe),
+        anlaesse: seite.map(({ angemeldet, abgemeldet, ...rest }) => ({
+          ...ausgabe(rest),
+          anmeldungen: { angemeldet, abgemeldet },
+        })),
         weitere,
         naechste: weitere ? seite[seite.length - 1]!.id : null,
       });

@@ -166,10 +166,11 @@ export function naechsterTag(tag, taste, umschalt = false) {
 export const verschiebeMonat = (monat, n) =>
   monatVon(addiereMonate(`${monat}-01`, n));
 
-// Filter: suche (Titel, Ort) und gruppe: "" (alle), "keine" (ohne Gruppe) oder die Kennung einer Gruppe
-export function filtere(termine, { suche = "", gruppe = "" }) {
+// Filter: suche (Titel, Ort), gruppe: "" (alle), "keine" (ohne Gruppe) oder die Kennung einer Gruppe, und nur: "meine" (die Termine der Gruppen der angemeldeten Person; die API markiert sie mit «meine») oder "alle"
+export function filtere(termine, { suche = "", gruppe = "", nur = "alle" }) {
   const begriff = suche.trim().toLocaleLowerCase("de-CH");
   return termine.filter((t) => {
+    if (nur === "meine" && !t.meine) return false;
     if (
       begriff &&
       !`${t.titel} ${t.ort ?? ""}`.toLocaleLowerCase("de-CH").includes(begriff)
@@ -277,7 +278,7 @@ function tagesZaehler(t, tag) {
 }
 
 // heute: «2026-12-05»; gruppen: [{ id, name }] für die Auswahl der Filterleiste (im Aufrufer)
-// zustand: { monat, tag, suche, gruppe }; beiAenderung(zustand, art): Adresse nachführen (art «monat» = neuer Verlaufseintrag, «tag» = Korrektur)
+// zustand: { monat, tag, suche, gruppe, nur }; beiAenderung(zustand, art): Adresse nachführen (art «monat» = neuer Verlaufseintrag, «tag» = Korrektur)
 export function monatsAnsicht({
   heute,
   zustand,
@@ -442,7 +443,7 @@ export function monatsAnsicht({
       const [von, bis] = terminTage(t);
       return von <= `${zustand.monat}-31` && bis >= `${zustand.monat}-01`;
     });
-    beiZahlen(
+    beiZahlen?.(
       imMonat.length,
       daten.termine.filter((t) => {
         const [von, bis] = terminTage(t);
@@ -610,7 +611,9 @@ export function monatsAnsicht({
           "p",
           { class: "tm-tagesleer" },
           daten.termine.length > 0 && sichtbar().length === 0
-            ? "Kein Termin passt zu deinen Filtern."
+            ? zustand.nur === "meine"
+              ? "Für deine Gruppen steht in diesem Monat nichts an."
+              : "Kein Termin passt zu deinen Filtern."
             : "An diesem Tag steht nichts an. Neue Termine erfasst du in Outlook.",
         ),
       );
@@ -651,7 +654,6 @@ export function monatsAnsicht({
           ? chip("Keine Gruppe", "warn")
           : t.tags.map((g) => chip(g.name, "stufe", "tag")),
         t.anlass && chip("Anlass mit Anmeldung", undefined, "haken"),
-        chip("Outlook", undefined, "kalender"),
       ),
       t.anlass &&
         el(

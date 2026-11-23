@@ -78,7 +78,7 @@ function ergaenzen({ tags, ctx, neu }) {
   });
   dialogFormular({
     titel: "Kategorie ergänzen",
-    beschreibung: `Die Zuordnung wirkt beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
+    beschreibung: `Nur nötig, wenn du die Kategorie in Outlook schon angelegt hast, sie aber an keinem kommenden Termin hängt. Die Zuordnung wirkt beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
     felder: [name.wurzel, gruppe.wurzel],
     ok: "Speichern",
     senden: () => {
@@ -152,7 +152,7 @@ function zeichne(bereich, ctx, { zuordnungen, tags, unbekannt }, neu, vorgabe) {
   const hinweis = el(
     "div",
     { class: "hinweis", role: "status" },
-    `Eine Kategorie, die genau so heisst wie eine Gruppe, braucht keine Zuordnung. Änderungen wirken beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
+    `Kategorien legst du in Outlook an, nicht hier. Cevi OS liest sie beim Abgleich mit Outlook und schreibt nie etwas zurück. Hier legst du nur fest, zu welcher Gruppe eine Kategorie gehört, wenn sie nicht genau so heisst wie die Gruppe. Änderungen wirken beim nächsten Abgleich, in höchstens 5 Minuten.`,
   );
   const ergaenzenKnopf = knopf("Kategorie ergänzen", {
     symbol: "plus",
