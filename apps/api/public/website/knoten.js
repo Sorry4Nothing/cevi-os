@@ -57,6 +57,8 @@ const ATTRIBUTE = {
   loading: (tag, w) => tag === "img" && w === "lazy",
   class: (_tag, w) => typeof w === "string" && /^[a-z0-9 _-]{1,60}$/.test(w),
   "aria-hidden": (_tag, w) => w === "true",
+  // Safari und VoiceOver nennen eine Liste mit «list-style: none» nur mit dieser Rolle eine Liste (#645)
+  role: (tag, w) => tag === "ul" && w === "list",
 };
 
 // null, wenn der Knoten nicht erlaubt ist; Kinder, die nicht erlaubt sind, fallen weg

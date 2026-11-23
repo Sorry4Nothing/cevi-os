@@ -574,7 +574,11 @@
           Cevi OS bearbeitet nur, was die Abteilung für Programme, Anmeldungen,
           den Chat, Lager und die Website braucht.
         </li>
-        <li>Kinder haben kein eigenes Konto und geben nichts ein.</li>
+        <li>
+          Ein Kind hat nur dann ein eigenes Konto, wenn die Abteilung es erlaubt
+          und die Leitung es für dieses Kind erstellt, nachdem sie die Eltern
+          informiert hat. Ohne Konto geben Kinder nichts ein.
+        </li>
         <li>
           Die Konten haben keine E-Mail-Adresse. Nur im Adressbuch eines Lagers
           kann die Lagerleitung die E-Mail-Adresse einer Person eintragen, die
@@ -678,10 +682,10 @@
           <dd>
             Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das
             Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die
-            Abteilungsleitung kann es entfernen. Wer Leitung oder Stufenleitung
-            einer Stufe ist, erscheint auf der öffentlichen Website mit
-            Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der
-            Person, sondern folgt der Rolle.
+            Abteilungsleitung und der Entwickler können es entfernen. Wer
+            Leitung oder Stufenleitung einer Stufe ist, erscheint auf der
+            öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe).
+            Das ist keine Wahl der Person, sondern folgt der Rolle.
           </dd>
           <dt>Einwilligung</dt>
           <dd>
@@ -731,6 +735,34 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-kinderkonto">
+        <h4 id="k-kinderkonto">Konto eines Kindes</h4>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Die Verknüpfung eines Kindes mit seinem Konto (Benutzername und
+            Passwort wie bei jedem Konto), das Datum, seit dem das Konto
+            besteht, das Datum, an dem die Abteilung die Eltern informiert hat,
+            und die Angabe, ob die verknüpften Eltern weiter sehen, was das Kind
+            sieht. Der Text der Einwilligung der Eltern bleibt ausserhalb von
+            Cevi OS.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Ein Kind meldet sich mit einem eigenen Konto an und sieht die
+            Programme, die Leitung und, wenn die Abteilung es erlaubt, den
+            Gruppenchat seiner Stufe. Die Abteilungsleitung erstellt das Konto
+            und vermerkt, dass die Eltern informiert sind. Das Konto kennt nur
+            das eigene Kind: nie andere Kinder, Eltern oder Telefonnummern.
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Bis die Leitung das Konto entfernt oder sperrt oder das Kind
+            gelöscht wird; mit dem Kind verschwindet auch das Konto.
+          </dd>
+        </dl>
+      </section>
+
       <section class="kategorie" aria-labelledby="k-rollen">
         <h4 id="k-rollen">Rollen, Stufen und Tags</h4>
         <dl>
@@ -743,14 +775,18 @@
             oder Stufenleitung) ist eine solche Zuordnung. Dazu die
             Bearbeitungsrechte, die die Leitung einer Person oder einem Tag gibt
             (zum Beispiel das Recht auf eine bestimmte Seite). Dazu die
-            Plattformrollen, etwa die Rolle Webmaster.
+            Plattformrollen, etwa die Rolle Webmaster, und die Rollen, die die
+            Leitung in einer einzelnen Gruppe anlegt (zum Beispiel Kasse im OK
+            eines Anlasses) mit den Rechten, die sie tragen, und die Rolle, die
+            eine Person in der Gruppe hat.
           </dd>
           <dt>Zweck</dt>
           <dd>
             Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf.
             Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen
-            zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte
-            ändern darf.
+            zu. Bearbeitungsrechte, Plattformrollen und Rollen in Gruppen legen
+            fest, wer Inhalte ändern, Anmeldungen sehen oder Mitteilungen senden
+            darf.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
@@ -767,7 +803,8 @@
             Titel, Zeit und Ort. Dazu die Beschreibung aus dem Kalender, die
             Eltern nie sehen, die Kategorien des Termins im Kalender und die
             Stufen und Tags, für die ein Programm gilt. Dazu die Räume der
-            Abteilung mit Name, Ort, Beschreibung, Plätzen und zuständigem Team.
+            Abteilung mit Name, Ort, Beschreibung, Plätzen und zuständigem Team
+            und die Orte der Abteilung mit Name, Adresszeile und Standort.
           </dd>
           <dt>Zweck</dt>
           <dd>
@@ -777,14 +814,22 @@
             bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung
             (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die
             Abteilungsleitung pflegt und die alle angemeldeten Personen der
-            Abteilung lesen.
+            Abteilung lesen. Dazu kommen die Orte der Abteilung (Name,
+            Adresszeile und ein Standort als Adresse, Koordinaten oder Link auf
+            Google Maps), die die Stufenleitung pflegt: Treffpunkt und
+            Schlussort der Angaben wählt sie aus diesen Orten. Die Website zeigt
+            dazu den Link «Auf Google Maps ansehen»; der Server ruft Google nie
+            ab, und die Seite verbindet sich nicht mit Google, erst der Klick
+            auf den Link tut es.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
             Bis die Leitung das Programm löscht. Der Kalender der Abteilung
             bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das
             geht nur, solange keine Anfrage offen und keine Buchung in der
-            Zukunft ist.
+            Zukunft ist. Einen Ort löscht die Stufenleitung oder die
+            Abteilungsleitung; die Angaben behalten den Namen, nur der Link zur
+            Karte entfällt.
           </dd>
         </dl>
       </section>
@@ -1829,7 +1874,9 @@
       <ul>
         <li>
           Die Daten der Kinder stammen von den Eltern und von der Abteilung. Die
-          Leitung trägt sie ein. Die Kinder selbst geben nichts ein.
+          Leitung trägt sie ein. Die Kinder selbst geben nichts ein; ein Kind
+          mit eigenem Konto kann nur die Programme seiner Stufe beantworten und,
+          wenn die Abteilung es erlaubt, im Gruppenchat schreiben.
         </li>
         <li>
           Die Konten legt die Leitung an. Name und Benutzername stammen von ihr,
@@ -1847,6 +1894,15 @@
 
       <h3 id="os-sichtbar">11.4 Wer was sieht</h3>
       <ul>
+        <li>
+          Ein Kind mit eigenem Konto sieht nur sich selbst: die Programme und
+          die Leitung seiner Stufe, die eigene Anmeldung und, wenn die Abteilung
+          es erlaubt, den Gruppenchat der Stufe (lesen oder auch schreiben). Es
+          sieht nie andere Kinder, deren Eltern oder eine Telefonnummer, hat
+          keinen Einzelchat mit der Leitung und keinen Zugang zur Verwaltung.
+          Die verknüpften Eltern sehen weiter, was das Kind sieht, ausser die
+          Abteilung hat das Konto dem Kind ganz übergeben.
+        </li>
         <li>
           Eltern sehen ihre eigenen Kinder und die Programme, die für ihre Stufe
           freigegeben sind. Im Gruppenchat einer Stufe sehen sie die Nachrichten
@@ -1960,6 +2016,15 @@
           widerrufen.
         </li>
         <li>
+          Ist bei einem Treffpunkt oder Schlussort ein Standort hinterlegt,
+          zeigt die Stufenseite den Link «Auf Google Maps ansehen». Es ist nur
+          ein Link: Die Seite lädt keine Karte und kein Skript von Google, und
+          der Server ruft Google nie ab. Erst wenn du den Link anklickst,
+          verbindet sich dein Browser mit Google (Google Maps), ohne dass die
+          Website mitgeschickt wird, woher du kommst; ab dann gelten die
+          Bedingungen von Google. Cevi OS erfährt davon nichts.
+        </li>
+        <li>
           Cevi OS selbst gibt sonst keine Daten an Dritte weiter und verkauft
           sie nicht. Was die Abteilung ausserhalb von Cevi OS weitergibt, steht
           in <a href="#dritte">Abschnitt 4</a>.
@@ -1975,8 +2040,9 @@
         <a href="#rechte">Abschnitt 7</a>). Wird ein Konto gelöscht, gehen die
         Nachrichten der Person mit; bei Eltern gehen auch der Einzelchat und die
         Zuordnung zu den Kindern mit. Die Kinder und ihre Anmeldungen bleiben,
-        bis die Leitung sie löscht. Wie du eine Löschung verlangst, steht unter
-        <a href="/konto-loeschen">Konto löschen</a>.
+        bis die Leitung sie löscht; löscht sie ein Kind mit eigenem Konto, geht
+        das Konto mit seinen Nachrichten mit. Wie du eine Löschung verlangst,
+        steht unter <a href="/konto-loeschen">Konto löschen</a>.
       </p>
       <p>
         Im Lager ist Löschen endgültig. Was die Leitung im Lager löscht, ist

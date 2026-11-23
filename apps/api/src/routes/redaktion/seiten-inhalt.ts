@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import { darfBearbeiten } from "../../bearbeiten.js";
+import { darfSeite } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, seite, seiteVersion } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -121,17 +121,13 @@ export function erstelleSeitenInhaltRouten({
   // Wie bei der Struktur: Eine Seite einer Stufe (tagId = Stufe) bearbeitet auch deren Stufenleitung
   // veroeffentlichen: Die Frage gilt dem Veröffentlichen und Zurückziehen (Plattformrecht «Seiten veröffentlichen» statt «Seiten bearbeiten»)
   async function ladeMitRecht(
-    d: Pick<Db, "select">,
+    d: Pick<Db, "select" | "execute">,
     person: Person,
     id: string,
     veroeffentlichen = false,
   ) {
     const z = await ladeSeite(d, person, id);
-    const darf = await darfBearbeiten(d, person, "seite", id, {
-      stufeId: z.seite.tagId ?? undefined,
-      tagId: z.seite.tagId ?? undefined,
-      veroeffentlichen,
-    });
+    const darf = await darfSeite(d, person, z.seite, { veroeffentlichen });
     if (!darf) throw new HTTPException(403);
     return z;
   }
@@ -265,6 +261,9 @@ export function erstelleSeitenInhaltRouten({
             daten.laden = laden.laden;
             if (laden.ladenUebergabe) {
               daten.ladenUebergabe = laden.ladenUebergabe;
+            }
+            if (laden.ladenEinstellung) {
+              daten.ladenEinstellung = laden.ladenEinstellung;
             }
             daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
           }

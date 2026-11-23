@@ -7,6 +7,7 @@ import type {
 import type { Db } from "./db/client.js";
 import {
   aktivitaet,
+  kind,
   kindEltern,
   personPlattformRolle,
   plattformEntwickler,
@@ -113,7 +114,7 @@ export function erstelleAktivitaetsprotokoll(
       ),
     ].filter((id) => (cache.get(id)?.bis ?? 0) < jetzt);
     if (gesucht.length > 0) {
-      const [personen, entwickler, rollenZeilen, stufen, eltern] =
+      const [personen, entwickler, rollenZeilen, stufen, eltern, kinderKonten] =
         await Promise.all([
           db
             .select({
@@ -147,6 +148,10 @@ export function erstelleAktivitaetsprotokoll(
             .select({ id: kindEltern.userId })
             .from(kindEltern)
             .where(inArray(kindEltern.userId, gesucht)),
+          db
+            .select({ id: kind.userId })
+            .from(kind)
+            .where(inArray(kind.userId, gesucht)),
         ]);
       for (const p of personen) {
         const r = new Set<string>();
@@ -160,6 +165,7 @@ export function erstelleAktivitaetsprotokoll(
         }
         for (const s of stufen) if (s.id === p.id) r.add(s.typ);
         if (eltern.some((e) => e.id === p.id)) r.add("eltern");
+        if (kinderKonten.some((k) => k.id === p.id)) r.add("teilnehmer");
         cache.set(p.id, {
           bis: jetzt + rollenCacheMs,
           name: p.name.slice(0, 120),

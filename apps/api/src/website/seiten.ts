@@ -9,6 +9,9 @@ import {
   plattformRechtSql,
 } from "../plattform.js";
 import type { Person } from "../rechte.js";
+import { darfEines } from "../rechtemodell/darf.js";
+import { rechteModus } from "../rechtemodell/modus.js";
+import { ladeRechteSatz } from "../rechtemodell/satz.js";
 
 // Ein Pfadstück der Adresse: a-z, 0-9 und «-» (die Datenbank prüft dasselbe mit CHECK)
 export const adresseSchema = z.string().regex(/^[a-z0-9-]{1,60}$/);
@@ -104,8 +107,16 @@ const teamZugang = (person: Person) =>
   sql`exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team' and ${tag.abteilungId} = ${person.abteilungId})`;
 
 // Zugang zur Verwaltung der Website (Namensraum /api/v1/redaktion): Abteilungsleitung, Stufenleitung, ein Plattformrecht des Bereichs (BEREICH_RECHTE: Seiten, Medien, Weiterleitungen, Vorlagen; Rolle Webmaster, Entwickler), Verantwortliche eines Teams (#352) oder eine Zeile in «bearbeiter» für Seiten (auf die Person oder einen Tag, den sie trägt).
-// Das Recht an einer einzelnen Seite prüft darfBearbeiten, das an Medien, Weiterleitungen, Vorlagen und am Anlegen die Route selbst (hatPlattformRecht); dies ist nur die Tür. Eine Abfrage
+// Das Recht an einer einzelnen Seite prüft darfBearbeiten, das an Medien, Weiterleitungen, Vorlagen und am Anlegen die Route selbst (verlange, rechtemodell/darf.ts); dies ist nur die Tür.
+// Seit #648 öffnen auch die Rechte aus Plattform- und Gruppenrollen die Tür (darfEines); der alte Weg zählt bis zum Modus «neu» weiter, dort trägt der Rechtesatz alles (Stufenleitung, Zeilen in «bearbeiter», Verantwortliche des Teams)
 export async function hatWebsiteZugang(db: Db, person: Person) {
+  if (rechteModus() !== "neu" && (await hatWebsiteZugangAlt(db, person))) {
+    return true;
+  }
+  return darfEines(db, person, BEREICH_RECHTE);
+}
+
+async function hatWebsiteZugangAlt(db: Db, person: Person) {
   if (person.admin || person.rollen.some((r) => r.typ === "stufenleitung")) {
     return true;
   }
@@ -119,9 +130,20 @@ export async function hatWebsiteZugang(db: Db, person: Person) {
 }
 
 // Hat die Person ein erweitertes Recht (#423)? Das sind die Abteilungsleitung, jede Plattformrolle mit einem Recht (und der Entwickler), eine Zeile in «bearbeiter» und die Verantwortung für ein Team. Einfach ist nur das Amt der Stufenleitung an der eigenen Stufenseite: Wer sonst nichts hat, braucht keinen zweiten Faktor.
-// Eine Abfrage; sie entfällt für Admins und für Personen, die den zweiten Faktor schon haben (der Aufrufer prüft das zuerst)
+// Eine Abfrage für den alten Weg, eine für den Rechtesatz; sie entfallen für Admins und für Personen, die den zweiten Faktor schon haben (der Aufrufer prüft das zuerst). Seit #648 zählen auch die Rechte aus Plattform- und Gruppenrollen (im Modus «neu» alle Quellen des Satzes): Das Recht muss den zweiten Faktor verlangen, die Stufenleitung an der eigenen Stufenseite nicht
 export async function hatErweitertesRecht(db: Db, person: Person) {
   if (person.admin) return true;
+  if (rechteModus() !== "neu" && (await hatErweitertesRechtAlt(db, person))) {
+    return true;
+  }
+  const satz = await ladeRechteSatz(db, person);
+  const neu = rechteModus() === "neu";
+  return PLATTFORM_RECHT_NAMEN.some(
+    (r) => (neu ? satz.hat(r) : satz.ausRollen(r)) && satz.braucht2Faktor(r),
+  );
+}
+
+async function hatErweitertesRechtAlt(db: Db, person: Person) {
   const [zeile] = await db
     .select({
       ok: sql<boolean>`${plattformRechtSql(person, PLATTFORM_RECHT_NAMEN)} or ${bearbeiterZugang(person)} or ${teamZugang(person)}`,

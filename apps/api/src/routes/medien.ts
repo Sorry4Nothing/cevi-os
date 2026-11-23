@@ -13,6 +13,7 @@ import { log } from "../log.js";
 import { MEDIEN_BILD_MAX_BYTES, type MedienKodierer } from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
+import { verlange } from "../rechtemodell/darf.js";
 import { seitenMitMedium } from "../website/verweise.js";
 
 export const pfadSchema = z.strictObject({ id: z.uuid() });
@@ -386,14 +387,18 @@ export function erstelleMedienRouten({
   speicher?: Medienspeicher;
   handler: MedienHandler;
 }) {
-  // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher
+  // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher. Das Recht «Medien verwalten» (#648): Abteilungsleitung oder eine Rolle wie «Webmaster», mit zweitem Faktor
   const nurAdmin = createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
-      if (!c.get("person").admin) throw new HTTPException(403);
+      await verlange(db, c.get("person"), "medien.verwalten");
       await next();
     },
   );
-  const istAdmin: Darf = (person) => person.admin;
+  // Auch ohne die Middleware (DELETE): fehlt das Recht, 403; fehlt der zweite Faktor, 403 ZWEITER_FAKTOR_FEHLT
+  const istAdmin: Darf = async (person) => {
+    await verlange(db, person, "medien.verwalten");
+    return true;
+  };
 
   return (
     new Hono<{ Variables: { person: Person } }>()

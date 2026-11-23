@@ -3,7 +3,7 @@
 // Bereich:     { schluessel, name, symbol, start?, unter: [Unterseite] }
 // Unterseite:  { schluessel, name, modul, untertitel, zugang? }
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
-//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Plattformrecht; Abteilungsleitung hat alle). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
+//   zugang     wer die Seite sehen darf: «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Recht des Rechtekatalogs abteilungsweit; Abteilungsleitung hat alle; «recht:a|b»: eines von beiden genügt). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
@@ -99,9 +99,9 @@ export const BEREICHE = [
       },
       {
         schluessel: "stufenfakten",
-        name: "Stufenfelder",
+        name: "Samstagsangaben der Stufen",
         modul: "./website-stufenfakten.js",
-        untertitel: "Treffpunkt, Zeit und Mitnehmen der Stufen.",
+        untertitel: "Treffzeit, Treffpunkt und Mitnehmen je Stufe und Samstag.",
         zugang: "website",
       },
       {
@@ -205,18 +205,21 @@ export const BEREICHE = [
         name: "Bestellungen",
         modul: "./laedeli.js",
         untertitel: "Bestellungen der Website und ihr Stand.",
+        zugang: "recht:laden.ansehen|laden.bestellungen_bearbeiten",
       },
       {
         schluessel: "artikel",
         name: "Artikel",
         modul: "./laedeli.js",
         untertitel: "Was das Lädeli anbietet, mit Preis und Varianten.",
+        zugang: "recht:laden.ansehen|laden.artikel_pflegen",
       },
       {
         schluessel: "einstellungen",
         name: "Einstellungen",
         modul: "./laedeli.js",
         untertitel: "Wie Bestellungen übergeben werden.",
+        zugang: "recht:laden.einstellungen",
       },
     ],
   },
@@ -230,6 +233,7 @@ export const BEREICHE = [
         name: "Lager",
         modul: "./lager.js",
         untertitel: "Lager anlegen, betreuen und abschliessen.",
+        zugang: "recht:lager.verwalten",
       },
       {
         schluessel: "vorlagen",
@@ -237,6 +241,7 @@ export const BEREICHE = [
         modul: "./lager-vorlagen.js",
         untertitel:
           "Aufgaben und Packlisten, die neue Lager übernehmen können.",
+        zugang: "recht:lager.vorlagen_pflegen",
       },
     ],
   },
@@ -264,6 +269,7 @@ export const BEREICHE = [
         name: "System",
         modul: "./system.js",
         untertitel: "Zustand von API, Datenbank und Anfragen.",
+        zugang: "recht:system.lesen",
       },
       {
         schluessel: "plattform",
@@ -278,6 +284,7 @@ export const BEREICHE = [
         name: "Erinnerungen",
         modul: "./zeitregeln.js",
         untertitel: "Pushes an Eltern, die noch nicht geantwortet haben.",
+        zugang: "recht:zeitregeln.verwalten",
       },
       {
         schluessel: "protokoll",
@@ -348,7 +355,12 @@ export function darfSehen(
   if (wer === "alle") return true;
   if (wer === "belegung") return zugang?.belegung === true;
   if (wer.startsWith("recht:")) {
-    return zugang?.rechte?.includes(wer.slice("recht:".length)) ?? false;
+    // Plattformrechte (rechte) und alle Katalogrechte (katalogRechte, #648); eines der genannten genügt
+    const hat = [...(zugang?.rechte ?? []), ...(zugang?.katalogRechte ?? [])];
+    return wer
+      .slice("recht:".length)
+      .split("|")
+      .some((name) => hat.includes(name));
   }
   return zugang?.bereiche.includes(wer) ?? false;
 }

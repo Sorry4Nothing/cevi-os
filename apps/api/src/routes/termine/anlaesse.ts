@@ -9,7 +9,7 @@ import {
   anlassFeld,
   auditLog,
   kind,
-  kindEltern,
+  kindZugang,
   programm,
   tag,
   user,
@@ -137,8 +137,8 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
       .select({ id: kind.id })
       .from(kind)
       .innerJoin(
-        kindEltern,
-        and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+        kindZugang,
+        and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
       )
       .where(
         and(
@@ -222,10 +222,10 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
           })
           .from(kind)
           .innerJoin(
-            kindEltern,
+            kindZugang,
             and(
-              eq(kindEltern.kindId, kind.id),
-              eq(kindEltern.userId, person.id),
+              eq(kindZugang.kindId, kind.id),
+              eq(kindZugang.userId, person.id),
             ),
           )
           .innerJoin(tag, eq(tag.id, kind.stufeId))

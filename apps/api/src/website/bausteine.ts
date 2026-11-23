@@ -262,7 +262,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       url: link("https"),
     }),
   ),
-  // Die festen Stufenfelder; die Werte liefert #355 aus der Datenbank, der Baustein hat keine eigenen Daten
+  // Die festen Samstagsangaben der Stufen; die Werte liefert #355 aus der Datenbank, der Baustein hat keine eigenen Daten
   baustein("stufenfakten", z.strictObject({})),
   // Hinweisband (#549, Design W1): ein Satz, optional mit Link («Anmeldung offen bis 15. März»)
   baustein(
@@ -277,7 +277,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
         .optional(),
     }),
   ),
-  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Stufenfelder; für Lager und Anlässe
+  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Samstagsangaben der Stufen; für Lager und Anlässe
   baustein(
     "eckdaten",
     z.strictObject({

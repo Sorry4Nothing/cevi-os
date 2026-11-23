@@ -182,6 +182,14 @@ describe("knoten: sicherer Aufbau ohne innerHTML (#354)", () => {
     });
   });
 
+  test("role nur «list» an einer Liste (#645)", () => {
+    expect(baue({ tag: "ul", attr: { role: "list" } })!.attrs).toEqual({
+      role: "list",
+    });
+    expect(baue({ tag: "ul", attr: { role: "button" } })!.attrs).toEqual({});
+    expect(baue({ tag: "div", attr: { role: "list" } })!.attrs).toEqual({});
+  });
+
   test("Müll und zu tiefe Bäume werden abgewiesen, ohne Fehler", () => {
     for (const k of [
       null,

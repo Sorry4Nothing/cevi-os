@@ -22,6 +22,7 @@ export const BEREICHE = [
   "anlaesse",
   "raeume",
   "laedeli",
+  "lager",
   "mitteilungen",
   "personen",
   "plattform",
@@ -34,6 +35,7 @@ export const BEREICH_NAMEN: Record<Bereich, string> = {
   anlaesse: "Anlässe",
   raeume: "Räume",
   laedeli: "Lädeli",
+  lager: "Lager",
   mitteilungen: "Mitteilungen",
   personen: "Personen und Gruppen",
   plattform: "Plattform und Rechte",
@@ -320,6 +322,22 @@ export const RECHTE_KATALOG = {
     ALLE,
   ),
 
+  // Lager (Verwaltung der Abteilung). Mitglieder und Rollen eines Lagers vergibt nur die Abteilungsleitung (rechte.verwalten); die Rechte im Lager stellt die Lagerleitung je Lager ein (lager/rechte-katalog.ts, Anhang A)
+  "lager.verwalten": v(
+    "lager",
+    "Lager anlegen und verwalten",
+    "Lager anlegen, Stammdaten ändern, den Stand setzen, Lager löschen und die erlaubten Hosts für Dateilinks einstellen. Wer Mitglied eines Lagers wird und welche Rolle es hat, bestimmt nur die Abteilungsleitung. Das Recht gibt keinen Einblick in die Daten im Lager.",
+    "erweitert",
+    ALLE,
+  ),
+  "lager.vorlagen_pflegen": v(
+    "lager",
+    "Lager-Vorlagen pflegen",
+    "Vorlagen für Aufgaben und Packlisten anlegen, ändern und löschen, die neue Lager übernehmen können.",
+    "erweitert",
+    ALLE,
+  ),
+
   // Mitteilungen
   "mitteilung.senden": v(
     "mitteilungen",
@@ -359,6 +377,18 @@ export const RECHTE_KATALOG = {
     "Konten löschen",
     "Konten löschen und Daten einer Person vergessen. Das lässt sich nicht rückgängig machen.",
   ),
+  // Konten von Kindern (#644): Erstellen, Übergeben, Sperren, Entfernen und die Einstellungen der Abteilung. Fest, weil es Kinderdaten und die Aufsicht der Eltern betrifft
+  "kinder.konto_verwalten": f(
+    "personen",
+    "Konten von Kindern verwalten",
+    "Einem Kind ein eigenes Konto erstellen, übergeben, sperren oder entfernen und einstellen, ob Kinder Konten haben und im Chat schreiben dürfen. Das betrifft Kinder und die Aufsicht der Eltern: Das bleibt bei der Abteilungsleitung.",
+  ),
+  // Was das Konto eines Kindes sieht, folgt aus dem Kind (Sicht kind_zugang), nicht aus einer Rolle
+  "kinder.konto_sehen": s(
+    "personen",
+    "Eigenes Kind sehen (Konto eines Kindes)",
+    "Das Konto eines Kindes sieht die Programme und die Leitung der eigenen Stufe, die eigene Anmeldung und je nach Einstellung den Gruppenchat. Nie andere Kinder, Eltern, Telefonnummern oder die Verwaltung. Das folgt aus dem Kind und lässt sich nicht einstellen.",
+  ),
   "protokoll.lesen": f(
     "plattform",
     "Protokoll lesen",
@@ -379,14 +409,31 @@ export const RECHTE_KATALOG = {
   ),
   "plattform.sperren": f(
     "plattform",
-    "Wartung und Informationssperre schalten",
-    "Einzelne Bereiche oder alles in Wartung setzen und die Informationssperre auslösen.",
+    "Informationssperre schalten",
+    "Einen Bereich oder alles sperren (Informationssperre) und die Sperre wieder aufheben. Die Wartung eines Bereichs ist ein eigenes, vergebbares Recht.",
     { entwickler: true },
   ),
-  "system.lesen": f(
+  "wartung.bereiche": v(
+    "plattform",
+    "Wartung der Bereiche schalten",
+    "Die Bereiche Lager, Chat, Programme und Verwaltung in Wartung setzen und wieder öffnen. Die Website hat ein eigenes Recht, die Informationssperre bleibt bei der Abteilungsleitung.",
+    "erweitert",
+    ALLE,
+    { entwickler: true },
+  ),
+  "system.lesen": v(
     "plattform",
     "Betriebszahlen lesen",
-    "Die Seite «System» mit Betriebszahlen und Sicherungen lesen.",
+    "Die Seite «System» mit Betriebszahlen und Anfragestatistik lesen, dazu den Stand der Kalender-Abgleiche, und einen Abgleich anstossen.",
+    "erweitert",
+    ALLE,
+  ),
+  "zeitregeln.verwalten": v(
+    "plattform",
+    "Erinnerungen (Zeitregeln) verwalten",
+    "Die Zeitregeln für Erinnerungen an Eltern anlegen, ändern und löschen.",
+    "erweitert",
+    ALLE,
   ),
 } as const satisfies Record<string, RechtEintrag>;
 

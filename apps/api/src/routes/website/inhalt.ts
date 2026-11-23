@@ -112,7 +112,7 @@ export function erstelleInhaltRoute({ db }: { db: Db }) {
         [{ ...dokument, bausteine: sichtbare }],
         false,
       );
-      // Stufenfelder (#355): nur wenn ein solcher Baustein dabei ist, und aus dem Zwischenspeicher (ein Abruf je Seite und fünf Minuten)
+      // Samstagsangaben der Stufen (#355): nur wenn ein solcher Baustein dabei ist, und aus dem Zwischenspeicher (ein Abruf je Seite und fünf Minuten)
       const fakten = sichtbare.some((b) => b.typ === "stufenfakten")
         ? await ladeStufenfaktenGemerkt(db, abteilungId, zeile.id)
         : undefined;

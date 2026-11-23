@@ -21,7 +21,7 @@ export function anlassSichtbar(
     sichtbarkeit: anlass.sichtbarkeit,
     sichtbarkeitTags: anlass.sichtbarkeitTags,
   });
-  return sql`(${eigene} or (${anlass.abteilungId} = ${person.abteilungId} and ${anlass.sichtbarkeit} = 'tags' and exists (select 1 from kind_eltern as sicht_ke inner join kind as sicht_kind on sicht_kind.id = sicht_ke.kind_id where sicht_ke.user_id = ${person.id} and sicht_kind.abteilung_id = ${anlass.abteilungId} and sicht_kind.inaktiv_seit is null and sicht_kind.stufe_id = any(${anlass.sichtbarkeitTags}))))`;
+  return sql`(${eigene} or (${anlass.abteilungId} = ${person.abteilungId} and ${anlass.sichtbarkeit} = 'tags' and exists (select 1 from kind_zugang as sicht_ke inner join kind as sicht_kind on sicht_kind.id = sicht_ke.kind_id where sicht_ke.user_id = ${person.id} and sicht_kind.abteilung_id = ${anlass.abteilungId} and sicht_kind.inaktiv_seit is null and sicht_kind.stufe_id = any(${anlass.sichtbarkeitTags}))))`;
 }
 
 export type AnlassInfo = {
@@ -45,7 +45,7 @@ export async function ladeAnlassInfos(
       id: anlass.id,
       anmeldeschluss: anlass.frist,
       anmeldungOffen: anmeldungOffenSql,
-      angemeldet: sql<boolean>`exists (select 1 from anlass_anmeldung as m where m.anlass_id = ${anlass.id} and m.status = 'angemeldet' and ((m.kind_id is null and m.user_id = ${person.id}) or m.kind_id in (select ke.kind_id from kind_eltern as ke where ke.user_id = ${person.id})))`,
+      angemeldet: sql<boolean>`exists (select 1 from anlass_anmeldung as m where m.anlass_id = ${anlass.id} and m.status = 'angemeldet' and ((m.kind_id is null and m.user_id = ${person.id}) or m.kind_id in (select ke.kind_id from kind_zugang as ke where ke.user_id = ${person.id})))`,
     })
     .from(anlass)
     .innerJoin(programm, eq(programm.id, anlass.programmId))

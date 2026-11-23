@@ -15,11 +15,13 @@ import {
   artikelAendernSchema,
   artikelAnlegenSchema,
   artikelAnsicht,
-  darfLadenVerwalten,
   einstellungSchema,
+  einstellungZeile,
+  EINSTELLUNG_VORGABE,
   istLadenBild,
   ladeArtikel,
-  ladeUebergabearten,
+  ladeEinstellung,
+  type LadenEinstellung,
   listeSchema,
   MAX_ARTIKEL,
   pruefeGroesse,
@@ -29,11 +31,12 @@ import {
   WECHSEL,
 } from "../../laden/laden.js";
 import type { Person } from "../../rechte.js";
+import { verlangeEines } from "../../rechtemodell/tuer.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { bestellungAnsicht, ladePositionen } from "./bestellungen.js";
 import type { LadenEnv } from "./index.js";
 
-// Lädeli verwalten (#566): Artikel pflegen, Bestellungen sehen und ihren Stand setzen, Übergabearten einstellen. Nur die Abteilungsleitung (laden/laden.ts: darfLadenVerwalten); die Pfade tragen /api/v1/admin und erben den zweiten Faktor.
+// Lädeli verwalten (#566): Artikel pflegen, Bestellungen sehen und ihren Stand setzen, Übergabearten einstellen. Jedes mit eigenem Recht (#648: laden.ansehen, laden.artikel_pflegen, laden.bestellungen_bearbeiten, laden.einstellungen); die Abteilungsleitung hat alle, eine Rolle wie «Webmaster» bekommt sie von der Abteilungsleitung. Die Pfade tragen /api/v1/admin und erben den zweiten Faktor.
 // Objekte einer anderen Abteilung sind 404; erst das Objekt laden, dann das Recht (403). Nach jeder Änderung an Artikeln erzeugt der Abgleich die Seiten mit dem Laden neu.
 const pfad = z.strictObject({ id: z.uuid() });
 const bestellListeSchema = listeSchema.extend({
@@ -55,9 +58,14 @@ const STATUS_UNGUELTIG = {
   message: "Diese Bestellung lässt sich in diesem Stand nicht so ändern.",
 } as const;
 
-function pruefeRecht(person: Pick<Person, "admin">) {
-  if (!darfLadenVerwalten(person)) throw new HTTPException(403);
-}
+// Die Rechte aus dem Rechtekatalog (rechtemodell/katalog.ts): Abteilungsleitung, oder eine Rolle (zum Beispiel «Webmaster») mit dem Recht, mit zweitem Faktor. Die Liste der Artikel und der Bestellungen lesen auch, die sie pflegen oder bearbeiten
+const ARTIKEL_LESEN = ["laden.ansehen", "laden.artikel_pflegen"] as const;
+const BESTELLUNGEN_LESEN = [
+  "laden.ansehen",
+  "laden.bestellungen_bearbeiten",
+] as const;
+const pruefeRecht = (db: Db, person: Person, rechte: readonly string[]) =>
+  verlangeEines(db, person, rechte);
 
 const ladeEinenArtikel = async (db: Db, abteilungId: string, id: string) =>
   (
@@ -82,7 +90,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
       // Alle Artikel, auch die nicht verfügbaren. Eine Abfrage
       .get("/admin/laden/artikel", async (c) => {
         const person = c.get("person");
-        pruefeRecht(person);
+        await pruefeRecht(db, person, ARTIKEL_LESEN);
         return c.json({
           artikel: (await ladeArtikel(db, person.abteilungId)).map(
             artikelAnsicht,
@@ -95,7 +103,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         async (c) => {
           const person = c.get("person");
           // Ohne Objekt im Pfad: erst das Recht
-          pruefeRecht(person);
+          await pruefeRecht(db, person, ["laden.artikel_pflegen"]);
           const { groessenart, ...b } = c.req.valid("json");
           const groesse = pruefeGroesse({ groessenart, ...b }, true);
           if ("fehler" in groesse) return c.json(groesse.fehler, 422);
@@ -157,7 +165,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         eingabe("json", reihenfolgeSchema),
         async (c) => {
           const person = c.get("person");
-          pruefeRecht(person);
+          await pruefeRecht(db, person, ["laden.artikel_pflegen"]);
           const { ids } = c.req.valid("json");
           const ok = await db.transaction(async (tx) => {
             await tx.execute(
@@ -210,7 +218,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           // Erst das Objekt (404), dann das Recht (403), dann die Eingabe gegen die Datenbank
           const bisher = await ladeEinenArtikel(db, person.abteilungId, id);
           if (!bisher) throw new HTTPException(404);
-          pruefeRecht(person);
+          await pruefeRecht(db, person, ["laden.artikel_pflegen"]);
           const groesse = pruefeGroesse({ groessenart, ...b }, false);
           if ("fehler" in groesse) return c.json(groesse.fehler, 422);
           if (groesse.varianten) b.varianten = groesse.varianten;
@@ -251,7 +259,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         if (!(await ladeEinenArtikel(db, person.abteilungId, id))) {
           throw new HTTPException(404);
         }
-        pruefeRecht(person);
+        await pruefeRecht(db, person, ["laden.artikel_pflegen"]);
         await db.transaction(async (tx) => {
           const [weg] = await tx
             .delete(ladenArtikel)
@@ -277,7 +285,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
         eingabe("query", bestellListeSchema),
         async (c) => {
           const person = c.get("person");
-          pruefeRecht(person);
+          await pruefeRecht(db, person, BESTELLUNGEN_LESEN);
           const { limit, nach, status } = c.req.valid("query");
           const zeilen = await db
             .select({
@@ -331,7 +339,7 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
               ),
             );
           if (!ziel) throw new HTTPException(404);
-          pruefeRecht(person);
+          await pruefeRecht(db, person, ["laden.bestellungen_bearbeiten"]);
           if (ziel.status === status) return c.json({ id, status });
           if (!WECHSEL[ziel.status].includes(status)) {
             return c.json(STATUS_UNGUELTIG, 409);
@@ -368,39 +376,47 @@ export function erstelleAdminLadenRouten({ db }: { db: Db }) {
           return c.json({ id, status });
         },
       )
+      // Alle Einstellungen des Lädelis mit den Vorgaben daneben (für «Standard wiederherstellen» und die Hinweise der Verwaltung)
       .get("/admin/laden/einstellungen", async (c) => {
         const person = c.get("person");
-        pruefeRecht(person);
+        await pruefeRecht(db, person, ["laden.einstellungen"]);
         return c.json({
-          uebergabearten: await ladeUebergabearten(db, person.abteilungId),
+          ...(await ladeEinstellung(db, person.abteilungId)),
+          vorgaben: EINSTELLUNG_VORGABE,
         });
       })
-      // Die Übergabearten ersetzen. Bestehende Bestellungen behalten ihren Text
+      // Die Einstellungen ersetzen; Felder ohne Schlüssel bleiben, wie sie sind. Bestehende Bestellungen behalten ihren Text und ihren Preis
       .put(
         "/admin/laden/einstellungen",
         eingabe("json", einstellungSchema),
         async (c) => {
           const person = c.get("person");
-          pruefeRecht(person);
-          const { uebergabearten } = c.req.valid("json");
+          await pruefeRecht(db, person, ["laden.einstellungen"]);
+          const aenderung = c.req.valid("json");
           await db.transaction(async (tx) => {
+            const neu: LadenEinstellung = {
+              ...(await ladeEinstellung(tx, person.abteilungId)),
+              ...aenderung,
+            };
+            const zeile = einstellungZeile(neu);
             await tx
               .insert(ladenEinstellung)
-              .values({ abteilungId: person.abteilungId, uebergabearten })
+              .values({ abteilungId: person.abteilungId, ...zeile })
               .onConflictDoUpdate({
                 target: ladenEinstellung.abteilungId,
-                set: { uebergabearten },
+                set: zeile,
               });
+            // Nur die Namen der geänderten Felder, nie die Texte
             await tx.insert(auditLog).values({
               abteilungId: person.abteilungId,
               akteurId: person.id,
               aktion: "laden_einstellung_geaendert",
               zielTyp: "abteilung",
               zielId: person.abteilungId,
-              details: { uebergabearten: uebergabearten.length },
+              details: { felder: Object.keys(aenderung) },
             });
           });
-          // Die Übergabearten stehen im Laden der Website
+          // Die Einstellungen stehen im Laden der Website
           geaendert(person.abteilungId);
           return c.body(null, 204);
         },

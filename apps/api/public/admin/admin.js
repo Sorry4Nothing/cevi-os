@@ -42,7 +42,10 @@ let ich = null;
 let zugang = null;
 const mitDarf = (daten, alle) => ({
   ...daten,
-  darf: (recht) => alle || daten.rechte.includes(recht),
+  darf: (recht) =>
+    alle ||
+    daten.rechte.includes(recht) ||
+    (daten.katalogRechte ?? []).includes(recht),
 });
 const istAdmin = () => ich?.role === "admin";
 // Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
@@ -438,7 +441,7 @@ let navigation = 0;
 async function zeigeVerwaltung() {
   // Zwei Fragen vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo, Signal «nameAenderbar»; nur wer «Seiten veröffentlichen» darf, sonst 403) und für alle ohne Abteilungsleitung das eigene Profil (Rolle im Kopf)
   const darfEinstellungen =
-    istAdmin() || zugang.rechte.includes("seiten.veroeffentlichen");
+    istAdmin() || zugang.darf("seiten.veroeffentlichen");
   const [einstellungen, profil] = await Promise.all([
     darfEinstellungen
       ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)

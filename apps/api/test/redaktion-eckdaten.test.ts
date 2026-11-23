@@ -194,6 +194,8 @@ describe("Rechte", () => {
       expect(await gelesen.json()).toEqual({
         tag,
         ...FELDER,
+        treffpunktOrtId: null,
+        schlussOrtId: null,
         quelle: "seite",
       });
       expect(
@@ -669,6 +671,38 @@ describe("Datenquelle für den Baustein «stufenfakten»", () => {
   });
 });
 
+describe("Mitnehmen als Liste (#645)", () => {
+  const zeile = (mitnehmen: string | null) => ({
+    tag: "2027-04-10",
+    treffZeit: null,
+    treffpunkt: null,
+    schlussZeit: null,
+    schlussOrt: null,
+    mitnehmen,
+  });
+  const letzter = (mitnehmen: string | null) =>
+    faktenAus(zeile(mitnehmen)).at(-1);
+
+  test("mehrere Dinge: Liste, der Wortlaut bleibt als Wert", () => {
+    expect(letzter(" Kluft, Zvieri ")).toEqual({
+      bezeichnung: "Mitnehmen",
+      wert: "Kluft, Zvieri",
+      lang: true,
+      liste: ["Kluft", "Zvieri"],
+    });
+  });
+
+  test("ein Satz ohne Trenner: Text ohne Liste; leer: keine Zeile", () => {
+    expect(letzter("Warme Kleidung")).toEqual({
+      bezeichnung: "Mitnehmen",
+      wert: "Warme Kleidung",
+      lang: true,
+    });
+    expect(letzter("  ")?.bezeichnung).toBe("Datum");
+    expect(letzter(null)?.bezeichnung).toBe("Datum");
+  });
+});
+
 describe("Seite und Nachladen", () => {
   let wurzel: string;
   beforeEach(async () => {
@@ -728,7 +762,7 @@ describe("Seite und Nachladen", () => {
     );
   });
 
-  test("Nachladen geschützter Stufenfelder: neue Werte nach dem Speichern, Eltern sehen sie, ohne Sitzung 401", async () => {
+  test("Nachladen geschützter Samstagsangaben der Stufen: neue Werte nach dem Speichern, Eltern sehen sie, ohne Sitzung 401", async () => {
     const s = await neueStufe("Geschuetzt");
     const dok = faktenDok("Geschützt");
     const [v] = await db

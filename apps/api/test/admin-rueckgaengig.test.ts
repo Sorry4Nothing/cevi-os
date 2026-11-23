@@ -319,6 +319,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
       "termine-anlaesse.js",
       "termine-raeume.js",
       "website-stufenfakten.js",
+      "website-orte.js",
       "zeitregeln.js",
       "lager-mitglieder.js",
       "lager-vorlagen.js",
@@ -336,6 +337,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
       "plattform.js",
       "lager-rechte.js",
       "rechte.js",
+      "website-orte.js",
     ]) {
       expect(lies(datei), datei).toMatch(/zweiStufig|zweistufig/);
     }
