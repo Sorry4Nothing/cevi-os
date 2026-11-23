@@ -363,10 +363,11 @@ export function einstellungZeile(e: LadenEinstellung) {
 }
 
 // Was die Website und die Apps von den Einstellungen sehen: alles; die Übergabearten stehen schon eigens in der Antwort
-export const oeffentlicheEinstellung = ({
-  uebergabearten: _,
-  ...rest
-}: LadenEinstellung) => rest;
+export const oeffentlicheEinstellung = (e: LadenEinstellung) => {
+  const rest: Partial<LadenEinstellung> = { ...e };
+  delete rest.uebergabearten;
+  return rest as Omit<LadenEinstellung, "uebergabearten">;
+};
 
 // Die Meldung bei zu kleiner Bestellung; «CHF 20.–»
 export const mindestText = (rappen: number) =>

@@ -13,7 +13,10 @@ const html = tm.html as (d: unknown) => string;
 
 describe("Vorgaben im Browser und im Server sind dieselben", () => {
   test("die Zahlen und Texte der Vorgabe stimmen überein", () => {
-    const { uebergabearten: _, ...server } = EINSTELLUNG_VORGABE;
+    const server: Partial<typeof EINSTELLUNG_VORGABE> = {
+      ...EINSTELLUNG_VORGABE,
+    };
+    delete server.uebergabearten;
     expect(laden.EINSTELLUNG).toEqual(server);
   });
 });
