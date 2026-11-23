@@ -227,6 +227,24 @@ a.laden-knopf--bestellen {
   }
 }
 
+/* Hinweise der Abteilung unter der Leiste (#642): wann und wo übergeben wird, oder dass gerade nicht bestellt werden kann; auch auf dem Telefon sichtbar */
+.laden-hinweiszeile {
+  max-width: 44rem;
+  margin: 0.75rem 0 0;
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.laden-hinweiszeile--zu {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-bedingungen p {
+  margin: 0 0 0.25rem;
+}
+
 .laden-leiste-korb {
   margin-left: auto;
 }

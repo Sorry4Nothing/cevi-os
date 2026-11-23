@@ -183,7 +183,7 @@ describe("Startseite und Stufenseite", () => {
     );
   });
 
-  test("Stufenseite: Text und Bild vor den Stufenfeldern stehen links, die Felder rechts", () => {
+  test("Stufenseite: Text und Bild vor den Samstagsangaben der Stufen stehen links, die Felder rechts", () => {
     const seiteId = id();
     const d: Daten = {
       ...daten,
@@ -221,7 +221,38 @@ describe("Startseite und Stufenseite", () => {
     );
   });
 
-  test("Stufenfelder ohne Text davor: keine zweite Spalte", () => {
+  test("Mitnehmen (#645): Liste mit maskierten Einträgen, sonst ein Text in Lesegrösse", () => {
+    const seiteId = id();
+    const mitnehmen = (f: object) =>
+      rendereSeite(
+        {
+          id: seiteId,
+          pfad: "/stufen/woelfe",
+          dokument: dok("Wölfe", b("stufenfakten", {})),
+        },
+        kontext({
+          ...keineDaten(),
+          stufenfakten: new Map([
+            [
+              seiteId,
+              [{ bezeichnung: "Mitnehmen", wert: "w", lang: true, ...f }],
+            ],
+          ]),
+        }),
+      );
+    const liste = mitnehmen({ liste: ["Kluft", "<b>Hut</b>"] });
+    expect(liste).toContain(
+      '<div class="fakt fakt--lang"><dt>Mitnehmen</dt><dd><ul class="mitnehmen" role="list"><li>Kluft</li><li>&lt;b&gt;Hut&lt;/b&gt;</li></ul></dd></div>',
+    );
+    expect(liste).not.toContain("<b>Hut");
+    const text = mitnehmen({ wert: "Warme Kleidung & Trinkflasche" });
+    expect(text).toContain(
+      '<div class="fakt fakt--lang"><dt>Mitnehmen</dt><dd>Warme Kleidung &amp; Trinkflasche</dd></div>',
+    );
+    expect(text).not.toContain("mitnehmen");
+  });
+
+  test("Samstagsangaben der Stufen ohne Text davor: keine zweite Spalte", () => {
     const seiteId = id();
     const d: Daten = {
       ...keineDaten(),
@@ -458,6 +489,23 @@ describe("Stilvorlage", () => {
     expect(TOKENS).toContain("@media (prefers-color-scheme: dark)");
     expect(TOKENS).toMatch(/--primary-text: #d50038/);
     expect(TOKENS).toMatch(/--primary-text: #ff7a93/);
+  });
+
+  test("Mitnehmen (#645): Lesegrösse und normale Stärke, höchstens zwei Spalten, Haken gezeichnet ohne Bild", () => {
+    const regel = (wahl: string) => {
+      const von = CSS.indexOf(`
+${wahl} {`);
+      return von < 0 ? "" : CSS.slice(von, CSS.indexOf("}", von));
+    };
+    const lang = regel(".fakten.karte .fakt--lang dd");
+    expect(lang).toContain("font-weight: 400");
+    expect(lang).toContain("font-size: 1.125rem");
+    const liste = regel(".mitnehmen");
+    expect(liste).toContain("list-style: none");
+    expect(liste).toContain("column-count: 2");
+    expect(regel(".mitnehmen li::before")).toContain(
+      "border-width: 0 2px 2px 0",
+    );
   });
 
   test("nichts von aussen: keine Adresse, kein @import, keine Daten-URL; url() nur für die eigene Schrift", () => {

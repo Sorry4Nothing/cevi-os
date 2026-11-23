@@ -1750,7 +1750,7 @@ paths:
   /admin/website-stufenfakten.js:
     get:
       operationId: getAdminWebsiteStufenfaktenSkript
-      summary: Skript der Verwaltung – Bereich Website, Stufenfelder
+      summary: Skript der Verwaltung – Bereich Website, Samstagsangaben der Stufen
       tags:
         - Allgemein
       security: []
@@ -1765,7 +1765,7 @@ paths:
   /admin/website-stufenfakten.css:
     get:
       operationId: getAdminWebsiteStufenfaktenStilvorlage
-      summary: Stilvorlage der Verwaltung – Bereich Website, Stufenfelder
+      summary: Stilvorlage der Verwaltung – Bereich Website, Samstagsangaben der Stufen
       tags:
         - Allgemein
       security: []
@@ -4202,6 +4202,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/personen/{id}/bild:
+    delete:
+      operationId: entferneAdminPersonProfilbild
+      summary: Profilbild einer Person entfernen
+      description: |
+        Abteilungsleitung (mit zweitem Faktor) und Entwickler (mit zweitem Faktor), nur Personen der eigenen Abteilung. Die Person setzt ihr Bild selbst; das Entfernen löscht es und lässt die Website beim nächsten Abgleich das Bild vergessen. Hatte die Person ein Bild, steht der Eintrag `profilbild_entfernt` (Ziel: die Person, nie das Bild) im Protokoll. Ohne Bild ebenfalls 204, ohne Eintrag. Kein Request-Body.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle ausser Abteilungsleitung und Entwickler, ohne zweiten Faktor mit Code `ZWEITER_FAKTOR_FEHLT`. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört (vor dem 403).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminPersonId"
+      responses:
+        "204":
+          description: Bild entfernt oder keines vorhanden.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -23516,18 +23544,18 @@ paths:
       operationId: holeLaden
       summary: Lädeli lesen
       description: |
-        Für jede angemeldete Person: alle Artikel der eigenen Abteilung in der Reihenfolge des Ladens (auch nicht verfügbare, mit `verfuegbar: false`), die Übergabearten und die Grenzen für eine Bestellung. Die Website fragt es einmal beim Öffnen des Ladens, auch um zu erkennen, ob jemand angemeldet ist: Ohne Sitzung antwortet es 401, und der Laden zeigt sich nur zum Ansehen.
+        Für jede angemeldete Person: alle Artikel der eigenen Abteilung in der Reihenfolge des Ladens (auch nicht verfügbare, mit `verfuegbar: false`), die Übergabearten, die Grenzen für eine Bestellung und die Regeln und Texte der Abteilung (`einstellungen`, #642). Die Website fragt es einmal beim Öffnen des Ladens, auch um zu erkennen, ob jemand angemeldet ist: Ohne Sitzung antwortet es 401, und der Laden zeigt sich nur zum Ansehen.
 
         Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung oder bei deaktiviertem Konto. 403, wenn noch ein Passwortwechsel aussteht.
 
-        Datenbanklast: zwei Abfragen (Artikel, Übergabearten), parallel; höchstens 200 Artikel.
+        Datenbanklast: drei Abfragen (Artikel, Einstellungen, eigener Name), parallel; höchstens 200 Artikel.
       tags:
         - Lädeli
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       responses:
         "200":
-          description: Artikel, Übergabearten und Grenzen.
+          description: Artikel, Übergabearten, Grenzen und Einstellungen.
           content:
             application/json:
               schema:
@@ -23580,9 +23608,9 @@ paths:
       description: |
         Für jede angemeldete Person. Die Anfrage nennt nur Artikel, Variante und Menge; Name, Einzelpreis und Summe liest der Server in derselben Transaktion aus den Artikeln der eigenen Abteilung und speichert sie als Stand der Bestellung. Ein Preis oder eine Summe in der Anfrage ist 400 (unbekanntes Feld), `erwarteteSummeRappen` ausgenommen: Es ist die Summe, die die Person gesehen hat; weicht sie ab, entsteht keine Bestellung (409 `PREIS_GEAENDERT` mit der neuen `summeRappen`). Keine Zahlung: Bezahlt wird bei der Übergabe.
 
-        Grenzen: 1 bis 20 Positionen, Menge 1 bis 10, derselbe Artikel in derselben Variante nur einmal (sonst 400), höchstens 5 offene oder bereitgestellte Bestellungen je Person (409 `BESTELL_LIMIT`), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
+        Grenzen: Die Abteilung stellt sie ein (Vorgaben: 20 Positionen, Menge 1 bis 10, 5 offene oder bereitgestellte Bestellungen je Person; GET /laden nennt sie), der Server prüft sie bei jeder Bestellung: zu viele Positionen 400 `POSITIONEN_ZU_VIELE`, zu grosse Menge 400 `MENGE_ZU_GROSS`, zu viele offene 409 `BESTELL_LIMIT`. Ist das Lädeli geschlossen, 409 `LADEN_GESCHLOSSEN` mit dem Text der Abteilung; liegt die Summe unter der Mindestbestellung, 409 `MINDESTBESTELLUNG` (mit `mindestRappen`). Derselbe Artikel in derselben Variante steht nur einmal (sonst 400), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `LADEN_GESCHLOSSEN`, `MINDESTBESTELLUNG`, `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
 
         Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
       tags:
@@ -23613,7 +23641,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "409":
-          description: Nichts bestellt. `ARTIKEL_NICHT_VERFUEGBAR` (mit `artikelIds`), `PREIS_GEAENDERT` (mit der neuen `summeRappen`) oder `BESTELL_LIMIT`.
+          description: Nichts bestellt. `ARTIKEL_NICHT_VERFUEGBAR` (mit `artikelIds`), `PREIS_GEAENDERT` (mit der neuen `summeRappen`), `BESTELL_LIMIT`, `LADEN_GESCHLOSSEN` oder `MINDESTBESTELLUNG` (mit `mindestRappen`).
           content:
             application/json:
               schema:
@@ -23981,9 +24009,9 @@ paths:
   /api/v1/admin/laden/einstellungen:
     get:
       operationId: holeAdminLadenEinstellungen
-      summary: Übergabearten des Lädelis
+      summary: Einstellungen des Lädelis
       description: |
-        Nur Admins mit zweitem Faktor. Die Übergabearten der Abteilung; ohne eigene Einstellung gilt «Abholung im Lädeli».
+        Nur Admins mit zweitem Faktor. Alle Einstellungen der Abteilung (#642): Übergabearten, Regeln (Bestellen offen, Schnell dazu, Preise für Besucher, Höchstmenge, Positionen, offene Bestellungen, Mindestbestellung) und Texte (Hinweis zur Bezahlung, Zahlungsart, Meldung nach dem Bestellen, Hinweis zur Übergabe, Bedingungen, Text bei geschlossenem Lädeli). Ohne eigene Einstellung gelten die Vorgaben, die in `vorgaben` stehen: die Texte und Regeln, die das Lädeli vor #642 fest hatte.
 
         Statuscodes: 200 bei Erfolg. 401, 403 wie bei den anderen Routen der Verwaltung.
 
@@ -23994,11 +24022,11 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
       responses:
         "200":
-          description: Die Übergabearten.
+          description: Die Einstellungen mit den Vorgaben.
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/LadenEinstellung"
+                $ref: "#/components/schemas/LadenEinstellungAnsicht"
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
@@ -24009,13 +24037,13 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
     put:
       operationId: setzeAdminLadenEinstellungen
-      summary: Übergabearten des Lädelis ersetzen
+      summary: Einstellungen des Lädelis speichern
       description: |
-        Nur Admins mit zweitem Faktor. Ersetzt die Liste der Übergabearten (1 bis 5, je 1 bis 80 Zeichen ohne Steuerzeichen, ohne Doppelte). Bestehende Bestellungen behalten ihren Text. Die Übergabearten stehen im Laden der Website: Der Abgleich erzeugt die Seiten neu.
+        Nur Admins mit zweitem Faktor. Setzt die genannten Felder; Felder ohne Schlüssel bleiben, wie sie sind. Der Server prüft Längen und Bereiche (Übergabearten 1 bis 5, je 1 bis 80 Zeichen ohne Steuerzeichen und ohne Doppelte; Texte mit den Längen des Schemas, Zeilenumbruch nur in den Bedingungen und im Hinweis zur Übergabe sinnvoll, sonst keine Steuerzeichen). Ein Text, der der Vorgabe gleicht, wird als «Vorgabe» gespeichert; ein leerer Text bleibt leer und entfällt auf der Website. Bestehende Bestellungen behalten ihren Text und ihren Preis. Die Einstellungen stehen im Laden der Website: Der Abgleich erzeugt die Seiten neu (Ereignis `laden_geaendert`).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401, 403 wie bei den anderen Routen der Verwaltung.
 
-        Datenbanklast: eine Transaktion mit Upsert und Audit-Eintrag (nur die Anzahl).
+        Datenbanklast: eine Transaktion mit Lesen, Upsert und Audit-Eintrag (nur die Namen der geänderten Felder, nie Texte).
       tags:
         - Lädeli
       parameters:
@@ -38609,6 +38637,7 @@ components:
         - artikel
         - uebergabearten
         - grenzen
+        - einstellungen
       properties:
         angemeldetAls:
           type:
@@ -38632,13 +38661,15 @@ components:
           properties:
             positionen:
               type: integer
-              description: Höchstens so viele Positionen je Bestellung (20).
+              description: Höchstens so viele Positionen je Bestellung (Vorgabe 20, einstellbar 1 bis 50).
             menge:
               type: integer
-              description: Höchstens so viele Stück je Position (10).
+              description: Höchstens so viele Stück je Position (Vorgabe 10, einstellbar 1 bis 99).
             offeneBestellungen:
               type: integer
-              description: Höchstens so viele offene oder bereitgestellte Bestellungen je Person (5).
+              description: Höchstens so viele offene oder bereitgestellte Bestellungen je Person (Vorgabe 5, einstellbar 1 bis 20).
+        einstellungen:
+          $ref: "#/components/schemas/LadenEinstellungOeffentlich"
     LadenBestellPosition:
       type: object
       required:
@@ -38812,6 +38843,10 @@ components:
           type: string
           enum:
             - BESTELL_LIMIT
+            - LADEN_GESCHLOSSEN
+            - MINDESTBESTELLUNG
+            - POSITIONEN_ZU_VIELE
+            - MENGE_ZU_GROSS
             - ARTIKEL_NICHT_VERFUEGBAR
             - VARIANTE_UNGUELTIG
             - UEBERGABE_UNBEKANNT
@@ -38830,6 +38865,9 @@ components:
         summeRappen:
           type: integer
           description: Bei `PREIS_GEAENDERT` die Summe des Servers.
+        mindestRappen:
+          type: integer
+          description: Bei `MINDESTBESTELLUNG` die Mindestbestellung der Abteilung.
     LadenGroesseFehler:
       type: object
       description: Die Pflichtangabe «Grösse» fehlt oder passt nicht (Statuscode 422).
@@ -38982,11 +39020,95 @@ components:
           maxLength: 200
         verfuegbar:
           type: boolean
+    LadenEinstellungOeffentlich:
+      type: object
+      description: Regeln und Texte der Abteilung für Website und Apps (ohne die Übergabearten, die stehen eigens in der Antwort).
+      required:
+        - bestellenOffen
+        - schnellDazu
+        - preiseOeffentlich
+        - maxMenge
+        - maxPositionen
+        - maxOffene
+        - mindestRappen
+        - bezahlhinweis
+        - zahlungsart
+        - bestaetigung
+        - uebergabehinweis
+        - bedingungen
+        - geschlossenText
+      properties:
+        bestellenOffen:
+          type: boolean
+          description: "Aus: Das Lädeli zeigt die Artikel, nimmt aber keine Bestellung an (409 `LADEN_GESCHLOSSEN`)."
+        schnellDazu:
+          type: boolean
+          description: Ob die Kacheln «Schnell dazu» anbieten.
+        preiseOeffentlich:
+          type: boolean
+          description: "Aus: Besucher ohne Konto sehen auf der Website keinen Preis («Preis nach Anmeldung»)."
+        maxMenge:
+          type: integer
+          minimum: 1
+          maximum: 99
+        maxPositionen:
+          type: integer
+          minimum: 1
+          maximum: 50
+        maxOffene:
+          type: integer
+          minimum: 1
+          maximum: 20
+        mindestRappen:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+          description: Mindestbestellung in Rappen; 0 heisst keine.
+        bezahlhinweis:
+          type: string
+          maxLength: 120
+          description: Hinweis zur Bezahlung in Kopf, Artikel und Warenkorb; leer entfällt er.
+        zahlungsart:
+          type: string
+          maxLength: 60
+          description: Wert der Zeile «Bezahlung» in der Bestellübersicht; leer entfällt die Zeile.
+        bestaetigung:
+          type: string
+          maxLength: 240
+          description: Meldung nach dem Bestellen; `{uebergabe}` wird durch die gewählte Übergabeart ersetzt.
+        uebergabehinweis:
+          type: string
+          maxLength: 200
+        bedingungen:
+          type: string
+          maxLength: 600
+          description: Bestellbedingungen; ein Absatz je Zeile.
+        geschlossenText:
+          type: string
+          maxLength: 200
+    LadenEinstellungAnsicht:
+      description: Alle Einstellungen mit den Vorgaben daneben.
+      allOf:
+        - $ref: "#/components/schemas/LadenEinstellungOeffentlich"
+        - type: object
+          required:
+            - uebergabearten
+            - vorgaben
+          properties:
+            uebergabearten:
+              type: array
+              minItems: 1
+              maxItems: 5
+              items:
+                type: string
+            vorgaben:
+              type: object
+              description: Die Werte, die gelten, solange nichts eingestellt ist (dieselben Felder wie die Einstellungen, mit `uebergabearten`).
+              additionalProperties: true
     LadenEinstellung:
       type: object
-      required:
-        - uebergabearten
       additionalProperties: false
+      description: Alle Felder sind optional; ohne Schlüssel bleibt der Wert. Grenzen wie in LadenEinstellungOeffentlich.
       properties:
         uebergabearten:
           type: array
@@ -38997,6 +39119,46 @@ components:
             minLength: 1
             maxLength: 80
           description: Ohne Doppelte; ohne eigene Einstellung gilt «Abholung im Lädeli».
+        bestellenOffen:
+          type: boolean
+        schnellDazu:
+          type: boolean
+        preiseOeffentlich:
+          type: boolean
+        maxMenge:
+          type: integer
+          minimum: 1
+          maximum: 99
+        maxPositionen:
+          type: integer
+          minimum: 1
+          maximum: 50
+        maxOffene:
+          type: integer
+          minimum: 1
+          maximum: 20
+        mindestRappen:
+          type: integer
+          minimum: 0
+          maximum: 1000000
+        bezahlhinweis:
+          type: string
+          maxLength: 120
+        zahlungsart:
+          type: string
+          maxLength: 60
+        bestaetigung:
+          type: string
+          maxLength: 240
+        uebergabehinweis:
+          type: string
+          maxLength: 200
+        bedingungen:
+          type: string
+          maxLength: 600
+        geschlossenText:
+          type: string
+          maxLength: 200
     RechteKonflikt:
       type: object
       required: [code, message]

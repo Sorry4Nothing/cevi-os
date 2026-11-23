@@ -606,6 +606,19 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Profilbild einer Person entfernen (#642): Abteilungsleitung mit zweitem Faktor; der Entwickler mit zweitem Faktor kommt in test/profilbild-entfernen.test.ts vor, die Matrix hat keine Person mit dieser Funktion. Ziel in fremder Abteilung 404 vor dem 403
+  "DELETE /api/v1/admin/personen/:id/bild": {
+    url: () => `/api/v1/admin/personen/${startpasswortZielId}/bild`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
   "GET /api/v1/stufen": {
     erwartet: {
@@ -1869,7 +1882,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufenfelder der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
+  // Samstagsangaben der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
   "GET /api/v1/redaktion/stufen/:stufeId/eckdaten": {
     url: (w) => `/api/v1/redaktion/stufen/${w.stufeAId}/eckdaten`,
     erwartet: {

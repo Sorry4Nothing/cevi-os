@@ -1484,7 +1484,7 @@ export const TYPEN = {
     ],
   },
   stufenfakten: {
-    name: "Stufenfelder",
+    name: "Samstagsangaben der Stufen",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
     pruefe: () => [],
     form: () => [
@@ -1492,7 +1492,11 @@ export const TYPEN = {
         "p",
         { class: "hilfe" },
         "Zeigt Datum, Treffpunkt, Schluss und Mitnehmen der nächsten Aktivität der Stufe. Die Werte pflegst du unter ",
-        el("a", { href: "#website/stufenfakten" }, "Stufenfelder"),
+        el(
+          "a",
+          { href: "#website/stufenfakten" },
+          "Samstagsangaben der Stufen",
+        ),
         ".",
       ),
     ],

@@ -1330,118 +1330,459 @@ async function artikelBlatt({ artikel, ctx, neu }) {
 }
 
 // ===== Einstellungen =====
+// Alles, was eine Abteilung am Lädeli selbst bestimmt (#642): Bestellen, Übergabe, Bezahlung, Grenzen, Bedingungen. Die Texte und Regeln, die vorher im Code standen, sind hier die Vorgaben; was die Abteilung nicht ändert, gilt weiter. Rechts steht eine Vorschau, unten die Speicherleiste.
+
+const SCHALTER = [
+  {
+    k: "bestellenOffen",
+    label: "Bestellungen annehmen",
+    hilfe:
+      "Aus: Das Lädeli zeigt die Artikel weiter, nimmt aber nichts mehr an. Der Text unten erklärt es den Besuchern.",
+  },
+  {
+    k: "schnellDazu",
+    label: "«Schnell dazu» auf den Kacheln",
+    hilfe:
+      "Das Plus auf der Kachel legt einen Artikel mit zwei Klicks in den Warenkorb.",
+  },
+  {
+    k: "preiseOeffentlich",
+    label: "Preise für alle sichtbar",
+    hilfe:
+      "Aus: Besucher ohne Konto sehen «Preis nach Anmeldung». Wer angemeldet ist, sieht den Preis.",
+  },
+];
+const EINST_TEXTE = [
+  {
+    k: "geschlossenText",
+    label: "Text, wenn das Lädeli geschlossen ist",
+    hilfe: "Steht über den Artikeln und in der Bestellübersicht.",
+    max: 200,
+    rows: 2,
+  },
+  {
+    k: "uebergabehinweis",
+    label: "Hinweis zur Übergabe (optional)",
+    hilfe:
+      "Wann und wo ihr übergebt, zum Beispiel «Samstags nach dem Treffen im Lagerhaus». Steht über den Artikeln, im Artikel und in der Bestellübersicht.",
+    max: 200,
+    rows: 2,
+  },
+  {
+    k: "bezahlhinweis",
+    label: "Hinweis zur Bezahlung",
+    hilfe:
+      "Ein Satz im Kopf des Lädelis, im Artikel und im Warenkorb. Leer: kein Hinweis.",
+    max: 120,
+    rows: 2,
+  },
+  {
+    k: "zahlungsart",
+    label: "Zahlung in der Bestellübersicht",
+    hilfe: "Steht neben «Bezahlung». Leer: Die Zeile entfällt.",
+    max: 60,
+  },
+  {
+    k: "bestaetigung",
+    label: "Meldung nach dem Bestellen",
+    hilfe:
+      "«{uebergabe}» wird durch die gewählte Übergabeart ersetzt. Leer: nur «Deine Bestellung ist eingegangen.»",
+    max: 240,
+    rows: 3,
+  },
+  {
+    k: "bedingungen",
+    label: "Bestellbedingungen (optional)",
+    hilfe:
+      "Zum Beispiel zu Umtausch oder Abholfrist. Ein Absatz je Zeile; sie stehen in der Bestellübersicht vor dem Bestellen.",
+    max: 600,
+    rows: 5,
+  },
+];
+const ZAHLEN = [
+  {
+    k: "maxMenge",
+    label: "Höchstmenge je Artikel",
+    hilfe: "Von 1 bis 99 Stück.",
+    min: 1,
+    max: 99,
+  },
+  {
+    k: "maxPositionen",
+    label: "Verschiedene Artikel je Bestellung",
+    hilfe: "Von 1 bis 50.",
+    min: 1,
+    max: 50,
+  },
+  {
+    k: "maxOffene",
+    label: "Offene Bestellungen je Person",
+    hilfe:
+      "Von 1 bis 20. Wer so viele offene hat, bestellt erst wieder, wenn eine übergeben oder storniert ist.",
+    min: 1,
+    max: 20,
+  },
+];
+
+// Rappen im Feld: «20», «12.50»
+const frankenFeld = (rappen) =>
+  rappen % 100 === 0 ? String(rappen / 100) : frankenText(rappen);
+const artenAus = (text) => [
+  ...new Set(
+    text
+      .split("\n")
+      .map((v) => v.trim())
+      .filter(Boolean),
+  ),
+];
+// Absätze der Vorschau: eine Zeile, ein Absatz
+const absaetze = (text) =>
+  text
+    .split("\n")
+    .filter((t) => t.trim() !== "")
+    .map((t) => el("p", {}, t));
 
 function zeigeEinstellungen(bereich, ctx) {
   return ctx.lade(
     () => anfrage("GET", `${BASIS}/einstellungen`),
     (daten) => {
-      let gespeichert = [...daten.uebergabearten];
-      const artenAus = (text) => [
-        ...new Set(
-          text
-            .split("\n")
-            .map((v) => v.trim())
-            .filter(Boolean),
-        ),
+      const vorgaben = daten.vorgaben;
+      const schluessel = [
+        "uebergabearten",
+        ...SCHALTER.map((s) => s.k),
+        ...EINST_TEXTE.map((t) => t.k),
+        ...ZAHLEN.map((z) => z.k),
+        "mindestRappen",
       ];
+      const nimm = (d) => Object.fromEntries(schluessel.map((k) => [k, d[k]]));
+      let gespeichert = nimm(daten);
+
+      // --- Felder
       const arten = feld({
         label: "Übergabearten",
         hilfe:
           "Eine je Zeile, mindestens eine, höchstens fünf, je höchstens 80 Zeichen. Wer bestellt, wählt eine davon. Bei nur einer entfällt die Wahl.",
-        wert: gespeichert.join("\n"),
+        wert: gespeichert.uebergabearten.join("\n"),
         mehrzeilig: true,
-        rows: 5,
+        rows: 4,
       });
-      const meldungsfeld = el("div", {});
-      // Vorschau rechts: so erscheint die Wahl beim Bestellen
-      const vorschau = el("div", { class: "ld-vorschau" });
-      const zeigeVorschau = () => {
-        const liste = artenAus(arten.eingabe.value);
-        vorschau.replaceChildren(
-          liste.length > 1
-            ? el(
-                "ul",
-                { class: "ld-wahlvorschau" },
-                liste.map((art) =>
-                  el(
-                    "li",
-                    {},
-                    el("span", { class: "ld-ring", "aria-hidden": "true" }),
-                    art,
-                  ),
-                ),
-              )
-            : el(
-                "p",
-                {},
-                liste.length === 1
-                  ? `Es gibt nur eine Art: «${liste[0]}». Beim Bestellen entfällt die Wahl.`
-                  : "Noch keine Übergabeart eingetragen.",
+      const schalter = Object.fromEntries(
+        SCHALTER.map((s) => {
+          const a = ankreuzen({
+            label: s.label,
+            gewaehlt: gespeichert[s.k],
+          });
+          const hilfeId = `ld-${s.k}-hilfe`;
+          a.eingabe.setAttribute("aria-describedby", hilfeId);
+          // Hilfe unter dem Schalter, nicht in der Zeile des Kontrollkästchens
+          return [
+            s.k,
+            {
+              ...a,
+              wurzel: el(
+                "div",
+                { class: "ld-schalter" },
+                a.wurzel,
+                el("p", { class: "hilfe", id: hilfeId }, s.hilfe),
               ),
+            },
+          ];
+        }),
+      );
+      const texte = Object.fromEntries(
+        EINST_TEXTE.map((t) => {
+          const f = feld({
+            label: t.label,
+            hilfe: t.hilfe,
+            wert: gespeichert[t.k],
+            mehrzeilig: true,
+            rows: t.rows ?? 2,
+            maxlength: t.max,
+            class: (t.rows ?? 2) <= 3 ? "ld-kurz" : undefined,
+          });
+          // «Standardtext»: stellt den Text von früher her; nur sichtbar, wenn er davon abweicht
+          const zurueck = knopf("Standardtext einsetzen", {
+            klein: true,
+            onclick: () => {
+              f.eingabe.value = vorgaben[t.k];
+              f.eingabe.dispatchEvent(new Event("input"));
+              f.eingabe.focus();
+            },
+          });
+          f.wurzel.append(zurueck);
+          const zeigeZurueck = () => {
+            zurueck.hidden = f.eingabe.value === vorgaben[t.k];
+          };
+          zeigeZurueck();
+          f.eingabe.addEventListener("input", zeigeZurueck);
+          return [t.k, f];
+        }),
+      );
+      const zahlen = Object.fromEntries(
+        ZAHLEN.map((z) => [
+          z.k,
+          feld({
+            label: z.label,
+            hilfe: z.hilfe,
+            wert: String(gespeichert[z.k]),
+            inputmode: "numeric",
+            autocomplete: "off",
+            maxlength: 2,
+          }),
+        ]),
+      );
+      const mindest = feld({
+        label: "Mindestbestellung in Franken",
+        hilfe:
+          "Zum Beispiel 20 oder 12.50. 0 heisst keine Mindestbestellung; was darunter liegt, lässt sich nicht bestellen.",
+        wert: frankenFeld(gespeichert.mindestRappen),
+        inputmode: "decimal",
+        autocomplete: "off",
+      });
+
+      // --- Stand der Felder als Werte; zahl: Fehler als Text
+      const lies = () => {
+        const w = {
+          uebergabearten: artenAus(arten.eingabe.value),
+          mindestRappen: null,
+        };
+        for (const s of SCHALTER) w[s.k] = schalter[s.k].eingabe.checked;
+        for (const t of EINST_TEXTE) w[t.k] = texte[t.k].eingabe.value.trim();
+        for (const z of ZAHLEN) {
+          const roh = zahlen[z.k].eingabe.value.trim();
+          const n = /^\d{1,2}$/.test(roh) ? Number(roh) : NaN;
+          w[z.k] = n >= z.min && n <= z.max ? n : null;
+        }
+        w.mindestRappen = rappenAus(mindest.eingabe.value);
+        return w;
+      };
+      const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+      // --- Vorschau rechts: so erscheint es im Lädeli
+      const vorschau = el("div", { class: "ld-vorschau ld-einst-vorschau" });
+      const abschnitt = (titel, ...inhalt) =>
+        el(
+          "section",
+          { class: "ld-einst-block" },
+          el("h3", {}, titel),
+          ...inhalt,
         );
+      const zeigeVorschau = () => {
+        const w = lies();
+        const erste = w.uebergabearten[0] ?? "Abholung im Lädeli";
+        const leiste = w.bestellenOffen
+          ? ["Bestellen mit Konto", w.bezahlhinweis.replace(/\.$/, "")]
+              .filter(Boolean)
+              .join(" · ")
+          : w.geschlossenText;
+        const mindestText =
+          w.mindestRappen !== null && w.mindestRappen > 0
+            ? `Mindestbestellung ${preisText(w.mindestRappen)}`
+            : null;
+        vorschau.replaceChildren(
+          abschnitt(
+            "Kopf des Lädelis",
+            el("p", { class: "ld-einst-leise" }, `5 Artikel · ${leiste}`),
+            w.uebergabehinweis ? el("p", {}, w.uebergabehinweis) : null,
+          ),
+          abschnitt(
+            "Kachel",
+            el(
+              "p",
+              { class: "ld-vorschau-preis" },
+              w.preiseOeffentlich
+                ? "Foulard · CHF 25.–"
+                : "Foulard · Preis nach Anmeldung",
+            ),
+            w.schnellDazu && w.bestellenOffen
+              ? el("p", { class: "ld-einst-leise" }, "Mit Plus «Schnell dazu»")
+              : el("p", { class: "ld-einst-leise" }, "Ohne «Schnell dazu»"),
+          ),
+          abschnitt(
+            "Bestellübersicht",
+            el("p", {}, `Übergabe: ${erste}`),
+            w.zahlungsart ? el("p", {}, `Bezahlung: ${w.zahlungsart}`) : null,
+            mindestText ? el("p", {}, mindestText) : null,
+            ...absaetze(w.bedingungen),
+          ),
+          abschnitt(
+            "Warenkorb",
+            w.bezahlhinweis
+              ? el("p", {}, w.bezahlhinweis)
+              : el("p", { class: "ld-einst-leise" }, "Kein Hinweis"),
+          ),
+          abschnitt(
+            "Nach dem Bestellen",
+            el(
+              "p",
+              {},
+              w.bestaetigung
+                ? w.bestaetigung.replaceAll("{uebergabe}", erste)
+                : "Deine Bestellung ist eingegangen.",
+            ),
+          ),
+          abschnitt(
+            "Grenzen",
+            el(
+              "p",
+              {},
+              [
+                w.maxMenge === null
+                  ? null
+                  : `Höchstens ${w.maxMenge} Stück je Artikel`,
+                w.maxPositionen === null
+                  ? null
+                  : `${w.maxPositionen} verschiedene Artikel je Bestellung`,
+                w.maxOffene === null
+                  ? null
+                  : `${w.maxOffene} offene Bestellungen je Person`,
+              ]
+                .filter(Boolean)
+                .join(" · "),
+            ),
+          ),
+        );
+      };
+
+      // --- Speicherleiste unten
+      const meldungsfeld = el("div", {});
+      const aktualisiere = () => {
+        if (gleich(lies(), gespeichert)) leiste.verstecke();
+        else {
+          leiste.zeige(
+            "Die Einstellungen sind geändert, noch nicht gespeichert.",
+          );
+        }
+      };
+      const setzeFelder = (w) => {
+        arten.eingabe.value = w.uebergabearten.join("\n");
+        for (const s of SCHALTER) schalter[s.k].eingabe.checked = w[s.k];
+        for (const t of EINST_TEXTE) {
+          texte[t.k].eingabe.value = w[t.k];
+          texte[t.k].eingabe.dispatchEvent(new Event("input"));
+        }
+        for (const z of ZAHLEN) zahlen[z.k].eingabe.value = String(w[z.k]);
+        mindest.eingabe.value = frankenFeld(w.mindestRappen);
       };
       const leiste = speicherLeiste({
         beiSpeichern: (k) => speichere(k),
         beiVerwerfen: () => {
-          arten.eingabe.value = gespeichert.join("\n");
+          setzeFelder(gespeichert);
           entferneFeldFehler(formular);
           ersetze(meldungsfeld);
           zeigeVorschau();
           aktualisiere();
         },
       });
-      // Die Leiste unten erscheint, sobald sich etwas von der gespeicherten Fassung unterscheidet
-      const aktualisiere = () => {
-        const jetzt = artenAus(arten.eingabe.value);
-        if (jetzt.join("\n") === gespeichert.join("\n")) leiste.verstecke();
-        else
-          leiste.zeige(
-            "Die Übergabearten sind geändert, noch nicht gespeichert.",
-          );
-      };
+      const abschnittForm = (titel, hilfe, ...inhalt) =>
+        el(
+          "section",
+          { class: "ld-einst-abschnitt" },
+          el("h3", {}, titel),
+          hilfe ? el("p", { class: "leise" }, hilfe) : null,
+          ...inhalt,
+        );
       const formular = el(
         "form",
         { class: "formular ld-einstellungen", novalidate: true },
         meldungsfeld,
-        el(
-          "p",
-          { class: "leise" },
-          "Eine Bestellung nennt, wie sie übergeben wird. Bezahlt wird immer bei der Übergabe; eine Lieferadresse gibt es nicht.",
+        abschnittForm(
+          "Bestellen",
+          "Was Besucher und Angemeldete im Lädeli tun können.",
+          ...SCHALTER.map((s) => schalter[s.k].wurzel),
+          texte.geschlossenText.wurzel,
         ),
-        arten.wurzel,
+        abschnittForm(
+          "Übergabe",
+          "Eine Bestellung nennt, wie sie übergeben wird. Eine Lieferadresse gibt es nicht.",
+          arten.wurzel,
+          texte.uebergabehinweis.wurzel,
+        ),
+        abschnittForm(
+          "Bezahlung",
+          "Das Lädeli kennt keine Zahlung im Netz. Hier steht, was die Leute lesen.",
+          texte.bezahlhinweis.wurzel,
+          texte.zahlungsart.wurzel,
+          texte.bestaetigung.wurzel,
+        ),
+        abschnittForm(
+          "Grenzen",
+          "Der Server prüft jede Grenze beim Bestellen.",
+          ...ZAHLEN.map((z) => zahlen[z.k].wurzel),
+          mindest.wurzel,
+        ),
+        abschnittForm("Bedingungen", null, texte.bedingungen.wurzel),
       );
       formular.addEventListener("submit", (e) => e.preventDefault());
-      arten.eingabe.addEventListener("input", () => {
+      const beiAenderung = () => {
         zeigeVorschau();
         aktualisiere();
-      });
+      };
+      formular.addEventListener("input", beiAenderung);
+      formular.addEventListener("change", beiAenderung);
+
       async function speichere(knopfNode) {
         entferneFeldFehler(formular);
         ersetze(meldungsfeld);
-        const liste = artenAus(arten.eingabe.value);
+        const w = lies();
+        const fehler = [];
+        const ungueltig = (f, text) => {
+          feldFehler(f, text);
+          fehler.push(f);
+        };
         if (
-          liste.length < 1 ||
-          liste.length > 5 ||
-          liste.some((v) => v.length > 80)
+          w.uebergabearten.length < 1 ||
+          w.uebergabearten.length > 5 ||
+          w.uebergabearten.some((v) => v.length > 80)
         ) {
-          feldFehler(
+          ungueltig(
             arten,
             "Trage eine bis fünf Übergabearten ein, je höchstens 80 Zeichen.",
           );
-          arten.eingabe.focus();
+        }
+        for (const z of ZAHLEN) {
+          if (w[z.k] === null) {
+            ungueltig(
+              zahlen[z.k],
+              `Trage eine ganze Zahl von ${z.min} bis ${z.max} ein.`,
+            );
+          }
+        }
+        if (w.mindestRappen === null) {
+          ungueltig(
+            mindest,
+            "Trage einen Betrag bis 10 000 Franken ein, zum Beispiel 20 oder 12.50.",
+          );
+        }
+        for (const t of EINST_TEXTE) {
+          if (w[t.k].length > t.max) {
+            ungueltig(
+              texte[t.k],
+              `Höchstens ${t.max} Zeichen. Der Text hat ${w[t.k].length}.`,
+            );
+          }
+        }
+        if (fehler.length > 0) {
+          const h = pruefHinweis(
+            fehler.map((f) => ({
+              name: f.wurzel.querySelector("label")?.textContent ?? "Feld",
+              eingabe: f.eingabe,
+            })),
+          );
+          ersetze(meldungsfeld, h);
+          h.focus();
           return;
         }
         knopfNode.disabled = true;
         knopfNode.setAttribute("aria-busy", "true");
         try {
-          await anfrage("PUT", `${BASIS}/einstellungen`, {
-            uebergabearten: liste,
-          });
-          gespeichert = liste;
-          arten.eingabe.value = liste.join("\n");
+          await anfrage("PUT", `${BASIS}/einstellungen`, w);
+          gespeichert = w;
           zeigeVorschau();
           aktualisiere();
-          ctx.melde("Übergabearten gespeichert.");
+          ctx.melde(
+            "Einstellungen gespeichert. Die Website zeigt sie in wenigen Sekunden.",
+          );
         } catch (f) {
           const h = el(
             "div",
@@ -1459,7 +1800,7 @@ function zeigeEinstellungen(bereich, ctx) {
       bereich.append(
         formularRaster({
           felder: formular,
-          seiteTitel: "So wählt man beim Bestellen",
+          seiteTitel: "So erscheint es im Lädeli",
           seite: vorschau,
         }),
         leiste.wurzel,
