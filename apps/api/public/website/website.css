@@ -1914,6 +1914,43 @@ div.termin {
   font-weight: 700;
 }
 
+/* «Mitnehmen» (#645): ein längerer Text ist kein Wert. Er steht in Lesegrösse und normaler Stärke; mehrere Dinge sind eine Liste mit Haken, ab Platz für zwei Spalten in zwei Spalten (Spalten statt Raster: Die Reihenfolge läuft untereinander). Der Haken ist gezeichnet (Rand), kein Bild und kein Symbol: So geht es auch in nachgeladenen Bausteinen */
+.fakten.karte .fakt--lang dd {
+  margin-top: 0.375rem;
+  font-size: 1.125rem;
+  line-height: 1.625rem;
+  font-weight: 400;
+  overflow-wrap: break-word;
+  hyphens: auto;
+}
+
+.mitnehmen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  column-width: 11rem;
+  column-count: 2;
+  column-gap: 1.5rem;
+}
+
+.mitnehmen li {
+  position: relative;
+  padding: 0.1875rem 0 0.1875rem 1.875rem;
+  break-inside: avoid;
+}
+
+.mitnehmen li::before {
+  content: "";
+  position: absolute;
+  left: 0.375rem;
+  top: 0.4375rem;
+  width: 0.4375rem;
+  height: 0.875rem;
+  border: solid currentcolor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(40deg);
+}
+
 .datei.karte {
   border-radius: var(--r-md);
   background: var(--karte);
@@ -2576,4 +2613,33 @@ dialog.lichtkasten {
     animation-duration: var(--dauer);
     animation-timing-function: var(--kurve);
   }
+}
+
+/* Ort mit Adresszeile und Verweis zur Karte (#646): ein Link, keine Karte und kein Skript. Der Verweis ist ein externer Textlink (Zeichen aus a[rel~="noopener"]) mit 44 px Höhe */
+.fakt-zusatz {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.fakt dd p.fakt-karte {
+  margin: 0.125rem 0 0;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+}
+
+.fakt-karte a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 2.75rem;
+}
+
+/* Auf der blauen Tafel wäre der Fokusring blau auf blau: Links in der Tafel (Eckdaten, Verweis zur Karte) zeigen ihn hell */
+.fakten.karte :focus-visible {
+  outline-color: var(--on-secondary);
 }

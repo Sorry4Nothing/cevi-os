@@ -716,7 +716,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   // fokus: { id, was } nach dem Zeichnen; was: hoch | runter | griff | bearbeiten | duplizieren | loeschen
   function zeichneListe(fokus) {
     const n = k.dok.bausteine.length;
-    // Eine feste Zeile für die Felder der Stufenseite: Ihre Werte pflegt man unter «Stufenfelder», nicht im Dokument
+    // Eine feste Zeile für die Felder der Stufenseite: Ihre Werte pflegt man unter «Samstagsangaben der Stufen», nicht im Dokument
     const stufe = k.tags.find(
       (t) => t.id === k.seite.tagId && t.typ === "stufe",
     );
@@ -897,7 +897,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         el(
           "p",
           { class: "zus" },
-          `Datum, Treffpunkt, Schluss und Mitnehmen der Stufe ${stufe.name} pflegst du unter «Stufenfelder».`,
+          `Datum, Treffpunkt, Schluss und Mitnehmen der Stufe ${stufe.name} pflegst du unter «Samstagsangaben der Stufen».`,
         ),
       ),
       el(

@@ -99,9 +99,9 @@ export const BEREICHE = [
       },
       {
         schluessel: "stufenfakten",
-        name: "Stufenfelder",
+        name: "Samstagsangaben der Stufen",
         modul: "./website-stufenfakten.js",
-        untertitel: "Treffpunkt, Zeit und Mitnehmen der Stufen.",
+        untertitel: "Treffzeit, Treffpunkt und Mitnehmen je Stufe und Samstag.",
         zugang: "website",
       },
       {

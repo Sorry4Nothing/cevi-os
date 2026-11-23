@@ -5,15 +5,20 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/admin/bearbeiter/:p": "Bearbeitungsrecht entziehen",
   "DELETE /api/v1/admin/kategorie-zuordnungen/:p": "Zuordnung entfernen",
   "DELETE /api/v1/admin/kinder/:p": "Kind löschen",
+  "DELETE /api/v1/admin/kinder/:p/konto": "Konto eines Kindes entfernen",
   "DELETE /api/v1/admin/laden/artikel/:p": "Artikel löschen",
   "DELETE /api/v1/admin/lager/:p": "Lager endgültig löschen",
   "DELETE /api/v1/admin/lager/:p/mitglieder/:p": "Mitglied entfernen",
   "DELETE /api/v1/admin/medien/:p": "Medium löschen",
   "DELETE /api/v1/admin/personen/:p": "Person löschen",
+  "DELETE /api/v1/admin/personen/:p/bild": "Profilbild einer Person entfernen",
   "DELETE /api/v1/admin/plattform/rollen/:p": "Plattformrolle löschen",
   "DELETE /api/v1/admin/plattform/rollen/:p/personen/:p":
     "Plattformrolle einer Person entziehen",
   "DELETE /api/v1/admin/raeume/:p": "Raum endgültig löschen",
+  "DELETE /api/v1/admin/rechte/gruppen/:p/rollen/:p":
+    "Rolle einer Gruppe löschen",
+  "DELETE /api/v1/admin/rechte/rollen/:p": "Globale Rolle löschen",
   "DELETE /api/v1/admin/stufen/:p": "Stufe löschen",
   "DELETE /api/v1/admin/stufen/:p/logo": "Logo einer Stufe löschen",
   "DELETE /api/v1/admin/tags/:p": "Tag löschen",
@@ -73,6 +78,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/raeume/anfragen/:p":
     "Eigene Raumanfrage oder Buchung stornieren",
   "DELETE /api/v1/redaktion/medien/:p": "Medium löschen",
+  "DELETE /api/v1/redaktion/orte/:p": "Ort löschen",
   "DELETE /api/v1/redaktion/seiten/:p": "Seite löschen",
   "DELETE /api/v1/redaktion/stufen/:p/eckdaten/:p":
     "Gepflegte Felder für ein Datum löschen",
@@ -80,6 +86,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "DELETE /api/v1/termin-vorschlaege/:p": "Terminvorschlag zurückziehen",
   "GET /admin/anlass-anmeldungen.js":
     "Skript der Verwaltung – Bereich Anlässe, Reiter Anmeldungen eines Anlasses",
+  "GET /admin/kinder-konto.js": "Skript der Verwaltung – Konto eines Kindes",
   "GET /admin/kinder.js": "Skript der Verwaltung – Bereich Kinder",
   "GET /admin/lager-personenwahl.js":
     "Skript der Verwaltung – Bereich Lager, Personen für ein Lager wählen",
@@ -103,6 +110,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "GET /api/v1/admin/anlaesse/:p/anmeldungen.csv":
     "Anmeldungen eines Anlasses als CSV-Datei exportieren",
   "GET /api/v1/admin/kinder": "Kinder der Abteilung mit Elternteilen",
+  "GET /api/v1/admin/kinder/konto-einstellung":
+    "Einstellungen der Konten für Kinder lesen",
   "GET /api/v1/admin/laden/bestellungen":
     "Bestellungen im Lädeli für die Verwaltung",
   "GET /api/v1/admin/personen":
@@ -114,6 +123,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Gefilterten Ausschnitt des Protokolls als CSV",
   "GET /api/v1/admin/protokoll/verlauf":
     "Zahl der Einträge und Fehler je Stunde oder Tag, dazu die Bereiche",
+  "GET /api/v1/admin/rechte/personen/:p": "Was darf diese Person, und woher?",
   "GET /api/v1/laden/bestellungen/meine": "Eigene Bestellungen im Lädeli",
   "GET /api/v1/lager/:p/adressbuch": "Adressbuch des Lagers auflisten",
   "GET /api/v1/lager/:p/adressbuch/:p": "Kontakt im Adressbuch lesen",
@@ -128,6 +138,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/admin/anlaesse/:p":
     "Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern",
   "PATCH /api/v1/admin/kinder/:p": "Kind ändern",
+  "PATCH /api/v1/admin/kinder/:p/konto":
+    "Einsicht der Eltern am Konto eines Kindes ändern («Konto übergeben»)",
   "PATCH /api/v1/admin/laden/artikel/:p": "Artikel ändern",
   "PATCH /api/v1/admin/lager/:p": "Lager ändern, Status setzen",
   "PATCH /api/v1/admin/personen/:p":
@@ -135,6 +147,9 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/admin/plattform/rollen/:p":
     "Name oder Rechte einer Plattformrolle ändern",
   "PATCH /api/v1/admin/raeume/:p": "Raum ändern oder deaktivieren",
+  "PATCH /api/v1/admin/rechte/gruppen/:p/rollen/:p":
+    "Rolle einer Gruppe ändern",
+  "PATCH /api/v1/admin/rechte/rollen/:p": "Globale Rolle ändern",
   "PATCH /api/v1/admin/stufen/:p": "Stufe ändern",
   "PATCH /api/v1/admin/tags/:p": "Tag umbenennen",
   "PATCH /api/v1/admin/vorlagen/:p": "Vorlage ändern",
@@ -182,6 +197,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PATCH /api/v1/lager/:p/zeitplan/tagesabschnitte/:p": "Tagesabschnitt ändern",
   "PATCH /api/v1/lager/:p/zimmer/:p": "Zimmer oder Zelt ändern",
   "PATCH /api/v1/redaktion/medien/:p": "Alt-Text nachtragen oder ändern",
+  "PATCH /api/v1/redaktion/orte/:p": "Ort ändern",
   "PATCH /api/v1/redaktion/seiten/:p": "Struktur einer Seite ändern",
   "PATCH /api/v1/redaktion/website": "Name und Logo der Website ändern",
   "PATCH /api/v1/redaktion/weiterleitungen/:p": "Weiterleitung ändern",
@@ -200,6 +216,12 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "POST /api/v1/admin/import/vorschau":
     "Import prüfen, ohne etwas zu schreiben",
   "POST /api/v1/admin/kinder": "Kind anlegen",
+  "POST /api/v1/admin/kinder/:p/konto": "Eigenes Konto für ein Kind erstellen",
+  "POST /api/v1/admin/kinder/:p/konto/entsperren":
+    "Konto eines Kindes entsperren",
+  "POST /api/v1/admin/kinder/:p/konto/sperren": "Konto eines Kindes sperren",
+  "POST /api/v1/admin/kinder/:p/konto/startpasswort":
+    "Neues Startpasswort für das Konto eines Kindes erzeugen",
   "POST /api/v1/admin/laden/artikel": "Artikel anlegen",
   "POST /api/v1/admin/laden/bestellungen/:p/status":
     "Stand einer Bestellung setzen",
@@ -220,6 +242,11 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Zweiten Faktor einer Person zurücksetzen",
   "POST /api/v1/admin/plattform/rollen": "Plattformrolle anlegen",
   "POST /api/v1/admin/raeume": "Raum anlegen",
+  "POST /api/v1/admin/rechte/gruppen/:p/rollen":
+    "Rolle in einer Gruppe anlegen",
+  "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau":
+    "Vorschau, wer betroffen ist",
+  "POST /api/v1/admin/rechte/rollen": "Globale Rolle anlegen",
   "POST /api/v1/admin/stufen": "Stufe anlegen",
   "POST /api/v1/admin/system/syncs/kalender": "Kalender-Sync anstossen",
   "POST /api/v1/admin/tags": "Tag anlegen",
@@ -320,6 +347,9 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "POST /api/v1/raeume/anfragen/:p/entscheid":
     "Eine Raumanfrage annehmen oder ablehnen",
   "POST /api/v1/redaktion/medien": "Bild hochladen",
+  "POST /api/v1/redaktion/orte": "Ort anlegen",
+  "POST /api/v1/redaktion/orte/vorschau":
+    "Standort eines Orts prüfen, ohne zu speichern",
   "POST /api/v1/redaktion/seiten": "Seite anlegen",
   "POST /api/v1/redaktion/seiten/:p/veroeffentlichen":
     "Entwurf veröffentlichen",
@@ -334,9 +364,12 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PUT /api/v1/admin/anlaesse/:p/felder":
     "Zusatzfelder eines Anlasses ersetzen",
   "PUT /api/v1/admin/kategorie-zuordnungen": "Kategorie einem Tag zuordnen",
+  "PUT /api/v1/admin/kinder/konto-einstellung":
+    "Einstellungen der Konten für Kinder speichern",
   "PUT /api/v1/admin/laden/artikel/reihenfolge":
     "Reihenfolge der Artikel setzen",
-  "PUT /api/v1/admin/laden/einstellungen": "Übergabearten des Lädelis ersetzen",
+  "PUT /api/v1/admin/laden/einstellungen":
+    "Einstellungen des Lädelis speichern",
   "PUT /api/v1/admin/lager-dateien/hosts":
     "Erlaubte Hosts für Datei-Links festlegen",
   "PUT /api/v1/admin/lager/:p/mitglieder/:p":
@@ -344,6 +377,8 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "PUT /api/v1/admin/lager/:p/rechte": "Rechte der Rollen ändern",
   "PUT /api/v1/admin/plattform/rollen/:p/personen/:p":
     "Plattformrolle einer Person zuweisen",
+  "PUT /api/v1/admin/rechte/gruppen/:p/personen/:p/rolle":
+    "Einer Person in der Gruppe eine Rolle zuordnen",
   "PUT /api/v1/admin/stufen/:p/logo": "Logo einer Stufe hochladen",
   "PUT /api/v1/admin/stufen/:p/stufenleitung":
     "Reihenfolge der Stufenleitung festlegen",
@@ -400,6 +435,7 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Teilnahme eines Kindes melden oder ändern",
   "PUT /api/v1/push-token":
     "Push-Token des Geräts für die aktuelle Sitzung hinterlegen",
+  "PUT /api/v1/redaktion/orte/reihenfolge": "Reihenfolge der Orte setzen",
   "PUT /api/v1/redaktion/seiten/:p/entwurf": "Entwurf speichern",
   "PUT /api/v1/redaktion/stufen/:p/eckdaten/:p":
     "Felder der Stufenseite für ein Datum pflegen",

@@ -304,6 +304,10 @@ a.pe-bearbeiten:hover {
   font-size: 2.5rem;
 }
 
+.pe-bild-aktion:empty {
+  display: none;
+}
+
 .pe-profil-name {
   margin: 0;
   font-size: 1.25rem;
@@ -442,7 +446,8 @@ a.pe-bearbeiten:hover {
     grid-column: 2;
   }
 
-  .pe-profil > .hilfe {
+  .pe-profil > .hilfe,
+  .pe-profil > .pe-bild-aktion {
     grid-column: 1 / -1;
   }
 
