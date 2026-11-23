@@ -18,18 +18,12 @@ type Eintrag = {
 beforeAll(async () => {
   vi.stubGlobal("document", { addEventListener: () => {} });
   vi.stubGlobal("window", { addEventListener: () => {}, history: {} });
-  rahmen = (await import(
-    /* @vite-ignore */ "../public/admin/lager-rahmen.js"
-  )) as Modul;
-  register = (await import(
-    /* @vite-ignore */ "../public/admin/lager-module.js"
-  )) as typeof register;
-  suche = (await import(
-    /* @vite-ignore */ "../public/admin/lager-m-suche.js"
-  )) as Modul;
-  benachrichtigungen = (await import(
-    /* @vite-ignore */ "../public/admin/lager-m-benachrichtigungen.js"
-  )) as Modul;
+  const lade = (name: string) =>
+    import(/* @vite-ignore */ `../public/admin/${name}`) as Promise<Modul>;
+  rahmen = await lade("lager-rahmen.js");
+  register = (await lade("lager-module.js")) as unknown as typeof register;
+  suche = await lade("lager-m-suche.js");
+  benachrichtigungen = await lade("lager-m-benachrichtigungen.js");
   vi.unstubAllGlobals();
 });
 
