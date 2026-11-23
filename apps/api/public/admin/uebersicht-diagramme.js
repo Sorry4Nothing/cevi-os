@@ -1,5 +1,5 @@
 // Diagramme der Übersicht (#583): kleine Grafiken als Inline-SVG, ohne Bibliothek. Farben nur über Klassen (uebersicht.css, aus den Tokens, Tag und Nacht), nie als Wert im Code; die CSP erlaubt keine style-Attribute, darum stehen Masse als SVG-Attribute.
-// Jede Grafik hat eine Entsprechung als Tabelle (Schalter «Tabellen statt Diagramme»), einen Satz mit allen Werten für Screenreader und eine Ablesung: Zeiger oder Pfeiltasten wählen einen Punkt, der Text darunter nennt Zeitraum und Wert.
+// Jede Grafik hat einen Satz mit allen Werten für Screenreader und eine Ablesung: Zeiger oder Pfeiltasten wählen einen Punkt, der Text darunter nennt Zeitraum und Wert.
 // Vorlage für das Ablesen mit Pfeiltasten ist der Streifen «Status» (Kokonut UI Pro, status-footer); gezeichnet ist alles selbst.
 import { el } from "./dom.js";
 
@@ -30,7 +30,7 @@ function saeule(x, y, b, h, r = 3) {
 }
 
 // Eine ablesbare Grafik: Zeiger und Pfeiltasten wählen einen Punkt. marken[i] bekommt «ist-aktiv»; texte[i] steht unter der Grafik (aria-live)
-function ablesbar({ grafik, marken, texte, beschriftung, ruhe }) {
+export function ablesbar({ grafik, marken, texte, beschriftung, ruhe }) {
   const lese = el("p", { class: "ub-lese klein leise", "aria-live": "polite" });
   const ruheText = ruhe ?? "";
   lese.textContent = ruheText;

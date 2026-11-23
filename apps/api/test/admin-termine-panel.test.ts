@@ -73,11 +73,8 @@ describe("Admin-Panel: Termine und Anlässe", () => {
 
   test("jedes Modul meldet sich in der Navigation an", () => {
     const navigation = lies("navigation.js");
-    for (const modul of [
-      "termine-kalender",
-      "termine-outlook",
-      "termine-anmeldungen",
-    ]) {
+    // Die Anmeldungen sind kein eigener Menüpunkt mehr (#607)
+    for (const modul of ["termine-kalender", "termine-outlook"]) {
       expect(navigation).toContain(`"./${modul}.js"`);
     }
   });

@@ -12,9 +12,9 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  max-width: 90rem;
+  max-width: var(--seitenbreite);
   margin: 0 auto;
-  padding: 0 clamp(1rem, 4vw, 4.5rem);
+  padding: 0 var(--seitenrand);
 }
 
 /* Logozeile */
@@ -298,20 +298,23 @@
   box-shadow: inset 0 -3px 0 var(--primary);
 }
 
-/* Zähler: rote Pille mit weisser Zahl (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1) */
+/* Zähler: roter Kreis mit weisser Zahl, Zahl mittig (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1). Ein- und zweistellig immer rund; die Zahl steht über line-height und grid in der Mitte (mehr als 99 offene Punkte kommen nicht vor) */
 .pille-zaehler {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 22px;
-  padding: 0 7px;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   background: var(--rot);
   color: var(--auf-rot);
-  border-radius: 9999px;
+  border-radius: 50%;
   font-size: 0.75rem;
+  line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
 .bereichsleiste a:focus-visible,
@@ -391,7 +394,7 @@
     gap: 0.75rem;
     width: 100%;
     min-height: 3.25rem;
-    padding: 0 clamp(1rem, 4vw, 4.5rem);
+    padding: 0 var(--seitenrand);
     border: 0;
     background: none;
     color: inherit;
@@ -471,7 +474,7 @@
     align-items: center;
     gap: 0.75rem;
     min-height: 2.75rem;
-    padding: 0 clamp(1rem, 4vw, 4.5rem);
+    padding: 0 var(--seitenrand);
     color: var(--on-surface);
     font-size: 1rem;
     font-weight: 600;
@@ -494,7 +497,7 @@
 
   .bereichswahl-unter a {
     min-height: 2.75rem;
-    padding-left: calc(clamp(1rem, 4vw, 4.5rem) + 2.25rem);
+    padding-left: calc(var(--seitenrand) + 2.25rem);
     font-size: 0.9375rem;
     font-weight: 500;
   }

@@ -8,8 +8,8 @@ Das Gerüst der Verwaltung unter `/admin` ist Teil **eines** Designsystems mit d
 Kopf (header.kopfzeile, wie website/kopf.css)
   Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name), «Verwaltung», Konto, Umschalter Hell/Dunkel, Abmelden
   Bereichsleiste   weisses Band, ein Eintrag je Bereich, roter Strich unter dem aktuellen; haftet beim Scrollen oben (unter 960 px: Bereichsauswahl)
-  Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als rote Pille; scrollt mit weg
-main#inhalt        .rahmen (max. 90 rem wie der Kopf, Seitenrand clamp(1rem, 4vw, 4.5rem) wie --rand der Website)
+  Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als roter Kreis; scrollt mit weg
+main#inhalt        .rahmen (max. 105 rem und Seitenrand clamp(1rem, 4vw, 4.5rem): dieselben Werte wie .wrap und --rand der Website, in der Verwaltung als --seitenbreite und --seitenrand, weil --rand hier die Randfarbe ist; Kopf, Leisten, Hinweisband, Seitenkopf und Inhalt haben exakt dieselben Kanten wie die Website)
   #seitenkopf      h1 + Untertitel + rechts die Hauptaktion
   #rueckmeldung    Meldungen; darunter die Toasts mit «Rückgängig»
   #bereich         hier zeichnet dein Modul
@@ -25,49 +25,49 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
-| Datei                                                 | Aufgabe                                                                                                                        |
-| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `index.html`                                          | lädt die Stilvorlagen und `admin.js`                                                                                           |
-| `admin.js`                                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                                               |
-| `navigation.js`                                       | **Bereiche und Unterseiten**, Recht je Eintrag (`darfSehen`), Rolle im Kopf (`rolleVon`). Hier meldet sich ein Modul an        |
-| `rahmen.js`                                           | Marke, Logozeile, Leisten, Bereichsauswahl (schmal), Seitenkopf, Rückmeldungen, Toasts                                         |
-| `lader.js`                                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                                                |
-| `zustaende.js`                                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                                          |
-| `platzhalter.js`                                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                                        |
-| `komponenten.js`                                      | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                                    |
-| `dom.js`                                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …                              |
-| `api.js`                                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                                           |
-| `tokens.css`                                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)                             |
-| `theme.js`                                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                                   |
-| `auswahl.js`, `auswahl.css`                           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                                                |
-| `fluss.js`, `fluss.css`, `verlauf.js`                 | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                                             |
-| `rueckgaengig.js`, `toast.css`                        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                                    |
-| `admin.css`                                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                                       |
-| `geruest.css`                                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                                   |
-| `komponenten.css`                                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                                       |
-| `liste-hilfen.js`                                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel`                   |
-| `uebersicht.js`                                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                                         |
-| `uebersicht-kacheln.js`                               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                                      |
-| `uebersicht-diagramme.js`                             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten                          |
-| `uebersicht.css`                                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                                     |
-| `lager-personenwahl.js`                               | Personen für ein Lager wählen (Suche, Gesichter, Rolle, mehrere auf einmal; Assistent und Mitglieder)                          |
-| `lager-rechte.js`                                     | Rechte der Rollen eines Lagers in Klartext (Bereiche, Filter, Leiste mit Änderungen)                                           |
-| `termine-monat.js`                                    | Monatsansicht des Kalenders: reine Funktionen und Knoten (Klassenvorsatz `tm-`, Stile in `termine.css`)                        |
-| `hinweisband.js`                                      | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform                                |
-| `system.js`, `plattform.js`                           | System (Übersicht, Anfragen, Abrufe) und Plattform (Wartung, Sperre) (#593)                                                    |
-| `zeitregeln.js`, `mitteilungen.js`                    | Erinnerungen mit Zeitplan-Vorschau, Mitteilungen mit Vorschau (#593)                                                           |
-| `system.css`                                          | Stile dieser Seiten und des Hinweisbands (Vorsätze `hinweisband-`, `sch-`, `zr-`)                                              |
-| `website-baumansicht.js`                              | Website: Seitenbaum als Baum (Tastatur, Ziehen, Umbenennen, Weiterleitungs-Hinweis)                                            |
-| `website-skizzen.js`                                  | Website: Skizzen der Seitenvorlagen für «Neue Seite»                                                                           |
-| `website-unteransicht.js`                             | Website: Unteransicht im Panel (Bild wählen, Zugriff eines Bausteins), nie ein zweites Panel                                   |
-| `bildwahl.js`, `bildwahl.css`                         | Bildwahl in der Seite (Bilder der Medienbibliothek unter dem Feld) und `bildMitLader` (Platzhalter bis das Bild da ist) (#591) |
-| `website-einstellungen.css`                           | Vorschau der Website-Einstellungen (Klassen `ws-einst-`, `ws-v-`) (#591)                                                       |
-| `personen-blatt.js`, `personen-wahl.js`, `telefon.js` | Person als Seite, Zuordnen per Suche und Dateifeld, Telefonnummer (#594)                                                       |
-| `sortieren.js`, `filterleiste.js`, `datumsfeld.js`    | Querschnitt: Sortierliste, Filterleiste, Datum, Zeit und Zahl in eigenen Feldern (#578)                                        |
-| `aktionen.js`, `formularraster.js`, `werkzeuge.css`   | Querschnitt: geteilter Knopf, Bestätigung am Ort, Zweispalter und die Stile aller Querschnitt-Bausteine (#578, #602)           |
-| `lager*.js`, `lager.css`                              | Bereich Lager: Liste, Assistent, Mitglieder, Rechte, Ausdrucke, Vorlagen (Vorsatz `lg-`) (#592)                                |
-| `website-*.js`, `website-*.css`                       | Website: Seiten, Baum, Editor, Bausteine, Medien, Stufenfelder, Einstellungen (Vorsatz `ws-`) (#591, #595)                     |
-| `<bereich>-*.js/css`                                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                                                |
+| Datei                                                 | Aufgabe                                                                                                                             |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `index.html`                                          | lädt die Stilvorlagen und `admin.js`                                                                                                |
+| `admin.js`                                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                                                    |
+| `navigation.js`                                       | **Bereiche und Unterseiten**, Recht je Eintrag (`darfSehen`), Rolle im Kopf (`rolleVon`). Hier meldet sich ein Modul an             |
+| `rahmen.js`                                           | Marke, Logozeile, Leisten, Bereichsauswahl (schmal), Seitenkopf, Rückmeldungen, Toasts                                              |
+| `lader.js`                                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                                                     |
+| `zustaende.js`                                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                                               |
+| `platzhalter.js`                                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                                             |
+| `komponenten.js`                                      | Skeleton-Galerie (G5) und Zustandstafel (G6); nicht mehr verlinkt (#607)                                                            |
+| `dom.js`                                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …                                   |
+| `api.js`                                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                                                |
+| `tokens.css`                                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)                                  |
+| `theme.js`                                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                                        |
+| `auswahl.js`, `auswahl.css`                           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                                                     |
+| `fluss.js`, `fluss.css`, `verlauf.js`                 | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                                                  |
+| `rueckgaengig.js`, `toast.css`                        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                                         |
+| `admin.css`                                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                                            |
+| `geruest.css`                                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                                        |
+| `komponenten.css`                                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                                            |
+| `liste-hilfen.js`                                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel`                        |
+| `uebersicht.js`                                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                                              |
+| `uebersicht-kacheln.js`                               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                                           |
+| `uebersicht-diagramme.js`                             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten                               |
+| `uebersicht.css`                                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                                          |
+| `lager-personenwahl.js`                               | Personen für ein Lager wählen (Suche, Gesichter, Rolle, mehrere auf einmal; Assistent und Mitglieder)                               |
+| `lager-rechte.js`                                     | Rechte der Rollen eines Lagers in Klartext (Bereiche, Filter, Leiste mit Änderungen)                                                |
+| `termine-monat.js`                                    | Monatsansicht des Kalenders: reine Funktionen und Knoten (Klassenvorsatz `tm-`, Stile in `termine.css`)                             |
+| `hinweisband.js`                                      | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform                                     |
+| `system.js`, `plattform.js`                           | System (Übersicht mit Kennzahlen, Verlauf und Streifen der Anfragen; Anfragen; Abrufe) und Plattform (Wartung, Sperre) (#593, #606) |
+| `zeitregeln.js`, `mitteilungen.js`                    | Erinnerungen mit Zeitplan-Vorschau, Mitteilungen mit Vorschau (#593)                                                                |
+| `system.css`                                          | Stile dieser Seiten und des Hinweisbands (Vorsätze `hinweisband-`, `sch-`, `zr-`, `sv-`)                                            |
+| `website-baumansicht.js`                              | Website: Seitenbaum als Baum (Tastatur, Ziehen, Umbenennen, Weiterleitungs-Hinweis)                                                 |
+| `website-skizzen.js`                                  | Website: Skizzen der Seitenvorlagen für «Neue Seite»                                                                                |
+| `website-unteransicht.js`                             | Website: Unteransicht im Panel (Bild wählen, Zugriff eines Bausteins), nie ein zweites Panel                                        |
+| `bildwahl.js`, `bildwahl.css`                         | Bildwahl in der Seite (Bilder der Medienbibliothek unter dem Feld) und `bildMitLader` (Platzhalter bis das Bild da ist) (#591)      |
+| `website-einstellungen.css`                           | Vorschau der Website-Einstellungen (Klassen `ws-einst-`, `ws-v-`) (#591)                                                            |
+| `personen-blatt.js`, `personen-wahl.js`, `telefon.js` | Person als Seite, Zuordnen per Suche und Dateifeld, Telefonnummer (#594)                                                            |
+| `sortieren.js`, `filterleiste.js`, `datumsfeld.js`    | Querschnitt: Sortierliste, Filterleiste, Datum, Zeit und Zahl in eigenen Feldern (#578)                                             |
+| `aktionen.js`, `formularraster.js`, `werkzeuge.css`   | Querschnitt: geteilter Knopf, Bestätigung am Ort, Zweispalter und die Stile aller Querschnitt-Bausteine (#578, #602)                |
+| `lager*.js`, `lager.css`                              | Bereich Lager: Liste, Assistent, Mitglieder, Rechte, Ausdrucke, Vorlagen (Vorsatz `lg-`) (#592)                                     |
+| `website-*.js`, `website-*.css`                       | Website: Seiten, Baum, Editor, Bausteine, Medien, Stufenfelder, Einstellungen (Vorsatz `ws-`) (#591, #595)                          |
+| `<bereich>-*.js/css`                                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                                                     |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
 
@@ -151,10 +151,13 @@ Was der Bereich einer Ansicht über die Bausteine hinaus beschreibt: eine Liste 
 
 Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und wie es der Abteilung geht. Sie lädt **einen** Abruf, `GET /api/v1/admin/uebersicht` (beim Öffnen und auf «Aktualisieren», kein Polling). Der Server gibt jeder Person nur die Teile, die sie sehen darf (Rechte je Teil: siehe die Beschreibung der Route in `docs/api/openapi.yaml` und Bedrohung 50); die Oberfläche blendet nur aus, was in der Antwort fehlt, und verlässt sich auf nichts.
 
-- **Aufbau:** «Jetzt zu tun» (Kachel je offener Punkt mit Zahl und Sprung auf den richtigen Bildschirm; erledigtes steht in einem Satz) · «Kennzahlen» (Wert, Vergleich mit dem Zeitraum davor, kleine Grafik) · «Kommendes» und «Kinder je Stufe» · «Zustand» (Website, Kalender-Abgleich, Medien, Datenbank). Das Raster füllt die Breite des Rahmens (`auto-fit`, mindestens 240 bis 260 px je Kachel), wenige Kacheln werden breiter.
+- **Aufbau:** «Jetzt zu tun» (Kachel je offener Punkt mit Zahl und Sprung auf den richtigen Bildschirm; erledigtes steht in einem Satz) · «Kennzahlen» (Anmeldungen, Konten, Bestellungen, Termine) · «Kommendes» und «Kinder je Stufe» · «Zustand» (nur Website und Kalender-Abgleich). Das Raster füllt die Breite des Rahmens, wenige Kacheln werden breiter.
+- **Jetzt zu tun (#607):** Alle Aufgabenkacheln sind gleich gross und gleich aufgebaut (Raster mit gleich hohen Zeilen, mindestens 11 rem): oben Zahl und Marke, in der Mitte der Satz, unten eine Aktionszeile von 44 px Höhe. Ohne Recht auf die Zielseite bleibt die Zeile leer.
+- **Kennzahlen (#607)** nach den Statistikkacheln von Kokonut UI Pro (`stats-feature`, `clinic-dashboard`): Titel, grosse Zahl mit Einheit, Veränderung als Marke mit Pfeil und Vorzeichen (nie nur Farbe) und dem Vergleich in Worten, darunter eine kleine Grafik. Nur Zahlen, die die Route schon liefert und die für die Abteilung etwas sagen; «Bestellungen» erscheint nur, wenn das Lädeli in den letzten acht Wochen benutzt wurde. Die Anfragen an die API sind Sache des Systems und stehen dort.
+- **Zustand (#607):** ein Streifen mit einem Punkt je Dienst (Name, Zustand als Wort mit Symbol, ein Satz, Verweis). Medien (Dateien, Speicher) und Antwortzeit der Datenbank zeigt die Übersicht nicht mehr; die Route liefert die Teile `zustand.medien` und `zustand.datenbank` weiter.
 - **Sprung:** Eine Aufgabenkachel ist nur dann ein Link, wenn die Person die Zielseite sehen darf (`darfSehen` aus `navigation.js`); sonst zeigt sie nur die Zahl.
 - **Zustände je Kachel:** Lädt (Skelett in der Form der Seite), leer (ein Satz), Fehler (steht der Teil in `fehlt`, zeigt nur diese Kachel «Nochmals versuchen»; der Rest bleibt). Fehlt die ganze Antwort, zeigt `ctx.lade` die Fehlerkarte der Seite.
-- **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`), eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`) und eine Entsprechung als Tabelle; der Schalter «Tabellen statt Diagramme» tauscht beide für die ganze Seite. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
+- **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`) und eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`). Eine Tabelle daneben und den Schalter «Tabellen statt Diagramme» gibt es in der Übersicht nicht mehr (#607); `wertetabelle` bleibt für das System. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
 - **Neue Kachel:** eine Funktion in `uebersicht-kacheln.js`, die aus der Antwort einen Knoten baut (`kachel({ titel, inhalt })`) und `null` liefert, wenn der Teil fehlt; ein Eintrag in `zeichne` von `uebersicht.js`. Der Teil gehört zuerst in die Route (`routes/admin/uebersicht.ts`) mit seinem eigenen Recht, Eintrag in OpenAPI und Test.
 - **Zähler der Unterleiste** (Vorschläge, Ohne Kategorie, Anfragen) kommen aus denselben Zahlen (`ctx.zaehler`), ohne eigene Abfrage; sie sind jetzt exakt statt «100+».
 
@@ -166,8 +169,9 @@ Der Bereich «Personen» nutzt die Bausteine aus `werkzeuge.css` (Filterleiste, 
 - **Personenliste** (`personen.js`): `filterleiste` mit Suche, Tag, Rolle, Konto; Auswahlleiste (`.auswahlleiste`) für «Tag setzen» und «Tag entziehen» mit `ctx.mitRueckgaengig`. Die Zeilen ändern sich sofort (`ansicht.weg`), die Anfragen gehen nach der Frist; `ansicht.zurueck` stellt den alten Stand her. Je Person ein Aufruf, höchstens fünf gleichzeitig (die API kennt nur die Einzelzuordnung).
 - **Zuordnen per Suche** (`personen-wahl.js`): `kandidatenSuche` (Suchfeld mit Treffern), `suchWahl` (Gewählte als Liste, dazu die Suche; für Kinder einer Person und Eltern eines Kindes), `personZeile`, `dateiFeld` (Knopf «Datei wählen» statt des Dateifelds des Browsers).
 - **Gruppe** (`tags-detail.js`, `zeigeDetail`): Mitgliederliste mit Live-Filter, Rolle in der Zeile ändern, Hinzufügen und Entfernen mit «Rückgängig» (Änderung sofort sichtbar, Anfrage nach der Frist). Die Rollen `leitung` und `stufenleitung` stehen im Klartext.
-- **Stufen** (`stufen.js`): Die Stufenleitung ist eine `sortierListe` in der Karte; `ctx.mitRueckgaengig` verzögert das `PUT …/stufenleitung`. Das Logo hat eine Vorschau neben dem Feld.
-- **Import** (`import.js`): Der Grundschritt (Stufe und Datei) steht im Bereich, Spalten, Rollen und Vorschau sind je eine Seite im Fluss (`seitenSchritt`) mit Schrittleiste (`schrittLeiste`). Browser-Zurück geht einen Schritt zurück und behält die Eingaben. Ein Neuladen verliert die Datei (sie liegt nur im Browser), darum haben die Schritte keine eigene Adresse.
+- **Stufen** (`stufen.js`): Ruhige Karten, gleich hoch: Kasten mit Anfangsbuchstaben (oder eigenem Logo), Name, Zahl der Kinder, darunter die Stufenleitung einmal (Name oder `sortierListe`), unten die Aktionen. Ohne Leitung steht ein Satz, kein Warn-Chip. `ctx.mitRueckgaengig` verzögert das `PUT …/stufenleitung`. Das Logo hat eine Vorschau neben dem Feld.
+- **Import** (`import.js`, `schrittfolge.js`): Eine senkrechte Schrittfolge (Muster «stepper-form», eigener Bau) mit den Schritten Datei, Spalten, Rollen, Vorschau, Fertig. Zustand je Schritt (offen, aktuell, erledigt, Fehler), erledigte Schritte mit Zusammenfassung und «Ändern». Beim Export der Cevi-Datenbank sind Spalten und Rollen erkannt: Die Folge springt von der Datei zur Vorschau, «Ändern» führt zurück. Jeder Schritt ist ein Eintrag im Verlauf (`history.state.importSchritt`), Browser-Zurück geht schrittweise und behält die Eingaben; nach dem Import führt «Zurück» nicht in die Vorschau. Ein Neuladen verliert die Datei (sie liegt nur im Browser).
+- **Kinder** (`kinder.js`): Die Spalte «Zugang» und der Filter «Ohne Zugang» ersetzen «Eltern»; ein Kind ohne Elternteil ist ein Hinweis, keine Warnung (ein eigenes Konto für Kinder gibt es im Modell nicht, Entwurf liegt vor). «Kind anlegen» und «Kind bearbeiten» sind eine Seite im Fluss mit `formularRaster` (Karten Angaben, Stufe, Eltern und Zugang).
 
 ### Website: Seiten und Editor (#595)
 
@@ -205,7 +209,7 @@ Der Kalender ist eine **Monatsansicht** (`termine-monat.js`): Raster mit Terminc
 - **Plattform** zeigt je Bereich eine Zeile mit Zustand (Chip), Einzelheiten und Aktionen; auf dem Handy stehen die Aktionen unter dem Text, es gibt keine Tabelle zum Seitwärtsscrollen. Das geplante Ende der Wartung ist ein `datumZeitFeld` (kein natives `datetime-local`); ein Datum ohne Uhrzeit wird beim Speichern gemeldet.
 - **Erinnerungen** bauen den Zeitplan aus Wochentag (Segment mit Radioknöpfen), Uhrzeit (`zeitfeld`) und zeigen darunter die nächsten sechs Termine als Streifen (`naechsteTermine`, gerechnet in Schweizer Zeit). Die Liste nennt je Regel das nächste Mal.
 - **Mitteilungen**: Formular links, Vorschau rechts (so sieht der Push aus, an wen er geht, `formularRaster`); die Rückfrage vor dem Senden bleibt ein zweistufiger Knopf.
-- **Komponenten** ist ein Werkzeug für Entwickler: Die Navigation blendet den Eintrag für alle anderen aus (Signal `nameAenderbar` in `GET /api/v1/redaktion/website`); ein Tiefenlink zeigt ihnen weiter eine Karte statt der Galerie.
+- **Komponenten** (`komponenten.js`) steht seit #607 in keiner Navigation mehr; die Datei bleibt für die Entwicklung, die Beschreibung der Bausteine zieht später in die Doku um.
 
 ### Lager (#592)
 
@@ -323,7 +327,7 @@ Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die H
 | Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
 | Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                              | `fortschritt`, `schritte`               |
 | Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
-| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)`                                                            | `pille-zaehler`                         |
+| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)` (roter Kreis, 24 px)                                       | `pille-zaehler`                         |
 
 Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit «Rückgängig» (Toast) oder, wo das nicht geht, zwei Stufen im Knopf, nie mit einem Popup; Tabellen mit `th scope` und `aria-sort`; nur Erfolgs- und Infomeldungen verschwinden von selbst, nie ein Fehler oder eine Rückfrage. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt die Art `warn` oder `fehler` oder eine Aktion.
 
@@ -334,7 +338,7 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 - Fehler beim Feld: `feldFehler(feld, text)` und `entferneFehler(feld)`, dazu `pruefHinweis([{ name, … }])` für die Zusammenfassung «2 Angaben prüfen» (Knöpfe statt Links, ein Hash würde die Seite wechseln). Der Fehler eines Dialogs steht oben (`pe-dialog`).
 - Auswahlleiste (`.auswahlleiste`, `role="region"`) für Mehrfachauswahl, `.pe-wahl` für die Checkbox-Spalte.
 
-Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
+Die Galerie der Bausteine (`komponenten.js`) hängt seit #607 an keinem Menüpunkt mehr; Zustände eines Bausteins prüfst du in der Seite, die ihn braucht, in Tag und Nacht.
 
 ## Seiten im Fluss statt Dialoge, Verlauf (#578)
 
@@ -359,7 +363,8 @@ Jedes `<select>` der Verwaltung wird zu dem Auswahlfeld der Website (`auswahl.js
 
 ## Navigation, Rahmen und Suche (#602, #611)
 
-- **Eintrag nach Recht:** `darfSehen` in `navigation.js` entscheidet, welche Einträge die Person sieht: `admin` (Vorgabe), `alle`, ein Bereich aus `GET /api/v1/redaktion/ich`, `entwickler` (Signal `nameAenderbar` in `GET /api/v1/redaktion/website`, gilt auch für die Abteilungsleitung nicht automatisch) oder `recht:<name>` (ein Plattformrecht aus `rechte` der Antwort von `redaktion/ich`; die Abteilungsleitung hat alle). «Komponenten» ist `entwickler`, «Einstellungen» der Website `recht:seiten.veroeffentlichen` (die Route verlangt das Recht; die Stufenleitung lief sonst in ein 403). Das Menü ist nur Anzeige: Jede Route prüft selbst, und ein Tiefenlink auf einen versteckten Eintrag zeigt «Kein Zugriff».
+- **Eintrag nach Recht:** `darfSehen` in `navigation.js` entscheidet, welche Einträge die Person sieht: `admin` (Vorgabe), `alle`, ein Bereich aus `GET /api/v1/redaktion/ich`, `entwickler` (Signal `nameAenderbar` in `GET /api/v1/redaktion/website`, gilt auch für die Abteilungsleitung nicht automatisch) oder `recht:<name>` (ein Plattformrecht aus `rechte` der Antwort von `redaktion/ich`; die Abteilungsleitung hat alle). «Einstellungen» der Website `recht:seiten.veroeffentlichen` (die Route verlangt das Recht; die Stufenleitung lief sonst in ein 403). Das Menü ist nur Anzeige: Jede Route prüft selbst, und ein Tiefenlink auf einen versteckten Eintrag zeigt «Kein Zugriff».
+- **Alte Adressen (`ALIASE`):** `#anlaesse/anmeldungen` (mit oder ohne Kennung) führt seit #607 zur Liste der Anlässe bzw. zum Anlass `#anlaesse/anlaesse/<id>`; «Anmeldungen» ist kein eigener Menüpunkt mehr, die Anmeldungen gehören zum Anlass.
 - **Rolle im Kopf:** `rolleVon` (`navigation.js`) setzt die Zeile unter dem Namen aus dem, was bekannt ist: Abteilungsleitung (mit «Entwickler ·» davor, wenn `nameAenderbar` gilt), sonst Stufenleitung und Leitung mit den Namen der Stufen aus `GET /api/v1/ich`, «Website-Redaktion» bei Rechten auf Seiten oder Medien, «Wartung der Website» bei nur dem Wartungsrecht. Die Namen der Plattformrollen kennt nur die Abteilungsleitung (`/admin/plattform/rollen`); darum steht hier die Funktion, nicht der Rollenname. Zwei Abrufe laufen vor dem ersten Bild (`GET /api/v1/redaktion/website` nur mit dem Recht «Seiten veröffentlichen», `GET /api/v1/ich` nur ohne Abteilungsleitung), damit Kopf und Menü gleich stimmen.
 - **Marke ohne Einstellungen:** Wer die Einstellungen der Website nicht lesen darf, und die Anmeldung vor der Sitzung, zeigen den Kopf der öffentlichen Website (`ladeOeffentlicheMarke` in `rahmen.js` liest die Startseite `/`, die jede Person ohne Sitzung sieht, und nimmt Logo und Namen aus `header a.marke`). Es gibt dafür keine eigene Route. Fehlt die Seite (Wartung, Sperre, anderer Aufbau), bleibt die Wortmarke «CEVI». Die Einstellungen gehen vor. Der Ortsname steht nirgends im Code.
 - **Bereichsauswahl schmal:** Unter 960 px (die zehn Bereiche brauchen 850 px) ersetzt `erstelleBereichswahl` in `rahmen.js` beide Leisten. Die Zeile zeigt Bereich und Seite, das Panel wächst aus ihr (Prinzip «Workspace-Switcher»), der aktive Bereich zeigt seine Unterseiten mit den Zählern, das geschlossene Panel ist `inert`. Tastatur und Verhalten: `docs/barrierefreiheit.md`, 22.3 bis 22.5. Beide Leisten bleiben im Quelltext und sind nur verborgen (`display: none`), die Auswahl am Computer ebenso.

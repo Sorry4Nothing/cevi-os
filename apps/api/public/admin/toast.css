@@ -3,7 +3,7 @@
 .toasts {
   position: fixed;
   bottom: 1rem;
-  left: clamp(1rem, 4vw, 4.5rem);
+  left: var(--seitenrand);
   z-index: 60;
   width: min(30rem, calc(100vw - 2rem));
   pointer-events: none;
