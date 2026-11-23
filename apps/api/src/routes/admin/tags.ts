@@ -15,6 +15,7 @@ import {
 import { eingabe } from "../../eingabe.js";
 import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
+import { legeSystemrollenAn } from "../../rechtemodell/gruppenrollen.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
@@ -160,6 +161,13 @@ export function erstelleTagRouten({ db }: { db: Db }) {
               abteilungId: person.abteilungId,
             })
             .returning({ id: tag.id });
+          // Jede Gruppe hat ihre Systemrollen (#643)
+          await legeSystemrollenAn(
+            tx,
+            person.abteilungId,
+            zeile.id,
+            felder.typ,
+          );
           // Ein Tag vom Typ «stufe» ist eine Stufe (#332) und braucht wie jede Stufe ihren Gruppenchat
           if (felder.typ === "stufe") {
             await legeGruppenchatAn(tx, {

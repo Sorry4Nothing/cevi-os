@@ -44,6 +44,7 @@ import {
   starteAenderungenAufraeumen,
 } from "./lager/aufraeumen.js";
 import { log, setzeLogSenke } from "./log.js";
+import { setzeRechteModus } from "./rechtemodell/modus.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
 import { ladeSeiten } from "./seiten.js";
 import {
@@ -128,6 +129,7 @@ const kalenderLauf = () =>
 // Aktivitätsprotokoll (#637): Ereignisse ohne Anfrage (Läufe, Versand) kommen über log() hinein; der Start steht als eigene Zeile
 const aktivitaet = erstelleAktivitaetsprotokoll(db);
 setzeLogSenke((felder) => systemzeileAus(aktivitaet, felder));
+setzeRechteModus(konfiguration.RECHTE_MODELL ?? "schatten");
 aktivitaet.system("start", { bereich: "system" });
 // Beim Beenden schreibt der Prozess den Puffer zu Ende (höchstens eine Sekunde Zeilen)
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
