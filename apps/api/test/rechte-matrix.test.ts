@@ -1077,8 +1077,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/kinder/:id/konto/entsperren": {
-    url: () =>
-      `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
+    url: () => `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
     erwartet: {
       ...alle(403),
       admin: 200,
@@ -2605,7 +2604,10 @@ async function wegwerfWeiterleitungId() {
 async function wegwerfOrtId() {
   const [zeile] = await welt.db
     .insert(schema.ort)
-    .values({ abteilungId: welt.testabteilungId, name: `Matrix ${randomUUID()}` })
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Matrix ${randomUUID()}`,
+    })
     .returning({ id: schema.ort.id });
   return zeile.id;
 }
