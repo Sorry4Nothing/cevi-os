@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/redaktion/seiten/:id/entwurf"
-order: 135000
+order: 182000
 method: PUT
 url: "{{baseUrl}}/api/v1/redaktion/seiten/{{seiteId}}/entwurf"
 headers:
@@ -17,4 +17,4 @@ headers:
 body:
   type: json
   content: |-
-    {{body_140}}
+    {{body_187}}

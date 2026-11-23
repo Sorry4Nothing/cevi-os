@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/termin-vorschlaege/:id/entscheid"
-order: 414000
+order: 466000
 method: POST
 url: "{{baseUrl}}{{pfad_T14}}"
 headers:

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /admin/csv.js"
-order: 21000
+order: 24000
 method: GET
 url: "{{baseUrl}}/admin/csv.js"
 headers:

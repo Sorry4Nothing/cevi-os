@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /admin/termine-warnliste.js"
-order: 39000
+order: 60000
 method: GET
 url: "{{baseUrl}}/admin/termine-warnliste.js"
 headers:

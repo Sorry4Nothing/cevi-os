@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/abzaehlen/zuruecksetzen"
-order: 360000
+order: 411000
 method: POST
-url: "{{baseUrl}}{{pfad_L205}}"
+url: "{{baseUrl}}{{pfad_L209}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

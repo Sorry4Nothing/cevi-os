@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/vorlagen/:vorlageId/anwenden"
-order: 377000
+order: 429000
 method: POST
-url: "{{baseUrl}}{{pfad_L222}}"
+url: "{{baseUrl}}{{pfad_L227}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
