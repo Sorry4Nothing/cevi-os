@@ -323,6 +323,15 @@ Die Module «Material und Infos» (`lager-m-*.js`, `lager-material.css`, Vorsatz
 
 Das Rechte-Modell ist nicht verändert: Die Rechte der Rollen heissen im Server weiter wie bisher; nur die Anzeige zeigt statt des Schlüssels einen Satz.
 
+### Lager: Menschen und Einteilung (#675)
+
+Neun Module der Gruppe «Menschen» im Arbeitsbereich des Lagers (Register `lager-module.js`, Adresse `#lager/lager/<id>/<modul>`; Dateien `lager-m-*.js`, `lager-menschen.js`, `lager-menschen-logik.js`, `lager-ziehen.js`, `lager-menschen.css`, Vorsatz `mn-`): Teilnehmende, Abzählen, Anwesenheit, Gruppen, Zimmer und Zelte, Fahrten, Schichtplan, Diensttausch, Adressbuch. Sie rufen nur Routen unter `/api/v1/lager/{id}` (`test/admin-lager-menschen.test.ts` gleicht sie mit `docs/api/openapi.yaml` ab) und zeigen nur, was die Rolle darf (`k.darf` für Lesen, `k.kann` für Schreiben; `k.kann` ist im geschlossenen Lager immer falsch). Kein Polling: Aktualisieren holt den Stand, Schreiben prüft die Version.
+
+- **Ziehen** (`lager-ziehen.js`): Griff-Knopf mit Zeigerereignissen, Hülle am Zeiger, Ablegeflächen mit Rand und Fläche; Escape bricht ab. Jede Zuteilung geht auch ohne Ziehen: Menü «Mehr» der Person, Auswahlleiste unten (mehrere ankreuzen), im Schichtplan «Besetzen».
+- **Konflikt** (`lager-menschen.js`): Formulare senden nur geänderte Felder; bei 409 `VERSION_KONFLIKT` zeigt `zeigeKonflikt` beide Stände und zwei Wege («Meine Änderung übernehmen» sendet mit der Version des Servers, «Stand des Servers übernehmen» lädt neu). Anwesenheit führt denselben Konflikt in der Matrix.
+- **Lokaler Stand**: Zimmer, Fahrten, Gruppen und Schichtplan führen nach jeder Zuteilung nur ihre Liste nach, die Seite lädt nicht neu (Scrollposition bleibt); bei einem Fehler holt `neu()` den Stand des Servers.
+- **Zuteilen mit zwei Aufrufen** (Verschieben zwischen Zimmern, Fahrten, Zellen): erst entfernen, dann einteilen; schlägt das Einteilen fehl, kommt die Person an ihren alten Platz zurück.
+
 ### Lager: Sitzungen und Mitteilen (#673)
 
 Sechs Module im Arbeitsbereich des Lagers (Register `lager-module.js`, Adresse `#lager/lager/<id>/<modul>`; Dateien `lager-m-<modul>.js`, gemeinsam `lager-sm-gemeinsam.js` und `lager-sm-traktanden.js`, Stil `lager-sitzungen.css`, Vorsatz `lg-sm-`). Sie rufen nur die Routen des Lager-Backends (`/api/v1/lager/{id}/…`) und die Host-Einstellung der Abteilung; der Server prüft weiter alles. Die Oberfläche blendet aus, was die Rolle nicht darf (`darfSchreiben`, Rechte aus `GET /api/v1/lager/{id}`); ein geschlossenes Lager ist schreibgeschützt.
@@ -508,6 +517,21 @@ Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/se
 ## Änderungen am Gerüst
 
 Das Gerüst ändert sich nach dem ersten Stand nur additiv: neue Klassen in der eigenen Datei, neue Einträge in `navigation.js`. Wer `admin.js`, `admin.css`, `dom.js` oder `index.html` anfasst, hält die Änderung klein und nennt sie im PR. Stile eines Bereichs gehören in `<bereich>.css` mit eigenem Klassenvorsatz.
+
+## Lager-Arbeitsbereich (#672)
+
+Adresse `#lager/lager/<id>/<modul>[/…]`. Der Rahmen (`lager-rahmen.js`) lädt `GET /api/v1/lager/{id}` (eigene Rolle, Rechte, Schreibschutz), baut Kopf und Navigation und lädt das Modul. Das Register `lager-module.js` hält die Module (`schluessel`, `titel`, `gruppe`, `recht`, `laden`); jedes Modul liegt in `lager-m-<schluessel>.js` und exportiert `zeige(bereich, ctx, lagerId, lager)`. `ctx` im Modul: `lade` (eigener Lader im Inhalt), `titel` (Titel des Moduls), `weiter` (Rest der Adresse), `neuRahmen` (alles neu laden), `imRahmen`. Gemeinsam: `lager-konflikt.js` (Versionskonflikt, geschlossenes Lager), `lager-start-teile.js` (Karten, Aufgabenzeilen), `lager-ereignisse.js` (Event-Stream, eine Verbindung je Lager). Stil: `lager-rahmen.css` (Vorsatz `lg-`).
+
+### Lager: Aufgaben, Zeitplan und To-dos (#670)
+
+Module im Arbeitsbereich (Register `lager-module.js`, Gruppe «Planen»): `aufgaben` (`lager-m-aufgaben.js`, Recht `aufgaben.lesen_alle|aufgaben.bearbeiten|aufgaben.eigene`), `zeitplan` (`lager-m-zeitplan.js`, `zeitplan.lesen`), `todos` (`lager-m-todos.js`, jede Rolle). Adressen: `…/aufgaben`, `…/aufgaben/<aufgabeId>` (Detail), `…/zeitplan`, `…/todos`; Vertrauliches steht nie in der Adresse. Die Module sprechen nur `/api/v1/lager/{id}/…` (nie die Verwaltungsrouten) und zeigen nur, was `rechte` aus `GET /api/v1/lager/{id}` erlaubt.
+
+- **Dateien:** `lager-aufgaben-logik.js` (reine Rechnungen ohne DOM und Netz: Abschnitte, Filter, Gruppen, Meine, Board-Spalten, Zeitplan-Tage, Monatsraster, Schnelleingabe; getestet in `admin-lager-aufgaben.test.ts`), `lager-aufgaben-gemeinsam.js` (Rechte der Rolle, Laden, Chips, Konfliktkarte), `lager-aufgaben-neu.js` (neue Aufgabe, Schnelleingabe, Vorlage anwenden, «Später erinnern»), `lager-aufgaben-detail.js`, `lager-aufgaben.css` (Vorsatz `la-`).
+- **Laden:** Aufgaben seitenweise mit Cursor (200 je Anfrage, höchstens zehn Seiten), dazu Mitglieder (`GET …/mitglieder`, braucht `einteilung.lesen`; sonst die Personen aus den Aufgaben) und Ressorts (`GET …/ressorts`, `ressorts.lesen`; sonst die Ressorts der Aufgaben). Kein Polling; «Aktualisieren» im Kopf des Rahmens lädt alles neu.
+- **Schreiben:** Jede Änderung trägt die Version. Bei 409 `VERSION_KONFLIKT` lädt die Seite die Aufgabe neu und bietet «Meine Änderung übernehmen» (Liste) beziehungsweise zeigt die Karte mit beiden Ständen (Detail, Meilenstein). Bei 409 `LAGER_GESCHLOSSEN` sperrt sie die Schreib-Knöpfe und lädt neu. Löschen (Aufgabe, Punkt, Link, Meilenstein, To-do) geht über `ctx.mitRueckgaengig`; Abhaken mit «Rückgängig» in der Rückmeldung.
+- **Ordnen:** `sortierListe` (Griff, Tastatur, Hoch/Runter). Aufgaben: `PUT …/aufgaben/reihenfolge` mit der Liste, so wie sie gezeigt wird (höchstens 200); Checkliste: `…/checkliste/reihenfolge`; Tagesabschnitte und To-dos: eine Änderung je verschobenem Eintrag. Das Board ordnet nur innerhalb der Spalte; den Status ändert das Menü.
+- **Verschieben:** `POST …/zeitplan/meilensteine/{id}/verschieben` mit `trocken: true` zeigt die Vorschau, mit `trocken: false` und den Aufgaben der Vorschau (ID, Version) wird geschrieben; `VORSCHAU_VERALTET` zeigt die neue Vorschau.
+- **Offen:** Ziehen von Spalte zu Spalte im Board, Höcks im Zeitplan (gehört zu den Sitzungen), Wissen früherer Lager.
 
 ### Raum anfragen: «Meine Anfragen» (#671)
 
