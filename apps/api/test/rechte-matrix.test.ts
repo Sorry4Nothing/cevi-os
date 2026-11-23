@@ -179,6 +179,9 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  "GET /admin/bildwahl.js": { erwartet: alle(200) },
+  "GET /admin/bildwahl.css": { erwartet: alle(200) },
+  "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.js": { erwartet: alle(200) },
   // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
   "GET /admin/geruest.css": { erwartet: alle(200) },
