@@ -95,7 +95,6 @@ describe("Rechtekatalog", () => {
       "konto.loeschen",
       "plattform.sperren",
       "protokoll.lesen",
-      "system.lesen",
     ] as const) {
       expect(RECHTE_KATALOG[id].art, id).toBe("fest");
       expect(VERGEBBARE_RECHTE as readonly string[], id).not.toContain(id);
@@ -105,6 +104,27 @@ describe("Rechtekatalog", () => {
       (RECHTE_KATALOG["protokoll.lesen"] as { nurEntwickler?: true })
         .nurEntwickler,
     ).toBe(true);
+  });
+
+  test("vergebbar seit #648: Lädeli, Lager, Betriebszahlen, Zeitregeln und die Wartung der Bereiche, alle mit zweitem Faktor", () => {
+    for (const id of [
+      "laden.ansehen",
+      "laden.artikel_pflegen",
+      "laden.bestellungen_bearbeiten",
+      "laden.einstellungen",
+      "lager.verwalten",
+      "lager.vorlagen_pflegen",
+      "system.lesen",
+      "zeitregeln.verwalten",
+      "wartung.bereiche",
+    ] as const) {
+      expect(RECHTE_KATALOG[id].art, id).toBe("vergebbar");
+      expect(RECHTE_KATALOG[id].risiko, id).toBe("erweitert");
+      expect(VERGEBBARE_RECHTE as readonly string[], id).toContain(id);
+    }
+    // Die Informationssperre bleibt fest; die Mitglieder und Rollen eines Lagers gehören zu «Rechte vergeben»
+    expect(RECHTE_KATALOG["plattform.sperren"].art).toBe("fest");
+    expect(RECHTE_KATALOG["rechte.verwalten"].art).toBe("fest");
   });
 
   test("Gruppenrollen tragen alles Vergebbare ausser dem Wartungsmodus der Website", () => {

@@ -24,6 +24,7 @@ import {
 } from "../../lager/vorlagen.js";
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
 // Admin-Routen des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
 const datum = z.iso.date();
@@ -108,6 +109,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     person: Person,
     id: string,
     sperren = false,
+    recht: "lager.verwalten" | "rechte.verwalten" = "lager.verwalten",
   ) {
     const abfrage = d
       .select()
@@ -115,7 +117,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
       .where(and(eq(lager.id, id), eq(lager.abteilungId, person.abteilungId)));
     const [ziel] = await (sperren ? abfrage.for("update") : abfrage);
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(d, person, recht);
     return ziel;
   }
 
@@ -163,7 +165,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "lager.verwalten");
       const zeilen = await db
         .select()
         .from(lager)
@@ -173,7 +175,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "lager.verwalten");
       const { vorlageId, ...felder } = c.req.valid("json");
       if (!zeitraumGueltig(felder)) throw new HTTPException(400);
       if (felder.logoMediumId) {
@@ -324,7 +326,13 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     )
     .get("/:id/mitglieder", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
-      const ziel = await ladeLager(db, person, c.req.valid("param").id);
+      const ziel = await ladeLager(
+        db,
+        person,
+        c.req.valid("param").id,
+        false,
+        "rechte.verwalten",
+      );
       const mitglieder = await db
         .select({
           personId: lagerMitglied.personId,
@@ -348,7 +356,13 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         const { rolle } = c.req.valid("json");
         try {
           await db.transaction(async (tx) => {
-            const ziel = await ladeLager(tx, person, id, true);
+            const ziel = await ladeLager(
+              tx,
+              person,
+              id,
+              true,
+              "rechte.verwalten",
+            );
             if (istGeschlossen(ziel.status)) throw geschlossen();
             // Nur ein aktives Konto der Abteilung; unbekannt, deaktiviert und fremd sind für diese Route dasselbe (404)
             const [konto] = await tx
@@ -407,7 +421,13 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         const { id, personId } = c.req.valid("param");
         try {
           await db.transaction(async (tx) => {
-            const ziel = await ladeLager(tx, person, id, true);
+            const ziel = await ladeLager(
+              tx,
+              person,
+              id,
+              true,
+              "rechte.verwalten",
+            );
             if (istGeschlossen(ziel.status)) throw geschlossen();
             const vorher = await mitgliedZeile(tx, id, personId);
             if (!vorher) throw new HTTPException(404);

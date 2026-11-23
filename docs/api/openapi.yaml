@@ -2167,10 +2167,70 @@ paths:
             text/javascript:
               schema:
                 type: string
-  /admin/rechte-logik.js:
+  /admin/rechte-api.js:
     get:
-      operationId: getAdminRechteLogikSkript
+      operationId: getAdminRechteApiSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Aufrufe der Matrix-API
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-matrix.js:
+    get:
+      operationId: getAdminRechteMatrixSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Rechte-Matrix
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-modell.js:
+    get:
+      operationId: getAdminRechteModellSkript
       summary: Skript der Verwaltung – Rollen und Rechte, Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-rolle.js:
+    get:
+      operationId: getAdminRechteRolleSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Rollen anlegen und Personen zuordnen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-anlass.js:
+    get:
+      operationId: getAdminRechteAnlassSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, OK am Anlass anlegen
       tags:
         - Allgemein
       security: []
@@ -3314,7 +3374,7 @@ paths:
       operationId: listePlattformSchalter
       summary: Aktive Schalter der Abteilung (Wartungsmodus und Informationssperre)
       description: |
-        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website; die Sperre sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website, eine mit `wartung.bereiche` die Wartung von Lager, Chat, Programme und Verwaltung (#648); die Sperre und die Wartung von `alles` sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
 
         Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
 
@@ -3346,7 +3406,7 @@ paths:
 
         **Wartungsmodus (`art: wartung`, #424):** Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
 
-        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich; jede andere Rolle nur `website`, und nur mit dem Recht `wartungsmodus.website`. Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
+        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich und jede Art; eine andere Rolle nur die Wartung, die Website mit dem Recht `wartungsmodus.website`, Lager, Chat, Programme und Verwaltung mit `wartung.bereiche` (#648). Die Sperre und die Wartung von `alles` bleiben bei Entwickler und Abteilungsleitung (`plattform.sperren`, fest). Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
 
         Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400, auch `sitzungenBeenden` oder `websiteOffline` bei der Wartung), Recht auf genau diese Art und diesen Bereich (403).
 
@@ -4642,11 +4702,11 @@ paths:
       operationId: holeAdminSystem
       summary: Zustand der API und Bestand der Abteilung
       description: |
-        Nur Admins (mit zweitem Faktor). Liefert Zahlen für die Übersicht der Verwaltung: Prozess (Node-Version, Laufzeit, Speicher, Verzögerung der Ereignisschleife), Datenbank (erreichbar, Antwortzeit, Verbindungen), Bestand der eigenen Abteilung, Kalender-Sync und einige Umgebungs-Flags.
+        Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert Zahlen für die Übersicht der Verwaltung: Prozess (Node-Version, Laufzeit, Speicher, Verzögerung der Ereignisschleife), Datenbank (erreichbar, Antwortzeit, Verbindungen), Bestand der eigenen Abteilung, Kalender-Sync und einige Umgebungs-Flags.
 
         Die Antwort enthält nie Werte aus der Umgebung, Hosts, Adressen, Schlüssel oder Namen. Ist die Datenbank nicht erreichbar, antwortet die Route trotzdem mit 200 und `datenbank.erreichbar: false`.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -4671,11 +4731,11 @@ paths:
       operationId: holeAdminSystemRequests
       summary: Zahlen zu den Anfragen an die API
       description: |
-        Nur Admins (mit zweitem Faktor). Liefert Zähler und Dauern der Anfragen seit dem Start der API (höchstens die letzten 24 Stunden, in Minuten-Eimern im Arbeitsspeicher). Nach einem Neustart ist alles leer.
+        Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert Zähler und Dauern der Anfragen seit dem Start der API (höchstens die letzten 24 Stunden, in Minuten-Eimern im Arbeitsspeicher). Nach einem Neustart ist alles leer.
 
         Erfasst werden nur Methode, Routenmuster (nie der konkrete Pfad), Statuscode und Dauer; keine Query, kein Body, keine Header, keine IP-Adressen und keine Personen. Die Abrufe dieser beiden System-Routen und die statischen Dateien unter `/admin` zählen nicht mit. Dauern (`p50Ms`, `p95Ms`) sind die obere Grenze der Dauerklasse, in der das Quantil liegt (Klassen bis 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 ms); `null` ohne Anfragen. Die Zähler je Route gelten seit dem Start.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -4700,9 +4760,9 @@ paths:
       operationId: holeAdminSyncs
       summary: Stand des Kalender-Abgleichs
       description: |
-        Nur Admins (mit zweitem Faktor). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
+        Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -4727,9 +4787,9 @@ paths:
       operationId: stosseAdminKalenderAn
       summary: Kalender-Sync anstossen
       description: |
-        Nur Admins (mit zweitem Faktor). Gleicht die Programme mit dem Google-Kalender ab. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
+        Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Gleicht die Programme mit dem Google-Kalender ab. Der Abruf läuft sofort und dieselbe Funktion wie der Takt im Hintergrund; läuft gerade ein anderer Lauf, antwortet die Route mit `gesperrt`. Pro Abteilung und Abruf höchstens einer in 30 Sekunden. Das Audit-Log hält fest, wer ihn angestossen hat.
 
-        Statuscodes: 200 mit `ergebnis` `fertig` oder `gesperrt`. 401. 403 für Nicht-Admins. 426. 429 bei zu kurzem Abstand oder beim Limit. 501, wenn der Server keinen Abruf eingerichtet hat.
+        Statuscodes: 200 mit `ergebnis` `fertig` oder `gesperrt`. 401. 403 ohne das Recht. 426. 429 bei zu kurzem Abstand oder beim Limit. 501, wenn der Server keinen Abruf eingerichtet hat.
       tags:
         - Verwaltung
       parameters:
@@ -5141,7 +5201,7 @@ paths:
       operationId: listeAdminMedien
       summary: Medien der Abteilung auflisten
       description: |
-        Nur Admins. Die Medien der eigenen Abteilung, neueste zuerst. Ohne Angaben die jüngsten 200; mit `limit` und `offset` seitenweise, mit `suche` nur Medien, deren Alt-Text den Text enthält (ohne Beachtung der Gross- und Kleinschreibung; `%` und `_` zählen als Text). Mit `ids` nur die genannten Medien (höchstens 100). `weitere` sagt, ob nach dieser Seite noch Medien folgen.
+        Nur mit dem Recht `medien.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Die Medien der eigenen Abteilung, neueste zuerst. Ohne Angaben die jüngsten 200; mit `limit` und `offset` seitenweise, mit `suche` nur Medien, deren Alt-Text den Text enthält (ohne Beachtung der Gross- und Kleinschreibung; `%` und `_` zählen als Text). Mit `ids` nur die genannten Medien (höchstens 100). `weitere` sagt, ob nach dieser Seite noch Medien folgen.
 
         Statuscodes: 200, 400, 401, 403, 426.
       tags:
@@ -5169,7 +5229,7 @@ paths:
       operationId: legeAdminMediumAn
       summary: Bild hochladen
       description: |
-        Nur Admins (mit zweitem Faktor). Lädt ein Bild in den Medienspeicher der eigenen Abteilung.
+        Nur mit dem Recht `medien.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Lädt ein Bild in den Medienspeicher der eigenen Abteilung.
 
         **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung, `Content-Type` oder Query. PDF, SVG, GIF und
@@ -5269,7 +5329,7 @@ paths:
       operationId: loescheAdminMedium
       summary: Medium löschen
       description: |
-        Nur Admins, nur Medien der eigenen Abteilung. Löscht erst die Zeile, dann die Datei im Medienspeicher. Scheitert
+        Nur mit dem Recht `medien.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Medien der eigenen Abteilung. Löscht erst die Zeile, dann die Datei im Medienspeicher. Scheitert
         der Speicher danach, bleibt die Antwort 204: Die Datei ist nicht mehr abrufbar, und der Server meldet die Waise im Log
         (code `WAISE`). Das Audit-Log hält Hochladen und Löschen fest, ohne Inhalt.
 
@@ -5782,9 +5842,9 @@ paths:
       operationId: listeAdminZeitregeln
       summary: Erinnerungsregeln der Abteilung
       description: |
-        Nur Admins. Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
+        Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
 
-        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -5808,9 +5868,9 @@ paths:
       operationId: legeAdminZeitregelAn
       summary: Erinnerungsregel anlegen
       description: |
-        Nur Admins. Legt eine Regel an, die Eltern ohne gespeichertes «ja» oder «nein» an ein Programm erinnert. Der Server prüft jede Minute, ob eine Regel fällig ist: Die Auslösezeit pro Programm ist der letzte passende Wochentag samt Uhrzeit (Schweizer Zeit) vor Programmbeginn. Pro Regel und Programm geht höchstens eine Erinnerung hinaus; eine Regel, die erst nach der Auslösezeit entsteht, holt sie bis zum Programmbeginn nach. Das Anlegen steht im Audit-Log (ohne den Text).
+        Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Legt eine Regel an, die Eltern ohne gespeichertes «ja» oder «nein» an ein Programm erinnert. Der Server prüft jede Minute, ob eine Regel fällig ist: Die Auslösezeit pro Programm ist der letzte passende Wochentag samt Uhrzeit (Schweizer Zeit) vor Programmbeginn. Pro Regel und Programm geht höchstens eine Erinnerung hinaus; eine Regel, die erst nach der Auslösezeit entsteht, holt sie bis zum Programmbeginn nach. Das Anlegen steht im Audit-Log (ohne den Text).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder wenn die Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 ohne das Recht.
       tags:
         - Verwaltung
       parameters:
@@ -5843,11 +5903,11 @@ paths:
       operationId: aendereAdminZeitregel
       summary: Erinnerungsregel ändern
       description: |
-        Nur Admins, nur Regeln der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, ohne den Text). Eine schon gesendete Erinnerung wird durch eine Änderung nie wiederholt.
+        Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Regeln der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. Eine Änderung steht im Audit-Log (welche Felder, ohne den Text). Eine schon gesendete Erinnerung wird durch eine Änderung nie wiederholt.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), dann Regel in der eigenen Abteilung (404), dann Admin-Recht (403), dann Stufe (400).
+        Reihenfolge der Prüfungen: Pfad und Body (400), dann Regel in der eigenen Abteilung (404), dann Recht (403), dann Stufe (400).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremder Stufe. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremder Stufe. 403 ohne das Recht. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
         - Verwaltung
       parameters:
@@ -5878,9 +5938,9 @@ paths:
       operationId: loescheAdminZeitregel
       summary: Erinnerungsregel löschen
       description: |
-        Nur Admins, nur Regeln der eigenen Abteilung. Löscht die Regel samt dem Vermerk der gesendeten Erinnerungen; das Löschen steht im Audit-Log.
+        Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Regeln der eigenen Abteilung. Löscht die Regel samt dem Vermerk der gesendeten Erinnerungen; das Löschen steht im Audit-Log.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 ohne das Recht. 404, wenn die Regel unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
         - Verwaltung
       parameters:
@@ -7571,9 +7631,9 @@ paths:
       operationId: listeAdminLager
       summary: Lager der Abteilung
       description: |
-        Nur Admins (Abteilungsleitung). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
 
-        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7604,9 +7664,9 @@ paths:
       operationId: legeAdminLagerAn
       summary: Lager anlegen
       description: |
-        Nur Admins. Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte). Mit `vorlageId` entstehen die Einträge einer Vorlage mit dem Lager (zusätzlich `vorlage_angewendet` im Audit-Log).
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Legt ein Lager in der eigenen Abteilung an, immer im Status `entwurf`. Mitglieder setzt `PUT /api/v1/admin/lager/{id}/mitglieder/{personId}`. `bis` liegt nicht vor `von`, `vorbereitungAb` nicht nach `von`. Das Logo ist ein Bild aus den Medien der eigenen Abteilung. Das Anlegen steht im Audit-Log (`lager_angelegt`, ohne Inhalte). Mit `vorlageId` entstehen die Einträge einer Vorlage mit dem Lager (zusätzlich `vorlage_angewendet` im Audit-Log).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 für Nicht-Admins.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, Datum, Zeitraum, Farbe, unbekanntes Logo). 403 ohne das Recht.
       tags:
         - Verwaltung
       parameters:
@@ -7639,9 +7699,9 @@ paths:
       operationId: holeAdminLager
       summary: Lager mit Stammdaten
       description: |
-        Nur Admins, nur Lager der eigenen Abteilung. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Admin-Recht (403).
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Lager der eigenen Abteilung. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Recht (403).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 ohne das Recht. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
         - Verwaltung
       parameters:
@@ -7676,9 +7736,9 @@ paths:
       operationId: aendereAdminLager
       summary: Lager ändern, Status setzen
       description: |
-        Nur Admins. Ändert Stammdaten und Status. Ohne Schlüssel bleibt der Wert, `null` leert ein optionales Feld. Ein abgeschlossenes oder archiviertes Lager ist schreibgeschützt: Stammdaten lassen sich dann nicht ändern (409 `LAGER_GESCHLOSSEN`), der Status schon (so öffnet die Abteilungsleitung ein Lager wieder). Ein Lager wird nur `aktiv`, wenn es mindestens eine Lagerleitung hat (409 `LAGERLEITUNG_FEHLT`). Audit-Log: `lager_geaendert` (nur die Namen der Felder) und `lager_status` (alter und neuer Status).
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Ändert Stammdaten und Status. Ohne Schlüssel bleibt der Wert, `null` leert ein optionales Feld. Ein abgeschlossenes oder archiviertes Lager ist schreibgeschützt: Stammdaten lassen sich dann nicht ändern (409 `LAGER_GESCHLOSSEN`), der Status schon (so öffnet die Abteilungsleitung ein Lager wieder). Ein Lager wird nur `aktiv`, wenn es mindestens eine Lagerleitung hat (409 `LAGERLEITUNG_FEHLT`). Audit-Log: `lager_geaendert` (nur die Namen der Felder) und `lager_status` (alter und neuer Status).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (auch ein Zeitraum, der nach dem Zusammenführen nicht stimmt). 403 für Nicht-Admins. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (auch ein Zeitraum, der nach dem Zusammenführen nicht stimmt). 403 ohne das Recht. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_GESCHLOSSEN` und `LAGERLEITUNG_FEHLT`.
       tags:
         - Verwaltung
       parameters:
@@ -7717,9 +7777,9 @@ paths:
       operationId: loescheAdminLager
       summary: Lager endgültig löschen
       description: |
-        Nur Admins (zweiter Faktor wie überall unter `/admin`), nur Lager der eigenen Abteilung, nur ein Entwurf, ein archiviertes Lager oder ein Übungslager (`uebung`, in jedem Status); ein aktives oder abgeschlossenes Lager ist 409 `LAGER_NICHT_LOESCHBAR`. Der Titel im Body bestätigt das Löschen. **Endgültig:** Es entfernt in einer Transaktion alle Daten des Lagers, über alle Tabellen mit Lagerbezug (Mitglieder, Rechte-Einstellungen, Aufgaben, Pinnwand, Umfragen, Eingang, Adressbuch, private To-dos, Packliste, Erwähnungen, Wetter-Zwischenspeicher, Änderungsfeed, alle Dateiverknüpfungen). Dateien liegen im SharePoint und werden nur verknüpft: Die Verknüpfungen verschwinden, die Dateien am Ablageort nicht. Das Logo bleibt in der Mediathek der Abteilung. Offene Live-Verbindungen (`/ereignisse`) des Lagers enden. Eine gelöschte Datenmenge lässt sich nicht wiederherstellen. Audit-Log: `lager_geloescht` mit der Lagerkennung und der Zahl der entfernten Datei-Verknüpfungen, nie Titel oder Inhalte (frühere Einträge zu diesem Lager bleiben stehen). Reihenfolge der Prüfungen: Pfad und Body (400), Lager in der eigenen Abteilung (404), Admin-Recht (403), Status (409), Titel (400). Der Wartungsmodus des Bereichs `lager` hält die Abteilungsleitung nicht auf.
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648), nur Lager der eigenen Abteilung, nur ein Entwurf, ein archiviertes Lager oder ein Übungslager (`uebung`, in jedem Status); ein aktives oder abgeschlossenes Lager ist 409 `LAGER_NICHT_LOESCHBAR`. Der Titel im Body bestätigt das Löschen. **Endgültig:** Es entfernt in einer Transaktion alle Daten des Lagers, über alle Tabellen mit Lagerbezug (Mitglieder, Rechte-Einstellungen, Aufgaben, Pinnwand, Umfragen, Eingang, Adressbuch, private To-dos, Packliste, Erwähnungen, Wetter-Zwischenspeicher, Änderungsfeed, alle Dateiverknüpfungen). Dateien liegen im SharePoint und werden nur verknüpft: Die Verknüpfungen verschwinden, die Dateien am Ablageort nicht. Das Logo bleibt in der Mediathek der Abteilung. Offene Live-Verbindungen (`/ereignisse`) des Lagers enden. Eine gelöschte Datenmenge lässt sich nicht wiederherstellen. Audit-Log: `lager_geloescht` mit der Lagerkennung und der Zahl der entfernten Datei-Verknüpfungen, nie Titel oder Inhalte (frühere Einträge zu diesem Lager bleiben stehen). Reihenfolge der Prüfungen: Pfad und Body (400), Lager in der eigenen Abteilung (404), Recht (403), Status (409), Titel (400). Der Wartungsmodus des Bereichs `lager` hält die Abteilungsleitung nicht auf.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder falschem Titel. 403 für Nicht-Admins und ohne zweiten Faktor. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_NICHT_LOESCHBAR`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder falschem Titel. 403 ohne das Recht und ohne zweiten Faktor. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei `LAGER_NICHT_LOESCHBAR`.
       tags:
         - Verwaltung
       parameters:
@@ -9186,9 +9246,9 @@ paths:
       operationId: holeAdminLagerDateiHosts
       summary: Erlaubte Hosts für Datei-Links lesen
       description: |
-        Nur Admins. Liefert die Hosts, auf denen die Links der Dateien im Lager liegen dürfen, oder `null` ohne Einschränkung (Vorgabe).
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert die Hosts, auf denen die Links der Dateien im Lager liegen dürfen, oder `null` ohne Einschränkung (Vorgabe).
 
-        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 für Nicht-Admins.
+        Statuscodes: 200 bei Erfolg. 401 ohne Anmeldung. 403 ohne das Recht.
       tags:
         - Verwaltung
       parameters:
@@ -9212,9 +9272,9 @@ paths:
       operationId: setzeAdminLagerDateiHosts
       summary: Erlaubte Hosts für Datei-Links festlegen
       description: |
-        Nur Admins. Legt fest, auf welchen Hosts die Links liegen dürfen, zum Beispiel `meineabteilung.sharepoint.com`: der Host selbst oder eine Subdomain davon. `null` hebt die Einschränkung auf (Vorgabe). Höchstens 20 Hosts, ohne Schema, Pfad und Port; Gross- und Kleinschreibung egal, doppelte Einträge fallen weg. Gilt für neue Links; bestehende bleiben. Audit-Log: `lager_datei_hosts_geaendert` (nur die Anzahl).
+        Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Legt fest, auf welchen Hosts die Links liegen dürfen, zum Beispiel `meineabteilung.sharepoint.com`: der Host selbst oder eine Subdomain davon. `null` hebt die Einschränkung auf (Vorgabe). Höchstens 20 Hosts, ohne Schema, Pfad und Port; Gross- und Kleinschreibung egal, doppelte Einträge fallen weg. Gilt für neue Links; bestehende bleiben. Audit-Log: `lager_datei_hosts_geaendert` (nur die Anzahl).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht.
       tags:
         - Verwaltung
       parameters:
@@ -12307,9 +12367,9 @@ paths:
       operationId: listeAdminVorlagen
       summary: Vorlagen der Abteilung
       description: |
-        Nur Admins. Liefert die Vorlagen der eigenen Abteilung ohne Inhalt (mit Anzahl der Einträge), nach Art und Name; optional nur eine Art. Höchstens 100 Vorlagen je Abteilung, darum kein Seitenwechsel. Eine Abfrage.
+        Nur mit dem Recht `lager.vorlagen_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert die Vorlagen der eigenen Abteilung ohne Inhalt (mit Anzahl der Einträge), nach Art und Name; optional nur eine Art. Höchstens 100 Vorlagen je Abteilung, darum kein Seitenwechsel. Eine Abfrage.
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Art. 401 ohne Anmeldung. 403 für Nicht-Admins.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Art. 401 ohne Anmeldung. 403 ohne das Recht.
       tags:
         - Verwaltung
       parameters:
@@ -12351,9 +12411,9 @@ paths:
       operationId: legeAdminVorlageAn
       summary: Vorlage anlegen
       description: |
-        Nur Admins. Legt eine Vorlage der eigenen Abteilung an. Der Inhalt hängt von der Art ab und ist strikt (unbekannte Felder 400): Art `aufgaben` hat `aufgaben` (1 bis 200 Einträge mit `titel`, optional `teil`, `notiz`, `stern`, `laufend`, `fristTage`), Art `packliste` hat `punkte` (1 bis 500 Einträge mit `abschnitt`, `text`, optional `nurLagerleitung`). `fristTage` zählt in Tagen ab Lagerbeginn (-366 bis 366). Name je Abteilung und Art eindeutig (409 `VORLAGENNAME_VERGEBEN`), höchstens 100 Vorlagen je Abteilung (409 `LIMIT_ERREICHT`). Das Audit-Log nennt `vorlage_angelegt` mit Art, nie Inhalte.
+        Nur mit dem Recht `lager.vorlagen_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Legt eine Vorlage der eigenen Abteilung an. Der Inhalt hängt von der Art ab und ist strikt (unbekannte Felder 400): Art `aufgaben` hat `aufgaben` (1 bis 200 Einträge mit `titel`, optional `teil`, `notiz`, `stern`, `laufend`, `fristTage`), Art `packliste` hat `punkte` (1 bis 500 Einträge mit `abschnitt`, `text`, optional `nurLagerleitung`). `fristTage` zählt in Tagen ab Lagerbeginn (-366 bis 366). Name je Abteilung und Art eindeutig (409 `VORLAGENNAME_VERGEBEN`), höchstens 100 Vorlagen je Abteilung (409 `LIMIT_ERREICHT`). Das Audit-Log nennt `vorlage_angelegt` mit Art, nie Inhalte.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 409 bei vergebenem Namen oder erreichter Obergrenze.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 409 bei vergebenem Namen oder erreichter Obergrenze.
       tags:
         - Verwaltung
       parameters:
@@ -12392,9 +12452,9 @@ paths:
       operationId: holeAdminVorlage
       summary: Vorlage mit Inhalt
       description: |
-        Nur Admins. Reihenfolge der Prüfungen: Pfad (400), Vorlage der eigenen Abteilung (404), Admin-Recht (403).
+        Nur mit dem Recht `lager.vorlagen_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Reihenfolge der Prüfungen: Pfad (400), Vorlage der eigenen Abteilung (404), Recht (403).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
         - Verwaltung
       parameters:
@@ -12429,9 +12489,9 @@ paths:
       operationId: aendereAdminVorlage
       summary: Vorlage ändern
       description: |
-        Nur Admins. Nur die genannten Felder ändern sich, mindestens eines; der neue Inhalt ersetzt den alten ganz und muss zur Art der Vorlage passen (die Art bleibt). Bereits angewendete Aufgaben und Punkte bleiben unverändert. Das Audit-Log nennt `vorlage_geaendert` mit den Feldnamen.
+        Nur mit dem Recht `lager.vorlagen_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur die genannten Felder ändern sich, mindestens eines; der neue Inhalt ersetzt den alten ganz und muss zur Art der Vorlage passen (die Art bleibt). Bereits angewendete Aufgaben und Punkte bleiben unverändert. Das Audit-Log nennt `vorlage_geaendert` mit den Feldnamen.
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei vergebenem Namen (`VORLAGENNAME_VERGEBEN`).
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört. 409 bei vergebenem Namen (`VORLAGENNAME_VERGEBEN`).
       tags:
         - Verwaltung
       parameters:
@@ -12478,9 +12538,9 @@ paths:
       operationId: loescheAdminVorlage
       summary: Vorlage löschen
       description: |
-        Nur Admins. Löscht die Vorlage endgültig. Aufgaben und Punkte, die aus ihr entstanden sind, bleiben. Das Audit-Log nennt `vorlage_geloescht` mit der Art.
+        Nur mit dem Recht `lager.vorlagen_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Löscht die Vorlage endgültig. Aufgaben und Punkte, die aus ihr entstanden sind, bleiben. Das Audit-Log nennt `vorlage_geloescht` mit der Art.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 für Nicht-Admins. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404, wenn die Vorlage unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
         - Verwaltung
       parameters:
@@ -24003,9 +24063,9 @@ paths:
       operationId: listeAdminLadenArtikel
       summary: Artikel des Lädelis für die Verwaltung
       description: |
-        Nur Admins mit zweitem Faktor. Alle Artikel der eigenen Abteilung, auch die nicht verfügbaren.
+        Nur mit dem Recht `laden.ansehen` oder `laden.artikel_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Alle Artikel der eigenen Abteilung, auch die nicht verfügbaren.
 
-        Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung. 403 für Nicht-Admins, bei fehlendem zweitem Faktor (`ZWEITER_FAKTOR_FEHLT`) oder offenem Passwortwechsel.
+        Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung. 403 ohne das Recht, bei fehlendem zweitem Faktor (`ZWEITER_FAKTOR_FEHLT`) oder offenem Passwortwechsel.
 
         Datenbanklast: eine Abfrage, höchstens 200 Artikel.
       tags:
@@ -24038,9 +24098,9 @@ paths:
       operationId: legeAdminLadenArtikelAn
       summary: Artikel anlegen
       description: |
-        Nur Admins mit zweitem Faktor. Die Grösse ist Pflicht: `groessenart` ist `einheit` (der Artikel gibt es nur in einer Grösse; keine `varianten`) oder `liste` (mindestens zwei verschiedene `varianten`, höchstens 20, je höchstens 40 Zeichen). Ohne Angabe oder mit einer Liste, die nicht passt, antwortet die Route 422 mit `code` und dem Feld `feld`. Die Art wird nicht gespeichert; sie folgt aus der Liste (leer heisst Einheitsgrösse). Preis in Rappen als Ganzzahl von 0 bis 1 000 000. Das Bild muss ein öffentliches Bild der Medienbibliothek der eigenen Abteilung sein (sonst 400 `MEDIUM_UNGEEIGNET`). Ein neuer Artikel kommt ans Ende der Liste (die Reihenfolge ändert `PUT /api/v1/admin/laden/artikel/reihenfolge`). Höchstens 200 Artikel (409 `ARTIKEL_LIMIT`). Das Audit-Log hält nur die Kennung fest. Danach erzeugt der Abgleich die Seiten mit dem Laden neu.
+        Nur mit dem Recht `laden.artikel_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Die Grösse ist Pflicht: `groessenart` ist `einheit` (der Artikel gibt es nur in einer Grösse; keine `varianten`) oder `liste` (mindestens zwei verschiedene `varianten`, höchstens 20, je höchstens 40 Zeichen). Ohne Angabe oder mit einer Liste, die nicht passt, antwortet die Route 422 mit `code` und dem Feld `feld`. Die Art wird nicht gespeichert; sie folgt aus der Liste (leer heisst Einheitsgrösse). Preis in Rappen als Ganzzahl von 0 bis 1 000 000. Das Bild muss ein öffentliches Bild der Medienbibliothek der eigenen Abteilung sein (sonst 400 `MEDIUM_UNGEEIGNET`). Ein neuer Artikel kommt ans Ende der Liste (die Reihenfolge ändert `PUT /api/v1/admin/laden/artikel/reihenfolge`). Höchstens 200 Artikel (409 `ARTIKEL_LIMIT`). Das Audit-Log hält nur die Kennung fest. Danach erzeugt der Abgleich die Seiten mit dem Laden neu.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder ungeeignetem Bild. 403 für Nicht-Admins. 409 `ARTIKEL_LIMIT`. 422 `GROESSE_FEHLT` oder `GROESSE_UNGUELTIG`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder ungeeignetem Bild. 403 ohne das Recht. 409 `ARTIKEL_LIMIT`. 422 `GROESSE_FEHLT` oder `GROESSE_UNGUELTIG`.
 
         Datenbanklast: eine Transaktion mit Sperre je Abteilung, Zählen, Einfügen und Audit-Eintrag; vorher eine Abfrage für das Bild, wenn eines genannt ist.
       tags:
@@ -24093,9 +24153,9 @@ paths:
       operationId: setzeAdminLadenReihenfolge
       summary: Reihenfolge der Artikel setzen
       description: |
-        Nur Admins mit zweitem Faktor. Die Liste `ids` nennt Artikel der eigenen Abteilung in der neuen Reihenfolge; ein Aufruf ersetzt alle Einzelaufrufe. Der Server vergibt die internen Werte 0, 1, 2 … ohne Lücken. Artikel, die in der Liste fehlen (zum Beispiel einer, den inzwischen jemand anders angelegt hat), folgen am Ende in ihrer bisherigen Folge. Die Website zeigt die Artikel in dieser Reihenfolge, der Abgleich erzeugt die Seiten neu. Das Audit-Log hält nur die Anzahl fest.
+        Nur mit dem Recht `laden.artikel_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Die Liste `ids` nennt Artikel der eigenen Abteilung in der neuen Reihenfolge; ein Aufruf ersetzt alle Einzelaufrufe. Der Server vergibt die internen Werte 0, 1, 2 … ohne Lücken. Artikel, die in der Liste fehlen (zum Beispiel einer, den inzwischen jemand anders angelegt hat), folgen am Ende in ihrer bisherigen Folge. Die Website zeigt die Artikel in dieser Reihenfolge, der Abgleich erzeugt die Seiten neu. Das Audit-Log hält nur die Anzahl fest.
 
-        Reihenfolge der Prüfungen: Body (400: leere Liste, Doppelte, mehr als 200, unbekannte Felder), Admin-Recht (403), Artikel in der eigenen Abteilung (404: ein unbekannter oder fremder Artikel in der Liste, nichts wird geändert).
+        Reihenfolge der Prüfungen: Body (400: leere Liste, Doppelte, mehr als 200, unbekannte Felder), Recht (403), Artikel in der eigenen Abteilung (404: ein unbekannter oder fremder Artikel in der Liste, nichts wird geändert).
 
         Statuscodes: 204 bei Erfolg. 400, 403, 404 wie beschrieben.
 
@@ -24142,9 +24202,9 @@ paths:
       operationId: aendereAdminLadenArtikel
       summary: Artikel ändern
       description: |
-        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Ein Artikel mit Grössen hat in der Verwaltung keinen eigenen Schalter mehr: Sie sendet dann `verfuegbar: true` und lässt allein die Grössen entscheiden. Ein älterer Artikel mit Grössen und `verfuegbar: false` bleibt nicht verfügbar (der Server wertet den Schalter weiter aus). Das Audit-Log hält nur die Namen der geänderten Felder fest.
+        Nur mit dem Recht `laden.artikel_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Ein Artikel mit Grössen hat in der Verwaltung keinen eigenen Schalter mehr: Sie sendet dann `verfuegbar: true` und lässt allein die Grössen entscheiden. Ein älterer Artikel mit Grössen und `verfuegbar: false` bleibt nicht verfügbar (der Server wertet den Schalter weiter aus). Das Audit-Log hält nur die Namen der geänderten Felder fest.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Verfügbarkeit je Grösse (422), Bild (400).
+        Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Recht (403), Grösse (422), Verfügbarkeit je Grösse (422), Bild (400).
 
         Statuscodes: 204 bei Erfolg. 400, 403, 404, 422 wie beschrieben.
 
@@ -24185,9 +24245,9 @@ paths:
       operationId: loescheAdminLadenArtikel
       summary: Artikel löschen
       description: |
-        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Das Löschen ist endgültig und der Artikel verschwindet von der Website. Positionen bestehender Bestellungen bleiben mit Name und Preis stehen (ihr Verweis auf den Artikel wird leer). Soll ein Artikel nur nicht bestellbar sein, setzt man `verfuegbar: false`.
+        Nur mit dem Recht `laden.artikel_pflegen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Artikel der eigenen Abteilung. Das Löschen ist endgültig und der Artikel verschwindet von der Website. Positionen bestehender Bestellungen bleiben mit Name und Preis stehen (ihr Verweis auf den Artikel wird leer). Soll ein Artikel nur nicht bestellbar sein, setzt man `verfuegbar: false`.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn der Artikel unbekannt ist oder zu einer anderen Abteilung gehört (auch ein zweites Löschen).
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 ohne das Recht. 404, wenn der Artikel unbekannt ist oder zu einer anderen Abteilung gehört (auch ein zweites Löschen).
 
         Datenbanklast: eine Abfrage für den Artikel, eine Transaktion mit Löschen und Audit-Eintrag.
       tags:
@@ -24215,9 +24275,9 @@ paths:
       operationId: listeAdminLadenBestellungen
       summary: Bestellungen im Lädeli für die Verwaltung
       description: |
-        Nur Admins mit zweitem Faktor. Die Bestellungen der eigenen Abteilung, neueste zuerst, wahlweise nur ein `status`, mit Name und Cevi-Name der bestellenden Person und allen Positionen. `nach` ist die ID des letzten Eintrags der Vorseite.
+        Nur mit dem Recht `laden.ansehen` oder `laden.bestellungen_bearbeiten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Die Bestellungen der eigenen Abteilung, neueste zuerst, wahlweise nur ein `status`, mit Name und Cevi-Name der bestellenden Person und allen Positionen. `nach` ist die ID des letzten Eintrags der Vorseite.
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne gültige Sitzung. 403 für Nicht-Admins oder bei fehlendem zweitem Faktor.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne gültige Sitzung. 403 ohne das Recht oder bei fehlendem zweitem Faktor.
 
         Datenbanklast: zwei Abfragen je Seite (Bestellungen mit Konto im Join, dann alle ihre Positionen); Index auf Abteilung, Stand und ID.
       tags:
@@ -24254,9 +24314,9 @@ paths:
       operationId: setzeAdminLadenBestellungStatus
       summary: Stand einer Bestellung setzen
       description: |
-        Nur Admins mit zweitem Faktor, nur Bestellungen der eigenen Abteilung. `offen` und `bereit` lassen sich wechseln, in `uebergeben` und `storniert` gehen beide über; `uebergeben` und `storniert` sind endgültig. Derselbe Stand ein zweites Mal ist wieder 200. Das UPDATE ist bedingt auf den gelesenen Stand: Setzen zwei Personen ihn zugleich, ist die zweite 409 `STATUS_UNGUELTIG`. Das Audit-Log hält Kennung und neuen Stand fest.
+        Nur mit dem Recht `laden.bestellungen_bearbeiten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Nur Bestellungen der eigenen Abteilung. `offen` und `bereit` lassen sich wechseln, in `uebergeben` und `storniert` gehen beide über; `uebergeben` und `storniert` sind endgültig. Derselbe Stand ein zweites Mal ist wieder 200. Das UPDATE ist bedingt auf den gelesenen Stand: Setzen zwei Personen ihn zugleich, ist die zweite 409 `STATUS_UNGUELTIG`. Das Audit-Log hält Kennung und neuen Stand fest.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Bestellung in der eigenen Abteilung (404), Admin-Recht (403), Übergang (409).
+        Reihenfolge der Prüfungen: Pfad und Body (400), Bestellung in der eigenen Abteilung (404), Recht (403), Übergang (409).
 
         Statuscodes: 200 bei Erfolg. 400, 403, 404 wie beschrieben. 409 `STATUS_UNGUELTIG`.
 
@@ -24317,7 +24377,7 @@ paths:
       operationId: holeAdminLadenEinstellungen
       summary: Einstellungen des Lädelis
       description: |
-        Nur Admins mit zweitem Faktor. Alle Einstellungen der Abteilung (#642): Übergabearten, Regeln (Bestellen offen, Schnell dazu, Preise für Besucher, Höchstmenge, Positionen, offene Bestellungen, Mindestbestellung) und Texte (Hinweis zur Bezahlung, Zahlungsart, Meldung nach dem Bestellen, Hinweis zur Übergabe, Bedingungen, Text bei geschlossenem Lädeli). Ohne eigene Einstellung gelten die Vorgaben, die in `vorgaben` stehen: die Texte und Regeln, die das Lädeli vor #642 fest hatte.
+        Nur mit dem Recht `laden.einstellungen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Alle Einstellungen der Abteilung (#642): Übergabearten, Regeln (Bestellen offen, Schnell dazu, Preise für Besucher, Höchstmenge, Positionen, offene Bestellungen, Mindestbestellung) und Texte (Hinweis zur Bezahlung, Zahlungsart, Meldung nach dem Bestellen, Hinweis zur Übergabe, Bedingungen, Text bei geschlossenem Lädeli). Ohne eigene Einstellung gelten die Vorgaben, die in `vorgaben` stehen: die Texte und Regeln, die das Lädeli vor #642 fest hatte.
 
         Statuscodes: 200 bei Erfolg. 401, 403 wie bei den anderen Routen der Verwaltung.
 
@@ -24345,7 +24405,7 @@ paths:
       operationId: setzeAdminLadenEinstellungen
       summary: Einstellungen des Lädelis speichern
       description: |
-        Nur Admins mit zweitem Faktor. Setzt die genannten Felder; Felder ohne Schlüssel bleiben, wie sie sind. Der Server prüft Längen und Bereiche (Übergabearten 1 bis 5, je 1 bis 80 Zeichen ohne Steuerzeichen und ohne Doppelte; Texte mit den Längen des Schemas, Zeilenumbruch nur in den Bedingungen und im Hinweis zur Übergabe sinnvoll, sonst keine Steuerzeichen). Ein Text, der der Vorgabe gleicht, wird als «Vorgabe» gespeichert; ein leerer Text bleibt leer und entfällt auf der Website. Bestehende Bestellungen behalten ihren Text und ihren Preis. Die Einstellungen stehen im Laden der Website: Der Abgleich erzeugt die Seiten neu (Ereignis `laden_geaendert`).
+        Nur mit dem Recht `laden.einstellungen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Setzt die genannten Felder; Felder ohne Schlüssel bleiben, wie sie sind. Der Server prüft Längen und Bereiche (Übergabearten 1 bis 5, je 1 bis 80 Zeichen ohne Steuerzeichen und ohne Doppelte; Texte mit den Längen des Schemas, Zeilenumbruch nur in den Bedingungen und im Hinweis zur Übergabe sinnvoll, sonst keine Steuerzeichen). Ein Text, der der Vorgabe gleicht, wird als «Vorgabe» gespeichert; ein leerer Text bleibt leer und entfällt auf der Website. Bestehende Bestellungen behalten ihren Text und ihren Preis. Die Einstellungen stehen im Laden der Website: Der Abgleich erzeugt die Seiten neu (Ereignis `laden_geaendert`).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 401, 403 wie bei den anderen Routen der Verwaltung.
 
@@ -38228,18 +38288,23 @@ components:
         - belegung
         - termine
         - rechte
+        - katalogRechte
+        - katalogRechteEigene
       properties:
         redigieren:
           type: boolean
           description: Ob die Person Zugang zur Website-Verwaltung hat (Abteilungsleitung, Stufenleitung, ein Plattformrecht der Website, ein Recht auf eine Seite in `bearbeiter` oder Verantwortung für ein Team).
         bereiche:
           type: array
-          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person den Wartungsmodus der Website schalten darf (Recht `wartungsmodus.website`, Entwickler, Abteilungsleitung). Ohne Zugang leer.
+          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person die Wartung schalten darf (Recht `wartungsmodus.website` oder `wartung.bereiche`, Entwickler, Abteilungsleitung); `laedeli`, `lager` und `system`, wenn die Person dort ein Recht des Katalogs abteilungsweit hat (#648). Ohne Zugang leer.
           items:
             type: string
             enum:
               - website
               - plattform
+              - laedeli
+              - lager
+              - system
         verwalten:
           type: boolean
           description: Ob die Person Seiten anlegen und löschen darf (Plattformrecht `seiten.anlegen_loeschen`). Bleibt für Clients, die nur dieses Feld kennen; `rechte` ist genauer. Nur für die Anzeige; jede Route prüft selbst.
@@ -38261,6 +38326,16 @@ components:
               - weiterleitungen.verwalten
               - vorlagen.nutzen
               - wartungsmodus.website
+        katalogRechte:
+          type: array
+          description: "Alle Rechte des Rechtekatalogs, die die Person abteilungsweit hat (Geltung «alle»), so wie der Server sie durchsetzt; ohne Rechte, die jede Person hat. Sortiert, ohne Daten Dritter (#648). Die Navigation der Verwaltung folgt dieser Liste; jede Route prüft selbst."
+          items:
+            type: string
+        katalogRechteEigene:
+          type: array
+          description: "Rechte, die die Person nur für Objekte ihrer eigenen Gruppen hat (Geltung «eigene», zum Beispiel das OK eines Anlasses) und nicht abteilungsweit. Sortiert (#648). Nur für die Anzeige."
+          items:
+            type: string
     RedaktionTermine:
       type: object
       description: Was die Verwaltung bei Terminen, Räumen und Anlässen einblendet (#649). Jedes Feld heisst, dass die Person das Recht für mindestens einen Raum oder Anlass hat; Räume und Anlässe der eigenen Gruppen zählen. Nur für die Anzeige; jede Route prüft selbst.

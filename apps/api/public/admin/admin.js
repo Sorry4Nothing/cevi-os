@@ -45,7 +45,10 @@ const ALLE_TERMINE = new Proxy({}, { get: () => true });
 const mitDarf = (daten, alle) => ({
   ...daten,
   termine: alle ? ALLE_TERMINE : (daten.termine ?? {}),
-  darf: (recht) => alle || daten.rechte.includes(recht),
+  darf: (recht) =>
+    alle ||
+    daten.rechte.includes(recht) ||
+    (daten.katalogRechte ?? []).includes(recht),
 });
 // Hat die Person mit diesen Rechten etwas in der Verwaltung zu tun? Website, Belegung oder ein Recht bei Termine, Räumen und Anlässen
 const hatTerminRecht = (z) =>
@@ -448,7 +451,7 @@ let navigation = 0;
 async function zeigeVerwaltung() {
   // Zwei Fragen vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo, Signal «nameAenderbar»; nur wer «Seiten veröffentlichen» darf, sonst 403) und für alle ohne Abteilungsleitung das eigene Profil (Rolle im Kopf)
   const darfEinstellungen =
-    istAdmin() || zugang.rechte.includes("seiten.veroeffentlichen");
+    istAdmin() || zugang.darf("seiten.veroeffentlichen");
   const [einstellungen, profil] = await Promise.all([
     darfEinstellungen
       ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)

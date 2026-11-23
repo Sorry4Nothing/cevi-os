@@ -173,12 +173,12 @@ describe("GET /api/v1/redaktion/ich", () => {
       verwalten: boolean;
     };
     expect(koerper).toMatchObject(erwartet);
-    // Die Abteilungsleitung darf auch den Wartungsmodus der Website schalten (#424): «plattform»
+    // Die Abteilungsleitung darf auch den Wartungsmodus schalten (#424): «plattform», und hat die Rechte für Lädeli, Lager und System (#648)
     expect(koerper.bereiche).toEqual(
       !koerper.redigieren
         ? []
         : name === "Admin"
-          ? ["website", "plattform"]
+          ? ["website", "plattform", "laedeli", "lager", "system"]
           : ["website"],
     );
     expect(koerper.verwalten).toBe(erwartet.verwalten);

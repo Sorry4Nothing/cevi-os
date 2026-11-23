@@ -5,8 +5,9 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, medium } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht, istEntwickler } from "../../plattform.js";
+import { istEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 export const MAX_ABTEILUNGSNAME = 100;
@@ -36,11 +37,12 @@ const FEHLER = {
 
 // Einstellungen der Website für die ganze Abteilung. Das Recht «Seiten veröffentlichen» genügt für das Logo; den Namen der Abteilung ändert nur der Entwickler (auch nicht die Abteilungsleitung), denn er steht auch in der App
 export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
-  const pruefeRecht = async (person: Person) => {
-    if (!(await hatPlattformRecht(db, person, "seiten.veroeffentlichen"))) {
-      throw new HTTPException(403);
-    }
-  };
+  // Abteilungsweit: Das Recht für die eigene Stufenseite oder die eigene Gruppe genügt nicht (die Stufenleitung sieht die Einstellungen nicht)
+  const pruefeRecht = (person: Person) =>
+    verlange(db, person, "seiten.veroeffentlichen", {
+      abteilungId: person.abteilungId,
+      abteilungsweit: true,
+    });
   const lese = async (person: Person) => {
     const [z] = await db
       .select({

@@ -59,7 +59,11 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/rechte-gruppen.js`                | Verwaltung – Rollen und Rechte: Gruppen                                              | **200** alle      |
 | `GET /admin/rechte-uebersicht.js`             | Verwaltung – Rollen und Rechte: Was darf wer?                                        | **200** alle      |
 | `GET /admin/rechte-gemeinsam.js`              | Verwaltung – Rollen und Rechte: Bausteine                                            | **200** alle      |
-| `GET /admin/rechte-logik.js`                  | Verwaltung – Rollen und Rechte: Logik                                                | **200** alle      |
+| `GET /admin/rechte-api.js`                    | Verwaltung – Rollen und Rechte: Aufrufe der Matrix-API                               | **200** alle      |
+| `GET /admin/rechte-matrix.js`                 | Verwaltung – Rollen und Rechte: Rechte-Matrix                                        | **200** alle      |
+| `GET /admin/rechte-modell.js`                 | Verwaltung – Rollen und Rechte: Logik                                                | **200** alle      |
+| `GET /admin/rechte-rolle.js`                  | Verwaltung – Rollen und Rechte: Rollen anlegen und Personen zuordnen                 | **200** alle      |
+| `GET /admin/rechte-anlass.js`                 | Verwaltung – Rollen und Rechte: OK am Anlass anlegen                                 | **200** alle      |
 | `GET /admin/import.js`                        | Skript der Verwaltung – Bereich Import                                               | **200** alle      |
 | `GET /admin/website-baum.js`                  | Skript der Verwaltung – Bereich Website, Seitenbaum                                  | **200** alle      |
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |

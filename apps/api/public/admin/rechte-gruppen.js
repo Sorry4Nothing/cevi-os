@@ -1,495 +1,676 @@
-import { anfrage, fehlertext } from "./api.js";
-import { auswahl, chip, el, icon, knopf } from "./dom.js";
+import { fehlertext } from "./api.js";
+import {
+  auswahl,
+  dialogFormular,
+  el,
+  gruppe as fieldset,
+  icon,
+  knopf,
+  neueId,
+} from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { personZeile } from "./personen-wahl.js";
-import { zweistufig } from "./rueckgaengig.js";
-import { gruppeTraegt, istVerantwortlich } from "./rechte-logik.js";
+import { skeletonFlaeche } from "./lader.js";
+import { sortierListe } from "./sortieren.js";
+import { leerKarte } from "./zustaende.js";
+import { aendereRolle, ladeGruppe, legeRolleAn } from "./rechte-api.js";
 import {
   adresse,
-  bestaetigeAmOrt,
-  kandidatVon,
-  zurueckLink,
   haenge,
+  personen as personenText,
+  typText,
+  zurueckLink,
 } from "./rechte-gemeinsam.js";
-import { TYPEN, typName } from "./tags-detail.js";
-import { leerKarte } from "./zustaende.js";
+import { rechteRaster } from "./rechte-matrix.js";
+import {
+  FESTE_PUNKTE,
+  rechteFehlerText,
+  vorschlaegeFuer,
+} from "./rechte-modell.js";
+import {
+  neueRolleSeite,
+  personenBlock,
+  rolleBearbeitenSeite,
+  rolleKopf,
+  rolleLoeschenFrage,
+} from "./rechte-rolle.js";
 
-// Reiter «Gruppen» (#623): was Gruppen und Teams heute an Rechten tragen und was sich daran einstellen lässt. Es gibt dafür keine eigene Tabelle und kein neues Recht: Die Wirkungen hängen an vorhandenen Zeilen:
-//   Rolle «verantwortlich» in einem Team (person_tag)  Seite des Teams bearbeiten und veröffentlichen
-//   Team eines Raums (raum.team_tag_id)                Raumanfragen entscheiden (alle Mitglieder)
-//   Zeilen in bearbeiter mit einer Gruppe              genau eine Seite bearbeiten und veröffentlichen
-//   Typ «team» oder «funktion»                         Termine vorschlagen
-// Änderungen laufen über /admin/tags und /admin/bearbeiter; der Server prüft sie selbst. Was darüber hinausgeht, steht ehrlich als «noch nicht möglich» da.
+// Reiter «Gruppen» (#651): Rechte je einzelne Gruppe. Liste aller Gruppen, je Gruppe ihre Rollen mit einer Rechte-Matrix, je Rolle ihre Personen. Rollen legt die Abteilungsleitung selbst an (zum Beispiel «Kasse» im OK eines Anlasses); die Rechte gelten, bis die Rolle oder die Gruppe gelöscht wird.
+// Vorlagen: Kokonut «team-members» (Rolle, Personen, Vorschau) und «tool-permissions» (Rechte je Zeile).
+
+const text = (f) => rechteFehlerText(f, fehlertext(f));
+const rollenText = (n) => (n === 1 ? "1 Rolle" : `${n} Rollen`);
+const rechteText = (n) => (n === 1 ? "1 Recht" : `${n} Rechte`);
+const TYPEN = ["stufe", "funktion", "team", "lager", "anlass"];
 
 export function zeigeGruppen(inhalt, z, pfad) {
-  if (pfad[0]) return zeigeGruppe(inhalt, z, pfad[0]);
-  zeigeListe(inhalt, z);
+  const [id, was, rolleId] = pfad;
+  if (!id) return zeigeListe(inhalt, z);
+  const lade = z.ctx.erstelleLader(inhalt);
+  lade(
+    () => ladeGruppe(id),
+    (daten) => {
+      for (const r of daten.rollen) z.merke(r, daten.gruppe.name);
+      if (was === "rolle" && rolleId) zeigeRolle(inhalt, z, daten, rolleId);
+      else zeigeGruppe(inhalt, z, daten);
+    },
+    {
+      skeleton: () =>
+        el(
+          "div",
+          { class: "rr-skelett" },
+          [0, 1].map(() => skeletonFlaeche({ zeilen: 4 })),
+        ),
+    },
+  );
 }
-
-const mitglieder = (n) => (n === 1 ? "1 Mitglied" : `${n} Mitglieder`);
 
 // ---------- Liste ----------
 
 function zeigeListe(inhalt, z) {
-  const { daten } = z;
-  if (daten.gruppen.length === 0) {
-    haenge(inhalt, leerKarte("Es gibt noch keine Gruppe.", []));
-    return;
-  }
-  const REIHE = { team: 0, funktion: 1, stufe: 2, lager: 3 };
-  const sortiert = [...daten.gruppen].sort(
-    (a, b) =>
-      REIHE[a.typ] - REIHE[b.typ] || a.name.localeCompare(b.name, "de-CH"),
+  z.ctx.kopfAktion(
+    el(
+      "a",
+      { class: "knopf knopf--still", href: "#personen/gruppen" },
+      "Gruppen verwalten",
+    ),
   );
-  const karten = sortiert.map((g) => ({
-    g,
-    wurzel: karte(g, z),
-    suche: `${g.name} ${typName(g.typ)}`.toLowerCase(),
-  }));
-  const liste = el(
-    "ul",
-    { class: "rr-gruppenliste" },
-    karten.map((k) => k.wurzel),
-  );
-  const leer = el("div");
+  const alle = z.gruppen;
+  const zaehl = (typ) => alle.filter((g) => g.typ === typ).length;
+  const liste = el("ul", { class: "rr-gruppenliste", "aria-label": "Gruppen" });
+  const leer = el("div", { hidden: true });
   const leiste = filterleiste({
     suche: { label: "Gruppe suchen" },
     filter: [
       {
         schluessel: "typ",
-        label: "Typ",
-        grundwert: "alle",
-        optionen: [["alle", "Alle Typen"], ...TYPEN],
+        label: "Art",
+        optionen: [
+          ["", `Alle Arten (${alle.length})`],
+          ...TYPEN.filter((t) => zaehl(t) > 0).map((t) => [
+            t,
+            `${typText(t)} (${zaehl(t)})`,
+          ]),
+        ],
       },
     ],
     namen: { einzahl: "Gruppe", mehrzahl: "Gruppen" },
-    beiAenderung: ({ suche, filter: f }) => {
-      const q = suche.trim().toLowerCase();
-      let n = 0;
-      for (const k of karten) {
-        k.wurzel.hidden = !(
-          (q === "" || k.suche.includes(q)) &&
-          (f.typ === "alle" || k.g.typ === f.typ)
-        );
-        if (!k.wurzel.hidden) n++;
-      }
-      leer.replaceChildren(
-        ...(n === 0
-          ? [
-              leerKarte("Keine Gruppe passt zu deiner Suche.", [
-                knopf("Filter zurücksetzen", {
-                  onclick: () => leiste.setzeAlles(),
-                }),
-              ]),
-            ]
-          : []),
-      );
-      leiste.setzeTreffer(n, karten.length);
-    },
+    beiAenderung: ({ suche, filter }) => zeichne(suche, filter.typ),
   });
-  leiste.setzeTreffer(karten.length, karten.length);
   haenge(
     inhalt,
     el(
       "p",
       { class: "leise rr-erklaerung" },
-      "Eine Gruppe trägt keine Rechte aus dem Katalog wie eine Rolle. Was an ihr hängt, zeigt jede Karte: wer verantwortlich ist, welche Räume sie entscheidet und welche Seiten sie bearbeiten darf.",
+      "Rechte gelten je einzelne Gruppe. Öffne eine Gruppe, lege dort Rollen an (zum Beispiel «Kasse» im OK eines Anlasses) und stelle ihre Rechte ein. Die Rechte gelten, bis du die Rolle oder die Gruppe löschst.",
     ),
     leiste.wurzel,
     liste,
     leer,
-    nochNichtMoeglich(),
   );
-}
-
-function karte(g, z) {
-  const traegt = gruppeTraegt(g, z.daten);
-  const verantwortliche = g.mitglieder.filter((m) =>
-    istVerantwortlich(m.rolle),
-  ).length;
-  const sonder = z.daten.sonderrechte.filter((s) => s.tagId === g.id).length;
-  return el(
-    "li",
-    { class: "flaeche rr-karte" },
-    el(
-      "div",
-      { class: "rr-kartenkopf" },
-      el("h2", {}, el("a", { href: adresse("gruppen", g.id) }, g.name)),
-      el(
-        "ul",
-        { class: "chips" },
-        chip(typName(g.typ), g.typ === "stufe" ? "stufe" : undefined, "tag"),
+  function zeichne(suche = "", typ = "") {
+    const f = suche.trim().toLowerCase();
+    const treffer = alle.filter(
+      (g) =>
+        (!typ || g.typ === typ) && (!f || g.name.toLowerCase().includes(f)),
+    );
+    liste.replaceChildren(
+      ...treffer.map((g) =>
+        el(
+          "li",
+          { class: "rr-gruppenzeile" },
+          el(
+            "a",
+            { class: "rr-gruppenlink", href: adresse("gruppen", g.id) },
+            el("span", { class: "rr-gruppenname" }, g.name),
+            el("span", { class: "chip" }, typText(g.typ)),
+            icon("weiter"),
+            el(
+              "span",
+              { class: "klein leise rr-gruppenzahlen" },
+              `${rollenText(g.rollen)} · ${personenText(g.mitglieder)}${g.mitRolle > 0 && g.mitRolle !== g.mitglieder ? `, ${g.mitRolle} mit Rolle` : ""}`,
+            ),
+          ),
+        ),
       ),
-    ),
-    el(
-      "p",
-      { class: "leise" },
-      [
-        mitglieder(g.mitglieder.length),
-        g.typ === "team" &&
-          `${verantwortliche === 0 ? "niemand" : verantwortliche} verantwortlich`,
-        sonder > 0 &&
-          `${sonder} ${sonder === 1 ? "Sonderrecht" : "Sonderrechte"} an Seiten`,
-      ]
-        .filter(Boolean)
-        .join(" · "),
-    ),
-    el(
-      "ul",
-      { class: "rr-traegt-kurz" },
-      traegt
-        .filter((t) => t.schluessel !== "lager" && t.schluessel !== "stufe")
-        .map((t) => el("li", {}, icon("haken"), t.titel)),
-    ),
-    el(
-      "a",
-      {
-        class: "knopf knopf--klein",
-        href: adresse("gruppen", g.id),
-        "aria-label": `Öffnen: ${g.name}`,
-      },
-      icon("weiter"),
-      "Öffnen",
-    ),
-  );
-}
-
-// Die ehrliche Karte: was es heute nicht gibt
-function nochNichtMoeglich() {
-  return el(
-    "section",
-    {
-      class: "flaeche rr-flaeche rr-offen",
-      "aria-labelledby": "rr-offen-titel",
-    },
-    el("h2", { id: "rr-offen-titel" }, "Noch nicht möglich"),
-    el(
-      "p",
-      {},
-      "Eine Gruppe wie «Mat» kann heute keine Rechte aus dem Katalog tragen, zum Beispiel «Medien verwalten». Rollen gelten für einzelne Personen, nicht für eine Gruppe.",
-    ),
-    el(
-      "ul",
-      { class: "rr-liste" },
-      [
-        "Rechte an einer Gruppe einstellen, die alle Mitglieder erben",
-        "Mehr Rollen in einer Gruppe als «verantwortlich», zum Beispiel Kasse oder Kommunikation",
-        "Rechte, die nur für die eigenen Objekte der Gruppe gelten",
-        "Gruppen für einen einzelnen Anlass (OK)",
-      ].map((t) => el("li", {}, t)),
-    ),
-    el(
-      "p",
-      { class: "leise" },
-      "Das ist ein Umbau des Rechtemodells. Der Entwurf liegt vor (Issue #585) und wartet auf deinen Entscheid. Bis dahin gibst du eine Rolle den einzelnen Personen (Reiter «Rollen»). Für die Seite eines Teams stellst du die Verantwortlichen ein.",
-    ),
-  );
+    );
+    leiste.setzeTreffer(treffer.length, alle.length);
+    leer.hidden = treffer.length > 0;
+    leer.replaceChildren(
+      ...(treffer.length > 0
+        ? []
+        : [
+            leerKarte(
+              alle.length === 0
+                ? "Es gibt noch keine Gruppe. Lege sie unter «Gruppen und Tags» an."
+                : "Keine Gruppe passt zu dieser Suche.",
+            ),
+          ]),
+    );
+  }
+  zeichne();
 }
 
 // ---------- Eine Gruppe ----------
 
-function zeigeGruppe(inhalt, z, id) {
-  const { ctx, daten } = z;
-  const g = daten.gruppen.find((x) => x.id === id);
-  if (!g) {
-    haenge(
-      inhalt,
-      zurueckLink("Alle Gruppen", adresse("gruppen")),
-      leerKarte("Diese Gruppe gibt es nicht (mehr).", []),
-    );
-    return;
-  }
-  ctx.titel(g.name, `${typName(g.typ)} · ${mitglieder(g.mitglieder.length)}`);
-  const bekannt = new Map(daten.personen.map((p) => [p.id, p]));
-  const traegt = gruppeTraegt(g, daten);
+function zeigeGruppe(inhalt, z, daten) {
+  const { gruppe, rollen, anlass } = daten;
+  z.ctx.titel(gruppe.name, `Rechte der Gruppe, ${typText(gruppe.typ)}`);
+  z.ctx.kopfAktion();
 
-  haenge(
-    inhalt,
-    zurueckLink("Alle Gruppen", adresse("gruppen")),
+  const kopf = el(
+    "header",
+    { class: "rr-gruppenkopf" },
     el(
-      "section",
-      { class: "flaeche rr-flaeche", "aria-labelledby": "rr-traegt-titel" },
-      el("h2", { id: "rr-traegt-titel" }, "Das trägt diese Gruppe heute"),
-      traegt.length === 0
-        ? el(
-            "p",
-            { class: "leise" },
-            "Diese Gruppe trägt für sich keine Rechte. Mitglieder sehen, was für ihre Gruppe sichtbar ist.",
-          )
-        : el(
-            "ul",
-            { class: "rr-traegt" },
-            traegt.map((t) =>
-              el(
-                "li",
-                { class: "rr-traegt-zeile" },
-                el("p", { class: "rr-titel" }, t.titel),
-                el(
-                  "p",
-                  { class: "klein" },
-                  el("span", { class: "leise" }, "Wer: "),
-                  t.wer,
-                ),
-                el(
-                  "p",
-                  { class: "klein" },
-                  el("span", { class: "leise" }, "Wo: "),
-                  t.wo,
-                ),
-                t.einstellbar &&
-                  el("p", { class: "klein leise" }, t.einstellbar),
-              ),
-            ),
-          ),
-    ),
-    mitgliederBlock(z, g, bekannt),
-    sonderrechteBlock(z, g),
-    nochNichtMoeglich(),
-  );
-}
-
-// Mitglieder: bei einem Team mit «Verantwortlich» einstellbar (setzt die Rolle am Mitglied, wie im Bereich Gruppen), sonst nur die Liste
-function mitgliederBlock(z, g, bekannt) {
-  const { ctx } = z;
-  const team = g.typ === "team";
-  const ort = el("div", { class: "rr-block" });
-  const setze = async (m, rolle, text) => {
-    try {
-      await anfrage("PUT", `/api/v1/admin/tags/${g.id}/personen/${m.userId}`, {
-        rolle,
-      });
-      ctx.melde(text);
-      z.neu();
-    } catch (f) {
-      ctx.melde(fehlertext(f), "fehler");
-    }
-  };
-  const zeilen = g.mitglieder.length
-    ? g.mitglieder.map((m) => {
-        const p = bekannt.get(m.userId) ?? { id: m.userId, name: "Unbekannt" };
-        const k = kandidatVon(p);
-        const verantwortlich = istVerantwortlich(m.rolle);
-        const bezeichnung = m.rolle && !verantwortlich ? m.rolle : null;
-        k.zusatz = [k.zusatz, bezeichnung && `Bezeichnung «${bezeichnung}»`]
-          .filter(Boolean)
-          .join(" · ");
-        if (!team) return personZeile(k);
-        if (verantwortlich) {
-          const weg = knopf("Verantwortung entziehen", {
-            klein: true,
-            art: "still",
-            kontext: p.name,
-          });
-          zweistufig(
-            weg,
-            `Wirklich entziehen? ${p.name} bearbeitet die Seite des Teams dann nicht mehr.`,
-            () =>
-              setze(
-                m,
-                null,
-                `«${p.name}» ist nicht mehr verantwortlich im Team «${g.name}».`,
-              ),
-          );
-          return personZeile(
-            k,
-            el("ul", { class: "chips" }, chip("Verantwortlich", "ok")),
-            weg,
-          );
-        }
-        const hin = knopf("Verantwortlich machen", {
-          klein: true,
-          symbol: "plus",
-          kontext: p.name,
-        });
-        hin.addEventListener("click", () =>
-          bestaetigeAmOrt(ort, {
-            text: `«${p.name}» darf dann die Seite des Teams bearbeiten und veröffentlichen, mit zweitem Faktor.${bezeichnung ? ` Die Bezeichnung «${bezeichnung}» wird dabei ersetzt.` : ""} Wirklich?`,
-            ok: "Verantwortlich machen",
-            aktion: () =>
-              setze(
-                m,
-                "verantwortlich",
-                `«${p.name}» ist jetzt verantwortlich im Team «${g.name}».`,
-              ),
-            zurueckFokus: hin,
-          }),
-        );
-        return personZeile(k, hin);
-      })
-    : [
+      "div",
+      { class: "rr-gruppentitel" },
+      el("span", { class: "chip" }, typText(gruppe.typ)),
+      anlass &&
         el(
-          "li",
-          { class: "pe-keiner leise" },
-          "Noch niemand in dieser Gruppe.",
+          "span",
+          { class: "klein" },
+          "Gehört zum Anlass ",
+          el(
+            "a",
+            { class: "tm-tabellenlink", href: `#anlaesse/${anlass.id}` },
+            anlass.titel,
+          ),
         ),
-      ];
-  haenge(
-    ort,
+    ),
+    el(
+      "a",
+      {
+        class: "knopf knopf--klein knopf--still",
+        href: `#personen/gruppen/${gruppe.id}`,
+      },
+      "Mitglieder der Gruppe",
+    ),
+  );
+
+  const neueRolle = knopf("Neue Rolle", {
+    art: "haupt",
+    symbol: "plus",
+    onclick: () =>
+      neueRolleSeite(z, {
+        art: "gruppe",
+        gruppe,
+        rollen,
+        danach: () => z.neu(),
+      }),
+  });
+  const vorlage = knopf("Rollen aus anderer Gruppe übernehmen", {
+    symbol: "kopieren",
+    onclick: () => vorlageSeite(z, daten),
+  });
+  const ohneEigene = rollen.every((r) => r.system);
+  const vorschlag =
+    gruppe.typ === "anlass" && ohneEigene
+      ? knopf("Rollen vorschlagen lassen", {
+          symbol: "stern",
+          onclick: () => vorschlagsSeite(z, daten),
+        })
+      : null;
+
+  const rollenFlaeche = el(
+    "section",
+    { class: "flaeche rr-flaeche", "aria-labelledby": "rr-rollen-titel" },
     el(
       "div",
       { class: "rr-kopfzeile" },
-      el(
-        "h2",
-        { id: "rr-mitglieder-titel" },
-        team ? "Mitglieder und Verantwortliche" : "Mitglieder",
-      ),
-      el("p", { class: "klein leise" }, mitglieder(g.mitglieder.length)),
-    ),
-    el(
-      "ul",
-      {
-        class: "pe-treffer rr-personen",
-        "aria-label": `Mitglieder von ${g.name}`,
-      },
-      zeilen,
+      el("h3", { id: "rr-rollen-titel" }, `Rollen (${rollen.length})`),
+      el("div", { class: "reihe" }, neueRolle, vorschlag, vorlage),
     ),
     el(
       "p",
       { class: "klein leise" },
-      team
-        ? "Die Verantwortlichen sind die Rolle «verantwortlich» in diesem Team. Wer sonst dazugehört, ändert sich im Bereich Gruppen. "
-        : "Mitglieder fügst du im Bereich Gruppen hinzu oder entfernst sie dort. ",
-      el(
-        "a",
-        { href: `#personen/gruppen/${g.id}` },
-        "Zu den Mitgliedern der Gruppe",
-      ),
+      "Jede Person hat in einer Gruppe höchstens eine Rolle. Die Reihenfolge ist nur die Anzeige.",
     ),
+    sortierung(z, rollen, gruppe),
   );
-  return el(
-    "section",
-    { class: "flaeche rr-flaeche", "aria-labelledby": "rr-mitglieder-titel" },
-    ort,
+
+  haenge(
+    inhalt,
+    zurueckLink("Alle Gruppen", adresse("gruppen")),
+    kopf,
+    rollenFlaeche,
+    rollen.length > 0 &&
+      el(
+        "section",
+        { class: "flaeche rr-flaeche", "aria-labelledby": "rr-matrix-titel" },
+        el("h3", { id: "rr-matrix-titel" }, "Rechte der Rollen"),
+        el(
+          "p",
+          { class: "klein leise" },
+          "Stelle ein, was jede Rolle darf. Änderungen bleiben im Entwurf, bis du unten speicherst. «Eigene» gilt nur für Objekte dieser Gruppe.",
+        ),
+        rechteRaster({ z, rollen, art: "gruppe" }).wurzel,
+      ),
+    festePunkte(z),
   );
 }
 
-// Sonderrechte: eine Gruppe darf genau eine Seite bearbeiten und veröffentlichen (bearbeiter mit tagId)
-function sonderrechteBlock(z, g) {
-  const { ctx, daten } = z;
-  const ort = el("div", { class: "rr-block" });
-  const meine = daten.sonderrechte.filter((s) => s.tagId === g.id);
-  const titelVon = (id) =>
-    daten.seiten.find((s) => s.id === id)?.titel ?? "Unbekannte Seite";
-  const entziehen = async (s) => {
-    try {
-      await anfrage("DELETE", `/api/v1/admin/bearbeiter/${s.id}`);
-      ctx.melde(
-        `«${g.name}» darf die Seite «${titelVon(s.seiteId)}» nicht mehr bearbeiten.`,
-      );
-      z.neu();
-    } catch (f) {
-      ctx.melde(fehlertext(f), "fehler");
-    }
-  };
-  const zeilen = meine.length
-    ? meine.map((s) => {
-        const weg = knopf("Entziehen", {
-          klein: true,
-          art: "still",
-          symbol: "schliessen",
-          kontext: titelVon(s.seiteId),
-        });
-        zweistufig(
-          weg,
-          `Wirklich entziehen? «${g.name}» bearbeitet diese Seite dann nicht mehr.`,
-          () => entziehen(s),
-        );
-        return el(
-          "li",
-          { class: "pe-wahlzeile" },
-          el(
-            "div",
-            { class: "wer" },
-            el("span", { class: "name" }, titelVon(s.seiteId)),
-            el(
-              "span",
-              { class: "klein leise" },
-              "bearbeiten und veröffentlichen",
-            ),
-          ),
-          weg,
-        );
-      })
-    : [
-        el(
-          "li",
-          { class: "pe-keiner leise" },
-          "Diese Gruppe hat kein Sonderrecht an einer Seite.",
-        ),
-      ];
-
-  const frei = daten.seiten.filter(
-    (s) => !meine.some((m) => m.seiteId === s.id),
-  );
-  const wahl = auswahl({
-    label: "Seite",
-    optionen: [["", "Seite wählen …"], ...frei.map((s) => [s.id, s.titel])],
-    wert: "",
-  });
-  const geben = knopf("Sonderrecht geben", { symbol: "plus" });
-  geben.addEventListener("click", () => {
-    const seiteId = wahl.eingabe.value;
-    if (!seiteId) {
-      ctx.melde("Wähle zuerst eine Seite.", "warn");
-      return;
-    }
-    bestaetigeAmOrt(ort, {
-      text: `${mitglieder(g.mitglieder.length)} von «${g.name}» dürfen dann die Seite «${titelVon(seiteId)}» bearbeiten und veröffentlichen, mit zweitem Faktor. Wirklich?`,
-      ok: "Sonderrecht geben",
-      aktion: async () => {
-        try {
-          await anfrage("POST", "/api/v1/admin/bearbeiter", {
-            objektTyp: "seite",
-            objektId: seiteId,
-            tagId: g.id,
-          });
-          ctx.melde(
-            `«${g.name}» darf jetzt die Seite «${titelVon(seiteId)}» bearbeiten.`,
-          );
-          z.neu();
-        } catch (f) {
-          ctx.melde(fehlertext(f), "fehler");
-        }
-      },
-      zurueckFokus: geben,
-    });
-  });
-  haenge(
-    ort,
-    el(
+// Die Rollen als Liste mit Griff (Ziehen, Tastatur, Hoch und Runter); die neue Reihenfolge gilt sofort
+function sortierung(z, rollen, gruppe) {
+  if (rollen.length === 0) {
+    return leerKarte("Diese Gruppe hat noch keine Rolle. Lege die erste an.");
+  }
+  const eintraege = rollen.map((r) => ({
+    id: r.id,
+    text: r.name,
+    inhalt: el(
       "div",
-      { class: "rr-kopfzeile" },
-      el("h2", { id: "rr-sonder-titel" }, "Sonderrechte an Seiten"),
+      { class: "rr-rollenzeile" },
       el(
-        "p",
-        { class: "klein leise" },
-        meine.length === 1 ? "1 Seite" : `${meine.length} Seiten`,
+        "a",
+        {
+          class: "rr-rollenlink",
+          href: adresse("gruppen", gruppe.id, "rolle", r.id),
+        },
+        r.name,
       ),
+      r.system &&
+        el("span", { class: "rr-marke rr-marke--system" }, "Eingebaut"),
+      el(
+        "span",
+        { class: "klein leise" },
+        `${personenText(r.personen.length)} · ${rechteText(r.rechte.length)}`,
+      ),
+      r.beschreibung &&
+        el("span", { class: "klein leise rr-beschr" }, r.beschreibung),
     ),
+  }));
+  return sortierListe({
+    beschriftung: `Rollen in ${gruppe.name}`,
+    eintraege,
+    mitRueckgaengig: z.ctx.mitRueckgaengig,
+    aktionstext: "Reihenfolge der Rollen geändert",
+    beiNeu: async (ids) => {
+      // Jede Rolle, die ihren Platz wechselt, bekommt ihre neue Nummer; die Version läuft mit
+      for (const [i, id] of ids.entries()) {
+        const r = rollen.find((x) => x.id === id);
+        if (r.reihenfolge === i + 1) continue;
+        const antwort = await aendereRolle(r, {
+          version: r.version,
+          reihenfolge: i + 1,
+        });
+        r.version = antwort.version;
+        r.reihenfolge = i + 1;
+      }
+    },
+  }).wurzel;
+}
+
+// Was fest ist und sich nirgends einstellen lässt: der Katalog nennt die Rechte der Art «fest» und «Struktur»
+export function festePunkte(z) {
+  const fest = z.katalog.rechte.filter((r) => r.art !== "vergebbar");
+  return el(
+    "details",
+    { class: "flaeche rr-flaeche rr-fest-block" },
     el(
-      "p",
-      { class: "leise" },
-      "Ein Sonderrecht gilt für genau eine Seite und für alle Mitglieder der Gruppe. Es öffnet nichts sonst.",
+      "summary",
+      {},
+      icon("sperre"),
+      "Was fest ist und sich nicht einstellen lässt",
     ),
     el(
       "ul",
-      {
-        class: "pe-treffer rr-personen",
-        "aria-label": `Sonderrechte von ${g.name}`,
-      },
-      zeilen,
-    ),
-    frei.length > 0
-      ? el("div", { class: "rr-zeile-wahl" }, wahl.wurzel, geben)
-      : el(
-          "p",
-          { class: "klein leise" },
-          "Es gibt keine Seite mehr, für die du ein Sonderrecht geben könntest.",
+      { class: "rr-feste-liste" },
+      FESTE_PUNKTE.map((p) =>
+        el(
+          "li",
+          {},
+          el("strong", {}, p.titel),
+          el("span", { class: "klein leise" }, p.text),
         ),
+      ),
+      fest.map((r) =>
+        el(
+          "li",
+          {},
+          el("strong", {}, r.klartext),
+          el(
+            "span",
+            { class: "klein leise" },
+            `${r.erklaerung} ${r.art === "struktur" ? "Das folgt aus der Beziehung zur Person und bleibt immer so." : "Nur die Abteilungsleitung hat es, und es lässt sich nicht vergeben."}`,
+          ),
+        ),
+      ),
+    ),
   );
-  return el(
-    "section",
-    { class: "flaeche rr-flaeche", "aria-labelledby": "rr-sonder-titel" },
-    ort,
+}
+
+// ---------- Eine Rolle ----------
+
+function zeigeRolle(inhalt, z, daten, rolleId) {
+  const { gruppe, rollen, mitglieder } = daten;
+  const rolle = rollen.find((r) => r.id === rolleId);
+  if (!rolle) {
+    haenge(
+      inhalt,
+      zurueckLink(`Zurück zu «${gruppe.name}»`, adresse("gruppen", gruppe.id)),
+      leerKarte("Diese Rolle gibt es nicht mehr."),
+    );
+    return;
+  }
+  z.ctx.titel(rolle.name, `Rolle in «${gruppe.name}»`);
+  z.ctx.kopfAktion();
+  const fragenOrt = el("div", { class: "rr-fragen" });
+  const bearbeiten = knopf("Name und Beschreibung", {
+    symbol: "bearbeiten",
+    klein: true,
+    onclick: () =>
+      rolleBearbeitenSeite(z, rolle, {
+        aendere: (felder) => aendereRolle(rolle, felder),
+        danach: () => z.neu(),
+      }),
+  });
+  const loeschen = rolle.system
+    ? null
+    : knopf("Rolle löschen", {
+        art: "gefahr",
+        klein: true,
+        symbol: "papierkorb",
+        onclick: (e) =>
+          rolleLoeschenFrage(z, rolle, {
+            ort: fragenOrt,
+            ausloeser: e.currentTarget,
+            danach: () => (location.hash = adresse("gruppen", gruppe.id)),
+          }),
+      });
+  // Mitglieder der Gruppe mit ihrer heutigen Rolle: für die Zuordnung und den Zusatz «heute …»
+  const rollenName = new Map(rollen.map((r) => [r.id, r.name]));
+  const personRolle = new Map();
+  for (const r of rollen)
+    for (const p of r.personen) personRolle.set(p.id, r.id);
+  const mitgliedMap = new Map(
+    mitglieder.map((m) => [
+      m.userId,
+      { rolleName: rollenName.get(personRolle.get(m.userId)) },
+    ]),
   );
+  // An einer Stufe folgen Leitung und Stufenleitung der Stufenzuordnung der Person; hier ändern sie sich nicht
+  const stufenRolle =
+    gruppe.typ === "stufe" &&
+    (rolle.schluessel === "leitung" || rolle.schluessel === "stufenleitung");
+
+  haenge(
+    inhalt,
+    zurueckLink(`Zurück zu «${gruppe.name}»`, adresse("gruppen", gruppe.id)),
+    rolleKopf(rolle, el("div", { class: "reihe" }, bearbeiten, loeschen)),
+    fragenOrt,
+    el(
+      "section",
+      { class: "flaeche rr-flaeche", "aria-labelledby": "rr-rechte-titel" },
+      el("h3", { id: "rr-rechte-titel" }, "Rechte"),
+      el(
+        "p",
+        { class: "klein leise" },
+        "Wähle bei jedem Recht, ob die Rolle es nicht, nur für diese Gruppe («Eigene») oder für alle hat. Änderungen bleiben im Entwurf, bis du unten speicherst.",
+      ),
+      rechteRaster({ z, rollen: [rolle], art: "gruppe", einzel: true }).wurzel,
+    ),
+    personenBlock(z, rolle, {
+      mitglieder: mitgliedMap,
+      schreibgeschuetzt: stufenRolle
+        ? "Diese Rolle folgt der Stufenzuordnung der Person. Ändere sie bei der Person unter «Personen»."
+        : undefined,
+    }),
+    festePunkte(z),
+  );
+}
+
+// ---------- Rollen aus einer anderen Gruppe übernehmen ----------
+
+function vorlageSeite(z, daten) {
+  const { gruppe, rollen: hier } = daten;
+  const quellen = z.gruppen.filter((g) => g.id !== gruppe.id && g.rollen > 0);
+  if (quellen.length === 0) {
+    z.ctx.melde(
+      "Keine andere Gruppe hat Rollen, die du übernehmen könntest.",
+      "warn",
+    );
+    return null;
+  }
+  const wahl = auswahl({
+    label: "Gruppe, aus der du Rollen übernimmst",
+    optionen: [
+      ["", "Gruppe wählen"],
+      ...quellen.map((g) => [g.id, `${g.name} (${typText(g.typ)})`]),
+    ],
+    wert: "",
+  });
+  const liste = el("div", { class: "rr-vorlageliste" });
+  const hinweis = el("p", { class: "klein leise", role: "status" });
+  const kisten = [];
+  wahl.eingabe.addEventListener("change", async () => {
+    liste.replaceChildren();
+    kisten.length = 0;
+    const id = wahl.eingabe.value;
+    if (!id) {
+      hinweis.textContent = "";
+      return;
+    }
+    hinweis.textContent = "Die Rollen werden geladen.";
+    try {
+      const quelle = await ladeGruppe(id);
+      if (wahl.eingabe.value !== id) return;
+      const angebot = quelle.rollen.filter((r) => !r.system);
+      hinweis.textContent =
+        angebot.length === 0
+          ? "Diese Gruppe hat nur eingebaute Rollen. Die hat jede Gruppe schon."
+          : "Wähle die Rollen. Sie kommen mit ihren Rechten; «Eigene» gilt danach für diese Gruppe.";
+      if (angebot.length === 0) return;
+      liste.append(
+        fieldset(
+          "Rollen",
+          el(
+            "ul",
+            { class: "rr-vorlagekisten" },
+            angebot.map((r) => {
+              const idK = neueId("vorlage");
+              const kiste = el("input", {
+                type: "checkbox",
+                id: idK,
+                checked: true,
+              });
+              kisten.push([r, kiste]);
+              const vorhanden = hier.some(
+                (h) => h.name.toLowerCase() === r.name.toLowerCase(),
+              );
+              return el(
+                "li",
+                { class: "wahl" },
+                kiste,
+                el(
+                  "label",
+                  { for: idK },
+                  r.name,
+                  el(
+                    "span",
+                    { class: "klein leise" },
+                    ` ${rechteText(r.rechte.length)}${vorhanden ? ". Gibt es hier schon, wird mit Nummer angelegt" : ""}`,
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      );
+    } catch (f) {
+      hinweis.textContent = text(f);
+    }
+  });
+  return dialogFormular({
+    titel: "Rollen übernehmen",
+    beschreibung: `Kopiere Rollen samt Rechten nach «${gruppe.name}». Personen kommen nicht mit.`,
+    felder: [wahl.wurzel, hinweis, liste],
+    ok: "Rollen übernehmen",
+    fehlertext: (f) => f.teilweise ?? text(f),
+    pruefe: () => {
+      if (kisten.some(([, k]) => k.checked)) return false;
+      hinweis.textContent = "Wähle eine Gruppe und mindestens eine Rolle.";
+      return true;
+    },
+    senden: async () => {
+      const gewaehlt = kisten.filter(([, k]) => k.checked).map(([r]) => r);
+      const namen = new Set(hier.map((h) => h.name.toLowerCase()));
+      const fehler = [];
+      let ok = 0;
+      for (const r of gewaehlt) {
+        let name = r.name;
+        for (let n = 2; namen.has(name.toLowerCase()); n++) {
+          name = `${r.name.slice(0, 44)} (${n})`;
+        }
+        try {
+          await legeRolleAn(gruppe.id, {
+            name,
+            beschreibung: r.beschreibung,
+            rechte: r.rechte,
+          });
+          namen.add(name.toLowerCase());
+          ok++;
+        } catch (f) {
+          fehler.push(`«${r.name}»: ${text(f)}`);
+        }
+      }
+      if (fehler.length > 0) {
+        throw Object.assign(new Error("teilweise"), {
+          teilweise: `${ok > 0 ? `${rollenText(ok)} angelegt. ` : ""}${fehler.join(" ")}`,
+        });
+      }
+      return { ok };
+    },
+    danach: ({ ok }) => {
+      z.ctx.melde(
+        ok === 1 ? "1 Rolle übernommen." : `${ok} Rollen übernommen.`,
+      );
+      z.neu();
+    },
+  });
+}
+
+// Für eine Anlass-Gruppe, die noch keine eigenen Rollen hat: die üblichen Rollen eines OK anbieten (Leitung, Kasse, Kommunikation, Helfende)
+function vorschlagsSeite(z, daten) {
+  const { gruppe } = daten;
+  const zeilen = vorschlaegeKarten(z, vorschlaegeFuer(z.katalog));
+  return dialogFormular({
+    titel: "Rollen für das OK vorschlagen",
+    beschreibung:
+      "Diese Rollen braucht ein OK meistens. Streiche, was du nicht brauchst, benenne um und füge eigene hinzu. Die Rechte stellst du danach in der Matrix ein.",
+    felder: [zeilen.wurzel],
+    ok: "Rollen anlegen",
+    fehlertext: (f) => f.teilweise ?? text(f),
+    pruefe: () => zeilen.pruefe(),
+    senden: async () => {
+      const fehler = [];
+      let ok = 0;
+      for (const r of zeilen.wert()) {
+        try {
+          await legeRolleAn(gruppe.id, r);
+          ok++;
+        } catch (f) {
+          fehler.push(`«${r.name}»: ${text(f)}`);
+        }
+      }
+      if (fehler.length > 0) {
+        throw Object.assign(new Error("teilweise"), {
+          teilweise: `${ok > 0 ? `${rollenText(ok)} angelegt. ` : ""}${fehler.join(" ")}`,
+        });
+      }
+      return { ok };
+    },
+    danach: ({ ok }) => {
+      z.ctx.melde(ok === 1 ? "1 Rolle angelegt." : `${ok} Rollen angelegt.`);
+      z.neu();
+    },
+  });
+}
+
+// Zeilen mit Haken, Name und den vorgeschlagenen Rechten (zur Ansicht); eigene Zeilen lassen sich dazufügen. Gebraucht vom Vorschlag hier und beim Anlegen eines OK am Anlass
+export function vorschlaegeKarten(z, vorschlaege) {
+  const wurzel = el("div", { class: "rr-vorschlaege" });
+  const liste = el("ul", { class: "rr-vorschlagliste" });
+  const zeilen = [];
+  function neueZeile(v, eigen = false) {
+    const haken = el("input", {
+      type: "checkbox",
+      checked: true,
+      "aria-label": `Rolle anlegen: ${v.name || "neue Rolle"}`,
+    });
+    const name = el("input", {
+      class: "eingabe",
+      type: "text",
+      maxlength: "50",
+      "aria-label": "Name der Rolle",
+      placeholder: "Name der Rolle",
+    });
+    name.value = v.name;
+    const li = el(
+      "li",
+      { class: "rr-vorschlagzeile" },
+      el("div", { class: "wahl" }, haken),
+      el(
+        "div",
+        { class: "rr-vorschlagtext" },
+        name,
+        el(
+          "span",
+          { class: "klein leise" },
+          v.rechte.length === 0
+            ? v.beschreibung || "Ohne Rechte, die stellst du danach ein."
+            : `${v.beschreibung ? `${v.beschreibung} ` : ""}Rechte: ${v.rechte.map((x) => `${z.klartext(x.recht)}${x.geltung === "eigene" ? " (eigene)" : ""}`).join(", ")}.`,
+        ),
+      ),
+      eigen &&
+        knopf("Entfernen", {
+          klein: true,
+          art: "still",
+          symbol: "schliessen",
+          onclick: () => {
+            li.remove();
+            zeilen.splice(
+              zeilen.findIndex((x) => x.li === li),
+              1,
+            );
+          },
+        }),
+    );
+    zeilen.push({ li, haken, name, v });
+    liste.append(li);
+    return name;
+  }
+  vorschlaege.forEach((v) => neueZeile(v));
+  const dazu = knopf("Eigene Rolle hinzufügen", {
+    klein: true,
+    symbol: "plus",
+    onclick: () =>
+      neueZeile({ name: "", beschreibung: "", rechte: [] }, true).focus(),
+  });
+  const fehler = el("p", { class: "feld-fehler", role: "alert", hidden: true });
+  wurzel.append(liste, el("div", { class: "reihe" }, dazu), fehler);
+  return {
+    wurzel,
+    pruefe() {
+      const gewaehlt = zeilen.filter((x) => x.haken.checked);
+      const namen = gewaehlt.map((x) => x.name.value.trim().toLowerCase());
+      const leer = gewaehlt.some((x) => x.name.value.trim() === "");
+      const doppelt = new Set(namen).size !== namen.length;
+      fehler.hidden = !(leer || doppelt);
+      fehler.textContent = leer
+        ? "Jede gewählte Rolle braucht einen Namen."
+        : doppelt
+          ? "Zwei Rollen heissen gleich. Gib jeder einen eigenen Namen."
+          : "";
+      return leer || doppelt;
+    },
+    wert: () =>
+      zeilen
+        .filter((x) => x.haken.checked)
+        .map((x, i) => ({
+          name: x.name.value.trim(),
+          // In der Reihenfolge der Zeilen, hinter den eingebauten Rollen
+          reihenfolge: i + 2,
+          beschreibung: x.v.beschreibung || null,
+          rechte: x.v.rechte,
+        })),
+  };
 }
