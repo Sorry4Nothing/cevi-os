@@ -383,6 +383,8 @@ Wer eine Sitzung hat, sieht nie Objekte einer anderen Abteilung, auch keine öff
 
 Geschützte Bausteine einer Seite liefert `GET /api/v1/website/inhalt` nur mit Sitzung und nur, wenn die Person die Seite und den Baustein sehen darf; sonst 404 ohne Hinweis.
 
+Das Konto-Menü im Kopf der Website (#669) fragt `GET /api/v1/website/konto`: jede Person mit Sitzung bekommt Anzeigename, Pfad des eigenen Profilbilds und `verwaltung` (die Abteilungsleitung oder ein Bereich, die Belegung der Räume oder ein Recht bei Terminen, Räumen und Anlässen, dieselbe Regel wie beim Start der Verwaltung). Das ist nur Anzeige für den Eintrag «Verwaltung»; es vergibt kein Recht.
+
 ### 5.2 Termine (`programm.sichtbarkeit`, `termine/sicht.ts`)
 
 | Wert       | Wer sieht es (nach Tags des Termins)                                                                                                                | Öffentlicher Datenplan der Website      |

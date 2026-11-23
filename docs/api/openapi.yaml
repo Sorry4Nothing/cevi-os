@@ -1147,6 +1147,201 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-detail.js:
+    get:
+      operationId: getAdminLagerDetailSkript
+      summary: Skript der Verwaltung – Bereich Lager, Detailansicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-ereignisse.js:
+    get:
+      operationId: getAdminLagerEreignisseSkript
+      summary: Skript der Verwaltung – Bereich Lager, Ereignisse
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-konflikt.js:
+    get:
+      operationId: getAdminLagerKonfliktSkript
+      summary: Skript der Verwaltung – Bereich Lager, Konflikte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-benachrichtigungen.js:
+    get:
+      operationId: getAdminLagerBenachrichtigungenSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Benachrichtigungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-check.js:
+    get:
+      operationId: getAdminLagerCheckSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Check
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-heute.js:
+    get:
+      operationId: getAdminLagerHeuteSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Heute
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-ressorts.js:
+    get:
+      operationId: getAdminLagerRessortsSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Ressorts
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-suche.js:
+    get:
+      operationId: getAdminLagerSucheSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Suche
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-woche.js:
+    get:
+      operationId: getAdminLagerWocheSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Woche
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-module.js:
+    get:
+      operationId: getAdminLagerModuleSkript
+      summary: Skript der Verwaltung – Bereich Lager, Register der Module
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-rahmen.css:
+    get:
+      operationId: getAdminLagerRahmenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lager, Arbeitsbereich
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/lager-rahmen.js:
+    get:
+      operationId: getAdminLagerRahmenSkript
+      summary: Skript der Verwaltung – Bereich Lager, Rahmen des Arbeitsbereichs
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-start-teile.js:
+    get:
+      operationId: getAdminLagerStartTeileSkript
+      summary: Skript der Verwaltung – Bereich Lager, Teile der Startseite
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
@@ -23408,6 +23603,43 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/website/konto:
+    get:
+      operationId: leseWebsiteKonto
+      summary: Konto-Menü im Kopf der Website
+      description: |
+        Für das Skript der öffentlichen Website (#669). Die Seiten der Website sind für alle gleich; nach dem Laden fragt der Kopf, ob eine Sitzung besteht, und zeigt dann anstelle von «Anmelden» ein Konto-Menü mit Namen, Bild und Abmelden.
+
+        Die Antwort hat nur drei Felder: `name` ist der Anzeigename wie sonst auf der Website (der Cevi-Name, sonst der Vorname; nie Benutzername, E-Mail oder Telefon), `bildUrl` der Pfad des eigenen Profilbilds mit Version (`null` ohne Bild; es ist das Bild der Person selbst und braucht dieselbe Sitzung) und `verwaltung`, ob die Person die Verwaltung unter `/admin` öffnen darf: die Abteilungsleitung oder jemand mit einem Bereich, der Belegung der Räume oder einem Recht bei Terminen, Räumen und Anlässen (dieselbe Regel wie beim Start der Verwaltung, nach `GET /api/v1/redaktion/ich`). Nur Anzeige; jede Route der Verwaltung prüft selbst.
+
+        Die Antwort ist `Cache-Control: private, no-store` und `Vary: Cookie`. Ohne Sitzung 401 mit dem üblichen neutralen Body: Dann bleibt «Anmelden» stehen.
+
+        Statuscodes: 200, 401, 403 (Pflichtwechsel des Passworts offen).
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Anzeigename, Bild und Zugang zur Verwaltung.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                  - private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteKonto"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/website:
     get:
       operationId: leseRedaktionWebsiteEinstellungen
@@ -39025,6 +39257,27 @@ components:
                 description: ID des Bausteins; bei einer öffentlichen Seite die des Platzhalters `data-geschuetzt` im HTML.
               knoten:
                 $ref: "#/components/schemas/WebsiteKnoten"
+    WebsiteKonto:
+      type: object
+      required:
+        - name
+        - bildUrl
+        - verwaltung
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Anzeigename wie sonst auf der Website, der Cevi-Name, sonst der Vorname. Nie Benutzername, E-Mail oder Telefon.
+        bildUrl:
+          type:
+            - string
+            - "null"
+          pattern: "^/api/v1/personen/[0-9a-f-]{36}/bild\\?v=\\d+$"
+          description: Pfad des eigenen Profilbilds mit Version; `null` ohne Bild (der Kopf zeigt die Initiale).
+        verwaltung:
+          type: boolean
+          description: Die Person darf die Verwaltung öffnen. Nur Anzeige für den Eintrag «Verwaltung»; jede Route prüft selbst.
     WebsiteKnoten:
       description: Ein Text (Zeichenkette) oder ein Element. Das Skript setzt Text als Textknoten und lässt nur bekannte Elemente und Attribute mit geprüften Werten zu.
       oneOf:

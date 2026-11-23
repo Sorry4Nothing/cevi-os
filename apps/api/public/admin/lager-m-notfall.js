@@ -69,7 +69,7 @@ function nummernKarte() {
           el(
             "a",
             {
-              class: "knopf knopf--gross lm-notruf-nummer",
+              class: "lm-notruf-nummer",
               href: telefonLink(nummer),
             },
             el("strong", {}, nummer),

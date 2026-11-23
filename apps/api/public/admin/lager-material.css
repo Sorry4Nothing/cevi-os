@@ -264,18 +264,38 @@ tr.lm-erledigt th label {
   list-style: none;
 }
 
+/* Zahl gross, Wort klein darunter, beides mittig; alle Kacheln gleich gross */
 .lm-notruf-nummer {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 12px;
-  min-height: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-width: 9rem;
+  min-height: 5rem;
+  padding: 12px 24px;
+  color: var(--text);
+  background: var(--karte);
+  border: 2px solid var(--outline);
+  border-radius: var(--r-md);
+  text-align: center;
   text-decoration: none;
+}
+
+.lm-notruf-nummer:hover {
+  background: var(--surface-container);
 }
 
 .lm-notruf-nummer strong {
   font-size: 1.75rem;
   line-height: 2rem;
   font-variant-numeric: tabular-nums;
+}
+
+.lm-notruf-nummer span {
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
 }
 
 .lm-adresse {
@@ -318,6 +338,7 @@ tr.lm-erledigt th label {
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   text-underline-offset: 0.2em;
+  white-space: nowrap;
 }
 
 .lm-ressortkontakte {
@@ -542,6 +563,10 @@ tr.lm-erledigt th label {
   .lm-vergleich,
   .lm-angaben {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lm-notruf li {
+    flex: 1 1 8rem;
   }
 
   .lm-notruf-nummer {
