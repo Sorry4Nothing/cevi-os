@@ -368,3 +368,10 @@ dialog.ws-fenster--breit {
 .ws-logovorschau--dunkel {
   background: #141412;
 }
+
+/* Zeichen für den Browser-Tab (#558): quadratisch und klein, wie es später erscheint */
+.ws-logovorschau--zeichen {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+}
