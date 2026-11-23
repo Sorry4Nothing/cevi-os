@@ -213,3 +213,67 @@ describe("Registrierung", () => {
     expect(q).toContain('"aria-haspopup": "menu"');
   });
 });
+
+describe("Ziehen mit Bewegung (#609)", () => {
+  test("eine Engine in sortieren.js: Seitenbaum, Lädeli und Sortierliste benutzen sie, keiner baut ein eigenes Ziehen", () => {
+    expect(quelle("sortieren.js")).toContain(
+      "export function zieheMitBewegung",
+    );
+    for (const datei of [
+      "website-baumansicht.js",
+      "laedeli.js",
+      "sortieren.js",
+    ]) {
+      const q = quelle(datei);
+      expect(q, datei).toContain("zieheMitBewegung(");
+      // Kein eigener Griff am Zeiger mehr (er ging beim Umbauen des Dokuments verloren)
+      expect(q, datei).not.toContain("setPointerCapture");
+    }
+  });
+
+  test("Bewegung nur bei erlaubter Bewegung: Übergänge im Block no-preference, JS fragt matchMedia", () => {
+    const css = quelle("werkzeuge.css");
+    const block = css.slice(
+      css.indexOf("@media (prefers-reduced-motion: no-preference)"),
+    );
+    expect(block).toContain(".sortier-weicht.sortier-weicht");
+    expect(block).toContain(".sortier-setzt-ab.sortier-setzt-ab");
+    // Ausserhalb des Blocks gibt es keinen Übergang für die Zeilen
+    expect(
+      css.slice(0, css.indexOf("@media (prefers-reduced-motion")),
+    ).not.toContain(".sortier-weicht");
+    expect(quelle("sortieren.js")).toContain(
+      "(prefers-reduced-motion: no-preference)",
+    );
+  });
+
+  test("Tastatur und Knöpfe bleiben: Griff mit Leertaste, Hoch und Runter, Ansage", () => {
+    const q = quelle("sortieren.js");
+    expect(q).toContain("onkeydown");
+    expect(q).toContain("Nach oben:");
+    expect(q).toContain("Nach unten:");
+    expect(q).toContain('role: "status"');
+    const l = quelle("laedeli.js");
+    expect(l).toContain('"Nach oben"');
+    expect(l).toContain('e.key === "ArrowUp"');
+  });
+
+  test("Lädeli Einstellungen: Speicherleiste unten statt Knopf im Formular", () => {
+    const l = quelle("laedeli.js");
+    const teil = l.slice(l.indexOf("function zeigeEinstellungen"));
+    expect(teil).toContain("speicherLeiste(");
+    expect(teil).not.toContain('knopf("Speichern"');
+    expect(teil).not.toContain("aktionen--unten");
+  });
+
+  test("keine Style-Attribute aus dem Skript (CSP style-src 'self')", () => {
+    for (const datei of [
+      "laedeli.js",
+      "sortieren.js",
+      "website-baumansicht.js",
+    ]) {
+      expect(quelle(datei), datei).not.toMatch(/\bstyle: [`"]/);
+      expect(quelle(datei), datei).not.toContain('setAttribute("style"');
+    }
+  });
+});

@@ -46,9 +46,19 @@
   outline: 2px solid var(--focus);
 }
 
+/* Gezogen: angehoben (Schatten und Rahmen kommen aus werkzeuge.css), die Nachbarn weichen aus, ein gestrichelter Platzhalter zeigt den Zielplatz */
 .ws-zeile.wird-gezogen {
   background: var(--surface-container-high);
-  outline: 2px dashed var(--focus);
+  border-radius: var(--r-sm);
+  border-top-color: transparent;
+}
+
+.ws-baum.sortier-zieht {
+  overflow: visible;
+}
+
+.ws-baum .sortier-platzhalter {
+  border-radius: var(--r-sm);
 }
 
 /* Die Spalte mit Griff, Führungslinien, Faltknopf und Name */
@@ -167,15 +177,7 @@
   justify-content: flex-end;
 }
 
-/* Ziel beim Ziehen: Linie davor, Rahmen für «darunter», Linie danach; gesperrt gestrichelt (der Grund steht danach in der Meldung, nie nur Farbe) */
-.ws-zeile.ws-ziel-vor {
-  box-shadow: inset 0 3px 0 var(--focus);
-}
-
-.ws-zeile.ws-ziel-nach {
-  box-shadow: inset 0 -3px 0 var(--focus);
-}
-
+/* Ziel beim Ziehen: Der Platzhalter (eingerückt, wenn die Seite Unterseite wird) zeigt den Platz; ein Rahmen um die Elternseite zeigt «darunter»; gesperrt gestrichelt (der Grund steht danach in der Meldung, nie nur Farbe) */
 .ws-zeile.ws-ziel-in {
   background: var(--surface-container-high);
   outline: 2px solid var(--focus);
@@ -183,10 +185,6 @@
 
 .ws-zeile.ws-ziel-nein {
   outline: 2px dashed var(--error);
-}
-
-.ws-zieht {
-  user-select: none;
 }
 
 @media (prefers-reduced-motion: no-preference) {

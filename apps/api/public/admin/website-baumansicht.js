@@ -15,6 +15,7 @@ import {
   wendeAn,
 } from "./website-baum.js";
 import { anzahlText, kuerze, sichtbarkeitText } from "./website-dialoge.js";
+import { zieheMitBewegung } from "./sortieren.js";
 import { symbol } from "./website-symbole.js";
 
 // Der Seitenbaum der Website als WAI-ARIA-Tree (Vorlage im Aufbau: Dateibaum mit Führungslinien, Ziehen auf eine Elternseite, F2 zum Umbenennen).
@@ -456,83 +457,92 @@ export function baumAnsicht(k, zustand) {
     );
   }
 
-  // --- Ziehen mit Maus, Finger und Stift am Griff
+  // --- Ziehen mit Maus, Finger und Stift am Griff (zieheMitBewegung in sortieren.js): Die Zeile folgt dem Zeiger, die anderen weichen aus, der Platzhalter zeigt den Zielplatz.
+  // Die Zone der Zeile unter dem Zeiger entscheidet: oberes Viertel = davor, unteres = danach, Mitte = als Unterseite darunter (Rahmen um die Elternseite, Platzhalter eingerückt)
   function ziehe(e, seite) {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     e.preventDefault();
-    const griff = e.currentTarget;
-    griff.setPointerCapture?.(e.pointerId);
     const row = zeileEl(seite.id);
-    row.classList.add("wird-gezogen");
-    wurzel.classList.add("ws-zieht");
-    let ziel = null; // { elternId, index, zeile, zone, grund }
-    let y = e.clientY;
-    let lauf = true;
-    const aufraeumen = () => {
-      for (const r of wurzel.querySelectorAll(
-        ".ws-ziel-vor, .ws-ziel-in, .ws-ziel-nach, .ws-ziel-nein",
-      )) {
-        r.classList.remove(
-          "ws-ziel-vor",
-          "ws-ziel-in",
-          "ws-ziel-nach",
-          "ws-ziel-nein",
-        );
-      }
-    };
-    const bewegt = (ev) => {
-      y = ev.clientY;
-      aufraeumen();
-      ziel = null;
-      const t = document
-        .elementFromPoint(ev.clientX, ev.clientY)
-        ?.closest?.("[role=treeitem]");
-      if (!t || t === row || !wurzel.contains(t)) return;
-      const r = t.getBoundingClientRect();
-      const bruch = (ev.clientY - r.top) / r.height;
-      const zone = bruch < 0.28 ? "vor" : bruch > 0.72 ? "nach" : "in";
-      const s = nachId(t.dataset.id);
-      let elternId;
-      let index;
-      if (zone === "in") {
-        elternId = s.id;
-        index = Infinity;
-      } else {
-        elternId = s.elternId;
-        const reihe = geschwister(seiten(), elternId, seite.id);
-        index =
-          reihe.findIndex((x) => x.id === s.id) + (zone === "nach" ? 1 : 0);
-      }
-      const grund = ablehnung(baum, nachId(seite.id), elternId);
-      ziel = { elternId, index, zone, grund };
-      t.classList.add(grund ? "ws-ziel-nein" : `ws-ziel-${zone}`);
-    };
-    // Nahe am Rand scrollt die Seite mit
-    const scrolle = () => {
-      if (!lauf) return;
-      if (y < 90) window.scrollBy(0, -14);
-      else if (y > window.innerHeight - 90) window.scrollBy(0, 14);
-      window.requestAnimationFrame(scrolle);
-    };
-    window.requestAnimationFrame(scrolle);
-    const fertig = (ev) => {
-      lauf = false;
-      griff.removeEventListener("pointermove", bewegt);
-      griff.removeEventListener("pointerup", fertig);
-      griff.removeEventListener("pointercancel", fertig);
-      aufraeumen();
-      row.classList.remove("wird-gezogen");
-      wurzel.classList.remove("ws-zieht");
-      if (ev.type === "pointercancel" || !ziel) return;
-      if (ziel.grund) {
-        k.ctx.melde(ziel.grund, "info");
-        return;
-      }
-      verschiebe(nachId(seite.id), ziel.elternId, ziel.index);
-    };
-    griff.addEventListener("pointermove", bewegt);
-    griff.addEventListener("pointerup", fertig);
-    griff.addEventListener("pointercancel", fertig);
+    const unter = baum.nachfahren(seite.id);
+    // Ihre sichtbaren Unterseiten wandern mit
+    const gruppe = [...wurzel.children].filter(
+      (r) => r === row || unter.has(r.dataset.id),
+    );
+    const einzugProEbene =
+      parseFloat(window.getComputedStyle(document.documentElement).fontSize) *
+      1.5;
+    zieheMitBewegung({
+      ereignis: e,
+      zeile: gruppe,
+      andere: () => [...wurzel.children].filter((r) => !gruppe.includes(r)),
+      huelle: wurzel,
+      ziel: ({ y, pos0, kaesten }) => {
+        if (kaesten.length === 0) return null;
+        let treffer = kaesten.findIndex((x) => y >= x.top && y < x.top + x.h);
+        let zone;
+        if (treffer < 0) {
+          // Über der ersten oder unter der letzten Zeile gilt diese; dazwischen (Lücke oder eigener Platz) bleibt das Ziel
+          if (y < kaesten[0].top) treffer = 0;
+          else if (y >= kaesten.at(-1).top + kaesten.at(-1).h)
+            treffer = kaesten.length - 1;
+          else return null;
+          zone = treffer === 0 ? "vor" : "nach";
+        } else {
+          const bruch = (y - kaesten[treffer].top) / kaesten[treffer].h;
+          zone = bruch < 0.28 ? "vor" : bruch > 0.72 ? "nach" : "in";
+        }
+        const t = kaesten[treffer].el;
+        const s = nachId(t.dataset.id);
+        const sub = baum.nachfahren(s.id);
+        let elternId;
+        let index;
+        let pos;
+        if (zone === "vor") {
+          elternId = s.elternId;
+          index = geschwister(seiten(), elternId, seite.id).findIndex(
+            (x) => x.id === s.id,
+          );
+          pos = treffer;
+        } else {
+          // Nach der Zeile und ihren sichtbaren Unterseiten
+          let letzte = treffer;
+          kaesten.forEach((x, i) => {
+            if (sub.has(x.el.dataset.id)) letzte = Math.max(letzte, i);
+          });
+          pos = letzte + 1;
+          if (zone === "in") {
+            elternId = s.id;
+            index = Infinity;
+          } else {
+            elternId = s.elternId;
+            index =
+              geschwister(seiten(), elternId, seite.id).findIndex(
+                (x) => x.id === s.id,
+              ) + 1;
+          }
+        }
+        const grund = ablehnung(baum, nachId(seite.id), elternId);
+        const ebene = baum.ebenen.get(s.id) + (zone === "in" ? 1 : 0);
+        // Gesperrte Ziele machen keinen Platz: Die Zeilen bleiben, der gestrichelte Rahmen und die Meldung beim Loslassen sagen warum
+        return {
+          pos: grund ? pos0 : pos,
+          einzug: ebene * einzugProEbene,
+          marke: grund || zone === "in" ? t : null,
+          markeKlasse: grund ? "ws-ziel-nein" : "ws-ziel-in",
+          elternId,
+          index,
+          grund,
+        };
+      },
+      beiEnde: ({ abgebrochen, ziel }) => {
+        if (abgebrochen || ziel.elternId === undefined) return;
+        if (ziel.grund) {
+          k.ctx.melde(ziel.grund, "info");
+          return;
+        }
+        return verschiebe(nachId(seite.id), ziel.elternId, ziel.index);
+      },
+    });
   }
 
   // --- Umbenennen am Ort (F2)

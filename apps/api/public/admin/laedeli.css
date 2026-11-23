@@ -44,6 +44,35 @@
   max-width: 640px;
 }
 
+/* Vorschau der Übergabewahl: Ringe wie bei einer Auswahl, nur zur Ansicht */
+.ld-wahlvorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-wahlvorschau li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.ld-ring {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid var(--outline);
+  border-radius: 9999px;
+}
+
 /* Pflichtangabe «Grösse» im Artikelblatt: zwei Wahlkarten, bei «Liste» darunter das Feld mit den Grössen */
 .ld-groesse {
   min-width: 0;
@@ -145,47 +174,33 @@
   box-shadow: inset 0 3px 0 var(--akzent);
 }
 
-body.ld-zieht {
-  cursor: grabbing;
-  user-select: none;
-}
-
-/* Beim Ziehen mit Maus oder Finger: Die Zeile folgt dem Zeiger, eine Kante an der Zielzeile zeigt, wo sie landet */
-.ld-tabelle tr.ld-gezogen {
-  position: relative;
-  z-index: 2;
-  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 40%);
-}
-
-.ld-tabelle tr.ld-gezogen > * {
+/* Ziehen mit Maus oder Finger: Die Zeile folgt dem Zeiger, die anderen rutschen weg, ein Platzhalter zeigt den Zielplatz (sortieren.js, werkzeuge.css). Die Spaltenbreiten bleiben, weil die Zeilen Tabellenzeilen bleiben */
+.ld-tabelle tr.wird-gezogen > * {
   background: var(--karte);
+  border-top-color: transparent;
 }
 
-.ld-tabelle tr.ld-vor > * {
-  box-shadow: inset 0 3px 0 var(--akzent);
+.ld-tabelle .sortier-platzhalter {
+  border-radius: var(--r-sm);
 }
 
-.ld-tabelle tr.ld-nach > * {
-  box-shadow: inset 0 -3px 0 var(--akzent);
-}
-
-/* Bestellungen als Karten mit Statusschiene (#591) */
+/* Bestellungen als Karten (Vorlage: Bestellkarten von Kokonut): Kopf mit Initialen, Schiene, Positionen mit Zeilensumme, Summe, Übergabe und Aktion */
 .ld-bestellungen {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr));
-  gap: 16px;
-  margin-top: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
 }
 
 .ld-bestellung {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 1.25rem;
   min-width: 0;
-  padding: 16px;
+  padding: 1.25rem;
   background: var(--karte);
-  border: 1px solid var(--rand-leise);
-  border-radius: 16px;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
 }
 
 .ld-bestellung[hidden] {
@@ -195,34 +210,108 @@ body.ld-zieht {
 .ld-bestellung-kopf {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 0.75rem;
+}
+
+/* Kleine Kachel mit den Initialen: ruhig, nur Rand, keine Fläche */
+.ld-kuerzel {
+  display: grid;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: var(--on-surface-variant);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ld-bestellung-wer {
+  flex: 1;
+  min-width: 0;
 }
 
 .ld-bestellung-name {
   margin: 0;
   font-size: 1.125rem;
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.ld-stand {
+  flex: none;
+  justify-content: flex-end;
+}
+
+.ld-bestellung--storniert .ld-positionen,
+.ld-bestellung--storniert .ld-uebergabe {
+  color: var(--on-surface-variant);
+}
+
+.ld-bestellung--storniert .ld-position-name {
+  text-decoration: line-through;
+}
+
+/* Positionen: Name und Grösse links, Zeilensumme rechts; feine Linien dazwischen; zuletzt die Summe */
+.ld-positionen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-position {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.ld-position:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ld-position-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ld-position-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.ld-position-preis,
+.ld-summe {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ld-total {
+  font-weight: 800;
 }
 
 .ld-summe {
   margin: 0;
   font-size: 1.125rem;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
 }
 
 .ld-uebergabe {
-  margin: 0;
+  margin: -0.5rem 0 0;
 }
 
 .ld-bestellung-aktion {
   margin-top: auto;
-  padding-top: 4px;
 }
 
-/* Schiene: drei Schritte, durch eine Linie verbunden. Erledigt = Haken, jetzt = gefüllt, noch offen = leerer Ring */
+/* Schiene: eine Linie mit drei Punkten, bis zum aktuellen Schritt gefüllt. Erledigt = Haken, jetzt = gefüllt mit Ring, noch offen = leerer Ring */
 .ld-schiene {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin: 0;
@@ -230,70 +319,105 @@ body.ld-zieht {
   list-style: none;
 }
 
-.ld-schritt {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  color: var(--leise);
-  font-size: 0.875rem;
-}
-
-/* Die Linie läuft vom Punkt zum nächsten */
-.ld-schritt:not(:last-child)::after {
+.ld-schiene::before,
+.ld-schiene::after {
   content: "";
   position: absolute;
-  top: 11px;
-  left: 32px;
-  right: 8px;
+  top: 0.6875rem;
+  left: 0.75rem;
   height: 2px;
-  background: var(--rand-leise);
+  border-radius: 1px;
 }
 
-.ld-schritt--erledigt:not(:last-child)::after {
-  background: var(--akzent);
+.ld-schiene::before {
+  right: 0.75rem;
+  background: var(--outline-variant);
+}
+
+.ld-schiene::after {
+  width: 0;
+  background: var(--accent);
+}
+
+.ld-schiene[data-schritt="1"]::after {
+  width: calc((100% - 1.5rem) / 2);
+}
+
+.ld-schiene[data-schritt="2"]::after {
+  width: calc(100% - 1.5rem);
+}
+
+.ld-schritt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.ld-schritt:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.ld-schritt:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ld-seit {
+  margin-top: -0.25rem;
+  font-weight: 400;
 }
 
 .ld-punkt {
   display: grid;
-  width: 24px;
-  height: 24px;
+  width: 1.5rem;
+  height: 1.5rem;
   place-items: center;
   background: var(--karte);
-  border: 2px solid var(--rand);
+  border: 2px solid var(--outline);
   border-radius: 9999px;
 }
 
 .ld-punkt .i {
-  width: 14px;
-  height: 14px;
+  width: 0.875rem;
+  height: 0.875rem;
   stroke-width: 3;
 }
 
 .ld-schritt--erledigt .ld-punkt {
-  color: var(--auf-akzent);
-  background: var(--akzent);
-  border-color: var(--akzent);
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 .ld-schritt--jetzt {
-  color: var(--text);
+  color: var(--on-surface);
   font-weight: 800;
 }
 
 .ld-schritt--jetzt .ld-punkt {
-  background: var(--blau);
-  border-color: var(--blau);
-  box-shadow: 0 0 0 4px var(--blau-f);
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--karte),
+    0 0 0 6px var(--accent);
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ld-punkt,
-  .ld-schritt::after {
+  .ld-punkt {
     transition:
       background var(--dauer) var(--kurve),
       border-color var(--dauer) var(--kurve);
+  }
+
+  .ld-schiene::after {
+    transition: width var(--dauer-lang) var(--kurve);
   }
 }
 
