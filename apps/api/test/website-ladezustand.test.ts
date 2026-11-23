@@ -2,7 +2,10 @@
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import { afterEach, describe, expect, test, vi } from "vitest";
+// Reine Browser-Module ohne Typen
+// @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
 import { holeMitFrist, FRIST_MS } from "../public/website/ui.js";
+// @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
 import { ladeAnsage } from "../public/website/tm.js";
 
 const lies = (n: string) =>
@@ -179,6 +182,26 @@ describe("Stil der Ladezustände (website.css)", () => {
   test("das Zeichen für fehlende Bilder ist eine eigene Datei ohne Skript und ohne fremde Adresse", () => {
     const svg = lies("bild-fehlt.svg");
     expect(svg).not.toMatch(/<script|href=|https?:\/\/(?!www\.w3\.org)/);
+  });
+});
+
+describe("Seitenwechsel als View Transition (#574)", () => {
+  test("nur ohne reduzierte Bewegung; der Kopf hat eine eigene Gruppe und steht still", () => {
+    const i = CSS.indexOf("@view-transition");
+    expect(i).toBeGreaterThan(-1);
+    // Es gibt genau eine Regel, und sie steht in einem Block für «Bewegung erlaubt»
+    expect(CSS.match(/@view-transition/g)).toHaveLength(1);
+    const davor = CSS.slice(0, i);
+    const block = davor.lastIndexOf(
+      "@media (prefers-reduced-motion: no-preference)",
+    );
+    expect(block).toBeGreaterThan(
+      davor.lastIndexOf(
+        String.fromCharCode(10) + "}" + String.fromCharCode(10),
+      ),
+    );
+    expect(CSS).toMatch(/navigation: auto/);
+    expect(CSS).toMatch(/[.]kopf [{]\s*view-transition-name: kopf;/);
   });
 });
 

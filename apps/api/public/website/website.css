@@ -2896,3 +2896,22 @@ dialog.lichtkasten {
     scrollbar-color: auto;
   }
 }
+
+/* Seitenwechsel (#574): Beim Wechsel zwischen Seiten der Website blendet der Inhalt ruhig über (View Transition über Dokumente, reines CSS). Der Kopf steht still: Er hat seine eigene Gruppe, und weil alt und neu gleich sind, ändert sich nur das Zeichen der aktuellen Seite.
+   Wo der Browser es nicht kann, wechselt die Seite wie immer. Bei «Bewegung reduzieren» gibt es keinen Übergang. Hell und Dunkel (theme.js) behalten ihre längere Dauer */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition {
+    navigation: auto;
+    types: seite;
+  }
+
+  .kopf {
+    view-transition-name: kopf;
+  }
+
+  html:active-view-transition-type(seite)::view-transition-old(root),
+  html:active-view-transition-type(seite)::view-transition-new(root) {
+    animation-duration: var(--dauer);
+    animation-timing-function: var(--kurve);
+  }
+}
