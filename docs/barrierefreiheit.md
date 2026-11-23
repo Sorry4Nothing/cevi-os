@@ -464,7 +464,6 @@ Dieser Abschnitt gilt für das Personenformular (`personen-blatt.js`, `personen.
 - [ ] **29.5** «Gruppen und Tags» bietet keine Stufen an. Stufen der Person stehen darunter als Hinweiszeile («Stufe X: über «Rechte und Rollen» (Stufenleitung).»); eine Zuordnung ohne Rolle sagt das und nennt, wo man sie entfernt. In der Gruppe einer Stufe lassen sich Leitung und Stufenleitung nicht ändern oder entfernen («Bei der Person ändern»); Mitglieder fügt man dort nicht hinzu, die Karte verweist auf die Person.
 - [ ] **29.6** Mit «Bewegung reduzieren» erscheinen neue Zeilen ohne Übergang; sonst blenden sie kurz ein (`--dauer`, `--kurve`). Bei 390 Pixeln stehen Auswahl, Auswahl und Knopf untereinander, Ziele sind mindestens 44 Pixel hoch, nichts scrollt waagrecht; bei 200 % Zoom bleibt jede Zeile lesbar.
 
-
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
