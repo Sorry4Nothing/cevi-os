@@ -1,6 +1,7 @@
 // Erzeugt src/aktivitaet-titel.ts aus docs/api/openapi.yaml (#637): zu jeder schreibenden Operation (und den lesenden mit Zugriffszeile) die Zusammenfassung als Klartext für das Aktivitätsprotokoll.
 // Aufruf: node scripts/aktivitaet-titel-erzeugen.mjs  (test/aktivitaet-titel.test.ts prüft, dass die Datei dazu passt)
 import { readFileSync, writeFileSync } from "node:fs";
+import process from "node:process";
 import { parse } from "yaml";
 
 const wurzel = new URL("../../../", import.meta.url);

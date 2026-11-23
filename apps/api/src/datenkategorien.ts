@@ -149,6 +149,15 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  aktivitaet: {
+    titel: "Aktivitätsprotokoll",
+    zweck:
+      "Sicherheit und Nachvollziehbarkeit: Der Entwickler der Plattform sieht, welche Person wann welche Aktion ausgeführt hat und mit welchem Ergebnis, auch bei Fehlversuchen und Anmeldungen. Gespeichert sind Zeit, Name und Funktionen der Person zu diesem Zeitpunkt, die Aktion, das betroffene Objekt nur als Kennung, die Namen (nie die Werte) der geänderten Felder, das Ergebnis und ein Hash der IP-Adresse, der täglich wechselt und danach keiner Adresse mehr zuzuordnen ist. Nie gespeichert sind Inhalte von Anfragen, Passwörter, Texte von Mitteilungen oder Namen von Kindern.",
+    frist:
+      "Neunzig Tage, danach löscht ein nächtlicher Lauf die Einträge; die Abteilung kann die Frist im Betrieb zwischen 7 und 365 Tagen einstellen. Über einer festen Obergrenze an Einträgen fallen die ältesten früher weg. Wird ein Konto gelöscht, verlieren die Einträge der Person sofort Kennung, Namen und Funktionen.",
+    apple: ["Contact Info: Name", "Identifiers: User ID"],
+    google: ["Personal info: Name", "Personal info: User IDs"],
+  },
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
@@ -405,6 +414,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "password",
       "created_at",
       "updated_at",
+    ],
+  },
+  aktivitaet: {
+    aktivitaet: [
+      "id",
+      "zeit",
+      "art",
+      "abteilung_id",
+      "user_id",
+      "akteur",
+      "name",
+      "rollen",
+      "methode",
+      "aktion",
+      "bereich",
+      "objekt_typ",
+      "objekt_id",
+      "felder",
+      "status",
+      "ergebnis",
+      "fehler_code",
+      "dauer_ms",
+      "herkunft",
+      "geraet",
+      "anfrage_id",
+      "anzahl",
     ],
   },
   audit_log: {

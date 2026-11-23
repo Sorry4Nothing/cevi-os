@@ -73,6 +73,9 @@ export const aktivitaet = pgTable(
     index("aktivitaet_user_idx").on(t.userId, t.zeit.desc()),
     index("aktivitaet_aktion_idx").on(t.aktion, t.zeit.desc()),
     index("aktivitaet_bereich_idx").on(t.bereich, t.zeit.desc()),
+    index("aktivitaet_objekt_idx")
+      .on(t.objektId)
+      .where(sql`${t.objektId} is not null`),
     check(
       "aktivitaet_art_check",
       sql`${t.art} in ('aktion', 'anmeldung', 'audit', 'zugriff', 'system')`,

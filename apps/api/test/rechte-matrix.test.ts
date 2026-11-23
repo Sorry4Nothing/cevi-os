@@ -256,6 +256,10 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/rechte-uebersicht.js": { erwartet: alle(200) },
   "GET /admin/rechte-gemeinsam.js": { erwartet: alle(200) },
   "GET /admin/rechte-logik.js": { erwartet: alle(200) },
+  "GET /admin/protokoll.js": { erwartet: alle(200) },
+  "GET /admin/protokoll-liste.js": { erwartet: alle(200) },
+  "GET /admin/protokoll-text.js": { erwartet: alle(200) },
+  "GET /admin/protokoll.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -1282,6 +1286,39 @@ const MATRIX: Record<string, Zeile> = {
       admin: 200,
       adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Aktivitätsprotokoll (#637): nur der Entwickler (mit zweitem Faktor); die Matrix hat keine Person mit dieser Funktion, darum 403 für alle Angemeldeten, auch für die Abteilungsleitung. Lesen, Filter, Export und der Zugriff auf Fremdes stehen in test/aktivitaet.test.ts
+  "GET /api/v1/admin/protokoll": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/verlauf": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/export.csv": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/:id": {
+    url: () => `/api/v1/admin/protokoll/${randomUUID()}`,
+    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist f�r jede angemeldete Person 404
+    erwartet: {
+      ...alle(404),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
     },

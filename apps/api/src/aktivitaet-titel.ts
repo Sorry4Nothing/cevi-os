@@ -90,6 +90,12 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
   "GET /admin/personen.css":
     "Stilvorlage der Verwaltung – Personen, Gruppen und Tags",
   "GET /admin/personen.js": "Skript der Verwaltung – Bereich Personen",
+  "GET /admin/protokoll-liste.js":
+    "Skript der Verwaltung – Protokoll, Zeitleiste und Detail",
+  "GET /admin/protokoll-text.js":
+    "Skript der Verwaltung – Protokoll, Texte und Zeiten",
+  "GET /admin/protokoll.css": "Stilvorlage der Verwaltung – Protokoll",
+  "GET /admin/protokoll.js": "Skript der Verwaltung – Protokoll",
   "GET /admin/termine-anmeldungen.js":
     "Skript der Verwaltung – alte Adresse der Anmeldungen, leitet auf den Anlass um",
   "GET /api/v1/admin/anlaesse/:p/anmeldungen":
@@ -101,6 +107,13 @@ export const AKTIVITAET_TITEL: Record<string, string> = {
     "Bestellungen im Lädeli für die Verwaltung",
   "GET /api/v1/admin/personen":
     "Personen, Stufen und Kinder der Abteilung für die Verwaltung",
+  "GET /api/v1/admin/protokoll":
+    "Aktivitätsprotokoll lesen (neu zuerst, mit Filtern)",
+  "GET /api/v1/admin/protokoll/:p": "Einen Eintrag des Protokolls lesen",
+  "GET /api/v1/admin/protokoll/export.csv":
+    "Gefilterten Ausschnitt des Protokolls als CSV",
+  "GET /api/v1/admin/protokoll/verlauf":
+    "Zahl der Einträge und Fehler je Stunde oder Tag, dazu die Bereiche",
   "GET /api/v1/laden/bestellungen/meine": "Eigene Bestellungen im Lädeli",
   "GET /api/v1/lager/:p/adressbuch": "Adressbuch des Lagers auflisten",
   "GET /api/v1/lager/:p/adressbuch/:p": "Kontakt im Adressbuch lesen",

@@ -1,17 +1,10 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
 import { datumsfeld } from "./datumsfeld.js";
-import {
-  auswahl,
-  el,
-  feld,
-  filterGruppe,
-  icon,
-  knopf,
-  neueId,
-} from "./dom.js";
+import { auswahl, el, feld, filterGruppe, icon, knopf, neueId } from "./dom.js";
 import { kachel, prozent, zahl } from "./system.js";
 import { rangBalken, saeulen, wertetabelle } from "./uebersicht-diagramme.js";
-import { ARTEN, zeichneZeitleiste, zeigeDetail } from "./protokoll-liste.js";
+import { zeichneZeitleiste, zeigeDetail } from "./protokoll-liste.js";
+import { ARTEN } from "./protokoll-text.js";
 
 // Protokoll (#637), nur für den Entwickler: alles, was in Cevi OS geschrieben oder geändert wird, mit Benutzerstempel. Die Seite zeigt, was GET /api/v1/admin/protokoll liefert; ob jemand sie sehen darf, entscheidet der Server (403). Kein Polling: Neue Einträge holt «Aktualisieren». Die Aufbewahrung ist begrenzt (Vorgabe 90 Tage).
 // Vorlagen von Kokonut UI Pro: «Filter Toolbar» (Suche, Filter als Sätze in Chips, Trefferzahl), «Activity Feed» und «Event Timeline» (Zeitleiste), «Date Range Picker» (zwei Datumsfelder), «Version History» (Detail mit allen Angaben). Eigenes HTML und CSS.
@@ -60,9 +53,11 @@ function abfrage(filter, extra = {}) {
   return text ? `?${text}` : "";
 }
 
-const datumDe = (tag) => `${tag.slice(8, 10)}.${tag.slice(5, 7)}.${tag.slice(0, 4)}`;
+const datumDe = (tag) =>
+  `${tag.slice(8, 10)}.${tag.slice(5, 7)}.${tag.slice(0, 4)}`;
 const tageZwischen = (von, bis) =>
-  (Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) / 86_400_000;
+  (Date.parse(`${bis}T00:00:00Z`) - Date.parse(`${von}T00:00:00Z`)) /
+  86_400_000;
 
 // Beschriftung einer Säule: «14 Uhr» je Stunde, «Mo 23.11.» je Tag
 function saeulenName(start, einheit) {
@@ -84,7 +79,10 @@ export function zeige(bereich, ctx) {
 
   const verlaufFeld = el("div", { class: "pl-verlauf" });
   const kacheln = el("div", { class: "pl-kacheln" });
-  const chips = el("ul", { class: "pl-chips", "aria-label": "Gesetzte Filter" });
+  const chips = el("ul", {
+    class: "pl-chips",
+    "aria-label": "Gesetzte Filter",
+  });
   const treffer = el("p", { class: "klein leise", role: "status" });
   const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
   const listeFeld = el("div", { class: "pl-listenfeld" });
@@ -108,7 +106,13 @@ export function zeige(bereich, ctx) {
     spellcheck: "false",
     placeholder: "z. B. personen oder 403",
   });
-  const bereichWahl = { aktuell: auswahl({ label: "Bereich", optionen: [["", "Alle Bereiche"]], wert: "" }) };
+  const bereichWahl = {
+    aktuell: auswahl({
+      label: "Bereich",
+      optionen: [["", "Alle Bereiche"]],
+      wert: "",
+    }),
+  };
   const artWahl = auswahl({ label: "Art", optionen: ART_OPTIONEN, wert: "" });
   const ergebnisWahl = auswahl({
     label: "Ergebnis",
@@ -152,8 +156,9 @@ export function zeige(bereich, ctx) {
   function zeigeFilterInFeldern() {
     von.eingabe.value = filter.von;
     bis.eingabe.value = filter.bis;
-    benutzer.eingabe.value =
-      /^[0-9a-f-]{36}$/i.test(filter.benutzer) ? "" : filter.benutzer;
+    benutzer.eingabe.value = /^[0-9a-f-]{36}$/i.test(filter.benutzer)
+      ? ""
+      : filter.benutzer;
     aktion.eingabe.value = filter.q;
     artWahl.eingabe.value = filter.art;
     artWahl.eingabe.dispatchEvent(new Event("change"));
@@ -200,8 +205,21 @@ export function zeige(bereich, ctx) {
   });
 
   werkzeuge.append(
-    el("div", { class: "pl-zeile-felder" }, von.wurzel, bis.wurzel, benutzer.wurzel, aktion.wurzel),
-    el("div", { class: "pl-zeile-felder" }, bereichWahl.aktuell.wurzel, artWahl.wurzel, ergebnisWahl.wurzel),
+    el(
+      "div",
+      { class: "pl-zeile-felder" },
+      von.wurzel,
+      bis.wurzel,
+      benutzer.wurzel,
+      aktion.wurzel,
+    ),
+    el(
+      "div",
+      { class: "pl-zeile-felder" },
+      bereichWahl.aktuell.wurzel,
+      artWahl.wurzel,
+      ergebnisWahl.wurzel,
+    ),
   );
 
   function zeichneChips() {
@@ -255,22 +273,24 @@ export function zeige(bereich, ctx) {
       blatt.close();
       filterVonDetail(teil);
     });
-    blatt.addEventListener("close", () => ausloeser?.isConnected && ausloeser.focus());
+    blatt.addEventListener(
+      "close",
+      () => ausloeser?.isConnected && ausloeser.focus(),
+    );
   };
 
   // ---- Daten ----
   async function holeListe(nach) {
-    return anfrage(
-      "GET",
-      `${BASIS}${abfrage(filter, { limit: SEITE, nach })}`,
-    );
+    return anfrage("GET", `${BASIS}${abfrage(filter, { limit: SEITE, nach })}`);
   }
   async function holeVerlauf() {
-    const lang = filter.von && filter.bis && tageZwischen(filter.von, filter.bis) >= 7;
+    const lang =
+      filter.von && filter.bis && tageZwischen(filter.von, filter.bis) >= 7;
     const e = lang ? "tag" : einheit;
-    return anfrage("GET", `${BASIS}/verlauf${abfrage(filter, { einheit: e })}`).then(
-      (d) => ({ ...d, einheit: e }),
-    );
+    return anfrage(
+      "GET",
+      `${BASIS}/verlauf${abfrage(filter, { einheit: e })}`,
+    ).then((d) => ({ ...d, einheit: e }));
   }
 
   function zeichneKacheln(v) {
@@ -318,7 +338,9 @@ export function zeige(bereich, ctx) {
       beiAenderung: async (wert) => {
         einheit = wert;
         await neuLaden({ nurVerlauf: true });
-        verlaufFeld.querySelector('.filter button[aria-pressed="true"]')?.focus();
+        verlaufFeld
+          .querySelector('.filter button[aria-pressed="true"]')
+          ?.focus();
       },
     });
     const grafik =
@@ -387,7 +409,11 @@ export function zeige(bereich, ctx) {
               : "Das Protokoll ist noch leer. Eintragungen entstehen mit der nächsten Aktion.",
           ),
           Object.values(filter).some((v) => v !== "") &&
-            el("div", { class: "reihe" }, knopf("Filter zurücksetzen", { onclick: () => zurueck.click() })),
+            el(
+              "div",
+              { class: "reihe" },
+              knopf("Filter zurücksetzen", { onclick: () => zurueck.click() }),
+            ),
         ),
       );
     } else {
@@ -462,19 +488,26 @@ export function zeige(bereich, ctx) {
       knoten.push(
         el(
           "a",
-          { class: "knopf knopf--haupt", href: blobUrl, download: "protokoll.csv" },
+          {
+            class: "knopf knopf--haupt",
+            href: blobUrl,
+            download: "protokoll.csv",
+          },
           icon("ablage"),
           "protokoll.csv herunterladen",
         ),
       );
     } else {
       knoten.push(
-        knopf(zustand === "laeuft" ? "Wird erstellt …" : "Als CSV exportieren", {
-          symbol: "ablage",
-          art: "still",
-          disabled: zustand === "laeuft",
-          onclick: starteExport,
-        }),
+        knopf(
+          zustand === "laeuft" ? "Wird erstellt …" : "Als CSV exportieren",
+          {
+            symbol: "ablage",
+            art: "still",
+            disabled: zustand === "laeuft",
+            onclick: starteExport,
+          },
+        ),
       );
     }
     knoten.push(
@@ -492,10 +525,13 @@ export function zeige(bereich, ctx) {
     blobUrl = null;
     zeichneExport("laeuft");
     try {
-      const antwort = await fetch(`${BASIS}/export.csv${abfrage(filter, { limit: undefined, nach: undefined })}`, {
-        credentials: "same-origin",
-        cache: "no-store",
-      });
+      const antwort = await fetch(
+        `${BASIS}/export.csv${abfrage(filter, { limit: undefined, nach: undefined })}`,
+        {
+          credentials: "same-origin",
+          cache: "no-store",
+        },
+      );
       if (!antwort.ok) {
         let code;
         try {
@@ -528,12 +564,22 @@ export function zeige(bereich, ctx) {
     ),
     el("div", { class: "stand-zeile" }, stand, fehlerFeld),
     kacheln,
-    el("section", { class: "flaeche pl-flaeche", "aria-label": "Aktivität" }, verlaufFeld),
+    el(
+      "section",
+      { class: "flaeche pl-flaeche", "aria-label": "Aktivität" },
+      verlaufFeld,
+    ),
     el(
       "section",
       { class: "pl-liste-bereich", "aria-labelledby": sektionListeId },
       el("h2", { id: sektionListeId }, "Verlauf"),
-      el("div", { class: "pl-leiste-kopf" }, werkzeuge, el("div", { class: "pl-gesetzt" }, chips, zurueck), treffer),
+      el(
+        "div",
+        { class: "pl-leiste-kopf" },
+        werkzeuge,
+        el("div", { class: "pl-gesetzt" }, chips, zurueck),
+        treffer,
+      ),
       listeFeld,
       mehrFeld,
       exportFeld,

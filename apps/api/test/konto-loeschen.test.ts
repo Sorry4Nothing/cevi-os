@@ -159,7 +159,10 @@ describe("Konto löschen durch einen Admin", () => {
 
     expect(await userZeile(id)).toBeUndefined();
     // Nur im Audit-Log, und da nur die ID: weder Benutzername noch E-Mail-Adresse stehen irgendwo
-    const mitId = await treffer([id]);
+    // Das Aktivitätsprotokoll (#637) vergisst Kennung, Name und Funktionen der Person; als Objekt einer Zeile bleibt höchstens die Kennung, wie ziel_id im Audit-Log
+    const mitId = (await treffer([id])).filter(
+      (t) => t !== "aktivitaet.objekt_id",
+    );
     expect(new Set(mitId)).toEqual(
       new Set(["audit_log.akteur_id", "audit_log.ziel_id"]),
     );
@@ -321,7 +324,10 @@ describe("Chat-Daten", () => {
         .from(schema.blockierung)
         .where(inArray(schema.blockierung.userId, [p.id!, q.id!])),
     ).toEqual([]);
-    expect(await treffer([p.id!])).toEqual(["audit_log.ziel_id"]);
+    expect((await treffer([p.id!])).sort()).toEqual([
+      "aktivitaet.objekt_id",
+      "audit_log.ziel_id",
+    ]);
     expect(await treffer([p.benutzername!])).toEqual([]);
   });
 
@@ -354,7 +360,10 @@ describe("Chat-Daten", () => {
     );
     expect(await statusVon([gruppe], s1.id!)).toEqual(new Set());
     expect(await statusVon([gruppe], s2.id!)).toEqual(new Set([gruppe]));
-    expect(await treffer([s1.id!])).toEqual(["audit_log.ziel_id"]);
+    expect((await treffer([s1.id!])).sort()).toEqual([
+      "aktivitaet.objekt_id",
+      "audit_log.ziel_id",
+    ]);
     expect(await treffer([s1.benutzername!])).toEqual([]);
   });
 });

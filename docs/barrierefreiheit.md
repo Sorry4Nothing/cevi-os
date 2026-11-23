@@ -647,6 +647,24 @@ Gilt für den Fuss (`public/website/fuss.css`, `src/website/kontakt.ts`), das Ba
 - [ ] **31.6** Raumanfragen: Der Zweck (zum Beispiel «Sitzung OK») steht in der Liste in der ersten Spalte «Wofür» (als Knopf, Name mit Zweck, Raum und Tag) und im Detail als Überschrift der Ebene 2 unter dem Satz «Wofür der Raum gedacht ist»; Raum, Zeitraum und Person stehen als Liste darunter. Ein langer Zweck (bis 200 Zeichen) bricht um und wird nie abgeschnitten.
 - [ ] **31.7** Am Handy zeigt die Liste «Wofür» und «Raum»; Zeitraum und Person stehen im Detail. Entscheid und Meldungen nennen den Zweck und den Raum («Die Anfrage von … («Sitzung OK», Demo-Saal) ist bestätigt.»).
 
+## 41. Verwaltung: Protokoll (#637)
+
+Dieser Abschnitt gilt für `protokoll.js`, `protokoll-liste.js`, `protokoll-text.js` und `protokoll.css`. Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Die Seite zeigt dem Entwickler Kennzahlen, ein Säulendiagramm, eine Werkzeugleiste mit Filtern und die Einträge als Zeitleiste; ein Klick öffnet das Detail im Fluss.
+
+- [ ] **41.1** Die Seite ist nur für den Entwickler sichtbar (Navigation) und der Server antwortet allen anderen mit 403; ein Tiefenlink für eine andere Person zeigt «Kein Zugriff». Der Titel ist die Überschrift der Ebene 1, «Aktivität» und «Verlauf» sind Ebene 2, die Tage der Zeitleiste Ebene 3.
+- [ ] **41.2** Jede Zeile der Zeitleiste ist ein Knopf (44 Pixel hoch, sichtbarer Fokus); sein Name enthält Person, Funktionen, Art, Aktion, Objekt, Ergebnis und die absolute Zeit als Text (die relative Zeit steht sichtbar, die absolute zusätzlich nur für Screenreader und im Titel). Das Ergebnis steht als Wort («Erfolgreich», «Fehlgeschlagen») mit Symbol und Statuszahl, ein roter Rand verstärkt es nur.
+- [ ] **41.3** Die Werkzeugleiste hat beschriftete Felder (Von, Bis, Benutzer, Aktion, Bereich, Art, Ergebnis); die Datumsfelder sind die eigenen Felder der Verwaltung (Tippen und Kalender). Gesetzte Filter stehen als Knöpfe mit Namen («Filter entfernen: Ergebnis Fehlgeschlagen»); die Trefferzahl ist eine Zustandsmeldung. Tippen in Textfeldern fragt erst nach 350 ms.
+- [ ] **41.4** «Aktualisieren» holt neue Einträge auf Wunsch, nie im Takt (kein Polling); Fehler stehen als Zustandsmeldung, der alte Stand bleibt. Während des Ladens ist die Liste `aria-busy`. «Mehr laden» hängt 50 Einträge an; der Knopf zeigt «Lädt …» und ist dann gesperrt.
+- [ ] **41.5** Das Diagramm ist mit Pfeiltasten ablesbar (wie in der Übersicht), hat eine Beschriftung mit allen Werten und als Entsprechung eine Tabelle («Bereiche und Zahlen als Tabelle», aufklappbar, 44 Pixel hohe Überschrift). Fehlgeschlagene Anteile sind eine zweite Farbe und in der Beschriftung genannt, die Legende nennt beide mit Wort.
+- [ ] **41.6** Das Detail ist eine Seite im Fluss mit eigenem Verlaufseintrag (Zurück, Browser-Zurück, Escape schliessen sie, der Fokus kehrt zur Zeile zurück). Alle gespeicherten Felder stehen als Definitionsliste; Werte nur als Text. «Alle Einträge dieser Person / zu diesem Objekt / dieser Anfrage» sind Knöpfe mit Namen.
+- [ ] **41.7** Leer- (Filter ohne Treffer, leeres Protokoll), Lade- (Skeleton) und Fehlerzustand (Zustandskarte mit «Nochmals versuchen», 403 mit dem Satz des Servers) sind vorhanden. Der CSV-Export meldet seinen Zustand als `role="status"`.
+- [ ] **41.8** Hell, Dunkel, «Bewegung reduzieren» (Übergänge nur unter `no-preference`) und erzwungene Farben (der Fehlerrand und die Spur bleiben als Linie); Kontrast der Chips und Texte wie in den Tokens (4.5 : 1).
+- [ ] **41.9** 320, 390, 720, 1440, 1920 und 2560 Pixel: nichts scrollt waagrecht; auf dem Handy rutschen Ergebnis und Zeit unter den Text, das Detail steht untereinander (Begriff über Wert).
+
+### Stand der Prüfung (#637)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Demo-Daten gesehen: 41.1, 41.2, 41.3, 41.6 mit Tastatur und Maus (Enter auf der Zeile, Escape), 41.8 Hell und Dunkel bei 1440 und 390 Pixel, 41.9 (kein waagrechter Überlauf bei 390 und 1440). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben im Browser, Kontrastwerte mit einem Messwerkzeug, Bewegung reduzieren im Browser, 2560 Pixel, Fehlerzustand und 403 in der Oberfläche.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

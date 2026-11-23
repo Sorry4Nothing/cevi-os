@@ -33,6 +33,7 @@ CREATE INDEX "aktivitaet_zeit_idx" ON "aktivitaet" USING btree ("zeit" DESC NULL
 CREATE INDEX "aktivitaet_user_idx" ON "aktivitaet" USING btree ("user_id","zeit" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "aktivitaet_aktion_idx" ON "aktivitaet" USING btree ("aktion","zeit" DESC NULLS LAST);--> statement-breakpoint
 CREATE INDEX "aktivitaet_bereich_idx" ON "aktivitaet" USING btree ("bereich","zeit" DESC NULLS LAST);--> statement-breakpoint
+CREATE INDEX "aktivitaet_objekt_idx" ON "aktivitaet" USING btree ("objekt_id") WHERE "aktivitaet"."objekt_id" is not null;--> statement-breakpoint
 -- Nur lesen und anfügen (wie audit_log)
 REVOKE UPDATE, DELETE ON "aktivitaet" FROM cevi_os_api;--> statement-breakpoint
 CREATE FUNCTION aktivitaet_aufraeumen(tage integer, max_zeilen integer) RETURNS bigint
@@ -70,4 +71,13 @@ BEGIN
   RETURN NEW;
 END
 $$;--> statement-breakpoint
-CREATE TRIGGER aktivitaet_aus_audit AFTER INSERT ON "audit_log" FOR EACH ROW EXECUTE FUNCTION aktivitaet_aus_audit();
+CREATE TRIGGER aktivitaet_aus_audit AFTER INSERT ON "audit_log" FOR EACH ROW EXECUTE FUNCTION aktivitaet_aus_audit();--> statement-breakpoint
+-- Konto löschen heisst vergessen: Mit der Zeile in "user" verlieren die Zeilen des Protokolls Kennung, Namen und Funktionen der Person; als Objekt bleibt nur die Kennung, wie ziel_id im Audit-Log. Die Funktion läuft mit den Rechten des Besitzers, weil die API-Rolle nicht ändern darf; der Trigger greift auf jedem Weg, auch bei CASCADE und der Kommandozeile
+CREATE FUNCTION aktivitaet_person_vergessen() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  UPDATE aktivitaet SET user_id = NULL, name = NULL, rollen = '{}' WHERE user_id = OLD.id;
+  RETURN OLD;
+END
+$$;--> statement-breakpoint
+CREATE TRIGGER aktivitaet_person_vergessen BEFORE DELETE ON "user" FOR EACH ROW EXECUTE FUNCTION aktivitaet_person_vergessen();
