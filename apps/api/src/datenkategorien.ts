@@ -100,7 +100,7 @@ export const KATEGORIEN = {
   raumanfragen: {
     titel: "Raumanfragen",
     zweck:
-      "Eine Person fragt einen Raum der Abteilung für eine Zeit an, mit einem kurzen Zweck. Das Team des Raums entscheidet; bei Raum ohne Team entscheidet die Abteilungsleitung. Die anfragende Person sieht ihre Anfragen mit dem Stand. Der Push nennt weder Namen, Raum noch Zweck. Bitte schreib im Zweck keine Angaben zur Gesundheit.",
+      "Eine Person fragt einen Raum der Abteilung für eine Zeit an, mit einem kurzen Zweck. Das Team des Raums entscheidet; bei Raum ohne Team entscheidet die Abteilungsleitung. Die anfragende Person sieht ihre Anfragen mit dem Stand. Alle Leitenden der Abteilung sehen im Belegungsplan, welche Räume wann belegt sind, mit Zweck und dem Cevi-Namen (sonst dem Vornamen) der Person; Eltern und Kinder sehen das nicht. Der Push nennt weder Namen, Raum noch Zweck. Bitte schreib im Zweck keine Angaben zur Gesundheit.",
     frist:
       "180 Tage nach dem Ende der angefragten Zeit, mit dem Konto der anfragenden Person früher. Wird das Konto der entscheidenden Person gelöscht, verschwindet nur die Angabe, wer entschieden hat. Auf Anfrage löscht die Leitung Daten.",
     apple: ["User Content: Other User Content"],

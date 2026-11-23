@@ -335,7 +335,8 @@ async function pruefeKonto(nachAnmeldung = true) {
   } else {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
     zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
-    if (zugang.bereiche.length === 0) {
+    // Leitende ohne Zugang zur Website sehen den Belegungsplan der Räume (#628)
+    if (zugang.bereiche.length === 0 && zugang.belegung !== true) {
       zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
         "403 · Kein Zugang",
         "sperre",

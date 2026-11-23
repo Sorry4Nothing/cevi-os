@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import { plattformRechteVon } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { darfBelegungSehen } from "../../termine/raum.js";
 import { hatWebsiteZugang } from "../../website/seiten.js";
 
 // Was das Panel zeigt: nur lesen, nie schreiben. Das Panel blendet danach Bereiche und Knöpfe ein oder aus; erlaubt ist, was jede Route selbst prüft.
@@ -21,6 +22,8 @@ export function erstelleEditorIchRouten({ db }: { db: Db }) {
       ],
       // Seiten anlegen und löschen: das Recht «seiten.anlegen_loeschen»; bleibt für Panels, die nur dieses eine Feld kennen
       verwalten: rechte.includes("seiten.anlegen_loeschen"),
+      // Belegungsplan der Räume (#628): jede Leitung; öffnet die Verwaltung auch ohne Zugang zur Website
+      belegung: await darfBelegungSehen(db, person),
       rechte,
     });
   });
