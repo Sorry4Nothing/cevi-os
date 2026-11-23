@@ -709,20 +709,52 @@
     align-items: start;
   }
 
+  /* Die Karte steht oben, bleibt beim Scrollen der Seite unter der Bereichsleiste stehen und ist nie höher als der Bildschirm; die Liste scrollt in ihr, die Suche bleibt oben */
   .rr-wahl-block {
     position: sticky;
-    top: 16px;
+    top: calc(var(--leiste-hoehe) + 1rem);
+    max-height: min(46rem, calc(100dvh - var(--leiste-hoehe) - 2rem));
+    overflow: hidden;
   }
+
+  .rr-wahl-block .rr-wahlliste {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 8rem;
+  }
+}
+
+/* Das Suchfeld in der senkrechten Karte wächst nicht in die Höhe (sonst wird aus flex-basis 280px eine Höhe von 280 px) */
+.rr-wahl-block .suche {
+  flex: none;
+  max-width: none;
+}
+
+.rr-wahlkopf {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rr-wahlzahl {
+  margin: 0;
+}
+
+.rr-leer-hinweis {
+  margin: 0;
 }
 
 .rr-wahlliste {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  max-height: 28rem;
-  margin: 0;
+  min-height: 0;
+  max-height: 20rem;
+  margin: 0 -8px;
   padding: 0;
-  overflow: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   list-style: none;
 }
 
@@ -730,8 +762,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  min-height: 48px;
-  padding: 4px 8px;
+  min-height: 56px;
+  padding: 6px 8px;
   color: var(--text);
   border-radius: 8px;
   text-decoration: none;
@@ -753,11 +785,43 @@
   min-width: 0;
 }
 
+.rr-wahlname-text {
+  overflow-wrap: anywhere;
+}
+
+.rr-wahlzeile[aria-current="true"] .rr-wahlname .leise {
+  color: inherit;
+}
+
+/* Das Merkmal, an dem sich gleiche Namen unterscheiden */
+.rr-zusatz {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kopf der Person: Bild, Name mit Rolle und Benutzername, rechts die Zahl der Rechte */
+.rr-personkopf {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.rr-personkopf > .klein:last-child {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rr-personname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .rr-detail {
   display: flex;
   flex-direction: column;
   gap: 16px;
   min-width: 0;
+  scroll-margin-top: calc(var(--leiste-hoehe) + 1rem);
 }
 
 .rr-rechtwahl {
@@ -903,6 +967,11 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  max-width: 64rem;
+}
+
+.rr-verlaufzeile:last-child {
+  padding-bottom: 0;
 }
 
 /* ===== Rückfrage am Ort, Verlassen ===== */

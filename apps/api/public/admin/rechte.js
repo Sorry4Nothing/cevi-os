@@ -99,6 +99,7 @@ function zeichne(bereich, ctx, daten, neu, reiterWunsch, restWunsch) {
     gruppen: daten.gruppen,
     globale: daten.globale,
     personen: daten.personen,
+    stufen: daten.stufen,
     entwurf,
     neu,
     adminIds: new Set(daten.personen.filter((p) => p.admin).map((p) => p.id)),

@@ -13,12 +13,15 @@ export const BASIS = "/api/v1/admin/rechte";
 export async function ladeGrund() {
   const katalog = await anfrage("GET", `${BASIS}/katalog`);
   const verwaltet = katalog.ich?.rechteVerwalten === true;
-  const [gruppen, globale, personen] = await Promise.all([
+  const [gruppen, globale, personen, stufen] = await Promise.all([
     anfrage("GET", `${BASIS}/gruppen`),
     anfrage("GET", `${BASIS}/rollen`),
     verwaltet ? anfrage("GET", "/api/v1/admin/personen") : { personen: [] },
+    // Die Stufen geben der Personenliste die Rolle im Klartext; ohne sie steht die Rolle ohne Stufe da
+    anfrage("GET", "/api/v1/stufen").catch(() => ({ stufen: [] })),
   ]);
   return {
+    stufen: stufen.stufen,
     katalog,
     gruppen: gruppen.gruppen,
     globale: [

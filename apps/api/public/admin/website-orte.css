@@ -30,32 +30,34 @@
   gap: 0.25rem 0.75rem;
 }
 
-/* Verweis zur Karte: ein externer Textlink mit Pfeil nach oben rechts, 44 px hoch */
+/* Verweis zur Karte (#661): ein kleiner Knopf auf der Fläche der Chips, mit Standort-Symbol vorn und dem Zeichen für «fremde Seite» hinten; so hoch und so ausgerichtet wie «Bearbeiten» (knopf--klein, 44 px). Ein Link, kein Skript */
 a.ort-karte {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-height: 2.75rem;
-  font-weight: 600;
+  max-width: 100%;
+  border-color: transparent;
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
 }
 
-a.ort-karte::after {
-  content: "";
-  flex: none;
-  width: 0.625rem;
-  height: 0.625rem;
-  background: currentcolor;
-  clip-path: polygon(
-    0 0,
-    100% 0,
-    100% 100%,
-    85% 100%,
-    85% 27%,
-    10% 100%,
-    0 90%,
-    73% 15%,
-    0 15%
-  );
+/* Auf sehr schmalen Bildschirmen bricht die Beschriftung um, statt über den Rand zu laufen */
+@media (max-width: 30rem) {
+  a.ort-karte {
+    height: auto;
+    padding-block: 0.5rem;
+    white-space: normal;
+    text-align: left;
+  }
+}
+
+a.ort-karte:hover {
+  border-color: var(--auf-blau-f);
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
+}
+
+a.ort-karte .i:last-of-type {
+  width: 16px;
+  height: 16px;
+  opacity: 0.8;
 }
 
 .ort-hinweis {
@@ -67,8 +69,10 @@ a.ort-karte::after {
   margin-top: 0.75rem;
 }
 
-.ort-hinweis a.ort-karte {
-  min-height: 2.75rem;
+/* Im Satz (Hinweis unter der Auswahl, «Gelesen als»): der Knopf steht auf eigener Zeile mit etwas Abstand */
+.ort-hinweis a.ort-karte,
+.ort-gelesen a.ort-karte {
+  margin-top: 0.375rem;
 }
 
 .ort-gelesen {
@@ -83,12 +87,6 @@ a.ort-karte::after {
 @media (min-width: 64rem) {
   .ort-zeile {
     grid-template-columns: minmax(0, 1fr) minmax(10rem, auto) auto;
-  }
-}
-
-@media (forced-colors: active) {
-  a.ort-karte::after {
-    background: LinkText;
   }
 }
 

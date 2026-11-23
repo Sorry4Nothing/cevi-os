@@ -28,6 +28,12 @@ const EIGENE = {
     "M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3",
   ],
   ablegen: ["M12 4v11", "m7.5 10.5 4.5 4.5 4.5-4.5", "M4 19h16"],
+  // Standort (wie «ort» der Website) und «öffnet eine fremde Seite»
+  ort: [
+    "M12 21.5 6 13.5a7.5 7.5 0 1 1 12 0z",
+    ["circle", { cx: 12, cy: 9, r: 2.5 }],
+  ],
+  extern: ["M8 16 16 8", "M9 8h7v7"],
 };
 
 export function symbol(name) {
