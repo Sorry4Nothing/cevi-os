@@ -932,6 +932,7 @@ Gilt für alle Kästchen (`input[type="checkbox"]`) der Verwaltung, vor allem im
 ### Stand der Prüfung (#668)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank mit erfundenen Bildern) bei 1440 und 390 px, Tag und Nacht: 55.1 bis 55.3, 55.5 und 55.6; Tastatur (Tab, Leertaste, Fokusring) in der Personenwahl. Gemessen: Rand des leeren Kästchens 4.5 : 1 (Tag) und 4.7 : 1 (Nacht). Offen: Der Rand des angekreuzten Kästchens hat in der Nacht zum Grund nur 1.3 : 1; der Haken (Weiss auf Marineblau) trägt die Information, das Kästchen sieht in der ganzen Verwaltung gleich aus. Nicht geprüft: Screenreader, 200 % Zoom per Browser-Einstellung, 2560 px, `forced-colors` im echten Kontrast-Thema (55.4 nur nach dem Quelltext).
+
 ## 57. Verwaltung: Lager-Arbeitsbereich (#672)
 
 Gilt für `lager-rahmen.js`, `lager-module.js`, `lager-detail.js`, `lager-konflikt.js`, `lager-ereignisse.js`, `lager-start-teile.js`, `lager-m-heute.js`, `lager-m-woche.js`, `lager-m-check.js`, `lager-m-suche.js`, `lager-m-ressorts.js`, `lager-m-benachrichtigungen.js` und `lager-rahmen.css`. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6 und 9 gelten sinngemäss. Die Module der weiteren Lager-Issues nutzen denselben Rahmen und weisen ihre Punkte in eigenen Abschnitten nach.
