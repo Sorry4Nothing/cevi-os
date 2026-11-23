@@ -1,5 +1,12 @@
 import type { Ausgabe } from "./ausgabe.js";
 import { CADDY_DATEI } from "./weiterleitungen.js";
+import {
+  ZEICHEN_DATEIEN,
+  ZEICHEN_ICO,
+  zeichenLinks,
+  zeichenVersion,
+  type ZeichenDateien,
+} from "./zeichen.js";
 
 // Die öffentliche Website bei einer Informationssperre vom Netz nehmen (#425): Ausgabe leeren, eine neutrale Hinweisseite schreiben. Der Abgleich erzeugt in dieser Zeit nichts neu (siehe mitSperre).
 // Nach dem Aufheben löscht gibFrei die Hinweisseiten; der Abgleich findet dann eine leere Ausgabe und schreibt alles neu.
@@ -8,9 +15,10 @@ import { CADDY_DATEI } from "./weiterleitungen.js";
 const HINWEIS_DATEIEN = ["index.html", "404.html"];
 // Der Stil der Hinweisseite als eigene Datei: Die CSP des Hosts erlaubt nur style-src 'self', ein Inline-Stil bliebe wirkungslos
 export const HINWEIS_STIL_DATEI = "gesperrt.css";
-// Die Schrift und ihre Lizenz bleiben liegen: Sie sind kein Inhalt, und die Hinweisseite setzt ihren Titel damit
+// Die Schrift und ihre Lizenz bleiben liegen: Sie sind kein Inhalt, und die Hinweisseite setzt ihren Titel damit. Ebenso das Favicon (#581): das öffentliche Zeichen der Abteilung, das auch die Hinweisseite trägt
 const BLEIBT = new Set([
   CADDY_DATEI,
+  ...ZEICHEN_DATEIEN,
   "website/archivo-latin.woff2",
   "website/archivo-ofl.txt",
 ]);
@@ -168,14 +176,15 @@ a:focus-visible {
 `;
 
 // Neutral: kein Anlass, keine Namen, keine Zeitangabe. Eine kleine Seite ohne Skript und ohne Dateien von aussen; «Nochmals versuchen» ist ein Link auf dieselbe Adresse
-export const HINWEISSEITE = `<!doctype html>
+// «zeichen»: die Einträge des Favicons (zeichenLinks), leer ohne Zeichen
+const hinweisseite = (zeichen: string) => `<!doctype html>
 <html lang="de-CH">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <meta name="robots" content="noindex">
-<title>Vorübergehend nicht erreichbar</title>
+<title>Vorübergehend nicht erreichbar</title>${zeichen}
 <link rel="stylesheet" href="/${HINWEIS_STIL_DATEI}">
 </head>
 <body>
@@ -191,6 +200,8 @@ export const HINWEISSEITE = `<!doctype html>
 </html>
 `;
 
+export const HINWEISSEITE = hinweisseite("");
+
 export type WebsiteSperre = {
   // Die Abteilung, deren Website diese Ausgabe trägt (WEBSITE_ABTEILUNG_ID); eine Sperre anderer Abteilungen berührt sie nicht
   abteilungId: string;
@@ -201,6 +212,8 @@ export type WebsiteSperre = {
 export function erstelleWebsiteSperre(
   ausgabe: Ausgabe,
   abteilungId: string,
+  // Das Favicon der Abteilung (#581): Die Sperre schreibt es neben die Hinweisseite, auch wenn der Abgleich es noch nie erzeugt hat
+  zeichen?: () => Promise<ZeichenDateien>,
 ): WebsiteSperre {
   return {
     abteilungId,
@@ -212,8 +225,17 @@ export function erstelleWebsiteSperre(
         }
       }
       await ausgabe.schreibe(HINWEIS_STIL_DATEI, HINWEIS_STIL);
+      const dateien = await zeichen?.();
+      if (dateien) {
+        for (const datei of ZEICHEN_DATEIEN) {
+          await ausgabe.schreibe(datei, dateien[datei]);
+        }
+      }
+      const html = dateien
+        ? hinweisseite(zeichenLinks(zeichenVersion(dateien[ZEICHEN_ICO])))
+        : HINWEISSEITE;
       for (const datei of HINWEIS_DATEIEN) {
-        await ausgabe.schreibe(datei, HINWEISSEITE);
+        await ausgabe.schreibe(datei, html);
       }
     },
     async gibFrei() {

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/admin/raeume/:id"
-order: 462000
+order: 463000
 method: PATCH
 url: "{{baseUrl}}{{pfad_T10}}"
 headers:

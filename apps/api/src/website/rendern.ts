@@ -1133,13 +1133,14 @@ ${ordneZweispaltig(rumpf)}
 // Das Menü (menue.js) ist eine Verbesserung: ohne Skript öffnen sich die Untermenüs bei Hover und Fokus
 export const CSP =
   "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
-// Jede Seite lädt theme.js (#550), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
+// Jede Seite lädt theme.js (#550) und ladezustand.js (#574), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
 const CSP_SEITE =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
+export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };
 // Bausteine, deren Bilder sich gross öffnen lassen
 const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
@@ -1147,8 +1148,9 @@ const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
   "galerie",
   "karussell",
 ]);
-// Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
-export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
+// Die klassischen Skripte im <head> (Darstellung, Ladezustand der Bilder #574), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
+export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
+<script src="${SKRIPT_LADEZUSTAND}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/pinnwand"
-order: 353000
+order: 354000
 method: POST
 url: "{{baseUrl}}{{pfad_L151}}"
 headers:

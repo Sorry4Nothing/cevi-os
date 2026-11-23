@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/protokolle"
-order: 360000
+order: 361000
 method: POST
 url: "{{baseUrl}}{{pfad_L158}}"
 headers:

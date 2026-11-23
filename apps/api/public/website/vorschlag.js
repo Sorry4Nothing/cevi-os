@@ -8,6 +8,7 @@ import {
   h,
   heute,
   icon,
+  ladeAnsage,
   melde,
   nichtAngemeldetView,
   sk,
@@ -249,14 +250,12 @@ export function formularView(s) {
           h("span", { class: "legende" }, "Gruppen"),
           h(
             "div",
-            { class: "skel pillen", "aria-hidden": "true" },
+            { class: "skelett pillen", "aria-hidden": "true" },
             sk("r h48 bpx70"),
             sk("r h48 bpx70"),
             sk("r h48 bpx70"),
             sk("r h48 bpx160"),
-            h("span", { class: "schimmer" }),
           ),
-          h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
         )
       : h(
           "div",
@@ -446,7 +445,9 @@ function start(doc, wurzel) {
     modus = "form";
     z.optionen = null;
     zeichne();
+    const stopp = ladeAnsage(doc, "Das Formular wird geladen.");
     const r = await api("/termin-vorschlaege/optionen");
+    stopp();
     if (r.status === 401) modus = "abgemeldet";
     else if (r.status === 200 && !r.daten.darfVorschlagen)
       modus = "keinZugriff";

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PATCH /api/v1/lager/:id/tagesseiten/:lagertagId"
-order: 399000
+order: 400000
 method: PATCH
 url: "{{baseUrl}}{{pfad_L197}}"
 headers:

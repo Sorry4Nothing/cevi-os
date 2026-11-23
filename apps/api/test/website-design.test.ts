@@ -24,7 +24,9 @@ const CSS = readFileSync(
   "utf8",
 );
 
-const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
+// Die klassischen Skripte im <head>: Darstellung (#550) und Ladezustand der Bilder (#574)
+const THEMA_SKRIPT =
+  '<script src="/website/theme.js"></script>\n<script src="/website/ladezustand.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
   id: id(),
@@ -435,8 +437,8 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    // Menü, theme.js und anmelden.js, alle eigene Dateien
-    expect(zaehle(html, "<script")).toBe(3);
+    // Menü, theme.js, ladezustand.js und anmelden.js, alle eigene Dateien
+    expect(zaehle(html, "<script")).toBe(4);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });
@@ -474,7 +476,20 @@ describe("Stilvorlage", () => {
       /@media (screen and )?\(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/g,
       "",
     );
-    expect(ohne).not.toMatch(/animation:|transition:/);
+    // Einzige Ausnahme (#574): bei reduzierter Bewegung hält eine Animation von 0.01 s die Skelette 150 ms zurück; sie bewegt nichts
+    const reduziert = [
+      ...ohne.matchAll(
+        /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}\n/g,
+      ),
+    ].map((m) => m[0]);
+    expect(reduziert.length).toBeGreaterThan(0);
+    for (const block of reduziert) {
+      for (const z of block.match(/animation:.*/g) ?? []) {
+        expect(z).toMatch(/^animation: skelett-(ein|grund) 0\.01s /);
+      }
+    }
+    const rest = reduziert.reduce((t, bl) => t.replace(bl, ""), ohne);
+    expect(rest).not.toMatch(/animation:|transition:/);
   });
 
   test("Bewegung hat eine Kurve und zwei Dauern als Tokens; Einblenden beim Scrollen nur, wo der Browser es kann", () => {

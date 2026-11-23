@@ -1,7 +1,7 @@
 // Anmeldung auf der Website (#354, Design W9): dieselben Aufrufe wie die Verwaltung unter /api/auth (Rate-Limit und Sperre nach Fehlversuchen gelten dort), gleiche Herkunft, das Cookie setzt der Server.
 // Das Passwort geht nur als JSON im Body hin, nie in eine Adresse; es wird nach dem Absenden aus dem Feld gelöscht und nirgends gespeichert oder protokolliert.
 import { sicheresZiel } from "./weiter.js";
-import { band, el, symbol } from "./ui.js";
+import { band, el, holeMitFrist, symbol } from "./ui.js";
 
 const $ = (id) => document.getElementById(id);
 const meldung = $("meldung");
@@ -97,7 +97,8 @@ function zeigeFehlt(fehlende) {
 async function sende(pfad, body) {
   let antwort;
   try {
-    antwort = await fetch(pfad, {
+    // Mit Frist (#574): Der Knopf bleibt nicht für immer im Zustand «Melde an …»
+    antwort = await holeMitFrist(pfad, {
       method: "POST",
       credentials: "same-origin",
       cache: "no-store",

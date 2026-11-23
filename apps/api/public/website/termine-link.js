@@ -8,6 +8,7 @@ import {
   bestaetige,
   h,
   icon,
+  ladeAnsage,
   melde,
   skelett,
   sk,
@@ -31,7 +32,6 @@ export function linkLadeView() {
       sk("h52 b100"),
       sk("r h48 bpx160"),
     ),
-    h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
   );
 }
 
@@ -193,7 +193,9 @@ export function startLink(doc, behaelter, beiAbmeldung) {
   async function ladeStatus() {
     z.status = "laedt";
     zeichne();
+    const stopp = ladeAnsage(doc, "Dein Kalender-Link wird geladen.");
     const r = await api("/ich/kalender-link");
+    stopp();
     if (r.status === 401) return beiAbmeldung();
     if (r.status === 200) {
       Object.assign(z, {

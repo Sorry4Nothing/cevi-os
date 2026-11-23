@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/hoecks"
-order: 305000
+order: 306000
 method: GET
 url: "{{baseUrl}}{{pfad_L103}}"
 headers:

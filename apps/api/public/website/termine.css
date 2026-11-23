@@ -494,98 +494,13 @@
   background: var(--surface-container-low);
 }
 
-/* Skeleton */
-.tm .sk {
-  background: var(--skeleton);
-  border-radius: 8px;
-  display: block;
-}
-.tm .sk.r {
-  border-radius: var(--r-full);
-}
-.tm .sk.t {
-  height: 14px;
-  margin: 6px 0;
-}
-.tm .b30 {
-  width: 30%;
-}
-.tm .b40 {
-  width: 40%;
-}
-.tm .b50 {
-  width: 50%;
-}
-.tm .b60 {
-  width: 60%;
-}
-.tm .b70 {
-  width: 70%;
-}
-.tm .b90 {
-  width: 90%;
-}
-.tm .b100 {
-  width: 100%;
-}
-.tm .bpx70 {
-  width: 70px;
-}
-.tm .bpx160 {
-  width: 160px;
-}
-.tm .h20 {
-  height: 20px;
-}
-.tm .h24 {
-  height: 24px;
-}
-.tm .h28 {
-  height: 28px;
-}
-.tm .h48 {
-  height: 48px;
-}
-.tm .h52 {
-  height: 52px;
-}
-.tm .h56 {
-  height: 56px;
-}
-.tm .skel {
-  position: relative;
-  overflow: hidden;
-}
-.tm .schimmer {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -80px;
-  width: 72px;
-  background: var(--skeleton-highlight);
-  opacity: 0.85;
-  transform: skewX(-18deg);
-  pointer-events: none;
-  animation: tm-schimmer 1.6s ease-in-out infinite;
-}
-@keyframes tm-schimmer {
-  to {
-    left: 100%;
-  }
-}
+/* Skeleton (#574): die Teile (.sk) stehen in website.css; nur der Knopf-Ring ruht bei reduzierter Bewegung */
 @media (prefers-reduced-motion: reduce) {
-  .tm .schimmer {
-    animation: none;
-    left: 38%;
-  }
   .tm .btn .lade {
     animation: none;
   }
 }
 
-.tm .mt {
-  margin-top: 8px;
-}
 .tm .reiter-hinweis {
   margin-top: 16px;
 }
@@ -631,6 +546,10 @@
   background: var(--secondary);
   color: var(--on-secondary);
   text-align: center;
+}
+.tm .datum-skelett {
+  min-height: 80px;
+  border-radius: var(--r-sm);
 }
 .tm .datum .tag {
   font-size: 0.875rem;
@@ -759,7 +678,8 @@
   cursor: default;
 }
 .tm .kal-wochentage,
-.tm .kal-tage {
+.tm .kal-tage,
+.tm .kal-skelett-tage {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
@@ -772,6 +692,7 @@
   text-align: center;
 }
 .tm .kal-leer,
+.tm .kal-zelle,
 .tm .kal-tag {
   aspect-ratio: 5 / 4;
   min-width: 0;
@@ -977,10 +898,12 @@
     padding: 8px 4px 12px 10px;
   }
   .tm .kal-wochentage,
-  .tm .kal-tage {
+  .tm .kal-tage,
+  .tm .kal-skelett-tage {
     gap: 4px;
   }
   .tm .kal-leer,
+  .tm .kal-zelle,
   .tm .kal-tag {
     aspect-ratio: 1;
   }
