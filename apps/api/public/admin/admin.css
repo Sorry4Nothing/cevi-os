@@ -733,6 +733,11 @@ th.zahl {
   outline-offset: -3px;
 }
 
+/* Die nur für Screenreader sichtbare Beschriftung der Tabelle ist absolut gesetzt: Ohne diesen Bezug lag sie ausserhalb des Rahmens und verbreiterte die ganze Seite */
+.tabellenrahmen {
+  position: relative;
+}
+
 .tabelle,
 .box table {
   width: 100%;

@@ -7,6 +7,7 @@ import {
 } from "./api.js";
 import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
 import { schliesseAlle } from "./fluss.js";
+import { erstelleHinweisband } from "./hinweisband.js";
 import { erstelleLader } from "./lader.js";
 import {
   BEREICHE,
@@ -397,6 +398,10 @@ function zurUebersicht(klasse = "") {
 }
 
 const leisten = erstelleLeisten();
+// Band bei Wartung oder Informationssperre (#593): nur für Personen, die die Plattform sehen; die Zustände liegen im Speicher der API
+const hinweisband = erstelleHinweisband();
+const darfPlattform = () =>
+  istAdmin() || zugang?.bereiche.includes("plattform") === true;
 // Toasts mit «Rückgängig» (#578): Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen
 const toasts = erstelleToasts(steuerung);
 verdrahte({
@@ -424,6 +429,8 @@ function zeigeVerwaltung() {
   anfrage("GET", "/api/v1/redaktion/website").then(setzeMarke, () => {});
   zaehlerStand.clear();
   aktiv = null;
+  hinweisband.zeichne([]);
+  if (darfPlattform()) hinweisband.aktualisiere({ erzwingen: true });
   zeichne(
     el(
       "div",
@@ -437,6 +444,7 @@ function zeigeVerwaltung() {
         }),
         leisten.wurzel,
       ),
+      hinweisband.wurzel,
       toasts.wurzel,
       el(
         "main",
@@ -524,6 +532,7 @@ async function navigiere() {
     return;
   }
   const { bereich: gruppe, unter, pfad } = treffer;
+  if (darfPlattform()) hinweisband.aktualisiere();
   const meine = ++navigation;
   aktiv = { bereich: gruppe, unter };
   leisten.zeichne({ bereiche, aktiv, zaehlerStand });
