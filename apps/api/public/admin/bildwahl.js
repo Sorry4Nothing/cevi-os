@@ -44,6 +44,8 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
     type: "search",
     placeholder: "Nach Beschreibung suchen",
     autocomplete: "off",
+    // Ein Enter in der Suche schickt kein umgebendes Formular ab
+    onkeydown: (e) => e.key === "Enter" && e.preventDefault(),
     oninput: () => {
       window.clearTimeout(timer);
       timer = setTimeout(() => lade(true), 300);

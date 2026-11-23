@@ -69,11 +69,18 @@
 
 .bw-raster {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr));
   gap: 12px;
   margin: 0;
-  padding: 0;
+  padding: 4px;
   list-style: none;
+}
+
+/* Die Bilder scrollen in ihrem Bereich; die Seite darum herum bleibt ruhig */
+.bw > .bw-raster {
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .bw-karte {
