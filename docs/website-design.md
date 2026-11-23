@@ -200,5 +200,5 @@ Das erste Bild einer Seite ist ihr Titelbild und geht bis zum Fensterrand; der S
 ## Hinweise für den Betrieb
 
 - Der Host liefert `500.html` bei 5xx-Fehlern der Website und `wartung.html` mit Status 503 (Vorschlag im Abschnitt «Vorschlag für den Edge-Caddy» in [website-auslieferung.md](website-auslieferung.md)).
-- Die Vorschau im Editor nutzt dieselbe Stilvorlage (`/admin/website-vorschau.css` ist `website.css`).
+- Die Vorschau im Editor nutzt dieselben Stile wie die Website: `/admin/website-vorschau.css` ist `website.css`, `kopf.css`, `lichtkasten.css`, `karussell.css` und die Stile der Inhaltsbausteine hintereinander, die Schrift Archivo liefert die Verwaltung selbst (`/admin/archivo-latin.woff2`). Die Vorschau ist immer hell, zeigt Termin-Liste, «Zur Anmeldung» und Kontakt (Telefon, E-Mail, Adresse aus der Konfiguration) wie die Website und hat weder Menü noch Skripte. Das Titelbild der Seite stellt der Editor als eigene Fläche «Titelbild» über der Bausteinliste ein; es ist der Baustein «Bild» zuoberst.
 - Nach einer Änderung an Renderer oder Stilvorlage schreibt der Abgleich alle Dateien beim nächsten Lauf neu (der Hash ändert sich).
