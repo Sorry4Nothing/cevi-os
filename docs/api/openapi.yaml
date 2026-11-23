@@ -20981,7 +20981,7 @@ paths:
       operationId: leseRedaktionWebsiteEinstellungen
       summary: Name und Logo der Website lesen
       description: |
-        Der Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (`null` = kein Logo, der Kopf zeigt dann die Wortmarke «CEVI» mit dem Namen). `logoDunkelMediumId` ist die Fassung des Logos für den dunklen Modus (#558; `null` = dasselbe Logo). Nur die Abteilungsleitung und wer `seiten.veroeffentlichen` hat. Admins brauchen den zweiten Faktor. `nameAenderbar` ist wahr nur für die Rolle Entwickler: Nur sie ändert den Namen. Zwei Abfragen.
+        Der Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (`null` = kein Logo, der Kopf zeigt dann die Wortmarke «CEVI» mit dem Namen). `logoDunkelMediumId` ist die Fassung des Logos für den dunklen Modus (#558; `null` = dasselbe Logo), `zeichenMediumId` das quadratische Zeichen für das Favicon (`null` = das Cevi-Zeichen der Plattform). Nur die Abteilungsleitung und wer `seiten.veroeffentlichen` hat. Admins brauchen den zweiten Faktor. `nameAenderbar` ist wahr nur für die Rolle Entwickler: Nur sie ändert den Namen. Zwei Abfragen.
 
         Statuscodes: 200 bei Erfolg. 403 ohne Recht.
       tags:
@@ -21007,7 +21007,7 @@ paths:
       operationId: aendereRedaktionWebsiteEinstellungen
       summary: Name und Logo der Website ändern
       description: |
-        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. `logoMediumId` ist ein Bild der eigenen Abteilung mit der Sichtbarkeit «öffentlich» (`null` nimmt das Logo weg), `logoDunkelMediumId` ebenso die Fassung für den dunklen Modus (`null` = der Kopf zeigt dort das Logo); sonst 422 mit `MEDIUM_UNBEKANNT` (auch bei fremden IDs), `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`. Den `name` der Abteilung ändert nur die Rolle Entwickler (sonst 403, auch für die Abteilungsleitung), denn er steht auch in der App. Ein Medium, das als Logo dient, lässt sich nicht löschen (409 `MEDIUM_VERWENDET`).
+        Ohne Schlüssel bleibt der Wert, wie er ist; mindestens ein Feld. `logoMediumId` ist ein Bild der eigenen Abteilung mit der Sichtbarkeit «öffentlich» (`null` nimmt das Logo weg), `logoDunkelMediumId` ebenso die Fassung für den dunklen Modus (`null` = der Kopf zeigt dort das Logo), `zeichenMediumId` das Zeichen für das Favicon (`null` = das Cevi-Zeichen der Plattform); sonst 422 mit `MEDIUM_UNBEKANNT` (auch bei fremden IDs), `MEDIUM_FORMAT` oder `MEDIUM_NICHT_OEFFENTLICH`. Den `name` der Abteilung ändert nur die Rolle Entwickler (sonst 403, auch für die Abteilungsleitung), denn er steht auch in der App. Ein Medium, das als Logo dient, lässt sich nicht löschen (409 `MEDIUM_VERWENDET`).
 
         Danach erzeugt die Auslieferung alle Seiten neu (der Kopf steht auf jeder). Audit-Log: `website_einstellungen_geaendert` mit den Namen der Felder.
 
@@ -34573,6 +34573,7 @@ components:
         - name
         - logoMediumId
         - logoDunkelMediumId
+        - zeichenMediumId
         - nameAenderbar
       properties:
         name:
@@ -34590,6 +34591,10 @@ components:
           type: [string, "null"]
           format: uuid
           description: Die Fassung des Logos für den dunklen Modus; ein öffentliches Bild der Abteilung. Ohne sie zeigt der Kopf dort das Logo.
+        zeichenMediumId:
+          type: [string, "null"]
+          format: uuid
+          description: Das quadratische Zeichen für das Favicon der Website; ein öffentliches Bild der Abteilung. Ohne es gilt das Cevi-Zeichen der Plattform.
     RedaktionWebsiteEinstellungenAendern:
       type: object
       additionalProperties: false
@@ -34603,6 +34608,14 @@ components:
         logoMediumId:
           type: [string, "null"]
           format: uuid
+        logoDunkelMediumId:
+          type: [string, "null"]
+          format: uuid
+          description: Fassung des Logos für den dunklen Modus; `null` nimmt sie weg.
+        zeichenMediumId:
+          type: [string, "null"]
+          format: uuid
+          description: Zeichen für das Favicon; `null` nimmt es weg.
     RedaktionWeiterleitungAnlegen:
       type: object
       additionalProperties: false
