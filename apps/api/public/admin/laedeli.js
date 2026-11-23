@@ -139,7 +139,7 @@ export function standChips(a) {
   ];
 }
 // Ein Schalter je Grösse: role="switch", der Name ist die Grösse, der Zustand steht in aria-checked und als Wort («nicht verfügbar», durchgestrichen); nie nur Farbe
-// kompakt (Artikelliste): ohne Wort im Schalter, es steht in der Spalte «Stand» daneben
+// kompakt (Artikelliste): ohne Wort unter dem Schalter, es steht in der Spalte «Stand» daneben
 export function groessenSchalter({
   namen,
   weg,
@@ -154,7 +154,7 @@ export function groessenSchalter({
       const aus = weg.includes(v);
       return el(
         "li",
-        {},
+        { class: "ld-gposten" },
         el(
           "button",
           {
@@ -168,10 +168,17 @@ export function groessenSchalter({
           },
           icon(aus ? "schliessen" : "haken"),
           el("span", { class: "ld-gname" }, aus ? el("s", {}, v) : v),
-          aus &&
-            !kompakt &&
-            el("span", { class: "ld-gtext" }, "nicht verfügbar"),
         ),
+        // Das Wort steht unter dem Schalter, nie in ihm; für Hilfstechnik trägt es schon der Name des Schalters
+        !kompakt &&
+          el(
+            "span",
+            {
+              class: aus ? "ld-gstand ld-gstand--aus" : "ld-gstand",
+              "aria-hidden": "true",
+            },
+            aus ? "nicht verfügbar" : "verfügbar",
+          ),
       );
     }),
   );
