@@ -1,154 +1,24 @@
 /* Stil der öffentlichen Website nach dem Design «Cevi Web» (#529). Eine statische Datei: Die CSP der Seiten erlaubt nur style-src 'self', also kein Inline-Stil.
-   Tag und Nacht folgen dem System (prefers-color-scheme); die Namen der Tokens sind die des Designs (Grundlagen G1), Farben stehen nur als var(--token).
-   Die Schrift Archivo liegt als eigene Datei daneben (SIL OFL, Lizenz in archivo-ofl.txt), nie von einem fremden Host; keine Bilder von aussen, keine Bewegung bei «Bewegung reduzieren». Klassen und Aufbau: docs/website-design.md. */
-
-/* Archivo, variabel (400 bis 900), Teilmenge «latin»: Deutsch mit «», –, … und €. Ohne die Datei gilt die Systemschrift */
-@font-face {
-  font-family: Archivo;
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url("/website/archivo-latin.woff2") format("woff2");
-}
+   Die Tokens (Farben für Tag und Nacht, Radien, Bewegung, Schrift) und die Schrift Archivo stehen in tokens.css, die vor dieser Datei geladen wird und die auch die Verwaltung nutzt (#578). Hier bleibt das Layout. Keine Bilder von aussen, keine Bewegung bei «Bewegung reduzieren». Klassen und Aufbau: docs/website-design.md. */
 
 :root {
-  color-scheme: light dark;
-  --surface: #f2f5f8;
-  --surface-container-low: #ffffff;
-  --surface-container: #e6ebf1;
-  --surface-container-high: #d5dfe9;
-  --on-surface: #1a1a1a;
-  --on-surface-variant: #4d4d4d;
-  --outline: #6b7886;
-  --outline-variant: #c9d5e1;
-  --primary: #d50038;
-  --on-primary: #ffffff;
-  --primary-text: #d50038;
-  --secondary: #013974;
-  --on-secondary: #ffffff;
-  --on-secondary-muted: #c6d4e4;
-  --secondary-container: #e6ebf1;
-  --on-secondary-container: #013974;
-  --accent: #013974;
-  --success-container: #e7f4ec;
-  --on-success-container: #17703a;
-  --error-container: #fce9ec;
-  --on-error-container: #9e1b2c;
-  --warning-container: #fff4d6;
-  --on-warning-container: #8a5a00;
-  --stufe-container: #e3f2f6;
-  --on-stufe-container: #1d6274;
-  --focus: #013974;
-  --skeleton: #d7e0ea;
-  --skeleton-highlight: #eef2f6;
-  --r-sm: 0.75rem;
-  --r-md: 1rem;
-  --r-full: 9999px;
-  --schatten: 0 8px 24px rgb(20 20 60 / 16%);
-  /* Bewegung (#555): eine Kurve, zwei Dauern */
-  --kurve: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --dauer: 0.2s;
-  --dauer-lang: 0.5s;
-  /* Scrollleisten (#572): Griff im Ton der Umrisse (mindestens 3:1 zu Fläche und Karte), Spur durchsichtig */
-  --leiste-breite: thin;
-  --leiste-griff: var(--outline);
-  --leiste-griff-hover: var(--on-surface-variant);
-  --leiste-griff-aktiv: var(--accent);
-  --leiste-spur: transparent;
-  /* Feld hinter einem Logo ohne Fassung für den dunklen Grund */
-  --logo-grund: transparent;
-  /* Gestaltung (#555): Titel, Karten und die sechs Töne der Stufen */
-  --titel: #013974;
-  --karte: #ffffff;
+  /* Layout (#555): Seitenrand, Abstand über und unter einem Abschnitt, Spalt zwischen Titelschiene und Inhalt */
   --rand: clamp(1rem, 4vw, 4.5rem);
-  /* Abstand über und unter einem Abschnitt; Spalt zwischen Titelschiene und Inhalt */
   --abstand: clamp(3rem, 2rem + 3.5vw, 5.5rem);
   --spalt: clamp(2rem, 5vw, 6rem);
-  --schrift:
-    Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "DejaVu Sans",
-    sans-serif;
 }
 
-/* Nacht: wenn das System dunkel ist (ausser die Person wählt Hell) und wenn sie Dunkel wählt (data-theme, gesetzt von theme.js). Beide Sätze haben dieselben Werte */
+/* In der Nacht sind Titel hell: Rot als Text ist dort nur für Links und die Marke */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface: #141412;
-    --surface-container-low: #1c1c1a;
-    --surface-container: #252523;
-    --surface-container-high: #30302d;
-    --on-surface: #f3f3ef;
-    --on-surface-variant: #bebeb6;
-    --outline: #8f8f88;
-    --outline-variant: #3b3b37;
-    --primary-text: #ff7a93;
-    --secondary-container: #0e2a47;
-    --on-secondary-container: #d5e1ee;
-    --accent: #9dc0ea;
-    --success-container: #16261b;
-    --on-success-container: #6fd39a;
-    --error-container: #33171b;
-    --on-error-container: #ff8e9a;
-    --warning-container: #2c2513;
-    --on-warning-container: #f2c063;
-    --stufe-container: #142a2f;
-    --on-stufe-container: #7fd0e3;
-    --focus: #9dc0ea;
-    --skeleton: #2a2a27;
-    --skeleton-highlight: #363632;
-    --titel: #f3f3ef;
-    --logo-grund: #ffffff;
-    --schatten: 0 8px 24px rgb(0 0 0 / 50%);
-    --karte: #252523;
-  }
-
-  /* In der Nacht sind Titel hell: Rot als Text ist dort nur für Links und die Marke */
   :where(:root:not([data-theme="light"])) h1,
   :where(:root:not([data-theme="light"])) h2 {
     color: var(--on-surface);
   }
 }
 
-:root[data-theme="dark"] {
-  --surface: #141412;
-  --surface-container-low: #1c1c1a;
-  --surface-container: #252523;
-  --surface-container-high: #30302d;
-  --on-surface: #f3f3ef;
-  --on-surface-variant: #bebeb6;
-  --outline: #8f8f88;
-  --outline-variant: #3b3b37;
-  --primary-text: #ff7a93;
-  --secondary-container: #0e2a47;
-  --on-secondary-container: #d5e1ee;
-  --accent: #9dc0ea;
-  --success-container: #16261b;
-  --on-success-container: #6fd39a;
-  --error-container: #33171b;
-  --on-error-container: #ff8e9a;
-  --warning-container: #2c2513;
-  --on-warning-container: #f2c063;
-  --stufe-container: #142a2f;
-  --on-stufe-container: #7fd0e3;
-  --focus: #9dc0ea;
-  --skeleton: #2a2a27;
-  --skeleton-highlight: #363632;
-  --titel: #f3f3ef;
-  --logo-grund: #ffffff;
-  --schatten: 0 8px 24px rgb(0 0 0 / 50%);
-  --karte: #252523;
-}
-
 :where(:root[data-theme="dark"]) h1,
 :where(:root[data-theme="dark"]) h2 {
   color: var(--on-surface);
-}
-
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
 }
 
 * {
@@ -2676,14 +2546,7 @@ a.btn.w {
   }
 }
 
-/* Scrollleisten (#572): dünn, mit rundem Griff in den Tokens; Tag und Nacht folgen den Tokens, ohne Skript. Die Regeln stehen nur hier.
-   Chrome, Edge und Safari zeichnen den Griff über ::-webkit-scrollbar (rund, ohne Pfeile, deutlicher bei Hover und beim Ziehen); Firefox kennt nur die zwei Eigenschaften scrollbar-width und scrollbar-color. Beide Wege dürfen nie gleichzeitig gelten: Sobald scrollbar-color gesetzt ist, ignoriert Chrome die WebKit-Regeln. */
-
-/* Der Platz der Leiste bleibt reserviert: Die Seite springt nicht, wenn sie länger oder kürzer wird */
-html {
-  scrollbar-gutter: stable;
-}
-
+/* Besonderheiten der Website (die allgemeinen Regeln für Scrollleisten stehen in tokens.css) */
 /* Das Tagesfeld der Termine wechselt oft zwischen kurz und lang */
 .tm .kal-termine {
   scrollbar-gutter: stable both-edges;
@@ -2694,45 +2557,6 @@ dialog.lichtkasten {
   --leiste-griff: var(--lk-leise);
   --leiste-griff-hover: var(--lk-text);
   --leiste-griff-aktiv: var(--lk-text);
-}
-
-/* Firefox */
-@supports not selector(::-webkit-scrollbar) {
-  * {
-    scrollbar-width: var(--leiste-breite);
-    scrollbar-color: var(--leiste-griff) var(--leiste-spur);
-  }
-}
-
-/* Chrome, Edge, Safari. Mit Finger oder Stift bleibt die Leiste des Systems (dünn, über dem Inhalt) */
-@supports selector(::-webkit-scrollbar) {
-  @media (not (pointer: coarse)) and (not (forced-colors: active)) {
-    ::-webkit-scrollbar {
-      width: 14px;
-      height: 14px;
-    }
-
-    ::-webkit-scrollbar-track,
-    ::-webkit-scrollbar-corner {
-      background: var(--leiste-spur);
-    }
-
-    /* Der durchsichtige Rand macht den Griff 8 px dick und hält ihn vom Rand weg */
-    ::-webkit-scrollbar-thumb {
-      border: 3px solid transparent;
-      border-radius: var(--r-full);
-      background-color: var(--leiste-griff);
-      background-clip: padding-box;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background-color: var(--leiste-griff-hover);
-    }
-
-    ::-webkit-scrollbar-thumb:active {
-      background-color: var(--leiste-griff-aktiv);
-    }
-  }
 }
 
 /* Der Streifen des Karussells ist mit Skript ohne Leiste (Pfeile, Ziehen, Wischen); ohne Skript zeigt er sie. :root hebt die Regeln in karussell.css auf */
@@ -2751,19 +2575,5 @@ dialog.lichtkasten {
     :root .folien {
       scrollbar-width: var(--leiste-breite);
     }
-  }
-}
-
-/* Mit Finger oder Stift (Firefox) nicht schmaler als der Standard des Systems */
-@media (pointer: coarse) {
-  :root {
-    --leiste-breite: auto;
-  }
-}
-
-/* Erzwungene Farben: Firefox behält die Leiste des Systems, die WebKit-Regeln oben gelten dann nicht */
-@media (forced-colors: active) {
-  * {
-    scrollbar-color: auto;
   }
 }

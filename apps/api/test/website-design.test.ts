@@ -24,6 +24,12 @@ const CSS = readFileSync(
   "utf8",
 );
 
+// Tokens und Schrift (#578): gemeinsam mit der Verwaltung
+const TOKENS = readFileSync(
+  new URL("../public/website/tokens.css", import.meta.url),
+  "utf8",
+);
+
 const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
@@ -446,15 +452,19 @@ describe("Stilvorlage", () => {
     expect(CSS).toContain("@media (prefers-color-scheme: dark)");
     expect(CSS).toContain("@media (prefers-reduced-motion: no-preference)");
     expect(CSS).toContain("@media (forced-colors: active)");
-    // Beide Werte der Markenfarben als Text: Rot in der Nacht heller
-    expect(CSS).toMatch(/--primary-text: #d50038/);
-    expect(CSS).toMatch(/--primary-text: #ff7a93/);
+    // Beide Werte der Markenfarben als Text: Rot in der Nacht heller (die Tokens stehen in tokens.css, #578)
+    expect(TOKENS).toContain("@media (prefers-color-scheme: dark)");
+    expect(TOKENS).toMatch(/--primary-text: #d50038/);
+    expect(TOKENS).toMatch(/--primary-text: #ff7a93/);
   });
 
   test("nichts von aussen: keine Adresse, kein @import, keine Daten-URL; url() nur für die eigene Schrift", () => {
     expect(CSS).not.toMatch(/https?:\/\/|@import/);
-    expect([...CSS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([
-      '"/website/archivo-latin.woff2"',
+    expect(TOKENS).not.toMatch(/https?:\/\/|@import/);
+    expect([...CSS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([]);
+    // Die Schrift steht in tokens.css mit relativer Adresse: gilt neben /website/ und neben /admin/
+    expect([...TOKENS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([
+      '"archivo-latin.woff2"',
     ]);
   });
 
@@ -478,9 +488,9 @@ describe("Stilvorlage", () => {
   });
 
   test("Bewegung hat eine Kurve und zwei Dauern als Tokens; Einblenden beim Scrollen nur, wo der Browser es kann", () => {
-    expect(CSS).toMatch(/--kurve: cubic-bezier\(/);
-    expect(CSS).toMatch(/--dauer: 0\.2s/);
-    expect(CSS).toMatch(/--dauer-lang: 0\.5s/);
+    expect(TOKENS).toMatch(/--kurve: cubic-bezier\(/);
+    expect(TOKENS).toMatch(/--dauer: 0\.2s/);
+    expect(TOKENS).toMatch(/--dauer-lang: 0\.5s/);
     expect(CSS).toContain("@supports (animation-timeline: view())");
   });
 });

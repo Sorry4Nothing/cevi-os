@@ -43,60 +43,74 @@
 
   wende(lies());
 
-  document.addEventListener("DOMContentLoaded", function () {
-    // Der Umschalter steht im Band und, für schmale Fenster, noch einmal im Menü (#558): beide zeigen denselben Stand
+  // Die Verwaltung baut ihren Kopf erst nach dem Laden und ruft binde() danach selbst auf (#578); auf der Website läuft es einmal nach dem Laden der Seite
+  var aktuell = wirksam();
+  var beobachtet = false;
+
+  function markiere() {
+    var knoepfe = document.querySelectorAll(".thema button[data-thema]");
+    for (var i = 0; i < knoepfe.length; i++) {
+      knoepfe[i].setAttribute(
+        "aria-pressed",
+        knoepfe[i].getAttribute("data-thema") === aktuell ? "true" : "false",
+      );
+    }
+  }
+
+  function klick(e) {
+    aktuell = e.currentTarget.getAttribute("data-thema");
+    speichere(aktuell);
+    var wechsle = function () {
+      wende(aktuell);
+      markiere();
+    };
+    // Tag und Nacht blenden ineinander über (View Transition), wo der Browser es kann und Bewegung erwünscht ist; sonst wechselt die Seite sofort
+    if (
+      document.startViewTransition &&
+      window.matchMedia &&
+      !window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    ) {
+      document.startViewTransition(wechsle);
+    } else {
+      wechsle();
+    }
+  }
+
+  // Der Umschalter steht im Band und, für schmale Fenster, noch einmal im Menü (#558): alle zeigen denselben Stand. Mehrfaches Aufrufen schadet nicht.
+  function binde() {
     var gruppen = document.querySelectorAll(".thema");
     if (gruppen.length === 0) return;
     var knoepfe = document.querySelectorAll(".thema button[data-thema]");
-    var aktuell = wirksam();
-
-    function markiere() {
-      for (var i = 0; i < knoepfe.length; i++) {
-        knoepfe[i].setAttribute(
-          "aria-pressed",
-          knoepfe[i].getAttribute("data-thema") === aktuell ? "true" : "false",
-        );
-      }
-    }
-
     for (var i = 0; i < knoepfe.length; i++) {
-      knoepfe[i].addEventListener("click", function (e) {
-        aktuell = e.currentTarget.getAttribute("data-thema");
-        speichere(aktuell);
-        var wechsle = function () {
-          wende(aktuell);
-          markiere();
-        };
-        // Tag und Nacht blenden ineinander über (View Transition), wo der Browser es kann und Bewegung erwünscht ist; sonst wechselt die Seite sofort
-        if (
-          document.startViewTransition &&
-          window.matchMedia &&
-          !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-        ) {
-          document.startViewTransition(wechsle);
-        } else {
-          wechsle();
-        }
-      });
+      if (knoepfe[i].gebunden) continue;
+      knoepfe[i].gebunden = true;
+      knoepfe[i].addEventListener("click", klick);
     }
-    // Eine Wahl in einem anderen Tab gilt auch hier
-    window.addEventListener("storage", function (e) {
-      if (e.key !== SCHLUESSEL && e.key !== null) return;
-      wende(lies());
-      aktuell = wirksam();
-      markiere();
-    });
-    // Ohne gespeicherte Wahl folgt die Markierung dem System, auch wenn es sich ändert
-    if (window.matchMedia) {
-      var system = window.matchMedia("(prefers-color-scheme: dark)");
-      var folge = function () {
-        if (lies()) return;
+    if (!beobachtet) {
+      beobachtet = true;
+      // Eine Wahl in einem anderen Tab gilt auch hier
+      window.addEventListener("storage", function (e) {
+        if (e.key !== SCHLUESSEL && e.key !== null) return;
+        wende(lies());
         aktuell = wirksam();
         markiere();
-      };
-      if (system.addEventListener) system.addEventListener("change", folge);
+      });
+      // Ohne gespeicherte Wahl folgt die Markierung dem System, auch wenn es sich ändert
+      if (window.matchMedia) {
+        var system = window.matchMedia("(prefers-color-scheme: dark)");
+        var folge = function () {
+          if (lies()) return;
+          aktuell = wirksam();
+          markiere();
+        };
+        if (system.addEventListener) system.addEventListener("change", folge);
+      }
     }
     for (var g = 0; g < gruppen.length; g++) gruppen[g].hidden = false;
+    aktuell = wirksam();
     markiere();
-  });
+  }
+
+  window.ceviThema = { binde: binde };
+  document.addEventListener("DOMContentLoaded", binde);
 })();

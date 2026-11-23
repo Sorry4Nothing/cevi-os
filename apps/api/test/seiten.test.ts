@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import {
   afterAll,
@@ -132,12 +133,37 @@ describe("Verwaltung unter /admin", () => {
     expect(html).not.toMatch(/<style/i);
   });
 
-  test("die Verwaltung folgt Tag und Nacht des Geräts, ohne Umschalter", () => {
-    expect(admin["index.html"]).toContain(
-      'name="color-scheme" content="light dark"',
+  test("die Verwaltung folgt Tag und Nacht des Geräts und der Wahl im Kopf; die Tokens sind die der Website (#578)", () => {
+    const html = String(admin["index.html"]);
+    expect(html).toContain('name="color-scheme" content="light dark"');
+    // Eine Token-Datei für beide: dieselben Bytes wie unter /website/tokens.css, vor admin.css geladen
+    expect(admin["tokens.css"]).toBe(
+      readFileSync(
+        new URL("../public/website/tokens.css", import.meta.url),
+        "utf8",
+      ),
     );
-    expect(admin["admin.css"]).toContain("color-scheme: light dark;");
-    expect(admin["admin.css"]).toContain("prefers-color-scheme: dark");
+    expect(html.indexOf("/admin/tokens.css")).toBeGreaterThan(-1);
+    expect(html.indexOf("/admin/tokens.css")).toBeLessThan(
+      html.indexOf("/admin/admin.css"),
+    );
+    expect(html).toContain('<script src="/admin/theme.js"></script>');
+    const tokens = String(admin["tokens.css"]);
+    expect(tokens).toContain("color-scheme: light dark;");
+    expect(tokens).toContain("prefers-color-scheme: dark");
+    expect(tokens).toContain('[data-theme="dark"]');
+    // Die Werte stehen nur dort: admin.css verweist in seinem Token-Block auf sie
+    const kopfBlock = String(admin["admin.css"]).split("\n").slice(0, 45);
+    expect(kopfBlock.join("\n")).not.toMatch(/--[a-z-]+:\s*#[0-9a-f]{3,8}\b/i);
+  });
+
+  test("Kopf: Name und Logo kommen aus den Einstellungen der Website, nie aus dem Code (#578)", () => {
+    for (const datei of ["rahmen.js", "admin.js"]) {
+      expect(String(admin[datei])).not.toContain("Stäfa");
+    }
+    expect(String(admin["admin.js"])).toContain("/api/v1/redaktion/website");
+    expect(String(admin["rahmen.js"])).toContain("/api/v1/medien/");
+    expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
   });
 
   // Entscheid des Auftraggebers (#570): nur Erfolg und Info ohne Aktion vergehen; Warnung, Fehler und alles mit Aktion bleiben (docs/barrierefreiheit.md 8.2)
@@ -175,22 +201,22 @@ describe("Verwaltung unter /admin", () => {
     );
   });
 
-  test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
-    "%s schreibt keine Daten als HTML und lädt nichts von aussen",
-    (datei) => {
-      expect(admin[datei]).not.toMatch(
-        /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
-      );
-      // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
-      expect(admin[datei]).not.toMatch(
-        /setAttribute\(\s*["'`]style|\.style\.cssText/,
-      );
-      // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
-      expect(
-        String(admin[datei]).replaceAll("http://www.w3.org/2000/svg", ""),
-      ).not.toMatch(/https?:\/\//);
-    },
-  );
+  // theme.js (die Datei der Website, #578) speichert die Wahl von Hell und Dunkel im Browser; es schreibt kein HTML
+  test.each(
+    Object.keys(admin).filter((d) => d.endsWith(".js") && d !== "theme.js"),
+  )("%s schreibt keine Daten als HTML und lädt nichts von aussen", (datei) => {
+    expect(admin[datei]).not.toMatch(
+      /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
+    );
+    // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
+    expect(admin[datei]).not.toMatch(
+      /setAttribute\(\s*["'`]style|\.style\.cssText/,
+    );
+    // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
+    expect(
+      String(admin[datei]).replaceAll("http://www.w3.org/2000/svg", ""),
+    ).not.toMatch(/https?:\/\//);
+  });
 });
 
 describe("Seiten für die Stores", () => {

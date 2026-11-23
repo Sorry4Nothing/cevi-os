@@ -1,33 +1,45 @@
-/* Gerüst der Verwaltung nach dem Design «Cevi Web» (A1, A2, A30, G4): Logozeile, Bereichsleiste, Unterleiste, Zustände auf der ganzen Seite, Rückmeldungen. Farben nur aus den Tokens in admin.css. */
+/* Gerüst der Verwaltung (#578, vorher Design «Cevi Web» A1, A2, A30, G4): Kopf mit Leisten im Stil der Website, Zustände auf der ganzen Seite, Rückmeldungen. Farben nur aus den Tokens (tokens.css). */
+
+/* Kopf wie auf der Website (#578, Vorlage: website/kopf.css): ein Band auf weisser Fläche mit der Marke, dem Namen des Bereichs «Verwaltung» und rechts Konto, Umschalter Hell/Dunkel und «Abmelden»; darunter eine Zeile Navigation mit ruhigen Wörtern und einem roten Strich unter dem aktuellen Bereich, dann die Unterleiste auf der Fläche der Seite. Dieselben Masse, dieselbe Schrift, dieselben Tokens.
+   Wie auf der Website bleibt beim Scrollen nur die Zeile der Navigation oben stehen: Kopf und Leisten sind Geschwister im Gerüst (display: contents), damit die Navigation haften kann. */
+
+.kopfzeile,
+.leisten {
+  display: contents;
+}
 
 .breite {
   display: flex;
   align-items: center;
-  gap: 16px;
-  max-width: 1344px;
+  gap: 1rem;
+  max-width: 90rem;
   margin: 0 auto;
-  padding: 0 48px;
+  padding: 0 clamp(1rem, 4vw, 4.5rem);
 }
 
 /* Logozeile */
 
 .logozeile {
-  background: var(--karte);
+  background: var(--surface-container-low);
 }
 
 .logozeile .breite {
-  min-height: 80px;
+  min-height: 4rem;
+  column-gap: clamp(1rem, 2vw, 2.5rem);
 }
 
+/* Marke: ohne Logo die Wortmarke, mit Logo das Bild (hell und dunkel wie im Kopf der Website) */
 .marke {
   display: inline-flex;
+  flex: none;
   align-items: baseline;
-  gap: 10px;
+  gap: 0.625rem;
+  color: var(--on-surface);
   text-decoration: none;
 }
 
 .marke b {
-  color: var(--text);
+  color: var(--on-surface);
   font-size: 1.75rem;
   line-height: 1.75rem;
   font-weight: 900;
@@ -35,24 +47,73 @@
 }
 
 .marke span {
-  color: var(--rot-text);
+  color: var(--primary-text);
   font-size: 1.125rem;
   font-weight: 700;
 }
 
+.marke--logo {
+  align-items: center;
+  min-height: 4rem;
+}
+
+.logo {
+  display: block;
+  width: auto;
+  height: 1.875rem;
+}
+
+/* Nur eine Fassung: im dunklen Modus auf einem hellen Feld (--logo-grund ist am Tag durchsichtig) */
+.marke--logo:not(.marke--zwei) .logo {
+  box-sizing: content-box;
+  padding: 0.25rem 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 0.375rem;
+  background: var(--logo-grund);
+}
+
+.logo--dunkel {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo--hell {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo--dunkel {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .logo--hell {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo--dunkel {
+  display: block;
+}
+
 .bereichname {
-  padding-left: 16px;
-  color: var(--leise);
-  border-left: 1px solid var(--rand-leise);
+  padding-left: 1rem;
+  color: var(--on-surface-variant);
+  border-left: 1px solid var(--outline-variant);
   font-size: 0.9375rem;
   font-weight: 700;
+}
+
+.kopf-rechts {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-left: auto;
 }
 
 .konto {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-left: auto;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .konto-text {
@@ -66,11 +127,79 @@
   overflow-wrap: anywhere;
 }
 
-/* Bereichsleiste: blau, aktiver Bereich mit rotem Strich und fetter Schrift */
+/* «Abmelden»: ein Knopf mit Rand, nie so laut wie die Hauptaktion; beim Zeigen blau gefüllt wie «Anmelden» auf der Website */
+.logozeile .knopf {
+  min-height: 2.75rem;
+  border-color: var(--outline);
+  border-radius: var(--r-full);
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
+}
+
+.logozeile .knopf:hover {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  filter: none;
+}
+
+/* Der Umschalter: zwei runde Knöpfe nur mit Symbol (Hell, Dunkel); ohne Skript bleibt er verborgen (hidden) */
+.thema {
+  display: flex;
+  padding: 0.125rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+}
+
+.thema button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve);
+}
+
+.thema button .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.thema button:hover {
+  background: var(--surface-container-high);
+}
+
+/* Gewählt: gefüllt und mit innerem Ring; Fläche und Ring sind ein Formunterschied, nicht nur eine andere Farbe */
+.thema button[aria-pressed="true"] {
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 2px var(--on-secondary);
+  color: var(--on-secondary);
+}
+
+.thema button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Navigation: die Bereiche. Ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links (wie hauptnav auf der Website) */
 
 .bereichsleiste {
-  background: var(--blau);
-  color: var(--auf-blau);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  color: var(--on-surface);
 }
 
 .bereichsleiste ul,
@@ -81,60 +210,92 @@
   list-style: none;
 }
 
+.bereichsleiste .breite {
+  gap: 0;
+}
+
+.bereichsleiste ul {
+  margin-inline: -0.75rem;
+}
+
 .bereichsleiste a {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 52px;
-  padding: 0 14px;
-  color: var(--auf-blau);
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0 0.75rem;
+  color: var(--on-surface);
   font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.bereichsleiste a::before {
+  position: absolute;
+  right: 0.75rem;
+  bottom: -1px;
+  left: 0.75rem;
+  height: 3px;
+  background: var(--primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dauer) var(--kurve);
+}
+
+.bereichsleiste a:hover::before,
+.bereichsleiste a:focus-visible::before,
+.bereichsleiste a[aria-current]::before {
+  transform: scaleX(1);
+}
+
+.bereichsleiste a[aria-current] {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+/* Unterleiste: die Unterseiten des aktiven Bereichs, eine leise Zeile unter der Navigation; sie scrollt mit dem Inhalt weg. Zähler als rote Pille */
+
+.unterleiste {
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface);
+}
+
+.unterleiste .breite {
+  gap: 0;
+}
+
+.unterleiste ul {
+  margin-left: -0.75rem;
+}
+
+.unterleiste a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  color: var(--on-surface);
+  font-size: 0.9375rem;
   font-weight: 500;
   text-decoration: none;
   white-space: nowrap;
 }
 
-.bereichsleiste a:hover {
-  background: var(--erhoben);
-  color: var(--text);
-}
-
-.bereichsleiste a[aria-current="page"] {
-  font-weight: 700;
-  box-shadow: inset 0 -4px 0 var(--rot);
-}
-
-/* Unterleiste: die Unterseiten des aktiven Bereichs, Zähler als rote Pille */
-
-.unterleiste {
-  background: var(--leiste);
-  border-bottom: 1px solid var(--rand-leise);
-}
-
-.unterleiste .breite {
-  gap: 4px;
-}
-
-.unterleiste a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 14px;
-  color: var(--leise);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
 .unterleiste a:hover {
-  color: var(--text);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .unterleiste a[aria-current="page"] {
-  color: var(--text);
-  box-shadow: inset 0 -3px 0 var(--rot);
+  color: var(--titel);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--primary);
 }
 
 /* Zähler: rote Pille mit weisser Zahl (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1) */
@@ -153,17 +314,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Fokus auf der blauen Leiste: weisser Ring, damit er vom Blau absticht */
-.bereichsleiste a:focus-visible {
-  outline-color: var(--auf-blau);
+.bereichsleiste a:focus-visible,
+.unterleiste a:focus-visible {
   outline-offset: -3px;
 }
 
 @media (max-width: 1100px) {
-  .breite {
-    padding: 0 24px;
-  }
-
   /* Name und Rolle bleiben für Screenreader, weichen aber dem Platz (A2) */
   .konto-text {
     position: absolute;
@@ -173,38 +329,36 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-
-  .bereichsleiste a {
-    padding: 0 9px;
-    font-size: 0.9375rem;
-  }
 }
 
 @media (max-width: 760px) {
-  .breite {
-    padding: 0 16px;
-  }
-
   .logozeile .breite {
-    min-height: 64px;
+    min-height: 3.5rem;
     flex-wrap: wrap;
-    padding-block: 8px;
+    padding-block: 0.5rem;
   }
 
   .bereichname {
     display: none;
   }
 
+  .logo {
+    height: 1.625rem;
+  }
+
+  .kopf-rechts {
+    gap: 0.5rem;
+  }
+
   /* Die Leisten laufen waagrecht: Ziele bleiben 44 px hoch und mit dem Daumen erreichbar */
-  .bereichsleiste,
-  .unterleiste {
+  .bereichsleiste .breite,
+  .unterleiste .breite {
     overflow-x: auto;
   }
 
-  .bereichsleiste .breite,
-  .unterleiste .breite {
-    width: max-content;
-    min-width: 100%;
+  .bereichsleiste ul,
+  .unterleiste ul {
+    flex: none;
   }
 }
 

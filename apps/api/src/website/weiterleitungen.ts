@@ -4,7 +4,7 @@ import type { Db } from "../db/client.js";
 import { tag, weiterleitung } from "../db/schema.js";
 import { istAusgabePfad } from "./ausgabe.js";
 import { fehlerBuehne, STIL_FEHLER } from "./fehlerseiten.js";
-import { CSP, esc, STYLESHEET_PFAD } from "./rendern.js";
+import { CSP, esc, STYLESHEET_PFAD, TOKENS_PFAD } from "./rendern.js";
 import { RESERVIERTE_ADRESSEN } from "./seiten.js";
 
 // Weiterleitungen alter Adressen (#356). Ein Pfad ist relativ zur Website: Stücke aus a-z, 0-9 und «-», dahinter Endungen mit «.», höchstens 7 Stücke.
@@ -99,6 +99,7 @@ export function rendereWeiterleitungsseite(
 <meta name="robots" content="noindex">
 <title>Seite umgezogen | ${esc(abteilung)}</title>
 <link rel="canonical" href="${esc(basisUrl + u.zielPfad)}">
+<link rel="stylesheet" href="${TOKENS_PFAD}">
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
 <link rel="stylesheet" href="${STIL_FEHLER}">
 </head>

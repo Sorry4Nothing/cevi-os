@@ -1,51 +1,40 @@
-/* Verwaltung im Design «Cevi Web»: Tag und Nacht. Der Browser wählt über prefers-color-scheme; es gibt keinen eigenen Umschalter. Werte aus dem Design-System «Cevi App» (tokens.json); die Kontraste stehen im Handbuch (G4). Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine externen Schriften (CSP): Archivo gilt, wenn sie auf dem Gerät liegt, sonst die Systemschrift. Keine style-Attribute: alles läuft über Klassen. */
+/* Verwaltung (#578: ein Designsystem mit der Website). Farben, Radien, Bewegung, Schrift und Scrollleisten kommen aus tokens.css, das index.html davor lädt; Tag und Nacht folgen dem Gerät oder der Wahl im Kopf (data-theme). Hier stehen die Bausteine der Verwaltung. Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine style-Attribute: alles läuft über Klassen. */
 
 :root {
-  color-scheme: light dark;
+  /* Die Werte kommen aus tokens.css (eine Datei für Website und Verwaltung, #578). Hier stehen nur die Namen, die die Stilvorlagen der Bereiche seit dem Gerüst verwenden, als Verweise auf die Tokens des Designs: Farben ändern sich nie hier, sondern dort. */
+  --leiste: var(--surface-container); /* Leisten, Filter */
+  --erhoben: var(--surface-container-high); /* Dialoge */
+  --text: var(--on-surface);
+  --leise: var(--on-surface-variant);
+  --rand: var(--outline); /* Felder und Knöpfe */
+  --rand-leise: var(--outline-variant); /* nur Karten und Trennlinien */
 
-  /* Tag (Vorgabe) */
-  --surface: #f2f5f8; /* surface */
-  --karte: #ffffff; /* surface-container-low */
-  --leiste: #e6ebf1; /* surface-container */
-  --erhoben: #d5dfe9; /* surface-container-high */
-  --text: #1a1a1a; /* on-surface */
-  --leise: #4d4d4d; /* on-surface-variant */
-  --rand: #6b7886; /* outline: Felder und Knöpfe */
-  --rand-leise: #c9d5e1; /* outline-variant: nur Karten und Trennlinien */
+  --rot: var(--primary); /* genau eine Hauptaktion je Ansicht, Zähler */
+  --auf-rot: var(--on-primary);
+  --rot-text: var(--primary-text);
+  --blau: var(--secondary);
+  --auf-blau: var(--on-secondary);
+  --auf-blau-leise: var(--on-secondary-muted);
+  --blau-f: var(--secondary-container);
+  --auf-blau-f: var(--on-secondary-container);
+  --akzent: var(--accent); /* «hier bist du», gewählte Pille */
+  --auf-akzent: var(--on-accent);
+  --fokus: var(--focus);
 
-  --rot: #d50038; /* primary: genau eine Hauptaktion je Ansicht, Zähler */
-  --auf-rot: #ffffff; /* on-primary */
-  --rot-text: #d50038; /* primary-text */
-  --titel: #d50038; /* H1 und H2: im Tag rot, in der Nacht weiss */
-  --blau: #013974; /* secondary: Bereichsleiste */
-  --auf-blau: #ffffff; /* on-secondary */
-  --auf-blau-leise: #c6d4e4; /* on-secondary-muted */
-  --blau-f: #e6ebf1; /* secondary-container */
-  --auf-blau-f: #013974; /* on-secondary-container */
-  --akzent: #013974; /* accent: «hier bist du», gewählte Pille */
-  --auf-akzent: #ffffff; /* on-accent */
-  --fokus: #013974; /* focus */
+  --ok-f: var(--success-container);
+  --ok: var(--on-success-container);
+  --fe-f: var(--error-container);
+  --fe: var(--on-error-container);
+  --wa-f: var(--warning-container);
+  --wa: var(--on-warning-container);
+  --st-f: var(--stufe-container);
+  --st: var(--on-stufe-container);
 
-  --ok-f: #e7f4ec; /* success-container */
-  --ok: #17703a; /* on-success-container */
-  --fe-f: #fce9ec; /* error-container */
-  --fe: #9e1b2c; /* on-error-container */
-  --wa-f: #fff4d6; /* warning-container */
-  --wa: #8a5a00; /* on-warning-container */
-  --st-f: #e3f2f6; /* stufe-container */
-  --st: #1d6274; /* on-stufe-container */
+  --umkehr: var(--inverse-surface); /* Snackbar */
+  --auf-umkehr: var(--inverse-on-surface);
+  --skeleton-hell: var(--skeleton-highlight);
+  --schleier: var(--scrim);
 
-  --umkehr: #013974; /* inverse-surface: Snackbar */
-  --auf-umkehr: #f2f5f8; /* inverse-on-surface */
-  --skeleton: #d7e0ea; /* Dekor, 1.22:1 gegen die Fläche; die Information liefert die Live-Region */
-  --skeleton-hell: #eef2f6;
-
-  --schleier: rgba(1, 57, 116, 0.45); /* scrim */
-  --schatten: 0 8px 24px rgba(1, 57, 116, 0.16); /* elevation-float */
-
-  --schrift:
-    Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   /* Symbole für Hinweise und Kacheln: Maske, damit sie die Textfarbe tragen und auch in Text eingesetzter Inhalt eines Hinweises sie nicht verliert */
@@ -53,50 +42,6 @@
   --ic-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
   --ic-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20h19z'/%3E%3Cpath d='M12 10v4M12 17h.01'/%3E%3C/svg%3E");
   --ic-sperre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M5.6 5.6l12.8 12.8'/%3E%3C/svg%3E");
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Nacht */
-    --surface: #141412;
-    --karte: #1c1c1a;
-    --leiste: #252523;
-    --erhoben: #30302d;
-    --text: #f3f3ef;
-    --leise: #bebeb6;
-    --rand: #8f8f88;
-    --rand-leise: #3b3b37;
-
-    --rot: #d50038;
-    --auf-rot: #ffffff;
-    --rot-text: #ff7a93;
-    --titel: #f3f3ef;
-    --blau: #013974;
-    --auf-blau: #ffffff;
-    --auf-blau-leise: #c6d4e4;
-    --blau-f: #0e2a47;
-    --auf-blau-f: #d5e1ee;
-    --akzent: #9dc0ea;
-    --auf-akzent: #141412;
-    --fokus: #9dc0ea;
-
-    --ok-f: #16261b;
-    --ok: #6fd39a;
-    --fe-f: #33171b;
-    --fe: #ff8e9a;
-    --wa-f: #2c2513;
-    --wa: #f2c063;
-    --st-f: #142a2f;
-    --st: #7fd0e3;
-
-    --umkehr: #f3f3ef;
-    --auf-umkehr: #141412;
-    --skeleton: #2a2a27;
-    --skeleton-hell: #363632;
-
-    --schleier: rgba(0, 0, 0, 0.7);
-    --schatten: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
 }
 
 *,
@@ -288,18 +233,20 @@ main:focus {
   min-height: 100vh;
 }
 
+/* Inhalt und Kopf haben dieselbe Breite und denselben Seitenrand (#578, wie --rand der Website) */
 .inhalt {
   flex: 1 1 auto;
+  width: 100%;
+  max-width: 90rem;
   min-width: 0;
-  padding: 40px 48px 64px;
+  margin: 0 auto;
+  padding: 2.5rem clamp(1rem, 4vw, 4.5rem) 4rem;
 }
 
 .rahmen {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1248px;
-  margin: 0 auto;
 }
 
 .kopf {
@@ -339,15 +286,9 @@ main:focus {
   gap: 20px;
 }
 
-@media (max-width: 1100px) {
-  .inhalt {
-    padding: 32px 24px 48px;
-  }
-}
-
 @media (max-width: 760px) {
   .inhalt {
-    padding: 24px 16px 48px;
+    padding-block: 1.5rem 3rem;
   }
 
   h1 {
@@ -1916,45 +1857,7 @@ dialog.blatt[open] {
   }
 }
 
-/* Scrollleisten (#572): dünn, runder Griff in der Randfarbe (3:1), deutlicher bei Hover und Ziehen. Chrome, Edge und Safari zeichnen ihn über ::-webkit-scrollbar, Firefox über scrollbar-width und scrollbar-color. Beide Wege dürfen nie gleichzeitig gelten: Sobald scrollbar-color gesetzt ist, ignoriert Chrome die WebKit-Regeln. Mit Finger oder Stift und in erzwungenen Farben bleibt die Leiste des Systems. */
-
-@supports not selector(::-webkit-scrollbar) {
-  @media (not (pointer: coarse)) and (not (forced-colors: active)) {
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: var(--rand) transparent;
-    }
-  }
-}
-
-@supports selector(::-webkit-scrollbar) {
-  @media (not (pointer: coarse)) and (not (forced-colors: active)) {
-    ::-webkit-scrollbar {
-      width: 14px;
-      height: 14px;
-    }
-
-    ::-webkit-scrollbar-track,
-    ::-webkit-scrollbar-corner {
-      background: transparent;
-    }
-
-    ::-webkit-scrollbar-thumb {
-      background-color: var(--rand);
-      background-clip: padding-box;
-      border: 3px solid transparent;
-      border-radius: 9999px;
-    }
-
-    ::-webkit-scrollbar-thumb:hover {
-      background-color: var(--leise);
-    }
-
-    ::-webkit-scrollbar-thumb:active {
-      background-color: var(--text);
-    }
-  }
-}
+/* Scrollleisten: gemeinsame Regeln in tokens.css (#578, vorher #572) */
 
 @media (forced-colors: active) {
   .knopf,

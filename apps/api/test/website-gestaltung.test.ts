@@ -549,8 +549,9 @@ describe("Scrollleisten (#572)", () => {
   const stil = (name: string) =>
     readFileSync(new URL(`../public/website/${name}`, import.meta.url), "utf8");
 
-  test("die Regeln stehen nur in website.css; scrollbar-color gilt nur dort, wo kein WebKit-Griff gezeichnet wird", () => {
+  test("die Regeln stehen nur in tokens.css (Website und Verwaltung); scrollbar-color gilt nur dort, wo kein WebKit-Griff gezeichnet wird", () => {
     for (const name of [
+      "website.css",
       "termine.css",
       "inhalt.css",
       "kopf.css",
@@ -561,7 +562,7 @@ describe("Scrollleisten (#572)", () => {
       expect(stil(name), name).not.toMatch(/::-webkit-scrollbar-thumb/);
       expect(stil(name), name).not.toMatch(/scrollbar-color/);
     }
-    const css = stil("website.css");
+    const css = stil("tokens.css");
     // Chrome ignoriert ::-webkit-scrollbar, sobald scrollbar-color gesetzt ist
     expect(css).toMatch(
       /@supports not selector\(::-webkit-scrollbar\) \{\s*\* \{\s*scrollbar-width: var\(--leiste-breite\);\s*scrollbar-color: var\(--leiste-griff\)/,

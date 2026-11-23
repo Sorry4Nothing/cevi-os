@@ -52,11 +52,14 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
   admin[SCHRIFT] = new Uint8Array(
     readFileSync(new URL(`../public/website/${SCHRIFT}`, import.meta.url)),
   );
+  // Tokens und Schrift (#578): eine Datei für Website und Verwaltung; die Schrift steht in der Datei relativ, gilt also auch unter /admin/
+  const tokens = lade("website/tokens.css");
+  admin["tokens.css"] = tokens;
+  // Umschalter Hell und Dunkel der Verwaltung (#578): dieselbe Datei wie die Website, dieselbe Wahl im Browser
+  admin["theme.js"] = lade("website/theme.js");
   admin["website-vorschau.css"] =
-    lade("website/website.css").replace(
-      `/website/${SCHRIFT}`,
-      `/admin/${SCHRIFT}`,
-    ) +
+    tokens +
+    lade("website/website.css") +
     lade("website/kopf.css") +
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +

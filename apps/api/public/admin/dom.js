@@ -107,6 +107,12 @@ const ICONS = {
     "M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3",
   ],
   schliessen: ["M6 6l12 12M18 6 6 18"],
+  // Umschalter Hell und Dunkel (dieselben Formen wie der Symbolsatz der Website, src/website/symbole.ts)
+  sonne: [
+    ["circle", { cx: 12, cy: 12, r: 4 }],
+    "M12 1.5v3M12 19.5v3M1.5 12h3M19.5 12h3M4.6 4.6l2.1 2.1M17.3 17.3l2.1 2.1M4.6 19.4l2.1-2.1M17.3 6.7l2.1-2.1",
+  ],
+  mond: ["M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"],
   aktualisieren: ["M20 11a8 8 0 1 0-2.3 5.7", "M20 5v6h-6"],
   hoch: ["M6 15l6-6 6 6"],
   runter: ["M6 9l6 6 6-6"],

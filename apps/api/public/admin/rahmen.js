@@ -2,10 +2,85 @@
 import { adresseVon } from "./navigation.js";
 import { avatar, el, icon, knopf, leere } from "./dom.js";
 
-// Name der Abteilung neben «CEVI»
-const ABTEILUNG = "Stäfa-Hombrechtikon";
+// Marke im Kopf wie auf der Website (#578): das Logo der Abteilung (hell und, falls gesetzt, dunkel) oder die Wortmarke «CEVI» mit dem Namen.
+// Name und Logo kommen aus den Einstellungen der Website (GET /api/v1/redaktion/website) und stehen nie im Code; ohne sie (kein Recht auf die Einstellungen, nichts gesetzt) bleibt die Wortmarke «CEVI» allein.
+let markeDaten = { name: "", logoId: null, logoDunkelId: null };
+const medienUrl = (id) => `/api/v1/medien/${encodeURIComponent(id)}`;
 
-// Logozeile: Marke, «Verwaltung», Konto mit Rolle und «Abmelden»
+function erstelleMarke() {
+  const { name, logoId, logoDunkelId } = markeDaten;
+  if (!logoId) {
+    return el(
+      "a",
+      { class: "marke", href: "#" },
+      el("b", {}, "CEVI"),
+      name && el("span", {}, name),
+    );
+  }
+  const bild = (klasse, id) =>
+    el("img", {
+      class: klasse,
+      src: medienUrl(id),
+      alt: "",
+      decoding: "async",
+    });
+  return el(
+    "a",
+    {
+      class: `marke marke--logo${logoDunkelId ? " marke--zwei" : ""}`,
+      href: "#",
+    },
+    bild(logoDunkelId ? "logo logo--hell" : "logo", logoId),
+    logoDunkelId && bild("logo logo--dunkel", logoDunkelId),
+    el("span", { class: "nur-leser" }, name || "Cevi"),
+  );
+}
+
+// Setzt Name und Logo und ersetzt die Marke, wo sie schon steht; spätere Köpfe nutzen den gemerkten Stand
+export function setzeMarke({ name, logoMediumId, logoDunkelMediumId }) {
+  markeDaten = {
+    name: name ?? "",
+    logoId: logoMediumId ?? null,
+    logoDunkelId: logoDunkelMediumId ?? null,
+  };
+  for (const alt of document.querySelectorAll("a.marke")) {
+    alt.replaceWith(erstelleMarke());
+  }
+}
+
+// Umschalter Hell und Dunkel wie im Kopf der Website: zwei Knöpfe nur mit Symbol, aria-pressed, die Wahl liegt nur im Browser (website/theme.js)
+// Ohne das Skript bleibt er verborgen (hidden)
+function themaSchalter() {
+  return el(
+    "div",
+    {
+      class: "thema",
+      role: "group",
+      "aria-label": "Darstellung",
+      hidden: true,
+    },
+    [
+      ["light", "sonne", "Hell"],
+      ["dark", "mond", "Dunkel"],
+    ].map(([wert, symbol, name]) =>
+      el(
+        "button",
+        {
+          type: "button",
+          "data-thema": wert,
+          "aria-pressed": "false",
+          "aria-label": name,
+        },
+        icon(symbol),
+      ),
+    ),
+  );
+}
+
+// Nach dem Einsetzen des Kopfs aufrufen: theme.js verbindet die Knöpfe und zeigt sie
+export const bindeThema = () => window.ceviThema?.binde();
+
+// Logozeile: Marke, «Verwaltung», Konto mit Rolle, Umschalter und «Abmelden»
 // konto: { name, rolle } (rolle: Text unter dem Namen)
 export function logozeile({ konto, beiAbmelden, sichtbar = true }) {
   return el(
@@ -14,31 +89,33 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true }) {
     el(
       "div",
       { class: "breite" },
-      el(
-        "a",
-        { class: "marke", href: "#" },
-        el("b", {}, "CEVI"),
-        el("span", {}, ABTEILUNG),
-      ),
+      erstelleMarke(),
       el("span", { class: "bereichname" }, "Verwaltung"),
-      sichtbar &&
-        konto &&
-        el(
-          "div",
-          { class: "konto" },
-          avatar(konto.name),
+      el(
+        "div",
+        { class: "kopf-rechts" },
+        sichtbar &&
+          konto &&
           el(
             "div",
-            { class: "konto-text" },
-            el("p", { class: "kontoname" }, konto.name),
-            el("p", { class: "mini leise" }, konto.rolle),
+            { class: "konto" },
+            avatar(konto.name),
+            el(
+              "div",
+              { class: "konto-text" },
+              el("p", { class: "kontoname" }, konto.name),
+              el("p", { class: "mini leise" }, konto.rolle),
+            ),
           ),
+        themaSchalter(),
+        sichtbar &&
+          konto &&
           knopf("Abmelden", {
             symbol: "abmelden",
             klein: true,
             onclick: beiAbmelden,
           }),
-        ),
+      ),
     ),
   );
 }

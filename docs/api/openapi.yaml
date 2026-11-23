@@ -360,6 +360,36 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/tokens.css:
+    get:
+      operationId: getAdminTokensStilvorlage
+      summary: Tokens und Schrift – gemeinsam mit der Website (Farben, Radien, Bewegung, Scrollleisten)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/theme.js:
+    get:
+      operationId: getAdminThemaSkript
+      summary: Skript der Verwaltung – Umschalter Hell und Dunkel (dieselbe Datei wie die Website)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/navigation.js:
     get:
       operationId: getAdminNavigationSkript

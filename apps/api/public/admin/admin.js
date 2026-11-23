@@ -10,8 +10,10 @@ import {
 import {
   erstelleLeisten,
   erstelleRueckmeldungen,
+  bindeThema,
   logozeile,
   seitenkopf,
+  setzeMarke,
 } from "./rahmen.js";
 import {
   nochmals,
@@ -38,6 +40,8 @@ function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
   leere(app);
   app.append(...knoten);
+  // Der Umschalter Hell und Dunkel im Kopf (theme.js)
+  bindeThema();
 }
 
 function fehlerfeld() {
@@ -386,6 +390,8 @@ function zeigeVerwaltung() {
       ? "Abteilungsleitung · zweiter Faktor aktiv"
       : "Abteilungsleitung";
   rueckmeldungen = erstelleRueckmeldungen();
+  // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt die Wortmarke «CEVI»
+  anfrage("GET", "/api/v1/redaktion/website").then(setzeMarke, () => {});
   zaehlerStand.clear();
   aktiv = null;
   zeichne(

@@ -12,10 +12,10 @@ const TYPEN: Record<string, string> = {
   woff2: "font/woff2",
 };
 
-// Nichts Fremdes: Skript, Stil, Bild (data: für Symbole) und Verbindungen nur von der eigenen Herkunft; die Seite lässt sich nicht einbetten. Eigene Rahmen (frame-src) nur für die Vorschau der Website im Editor (#353); sie bleiben auf dieselbe Herkunft beschränkt
+// Nichts Fremdes: Skript, Stil, Schrift (Archivo, #578), Bild (data: für Symbole) und Verbindungen nur von der eigenen Herkunft; die Seite lässt sich nicht einbetten. Eigene Rahmen (frame-src) nur für die Vorschau der Website im Editor (#353); sie bleiben auf dieselbe Herkunft beschränkt
 const KOPFZEILEN = {
   "Content-Security-Policy":
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
   // Für Browser, die frame-ancestors nicht kennen

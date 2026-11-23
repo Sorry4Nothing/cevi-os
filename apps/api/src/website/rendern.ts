@@ -27,6 +27,8 @@ import { zeichenLinks } from "./zeichen.js";
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
 // Rein und synchron: Alles, was aus der Datenbank kommt, liegt vorher in «Daten». Kein Skript, keine Schrift und keine Einbettung von aussen.
 
+// Tokens und Schrift gelten für Website und Verwaltung (#578); sie stehen vor der Stilvorlage im Kopf jeder Seite
+export const TOKENS_PFAD = "/website/tokens.css";
 export const STYLESHEET_PFAD = "/website/website.css";
 // Name der Startseite: die Seite mit dieser Adresse auf der obersten Ebene ist die Adresse «/» (offene Frage aus #348, bis der Nutzer entscheidet)
 export const STARTSEITE = "start";
@@ -1315,6 +1317,7 @@ export function rahmen(
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}
+<link rel="stylesheet" href="${TOKENS_PFAD}">
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
 <link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
 </head>
