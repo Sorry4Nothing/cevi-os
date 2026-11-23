@@ -227,7 +227,7 @@ function bild(
     undefined,
     el(
       "a",
-      { class: "gross", href: medienUrl(id) },
+      { class: "bildgross", href: medienUrl(id) },
       img,
       el("span", { class: "nur-sr" }, "Bild gross ansehen"),
     ),
@@ -1326,7 +1326,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
             attr: { class: "titelbild" },
             // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
             kinder: erstes.knoten!.kinder?.flatMap((kind) =>
-              typeof kind === "object" && kind.attr?.class === "gross"
+              typeof kind === "object" && kind.attr?.class === "bildgross"
                 ? (kind.kinder ?? []).filter(
                     (x) => typeof x === "object" && x.tag === "img",
                   )
