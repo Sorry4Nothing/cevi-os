@@ -90,8 +90,8 @@ function navigation(lager, gruppen, aktiv) {
         liste.toggleAttribute("data-offen", !offen);
       },
     },
-    icon("menue"),
     el("span", {}, aktuell?.titel ?? "Bereiche des Lagers"),
+    icon("runter"),
   );
   const liste = el(
     "div",

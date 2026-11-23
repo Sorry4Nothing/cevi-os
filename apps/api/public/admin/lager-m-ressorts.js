@@ -170,17 +170,11 @@ function liste(bereich, ctx, lager) {
       );
       if (alle.length === 0) {
         bereich.append(
-          leerKarte("Es gibt noch kein Ressort.", [
-            ...(darf
-              ? [
-                  knopf("Neues Ressort", {
-                    symbol: "plus",
-                    onclick: () =>
-                      ressortFormular({ ctx, lager, alle, danach: neu }),
-                  }),
-                ]
-              : []),
-          ]),
+          leerKarte(
+            darf
+              ? "Es gibt noch kein Ressort. Lege das erste oben rechts an."
+              : "Es gibt noch kein Ressort.",
+          ),
         );
         return;
       }

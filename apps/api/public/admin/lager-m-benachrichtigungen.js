@@ -3,7 +3,6 @@ import { el, icon, knopf } from "./dom.js";
 import { skeletonListe } from "./lader.js";
 import { ADRESSE, meldung } from "./lager-gemeinsam.js";
 import { MODULE } from "./lager-module.js";
-import { leerKarte } from "./zustaende.js";
 
 // Modul «Benachrichtigungen» (#672): die Glocke des Lagers (GET /api/v1/lager/{id}/benachrichtigungen, neueste zuerst; jede Person liest nur ihre eigenen) und die Schalter je Art (GET/PUT /api/v1/ich/lager-benachrichtigungen, sie gelten für alle Lager und für Liste und Push). Die Zeile trägt keinen Text, nur Art und Ziel; der Inhalt steht im Modul des Ziels.
 
@@ -190,7 +189,11 @@ export function zeige(bereich, ctx, id) {
             alleLesen,
           ),
           eintraege.length === 0
-            ? leerKarte("Du hast keine Benachrichtigung in diesem Lager.")
+            ? el(
+                "p",
+                { class: "leise" },
+                "Du hast keine Benachrichtigung in diesem Lager.",
+              )
             : liste,
           mehr,
         ),

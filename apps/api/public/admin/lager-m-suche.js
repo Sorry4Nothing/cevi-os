@@ -130,7 +130,7 @@ export function zeige(bereich, ctx, id, lager) {
     }
   }
 
-  const absenden = knopf("Suchen", { art: "haupt", symbol: "lupe" });
+  const absenden = knopf("Lager durchsuchen", { art: "haupt", symbol: "lupe" });
   absenden.type = "submit";
   bereich.append(
     el(
