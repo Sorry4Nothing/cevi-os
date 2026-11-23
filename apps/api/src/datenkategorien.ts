@@ -42,7 +42,7 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung kann es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung und der Entwickler können es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
     frist:
       "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Auf der Website steht das Bild, solange die Person die Rolle trägt und das Bild besteht; die Website vergisst es beim nächsten Abgleich, kurz nachdem die Rolle oder das Bild wegfällt.",
     apple: ["User Content: Photos or Videos"],
@@ -624,7 +624,25 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
-  laden_einstellung: { abteilung: ["abteilung_id", "uebergabearten"] },
+  laden_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "uebergabearten",
+      "bestellen_offen",
+      "schnell_dazu",
+      "preise_oeffentlich",
+      "max_menge",
+      "max_positionen",
+      "max_offene",
+      "mindest_rappen",
+      "bezahlhinweis",
+      "zahlungsart",
+      "bestaetigung",
+      "uebergabehinweis",
+      "bedingungen",
+      "geschlossen_text",
+    ],
+  },
   laden_bestellung: {
     laedeli: [
       "id",
@@ -745,7 +763,14 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     rollen: ["id", "abteilung_id", "typ", "name", "kuerzel", "anlass_id"],
   },
   person_tag: {
-    rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+    rollen: [
+      "user_id",
+      "tag_id",
+      "rolle",
+      "prioritaet",
+      "rolle_id",
+      "erstellt_am",
+    ],
   },
   // Das Lager hat keinen Personenbezug ausser seiner Adresse und den Mitgliedern
   lager: {
@@ -1352,7 +1377,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   plattform_rolle: {
-    rollen: ["id", "abteilung_id", "name", "schluessel", "erstellt_am"],
+    rollen: [
+      "id",
+      "abteilung_id",
+      "name",
+      "schluessel",
+      "version",
+      "erstellt_am",
+    ],
+  },
+  gruppen_rolle: {
+    rollen: [
+      "id",
+      "abteilung_id",
+      "tag_id",
+      "name",
+      "beschreibung",
+      "verantwortlich",
+      "reihenfolge",
+      "schluessel",
+      "version",
+      "erstellt_am",
+      "geaendert_am",
+    ],
+  },
+  gruppen_rolle_recht: {
+    rollen: ["rolle_id", "recht", "geltung"],
   },
   plattform_rolle_recht: {
     rollen: ["rolle_id", "recht"],

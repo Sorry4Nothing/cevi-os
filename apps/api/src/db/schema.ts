@@ -20,6 +20,8 @@ import {
 } from "drizzle-orm/pg-core";
 // Zyklus mit schema-anlass.ts, harmlos: Der Verweis steht nur in einer Funktion, die erst beim Aufbau des Fremdschlüssels läuft
 import { anlass } from "./schema-anlass.js";
+// Ebenso: Die Gruppenrolle der Zuordnung (#643)
+import { gruppenRolle } from "./schema-plattform.js";
 
 const id = () =>
   uuid("id")
@@ -276,11 +278,16 @@ export const personTag = pgTable(
     rolle: text("rolle"),
     // Reihenfolge innerhalb des Tags: 1 = zuerst; null = nicht eingereiht
     prioritaet: integer("prioritaet"),
+    // Die Gruppenrolle der Person in dieser Gruppe (#643): sie trägt die Rechte. Dass die Rolle zur Gruppe gehört, prüfen die Routen und jede Abfrage des Rechtemodells. Der Trigger person_tag_rolle_abgleich führt die Systemrollen dem Freitext «rolle» nach
+    rolleId: uuid("rolle_id").references((): AnyPgColumn => gruppenRolle.id, {
+      onDelete: "set null",
+    }),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.userId, t.tagId] }),
     index("person_tag_tag_id_idx").on(t.tagId),
+    index("person_tag_rolle_id_idx").on(t.rolleId),
     check("person_tag_prioritaet_check", sql`${t.prioritaet} >= 1`),
   ],
 );

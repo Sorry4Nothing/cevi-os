@@ -16,6 +16,7 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { legeSystemrollenAn } from "../../rechtemodell/gruppenrollen.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
@@ -79,6 +80,8 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             abteilungId: person.abteilungId,
             stufeId: zeile.id,
           });
+          // Jede Gruppe hat ihre Systemrollen (#643)
+          await legeSystemrollenAn(tx, person.abteilungId, zeile.id, "stufe");
           // Zu jeder neuen Stufe entsteht eine Seite als Entwurf (#352), wie beim Tag vom Typ «stufe»
           const seiten = await legeSeiteFuerTagAn(tx, {
             abteilungId: person.abteilungId,

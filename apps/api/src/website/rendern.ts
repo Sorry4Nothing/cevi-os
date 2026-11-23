@@ -1,3 +1,4 @@
+import type { LadenEinstellung } from "../laden/laden.js";
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
@@ -124,6 +125,8 @@ export type Daten = {
   laden: ReadonlyMap<string, LadenArtikel>;
   // Die Übergabearten des Lädelis in ihrer Reihenfolge (der Name ist der Schlüssel)
   ladenUebergabe: ReadonlyMap<string, true>;
+  // Die Einstellungen des Lädelis (#642) unter dem Schlüssel «e»; ohne Eintrag gelten die Vorgaben
+  ladenEinstellung: ReadonlyMap<"e", LadenEinstellung>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -136,6 +139,7 @@ export const keineDaten = (): Daten => ({
   anlaesse: new Map(),
   laden: new Map(),
   ladenUebergabe: new Map(),
+  ladenEinstellung: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -378,7 +382,7 @@ const neuerStand = (): Stand => ({
   anker: new Set(["inhalt", "h1"]),
 });
 
-// Die Tafel «auf einen Blick»: Stufenfelder und Eckdaten sehen gleich aus
+// Die Tafel «auf einen Blick»: Samstagsangaben der Stufen und Eckdaten sehen gleich aus
 const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
   el(
     "dl",
@@ -933,7 +937,7 @@ const alsHtml = (liste: Eintrag[]) =>
 
 const sichtbar = (e: Eintrag) => e.knoten !== null && istOeffentlich(e.b);
 
-// Stufenfelder und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
+// Samstagsangaben der Stufen und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
 // Ohne solche Bausteine davor oder am Handy steht alles untereinander in der Reihenfolge der Seite
 function ordneZweispaltig(eintraege: Eintrag[]): string {
   const fakten = eintraege.findIndex(

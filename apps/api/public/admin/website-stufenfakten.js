@@ -21,7 +21,7 @@ import {
   zeigeOrte,
 } from "./website-orte.js";
 
-// Stufenfelder (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
+// Samstagsangaben der Stufen (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
 // Adresse: #website/stufenfakten und #website/stufenfakten/<stufeId>. Die Werte wirken sofort, ohne Veröffentlichen.
 const MAX_MITNEHMEN = 1000;
 

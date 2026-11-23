@@ -13,6 +13,34 @@ const BLITZ_MS = 1600;
 // Bis zu so vielen Varianten stehen als Knöpfe im schnellen Hinzufügen der Kachel
 const MAX_SCHNELL = 6;
 
+// Regeln und Texte der Abteilung (#642). Die Vorgaben sind die Annahmen, die das Lädeli vorher fest hatte (wie src/laden/laden.ts: EINSTELLUNG_VORGABE); das Markup (data-einstellung) und GET /laden liefern die Werte der Abteilung
+export const EINSTELLUNG = {
+  bestellenOffen: true,
+  schnellDazu: true,
+  preiseOeffentlich: true,
+  maxMenge: 10,
+  maxPositionen: 20,
+  maxOffene: 5,
+  mindestRappen: 0,
+  bezahlhinweis: "Bezahlt wird bei der Übergabe, nicht online.",
+  zahlungsart: "Bei der Übergabe",
+  bestaetigung:
+    "Du bezahlst bei der Übergabe: {uebergabe}. Den Stand siehst du unter «Deine Bestellungen».",
+  uebergabehinweis: "",
+  bedingungen: "",
+  geschlossenText: "Das Lädeli nimmt zurzeit keine Bestellungen an.",
+};
+export const einstellungVon = (z) => ({ ...EINSTELLUNG, ...z?.einstellung });
+// Ein Preis, der noch nicht bekannt ist (die Abteilung zeigt Preise nur Angemeldeten), steht als Hinweis
+export const preisAnzeige = (rappen) =>
+  rappen == null ? "Preis nach Anmeldung" : preisText(rappen);
+// Ein Text mit Zeilenumbrüchen als Absätze
+const absaetze = (text, klasse) =>
+  String(text)
+    .split("\n")
+    .filter((t) => t.trim() !== "")
+    .map((t) => h("p", { class: klasse }, t));
+
 // «CHF 40.–», «CHF 12.50», «gratis»: wie src/laden/laden.ts (preisText)
 export function preisText(rappen) {
   if (rappen === 0) return "gratis";
@@ -94,9 +122,15 @@ export const SORTIERUNG = [
 export function sortiere(artikel, art) {
   const liste = [...artikel];
   if (art === "preis-auf") {
-    liste.sort((a, b) => a.preisRappen - b.preisRappen || a.platz - b.platz);
+    liste.sort(
+      (a, b) =>
+        (a.preisRappen ?? 0) - (b.preisRappen ?? 0) || a.platz - b.platz,
+    );
   } else if (art === "preis-ab") {
-    liste.sort((a, b) => b.preisRappen - a.preisRappen || a.platz - b.platz);
+    liste.sort(
+      (a, b) =>
+        (b.preisRappen ?? 0) - (a.preisRappen ?? 0) || a.platz - b.platz,
+    );
   } else if (art === "name") {
     liste.sort((a, b) => a.name.localeCompare(b.name, "de-CH"));
   } else liste.sort((a, b) => a.platz - b.platz);
@@ -339,7 +373,11 @@ export const werkzeugeView = (z) =>
       h(
         "select",
         { id: "laden-sort", class: "eingabe", "data-f": "sort" },
-        SORTIERUNG.map(([wert, text]) =>
+        SORTIERUNG.filter(
+          ([wert]) =>
+            !wert.startsWith("preis") ||
+            [...z.artikel.values()].every((a) => a.preisRappen != null),
+        ).map(([wert, text]) =>
           h("option", { value: wert, selected: wert === z.sort }, text),
         ),
       ),
@@ -430,9 +468,11 @@ export function artikelView(a, wahl, z) {
     .filter((k) => k.id === a.id)
     .reduce((s, k) => s + k.menge, 0);
   const einzige = z.uebergabearten.length === 1 ? z.uebergabearten[0] : null;
+  const t = einstellungVon(z);
   let beschriftung;
   let tausch = "da";
   if (!a.verfuegbar) beschriftung = "Nicht verfügbar";
+  else if (!t.bestellenOffen) beschriftung = "Zurzeit nicht bestellbar";
   else if (wahl.dazu) {
     tausch = "ja";
     beschriftung = [h("span", {}, "Im Warenkorb"), zeichen(...HAKEN)];
@@ -440,11 +480,14 @@ export function artikelView(a, wahl, z) {
     tausch = "fehlt";
     beschriftung = "Variante wählen";
   } else {
-    beschriftung = [
-      h("span", {}, "In den Warenkorb"),
-      h("span", { class: "punkt", "aria-hidden": "true" }, "·"),
-      zahlView("wahl-summe", summeText(a.preisRappen * wahl.menge)),
-    ];
+    beschriftung =
+      a.preisRappen == null
+        ? h("span", {}, "In den Warenkorb")
+        : [
+            h("span", {}, "In den Warenkorb"),
+            h("span", { class: "punkt", "aria-hidden": "true" }, "·"),
+            zahlView("wahl-summe", summeText(a.preisRappen * wahl.menge)),
+          ];
   }
   return h(
     "div",
@@ -479,7 +522,7 @@ export function artikelView(a, wahl, z) {
           { class: "laden-fenster-kopf" },
           h("p", { class: "meta" }, "Lädeli"),
           h("h2", { id: "laden-fenster-t" }, a.name),
-          h("p", { class: "preis" }, preisText(a.preisRappen)),
+          h("p", { class: "preis" }, preisAnzeige(a.preisRappen)),
           a.hinweis ? h("p", { class: "beschrieb" }, a.hinweis) : null,
         ),
         a.varianten.length > 0 && z.konto === "an"
@@ -560,7 +603,10 @@ export function artikelView(a, wahl, z) {
                       class: "laden-knopf laden-knopf--haupt laden-dazu",
                       "data-aktion": "dazu",
                       "data-f": "dazu",
-                      "aria-disabled": fehlt || !a.verfuegbar ? "true" : null,
+                      "aria-disabled":
+                        fehlt || !a.verfuegbar || !t.bestellenOffen
+                          ? "true"
+                          : null,
                     },
                     h(
                       "span",
@@ -608,17 +654,12 @@ export function artikelView(a, wahl, z) {
                 : "Die Übergabe wählst du in der Bestellübersicht",
             ),
           ),
-          h(
-            "li",
-            {},
-            zeichen(...MUENZE),
-            h(
-              "span",
-              {},
-              "Bezahlt wird bei der Übergabe",
-              h("span", { class: "leise" }, ", nicht online"),
-            ),
-          ),
+          t.bezahlhinweis
+            ? h("li", {}, zeichen(...MUENZE), h("span", {}, t.bezahlhinweis))
+            : null,
+          t.uebergabehinweis
+            ? h("li", {}, zeichen(...ORT), h("span", {}, t.uebergabehinweis))
+            : null,
         ),
       ),
     ),
@@ -856,11 +897,9 @@ export function korbView(z) {
         "Zur Bestellübersicht",
         zeichen(...PFEIL),
       ),
-      h(
-        "p",
-        { class: "meta mitte" },
-        "Bezahlt wird bei der Übergabe, nicht online.",
-      ),
+      einstellungVon(z).bezahlhinweis
+        ? h("p", { class: "meta mitte" }, einstellungVon(z).bezahlhinweis)
+        : null,
     ),
   ];
 }
@@ -890,6 +929,7 @@ const positionenView = (b) =>
 
 // Die Bestellübersicht: eine ruhige Karte mit Artikelzeilen, Übergabe, Zwischensumme, grosser Summe und der einen Hauptaktion
 export function uebersichtView(z) {
+  const t = einstellungVon(z);
   const zu = h(
     "button",
     {
@@ -920,7 +960,9 @@ export function uebersichtView(z) {
         art: "ok",
         symbol: "haken",
         titel: "Deine Bestellung ist eingegangen.",
-        text: `Du bezahlst bei der Übergabe: ${b.uebergabe}. Den Stand siehst du unter «Deine Bestellungen».`,
+        text: t.bestaetigung
+          ? t.bestaetigung.replaceAll("{uebergabe}", b.uebergabe)
+          : null,
       }),
       positionenView(b),
       h(
@@ -947,6 +989,7 @@ export function uebersichtView(z) {
   }
   const betrag = summe(z.korb, z.artikel);
   const leer = z.korb.length === 0;
+  const zuWenig = !leer && betrag < t.mindestRappen;
   let aktion;
   if (z.konto === "aus") {
     aktion = h(
@@ -969,7 +1012,11 @@ export function uebersichtView(z) {
         "data-aktion": "bestellen",
         "data-f": "bestellen",
         "aria-disabled":
-          leer || wartet || weggefallen(z.korb, z.artikel).length > 0
+          leer ||
+          wartet ||
+          !t.bestellenOffen ||
+          zuWenig ||
+          weggefallen(z.korb, z.artikel).length > 0
             ? "true"
             : null,
       },
@@ -1030,8 +1077,41 @@ export function uebersichtView(z) {
       "dl",
       { class: "laden-reihen laden-karte-reihen" },
       reiheView("Zwischensumme", zahlView("ue-zs", summeText(betrag))),
-      reiheView("Bezahlung", "Bei der Übergabe"),
+      t.zahlungsart ? reiheView("Bezahlung", t.zahlungsart) : null,
     ),
+    // Hinweise der Abteilung: wann und wo, die Bedingungen, was gerade nicht geht
+    !t.bestellenOffen
+      ? h(
+          "div",
+          { class: "laden-karte-notiz", role: "status" },
+          h("p", { class: "meta" }, t.geschlossenText),
+        )
+      : null,
+    zuWenig
+      ? h(
+          "div",
+          { class: "laden-karte-notiz", role: "status" },
+          h(
+            "p",
+            { class: "meta" },
+            `Die Mindestbestellung beträgt ${preisText(t.mindestRappen)}. Dir fehlen ${preisText(t.mindestRappen - betrag)}.`,
+          ),
+        )
+      : null,
+    t.uebergabehinweis
+      ? h(
+          "div",
+          { class: "laden-karte-notiz" },
+          absaetze(t.uebergabehinweis, "meta"),
+        )
+      : null,
+    t.bedingungen
+      ? h(
+          "div",
+          { class: "laden-karte-notiz laden-bedingungen" },
+          absaetze(t.bedingungen, "meta"),
+        )
+      : null,
     h(
       "div",
       { class: "laden-karte-fuss" },
@@ -1193,6 +1273,10 @@ export function fehlerMeldung(r) {
     "UEBERGABE_UNBEKANNT",
     "PREIS_GEAENDERT",
     "STATUS_UNGUELTIG",
+    "LADEN_GESCHLOSSEN",
+    "MINDESTBESTELLUNG",
+    "POSITIONEN_ZU_VIELE",
+    "MENGE_ZU_GROSS",
   ];
   return {
     art: "fe",
@@ -1215,7 +1299,11 @@ export function liesArtikel(wurzel) {
           id: li.dataset.id,
           platz,
           name: li.querySelector(".name")?.textContent ?? "",
-          preisRappen: Number(li.dataset.preis) || 0,
+          // Ohne öffentliche Preise fehlt data-preis: der Preis ist erst mit Sitzung bekannt
+          preisRappen:
+            li.dataset.preis === undefined
+              ? null
+              : Number(li.dataset.preis) || 0,
           // data-name: Der Name ohne das Wort «nicht verfügbar» der Hilfstechnik
           varianten: [...li.querySelectorAll(".laden-varianten li")].map(
             (v) => v.dataset.name ?? v.textContent,
@@ -1246,10 +1334,20 @@ function start(doc, wurzel) {
   } catch {
     arten = [];
   }
+  let ein;
+  try {
+    ein = JSON.parse(wurzel.dataset.einstellung ?? "{}");
+  } catch {
+    ein = {};
+  }
   const z = {
     artikel: liesArtikel(wurzel),
     korb: [],
-    grenzen: { positionen: 20, menge: 10 },
+    einstellung: ein,
+    grenzen: {
+      positionen: ein.maxPositionen ?? EINSTELLUNG.maxPositionen,
+      menge: ein.maxMenge ?? EINSTELLUNG.maxMenge,
+    },
     uebergabearten: arten,
     uebergabe: arten[0] ?? null,
     // unbekannt, bis die erste Antwort da ist; «an» mit Sitzung, sonst «aus»
@@ -1360,11 +1458,16 @@ function start(doc, wurzel) {
   const zeichneKopf = () => {
     zeichneKonto();
     const an = z.konto === "an";
+    const offen = einstellungVon(z).bestellenOffen;
     zeichne(
       kopf,
-      an ? korbKnopfView(z) : z.konto === "aus" ? anmeldeView(z) : null,
+      an && offen
+        ? korbKnopfView(z)
+        : z.konto === "aus" && offen
+          ? anmeldeView(z)
+          : null,
     );
-    zeichne(schwebe, an ? schwebeView(z) : null);
+    zeichne(schwebe, an && offen ? schwebeView(z) : null);
   };
   const zeichneKorb = () => {
     if (korbDlg.open) zeichne(korbDlg, korbView(z));
@@ -1404,6 +1507,7 @@ function start(doc, wurzel) {
     z.name = daten.angemeldetAls ?? null;
     z.sitzungsHinweis = null;
     z.grenzen = daten.grenzen;
+    z.einstellung = daten.einstellungen ?? z.einstellung;
     z.uebergabearten = daten.uebergabearten;
     if (!z.uebergabearten.includes(z.uebergabe)) {
       z.uebergabe = z.uebergabearten[0] ?? null;
@@ -1417,6 +1521,26 @@ function start(doc, wurzel) {
     );
     z.korb = bereinige(z.korb, z.artikel, z.grenzen);
     merke();
+    // Zeigt die Abteilung Preise nur Angemeldeten, stehen sie erst jetzt in den Kacheln
+    if (!einstellungVon(z).preiseOeffentlich) zeigePreise(true);
+  }
+  // Preise in den Kacheln zeigen oder wieder verbergen (nur wenn die Abteilung sie Besuchern nicht zeigt)
+  function zeigePreise(an) {
+    for (const [id, li] of kacheln) {
+      const a = z.artikel.get(id);
+      const feld = li.querySelector(".preis");
+      if (!a || !feld) continue;
+      if (an) li.dataset.preis = String(a.preisRappen);
+      else delete li.dataset.preis;
+      feld.textContent = an ? preisText(a.preisRappen) : preisAnzeige(null);
+      const knopf = li.querySelector(".laden-oeffnen");
+      if (knopf) {
+        knopf.setAttribute(
+          "aria-label",
+          `${a.name}, ${preisAnzeige(an ? a.preisRappen : null)}${a.verfuegbar ? "" : ", nicht verfügbar"}`,
+        );
+      }
+    }
   }
   async function pruefeKonto() {
     const r = await api("/laden");
@@ -1444,6 +1568,10 @@ function start(doc, wurzel) {
       li.classList.remove("schnell-offen");
       li.querySelector(".laden-schnell-ort")?.remove();
       li.querySelector(".laden-plus")?.remove();
+    }
+    if (!einstellungVon(z).preiseOeffentlich) {
+      for (const a of z.artikel.values()) a.preisRappen = null;
+      zeigePreise(false);
     }
     liste.remove();
     zeichneKopf();
@@ -1861,13 +1989,16 @@ function start(doc, wurzel) {
           type: "button",
           class: "laden-oeffnen",
           "data-aktion": "oeffne",
-          "aria-label": `${a.name}, ${preisText(a.preisRappen)}${a.verfuegbar ? "" : ", nicht verfügbar"}`,
+          "aria-label": `${a.name}, ${preisAnzeige(a.preisRappen)}${a.verfuegbar ? "" : ", nicht verfügbar"}`,
         }),
       ),
     );
   }
   // Schnelles Hinzufügen gibt es nur mit Sitzung; die Kacheln bekommen es, sobald sie feststeht
   function schnellErgaenzen() {
+    const t = einstellungVon(z);
+    // Die Abteilung kann es abschalten; geschlossen gibt es nichts zu bestellen
+    if (!t.schnellDazu || !t.bestellenOffen) return;
     for (const [id, li] of kacheln) {
       const a = z.artikel.get(id);
       const flaeche = li.querySelector(".laden-kachel");

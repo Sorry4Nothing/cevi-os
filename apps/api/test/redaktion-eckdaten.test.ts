@@ -762,7 +762,7 @@ describe("Seite und Nachladen", () => {
     );
   });
 
-  test("Nachladen geschützter Stufenfelder: neue Werte nach dem Speichern, Eltern sehen sie, ohne Sitzung 401", async () => {
+  test("Nachladen geschützter Samstagsangaben der Stufen: neue Werte nach dem Speichern, Eltern sehen sie, ohne Sitzung 401", async () => {
     const s = await neueStufe("Geschuetzt");
     const dok = faktenDok("Geschützt");
     const [v] = await db

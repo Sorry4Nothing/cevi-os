@@ -46,7 +46,7 @@ const EINTRAEGE: Record<Vorlage, Eintrag> = {
   stufenseite: {
     name: "Stufenseite",
     beschreibung:
-      "Stufenfakten, ein Text über die Stufe, das Leitungsteam und die nächsten Termine.",
+      "Samstagsangaben der Stufe, ein Text über die Stufe, das Leitungsteam und die nächsten Termine.",
     brauchtTag: true,
     bausteine: (tagId) => [
       ueberschrift("Das Wichtigste auf einen Blick"),
