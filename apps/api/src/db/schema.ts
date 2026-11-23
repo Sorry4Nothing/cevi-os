@@ -720,3 +720,6 @@ export * from "./schema-raum.js";
 
 // Bereichsschalter (#424, #425)
 export * from "./schema-bereichsschalter.js";
+
+// Lädeli (#566)
+export * from "./schema-laden.js";

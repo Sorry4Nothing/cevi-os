@@ -8,6 +8,12 @@ import {
 } from "./inhaltsbausteine.js";
 import { karussell, SKRIPT_KARUSSELL, STIL_KARUSSELL } from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
+import {
+  rendereLaden,
+  SKRIPT_LADEN,
+  STILE_LADEN,
+  type LadenArtikel,
+} from "./laden.js";
 import { symbol } from "./symbole.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
@@ -83,6 +89,8 @@ export type Daten = {
   anlaesse: ReadonlyMap<string, string>;
   // Adressen von Seiten des Baums, die Besucher nicht sehen (#560): Karten und Listeneinträge mit einem Link dorthin entfallen
   verborgen?: ReadonlySet<string>;
+  // Die Artikel des Lädelis (#566) in ihrer Reihenfolge, nach ID; leer, wenn keine Seite den Baustein «laden» hat
+  laden: ReadonlyMap<string, LadenArtikel>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -91,6 +99,7 @@ export const keineDaten = (): Daten => ({
   stufenfakten: new Map(),
   termine: new Map(),
   anlaesse: new Map(),
+  laden: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -342,6 +351,9 @@ function rendereBaustein(
 ): HtmlKnoten | null {
   if (istInhaltsBaustein(b)) {
     return rendereInhaltsBaustein(b, daten, letzte);
+  }
+  if (b.typ === "laden") {
+    return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   switch (b.typ) {
     case "ueberschrift": {
@@ -975,6 +987,7 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
 ]);
 const istBreit = (b: Baustein) =>
   b.typ === "artikel" ||
+  b.typ === "laden" ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
   (b.typ === "karten" &&
@@ -1142,7 +1155,8 @@ export function rahmen(
     // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»), ausser bei «vollbreit»
     inhalt: string;
     robots?: string;
-    skript?: string;
+    // Ein Modul oder mehrere; mit Skript erlaubt die CSP Abrufe an die eigene Herkunft
+    skript?: string | string[];
     // Weitere Skripte der eigenen Herkunft ohne Abrufe (zum Beispiel das Karussell), mit defer
     zusatzSkripte?: string[];
     // Weitere Stylesheets der Website (Pfade unter /website/), nach dem Grundstil
@@ -1159,7 +1173,7 @@ export function rahmen(
   const menue = !nurMarke && k.navigation.length > 0;
   const skripte = [
     ...(menue ? [SKRIPT_MENUE] : []),
-    ...(skript ? [skript] : []),
+    ...(skript ? [skript].flat() : []),
   ]
     .map((pfad) => `\n<script type="module" src="${pfad}"></script>`)
     .join("");
@@ -1229,6 +1243,11 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         (typeof e.knoten === "object" &&
           e.knoten?.attr?.class === "karussell")),
   );
+  // Der Laden (#566) bringt Stil und Skript nur mit, wenn er öffentlich auf der Seite steht und Artikel hat
+  const mitLaden = eintraege.some(
+    (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
+  );
+  const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
@@ -1241,12 +1260,16 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     stile: [
       ...(mitKarussell ? [STIL_KARUSSELL] : []),
       ...(s.dokument.bausteine.some(istInhaltsBaustein) ? [STIL_INHALT] : []),
+      ...(mitLaden ? STILE_LADEN : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...(!s.dokument.bausteine.every(istOeffentlich) && {
-      skript: SKRIPT_GESCHUETZT,
-      hauptAttr: ` data-pfad="${esc(s.pfad)}"`,
+    ...((geschuetzt || mitLaden) && {
+      skript: [
+        ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
+        ...(mitLaden ? [SKRIPT_LADEN] : []),
+      ],
     }),
+    ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
   });
 }
 

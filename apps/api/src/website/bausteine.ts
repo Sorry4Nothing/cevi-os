@@ -345,6 +345,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
         .max(MAX_ARTIKEL),
     }),
   ),
+  // Lädeli (#566): das Raster der Artikel der Abteilung mit Warenkorb und Bestellung für angemeldete Personen. Der Baustein hat keine eigenen Daten: Die Artikel pflegt die Verwaltung unter «Lädeli»
+  baustein("laden", z.strictObject({})),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

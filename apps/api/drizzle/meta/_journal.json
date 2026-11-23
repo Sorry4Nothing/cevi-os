@@ -652,6 +652,13 @@
       "when": 1793554900000,
       "tag": "0129_website_logo_dunkel",
       "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1793555100000,
+      "tag": "0131_laden",
+      "breakpoints": true
     }
   ]
 }

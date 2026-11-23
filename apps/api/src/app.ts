@@ -48,6 +48,7 @@ import { erstelleIchRouten } from "./routes/ich.js";
 import type { WetterHolen } from "./lager/wetter-openmeteo.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
+import { erstelleLadenRouten } from "./routes/laden/index.js";
 import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -275,6 +276,8 @@ export function erstelleApp({
       .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
       .route("/api/v1", erstelleTermineRouten({ db, fcm }))
+      // Lädeli (#566): Laden, Bestellungen und ihre Verwaltung
+      .route("/api/v1", erstelleLadenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db }))

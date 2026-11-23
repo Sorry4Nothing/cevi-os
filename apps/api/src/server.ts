@@ -30,6 +30,7 @@ import {
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { loescheAlteBuchungen } from "./termine/raum-buchung.js";
+import { ladeLadenDaten, loescheAlteBestellungen } from "./laden/laden.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
@@ -166,6 +167,11 @@ starteSitzungenAufraeumen(
 );
 // Raumanfragen und Buchungen 180 Tage nach ihrem Ende löschen (#447)
 starteSitzungenAufraeumen(() => loescheAlteBuchungen(db), "raum_buchungen");
+// Bestellungen des Lädelis 180 Tage nach dem Abschluss löschen, nie abgeschlossene nach einem Jahr (#566)
+starteSitzungenAufraeumen(
+  () => loescheAlteBestellungen(db),
+  "laden_bestellungen",
+);
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
@@ -212,7 +218,12 @@ if (
           basisUrl,
           stylesheet,
           skripte,
-          datenquellen: [ladeStufenfakten, ladeTerminlisten, ladeAnlassSeiten],
+          datenquellen: [
+            ladeStufenfakten,
+            ladeTerminlisten,
+            ladeAnlassSeiten,
+            ladeLadenDaten,
+          ],
           kontakt: {
             adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
             telefon: konfiguration.KONTAKT_TELEFON,
