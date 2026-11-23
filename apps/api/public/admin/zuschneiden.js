@@ -1011,7 +1011,9 @@ export async function zuschneiden({
       } else {
         const { blob, typ } = await erzeuge();
         ergebnis = {
-          datei: new File([blob], dateiname(datei.name, typ), { type: typ }),
+          datei: new window.File([blob], dateiname(datei.name, typ), {
+            type: typ,
+          }),
           zugeschnitten: true,
         };
       }
