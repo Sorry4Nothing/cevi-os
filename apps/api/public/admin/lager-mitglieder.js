@@ -118,7 +118,8 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
 
   haenge(
     bereich,
-    zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
+    !ctx.imRahmen &&
+      zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
     zu &&
       el(
         "div",
@@ -266,7 +267,7 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
             el(
               "div",
               { class: "wer" },
-              avatar(m.name),
+              avatar(m.name, { hell: true, bildUrl: m.bildUrl }),
               el(
                 "div",
                 {},
