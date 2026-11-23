@@ -2283,80 +2283,105 @@ a.btn.w {
   line-height: 1.5rem;
 }
 
-/* Zeitstrahl (#560): das Jahr gross als Blickfang, eine durchgehende Linie mit Marken, das Ereignis daneben.
-   Jahr, Marke und erste Textzeile liegen auf derselben Achse: der Mitte der Jahreszahl (--jahr ist ihre Schriftgrösse und Zeilenhöhe) */
+/* Zeitstrahl (#560): eine Geschichte in Stationen, im blauen Band. Das Jahr ist riesige Typografie; Foto und Text wechseln die Seite,
+   und das Jahr schneidet als blaues Feld in die Ecke des Fotos (wie die Fahne im Titelbild). Keine Linien, keine Punkte */
 .zeitstrahl {
-  --jahr: clamp(2rem, 1.4rem + 1.8vw, 3.25rem);
-  --jahr-spalte: calc(var(--jahr) * 2.6);
-  --schiene: 4rem;
-  --marke: 0.875rem;
-  --zeile: 1.75rem;
-  --zeit-grund: var(--surface-container-low);
+  --jahr: clamp(4rem, 1.5rem + 9vw, 11rem);
   display: flex;
   flex-direction: column;
+  gap: clamp(3.5rem, 2rem + 6vw, 8rem);
 }
 
-.sektion--toenung .zeitstrahl {
-  --zeit-grund: var(--surface);
-}
-
-.zeitstrahl > li {
-  position: relative;
+.station {
   display: grid;
-  grid-template-columns: var(--jahr-spalte) minmax(0, 1fr);
-  column-gap: var(--schiene);
-  align-items: start;
-  padding-bottom: clamp(2rem, 1.5rem + 1.5vw, 3rem);
+  grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+  gap: 0 clamp(2rem, 4vw, 5rem);
+  align-items: end;
 }
 
-.zeitstrahl > li:last-child {
-  padding-bottom: 0;
+/* Jede zweite Station gespiegelt: Text links, Foto rechts */
+.station:nth-child(even) {
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
 }
 
-/* Die Linie läuft von der Mitte dieser Marke bis zur Mitte der nächsten: zusammen eine durchgehende Linie */
-.zeitstrahl > li::before {
-  position: absolute;
-  top: calc(var(--jahr) / 2);
-  bottom: calc(var(--jahr) / -2);
-  left: calc(var(--jahr-spalte) + var(--schiene) / 2 - 1px);
-  width: 2px;
-  background: var(--outline-variant);
-  content: "";
+.station:nth-child(even) .station-bild {
+  order: 2;
 }
 
-.zeitstrahl > li:last-child::before {
-  display: none;
+.station-bild {
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  margin: 0;
+  border-radius: var(--r-md);
+  background: var(--on-secondary-container, var(--secondary));
 }
 
-/* Die Marke sitzt auf der Mitte der Jahreszahl; ihr Hof in der Farbe des Abschnitts trennt sie von der Linie */
-.zeitstrahl > li::after {
-  position: absolute;
-  top: calc((var(--jahr) - var(--marke)) / 2);
-  left: calc(var(--jahr-spalte) + (var(--schiene) - var(--marke)) / 2);
-  width: var(--marke);
-  height: var(--marke);
-  background: var(--primary);
-  box-shadow: 0 0 0 0.375rem var(--zeit-grund);
-  content: "";
+.station-bild img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: 50% 35%;
 }
 
+.station-text {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-bottom: clamp(0rem, 2vw, 2rem);
+}
+
+/* Das Jahr ragt als blaues Feld über die Lücke ins Foto */
 .zeitstrahl .jahr {
-  color: var(--titel);
+  width: max-content;
+  max-width: none;
+  margin-left: calc(-1 * clamp(4rem, 9vw, 10rem));
+  padding: 0.12em 0.2em 0 0.22em;
+  border-top-left-radius: var(--r-md);
+  background: var(--secondary);
+  color: var(--on-secondary);
   font-size: var(--jahr);
-  line-height: 1;
+  line-height: 0.86;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
   font-variant-numeric: tabular-nums;
-  text-align: right;
 }
 
-/* Die erste Textzeile steht mittig zur Jahreszahl */
-.zeitstrahl p + p {
-  max-width: 56ch;
-  margin-top: calc((var(--jahr) - var(--zeile)) / 2);
-  color: var(--on-surface);
-  font-size: 1.125rem;
-  line-height: var(--zeile);
+.station:nth-child(even) .jahr {
+  align-self: flex-end;
+  margin-right: calc(-1 * clamp(4rem, 9vw, 10rem));
+  margin-left: 0;
+  padding: 0.12em 0.22em 0 0.2em;
+  border-top-left-radius: 0;
+  border-top-right-radius: var(--r-md);
+}
+
+.zeitstrahl .station-text p + p {
+  max-width: 34rem;
+  color: var(--on-secondary);
+  font-size: clamp(1.125rem, 1rem + 0.4vw, 1.375rem);
+  line-height: 1.55;
+}
+
+/* Station ohne Foto: Jahr und Text nebeneinander über die ganze Breite */
+.station:not(.station--bild),
+.station:not(.station--bild):nth-child(even) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.station:not(.station--bild) .station-text {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 1rem clamp(2rem, 4vw, 5rem);
+  align-items: flex-end;
+}
+
+.station:not(.station--bild) .jahr {
+  align-self: auto;
+  margin-inline: 0;
+  padding-inline: 0;
 }
 
 /* Zahlen: wenige grosse Zahlen nebeneinander, darunter, was sie zählen */
@@ -2389,29 +2414,29 @@ a.btn.w {
 }
 
 @media (max-width: 47.5em) {
-  .zeitstrahl {
-    --schiene: 2.5rem;
+  .station,
+  .station:nth-child(even) {
+    grid-template-columns: minmax(0, 1fr);
   }
 
-  .zeitstrahl > li {
-    display: block;
-    padding-left: var(--schiene);
+  .station:nth-child(even) .station-bild {
+    order: 0;
   }
 
-  .zeitstrahl > li::before {
-    left: calc(var(--marke) / 2 - 1px);
+  .zeitstrahl .jahr,
+  .station:nth-child(even) .jahr {
+    align-self: flex-start;
+    margin: -0.55em 0 0;
+    padding: 0.12em 0.2em 0 0;
+    border-radius: 0 var(--r-md) 0 0;
   }
 
-  .zeitstrahl > li::after {
-    left: 0;
+  .station:not(.station--bild) .jahr {
+    margin-top: 0;
   }
 
-  .zeitstrahl .jahr {
-    text-align: left;
-  }
-
-  .zeitstrahl p + p {
-    margin-top: 0.5rem;
+  .station-text {
+    padding-bottom: 0;
   }
 
   .personen {
@@ -2595,11 +2620,48 @@ a.btn.w {
   overflow-wrap: anywhere;
 }
 
-/* Zeitstrahl in erzwungenen Farben (#560): Marke und Linie in der Textfarbe, ohne Hof */
+/* Zeitstrahl in erzwungenen Farben (#560): Das Feld des Jahres bekommt einen Rand */
 @media (forced-colors: active) {
-  .zeitstrahl > li::before,
-  .zeitstrahl > li::after {
-    background: CanvasText;
-    box-shadow: none;
+  .zeitstrahl .jahr {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Zeitstrahl (#560), Bewegung am Scrollen: Das Foto wächst aus leichter Vergrösserung, das Jahr schiebt sich von der Seite ins Bild. Ohne animation-timeline und bei «Bewegung reduzieren» steht alles still */
+@media screen and (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes station-bild {
+      from {
+        scale: 1.12;
+      }
+    }
+
+    @keyframes jahr-links {
+      from {
+        translate: 3rem 0;
+      }
+    }
+
+    @keyframes jahr-rechts {
+      from {
+        translate: -3rem 0;
+      }
+    }
+
+    .station-bild img {
+      animation: station-bild linear both;
+      animation-timeline: view();
+      animation-range: entry 0% cover 45%;
+    }
+
+    .station--bild .jahr {
+      animation: jahr-links linear both;
+      animation-timeline: view();
+      animation-range: entry 20% cover 40%;
+    }
+
+    .station--bild:nth-child(even) .jahr {
+      animation-name: jahr-rechts;
+    }
   }
 }
