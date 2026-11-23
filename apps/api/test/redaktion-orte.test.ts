@@ -617,7 +617,7 @@ describe("Website", () => {
       '<span class="fakt-zusatz">Beim &lt;b&gt;Hintereingang&lt;/b&gt;</span>',
     );
     expect(html).toContain(
-      '<p class="fakt-karte"><a href="https://www.google.com/maps/search/?api=1&amp;query=47.2391,8.7258" rel="noopener noreferrer">Auf Google Maps ansehen<span class="nur-sr"> (externe Seite)</span></a></p>',
+      '<p class="fakt-karte"><a href="https://www.google.com/maps/search/?api=1&amp;query=47.2391,8.7258" rel="noopener noreferrer"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21.5 6 13.5a7.5 7.5 0 1 1 12 0z"></path><circle cx="12" cy="9" r="2.5"></circle></svg>Auf Google Maps ansehen<span class="nur-sr"> (externe Seite)</span></a></p>',
     );
     // Genau ein Verweis (der Schlussort hat keinen Standort), keine Einbettung, kein fremdes Skript
     expect(html.match(/Auf Google Maps ansehen/g)).toHaveLength(1);

@@ -411,7 +411,10 @@ const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
                 el(
                   "p",
                   { class: "fakt-karte" },
-                  ...verlinke(f.karte, ["Auf Google Maps ansehen"]),
+                  ...verlinke(f.karte, [
+                    symbol("ort"),
+                    "Auf Google Maps ansehen",
+                  ]),
                 ),
               ]
             : []),

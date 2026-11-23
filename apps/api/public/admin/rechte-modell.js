@@ -520,3 +520,55 @@ export function verlaufText(z, nachschlagen) {
       return { titel: z.aktion, detail: "" };
   }
 }
+
+// ---------- Personenliste von «Was darf wer?» (#661): reine Funktionen, damit gleiche Namen unterscheidbar sind; die Anzeige steht in rechte-uebersicht.js (ohne DOM, damit sie sich testen lässt) ----------
+
+const ROLLENNAME = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
+
+// Rolle als Klartext: «Abteilungsleitung», «Stufenleitung Artemis», mehrere mit Komma. Ohne Rolle leer.
+// person: Eintrag aus GET /api/v1/admin/personen; stufenName: Map Stufen-ID nach Name
+export function rolleText(person, stufenName) {
+  const teile = [];
+  if (person.admin) teile.push("Abteilungsleitung");
+  for (const r of person.rollen ?? []) {
+    const name = ROLLENNAME[r.typ];
+    if (name) teile.push(`${name} ${stufenName.get(r.stufeId) ?? ""}`.trim());
+  }
+  return teile.join(", ");
+}
+
+// Namen, die mehr als eine aktive Person trägt (Gross- und Kleinschreibung gilt nicht)
+export function doppelteNamen(personen) {
+  const zaehler = new Map();
+  for (const p of personen) {
+    const k = p.name.trim().toLocaleLowerCase("de-CH");
+    zaehler.set(k, (zaehler.get(k) ?? 0) + 1);
+  }
+  return new Set([...zaehler].filter(([, n]) => n > 1).map(([k]) => k));
+}
+
+// Zeilen der Liste: Name, Rolle, und wo der Name doppelt vorkommt (oder der Cevi-Name es hergibt) der Benutzername zur Unterscheidung
+// Rückgabe: [{ person, rolle, zusatz }]
+export function listenZeilen(personen, stufenName) {
+  const doppelt = doppelteNamen(personen);
+  return personen.map((person) => ({
+    person,
+    rolle: rolleText(person, stufenName),
+    zusatz: doppelt.has(person.name.trim().toLocaleLowerCase("de-CH"))
+      ? [person.ceviName, person.benutzername].filter(Boolean).join(" · ")
+      : "",
+  }));
+}
+
+// Suchtext: Name, Cevi-Name, Benutzername und Rolle
+export const passtZurSuche = (zeile, suche) => {
+  const f = suche.trim().toLocaleLowerCase("de-CH");
+  if (!f) return true;
+  const p = zeile.person;
+  return `${p.name} ${p.ceviName ?? ""} ${p.benutzername ?? ""} ${zeile.rolle}`
+    .toLocaleLowerCase("de-CH")
+    .includes(f);
+};
+
+export const anzahlText = (n) =>
+  n === 0 ? "Keine Person gefunden" : n === 1 ? "1 Person" : `${n} Personen`;

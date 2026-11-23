@@ -8,8 +8,8 @@ test("der Umschalter steht hinter «Abmelden», auf der Anmeldeseite bleibt er a
     "utf8",
   );
   const kopf = rahmen.slice(rahmen.indexOf("export function logozeile"));
-  expect(kopf.indexOf('knopf("Abmelden"')).toBeGreaterThan(0);
+  expect(kopf.indexOf('"Abmelden"')).toBeGreaterThan(0);
   expect(kopf.indexOf("themaSchalter()")).toBeGreaterThan(
-    kopf.indexOf('knopf("Abmelden"'),
+    kopf.indexOf('"Abmelden"'),
   );
 });

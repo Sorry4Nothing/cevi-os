@@ -19,7 +19,22 @@ describe("Orte in der Verwaltung", () => {
     const orte = lies("website-orte.js");
     expect(orte).toContain('rel: "noopener noreferrer"');
     expect(orte).toContain('target: "_blank"');
-    expect(orte).toContain("(öffnet in neuem Tab)");
+    expect(orte).toContain("(Google Maps, öffnet in neuem Tab)");
+  });
+
+  test("der Verweis ist ein kleiner Knopf wie «Bearbeiten»: Symbol, Beschriftung, 44 px, kein Textlink (#661)", () => {
+    const orte = lies("website-orte.js");
+    expect(orte).toContain('class: "knopf knopf--klein ort-karte"');
+    expect(orte).toContain('symbol("ort")');
+    expect(orte).toContain('symbol("extern")');
+    expect(orte).toContain('"Auf Karte ansehen"');
+    // Er steht in der Gruppe der Aktionen der Zeile, nicht in der Spalte mit den Chips
+    expect(orte).toMatch(
+      /class: "aktionen" \},\s+kartenVerweis\(o\.kartenLink\)/,
+    );
+    const css = lies("website-orte.css");
+    expect(css).not.toMatch(/ort-karte::after/);
+    expect(css).toMatch(/a\.ort-karte \{[^}]*background: var\(--blau-f\)/);
   });
 
   test("Löschen geht mit Rückgängig, ein gebrauchter Ort fragt zuerst in zwei Stufen", () => {
