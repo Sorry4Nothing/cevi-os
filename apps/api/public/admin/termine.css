@@ -646,3 +646,193 @@ th[aria-sort] .tm-sortknopf {
     border: 1px solid CanvasText;
   }
 }
+
+/* ---------- Anlässe und Anmeldungen (#590) ---------- */
+
+/* Zusatzfelder: Name und Typ links, Aktionen rechts in der Sortierliste */
+.tm-feldzeile {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.tm-feldzeile .text {
+  display: grid;
+  min-width: 0;
+}
+
+.tm-feldaktionen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Anmeldungen: Rückmeldungen und Export nebeneinander, schmal untereinander */
+.tm-anmeldekopf {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 56rem) {
+  .tm-anmeldekopf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tm-anmeldekopf > div > .flaeche {
+  height: 100%;
+}
+
+.tm-balkenzeile {
+  display: grid;
+  gap: 6px;
+}
+
+.tm-balkentext {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tm-balken-svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.tm-balken-spur {
+  fill: var(--surface-container);
+}
+
+.tm-balken-fuell--ja {
+  fill: var(--secondary);
+}
+
+/* Abgemeldet ist keine Warnung: ruhiges Grau, die Beschriftung trägt die Bedeutung */
+.tm-balken-fuell--nein {
+  fill: var(--outline);
+}
+
+.tm-frist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.tm-frist .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.tm-datei {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tm-datei .text {
+  display: grid;
+  min-width: 0;
+}
+
+.tm-dateisymbol {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  border-radius: 12px;
+}
+
+.tm-dateisymbol .i {
+  width: 22px;
+  height: 22px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-balken-fuell {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: tm-wachse 0.6s var(--kurve) both;
+  }
+
+  @keyframes tm-wachse {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: none;
+    }
+  }
+}
+
+/* Leiste «Nicht gespeicherte Änderungen»: haftet unten, erst sichtbar, wenn etwas geändert ist */
+.tm-speicherleiste {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  color: var(--inverse-on-surface);
+  background: var(--inverse-surface);
+  border-radius: 16px;
+}
+
+.tm-speicherleiste > .i {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.tm-speichertext {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.tm-speicherleiste .knopf:not(.knopf--haupt) {
+  color: var(--inverse-on-surface);
+  background: transparent;
+  border-color: currentcolor;
+}
+
+.tm-speicherknoepfe {
+  display: flex;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-speicherleiste:not([hidden]) {
+    animation: tm-hoch 0.24s var(--kurve) both;
+  }
+
+  @keyframes tm-hoch {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}

@@ -28,6 +28,7 @@ import {
   zaehlwort,
   zeitraumText,
   ersetze,
+  speicherLeiste,
   termineTabelle,
 } from "./kalenderhilfen.js";
 import { skeletonDetail, skeletonFormular, skeletonTabelle } from "./lader.js";
@@ -706,7 +707,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
   let geaendert = false;
   let bearbeite = null;
 
-  const status = el("p", { class: "klein", role: "status" });
+  const status = el("p", { class: "nur-leser", role: "status" });
   const meldungen = el("div", {});
   const liste = el("div", {});
   const editor = el("div", {});
@@ -715,12 +716,22 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     { class: "hinweis hinweis--warn", role: "status" },
     "Keine Gesundheitsdaten abfragen.",
   );
-  const speichernKnopf = knopf("Speichern", {
-    art: "haupt",
-    symbol: "haken",
-    onclick: () => speichern(),
+  // Kein Speichern-Knopf im Kopf: Die Leiste unten erscheint erst, wenn etwas geändert ist
+  const leiste = speicherLeiste({
+    beiSpeichern: () => speichern(),
+    beiVerwerfen: () => {
+      felder = alsArbeitskopie(basis);
+      geaendert = false;
+      bearbeite = null;
+      ersetze(editor);
+      ersetze(meldungen);
+      leiste.verstecke();
+      sage("");
+      zeichneListe();
+      fokusAuf(liste.querySelector("h2"));
+    },
   });
-  ctx.kopfAktion(speichernKnopf);
+  const speichernKnopf = leiste.speichern;
 
   const sage = (text) => {
     status.textContent = text;
@@ -728,7 +739,10 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
   function markiere() {
     if (geaendert) return;
     geaendert = true;
-    sage("Änderungen sind noch nicht gespeichert.");
+    leiste.zeige(
+      "Änderungen an den Zusatzfeldern sind noch nicht gespeichert.",
+    );
+    sage("");
   }
   const rundKnopf = (symbol, label, aktion, onclick) =>
     el(
@@ -782,7 +796,11 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
                 ),
                 sortierung.wurzel,
               ]
-            : el("ul", { class: "liste-zeilen" }, el("li", {}, zeilenInhalt(felder[0]))),
+            : el(
+                "ul",
+                { class: "liste-zeilen" },
+                el("li", {}, zeilenInhalt(felder[0])),
+              ),
         felder.length >= MAX_FELDER
           ? el("p", { class: "hilfe" }, `Höchstens ${MAX_FELDER} Felder.`)
           : knopf("Feld hinzufügen", {
@@ -1021,6 +1039,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     basis = antwort.felder.map((f) => ({ ...f }));
     felder = alsArbeitskopie(antwort.felder);
     geaendert = false;
+    leiste.verstecke();
     sage("");
     ersetze(meldungen);
     ersetze(editor);
@@ -1136,6 +1155,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
               basis = aktuell.map((f) => ({ ...f }));
               felder = alsArbeitskopie(aktuell);
               geaendert = false;
+              leiste.verstecke();
               sage("");
               ersetze(editor);
               zeichneListe();
@@ -1175,6 +1195,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     editor,
     hinweisGesundheit,
     status,
+    leiste.wurzel,
   );
   zeichneListe();
 }
