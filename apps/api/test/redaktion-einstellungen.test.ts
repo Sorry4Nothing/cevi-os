@@ -108,6 +108,7 @@ const stand = async (abteilungId: string) => {
       logo: schema.abteilung.websiteLogoMediumId,
       logoDunkel: schema.abteilung.websiteLogoDunkelMediumId,
       zeichen: schema.abteilung.websiteZeichenMediumId,
+      fehlerbild: schema.abteilung.websiteFehlerbildMediumId,
     })
     .from(schema.abteilung)
     .where(eq(schema.abteilung.id, abteilungId));
@@ -323,6 +324,31 @@ describe("Name und Logo der Website (#550)", () => {
     const weg = await anfrage(admin, "PATCH", { zeichenMediumId: null });
     expect(weg.status).toBe(200);
     expect((await stand(welt.testabteilungId)).zeichen).toBeNull();
+  });
+
+  test("Bild der Fehlerseiten (#567): setzen, fremde IDs abgewiesen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const fremd = await medium(welt.demoAbteilungId);
+    const nein = await anfrage(admin, "PATCH", { fehlerbildMediumId: fremd });
+    expect(nein.status).toBe(422);
+    expect(((await nein.json()) as { code: string }).code).toBe(
+      "MEDIUM_UNBEKANNT",
+    );
+    const antwort = await anfrage(admin, "PATCH", { fehlerbildMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { fehlerbildMediumId: string })
+        .fehlerbildMediumId,
+    ).toBe(m);
+    expect((await stand(welt.testabteilungId)).fehlerbild).toBe(m);
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { fehlerbildMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).fehlerbild).toBeNull();
   });
 
   test("ein Medium, das als Logo dient, lässt sich nicht löschen (409 MEDIUM_VERWENDET)", async () => {

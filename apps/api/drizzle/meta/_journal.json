@@ -666,6 +666,13 @@
       "when": 1793555100000,
       "tag": "0131_laden",
       "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1793555300000,
+      "tag": "0133_website_fehlerbild",
+      "breakpoints": true
     }
   ]
 }

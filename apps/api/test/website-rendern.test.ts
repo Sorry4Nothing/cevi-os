@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 import {
   pruefeDokument,
@@ -7,7 +8,6 @@ import {
 import {
   esc,
   keineDaten,
-  rendereFehlerseite,
   rendereHuelle,
   rendereRobots,
   rendereSeite,
@@ -15,6 +15,7 @@ import {
   type Daten,
   type Kontext,
 } from "../src/website/rendern.js";
+import { rendereFehlerseite } from "../src/website/fehlerseiten.js";
 
 // Ein Muster, das in jedem Feld auffällt: Ein ungeprüftes «<» würde ein Element «x-boese» öffnen, «"» und «'» Attribute sprengen
 const BOESE = `<x-boese a="1" b='2'>&amp;`;
@@ -620,6 +621,42 @@ describe("Fehlerseite, Sitemap, robots.txt", () => {
 describe("Logo, Umschalter und Karussell (#550)", () => {
   const huelleMit = () => rendereHuelle("/x", kontext());
 
+  test("ein grosser Knopf («btn gross») ist kein Bildlink: Die Grossansicht greift nur auf «a.bildgross»", () => {
+    const { ids, daten } = medien(1);
+    const html = seite(
+      dok(
+        "T",
+        b("schaltflaeche", {
+          beschriftung: "Mitmachen",
+          ziel: "https://example.org/",
+          darstellung: "schaltflaeche",
+        }),
+        b("galerie", { bilder: [{ mediumId: ids[0]! }] }),
+      ),
+      daten,
+    );
+    // Der Knopf trägt «gross» als Grösse, der Bildlink einen eigenen Namen
+    expect(html).toMatch(/<a [^>]*class="btn p gross"[^>]*>Mitmachen/);
+    expect(zaehle(html, '<a class="bildgross"')).toBe(1);
+    // Stil und Skript der Grossansicht kennen nur den eigenen Namen, nie «.gross» allein
+    for (const datei of [
+      "lichtkasten.css",
+      "lichtkasten.js",
+      "karussell.css",
+    ]) {
+      const text = readFileSync(
+        new URL(`../public/website/${datei}`, import.meta.url),
+        "utf8",
+      );
+      expect(text).not.toMatch(/(^|[^a-z-])\.gross(?![a-z-])/m);
+    }
+    const skript = readFileSync(
+      new URL("../public/website/lichtkasten.js", import.meta.url),
+      "utf8",
+    );
+    expect(zaehle(skript, '"a.bildgross"')).toBe(2);
+  });
+
   test("Bild und Galerie (#559): Link zur Grossansicht, ihr Stil und Skript, aber nichts vom Karussell", () => {
     const { ids, daten } = medien(2);
     const html = seite(
@@ -633,12 +670,12 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
       daten,
     );
     expect(html).toContain(
-      `<figure><a class="gross" href="/api/v1/medien/${ids[0]}"><img src="/api/v1/medien/${ids[0]}" alt="Bild 1"`,
+      `<figure><a class="bildgross" href="/api/v1/medien/${ids[0]}"><img src="/api/v1/medien/${ids[0]}" alt="Bild 1"`,
     );
     expect(html).toContain(
       '<span class="nur-sr">Bild gross ansehen</span></a><figcaption>Am See</figcaption></figure>',
     );
-    expect(zaehle(html, '<a class="gross"')).toBe(2);
+    expect(zaehle(html, '<a class="bildgross"')).toBe(2);
     expect(html).toContain('href="/website/lichtkasten.css"');
     expect(html).toContain('src="/website/lichtkasten.js" defer');
     expect(html).not.toContain("karussell");
@@ -716,7 +753,7 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain('<ul class="folien">');
     // Jedes Bild ist ein Link auf die Bilddatei: ohne Skript öffnet er sie, mit Skript die Grossansicht
     expect(html).toContain(
-      `<li class="folie"><figure><a class="gross" href="/api/v1/medien/${ids[1]}"><img src="/api/v1/medien/${ids[1]}" alt="Bild 2"`,
+      `<li class="folie"><figure><a class="bildgross" href="/api/v1/medien/${ids[1]}"><img src="/api/v1/medien/${ids[1]}" alt="Bild 2"`,
     );
     expect(zaehle(html, '<span class="nur-sr">Bild gross ansehen</span>')).toBe(
       3,

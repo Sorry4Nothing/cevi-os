@@ -51,6 +51,11 @@ export const abteilung = pgTable("abteilung", {
     (): AnyPgColumn => medium.id,
     { onDelete: "set null" },
   ),
+  // Bild für die Fehlerseiten der Website (#567); ohne es gilt das Titelbild der Startseite
+  websiteFehlerbildMediumId: uuid("website_fehlerbild_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen

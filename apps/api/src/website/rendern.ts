@@ -239,7 +239,7 @@ function bild(
     undefined,
     el(
       "a",
-      { class: "gross", href: medienUrl(id) },
+      { class: "bildgross", href: medienUrl(id) },
       img,
       el("span", { class: "nur-sr" }, "Bild gross ansehen"),
     ),
@@ -1338,7 +1338,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
             attr: { class: "titelbild" },
             // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
             kinder: erstes.knoten!.kinder?.flatMap((kind) =>
-              typeof kind === "object" && kind.attr?.class === "gross"
+              typeof kind === "object" && kind.attr?.class === "bildgross"
                 ? (kind.kinder ?? []).filter(
                     (x) => typeof x === "object" && x.tag === "img",
                   )
@@ -1406,71 +1406,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   });
 }
 
-// Fehler- und Wartungsseiten (Design W4): ein grosser Satz, was nun geht, kein Fachwort. Ohne Skript: «Nochmals versuchen» ist ein Link auf dieselbe Adresse
-const fehlerKopf = (
-  titel: string,
-  text: string,
-  nachher: string,
-  code: string,
-) => `<div class="seitenkopf seitenkopf--fehler">
-<h1>${esc(titel)}</h1>
-<p class="unter">${esc(text)}</p>
-${nachher}
-<p class="klein leise">${esc(code)}</p>
-</div>`;
-
-const nochmals = `<a class="btn p gross" href="">${serialisiere(symbol("nochmals"))}Nochmals versuchen</a>`;
-
-// 404.html: der Host liefert sie bei unbekannten Adressen; sie verrät nichts über geschützte Seiten
-export function rendereFehlerseite(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Seite nicht gefunden",
-    aktuell: null,
-    robots: "noindex",
-    inhalt: fehlerKopf(
-      "Diese Seite gibt es nicht.",
-      "Vielleicht ist der Link alt oder hat einen Tippfehler. Von hier aus kommst du weiter:",
-      `<div class="knopfreihe"><a class="btn p gross" href="/">Zur Startseite</a></div>${
-        k.navigation.length > 0
-          ? `\n<nav aria-label="Hauptpunkte" class="hauptpunkte"><ul>${k.navigation.map((p) => `<li><a href="${esc(p.pfad)}">${esc(p.titel)}</a></li>`).join("")}</ul></nav>`
-          : ""
-      }`,
-      "Fehler 404",
-    ),
-  });
-}
-
-// 500.html: der Host liefert sie, wenn die Website selbst nicht antwortet
-export function rendereServerfehler(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Fehler",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Bei uns ist etwas schiefgegangen.",
-      "Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}<a class="btn s gross" href="/">Zur Startseite</a></div>`,
-      "Fehler 500",
-    ),
-  });
-}
-
-// wartung.html: der Host liefert sie mit dem Status 503, wenn die Website gewartet wird
-export function rendereWartung(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Wartung",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Wir sind gleich wieder da.",
-      "Die Website wird gerade aktualisiert. Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}</div>`,
-      "Fehler 503",
-    ),
-  });
-}
+// Fehler- und Wartungsseiten stehen in fehlerseiten.ts (#567)
 
 // Nur öffentliche Seiten: Der Aufrufer übergibt nur diese
 export function rendereSitemap(

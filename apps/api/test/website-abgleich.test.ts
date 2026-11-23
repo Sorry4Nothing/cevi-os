@@ -455,6 +455,66 @@ describe("Was ausgeliefert wird", () => {
     expect(await lies("index.html")).toContain("<b>CEVI</b>");
   });
 
+  test("Bild der Fehlerseiten (#567): die Wahl der Einstellungen, sonst das Titelbild der Startseite; nur öffentliche Bilder der Abteilung", async () => {
+    const neuesMedium = async (extra: object = {}) =>
+      (
+        await db
+          .insert(schema.medium)
+          .values({
+            abteilungId,
+            mimeTyp: "image/webp",
+            groesse: 10,
+            breite: 1920,
+            hoehe: 576,
+            altText: "Weg",
+            dekorativ: false,
+            sichtbarkeit: "oeffentlich",
+            speicherSchluessel: randomUUID(),
+            ...extra,
+          })
+          .returning({ id: schema.medium.id })
+      )[0]!.id;
+    const setze = (id: string | null) =>
+      db
+        .update(schema.abteilung)
+        .set({ websiteFehlerbildMediumId: id })
+        .where(eq(schema.abteilung.id, abteilungId));
+    const titel = await neuesMedium({ altText: "Titel" });
+    await seite({
+      adresse: "start",
+      inhalt: dok("Start", {
+        id: randomUUID(),
+        typ: "bild",
+        daten: { mediumId: titel },
+      }),
+    });
+
+    // Ohne Wahl: das Titelbild der Startseite
+    await lauf();
+    const ohneWahl = await lies("404.html");
+    expect(ohneWahl).toContain(
+      `<img class="irr-bild" src="/api/v1/medien/${titel}" alt="" width="1920" height="576"`,
+    );
+
+    // Mit Wahl: dieses Bild, mit seinen Massen
+    const weg = await neuesMedium({ breite: 1600, hoehe: 900 });
+    await setze(weg);
+    await lauf();
+    const mitWahl = await lies("404.html");
+    expect(mitWahl).toContain(
+      `<img class="irr-bild" src="/api/v1/medien/${weg}" alt="" width="1600" height="900"`,
+    );
+    expect(mitWahl).not.toContain(titel);
+    // 500 und Wartung tragen nie ein Foto
+    expect(await lies("500.html")).not.toContain("/api/v1/medien/");
+    expect(await lies("wartung.html")).not.toContain("/api/v1/medien/");
+
+    // Nicht öffentlich: wieder das Titelbild
+    await setze(await neuesMedium({ sichtbarkeit: "angemeldet" }));
+    await lauf();
+    expect(await lies("404.html")).toContain(`/api/v1/medien/${titel}`);
+  });
+
   test("Karussell (#550): ein Skript nur auf Seiten, die eines zeigen", async () => {
     const bilder = await Promise.all(
       [1, 2, 3].map(async (n) => ({

@@ -385,6 +385,15 @@ dialog.ws-fenster--breit {
   background: #141412;
 }
 
+/* Bild der Fehlerseiten (#567): breit, aber nicht höher als ein Logo-Feld */
+.ws-logovorschau--breit {
+  width: 100%;
+  max-width: 24rem;
+  max-height: 10rem;
+  padding: 0;
+  object-fit: cover;
+}
+
 /* Zeichen für den Browser-Tab (#558): quadratisch und klein, wie es später erscheint */
 .ws-logovorschau--zeichen {
   width: 4rem;

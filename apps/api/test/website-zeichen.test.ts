@@ -5,12 +5,14 @@ import { kodiereZeichen } from "../src/bild-sharp.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereSeite,
-  rendereServerfehler,
-  rendereWartung,
   type Kontext,
 } from "../src/website/rendern.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+} from "../src/website/fehlerseiten.js";
 import {
   alsIco,
   ZEICHEN_192,
