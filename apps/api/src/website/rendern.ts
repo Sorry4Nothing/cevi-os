@@ -1,7 +1,13 @@
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
-import { karussell, SKRIPT_KARUSSELL, STIL_KARUSSELL } from "./karussell.js";
+import {
+  karussell,
+  SKRIPT_KARUSSELL,
+  SKRIPT_LICHTKASTEN,
+  STIL_KARUSSELL,
+  STIL_LICHTKASTEN,
+} from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { symbol } from "./symbole.js";
 
@@ -198,10 +204,16 @@ function bild(
     loading: "lazy",
     decoding: "async",
   });
+  // Das Bild ist ein Link auf die Bilddatei: Ohne Skript öffnet er sie, mit Skript (lichtkasten.js) die Grossansicht über der Seite (#559)
   return el(
     "figure",
     undefined,
-    img,
+    el(
+      "a",
+      { class: "gross", href: medienUrl(id) },
+      img,
+      el("span", { class: "nur-sr" }, "Bild gross ansehen"),
+    ),
     ...(unterschrift ? [el("figcaption", undefined, unterschrift)] : []),
   );
 }
@@ -1120,6 +1132,12 @@ const CSP_MIT_SKRIPT =
 export const SKRIPT_MENUE = "/website/menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
 export { SKRIPT_KARUSSELL };
+// Bausteine, deren Bilder sich gross öffnen lassen
+const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
+  "bild",
+  "galerie",
+  "karussell",
+]);
 // Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
 export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
@@ -1211,7 +1229,18 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     sichtbar(erstes) &&
     typeof erstes.knoten === "object"
       ? serialisiere(
-          eifrig({ ...erstes.knoten!, attr: { class: "titelbild" } }),
+          eifrig({
+            ...erstes.knoten!,
+            attr: { class: "titelbild" },
+            // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
+            kinder: erstes.knoten!.kinder?.flatMap((kind) =>
+              typeof kind === "object" && kind.attr?.class === "gross"
+                ? (kind.kinder ?? []).filter(
+                    (x) => typeof x === "object" && x.tag === "img",
+                  )
+                : [kind],
+            ),
+          }),
         )
       : null;
   const uebrige = titelbild ? eintraege.slice(1) : eintraege;
@@ -1239,10 +1268,16 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         (!istOeffentlich(e.b) ||
           (typeof e.knoten === "object" &&
             e.knoten?.attr?.class === "karussell")),
-    ) && {
-      zusatzSkripte: [SKRIPT_KARUSSELL],
-      stile: [STIL_KARUSSELL],
-    }),
+    )
+      ? {
+          zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+          stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
+        }
+      : // Grossansicht für Bild und Galerie (auch geschützte: Die Links kommen dann beim Nachladen)
+        s.dokument.bausteine.some((b) => BILD_BAUSTEINE.has(b.typ)) && {
+          zusatzSkripte: [SKRIPT_LICHTKASTEN],
+          stile: [STIL_LICHTKASTEN],
+        }),
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...(!s.dokument.bausteine.every(istOeffentlich) && {
       skript: SKRIPT_GESCHUETZT,
@@ -1348,8 +1383,8 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     skript: SKRIPT_GESCHUETZT,
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell findet Stil und Skript vor
-    zusatzSkripte: [SKRIPT_KARUSSELL],
-    stile: [STIL_KARUSSELL],
+    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>
