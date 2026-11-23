@@ -9,6 +9,8 @@ const DATEIEN = [
   "lager-gemeinsam.js",
   "lager-anlegen.js",
   "lager-mitglieder.js",
+  "lager-personenwahl.js",
+  "lager-rechte.js",
   "lager-ausdrucke.js",
   "lager-vorlagen.js",
 ];
@@ -46,12 +48,13 @@ describe("Admin-Panel: Lager", () => {
     );
   });
 
-  test("Löschen nur mit Rückfrage und Titel im Body, nie rot-primär", () => {
+  test("Löschen nur am Ort mit der Eingabe des Namens und dem Titel im Body", () => {
     const lager = lies("lager.js");
     expect(lager).toMatch(
       /anfrage\(\s*"DELETE",\s*`\$\{BASIS\}\/\$\{lager\.id\}`,\s*\{/,
     );
-    expect(lager).toContain("gefaehrlich: true");
+    expect(lager).toContain("bestaetigungAmOrt");
+    expect(lager).toContain("erwartet: lager.titel");
     expect(methoden(alle)).toContain("DELETE");
   });
 

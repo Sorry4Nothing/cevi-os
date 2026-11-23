@@ -1,4 +1,4 @@
-/* Bereich «Lager» (#527, Boards A20 bis A24, A27, A29). Klassen mit dem Vorsatz «lg-»; Farben nur aus den Tokens in admin.css. */
+/* Bereich «Lager» (#527, Boards A20 bis A24, A27, A29; #592). Klassen mit dem Vorsatz «lg-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung. */
 
 .lg-name {
   color: var(--text);
@@ -14,35 +14,10 @@
   white-space: nowrap;
 }
 
-/* Sortierbarer Spaltenkopf: Knopf im th, das Wort der Richtung steht dabei (nie nur der Pfeil) */
-.lg-sort {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 44px;
-  padding: 0;
-  color: inherit;
-  background: none;
-  border: 0;
-  font: inherit;
+.lg-verweis {
+  color: var(--akzent);
   font-weight: 700;
-  cursor: pointer;
-}
-
-.lg-sort:hover {
-  color: var(--text);
-}
-
-.lg-sortwort {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  font-weight: 400;
-}
-
-.lg-sortwort .i {
-  width: 14px;
-  height: 14px;
+  text-underline-offset: 0.2em;
 }
 
 .lg-zurueck {
@@ -89,9 +64,10 @@
   display: none;
 }
 
-/* Anlegen: schmale Fläche, Felder nebeneinander, Knöpfe an den Rändern */
-.lg-schmal {
-  max-width: 760px;
+/* Löschen am Ort: eigene, ruhige Fläche unten */
+.lg-gefahr {
+  margin-top: 8px;
+  border-color: var(--outline);
 }
 
 .lg-zweispaltig {
@@ -134,61 +110,479 @@
   cursor: pointer;
 }
 
-.lg-personen > li {
-  justify-content: space-between;
+/* ===== Lager anlegen: senkrechte Zeitleiste ===== */
+.lg-zeitleiste {
+  display: flex;
+  flex-direction: column;
+  max-width: 48rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.lg-wahl-rechts {
-  margin-left: auto;
+.lg-schritt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0 1rem;
+  padding-bottom: 1.5rem;
 }
 
-/* Rechte der Rollen: Kästchen in einer 44-px-Zelle */
-.lg-haken {
-  width: 1%;
-  text-align: center;
+/* Die Linie verbindet die Marken; beim letzten Schritt endet sie */
+.lg-schritt:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 2.5rem;
+  bottom: 0;
+  left: calc(1.25rem - 1px);
+  width: 2px;
+  background: var(--outline-variant);
 }
 
-.lg-haken label {
+.lg-schritt--fertig:not(:last-child)::before {
+  background: var(--secondary);
+}
+
+.lg-marke {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  cursor: pointer;
-}
-
-.lg-haken input {
-  width: 22px;
-  height: 22px;
-  margin: 0;
-  accent-color: var(--blau);
-}
-
-.lg-abweichung {
-  display: block;
-  color: var(--wa);
+  width: 2.5rem;
+  height: 2.5rem;
+  color: var(--on-surface-variant);
+  background: var(--surface);
+  border: 2px solid var(--outline);
+  border-radius: var(--r-full);
   font-weight: 700;
 }
 
-.tabelle th .klein.mono {
-  display: block;
+.lg-marke .i {
+  width: 1.125rem;
+  height: 1.125rem;
 }
 
-/* Ausdrucke: Zustand der Zeile rechts */
-.lg-fehlerzelle {
+.lg-schritt--jetzt .lg-marke {
+  color: var(--on-secondary);
+  background: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.lg-schritt--fertig .lg-marke {
+  color: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.lg-schrittkoerper {
+  display: flex;
   flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  padding-top: 0.25rem;
+}
+
+.lg-schrittname {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.75rem;
+}
+
+.lg-schritt--spaeter .lg-schrittname {
+  color: var(--on-surface-variant);
+  font-weight: 400;
+}
+
+.lg-schrittsumme {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  color: var(--on-surface-variant);
+}
+
+.lg-schrittsumme .lg-verweis {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.lg-schrittinhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.lg-aendern {
+  margin-left: 0.75rem;
+}
+
+/* ===== Personen wählen ===== */
+.lg-wahlort {
+  display: contents;
+}
+
+.lg-wahlort[hidden] {
+  display: none;
+}
+
+.lg-wahlkarte {
+  max-width: 48rem;
+}
+
+.lg-wahlliste {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.lg-wahlliste > li + li {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.lg-person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+}
+
+.lg-person:hover {
+  background: var(--surface-container-low);
+}
+
+.lg-person:has(input:checked) {
+  background: var(--secondary-container);
+}
+
+.lg-person input {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  accent-color: var(--secondary);
+}
+
+.lg-person-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lg-gewaehlt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-gewaehlt[hidden] {
+  display: none;
+}
+
+.lg-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.25rem 0.25rem 0.5rem;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  border-radius: var(--r-full);
+  font-weight: 700;
+}
+
+.lg-chip-weg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-full);
+  cursor: pointer;
+}
+
+.lg-chip-weg:hover {
+  background: var(--surface-container-high);
+}
+
+.lg-wahlfuss {
+  display: flex;
+  flex-wrap: wrap;
   align-items: flex-end;
+  gap: 1rem;
 }
 
-.lg-erstellt {
-  cursor: default;
+.lg-wahlfuss .feld {
+  flex: 1 1 14rem;
 }
 
+.lg-imlager {
+  max-width: 48rem;
+}
+
+.lg-imlager > li {
+  justify-content: space-between;
+}
+
+.lg-rollenfeld {
+  min-width: 10rem;
+}
+
+.lg-rechtehinweis {
+  margin: 0;
+}
+
+/* ===== Rechte der Rollen ===== */
+.lg-rechtegruppen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.lg-rechtegruppe[hidden] {
+  display: none;
+}
+
+.lg-rechteliste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-recht {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding: 0.5rem 0 0.5rem 0.75rem;
+  border-top: 1px solid var(--outline-variant);
+  border-left: 4px solid transparent;
+}
+
+.lg-recht[hidden] {
+  display: none;
+}
+
+.lg-recht.ist-geaendert {
+  background: var(--secondary-container);
+  border-left-color: var(--secondary);
+}
+
+.lg-rechtinfo {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.lg-rechttext {
+  margin: 0;
+}
+
+.lg-schalterzeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+}
+
+.lg-schalter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.lg-schalter input {
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  accent-color: var(--secondary);
+}
+
+/* Die Leiste mit den ungespeicherten Änderungen haftet am unteren Rand */
+.lg-speicherleiste {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--inverse-surface);
+  color: var(--inverse-on-surface);
+  border-radius: var(--r-md);
+  box-shadow: var(--schatten);
+}
+
+.lg-speicherleiste[hidden] {
+  display: none;
+}
+
+.lg-speicherzahl {
+  margin-right: auto;
+  font-weight: 700;
+}
+
+/* Knöpfe auf dunklem Grund */
+.lg-speicherleiste .knopf--still {
+  color: var(--inverse-on-surface);
+  border-color: var(--inverse-on-surface);
+}
+
+/* ===== Ausdrucke ===== */
+.lg-dls {
+  margin: 0;
+  padding: 0.5rem 1.5rem;
+  list-style: none;
+  gap: 0;
+}
+
+.lg-dl {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  padding: 1rem 0;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.lg-dl:first-child {
+  border-top: 0;
+}
+
+.lg-dl-bild {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  border-radius: var(--r-sm);
+}
+
+.lg-dl-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.lg-dl-datei {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.lg-dl-zustand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.lg-dl-balken {
+  width: 100%;
+  height: 0.625rem;
+  margin-top: 0.5rem;
+  appearance: none;
+  overflow: hidden;
+  background: var(--surface-container-high);
+  border: 0;
+  border-radius: var(--r-full);
+}
+
+.lg-dl-balken[hidden] {
+  display: none;
+}
+
+.lg-dl-balken::-webkit-progress-bar {
+  background: var(--surface-container-high);
+}
+
+.lg-dl-balken::-webkit-progress-value {
+  background: var(--accent);
+  border-radius: var(--r-full);
+}
+
+.lg-dl-balken::-moz-progress-bar {
+  background: var(--accent);
+  border-radius: var(--r-full);
+}
+
+.lg-dl-fehler {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--on-error-container);
+  font-weight: 700;
+}
+
+/* ===== Vorlagen ===== */
 .lg-vorlagen {
   display: flex;
   flex-direction: column;
   gap: 24px;
   padding-top: 24px;
+}
+
+.lg-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 48rem;
+}
+
+.lg-vzeile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.lg-vzeile .eingabe {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lg-vzeile .lg-vabschnitt {
+  flex: 0 1 11rem;
+}
+
+.lg-vneu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.lg-vneu .eingabe {
+  flex: 1 1 14rem;
 }
 
 @media (max-width: 900px) {
@@ -200,5 +594,108 @@
 @media (max-width: 560px) {
   .lg-zweispaltig {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .lg-schritt {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    gap: 0 0.75rem;
+  }
+
+  .lg-marke {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .lg-schritt:not(:last-child)::before {
+    top: 2rem;
+    left: calc(1rem - 1px);
+  }
+
+  .lg-schrittinhalt {
+    padding: 1rem;
+  }
+
+  .lg-dl {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .lg-dl-zustand {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .lg-vzeile--zwei {
+    flex-wrap: wrap;
+  }
+
+  .lg-vzeile--zwei .lg-vabschnitt {
+    flex: 1 1 100%;
+  }
+}
+
+/* Die Suche in einer senkrechten Fläche wächst nicht in die Höhe */
+.lg-wahlkarte .suche {
+  flex: none;
+  width: 100%;
+}
+
+@media (min-width: 80rem) {
+  .lg-rechtegruppen {
+    display: block;
+    column-count: 2;
+    column-gap: 1rem;
+  }
+
+  .lg-rechtegruppe {
+    margin-bottom: 1rem;
+    break-inside: avoid;
+  }
+}
+
+/* Schmale Bildschirme: Tabellen als Kartenliste */
+@media (max-width: 640px) {
+  .lg-karten,
+  .lg-karten tbody,
+  .lg-karten tr,
+  .lg-karten th,
+  .lg-karten td {
+    display: block;
+  }
+
+  .tabelle.lg-karten {
+    min-width: 0;
+  }
+
+  .lg-karten thead {
+    display: none;
+  }
+
+  .lg-karten .rechts {
+    width: auto;
+    white-space: normal;
+  }
+
+  .lg-karten tr {
+    padding: 0.75rem 1rem;
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .lg-karten tr:first-child {
+    border-top: 0;
+  }
+
+  .tabelle.lg-karten th,
+  .tabelle.lg-karten td {
+    padding: 0.25rem 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .lg-karten td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--on-surface-variant);
+    font-size: 0.8125rem;
+    font-weight: 700;
   }
 }

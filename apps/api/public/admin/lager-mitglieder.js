@@ -1,189 +1,259 @@
 import { anfrage } from "./api.js";
-import {
-  aktionenZelle,
-  auswahl,
-  avatar,
-  dialogFormular,
-  el,
-  filterGruppe,
-  knopf,
-  neueId,
-  seitenwahl,
-  tabelle,
-} from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
+import { aktionenZelle, auswahl, avatar, el, knopf, tabelle } from "./dom.js";
 import { skeletonTabelle } from "./lader.js";
-import { ansichtVonKnopf, zweistufig } from "./rueckgaengig.js";
+import { macheSortierbar, seitenleiste, sortiere } from "./liste-hilfen.js";
+import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { leerKarte } from "./zustaende.js";
 import {
   ADRESSE,
   haenge,
   BASIS,
+  beschrifteZellen,
+  kartenTabelle,
   ROLLEN,
   ROLLENNAME,
   meldung,
-  symbol,
   zurueckLink,
 } from "./lager-gemeinsam.js";
+import { personenWahl } from "./lager-personenwahl.js";
 
-// Unterseiten eines Lagers (#527, Board A23): «Mitglieder und Rollen» und «Rechte der Rollen». Mitglieder: zwei Abfragen (Lager, Mitglieder), Personen erst beim Hinzufügen. Rechte: zwei Abfragen (Lager, Rechte). Kein Polling.
+// Mitglieder und Rollen eines Lagers (#527, Board A23; #592): Personen hinzufügen (Suche mit Gesichtern, Rolle wählen, mehrere auf einmal), Mitgliederliste mit Rolle am Ort ändern und Entfernen, beides mit «Rückgängig». Zwei Abfragen (Lager, Mitglieder), die Personen erst beim Hinzufügen. Kein Polling. Die Rechte der Rollen stehen in lager-rechte.js.
 
-export function zeige(bereich, ctx, id, ansicht) {
-  const lager = () => anfrage("GET", `${BASIS}/${id}`);
-  if (ansicht === "rechte") {
-    ctx.lade(
-      () => Promise.all([lager(), anfrage("GET", `${BASIS}/${id}/rechte`)]),
-      ([l, r], neu) => zeichneRechte(bereich, ctx, l, r.rechte, neu),
-      {
-        skeleton: () =>
-          skeletonTabelle({ spalten: 4, zeilen: 8, avatar: false }),
-      },
-    );
-    return;
-  }
+export function zeige(bereich, ctx, id) {
   ctx.lade(
-    () => Promise.all([lager(), anfrage("GET", `${BASIS}/${id}/mitglieder`)]),
+    () =>
+      Promise.all([
+        anfrage("GET", `${BASIS}/${id}`),
+        anfrage("GET", `${BASIS}/${id}/mitglieder`),
+      ]),
     ([l, m], neu) => zeichneMitglieder(bereich, ctx, l, m.mitglieder, neu),
+    {
+      skeleton: () => skeletonTabelle({ spalten: 3, zeilen: 5, avatar: true }),
+    },
   );
 }
 
 const geschlossen = (l) =>
   l.status === "abgeschlossen" || l.status === "archiviert";
-const zurueck = (l) =>
-  zurueckLink(`Zum Lager «${l.titel}»`, `${ADRESSE}/${l.id}`);
-const schreibschutz = () =>
-  el(
-    "div",
-    { class: "hinweis hinweis--info", role: "status" },
-    el(
-      "span",
-      {},
-      "Das Lager ist schreibgeschützt. Öffne es wieder, wenn du etwas ändern willst.",
-    ),
-  );
-
-// Mitglieder und Rollen (A23) -------------------------------------------------
+const STATUS_FOLGE = ROLLEN.map(([r]) => r);
 
 function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
   ctx.titel("Mitglieder und Rollen", lager.titel);
   const zu = geschlossen(lager);
-  if (!zu)
-    ctx.kopfAktion(
-      knopf("Person hinzufügen", {
-        art: "haupt",
-        symbol: "plus",
-        onclick: () => hinzufuegen(lager, alle, ctx, neu),
-      }),
-    );
-  else ctx.kopfAktion();
+  const wahlOrt = el("div", { class: "lg-wahlort" });
+  let personen = null;
+  let wahl = null;
+
+  // Die Personenwahl entsteht beim ersten Öffnen; die Personen werden dann einmal geladen
+  async function oeffneWahl(oeffner) {
+    if (wahl) {
+      wahlOrt.hidden = !wahlOrt.hidden;
+      oeffner?.setAttribute("aria-expanded", String(!wahlOrt.hidden));
+      if (!wahlOrt.hidden) wahl.fokus();
+      return;
+    }
+    try {
+      personen ??= (
+        await anfrage("GET", "/api/v1/admin/personen")
+      ).personen.filter((p) => p.benutzername && !p.deaktiviert);
+    } catch (f) {
+      ctx.melde(meldung(f), "fehler");
+      return;
+    }
+    wahl = personenWahl({
+      personen,
+      ausgeschlossen: new Set(alle.map((m) => m.personId)),
+      rolle: alle.some((m) => m.rolle === "lagerleitung")
+        ? "team"
+        : "lagerleitung",
+      beiHinzufuegen: async (gewaehlt, rolle) => {
+        const ergebnis = await Promise.allSettled(
+          gewaehlt.map((p) =>
+            anfrage("PUT", `${BASIS}/${lager.id}/mitglieder/${p.id}`, {
+              rolle,
+            }),
+          ),
+        );
+        const fehler = ergebnis
+          .map((r, i) =>
+            r.status === "rejected" ? [gewaehlt[i], r.reason] : null,
+          )
+          .filter(Boolean);
+        if (fehler.length === gewaehlt.length) throw fehler[0][1];
+        await neu();
+        if (fehler.length > 0)
+          ctx.melde(
+            `Nicht hinzugefügt: ${fehler.map(([p]) => p.name).join(", ")}. ${meldung(fehler[0][1])}`,
+            "warn",
+          );
+        else
+          ctx.melde(
+            gewaehlt.length === 1
+              ? `${gewaehlt[0].name} ist jetzt ${ROLLENNAME[rolle]}.`
+              : `${gewaehlt.length} Personen sind jetzt ${ROLLENNAME[rolle]}.`,
+          );
+      },
+      fehlertext: meldung,
+    });
+    wahlOrt.hidden = false;
+    wahlOrt.replaceChildren(wahl.wurzel);
+    oeffner?.setAttribute("aria-expanded", "true");
+    wahl.fokus();
+  }
+
+  if (zu) ctx.kopfAktion();
+  else {
+    const oeffner = knopf("Personen hinzufügen", {
+      art: "haupt",
+      symbol: "plus",
+      "aria-expanded": "false",
+      "aria-controls": "lg-wahlort",
+    });
+    oeffner.addEventListener("click", () => oeffneWahl(oeffner));
+    ctx.kopfAktion(oeffner);
+  }
+  wahlOrt.id = "lg-wahlort";
+  wahlOrt.hidden = true;
+
   haenge(
     bereich,
-    zurueck(lager),
-    zu && schreibschutz(),
-    el(
-      "div",
-      { class: "hinweis hinweis--info", role: "status" },
+    zurueckLink(`Zum Lager «${lager.titel}»`, `${ADRESSE}/${lager.id}`),
+    zu &&
       el(
-        "span",
-        {},
-        "Die Lagerleitung darf alles. Was Leitung, Team und Lesen dürfen, stellst du unter «Rechte der Rollen» ein.",
+        "div",
+        { class: "hinweis hinweis--info", role: "status" },
+        el(
+          "span",
+          {},
+          "Das Lager ist schreibgeschützt. Öffne es wieder, wenn du etwas ändern willst.",
+        ),
       ),
-      el(
-        "a",
-        { class: "knopf knopf--klein", href: `${ADRESSE}/${lager.id}/rechte` },
-        "Rechte der Rollen",
-      ),
-    ),
+    wahlOrt,
   );
   if (alle.length === 0) {
     bereich.append(
       leerKarte(
-        "Das Lager hat noch keine Mitglieder. Füge die Lagerleitung hinzu.",
-        [
-          !zu &&
-            knopf("Person hinzufügen", {
-              symbol: "plus",
-              onclick: () => hinzufuegen(lager, alle, ctx, neu),
-            }),
-        ].filter(Boolean),
+        zu
+          ? "Das Lager hat keine Mitglieder."
+          : "Das Lager hat noch keine Mitglieder. Füge oben die Lagerleitung hinzu.",
       ),
     );
+    if (!zu) oeffneWahl(null);
     return;
   }
-  const zustand = { frage: "", rolle: "alle", aufsteigend: true };
-  const zaehle = (r) =>
-    r === "alle" ? alle.length : alle.filter((m) => m.rolle === r).length;
-  const filter = filterGruppe({
-    beschriftung: "Rolle",
-    eintraege: [
-      { text: "Alle", wert: "alle", n: zaehle("alle") },
-      ...ROLLEN.map(([wert, text]) => ({ text, wert, n: zaehle(wert) })),
+  bereich.append(
+    el(
+      "p",
+      { class: "leise lg-rechtehinweis" },
+      "Die Lagerleitung darf alles. Was Leitung, Team und Lesen dürfen, stellst du unter ",
+      el(
+        "a",
+        { class: "lg-verweis", href: `${ADRESSE}/${lager.id}/rechte` },
+        "Rechte der Rollen",
+      ),
+      " ein.",
+    ),
+  );
+
+  const zustand = { schluessel: "name", richtung: "auf" };
+  const stand = { suche: "", filter: { rolle: "alle" } };
+  const leiste = filterleiste({
+    suche: { label: "Mitglied suchen" },
+    filter: [
+      {
+        schluessel: "rolle",
+        label: "Rolle",
+        grundwert: "alle",
+        optionen: [["alle", "Alle"], ...ROLLEN],
+      },
     ],
-    wert: "alle",
-    beiAenderung: (r) => {
-      zustand.rolle = r;
+    namen: { einzahl: "Mitglied", mehrzahl: "Mitglieder" },
+    beiAenderung: (neuerStand) => {
+      stand.suche = neuerStand.suche.trim().toLowerCase();
+      stand.filter = neuerStand.filter;
       seiten.anfang();
       zeichne();
     },
   });
-  const suchId = neueId("lg-suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Name",
-    autocomplete: "off",
-    oninput: () => {
-      zustand.frage = suche.value.trim().toLowerCase();
-      seiten.anfang();
-      zeichne();
-    },
-  });
-  const seiten = seitenwahl({ beiWechsel: () => zeichne() });
+  const seiten = seitenleiste({ beiWechsel: () => zeichne() });
   const { wurzel: rahmen, koerper } = tabelle({
     beschriftung: "Mitglieder",
     spalten: zu ? ["Name", "Rolle"] : ["Name", "Rolle", "Aktionen"],
     zeilen: [],
   });
-  const kopfName = rahmen.querySelector("th");
-  const sortKnopf = el("button", {
-    type: "button",
-    class: "lg-sort",
-    onclick: () => {
-      zustand.aufsteigend = !zustand.aufsteigend;
-      zeichne();
-      sortKnopf.focus();
-    },
-  });
-  kopfName.replaceChildren(sortKnopf);
+  kartenTabelle(rahmen);
+  macheSortierbar(
+    rahmen,
+    [
+      { index: 0, schluessel: "name", name: "Name" },
+      { index: 1, schluessel: "rolle", name: "Rolle" },
+    ],
+    zustand,
+    () => zeichne(),
+  );
   const leer = el("div");
-  const status = el("p", { class: "nur-leser", role: "status" });
-  const vergleich = (a, b) => a.name.localeCompare(b.name, "de-CH");
+
+  // Die Rolle ändert sich am Ort: Das Feld zeigt sofort die neue Rolle, der Server bekommt sie nach der Frist; «Rückgängig» stellt die alte wieder her
+  function rollenFeld(m) {
+    const feld = auswahl({
+      label: `Rolle von ${m.name}`,
+      optionen: ROLLEN,
+      wert: m.rolle,
+    });
+    feld.wurzel.classList.add("lg-rollenfeld");
+    feld.wurzel.querySelector("label")?.classList.add("nur-leser");
+    feld.eingabe.addEventListener("change", () => {
+      const neuR = feld.eingabe.value;
+      const altR = m.rolle;
+      if (neuR === altR) return;
+      ctx.mitRueckgaengig({
+        text: `${m.name} ist jetzt ${ROLLENNAME[neuR]}`,
+        ansicht: {
+          weg: () => (m.rolle = neuR),
+          zurueck: () => {
+            m.rolle = altR;
+            feld.eingabe.value = altR;
+            feld.eingabe.dispatchEvent(new Event("change"));
+          },
+        },
+        ausfuehren: () =>
+          anfrage("PUT", `${BASIS}/${lager.id}/mitglieder/${m.personId}`, {
+            rolle: neuR,
+          }),
+        fehlertext: meldung,
+      });
+    });
+    return feld.wurzel;
+  }
+
+  // Mit «Rückgängig» (#578): Die Person verliert den Zugriff erst nach der Frist, ihr Konto bleibt bestehen
+  const entfernen = (m, ereignis) =>
+    ctx.mitRueckgaengig({
+      text: `${m.name} ist nicht mehr Mitglied`,
+      ansicht: ansichtVonKnopf(ereignis),
+      ausfuehren: () =>
+        anfrage("DELETE", `${BASIS}/${lager.id}/mitglieder/${m.personId}`),
+      fehlertext: meldung,
+      danach: neu,
+    });
 
   function zeichne() {
-    sortKnopf.replaceChildren(
-      "Name",
-      el(
-        "span",
-        { class: "lg-sortwort" },
-        symbol(zustand.aufsteigend ? "hoch" : "runter"),
-        zustand.aufsteigend ? "aufsteigend" : "absteigend",
-      ),
+    const treffer = sortiere(
+      alle
+        .filter(
+          (m) =>
+            stand.filter.rolle === "alle" || m.rolle === stand.filter.rolle,
+        )
+        .filter(
+          (m) =>
+            stand.suche === "" ||
+            m.name.toLowerCase().includes(stand.suche) ||
+            (m.ceviName ?? "").toLowerCase().includes(stand.suche),
+        ),
+      zustand,
+      (m, k) => (k === "rolle" ? STATUS_FOLGE.indexOf(m.rolle) : m.name),
     );
-    kopfName.setAttribute(
-      "aria-sort",
-      zustand.aufsteigend ? "ascending" : "descending",
-    );
-    const treffer = alle
-      .filter((m) => zustand.rolle === "alle" || m.rolle === zustand.rolle)
-      .filter(
-        (m) =>
-          zustand.frage === "" ||
-          m.name.toLowerCase().includes(zustand.frage) ||
-          (m.ceviName ?? "").toLowerCase().includes(zustand.frage),
-      )
-      .sort((a, b) =>
-        zustand.aufsteigend ? vergleich(a, b) : vergleich(b, a),
-      );
     const [von, bis] = seiten.fenster(treffer.length);
     koerper.replaceChildren(
       ...treffer.slice(von, bis).map((m) =>
@@ -205,306 +275,44 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
               ),
             ),
           ),
-          el("td", {}, el("span", { class: "chip" }, ROLLENNAME[m.rolle])),
+          el(
+            "td",
+            {},
+            zu
+              ? el("span", { class: "chip" }, ROLLENNAME[m.rolle])
+              : rollenFeld(m),
+          ),
           !zu &&
             aktionenZelle(
-              knopf("Rolle ändern", {
-                klein: true,
-                symbol: "bearbeiten",
-                kontext: m.name,
-                onclick: () => rolleAendern(lager, m, ctx, neu),
-              }),
               knopf("Entfernen", {
                 klein: true,
-                art: "gefahr",
-                symbol: "papierkorb",
+                art: "still",
+                symbol: "minus",
                 kontext: m.name,
-                onclick: (e) => entfernen(lager, m, ctx, neu, e),
+                onclick: (e) => entfernen(m, e),
               }),
             ),
         ),
       ),
     );
+    beschrifteZellen(koerper, ["", "Rolle", ""]);
     rahmen.hidden = treffer.length === 0;
     leer.replaceChildren();
-    if (treffer.length === 0) {
+    if (treffer.length === 0)
       leer.append(
         leerKarte(
-          zustand.frage
-            ? `Keine Treffer für «${suche.value.trim()}».`
+          stand.suche
+            ? `Keine Treffer für «${stand.suche}».`
             : "Niemand in dieser Rolle.",
           [
             knopf("Filter zurücksetzen", {
-              onclick: () => {
-                suche.value = "";
-                zustand.frage = "";
-                zustand.rolle = "alle";
-                filter.setze("alle");
-                seiten.anfang();
-                zeichne();
-                suche.focus();
-              },
+              onclick: () => leiste.setzeAlles(),
             }),
           ],
         ),
       );
-    }
-    status.textContent =
-      treffer.length === 1 ? "1 Mitglied." : `${treffer.length} Mitglieder.`;
+    leiste.setzeTreffer(treffer.length, alle.length);
   }
-  bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Name"),
-        symbol("lupe"),
-        suche,
-      ),
-      filter.wurzel,
-    ),
-    rahmen,
-    leer,
-    seiten.wurzel,
-    status,
-  );
+  bereich.append(leiste.wurzel, rahmen, leer, seiten.wurzel);
   zeichne();
-}
-
-const rollenAuswahl = (wert) =>
-  auswahl({ label: "Rolle", optionen: ROLLEN, wert });
-
-function rolleAendern(lager, m, ctx, neu) {
-  const rolle = rollenAuswahl(m.rolle);
-  dialogFormular({
-    titel: `Rolle ändern: ${m.name}`,
-    felder: [rolle.wurzel],
-    ok: "Speichern",
-    senden: () =>
-      anfrage("PUT", `${BASIS}/${lager.id}/mitglieder/${m.personId}`, {
-        rolle: rolle.eingabe.value,
-      }),
-    fehlertext: meldung,
-    danach: () => {
-      neu();
-      ctx.melde(`${m.name} ist jetzt ${ROLLENNAME[rolle.eingabe.value]}.`);
-    },
-  });
-}
-
-// Mit «Rückgängig» (#578): Die Person verliert den Zugriff erst nach der Frist, ihr Konto bleibt bestehen
-function entfernen(lager, m, ctx, neu, ereignis) {
-  ctx.mitRueckgaengig({
-    text: `${m.name} ist nicht mehr Mitglied`,
-    ansicht: ansichtVonKnopf(ereignis),
-    ausfuehren: () =>
-      anfrage("DELETE", `${BASIS}/${lager.id}/mitglieder/${m.personId}`),
-    fehlertext: meldung,
-    danach: neu,
-  });
-}
-
-// Die Personen mit Konto laden, erst wenn der Dialog sie braucht
-async function hinzufuegen(lager, mitglieder, ctx, neu) {
-  let personen;
-  try {
-    personen = (await anfrage("GET", "/api/v1/admin/personen")).personen;
-  } catch (f) {
-    ctx.melde(meldung(f), "fehler");
-    return;
-  }
-  const schon = new Set(mitglieder.map((m) => m.personId));
-  const frei = personen.filter(
-    (p) => p.benutzername && !p.deaktiviert && !schon.has(p.id),
-  );
-  if (frei.length === 0) {
-    ctx.melde(
-      "Alle Personen mit Konto sind schon Mitglied dieses Lagers.",
-      "info",
-    );
-    return;
-  }
-  const person = auswahl({
-    label: "Person",
-    optionen: frei.map((p) => [
-      p.id,
-      p.ceviName ? `${p.name} (${p.ceviName})` : p.name,
-    ]),
-    wert: frei[0].id,
-  });
-  const rolle = rollenAuswahl("team");
-  dialogFormular({
-    titel: "Person hinzufügen",
-    beschreibung:
-      "Nur Personen mit Konto lassen sich hinzufügen. Die Änderung gilt ab der nächsten Anfrage der Person.",
-    felder: [person.wurzel, rolle.wurzel],
-    ok: "Hinzufügen",
-    senden: () =>
-      anfrage(
-        "PUT",
-        `${BASIS}/${lager.id}/mitglieder/${person.eingabe.value}`,
-        {
-          rolle: rolle.eingabe.value,
-        },
-      ),
-    fehlertext: meldung,
-    danach: () => {
-      neu();
-      ctx.melde("Die Person ist Mitglied des Lagers.");
-    },
-  });
-}
-
-// Rechte der Rollen -----------------------------------------------------------
-
-const EINSTELLBAR = [
-  ["leitung", "Leitung"],
-  ["team", "Team"],
-  ["lesen", "Lesen"],
-];
-
-function zeichneRechte(bereich, ctx, lager, rechte, neu) {
-  ctx.titel("Rechte der Rollen", lager.titel);
-  const zu = geschlossen(lager);
-  // Geändert gegenüber dem geladenen Stand: "rolle|recht" -> erlaubt
-  const geaendert = new Map();
-  const speichern = knopf("Speichern", {
-    art: "haupt",
-    symbol: "haken",
-    disabled: true,
-    onclick: async () => {
-      speichern.disabled = true;
-      speichern.setAttribute("aria-busy", "true");
-      try {
-        await anfrage("PUT", `${BASIS}/${lager.id}/rechte`, {
-          rechte: [...geaendert].map(([k, erlaubt]) => {
-            const [rolle, recht] = k.split("|");
-            return { rolle, recht, erlaubt };
-          }),
-        });
-        neu();
-        ctx.melde(
-          "Die Rechte sind gespeichert. Sie gelten ab der nächsten Anfrage.",
-        );
-      } catch (f) {
-        speichern.removeAttribute("aria-busy");
-        speichern.disabled = false;
-        ctx.melde(meldung(f), "fehler");
-      }
-    },
-  });
-  // Rechte gelten ab der nächsten Anfrage für andere: keine Frist, sondern zwei Stufen im Knopf statt eines Popups (#578). Nicht gespeicherte Änderungen hier gehen verloren
-  const zuruecksetzen = zweistufig(
-    knopf("Auf Standard zurücksetzen", { symbol: "aktualisieren" }),
-    "Wirklich zurücksetzen?",
-    async () => {
-      try {
-        await anfrage("POST", `${BASIS}/${lager.id}/rechte/zuruecksetzen`);
-        neu();
-        ctx.melde(
-          "Die Rechte sind auf den Standard zurückgesetzt. Leitung, Team und Lesen haben wieder die Rechte des Katalogs.",
-        );
-      } catch (f) {
-        ctx.melde(meldung(f), "fehler");
-      }
-    },
-  );
-  if (zu) ctx.kopfAktion();
-  else ctx.kopfAktion(zuruecksetzen, speichern);
-  const suchId = neueId("lg-suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Recht suchen",
-    autocomplete: "off",
-  });
-  const status = el("p", { class: "nur-leser", role: "status" });
-  const zeilen = rechte.map((r) => {
-    const abweichung = EINSTELLBAR.some(
-      ([rolle]) => r.aktuell[rolle] !== r.standard[rolle],
-    );
-    const zelle = ([rolle, name]) => {
-      const box = el("input", {
-        type: "checkbox",
-        "aria-label": `${r.bedeutung}: ${name}`,
-        disabled: zu,
-      });
-      box.checked = r.aktuell[rolle];
-      box.addEventListener("change", () => {
-        const k = `${rolle}|${r.recht}`;
-        if (box.checked === r.aktuell[rolle]) geaendert.delete(k);
-        else geaendert.set(k, box.checked);
-        speichern.disabled = geaendert.size === 0;
-      });
-      return el("td", { class: "lg-haken" }, el("label", {}, box));
-    };
-    const zeile = el(
-      "tr",
-      {},
-      el(
-        "th",
-        { scope: "row" },
-        el("span", { class: "name" }, r.bedeutung),
-        el("span", { class: "klein leise mono" }, r.recht),
-        abweichung &&
-          el(
-            "span",
-            { class: "klein lg-abweichung" },
-            "Weicht vom Standard ab",
-          ),
-      ),
-      EINSTELLBAR.map(zelle),
-    );
-    zeile.dataset.suche = `${r.bedeutung} ${r.recht}`.toLowerCase();
-    return zeile;
-  });
-  suche.addEventListener("input", () => {
-    const q = suche.value.trim().toLowerCase();
-    let n = 0;
-    for (const z of zeilen) {
-      z.hidden = !z.dataset.suche.includes(q);
-      if (!z.hidden) n++;
-    }
-    status.textContent = n === 1 ? "1 Recht." : `${n} Rechte.`;
-  });
-  const { wurzel: rahmen } = tabelle({
-    beschriftung: "Rechte der Rollen",
-    spalten: [
-      "Recht",
-      ["Leitung", "lg-haken"],
-      ["Team", "lg-haken"],
-      ["Lesen", "lg-haken"],
-    ],
-    zeilen,
-  });
-  haenge(
-    bereich,
-    zurueck(lager),
-    zu && schreibschutz(),
-    el(
-      "div",
-      { class: "hinweis hinweis--info", role: "status" },
-      el(
-        "span",
-        {},
-        "Die Lagerleitung darf immer alles und lässt sich nicht einstellen. Die Rechte gelten nur in diesem Lager.",
-      ),
-    ),
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Recht suchen"),
-        symbol("lupe"),
-        suche,
-      ),
-    ),
-    rahmen,
-    status,
-  );
 }

@@ -225,6 +225,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-mitglieder.js": { erwartet: alle(200) },
   "GET /admin/lager-ausdrucke.js": { erwartet: alle(200) },
   "GET /admin/lager-vorlagen.js": { erwartet: alle(200) },
+  "GET /admin/lager-personenwahl.js": { erwartet: alle(200) },
+  "GET /admin/lager-rechte.js": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
