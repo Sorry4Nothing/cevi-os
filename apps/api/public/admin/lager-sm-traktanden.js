@@ -23,6 +23,7 @@ import {
   meldung,
   mehrzahl,
   personName,
+  kinder,
 } from "./lager-sm-gemeinsam.js";
 
 // Traktanden eines Höcks oder die Punkte für den nächsten Höck (#673): Liste zum Ordnen, schnelles Hinzufügen, Formular mit Text, Entscheid, Links, Verantwortlichen und Dauer. Gebraucht von Höcks (Liste, Detail) und vom Höck-Modus.
@@ -92,7 +93,7 @@ function linkZeilen(start) {
       weg,
     );
     zeilen.push(z);
-    liste.append(zeile);
+    liste.append(...kinder(zeile));
     mehr.disabled = zeilen.length >= 10;
   };
   const mehr = knopf("Link hinzufügen", {
@@ -103,7 +104,7 @@ function linkZeilen(start) {
       zeilen.at(-1).titel.eingabe.focus();
     },
   });
-  wurzel.append(liste, mehr);
+  wurzel.append(...kinder(liste, mehr));
   for (const l of start) fuege(l);
   return {
     wurzel,
@@ -125,7 +126,6 @@ const gleich = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 export function traktandumFormular({
   ctx,
   lagerId,
-  lager,
   mitglieder,
   start,
   hoeckId,
@@ -206,7 +206,10 @@ export function traktandumFormular({
     uebernehmeStand: (a) => {
       titel.eingabe.value = a.titel;
       text.eingabe.value = markenZuNamen(a.text ?? "", text.karte);
-      entscheid.eingabe.value = markenZuNamen(a.entscheid ?? "", entscheid.karte);
+      entscheid.eingabe.value = markenZuNamen(
+        a.entscheid ?? "",
+        entscheid.karte,
+      );
       dauer.eingabe.value = a.dauerMinuten ?? "";
       status.eingabe.value = a.status;
       status.eingabe.dispatchEvent(new Event("change"));
@@ -260,7 +263,11 @@ export function traktandumFormular({
           `${basis(lagerId)}/traktanden/${start.id}`,
           { version, ...aenderung },
         );
-        if (markenIn(`${w.text} ${w.entscheid} ${vorher.text} ${vorher.entscheid}`) > 0)
+        if (
+          markenIn(
+            `${w.text} ${w.entscheid} ${vorher.text} ${vorher.entscheid}`,
+          ) > 0
+        )
           await gleicheErwaehnungenAb(lagerId, "traktandum", start.id, ctx);
         return t;
       } catch (f) {
@@ -366,7 +373,10 @@ export function traktandenBlock({
           knopf(t.status === "besprochen" ? "Wieder öffnen" : "Besprochen", {
             klein: true,
             kontext: t.titel,
-            onclick: () => setze(t, { status: t.status === "besprochen" ? "offen" : "besprochen" }),
+            onclick: () =>
+              setze(t, {
+                status: t.status === "besprochen" ? "offen" : "besprochen",
+              }),
           }),
           hoeckId !== null &&
             knopf("Auf nächsten Höck", {
@@ -474,9 +484,9 @@ export function traktandenBlock({
         : `${mehrzahl(traktanden.length, "Punkt", "Punkte")}${geplant > 0 ? `, geplant ${geplant} Min.` : ""}`,
     ),
   );
-  huelle.append(kopfZeile);
+  huelle.append(...kinder(kopfZeile));
   if (liste.length > 0)
-    huelle.append(sortierbar ? sortierbar.wurzel : leseListe());
+    huelle.append(...kinder(sortierbar ? sortierbar.wurzel : leseListe()));
   if (darfAendern) {
     const eingabe = feld({
       label: "Neues Traktandum",
@@ -512,25 +522,27 @@ export function traktandenBlock({
       }
     });
     huelle.append(
-      el(
-        "div",
-        { class: "lg-sm-schnell" },
-        eingabe.wurzel,
-        hinzufuegen,
-        knopf("Mit Angaben", {
-          klein: true,
-          kontext: "neues Traktandum",
-          onclick: () =>
-            traktandumFormular({
-              ctx,
-              lagerId,
-              lager,
-              mitglieder,
-              start: null,
-              hoeckId,
-              laden,
-            }),
-        }),
+      ...kinder(
+        el(
+          "div",
+          { class: "lg-sm-schnell" },
+          eingabe.wurzel,
+          hinzufuegen,
+          knopf("Mit Angaben", {
+            klein: true,
+            kontext: "neues Traktandum",
+            onclick: () =>
+              traktandumFormular({
+                ctx,
+                lagerId,
+                lager,
+                mitglieder,
+                start: null,
+                hoeckId,
+                laden,
+              }),
+          }),
+        ),
       ),
     );
   }

@@ -15,7 +15,49 @@ export const GRUPPEN = [
   "Lager",
 ];
 
-export const MODULE = [];
+export const MODULE = [
+  {
+    schluessel: "hoecks",
+    titel: "Höcks",
+    gruppe: "Sitzungen",
+    recht: "hoecks.lesen_alle|hoecks.team_lesen|hoecks.bearbeiten",
+    laden: () => import("./lager-m-hoecks.js"),
+  },
+  {
+    schluessel: "protokolle",
+    titel: "Protokolle",
+    gruppe: "Sitzungen",
+    recht: "protokolle.lesen",
+    laden: () => import("./lager-m-protokolle.js"),
+  },
+  {
+    schluessel: "pinnwand",
+    titel: "Pinnwand",
+    gruppe: "Mitteilen",
+    recht: "pinnwand.lesen",
+    laden: () => import("./lager-m-pinnwand.js"),
+  },
+  {
+    schluessel: "eingang",
+    titel: "Eingang",
+    gruppe: "Mitteilen",
+    recht: "eingang.senden|eingang.lesen",
+    laden: () => import("./lager-m-eingang.js"),
+  },
+  {
+    schluessel: "erwaehnungen",
+    titel: "Erwähnungen",
+    gruppe: "Mitteilen",
+    laden: () => import("./lager-m-erwaehnungen.js"),
+  },
+  {
+    schluessel: "dokumente",
+    titel: "Dokumente",
+    gruppe: "Mitteilen",
+    recht: "dokumente.lesen_alle|dokumente.team_lesen|dokumente.bearbeiten",
+    laden: () => import("./lager-m-dokumente.js"),
+  },
+];
 
 // Ein Suchbegriff aus dem Feld im Kopf des Arbeitsbereichs geht nie in die Adresse (er kann einen Namen enthalten); das Modul «Suche» holt ihn hier ab
 export const suchbegriff = { frage: "" };

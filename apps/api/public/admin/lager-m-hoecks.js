@@ -13,9 +13,11 @@ import {
 } from "./dom.js";
 import { datumsfeld, zeitfeld } from "./datumsfeld.js";
 import { skeletonTabelle } from "./lader.js";
+import { gehe } from "./verlauf.js";
 import { leerKarte } from "./zustaende.js";
 import {
   beschrifteZellen,
+  haenge,
   ID,
   kartenTabelle,
   nichtGefunden,
@@ -36,7 +38,7 @@ import {
   mehrzahl,
   personName,
   restPfad,
-  schreibschutz,
+  kinder,
 } from "./lager-sm-gemeinsam.js";
 import { nachSchreibfehler, traktandenBlock } from "./lager-sm-traktanden.js";
 
@@ -57,14 +59,6 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
     ? modus(bereich, ctx, lagerId, lagerRoh, id)
     : detail(bereich, ctx, lagerId, lagerRoh, id);
 }
-
-const aktualisieren = (neu) =>
-  knopf("Aktualisieren", {
-    klein: true,
-    art: "still",
-    symbol: "aktualisieren",
-    onclick: () => neu(),
-  });
 
 // ---- Formular zum Anlegen und Ändern ----
 
@@ -105,7 +99,8 @@ function hoeckFormular({ ctx, lagerId, start, danach }) {
   });
   const gaeste = feld({
     label: "Gäste",
-    hilfe: "Freiwillig. Wer kommt zusätzlich, zum Beispiel «Kassierin des Vereins»?",
+    hilfe:
+      "Freiwillig. Wer kommt zusätzlich, zum Beispiel «Kassierin des Vereins»?",
     wert: start?.gaeste ?? "",
     maxlength: 500,
     autocomplete: "off",
@@ -173,13 +168,13 @@ function hoeckFormular({ ctx, lagerId, start, danach }) {
           return await anfrage("POST", `${basis(lagerId)}/hoecks`, body);
         }
         const aenderung = {};
-        for (const k of Object.keys(w)) if (w[k] !== vorher[k]) aenderung[k] = w[k];
+        for (const k of Object.keys(w))
+          if (w[k] !== vorher[k]) aenderung[k] = w[k];
         if (Object.keys(aenderung).length === 0) return start;
-        return await anfrage(
-          "PATCH",
-          `${basis(lagerId)}/hoecks/${start.id}`,
-          { version, ...aenderung },
-        );
+        return await anfrage("PATCH", `${basis(lagerId)}/hoecks/${start.id}`, {
+          version,
+          ...aenderung,
+        });
       } catch (f) {
         konflikt.behandle(f);
         throw f;
@@ -195,7 +190,6 @@ function hoeckFormular({ ctx, lagerId, start, danach }) {
 // ---- Liste ----
 
 function liste(bereich, ctx, lagerId, lagerRoh) {
-  ctx.kopfAktion();
   ctx.lade(
     async () => {
       const lager = await holeLager(lagerId, lagerRoh);
@@ -205,58 +199,80 @@ function liste(bereich, ctx, lagerId, lagerRoh) {
         alle ? anfrage("GET", `${basis(lagerId)}/traktanden/naechster`) : null,
         alle ? ladeMitglieder(lagerId) : [],
       ]);
-      return { lager, hoecks, naechste: naechste?.traktanden ?? null, mitglieder };
+      return {
+        lager,
+        hoecks,
+        naechste: naechste?.traktanden ?? null,
+        mitglieder,
+      };
     },
     (d, neu) => zeichneListe(bereich, ctx, lagerId, d, neu),
-    { skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }) },
+    {
+      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }),
+    },
   );
 }
 
-function zeichneListe(bereich, ctx, lagerId, { lager, hoecks, naechste, mitglieder }, neu) {
-  ctx.titel("Höcks", lager.titel);
+function zeichneListe(
+  bereich,
+  ctx,
+  lagerId,
+  { lager, hoecks, naechste, mitglieder },
+  neu,
+) {
   const schreiben = darfSchreiben(lager, "hoecks.bearbeiten");
-  ctx.kopfAktion(
-    aktualisieren(neu),
+  haenge(
+    bereich,
     schreiben &&
-      knopf("Höck anlegen", {
-        art: "haupt",
-        symbol: "plus",
-        onclick: () =>
-          hoeckFormular({
-            ctx,
-            lagerId,
-            start: null,
-            danach: (h) => (location.hash = adresse(lagerId, "hoecks", h.id)),
-          }),
-      }),
+      el(
+        "div",
+        { class: "lg-sm-werkzeug" },
+        knopf("Höck anlegen", {
+          art: "haupt",
+          symbol: "plus",
+          onclick: () =>
+            hoeckFormular({
+              ctx,
+              lagerId,
+              start: null,
+              danach: (h) => gehe(adresse(lagerId, "hoecks", h.id)),
+            }),
+        }),
+      ),
   );
-  bereich.append(schreibschutz(lager) || "");
   if (hoecks.length === 0) {
     bereich.append(
-      leerKarte(
-        schreiben
-          ? "Es gibt noch keinen Höck. Lege den ersten an."
-          : "Es gibt noch keinen Höck.",
+      ...kinder(
+        leerKarte(
+          schreiben
+            ? "Es gibt noch keinen Höck. Lege den ersten an."
+            : "Es gibt noch keinen Höck.",
+        ),
       ),
     );
   } else {
-    bereich.append(hoeckTabelle(hoecks, lagerId));
+    bereich.append(...kinder(hoeckTabelle(hoecks, lagerId)));
   }
   if (naechste) {
     bereich.append(
-      el(
-        "section",
-        { class: "flaeche lg-sm-naechste", "aria-label": "Punkte für den nächsten Höck" },
-        traktandenBlock({
-          ctx,
-          lager,
-          lagerId,
-          hoeckId: null,
-          traktanden: naechste,
-          mitglieder,
-          laden: neu,
-          titel: "Punkte für den nächsten Höck",
-        }),
+      ...kinder(
+        el(
+          "section",
+          {
+            class: "flaeche lg-sm-naechste",
+            "aria-label": "Punkte für den nächsten Höck",
+          },
+          traktandenBlock({
+            ctx,
+            lager,
+            lagerId,
+            hoeckId: null,
+            traktanden: naechste,
+            mitglieder,
+            laden: neu,
+            titel: "Punkte für den nächsten Höck",
+          }),
+        ),
       ),
     );
   }
@@ -285,44 +301,72 @@ function hoeckTabelle(hoecks, lagerId) {
   if (mitZahlen) spalten.push("Art");
   spalten.push("Ort");
   if (mitZahlen) spalten.push(["Traktanden", "zahl"], ["Anwesende", "zahl"]);
-  const { wurzel, koerper } = tabelle({ beschriftung: "Höcks", spalten, zeilen: [] });
+  const { wurzel, koerper } = tabelle({
+    beschriftung: "Höcks",
+    spalten,
+    zeilen: [],
+  });
   kartenTabelle(wurzel);
   const leer = el("div");
   function zeichne() {
     const gefiltert =
-      wahl === "kommend" ? komm : wahl === "vergangen" ? [...verg].reverse() : hoecks;
+      wahl === "kommend"
+        ? komm
+        : wahl === "vergangen"
+          ? [...verg].reverse()
+          : hoecks;
     koerper.replaceChildren(
-      ...gefiltert.map((h) =>
-        el(
-          "tr",
-          {},
-          el("td", { class: "lg-zahlen" }, datumMitTag(h.datum)),
-          el("td", { class: "lg-zahlen" }, h.zeit ?? "–"),
+      ...kinder(
+        ...gefiltert.map((h) =>
           el(
-            "td",
+            "tr",
             {},
+            el("td", { class: "lg-zahlen" }, datumMitTag(h.datum)),
+            el("td", { class: "lg-zahlen" }, h.zeit ?? "–"),
             el(
-              "a",
-              { class: "name lg-name", href: adresse(lagerId, "hoecks", h.id) },
-              h.titel,
+              "td",
+              {},
+              el(
+                "a",
+                {
+                  class: "name lg-name",
+                  href: adresse(lagerId, "hoecks", h.id),
+                },
+                h.titel,
+              ),
             ),
+            mitZahlen && el("td", {}, ART[h.art] ?? ""),
+            el("td", {}, h.ort ?? "–"),
+            mitZahlen &&
+              el(
+                "td",
+                { class: "lg-zahlen rechts" },
+                String(h.anzahlTraktanden ?? 0),
+              ),
+            mitZahlen &&
+              el(
+                "td",
+                { class: "lg-zahlen rechts" },
+                String(h.anzahlAnwesende ?? 0),
+              ),
           ),
-          mitZahlen && el("td", {}, ART[h.art] ?? ""),
-          el("td", {}, h.ort ?? "–"),
-          mitZahlen && el("td", { class: "lg-zahlen rechts" }, String(h.anzahlTraktanden ?? 0)),
-          mitZahlen && el("td", { class: "lg-zahlen rechts" }, String(h.anzahlAnwesende ?? 0)),
         ),
       ),
     );
-    beschrifteZellen(koerper, spalten.map((s) => (Array.isArray(s) ? s[0] : s)));
+    beschrifteZellen(
+      koerper,
+      spalten.map((s) => (Array.isArray(s) ? s[0] : s)),
+    );
     leer.replaceChildren(
-      gefiltert.length === 0
-        ? leerKarte(
-            wahl === "kommend"
-              ? "Kein Höck in Sicht."
-              : "Keine Höcks in dieser Ansicht.",
-          )
-        : "",
+      ...kinder(
+        gefiltert.length === 0
+          ? leerKarte(
+              wahl === "kommend"
+                ? "Kein Höck in Sicht."
+                : "Keine Höcks in dieser Ansicht.",
+            )
+          : "",
+      ),
     );
   }
   zeichne();
@@ -346,7 +390,11 @@ function anwesenheit({ ctx, lagerId, hoeckId, mitglieder, kannAendern }) {
         avatar(m.name, { hell: true }),
         m.name,
       );
-    const k = ankreuzen({ label: m.name, wert: m.personId, gewaehlt: m.anwesend });
+    const k = ankreuzen({
+      label: m.name,
+      wert: m.personId,
+      gewaehlt: m.anwesend,
+    });
     k.eingabe.addEventListener("change", async () => {
       const da = k.eingabe.checked;
       k.eingabe.disabled = true;
@@ -380,7 +428,6 @@ function anwesenheit({ ctx, lagerId, hoeckId, mitglieder, kannAendern }) {
 // ---- Detail ----
 
 function detail(bereich, ctx, lagerId, lagerRoh, hoeckId) {
-  ctx.kopfAktion();
   ctx.lade(
     async () => {
       const lager = await holeLager(lagerId, lagerRoh);
@@ -399,10 +446,16 @@ function detail(bereich, ctx, lagerId, lagerRoh, hoeckId) {
   );
 }
 
-function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }, neu) {
+function zeichneDetail(
+  bereich,
+  ctx,
+  lagerId,
+  { lager, h, mitglieder, naechste },
+  neu,
+) {
   const schreiben = darfSchreiben(lager, "hoecks.bearbeiten");
   const voll = Array.isArray(h.traktanden);
-  ctx.titel(h.titel, lager.titel);
+  ctx.titel(h.titel, `Höck am ${datumMitTag(h.datum)}`);
   const hauptblock = el(
     "section",
     { class: "flaeche lg-sm-kopfblock", "aria-label": "Angaben zum Höck" },
@@ -417,7 +470,13 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
           "div",
           {},
           el("dt", {}, "Wer sieht ihn?"),
-          el("dd", {}, h.art === "lagerleitung" ? "Lagerleitung und Leitung" : "Alle Mitglieder"),
+          el(
+            "dd",
+            {},
+            h.art === "lagerleitung"
+              ? "Lagerleitung und Leitung"
+              : "Alle Mitglieder",
+          ),
         ),
       voll &&
         h.gaeste &&
@@ -444,7 +503,10 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
     ctx.mitRueckgaengig({
       text: `Höck «${h.titel}» gelöscht`,
       ausfuehren: () =>
-        anfrage("DELETE", `${basis(lagerId)}/hoecks/${h.id}?version=${h.version}`),
+        anfrage(
+          "DELETE",
+          `${basis(lagerId)}/hoecks/${h.id}?version=${h.version}`,
+        ),
       ansicht: {
         weg: () => bereich.setAttribute("hidden", ""),
         zurueck: () => bereich.removeAttribute("hidden"),
@@ -456,19 +518,19 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
       fehlertext: meldung,
       erledigt: "Höck gelöscht.",
     });
-  ctx.kopfAktion(
-    aktualisieren(neu),
-    voll &&
-      el(
-        "a",
-        { class: "knopf", href: adresse(lagerId, "hoecks", h.id, "modus") },
-        icon("weiter"),
-        "Höck-Modus",
-      ),
-  );
   const aktionen = el(
     "div",
     { class: "aktionen lg-sm-aktionen" },
+    voll &&
+      el(
+        "a",
+        {
+          class: "knopf knopf--haupt",
+          href: adresse(lagerId, "hoecks", h.id, "modus"),
+        },
+        icon("weiter"),
+        "Höck-Modus öffnen",
+      ),
     schreiben &&
       knopf("Bearbeiten", {
         symbol: "bearbeiten",
@@ -486,20 +548,27 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
       "Kalenderdatei laden",
     ),
     schreiben &&
-      knopf("Löschen", { art: "gefahr", symbol: "papierkorb", onclick: loeschen }),
+      knopf("Löschen", {
+        art: "gefahr",
+        symbol: "papierkorb",
+        onclick: loeschen,
+      }),
   );
-  hauptblock.append(aktionen);
+  hauptblock.append(...kinder(aktionen));
   bereich.append(
-    zurueckLink("Zu den Höcks", adresse(lagerId, "hoecks")),
-    schreibschutz(lager) || "",
-    hauptblock,
+    ...kinder(
+      zurueckLink("Zu den Höcks", adresse(lagerId, "hoecks")),
+      hauptblock,
+    ),
   );
   if (!voll) {
     bereich.append(
-      el(
-        "p",
-        { class: "hinweis hinweis--info" },
-        "Du siehst von diesem Höck nur, wann, was und wo. Traktanden und Anwesende sind der Leitung vorbehalten.",
+      ...kinder(
+        el(
+          "p",
+          { class: "hinweis hinweis--info" },
+          "Du siehst von diesem Höck nur, wann, was und wo. Traktanden und Anwesende sind der Leitung vorbehalten.",
+        ),
       ),
     );
     return;
@@ -508,63 +577,75 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
   const liste =
     mitglieder.length > 0
       ? mitglieder.map((m) => ({ ...m, anwesend: anwesendIds.has(m.personId) }))
-      : h.anwesende.map((p) => ({ personId: p.id, name: personName(p), anwesend: true }));
+      : h.anwesende.map((p) => ({
+          personId: p.id,
+          name: personName(p),
+          anwesend: true,
+        }));
   bereich.append(
-    el(
-      "section",
-      { class: "flaeche", "aria-labelledby": "lg-sm-anw" },
-      el("h2", { id: "lg-sm-anw" }, "Anwesende"),
-      anwesenheit({
-        ctx,
-        lagerId,
-        hoeckId: h.id,
-        mitglieder: liste,
-        kannAendern: schreiben && mitglieder.length > 0,
-      }),
+    ...kinder(
+      el(
+        "section",
+        { class: "flaeche", "aria-labelledby": "lg-sm-anw" },
+        el("h2", { id: "lg-sm-anw" }, "Anwesende"),
+        anwesenheit({
+          ctx,
+          lagerId,
+          hoeckId: h.id,
+          mitglieder: liste,
+          kannAendern: schreiben && mitglieder.length > 0,
+        }),
+      ),
     ),
   );
   if (schreiben && naechste.length > 0) {
     bereich.append(
-      el(
-        "div",
-        { class: "hinweis hinweis--info lg-sm-uebernehmen" },
+      ...kinder(
         el(
-          "span",
-          {},
-          `${mehrzahl(naechste.length, "Punkt wartet", "Punkte warten")} auf den nächsten Höck.`,
+          "div",
+          { class: "hinweis hinweis--info lg-sm-uebernehmen" },
+          el(
+            "span",
+            {},
+            `${mehrzahl(naechste.length, "Punkt wartet", "Punkte warten")} auf den nächsten Höck.`,
+          ),
+          knopf("In diesen Höck übernehmen", {
+            klein: true,
+            onclick: async () => {
+              try {
+                const r = await anfrage(
+                  "POST",
+                  `${basis(lagerId)}/hoecks/${h.id}/traktanden/uebernehmen`,
+                  {},
+                );
+                ctx.melde(
+                  `${mehrzahl(r.uebernommen, "Punkt", "Punkte")} übernommen.`,
+                );
+                await neu();
+              } catch (f) {
+                ctx.melde(meldung(f), "fehler");
+              }
+            },
+          }),
         ),
-        knopf("In diesen Höck übernehmen", {
-          klein: true,
-          onclick: async () => {
-            try {
-              const r = await anfrage(
-                "POST",
-                `${basis(lagerId)}/hoecks/${h.id}/traktanden/uebernehmen`,
-                {},
-              );
-              ctx.melde(`${mehrzahl(r.uebernommen, "Punkt", "Punkte")} übernommen.`);
-              await neu();
-            } catch (f) {
-              ctx.melde(meldung(f), "fehler");
-            }
-          },
-        }),
       ),
     );
   }
   bereich.append(
-    el(
-      "section",
-      { class: "flaeche", "aria-label": "Traktanden" },
-      traktandenBlock({
-        ctx,
-        lager,
-        lagerId,
-        hoeckId: h.id,
-        traktanden: h.traktanden,
-        mitglieder,
-        laden: neu,
-      }),
+    ...kinder(
+      el(
+        "section",
+        { class: "flaeche", "aria-label": "Traktanden" },
+        traktandenBlock({
+          ctx,
+          lager,
+          lagerId,
+          hoeckId: h.id,
+          traktanden: h.traktanden,
+          mitglieder,
+          laden: neu,
+        }),
+      ),
     ),
   );
 }
@@ -572,11 +653,13 @@ function zeichneDetail(bereich, ctx, lagerId, { lager, h, mitglieder, naechste }
 // ---- Höck-Modus ----
 
 function modus(bereich, ctx, lagerId, lagerRoh, hoeckId) {
-  ctx.kopfAktion();
   ctx.lade(
     async () => {
       const lager = await holeLager(lagerId, lagerRoh);
-      const m = await anfrage("GET", `${basis(lagerId)}/hoecks/${hoeckId}/modus`);
+      const m = await anfrage(
+        "GET",
+        `${basis(lagerId)}/hoecks/${hoeckId}/modus`,
+      );
       return { lager, m };
     },
     (d, neu) => zeichneModus(bereich, ctx, lagerId, d, neu),
@@ -587,8 +670,10 @@ function modus(bereich, ctx, lagerId, lagerRoh, hoeckId) {
 function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
   const h = m.hoeck;
   const schreiben = darfSchreiben(lager, "hoecks.bearbeiten");
-  ctx.titel(`Höck-Modus: ${h.titel}`, `${datumMitTag(h.datum)}${h.zeit ? `, ${h.zeit}` : ""}`);
-  ctx.kopfAktion(aktualisieren(neu));
+  ctx.titel(
+    `Höck-Modus: ${h.titel}`,
+    `${datumMitTag(h.datum)}${h.zeit ? `, ${h.zeit}` : ""}`,
+  );
   const punkte = h.traktanden;
   // Der erste offene Punkt ist der aktuelle
   let aktuell = Math.max(
@@ -602,25 +687,32 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
   const ablauf = el("ol", { class: "lg-sm-ablauf" });
   const zeigeAblauf = () =>
     ablauf.replaceChildren(
-      ...punkte.map((t, i) =>
-        el(
-          "li",
-          {},
+      ...kinder(
+        ...punkte.map((t, i) =>
           el(
-            "button",
-            {
-              type: "button",
-              class: "lg-sm-ablaufknopf",
-              "aria-current": i === aktuell ? "step" : undefined,
-              onclick: () => {
-                aktuell = i;
-                zeichnePunkt();
+            "li",
+            {},
+            el(
+              "button",
+              {
+                type: "button",
+                class: "lg-sm-ablaufknopf",
+                "aria-current": i === aktuell ? "step" : undefined,
+                onclick: () => {
+                  aktuell = i;
+                  zeichnePunkt();
+                },
               },
-            },
-            el("span", { class: "lg-sm-nr" }, String(i + 1)),
-            el("span", {}, t.titel),
-            t.status === "besprochen" &&
-              el("span", { class: "chip chip--ok" }, icon("haken"), "Besprochen"),
+              el("span", { class: "lg-sm-nr" }, String(i + 1)),
+              el("span", {}, t.titel),
+              t.status === "besprochen" &&
+                el(
+                  "span",
+                  { class: "chip chip--ok" },
+                  icon("haken"),
+                  "Besprochen",
+                ),
+            ),
           ),
         ),
       ),
@@ -629,7 +721,7 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
     zeigeAblauf();
     if (punkte.length === 0) {
       buehne.replaceChildren(
-        leerKarte("Dieser Höck hat noch keine Traktanden."),
+        ...kinder(leerKarte("Dieser Höck hat noch keine Traktanden.")),
       );
       return;
     }
@@ -642,10 +734,15 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
       maxlength: 1000,
       disabled: !schreiben,
     });
-    const speichern = knopf(t.status === "besprochen" ? "Entscheid speichern" : "Als besprochen speichern", {
-      art: "haupt",
-      symbol: "haken",
-    });
+    const speichern = knopf(
+      t.status === "besprochen"
+        ? "Entscheid speichern"
+        : "Als besprochen speichern",
+      {
+        art: "haupt",
+        symbol: "haken",
+      },
+    );
     speichern.addEventListener("click", async () => {
       speichern.disabled = true;
       try {
@@ -668,7 +765,9 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
             version: t.version,
             hoeckId: null,
           });
-          ctx.melde(`«${t.titel}» liegt bei den Punkten für den nächsten Höck.`);
+          ctx.melde(
+            `«${t.titel}» liegt bei den Punkten für den nächsten Höck.`,
+          );
           await neu();
         } catch (f) {
           await nachSchreibfehler(ctx, f, neu);
@@ -676,62 +775,64 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
       },
     });
     buehne.replaceChildren(
-      el(
-        "p",
-        { class: "klein leise" },
-        `Punkt ${aktuell + 1} von ${punkte.length}${t.dauerMinuten ? `, geplant ${t.dauerMinuten} Min.` : ""}`,
-      ),
-      el("h2", { class: "lg-sm-gross" }, t.titel),
-      t.verantwortliche.length > 0 &&
+      ...kinder(
         el(
           "p",
-          { class: "leise" },
-          `Verantwortlich: ${t.verantwortliche.map(personName).join(", ")}`,
+          { class: "klein leise" },
+          `Punkt ${aktuell + 1} von ${punkte.length}${t.dauerMinuten ? `, geplant ${t.dauerMinuten} Min.` : ""}`,
         ),
-      t.text && el("p", { class: "lg-sm-text" }, t.text),
-      t.links.length > 0 &&
-        el(
-          "ul",
-          { class: "lg-sm-links" },
-          t.links.map((l) =>
-            el(
-              "li",
-              {},
+        el("h2", { class: "lg-sm-gross" }, t.titel),
+        t.verantwortliche.length > 0 &&
+          el(
+            "p",
+            { class: "leise" },
+            `Verantwortlich: ${t.verantwortliche.map(personName).join(", ")}`,
+          ),
+        t.text && el("p", { class: "lg-sm-text" }, t.text),
+        t.links.length > 0 &&
+          el(
+            "ul",
+            { class: "lg-sm-links" },
+            t.links.map((l) =>
               el(
-                "a",
-                {
-                  class: "lg-verweis",
-                  href: l.url,
-                  target: "_blank",
-                  rel: "noopener noreferrer",
-                },
-                l.titel,
-                el("span", { class: "nur-leser" }, " (öffnet in neuem Tab)"),
+                "li",
+                {},
+                el(
+                  "a",
+                  {
+                    class: "lg-verweis",
+                    href: l.url,
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                  },
+                  l.titel,
+                  el("span", { class: "nur-leser" }, " (öffnet in neuem Tab)"),
+                ),
               ),
             ),
           ),
+        entscheid.wurzel,
+        el(
+          "div",
+          { class: "aktionen lg-sm-aktionen" },
+          knopf("Zurück", {
+            symbol: "zurueck",
+            disabled: aktuell === 0,
+            onclick: () => {
+              aktuell--;
+              zeichnePunkt();
+            },
+          }),
+          knopf("Weiter", {
+            disabled: aktuell === punkte.length - 1,
+            onclick: () => {
+              aktuell++;
+              zeichnePunkt();
+            },
+          }),
+          schreiben && speichern,
+          schreiben && schieben,
         ),
-      entscheid.wurzel,
-      el(
-        "div",
-        { class: "aktionen lg-sm-aktionen" },
-        knopf("Zurück", {
-          symbol: "zurueck",
-          disabled: aktuell === 0,
-          onclick: () => {
-            aktuell--;
-            zeichnePunkt();
-          },
-        }),
-        knopf("Weiter", {
-          disabled: aktuell === punkte.length - 1,
-          onclick: () => {
-            aktuell++;
-            zeichnePunkt();
-          },
-        }),
-        schreiben && speichern,
-        schreiben && schieben,
       ),
     );
   }
@@ -748,30 +849,37 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
       "section",
       { class: "flaeche", "aria-labelledby": "lg-sm-anw" },
       el("h2", { id: "lg-sm-anw" }, "Anwesenheit"),
-      anwesenheit({ ctx, lagerId, hoeckId: h.id, mitglieder: liste, kannAendern: schreiben }),
+      anwesenheit({
+        ctx,
+        lagerId,
+        hoeckId: h.id,
+        mitglieder: liste,
+        kannAendern: schreiben,
+      }),
     ),
     darfSchreiben(lager, "protokolle.bearbeiten") &&
       beschlussFeld({ ctx, lagerId, hoeckId: h.id }),
     m.ressortRunde && ressortRunde(m.ressortRunde),
   );
   bereich.append(
-    zurueckLink("Zum Höck", adresse(lagerId, "hoecks", h.id)),
-    schreibschutz(lager) || "",
-    el(
-      "div",
-      { class: "lg-sm-modus" },
+    ...kinder(
+      zurueckLink("Zum Höck", adresse(lagerId, "hoecks", h.id)),
       el(
         "div",
-        { class: "lg-sm-spalte" },
-        buehne,
+        { class: "lg-sm-modus" },
         el(
-          "section",
-          { class: "flaeche", "aria-labelledby": "lg-sm-abl" },
-          el("h2", { id: "lg-sm-abl" }, "Ablauf"),
-          ablauf,
+          "div",
+          { class: "lg-sm-spalte" },
+          buehne,
+          el(
+            "section",
+            { class: "flaeche", "aria-labelledby": "lg-sm-abl" },
+            el("h2", { id: "lg-sm-abl" }, "Ablauf"),
+            ablauf,
+          ),
         ),
+        rechts,
       ),
-      rechts,
     ),
   );
 }
@@ -783,7 +891,8 @@ function beschlussFeld({ ctx, lagerId, hoeckId }) {
     mehrzeilig: true,
     rows: "3",
     maxlength: 1000,
-    hilfe: "Ein Satz genügt. Er erscheint unter «Protokolle und Beschlüsse».",
+    hilfe:
+      "Ein Satz genügt. Er erscheint bei «Protokolle» im Reiter «Beschlüsse».",
   });
   const knopfSpeichern = knopf("Festhalten", { symbol: "plus" });
   knopfSpeichern.addEventListener("click", async () => {
@@ -794,7 +903,10 @@ function beschlussFeld({ ctx, lagerId, hoeckId }) {
     }
     knopfSpeichern.disabled = true;
     try {
-      await anfrage("POST", `${basis(lagerId)}/beschluesse`, { text: t, hoeckId });
+      await anfrage("POST", `${basis(lagerId)}/beschluesse`, {
+        text: t,
+        hoeckId,
+      });
       text.eingabe.value = "";
       ctx.melde("Beschluss festgehalten.");
     } catch (f) {
@@ -841,7 +953,11 @@ function ressortRunde(runde) {
                     ),
                 ),
                 r.leitung &&
-                  el("p", { class: "klein leise" }, `Leitung: ${personName(r.leitung)}`),
+                  el(
+                    "p",
+                    { class: "klein leise" },
+                    `Leitung: ${personName(r.leitung)}`,
+                  ),
                 r.offeneAufgaben && r.offeneAufgaben.length > 0
                   ? el(
                       "ul",
@@ -860,11 +976,14 @@ function ressortRunde(runde) {
                         ),
                       ),
                     )
-                  : el("p", { class: "klein leise" }, "Keine offenen Aufgaben zu sehen."),
+                  : el(
+                      "p",
+                      { class: "klein leise" },
+                      "Keine offenen Aufgaben zu sehen.",
+                    ),
               ),
             ),
           ),
         ),
   );
 }
-

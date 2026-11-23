@@ -1,9 +1,12 @@
 import { ApiFehler, anfrage } from "./api.js";
-import { auswahl, el, knopf, neueId } from "./dom.js";
+import { auswahl, el, feld, knopf, neueId } from "./dom.js";
 import { meldung as lagerMeldung } from "./lager-gemeinsam.js";
 
 // Gemeinsames der Module «Sitzungen und Mitteilen» im Lager-Arbeitsbereich (#673): Adressen, Rechte, Seiten holen, Texte für Fehler, Konfliktbox (409 VERSION_KONFLIKT), Erwähnungen mit «@», Datum und Zeit.
 // Kein Polling; Daten nur als Text in die Seite.
+
+// Kinder für append() und replaceChildren(): false, null und undefined fallen weg (append() schriebe sie als Text), verschachtelte Listen werden geglättet
+export const kinder = (...k) => k.flat(Infinity).filter(Boolean);
 
 export const basis = (lagerId) => `/api/v1/lager/${lagerId}`;
 export const adresse = (lagerId, ...teile) =>
@@ -11,6 +14,7 @@ export const adresse = (lagerId, ...teile) =>
 
 // Der Rest der Adresse nach dem Modul («hoecks/<id>/modus» ergibt [<id>, "modus"]). Der Arbeitsbereich reicht ctx.pfad entweder ganz (Lager-ID, Modul, Rest) oder schon gekürzt weiter.
 export function restPfad(ctx, lagerId) {
+  if (Array.isArray(ctx.weiter)) return ctx.weiter;
   const i = ctx.pfad.indexOf(lagerId);
   return i < 0 ? ctx.pfad : ctx.pfad.slice(i + 2);
 }
@@ -31,19 +35,6 @@ export const geschlossen = (lager) =>
 // Schreiben: das Recht und ein offenes Lager
 export const darfSchreiben = (lager, ...rechte) =>
   darf(lager, ...rechte) && !geschlossen(lager);
-
-// Hinweis oben im Modul, wenn das Lager schreibgeschützt ist
-export const schreibschutz = (lager) =>
-  geschlossen(lager) &&
-  el(
-    "div",
-    { class: "hinweis hinweis--info", role: "status" },
-    el(
-      "span",
-      {},
-      "Das Lager ist schreibgeschützt. Öffne es wieder, wenn du etwas ändern willst.",
-    ),
-  );
 
 // Texte der Server-Codes dieser Module; alles andere folgt dem Gerüst
 const TEXTE = {
@@ -163,7 +154,9 @@ function wertText(w) {
   if (Array.isArray(w))
     return w.length === 0
       ? "leer"
-      : w.map((x) => (typeof x === "object" ? (x.titel ?? x.name ?? "") : x)).join(", ");
+      : w
+          .map((x) => (typeof x === "object" ? (x.titel ?? x.name ?? "") : x))
+          .join(", ");
   if (typeof w === "boolean") return w ? "ja" : "nein";
   return String(w);
 }
@@ -220,19 +213,22 @@ export function konfliktBox({ namen, uebernehmeStand, setzeVersion }) {
       if (!aktuell) return false;
       const abweichend = fehler.daten.abweichend ?? [];
       liste.replaceChildren(
-        ...(abweichend.length > 0 ? abweichend : ["(Stand geändert)"]).map(
-          (k) =>
-            el(
-              "li",
-              {},
-              abweichend.length > 0
-                ? `${namen?.[k] ?? k}: ${wertText(aktuell[k])}`
-                : k,
-            ),
+        ...kinder(
+          ...(abweichend.length > 0 ? abweichend : ["(Stand geändert)"]).map(
+            (k) =>
+              el(
+                "li",
+                {},
+                abweichend.length > 0
+                  ? `${namen?.[k] ?? k}: ${wertText(aktuell[k])}`
+                  : k,
+              ),
+          ),
         ),
       );
       wurzel.hidden = false;
-      wurzel.focus();
+      // Nach dem Fokus des Formulars auf seine Fehlermeldung (dialogFormular), damit die Box im Blick ist
+      window.setTimeout(() => wurzel.focus(), 0);
       return true;
     },
   };
@@ -282,10 +278,7 @@ export function erwaehnFeld({ label, wert = "", hilfe, mitglieder, ...rest }) {
   const id = neueId("feld");
   const eingabe = el("textarea", { id, rows: "4", ...rest });
   eingabe.value = markenZuNamen(wert, karte);
-  const teile = [
-    el("label", { for: id }, label),
-    eingabe,
-  ];
+  const teile = [el("label", { for: id }, label), eingabe];
   let wahl = null;
   if (mitglieder.length > 0) {
     wahl = auswahl({
@@ -334,4 +327,128 @@ export async function gleicheErwaehnungenAb(lagerId, typ, quelleId, ctx) {
       "warn",
     );
   }
+}
+
+// ---- Dateien als Verknüpfung ----
+
+// Zwei Felder: Name und Link einer Datei am Ablageort. Cevi OS speichert nur die Verknüpfung (POST /dateien); der Server prüft den Link streng und ruft ihn nie ab.
+// start: eine bestehende Datei { anzeigename, link } oder null. geaendert() sagt, ob die Felder vom Start abweichen; speichere() legt die Verknüpfung an und liefert sie.
+export function dateiEingabe({ start = null, pflicht = true } = {}) {
+  const name = feld({
+    label: "Name der Datei",
+    wert: start?.anzeigename ?? "",
+    maxlength: 200,
+    required: pflicht,
+    autocomplete: "off",
+  });
+  const link = feld({
+    label: "Link zur Datei",
+    wert: start?.link ?? "",
+    maxlength: 2000,
+    required: pflicht,
+    autocomplete: "off",
+    inputmode: "url",
+    hilfe:
+      "Die Adresse am Ablageort, zum Beispiel aus SharePoint. Sie muss mit «https» beginnen. Cevi OS lädt die Datei nie selbst.",
+  });
+  const werte = () => ({
+    anzeigename: name.eingabe.value.trim(),
+    link: link.eingabe.value.trim(),
+  });
+  return {
+    felder: [name.wurzel, link.wurzel],
+    name,
+    link,
+    leer: () => werte().anzeigename === "" && werte().link === "",
+    geaendert: () => {
+      const w = werte();
+      return (
+        w.anzeigename !== (start?.anzeigename ?? "") ||
+        w.link !== (start?.link ?? "")
+      );
+    },
+    speichere: (lagerId) =>
+      anfrage("POST", `${basis(lagerId)}/dateien`, werte()),
+  };
+}
+
+// Liste von Dateien eines Beitrags: bestehende (zum Entfernen) und neue Zeilen mit Name und Link; höchstens max
+// speichere() legt die neuen Verknüpfungen an und liefert alle IDs, die am Beitrag bleiben; geaendert() sagt, ob sich etwas verändert hat
+export function dateiListe({ start = [], max = 10 } = {}) {
+  const behalten = new Map(start.map((d) => [d.id, d]));
+  const neue = [];
+  const wurzel = el("div", { class: "lg-sm-dateiliste" });
+  const bestehend = el("ul", { class: "lg-sm-dateien" });
+  const zeilen = el("div", { class: "lg-sm-linkliste" });
+  const mehr = knopf("Datei verknüpfen", { klein: true, symbol: "plus" });
+  const zaehle = () => {
+    mehr.disabled = behalten.size + neue.length >= max;
+  };
+  function zeichneBestehende() {
+    bestehend.replaceChildren(
+      ...kinder(
+        ...[...behalten.values()].map((d) =>
+          el(
+            "li",
+            {},
+            dateiLink(d),
+            knopf("Entfernen", {
+              klein: true,
+              art: "still",
+              kontext: d.anzeigename,
+              onclick: () => {
+                behalten.delete(d.id);
+                zeichneBestehende();
+                zaehle();
+                mehr.focus();
+              },
+            }),
+          ),
+        ),
+      ),
+    );
+    bestehend.hidden = behalten.size === 0;
+  }
+  mehr.addEventListener("click", () => {
+    const e = dateiEingabe({ pflicht: false });
+    const weg = knopf("Entfernen", {
+      klein: true,
+      art: "still",
+      kontext: "neue Datei",
+      onclick: () => {
+        neue.splice(neue.indexOf(e), 1);
+        zeile.remove();
+        zaehle();
+        mehr.focus();
+      },
+    });
+    const zeile = el("div", { class: "lg-sm-linkzeile" }, ...e.felder, weg);
+    neue.push(e);
+    zeilen.append(...kinder(zeile));
+    zaehle();
+    e.name.eingabe.focus();
+  });
+  wurzel.append(...kinder(bestehend, zeilen, mehr));
+  zeichneBestehende();
+  zaehle();
+  return {
+    wurzel,
+    // Eine halb ausgefüllte Zeile ist ein Fehler, eine leere fällt weg
+    unvollstaendig: () =>
+      neue.some(
+        (e) =>
+          !e.leer() &&
+          (!e.name.eingabe.value.trim() || !e.link.eingabe.value.trim()),
+      ),
+    geaendert: () =>
+      behalten.size !== start.length || neue.some((e) => !e.leer()),
+    async speichere(lagerId) {
+      const ids = [...behalten.keys()];
+      for (const e of neue) {
+        if (e.leer()) continue;
+        ids.push((await e.speichere(lagerId)).id);
+      }
+      return ids;
+    },
+  };
 }
