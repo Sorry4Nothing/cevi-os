@@ -288,6 +288,86 @@ describe("Was ausgeliefert wird", () => {
     }
   });
 
+  test("Favicon (#558): Dateien an der Wurzel und unter website/, Einträge auf jeder Seite; nur ein öffentliches Bild der Abteilung ist Quelle", async () => {
+    await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });
+    const quellen: (string | null)[] = [];
+    // Attrappe: je Datei ihr Name als Inhalt, dazu die Quelle, damit sich der Hash mit dem Zeichen ändert
+    const zeichen = async (q: { id: string } | null) => {
+      quellen.push(q?.id ?? null);
+      return Object.fromEntries(
+        [
+          "favicon.ico",
+          "website/zeichen-32.png",
+          "website/zeichen-192.png",
+          "apple-touch-icon.png",
+        ].map((d) => [
+          d,
+          new TextEncoder().encode(`${d}:${q?.id ?? "standard"}`),
+        ]),
+      ) as never;
+    };
+    const setze = (id: string | null) =>
+      db
+        .update(schema.abteilung)
+        .set({ websiteZeichenMediumId: id })
+        .where(eq(schema.abteilung.id, abteilungId));
+    const medium = async (sichtbarkeit: "oeffentlich" | "angemeldet") =>
+      (
+        await db
+          .insert(schema.medium)
+          .values({
+            abteilungId,
+            mimeTyp: "image/webp",
+            groesse: 10,
+            breite: 64,
+            hoehe: 64,
+            altText: "Zeichen",
+            dekorativ: false,
+            sichtbarkeit,
+            speicherSchluessel: randomUUID(),
+          })
+          .returning({ id: schema.medium.id })
+      )[0]!.id;
+    const version = (html: string) =>
+      /zeichen-32\.png\?v=([0-9a-f]{12})"/.exec(html)![1];
+
+    // Ohne Wahl: die Quelle ist null (der Server nimmt dann das Cevi-Zeichen), Dateien und Einträge sind da
+    await lauf({ zeichen });
+    expect(quellen).toEqual([null]);
+    expect(await lies("favicon.ico")).toBe("favicon.ico:standard");
+    expect(await lies("apple-touch-icon.png")).toContain("standard");
+    expect(await lies("website/zeichen-192.png")).toContain("standard");
+    const vorher = version(await lies("index.html"));
+    for (const datei of ["index.html", "404.html", "anmelden/index.html"]) {
+      const html = await lies(datei);
+      expect(html, datei).toContain(
+        `<link rel="icon" type="image/png" sizes="32x32" href="/website/zeichen-32.png?v=${vorher}">`,
+      );
+      expect(html, datei).toContain(
+        `<link rel="apple-touch-icon" href="/apple-touch-icon.png?v=${vorher}">`,
+      );
+    }
+
+    // Gewähltes Zeichen: Die Dateien und die Fassung in den Adressen wechseln
+    const eigenes = await medium("oeffentlich");
+    await setze(eigenes);
+    await lauf({ zeichen });
+    expect(quellen.at(-1)).toBe(eigenes);
+    expect(await lies("favicon.ico")).toBe(`favicon.ico:${eigenes}`);
+    expect(version(await lies("index.html"))).not.toBe(vorher);
+
+    // Nicht öffentlich: keine Quelle, also wieder das Zeichen der Plattform
+    await setze(await medium("angemeldet"));
+    await lauf({ zeichen });
+    expect(quellen.at(-1)).toBeNull();
+    expect(version(await lies("index.html"))).toBe(vorher);
+    await setze(null);
+
+    // Ohne die Funktion (kein Favicon eingerichtet): keine Einträge
+    await lauf();
+    expect(await lies("index.html")).not.toContain('rel="icon"');
+  });
+
   test("Logo (#550): im Kopf jeder Seite, nur wenn das Medium öffentlich und ein Bild der Abteilung ist", async () => {
     await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });
     const neuesMedium = async (extra: object = {}, abt = abteilungId) =>

@@ -10,6 +10,7 @@ import {
 } from "./karussell.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { symbol } from "./symbole.js";
+import { zeichenLinks } from "./zeichen.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
@@ -98,6 +99,8 @@ export type Logo = {
 export type Kontext = {
   abteilung: string;
   logo?: Logo;
+  // Favicon (#558): Die Dateien liegen in der Ausgabe; der Wert ist ihre Fassung (Hex) für die Adressen. Fehlt er, trägt die Seite keine Einträge (Vorschau im Editor, Tests)
+  zeichen?: string;
   basisUrl: string;
   navigation: NavPunkt[];
   daten: Daten;
@@ -1202,7 +1205,7 @@ export function rahmen(
 <meta name="color-scheme" content="light dark">
 <meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP_SEITE)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
-<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
+<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}
 <link rel="stylesheet" href="${STYLESHEET_PFAD}">
 <link rel="stylesheet" href="${STIL_KOPF}">${stileHtml}${skripte}${zusatz}
