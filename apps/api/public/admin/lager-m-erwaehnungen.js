@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { el, filterGruppe, icon, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { leerKarte } from "./zustaende.js";
 import { nichtGefunden } from "./lager-gemeinsam.js";
 import { MODULE } from "./lager-module.js";
@@ -43,7 +43,7 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
       };
     },
     (d) => zeichne(bereich, ctx, lagerId, d),
-    { skeleton: () => skeletonListe({ zeilen: 4 }) },
+    { skeleton: skeletonVon({ reiter: 3, inhalt: "liste", zeilen: 4 }) },
   );
 }
 

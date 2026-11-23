@@ -1,7 +1,7 @@
 import { ApiFehler, anfrage } from "./api.js";
 import { ankreuzen, dialogFormular, el, feld, knopf, tabelle } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonTabelle } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { leerKarte } from "./zustaende.js";
 import {
   beschrifteZellen,
@@ -61,7 +61,13 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
     },
     (d, neu) => zeichne(bereich, ctx, lagerId, d, neu),
     {
-      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }),
+      skeleton: skeletonVon({
+        knopf: true,
+        filter: 3,
+        inhalt: "tabelle",
+        zeilen: 4,
+        spalten: 6,
+      }),
     },
   );
 }

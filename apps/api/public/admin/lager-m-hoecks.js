@@ -12,7 +12,7 @@ import {
   tabelle,
 } from "./dom.js";
 import { datumsfeld, zeitfeld } from "./datumsfeld.js";
-import { skeletonTabelle } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { gehe } from "./verlauf.js";
 import { leerKarte } from "./zustaende.js";
 import {
@@ -208,7 +208,13 @@ function liste(bereich, ctx, lagerId, lagerRoh) {
     },
     (d, neu) => zeichneListe(bereich, ctx, lagerId, d, neu),
     {
-      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }),
+      skeleton: skeletonVon({
+        knopf: true,
+        reiter: 3,
+        inhalt: "tabelle",
+        zeilen: 3,
+        spalten: 7,
+      }),
     },
   );
 }
@@ -442,7 +448,7 @@ function detail(bereich, ctx, lagerId, lagerRoh, hoeckId) {
       return { lager, h, mitglieder, naechste: naechste?.traktanden ?? [] };
     },
     (d, neu) => zeichneDetail(bereich, ctx, lagerId, d, neu),
-    { skeleton: "detail" },
+    { skeleton: skeletonVon("detail") },
   );
 }
 
@@ -663,7 +669,7 @@ function modus(bereich, ctx, lagerId, lagerRoh, hoeckId) {
       return { lager, m };
     },
     (d, neu) => zeichneModus(bereich, ctx, lagerId, d, neu),
-    { skeleton: "detail" },
+    { skeleton: skeletonVon("detail") },
   );
 }
 

@@ -73,6 +73,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `zuschneiden.js`, `zuschneiden.css`                                                                                                                                                                               | Bild zuschneiden vor dem Hochladen (#633): eine Seite im Fluss, `zuschneiden({ datei, … })` liefert die neue Datei oder `null`                                                                                          |
 | `aktionen.js`, `formularraster.js`, `werkzeuge.css`                                                                                                                                                               | Querschnitt: geteilter Knopf, Bestätigung am Ort, Zweispalter und die Stile aller Querschnitt-Bausteine (#578, #602)                                                                                                    |
 | `lager*.js`, `lager.css`                                                                                                                                                                                          | Bereich Lager: Liste, Assistent, Mitglieder, Rechte, Ausdrucke, Vorlagen (Vorsatz `lg-`) (#592)                                                                                                                         |
+| `lager-rahmen.js`, `lager-bewegung.js`, `lager-skeleton.js`, `lager-rahmen.css`                                                                                                                                   | Lager-Arbeitsbereich (#672); Ladezustände und Bewegung (#686), siehe «Lager: Ladezustände und Bewegung»                                                                                                                 |
 | `website-*.js`, `website-*.css`                                                                                                                                                                                   | Website: Seiten, Baum, Editor, Bausteine, Medien, Samstagsangaben der Stufen, Einstellungen (Vorsatz `ws-`) (#591, #595)                                                                                                |
 | `<bereich>-*.js/css`                                                                                                                                                                                              | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                                                                                                                                         |
 
@@ -536,3 +537,31 @@ Module im Arbeitsbereich (Register `lager-module.js`, Gruppe «Planen»): `aufga
 ### Raum anfragen: «Meine Anfragen» (#671)
 
 Die Unterseite «Meine Anfragen» im Bereich «Räume» (`raeume-meine.js`, `zugang: "belegung"`, also für alle Leitenden) ist das Gegenstück zu «Raum anfragen» und «Meine Raumanfragen» der App. Knopf «Raum anfragen» öffnet eine Seite im Fluss mit Raum (eigenes Auswahlfeld), Beginn und Ende (`datumZeitFeld`, Zürcher Zeit), Zweck; die Prüfung läuft vor dem Senden (Zukunft, Ende nach Beginn, höchstens 14 Tage, Zweck höchstens 200 Zeichen), der Server prüft weiter alles (409 `RAUM_BELEGT`, `ANFRAGE_LIMIT`, 429). Die Liste zeigt die eigenen Anfragen mit Status als Wort und Symbol (Angefragt, Bestätigt, Abgelehnt mit Grund, Zurückgezogen); «Zurückziehen» ist ein zweistufiger Knopf in der Zeile. Abfragen: beim Öffnen zwei, je Anfrage und Zurückziehen eine, kein Polling. Der Hinweis in der Belegung verweist auf diese Seite.
+
+## Lager: Ladezustände und Bewegung (#686)
+
+Alles im Lager-Arbeitsbereich folgt denselben Mustern wie der Rest der Verwaltung. Ein Modul muss dafür fast nichts tun; der Rahmen (`lager-rahmen.js`) macht es für jedes Modul.
+
+**Skeleton je Seitenart.** `skeletonSeite()` in `lager-skeleton.js` setzt aus den Bausteinen von `lader.js` ganze Seiten zusammen; das Modul wählt die Art, die seiner fertigen Seite gleicht:
+
+```js
+ctx.lade(laden, zeichnen, {
+  skeleton: skeletonVon({
+    knopf: true,
+    reiter: 3,
+    inhalt: "tabelle",
+    zeilen: 3,
+    spalten: 7,
+  }),
+});
+```
+
+`inhalt` ist `liste` (Karte mit Zeilen), `tabelle`, `karten` (Raster), `flaechen` (gestapelte Flächen) oder `detail`; dazu `knopf` (Hauptknopf), `reiter` (Anzahl) und `filter` (Suchfeld plus Auswahlfelder). Wer keine Art angibt, bekommt die aus dem Register (`skeleton` in `lager-module.js`, optional), sonst die Vorgabe von `lader.js`. Der Arbeitsbereich selbst zeigt `skeletonRahmen()`.
+
+**Rahmen.** Der Stand des Lagers (`GET /api/v1/lager/{id}`) gilt 20 Sekunden (`frischerRahmen()`): Beim Wechsel zwischen Modulen stehen Leiste und Navigation sofort, nur das Modul lädt. «Aktualisieren», `ctx.neuRahmen()` und die Lagerliste holen ihn neu. Die Marke der Navigation gleitet vom alten an den neuen Eintrag; die Navigation scrollt für sich.
+
+**Bewegung ohne Zutun.** `beobachteListen()` (`lager-bewegung.js`) schaut auf den Inhalt jedes Moduls: Tabellenzeilen und Listeneinträge (`tbody > tr`, `ul > li`, `ol > li`), die neu sind, blenden ein, die übrigen gleiten an ihren neuen Platz. Eine Zeile gilt als dieselbe, wenn ihr Text derselbe ist. Ausgenommen sind `.sortierliste` (hat `sortieren.js`), Menüs, Auswahllisten, Reiter und Skeletons. Beim ersten Zeichnen eines Moduls übernimmt `.lg-modul--neu` (Karten blenden gestaffelt ein).
+
+**Von Hand.** `blendeEin(knoten)` und `blendeAus(knoten)` für Knoten, die ein Modul selbst einfügt oder entfernt; `fuelle(progress, wert)` lässt einen Fortschrittsbalken wachsen. `hidden`-Elemente, die erscheinen (Fehler an Feldern, Hinweise, Speicherleiste), blenden von selbst ein; `details` klappt gleitend, wo der Browser `::details-content` kennt.
+
+**Regeln.** Jede Animation und jeder Übergang steht in `lager-rahmen.css` unter `@media (prefers-reduced-motion: no-preference)` (Test `admin-lager-bewegung.test.ts`), Dauer und Kurve aus `--dauer`, `--dauer-lang`, `--kurve`, `animation-fill-mode: backwards` (kein Transform bleibt stehen), kein `style`-Attribut im Markup. Prüfpunkte: `docs/barrierefreiheit.md`, Abschnitt 63.

@@ -53,6 +53,8 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
       if (!wahlOrt.hidden) wahl.fokus();
       return;
     }
+    // Die Personen laden einmal; solange dreht sich der Knopf
+    oeffner?.setAttribute("aria-busy", "true");
     try {
       personen ??= (
         await anfrage("GET", "/api/v1/admin/personen")
@@ -60,6 +62,8 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
     } catch (f) {
       ctx.melde(meldung(f), "fehler");
       return;
+    } finally {
+      oeffner?.removeAttribute("aria-busy");
     }
     wahl = personenWahl({
       personen,

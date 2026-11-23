@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { ankreuzen, el, feld, icon, knopf } from "./dom.js";
-import { skeletonFlaeche } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { ansichtVon } from "./rueckgaengig.js";
 import { datumKurzTag, karte } from "./lager-start-teile.js";
 import {
@@ -229,12 +229,7 @@ export function zeige(bereich, ctx, id, lager) {
       );
     },
     {
-      skeleton: () =>
-        el(
-          "div",
-          { class: "lg-kacheln" },
-          [0, 1, 2].map(() => skeletonFlaeche({ zeilen: 3 })),
-        ),
+      skeleton: skeletonVon({ inhalt: "karten", zeilen: 6 }),
     },
   );
 }

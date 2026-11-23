@@ -18,6 +18,7 @@ import {
   meldung,
   nichtGefunden,
 } from "./lager-gemeinsam.js";
+import { skeletonVon } from "./lager-skeleton.js";
 
 // Bereich «Lager», Unterseite «Vorlagen» (#527, Board A24; #592): Vorlagen der Abteilung nach Art (Reiter Aufgaben und Packlisten). Anlegen und Bearbeiten ist eine Seite im Fluss mit einer Liste, die man am Griff ordnet (Maus, Finger, Tastatur, Knöpfe Nach oben und Nach unten), Titel am Ort bearbeitet und Einträge hinzufügt oder entfernt. Eine Abfrage je Reiter (höchstens 100 Vorlagen, kein Seitenwechsel nötig), beim Bearbeiten eine für die Vorlage. Adressen: #lager/vorlagen und #lager/vorlagen/packlisten. Anwenden geschieht im Lager.
 
@@ -73,6 +74,14 @@ export function zeige(bereich, ctx) {
   lade(
     () => anfrage("GET", `${BASIS}?art=${art}`),
     (daten, neu) => zeichne(inhalt, ctx, art, daten.vorlagen, neu),
+    {
+      skeleton: skeletonVon({
+        knopf: true,
+        inhalt: "tabelle",
+        zeilen: 4,
+        spalten: 4,
+      }),
+    },
   );
 }
 

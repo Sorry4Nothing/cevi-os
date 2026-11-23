@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { ankreuzen, dialogFormular, el, feld, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { feldFehler, haenge, knopfMit, meldung } from "./lager-gemeinsam.js";
 import {
   angabe,
@@ -73,7 +73,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
   ctx.lade(
     () => anfrage("GET", lagerPfad(lagerId, "/infos?limit=200")),
     (daten, neu) => haenge(bereich, zeichne(ctx, lagerId, lager, daten, neu)),
-    { skeleton: () => skeletonListe({ zeilen: 5 }) },
+    { skeleton: skeletonVon({ knopf: true, inhalt: "liste", zeilen: 3 }) },
   );
 }
 

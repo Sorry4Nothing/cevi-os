@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { el } from "./dom.js";
-import { skeletonFlaeche } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import {
   aufgabenListe,
   datumLang,
@@ -245,12 +245,7 @@ export function zeige(bereich, ctx, id, lager) {
       bereich.append(el("div", { class: "lg-kacheln" }, karten));
     },
     {
-      skeleton: () =>
-        el(
-          "div",
-          { class: "lg-kacheln" },
-          [0, 1, 2, 3].map(() => skeletonFlaeche({ zeilen: 3 })),
-        ),
+      skeleton: skeletonVon({ inhalt: "karten", zeilen: 4 }),
     },
   );
 }

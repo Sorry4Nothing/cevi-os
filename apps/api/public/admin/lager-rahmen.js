@@ -1,16 +1,28 @@
 import { anfrage } from "./api.js";
 import { el, icon, knopf } from "./dom.js";
-import { skeletonFlaeche } from "./lader.js";
-import { rahmenzustand } from "./zustaende.js";
+import {
+  nochmals,
+  rahmenzustand,
+  zustandsDaten,
+  zustandsKarte,
+} from "./zustaende.js";
 import {
   ADRESSE,
+  frischerRahmen,
   haenge,
-  meldung,
+  merkeRahmen,
   statusChip,
   symbol,
   zeitraum,
 } from "./lager-gemeinsam.js";
+import {
+  DAUER_LANG_MS,
+  KURVE,
+  beobachteListen,
+  darfBewegen,
+} from "./lager-bewegung.js";
 import { verfolge } from "./lager-ereignisse.js";
+import { skeletonRahmen, skeletonVon } from "./lager-skeleton.js";
 import { GRUPPEN, MODULE, suchbegriff } from "./lager-module.js";
 
 // Arbeitsbereich eines Lagers (#672): Kopf mit Name, Status und Zeitraum, links die Navigation der Module, rechts das gewählte Modul. Adresse: #lager/lager/<id>/<modul>[/…]. Die Navigation zeigt nur Module, für die die Rolle im Lager das Leserecht hat (GET /api/v1/lager/{id} nennt die Rechte der eigenen Rolle); der Server prüft jede Anfrage weiter selbst.
@@ -74,6 +86,11 @@ export function gruppiere(eintraege) {
 
 const adresse = (id, schluessel) => `${ADRESSE}/${id}/${schluessel}`;
 
+// Wo die Marke der Navigation zuletzt stand (Lager und Abstand von oben): Der Rahmen wird bei jedem Wechsel neu gebaut, die Marke gleitet von dort an ihren neuen Platz
+let letzteMarke = null;
+// Beim nächsten Zeichnen kein Eintritt: Aktualisieren und Neuladen sollen nicht aufblitzen
+let ruhigNaechstes = false;
+
 function navigation(lager, gruppen, aktiv) {
   const listeId = "lg-nav-liste";
   const aktuell = alle().find((e) => e.schluessel === aktiv);
@@ -93,28 +110,37 @@ function navigation(lager, gruppen, aktiv) {
     el("span", {}, aktuell?.titel ?? "Bereiche des Lagers"),
     icon("runter"),
   );
+  // Die Marke gleitet hinter dem aktiven Eintrag; ohne sie (schmal, ohne Bewegung) trägt der Eintrag selbst den Grund
+  const marke = el("span", { class: "lg-nav-marke", "aria-hidden": "true" });
   const liste = el(
     "div",
     { class: "lg-nav-liste", id: listeId },
-    gruppen.map((g) =>
-      el(
-        "section",
-        { class: "lg-nav-gruppe" },
-        el("h2", { class: "lg-nav-kopf" }, g.name),
+    marke,
+    el(
+      "div",
+      { class: "lg-nav-innen" },
+      gruppen.map((g) =>
         el(
-          "ul",
-          {},
-          g.eintraege.map((e) =>
-            el(
-              "li",
-              {},
+          "section",
+          { class: "lg-nav-gruppe" },
+          el("h2", { class: "lg-nav-kopf" }, g.name),
+          el(
+            "ul",
+            {},
+            g.eintraege.map((e) =>
               el(
-                "a",
-                {
-                  href: adresse(lager.id, e.schluessel),
-                  ...(e.schluessel === aktiv ? { "aria-current": "page" } : {}),
-                },
-                e.titel,
+                "li",
+                {},
+                el(
+                  "a",
+                  {
+                    href: adresse(lager.id, e.schluessel),
+                    ...(e.schluessel === aktiv
+                      ? { "aria-current": "page" }
+                      : {}),
+                  },
+                  e.titel,
+                ),
               ),
             ),
           ),
@@ -128,6 +154,34 @@ function navigation(lager, gruppen, aktiv) {
     knopf,
     liste,
   );
+}
+
+// Setzt die Marke hinter den aktiven Eintrag; gleitet vom letzten Platz dorthin, wenn es ein Wechsel im selben Lager ist. Erst aufrufen, wenn die Navigation im Dokument steht (offsetTop).
+function setzeMarke(nav, lagerId) {
+  const marke = nav.querySelector(".lg-nav-marke");
+  const aktiv = nav.querySelector('a[aria-current="page"]');
+  if (!marke || !aktiv) return;
+  const oben = aktiv.offsetTop;
+  const vorher = letzteMarke?.lagerId === lagerId ? letzteMarke.oben : null;
+  // Die Navigation scrollt für sich (sie ist höher als mancher Bildschirm): gleicher Stand wie vorher, und der aktive Eintrag bleibt im Bild
+  nav.addEventListener("scroll", () => {
+    if (letzteMarke) letzteMarke.scroll = nav.scrollTop;
+  });
+  if (vorher !== null) nav.scrollTop = letzteMarke.scroll ?? 0;
+  const lage = nav.querySelector(".lg-nav-liste").offsetTop + oben;
+  if (lage < nav.scrollTop || lage + 44 > nav.scrollTop + nav.clientHeight)
+    nav.scrollTop = Math.max(0, lage - nav.clientHeight / 2 + 22);
+  nav.classList.add("lg-nav--marke");
+  // Die Marke steht per Web Animation am Ziel («forwards»); sie gleitet vom letzten Platz dorthin, wenn Bewegung erlaubt ist
+  const gleitet = vorher !== null && vorher !== oben && darfBewegen();
+  marke.animate(
+    [
+      { transform: `translateY(${gleitet ? vorher : oben}px)` },
+      { transform: `translateY(${oben}px)` },
+    ],
+    { duration: gleitet ? DAUER_LANG_MS : 0, easing: KURVE, fill: "forwards" },
+  );
+  letzteMarke = { lagerId, oben, scroll: nav.scrollTop };
 }
 
 // Suchfeld im Kopf: Enter öffnet die Suche; der Begriff bleibt aus der Adresse
@@ -175,20 +229,22 @@ export function startModul(sichtbare) {
   return sichtbare.find((e) => e.gruppe === "Start") ?? sichtbare[0] ?? null;
 }
 
+// Der Stand des Lagers kommt aus dem Merkzettel, wenn er jung ist: Beim Wechsel zwischen Modulen stehen Leiste und Navigation sofort, nur das Modul lädt. Aktualisieren und Neuladen (neu) holen ihn frisch.
 export function zeigeRahmen(bereich, ctx, id, schluessel, weiter = []) {
-  ctx.lade(
-    () => anfrage("GET", `/api/v1/lager/${id}`),
-    (lager, neu) => zeichne(bereich, ctx, lager, schluessel, weiter, neu),
-    {
-      skeleton: () =>
-        el(
-          "div",
-          { class: "lg-arbeit" },
-          skeletonFlaeche({ zeilen: 6 }),
-          skeletonFlaeche({ zeilen: 4 }),
-        ),
-    },
-  );
+  const holen = async () => {
+    const daten = await anfrage("GET", `/api/v1/lager/${id}`);
+    merkeRahmen(id, daten);
+    return daten;
+  };
+  const laden = () =>
+    ctx.lade(
+      holen,
+      (lager, neu) => zeichne(bereich, ctx, lager, schluessel, weiter, neu),
+      { skeleton: skeletonRahmen },
+    );
+  const stand = frischerRahmen(id);
+  if (stand) zeichne(bereich, ctx, stand, schluessel, weiter, laden);
+  else laden();
 }
 
 async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
@@ -205,6 +261,10 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
     lager.titel,
     [zeitraum(lager.von, lager.bis), lager.ort].filter(Boolean).join(" · "),
   );
+  // Eintritt: ganz neu im Lager blendet der Rahmen ein, ein Wechsel zwischen Modulen nur das Modul; nach «Aktualisieren» bleibt alles still
+  const ruhig = ruhigNaechstes;
+  ruhigNaechstes = false;
+  const neuImLager = letzteMarke?.lagerId !== lager.id;
   const modulTitel = el(
     "h2",
     { class: "lg-modultitel", tabindex: "-1" },
@@ -212,10 +272,19 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
   );
   const modulUnter = el("p", { class: "leise lg-moduluntertitel" });
   const inhalt = el("div", { class: "lg-modul" });
+  let laeuft = false;
+  const aktualisiere = () => {
+    if (laeuft) return;
+    laeuft = true;
+    // Der Rahmen baut sich nach der Antwort neu; bis dahin dreht sich der Knopf und der alte Stand bleibt
+    ruhigNaechstes = true;
+    neuLaden.setAttribute("aria-busy", "true");
+    neu();
+  };
   const neuLaden = knopf("Aktualisieren", {
     klein: true,
     symbol: "aktualisieren",
-    onclick: () => neu(),
+    onclick: aktualisiere,
   });
   const leiste = el(
     "div",
@@ -236,26 +305,74 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
   // Der Event-Stream des Lagers (SSE) meldet nur, dass es Neues gibt; die Person lädt selbst neu
   const neues = el(
     "div",
-    { class: "hinweis hinweis--info", role: "status", hidden: true },
+    { class: "hinweis hinweis--info lg-neues", role: "status", hidden: true },
     el("span", {}, "Es gibt Neues im Lager."),
-    knopf("Aktualisieren", { klein: true, onclick: () => neu() }),
+    knopf("Aktualisieren", { klein: true, onclick: aktualisiere }),
   );
   verfolge(lager.id, () => {
     if (neues.isConnected) neues.hidden = false;
   });
+  // Ein Modul ohne eigenes Skeleton nimmt die Art aus dem Register; jedes Modul zeigt beim ersten Laden sein Skeleton und blendet dann ein
+  let eintrittTimer = 0;
+  const eintritt = () => {
+    if (ruhig) return;
+    inhalt.classList.add("lg-modul--neu");
+    window.clearTimeout(eintrittTimer);
+    eintrittTimer = window.setTimeout(
+      () => inhalt.classList.remove("lg-modul--neu"),
+      1000,
+    );
+  };
+  let ersterBau = true;
+  const lade = ctx.erstelleLader(inhalt);
+  const modulLade = (laden, zeichnen, optionen = {}) => {
+    const opt = { ...optionen };
+    if (opt.skeleton === undefined && eintrag?.skeleton)
+      opt.skeleton = skeletonVon(eintrag.skeleton);
+    return lade(
+      laden,
+      (daten, erneut) => {
+        if (ersterBau) {
+          ersterBau = false;
+          eintritt();
+        }
+        zeichnen(daten, erneut);
+      },
+      opt,
+    );
+  };
   // Das Modul sieht denselben ctx, aber seine Ladeanzeige, sein Titel und seine Meldungen bleiben im Inhalt
   const modulCtx = {
     ...ctx,
     imRahmen: true,
     // Lädt den ganzen Arbeitsbereich neu (Kopf, Navigation, Modul), z. B. nach einem Statuswechsel
-    neuRahmen: neu,
-    lade: ctx.erstelleLader(inhalt),
+    neuRahmen: () => {
+      ruhigNaechstes = true;
+      neu();
+    },
+    lade: modulLade,
     titel: (text, untertitel) => {
       modulTitel.textContent = text;
       if (untertitel !== undefined) modulUnter.textContent = untertitel;
     },
     weiter,
   };
+  const nav = navigation(lager, gruppiere(sichtbare), schluessel);
+  const arbeit = el(
+    "div",
+    { class: "lg-arbeit" },
+    nav,
+    el(
+      "div",
+      { class: "lg-haupt" },
+      el("header", { class: "lg-modulkopf" }, modulTitel, modulUnter),
+      inhalt,
+    ),
+  );
+  if (neuImLager && !ruhig) {
+    leiste.classList.add("lg-rahmen-ein");
+    arbeit.classList.add("lg-rahmen-ein");
+  }
   haenge(
     bereich,
     leiste,
@@ -266,18 +383,13 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
         { class: "hinweis hinweis--info", role: "status" },
         "Das Lager ist abgeschlossen oder archiviert und nur zum Lesen. Ändern geht erst, wenn du es unter «Angaben» wieder öffnest.",
       ),
-    el(
-      "div",
-      { class: "lg-arbeit" },
-      navigation(lager, gruppiere(sichtbare), schluessel),
-      el(
-        "div",
-        { class: "lg-haupt" },
-        el("header", { class: "lg-modulkopf" }, modulTitel, modulUnter),
-        inhalt,
-      ),
-    ),
+    arbeit,
   );
+  setzeMarke(nav, lager.id);
+  eintritt();
+  // Wer in der Navigation ein anderes Modul wählt, landet auf dessen Titel (der Rahmen baut sich neu, der Fokus wäre sonst weg)
+  if (!neuImLager && !ruhig) modulTitel.focus({ preventScroll: true });
+  beobachteListen(inhalt);
   if (!eintrag) {
     inhalt.append(
       rahmenzustand(
@@ -296,10 +408,16 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
     return;
   }
   document.title = `${eintrag.titel} – ${lager.titel} – Verwaltung – Cevi OS`;
-  try {
-    const m = await eintrag.laden();
-    m.zeige(inhalt, modulCtx, lager.id, lager);
-  } catch (f) {
-    ctx.melde(meldung(f), "fehler");
-  }
+  const ladeModul = async () => {
+    try {
+      const m = await eintrag.laden();
+      inhalt.replaceChildren();
+      m.zeige(inhalt, modulCtx, lager.id, lager);
+    } catch (f) {
+      // Das Modul liess sich nicht laden (Netz, Server): Karte mit «Nochmals versuchen» statt einer leeren Seite
+      const karte = zustandsKarte(zustandsDaten(f), [nochmals(ladeModul, "")]);
+      inhalt.replaceChildren(karte.wurzel);
+    }
+  };
+  await ladeModul();
 }

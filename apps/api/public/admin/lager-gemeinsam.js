@@ -46,6 +46,18 @@ export function zeigeWartende(ctx) {
   wartend = null;
 }
 
+// Stand des Lagers für den Rahmen (#686): Beim Wechsel zwischen Modulen desselben Lagers stehen Leiste und Navigation sofort; nur das Modul lädt. Der Stand gilt kurz (Rechte und Status ändern sich selten) und «Aktualisieren», Statuswechsel und die Lagerliste holen ihn neu.
+const RAHMEN_FRIST_MS = 20000;
+const rahmenStand = new Map();
+export const merkeRahmen = (id, daten) =>
+  rahmenStand.set(id, { daten, zeit: Date.now() });
+export function frischerRahmen(id) {
+  const e = rahmenStand.get(id);
+  return e && Date.now() - e.zeit < RAHMEN_FRIST_MS ? e.daten : null;
+}
+export const vergissRahmen = (id) =>
+  id ? rahmenStand.delete(id) : rahmenStand.clear();
+
 // Symbole, die das Design braucht und dom.js nicht kennt; Rest über dom.icon
 const SVG_NS = "http://www.w3.org/2000/svg";
 const EIGENE = {

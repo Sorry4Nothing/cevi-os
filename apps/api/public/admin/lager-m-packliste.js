@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import { ankreuzen, auswahl, dialogFormular, el, feld, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { fuelle } from "./lager-bewegung.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { ADRESSE, haenge, meldung } from "./lager-gemeinsam.js";
 import {
   anteilText,
@@ -90,7 +91,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
           : meine(ctx, lagerId, lager, daten),
       );
     },
-    { skeleton: () => skeletonListe({ zeilen: 6 }) },
+    { skeleton: skeletonVon({ reiter: 2, inhalt: "flaechen", zeilen: 3 }) },
   );
 }
 
@@ -137,7 +138,7 @@ function meine(ctx, lagerId, lager, daten) {
         ? "Die Packliste ist leer."
         : `${gepackt} von ${gesamt} gepackt`;
     balken.hidden = gesamt === 0;
-    balken.value = gesamt === 0 ? 0 : Math.round((gepackt / gesamt) * 100);
+    fuelle(balken, gesamt === 0 ? 0 : Math.round((gepackt / gesamt) * 100));
   };
 
   const sende = async (aufruf, zurueck) => {

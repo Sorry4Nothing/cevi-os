@@ -2,7 +2,7 @@ import { anfrage } from "./api.js";
 import { auswahl, dialogFormular, el, feld, knopf, tabelle } from "./dom.js";
 import { datumsfeld } from "./datumsfeld.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonTabelle } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { leerKarte } from "./zustaende.js";
 import {
   beschrifteZellen,
@@ -88,8 +88,12 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
       }),
       (d, neu) => zeichneProtokolle(inhalt, ctx, lagerId, d, neu),
       {
-        skeleton: () =>
-          skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }),
+        skeleton: skeletonVon({
+          filter: 2,
+          inhalt: "tabelle",
+          zeilen: 4,
+          spalten: 5,
+        }),
       },
     );
   } else {
@@ -110,8 +114,12 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
       }),
       (d, neu) => zeichneBeschluesse(inhalt, ctx, lagerId, d, neu),
       {
-        skeleton: () =>
-          skeletonTabelle({ spalten: 3, zeilen: 4, avatar: false }),
+        skeleton: skeletonVon({
+          knopf: true,
+          inhalt: "tabelle",
+          zeilen: 4,
+          spalten: 3,
+        }),
       },
     );
   }
