@@ -46,6 +46,10 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `geruest.css`                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                 |
 | `komponenten.css`                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                     |
 | `liste-hilfen.js`                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel` |
+| `uebersicht.js`                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                       |
+| `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
+| `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
+| `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
 | `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
@@ -121,6 +125,17 @@ export function zeige(bereich, ctx) {
   );
 }
 ```
+
+## Übersicht (#583)
+
+Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und wie es der Abteilung geht. Sie lädt **einen** Abruf, `GET /api/v1/admin/uebersicht` (beim Öffnen und auf «Aktualisieren», kein Polling). Der Server gibt jeder Person nur die Teile, die sie sehen darf (Rechte je Teil: siehe die Beschreibung der Route in `docs/api/openapi.yaml` und Bedrohung 50); die Oberfläche blendet nur aus, was in der Antwort fehlt, und verlässt sich auf nichts.
+
+- **Aufbau:** «Jetzt zu tun» (Kachel je offener Punkt mit Zahl und Sprung auf den richtigen Bildschirm; erledigtes steht in einem Satz) · «Kennzahlen» (Wert, Vergleich mit dem Zeitraum davor, kleine Grafik) · «Kommendes» und «Kinder je Stufe» · «Zustand» (Website, Kalender-Abgleich, Medien, Datenbank). Das Raster füllt die Breite des Rahmens (`auto-fit`, mindestens 240 bis 260 px je Kachel), wenige Kacheln werden breiter.
+- **Sprung:** Eine Aufgabenkachel ist nur dann ein Link, wenn die Person die Zielseite sehen darf (`darfSehen` aus `navigation.js`); sonst zeigt sie nur die Zahl.
+- **Zustände je Kachel:** Lädt (Skelett in der Form der Seite), leer (ein Satz), Fehler (steht der Teil in `fehlt`, zeigt nur diese Kachel «Nochmals versuchen»; der Rest bleibt). Fehlt die ganze Antwort, zeigt `ctx.lade` die Fehlerkarte der Seite.
+- **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`), eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`) und eine Entsprechung als Tabelle; der Schalter «Tabellen statt Diagramme» tauscht beide für die ganze Seite. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
+- **Neue Kachel:** eine Funktion in `uebersicht-kacheln.js`, die aus der Antwort einen Knoten baut (`kachel({ titel, inhalt })`) und `null` liefert, wenn der Teil fehlt; ein Eintrag in `zeichne` von `uebersicht.js`. Der Teil gehört zuerst in die Route (`routes/admin/uebersicht.ts`) mit seinem eigenen Recht, Eintrag in OpenAPI und Test.
+- **Zähler der Unterleiste** (Vorschläge, Ohne Kategorie, Anfragen) kommen aus denselben Zahlen (`ctx.zaehler`), ohne eigene Abfrage; sie sind jetzt exakt statt «100+».
 
 ## Laden, Leer, Fehler
 

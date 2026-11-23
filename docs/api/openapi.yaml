@@ -982,6 +982,51 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/uebersicht-kacheln.js:
+    get:
+      operationId: getAdminUebersichtKachelnSkript
+      summary: Skript der Verwaltung – Kacheln der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht-diagramme.js:
+    get:
+      operationId: getAdminUebersichtDiagrammeSkript
+      summary: Skript der Verwaltung – Diagramme der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht.css:
+    get:
+      operationId: getAdminUebersichtStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/website-baum.js:
     get:
       operationId: getAdminWebsiteBaumSkript
@@ -3585,6 +3630,52 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
         "501":
           description: Der Server hat diesen Abruf nicht eingerichtet.
+  /api/v1/admin/uebersicht:
+    get:
+      operationId: holeAdminUebersicht
+      summary: Übersicht der Verwaltung in einem Abruf
+      description: |
+        Liefert alles, was die Übersicht der Verwaltung zeigt, in EINER Antwort: offene Aufgaben mit Zahl, Kennzahlen mit kleinen Verläufen, Kommendes (Termine und Lager der nächsten acht Wochen), Zustand (Website, Medien, Kalender, Datenbank) und Betriebszahlen der API. Jeder Teil hängt an seinem eigenen Recht; **was die Person nicht sehen darf, fehlt** (der Schlüssel ist nicht in der Antwort). Die Oberfläche blendet die Kachel dann aus, verlässt sich aber nie darauf.
+
+        | Teil | Wer ihn bekommt |
+        | --- | --- |
+        | `aufgaben` (Vorschläge, Termine ohne Kategorie, Bestellungen, Konten ohne zweiten Faktor, Anmeldefristen, Kalenderfehler), `kennzahlen`, `betrieb`, `zustand.kalender`, `zustand.datenbank` | Abteilungsleitung |
+        | `aufgaben.raumanfragen` | Abteilungsleitung oder wer den Team-Tag eines Raums trägt |
+        | `aufgaben.websiteEntwuerfe`, `aufgaben.websiteAenderungen`, `zustand.website`, `zustand.medien` | wer Seiten bearbeiten darf; gezählt werden nur die Seiten, die die Person bearbeiten darf (Stufenleitung: ihre Stufenseite) |
+        | `kinderJeStufe` | Abteilungsleitung alle Stufen, Stufenleitung die eigenen; sonst fehlt der Teil |
+        | `kommend` | Termine wie «Alle Termine» (nur, was die Person sehen darf), Lager wie «Meine Lager» (ohne Mitgliedschaft nur die Abteilungsleitung) |
+
+        Die Antwort enthält nur Zahlen, Daten und feste Texte: nie Namen von Personen, Adressen oder Fehlertexte. Scheitert ein Teil in der Datenbank, steht sein Name in `fehlt` und die übrigen Teile kommen trotzdem. Die Verläufe zählen acht Fenster zu je sieben Tagen, das letzte endet jetzt (`erzeugtAm`).
+
+        Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens neun Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
+
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: frisch
+          in: query
+          required: false
+          description: "`1` umgeht den Zwischenspeicher (höchstens alle zehn Sekunden je Person)."
+          schema:
+            type: string
+            enum: ["1"]
+      responses:
+        "200":
+          description: Übersicht; Teile ohne Recht fehlen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminUebersicht"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/mitteilungen:
     post:
       operationId: sendeAdminMitteilung
@@ -24351,6 +24442,297 @@ components:
               type: [string, "null"]
             programme:
               type: integer
+    AdminUebersicht:
+      type: object
+      additionalProperties: false
+      required: [erzeugtAm, fehlt]
+      properties:
+        erzeugtAm:
+          type: string
+          format: date-time
+          description: Zeitpunkt, zu dem die Antwort gebaut wurde (höchstens 45 Sekunden alt).
+        fehlt:
+          type: array
+          description: Teile, die in der Datenbank gescheitert sind; die übrigen Teile stimmen.
+          items:
+            type: string
+            enum:
+              [
+                aufgaben,
+                kennzahlen,
+                kinderJeStufe,
+                raumanfragen,
+                website,
+                medien,
+                kommend,
+                lager,
+              ]
+        aufgaben:
+          type: object
+          additionalProperties: false
+          description: Zahlen offener Punkte; jeder Schlüssel nur mit dem Recht dazu.
+          properties:
+            terminVorschlaege:
+              type: integer
+              minimum: 0
+            termineOhneKategorie:
+              type: integer
+              minimum: 0
+            bestellungenOffen:
+              type: integer
+              minimum: 0
+            bestellungenBereit:
+              type: integer
+              minimum: 0
+            kontenOhneZweitenFaktor:
+              type: integer
+              minimum: 0
+              description: Aktive Konten der Abteilungsleitung, des Entwicklers oder einer Plattformrolle ohne zweiten Faktor.
+            anmeldefristen:
+              type: integer
+              minimum: 0
+              description: Anlässe, deren Anmeldefrist in den nächsten sieben Tagen endet.
+            kalenderFehler:
+              type: boolean
+              description: Der letzte Kalender-Abgleich ist fehlgeschlagen.
+            raumanfragen:
+              type: integer
+              minimum: 0
+            websiteEntwuerfe:
+              type: integer
+              minimum: 0
+              description: Seiten, die noch nie veröffentlicht wurden.
+            websiteAenderungen:
+              type: integer
+              minimum: 0
+              description: Veröffentlichte Seiten, deren Entwurf von der veröffentlichten Fassung abweicht.
+        kennzahlen:
+          type: object
+          additionalProperties: false
+          required:
+            [fenster, personen, kinder, anmeldungen, bestellungen, programme]
+          properties:
+            fenster:
+              type: integer
+              description: Zahl der Verlaufspunkte (Fenster zu je sieben Tagen, das letzte endet jetzt).
+            personen:
+              type: object
+              additionalProperties: false
+              required: [jetzt, verlauf]
+              properties:
+                jetzt:
+                  type: integer
+                verlauf:
+                  type: array
+                  description: Aktive Konten am Ende jedes Fensters (die heutigen Konten nach Anlegedatum).
+                  items:
+                    type: integer
+            kinder:
+              type: object
+              additionalProperties: false
+              required: [jetzt]
+              properties:
+                jetzt:
+                  type: integer
+            anmeldungen:
+              type: object
+              additionalProperties: false
+              required: [kommend, verlauf]
+              properties:
+                kommend:
+                  type: integer
+                  description: Angemeldete Personen und Kinder bei kommenden Anlässen.
+                verlauf:
+                  type: array
+                  description: Neue Anmeldungen je Fenster.
+                  items:
+                    type: integer
+            bestellungen:
+              type: object
+              additionalProperties: false
+              required: [verlauf]
+              properties:
+                verlauf:
+                  type: array
+                  description: Neue Bestellungen je Fenster (ohne stornierte).
+                  items:
+                    type: integer
+            programme:
+              type: object
+              additionalProperties: false
+              required: [kommend]
+              properties:
+                kommend:
+                  type: integer
+                  description: Kommende Termine der Abteilung (ohne abgesagte und interne).
+        kinderJeStufe:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, kinder]
+            properties:
+              name:
+                type: string
+              kinder:
+                type: integer
+        kommend:
+          type: object
+          additionalProperties: false
+          required: [wochen, termine, termineProWoche, lager]
+          properties:
+            wochen:
+              type: integer
+            termine:
+              type: array
+              description: Die nächsten Termine, die die Person sehen darf (höchstens acht).
+              items:
+                type: object
+                additionalProperties: false
+                required: [titel, ganztaegig, beginn, ende, tagVon, tagBis]
+                properties:
+                  titel:
+                    type: string
+                  ganztaegig:
+                    type: boolean
+                  beginn:
+                    type: [string, "null"]
+                    format: date-time
+                  ende:
+                    type: [string, "null"]
+                    format: date-time
+                  tagVon:
+                    type: [string, "null"]
+                    format: date
+                  tagBis:
+                    type: [string, "null"]
+                    format: date
+            termineProWoche:
+              type: [array, "null"]
+              description: Termine je Woche ab heute; null, wenn die Abfrage scheiterte.
+              items:
+                type: integer
+            lager:
+              type: array
+              description: Lager der nächsten Wochen (höchstens fünf).
+              items:
+                type: object
+                additionalProperties: false
+                required: [titel, von, bis, status]
+                properties:
+                  titel:
+                    type: string
+                  von:
+                    type: string
+                    format: date
+                  bis:
+                    type: string
+                    format: date
+                  status:
+                    type: string
+                    enum: [entwurf, aktiv]
+        zustand:
+          type: object
+          additionalProperties: false
+          properties:
+            website:
+              type: object
+              additionalProperties: false
+              required:
+                [
+                  seiten,
+                  veroeffentlicht,
+                  zuletztErzeugtAm,
+                  wartung,
+                  wartungEndeAm,
+                  sperre,
+                  offline,
+                ]
+              properties:
+                seiten:
+                  type: integer
+                veroeffentlicht:
+                  type: integer
+                zuletztErzeugtAm:
+                  type: [string, "null"]
+                  format: date-time
+                wartung:
+                  type: boolean
+                wartungEndeAm:
+                  type: [string, "null"]
+                  format: date-time
+                sperre:
+                  type: boolean
+                offline:
+                  type: boolean
+                  description: Die Sperre hält die öffentliche Website vom Netz.
+            medien:
+              type: object
+              additionalProperties: false
+              required: [anzahl, bytes, bilder, pdf]
+              properties:
+                anzahl:
+                  type: integer
+                bytes:
+                  type: number
+                bilder:
+                  type: integer
+                pdf:
+                  type: integer
+            kalender:
+              type: object
+              additionalProperties: false
+              required: [eingerichtet, letzterErfolgAm, fehler, programme]
+              properties:
+                eingerichtet:
+                  type: boolean
+                letzterErfolgAm:
+                  type: [string, "null"]
+                  format: date-time
+                fehler:
+                  type: [string, "null"]
+                  description: Einer der festen Texte des Abgleichs.
+                programme:
+                  type: integer
+            datenbank:
+              type: object
+              additionalProperties: false
+              required: [erreichbar, antwortMs]
+              properties:
+                erreichbar:
+                  type: boolean
+                antwortMs:
+                  type: [integer, "null"]
+                  description: Dauer des gebündelten Aufbaus in Millisekunden.
+        betrieb:
+          type: object
+          additionalProperties: false
+          required: [seit, stunden, quote5xx, p95Ms]
+          properties:
+            seit:
+              type: string
+              format: date-time
+            stunden:
+              type: array
+              description: Die letzten 24 Stunden, älteste zuerst (Zähler im Arbeitsspeicher, seit dem Start der API).
+              items:
+                type: object
+                additionalProperties: false
+                required: [ab, anzahl, fehler4xx, fehler5xx]
+                properties:
+                  ab:
+                    type: string
+                    format: date-time
+                  anzahl:
+                    type: integer
+                  fehler4xx:
+                    type: integer
+                  fehler5xx:
+                    type: integer
+            quote5xx:
+              type: number
+            p95Ms:
+              type: [integer, "null"]
     AdminSystemRequests:
       type: object
       additionalProperties: false

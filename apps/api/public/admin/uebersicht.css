@@ -1,0 +1,715 @@
+/* Übersicht (#583). Farben nur aus den Tokens in admin.css (Tag und Nacht), keine Verläufe, keine Schatten, keine Glows. Abstände aus der Skala 4 · 8 · 12 · 16 · 24 · 32. Klassenvorsatz «ub-». */
+
+.ub-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.ub-stand {
+  margin: -8px 0 -16px;
+}
+
+.ub-abschnitt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ub-abschnitt-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+/* Kachel: Fläche mit feinem Rand, wie .flaeche; die Kopfzeile trägt Titel und, wenn es einen gibt, den Verweis */
+.ub-kachel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px 24px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ub-kachel-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.ub-kachel-titel {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ub-kachel--fehler {
+  border-color: var(--rand);
+}
+
+.ub-zustand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ub-leer-satz {
+  font-weight: 700;
+}
+
+.ub-unter {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+/* Verweis in der Kopfzeile einer Kachel: mindestens 44 px hoch, Pfeil rückt beim Hovern ein Stück */
+.ub-verweis {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-block: -12px;
+  color: var(--akzent);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ub-verweis:hover {
+  text-decoration: underline;
+}
+
+.ub-verweis:focus-visible,
+a.ub-aufgabe:focus-visible,
+.ub-grafik:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.ub-pfeil {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* 1. Jetzt zu tun: je offener Punkt eine Kachel mit Zahl, Satz und Sprung */
+.ub-aufgaben {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ub-aufgaben > li {
+  display: flex;
+  min-width: 0;
+}
+
+.ub-aufgabe {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 20px 24px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  text-decoration: none;
+}
+
+.ub-aufgabe--still {
+  border-color: var(--rand-leise);
+}
+
+a.ub-aufgabe:hover {
+  background: var(--leiste);
+  border-color: var(--akzent);
+}
+
+.ub-art {
+  margin-bottom: 4px;
+}
+
+.ub-zahl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-zahl--wort {
+  font-size: 1.5rem;
+  line-height: 2.5rem;
+}
+
+.ub-aufgabe-text {
+  flex: 1;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.ub-aufgabe-aktion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--akzent);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+a.ub-aufgabe:hover .ub-aufgabe-aktion {
+  text-decoration: underline;
+}
+
+.ub-erledigt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ub-erledigt .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.ub-leer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  color: var(--ok);
+  background: var(--ok-f);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ub-leer .i {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* 2. Kennzahlen und 4. Zustand: gleichmässiges Raster über die volle Breite; wenige Kacheln werden breiter, nie schmal */
+.ub-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.ub-raster--zustand {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.ub-wert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+}
+
+.ub-wert-zahl {
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-wert-einheit {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ub-delta {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ub-diagramm {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.ub-diagramm svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ub-grafik {
+  border-radius: 8px;
+}
+
+.ub-lese {
+  min-height: 1.25rem;
+  margin-top: 8px;
+}
+
+/* Grafiken: de-betonte Randfarbe für die Vergangenheit, der Akzent für den aktuellen Zeitraum */
+.ub-achse {
+  stroke: var(--rand-leise);
+  stroke-width: 1;
+}
+
+.ub-linie {
+  fill: none;
+  stroke: var(--rand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ub-linie--jetzt {
+  stroke: var(--akzent);
+}
+
+.ub-punkt {
+  fill: var(--akzent);
+  stroke: var(--karte);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+.ub-punkt.ist-jetzt,
+.ub-punkt.ist-aktiv {
+  opacity: 1;
+}
+
+.ub-traeger {
+  fill: transparent;
+}
+
+.ub-marke.ist-aktiv .ub-traeger {
+  fill: var(--leiste);
+}
+
+.ub-saeule {
+  fill: var(--rand);
+}
+
+.ub-saeule.ist-jetzt,
+.ub-marke.ist-aktiv .ub-saeule {
+  fill: var(--akzent);
+}
+
+.ub-saeule--fehler,
+.ub-marke.ist-aktiv .ub-saeule--fehler {
+  fill: var(--fe);
+}
+
+.ub-legende {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 8px;
+}
+
+.ub-schluessel {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--rand);
+}
+
+.ub-schluessel--fehler {
+  margin-left: 8px;
+  background: var(--fe);
+}
+
+/* Tabellen statt Diagramme: ein Schalter für die ganze Seite; die Tabellen gibt es immer, nur eine der beiden Formen ist zu sehen */
+.ub-tabelle {
+  display: none;
+  overflow-x: auto;
+}
+
+.ub--tabellen .ub-tabelle {
+  display: block;
+}
+
+.ub--tabellen .ub-diagramm {
+  display: none;
+}
+
+/* Eigene kleine Tabelle: Die allgemeine .tabelle ist für Listen gebaut (Mindestbreite, Kopfzeile als Pille) */
+.ub-tabelle-t {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+}
+
+.ub-tabelle-t caption {
+  padding-bottom: 8px;
+  text-align: left;
+}
+
+.ub-tabelle-t th,
+.ub-tabelle-t td {
+  padding: 4px 0;
+  border-top: 1px solid var(--rand-leise);
+  text-align: left;
+  font-weight: 400;
+}
+
+.ub-tabelle-t thead th {
+  color: var(--leise);
+  font-weight: 700;
+  border-top: 0;
+  border-bottom: 1px solid var(--rand);
+}
+
+.ub-tabelle-t tbody th {
+  color: var(--text);
+}
+
+.ub-tabelle-t .zahl {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-schalter[aria-pressed="true"] {
+  color: var(--auf-akzent);
+  background: var(--akzent);
+  border-color: var(--akzent);
+}
+
+.ub-schalter[aria-pressed="true"]::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  background: currentColor;
+  mask: var(--ic-ok) center / contain no-repeat;
+}
+
+/* 3. Kommendes und Kinder je Stufe */
+.ub-zweispaltig {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ub-zweispaltig--eine {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ub-zeitleiste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ub-zeitleiste > li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ub-zeitleiste > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ub-datum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 64px;
+  color: var(--text);
+  background: var(--leiste);
+  border-radius: 8px;
+  line-height: 1.125rem;
+}
+
+.ub-datum--heute {
+  color: var(--auf-akzent);
+  background: var(--akzent);
+}
+
+.ub-datum-tag,
+.ub-datum-monat {
+  font-size: 0.75rem;
+}
+
+.ub-datum-zahl {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-zeile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ub-zeile-titel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.ub-spalte {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.ub-nebenwert {
+  display: block;
+}
+
+.ub-wochen {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rand-leise);
+}
+
+/* Rangliste: Name, Balken auf gemeinsamer Basis, Zahl */
+.ub-rang {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ub-rang > li {
+  display: grid;
+  grid-template-columns: minmax(72px, 128px) minmax(0, 1fr) 40px;
+  gap: 12px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.ub-rang-name {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+
+.ub-rang-balken {
+  display: block;
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 4px;
+}
+
+.ub-rang-spur {
+  fill: var(--leiste);
+}
+
+.ub-rang-wert {
+  fill: var(--akzent);
+}
+
+.ub-rang-zahl {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.ub-kachel .werte {
+  margin: 0;
+}
+
+/* Bewegung nur, wenn erlaubt: Säulen wachsen von der Basis, Pfeil und Rand antworten auf Zeiger und Fokus */
+@media (prefers-reduced-motion: no-preference) {
+  .ub-aufgabe,
+  .ub-pfeil,
+  .ub-traeger {
+    transition:
+      background-color 120ms ease-out,
+      border-color 120ms ease-out,
+      transform 120ms ease-out,
+      fill 120ms ease-out;
+  }
+
+  a.ub-aufgabe:hover .ub-pfeil,
+  .ub-verweis:hover .ub-pfeil {
+    transform: translateX(2px);
+  }
+
+  .ub-saeule {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: ub-wachsen 240ms ease-out;
+  }
+
+  @keyframes ub-wachsen {
+    from {
+      transform: scaleY(0.2);
+      opacity: 0;
+    }
+  }
+}
+
+/* Mittlere Breiten: zwei Spalten statt drei und einer einzelnen Kachel in der letzten Zeile */
+@media (max-width: 1099px) {
+  .ub-aufgaben,
+  .ub-raster,
+  .ub-raster--zustand {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .ub-aufgaben,
+  .ub-raster,
+  .ub-raster--zustand {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .ub-zweispaltig {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .ub-seite {
+    gap: 24px;
+  }
+
+  .ub-kachel,
+  .ub-aufgabe,
+  .ub-leer {
+    padding: 16px;
+  }
+
+  .ub-zahl,
+  .ub-wert-zahl {
+    font-size: 2rem;
+    line-height: 2.25rem;
+  }
+
+  .ub-zeitleiste > li {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .ub-zeitleiste .chips {
+    grid-column: 2;
+  }
+}
+
+/* Erzwungene Farben: Zustand über Form statt Farbe, Fehleranteil nur als Umriss */
+@media (forced-colors: active) {
+  .ub-linie {
+    stroke: CanvasText;
+  }
+
+  .ub-linie--jetzt,
+  .ub-punkt {
+    stroke: Highlight;
+  }
+
+  .ub-punkt {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .ub-saeule {
+    fill: CanvasText;
+  }
+
+  .ub-saeule.ist-jetzt,
+  .ub-marke.ist-aktiv .ub-saeule {
+    fill: Highlight;
+  }
+
+  .ub-saeule--fehler,
+  .ub-marke.ist-aktiv .ub-saeule--fehler {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.5;
+  }
+
+  .ub-schluessel {
+    background: CanvasText;
+  }
+
+  .ub-schluessel--fehler {
+    background: Canvas;
+    border: 1.5px solid CanvasText;
+  }
+
+  .ub-rang-wert {
+    fill: Highlight;
+  }
+
+  .ub-rang-spur {
+    fill: Canvas;
+    stroke: CanvasText;
+  }
+
+  .ub-traeger,
+  .ub-marke.ist-aktiv .ub-traeger {
+    fill: transparent;
+  }
+
+  .ub-marke.ist-aktiv .ub-traeger {
+    stroke: Highlight;
+  }
+
+  .ub-aufgabe,
+  .ub-kachel,
+  .ub-leer {
+    border-color: CanvasText;
+  }
+
+  a.ub-aufgabe:hover {
+    border-color: Highlight;
+  }
+
+  .ub-datum {
+    border: 1px solid CanvasText;
+  }
+
+  .ub-datum--heute {
+    color: HighlightText;
+    background: Highlight;
+  }
+}
