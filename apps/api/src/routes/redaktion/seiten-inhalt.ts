@@ -11,6 +11,7 @@ import { ladeDaten, ladeLogo } from "../../website/abgleich.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { CSP, rendereSeite, STYLESHEET_PFAD } from "../../website/rendern.js";
+import { ladeLadenDaten } from "../../laden/laden.js";
 import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
 import { pruefeVerweise } from "../../website/verweise.js";
 
@@ -215,8 +216,15 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
               sichtbarkeit: "erbt" as const,
             })),
           };
-          const [daten, fakten, [abt], logo] = await Promise.all([
+          const [daten, laden, fakten, [abt], logo] = await Promise.all([
             ladeDaten(db, person.abteilungId, [dokument], false),
+            // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
+            ladeLadenDaten(
+              db,
+              person.abteilungId,
+              [id],
+              new Map([[id, dokument]]),
+            ),
             ladeStufenfaktenGemerkt(db, person.abteilungId, id),
             db
               .select({ name: abteilung.name })
@@ -225,6 +233,10 @@ export function erstelleSeitenInhaltRouten({ db }: { db: Db }) {
             ladeLogo(db, person.abteilungId),
           ]);
           if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
+          if (laden.laden) {
+            daten.laden = laden.laden;
+            daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
+          }
           const seitenHtml = rendereSeite(
             { id, pfad: "/vorschau", dokument },
             {

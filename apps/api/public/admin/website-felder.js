@@ -1367,6 +1367,20 @@ export const TYPEN = {
       ),
     ],
   },
+  laden: {
+    name: "Lädeli",
+    kurz: () => "Artikel der Abteilung mit Warenkorb und Bestellung",
+    pruefe: () => [],
+    form: () => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Zeigt alle Artikel des Lädelis mit Bild, Preis und Varianten. Angemeldete Personen legen Artikel in den Warenkorb und bestellen; ohne Anmeldung ist es eine Preisliste. Die Artikel pflegst du unter ",
+        el("a", { href: "#laedeli/artikel" }, "Lädeli, Artikel"),
+        ".",
+      ),
+    ],
+  },
   stufenfakten: {
     name: "Stufenfelder",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
@@ -1464,6 +1478,11 @@ export const KATALOG = [
   {
     typ: "stufenfakten",
     beschreibung: "Datum, Treffpunkt und Mitnehmen der Stufe.",
+    neu: () => ({}),
+  },
+  {
+    typ: "laden",
+    beschreibung: "Das Lädeli: Artikel, Warenkorb und Bestellung.",
     neu: () => ({}),
   },
   {
