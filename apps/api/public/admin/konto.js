@@ -11,6 +11,7 @@ import { rolleVon } from "./navigation.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
+import { zuschneiden } from "./zuschneiden.js";
 
 const BILD_MAX_BYTES = 5 * 1024 * 1024;
 const BILD_ARTEN = ["image/jpeg", "image/png", "image/webp"];
@@ -360,9 +361,33 @@ function zeichne(bereich, ctx, profil) {
       );
       return;
     }
-    setzeBildLaeuft(true, "Das Bild wird hochgeladen …");
+    // Zuerst zuschneiden (#633); die Seite lädt hoch und zeigt Fehler selbst
+    let ergebnis;
     try {
-      await anfrage("PUT", "/api/v1/ich/bild", gewaehlt);
+      ergebnis = await zuschneiden({
+        datei: gewaehlt,
+        titel: "Profilbild zuschneiden",
+        beschreibung:
+          "Wähle den Teil, der als Profilbild erscheint. Das Bild wird quadratisch und verkleinert.",
+        verhaeltnisse: [{ text: "1:1", wert: 1 }],
+        rund: true,
+        maxSeite: 512,
+        maxBytes: BILD_MAX_BYTES,
+        transparenz: false,
+        ok: "Zuschneiden und hochladen",
+        senden: (d) => anfrage("PUT", "/api/v1/ich/bild", d),
+        fehlertext: bildFehler,
+      });
+    } catch (f) {
+      ctx.melde(f.message, "fehler");
+      return;
+    }
+    if (!ergebnis) {
+      bildWaehlen.focus();
+      return;
+    }
+    setzeBildLaeuft(true, "Das Bild wird geladen …");
+    try {
       await ladeBildStand();
       setzeBildLaeuft(false, "");
       ctx.melde("Dein Profilbild ist gespeichert.");

@@ -1312,6 +1312,36 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/zuschneiden.js:
+    get:
+      operationId: getAdminZuschneidenSkript
+      summary: Skript der Verwaltung – Bild zuschneiden
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zuschneiden.css:
+    get:
+      operationId: getAdminZuschneidenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bild zuschneiden
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht-kacheln.js:
     get:
       operationId: getAdminUebersichtKachelnSkript

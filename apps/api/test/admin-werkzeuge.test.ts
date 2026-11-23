@@ -7,6 +7,7 @@ type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @types
 let sortieren: Modul;
 let filter: Modul;
 let datum: Modul;
+let zuschnitt: Modul;
 
 beforeAll(async () => {
   vi.stubGlobal("document", { addEventListener: () => {} });
@@ -17,6 +18,7 @@ beforeAll(async () => {
   sortieren = await lade("sortieren.js");
   filter = await lade("filterleiste.js");
   datum = await lade("datumsfeld.js");
+  zuschnitt = await lade("zuschneiden.js");
   vi.unstubAllGlobals();
 });
 
@@ -275,5 +277,182 @@ describe("Ziehen mit Bewegung (#609)", () => {
       expect(quelle(datei), datei).not.toMatch(/\bstyle: [`"]/);
       expect(quelle(datei), datei).not.toContain('setAttribute("style"');
     }
+  });
+});
+
+describe("zuschneiden.js (#633)", () => {
+  const bild = { b: 400, h: 300 };
+
+  test("das grösste Rechteck liegt mittig und hat das Verhältnis", () => {
+    expect(zuschnitt.groesstesRechteck!(bild, null)).toEqual({
+      x: 0,
+      y: 0,
+      w: 400,
+      h: 300,
+    });
+    expect(zuschnitt.groesstesRechteck!(bild, 1)).toEqual({
+      x: 50,
+      y: 0,
+      w: 300,
+      h: 300,
+    });
+    const r = zuschnitt.groesstesRechteck!(bild, 16 / 9);
+    expect(r.w).toBe(400);
+    expect(r.h).toBeCloseTo(225);
+    expect(r.y).toBeCloseTo(37.5);
+  });
+
+  test("verhaeltnisWert liest 16:9 und lehnt Unsinn ab", () => {
+    expect(zuschnitt.verhaeltnisWert!("16:9")).toBeCloseTo(16 / 9);
+    expect(zuschnitt.verhaeltnisWert!("frei")).toBeNull();
+    expect(zuschnitt.verhaeltnisWert!("0:3")).toBeNull();
+    expect(zuschnitt.verhaeltnisWert!(null)).toBeNull();
+  });
+
+  test("Verschieben und Begrenzen halten den Ausschnitt im Bild", () => {
+    const r = { x: 50, y: 0, w: 300, h: 300 };
+    expect(zuschnitt.verschiebe!(r, 500, 500, bild)).toEqual({
+      x: 100,
+      y: 0,
+      w: 300,
+      h: 300,
+    });
+    expect(zuschnitt.verschiebe!(r, -500, 0, bild).x).toBe(0);
+    expect(zuschnitt.begrenze!({ x: -5, y: 290, w: 900, h: 50 }, bild)).toEqual(
+      { x: 0, y: 250, w: 400, h: 50 },
+    );
+  });
+
+  test("Skalieren behält das Verhältnis, bleibt im Bild und über der Mindestgrösse", () => {
+    const r = { x: 50, y: 0, w: 300, h: 300 };
+    const klein = zuschnitt.skaliere!(r, 0.5, bild);
+    expect(klein).toEqual({ x: 125, y: 75, w: 150, h: 150 });
+    expect(zuschnitt.skaliere!(r, 5, bild).h).toBe(300);
+    expect(zuschnitt.skaliere!(r, 0.0001, bild).w).toBe(zuschnitt.MIN_SEITE);
+    const ecke = zuschnitt.skaliere!(r, 0.5, bild, { x: 0, y: 0 });
+    expect(ecke.x).toBe(50);
+    expect(ecke.y).toBe(0);
+  });
+
+  test("Griffe ändern Kante oder Ecke; mit Verhältnis bleibt die Gegenecke stehen", () => {
+    const r = { x: 100, y: 100, w: 100, h: 100 };
+    expect(zuschnitt.aendereMitGriff!(r, "e", 50, 0, bild)).toEqual({
+      x: 100,
+      y: 100,
+      w: 150,
+      h: 100,
+    });
+    expect(zuschnitt.aendereMitGriff!(r, "w", -500, 0, bild).x).toBe(0);
+    // nicht über die Gegenkante hinaus
+    expect(zuschnitt.aendereMitGriff!(r, "e", -500, 0, bild).w).toBe(
+      zuschnitt.MIN_SEITE,
+    );
+    const fest = zuschnitt.aendereMitGriff!(r, "se", 40, 0, bild, 1);
+    expect(fest).toEqual({ x: 100, y: 100, w: 140, h: 140 });
+    // an der Ecke «nw» bleibt «se» stehen
+    const nw = zuschnitt.aendereMitGriff!(r, "nw", -30, -30, bild, 1);
+    expect(nw.x + nw.w).toBe(200);
+    expect(nw.y + nw.h).toBe(200);
+    // höchstens bis zum Bildrand
+    expect(zuschnitt.aendereMitGriff!(r, "se", 900, 900, bild, 1).h).toBe(200);
+  });
+
+  test("Drehen um 90 Grad: rechts und links heben sich auf, viermal ergibt das Ausgangsrechteck", () => {
+    const r = { x: 10, y: 20, w: 100, h: 50 };
+    const rechts = zuschnitt.dreheRechteck!(r, bild, true);
+    expect(rechts).toEqual({ x: 230, y: 10, w: 50, h: 100 });
+    expect(zuschnitt.dreheRechteck!(rechts, { b: 300, h: 400 }, false)).toEqual(
+      r,
+    );
+    let x = r;
+    let b = bild;
+    for (let i = 0; i < 4; i++) {
+      x = zuschnitt.dreheRechteck!(x, b, true);
+      b = { b: b.h, h: b.b };
+    }
+    expect(x).toEqual(r);
+  });
+
+  test("passeAn wechselt auf ein Verhältnis, ohne das alte Rechteck zu verlassen", () => {
+    const r = { x: 0, y: 0, w: 400, h: 300 };
+    expect(zuschnitt.passeAn!(r, 1, bild)).toEqual({
+      x: 50,
+      y: 0,
+      w: 300,
+      h: 300,
+    });
+    expect(zuschnitt.passeAn!(r, null, bild)).toBe(r);
+  });
+
+  test("Zoomstufe und Regler sind Umkehrungen", () => {
+    expect(zuschnitt.zoomZuRegler!(1)).toBe(0);
+    expect(zuschnitt.zoomZuRegler!(zuschnitt.ZOOM_MAX!)).toBe(100);
+    expect(zuschnitt.reglerZuZoom!(0)).toBe(1);
+    expect(zuschnitt.zoomZuRegler!(zuschnitt.reglerZuZoom!(50))).toBe(50);
+    expect(
+      zuschnitt.zoomStufe!({ x: 0, y: 0, w: 100, h: 75 }, bild),
+    ).toBeCloseTo(4);
+  });
+
+  test("Ausgabegrösse: nie über dem Ausschnitt, die längere Seite höchstens maxSeite", () => {
+    expect(zuschnitt.ausgabeMasse!({ w: 3000, h: 3000 }, 512)).toEqual({
+      b: 512,
+      h: 512,
+    });
+    expect(zuschnitt.ausgabeMasse!({ w: 4000, h: 2000 }, 2048)).toEqual({
+      b: 2048,
+      h: 1024,
+    });
+    expect(zuschnitt.ausgabeMasse!({ w: 200.4, h: 100.6 }, 2048)).toEqual({
+      b: 200,
+      h: 101,
+    });
+  });
+
+  test("Dateigrösse und Dateiname", () => {
+    expect(zuschnitt.groesseText!(512)).toBe("512 Byte");
+    expect(zuschnitt.groesseText!(2048)).toBe("2 KB");
+    expect(zuschnitt.groesseText!(5 * 1024 * 1024)).toBe("5 MB");
+    expect(zuschnitt.dateiname!("Ausflug 2026.JPG", "image/jpeg")).toBe(
+      "Ausflug 2026-zugeschnitten.jpg",
+    );
+    expect(zuschnitt.dateiname!("logo.png", "image/png")).toBe(
+      "logo-zugeschnitten.png",
+    );
+    expect(zuschnitt.dateiname!("", "image/jpeg")).toBe(
+      "bild-zugeschnitten.jpg",
+    );
+  });
+
+  test("Quelltext: Ausrichtung nach EXIF, Leinwand statt Bild-Element, keine blob:-Adresse, keine Inline-Stile", () => {
+    const q = quelle("zuschneiden.js");
+    expect(q).toContain('imageOrientation: "from-image"');
+    expect(q).toContain("createImageBitmap");
+    expect(q).toContain("toBlob");
+    expect(q).not.toMatch(/createObjectURL|innerHTML|setAttribute\("style"/);
+    expect(q).not.toMatch(/el\("img"/);
+    // Zuhörer für Zeiger, Rad und Tasten
+    expect(q).toContain('"wheel"');
+    expect(q).toContain("pointerdown");
+    expect(q).toContain("keydown");
+    // Eingaben auf der Seite zählen nicht als ungespeicherte Änderung
+    expect(q).toContain("stopPropagation");
+  });
+
+  test("Alle Stellen mit Bild-Upload rufen zuschneiden auf", () => {
+    for (const name of ["konto.js", "stufen.js", "website-medien.js"]) {
+      expect(quelle(name), name).toContain('from "./zuschneiden.js"');
+      expect(quelle(name), name).toContain("zuschneiden(");
+    }
+    expect(quelle("index.html")).toContain("/admin/zuschneiden.css");
+  });
+
+  test("Stilvorlage: Fokus, 44-Pixel-Ziele, Bewegung nur ohne «reduzieren», keine festen Farben", () => {
+    const c = quelle("zuschneiden.css");
+    expect(c).toContain("focus-visible");
+    expect(c).toContain("2.75rem");
+    expect(c).toContain("touch-action: none");
+    expect(c).toContain("prefers-reduced-motion: no-preference");
+    expect(c).not.toMatch(/:[^;]*#[0-9a-fA-F]{3,8}\b/);
   });
 });
