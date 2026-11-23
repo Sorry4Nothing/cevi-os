@@ -244,9 +244,10 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
             id: tag.id,
             typ: tag.typ,
             name: tag.name,
-            rollen: sql<number>`(select count(*)::int from ${gruppenRolle} where ${gruppenRolle.tagId} = ${tag.id})`,
-            mitglieder: sql<number>`(select count(*)::int from ${personTag} where ${personTag.tagId} = ${tag.id})`,
-            mitRolle: sql<number>`(select count(*)::int from ${personTag} where ${personTag.tagId} = ${tag.id} and ${personTag.rolleId} is not null)`,
+            // "tag"."id" ausdrücklich: Drizzle lässt den Tabellennamen bei einer einzigen Tabelle weg, und «id» meinte dann die Spalte der Unterabfrage
+            rollen: sql<number>`(select count(*)::int from ${gruppenRolle} where ${gruppenRolle.tagId} = ${sql.raw('"tag"."id"')})`,
+            mitglieder: sql<number>`(select count(*)::int from ${personTag} where ${personTag.tagId} = ${sql.raw('"tag"."id"')})`,
+            mitRolle: sql<number>`(select count(*)::int from ${personTag} where ${personTag.tagId} = ${sql.raw('"tag"."id"')} and ${personTag.rolleId} is not null)`,
           })
           .from(tag)
           .where(eq(tag.abteilungId, person.abteilungId))
