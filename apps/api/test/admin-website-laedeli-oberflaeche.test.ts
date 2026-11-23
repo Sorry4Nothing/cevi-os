@@ -55,6 +55,24 @@ describe("Bereiche des Pakets 8", () => {
     expect(l).toContain("Nach oben");
   });
 
+  test("Verfügbarkeit je Grösse (#629): mit Grössen entscheiden allein die Grössen, bei Einheitsgrösse bleibt die Checkbox", () => {
+    const l = lies("laedeli.js");
+    // Die Checkbox des Artikels ist bei einer Liste verborgen und ersetzt durch eine Hinweiszeile
+    expect(l).toContain("verfuegbar.wurzel.hidden = liste.eingabe.checked");
+    expect(l).toContain(
+      "Der Artikel ist bestellbar, solange mindestens eine Grösse verfügbar ist.",
+    );
+    // Gespeichert wird mit Liste immer «verfügbar», die Meldungen je Grösse tragen den Stand
+    expect(l).toContain('verfuegbar: art === "liste" ? true');
+    // Altbestand: Liste und ausgeschalteter Artikel zählt als alle Grössen nicht verfügbar
+    expect(l).toContain("export function wegVon");
+    expect(l).toMatch(/\(a\.verfuegbarGesetzt \?\? a\.verfuegbar\) === false/);
+    // Schalter je Grösse als Schalter mit Zustand, Wort unter der Pille
+    expect(l).toContain('role: "switch"');
+    expect(l).toContain("ld-gstand");
+    expect(lies("laedeli.css")).toContain("ul.ld-groessen");
+  });
+
   test("die Medien haben Raster und Liste, Filterleiste und eine Auswahlleiste mit Rückgängig", () => {
     const m = lies("website-medien.js");
     expect(m).toContain("filterleiste(");

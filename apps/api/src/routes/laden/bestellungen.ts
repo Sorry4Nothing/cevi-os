@@ -8,6 +8,7 @@ import {
   ladenArtikel,
   ladenBestellposition,
   ladenBestellung,
+  user,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import {
@@ -115,14 +116,22 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
 
   return (
     new Hono<LadenEnv>()
-      // Der Laden für Apps und Website: alle Artikel der Abteilung (auch nicht verfügbare, mit Kennzeichen), die Übergabearten und die Grenzen. Zwei Abfragen
+      // Der Laden für Apps und Website: alle Artikel der Abteilung (auch nicht verfügbare, mit Kennzeichen), die Übergabearten, die Grenzen und wie die Person angemeldet ist (nur der eigene Name, für die Zeile «Angemeldet als …»). Drei Abfragen
       .get("/laden", async (c) => {
         const person = c.get("person");
-        const [artikel, uebergabearten] = await Promise.all([
+        const [artikel, uebergabearten, [ich]] = await Promise.all([
           ladeArtikel(db, person.abteilungId),
           ladeUebergabearten(db, person.abteilungId),
+          db
+            .select({ name: user.name, ceviName: user.ceviName })
+            .from(user)
+            .where(eq(user.id, person.id)),
         ]);
+        // Cevi-Name, sonst der Vorname; ohne beides nichts (die Anzeige sagt dann nur «Angemeldet»)
+        const angemeldetAls =
+          ich?.ceviName?.trim() || ich?.name?.trim().split(/\s+/)[0] || null;
         return c.json({
+          angemeldetAls,
           artikel: artikel.map(artikelAnsicht),
           uebergabearten,
           grenzen: {

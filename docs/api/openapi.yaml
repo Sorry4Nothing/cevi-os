@@ -22524,7 +22524,7 @@ paths:
       operationId: aendereAdminLadenArtikel
       summary: Artikel ändern
       description: |
-        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Das Audit-Log hält nur die Namen der geänderten Felder fest.
+        Nur Admins mit zweitem Faktor, nur Artikel der eigenen Abteilung. Alle Felder sind optional; ein leeres Objekt ist ein No-op (204). `groessenart` allein wechselt die Art (`einheit` leert die Liste; `liste` braucht `varianten` mit mindestens zwei Einträgen). Eine Liste `varianten` ohne `groessenart` ist 422 `GROESSE_FEHLT`. `mediumId: null` und `hinweis: null` löschen. `nichtVerfuegbar` nennt die Grössen aus `varianten`, die nicht zu haben sind (ersetzt die bisherige Liste; eine Grösse, die nicht in der Liste steht, ist 422 `NICHT_VERFUEGBAR_UNGUELTIG`). Ändert die Liste `varianten`, ohne dass `nichtVerfuegbar` mitkommt, bleiben nur die Meldungen zu Grössen, die es noch gibt; bei `einheit` entfallen alle. Sind alle Grössen nicht verfügbar, gilt der Artikel als nicht verfügbar. Ein Artikel mit Grössen hat in der Verwaltung keinen eigenen Schalter mehr: Sie sendet dann `verfuegbar: true` und lässt allein die Grössen entscheiden. Ein älterer Artikel mit Grössen und `verfuegbar: false` bleibt nicht verfügbar (der Server wertet den Schalter weiter aus). Das Audit-Log hält nur die Namen der geänderten Felder fest.
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Artikel in der eigenen Abteilung (404), Admin-Recht (403), Grösse (422), Verfügbarkeit je Grösse (422), Bild (400).
 
@@ -36948,7 +36948,7 @@ components:
             - "null"
         verfuegbar:
           type: boolean
-          description: Ob der Artikel zu haben ist. `false`, wenn die Verwaltung ihn ausgeschaltet hat (`verfuegbarGesetzt`) oder alle Grössen in `nichtVerfuegbar` stehen.
+          description: Ob der Artikel zu haben ist. `false`, wenn die Verwaltung ihn ausgeschaltet hat (`verfuegbarGesetzt`, bei einer Einheitsgrösse die einzige Einstellung, bei älteren Artikeln mit Grössen weiter gültig) oder alle Grössen in `nichtVerfuegbar` stehen. Mit Grössen setzt die Verwaltung nur noch `nichtVerfuegbar`.
         verfuegbarGesetzt:
           type: boolean
           description: Der Schalter des Artikels selbst, wie ihn die Verwaltung gesetzt hat, unabhängig von den Grössen.
@@ -36959,10 +36959,16 @@ components:
     LadenAnsicht:
       type: object
       required:
+        - angemeldetAls
         - artikel
         - uebergabearten
         - grenzen
       properties:
+        angemeldetAls:
+          type:
+            - string
+            - "null"
+          description: Wie die angemeldete Person heisst (Cevi-Name, sonst Vorname), nur der eigene Name; die Website zeigt «Angemeldet als …». `null`, wenn kein Name hinterlegt ist.
         artikel:
           type: array
           items:

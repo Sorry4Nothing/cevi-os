@@ -230,6 +230,58 @@ export const korbKnopfView = (z) =>
     ),
   );
 
+// Was nach einer erneuten Frage an GET /laden mit dem Zustand «angemeldet» geschieht (#638): ohne Sitzung (401) endet er und alles Angemeldete verschwindet; eine Sitzung, die inzwischen da ist, lädt die Seite neu (Korb, Schnell dazu und Bestellungen stehen erst mit Sitzung); bei einem Fehler oder ohne Netz bleibt der Zustand
+export function kontoSchritt(vorher, status) {
+  if (vorher === "an" && status === 401) return "ende";
+  if (vorher === "aus" && status === 200) return "neu";
+  return "bleibt";
+}
+
+// Der Zustand ohne Sitzung: kein Korb, kein Name, keine Bestellungen
+export const OHNE_SITZUNG = {
+  konto: "aus",
+  name: null,
+  korb: [],
+  entfernt: null,
+  bestaetigt: null,
+  meldung: null,
+  senden: "ruhe",
+  bestellungen: { zustand: "lade", liste: [], weitere: false, naechste: null },
+};
+
+// Die Zeile über dem Raster: wer angemeldet ist, mit dem Weg zum Abmelden; ohne Sitzung steht im Kopf «Zum Bestellen anmelden» (anmeldeView). hinweis: Meldung, wenn die Sitzung eben geendet hat
+export const kontoView = (z) =>
+  z.konto === "an"
+    ? h(
+        "div",
+        { class: "laden-konto" },
+        h(
+          "p",
+          { class: "laden-konto-text" },
+          z.name ? ["Angemeldet als ", h("strong", {}, z.name)] : "Angemeldet",
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            class: "laden-link",
+            "data-aktion": "abmelden",
+            "data-f": "abmelden",
+          },
+          "Abmelden",
+        ),
+        z.kontoFehler
+          ? h(
+              "p",
+              { class: "laden-konto-fehler", role: "alert" },
+              z.kontoFehler,
+            )
+          : null,
+      )
+    : z.sitzungsHinweis
+      ? bandView({ art: "wa", symbol: "warnung", ...z.sitzungsHinweis })
+      : null;
+
 // Besucher ohne Sitzung: ein ruhiger Hinweis mit dem Weg zur Anmeldung; weiter: Artikel, zu dem sie danach zurückkehren
 export const anmeldeView = (z, weiter) =>
   h(
@@ -1255,6 +1307,8 @@ function start(doc, wurzel) {
   const kopf = doc.createElement("div");
   kopf.className = "laden-leiste-korb";
   const werkzeuge = doc.createElement("div");
+  const kontoOrt = doc.createElement("div");
+  kontoOrt.className = "laden-konto-ort";
   const schwebe = doc.createElement("div");
   const dialog = (klasse, titel) =>
     baue(doc, h("dialog", { class: klasse, "aria-labelledby": titel }));
@@ -1297,8 +1351,14 @@ function start(doc, wurzel) {
       }
     }
   }
-  const merke = () => setze("localStorage", SPEICHER, JSON.stringify(z.korb));
+  // Nur mit Sitzung: Ohne sie entsteht nichts im Speicher des Browsers
+  const merke = () => {
+    if (z.konto === "an")
+      setze("localStorage", SPEICHER, JSON.stringify(z.korb));
+  };
+  const zeichneKonto = () => zeichne(kontoOrt, kontoView(z));
   const zeichneKopf = () => {
+    zeichneKonto();
     const an = z.konto === "an";
     zeichne(
       kopf,
@@ -1341,6 +1401,8 @@ function start(doc, wurzel) {
         z.korb = [];
       }
     }
+    z.name = daten.angemeldetAls ?? null;
+    z.sitzungsHinweis = null;
     z.grenzen = daten.grenzen;
     z.uebergabearten = daten.uebergabearten;
     if (!z.uebergabearten.includes(z.uebergabe)) {
@@ -1366,6 +1428,78 @@ function start(doc, wurzel) {
     return r.status;
   }
 
+  // Die Sitzung ist zu Ende (abgemeldet, abgelaufen, auf einem anderen Tab beendet): Alles, was nur mit Sitzung gilt, verschwindet. Korb, Name und Bestellungen werden geleert, der Korb auch aus dem Speicher des Browsers; Schnell dazu, Plus und «Deine Bestellungen» entfallen. hinweis: Meldung für die Zeile über dem Raster (oder nichts)
+  function sitzungEnde(ansage, hinweis) {
+    Object.assign(z, OHNE_SITZUNG, {
+      bestellungen: { ...OHNE_SITZUNG.bestellungen },
+      kontoFehler: null,
+      sitzungsHinweis: hinweis ?? null,
+    });
+    setze("localStorage", SPEICHER, null);
+    wahl = null;
+    for (const dlg of [fensterDlg, korbDlg, karteDlg]) {
+      if (dlg.open) dlg.close();
+    }
+    for (const li of kacheln.values()) {
+      li.classList.remove("schnell-offen");
+      li.querySelector(".laden-schnell-ort")?.remove();
+      li.querySelector(".laden-plus")?.remove();
+    }
+    liste.remove();
+    zeichneKopf();
+    sage(ansage);
+  }
+  const ABGELAUFEN = {
+    titel: "Du bist nicht mehr angemeldet.",
+    text: "Bitte melde dich an, um zu bestellen.",
+  };
+  // Fragt die Sitzung neu ab und folgt dem Ergebnis (kontoSchritt)
+  let zuletzt = Date.now();
+  async function pruefeNeu() {
+    zuletzt = Date.now();
+    const vorher = z.konto;
+    if (vorher === "unbekannt" || z.senden === "sendet") return;
+    const status = await pruefeKonto();
+    const schritt = kontoSchritt(vorher, status);
+    if (schritt === "ende")
+      sitzungEnde("Du bist nicht mehr angemeldet.", ABGELAUFEN);
+    else if (schritt === "neu") fenster.location.reload();
+    else if (vorher === "an" && status === 200) {
+      zeichneKopf();
+      zeichneKorb();
+      zeichneFenster();
+    }
+  }
+  async function meldeAb() {
+    z.kontoFehler = null;
+    let ok;
+    try {
+      const r = await fenster.fetch("/api/auth/sign-out", {
+        method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: "{}",
+      });
+      // 401: Es gab schon keine Sitzung mehr
+      ok = r.ok || r.status === 401;
+    } catch {
+      ok = false;
+    }
+    if (!ok) {
+      z.kontoFehler = "Abmelden hat nicht geklappt. Versuche es nochmals.";
+      zeichneKonto();
+      sage(z.kontoFehler);
+      return;
+    }
+    sitzungEnde("Du bist abgemeldet.");
+    // Der Fokus geht zum Weg zurück in die Anmeldung
+    kopf.querySelector("a")?.focus();
+  }
+
   async function ladeBestellungen(mehr = false) {
     const b = z.bestellungen;
     if (!mehr) {
@@ -1381,6 +1515,10 @@ function start(doc, wurzel) {
       `/laden/bestellungen/meine${mehr && b.naechste ? `?nach=${b.naechste}` : ""}`,
     );
     clearTimeout(ansage);
+    if (r.status === 401) {
+      sitzungEnde("Du bist nicht mehr angemeldet.", ABGELAUFEN);
+      return;
+    }
     if (r.status !== 200) {
       b.zustand = "fehler";
     } else {
@@ -1493,8 +1631,12 @@ function start(doc, wurzel) {
       return;
     }
     if (r.status === 401) {
-      // Die Sitzung ist abgelaufen: Der Knopf wird wieder «Zum Bestellen anmelden»
-      z.konto = "aus";
+      // Die Sitzung ist abgelaufen: Korb und Bedienelemente verschwinden, der Kopf zeigt wieder «Zum Bestellen anmelden»
+      sitzungEnde(
+        "Deine Sitzung ist abgelaufen. Bitte melde dich an.",
+        ABGELAUFEN,
+      );
+      return;
     } else {
       z.meldung = fehlerMeldung(r);
       // Preise, Verfügbarkeit oder Übergabe haben sich geändert: den Laden neu lesen, damit Korb und Summe wieder stimmen
@@ -1511,6 +1653,10 @@ function start(doc, wurzel) {
     if (r.status === 204) {
       await ladeBestellungen();
       sage("Die Bestellung ist storniert.");
+      return;
+    }
+    if (r.status === 401) {
+      sitzungEnde("Du bist nicht mehr angemeldet.", ABGELAUFEN);
       return;
     }
     z.bestellungen.meldung = fehlerMeldung(r);
@@ -1598,6 +1744,8 @@ function start(doc, wurzel) {
       setze("sessionStorage", WEITER, knopf.dataset.weiter ?? "1");
     } else if (aktion === "bestellen") {
       void bestelle();
+    } else if (aktion === "abmelden") {
+      void meldeAb();
     } else if (aktion === "variante" && wahl) {
       wahl.variante = knopf.dataset.variante;
       wahl.dazu = false;
@@ -1752,10 +1900,20 @@ function start(doc, wurzel) {
     }
   }
   wurzel.querySelector(".laden-leiste")?.append(kopf);
-  raster.before(werkzeuge);
+  raster.before(kontoOrt, werkzeuge);
   wurzel.append(schwebe, fensterDlg, korbDlg, karteDlg, live);
   wurzel.classList.add("laden--an");
   zeichne(werkzeuge, werkzeugeView(z));
+
+  // Zurück-Taste (bfcache) und Rückkehr in den Tab: Der Zustand von vorhin kann nicht mehr stimmen (auf einem anderen Tab abgemeldet oder angemeldet). Höchstens eine Abfrage je 30 Sekunden
+  fenster.addEventListener("pageshow", (e) => {
+    if (e.persisted) void pruefeNeu();
+  });
+  doc.addEventListener("visibilitychange", () => {
+    if (doc.visibilityState === "visible" && Date.now() - zuletzt > 30_000) {
+      void pruefeNeu();
+    }
+  });
 
   // Einmal je Besuch: Sitzung prüfen. Mit Sitzung kommen Korb, schnelles Hinzufügen und «Deine Bestellungen» dazu, ohne Sitzung der Hinweis zur Anmeldung. Nach der Anmeldung geht der Artikel oder die Übersicht wieder auf
   void (async () => {

@@ -1625,3 +1625,35 @@ a.laden-knopf--bestellen {
 .laden-leiste-korb .laden-anmelden .meta {
   display: none;
 }
+
+/* ===== Zeile über dem Raster: wer angemeldet ist, mit dem Weg zum Abmelden (#638) ===== */
+
+.laden-konto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0 0;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.laden-konto-text {
+  margin: 0;
+}
+
+.laden-konto-text strong {
+  color: var(--on-surface);
+}
+
+.laden-konto-fehler {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-konto-ort .band {
+  margin-top: 0.75rem;
+}
